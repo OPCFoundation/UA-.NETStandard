@@ -60,6 +60,12 @@ namespace BinPickingClient
         public string? CameraPath { get; init; } = DefaultObserverCameraPath;
 
         /// <summary>
+        /// Raises the log level to Debug, which surfaces every live OpenUSD binding update
+        /// and every target the connector had to leave unresolved.
+        /// </summary>
+        public bool Verbose { get; init; }
+
+        /// <summary>
         /// The stage's fixed observer camera.
         /// </summary>
         public const string DefaultObserverCameraPath = "/World/ObserverCamera";
@@ -93,6 +99,7 @@ namespace BinPickingClient
                 View = HasFlag(args, "--view"),
                 Renderer = GetOption(args, "--renderer"),
                 CameraPath = ResolveCameraPath(GetOption(args, "--camera")),
+                Verbose = HasFlag(args, "--verbose"),
                 FetchAssetsDirectory = GetOption(args, "--fetch-assets"),
                 Seconds = int.TryParse(
                     GetOption(args, "--seconds"), NumberStyles.Integer, CultureInfo.InvariantCulture, out int seconds)

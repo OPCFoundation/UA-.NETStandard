@@ -87,10 +87,20 @@ namespace BinPickingClient
 #endif
             }
 
-            using ILoggerFactory loggerFactory = LoggerFactory.Create(builder =>
-                builder.SetMinimumLevel(LogLevel.Information));
+            // A console provider, or the sample's own logging goes nowhere: the OpenUSD
+            // connector reports what it bound and any target it had to leave unresolved,
+            // and a live stream that silently binds nothing looks exactly like one that
+            // works. Errors go to stderr so stdout stays clean for MCP stdio transport.
+            LogLevel minimumLevel = options.Verbose ? LogLevel.Debug : LogLevel.Information;
+            using ILoggerFactory loggerFactory = LoggerFactory.Create(builder => builder
+                .SetMinimumLevel(minimumLevel)
+                .AddFilter(level => level >= minimumLevel)
+                .AddConsole(console => console.LogToStandardErrorThreshold = LogLevel.Trace));
             ILogger logger = loggerFactory.CreateLogger("BinPickingClient");
-            ITelemetryContext telemetry = DefaultTelemetry.Create(builder => builder.SetMinimumLevel(LogLevel.Warning));
+            ITelemetryContext telemetry = DefaultTelemetry.Create(builder => builder
+                .SetMinimumLevel(minimumLevel)
+                .AddFilter(level => level >= minimumLevel)
+                .AddConsole(console => console.LogToStandardErrorThreshold = LogLevel.Trace));
             using CancellationTokenSource lifetime = options.Seconds > 0
                 ? new CancellationTokenSource(TimeSpan.FromSeconds(options.Seconds))
                 : new CancellationTokenSource();
@@ -354,7 +364,8 @@ namespace BinPickingClient
                 {
                     viewHost.RunViewport(
                         viewOptions,
-                        async (sink, ct) => await StreamOpenUsdAsync(session, sink, streamReady, ct)
+                        async (sink, ct) => await StreamOpenUsdAsync(
+                                session, sink, viewOptions.Telemetry, streamReady, ct)
                             .ConfigureAwait(false),
                         cancellationToken);
                     completion.TrySetResult(true);
@@ -381,10 +392,15 @@ namespace BinPickingClient
         private static async Task StreamOpenUsdAsync(
             ISession session,
             IUsdSink sink,
+            ITelemetryContext? telemetry,
             TaskCompletionSource<bool>? streamReady,
             CancellationToken cancellationToken)
         {
-            var connector = new OpenUsdConnector(session, sink, enableCommands: false);
+            // Thread telemetry in: without it the connector logs to NullLogger, so a live
+            // stream that binds nothing, or that leaves every target unresolved, looks
+            // exactly like one that is working.
+            var connector = new OpenUsdConnector(
+                session, sink, new OpenUsdConnectorOptions { EnableCommands = false }, telemetry);
             await using (connector.ConfigureAwait(false))
             {
                 await connector.StartAsync(cancellationToken).ConfigureAwait(false);

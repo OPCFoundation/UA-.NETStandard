@@ -254,6 +254,37 @@ corrected against what the viewer actually rendered, because the analytic
 placement and the rendered result disagreed. Treat them as measured rather than
 derived: change one and re-check the framing against a capture.
 
+### Diagnosing the live stream
+
+Pass `--verbose` to raise the log level to Debug. The OpenUSD connector then
+reports what it bound at start-up:
+
+```
+OpenUSD live stream bound 11 binding(s) across 12 representation(s) and is
+monitoring 11 item(s).
+```
+
+and one line per live update, plus a warning for any target it had to leave
+*unresolved*. That last one matters: the §5.8 profiles fail closed, so a source
+value in a shape a profile does not accept produces a prim that silently never
+moves while every subscription counter says the data is flowing. It is worth
+knowing which of the two you are looking at.
+
+### Known limitation: a viewer-only session shows a static scene
+
+A client started with `--view` alone, while a *different* client or an agent
+drives the cell, renders a scene that never changes — the arm included, not just
+the parts. A single process that both views and commands (`--demo --view`)
+updates correctly.
+
+Measured with `--verbose`: the viewer-only session binds 11 bindings and monitors
+11 items, exactly as the working one does, and then receives **zero** live
+updates, where the commanding session receives about 1,900 over the same
+sequence. So the subscription is created and the notifications never arrive. The
+cause is not yet identified, and it is not the parts specifically.
+
+Until it is fixed, watch the cell from the process that drives it.
+
 The client fetches the cell's served OpenUSD assets automatically whenever the
 viewport opens, into a per-user cache directory. Pass `--fetch-assets <dir>` only
 when you want the fetched stage written somewhere you choose, for example to

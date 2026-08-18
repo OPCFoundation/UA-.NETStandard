@@ -656,11 +656,15 @@ namespace Opc.Ua.OpenUsd.Client
             m_subscription = subscription;
             m_session.AddSubscription(subscription);
             await subscription.CreateAsync(ct).ConfigureAwait(false);
+            int bindingCount = 0;
+            int monitoredCount = 0;
 
             foreach (RepresentationInfo rep in reps)
             {
                 foreach (BindingInfo b in rep.Bindings)
                 {
+                    bindingCount++;
+
                     // Command bindings are actuated on demand (IssueCommandAsync), and
                     // history bindings are replayed via ReplayHistoryAsync — neither is a
                     // live MonitoredItem. Telemetry and alarm bindings subscribe here.
@@ -684,9 +688,11 @@ namespace Opc.Ua.OpenUsd.Client
                     };
                     item.Notification += OnNotification;
                     subscription.AddItem(item);
+                    monitoredCount++;
                 }
             }
             await subscription.ApplyChangesAsync(ct).ConfigureAwait(false);
+            m_logger.LiveBindingsSubscribed(bindingCount, reps.Count, monitoredCount);
 
             // Compose each representation's components into the USD prim tree (§5.12):
             // author child/reference/instance prims and federate to remote servers
@@ -819,6 +825,18 @@ namespace Opc.Ua.OpenUsd.Client
                 if (!usdValue.IsNull)
                 {
                     m_sink.SetAttribute(b.PrimPath!, b.PropertyName!, usdValue);
+                    m_logger.LiveUpdateApplied(
+                        b.PrimPath ?? string.Empty, b.PropertyName ?? string.Empty,
+                        b.SourceNodeId.ToString());
+                }
+                else
+                {
+                    // Silence here is what makes an unresolved target so hard to find: the
+                    // prim simply never moves, while every subscription counter says the
+                    // data is arriving. Say so instead.
+                    m_logger.LiveUpdateUnresolved(
+                        b.PrimPath ?? string.Empty, b.PropertyName ?? string.Empty,
+                        b.SourceNodeId.ToString(), b.Kind.ToString());
                 }
             }
         }
