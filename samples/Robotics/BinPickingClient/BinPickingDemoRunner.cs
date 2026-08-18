@@ -148,6 +148,14 @@ namespace BinPickingClient
 
             string intentIdPrefix = "binpickclient-" +
                 DateTime.UtcNow.ToString("yyyyMMddHHmmssfff", CultureInfo.InvariantCulture);
+
+            if (m_options.StackAll)
+            {
+                return await StackEveryPartAsync(
+                    controller, sourceLocation, destinationLocation, tool, intentIdPrefix,
+                    initialDetections, cancellationToken).ConfigureAwait(false);
+            }
+
             string pickIntentId = intentIdPrefix + "-pick";
             string placeIntentId = intentIdPrefix + "-place";
 
@@ -329,14 +337,95 @@ namespace BinPickingClient
             _ = pipeline;
         }
 
-        private async Task<bool> SubmitPickAsync(
+        /// <summary>
+        /// Picks every part the detector reported and places them all on the same
+        /// destination, which leaves them stacked because the cell rests each released part
+        /// on whatever is already there.
+        /// </summary>
+        /// <remarks>
+        /// The order is the order the detector reported, so the stack is built out of what
+        /// the camera actually saw rather than a hard-coded list. Each cycle waits for its
+        /// intent to reach a terminal state before the next is submitted: overlapping them
+        /// puts the next Pick in the queue while the arm is still carrying the last part,
+        /// and the parts end up wherever the arm happened to be.
+        /// </remarks>
+        private async Task<int> StackEveryPartAsync(
+            RobotIntentControllerClient controller,
+            NodeId source,
+            NodeId destination,
+            NodeId tool,
+            string intentIdPrefix,
+            VisionDetectionResultSnapshot? detections,
+            CancellationToken cancellationToken)
+        {
+            var labels = new List<string>();
+            if (detections is not null)
+            {
+                foreach (VisionDetectionDataType detection in detections.Detections)
+                {
+                    string label = detection.ClassLabel ?? string.Empty;
+                    if (label.Length > 0 && !labels.Contains(label, StringComparer.Ordinal))
+                    {
+                        labels.Add(label);
+                    }
+                }
+            }
+            if (labels.Count == 0)
+            {
+                Console.Error.WriteLine(
+                    "Stack-all found no detected parts to stack; nothing to do.");
+                return 6;
+            }
+
+            Console.Error.WriteLine(
+                "Stacking " + labels.Count + " part(s) the camera reported: " + string.Join(", ", labels));
+            int placed = 0;
+            foreach (string label in labels)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                string cycle = intentIdPrefix + "-" + placed;
+                Console.Error.WriteLine(
+                    "--- " + label + " (" + (placed + 1) + " of " + labels.Count + ") ---");
+                if (!await SubmitPickAsync(
+                        controller, source, tool, cycle + "-pick", label, cancellationToken)
+                    .ConfigureAwait(false))
+                {
+                    return 7;
+                }
+                if (!await SubmitPlaceAsync(
+                        controller, destination, tool, cycle + "-place", cancellationToken)
+                    .ConfigureAwait(false))
+                {
+                    return 8;
+                }
+                placed++;
+            }
+
+            Console.Error.WriteLine(
+                "Stacked " + placed + " part(s) on the destination. Each one rests on the one below it.");
+            return 0;
+        }
+
+        private Task<bool> SubmitPickAsync(
             RobotIntentControllerClient controller,
             NodeId source,
             NodeId tool,
             string intentId,
             CancellationToken cancellationToken)
         {
-            PickIntentDataType intent = RobotIntentBuilder.Pick(source, tool, m_options.PartClassLabel)
+            return SubmitPickAsync(
+                controller, source, tool, intentId, m_options.PartClassLabel, cancellationToken);
+        }
+
+        private async Task<bool> SubmitPickAsync(
+            RobotIntentControllerClient controller,
+            NodeId source,
+            NodeId tool,
+            string intentId,
+            string objectClass,
+            CancellationToken cancellationToken)
+        {
+            PickIntentDataType intent = RobotIntentBuilder.Pick(source, tool, objectClass)
                 .WithIntentId(intentId)
                 .Build();
             IntentSubmissionResult submission = await controller.TrySubmitIntentAsync(intent, cancellationToken)

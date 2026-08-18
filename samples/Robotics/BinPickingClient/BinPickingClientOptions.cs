@@ -66,6 +66,12 @@ namespace BinPickingClient
         public bool Verbose { get; init; }
 
         /// <summary>
+        /// Picks every part the detector reports and places them all on the destination,
+        /// so they end up stacked, rather than running a single pick-and-place cycle.
+        /// </summary>
+        public bool StackAll { get; init; }
+
+        /// <summary>
         /// The stage's fixed observer camera.
         /// </summary>
         public const string DefaultObserverCameraPath = "/World/ObserverCamera";
@@ -100,6 +106,7 @@ namespace BinPickingClient
                 Renderer = GetOption(args, "--renderer"),
                 CameraPath = ResolveCameraPath(GetOption(args, "--camera")),
                 Verbose = HasFlag(args, "--verbose"),
+                StackAll = HasFlag(args, "--stack-all"),
                 FetchAssetsDirectory = GetOption(args, "--fetch-assets"),
                 Seconds = int.TryParse(
                     GetOption(args, "--seconds"), NumberStyles.Integer, CultureInfo.InvariantCulture, out int seconds)
