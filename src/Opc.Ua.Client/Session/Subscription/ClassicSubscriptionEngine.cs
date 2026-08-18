@@ -238,7 +238,10 @@ namespace Opc.Ua.Client
         /// </remarks>
         /// <param name="timeout">The timeout for publish requests
         /// in milliseconds.</param>
-        /// <returns>True if the request was sent successfully.</returns>
+        /// <returns>
+        /// True if the pipeline holds the requested publish request when this
+        /// returns, whether it was sent here or was already outstanding.
+        /// </returns>
         internal bool BeginPublish(int timeout)
         {
             // At least one, so an empty pipeline is always refillable even
@@ -247,7 +250,11 @@ namespace Opc.Ua.Client
 
             if (!TryReservePublishRequest(limit, out _))
             {
-                return false;
+                // The pipeline already holds the requests this nudge asks for,
+                // so the caller's intent is met without sending. Sending anyway
+                // cannot help: the server holds that many requests already and
+                // answers the surplus with BadTooManyPublishRequests.
+                return true;
             }
 
             if (!BeginPublishCore(timeout))
