@@ -36,6 +36,7 @@ using Opc.Ua;
 using Opc.Ua.Robotics.Server;
 using Opc.Ua.Server;
 using Opc.Ua.Vision.OpenUsd;
+using Robotics.IntentEnabledRobot.Kinematics;
 using Robotics.IntentEnabledRobot.Simulation;
 using Vision.BinPickingCell;
 
@@ -69,6 +70,12 @@ var sensorSpec = new BinPickingSensorSpec(
 builder.Services.AddSingleton(stage);
 builder.Services.AddSingleton(sensorSpec);
 builder.Services.AddSingleton(cellOptions);
+
+// The arm is bolted to the bench, so the bench is z = 0 in its own base frame. Telling
+// the solver that stops it handing back configurations that reach through the work
+// surface - several inverse-kinematic solutions for a target near the bench do exactly
+// that, and taking the nearest one regardless renders an arm passing through its table.
+builder.Services.AddSingleton(_ => new SimulatedArmKinematics { MinimumLinkHeight = 0.0 });
 builder.Services.AddSingleton<SimulatedArmExecutor>();
 builder.Services.AddSingleton<BinPickingRobotCell>();
 builder.Services.AddSingleton<BinPickingWorldState>();

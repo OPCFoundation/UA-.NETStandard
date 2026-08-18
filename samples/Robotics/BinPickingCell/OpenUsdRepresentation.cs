@@ -143,11 +143,22 @@ namespace Vision.BinPickingCell
                     Description = new LocalizedText("Position of " + part.ClassLabel + " in the world frame, in metres."),
                     TypeDefinitionId = VariableTypeIds.BaseDataVariableType,
                     ReferenceTypeId = ReferenceTypeIds.HasComponent,
-                    DataType = Opc.Ua.DataTypeIds.Double,
-                    ValueRank = ValueRanks.OneDimension,
+
+                    // A structured coordinate, not a double[3]: the OpenUSD companion
+                    // specification defines a translation source as a structured 3D value
+                    // and the connector's translation profile fails closed on anything
+                    // else, so an array left every part unresolved and the viewport never
+                    // moved a part however faithfully the server tracked it.
+                    DataType = Opc.Ua.DataTypeIds.ThreeDCartesianCoordinates,
+                    ValueRank = ValueRanks.Scalar,
                     AccessLevel = AccessLevels.CurrentRead,
                     UserAccessLevel = AccessLevels.CurrentRead,
-                    Value = new Variant(part.InitialWorldPosition)
+                    Value = new Variant(new ExtensionObject(new ThreeDCartesianCoordinates
+                    {
+                        X = part.InitialWorldPosition[0],
+                        Y = part.InitialWorldPosition[1],
+                        Z = part.InitialWorldPosition[2]
+                    }))
                 };
                 folder.AddChild(position);
                 m_partPositionNodes[part.ClassLabel] = position;

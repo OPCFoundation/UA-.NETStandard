@@ -42,6 +42,7 @@
          sample. Reused verbatim so the vision cell shares the same executor and
          reachability logic; both are the reference implementation. -->
     <Compile Include="..\IntentEnabledRobot\Simulation\SimulatedArmExecutor.cs" Link="Simulation\SimulatedArmExecutor.cs" />
+    <Compile Include="..\IntentEnabledRobot\Simulation\SimulatedSupportModel.cs" Link="Simulation\SimulatedSupportModel.cs" />
     <Compile Include="..\IntentEnabledRobot\Kinematics\SimulatedArmKinematics.cs" Link="Kinematics\SimulatedArmKinematics.cs" />
   </ItemGroup>
   <ItemGroup>

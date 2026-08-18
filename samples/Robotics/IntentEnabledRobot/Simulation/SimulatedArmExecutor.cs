@@ -180,6 +180,15 @@ namespace Robotics.IntentEnabledRobot.Simulation
         public event EventHandler<SimulatedArmSnapshot>? SnapshotChanged;
 
         /// <summary>
+        /// Gets how far below the tool centre point a grasped part hangs.
+        /// </summary>
+        /// <remarks>
+        /// A host that decides where a part should come to rest needs this to work back
+        /// from the part's resting height to the tool pose that leaves it there.
+        /// </remarks>
+        public const double HeldPartTcpOffset = 0.035;
+
+        /// <summary>
         /// Resolves a Location NodeId to the position, in this arm's base frame, that a
         /// Pick or Place should travel to before actuating the gripper. Optional: leave it
         /// unset and both intents actuate the gripper where the arm already stands.
@@ -1163,7 +1172,6 @@ namespace Robotics.IntentEnabledRobot.Simulation
         private const double BenchTopZ = 0.829;
         private const double GripperOpen = 0.08;
         private const double GripperClosed = 0.018;
-        private const double HeldPartTcpOffset = 0.035;
         private const int StackSlotCount = 8;
 
         private readonly System.Threading.Lock m_lock = new();

@@ -59,7 +59,13 @@ namespace Robotics.IntentEnabledRobot.Kinematics
         /// <summary>
         /// Every geometric solution violates at least one joint limit.
         /// </summary>
-        JointLimit
+        JointLimit,
+
+        /// <summary>
+        /// Every geometric solution drives a link through the work surface the arm is
+        /// mounted on.
+        /// </summary>
+        WorkSurface
     }
 
     /// <summary>
@@ -404,8 +410,69 @@ namespace Robotics.IntentEnabledRobot.Kinematics
         {
             SimulatedArmIkResult result = Inverse(target, currentJointAngles);
             failure = result.Failure;
-            solution = result.Solutions.IsEmpty ? null : result.Solutions[0];
-            return solution is not null;
+            solution = null;
+            if (result.Solutions.IsEmpty)
+            {
+                return false;
+            }
+
+            // Solutions come back nearest-first. Take the nearest one that does not reach
+            // through the surface the arm stands on: several of them do, and a cell that
+            // takes the first regardless renders an arm passing through its own bench.
+            ReadOnlySpan<SimulatedArmIkSolution> candidates = result.Solutions.Span;
+            for (int ii = 0; ii < candidates.Length; ii++)
+            {
+                if (ClearsWorkSurface(candidates[ii].JointAngles.Span))
+                {
+                    solution = candidates[ii];
+                    return true;
+                }
+            }
+
+            // Refusing is the honest answer. Returning the first solution anyway would put
+            // a link through the bench, and a move that cannot be made without doing that
+            // is one the arm should decline rather than mime.
+            failure = SimulatedArmKinematicFailure.WorkSurface;
+            return false;
+        }
+
+        /// <summary>
+        /// Gets or sets the lowest height, in the arm's own base frame, that any joint
+        /// origin may occupy. Defaults to no constraint.
+        /// </summary>
+        /// <remarks>
+        /// An arm bolted to a bench has the bench at zero in its base frame, so a host that
+        /// mounts it that way sets this to zero and the solver stops handing back poses
+        /// that pass through the work surface.
+        /// </remarks>
+        public double MinimumLinkHeight { get; set; } = double.NegativeInfinity;
+
+        /// <summary>
+        /// Gets a value indicating whether every joint origin of a configuration stays at
+        /// or above <see cref="MinimumLinkHeight"/>.
+        /// </summary>
+        /// <param name="jointAngles">
+        /// The configuration to test, in radians.
+        /// </param>
+        /// <returns>
+        /// <c>true</c> when no link reaches below the work surface.
+        /// </returns>
+        public bool ClearsWorkSurface(ReadOnlySpan<double> jointAngles)
+        {
+            if (double.IsNegativeInfinity(MinimumLinkHeight))
+            {
+                return true;
+            }
+            SimulatedArmForwardPose pose = Forward(jointAngles);
+            ReadOnlySpan<Pose3DDataType> frames = pose.JointFramePoses.Span;
+            for (int ii = 0; ii < frames.Length; ii++)
+            {
+                if (frames[ii].Position.Span[2] < MinimumLinkHeight)
+                {
+                    return false;
+                }
+            }
+            return pose.ToolPose.Position.Span[2] >= MinimumLinkHeight;
         }
 
         /// <summary>

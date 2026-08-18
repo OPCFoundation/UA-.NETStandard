@@ -264,12 +264,68 @@ namespace Vision.BinPickingCell
             {
                 if (m_locationNodes.TryGetValue(name, out NodeId nodeId) && nodeId == location)
                 {
-                    position = new[] { x, y, (z - RobotBaseHeightMetres) + ApproachHeightMetres }.ToArrayOf();
+                    // Carrying something means this is the move before a Place, because a
+                    // Pick travels with the gripper empty and closes on arrival while a
+                    // Place travels holding the part and opens. So the tool can descend to
+                    // the height that leaves the part exactly on its support, and releasing
+                    // becomes a release rather than a drop from the approach height.
+                    double toolWorldZ = m_carriedClass.Length > 0
+                        ? RestingCentreHeight(m_carriedClass, x, y) + SimulatedArmExecutor.HeldPartTcpOffset
+                        : z + ApproachHeightMetres;
+                    position = new[] { x, y, toolWorldZ - RobotBaseHeightMetres }.ToArrayOf();
                     return true;
                 }
             }
             position = ArrayOf<double>.Empty;
             return false;
+        }
+
+        /// <summary>
+        /// Gets the height a part's centre comes to rest at over a spot on the bench, given
+        /// everything else that is standing there.
+        /// </summary>
+        /// <remarks>
+        /// This is what makes a second part placed on the same spot end up on top of the
+        /// first rather than inside it, and it is why a placed part stops floating: the
+        /// part used to be left wherever the tool centre point was, which for a Place at the
+        /// approach height was 165 mm above the bench.
+        /// </remarks>
+        private double RestingCentreHeight(string classLabel, double x, double y)
+        {
+            BinPickingPart? part = BinPickingPartsCatalog.TryGet(classLabel);
+            if (part == null)
+            {
+                return BenchTopMetres;
+            }
+            return m_support.RestingCentreHeight(
+                x, y, part.Size[0], part.Size[1], part.Size[2], SupportingParts(classLabel));
+        }
+
+        /// <summary>
+        /// Gets the other parts as solids that can hold something up, leaving out the one
+        /// being placed and anything currently in the gripper.
+        /// </summary>
+        private ArrayOf<SimulatedSupportSolid> SupportingParts(string exclude)
+        {
+            IReadOnlyList<BinPickingPartSnapshot> parts = m_worldState.Snapshot();
+            var solids = new List<SimulatedSupportSolid>(parts.Count);
+            for (int ii = 0; ii < parts.Count; ii++)
+            {
+                BinPickingPartSnapshot snapshot = parts[ii];
+                if (string.Equals(snapshot.Part.ClassLabel, exclude, StringComparison.Ordinal)
+                    || snapshot.Location == BinPickingPartLocation.Held)
+                {
+                    continue;
+                }
+                solids.Add(new SimulatedSupportSolid(
+                    snapshot.Part.ClassLabel,
+                    snapshot.WorldX,
+                    snapshot.WorldY,
+                    snapshot.Part.Size[0],
+                    snapshot.Part.Size[1],
+                    snapshot.WorldZ + (snapshot.Part.Size[2] * 0.5)));
+            }
+            return ArrayOf.Create(solids.ToArray().AsSpan());
         }
 
         /// <summary>
@@ -302,18 +358,46 @@ namespace Vision.BinPickingCell
             }
             if (!snapshot.HasObject && m_carriedClass.Length > 0)
             {
-                // The gripper opened: the part stays where it was let go, which is what a
-                // detector re-running after the Place should now find.
-                _ = m_worldState.MarkPlaced(m_carriedClass, worldX, worldY, worldZ);
-                PublishPartPosition(m_carriedClass, worldX, worldY, worldZ);
+                // The gripper opened. The part settles onto whatever is under it rather
+                // than staying at the tool centre point: released at the approach height it
+                // would hang in the air, and released over another part it would stand
+                // inside it. The tool has normally already descended to the resting height
+                // by this point, so this is a few millimetres of settle, not a fall.
+                double restingZ = m_support.ClampAboveSupport(
+                    worldX,
+                    worldY,
+                    PartSize(m_carriedClass, 0),
+                    PartSize(m_carriedClass, 1),
+                    PartSize(m_carriedClass, 2),
+                    worldZ,
+                    SupportingParts(m_carriedClass));
+                _ = m_worldState.MarkPlaced(m_carriedClass, worldX, worldY, restingZ);
+                PublishPartPosition(m_carriedClass, worldX, worldY, restingZ);
                 m_carriedClass = string.Empty;
             }
+        }
+
+        /// <summary>
+        /// Gets one extent of a part, or zero when the catalogue does not know it.
+        /// </summary>
+        private static double PartSize(string classLabel, int axis)
+        {
+            BinPickingPart? part = BinPickingPartsCatalog.TryGet(classLabel);
+            return part == null ? 0.0 : part.Size[axis];
         }
 
         /// <summary>
         /// Pushes a part's world position onto its variable so the OpenUSD live binding, and
         /// any other subscriber, follows it.
         /// </summary>
+        /// <remarks>
+        /// The value is a <see cref="ThreeDCartesianCoordinates"/> rather than a bare
+        /// <c>double[3]</c> on purpose. §5.8 of the OpenUSD companion specification defines
+        /// a translation source as a structured 3D coordinate, and the connector's
+        /// translation profile fails closed on anything else - so a plain array left every
+        /// part's translation unresolved and the parts never moved in the viewport, however
+        /// faithfully the server tracked them.
+        /// </remarks>
         private void PublishPartPosition(string classLabel, double worldX, double worldY, double worldZ)
         {
             if (m_systemContext == null
@@ -321,7 +405,12 @@ namespace Vision.BinPickingCell
             {
                 return;
             }
-            node.Value = new Variant(new[] { worldX, worldY, worldZ });
+            node.Value = new Variant(new ExtensionObject(new ThreeDCartesianCoordinates
+            {
+                X = worldX,
+                Y = worldY,
+                Z = worldZ
+            }));
             node.ClearChangeMasks(m_systemContext, false);
         }
 
@@ -375,8 +464,17 @@ namespace Vision.BinPickingCell
         // offset between the two. It matches the RobotBase frame the Vision model publishes.
         private const double RobotBaseHeightMetres = 0.829;
 
-        // How far above a Location the tool travels to. Far enough to read as an approach
-        // rather than a collision, and it keeps the target clear of the bench surface.
+        // The bench top, which is also where the base is bolted.
+        private const double BenchTopMetres = 0.829;
+
+        // Top faces of the fixture plate and its locating pegs, from Cell.usda.
+        private const double FixturePlateTopMetres = 0.838;
+        private const double FixturePegTopMetres = 0.878;
+
+        // How far above a Location the tool travels to when it is going to pick something
+        // up. Far enough to read as an approach rather than a collision. A Place does not
+        // use this: it descends to the height that leaves the part resting on whatever is
+        // under it, so releasing does not drop the part from the approach height.
         private const double ApproachHeightMetres = 0.20;
 
         // The simulator's DefaultJointSpeed is 0.9 rad/s; Position and the limits are
@@ -386,8 +484,25 @@ namespace Vision.BinPickingCell
 
         private static readonly (string Name, double X, double Y, double Z, double Rz)[] s_locations =
         [
-            ("Bin", 0.41, -0.28, 0.829, 0.0),
-            ("Fixture", 0.48, 0.26, 0.829, 25.0)
+            // These are where the bin and the fixture actually are in Cell.usda. They used
+            // to be somewhere else entirely - the Bin at y = -0.28 when the bin spans
+            // +/-0.12, the Fixture at (0.48, 0.26) when the fixture stands at (-0.32, 0) -
+            // so "place it on the fixture" put the part down on bare bench a long way from
+            // the fixture, and the render disagreed with the model about where the cell's
+            // own furniture was. The Z is the surface a part stands on there.
+            ("Bin", 0.38, 0.0, BenchTopMetres, 0.0),
+            ("Fixture", -0.32, 0.0, FixturePlateTopMetres, 25.0)
+        ];
+
+        // The solids in this cell that never move and that a part can come to rest on, in
+        // the world frame. Sizes are full extents, matching Cell.usda.
+        private static readonly SimulatedSupportSolid[] s_supportFixtures =
+        [
+            new("Bench", 0.0, 0.0, 1.4, 0.9, BenchTopMetres),
+            new("FixturePlate", -0.32, 0.0, 0.14, 0.14, FixturePlateTopMetres),
+            new("FixturePegA", -0.352, 0.03, 0.018, 0.018, FixturePegTopMetres),
+            new("FixturePegB", -0.288, 0.03, 0.018, 0.018, FixturePegTopMetres),
+            new("FixturePegC", -0.32, -0.03, 0.018, 0.018, FixturePegTopMetres)
         ];
 
         private static readonly string[] s_axes = ["J1", "J2", "J3", "J4", "J5", "J6"];
@@ -397,6 +512,8 @@ namespace Vision.BinPickingCell
         private readonly ILogger<BinPickingRobotCell> m_logger;
         private readonly SimulatedArmExecutor m_executor;
         private readonly BinPickingWorldState m_worldState;
+        private readonly SimulatedSupportModel m_support =
+            new(ArrayOf.Create(s_supportFixtures.AsSpan()), BenchTopMetres);
         private string m_carriedClass = string.Empty;
         private readonly List<global::Opc.Ua.RobotIntent.AxisState> m_axes = [];
         private readonly List<global::Opc.Ua.RobotIntent.LocationState> m_locations = [];
