@@ -538,28 +538,41 @@ namespace Opc.Ua.PubSub.Udp
             ReadOnlyMemory<byte> payload,
             CancellationToken cancellationToken)
         {
-            if (socket.AddressFamily == AddressFamily.InterNetwork)
+            try
             {
+                if (socket.AddressFamily == AddressFamily.InterNetwork)
+                {
+                    await SendOnceAsync(
+                        socket,
+                        StandardDiscoveryEndpoint,
+                        isConnectedSocket: false,
+                        payload,
+                        cancellationToken).ConfigureAwait(false);
+                    return;
+                }
+
+                using Socket discoverySocket = new(
+                    AddressFamily.InterNetwork,
+                    SocketType.Dgram,
+                    ProtocolType.Udp);
+                ConfigureSocket(discoverySocket);
+                discoverySocket.Bind(new IPEndPoint(IPAddress.Any, 0));
                 await SendOnceAsync(
-                    socket,
+                    discoverySocket,
                     StandardDiscoveryEndpoint,
                     isConnectedSocket: false,
                     payload,
                     cancellationToken).ConfigureAwait(false);
-                return;
             }
-            using Socket discoverySocket = new(
-                AddressFamily.InterNetwork,
-                SocketType.Dgram,
-                ProtocolType.Udp);
-            ConfigureSocket(discoverySocket);
-            discoverySocket.Bind(new IPEndPoint(IPAddress.Any, 0));
-            await SendOnceAsync(
-                discoverySocket,
-                StandardDiscoveryEndpoint,
-                isConnectedSocket: false,
-                payload,
-                cancellationToken).ConfigureAwait(false);
+            catch (SocketException ex) when (
+                ex.SocketErrorCode is SocketError.HostUnreachable
+                    or SocketError.NetworkUnreachable
+                    or SocketError.NetworkDown
+                    or SocketError.AddressNotAvailable
+                    or SocketError.AccessDenied)
+            {
+                m_logger.MulticastDiscoveryAnnouncementFailed(ex, m_connection.Name);
+            }
         }
 
         /// <inheritdoc/>
@@ -1306,6 +1319,14 @@ namespace Opc.Ua.PubSub.Udp
         [LoggerMessage(EventId = PubSubUdpEventIds.UdpDatagramTransport + 16, Level = LogLevel.Debug,
             Message = "StateChanged handler threw for connection '{Connection}'.")]
         public static partial void StateChangedHandlerThrew(
+            this ILogger logger,
+            Exception exception,
+            string? connection);
+
+        [LoggerMessage(EventId = PubSubUdpEventIds.UdpDatagramTransport + 17, Level = LogLevel.Warning,
+            Message = "Multicast discovery announcement could not be delivered for connection '{Connection}'. " +
+                "Multicast may not be available in this network environment.")]
+        public static partial void MulticastDiscoveryAnnouncementFailed(
             this ILogger logger,
             Exception exception,
             string? connection);
