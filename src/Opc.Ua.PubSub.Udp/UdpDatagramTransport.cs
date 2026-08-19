@@ -931,12 +931,19 @@ namespace Opc.Ua.PubSub.Udp
                 }
                 catch (SocketException ex) when (ex.SocketErrorCode == SocketError.IsConnected)
                 {
-                    // macOS (Darwin) can report EISCONN when connecting a datagram socket
-                    // that the OS already associated with the destination. The socket is
-                    // connected to the intended peer, so treat this as success.
-                    if (m_logger.IsEnabled(LogLevel.Debug))
+                    if (socket.RemoteEndPoint is IPEndPoint existing && existing.Equals(remote))
                     {
-                        m_logger.UdpUnicastAlreadyConnected(ex, m_connection.Name, remote.ToString());
+                        // macOS (Darwin) can report EISCONN when connecting a datagram socket
+                        // that the OS already associated with the destination. The socket is
+                        // connected to the intended peer, so treat this as success.
+                        if (m_logger.IsEnabled(LogLevel.Debug))
+                        {
+                            m_logger.UdpUnicastAlreadyConnected(ex, m_connection.Name, remote.ToString());
+                        }
+                    }
+                    else
+                    {
+                        throw;
                     }
                 }
                 m_sendDestination = remote;
