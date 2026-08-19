@@ -76,17 +76,17 @@ builder.Services.AddSingleton(cellOptions);
 // surface - several inverse-kinematic solutions for a target near the bench do exactly
 // that, and taking the nearest one regardless renders an arm passing through its table.
 //
-// The height alone is not enough, though: it is a plane sampled at the joint origins, so
-// a link can span it, and it says nothing about the bin or the fixture.
+// The height alone is not enough, though: it is a plane sampled at the joint origins, so a
+// link can span it, and it says nothing about the bin or the fixture.
 // BinPickingCellGeometry.CreateCollisionModel() describes the cell's furniture as solids
-// and SimulatedArmKinematics.Collisions enforces it, which is the honest model. It is not
-// switched on yet: with it enforced the solver refuses so many configurations that the
-// arm stops part-way through a cycle, because a refused approach has no fallback - there
-// is no motion planner here to route around an obstacle, only a straight line that is
-// either clear or not. Enabling it needs that planning step first.
+// and SimulatedArmKinematics.Collisions enforces it along every link, so a configuration
+// that puts part of the arm inside the bench or through a bin wall is refused rather than
+// rendered. See BinPickingReachabilityTests for how much room that leaves at each of the
+// cell's work positions.
 builder.Services.AddSingleton(_ => new SimulatedArmKinematics
 {
-    MinimumLinkHeight = 0.0
+    MinimumLinkHeight = 0.0,
+    Collisions = BinPickingCellGeometry.CreateCollisionModel()
 });
 builder.Services.AddSingleton<SimulatedArmExecutor>();
 builder.Services.AddSingleton<BinPickingRobotCell>();

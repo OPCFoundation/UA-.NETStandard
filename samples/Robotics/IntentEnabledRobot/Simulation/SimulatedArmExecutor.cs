@@ -664,14 +664,7 @@ namespace Robotics.IntentEnabledRobot.Simulation
             CancellationToken cancellationToken)
         {
             double[] start = GetJoints();
-            var target = new Pose3DDataType
-            {
-                FrameId = frameId,
-                Position = position.ToArrayOf(),
-                Orientation = orientation
-            };
-            if (!m_kinematics.TrySelectNearest(
-                target, start, out SimulatedArmIkSolution? solution, out SimulatedArmKinematicFailure _))
+            if (!TrySolveWithYawSearch(position, frameId, orientation, start, out SimulatedArmIkSolution? solution))
             {
                 return false;
             }
@@ -686,6 +679,65 @@ namespace Robotics.IntentEnabledRobot.Simulation
                 DefaultJointAcceleration,
                 cancellationToken).ConfigureAwait(false);
             return true;
+        }
+
+        /// <summary>
+        /// Solves for a tool position, turning the tool about the vertical when the
+        /// orientation it is holding does not work out.
+        /// </summary>
+        /// <remarks>
+        /// A parallel gripper coming straight down is free to choose its rotation about the
+        /// tool axis - the jaws close on a part the same way whichever way round they are -
+        /// but the cell never used that freedom: it reused whatever orientation the arm was
+        /// left holding, so each Location got exactly one pose and one chance. That is fine
+        /// until the solver has to satisfy clearance as well, at which point a single pose
+        /// often has no answer while the same position a few degrees round has several.
+        /// The requested orientation is tried first so nothing changes when it works, and
+        /// the offsets are a fixed sequence so the same target always resolves the same way.
+        /// </remarks>
+        private bool TrySolveWithYawSearch(
+            double[] position,
+            string frameId,
+            ArrayOf<double> orientation,
+            double[] start,
+            [NotNullWhen(true)] out SimulatedArmIkSolution? solution)
+        {
+            ReadOnlySpan<double> requested = orientation.Span;
+            foreach (double degrees in s_yawOffsetsDegrees)
+            {
+                var target = new Pose3DDataType
+                {
+                    FrameId = frameId,
+                    Position = position.ToArrayOf(),
+                    Orientation = degrees == 0.0
+                        ? orientation
+                        : TurnAboutVertical(requested, degrees).ToArrayOf()
+                };
+                if (m_kinematics.TrySelectNearest(
+                    target, start, out solution, out SimulatedArmKinematicFailure _))
+                {
+                    return true;
+                }
+            }
+            solution = null;
+            return false;
+        }
+
+        /// <summary>
+        /// Turns an orientation about the world vertical.
+        /// </summary>
+        private static double[] TurnAboutVertical(ReadOnlySpan<double> orientation, double degrees)
+        {
+            double half = degrees * Math.PI / 360.0;
+            double sin = Math.Sin(half);
+            double cos = Math.Cos(half);
+            return
+            [
+                (cos * orientation[0]) - (sin * orientation[1]),
+                (cos * orientation[1]) + (sin * orientation[0]),
+                (cos * orientation[2]) + (sin * orientation[3]),
+                (cos * orientation[3]) - (sin * orientation[2])
+            ];
         }
 
         /// <summary>
@@ -1266,6 +1318,16 @@ namespace Robotics.IntentEnabledRobot.Simulation
         // Above the bin walls and above a full stack on the fixture, so a straight
         // joint-space leg at this height clears the furniture between two work positions.
         private const double TransitHeightMetres = 0.32;
+
+        // The rotations about the vertical a Pick or Place may use when the orientation the
+        // arm is holding has no clear solution. Zero first, so a target that already works
+        // resolves exactly as before, then outwards in both directions.
+        private static readonly double[] s_yawOffsetsDegrees =
+        [
+            0.0, 15.0, -15.0, 30.0, -30.0, 45.0, -45.0, 60.0, -60.0, 75.0, -75.0,
+            90.0, -90.0, 105.0, -105.0, 120.0, -120.0, 135.0, -135.0, 150.0, -150.0,
+            165.0, -165.0, 180.0
+        ];
         private const double DefaultCartesianAcceleration = 0.7;
         private const double DefaultJointSpeed = 0.9;
         private const double DefaultJointAcceleration = 2.0;

@@ -43,6 +43,9 @@
          robot had put back in the bin stayed invisible. -->
     <Compile Include="..\..\samples\Robotics\BinPickingCell\BinPickingParts.cs"
                       Link="BinPicking\BinPickingParts.cs" />
+    <Compile Include="..\..\samples\Robotics\BinPickingCell\BinPickingCellGeometry.cs"
+                      Link="BinPicking\BinPickingCellGeometry.cs"
+                      Condition="'$(TargetFramework)' == 'net10.0'" />
   </ItemGroup>
   <!-- The simulated-arm tests exercise types from IntentEnabledRobot, which the
        OpenUSD rendering stack pins to net10.0. The reference above is conditional, so
@@ -53,5 +56,6 @@
     <Compile Remove="SimulatedArmKinematicsTests.cs" />
     <Compile Remove="SimulatedCollisionModelTests.cs" />
     <Compile Remove="SimulatedSupportModelTests.cs" />
+    <Compile Remove="BinPickingReachabilityTests.cs" />
   </ItemGroup>
 </Project>

@@ -75,13 +75,16 @@ namespace Vision.BinPickingCell
         public BinPickingRobotCell(
             ILogger<BinPickingRobotCell> logger,
             SimulatedArmExecutor executor,
+            SimulatedArmKinematics kinematics,
             BinPickingWorldState worldState)
         {
             m_logger = logger ?? throw new ArgumentNullException(nameof(logger));
             m_executor = executor ?? throw new ArgumentNullException(nameof(executor));
+            m_kinematics = kinematics ?? throw new ArgumentNullException(nameof(kinematics));
             m_worldState = worldState ?? throw new ArgumentNullException(nameof(worldState));
             m_executor.SnapshotChanged += OnSnapshotChanged;
             m_executor.ResolveLocationPosition = TryResolveLocationPosition;
+            UpdateMovingObstacles();
         }
 
         internal ServerSystemContext SystemContext => m_systemContext ??
@@ -418,6 +421,7 @@ namespace Vision.BinPickingCell
                 m_carriedClass = snapshot.HeldObjectClass;
                 PublishPartPosition(snapshot.HeldObjectClass, worldX, worldY, worldZ);
                 UpdateLocationOccupancy();
+                UpdateMovingObstacles();
                 return;
             }
             if (!snapshot.HasObject && m_carriedClass.Length > 0)
@@ -439,7 +443,62 @@ namespace Vision.BinPickingCell
                 PublishPartPosition(m_carriedClass, worldX, worldY, restingZ);
                 m_carriedClass = string.Empty;
                 UpdateLocationOccupancy();
+                UpdateMovingObstacles();
             }
+        }
+
+        /// <summary>
+        /// Republishes the parts, and the fixture they stack on, as solids the arm has to
+        /// keep out of.
+        /// </summary>
+        /// <remarks>
+        /// The bench and the bin walls never move, so they are declared once. The parts do,
+        /// and a stack built on the fixture is as solid as the fixture under it: an arm that
+        /// reaches through it looks exactly as wrong as one reaching through the bench,
+        /// which is what a return leg does when the only obstacles it knows about are the
+        /// furniture. Whatever the gripper is carrying is left out, because a part
+        /// travelling with the tool cannot be in its way.
+        /// </remarks>
+        private void UpdateMovingObstacles()
+        {
+            SimulatedCollisionModel? collisions = m_kinematics?.Collisions;
+            if (collisions == null)
+            {
+                return;
+            }
+            IReadOnlyList<BinPickingPartSnapshot> parts = m_worldState.Snapshot();
+            var solids = new List<SimulatedObstacleBox>(parts.Count + s_fixtureSolids.Length);
+            solids.AddRange(s_fixtureSolids);
+
+            // The parts themselves are deliberately left out for now, and this is measured
+            // rather than assumed: with them in, the loop got five operations into a cycle
+            // before a Place onto the fixture was refused, against nine of ten with only
+            // the furniture. The reason is the same wrist geometry that made the bench a
+            // half-space rather than a solid - with the tool vertical this arm's J4 sits
+            // about 34 mm below the tool centre point, so placing a part on top of a stack
+            // puts J4 roughly a millimetre above the part underneath, inside its clearance.
+            // Including them needs the wrist to stop being a fat capsule near the workpiece
+            // (a per-link radius) or a longer tool; until then, declaring them would refuse
+            // the stacking the cell exists to do.
+            for (int ii = 0; ii < parts.Count && IncludePartsAsObstacles; ii++)
+            {
+                BinPickingPartSnapshot part = parts[ii];
+                if (part.Location == BinPickingPartLocation.Held
+                    || string.Equals(part.Part.ClassLabel, m_carriedClass, StringComparison.Ordinal))
+                {
+                    continue;
+                }
+                double halfHeight = part.Part.Size[2] * 0.5;
+                solids.Add(new SimulatedObstacleBox(
+                    part.Part.ClassLabel,
+                    part.WorldX,
+                    part.WorldY,
+                    part.Part.Size[0],
+                    part.Part.Size[1],
+                    part.WorldZ - halfHeight - RobotBaseHeightMetres,
+                    part.WorldZ + halfHeight - RobotBaseHeightMetres));
+            }
+            collisions.MovingObstacles = ArrayOf.Create(solids.ToArray().AsSpan());
         }
 
         /// <summary>
@@ -656,6 +715,10 @@ namespace Vision.BinPickingCell
         // grasp can never reach across the bench for something.
         private const double GraspReachRadiusMetres = 0.12;
 
+        // Whether the workpieces are declared as obstacles. See UpdateMovingObstacles for
+        // the measurement behind this being off.
+        private const bool IncludePartsAsObstacles = false;
+
         // The simulator's DefaultJointSpeed is 0.9 rad/s; Position and the limits are
         // published in degrees, so the speed limit is too.
         private const double MaxAxisSpeedDegreesPerSecond = 0.9 * 180.0 / Math.PI;
@@ -663,6 +726,18 @@ namespace Vision.BinPickingCell
 
         private static readonly (string Name, double X, double Y, double Z, double Rz)[] s_locations =
             BuildLocations();
+
+        // The fixture the parts are stacked on, as a solid the arm must not reach into. It
+        // is not in BinPickingCellGeometry with the bench and the bin walls because it is
+        // republished alongside the parts: the plate and the stack standing on it are one
+        // obstacle as far as an approaching arm is concerned. Base frame, so the bench top
+        // is zero.
+        private static readonly SimulatedObstacleBox[] s_fixtureSolids =
+        [
+            new("FixturePlate", -0.32, 0.0, 0.1400, 0.1400,
+                FixturePlateTopMetres - RobotBaseHeightMetres - 0.018,
+                FixturePlateTopMetres - RobotBaseHeightMetres)
+        ];
 
         // The solids in this cell that never move and that a part can come to rest on, in
         // the world frame. Sizes are full extents, matching Cell.usda.
@@ -681,6 +756,7 @@ namespace Vision.BinPickingCell
 
         private readonly ILogger<BinPickingRobotCell> m_logger;
         private readonly SimulatedArmExecutor m_executor;
+        private readonly SimulatedArmKinematics m_kinematics;
         private readonly BinPickingWorldState m_worldState;
         private readonly SimulatedSupportModel m_support =
             new(ArrayOf.Create(s_supportFixtures.AsSpan()), BenchTopMetres);

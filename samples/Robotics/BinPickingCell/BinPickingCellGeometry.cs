@@ -72,13 +72,15 @@ namespace Vision.BinPickingCell
 
         // Bench top: world z 0.760 to 0.829, so it fills everything below the base frame
         // origin. This is the one that stops a forearm crossing the table: the old height
-        // test only sampled joint origins, which a link can straddle.
+        // test only sampled joint origins, which a link can straddle. Its clearance is zero
+        // because it is a surface, not an obstacle standing on one - a link may come down
+        // to it, and with the tool vertical this arm's wrist has to.
         // Bin walls: world z 0.822 to 0.862, 6 mm thick, around a 0.28 x 0.24 tray centred
-        // on the Bin location. The tray's inside is deliberately left open so the tool can
-        // still descend into it to pick.
+        // on the Bin location. These are objects, so they keep the full link radius. The
+        // tray's inside is deliberately left open so the tool can still descend into it.
         private static readonly SimulatedObstacleBox[] s_obstacles =
         [
-            new("Bench", 0.0, 0.0, 1.4000, 0.9000, -0.0690, 0.0000),
+            new("Bench", 0.0, 0.0, 1.4000, 0.9000, -0.0690, 0.0000, Clearance: 0.0),
             new("BinWallN", 0.3800, 0.1170, 0.2800, 0.0060, -0.0070, 0.0330),
             new("BinWallS", 0.3800, -0.1170, 0.2800, 0.0060, -0.0070, 0.0330),
             new("BinWallE", 0.5170, 0.0000, 0.0060, 0.2400, -0.0070, 0.0330),

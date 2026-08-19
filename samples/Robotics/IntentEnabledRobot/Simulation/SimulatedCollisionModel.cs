@@ -56,6 +56,16 @@ namespace Robotics.IntentEnabledRobot.Simulation
     /// <param name="MaxZ">
     /// Top of the box.
     /// </param>
+    /// <param name="Clearance">
+    /// How much of the link's own thickness has to stay outside this solid. A wall or a
+    /// post is an object the arm must not intersect, so it takes the full link radius. A
+    /// work surface is different: it is a half-space the arm must not go *below*, and a
+    /// link that comes right down to the table is doing its job - a gripper has to reach a
+    /// part lying on it. Inflating the bench by a link radius refuses exactly the poses the
+    /// cell exists to make, because with the tool vertical this arm's wrist stacks along
+    /// the tool axis and J4 ends up 22 mm above the surface when the tool is 56 mm above
+    /// it. Zero here means "not below", which is what a work surface actually asks for.
+    /// </param>
     public readonly record struct SimulatedObstacleBox(
         string Name,
         double CentreX,
@@ -63,7 +73,8 @@ namespace Robotics.IntentEnabledRobot.Simulation
         double SizeX,
         double SizeY,
         double MinZ,
-        double MaxZ);
+        double MaxZ,
+        double Clearance = double.NaN);
 
     /// <summary>
     /// Decides whether an arm configuration puts any part of the arm inside the cell's
@@ -130,6 +141,19 @@ namespace Robotics.IntentEnabledRobot.Simulation
         public double ToolRadius { get; }
 
         /// <summary>
+        /// Gets or sets the solids that move, tested alongside the fixed ones.
+        /// </summary>
+        /// <remarks>
+        /// The furniture is fixed, but the workpieces are not: a stack built on the fixture
+        /// is as solid as the fixture under it, and an arm that reaches through it looks
+        /// exactly as wrong as one reaching through the bench. The host owns where the parts
+        /// are, so it republishes them here when it moves one - and leaves out whatever the
+        /// gripper is carrying, since a part travelling with the tool cannot be an obstacle
+        /// to it.
+        /// </remarks>
+        public ArrayOf<SimulatedObstacleBox> MovingObstacles { get; set; }
+
+        /// <summary>
         /// Gets whether a chain of joint origins, plus the tool point beyond the last one,
         /// stays clear of every obstacle.
         /// </summary>
@@ -143,11 +167,12 @@ namespace Robotics.IntentEnabledRobot.Simulation
         public bool IsClear(ReadOnlySpan<double> points, out string hit)
         {
             hit = string.Empty;
-            if (Obstacles.Count == 0 || points.Length < 6)
+            if (points.Length < 6 || (Obstacles.Count == 0 && MovingObstacles.Count == 0))
             {
                 return true;
             }
             ReadOnlySpan<SimulatedObstacleBox> boxes = Obstacles.Span;
+            ReadOnlySpan<SimulatedObstacleBox> moving = MovingObstacles.Span;
             int lastSegment = points.Length - 6;
             for (int segment = 0; segment <= lastSegment; segment += 3)
             {
@@ -158,13 +183,33 @@ namespace Robotics.IntentEnabledRobot.Simulation
                 double bx = points[segment + 3];
                 double by = points[segment + 4];
                 double bz = points[segment + 5];
-                for (int ii = 0; ii < boxes.Length; ii++)
+                if (!IsSegmentClear(boxes, ax, ay, az, bx, by, bz, radius, out hit)
+                    || !IsSegmentClear(moving, ax, ay, az, bx, by, bz, radius, out hit))
                 {
-                    if (IntersectsSegment(boxes[ii], ax, ay, az, bx, by, bz, radius))
-                    {
-                        hit = boxes[ii].Name;
-                        return false;
-                    }
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        /// <summary>
+        /// Gets whether one link stays clear of a set of solids.
+        /// </summary>
+        private static bool IsSegmentClear(
+            ReadOnlySpan<SimulatedObstacleBox> boxes,
+            double ax, double ay, double az,
+            double bx, double by, double bz,
+            double radius,
+            out string hit)
+        {
+            hit = string.Empty;
+            for (int ii = 0; ii < boxes.Length; ii++)
+            {
+                double clearance = double.IsNaN(boxes[ii].Clearance) ? radius : boxes[ii].Clearance;
+                if (IntersectsSegment(boxes[ii], ax, ay, az, bx, by, bz, clearance))
+                {
+                    hit = boxes[ii].Name;
+                    return false;
                 }
             }
             return true;
