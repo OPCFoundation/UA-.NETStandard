@@ -2688,8 +2688,8 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
 
             await closeGateEntered.Task.ConfigureAwait(false);
             Assert.That(
-                callback.IsCompleted,
-                Is.True,
+                manager.ActiveConnectionCallbackCountForTest,
+                Is.Zero,
                 "the held callback must drain before the listener is torn down");
             Assert.That(
                 e.Accepted,
