@@ -600,7 +600,19 @@ namespace Opc.Ua.Di.Tests
             var connector = new OpenUsdConnector(m_session!, sink);
 
             await connector.StartAsync(CancellationToken.None).ConfigureAwait(false);
-            await Task.Delay(4000, CancellationToken.None).ConfigureAwait(false);
+
+            // Poll for the expected sink writes instead of waiting a fixed delay:
+            // on a slow/loaded CI agent the first sampled values can take longer
+            // than a fixed sleep, so StopAsync would run before any value flowed.
+            DateTime deadline = DateTime.UtcNow.AddSeconds(30);
+            while (DateTime.UtcNow < deadline &&
+                !(sink.WasWritten("/Plant/Pumps/Pump_1/Impeller", "xformOp:rotateZ") &&
+                    sink.WasWritten("/Plant/Pumps/Pump_1/Body", "primvars:displayColor") &&
+                    sink.WasWritten("/Plant/Pumps/Pump_1/Discharge/Gauge/Needle", "xformOp:rotateZ")))
+            {
+                await Task.Delay(200, CancellationToken.None).ConfigureAwait(false);
+            }
+
             await connector.StopAsync().ConfigureAwait(false);
 
             Assert.Multiple(() =>
