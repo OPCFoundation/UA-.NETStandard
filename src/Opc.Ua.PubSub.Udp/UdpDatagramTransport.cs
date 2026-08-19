@@ -920,25 +920,54 @@ namespace Opc.Ua.PubSub.Udp
 
         private void BindForUnicast(Socket socket)
         {
+            IPAddress localAddress = SelectUnicastBindAddress();
             if ((HasSendDirection && !HasReceiveDirection) || (m_useConnectedUnicastClient && HasSendDirection))
             {
-                EndPoint bindEndPoint = Endpoint.Address.AddressFamily == AddressFamily.InterNetworkV6
-                    ? new IPEndPoint(IPAddress.IPv6Any, 0)
-                    : new IPEndPoint(IPAddress.Any, 0);
-                socket.Bind(bindEndPoint);
+                socket.Bind(new IPEndPoint(localAddress, 0));
                 IPEndPoint remote = new(Endpoint.Address, Endpoint.Port);
-                socket.Connect(remote);
+                try
+                {
+                    socket.Connect(remote);
+                }
+                catch (SocketException ex) when (ex.SocketErrorCode == SocketError.IsConnected)
+                {
+                    // macOS (Darwin) can report EISCONN when connecting a datagram socket
+                    // that the OS already associated with the destination. The socket is
+                    // connected to the intended peer, so treat this as success.
+                    if (m_logger.IsEnabled(LogLevel.Debug))
+                    {
+                        m_logger.UdpUnicastAlreadyConnected(ex, m_connection.Name, remote.ToString());
+                    }
+                }
                 m_sendDestination = remote;
                 m_socketIsConnected = true;
             }
             else
             {
-                EndPoint bindEndPoint = Endpoint.Address.AddressFamily == AddressFamily.InterNetworkV6
-                    ? new IPEndPoint(IPAddress.IPv6Any, Endpoint.Port)
-                    : new IPEndPoint(IPAddress.Any, Endpoint.Port);
-                socket.Bind(bindEndPoint);
+                socket.Bind(new IPEndPoint(localAddress, Endpoint.Port));
                 m_sendDestination = new IPEndPoint(Endpoint.Address, Endpoint.Port);
             }
+        }
+
+        /// <summary>
+        /// Selects the local address a unicast socket binds to. Loopback endpoints bind to the
+        /// matching loopback address so that traffic is routed over the loopback interface. On
+        /// macOS binding to <see cref="IPAddress.Any"/> and then sending to / connecting a loopback
+        /// destination fails with "No route to host" / "Socket is already connected"; binding to the
+        /// loopback address avoids both. Non-loopback endpoints keep binding to the wildcard address
+        /// so datagrams can arrive on any interface.
+        /// </summary>
+        private IPAddress SelectUnicastBindAddress()
+        {
+            if (Endpoint.Address.AddressFamily == AddressFamily.InterNetworkV6)
+            {
+                return IPAddress.IsLoopback(Endpoint.Address)
+                    ? IPAddress.IPv6Loopback
+                    : IPAddress.IPv6Any;
+            }
+            return IPAddress.IsLoopback(Endpoint.Address)
+                ? IPAddress.Loopback
+                : IPAddress.Any;
         }
 
         private void JoinMulticastGroup(Socket socket)
@@ -1309,6 +1338,14 @@ namespace Opc.Ua.PubSub.Udp
             this ILogger logger,
             Exception exception,
             string? connection);
+
+        [LoggerMessage(EventId = PubSubUdpEventIds.UdpDatagramTransport + 17, Level = LogLevel.Debug,
+            Message = "Unicast socket for connection '{Connection}' already connected to {Endpoint}; continuing.")]
+        public static partial void UdpUnicastAlreadyConnected(
+            this ILogger logger,
+            Exception exception,
+            string? connection,
+            string endpoint);
     }
 
 }
