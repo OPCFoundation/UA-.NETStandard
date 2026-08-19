@@ -1135,13 +1135,11 @@ namespace Opc.Ua.Client.Tests
         }
 
         [Test]
-        public async Task DisposeAsyncSendsCloseSessionWithoutWaitingForResponseAsync()
+        public async Task DisposeAsyncSendsCloseSessionAsync()
         {
             // Arrange
             var sut = SessionMock.Create();
             sut.SetConnected();
-            var closeResponse = new TaskCompletionSource<IServiceResponse>(
-                TaskCreationOptions.RunContinuationsAsynchronously);
             CloseSessionRequest? closeRequest = null;
             sut.Channel
                 .Setup(c => c.SendRequestAsync(
@@ -1149,27 +1147,20 @@ namespace Opc.Ua.Client.Tests
                     It.IsAny<CancellationToken>()))
                 .Callback((IServiceRequest request, CancellationToken _) =>
                     closeRequest = request as CloseSessionRequest)
-                .Returns(new ValueTask<IServiceResponse>(closeResponse.Task))
+                .Returns(new ValueTask<IServiceResponse>(new CloseSessionResponse
+                {
+                    ResponseHeader = new ResponseHeader { ServiceResult = StatusCodes.Good }
+                }))
                 .Verifiable(Times.Once);
 
             // Act
-            Task disposeTask = sut.DisposeAsync().AsTask();
-            Task completedTask = await Task.WhenAny(
-                disposeTask,
-                Task.Delay(TimeSpan.FromSeconds(1))).ConfigureAwait(false);
+            await sut.DisposeAsync().ConfigureAwait(false);
 
             // Assert
-            Assert.That(completedTask, Is.SameAs(disposeTask));
-            await disposeTask.ConfigureAwait(false);
             sut.Channel.Verify();
             Assert.That(closeRequest, Is.Not.Null);
             Assert.That(closeRequest!.DeleteSubscriptions, Is.True);
             Assert.That(closeRequest.RequestHeader.AuthenticationToken, Is.EqualTo(NodeId.Parse("s=auth")));
-
-            closeResponse.TrySetResult(new CloseSessionResponse
-            {
-                ResponseHeader = new ResponseHeader { ServiceResult = StatusCodes.Good }
-            });
         }
 
         [Test]

@@ -484,10 +484,9 @@ namespace Opc.Ua.Client
                             DeleteSubscriptions = DeleteSubscriptionsOnClose
                         };
                         UpdateRequestHeader(request, true, "CloseSession");
-                        Task closeSessionTask = TransportChannel
+                        await TransportChannel
                             .SendRequestAsync(request, default)
-                            .AsTask();
-                        _ = ObserveCloseSessionAsync(closeSessionTask);
+                            .ConfigureAwait(false);
                     }
                 }
                 catch (Exception ex) when (ex is not OutOfMemoryException)
@@ -539,18 +538,6 @@ namespace Opc.Ua.Client
                 m_SessionConfigurationChanged = null;
 
                 Debug.Assert(Disposed);
-            }
-        }
-
-        private async Task ObserveCloseSessionAsync(Task closeSessionTask)
-        {
-            try
-            {
-                await closeSessionTask.ConfigureAwait(false);
-            }
-            catch (Exception ex) when (ex is not OutOfMemoryException)
-            {
-                m_logger.ErrorClosingSessionDuringDispose(ex);
             }
         }
 
