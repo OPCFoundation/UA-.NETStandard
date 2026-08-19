@@ -17,6 +17,17 @@
          legacy TFM this test project cannot target. -->
     <RestrictForLegacyTfm>true</RestrictForLegacyTfm>
   </PropertyGroup>
+  <!-- On macOS ARM64 (apple-silicon CI runners) the new Apple ld can hit a
+       "too many large addends" assertion when linking a very large NativeAOT
+       binary.  Folding identical method bodies reduces the number of fixups
+       below the threshold, and falling back to ld_classic provides a second
+       safety net on toolchains that still ship the classic linker. -->
+  <PropertyGroup Condition="$([MSBuild]::IsOSPlatform('OSX'))">
+    <IlcFoldIdenticalMethodBodies>true</IlcFoldIdenticalMethodBodies>
+  </PropertyGroup>
+  <ItemGroup Condition="$([MSBuild]::IsOSPlatform('OSX'))">
+    <LinkerArg Include="-ld_classic" />
+  </ItemGroup>
   <ItemGroup>
     <PackageReference Include="TUnit" />
   </ItemGroup>
