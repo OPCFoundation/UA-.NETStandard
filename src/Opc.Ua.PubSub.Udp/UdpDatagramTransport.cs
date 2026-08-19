@@ -528,40 +528,18 @@ namespace Opc.Ua.PubSub.Udp
                     nameof(payload));
             }
             EnforceDiscoveryLimit(payload);
-            return m_repeater.SendWithRepeatsAsync(
-                ct => SendDiscoveryOnceAsync(socket, payload, ct),
-                cancellationToken);
+            return SendDiscoveryWithRepeatsAsync(socket, payload, cancellationToken);
         }
 
-        private async ValueTask SendDiscoveryOnceAsync(
+        private async ValueTask SendDiscoveryWithRepeatsAsync(
             Socket socket,
             ReadOnlyMemory<byte> payload,
             CancellationToken cancellationToken)
         {
             try
             {
-                if (socket.AddressFamily == AddressFamily.InterNetwork)
-                {
-                    await SendOnceAsync(
-                        socket,
-                        StandardDiscoveryEndpoint,
-                        isConnectedSocket: false,
-                        payload,
-                        cancellationToken).ConfigureAwait(false);
-                    return;
-                }
-
-                using Socket discoverySocket = new(
-                    AddressFamily.InterNetwork,
-                    SocketType.Dgram,
-                    ProtocolType.Udp);
-                ConfigureSocket(discoverySocket);
-                discoverySocket.Bind(new IPEndPoint(IPAddress.Any, 0));
-                await SendOnceAsync(
-                    discoverySocket,
-                    StandardDiscoveryEndpoint,
-                    isConnectedSocket: false,
-                    payload,
+                await m_repeater.SendWithRepeatsAsync(
+                    ct => SendDiscoveryOnceAsync(socket, payload, ct),
                     cancellationToken).ConfigureAwait(false);
             }
             catch (SocketException ex) when (
@@ -573,6 +551,36 @@ namespace Opc.Ua.PubSub.Udp
             {
                 m_logger.MulticastDiscoveryAnnouncementFailed(ex, m_connection.Name);
             }
+        }
+
+        private async ValueTask SendDiscoveryOnceAsync(
+            Socket socket,
+            ReadOnlyMemory<byte> payload,
+            CancellationToken cancellationToken)
+        {
+            if (socket.AddressFamily == AddressFamily.InterNetwork)
+            {
+                await SendOnceAsync(
+                    socket,
+                    StandardDiscoveryEndpoint,
+                    isConnectedSocket: false,
+                    payload,
+                    cancellationToken).ConfigureAwait(false);
+                return;
+            }
+
+            using Socket discoverySocket = new(
+                AddressFamily.InterNetwork,
+                SocketType.Dgram,
+                ProtocolType.Udp);
+            ConfigureSocket(discoverySocket);
+            discoverySocket.Bind(new IPEndPoint(IPAddress.Any, 0));
+            await SendOnceAsync(
+                discoverySocket,
+                StandardDiscoveryEndpoint,
+                isConnectedSocket: false,
+                payload,
+                cancellationToken).ConfigureAwait(false);
         }
 
         /// <inheritdoc/>
