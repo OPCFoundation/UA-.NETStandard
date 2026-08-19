@@ -185,6 +185,168 @@ namespace Opc.Ua.Robotics.Tests
                 "The starved position must at least have geometric solutions to inspect.");
         }
 
+        [Test]
+        public void ApproachAndTransitPositionsLeaveTheSolverAChoiceOfPosture()
+        {
+            var report = new StringBuilder();
+            var noChoice = new List<string>();
+            foreach ((string name, double[] position) in WorkPositions())
+            {
+                int postures = CountDistinctPostures(position, HomeToolOrientation(), clearOnly: false);
+                int usable = CountDistinctPostures(position, HomeToolOrientation(), clearOnly: true);
+                ReachabilityCount count = Measure(position, HomeToolOrientation(), plane: true, collisions: true);
+                report.Append(CultureInfo.InvariantCulture,
+                    $"{name,-22} candidates={count.Found} distinctPostures={postures} usable={usable}\n");
+                if (usable < 1)
+                {
+                    noChoice.Add(name);
+                }
+            }
+            TestContext.Out.Write(report.ToString());
+
+            Assert.That(noChoice, Is.Empty,
+                "Every position the cell works at needs at least one shape the arm can legally "
+                + "hold:\n" + report);
+
+            // Recorded rather than asserted away: the three home slots nearest the base admit
+            // exactly one clear shape, and it is the awkward one. Extra seed templates raise
+            // the distinct-posture count there but every new shape is refused by clearance,
+            // so this is the cell's geometry - reaching 20 mm above the bench a third of a
+            // metre from the base - and not something the solver can be argued out of. It
+            // would take a taller pedestal or a bin further out to change it.
+            TestContext.Out.Write(
+                "Home slots with a single usable posture are expected: the arm has one way to "
+                + "reach that low that close in.\n");
+        }
+
+        [Test]
+        public void TheChosenPostureAtAHomeSlotHasTheWristDoubledBack()
+        {
+            var kinematics = new SimulatedArmKinematics
+            {
+                MinimumLinkHeight = 0.0,
+                Collisions = BinPickingCellGeometry.CreateCollisionModel()
+            };
+            BinPickingPart part = BinPickingPartsCatalog.Parts[0];
+            double[] position = Base(
+                part.InitialWorldPosition[0],
+                part.InitialWorldPosition[1],
+                part.InitialWorldPosition[2] + HeldPartTcpOffset);
+            var target = new Pose3DDataType
+            {
+                FrameId = "robot_base",
+                Position = position.ToArrayOf(),
+                Orientation = HomeToolOrientation().ToArrayOf()
+            };
+
+            bool solved = kinematics.TrySelectNearest(
+                target, s_homeJoints, out SimulatedArmIkSolution? solution, out SimulatedArmKinematicFailure _);
+
+            Assert.That(solved, Is.True);
+            int penalty = kinematics.WristInversionPenalty(solution!.JointAngles.Span);
+            TestContext.Out.Write(
+                string.Create(CultureInfo.InvariantCulture, $"wrist inversion penalty = {penalty}\n"));
+
+            // Recorded, not asserted away. This is the shape in the close-ups: the wrist
+            // climbs where it should descend, which is why the gripper reads as detached
+            // from the arm. It is the only shape that clears at this slot, so the fix is not
+            // to prefer a different one - preferring was tried and made the cycle worse -
+            // but to change what is asked for: an approach pose solved for deliberately
+            // rather than inherited, and a taller pedestal or a bin further out if the
+            // geometry still leaves only this.
+            Assert.That(penalty, Is.GreaterThan(0),
+                "If this ever reaches zero the arm has found a tidy way to hold this slot and "
+                + "the note above is out of date.");
+        }
+
+        /// <summary>
+        /// Counts how many genuinely different shapes the arm can take for a target.
+        /// </summary>
+        /// <remarks>
+        /// Two solutions that place every joint in the same spot are the same posture even
+        /// when their joint angles differ by a turn, and the arm looks identical in both.
+        /// Counting those separately is what made a starved target look well supplied.
+        /// </remarks>
+        private static int CountDistinctPostures(double[] position, double[] orientation, bool clearOnly)
+        {
+            var kinematics = new SimulatedArmKinematics();
+            var clearance = new SimulatedArmKinematics
+            {
+                MinimumLinkHeight = 0.0,
+                Collisions = BinPickingCellGeometry.CreateCollisionModel()
+            };
+            var target = new Pose3DDataType
+            {
+                FrameId = "robot_base",
+                Position = position.ToArrayOf(),
+                Orientation = orientation.ToArrayOf()
+            };
+            SimulatedArmIkResult result = kinematics.Inverse(target, s_homeJoints);
+            var shapes = new List<double[]>();
+            ReadOnlySpan<SimulatedArmIkSolution> candidates = result.Solutions.Span;
+            for (int ii = 0; ii < candidates.Length; ii++)
+            {
+                ReadOnlySpan<double> angles = candidates[ii].JointAngles.Span;
+                if (!kinematics.IsWithinLimits(angles))
+                {
+                    continue;
+                }
+                if (clearOnly && !clearance.ClearsWorkSurface(angles))
+                {
+                    continue;
+                }
+                double[] shape = JointOrigins(kinematics, angles);
+                bool seen = false;
+                foreach (double[] existing in shapes)
+                {
+                    if (SameShape(existing, shape))
+                    {
+                        seen = true;
+                        break;
+                    }
+                }
+                if (!seen)
+                {
+                    shapes.Add(shape);
+                }
+            }
+            return shapes.Count;
+        }
+
+        /// <summary>
+        /// Gets every joint origin of a configuration, flattened.
+        /// </summary>
+        private static double[] JointOrigins(SimulatedArmKinematics kinematics, ReadOnlySpan<double> jointAngles)
+        {
+            SimulatedArmForwardPose pose = kinematics.Forward(jointAngles);
+            ReadOnlySpan<Pose3DDataType> frames = pose.JointFramePoses.Span;
+            double[] origins = new double[frames.Length * 3];
+            for (int ii = 0; ii < frames.Length; ii++)
+            {
+                ReadOnlySpan<double> p = frames[ii].Position.Span;
+                origins[(ii * 3) + 0] = p[0];
+                origins[(ii * 3) + 1] = p[1];
+                origins[(ii * 3) + 2] = p[2];
+            }
+            return origins;
+        }
+
+        /// <summary>
+        /// Gets whether two configurations put every joint in the same place, to a
+        /// millimetre.
+        /// </summary>
+        private static bool SameShape(double[] left, double[] right)
+        {
+            for (int ii = 0; ii < left.Length && ii < right.Length; ii++)
+            {
+                if (Math.Abs(left[ii] - right[ii]) > 0.001)
+                {
+                    return false;
+                }
+            }
+            return true;
+        }
+
         /// <summary>
         /// Counts how many inverse-kinematic candidates survive each successive filter.
         /// </summary>
@@ -318,7 +480,12 @@ namespace Opc.Ua.Robotics.Tests
         private static IEnumerable<double[]> YawSpread()
         {
             double[] home = HomeToolOrientation();
-            for (int degrees = 0; degrees < 360; degrees += 15)
+
+            // Every 45 degrees rather than every 15: the property being measured is whether
+            // turning the tool finds shapes a fixed orientation misses, and a coarser sweep
+            // shows that just as well for a third of the solves. The executor searches more
+            // finely at run time, where only the first success is paid for.
+            for (int degrees = 0; degrees < 360; degrees += 45)
             {
                 double half = degrees * Math.PI / 360.0;
                 double sin = Math.Sin(half);

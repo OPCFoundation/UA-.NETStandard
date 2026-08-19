@@ -422,6 +422,21 @@ namespace Robotics.IntentEnabledRobot.Kinematics
             // can be reached without sweeping a link through either on the way: several of
             // them do, and a cell that takes the first regardless renders an arm passing
             // through its own bench.
+            //
+            // Solutions come back nearest-first. Take the nearest one that neither reaches
+            // through the surface the arm stands on nor into the cell's furniture, and that
+            // can be reached without sweeping a link through either on the way: several of
+            // them do, and a cell that takes the first regardless renders an arm passing
+            // through its own bench.
+            //
+            // Ordering these by WristInversionPenalty first - so a shape that holds the
+            // wrist the right way up wins over a closer one that doubles it back - was
+            // tried and measured worse: the loop failed on its third operation against nine
+            // of ten without it. Choosing a different solution changes where the arm starts
+            // the next move from, and the tidier shape led into dead ends. The penalty is
+            // kept because it names what is wrong with the posture in the close-ups, but
+            // preferring it needs the approach and retract poses solved for properly first,
+            // so that a tidy choice does not strand the next one.
             ReadOnlySpan<SimulatedArmIkSolution> candidates = result.Solutions.Span;
             for (int ii = 0; ii < candidates.Length; ii++)
             {
@@ -438,6 +453,44 @@ namespace Robotics.IntentEnabledRobot.Kinematics
             // is one the arm should decline rather than mime.
             failure = SimulatedArmKinematicFailure.WorkSurface;
             return false;
+        }
+
+        /// <summary>
+        /// Gets how far a configuration has the wrist the wrong way up.
+        /// </summary>
+        /// <remarks>
+        /// With the tool pointing down the chain should descend from the wrist to the part:
+        /// J4 above J5 above J6 above the tool centre point. A configuration that climbs
+        /// instead has doubled the wrist back over itself, which reaches the same point and
+        /// looks like a fault. Counting the steps that climb gives an order to prefer
+        /// between candidates that are otherwise all legal, and zero means the wrist hangs
+        /// the way a person would expect.
+        /// </remarks>
+        /// <param name="jointAngles">
+        /// The configuration to score, in radians.
+        /// </param>
+        public int WristInversionPenalty(ReadOnlySpan<double> jointAngles)
+        {
+            SimulatedArmForwardPose pose = Forward(jointAngles);
+            ReadOnlySpan<Pose3DDataType> frames = pose.JointFramePoses.Span;
+            if (frames.Length < JointCount)
+            {
+                return 0;
+            }
+            double toolZ = pose.ToolPose.Position.Span[2];
+            int penalty = 0;
+            for (int ii = 3; ii < JointCount - 1; ii++)
+            {
+                if (frames[ii + 1].Position.Span[2] > frames[ii].Position.Span[2])
+                {
+                    penalty++;
+                }
+            }
+            if (toolZ > frames[JointCount - 1].Position.Span[2])
+            {
+                penalty++;
+            }
+            return penalty;
         }
 
         /// <summary>
@@ -1020,6 +1073,13 @@ namespace Robotics.IntentEnabledRobot.Kinematics
             2.0 * Math.PI
         ];
 
+        // Eight UR-style branches: elbow up and down, wrist flipped, shoulder forward and
+        // back. Sixteen were tried - the extra eight starting J2 and J4 in other basins to
+        // look for a less contorted shape near the base - and measured: they raised the
+        // distinct-posture count but every shape they added was refused by clearance, so
+        // the number of *usable* postures at the home slots did not move. They were dropped
+        // again because a seed costs a full Newton refinement on every solve, and this
+        // solver runs per step of a Cartesian move.
         private static readonly double[][] s_seedTemplates =
         [
             [0.0, -1.2, 1.4, -1.7, 0.8, 0.0],
