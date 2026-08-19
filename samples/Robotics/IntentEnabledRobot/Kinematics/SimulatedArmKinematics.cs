@@ -33,6 +33,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using Opc.Ua;
 using Opc.Ua.RobotIntent;
+using Robotics.IntentEnabledRobot.Simulation;
 
 namespace Robotics.IntentEnabledRobot.Kinematics
 {
@@ -416,13 +417,16 @@ namespace Robotics.IntentEnabledRobot.Kinematics
                 return false;
             }
 
-            // Solutions come back nearest-first. Take the nearest one that does not reach
-            // through the surface the arm stands on: several of them do, and a cell that
-            // takes the first regardless renders an arm passing through its own bench.
+            // Solutions come back nearest-first. Take the nearest one that neither reaches
+            // through the surface the arm stands on nor into the cell's furniture, and that
+            // can be reached without sweeping a link through either on the way: several of
+            // them do, and a cell that takes the first regardless renders an arm passing
+            // through its own bench.
             ReadOnlySpan<SimulatedArmIkSolution> candidates = result.Solutions.Span;
             for (int ii = 0; ii < candidates.Length; ii++)
             {
-                if (ClearsWorkSurface(candidates[ii].JointAngles.Span))
+                if (ClearsWorkSurface(candidates[ii].JointAngles.Span)
+                    && ClearsPath(currentJointAngles, candidates[ii].JointAngles.Span))
                 {
                     solution = candidates[ii];
                     return true;
@@ -448,31 +452,114 @@ namespace Robotics.IntentEnabledRobot.Kinematics
         public double MinimumLinkHeight { get; set; } = double.NegativeInfinity;
 
         /// <summary>
-        /// Gets a value indicating whether every joint origin of a configuration stays at
-        /// or above <see cref="MinimumLinkHeight"/>.
+        /// Gets or sets the solids the arm must not move through. Defaults to none.
+        /// </summary>
+        /// <remarks>
+        /// <see cref="MinimumLinkHeight"/> only knows about a horizontal plane and only
+        /// samples joint origins, so it cannot see a link crossing the middle of a bench,
+        /// and it does not know the bin or the fixture are there at all. A host that
+        /// describes its furniture here gets configurations refused for reaching into any
+        /// of it.
+        /// </remarks>
+        public SimulatedCollisionModel? Collisions { get; set; }
+
+        /// <summary>
+        /// Gets a value indicating whether a configuration keeps the whole arm out of the
+        /// work surface and out of every declared obstacle.
         /// </summary>
         /// <param name="jointAngles">
         /// The configuration to test, in radians.
         /// </param>
         /// <returns>
-        /// <c>true</c> when no link reaches below the work surface.
+        /// <c>true</c> when no part of the arm reaches below the work surface or inside a
+        /// solid.
         /// </returns>
         public bool ClearsWorkSurface(ReadOnlySpan<double> jointAngles)
         {
-            if (double.IsNegativeInfinity(MinimumLinkHeight))
+            if (double.IsNegativeInfinity(MinimumLinkHeight) && Collisions == null)
             {
                 return true;
             }
             SimulatedArmForwardPose pose = Forward(jointAngles);
             ReadOnlySpan<Pose3DDataType> frames = pose.JointFramePoses.Span;
-            for (int ii = 0; ii < frames.Length; ii++)
+            if (!double.IsNegativeInfinity(MinimumLinkHeight))
             {
-                if (frames[ii].Position.Span[2] < MinimumLinkHeight)
+                for (int ii = 0; ii < frames.Length; ii++)
+                {
+                    if (frames[ii].Position.Span[2] < MinimumLinkHeight)
+                    {
+                        return false;
+                    }
+                }
+                if (pose.ToolPose.Position.Span[2] < MinimumLinkHeight)
                 {
                     return false;
                 }
             }
-            return pose.ToolPose.Position.Span[2] >= MinimumLinkHeight;
+            if (Collisions == null)
+            {
+                return true;
+            }
+
+            // The chain starts at the first joint origin, not at the base: the arm is
+            // bolted to the bench, so a capsule around the pedestal is inside the bench by
+            // construction and would refuse every configuration there is. The tool point
+            // closes the chain past the flange - a wrist that clears everything while the
+            // gripper is buried in the bin is not a configuration the arm can hold.
+            Span<double> points = stackalloc double[(frames.Length + 1) * 3];
+            for (int ii = 0; ii < frames.Length; ii++)
+            {
+                ReadOnlySpan<double> position = frames[ii].Position.Span;
+                points[(ii * 3) + 0] = position[0];
+                points[(ii * 3) + 1] = position[1];
+                points[(ii * 3) + 2] = position[2];
+            }
+            ReadOnlySpan<double> tool = pose.ToolPose.Position.Span;
+            points[(frames.Length * 3) + 0] = tool[0];
+            points[(frames.Length * 3) + 1] = tool[1];
+            points[(frames.Length * 3) + 2] = tool[2];
+            return Collisions.IsClear(points, out _);
+        }
+
+        /// <summary>
+        /// Gets a value indicating whether every configuration along a joint-space move
+        /// stays clear.
+        /// </summary>
+        /// <remarks>
+        /// Filtering the goal alone is not enough: the arm travels by interpolating from
+        /// where it is to where it is going, so a start and a goal that both clear the
+        /// bench can still be joined by a path that sweeps a link straight through it.
+        /// </remarks>
+        /// <param name="start">
+        /// The configuration the move starts from, in radians.
+        /// </param>
+        /// <param name="target">
+        /// The configuration the move ends at, in radians.
+        /// </param>
+        public bool ClearsPath(ReadOnlySpan<double> start, ReadOnlySpan<double> target)
+        {
+            // Only checked when a host has described its furniture. The height plane alone
+            // is too blunt for a path: a swing from one side of the cell to the other dips
+            // a link below the plane part-way round almost every time, so enforcing it here
+            // refuses ordinary moves and the arm stops rather than travels.
+            if (Collisions == null)
+            {
+                return true;
+            }
+            Span<double> configuration = stackalloc double[start.Length];
+            for (int step = 0; step <= PathSampleCount; step++)
+            {
+                double fraction = (double)step / PathSampleCount;
+                for (int ii = 0; ii < start.Length && ii < target.Length; ii++)
+                {
+                    configuration[ii] = start[ii] + ((target[ii] - start[ii]) * fraction);
+                }
+                if (!ClearsWorkSurface(configuration))
+                {
+                    return false;
+                }
+            }
+            return true;
         }
 
         /// <summary>
@@ -907,6 +994,7 @@ namespace Robotics.IntentEnabledRobot.Kinematics
         private const double D5 = 0.0997;
         private const double D6 = 0.0996;
         private const double FlangeToTcp = 0.165;
+        private const int PathSampleCount = 24;
         private const double PositionTolerance = 1e-5;
         private const double OrientationTolerance = 1e-5;
         private const double SingularityTolerance = 1e-4;

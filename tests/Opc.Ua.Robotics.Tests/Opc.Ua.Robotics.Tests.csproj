@@ -35,6 +35,15 @@
                       Condition="'$(TargetFramework)' == 'net10.0'" />
     <ProjectReference Include="..\Opc.Ua.Server.TestFramework\Opc.Ua.Server.TestFramework.csproj" />
   </ItemGroup>
+  <ItemGroup>
+    <!-- The bin-picking cell's world model is a plain state class with no OPC UA or
+         rendering dependencies, so it is compiled in directly rather than by referencing
+         the cell executable. It decides whether the camera still reports a part, which is
+         worth pinning: when that rule stopped following the part's coordinates, a part the
+         robot had put back in the bin stayed invisible. -->
+    <Compile Include="..\..\samples\Robotics\BinPickingCell\BinPickingParts.cs"
+                      Link="BinPicking\BinPickingParts.cs" />
+  </ItemGroup>
   <!-- The simulated-arm tests exercise types from IntentEnabledRobot, which the
        OpenUSD rendering stack pins to net10.0. The reference above is conditional, so
        the tests that consume it have to be excluded on the other target frameworks or
@@ -42,5 +51,7 @@
   <ItemGroup Condition="'$(TargetFramework)' != 'net10.0'">
     <Compile Remove="SimulatedArmExecutorTests.cs" />
     <Compile Remove="SimulatedArmKinematicsTests.cs" />
+    <Compile Remove="SimulatedCollisionModelTests.cs" />
+    <Compile Remove="SimulatedSupportModelTests.cs" />
   </ItemGroup>
 </Project>

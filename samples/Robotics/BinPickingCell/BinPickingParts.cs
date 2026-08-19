@@ -238,11 +238,18 @@ namespace Vision.BinPickingCell
         }
 
         /// <summary>
-        /// Marks the part with <paramref name="classLabel"/> as
-        /// <see cref="BinPickingPartLocation.Placed"/> at
+        /// Marks the part with <paramref name="classLabel"/> as released at
         /// <paramref name="worldX"/>, <paramref name="worldY"/>,
-        /// <paramref name="worldZ"/>.
+        /// <paramref name="worldZ"/>, and records whether that spot is inside the bin.
         /// </summary>
+        /// <remarks>
+        /// The location label follows the coordinates rather than the operation: a part
+        /// put back inside the bin's footprint is <see cref="BinPickingPartLocation.InBin"/>
+        /// again. It used to become <see cref="BinPickingPartLocation.Placed"/> whatever
+        /// the coordinates said, and since the detector only reports parts that are InBin,
+        /// a part the robot had returned to the bin stayed invisible to the camera - the
+        /// world model claiming one thing while its own coordinates said another.
+        /// </remarks>
         /// <returns>
         /// <c>true</c> when the class was recognised.
         /// </returns>
@@ -259,7 +266,9 @@ namespace Vision.BinPickingCell
                     BinPickingPartRuntime runtime = m_parts[ii];
                     if (string.Equals(runtime.Part.ClassLabel, classLabel, StringComparison.Ordinal))
                     {
-                        runtime.Location = BinPickingPartLocation.Placed;
+                        runtime.Location = BinPickingPartsCatalog.IsInsideBin(worldX, worldY)
+                            ? BinPickingPartLocation.InBin
+                            : BinPickingPartLocation.Placed;
                         runtime.WorldX = worldX;
                         runtime.WorldY = worldY;
                         runtime.WorldZ = worldZ;
@@ -310,6 +319,21 @@ namespace Vision.BinPickingCell
         public static IReadOnlyList<BinPickingPart> Parts => s_parts;
 
         /// <summary>
+        /// Gets whether a world position is inside the bin's footprint.
+        /// </summary>
+        /// <remarks>
+        /// The bin is where parts are picked from and returned to, so "is it in the bin"
+        /// is what decides whether the camera should still be reporting a part. Keeping
+        /// the footprint here, next to the authored part positions, keeps one answer to
+        /// where the bin is: the cell's Bin Location is built from these same numbers.
+        /// </remarks>
+        public static bool IsInsideBin(double worldX, double worldY)
+        {
+            return Math.Abs(worldX - BinCentreX) <= BinHalfExtent
+                && Math.Abs(worldY - BinCentreY) <= BinHalfExtent;
+        }
+
+        /// <summary>
         /// Looks up a part by its class label. Returns <c>null</c> when
         /// the label is unknown — used by the demo hosted service to
         /// cross-check a composed pose against the authored world
@@ -331,8 +355,22 @@ namespace Vision.BinPickingCell
             return null;
         }
 
-        private static readonly BinPickingPart[] s_parts =
-        [
+        /// <summary>
+        /// Centre of the bin in the world frame, matching <c>Assets/Cell.usda</c>.
+        /// </summary>
+        public const double BinCentreX = 0.38;
+
+        /// <summary>
+        /// Centre of the bin in the world frame, matching <c>Assets/Cell.usda</c>.
+        /// </summary>
+        public const double BinCentreY = 0.0;
+
+        /// <summary>
+        /// Half the bin's inner span; a part within this of the centre is in the bin.
+        /// </summary>
+        public const double BinHalfExtent = 0.12;
+
+        private static readonly BinPickingPart[] s_parts =        [
             new BinPickingPart(
                 ClassLabel: "RedCube",
                 ClassId: 1u,

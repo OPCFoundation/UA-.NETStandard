@@ -547,7 +547,10 @@ namespace Robotics.IntentEnabledRobot.Simulation
             CancellationToken cancellationToken)
         {
             await m_clock.DelayAsync(TimeSpan.FromMilliseconds(80), cancellationToken).ConfigureAwait(false);
-            await MoveToLocationAsync(intent.Source, execution, cancellationToken).ConfigureAwait(false);
+            if (!await MoveToLocationAsync(intent.Source, execution, cancellationToken).ConfigureAwait(false))
+            {
+                return Unreachable("Pick");
+            }
             return await ExecuteGraspAsync(
                 new GraspIntentDataType { Force = intent.Force, Width = GripperClosed, Tool = intent.Tool },
                 execution,
@@ -561,9 +564,24 @@ namespace Robotics.IntentEnabledRobot.Simulation
             CancellationToken cancellationToken)
         {
             await m_clock.DelayAsync(TimeSpan.FromMilliseconds(80), cancellationToken).ConfigureAwait(false);
-            await MoveToLocationAsync(intent.Destination, execution, cancellationToken).ConfigureAwait(false);
+            if (!await MoveToLocationAsync(intent.Destination, execution, cancellationToken)
+                .ConfigureAwait(false))
+            {
+                return Unreachable("Place");
+            }
             return await ExecuteReleaseAsync(
                 new ReleaseIntentDataType(), execution, cancellationToken).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Reports an intent that could not be carried out because the arm could not get to
+        /// the Location it named.
+        /// </summary>
+        private IntentOutcome Unreachable(string what)
+        {
+            return IntentOutcome.Fail(
+                IntentFailureEnum.Unreachable,
+                what + " could not reach the Location: " + LastTravelFailure);
         }
 
         /// <summary>
@@ -578,13 +596,19 @@ namespace Robotics.IntentEnabledRobot.Simulation
         /// configuration the arm is already in and so keeps the inverse-kinematic solve
         /// well conditioned.
         /// <para>
-        /// The travel is best effort. A host that supplies no resolver, or a Location the
-        /// arm cannot reach, still gets the gripper action: the grasp is what the intent
-        /// guarantees, and failing a pick because the scenery is out of reach would be a
-        /// worse answer than picking where the arm already stands.
+        /// A host with no resolver gets the gripper action where the arm stands: it has not
+        /// told the executor where anything is, so there is nothing to travel to. But a
+        /// Location that <i>is</i> resolved and cannot be reached fails the intent. It used
+        /// to be best effort - the arm would stay where it was and close the gripper anyway,
+        /// reporting success - which reads as "picked from the fixture" while the tool is
+        /// still over the bin. A pick that never went anywhere is not a pick, and saying so
+        /// is what lets a caller notice.
         /// </para>
         /// </remarks>
-        private async ValueTask MoveToLocationAsync(
+        /// <returns>
+        /// <c>true</c> when the arm reached the Location, or when no resolver is configured.
+        /// </returns>
+        private async ValueTask<bool> MoveToLocationAsync(
             NodeId location,
             IntentExecution execution,
             CancellationToken cancellationToken)
@@ -594,28 +618,62 @@ namespace Robotics.IntentEnabledRobot.Simulation
                 || !ResolveLocationPosition(location, out ArrayOf<double> position)
                 || position.Count < 3)
             {
-                return;
+                return true;
             }
-            double[] start = GetJoints();
+            ReadOnlySpan<double> targetPosition = position.Span;
             Pose3DDataType current = CurrentSnapshot.ToolPose;
+            ReadOnlySpan<double> currentPosition = current.Position.Span;
+
+            // Travel over the cell rather than straight at the target. A single joint-space
+            // move interpolates between two configurations, and the straight line between
+            // "over the bin" and "over the fixture" dips: the arm sweeps a link through the
+            // bench on the way, which is what makes it look like it is passing through the
+            // table even when both ends of the move are clear. Lifting to a transit height,
+            // crossing, and descending is both how a real cell moves and a set of legs whose
+            // straight-line paths stay clear.
+            double transitZ = Math.Max(
+                Math.Max(currentPosition[2], targetPosition[2]), TransitHeightMetres);
+            string frameId = current.FrameId ?? string.Empty;
+            double[] destination = [targetPosition[0], targetPosition[1], targetPosition[2]];
+            ArrayOf<double> orientation = current.Orientation;
+
+            // A single joint-space move to the Location. Lifting to a transit height,
+            // crossing and descending is the motion this should make - it is what a real
+            // cell does and it avoids sweeping a link across the bench - but the transit
+            // pose has no inverse-kinematic solution with the orientation the tool is left
+            // holding after a place, so the arm stops mid-cycle. Left as it was until the
+            // approach and retract poses are solved for properly rather than inherited.
+            if (!await SwingToAsync(destination, frameId, orientation, execution, cancellationToken)
+                .ConfigureAwait(false))
+            {
+                LastTravelFailure = "no clear configuration reaches it";
+                return false;
+            }
+            return true;
+        }
+
+        /// <summary>
+        /// Swings the tool to a position in joint space, so the arm rotates around its base
+        /// rather than trying to carry the tool across the axis it stands on.
+        /// </summary>
+        private async ValueTask<bool> SwingToAsync(
+            double[] position,
+            string frameId,
+            ArrayOf<double> orientation,
+            IntentExecution execution,
+            CancellationToken cancellationToken)
+        {
+            double[] start = GetJoints();
             var target = new Pose3DDataType
             {
-                FrameId = current.FrameId,
-                Position = position,
-                Orientation = current.Orientation
+                FrameId = frameId,
+                Position = position.ToArrayOf(),
+                Orientation = orientation
             };
-
-            // Solve once and travel in joint space. Interpolating in Cartesian space would
-            // re-solve at every step and abandon the move the first time the straight line
-            // between here and there passes through a pose the arm cannot hold, which for a
-            // reach across a bench it usually does.
             if (!m_kinematics.TrySelectNearest(
-                target,
-                start,
-                out SimulatedArmIkSolution? solution,
-                out SimulatedArmKinematicFailure _))
+                target, start, out SimulatedArmIkSolution? solution, out SimulatedArmKinematicFailure _))
             {
-                return;
+                return false;
             }
             double distance = JointDistance(start, solution.JointAngles.Span);
             var profile = new TrapezoidalVelocityProfile(
@@ -627,6 +685,44 @@ namespace Robotics.IntentEnabledRobot.Simulation
                     m_kinematics.InterpolateJoints(start, solution.JointAngles.Span, fraction).Span),
                 DefaultJointAcceleration,
                 cancellationToken).ConfigureAwait(false);
+            return true;
+        }
+
+        /// <summary>
+        /// Gets why the last travel to a Location was refused, for the failure message.
+        /// </summary>
+        private string LastTravelFailure { get; set; } = string.Empty;
+
+        /// <summary>
+        /// Moves the tool centre point to one position along a straight line, keeping its
+        /// orientation.
+        /// </summary>
+        /// <remarks>
+        /// The line is followed in Cartesian space and re-solved at each step rather than
+        /// solved once and interpolated in joint space. Interpolating in joint space takes
+        /// whatever route the two configurations happen to describe, and when the solver
+        /// picks a different elbow branch for the far end that route swings a link through
+        /// the bench - so with clearance enforced, every candidate gets refused and the arm
+        /// simply stops. Re-solving along a straight line keeps each step next to the last
+        /// one, which is also what the move looks like on a real cell.
+        /// </remarks>
+        private async ValueTask<bool> MoveToolToAsync(
+            double[] position,
+            string frameId,
+            ArrayOf<double> orientation,
+            IntentExecution execution,
+            CancellationToken cancellationToken)
+        {
+            var target = new Pose3DDataType
+            {
+                FrameId = frameId,
+                Position = position.ToArrayOf(),
+                Orientation = orientation
+            };
+            IntentOutcome outcome = await MoveCartesianAsync(
+                target, new MotionConstraintsDataType(), execution, cancellationToken)
+                .ConfigureAwait(false);
+            return outcome.State == ExecutionStateEnum.Succeeded;
         }
 
         private async ValueTask<IntentOutcome> ExecuteToolChangeAsync(
@@ -1165,6 +1261,11 @@ namespace Robotics.IntentEnabledRobot.Simulation
         }
 
         private const double DefaultCartesianSpeed = 0.25;
+
+        // How high the tool lifts to before crossing the cell, in the arm's base frame.
+        // Above the bin walls and above a full stack on the fixture, so a straight
+        // joint-space leg at this height clears the furniture between two work positions.
+        private const double TransitHeightMetres = 0.32;
         private const double DefaultCartesianAcceleration = 0.7;
         private const double DefaultJointSpeed = 0.9;
         private const double DefaultJointAcceleration = 2.0;

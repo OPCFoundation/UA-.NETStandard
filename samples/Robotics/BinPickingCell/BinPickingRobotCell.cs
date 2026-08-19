@@ -198,14 +198,22 @@ namespace Vision.BinPickingCell
 
             foreach ((string name, double x, double y, double z, double rz) in s_locations)
             {
-                uint capacity = string.Equals(name, "Bin", StringComparison.Ordinal) ? PayloadSlotCount : 1u;
-                bool occupied = string.Equals(name, "Bin", StringComparison.Ordinal);
+                bool isBin = string.Equals(name, BinLocationName, StringComparison.Ordinal);
+
+                // A home slot starts occupied because its part starts there, and the bin
+                // starts occupied because all of them do. Occupied is kept true to the
+                // world from here on by UpdateLocationOccupancy: a slot that stayed
+                // "occupied" after the robot emptied it would be a node reporting
+                // something the cell can see is no longer the case.
+                uint capacity = isBin ? PayloadSlotCount : 1u;
+                bool occupied = isBin || name.StartsWith(HomeLocationPrefix, StringComparison.Ordinal);
                 IIntentLocationBuilder location = controller.AddLocation(
                     name,
                     Pose(WorldFrameId, x, y, z, rz),
                     builder => builder.WithOccupancy(occupied, capacity));
                 m_locations.Add(location.State);
                 m_locationNodes[name] = location.State.NodeId;
+                m_locationStates[name] = location.State;
             }
 
             controller.WithDescription(description => description
@@ -281,6 +289,51 @@ namespace Vision.BinPickingCell
         }
 
         /// <summary>
+        /// Gets whether the named part is lying under the tool, which is the only place a
+        /// grasp can pick it up from.
+        /// </summary>
+        /// <remarks>
+        /// A Pick names an object class and a source Location. Without this check the cell
+        /// hands over whatever class the intent names no matter where that part actually
+        /// is, so picking from an empty bin still produces a part in the gripper - and a
+        /// loop that keeps picking and placing walks every part onto one spot and stacks
+        /// them into the air, each Place resting the part on the pile the last one left.
+        /// The test is against the tool's own position rather than the Location the intent
+        /// named: the tool has already travelled there by the time it closes, and a field
+        /// remembering the last resolved Location goes stale as soon as intents queue
+        /// back to back - which made every grasp fail and the robot stop moving at all.
+        /// </remarks>
+        private bool CanGrasp(string classLabel, double toolX, double toolY)
+        {
+            IReadOnlyList<BinPickingPartSnapshot> parts = m_worldState.Snapshot();
+            for (int ii = 0; ii < parts.Count; ii++)
+            {
+                BinPickingPartSnapshot part = parts[ii];
+                if (!string.Equals(part.Part.ClassLabel, classLabel, StringComparison.Ordinal))
+                {
+                    continue;
+                }
+                bool within = Math.Abs(part.WorldX - toolX) <= GraspReachRadiusMetres
+                    && Math.Abs(part.WorldY - toolY) <= GraspReachRadiusMetres;
+                if (!within)
+                {
+                    m_logger.GraspFoundNothing(classLabel, FormatPosition(toolX, toolY));
+                }
+                return within;
+            }
+            return false;
+        }
+
+        /// <summary>
+        /// Formats a position for a log message.
+        /// </summary>
+        private static string FormatPosition(double x, double y)
+        {
+            return string.Create(
+                System.Globalization.CultureInfo.InvariantCulture, $"({x:F3}, {y:F3})");
+        }
+
+        /// <summary>
         /// Gets the height a part's centre comes to rest at over a spot on the bench, given
         /// everything else that is standing there.
         /// </summary>
@@ -351,9 +404,20 @@ namespace Vision.BinPickingCell
 
             if (snapshot.HasObject && snapshot.HeldObjectClass.Length > 0)
             {
+                if (m_carriedClass.Length == 0
+                    && !CanGrasp(snapshot.HeldObjectClass, worldX, worldY))
+                {
+                    // The gripper closed where the part is not. Attaching it anyway is
+                    // what let a Pick teleport a part out of a stack on the far side of
+                    // the bench into the tool: the cell would then carry it off and set it
+                    // down somewhere it was never taken from. Closing on nothing is the
+                    // honest outcome, and it leaves the part where it lies.
+                    return;
+                }
                 _ = m_worldState.MarkHeld(snapshot.HeldObjectClass, worldX, worldY, worldZ);
                 m_carriedClass = snapshot.HeldObjectClass;
                 PublishPartPosition(snapshot.HeldObjectClass, worldX, worldY, worldZ);
+                UpdateLocationOccupancy();
                 return;
             }
             if (!snapshot.HasObject && m_carriedClass.Length > 0)
@@ -374,6 +438,50 @@ namespace Vision.BinPickingCell
                 _ = m_worldState.MarkPlaced(m_carriedClass, worldX, worldY, restingZ);
                 PublishPartPosition(m_carriedClass, worldX, worldY, restingZ);
                 m_carriedClass = string.Empty;
+                UpdateLocationOccupancy();
+            }
+        }
+
+        /// <summary>
+        /// Republishes each Location's Occupied flag from where the parts actually are.
+        /// </summary>
+        /// <remarks>
+        /// Occupancy is declarative in the Robot Intent model - nothing enforces it - which
+        /// makes it easy to author once and leave wrong. A client asking "is the bin empty
+        /// yet" would then be told "no" forever. A Location counts as occupied when a part
+        /// that is not in the gripper is standing within its slot radius.
+        /// </remarks>
+        private void UpdateLocationOccupancy()
+        {
+            if (m_systemContext == null || m_locationStates.Count == 0)
+            {
+                return;
+            }
+            IReadOnlyList<BinPickingPartSnapshot> parts = m_worldState.Snapshot();
+            foreach ((string name, double x, double y, double _, double _) in s_locations)
+            {
+                if (!m_locationStates.TryGetValue(name, out global::Opc.Ua.RobotIntent.LocationState? state)
+                    || state.Occupied == null)
+                {
+                    continue;
+                }
+                double radius = string.Equals(name, BinLocationName, StringComparison.Ordinal)
+                    ? BinSlotRadiusMetres
+                    : HomeSlotRadiusMetres;
+                bool occupied = false;
+                for (int ii = 0; ii < parts.Count && !occupied; ii++)
+                {
+                    BinPickingPartSnapshot part = parts[ii];
+                    occupied = part.Location != BinPickingPartLocation.Held
+                        && Math.Abs(part.WorldX - x) <= radius
+                        && Math.Abs(part.WorldY - y) <= radius;
+                }
+                if (state.Occupied.Value == occupied)
+                {
+                    continue;
+                }
+                state.Occupied.Value = occupied;
+                state.Occupied.ClearChangeMasks(m_systemContext, false);
             }
         }
 
@@ -451,11 +559,69 @@ namespace Vision.BinPickingCell
                 frameId);
         }
 
+        /// <summary>
+        /// Gets the name of the Location that holds a part's own starting spot in the bin.
+        /// </summary>
+        internal static string HomeLocationName(string classLabel)
+        {
+            return HomeLocationPrefix + classLabel;
+        }
+
+        /// <summary>
+        /// Builds this cell's Locations: the bin, the fixture, and one home slot per part.
+        /// </summary>
+        /// <remarks>
+        /// A Place intent names a LocationType and carries no pose, so "the bin" is the
+        /// only way back unless each part has a Location of its own - and placing every
+        /// part at the bin puts them all on the one spot, which the support model then
+        /// stacks in the middle of it. The home slots are the authored scattered
+        /// positions, so a Place can return a part to where the cell first had it.
+        /// The bin and fixture coordinates are where those two actually stand in
+        /// Cell.usda; they used to be somewhere else entirely - the Bin at y = -0.28 when
+        /// the bin spans +/-0.12, the Fixture at (0.48, 0.26) when the fixture stands at
+        /// (-0.32, 0) - so "place it on the fixture" put the part down on bare bench a long
+        /// way from the fixture, and the render disagreed with the model about where the
+        /// cell's own furniture was. The Z is the surface a part stands on there.
+        /// </remarks>
+        private static (string Name, double X, double Y, double Z, double Rz)[] BuildLocations()
+        {
+            IReadOnlyList<BinPickingPart> parts = BinPickingPartsCatalog.Parts;
+            var locations = new List<(string Name, double X, double Y, double Z, double Rz)>(parts.Count + 2)
+            {
+                (BinLocationName, BinPickingPartsCatalog.BinCentreX, BinPickingPartsCatalog.BinCentreY,
+                    BenchTopMetres, 0.0),
+                (FixtureLocationName, -0.32, 0.0, FixturePlateTopMetres, 25.0)
+            };
+            for (int ii = 0; ii < parts.Count; ii++)
+            {
+                BinPickingPart part = parts[ii];
+                locations.Add((
+                    HomeLocationName(part.ClassLabel),
+                    part.InitialWorldPosition[0],
+                    part.InitialWorldPosition[1],
+                    BenchTopMetres,
+                    part.RotationZDegrees));
+            }
+            return [.. locations];
+        }
+
         internal const string WorldFrameId = "world";
         internal const string RobotBaseFrameId = "robot_base";
         internal const string FlangeFrameId = "flange";
         internal const string ToolFrameId = "gripper_tcp";
         internal const string CameraFrameId = "camera_eih";
+
+        /// <summary>
+        /// The Location a part is picked from and returned to as a group.
+        /// </summary>
+        internal const string BinLocationName = "Bin";
+
+        /// <summary>
+        /// The Location parts are stacked on.
+        /// </summary>
+        internal const string FixtureLocationName = "Fixture";
+
+        private const string HomeLocationPrefix = "Home";
         private const double FullTurnDegrees = 360.0;
         private const double HalfTurnDegrees = 180.0;
 
@@ -477,22 +643,26 @@ namespace Vision.BinPickingCell
         // under it, so releasing does not drop the part from the approach height.
         private const double ApproachHeightMetres = 0.20;
 
+        // How close a part has to be to a Location to count as standing in it. The bin is a
+        // tray parts are scattered across, so it reuses the catalogue's footprint; a home
+        // slot is one part's own spot, so its radius only has to cover the millimetre-scale
+        // settle a release leaves behind.
+        private const double BinSlotRadiusMetres = BinPickingPartsCatalog.BinHalfExtent;
+        private const double HomeSlotRadiusMetres = 0.02;
+
+        // How far a part may be from the tool and still be grasped by it. Wide enough to
+        // cover a Location's footprint, since a Pick travels to the Location rather than to
+        // the part, and far narrower than the 0.70 m between the bin and the fixture, so a
+        // grasp can never reach across the bench for something.
+        private const double GraspReachRadiusMetres = 0.12;
+
         // The simulator's DefaultJointSpeed is 0.9 rad/s; Position and the limits are
         // published in degrees, so the speed limit is too.
         private const double MaxAxisSpeedDegreesPerSecond = 0.9 * 180.0 / Math.PI;
         private const uint PayloadSlotCount = 8u;
 
         private static readonly (string Name, double X, double Y, double Z, double Rz)[] s_locations =
-        [
-            // These are where the bin and the fixture actually are in Cell.usda. They used
-            // to be somewhere else entirely - the Bin at y = -0.28 when the bin spans
-            // +/-0.12, the Fixture at (0.48, 0.26) when the fixture stands at (-0.32, 0) -
-            // so "place it on the fixture" put the part down on bare bench a long way from
-            // the fixture, and the render disagreed with the model about where the cell's
-            // own furniture was. The Z is the surface a part stands on there.
-            ("Bin", 0.38, 0.0, BenchTopMetres, 0.0),
-            ("Fixture", -0.32, 0.0, FixturePlateTopMetres, 25.0)
-        ];
+            BuildLocations();
 
         // The solids in this cell that never move and that a part can come to rest on, in
         // the world frame. Sizes are full extents, matching Cell.usda.
@@ -518,6 +688,8 @@ namespace Vision.BinPickingCell
         private readonly List<global::Opc.Ua.RobotIntent.AxisState> m_axes = [];
         private readonly List<global::Opc.Ua.RobotIntent.LocationState> m_locations = [];
         private readonly Dictionary<string, NodeId> m_locationNodes = new(StringComparer.Ordinal);
+        private readonly Dictionary<string, global::Opc.Ua.RobotIntent.LocationState> m_locationStates =
+            new(StringComparer.Ordinal);
         private AsyncCustomNodeManager? m_manager;
         private IIntentControllerBuilder? m_controller;
         private ServerSystemContext? m_systemContext;
@@ -533,5 +705,13 @@ namespace Vision.BinPickingCell
         public static partial void RobotCellReady(
             this ILogger<BinPickingRobotCell> logger,
             int axisCount, int locationCount, ArrayOf<string> facets);
+
+        [LoggerMessage(EventId = BinPickingCellEventIds.Configurator + 2,
+            Level = LogLevel.Warning,
+            Message = "Grasp at {ToolPosition} found no {ClassLabel} under the tool; " +
+                "the gripper closed on nothing.")]
+        public static partial void GraspFoundNothing(
+            this ILogger<BinPickingRobotCell> logger,
+            string classLabel, string toolPosition);
     }
 }

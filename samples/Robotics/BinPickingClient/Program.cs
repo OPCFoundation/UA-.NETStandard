@@ -408,7 +408,7 @@ namespace BinPickingClient
                 streamReady?.TrySetResult(true);
                 try
                 {
-                    await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken).ConfigureAwait(false);
+                    await PumpWhileViewportIsOpenAsync(session, cancellationToken).ConfigureAwait(false);
                 }
                 catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
                 {
@@ -419,6 +419,48 @@ namespace BinPickingClient
                     Console.Error.WriteLine("Live OpenUSD stream stopping.");
                     await connector.StopAsync(CancellationToken.None).ConfigureAwait(false);
                 }
+            }
+        }
+
+        /// <summary>
+        /// Keeps the client doing work for as long as the viewport is open.
+        /// </summary>
+        /// <remarks>
+        /// This used to be a single infinite delay, which is the natural thing to write:
+        /// the connector's subscriptions push updates, so the host has nothing else to do.
+        /// It also stops the viewport updating. Measured against this cell, an idle host
+        /// applies no stage updates at all while a busy one applies them normally
+        /// (openusd-dotnet issue 17), so a viewer that only watches shows a frozen scene
+        /// while the robot is demonstrably moving - which is exactly the case when an
+        /// agent, rather than this client, is driving the cell. Reading the controller on
+        /// a timer keeps the host doing something between updates. The read is a real
+        /// one so this is a poll rather than a spin, and it is cheap next to rendering.
+        /// </remarks>
+        private static async Task PumpWhileViewportIsOpenAsync(
+            ISession session,
+            CancellationToken cancellationToken)
+        {
+            var serverStatus = new ReadValueId
+            {
+                NodeId = global::Opc.Ua.VariableIds.Server_ServerStatus_CurrentTime,
+                AttributeId = Attributes.Value
+            };
+            ArrayOf<ReadValueId> nodesToRead = [serverStatus];
+            while (!cancellationToken.IsCancellationRequested)
+            {
+                try
+                {
+                    _ = await session.ReadAsync(
+                        null, 0, TimestampsToReturn.Neither, nodesToRead, cancellationToken)
+                        .ConfigureAwait(false);
+                }
+#pragma warning disable CA1031 // A read failure must not close a viewport the user is watching.
+                catch (Exception) when (!cancellationToken.IsCancellationRequested)
+#pragma warning restore CA1031
+                {
+                    // A dropped read is the reconnect handler's business, not the viewer's.
+                }
+                await Task.Delay(ViewportPumpInterval, cancellationToken).ConfigureAwait(false);
             }
         }
 
@@ -601,5 +643,9 @@ namespace BinPickingClient
             Message = "MCP host started with transport {Transport}.")]
         private static partial void LogMcpHostStarted(ILogger logger, string transport);
 #endif
+
+        // How often a watching client reads the server while the viewport is open. Fast
+        // enough that the host is never idle for long, slow enough to stay a poll.
+        private static readonly TimeSpan ViewportPumpInterval = TimeSpan.FromMilliseconds(50);
     }
 }
