@@ -146,16 +146,19 @@
        Vision server's simulated camera views offscreen via Silk (D3D12/Vulkan).
        Published on nuget.org. The runtime packages ship win-x64, linux-x64 and
        osx-arm64; the RID-agnostic metapackages resolve the correct native asset
-       per RID, so no RID-conditional reference is required. -->
+       per RID, so no RID-conditional reference is required. All of these move
+       together: 0.11.0-alpha carries Storm child native ABI 8, and the managed
+       and RID-specific runtime packages have to match, so a partial bump fails
+       when the natives load rather than when the solution builds. -->
   <ItemGroup>
-    <PackageVersion Include="OpenUsd" Version="0.10.0-alpha" />
-    <PackageVersion Include="OpenUsd.Viewer" Version="0.10.0-alpha" />
-    <PackageVersion Include="OpenUsd.Rendering" Version="0.10.0-alpha" />
-    <PackageVersion Include="OpenUsd.Rendering.Silk" Version="0.10.0-alpha" />
-    <PackageVersion Include="OpenUsd.Rendering.Silk.D3D12" Version="0.10.0-alpha" />
-    <PackageVersion Include="OpenUsd.Rendering.Silk.Vulkan" Version="0.10.0-alpha" />
-    <PackageVersion Include="OpenUsd.Runtime.Core" Version="0.10.0-alpha" />
-    <PackageVersion Include="OpenUsd.Runtime.Imaging" Version="0.10.0-alpha" />
+    <PackageVersion Include="OpenUsd" Version="0.11.0-alpha" />
+    <PackageVersion Include="OpenUsd.Viewer" Version="0.11.0-alpha" />
+    <PackageVersion Include="OpenUsd.Rendering" Version="0.11.0-alpha" />
+    <PackageVersion Include="OpenUsd.Rendering.Silk" Version="0.11.0-alpha" />
+    <PackageVersion Include="OpenUsd.Rendering.Silk.D3D12" Version="0.11.0-alpha" />
+    <PackageVersion Include="OpenUsd.Rendering.Silk.Vulkan" Version="0.11.0-alpha" />
+    <PackageVersion Include="OpenUsd.Runtime.Core" Version="0.11.0-alpha" />
+    <PackageVersion Include="OpenUsd.Runtime.Imaging" Version="0.11.0-alpha" />
     <PackageVersion Include="Avalonia" Version="12.1.1" />
     <PackageVersion Include="Avalonia.Desktop" Version="12.1.1" />
   </ItemGroup>
