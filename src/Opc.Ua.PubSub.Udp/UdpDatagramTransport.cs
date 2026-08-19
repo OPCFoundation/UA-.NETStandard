@@ -538,7 +538,9 @@ namespace Opc.Ua.PubSub.Udp
             ReadOnlyMemory<byte> payload,
             CancellationToken cancellationToken)
         {
-            if (socket.AddressFamily == AddressFamily.InterNetwork)
+            if (socket.AddressFamily == AddressFamily.InterNetwork &&
+                socket.LocalEndPoint is IPEndPoint localEndPoint &&
+                !IPAddress.IsLoopback(localEndPoint.Address))
             {
                 await SendOnceAsync(
                     socket,
@@ -548,6 +550,10 @@ namespace Opc.Ua.PubSub.Udp
                     cancellationToken).ConfigureAwait(false);
                 return;
             }
+
+            // A socket bound to loopback cannot route the standard multicast discovery endpoint
+            // on Windows. Use a wildcard-bound IPv4 socket for discovery while retaining the
+            // loopback binding that unicast data traffic requires on macOS.
             using Socket discoverySocket = new(
                 AddressFamily.InterNetwork,
                 SocketType.Dgram,
