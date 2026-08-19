@@ -479,10 +479,14 @@ namespace Opc.Ua.Client
                 {
                     if (Connected)
                     {
-                        Task closeSessionTask = base.CloseSessionAsync(
-                            null,
-                            DeleteSubscriptionsOnClose,
-                            default).AsTask();
+                        var request = new CloseSessionRequest
+                        {
+                            DeleteSubscriptions = DeleteSubscriptionsOnClose
+                        };
+                        UpdateRequestHeader(request, true, "CloseSession");
+                        Task closeSessionTask = TransportChannel
+                            .SendRequestAsync(request, default)
+                            .AsTask();
                         _ = ObserveCloseSessionAsync(closeSessionTask);
                     }
                 }

@@ -1142,10 +1142,13 @@ namespace Opc.Ua.Client.Tests
             sut.SetConnected();
             var closeResponse = new TaskCompletionSource<IServiceResponse>(
                 TaskCreationOptions.RunContinuationsAsynchronously);
+            CloseSessionRequest? closeRequest = null;
             sut.Channel
                 .Setup(c => c.SendRequestAsync(
                     It.IsAny<CloseSessionRequest>(),
                     It.IsAny<CancellationToken>()))
+                .Callback((IServiceRequest request, CancellationToken _) =>
+                    closeRequest = request as CloseSessionRequest)
                 .Returns(new ValueTask<IServiceResponse>(closeResponse.Task))
                 .Verifiable(Times.Once);
 
@@ -1159,6 +1162,9 @@ namespace Opc.Ua.Client.Tests
             Assert.That(completedTask, Is.SameAs(disposeTask));
             await disposeTask.ConfigureAwait(false);
             sut.Channel.Verify();
+            Assert.That(closeRequest, Is.Not.Null);
+            Assert.That(closeRequest!.DeleteSubscriptions, Is.True);
+            Assert.That(closeRequest.RequestHeader.AuthenticationToken, Is.EqualTo(NodeId.Parse("s=auth")));
 
             closeResponse.TrySetResult(new CloseSessionResponse
             {
