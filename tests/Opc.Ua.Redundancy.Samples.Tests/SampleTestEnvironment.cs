@@ -47,7 +47,8 @@ namespace Opc.Ua.Redundancy.Samples.Tests
             new Dictionary<string, string>(StringComparer.Ordinal)
             {
                 ["DEMO_FIRST_SECONDS"] = "1",
-                ["DEMO_SECOND_SECONDS"] = "1"
+                ["DEMO_SECOND_SECONDS"] = "1",
+                ["HA_INSECURE"] = "true"
             };
 
         /// <summary>
