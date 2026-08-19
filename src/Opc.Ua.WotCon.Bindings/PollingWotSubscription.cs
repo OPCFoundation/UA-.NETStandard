@@ -162,9 +162,9 @@ namespace Opc.Ua.WotCon.Bindings
                 }
                 else
                 {
-                    int attempt = Volatile.Read(ref m_consecutiveFailures);
+                    int attempt = Volatile.Read(ref m_consecutiveFailures) + 1;
+                    Volatile.Write(ref m_consecutiveFailures, attempt);
                     delay = m_retryPolicy.GetDelay(attempt);
-                    Volatile.Write(ref m_consecutiveFailures, attempt + 1);
                     if (delay < TimeSpan.Zero)
                     {
                         // The policy has given up. Stop polling rather than spin;
