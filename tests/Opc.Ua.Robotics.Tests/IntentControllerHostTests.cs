@@ -529,18 +529,23 @@ namespace Opc.Ua.Robotics.Tests
             // dispatch; admission still runs, so the bound is enforced reliably.
             Assert.That(host.Pause(m_context, null), Is.True);
 
-            host.SubmitIntent(m_context, null, Move("a", BufferModeEnum.Buffered));
-            IntentAdmission overflow = host.SubmitIntent(
-                m_context, null, Move("b", BufferModeEnum.Buffered));
-
-            Assert.Multiple(() =>
+            try
             {
-                Assert.That(overflow.Accepted, Is.False);
-                Assert.That(overflow.Failure, Is.EqualTo(IntentFailureEnum.QueueFull));
-            });
+                host.SubmitIntent(m_context, null, Move("a", BufferModeEnum.Buffered));
+                IntentAdmission overflow = host.SubmitIntent(
+                    m_context, null, Move("b", BufferModeEnum.Buffered));
 
-            host.Resume(m_context, null);
-            m_executor.Gate!.Release(4);
+                Assert.Multiple(() =>
+                {
+                    Assert.That(overflow.Accepted, Is.False);
+                    Assert.That(overflow.Failure, Is.EqualTo(IntentFailureEnum.QueueFull));
+                });
+            }
+            finally
+            {
+                host.Resume(m_context, null);
+                m_executor.Gate!.Release(4);
+            }
         }
 
         [Test]
