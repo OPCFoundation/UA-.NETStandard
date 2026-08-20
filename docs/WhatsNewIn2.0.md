@@ -25,8 +25,8 @@ If you are migrating an existing application, the companion
 - **New companion-spec coverage**: Part 9 (Alarms & Conditions), Part 11
   (Historical Access) + Part 13 (Aggregates), Part 16 (State Machines),
   Part 17 (Alias Names), Part 18 (Role Management), Part 20 (File Transfer),
-  Part 100 (Device Integration), plus OPC 10100-1 WoT Connectivity and a
-  Local Discovery Server.
+  Part 100 (Device Integration), OPC UA for Asset Administration Shell V3,
+  plus OPC 10100-1 WoT Connectivity and a Local Discovery Server.
 - **Source generators emit NodeManagers, typed `ObjectType` proxies, and
   `IEncodeable` data types from model design XML**, removing hand-written
   boilerplate while staying AOT-clean.
@@ -200,6 +200,12 @@ server- and client-side implementations:
   configurable `WotManagementAccessPolicy` (defaults: `SignAndEncrypt`
   channel + `SecurityAdmin` role + no anonymous). See
   [WoT Connectivity](WoTConnectivity.md).
+- **OPC UA for Asset Administration Shell V3**: source-generated I4AAS V3
+  model, AAS JSON/XML/AASX serialization, deterministic AAS NodeIds,
+  value-space round-trip fidelity, metamodel server/client, xRegistry-based
+  AAS registry, updateable materialization, package integrity, federation,
+  DPP disclosure tiers and the Annex F WoT bridge. See
+  [Asset Administration Shell V3](Aas.md).
 - **Local Discovery Server**: a built-in LDS implementation usable
   standalone or as part of a hosted server.
 
@@ -529,3 +535,4 @@ coverage service; see
   [Container Reference Server](ContainerReferenceServer.md),
   [Provisioning Mode](ProvisioningMode.md).
 - PubSub: [PubSub library](PubSub.md).
+

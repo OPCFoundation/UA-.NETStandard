@@ -14,6 +14,10 @@
 # To update: run `dotnet pack preview-pack.slnx` and reconcile the produced
 # package ids with this file in the same pull request that changes them.
 
+OPCFoundation.NetStandard.Opc.Ua.Aas
+OPCFoundation.NetStandard.Opc.Ua.Aas.Client
+OPCFoundation.NetStandard.Opc.Ua.Aas.Server
+OPCFoundation.NetStandard.Opc.Ua.Aas.WoT
 OPCFoundation.NetStandard.Opc.Ua.Bindings.Https
 OPCFoundation.NetStandard.Opc.Ua.Bindings.Quic
 OPCFoundation.NetStandard.Opc.Ua.Client

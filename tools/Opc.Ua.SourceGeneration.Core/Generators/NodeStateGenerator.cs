@@ -391,7 +391,8 @@ namespace Opc.Ua.SourceGeneration
             context.Template.AddReplacement(Tokens.AccessorSymbol, "public new");
             if (!instance.IsOverridden())
             {
-                if (!s_builtInMethodNames.Contains(instance.SymbolicName.Name))
+                if (!s_builtInMethodNames.Contains(instance.SymbolicName.Name) &&
+                    !instance.HidesBaseTypePlaceholder())
                 {
                     context.Template.AddReplacement(Tokens.AccessorSymbol, "public");
                 }
@@ -4068,6 +4069,11 @@ namespace Opc.Ua.SourceGeneration
             "Specification",
             "Update",
             "Delete",
+            // Children whose generated accessor property shadows the
+            // identically-named global::Opc.Ua.NodeState.Extensions property,
+            // which carries the NodeSet2 <Extensions> elements rather than an
+            // address-space member, and therefore must be declared "public new".
+            "Extensions",
             // Method children whose generated accessor property shadows the
             // identically-named global::Opc.Ua.NodeState.Validate(ISystemContext)
             // instance method and therefore must be declared "public new".
