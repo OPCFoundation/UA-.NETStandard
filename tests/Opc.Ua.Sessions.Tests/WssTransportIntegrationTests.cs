@@ -226,6 +226,7 @@ namespace Opc.Ua.Sessions.Tests
         [Test]
         public void UpdateBeforeConnectRejectsUntrustedDiscoveryCertificate()
         {
+            SkipIfWssUnsupported();
             ICertificateValidatorEx certificateManager = m_clientFixture.Config.CertificateManager;
             Func<Certificate, ServiceResult, bool>? previousAcceptError = certificateManager.AcceptError;
             certificateManager.AcceptError = (_, _) => false;
