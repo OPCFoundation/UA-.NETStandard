@@ -57,7 +57,7 @@ namespace Opc.Ua.Redundancy.Samples.Tests
             int port,
             string serverUrl,
             IReadOnlyList<string> arguments,
-            IReadOnlyDictionary<string, string> environment)
+            IReadOnlyDictionary<string, string?> environment)
         {
             NodeId = nodeId;
             Port = port;
@@ -90,7 +90,7 @@ namespace Opc.Ua.Redundancy.Samples.Tests
         /// <summary>
         /// Gets the environment variables used to launch the replica.
         /// </summary>
-        public IReadOnlyDictionary<string, string> Environment { get; }
+        public IReadOnlyDictionary<string, string?> Environment { get; }
 
         /// <summary>
         /// Gets the currently launched sample process backing this replica.
@@ -183,7 +183,7 @@ namespace Opc.Ua.Redundancy.Samples.Tests
             {
                 for (int i = 0; i < count; i++)
                 {
-                    var environment = new Dictionary<string, string>(StringComparer.Ordinal)
+                    var environment = new Dictionary<string, string?>(StringComparer.Ordinal)
                     {
                         ["HA_MODE"] = "ap",
                         ["HA_CONSISTENCY"] = "strong",
@@ -239,7 +239,7 @@ namespace Opc.Ua.Redundancy.Samples.Tests
         {
             int port = TestPorts.GetFreePort();
             string pkiRoot = CreateFreshPkiRoot();
-            var environment = new Dictionary<string, string>(StringComparer.Ordinal)
+            var environment = new Dictionary<string, string?>(StringComparer.Ordinal)
             {
                 ["HA_MODE"] = "ap",
                 ["HA_CONSISTENCY"] = "eventual",

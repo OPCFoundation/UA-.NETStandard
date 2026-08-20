@@ -43,8 +43,8 @@ namespace Opc.Ua.Redundancy.Samples.Tests
         /// Environment for the single-process PubSub demo that shortens the two demo
         /// phases so the failover narrative completes quickly during tests.
         /// </summary>
-        public static IReadOnlyDictionary<string, string> FastDemo { get; } =
-            new Dictionary<string, string>(StringComparer.Ordinal)
+        public static IReadOnlyDictionary<string, string?> FastDemo { get; } =
+            new Dictionary<string, string?>(StringComparer.Ordinal)
             {
                 ["DEMO_FIRST_SECONDS"] = "1",
                 ["DEMO_SECOND_SECONDS"] = "1",
@@ -56,8 +56,8 @@ namespace Opc.Ua.Redundancy.Samples.Tests
         /// Environment for a plain, independent managed RedundantClient (one that fails
         /// over on its own rather than joining a coordinated client replica set).
         /// </summary>
-        public static IReadOnlyDictionary<string, string> IndependentClient { get; } =
-            new Dictionary<string, string>(StringComparer.Ordinal)
+        public static IReadOnlyDictionary<string, string?> IndependentClient { get; } =
+            new Dictionary<string, string?>(StringComparer.Ordinal)
             {
                 ["CLIENT_MODE"] = "independent"
             };

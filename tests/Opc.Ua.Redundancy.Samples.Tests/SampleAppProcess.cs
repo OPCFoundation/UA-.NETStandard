@@ -59,7 +59,7 @@ namespace Opc.Ua.Redundancy.Samples.Tests
             string applicationDirectory,
             string assemblyName,
             IReadOnlyList<string> arguments,
-            IReadOnlyDictionary<string, string>? environment = null)
+            IReadOnlyDictionary<string, string?>? environment = null)
         {
             Name = name;
             string dll = LocateApplicationAssembly(applicationDirectory, assemblyName);
@@ -80,7 +80,7 @@ namespace Opc.Ua.Redundancy.Samples.Tests
 
             if (environment != null)
             {
-                foreach (KeyValuePair<string, string> variable in environment)
+                foreach (KeyValuePair<string, string?> variable in environment)
                 {
                     startInfo.Environment[variable.Key] = variable.Value;
                 }
