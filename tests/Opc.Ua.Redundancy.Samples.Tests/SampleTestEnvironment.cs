@@ -48,6 +48,7 @@ namespace Opc.Ua.Redundancy.Samples.Tests
             {
                 ["DEMO_FIRST_SECONDS"] = "1",
                 ["DEMO_SECOND_SECONDS"] = "1",
+                ["PUBSUB_ENDPOINT"] = "opc.udp://127.0.0.1:4841",
                 ["HA_INSECURE"] = "true"
             };
 
