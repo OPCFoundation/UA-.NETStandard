@@ -65,6 +65,35 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests.DependencyInjection
         }
 
         [Test]
+        public void AddWebApiTransportReturnsSameSpecializedBuilder()
+        {
+            var builder = new TestTransportBuilder(new ServiceCollection());
+
+            TestTransportBuilder returned = builder.AddWebApiTransport();
+
+            Assert.That(returned, Is.SameAs(builder));
+        }
+
+        [Test]
+        public void AddWebApiTransportWithOptionsReturnsSameSpecializedBuilder()
+        {
+            var builder = new TestTransportBuilder(new ServiceCollection());
+
+            TestTransportBuilder returned = builder.AddWebApiTransport(_ => { });
+
+            Assert.That(returned, Is.SameAs(builder));
+        }
+
+        [Test]
+        public void SpecializedTransportBuilderThrowsWhenNull()
+        {
+            TestTransportBuilder builder = null!;
+
+            Assert.That(() => builder.AddWebApiTransport(), Throws.ArgumentNullException);
+            Assert.That(() => builder.AddWebApiTransport(_ => { }), Throws.ArgumentNullException);
+        }
+
+        [Test]
         public void AddWebApiTransportRegistersWebApiServer()
         {
             var services = new ServiceCollection();

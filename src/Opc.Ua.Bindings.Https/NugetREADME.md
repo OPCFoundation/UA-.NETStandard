@@ -24,8 +24,8 @@ The package contains:
 - WSS reverse-connect for both server-side outbound and client-side
   listener flows.
 - The `AddHttpsTransport()` / `AddWssTransport()` DI extensions on
-  `IOpcUaBuilder` for fluent registration into the
-  `ITransportBindingRegistry`.
+  `IOpcUaBuilder` and specialized server builders for fluent registration
+  into the `ITransportBindingRegistry`.
 - An `IHttpsListenerStartupContributor` extension hook for companion
   middleware that wants to mount on the shared Kestrel host.
 - `KestrelTcpTransportListener` (`net8.0`+, opt-in) — hosts the
@@ -41,6 +41,10 @@ The package contains:
   `AddWebApiTransport()`; NativeAOT-compatible, no MVC reflection.
 
 ## Getting started
+
+Reference this package directly in every application that enables HTTPS, WSS,
+Kestrel-hosted OPC TCP, or the REST binding. Server feature packages do not
+pull this optional binding transitively.
 
 ```csharp
 using Microsoft.Extensions.DependencyInjection;

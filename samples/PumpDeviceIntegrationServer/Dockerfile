@@ -47,14 +47,13 @@ ARG SimpleVersion
 ARG InformationalVersion
 
 RUN dotnet restore "samples/PumpDeviceIntegrationServer/PumpDeviceIntegrationServer.csproj" \
-        --force -p:NoHttps=true
+        --force
 
 RUN dotnet publish "samples/PumpDeviceIntegrationServer/PumpDeviceIntegrationServer.csproj" \
         --no-restore \
         -c Release \
         -f net10.0 \
         -p:PublishAot=false \
-        -p:NoHttps=true \
         -p:Dockerbuild=true \
         -p:Version=${Version} \
         -p:AssemblyVersion=${SimpleVersion} \
