@@ -109,8 +109,8 @@ namespace Opc.Ua.PubSub.Udp.Dtls
         /// </summary>
         /// <remarks>
         /// The AEAD record-protection path relies on BCL primitives
-        /// (<see cref="System.Security.Cryptography.AesGcm"/>,
-        /// <see cref="System.Security.Cryptography.ChaCha20Poly1305"/>) that are
+        /// (<c>System.Security.Cryptography.AesGcm</c>,
+        /// <c>System.Security.Cryptography.ChaCha20Poly1305</c>) that are
         /// only available on .NET 8 or later. When the assembly is compiled for
         /// an older target framework (for example <c>netstandard2.1</c>) the
         /// AEAD cipher suites cannot be used and this probe returns
