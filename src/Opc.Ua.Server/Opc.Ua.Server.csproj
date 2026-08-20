@@ -35,7 +35,9 @@
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="..\Opc.Ua.Core\Opc.Ua.Core.csproj" />
-    <ProjectReference Include="..\Opc.Ua.Bindings.Https\Opc.Ua.Bindings.Https.csproj" Condition="'$(NoHttps)' != 'true'" />
+    <ProjectReference Include="..\Opc.Ua.Bindings.Https\Opc.Ua.Bindings.Https.csproj"
+                      Condition="'$(NoHttps)' != 'true'"
+                      PrivateAssets="all" />
     <ProjectReference Include="..\Opc.Ua.Core.Schema\Opc.Ua.Core.Schema.csproj" />
     <ProjectReference Include="..\Opc.Ua.Configuration\Opc.Ua.Configuration.csproj" />
   </ItemGroup>
