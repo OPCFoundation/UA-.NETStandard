@@ -184,6 +184,17 @@ namespace Vision.BinPickingCell
                 frame => frame.WithParent(flange));
             controller.AddTool("ParallelGripper", tool, fitted: true);
 
+            IIntentOutputSignalBuilder gripperLeft = controller.AddOutput(
+                "GripperLeftSlide",
+                Opc.Ua.DataTypeIds.ThreeDCartesianCoordinates,
+                ToVariant(GripperSlide(m_executor.CurrentSnapshot.GripperOpening, 1.0)));
+            IIntentOutputSignalBuilder gripperRight = controller.AddOutput(
+                "GripperRightSlide",
+                Opc.Ua.DataTypeIds.ThreeDCartesianCoordinates,
+                ToVariant(GripperSlide(m_executor.CurrentSnapshot.GripperOpening, -1.0)));
+            m_gripperLeftSlideValue = gripperLeft.State.Value;
+            m_gripperRightSlideValue = gripperRight.State.Value;
+
             for (uint index = 0; index < s_axes.Length; index++)
             {
                 IIntentAxisBuilder axis = controller.AddAxis(s_axes[index], index, AxisKindEnum.Revolute);
@@ -657,6 +668,37 @@ namespace Vision.BinPickingCell
                     axis.Position.ClearChangeMasks(m_systemContext, true);
                 }
             }
+            if (m_gripperLeftSlideValue != null)
+            {
+                m_gripperLeftSlideValue.Value = ToVariant(
+                    GripperSlide(snapshot.GripperOpening, 1.0));
+                m_gripperLeftSlideValue.ClearChangeMasks(m_systemContext, true);
+            }
+            if (m_gripperRightSlideValue != null)
+            {
+                m_gripperRightSlideValue.Value = ToVariant(
+                    GripperSlide(snapshot.GripperOpening, -1.0));
+                m_gripperRightSlideValue.ClearChangeMasks(m_systemContext, true);
+            }
+        }
+
+        /// <summary>
+        /// Converts the jaw opening into one slide's USD translation.
+        /// </summary>
+        private static ThreeDCartesianCoordinates GripperSlide(double opening, double direction)
+        {
+            double centre = Math.Clamp(opening * 0.5, GripperClosedHalfGap, GripperOpenHalfGap);
+            return new ThreeDCartesianCoordinates
+            {
+                X = 0.0,
+                Y = direction * centre,
+                Z = 0.0
+            };
+        }
+
+        private static Variant ToVariant(ThreeDCartesianCoordinates value)
+        {
+            return new Variant(new ExtensionObject(value));
         }
 
         private static Pose3DDataType Pose(string frameId, double x, double y, double z, double rzDegrees = 0.0)
@@ -759,6 +801,8 @@ namespace Vision.BinPickingCell
         // under it, so releasing does not drop the part from the approach height.
         private const double ApproachHeightMetres = 0.20;
         private const double PlaceReleaseClearanceMetres = 0.017;
+        private const double GripperClosedHalfGap = 0.009;
+        private const double GripperOpenHalfGap = 0.040;
 
         // How close a part has to be to a Location to count as standing in it. The bin is a
         // tray parts are scattered across, so it reuses the catalogue's footprint; a home
@@ -817,6 +861,8 @@ namespace Vision.BinPickingCell
         private readonly Dictionary<string, NodeId> m_locationNodes = new(StringComparer.Ordinal);
         private readonly Dictionary<string, global::Opc.Ua.RobotIntent.LocationState> m_locationStates =
             new(StringComparer.Ordinal);
+        private BaseVariableState? m_gripperLeftSlideValue;
+        private BaseVariableState? m_gripperRightSlideValue;
         private AsyncCustomNodeManager? m_manager;
         private IIntentControllerBuilder? m_controller;
         private ServerSystemContext? m_systemContext;

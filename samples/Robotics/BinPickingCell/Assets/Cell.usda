@@ -46,9 +46,9 @@ def Xform "World"
     # one shows the cell working, which is what someone watching the robot wants.
     #
     # It sits on the -Y side so +X reads left to right, which is what puts the fixture on
-    # the left and the bin on the right. A USD camera looks down its own -Z and this stage
-    # is Z-up, so an unrotated camera points straight down; rotateX tips it back to about
-    # 30 degrees below horizontal, which is the foreshortening the bench top shows.
+    # the left and the bin on the right. This is deliberately a low, centred front view:
+    # the table surface is nearly edge-on, its legs stay visible, and the complete wrist,
+    # gripper, bin and stack can be judged against one another throughout a cycle.
     #
     # The numbers were fitted to a reference framing and then corrected against what the
     # viewer actually rendered, because the analytic placement and the rendered result did
@@ -62,8 +62,8 @@ def Xform "World"
         float horizontalAperture = 20.955
         float verticalAperture = 16.989
         float2 clippingRange = (0.1, 100.0)
-        double3 xformOp:translate = (0.79, -7.008, 4.814)
-        double xformOp:rotateX = 50.45
+        double3 xformOp:translate = (0.500, -5.400, 1.300)
+        double xformOp:rotateX = 75.50
         uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateX"]
     }
 

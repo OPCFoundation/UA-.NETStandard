@@ -224,6 +224,7 @@ def Xform "Arm" (
                                     {
                                         double3 xformOp:translate = (0.1200, 0, 0)
                                         uniform token[] xformOpOrder = ["xformOp:translate"]
+                                        token visibility = "invisible"
 
                                         def Sphere "Marker" (
                                             prepend apiSchemas = ["MaterialBindingAPI"]

@@ -212,6 +212,29 @@ namespace Vision.BinPickingCell
             OpenUsdRepresentationState controllerRep = AttachRepresentation(Controller.State, "/World", usdNs);
             representations.Add(controllerRep);
 
+            CreateBinding(
+                controllerRep,
+                usdNs,
+                "GripperLeftSlide",
+                GuidFor("gripper:left"),
+                m_gripperLeftSlideValue?.NodeId ?? NodeId.Null,
+                "/World/Robot/Arm/Base/J1/J2/J3/J4/J5/J6/Flange/Gripper/FingerLeftSlide",
+                "xformOp:translate",
+                "double3",
+                OpenUsdRenderTargetKindEnum.Translation,
+                1.0);
+            CreateBinding(
+                controllerRep,
+                usdNs,
+                "GripperRightSlide",
+                GuidFor("gripper:right"),
+                m_gripperRightSlideValue?.NodeId ?? NodeId.Null,
+                "/World/Robot/Arm/Base/J1/J2/J3/J4/J5/J6/Flange/Gripper/FingerRightSlide",
+                "xformOp:translate",
+                "double3",
+                OpenUsdRenderTargetKindEnum.Translation,
+                1.0);
+
             int axisIndex = 0;
             foreach (global::Opc.Ua.RobotIntent.AxisState axis in Axes)
             {
