@@ -1097,8 +1097,10 @@ namespace Opc.Ua.SourceGeneration
                 ?? candidates.Find(d => string.Equals(
                     d.Name, "netstandard2.0", StringComparison.OrdinalIgnoreCase))
                 ?? candidates
-                    .Where(d => Directory.EnumerateFiles(d.FullName, "Opc.Ua.Server.dll").Any())
-                    .OrderByDescending(d => d.Name, StringComparer.OrdinalIgnoreCase)
+                    .Select(d => new FileInfo(Path.Combine(d.FullName, "Opc.Ua.Server.dll")))
+                    .Where(f => f.Exists)
+                    .OrderByDescending(f => f.LastWriteTimeUtc)
+                    .Select(f => f.Directory)
                     .FirstOrDefault();
 
             if (match == null)
