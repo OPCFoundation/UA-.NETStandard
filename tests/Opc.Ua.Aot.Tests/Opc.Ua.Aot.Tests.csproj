@@ -18,13 +18,18 @@
     <RestrictForLegacyTfm>true</RestrictForLegacyTfm>
   </PropertyGroup>
   <!-- On macOS (notably ARM64 / Apple silicon CI runners) the Apple linker can hit
-       assertions when linking a very large NativeAOT binary. Folding identical method
-       bodies reduces the number of fixups and helps avoid linker thresholds.
-       Note: -ld_classic was previously used as a fallback but is now deprecated and
+       assertions when linking a very large NativeAOT binary. Prefer a size-focused
+       publish with no native debug payload: it keeps the CI-only test binary below
+       the linker thresholds without changing the managed test surface. Note:
+       -ld_classic was previously used as a fallback but is now deprecated and
        crashes with an assertion in recent Xcode toolchains; the default (new) linker
        handles the binary correctly. -->
   <PropertyGroup Condition="$([MSBuild]::IsOSPlatform('OSX'))">
     <IlcFoldIdenticalMethodBodies>true</IlcFoldIdenticalMethodBodies>
+    <OptimizationPreference>Size</OptimizationPreference>
+    <DebugType>none</DebugType>
+    <DebuggerSupport>false</DebuggerSupport>
+    <StackTraceSupport>false</StackTraceSupport>
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="TUnit" />
