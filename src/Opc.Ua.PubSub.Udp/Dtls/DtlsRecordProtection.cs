@@ -65,7 +65,7 @@ namespace Opc.Ua.PubSub.Udp.Dtls
             Epoch = epoch;
             m_writeSequenceNumber = initialWriteSequenceNumber;
             m_hashAlgorithmName = GetHashAlgorithm(profile.CipherSuite);
-            m_isAead = IsAead(profile.CipherSuite);
+            m_isAead = IsAeadCipherSuite(profile.CipherSuite);
             m_tagLength = GetTagLength(profile.CipherSuite);
             int keyLength = GetKeyLength(profile.CipherSuite);
             m_key = DtlsHkdf.ExpandLabel(m_hashAlgorithmName, trafficSecret, "key", [], keyLength);
@@ -102,6 +102,38 @@ namespace Opc.Ua.PubSub.Udp.Dtls
         /// DTLS epoch encoded into protected records.
         /// </summary>
         public ushort Epoch { get; }
+
+        /// <summary>
+        /// Gets a value indicating whether AEAD (AES-GCM / ChaCha20-Poly1305)
+        /// DTLS record protection is available in this compiled assembly.
+        /// </summary>
+        /// <remarks>
+        /// The AEAD record-protection path relies on BCL primitives
+        /// (<see cref="System.Security.Cryptography.AesGcm"/>,
+        /// <see cref="System.Security.Cryptography.ChaCha20Poly1305"/>) that are
+        /// only available on .NET 8 or later. When the assembly is compiled for
+        /// an older target framework (for example <c>netstandard2.1</c>) the
+        /// AEAD cipher suites cannot be used and this probe returns
+        /// <see langword="false"/>, allowing callers and tests to react at
+        /// runtime instead of assuming compile-time availability.
+        /// </remarks>
+        public static bool IsAeadSupported =>
+#if NET8_0_OR_GREATER
+            true;
+#else
+            false;
+#endif
+
+        /// <summary>
+        /// Determines whether the supplied cipher suite uses AEAD record
+        /// protection (as opposed to a NULL cipher with HMAC integrity).
+        /// </summary>
+        public static bool IsAeadCipherSuite(DtlsCipherSuite cipherSuite)
+        {
+            return cipherSuite is DtlsCipherSuite.TlsAes128GcmSha256
+                or DtlsCipherSuite.TlsAes256GcmSha384
+                or DtlsCipherSuite.TlsChaCha20Poly1305Sha256;
+        }
 
         /// <summary>
         /// Protects one plaintext record and increments the write sequence number.
@@ -364,13 +396,6 @@ namespace Opc.Ua.PubSub.Udp.Dtls
             return cipherSuite is DtlsCipherSuite.TlsAes256GcmSha384 or DtlsCipherSuite.TlsSha384Sha384
                 ? HashAlgorithmName.SHA384
                 : HashAlgorithmName.SHA256;
-        }
-
-        private static bool IsAead(DtlsCipherSuite cipherSuite)
-        {
-            return cipherSuite is DtlsCipherSuite.TlsAes128GcmSha256
-                or DtlsCipherSuite.TlsAes256GcmSha384
-                or DtlsCipherSuite.TlsChaCha20Poly1305Sha256;
         }
 
         private static int GetKeyLength(DtlsCipherSuite cipherSuite)
