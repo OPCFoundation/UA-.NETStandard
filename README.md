@@ -76,31 +76,31 @@ Each sample has its own `README.md` with build and run instructions.
 
 **Reference applications**
 
-- [Console Reference Server](samples/ConsoleReferenceServer/README.md) —
+- [Console Reference Server](samples/Reference/ConsoleReferenceServer/README.md) —
   the certified reference server (with Quickstarts, CTT, and Mono
   configs). Also ships as a
   [Docker container](docs/ContainerReferenceServer.md).
-- [Console Reference Client](samples/ConsoleReferenceClient/README.md) —
+- [Console Reference Client](samples/Reference/ConsoleReferenceClient/README.md) —
   cross-platform reference client demonstrating sessions, subscriptions,
   browsing, and method calls.
-- [Console LDS Server](samples/ConsoleLdsServer) — a standalone
+- [Console LDS Server](samples/Lds/ConsoleLdsServer) — a standalone
   Local Discovery Server built on `Opc.Ua.Lds.Server`.
 
 **PubSub samples**
 
-- [Console Reference PubSub Client](samples/ConsoleReferencePubSubClient/README.md) —
+- [Console Reference PubSub Client](samples/PubSub/ConsoleReferencePubSubClient/README.md) —
   one executable with `publisher`, `subscriber`, and `external` (external-server
   adapter) modes across the supported transport profiles.
 
 **Minimal / Device-Integration samples**
 
-- [Minimal Calc Server](samples/MinimalCalcServer) — minimal
+- [Minimal Calc Server](samples/MinimalApi/MinimalCalcServer) — minimal
   server built on the source-generated NodeManager pipeline (Calc
   model).
-- [Minimal Boiler Server](samples/MinimalBoilerServer) — minimal
+- [Minimal Boiler Server](samples/MinimalApi/MinimalBoilerServer) — minimal
   Boiler-model server with the fluent state-machine builder;
   Native-AOT publishable.
-- [Pump Device Integration Server](samples/PumpDeviceIntegrationServer/README.md) —
+- [Pump Device Integration Server](samples/DI/PumpDeviceIntegrationServer/README.md) —
   minimal Device Integration (Part 100) server using
   `Opc.Ua.Di.Server`'s fluent builder.
 - [Minimal Robot Server](samples/Robotics/MinimalRobotServer/README.md) — OPC 40010
@@ -113,7 +113,7 @@ Each sample has its own `README.md` with build and run instructions.
 - [Intent Viewer Client](samples/Robotics/IntentViewerClient/README.md) — click a
   target in an OpenUSD viewport and watch the arm execute the resulting intent;
   also runs headless.
-- [Minimal ISA-95 Server](samples/MinimalIsa95Server/README.md) —
+- [Minimal ISA-95 Server](samples/Isa95/MinimalIsa95Server/README.md) —
   minimal server hosting the OPC-10030 ISA-95 Common Model together
   with OPC-10031-4 Job Control V1 and V2, using the typed common-model
   builder and the in-memory Job Control provider.

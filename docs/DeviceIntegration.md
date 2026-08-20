@@ -33,14 +33,14 @@ plugs it together.
 | `Opc.Ua.Di.Server` | Server: `DiNodeManager`, fluent topology/device builders, locking service, software-update package store, hosting integration. |
 | `Opc.Ua.Di.Client` | Client: `DiDeviceClient`, `DiDiscoveryClient`, `DiTopologyClient`, `DiLockClient`, `SoftwareUpdateClient`, hosting integration. |
 
-The running example is `samples/PumpDeviceIntegrationServer`, a
+The running example is `samples/DI/PumpDeviceIntegrationServer`, a
 companion-spec server that exposes a configurable number of fully
 simulated `PumpType` instances. The sample uses the hand-written fluent
 node-manager style for the common pump model and simulation wiring, then
 uses `ConfigureDevicesFor` with the topology-element builder to add an
 ad-hoc Diagnostics functional group to each pump. The simulated asset is
 specified by its own product datasheet,
-[`samples/PumpDeviceIntegrationServer/DATASHEET.md`](../samples/PumpDeviceIntegrationServer/DATASHEET.md),
+[`samples/DI/PumpDeviceIntegrationServer/DATASHEET.md`](../samples/DI/PumpDeviceIntegrationServer/DATASHEET.md),
 which maps every nameplate field, engineering range and alarm trip point
 to its OPC UA browse path.
 

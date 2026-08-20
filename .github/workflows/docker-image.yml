@@ -29,25 +29,25 @@ jobs:
         include:
           # Sample servers
           - image: refserver
-            dockerfile: ./samples/ConsoleReferenceServer/Dockerfile
+            dockerfile: ./samples/Reference/ConsoleReferenceServer/Dockerfile
           - image: ldsserver
-            dockerfile: ./samples/ConsoleLdsServer/Dockerfile
+            dockerfile: ./samples/Lds/ConsoleLdsServer/Dockerfile
           - image: boilerserver
-            dockerfile: ./samples/MinimalBoilerServer/Dockerfile
+            dockerfile: ./samples/MinimalApi/MinimalBoilerServer/Dockerfile
           - image: calcserver
-            dockerfile: ./samples/MinimalCalcServer/Dockerfile
+            dockerfile: ./samples/MinimalApi/MinimalCalcServer/Dockerfile
           - image: mcpserver
             dockerfile: ./tools/Opc.Ua.Mcp/Dockerfile
           - image: redundantserver
-            dockerfile: ./samples/RedundantServer/Dockerfile
+            dockerfile: ./samples/Redundancy/RedundantServer/Dockerfile
           # Redundant client
           - image: redundantclient
-            dockerfile: ./samples/RedundantClient/Dockerfile
+            dockerfile: ./samples/Redundancy/RedundantClient/Dockerfile
           # PubSub samples
           - image: redundantpubsub
-            dockerfile: ./samples/RedundantPubSub/Dockerfile
+            dockerfile: ./samples/Redundancy/RedundantPubSub/Dockerfile
           - image: pubsubclient
-            dockerfile: ./samples/ConsoleReferencePubSubClient/Dockerfile
+            dockerfile: ./samples/PubSub/ConsoleReferencePubSubClient/Dockerfile
     env:
       IMAGE_NAME: ${{ matrix.image }}
       IS_NOT_PR: ${{ !github.head_ref && true }}

@@ -50,13 +50,13 @@
     <ProjectReference Include="..\..\src\Opc.Ua.PubSub.Udp\Opc.Ua.PubSub.Udp.csproj" />
     <ProjectReference Include="..\..\src\Opc.Ua.PubSub.Eth\Opc.Ua.PubSub.Eth.csproj" />
     <ProjectReference Include="..\..\src\Opc.Ua.PubSub.Mqtt\Opc.Ua.PubSub.Mqtt.csproj" />
-    <ProjectReference Include="..\..\samples\MinimalBoilerServer\MinimalBoilerServer.csproj">
+    <ProjectReference Include="..\..\samples\MinimalApi\MinimalBoilerServer\MinimalBoilerServer.csproj">
       <Aliases>boilersample</Aliases>
     </ProjectReference>
-    <ProjectReference Include="..\..\samples\MinimalCalcServer\MinimalCalcServer.csproj">
+    <ProjectReference Include="..\..\samples\MinimalApi\MinimalCalcServer\MinimalCalcServer.csproj">
       <Aliases>calcsample</Aliases>
     </ProjectReference>
-    <ProjectReference Include="..\..\samples\ConsoleReferencePubSubClient\ConsoleReferencePubSubClient.csproj">
+    <ProjectReference Include="..\..\samples\PubSub\ConsoleReferencePubSubClient\ConsoleReferencePubSubClient.csproj">
       <Aliases>pubsubsample</Aliases>
     </ProjectReference>
   </ItemGroup>

@@ -106,7 +106,7 @@ An `object`-typed lock is published on **three public interfaces** —
 | `Session/Session.cs` | 9 |
 | `Session/SessionManager.cs` | 2 |
 | `NodeManager/CoreNodeManager.cs` | 1 |
-| **`samples/ConsoleReferenceServer/UAServer.cs`** | 2 |
+| **`samples/Reference/ConsoleReferenceServer/UAServer.cs`** | 2 |
 | **Total** | **88** |
 
 The sample-code entry matters: this is not an internal detail, it is a lock that external
@@ -525,7 +525,7 @@ impact, and the replacement pattern already exists on the same interface.
 - **Backward compatibility.** The repository requires compatibility with 1.5.378
   (`master378`); replaced API must be marked `[Obsolete]` rather than removed. All
   recommendations are therefore additive in the first pass.
-- **`ConsoleReferenceServer` takes the lock.** `samples/ConsoleReferenceServer/UAServer.cs`
+- **`ConsoleReferenceServer` takes the lock.** `samples/Reference/ConsoleReferenceServer/UAServer.cs`
   has two `lock (session.DiagnosticsLock)` sites. The sample must migrate to the replacement
   method in the same change, since it is the worked example consumers copy.
 - **Tests mock the locks.** `SubscriptionTests.cs` and `SessionSecurityTests.cs` set up
@@ -570,7 +570,7 @@ $files = @(
     'src\Opc.Ua.Server\Session\Session.cs',
     'src\Opc.Ua.Server\Session\SessionManager.cs',
     'src\Opc.Ua.Server\NodeManager\CoreNodeManager.cs',
-    'samples\ConsoleReferenceServer\UAServer.cs')
+    'samples\Reference\ConsoleReferenceServer\UAServer.cs')
 foreach ($f in $files) {
     $c = [IO.File]::ReadAllText($f)
     $n = ([regex]::Matches($c, 'lock\s*\([^)]*Diagnostics(Write)?Lock\s*\)')).Count

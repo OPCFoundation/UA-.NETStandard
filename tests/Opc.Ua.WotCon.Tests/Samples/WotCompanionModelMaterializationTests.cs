@@ -87,12 +87,12 @@ namespace Opc.Ua.WotCon.Tests.Samples
                 "opc-ua-di",
                 "OPC UA Device Integration"),
             (Path.Combine(
-                "samples", "PumpDeviceIntegrationServer", "Model",
+                "samples", "DI", "PumpDeviceIntegrationServer", "Model",
                 "Opc.Ua.Machinery.NodeSet2.xml"),
                 "opc-ua-machinery",
                 "OPC UA Machinery"),
             (Path.Combine(
-                "samples", "PumpDeviceIntegrationServer", "Model",
+                "samples", "DI", "PumpDeviceIntegrationServer", "Model",
                 "Opc.Ua.Pumps.NodeSet2.xml"),
                 "opc-ua-pumps",
                 "OPC UA Pumps")
