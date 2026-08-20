@@ -528,9 +528,29 @@ namespace Opc.Ua.PubSub.Udp
                     nameof(payload));
             }
             EnforceDiscoveryLimit(payload);
-            return m_repeater.SendWithRepeatsAsync(
-                ct => SendDiscoveryOnceAsync(socket, payload, ct),
-                cancellationToken);
+            return SendDiscoveryWithRepeatsAsync(socket, payload, cancellationToken);
+        }
+
+        private async ValueTask SendDiscoveryWithRepeatsAsync(
+            Socket socket,
+            ReadOnlyMemory<byte> payload,
+            CancellationToken cancellationToken)
+        {
+            try
+            {
+                await m_repeater.SendWithRepeatsAsync(
+                    ct => SendDiscoveryOnceAsync(socket, payload, ct),
+                    cancellationToken).ConfigureAwait(false);
+            }
+            catch (SocketException ex) when (
+                ex.SocketErrorCode is SocketError.HostUnreachable
+                    or SocketError.NetworkUnreachable
+                    or SocketError.NetworkDown
+                    or SocketError.AddressNotAvailable
+                    or SocketError.AccessDenied)
+            {
+                m_logger.MulticastDiscoveryAnnouncementFailed(ex, m_connection.Name);
+            }
         }
 
         private async ValueTask SendDiscoveryOnceAsync(
@@ -1352,7 +1372,15 @@ namespace Opc.Ua.PubSub.Udp
             Exception exception,
             string? connection);
 
-        [LoggerMessage(EventId = PubSubUdpEventIds.UdpDatagramTransport + 17, Level = LogLevel.Debug,
+        [LoggerMessage(EventId = PubSubUdpEventIds.UdpDatagramTransport + 17, Level = LogLevel.Warning,
+            Message = "Multicast discovery announcement could not be delivered for connection '{Connection}'. " +
+                "Multicast may not be available in this network environment.")]
+        public static partial void MulticastDiscoveryAnnouncementFailed(
+            this ILogger logger,
+            Exception exception,
+            string? connection);
+
+        [LoggerMessage(EventId = PubSubUdpEventIds.UdpDatagramTransport + 18, Level = LogLevel.Debug,
             Message = "Unicast socket for connection '{Connection}' already connected to {Endpoint}; continuing.")]
         public static partial void UdpUnicastAlreadyConnected(
             this ILogger logger,
