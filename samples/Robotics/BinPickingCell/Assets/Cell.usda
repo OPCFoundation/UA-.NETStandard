@@ -78,11 +78,23 @@ def Xform "World"
 
     def Xform "Robot"
     {
+        def Cylinder "PedestalRiser"
+        {
+            uniform token axis = "Z"
+            double height = 0.2000
+            double radius = 0.1650
+            color3f[] primvars:displayColor = [(0.16, 0.17, 0.18)] (
+                interpolation = "constant"
+            )
+            double3 xformOp:translate = (0, 0, 0.8200)
+            uniform token[] xformOpOrder = ["xformOp:translate"]
+        }
+
         def Xform "Arm" (
             references = @arm.usda@</Arm>
         )
         {
-            double3 xformOp:translate = (0, 0, 0.8290)
+            double3 xformOp:translate = (0, 0, 0.9200)
             uniform token[] xformOpOrder = ["xformOp:translate"]
 
             over "Base"
@@ -94,22 +106,22 @@ def Xform "World"
                     # else makes the still render disagree with the first live update. This pose
                     # aims the eye-in-hand camera at the bin: the camera prim lands at the world
                     # position the Vision model declares for it, looking straight down.
-                    double xformOp:rotateZ = -169.561
+                    double xformOp:rotateZ = -174.665
                     over "J2"
                     {
-                        double xformOp:rotateY = 106.994
+                        double xformOp:rotateY = 17.926
                         over "J3"
                         {
-                            double xformOp:rotateY = -94.280
+                            double xformOp:rotateY = 47.334
                             over "J4"
                             {
-                                double xformOp:rotateY = 167.361
+                                double xformOp:rotateY = 114.740
                                 over "J5"
                                 {
-                                    double xformOp:rotateZ = -154.498
+                                    double xformOp:rotateZ = -159.606
                                     over "J6"
                                     {
-                                        double xformOp:rotateY = -89.937
+                                        double xformOp:rotateY = -90.000
                                         over "Flange"
                                         {
                                             def Xform "Gripper" (
@@ -169,12 +181,11 @@ def Xform "World"
             color3f[] primvars:displayColor = [(0.58, 0.60, 0.60)] (
                 interpolation = "constant"
             )
-            # The work surface is z = 0.829: that is where the OPC UA model puts
-            # robot_base and the Bin and Fixture locations, and arm.usda's pedestal
-            # bottom sits at the arm reference height. The underside stays at 0.760
-            # so the legs still meet it, so the thickness carries the correction.
-            double3 xformOp:translate = (0, 0, 0.7945)
-            double3 xformOp:scale = (1.4000, 0.9000, 0.0690)
+            # The work surface is z = 0.720. The robot base is independently raised
+            # to z = 0.920 on PedestalRiser, so the wrist no longer has to fold back
+            # on itself to reach parts lying close to the table.
+            double3 xformOp:translate = (0, 0, 0.6850)
+            double3 xformOp:scale = (1.4000, 0.9000, 0.0700)
             uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
         }
 
@@ -184,8 +195,8 @@ def Xform "World"
             color3f[] primvars:displayColor = [(0.22, 0.23, 0.24)] (
                 interpolation = "constant"
             )
-            double3 xformOp:translate = (0.5800, 0.3300, 0.3800)
-            double3 xformOp:scale = (0.0250, 0.0250, 0.7600)
+            double3 xformOp:translate = (0.5800, 0.3300, 0.3250)
+            double3 xformOp:scale = (0.0250, 0.0250, 0.6500)
             uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
         }
 
@@ -195,8 +206,8 @@ def Xform "World"
             color3f[] primvars:displayColor = [(0.22, 0.23, 0.24)] (
                 interpolation = "constant"
             )
-            double3 xformOp:translate = (-0.5800, 0.3300, 0.3800)
-            double3 xformOp:scale = (0.0250, 0.0250, 0.7600)
+            double3 xformOp:translate = (-0.5800, 0.3300, 0.3250)
+            double3 xformOp:scale = (0.0250, 0.0250, 0.6500)
             uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
         }
 
@@ -206,8 +217,8 @@ def Xform "World"
             color3f[] primvars:displayColor = [(0.22, 0.23, 0.24)] (
                 interpolation = "constant"
             )
-            double3 xformOp:translate = (0.5800, -0.3300, 0.3800)
-            double3 xformOp:scale = (0.0250, 0.0250, 0.7600)
+            double3 xformOp:translate = (0.5800, -0.3300, 0.3250)
+            double3 xformOp:scale = (0.0250, 0.0250, 0.6500)
             uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
         }
 
@@ -217,8 +228,8 @@ def Xform "World"
             color3f[] primvars:displayColor = [(0.22, 0.23, 0.24)] (
                 interpolation = "constant"
             )
-            double3 xformOp:translate = (-0.5800, -0.3300, 0.3800)
-            double3 xformOp:scale = (0.0250, 0.0250, 0.7600)
+            double3 xformOp:translate = (-0.5800, -0.3300, 0.3250)
+            double3 xformOp:scale = (0.0250, 0.0250, 0.6500)
             uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
         }
     }
@@ -231,7 +242,7 @@ def Xform "World"
             color3f[] primvars:displayColor = [(0.42, 0.32, 0.20)] (
                 interpolation = "constant"
             )
-            double3 xformOp:translate = (0.3800, 0.0000, 0.8250)
+            double3 xformOp:translate = (0.6000, 0.0000, 0.7160)
             double3 xformOp:scale = (0.2800, 0.2400, 0.0060)
             uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
         }
@@ -242,7 +253,7 @@ def Xform "World"
             color3f[] primvars:displayColor = [(0.42, 0.32, 0.20)] (
                 interpolation = "constant"
             )
-            double3 xformOp:translate = (0.3800, 0.1170, 0.8420)
+            double3 xformOp:translate = (0.6000, 0.1170, 0.7330)
             double3 xformOp:scale = (0.2800, 0.0060, 0.0400)
             uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
         }
@@ -253,7 +264,7 @@ def Xform "World"
             color3f[] primvars:displayColor = [(0.42, 0.32, 0.20)] (
                 interpolation = "constant"
             )
-            double3 xformOp:translate = (0.3800, -0.1170, 0.8420)
+            double3 xformOp:translate = (0.6000, -0.1170, 0.7330)
             double3 xformOp:scale = (0.2800, 0.0060, 0.0400)
             uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
         }
@@ -264,7 +275,7 @@ def Xform "World"
             color3f[] primvars:displayColor = [(0.42, 0.32, 0.20)] (
                 interpolation = "constant"
             )
-            double3 xformOp:translate = (0.5170, 0.0000, 0.8420)
+            double3 xformOp:translate = (0.7370, 0.0000, 0.7330)
             double3 xformOp:scale = (0.0060, 0.2400, 0.0400)
             uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
         }
@@ -275,7 +286,7 @@ def Xform "World"
             color3f[] primvars:displayColor = [(0.42, 0.32, 0.20)] (
                 interpolation = "constant"
             )
-            double3 xformOp:translate = (0.2430, 0.0000, 0.8420)
+            double3 xformOp:translate = (0.4630, 0.0000, 0.7330)
             double3 xformOp:scale = (0.0060, 0.2400, 0.0400)
             uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
         }
@@ -289,7 +300,7 @@ def Xform "World"
             color3f[] primvars:displayColor = [(0.20, 0.20, 0.22)] (
                 interpolation = "constant"
             )
-            double3 xformOp:translate = (-0.3200, 0.0000, 0.8290)
+            double3 xformOp:translate = (-0.6000, 0.0000, 0.7200)
             double3 xformOp:scale = (0.1400, 0.1400, 0.0180)
             uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
         }
@@ -302,7 +313,7 @@ def Xform "World"
             color3f[] primvars:displayColor = [(0.95, 0.85, 0.20)] (
                 interpolation = "constant"
             )
-            double3 xformOp:translate = (-0.3520, 0.0300, 0.8580)
+            double3 xformOp:translate = (-0.6320, 0.0300, 0.7490)
             uniform token[] xformOpOrder = ["xformOp:translate"]
         }
 
@@ -314,7 +325,7 @@ def Xform "World"
             color3f[] primvars:displayColor = [(0.95, 0.85, 0.20)] (
                 interpolation = "constant"
             )
-            double3 xformOp:translate = (-0.2880, 0.0300, 0.8580)
+            double3 xformOp:translate = (-0.5680, 0.0300, 0.7490)
             uniform token[] xformOpOrder = ["xformOp:translate"]
         }
 
@@ -326,7 +337,7 @@ def Xform "World"
             color3f[] primvars:displayColor = [(0.95, 0.85, 0.20)] (
                 interpolation = "constant"
             )
-            double3 xformOp:translate = (-0.3200, -0.0300, 0.8580)
+            double3 xformOp:translate = (-0.6000, -0.0300, 0.7490)
             uniform token[] xformOpOrder = ["xformOp:translate"]
         }
     }
@@ -341,7 +352,7 @@ def Xform "World"
     {
         def Xform "RedCube"
         {
-            matrix4d xformOp:transform = ( (1, 0, 0, 0), (0, 1, 0, 0), (0, 0, 1, 0), (0.3300, -0.0800, 0.8500, 1) )
+            matrix4d xformOp:transform = ( (1, 0, 0, 0), (0, 1, 0, 0), (0, 0, 1, 0), (0.5500, -0.0800, 0.7400, 1) )
             uniform token[] xformOpOrder = ["xformOp:transform"]
 
             def Cube "Shape"
@@ -357,7 +368,7 @@ def Xform "World"
 
         def Xform "GreenCylinder"
         {
-            matrix4d xformOp:transform = ( (1, 0, 0, 0), (0, 1, 0, 0), (0, 0, 1, 0), (0.4200, 0.0500, 0.8500, 1) )
+            matrix4d xformOp:transform = ( (1, 0, 0, 0), (0, 1, 0, 0), (0, 0, 1, 0), (0.6400, -0.0900, 0.7350, 1) )
             uniform token[] xformOpOrder = ["xformOp:transform"]
 
             def Cylinder "Shape"
@@ -373,7 +384,7 @@ def Xform "World"
 
         def Xform "BlueSphere"
         {
-            matrix4d xformOp:transform = ( (1, 0, 0, 0), (0, 1, 0, 0), (0, 0, 1, 0), (0.4600, -0.0500, 0.8500, 1) )
+            matrix4d xformOp:transform = ( (1, 0, 0, 0), (0, 1, 0, 0), (0, 0, 1, 0), (0.6800, -0.0500, 0.7440, 1) )
             uniform token[] xformOpOrder = ["xformOp:transform"]
 
             def Sphere "Shape"
@@ -387,7 +398,7 @@ def Xform "World"
 
         def Xform "YellowSlab"
         {
-            matrix4d xformOp:transform = ( (1, 0, 0, 0), (0, 1, 0, 0), (0, 0, 1, 0), (0.3400, 0.0600, 0.8390, 1) )
+            matrix4d xformOp:transform = ( (1, 0, 0, 0), (0, 1, 0, 0), (0, 0, 1, 0), (0.5600, 0.0600, 0.7290, 1) )
             uniform token[] xformOpOrder = ["xformOp:transform"]
 
             def Cube "Shape"
@@ -404,7 +415,7 @@ def Xform "World"
 
         def Xform "OrangeBrick"
         {
-            matrix4d xformOp:transform = ( (1, 0, 0, 0), (0, 1, 0, 0), (0, 0, 1, 0), (0.4200, -0.0100, 0.8420, 1) )
+            matrix4d xformOp:transform = ( (1, 0, 0, 0), (0, 1, 0, 0), (0, 0, 1, 0), (0.6400, -0.0100, 0.7320, 1) )
             uniform token[] xformOpOrder = ["xformOp:transform"]
 
             def Cube "Shape"

@@ -134,7 +134,11 @@ namespace Vision.BinPickingCell
                 .WithFrameId(BinPickingRobotCell.RobotBaseFrameId)
                 .WithRole(VisionFrameRoleEnum.Base)
                 .WithParent(BinPickingRobotCell.WorldFrameId)
-                .WithTransform(Pose(BinPickingRobotCell.WorldFrameId, 0.0, 0.0, 0.829)));
+                .WithTransform(Pose(
+                    BinPickingRobotCell.WorldFrameId,
+                    0.0,
+                    0.0,
+                    BinPickingRobotCell.RobotBaseHeightMetres)));
             m_frames.Add(BinPickingRobotCell.RobotBaseFrameId);
 
             nodes.AddFrame("Flange", frame => frame
@@ -430,7 +434,8 @@ namespace Vision.BinPickingCell
         private static readonly double[] s_identityOrientation = [0.0, 0.0, 0.0, 1.0];
         private static readonly double[] s_handEyePosition = [0.062, -0.031, 0.115];
         private static readonly double[] s_handEyeOrientation = [0.0, 0.0, RootHalf, RootHalf];
-        private static readonly double[] s_cameraInWorldPosition = [0.38, 0.0, 1.35];
+        private static readonly double[] s_cameraInWorldPosition =
+            [BinPickingPartsCatalog.BinCentreX, 0.0, 1.241];
 
         // A half turn about X - the camera looks down its own -Z where the world frame
         // measures up - composed with the 15.0595-degree roll about the vertical that the
@@ -447,7 +452,7 @@ namespace Vision.BinPickingCell
         // coordinates that do not correspond. The orientation is a quarter turn about Y -
         // which points the flange X axis, and so the camera, straight down - composed with
         // the same roll the camera carries.
-        private static readonly double[] s_flangeScanPosition = [0.2255, 0.0416, 0.5410];
+        private static readonly double[] s_flangeScanPosition = [0.4455, 0.0416, 0.3410];
         private static readonly double[] s_flangeScanOrientation =
             [0.0926599570, 0.7010093668, -0.0926599570, 0.7010093668];
 

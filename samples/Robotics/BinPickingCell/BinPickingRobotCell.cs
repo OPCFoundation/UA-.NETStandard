@@ -82,8 +82,12 @@ namespace Vision.BinPickingCell
             m_executor = executor ?? throw new ArgumentNullException(nameof(executor));
             m_kinematics = kinematics ?? throw new ArgumentNullException(nameof(kinematics));
             m_worldState = worldState ?? throw new ArgumentNullException(nameof(worldState));
+            m_toolDownOrientation = executor.CurrentSnapshot.ToolPose.Orientation;
             m_executor.SnapshotChanged += OnSnapshotChanged;
             m_executor.ResolveLocationPosition = TryResolveLocationPosition;
+            m_executor.ResolveLocationPose = TryResolveLocationPose;
+            m_executor.PreferCartesianDescent = PreferCartesianDescent;
+            m_executor.Diagnostic = message => m_logger.ArmTravel(message);
             UpdateMovingObstacles();
         }
 
@@ -164,7 +168,7 @@ namespace Vision.BinPickingCell
                 "RobotBase",
                 RobotBaseFrameId,
                 FrameRoleEnum.Base,
-                Pose(WorldFrameId, 0.0, 0.0, 0.829),
+                Pose(WorldFrameId, 0.0, 0.0, RobotBaseHeightMetres),
                 frame => frame.WithParent(world));
             IIntentFrameBuilder flange = controller.AddFrame(
                 "Flange",
@@ -278,16 +282,74 @@ namespace Vision.BinPickingCell
                     // Carrying something means this is the move before a Place, because a
                     // Pick travels with the gripper empty and closes on arrival while a
                     // Place travels holding the part and opens. So the tool can descend to
-                    // the height that leaves the part exactly on its support, and releasing
-                    // becomes a release rather than a drop from the approach height.
+                    // just above the height that leaves the part on its support. The small
+                    // clearance keeps the wrist and jaws out of an accumulated stack; the
+                    // support model settles the released part the remaining 17 mm instead
+                    // of leaving it floating or driving the tool into what is already there.
                     double toolWorldZ = m_carriedClass.Length > 0
-                        ? RestingCentreHeight(m_carriedClass, x, y) + SimulatedArmExecutor.HeldPartTcpOffset
+                        ? RestingCentreHeight(m_carriedClass, x, y)
+                            + SimulatedArmExecutor.HeldPartTcpOffset
+                            + PlaceReleaseClearanceMetres
                         : z + ApproachHeightMetres;
                     position = new[] { x, y, toolWorldZ - RobotBaseHeightMetres }.ToArrayOf();
                     return true;
                 }
             }
             position = ArrayOf<double>.Empty;
+            return false;
+        }
+
+        /// <summary>
+        /// Resolves a Location to a deliberate tool-down pose rather than inheriting the
+        /// yaw left behind by the previous grasp.
+        /// </summary>
+        private bool TryResolveLocationPose(NodeId location, out Pose3DDataType pose)
+        {
+            if (TryResolveLocationPosition(location, out ArrayOf<double> position))
+            {
+                foreach ((string name, double _, double _, double _, double _) in s_locations)
+                {
+                    if (m_locationNodes.TryGetValue(name, out NodeId nodeId) && nodeId == location)
+                    {
+                        pose = new Pose3DDataType
+                        {
+                            FrameId = RobotBaseFrameId,
+                            Position = position,
+                            // The Location's Rz describes how a part or fixture is authored,
+                            // not a mandatory wrist yaw. Applying Fixture's 25 degrees here
+                            // made the first place succeed and left no retract path for the
+                            // next pick. Hold one solved tool-down orientation everywhere;
+                            // the executor's deterministic yaw search still turns it when
+                            // the standard pose itself has no clear solution.
+                            Orientation = m_toolDownOrientation
+                        };
+                        return true;
+                    }
+                }
+            }
+            pose = new Pose3DDataType();
+            return false;
+        }
+
+        /// <summary>
+        /// Gets whether a Location is inside the open bin, where the final approach should
+        /// be vertical rather than a joint interpolation that can sweep through a wall.
+        /// </summary>
+        private bool PreferCartesianDescent(NodeId location)
+        {
+            foreach ((string name, NodeId nodeId) in m_locationNodes)
+            {
+                if (nodeId == location)
+                {
+                    // Empty-gripper picks are made Cartesian by the executor regardless of
+                    // this value. Loaded placements into a home slot are Cartesian too, and
+                    // the executor records every joint sample so the next command can replay
+                    // the exact approach in reverse. The fixture keeps the short local joint
+                    // approach because its final Cartesian branch is less reliable.
+                    return string.Equals(name, BinLocationName, StringComparison.Ordinal)
+                        || name.StartsWith(HomeLocationPrefix, StringComparison.Ordinal);
+                }
+            }
             return false;
         }
 
@@ -448,16 +510,15 @@ namespace Vision.BinPickingCell
         }
 
         /// <summary>
-        /// Republishes the parts, and the fixture they stack on, as solids the arm has to
-        /// keep out of.
+        /// Republishes moving workpieces as solids the arm has to keep out of.
         /// </summary>
         /// <remarks>
-        /// The bench and the bin walls never move, so they are declared once. The parts do,
-        /// and a stack built on the fixture is as solid as the fixture under it: an arm that
-        /// reaches through it looks exactly as wrong as one reaching through the bench,
-        /// which is what a return leg does when the only obstacles it knows about are the
-        /// furniture. Whatever the gripper is carrying is left out, because a part
-        /// travelling with the tool cannot be in its way.
+        /// The bench and the bin walls never move, so they are declared once. The fixture
+        /// plate is deliberately not an arm obstacle: the tool works immediately above it,
+        /// and treating the thin plate as a full-radius solid leaves valid final poses but
+        /// no connected final approach. The support model still uses the plate and pegs as
+        /// solids for placing parts. Whatever the gripper is carrying is left out, because
+        /// a part travelling with the tool cannot be in its way.
         /// </remarks>
         private void UpdateMovingObstacles()
         {
@@ -467,8 +528,7 @@ namespace Vision.BinPickingCell
                 return;
             }
             IReadOnlyList<BinPickingPartSnapshot> parts = m_worldState.Snapshot();
-            var solids = new List<SimulatedObstacleBox>(parts.Count + s_fixtureSolids.Length);
-            solids.AddRange(s_fixtureSolids);
+            var solids = new List<SimulatedObstacleBox>(parts.Count);
 
             // The parts themselves are deliberately left out for now, and this is measured
             // rather than assumed: with them in, the loop got five operations into a cycle
@@ -637,7 +697,7 @@ namespace Vision.BinPickingCell
         /// positions, so a Place can return a part to where the cell first had it.
         /// The bin and fixture coordinates are where those two actually stand in
         /// Cell.usda; they used to be somewhere else entirely - the Bin at y = -0.28 when
-        /// the bin spans +/-0.12, the Fixture at (0.48, 0.26) when the fixture stands at
+        /// the bin spans +/-0.12, the Fixture at (0.48, 0.26) when the fixture stood at
         /// (-0.32, 0) - so "place it on the fixture" put the part down on bare bench a long
         /// way from the fixture, and the render disagreed with the model about where the
         /// cell's own furniture was. The Z is the surface a part stands on there.
@@ -649,7 +709,8 @@ namespace Vision.BinPickingCell
             {
                 (BinLocationName, BinPickingPartsCatalog.BinCentreX, BinPickingPartsCatalog.BinCentreY,
                     BenchTopMetres, 0.0),
-                (FixtureLocationName, -0.32, 0.0, FixturePlateTopMetres, 25.0)
+                (FixtureLocationName, BinPickingCellGeometry.FixtureCentreX, 0.0,
+                    FixturePlateTopMetres, 25.0)
             };
             for (int ii = 0; ii < parts.Count; ii++)
             {
@@ -684,23 +745,20 @@ namespace Vision.BinPickingCell
         private const double FullTurnDegrees = 360.0;
         private const double HalfTurnDegrees = 180.0;
 
-        // The robot base sits on the bench at this world height; the Locations are authored
-        // in the world frame and the kinematics work relative to the base, so this is the
-        // offset between the two. It matches the RobotBase frame the Vision model publishes.
-        private const double RobotBaseHeightMetres = 0.829;
-
-        // The bench top, which is also where the base is bolted.
-        private const double BenchTopMetres = 0.829;
-
-        // Top faces of the fixture plate and its locating pegs, from Cell.usda.
-        private const double FixturePlateTopMetres = 0.838;
-        private const double FixturePegTopMetres = 0.878;
+        // The robot stands on a 200 mm riser above the lowered work surface. Keeping these
+        // in the shared geometry class makes the USD scene, frame tree, collision model and
+        // support model describe one cell.
+        internal const double RobotBaseHeightMetres = BinPickingCellGeometry.RobotBaseHeightMetres;
+        internal const double BenchTopMetres = BinPickingCellGeometry.BenchTopMetres;
+        private const double FixturePlateTopMetres = BinPickingCellGeometry.FixturePlateTopMetres;
+        private const double FixturePegTopMetres = BinPickingCellGeometry.FixturePegTopMetres;
 
         // How far above a Location the tool travels to when it is going to pick something
         // up. Far enough to read as an approach rather than a collision. A Place does not
         // use this: it descends to the height that leaves the part resting on whatever is
         // under it, so releasing does not drop the part from the approach height.
         private const double ApproachHeightMetres = 0.20;
+        private const double PlaceReleaseClearanceMetres = 0.017;
 
         // How close a part has to be to a Location to count as standing in it. The bin is a
         // tray parts are scattered across, so it reuses the catalogue's footprint; a home
@@ -727,27 +785,19 @@ namespace Vision.BinPickingCell
         private static readonly (string Name, double X, double Y, double Z, double Rz)[] s_locations =
             BuildLocations();
 
-        // The fixture the parts are stacked on, as a solid the arm must not reach into. It
-        // is not in BinPickingCellGeometry with the bench and the bin walls because it is
-        // republished alongside the parts: the plate and the stack standing on it are one
-        // obstacle as far as an approaching arm is concerned. Base frame, so the bench top
-        // is zero.
-        private static readonly SimulatedObstacleBox[] s_fixtureSolids =
-        [
-            new("FixturePlate", -0.32, 0.0, 0.1400, 0.1400,
-                FixturePlateTopMetres - RobotBaseHeightMetres - 0.018,
-                FixturePlateTopMetres - RobotBaseHeightMetres)
-        ];
-
         // The solids in this cell that never move and that a part can come to rest on, in
         // the world frame. Sizes are full extents, matching Cell.usda.
         private static readonly SimulatedSupportSolid[] s_supportFixtures =
         [
             new("Bench", 0.0, 0.0, 1.4, 0.9, BenchTopMetres),
-            new("FixturePlate", -0.32, 0.0, 0.14, 0.14, FixturePlateTopMetres),
-            new("FixturePegA", -0.352, 0.03, 0.018, 0.018, FixturePegTopMetres),
-            new("FixturePegB", -0.288, 0.03, 0.018, 0.018, FixturePegTopMetres),
-            new("FixturePegC", -0.32, -0.03, 0.018, 0.018, FixturePegTopMetres)
+            new("FixturePlate", BinPickingCellGeometry.FixtureCentreX, 0.0,
+                0.14, 0.14, FixturePlateTopMetres),
+            new("FixturePegA", BinPickingCellGeometry.FixtureCentreX - 0.032, 0.03,
+                0.018, 0.018, FixturePegTopMetres),
+            new("FixturePegB", BinPickingCellGeometry.FixtureCentreX + 0.032, 0.03,
+                0.018, 0.018, FixturePegTopMetres),
+            new("FixturePegC", BinPickingCellGeometry.FixtureCentreX, -0.03,
+                0.018, 0.018, FixturePegTopMetres)
         ];
 
         private static readonly string[] s_axes = ["J1", "J2", "J3", "J4", "J5", "J6"];
@@ -758,6 +808,7 @@ namespace Vision.BinPickingCell
         private readonly SimulatedArmExecutor m_executor;
         private readonly SimulatedArmKinematics m_kinematics;
         private readonly BinPickingWorldState m_worldState;
+        private readonly ArrayOf<double> m_toolDownOrientation;
         private readonly SimulatedSupportModel m_support =
             new(ArrayOf.Create(s_supportFixtures.AsSpan()), BenchTopMetres);
         private string m_carriedClass = string.Empty;
@@ -789,5 +840,12 @@ namespace Vision.BinPickingCell
         public static partial void GraspFoundNothing(
             this ILogger<BinPickingRobotCell> logger,
             string classLabel, string toolPosition);
+
+        [LoggerMessage(EventId = BinPickingCellEventIds.Configurator + 3,
+            Level = LogLevel.Information,
+            Message = "Arm travel: {Message}.")]
+        public static partial void ArmTravel(
+            this ILogger<BinPickingRobotCell> logger,
+            string message);
     }
 }

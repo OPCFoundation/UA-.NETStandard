@@ -176,7 +176,7 @@ side `Pick` intent.
 The scan pose is not declared independently in three places, because it
 used to be and the three disagreed. The arm's home joint angles are
 **solved** so the `Camera` prim lands at the world position the Vision
-model declares for `camera_eih` — `(0.38, 0, 1.35)`, looking straight
+model declares for `camera_eih` — `(0.60, 0, 1.241)`, looking straight
 down — which puts the bin 0.50 m away and 1.8° off the optical axis.
 The same solution gives the `flange` frame's pose, and the same joint
 angles are authored into `Cell.usda` so the still render and the first

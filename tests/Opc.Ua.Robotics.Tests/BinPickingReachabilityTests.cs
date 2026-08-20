@@ -147,7 +147,51 @@ namespace Opc.Ua.Robotics.Tests
         }
 
         [Test]
-        public void StarvedHomeSlotShowsWhichJointIsInTheBench()
+        public void RelocatedScanPoseHasAClearConfiguration()
+        {
+            var kinematics = new SimulatedArmKinematics
+            {
+                MinimumLinkHeight = BenchTop - RobotBaseHeight,
+                Collisions = BinPickingCellGeometry.CreateCollisionModel()
+            };
+            var target = new Pose3DDataType
+            {
+                FrameId = "robot_base",
+                Position = new[] { 0.4455, 0.0416, 0.3410 }.ToArrayOf(),
+                Orientation = new[]
+                {
+                    0.0926599570,
+                    0.7010093668,
+                    -0.0926599570,
+                    0.7010093668
+                }.ToArrayOf()
+            };
+
+            bool solved = kinematics.TrySelectNearest(
+                target,
+                s_homeJoints,
+                out SimulatedArmIkSolution? solution,
+                out SimulatedArmKinematicFailure failure);
+
+            Assert.That(solved, Is.True, "The relocated eye-in-hand scan pose must be reachable: " + failure);
+            var degrees = new StringBuilder();
+            ReadOnlySpan<double> angles = solution!.JointAngles.Span;
+            for (int ii = 0; ii < angles.Length; ii++)
+            {
+                if (ii > 0)
+                {
+                    degrees.Append(", ");
+                }
+                degrees.Append(
+                    (angles[ii] * 180.0 / Math.PI).ToString("F3", CultureInfo.InvariantCulture));
+            }
+            TestContext.Out.Write(
+                "relocated scan joints in degrees: " + degrees + Environment.NewLine);
+            Assert.That(kinematics.ClearsWorkSurface(solution.JointAngles.Span), Is.True);
+        }
+
+        [Test]
+        public void RelocatedHomeSlotKeepsEveryJointAboveTheBench()
         {
             BinPickingPart part = BinPickingPartsCatalog.Parts[0];
             double[] position = Base(
@@ -181,8 +225,24 @@ namespace Opc.Ua.Robotics.Tests
             }
             TestContext.Out.Write(report.ToString());
 
-            Assert.That(result.Solutions.Count, Is.GreaterThan(0),
-                "The starved position must at least have geometric solutions to inspect.");
+            double surface = BenchTop - RobotBaseHeight;
+            var clearance = new SimulatedArmKinematics
+            {
+                MinimumLinkHeight = surface,
+                Collisions = BinPickingCellGeometry.CreateCollisionModel()
+            };
+            bool hasClearCandidate = false;
+            for (int ii = 0; ii < candidates.Length; ii++)
+            {
+                if (clearance.ClearsWorkSurface(candidates[ii].JointAngles.Span))
+                {
+                    hasClearCandidate = true;
+                    break;
+                }
+            }
+            Assert.That(candidates.Length, Is.GreaterThan(0));
+            Assert.That(hasClearCandidate, Is.True,
+                "At least one relocated posture must keep the whole arm above the lowered bench.");
         }
 
         [Test]
@@ -208,23 +268,17 @@ namespace Opc.Ua.Robotics.Tests
                 "Every position the cell works at needs at least one shape the arm can legally "
                 + "hold:\n" + report);
 
-            // Recorded rather than asserted away: the three home slots nearest the base admit
-            // exactly one clear shape, and it is the awkward one. Extra seed templates raise
-            // the distinct-posture count there but every new shape is refused by clearance,
-            // so this is the cell's geometry - reaching 20 mm above the bench a third of a
-            // metre from the base - and not something the solver can be argued out of. It
-            // would take a taller pedestal or a bin further out to change it.
             TestContext.Out.Write(
-                "Home slots with a single usable posture are expected: the arm has one way to "
-                + "reach that low that close in.\n");
+                "The raised pedestal and outward work areas leave every position with several "
+                + "usable candidates instead of forcing one folded-wrist shape.\n");
         }
 
         [Test]
-        public void TheChosenPostureAtAHomeSlotHasTheWristDoubledBack()
+        public void RelocatedHomeSlotHasSeveralClearConfigurations()
         {
             var kinematics = new SimulatedArmKinematics
             {
-                MinimumLinkHeight = 0.0,
+                MinimumLinkHeight = BenchTop - RobotBaseHeight,
                 Collisions = BinPickingCellGeometry.CreateCollisionModel()
             };
             BinPickingPart part = BinPickingPartsCatalog.Parts[0];
@@ -239,24 +293,27 @@ namespace Opc.Ua.Robotics.Tests
                 Orientation = HomeToolOrientation().ToArrayOf()
             };
 
-            bool solved = kinematics.TrySelectNearest(
-                target, s_homeJoints, out SimulatedArmIkSolution? solution, out SimulatedArmKinematicFailure _);
+            SimulatedArmIkResult result = kinematics.Inverse(target, s_homeJoints);
+            int clearConfigurations = 0;
+            ReadOnlySpan<SimulatedArmIkSolution> candidates = result.Solutions.Span;
+            for (int ii = 0; ii < candidates.Length; ii++)
+            {
+                if (kinematics.ClearsWorkSurface(candidates[ii].JointAngles.Span))
+                {
+                    clearConfigurations++;
+                }
+            }
 
-            Assert.That(solved, Is.True);
-            int penalty = kinematics.WristInversionPenalty(solution!.JointAngles.Span);
+            Assert.That(result.Solutions.IsEmpty, Is.False);
             TestContext.Out.Write(
-                string.Create(CultureInfo.InvariantCulture, $"wrist inversion penalty = {penalty}\n"));
+                string.Create(
+                    CultureInfo.InvariantCulture,
+                    $"clear configurations = {clearConfigurations}\n"));
 
-            // Recorded, not asserted away. This is the shape in the close-ups: the wrist
-            // climbs where it should descend, which is why the gripper reads as detached
-            // from the arm. It is the only shape that clears at this slot, so the fix is not
-            // to prefer a different one - preferring was tried and made the cycle worse -
-            // but to change what is asked for: an approach pose solved for deliberately
-            // rather than inherited, and a taller pedestal or a bin further out if the
-            // geometry still leaves only this.
-            Assert.That(penalty, Is.GreaterThan(0),
-                "If this ever reaches zero the arm has found a tidy way to hold this slot and "
-                + "the note above is out of date.");
+            Assert.That(clearConfigurations, Is.GreaterThan(1),
+                "Raising the pedestal, lowering the bench and moving the bin outward must "
+                + "leave the solver a real choice of collision-clear configurations instead "
+                + "of forcing the single folded posture the old cell geometry admitted.");
         }
 
         /// <summary>
@@ -272,7 +329,7 @@ namespace Opc.Ua.Robotics.Tests
             var kinematics = new SimulatedArmKinematics();
             var clearance = new SimulatedArmKinematics
             {
-                MinimumLinkHeight = 0.0,
+                MinimumLinkHeight = BenchTop - RobotBaseHeight,
                 Collisions = BinPickingCellGeometry.CreateCollisionModel()
             };
             var target = new Pose3DDataType
@@ -369,10 +426,17 @@ namespace Opc.Ua.Robotics.Tests
             int clearOfSurface = 0;
             int clearOfObstacles = 0;
 
-            var surfaceOnly = new SimulatedArmKinematics { MinimumLinkHeight = plane ? 0.0 : double.NegativeInfinity };
+            var surfaceOnly = new SimulatedArmKinematics
+            {
+                MinimumLinkHeight = plane
+                    ? BenchTop - RobotBaseHeight
+                    : double.NegativeInfinity
+            };
             var withFurniture = new SimulatedArmKinematics
             {
-                MinimumLinkHeight = plane ? 0.0 : double.NegativeInfinity,
+                MinimumLinkHeight = plane
+                    ? BenchTop - RobotBaseHeight
+                    : double.NegativeInfinity,
                 Collisions = collisions ? BinPickingCellGeometry.CreateCollisionModel() : null
             };
 
@@ -437,10 +501,18 @@ namespace Opc.Ua.Robotics.Tests
         /// </summary>
         private static IEnumerable<(string Name, double[] Position)> WorkPositions()
         {
-            yield return ("Bin approach", Base(0.38, 0.0, BenchTop + ApproachHeight));
-            yield return ("Fixture approach", Base(-0.32, 0.0, FixturePlateTop + ApproachHeight));
-            yield return ("Bin transit", Base(0.38, 0.0, BenchTop + TransitHeight));
-            yield return ("Fixture transit", Base(-0.32, 0.0, FixturePlateTop + TransitHeight));
+            yield return (
+                "Bin approach",
+                Base(BinPickingPartsCatalog.BinCentreX, 0.0, BenchTop + ApproachHeight));
+            yield return (
+                "Fixture approach",
+                Base(BinPickingCellGeometry.FixtureCentreX, 0.0, FixturePlateTop + ApproachHeight));
+            yield return (
+                "Bin transit",
+                Base(BinPickingPartsCatalog.BinCentreX, 0.0, BenchTop + TransitHeight));
+            yield return (
+                "Fixture transit",
+                Base(BinPickingCellGeometry.FixtureCentreX, 0.0, FixturePlateTop + TransitHeight));
             foreach (BinPickingPart part in BinPickingPartsCatalog.Parts)
             {
                 // A Place descends to leave the part resting on the bench, so the tool ends
@@ -455,8 +527,7 @@ namespace Opc.Ua.Robotics.Tests
         }
 
         /// <summary>
-        /// Converts a world position to the arm's base frame, whose origin sits on the
-        /// bench top.
+        /// Converts a world position to the arm's raised base frame.
         /// </summary>
         private static double[] Base(double worldX, double worldY, double worldZ)
         {
@@ -520,15 +591,15 @@ namespace Opc.Ua.Robotics.Tests
         }
 
         // The cell's own numbers, from BinPickingRobotCell and Assets/Cell.usda.
-        private const double RobotBaseHeight = 0.829;
-        private const double BenchTop = 0.829;
-        private const double FixturePlateTop = 0.838;
+        private const double RobotBaseHeight = BinPickingCellGeometry.RobotBaseHeightMetres;
+        private const double BenchTop = BinPickingCellGeometry.BenchTopMetres;
+        private const double FixturePlateTop = BinPickingCellGeometry.FixturePlateTopMetres;
         private const double ApproachHeight = 0.20;
         private const double TransitHeight = 0.32;
         private const double HeldPartTcpOffset = 0.035;
 
         // The configuration the arm starts in, from SimulatedArmExecutor.
         private static readonly double[] s_homeJoints =
-            [-2.9594, 1.8674, -1.6455, 2.9210, -2.6965, -1.5697];
+            [-3.0484844, 0.3128706, 0.8261335, 2.0025887, -2.7856466, -1.5707963];
     }
 }

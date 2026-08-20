@@ -34,13 +34,14 @@ using Robotics.IntentEnabledRobot.Simulation;
 namespace Vision.BinPickingCell
 {
     /// <summary>
-    /// The cell's furniture as solids the arm must not move through, expressed in the arm's
-    /// base frame.
+    /// The cell's dimensions and furniture as solids the arm must not move through,
+    /// expressed in the arm's base frame.
     /// </summary>
     /// <remarks>
     /// <para>
-    /// The numbers mirror <c>Assets/Cell.usda</c>. The arm's base frame has its origin on
-    /// the bench top at world z = 0.829, so every world height here is that much lower.
+    /// The numbers mirror <c>Assets/Cell.usda</c>. The arm's base frame is on a riser at
+    /// world z = 0.920 while the bench top is at z = 0.720, so the work surface is
+    /// 0.200 m below the base-frame origin.
     /// </para>
     /// <para>
     /// Only the bench and the bin walls are declared. The fixture plate and its locating
@@ -51,6 +52,31 @@ namespace Vision.BinPickingCell
     /// </remarks>
     internal static class BinPickingCellGeometry
     {
+        /// <summary>
+        /// Height of the work surface in the world frame.
+        /// </summary>
+        public const double BenchTopMetres = 0.720;
+
+        /// <summary>
+        /// Height of the robot's base-frame origin in the world frame.
+        /// </summary>
+        public const double RobotBaseHeightMetres = 0.920;
+
+        /// <summary>
+        /// Centre of the fixture in the world frame.
+        /// </summary>
+        public const double FixtureCentreX = -0.600;
+
+        /// <summary>
+        /// Top face of the fixture plate in the world frame.
+        /// </summary>
+        public const double FixturePlateTopMetres = BenchTopMetres + 0.009;
+
+        /// <summary>
+        /// Top face of the fixture locating pegs in the world frame.
+        /// </summary>
+        public const double FixturePegTopMetres = FixturePlateTopMetres + 0.040;
+
         /// <summary>
         /// Builds the collision model the arm's solver checks its configurations against.
         /// </summary>
@@ -70,21 +96,25 @@ namespace Vision.BinPickingCell
         // close to surfaces: it has to reach a part lying on the bench.
         private const double ToolRadiusMetres = 0.008;
 
-        // Bench top: world z 0.760 to 0.829, so it fills everything below the base frame
-        // origin. This is the one that stops a forearm crossing the table: the old height
-        // test only sampled joint origins, which a link can straddle. Its clearance is zero
-        // because it is a surface, not an obstacle standing on one - a link may come down
-        // to it, and with the tool vertical this arm's wrist has to.
-        // Bin walls: world z 0.822 to 0.862, 6 mm thick, around a 0.28 x 0.24 tray centred
+        // Bench top: world z 0.650 to 0.720, which is 0.200 m below the robot base frame.
+        // This is the one that stops a forearm crossing the table: the old height test only
+        // sampled joint origins, which a link can straddle. Its clearance is zero because
+        // it is a surface, not an obstacle standing on one - a link may come down to it,
+        // and with the tool vertical this arm's wrist has to.
+        // Bin walls: world z 0.713 to 0.753, 6 mm thick, around a 0.28 x 0.24 tray centred
         // on the Bin location. These are objects, so they keep the full link radius. The
         // tray's inside is deliberately left open so the tool can still descend into it.
         private static readonly SimulatedObstacleBox[] s_obstacles =
         [
-            new("Bench", 0.0, 0.0, 1.4000, 0.9000, -0.0690, 0.0000, Clearance: 0.0),
-            new("BinWallN", 0.3800, 0.1170, 0.2800, 0.0060, -0.0070, 0.0330),
-            new("BinWallS", 0.3800, -0.1170, 0.2800, 0.0060, -0.0070, 0.0330),
-            new("BinWallE", 0.5170, 0.0000, 0.0060, 0.2400, -0.0070, 0.0330),
-            new("BinWallW", 0.2430, 0.0000, 0.0060, 0.2400, -0.0070, 0.0330)
+            new("Bench", 0.0, 0.0, 1.4000, 0.9000, -0.2700, -0.2000, Clearance: 0.0),
+            new("BinWallN", BinPickingPartsCatalog.BinCentreX, 0.1170,
+                0.2800, 0.0060, -0.2070, -0.1670),
+            new("BinWallS", BinPickingPartsCatalog.BinCentreX, -0.1170,
+                0.2800, 0.0060, -0.2070, -0.1670),
+            new("BinWallE", BinPickingPartsCatalog.BinCentreX + 0.1370, 0.0000,
+                0.0060, 0.2400, -0.2070, -0.1670),
+            new("BinWallW", BinPickingPartsCatalog.BinCentreX - 0.1370, 0.0000,
+                0.0060, 0.2400, -0.2070, -0.1670)
         ];
     }
 }

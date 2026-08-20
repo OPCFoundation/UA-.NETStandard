@@ -181,7 +181,7 @@ namespace Opc.Ua.Robotics.Tests
         }
 
         // The fixture the parts get stacked on, from Assets/Cell.usda.
-        private const double FixtureX = -0.32;
+        private const double FixtureX = BinPickingCellGeometry.FixtureCentreX;
         private const double FixtureY = 0.0;
         private const string SampleLabel = "RedCube";
     }

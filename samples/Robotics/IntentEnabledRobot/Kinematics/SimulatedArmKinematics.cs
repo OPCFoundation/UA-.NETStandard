@@ -78,6 +78,14 @@ namespace Robotics.IntentEnabledRobot.Kinematics
     public delegate bool LocationPositionResolver(NodeId location, out ArrayOf<double> position);
 
     /// <summary>
+    /// Resolves a Location NodeId to a complete tool pose in the arm's base frame.
+    /// </summary>
+    /// <param name="location">The Location NodeId carried by a Pick or Place intent.</param>
+    /// <param name="pose">The resolved tool pose.</param>
+    /// <returns><c>true</c> when the location is known to the host.</returns>
+    public delegate bool LocationPoseResolver(NodeId location, out Pose3DDataType pose);
+
+    /// <summary>
     /// One inverse-kinematic solution for the simulated arm.
     /// </summary>
     public sealed class SimulatedArmIkSolution
@@ -409,6 +417,45 @@ namespace Robotics.IntentEnabledRobot.Kinematics
             [NotNullWhen(true)] out SimulatedArmIkSolution? solution,
             out SimulatedArmKinematicFailure failure)
         {
+            return TrySelectNearestCore(
+                target,
+                currentJointAngles,
+                requireClearJointPath: true,
+                out solution,
+                out failure);
+        }
+
+        /// <summary>
+        /// Selects the nearest clear configuration without testing a joint-space path to
+        /// it.
+        /// </summary>
+        /// <remarks>
+        /// Used while following an explicitly sampled Cartesian path. Each sample is checked
+        /// for collision, and selecting the nearest solution to the previous sample keeps
+        /// the branch continuous. Testing a second, joint-interpolated path between those
+        /// samples rejects valid Cartesian motion and is the wrong path to validate.
+        /// </remarks>
+        public bool TrySelectNearestConfiguration(
+            Pose3DDataType target,
+            ReadOnlySpan<double> currentJointAngles,
+            [NotNullWhen(true)] out SimulatedArmIkSolution? solution,
+            out SimulatedArmKinematicFailure failure)
+        {
+            return TrySelectNearestCore(
+                target,
+                currentJointAngles,
+                requireClearJointPath: false,
+                out solution,
+                out failure);
+        }
+
+        private bool TrySelectNearestCore(
+            Pose3DDataType target,
+            ReadOnlySpan<double> currentJointAngles,
+            bool requireClearJointPath,
+            [NotNullWhen(true)] out SimulatedArmIkSolution? solution,
+            out SimulatedArmKinematicFailure failure)
+        {
             SimulatedArmIkResult result = Inverse(target, currentJointAngles);
             failure = result.Failure;
             solution = null;
@@ -419,15 +466,8 @@ namespace Robotics.IntentEnabledRobot.Kinematics
 
             // Solutions come back nearest-first. Take the nearest one that neither reaches
             // through the surface the arm stands on nor into the cell's furniture, and that
-            // can be reached without sweeping a link through either on the way: several of
-            // them do, and a cell that takes the first regardless renders an arm passing
-            // through its own bench.
-            //
-            // Solutions come back nearest-first. Take the nearest one that neither reaches
-            // through the surface the arm stands on nor into the cell's furniture, and that
-            // can be reached without sweeping a link through either on the way: several of
-            // them do, and a cell that takes the first regardless renders an arm passing
-            // through its own bench.
+            // can be reached without sweeping a link through either when the caller asks us
+            // to validate a joint-space path.
             //
             // Ordering these by WristInversionPenalty first - so a shape that holds the
             // wrist the right way up wins over a closer one that doubles it back - was
@@ -441,7 +481,8 @@ namespace Robotics.IntentEnabledRobot.Kinematics
             for (int ii = 0; ii < candidates.Length; ii++)
             {
                 if (ClearsWorkSurface(candidates[ii].JointAngles.Span)
-                    && ClearsPath(currentJointAngles, candidates[ii].JointAngles.Span))
+                    && (!requireClearJointPath
+                        || ClearsPath(currentJointAngles, candidates[ii].JointAngles.Span)))
                 {
                     solution = candidates[ii];
                     return true;

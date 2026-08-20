@@ -85,7 +85,8 @@ builder.Services.AddSingleton(cellOptions);
 // cell's work positions.
 builder.Services.AddSingleton(_ => new SimulatedArmKinematics
 {
-    MinimumLinkHeight = 0.0,
+    MinimumLinkHeight =
+        BinPickingCellGeometry.BenchTopMetres - BinPickingCellGeometry.RobotBaseHeightMetres,
     Collisions = BinPickingCellGeometry.CreateCollisionModel()
 });
 builder.Services.AddSingleton<SimulatedArmExecutor>();
