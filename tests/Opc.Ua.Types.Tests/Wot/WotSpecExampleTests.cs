@@ -599,7 +599,7 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(state.DataType, Is.EqualTo(machineState.NodeId));
             Assert.That(state.DataType, Does.Not.EqualTo("i=27"));
         }
-
+        /// <summary>
         /// <summary>
         /// A local context holding exactly one ObjectType, so the example
         /// resolves against the type it names.
