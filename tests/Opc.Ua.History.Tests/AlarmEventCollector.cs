@@ -242,10 +242,15 @@ namespace Opc.Ua.History.Tests
             {
                 try
                 {
+                    using var deleteCts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
                     await m_session.DeleteSubscriptionsAsync(
                         null,
                         new uint[] { m_subscriptionId }.ToArrayOf(),
-                        CancellationToken.None).ConfigureAwait(false);
+                        deleteCts.Token).ConfigureAwait(false);
+                }
+                catch (OperationCanceledException)
+                {
+                    // Deletion timed out; best-effort cleanup.
                 }
                 catch (ServiceResultException)
                 {
@@ -383,9 +388,20 @@ namespace Opc.Ua.History.Tests
                         : await m_session.PublishWithTimeoutAsync(acknowledgements, 1000).ConfigureAwait(false);
                     acknowledgements = Array.Empty<SubscriptionAcknowledgement>().ToArrayOf();
                 }
+                catch (OperationCanceledException) when (m_shutdown.IsCancellationRequested)
+                {
+                    // Cancelled by expected shutdown; exit the loop cleanly.
+                    break;
+                }
                 catch (ServiceResultException ex) when (ex.StatusCode == StatusCodes.BadRequestTimeout)
                 {
+                    // Normal publish poll timeout; try again.
                     continue;
+                }
+                catch (ServiceResultException ex) when (IsShutdownStatus(ex.StatusCode) && m_shutdown.IsCancellationRequested)
+                {
+                    // Session or subscription is gone during expected shutdown; exit the loop cleanly.
+                    break;
                 }
 
                 ProcessNotificationMessage(publishResponse.NotificationMessage);

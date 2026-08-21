@@ -66,12 +66,13 @@ namespace Opc.Ua.Client.TestFramework
 
         /// <summary>
         /// The server's maximum failed-authentication attempts before a client is
-        /// locked out. Defaults to the production default (5). A value of zero or
-        /// less disables the brute-force lockout, which load/scale fixtures that
-        /// open many sessions from a single client certificate need so transient
-        /// connect failures cannot lock the shared certificate out.
+        /// locked out. Defaults to 0 (disabled) so that transient connection
+        /// failures in load and scale fixtures never lock out the shared client
+        /// certificate. Tests that explicitly validate lockout behaviour must set
+        /// this to a positive value (e.g. 5) before calling
+        /// <see cref="CreateReferenceServerFixtureAsync"/>.
         /// </summary>
-        public int MaxFailedAuthenticationAttempts { get; set; } = 5;
+        public int MaxFailedAuthenticationAttempts { get; set; }
 
         /// <summary>
         /// The server's maximum number of concurrent request-processing worker

@@ -224,6 +224,14 @@ jobs:
       # upload/download. It is only produced on an actual hang, so the cost is paid
       # rarely; the dump is published as a downloadable pipeline artifact below (it is
       # otherwise only reachable via the auth-gated test attachments API).
+      # --blame-crash/--blame-crash-dump-type mini: --blame-crash activates crash
+      # detection so a sequence file records which test was running when the host
+      # exited.  --blame-crash-dump-type mini additionally captures a minidump on
+      # crash - every thread's stack without serialising the managed heap (which
+      # would push it into multi-GB territory for a server-hosting test process).
+      # Only written on an actual crash; healthy runs pay no cost.  Both the
+      # sequence file and the dump land in $(Agent.TempDirectory) and are staged by
+      # the 'Stage diagnostic dumps' step below.
       # --logger trx + --results-directory: emit trx ourselves because we set
       # publishTestResults: false below to decouple "ran tests" from "published
       # results to AzDO" - the inline publish step inside DotNetCoreCLI@2 fails
@@ -231,7 +239,7 @@ jobs:
       # opcfoundation.visualstudio.com (observed on mac PR build 14614 log 737:
       # all 707 tests passed, then post-test publish errored with
       # "nodename nor servname provided, or not known" and failed the job).
-      arguments: '--no-restore ${{ variables.DotCliCommandline }} --configuration ${{ parameters.configuration }} ${{ variables.CoverageArgs }} ${{ variables.TestFilterArgs }} --blame-hang-timeout ${{ parameters.hangtimeout }} --blame-hang-dump-type mini --logger trx --results-directory $(Agent.TempDirectory)'
+      arguments: '--no-restore ${{ variables.DotCliCommandline }} --configuration ${{ parameters.configuration }} ${{ variables.CoverageArgs }} ${{ variables.TestFilterArgs }} --blame-hang-timeout ${{ parameters.hangtimeout }} --blame-hang-dump-type mini --blame-crash --blame-crash-dump-type mini --logger trx --results-directory $(Agent.TempDirectory)'
       publishTestResults: false
   - task: PublishTestResults@2
     displayName: 'Publish Test Results ${{ parameters.configuration }} (${{ parameters.framework }})'
@@ -369,6 +377,44 @@ jobs:
     condition: and(failed(), contains(variables['file'], 'Fuzz.Tests'), ne(variables['fuzzingartifacts.secureFilePath'], ''))
     inputs:
       PathtoPublish: '$(Agent.TempDirectory)/FuzzingArtifacts.zip'
+  - task: PowerShell@2
+    displayName: 'Stage macOS crash reports'
+    # Apple Crash Reporter writes .crash (legacy) and .ips (JSON, macOS 12+)
+    # diagnostic reports to ~/Library/Logs/DiagnosticReports/ when a process crashes.
+    # These are separate from the VSTest blame collector dumps and provide the native
+    # crash stack, OS thread state, and signal information needed to root-cause a
+    # testhost SIGABRT or SIGSEGV.  Only files whose base name contains 'testhost' or
+    # 'dotnet' (case-insensitive) are collected; this excludes unrelated host or
+    # application crash reports that accumulate on shared agents.  Qualifying reports
+    # created in the last two hours are copied into $(Agent.TempDirectory)/mac-diagnostics/
+    # so the 'Stage diagnostic dumps' CopyFiles step below picks them up automatically.
+    condition: and(succeededOrFailed(), eq(variables['Agent.OS'], 'Darwin'))
+    continueOnError: true
+    inputs:
+      targetType: inline
+      pwsh: true
+      script: |
+        $src = [System.IO.Path]::Combine($env:HOME, 'Library', 'Logs', 'DiagnosticReports')
+        $dst = '$(Agent.TempDirectory)/mac-diagnostics'
+        if (-not (Test-Path $src)) {
+            Write-Host "No DiagnosticReports directory found at '$src'; skipping."
+            exit 0
+        }
+        $cutoff = (Get-Date).AddHours(-2)
+        $files = @(Get-ChildItem -Path $src -File -ErrorAction SilentlyContinue |
+            Where-Object { ($_.Extension -ieq '.crash' -or $_.Extension -ieq '.ips') -and
+                           ($_.BaseName -ilike '*testhost*' -or $_.BaseName -ilike '*dotnet*') -and
+                           $_.LastWriteTime -ge $cutoff })
+        if ($files.Count -eq 0) {
+            Write-Host 'No recent macOS crash reports found.'
+            exit 0
+        }
+        $null = New-Item -ItemType Directory -Path $dst -Force
+        foreach ($f in $files) {
+            Copy-Item -Path $f.FullName -Destination $dst -Force
+            Write-Host "Staged: $($f.Name)"
+        }
+        Write-Host "Staged $($files.Count) macOS crash report(s) to '$dst'."
   # On job completion, collect any dumps written under the results directory
   # ($(Agent.TempDirectory)) and publish them as a downloadable pipeline
   # artifact.  Covers:
@@ -376,6 +422,7 @@ jobs:
   #   - --blame-crash-dump-type mini / full crash dumps (*.dmp)
   #   - Linux core dumps (core / core.*)
   #   - Any other dump variant a test collector might emit (*.mdmp, *.dump)
+  #   - macOS Apple Crash Reporter reports staged by the step above (*.crash, *.ips)
   # The blame collector otherwise only attaches the dump to the trx, which is
   # reachable solely through the auth-gated test attachments API; publishing
   # them as build artifacts makes teardown/shutdown hangs and testhost crashes
@@ -398,6 +445,8 @@ jobs:
         **/*.dmp
         **/*.mdmp
         **/*.dump
+        **/*.crash
+        **/*.ips
         **/core
         **/core.*
       TargetFolder: '$(Build.ArtifactStagingDirectory)/dumps'

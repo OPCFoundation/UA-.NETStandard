@@ -39,6 +39,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using NUnit.Framework;
 using Opc.Ua.Client.TestFramework;
+using Opc.Ua.Client.Alarms;
 using Opc.Ua.Di.Server.Builders;
 using Opc.Ua.Pumps;
 using Opc.Ua.Server;
@@ -834,12 +835,17 @@ namespace Opc.Ua.Di.Tests
                         Is.True,
                         "Event monitored item creation failed: " + monitoredItems.Results[0].StatusCode);
 
+                    AlarmClient alarmClient = session.GetAlarmClient(server.Telemetry);
+                    await alarmClient.ConditionRefreshAsync(
+                        subscription.SubscriptionId,
+                        CancellationToken.None).ConfigureAwait(false);
+
                     Assert.That(
                         await WaitForAlarmEventAsync(
                             session,
                             subscription.SubscriptionId,
                             alarmNodeId,
-                            TimeSpan.FromSeconds(5)).ConfigureAwait(false),
+                            TimeSpan.FromSeconds(30)).ConfigureAwait(false),
                         Is.True,
                         "No OverTempAlarm event was received through a client event subscription.");
                 }

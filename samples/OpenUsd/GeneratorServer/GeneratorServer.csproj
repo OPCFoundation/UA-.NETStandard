@@ -29,6 +29,11 @@
     <PackageReference Include="Microsoft.Extensions.Hosting" />
     <PackageReference Include="Microsoft.Extensions.Logging.Console" />
   </ItemGroup>
+  <!-- The conformance tests read the simulation constants to verify that they
+       agree with the published datasheet instead of duplicating those values. -->
+  <ItemGroup>
+    <InternalsVisibleTo Include="Opc.Ua.OpenUsd.Tests" />
+  </ItemGroup>
   <!-- Authored USD layers embedded so the server ships (and serves) its own twin
        geometry: Powerhouse.usda (RootLayer) + generator.usda (Reference). -->
   <ItemGroup>

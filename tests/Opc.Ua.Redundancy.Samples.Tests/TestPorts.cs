@@ -27,6 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Net;
 using System.Net.Sockets;
@@ -34,12 +35,33 @@ using System.Net.Sockets;
 namespace Opc.Ua.Redundancy.Samples.Tests
 {
     /// <summary>
-    /// Allocates free loopback TCP ports for the sample processes. Using OS-assigned
-    /// ephemeral ports avoids collisions with other processes and with host-reserved or
-    /// excluded port ranges (for example the Hyper-V / WSL exclusions on Windows).
+    /// Allocates free loopback TCP and UDP ports for the sample processes. Using
+    /// OS-assigned ephemeral ports avoids collisions with other processes and with
+    /// host-reserved or excluded port ranges (for example the Hyper-V / WSL
+    /// exclusions on Windows).
     /// </summary>
     internal static class TestPorts
     {
+        /// <summary>
+        /// Reserves and returns a currently-free loopback UDP port that has not
+        /// been previously returned by this method in the current process. The
+        /// allocation is tracked process-wide so that sequential OS port-0
+        /// requests, which may return the same number, never produce a duplicate.
+        /// </summary>
+        /// <returns>A free UDP port number.</returns>
+        public static int GetFreeUdpPort()
+        {
+            while (true)
+            {
+                using var udpClient = new UdpClient(new IPEndPoint(IPAddress.Loopback, 0));
+                int port = ((IPEndPoint)udpClient.Client.LocalEndPoint!).Port;
+                if (s_allocatedUdpPorts.TryAdd(port, 0))
+                {
+                    return port;
+                }
+            }
+        }
+
         /// <summary>
         /// Reserves and returns a currently-free loopback TCP port.
         /// </summary>
@@ -75,5 +97,7 @@ namespace Opc.Ua.Redundancy.Samples.Tests
             ports.CopyTo(result);
             return result;
         }
+
+        private static readonly ConcurrentDictionary<int, byte> s_allocatedUdpPorts = new();
     }
 }
