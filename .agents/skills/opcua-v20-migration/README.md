@@ -19,7 +19,7 @@ Trigger this skill when a user asks for any of:
 ## When NOT to use
 
 - The user is starting a new OPC UA project from scratch — point them at
-  `docs/README.md` and the `samples/ConsoleReferenceClient` /
+  `docs/README.md` and the `samples/Reference/ConsoleReferenceClient` /
   `ConsoleReferenceServer` samples instead.
 - The user is migrating **within** 1.5.x (point or service-release upgrades).
 - The user is debugging server-side OPC UA functional behaviour — try the

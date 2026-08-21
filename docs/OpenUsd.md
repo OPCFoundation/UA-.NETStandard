@@ -169,15 +169,15 @@ created `OpenUsdAssetState` nodes as an `ArrayOf<OpenUsdAssetState>`.
   that the MCP tools command, and a viewport prim pick can become a robot command through
   `UsdViewOptions.PrimPicked`. See [Robot Intent](Robotics.md#robot-intent) and the
   [Robotics samples](../samples/Robotics/README.md).
-* [`PumpDeviceIntegrationServer`](../samples/PumpDeviceIntegrationServer) — a DI pump line bound to OpenUSD, including
+* [`PumpDeviceIntegrationServer`](../samples/DI/PumpDeviceIntegrationServer) — a DI pump line bound to OpenUSD, including
   component composition and served-asset delivery.
-* [`GeneratorServer`](../samples/GeneratorServer) — the Generators companion
+* [`GeneratorServer`](../samples/OpenUsd/GeneratorServer) — the Generators companion
   specification with a datasheet-driven simulation and one independent twin per
   configured generating set.
-* [`SiteCompositionServer`](../samples/SiteCompositionServer) — a supervisory server that owns no devices and
+* [`SiteCompositionServer`](../samples/OpenUsd/SiteCompositionServer) — a supervisory server that owns no devices and
   composes the machines of the pump and generator servers into a single scene
   through cross-server components. Render it with the connector's `--federate`
-  option. See [Samples](../samples/SiteCompositionServer/README.md).
+  option. See [Samples](../samples/OpenUsd/SiteCompositionServer/README.md).
 
 ## The connector tool
 

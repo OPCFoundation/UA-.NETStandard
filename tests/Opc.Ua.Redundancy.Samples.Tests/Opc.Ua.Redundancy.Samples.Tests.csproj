@@ -61,11 +61,11 @@
     into their assemblies directly.
   -->
   <ItemGroup Condition="'$(TargetFramework)' == 'net10.0'">
-    <ProjectReference Include="..\..\samples\RedundantServer\RedundantServer.csproj"
+    <ProjectReference Include="..\..\samples\Redundancy\RedundantServer\RedundantServer.csproj"
                       ReferenceOutputAssembly="false" />
-    <ProjectReference Include="..\..\samples\RedundantClient\RedundantClient.csproj"
+    <ProjectReference Include="..\..\samples\Redundancy\RedundantClient\RedundantClient.csproj"
                       ReferenceOutputAssembly="false" />
-    <ProjectReference Include="..\..\samples\RedundantPubSub\RedundantPubSub.csproj"
+    <ProjectReference Include="..\..\samples\Redundancy\RedundantPubSub\RedundantPubSub.csproj"
                       ReferenceOutputAssembly="false" />
   </ItemGroup>
 </Project>

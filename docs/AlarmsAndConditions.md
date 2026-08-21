@@ -594,5 +594,5 @@ session.
 - [Model Change Tracking](ModelChangeTracking.md) — client cache invalidation on address-space changes
 - Source: `src/Opc.Ua.Server/Alarms/`, `src/Opc.Ua.Client/Alarms/`,
   `src/Opc.Ua.Core.Types/State/AlarmConditionState.Methods.cs`
-- Reference client sample: `samples/ConsoleReferenceClient/AlarmClientSample.cs`
+- Reference client sample: `samples/Reference/ConsoleReferenceClient/AlarmClientSample.cs`
 - Conformance tests: `tests/Opc.Ua.History.Tests/AlarmsAndConditions*.cs`

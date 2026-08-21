@@ -109,7 +109,12 @@ namespace Opc.Ua.Redundancy.Samples.Tests
 
         private SampleAppProcess Launch()
         {
-            return new SampleAppProcess(NodeId, "RedundantServer", "RedundantServer", Arguments, Environment);
+            return new SampleAppProcess(
+                NodeId,
+                "Redundancy/RedundantServer",
+                "RedundantServer",
+                Arguments,
+                Environment);
         }
     }
 

@@ -56,7 +56,7 @@ namespace Opc.Ua.Redundancy.Samples.Tests
         {
             await using var demo = new SampleAppProcess(
                 "pubsub-demo-hot",
-                "RedundantPubSub",
+                "Redundancy/RedundantPubSub",
                 "RedundantPubSub",
                 ["--role", "demo", "--ha-mode", "hot"],
                 SampleTestEnvironment.FastDemo);
@@ -90,7 +90,7 @@ namespace Opc.Ua.Redundancy.Samples.Tests
         {
             await using var demo = new SampleAppProcess(
                 "pubsub-demo-cold",
-                "RedundantPubSub",
+                "Redundancy/RedundantPubSub",
                 "RedundantPubSub",
                 ["--role", "demo", "--ha-mode", "cold"],
                 SampleTestEnvironment.FastDemo);
@@ -126,7 +126,7 @@ namespace Opc.Ua.Redundancy.Samples.Tests
 
             await using var client = new SampleAppProcess(
                 "client",
-                "RedundantClient",
+                "Redundancy/RedundantClient",
                 "RedundantClient",
                 [
                     "--server", cluster.BootstrapServerUrl,
