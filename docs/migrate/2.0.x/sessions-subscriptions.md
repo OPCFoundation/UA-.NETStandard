@@ -457,7 +457,8 @@ services
 
 > `AddHttpsTransport()`, `AddWssTransport()`, and `AddKestrelOpcTcpTransport()`
 > all ship in the `OPCFoundation.NetStandard.Opc.Ua.Bindings.Https`
-> package. The Kestrel-hosted `opc.tcp://` listener
+> package. Reference that package directly; Server and GDS packages do not
+> pull the optional binding transitively. The Kestrel-hosted `opc.tcp://` listener
 > (`AddKestrelOpcTcpTransport()`) is available on `net8.0`+ only; on the
 > .NET Framework / netstandard targets keep the default raw-socket
 > `opc.tcp` listener that ships in `Opc.Ua.Core`.

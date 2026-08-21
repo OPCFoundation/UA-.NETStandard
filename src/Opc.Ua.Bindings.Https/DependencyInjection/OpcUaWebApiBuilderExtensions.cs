@@ -73,6 +73,23 @@ namespace Microsoft.Extensions.DependencyInjection
         }
 
         /// <summary>
+        /// Registers the OPC UA REST binding and returns the same specialized builder.
+        /// </summary>
+        /// <typeparam name="TBuilder">The specialized transport builder type.</typeparam>
+        /// <param name="builder">The OPC UA transport builder.</param>
+        /// <returns>The same <paramref name="builder"/> instance.</returns>
+        /// <exception cref="ArgumentNullException"><paramref name="builder"/> is <c>null</c>.</exception>
+        public static TBuilder AddWebApiTransport<TBuilder>(this TBuilder builder)
+            where TBuilder : IOpcUaTransportBuilder
+        {
+            ArgumentNullException.ThrowIfNull(builder);
+
+            IOpcUaBuilder rootBuilder = builder.Services.AddOpcUa();
+            rootBuilder.AddWebApiTransport();
+            return builder;
+        }
+
+        /// <summary>
         /// Registers the OPC UA REST binding with caller-supplied options.
         /// </summary>
         /// <param name="builder">The OPC UA builder.</param>
@@ -148,6 +165,26 @@ namespace Microsoft.Extensions.DependencyInjection
                 });
             });
 
+            return builder;
+        }
+
+        /// <summary>
+        /// Registers the configured OPC UA REST binding and returns the same specialized builder.
+        /// </summary>
+        /// <typeparam name="TBuilder">The specialized transport builder type.</typeparam>
+        /// <param name="builder">The OPC UA transport builder.</param>
+        /// <param name="configure">Optional callback that customizes the REST binding.</param>
+        /// <returns>The same <paramref name="builder"/> instance.</returns>
+        /// <exception cref="ArgumentNullException"><paramref name="builder"/> is <c>null</c>.</exception>
+        public static TBuilder AddWebApiTransport<TBuilder>(
+            this TBuilder builder,
+            Action<WebApiTransportOptions>? configure)
+            where TBuilder : IOpcUaTransportBuilder
+        {
+            ArgumentNullException.ThrowIfNull(builder);
+
+            IOpcUaBuilder rootBuilder = builder.Services.AddOpcUa();
+            rootBuilder.AddWebApiTransport(configure);
             return builder;
         }
     }

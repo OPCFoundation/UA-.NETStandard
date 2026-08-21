@@ -70,9 +70,11 @@ clients see the OpenAPI route without hard-coding the URL.
 For both WSS variants the HTTPS / WSS factories live in
 `Opc.Ua.Bindings.Https`; consumers register them via the
 `AddHttpsTransport()` / `AddWssTransport()` DI extensions on
-`IOpcUaBuilder`, or by constructing a `DefaultTransportBindingRegistry`
-and calling `RegisterListenerFactory` / `RegisterChannelFactory`
-directly for non-DI hosts.
+`IOpcUaBuilder` or a specialized server builder, or by constructing a
+`DefaultTransportBindingRegistry` and calling `RegisterListenerFactory` /
+`RegisterChannelFactory` directly for non-DI hosts. Applications must
+reference `OPCFoundation.NetStandard.Opc.Ua.Bindings.Https` directly; Server
+and GDS packages do not pull the optional binding transitively.
 
 `AddHttpsTransport(options => ...)` is available as a one-shot registration
 for the Kestrel HTTPS stack. It registers HTTPS and WSS by default and can

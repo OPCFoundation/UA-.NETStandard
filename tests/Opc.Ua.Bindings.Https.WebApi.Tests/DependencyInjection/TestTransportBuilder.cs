@@ -14,7 +14,6 @@
  *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
- *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
  * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
  * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
@@ -27,39 +26,18 @@
  * The complete license agreement can be found here:
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
-using System;
-using Opc.Ua;
-using Opc.Ua.Server.Hosting;
 
-namespace Microsoft.Extensions.DependencyInjection
+using Microsoft.Extensions.DependencyInjection;
+
+namespace Opc.Ua.Bindings.Https.WebApi.Tests.DependencyInjection
 {
-    /// <summary>
-    /// Server-builder forwarding overloads for transport registrations.
-    /// </summary>
-    public static class OpcUaServerTransportBuilderExtensions
+    internal sealed class TestTransportBuilder : IOpcUaTransportBuilder
     {
-        /// <summary>
-        /// Adds the raw-socket OPC TCP transport and returns the server builder.
-        /// </summary>
-        /// <exception cref="ArgumentNullException"></exception>
-        public static IOpcUaServerBuilder AddOpcTcpTransport(this IOpcUaServerBuilder builder)
+        public TestTransportBuilder(IServiceCollection services)
         {
-            if (builder is null)
-            {
-                throw new ArgumentNullException(nameof(builder));
-            }
-            new BuilderAdapter(builder.Services).AddOpcTcpTransport();
-            return builder;
+            Services = services;
         }
 
-        private sealed class BuilderAdapter : IOpcUaBuilder
-        {
-            public BuilderAdapter(IServiceCollection services)
-            {
-                Services = services;
-            }
-
-            public IServiceCollection Services { get; }
-        }
+        public IServiceCollection Services { get; }
     }
 }

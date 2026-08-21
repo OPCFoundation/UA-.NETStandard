@@ -82,6 +82,24 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests.DependencyInjection
         }
 
         [Test]
+        public void AddKestrelOpcTcpTransportReturnsSameSpecializedBuilder()
+        {
+            var builder = new TestTransportBuilder(new ServiceCollection());
+
+            TestTransportBuilder returned = builder.AddKestrelOpcTcpTransport();
+
+            Assert.That(returned, Is.SameAs(builder));
+        }
+
+        [Test]
+        public void SpecializedTransportBuilderThrowsWhenNull()
+        {
+            TestTransportBuilder builder = null!;
+
+            Assert.That(() => builder.AddKestrelOpcTcpTransport(), Throws.ArgumentNullException);
+        }
+
+        [Test]
         public void AddKestrelOpcTcpTransportOverridesRawSocketListener()
         {
             // When called after AddOpcTcpTransport, Kestrel listener replaces the raw-socket one
