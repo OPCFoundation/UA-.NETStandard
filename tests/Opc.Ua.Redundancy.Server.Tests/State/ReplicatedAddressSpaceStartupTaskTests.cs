@@ -53,6 +53,13 @@ namespace Opc.Ua.Redundancy.Server.Tests
         [Test]
         public async Task AttachesSynchronizerToOptedInNodeManagerAsync()
         {
+            if (!ReplicatedGossipOptions.IsGossipStateDecodingSupported)
+            {
+                Assert.Ignore(
+                    "CRDT gossip state decoding is not binary-compatible on the " +
+                    "netstandard2.1 build (init-accessor modreq skew); see #4282.");
+            }
+
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetry);
             messageContext.NamespaceUris.GetIndexOrAppend("urn:test:crdt-startup");
