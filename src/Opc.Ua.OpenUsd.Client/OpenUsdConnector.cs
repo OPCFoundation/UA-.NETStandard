@@ -825,9 +825,13 @@ namespace Opc.Ua.OpenUsd.Client
                 if (!usdValue.IsNull)
                 {
                     m_sink.SetAttribute(b.PrimPath!, b.PropertyName!, usdValue);
-                    m_logger.LiveUpdateApplied(
-                        b.PrimPath ?? string.Empty, b.PropertyName ?? string.Empty,
-                        b.SourceNodeId.ToString());
+                    if (m_logger.IsEnabled(LogLevel.Debug))
+                    {
+                        m_logger.LiveUpdateApplied(
+                            b.PrimPath ?? string.Empty,
+                            b.PropertyName ?? string.Empty,
+                            b.SourceNodeId.ToString());
+                    }
                 }
                 else
                 {

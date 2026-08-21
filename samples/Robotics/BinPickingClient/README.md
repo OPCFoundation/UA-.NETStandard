@@ -271,25 +271,23 @@ value in a shape a profile does not accept produces a prim that silently never
 moves while every subscription counter says the data is flowing. It is worth
 knowing which of the two you are looking at.
 
-### Known limitation: a viewer-only session shows a static scene
+### Viewer-only sessions receive external motion
 
-A client started with `--view` alone, while a *different* client or an agent
-drives the cell, renders a scene that never changes — the arm included, not just
-the parts. A single process that both views and commands (`--demo --view`)
-updates correctly.
+A client started with `--view` alone can observe motion commanded by a
+different OPC UA session. The OpenUSD connector creates a classic
+`Subscription`; `ManagedSession` uses the V2 subscription engine by default.
+The V2 publish manager therefore includes created classic session subscriptions
+when sizing its Publish-worker pool, even when it owns no V2 subscriptions of
+its own. This is the normal observer shape: two Publish workers stay active and
+dispatch the classic subscription's notifications to the live USD sink.
 
-Measured with `--verbose`: the viewer-only session binds 12 bindings and monitors
-12 items, exactly as the working one does, and then receives **zero** live
-updates, where the commanding session receives about 1,900 over the same
-sequence. So the subscription is created and the notifications never arrive. The
-behavior is tracked as
-[openusd-dotnet#17](https://github.com/marcschier/openusd-dotnet/issues/17);
-it is not specific to the parts or the palletizer.
-
-Until the packaged viewer contains that fix, watch the cell from the process
-that drives it. `--view --demo` does that for the scripted path;
-`--view --mcp --transport http` does it for an external agent because the
-agent's MCP calls execute through the viewer process's OPC UA session.
+The viewer host also runs its long-lived `StageReadyAsync` callback outside
+Avalonia's UI synchronization context, per
+[openusd-dotnet#17](https://github.com/marcschier/openusd-dotnet/issues/17).
+These are separate requirements: the callback must remain runnable, and the OPC
+UA session must issue Publish requests for every subscription API it supports.
+Pass `--verbose` to verify both `PUBLISH Worker #... - STARTED` and
+`OpenUSD live update: ...` messages while another client drives the cell.
 
 The client fetches the cell's served OpenUSD assets automatically whenever the
 viewport opens, into a per-user cache directory. Pass `--fetch-assets <dir>` only

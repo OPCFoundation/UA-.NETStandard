@@ -39,6 +39,18 @@ namespace Opc.Ua.Client.Subscriptions
     internal interface ISubscriptionManagerContext
     {
         /// <summary>
+        /// Gets the number of created subscriptions the session owns outside this
+        /// manager's registry, for example through the classic
+        /// <c>Session.AddSubscription</c> API.
+        /// </summary>
+        /// <remarks>
+        /// These subscriptions still need Publish workers. Without including them in
+        /// worker sizing, a session with only classic subscriptions never issues a
+        /// Publish request even though notifications can be dispatched to it.
+        /// </remarks>
+        int SessionSubscriptionCount => 0;
+
+        /// <summary>
         /// Create a managed subscription
         /// </summary>
         /// <param name="handler"></param>

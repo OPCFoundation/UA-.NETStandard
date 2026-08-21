@@ -150,6 +150,9 @@ namespace Opc.Ua.Client.Subscriptions.Fakes
         /// </summary>
         public HashSet<uint> SessionOwnedSubscriptionIds { get; } = [];
 
+        /// <inheritdoc/>
+        public int SessionSubscriptionCount => SessionOwnedSubscriptionIds.Count;
+
         /// <summary>Recorded dispatches to session-owned subscriptions.</summary>
         public int SessionDispatchCount => Volatile.Read(ref m_sessionDispatchCount);
 

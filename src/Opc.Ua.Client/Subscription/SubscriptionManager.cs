@@ -1515,7 +1515,7 @@ namespace Opc.Ua.Client.Subscriptions
 
             int GetDesiredPublishWorkerCount()
             {
-                int publishCount = CreatedCount;
+                int publishCount = CreatedCount + m_session.SessionSubscriptionCount;
                 if (publishCount != 0)
                 {
                     //

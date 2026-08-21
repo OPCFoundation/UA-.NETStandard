@@ -1040,6 +1040,55 @@ namespace Opc.Ua.Client.Subscriptions
         }
 
         /// <summary>
+        /// A session with only a classic subscription still needs a Publish worker.
+        /// The manager does not own that subscription, but it owns the shared Publish
+        /// pipeline that dispatches responses to it.
+        /// </summary>
+        [Test]
+        [CancelAfter(30_000)]
+        public async Task ClassicSessionSubscriptionStartsPublishWorkerAsync(
+            CancellationToken testCt)
+        {
+            ILoggerFactory loggerFactory = m_telemetry.LoggerFactory;
+            var session = new FakeSubscriptionManagerContext();
+            session.SessionOwnedSubscriptionIds.Add(4242u);
+            var publishSeen = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            session.OnPublishAsync = (header, acknowledgements, ct) =>
+            {
+                publishSeen.TrySetResult(true);
+                return new ValueTask<PublishResponse>(
+                    CreatePublishResponse(4242u, header.RequestHandle));
+            };
+
+            var sut = new SubscriptionManager(
+                session,
+                loggerFactory,
+                DiagnosticsMasks.None)
+            {
+                MinPublishWorkerCount = 1,
+                MaxPublishWorkerCount = 1
+            };
+            await using (sut.ConfigureAwait(false))
+            {
+                sut.Resume();
+                sut.Update();
+
+                await publishSeen.Task.WaitAsync(testCt).ConfigureAwait(false);
+                await WaitUntilAsync(
+                    () => session.SessionDispatchCount > 0,
+                    testCt).ConfigureAwait(false);
+
+                Assert.Multiple(() =>
+                {
+                    Assert.That(sut.Count, Is.Zero);
+                    Assert.That(sut.PublishWorkerCount, Is.EqualTo(1));
+                    Assert.That(session.DeleteCalls, Is.Empty);
+                });
+            }
+        }
+
+        /// <summary>
         /// While an identifier stays unresolved the server keeps answering with
         /// the same undeliverable response. The worker must back off instead of
         /// republishing immediately - otherwise it busy-spins, hammers the

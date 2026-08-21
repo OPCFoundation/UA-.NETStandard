@@ -217,6 +217,27 @@ namespace Opc.Ua.Client
             }
 
             /// <inheritdoc/>
+            public int SessionSubscriptionCount
+            {
+                get
+                {
+#if OPCUA_V1_CLIENT
+                    int count = 0;
+                    foreach (Subscription subscription in m_context.Subscriptions)
+                    {
+                        if (subscription.Created)
+                        {
+                            count++;
+                        }
+                    }
+                    return count;
+#else
+                    return 0;
+#endif
+                }
+            }
+
+            /// <inheritdoc/>
             public IManagedSubscription CreateSubscription(
                 ISubscriptionNotificationHandler handler,
                 IOptionsMonitor<Subscriptions.SubscriptionOptions> options,
