@@ -24,7 +24,7 @@
        -ld_classic was previously used as a fallback but is now deprecated and
        crashes with an assertion in recent Xcode toolchains; the default (new) linker
        handles the binary correctly. -->
-  <PropertyGroup Condition="$([MSBuild]::IsOSPlatform('OSX'))">
+  <PropertyGroup Condition="$([MSBuild]::IsOSPlatform('OSX')) AND ('$(TF_BUILD)' == 'true' OR '$(GITHUB_ACTIONS)' == 'true')">
     <IlcFoldIdenticalMethodBodies>true</IlcFoldIdenticalMethodBodies>
     <OptimizationPreference>Size</OptimizationPreference>
     <DebugType>none</DebugType>
