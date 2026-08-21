@@ -41,7 +41,7 @@ namespace Opc.Ua.Di.Tests
     /// <summary>
     /// Pins the address space of the <c>PumpDeviceIntegrationServer</c> sample
     /// to the published PumpX-2000 datasheet
-    /// (<c>samples/PumpDeviceIntegrationServer/DATASHEET.md</c>). Every value
+    /// (<c>samples/DI/PumpDeviceIntegrationServer/DATASHEET.md</c>). Every value
     /// asserted here is quoted from that document, so a change to the sample
     /// that is not reflected in the datasheet - or the other way round - fails
     /// the build.

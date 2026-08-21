@@ -698,6 +698,7 @@ namespace Opc.Ua.WotCon.Tests.Samples
                 "Opc.Ua.Machinery.tm.json",
                 Path.Combine(
                     "samples",
+                    "DI",
                     "PumpDeviceIntegrationServer",
                     "Model",
                     "Opc.Ua.Machinery.NodeSet2.xml"),
@@ -707,6 +708,7 @@ namespace Opc.Ua.WotCon.Tests.Samples
                 "Opc.Ua.Pumps.tm.json",
                 Path.Combine(
                     "samples",
+                    "DI",
                     "PumpDeviceIntegrationServer",
                     "Model",
                     "Opc.Ua.Pumps.NodeSet2.xml"),

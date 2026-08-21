@@ -25,7 +25,7 @@ End-to-end developer guide for the `Opc.Ua.ISA95*` library trio: the OPC-10030 I
 | `Opc.Ua.ISA95.Server` | Server: `Isa95NodeManager` (one multi-namespace `FluentNodeManagerBase`), the typed common-model builder, Job Control provider abstractions plus an in-memory implementation, the `GeoSpatialLocationType` provider seam, and `AddIsa95Server` hosting integration. |
 | `Opc.Ua.ISA95.Client` | Client: `Isa95Client` discovery entry point, direct V1/V2 Job Control clients, typed V2 status-event streaming, and `AddIsa95Client` hosting integration. |
 
-The running example is [`samples/MinimalIsa95Server`](../samples/MinimalIsa95Server), a minimal server hosting all three namespaces with a seeded demo job order.
+The running example is [`samples/Isa95/MinimalIsa95Server`](../samples/Isa95/MinimalIsa95Server), a minimal server hosting all three namespaces with a seeded demo job order.
 
 ## Models and namespaces
 
@@ -73,7 +73,7 @@ await builder.Build().RunAsync();
 
 `ConfigureModel` runs after the ISA-95 root folder is created but before the server accepts connections; it is the extension point for populating OPC-10030 common-model instances.
 
-See [`samples/MinimalIsa95Server/Program.cs`](../samples/MinimalIsa95Server/Program.cs) for a complete example that also creates Personnel, PhysicalAsset, Material (class/definition/lot/sublot), and a provider-backed `GeoSpatialLocationType`.
+See [`samples/Isa95/MinimalIsa95Server/Program.cs`](../samples/Isa95/MinimalIsa95Server/Program.cs) for a complete example that also creates Personnel, PhysicalAsset, Material (class/definition/lot/sublot), and a provider-backed `GeoSpatialLocationType`.
 
 ## Quick start — client
 
@@ -168,7 +168,7 @@ V2 interrupted and ended sub-states use the standard two-entry state path: a top
 | `Cancel` | Removes a `NotAllowedToStart`/`AllowedToStart` order from the store. |
 | `Clear` | Removes a terminal (`Completed`/`Aborted`/`Closed`) order from the store. |
 
-**Execution-system transitions** (`Isa95JobExecutionTransition`, applied through `IIsa95JobExecutionController.TransitionAsync`) model the automatic, non-client-driven state changes of the OPC-10031-4 V2 execution-system state machine: `BeginExecution` (`AllowedToStart` → `Running`), `Hold` (`Running` → `Held`), `Complete` (`Running`/`Held`/`Suspended` → `Completed`), `Close` (`Completed` → `Closed`). A hosted service (or any application component) drives these once the execution system — not the OPC UA client — decides to start, hold, complete, or close a job order; `samples/MinimalIsa95Server/DemoJobSeeder.cs` calls `StoreAndStart` followed by `BeginExecution` to demonstrate the automatic `AllowedToStart` → `Running` transition.
+**Execution-system transitions** (`Isa95JobExecutionTransition`, applied through `IIsa95JobExecutionController.TransitionAsync`) model the automatic, non-client-driven state changes of the OPC-10031-4 V2 execution-system state machine: `BeginExecution` (`AllowedToStart` → `Running`), `Hold` (`Running` → `Held`), `Complete` (`Running`/`Held`/`Suspended` → `Completed`), `Close` (`Completed` → `Closed`). A hosted service (or any application component) drives these once the execution system — not the OPC UA client — decides to start, hold, complete, or close a job order; `samples/Isa95/MinimalIsa95Server/DemoJobSeeder.cs` calls `StoreAndStart` followed by `BeginExecution` to demonstrate the automatic `AllowedToStart` → `Running` transition.
 
 **Status events.** `IIsa95JobStatusSourceV2.SubscribeAsync` publishes one `Isa95JobStatusNotificationV2` per committed state change to every independent subscriber. Because the standard `ISA95JobOrderStatusEventType` is abstract, `Isa95NodeManager` defines a concrete server-owned subtype and reports that subtype while preserving the standard event fields and type hierarchy. Each notification rewrites `JobResponse.JobState` to the current event state, and the latest non-empty V2 `Comment` array is retained as audit context.
 

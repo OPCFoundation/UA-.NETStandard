@@ -42,11 +42,6 @@ using ISession = Opc.Ua.Client.ISession;
 using ManagedSessionType = Opc.Ua.Client.ManagedSession;
 using ServerRedundancyInfo = Opc.Ua.Client.ServerRedundancyInfo;
 
-// CA2016: integration tests intentionally call cleanup in finally without forwarding the test
-// cancellation token. The test CT may already be cancelled (the [CancelAfter] timeout), which
-// would prevent cleanup from running. CloseAsync/DisposeAsync must complete regardless.
-#pragma warning disable CA2016
-
 namespace Opc.Ua.Sessions.Tests
 {
     /// <summary>
@@ -189,8 +184,7 @@ namespace Opc.Ua.Sessions.Tests
             }
             finally
             {
-                await session.CloseAsync().ConfigureAwait(false);
-                await session.DisposeAsync().ConfigureAwait(false);
+                await CloseAndDisposeAsync(session).ConfigureAwait(false);
             }
         }
 
@@ -273,8 +267,7 @@ namespace Opc.Ua.Sessions.Tests
             }
             finally
             {
-                await session.CloseAsync().ConfigureAwait(false);
-                await session.DisposeAsync().ConfigureAwait(false);
+                await CloseAndDisposeAsync(session).ConfigureAwait(false);
             }
         }
 
@@ -344,8 +337,7 @@ namespace Opc.Ua.Sessions.Tests
             finally
             {
                 ReferenceServer.ResponseMutator = originalResponseMutator;
-                await session.CloseAsync().ConfigureAwait(false);
-                await session.DisposeAsync().ConfigureAwait(false);
+                await CloseAndDisposeAsync(session).ConfigureAwait(false);
             }
         }
 
@@ -437,7 +429,7 @@ namespace Opc.Ua.Sessions.Tests
 
                 Assert.That(session.Connected, Is.True);
 
-                await session.CloseAsync().ConfigureAwait(false);
+                await session.CloseAsync(ct).ConfigureAwait(false);
 
                 // After Close we expect at least: Connected -> Closing
                 // and Closing -> Closed.
@@ -490,7 +482,7 @@ namespace Opc.Ua.Sessions.Tests
             }
             finally
             {
-                await session.DisposeAsync().ConfigureAwait(false);
+                await CloseAndDisposeAsync(session).ConfigureAwait(false);
             }
         }
 
@@ -607,8 +599,7 @@ namespace Opc.Ua.Sessions.Tests
             }
             finally
             {
-                await session.CloseAsync().ConfigureAwait(false);
-                await session.DisposeAsync().ConfigureAwait(false);
+                await CloseAndDisposeAsync(session).ConfigureAwait(false);
             }
         }
 
@@ -701,7 +692,7 @@ namespace Opc.Ua.Sessions.Tests
             }
             finally
             {
-                await session.DisposeAsync().ConfigureAwait(false);
+                await CloseAndDisposeAsync(session).ConfigureAwait(false);
             }
         }
 
@@ -830,8 +821,7 @@ namespace Opc.Ua.Sessions.Tests
             }
             finally
             {
-                await session.CloseAsync().ConfigureAwait(false);
-                await session.DisposeAsync().ConfigureAwait(false);
+                await CloseAndDisposeAsync(session).ConfigureAwait(false);
             }
         }
 
@@ -982,8 +972,7 @@ namespace Opc.Ua.Sessions.Tests
             }
             finally
             {
-                await session.CloseAsync().ConfigureAwait(false);
-                await session.DisposeAsync().ConfigureAwait(false);
+                await CloseAndDisposeAsync(session).ConfigureAwait(false);
             }
         }
 
@@ -1165,8 +1154,7 @@ namespace Opc.Ua.Sessions.Tests
             }
             finally
             {
-                await session.CloseAsync().ConfigureAwait(false);
-                await session.DisposeAsync().ConfigureAwait(false);
+                await CloseAndDisposeAsync(session).ConfigureAwait(false);
             }
         }
 
@@ -1314,8 +1302,7 @@ namespace Opc.Ua.Sessions.Tests
             }
             finally
             {
-                await session.CloseAsync().ConfigureAwait(false);
-                await session.DisposeAsync().ConfigureAwait(false);
+                await CloseAndDisposeAsync(session).ConfigureAwait(false);
             }
         }
 
@@ -1476,6 +1463,27 @@ namespace Opc.Ua.Sessions.Tests
                 return await waitTask.ConfigureAwait(false);
             }
             return false;
+        }
+
+        private static async Task CloseAndDisposeAsync(ManagedSessionType session)
+        {
+            using var closeCancellation = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+            try
+            {
+                await session.CloseAsync(closeCancellation.Token).ConfigureAwait(false);
+            }
+            catch (Exception ex) when (ex is OperationCanceledException or ServiceResultException)
+            {
+            }
+
+            Task disposeTask = session.DisposeAsync().AsTask();
+            Task completedTask = await Task.WhenAny(
+                disposeTask,
+                Task.Delay(TimeSpan.FromSeconds(30))).ConfigureAwait(false);
+            if (completedTask == disposeTask)
+            {
+                await disposeTask.ConfigureAwait(false);
+            }
         }
 
         private static async Task<bool> WaitForAsync(
