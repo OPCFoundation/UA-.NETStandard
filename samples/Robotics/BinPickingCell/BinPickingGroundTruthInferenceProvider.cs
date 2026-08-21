@@ -91,9 +91,11 @@ namespace Vision.BinPickingCell
     {
         public BinPickingGroundTruthInferenceProvider(
             BinPickingWorldState worldState,
+            IBinPickingTargetProvider targetProvider,
             ILogger<BinPickingGroundTruthInferenceProvider> logger)
         {
             m_worldState = worldState ?? throw new ArgumentNullException(nameof(worldState));
+            m_targetProvider = targetProvider ?? throw new ArgumentNullException(nameof(targetProvider));
             m_logger = logger ?? throw new ArgumentNullException(nameof(logger));
         }
 
@@ -188,6 +190,7 @@ namespace Vision.BinPickingCell
                 detections.Add(detection);
             }
             ArrayOf<VisionDetectionDataType> payload = detections.ToArray().ToArrayOf();
+            m_targetProvider.PublishWorldState(resultId, timestamp, parts);
             await PublishDetectionAsync(
                 target, resultId, timestamp, request, payload, cancellationToken).ConfigureAwait(false);
             m_logger.ProducedDetectionResult(
@@ -512,6 +515,7 @@ namespace Vision.BinPickingCell
         private static readonly double[] s_identityOrientation = [0.0, 0.0, 0.0, 1.0];
 
         private readonly BinPickingWorldState m_worldState;
+        private readonly IBinPickingTargetProvider m_targetProvider;
         private readonly ILogger<BinPickingGroundTruthInferenceProvider> m_logger;
         private readonly ConcurrentDictionary<string, DetectionResultState> m_results = new(StringComparer.Ordinal);
         private readonly Lock m_continuousLock = new();

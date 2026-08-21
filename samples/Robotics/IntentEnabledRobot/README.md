@@ -4,6 +4,11 @@ This sample is a small OPC UA Robot Intent server for one stationary UR5e-style 
 `Server/RobotIntent/Controllers/UR5eIntentController`, the controller's frames, tools, locations,
 axes, outputs, programs, description, safety state and OpenUSD representation.
 
+This sample intentionally retains the UR-style six-axis arm and numerical IK. The
+[`BinPickingCell`](../BinPickingCell) sample injects a separate analytic four-axis
+palletizer through the shared `ISimulatedArmKinematics` executor seam; changing the
+bin-picking robot does not change this standalone sample's model or behavior.
+
 ## Run
 
 ```powershell

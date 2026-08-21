@@ -376,7 +376,7 @@ namespace Vision.BinPickingCell
                 ClassId: 1u,
                 Shape: "cube",
                 Colour: [0.90, 0.15, 0.15],
-                InitialWorldPosition: [0.5500, -0.0800, 0.7400],
+                InitialWorldPosition: [0.5200, -0.0800, 0.7400],
                 RotationZDegrees: 20.0,
                 Size: [0.0400, 0.0400, 0.0400]),
             new BinPickingPart(
@@ -384,7 +384,7 @@ namespace Vision.BinPickingCell
                 ClassId: 2u,
                 Shape: "cylinder",
                 Colour: [0.15, 0.85, 0.20],
-                InitialWorldPosition: [0.6400, -0.0900, 0.7350],
+                InitialWorldPosition: [0.6700, 0.0800, 0.7350],
                 RotationZDegrees: 0.0,
                 Size: [0.0400, 0.0400, 0.0300]),
             new BinPickingPart(
@@ -392,7 +392,7 @@ namespace Vision.BinPickingCell
                 ClassId: 3u,
                 Shape: "sphere",
                 Colour: [0.15, 0.30, 0.95],
-                InitialWorldPosition: [0.6800, -0.0500, 0.7440],
+                InitialWorldPosition: [0.6800, -0.0800, 0.7440],
                 RotationZDegrees: 0.0,
                 Size: [0.0480, 0.0480, 0.0480]),
             new BinPickingPart(
@@ -400,7 +400,7 @@ namespace Vision.BinPickingCell
                 ClassId: 4u,
                 Shape: "slab",
                 Colour: [0.95, 0.85, 0.15],
-                InitialWorldPosition: [0.5600, 0.0600, 0.7290],
+                InitialWorldPosition: [0.5200, 0.0600, 0.7290],
                 RotationZDegrees: -15.0,
                 Size: [0.0640, 0.0320, 0.0180]),
             new BinPickingPart(
@@ -408,7 +408,7 @@ namespace Vision.BinPickingCell
                 ClassId: 5u,
                 Shape: "brick",
                 Colour: [0.95, 0.45, 0.10],
-                InitialWorldPosition: [0.6400, -0.0100, 0.7320],
+                InitialWorldPosition: [0.6000, 0.0000, 0.7320],
                 RotationZDegrees: 40.0,
                 Size: [0.0500, 0.0280, 0.0240])
         ];

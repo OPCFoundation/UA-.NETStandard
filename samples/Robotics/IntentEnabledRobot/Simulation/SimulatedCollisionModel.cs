@@ -126,6 +126,29 @@ namespace Robotics.IntentEnabledRobot.Simulation
         }
 
         /// <summary>
+        /// Creates a collision model with one radius per chain segment.
+        /// </summary>
+        /// <param name="obstacles">Fixed solids in the arm base frame.</param>
+        /// <param name="segmentRadii">
+        /// Radius for each consecutive point pair supplied to <see cref="IsClear"/>.
+        /// </param>
+        public SimulatedCollisionModel(
+            ArrayOf<SimulatedObstacleBox> obstacles,
+            ArrayOf<double> segmentRadii)
+        {
+            if (segmentRadii.IsEmpty)
+            {
+                throw new ArgumentException(
+                    "At least one segment radius is required.",
+                    nameof(segmentRadii));
+            }
+            Obstacles = obstacles;
+            SegmentRadii = segmentRadii;
+            LinkRadius = segmentRadii[0];
+            ToolRadius = segmentRadii[^1];
+        }
+
+        /// <summary>
         /// Gets the solids the arm must stay out of.
         /// </summary>
         public ArrayOf<SimulatedObstacleBox> Obstacles { get; }
@@ -139,6 +162,11 @@ namespace Robotics.IntentEnabledRobot.Simulation
         /// Gets the radius the tool beyond the flange is treated as having.
         /// </summary>
         public double ToolRadius { get; }
+
+        /// <summary>
+        /// Gets per-segment radii when the arm provides them.
+        /// </summary>
+        public ArrayOf<double> SegmentRadii { get; }
 
         /// <summary>
         /// Gets or sets the solids that move, tested alongside the fixed ones.
@@ -176,7 +204,12 @@ namespace Robotics.IntentEnabledRobot.Simulation
             int lastSegment = points.Length - 6;
             for (int segment = 0; segment <= lastSegment; segment += 3)
             {
-                double radius = segment == lastSegment ? ToolRadius : LinkRadius;
+                int segmentIndex = segment / 3;
+                double radius = segmentIndex < SegmentRadii.Count
+                    ? SegmentRadii[segmentIndex]
+                    : segment == lastSegment
+                        ? ToolRadius
+                        : LinkRadius;
                 double ax = points[segment];
                 double ay = points[segment + 1];
                 double az = points[segment + 2];
@@ -186,6 +219,85 @@ namespace Robotics.IntentEnabledRobot.Simulation
                 if (!IsSegmentClear(boxes, ax, ay, az, bx, by, bz, radius, out hit)
                     || !IsSegmentClear(moving, ax, ay, az, bx, by, bz, radius, out hit))
                 {
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        /// <summary>
+        /// Gets whether an axis-aligned workpiece stays clear of every obstacle.
+        /// </summary>
+        public bool IsBoxClear(
+            double centreX,
+            double centreY,
+            double centreZ,
+            double sizeX,
+            double sizeY,
+            double sizeZ,
+            out string hit)
+        {
+            if (sizeX < 0.0 || sizeY < 0.0 || sizeZ < 0.0)
+            {
+                throw new ArgumentOutOfRangeException(
+                    nameof(sizeX),
+                    "Workpiece dimensions must be non-negative.");
+            }
+            if (!IsBoxClear(
+                Obstacles.Span,
+                centreX,
+                centreY,
+                centreZ,
+                sizeX,
+                sizeY,
+                sizeZ,
+                out hit))
+            {
+                return false;
+            }
+            return IsBoxClear(
+                MovingObstacles.Span,
+                centreX,
+                centreY,
+                centreZ,
+                sizeX,
+                sizeY,
+                sizeZ,
+                out hit);
+        }
+
+        private static bool IsBoxClear(
+            ReadOnlySpan<SimulatedObstacleBox> boxes,
+            double centreX,
+            double centreY,
+            double centreZ,
+            double sizeX,
+            double sizeY,
+            double sizeZ,
+            out string hit)
+        {
+            hit = string.Empty;
+            double minX = centreX - (sizeX * 0.5);
+            double maxX = centreX + (sizeX * 0.5);
+            double minY = centreY - (sizeY * 0.5);
+            double maxY = centreY + (sizeY * 0.5);
+            double minZ = centreZ - (sizeZ * 0.5);
+            double maxZ = centreZ + (sizeZ * 0.5);
+            for (int ii = 0; ii < boxes.Length; ii++)
+            {
+                SimulatedObstacleBox box = boxes[ii];
+                double boxMinX = box.CentreX - (box.SizeX * 0.5);
+                double boxMaxX = box.CentreX + (box.SizeX * 0.5);
+                double boxMinY = box.CentreY - (box.SizeY * 0.5);
+                double boxMaxY = box.CentreY + (box.SizeY * 0.5);
+                if (maxX > boxMinX + ContactToleranceMetres &&
+                    minX < boxMaxX - ContactToleranceMetres &&
+                    maxY > boxMinY + ContactToleranceMetres &&
+                    minY < boxMaxY - ContactToleranceMetres &&
+                    maxZ > box.MinZ + ContactToleranceMetres &&
+                    minZ < box.MaxZ - ContactToleranceMetres)
+                {
+                    hit = box.Name;
                     return false;
                 }
             }
@@ -263,5 +375,6 @@ namespace Robotics.IntentEnabledRobot.Simulation
         // Fine enough to catch a link clipping the corner of a bin wall, coarse enough that
         // a whole configuration costs a few hundred comparisons.
         private const double SampleSpacingMetres = 0.02;
+        private const double ContactToleranceMetres = 1e-6;
     }
 }

@@ -167,12 +167,35 @@ namespace Robotics.IntentEnabledRobot.Simulation
         }
 
         /// <summary>
+        /// Initializes a simulated executor over a kinematics provider.
+        /// </summary>
+        public SimulatedArmExecutor(ISimulatedArmKinematics kinematics)
+            : this(kinematics, RealTimeSimulatedArmClock.Shared)
+        {
+        }
+
+        /// <summary>
         /// Initializes a simulated executor.
         /// </summary>
         public SimulatedArmExecutor(SimulatedArmKinematics kinematics, ISimulatedArmClock clock)
+            : this((ISimulatedArmKinematics)kinematics, clock)
+        {
+        }
+
+        /// <summary>
+        /// Initializes a simulated executor over a kinematics provider.
+        /// </summary>
+        public SimulatedArmExecutor(ISimulatedArmKinematics kinematics, ISimulatedArmClock clock)
         {
             m_kinematics = kinematics ?? throw new ArgumentNullException(nameof(kinematics));
             m_clock = clock ?? throw new ArgumentNullException(nameof(clock));
+            m_jointAngles = m_kinematics.InitialJointAngles.Span.ToArray();
+            if (m_jointAngles.Length != m_kinematics.AxisCount)
+            {
+                throw new ArgumentException(
+                    "The initial joint configuration does not match the kinematics axis count.",
+                    nameof(kinematics));
+            }
             PublishCurrentPoseLocked();
         }
 
@@ -208,6 +231,16 @@ namespace Robotics.IntentEnabledRobot.Simulation
         /// yaw the arm cannot retract from.
         /// </remarks>
         public LocationPoseResolver? ResolveLocationPose { get; set; }
+
+        /// <summary>
+        /// Resolves a Pick to the current pose of the selected workpiece.
+        /// </summary>
+        public PickPoseResolver? ResolvePickPose { get; set; }
+
+        /// <summary>
+        /// Notifies the host after a Pick attempt finishes, whether it succeeded or failed.
+        /// </summary>
+        public Action<string>? PickAttemptFinished { get; set; }
 
         /// <summary>
         /// Gets or sets a host decision on whether the final approach to a Location should
@@ -307,7 +340,7 @@ namespace Robotics.IntentEnabledRobot.Simulation
             ArrayOf<double> target;
             if (intent.HasJointTargets)
             {
-                if (intent.JointTargets.Count != SimulatedArmKinematics.JointCount ||
+                if (intent.JointTargets.Count != m_kinematics.AxisCount ||
                     !m_kinematics.IsWithinLimits(intent.JointTargets.Span))
                 {
                     return IntentOutcome.Fail(
@@ -326,7 +359,7 @@ namespace Robotics.IntentEnabledRobot.Simulation
             else
             {
                 return IntentOutcome.Fail(
-                    SimulatedArmKinematics.ToIntentFailure(failure), "The target pose cannot be reached.");
+                    m_kinematics.MapFailure(failure), "The target pose cannot be reached.");
             }
 
             double distance = JointDistance(start, target.Span);
@@ -394,7 +427,7 @@ namespace Robotics.IntentEnabledRobot.Simulation
             if (moveFailure != SimulatedArmKinematicFailure.None)
             {
                 return IntentOutcome.Fail(
-                    SimulatedArmKinematics.ToIntentFailure(moveFailure), "The circular path is not feasible.");
+                    m_kinematics.MapFailure(moveFailure), "The circular path is not feasible.");
             }
             return outcome.State == ExecutionStateEnum.Succeeded
                 ? IntentOutcome.SucceededAt(CurrentSnapshot.ToolPose)
@@ -515,7 +548,7 @@ namespace Robotics.IntentEnabledRobot.Simulation
             if (moveFailure != SimulatedArmKinematicFailure.None)
             {
                 return IntentOutcome.Fail(
-                    SimulatedArmKinematics.ToIntentFailure(moveFailure), "The force path is not feasible.");
+                    m_kinematics.MapFailure(moveFailure), "The force path is not feasible.");
             }
             return contacted
                 ? IntentOutcome.SucceededAt(CurrentSnapshot.ToolPose)
@@ -588,16 +621,36 @@ namespace Robotics.IntentEnabledRobot.Simulation
             IntentExecution execution,
             CancellationToken cancellationToken)
         {
-            await m_clock.DelayAsync(TimeSpan.FromMilliseconds(80), cancellationToken).ConfigureAwait(false);
-            if (!await MoveToLocationAsync(intent.Source, execution, cancellationToken).ConfigureAwait(false))
+            string objectClass = intent.ObjectClass ?? string.Empty;
+            try
             {
-                return Unreachable("Pick");
+                await m_clock.DelayAsync(TimeSpan.FromMilliseconds(80), cancellationToken).ConfigureAwait(false);
+                if (!await MoveToLocationAsync(
+                        intent.Source,
+                        execution,
+                        cancellationToken,
+                        objectClass).ConfigureAwait(false))
+                {
+                    return Unreachable("Pick");
+                }
+                IntentOutcome grasp = await ExecuteGraspAsync(
+                    new GraspIntentDataType { Force = intent.Force, Width = GripperClosed, Tool = intent.Tool },
+                    execution,
+                    cancellationToken,
+                    objectClass).ConfigureAwait(false);
+                if (grasp.State != ExecutionStateEnum.Succeeded)
+                {
+                    return grasp;
+                }
+                return await RetractAfterActionAsync(
+                    "Pick",
+                    execution,
+                    cancellationToken).ConfigureAwait(false);
             }
-            return await ExecuteGraspAsync(
-                new GraspIntentDataType { Force = intent.Force, Width = GripperClosed, Tool = intent.Tool },
-                execution,
-                cancellationToken,
-                intent.ObjectClass ?? string.Empty).ConfigureAwait(false);
+            finally
+            {
+                PickAttemptFinished?.Invoke(objectClass);
+            }
         }
 
         private async ValueTask<IntentOutcome> ExecutePlaceAsync(
@@ -611,8 +664,30 @@ namespace Robotics.IntentEnabledRobot.Simulation
             {
                 return Unreachable("Place");
             }
-            return await ExecuteReleaseAsync(
+            IntentOutcome release = await ExecuteReleaseAsync(
                 new ReleaseIntentDataType(), execution, cancellationToken).ConfigureAwait(false);
+            if (release.State != ExecutionStateEnum.Succeeded)
+            {
+                return release;
+            }
+            return await RetractAfterActionAsync(
+                "Place",
+                execution,
+                cancellationToken).ConfigureAwait(false);
+        }
+
+        private async ValueTask<IntentOutcome> RetractAfterActionAsync(
+            string action,
+            IntentExecution execution,
+            CancellationToken cancellationToken)
+        {
+            if (await RetractFromLastApproachAsync(execution, cancellationToken).ConfigureAwait(false))
+            {
+                return IntentOutcome.Success;
+            }
+            return IntentOutcome.Fail(
+                IntentFailureEnum.Unreachable,
+                action + " completed its tool action but could not reverse the local approach.");
         }
 
         /// <summary>
@@ -653,7 +728,8 @@ namespace Robotics.IntentEnabledRobot.Simulation
         private async ValueTask<bool> MoveToLocationAsync(
             NodeId location,
             IntentExecution execution,
-            CancellationToken cancellationToken)
+            CancellationToken cancellationToken,
+            string objectClass = "")
         {
             if (location.IsNull)
             {
@@ -669,7 +745,15 @@ namespace Robotics.IntentEnabledRobot.Simulation
             ArrayOf<double> position;
             ArrayOf<double> orientation;
             string frameId;
-            if (ResolveLocationPose != null
+            if (objectClass.Length > 0
+                && ResolvePickPose != null
+                && ResolvePickPose(location, objectClass, out Pose3DDataType pickPose))
+            {
+                position = pickPose.Position;
+                orientation = pickPose.Orientation;
+                frameId = pickPose.FrameId ?? current.FrameId ?? string.Empty;
+            }
+            else if (ResolveLocationPose != null
                 && ResolveLocationPose(location, out Pose3DDataType resolvedPose))
             {
                 position = resolvedPose.Position;
@@ -693,6 +777,8 @@ namespace Robotics.IntentEnabledRobot.Simulation
             ReadOnlySpan<double> targetPosition = position.Span;
             ReadOnlySpan<double> currentPosition = current.Position.Span;
             ArrayOf<double> currentOrientation = current.Orientation;
+            bool sameWorkPosition =
+                Distance2D(currentPosition, targetPosition) <= SameLocationToleranceMetres;
 
             // Travel over the cell rather than straight at the target. A single joint-space
             // move interpolates between two configurations, and the straight line between
@@ -717,6 +803,24 @@ namespace Robotics.IntentEnabledRobot.Simulation
                 $"start=({currentPosition[0]:F3},{currentPosition[1]:F3},{currentPosition[2]:F3}) "
                 + $"target=({targetPosition[0]:F3},{targetPosition[1]:F3},{targetPosition[2]:F3}) "
                 + $"cartesianDescent={preferCartesianDescent}"));
+
+            if (sameWorkPosition)
+            {
+                Diagnostic?.Invoke("target is at the current work position; skipping cross-cell traverse");
+                bool localDescent = await MovePlannedCartesianAsync(
+                    descend,
+                    frameId,
+                    orientation,
+                    execution,
+                    recordRetractPath: true,
+                    cancellationToken).ConfigureAwait(false);
+                if (!localDescent)
+                {
+                    LastTravelFailure = "could not descend at the current work position";
+                    Diagnostic?.Invoke(LastTravelFailure);
+                }
+                return localDescent;
+            }
 
             // Lift in Cartesian space so the tool moves vertically away from the work.
             // Cross in joint space: a straight Cartesian line between the bin and fixture
@@ -899,10 +1003,18 @@ namespace Robotics.IntentEnabledRobot.Simulation
                     Diagnostic?.Invoke("discarded a stale Cartesian retract path");
                     return true;
                 }
+                double[] previous = current;
                 for (int ii = sampledPath.Count - 2; ii >= 0; ii--)
                 {
                     cancellationToken.ThrowIfCancellationRequested();
-                    SetJoints(sampledPath[ii]);
+                    double[] next = sampledPath[ii];
+                    if (CurrentSnapshot.HasObject &&
+                        !m_kinematics.ClearsPath(previous, next))
+                    {
+                        return false;
+                    }
+                    SetJoints(next);
+                    previous = next;
                     if (!await DelayTickAsync(cancellationToken).ConfigureAwait(false))
                     {
                         return false;
@@ -1288,7 +1400,7 @@ namespace Robotics.IntentEnabledRobot.Simulation
             if (moveFailure != SimulatedArmKinematicFailure.None)
             {
                 return IntentOutcome.Fail(
-                    SimulatedArmKinematics.ToIntentFailure(moveFailure), "The Cartesian path is not feasible.");
+                    m_kinematics.MapFailure(moveFailure), "The Cartesian path is not feasible.");
             }
             return outcome.State == ExecutionStateEnum.Succeeded
                 ? IntentOutcome.SucceededAt(CurrentSnapshot.ToolPose)
@@ -1714,10 +1826,10 @@ namespace Robotics.IntentEnabledRobot.Simulation
             };
         }
 
-        private static double JointDistance(ReadOnlySpan<double> a, ReadOnlySpan<double> b)
+        private double JointDistance(ReadOnlySpan<double> a, ReadOnlySpan<double> b)
         {
             double sum = 0.0;
-            for (int i = 0; i < SimulatedArmKinematics.JointCount; i++)
+            for (int i = 0; i < m_kinematics.AxisCount; i++)
             {
                 double delta = a[i] - b[i];
                 sum += delta * delta;
@@ -1731,6 +1843,13 @@ namespace Robotics.IntentEnabledRobot.Simulation
             double dy = a[1] - b[1];
             double dz = a[2] - b[2];
             return Math.Sqrt((dx * dx) + (dy * dy) + (dz * dz));
+        }
+
+        private static double Distance2D(ReadOnlySpan<double> a, ReadOnlySpan<double> b)
+        {
+            double x = a[0] - b[0];
+            double y = a[1] - b[1];
+            return Math.Sqrt((x * x) + (y * y));
         }
 
         private static ArrayOf<double> HeldPartPosition(Pose3DDataType toolPose)
@@ -1754,6 +1873,7 @@ namespace Robotics.IntentEnabledRobot.Simulation
         private const double LocalApproachHeightMetres = 0.04;
         private const int CartesianPlanningSamples = 32;
         private const double RetractEndpointToleranceRadians = 1e-5;
+        private const double SameLocationToleranceMetres = 0.01;
 
         // The rotations about the vertical a Pick or Place may use when the orientation the
         // arm is holding has no clear solution. Zero first, so a target that already works
@@ -1774,7 +1894,7 @@ namespace Robotics.IntentEnabledRobot.Simulation
         private const int StackSlotCount = 8;
 
         private readonly System.Threading.Lock m_lock = new();
-        private readonly SimulatedArmKinematics m_kinematics;
+        private readonly ISimulatedArmKinematics m_kinematics;
         private readonly ISimulatedArmClock m_clock;
         // Home configuration, radians. This arm is mounted on a bench in both samples that
         // use it, so the pose has to keep every joint above the work surface, and in the
@@ -1794,8 +1914,7 @@ namespace Robotics.IntentEnabledRobot.Simulation
         //    on that singularity, so the camera roll is tilted 15 degrees to get off it.
         //    A singular home pose is not a cosmetic problem: the first IK solve of any
         //    motion away from home fails, so every intent returns Kinematics.
-        private readonly double[] m_jointAngles =
-            [-3.0484844, 0.3128706, 0.8261335, 2.0025887, -2.7856466, -1.5707963];
+        private readonly double[] m_jointAngles;
         private double[]? m_retractJointAngles;
         private double[]? m_retractJointEndpoint;
         private List<double[]>? m_retractCartesianPath;

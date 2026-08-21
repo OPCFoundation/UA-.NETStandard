@@ -2,8 +2,8 @@
 (
     doc = """Bin-picking work cell for the OPC UA Vision guided-picking sample.
 
-    The scene reuses the UR5e-style arm from samples/Robotics/IntentEnabledRobot
-    (arm.usda) and its parallel gripper (gripper.usda), and adds a bin of mixed
+    The scene uses a branch-stable four-axis palletizer sized for this cell and
+    the parallel gripper shared with IntentEnabledRobot. It adds a bin of mixed
     parts, a fixture to place them onto, and an eye-in-hand camera parented to
     the flange so the view moves with the arm. This is the worked example
     reproduced from the OPC UA Robotics-Vision Addendum: frame tree
@@ -22,12 +22,12 @@
     Frame tree contract:
 
     - /World is the WorldFrame origin.
-    - /World/Robot/Arm/Base is the robot_base frame.
-    - /World/Robot/Arm/Base/J1/J2/J3/J4/J5/J6/Flange is the flange (mechanical
-      interface).
-    - /World/Robot/Arm/.../Flange/Camera is the eye-in-hand camera prim
+    - /World/Robot/Palletizer/Base is the robot_base frame.
+    - /World/Robot/Palletizer/Base/J1/J2/J3/Leveling/J4/Flange is the flange
+      (mechanical interface).
+    - /World/Robot/Palletizer/.../Flange/Camera is the eye-in-hand camera prim
       (UsdGeomCamera) that the Vision sensor renders from.
-    - /World/Robot/Arm/.../Flange/Gripper/Tcp is the gripper_tcp frame.
+    - /World/Robot/Palletizer/.../Flange/Gripper/Tcp is the gripper_tcp frame.
 
     The camera is a child of the flange with no stack reset, so it travels with
     the arm as a real eye-in-hand sensor does: rotateY = -90 turns its view axis
@@ -90,8 +90,8 @@ def Xform "World"
             uniform token[] xformOpOrder = ["xformOp:translate"]
         }
 
-        def Xform "Arm" (
-            references = @arm.usda@</Arm>
+        def Xform "Palletizer" (
+            references = @palletizer-arm.usda@</Palletizer>
         )
         {
             double3 xformOp:translate = (0, 0, 0.9200)
@@ -101,53 +101,37 @@ def Xform "World"
             {
                 over "J1"
                 {
-                    # The simulator's home configuration, in degrees, because the OpenUSD live
-                    # binding drives these very ops from AxisState.Position. Authoring anything
-                    # else makes the still render disagree with the first live update. This pose
-                    # aims the eye-in-hand camera at the bin: the camera prim lands at the world
-                    # position the Vision model declares for it, looking straight down.
-                    double xformOp:rotateZ = -174.665
+                    double xformOp:rotateZ = 0.000
                     over "J2"
                     {
-                        double xformOp:rotateY = 17.926
+                        double xformOp:rotateY = 31.513
                         over "J3"
                         {
-                            double xformOp:rotateY = 47.334
-                            over "J4"
+                            double xformOp:rotateY = -65.890
+                            over "Leveling"
                             {
-                                double xformOp:rotateY = 114.740
-                                over "J5"
+                                double xformOp:rotateY = 124.377
+                                over "J4"
                                 {
-                                    double xformOp:rotateZ = -159.606
-                                    over "J6"
+                                    double xformOp:rotateX = 90.000
+                                    over "Flange"
                                     {
-                                        double xformOp:rotateY = -90.000
-                                        over "Flange"
+                                        def Xform "Gripper" (
+                                            references = @palletizer-gripper.usda@</PalletizerGripper>
+                                        )
                                         {
-                                            def Xform "Gripper" (
-                                                references = @gripper.usda@</Gripper>
-                                            )
-                                            {
-                                            }
+                                        }
 
-                                            def Camera "Camera"
-                                            {
-                                                token projection = "perspective"
-                                                float focalLength = 12.24
-                                                float horizontalAperture = 14.688
-                                                float verticalAperture = 12.288
-                                                float2 clippingRange = (0.02, 5.0)
-                                                # Offset along the flange Z so the camera
-                                                # looks past the gripper rather than through
-                                                # it. The tool extends along flange +X, which
-                                                # is straight down at the scan pose, so a
-                                                # camera on that axis sees its own jaws and
-                                                # nothing else; the gripper is about 0.03 m
-                                                # across, so 0.16 m clears it.
-                                                double3 xformOp:translate = (0.0200, 0.0000, 0.1600)
-                                                double xformOp:rotateY = -90
-                                                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateY"]
-                                            }
+                                        def Camera "Camera"
+                                        {
+                                            token projection = "perspective"
+                                            float focalLength = 12.24
+                                            float horizontalAperture = 14.688
+                                            float verticalAperture = 12.288
+                                            float2 clippingRange = (0.02, 5.0)
+                                            double3 xformOp:translate = (0.0200, 0.0000, 0.1600)
+                                            double xformOp:rotateY = -90
+                                            uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateY"]
                                         }
                                     }
                                 }
@@ -313,7 +297,7 @@ def Xform "World"
             color3f[] primvars:displayColor = [(0.95, 0.85, 0.20)] (
                 interpolation = "constant"
             )
-            double3 xformOp:translate = (-0.6320, 0.0300, 0.7490)
+            double3 xformOp:translate = (-0.6500, 0.0500, 0.7490)
             uniform token[] xformOpOrder = ["xformOp:translate"]
         }
 
@@ -325,7 +309,7 @@ def Xform "World"
             color3f[] primvars:displayColor = [(0.95, 0.85, 0.20)] (
                 interpolation = "constant"
             )
-            double3 xformOp:translate = (-0.5680, 0.0300, 0.7490)
+            double3 xformOp:translate = (-0.5500, 0.0500, 0.7490)
             uniform token[] xformOpOrder = ["xformOp:translate"]
         }
 
@@ -337,7 +321,7 @@ def Xform "World"
             color3f[] primvars:displayColor = [(0.95, 0.85, 0.20)] (
                 interpolation = "constant"
             )
-            double3 xformOp:translate = (-0.6000, -0.0300, 0.7490)
+            double3 xformOp:translate = (-0.6000, -0.0500, 0.7490)
             uniform token[] xformOpOrder = ["xformOp:translate"]
         }
     }
@@ -352,7 +336,7 @@ def Xform "World"
     {
         def Xform "RedCube"
         {
-            matrix4d xformOp:transform = ( (1, 0, 0, 0), (0, 1, 0, 0), (0, 0, 1, 0), (0.5500, -0.0800, 0.7400, 1) )
+            matrix4d xformOp:transform = ( (1, 0, 0, 0), (0, 1, 0, 0), (0, 0, 1, 0), (0.5200, -0.0800, 0.7400, 1) )
             uniform token[] xformOpOrder = ["xformOp:transform"]
 
             def Cube "Shape"
@@ -368,7 +352,7 @@ def Xform "World"
 
         def Xform "GreenCylinder"
         {
-            matrix4d xformOp:transform = ( (1, 0, 0, 0), (0, 1, 0, 0), (0, 0, 1, 0), (0.6400, -0.0900, 0.7350, 1) )
+            matrix4d xformOp:transform = ( (1, 0, 0, 0), (0, 1, 0, 0), (0, 0, 1, 0), (0.6700, 0.0800, 0.7350, 1) )
             uniform token[] xformOpOrder = ["xformOp:transform"]
 
             def Cylinder "Shape"
@@ -384,7 +368,7 @@ def Xform "World"
 
         def Xform "BlueSphere"
         {
-            matrix4d xformOp:transform = ( (1, 0, 0, 0), (0, 1, 0, 0), (0, 0, 1, 0), (0.6800, -0.0500, 0.7440, 1) )
+            matrix4d xformOp:transform = ( (1, 0, 0, 0), (0, 1, 0, 0), (0, 0, 1, 0), (0.6800, -0.0800, 0.7440, 1) )
             uniform token[] xformOpOrder = ["xformOp:transform"]
 
             def Sphere "Shape"
@@ -398,7 +382,7 @@ def Xform "World"
 
         def Xform "YellowSlab"
         {
-            matrix4d xformOp:transform = ( (1, 0, 0, 0), (0, 1, 0, 0), (0, 0, 1, 0), (0.5600, 0.0600, 0.7290, 1) )
+            matrix4d xformOp:transform = ( (1, 0, 0, 0), (0, 1, 0, 0), (0, 0, 1, 0), (0.5200, 0.0600, 0.7290, 1) )
             uniform token[] xformOpOrder = ["xformOp:transform"]
 
             def Cube "Shape"
@@ -415,7 +399,7 @@ def Xform "World"
 
         def Xform "OrangeBrick"
         {
-            matrix4d xformOp:transform = ( (1, 0, 0, 0), (0, 1, 0, 0), (0, 0, 1, 0), (0.6400, -0.0100, 0.7320, 1) )
+            matrix4d xformOp:transform = ( (1, 0, 0, 0), (0, 1, 0, 0), (0, 0, 1, 0), (0.6000, 0.0000, 0.7320, 1) )
             uniform token[] xformOpOrder = ["xformOp:transform"]
 
             def Cube "Shape"

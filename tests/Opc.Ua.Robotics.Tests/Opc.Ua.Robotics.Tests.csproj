@@ -33,6 +33,8 @@
     <ProjectReference Include="..\..\src\Opc.Ua.Server\Opc.Ua.Server.csproj" />
     <ProjectReference Include="..\..\samples\Robotics\IntentEnabledRobot\IntentEnabledRobot.csproj"
                       Condition="'$(TargetFramework)' == 'net10.0'" />
+    <ProjectReference Include="..\..\src\Opc.Ua.Vision\Opc.Ua.Vision.csproj"
+                      Condition="'$(TargetFramework)' == 'net10.0'" />
     <ProjectReference Include="..\Opc.Ua.Server.TestFramework\Opc.Ua.Server.TestFramework.csproj" />
   </ItemGroup>
   <ItemGroup>
@@ -46,6 +48,18 @@
     <Compile Include="..\..\samples\Robotics\BinPickingCell\BinPickingCellGeometry.cs"
                       Link="BinPicking\BinPickingCellGeometry.cs"
                       Condition="'$(TargetFramework)' == 'net10.0'" />
+    <Compile Include="..\..\samples\Robotics\BinPickingCell\BinPickingPalletizerGeometry.cs"
+                      Link="BinPicking\BinPickingPalletizerGeometry.cs"
+                      Condition="'$(TargetFramework)' == 'net10.0'" />
+    <Compile Include="..\..\samples\Robotics\BinPickingCell\BinPickingPalletizerKinematics.cs"
+                      Link="BinPicking\BinPickingPalletizerKinematics.cs"
+                      Condition="'$(TargetFramework)' == 'net10.0'" />
+    <Compile Include="..\..\samples\Robotics\BinPickingCell\BinPickingCellOptions.cs"
+                      Link="BinPicking\BinPickingCellOptions.cs"
+                      Condition="'$(TargetFramework)' == 'net10.0'" />
+    <Compile Include="..\..\samples\Robotics\BinPickingCell\BinPickingTargetProvider.cs"
+                      Link="BinPicking\BinPickingTargetProvider.cs"
+                      Condition="'$(TargetFramework)' == 'net10.0'" />
   </ItemGroup>
   <!-- The simulated-arm tests exercise types from IntentEnabledRobot, which the
        OpenUSD rendering stack pins to net10.0. The reference above is conditional, so
@@ -56,6 +70,7 @@
     <Compile Remove="SimulatedArmKinematicsTests.cs" />
     <Compile Remove="SimulatedCollisionModelTests.cs" />
     <Compile Remove="SimulatedSupportModelTests.cs" />
-    <Compile Remove="BinPickingReachabilityTests.cs" />
+    <Compile Remove="BinPickingPalletizerKinematicsTests.cs" />
+    <Compile Remove="BinPickingTargetProviderTests.cs" />
   </ItemGroup>
 </Project>

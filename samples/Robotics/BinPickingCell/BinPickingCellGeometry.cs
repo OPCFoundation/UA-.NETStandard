@@ -76,6 +76,7 @@ namespace Vision.BinPickingCell
         /// Top face of the fixture locating pegs in the world frame.
         /// </summary>
         public const double FixturePegTopMetres = FixturePlateTopMetres + 0.040;
+        public const double FixturePegOffsetMetres = 0.050;
 
         /// <summary>
         /// Builds the collision model the arm's solver checks its configurations against.
@@ -84,17 +85,12 @@ namespace Vision.BinPickingCell
         {
             return new SimulatedCollisionModel(
                 ArrayOf.Create(s_obstacles.AsSpan()),
-                LinkRadiusMetres,
-                ToolRadiusMetres);
+                ArrayOf.Create(s_segmentRadii.AsSpan()));
         }
 
-        // The arm's links are roughly 60 mm across. A capsule of this radius keeps a link
-        // from grazing a surface it should have travelled around.
-        private const double LinkRadiusMetres = 0.030;
-
-        // The gripper's fingers are slender, and unlike a link the tool is meant to come
-        // close to surfaces: it has to reach a part lying on the bench.
-        private const double ToolRadiusMetres = 0.008;
+        // Point pairs are J1->J2 (same shoulder origin), shoulder->elbow,
+        // elbow->wrist, and wrist->TCP.
+        private static readonly double[] s_segmentRadii = [0.0, 0.047, 0.042, 0.018];
 
         // Bench top: world z 0.650 to 0.720, which is 0.200 m below the robot base frame.
         // This is the one that stops a forearm crossing the table: the old height test only

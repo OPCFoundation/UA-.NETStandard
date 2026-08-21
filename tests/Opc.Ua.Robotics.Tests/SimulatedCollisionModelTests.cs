@@ -131,6 +131,59 @@ namespace Opc.Ua.Robotics.Tests
             Assert.That(model.IsClear(points, out _), Is.True);
         }
 
+        [Test]
+        public void PerSegmentRadiusKeepsAThinWristClearWhereAThickLinkWouldCollide()
+        {
+            SimulatedObstacleBox[] obstacles =
+            [
+                new("NearbyPart", 0.45, 0.04, 0.10, 0.01, 0.19, 0.21)
+            ];
+            double[] points =
+            [
+                0.0, 0.0, 0.20,
+                0.30, 0.0, 0.20,
+                0.60, 0.0, 0.20
+            ];
+            var perSegment = new SimulatedCollisionModel(
+                ArrayOf.Create(obstacles.AsSpan()),
+                ArrayOf.Create([0.05, 0.01]));
+            var uniformlyThick = new SimulatedCollisionModel(
+                ArrayOf.Create(obstacles.AsSpan()),
+                0.05,
+                0.05);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(perSegment.IsClear(points, out _), Is.True);
+                Assert.That(uniformlyThick.IsClear(points, out string hit), Is.False);
+                Assert.That(hit, Is.EqualTo("NearbyPart"));
+            });
+        }
+
+        [Test]
+        public void WorkpieceBoxAllowsSupportContactButRejectsVolumeOverlap()
+        {
+            var model = new SimulatedCollisionModel(
+                ArrayOf.Create(
+                [
+                    new SimulatedObstacleBox("Support", 0.0, 0.0, 0.40, 0.40, -0.10, 0.0)
+                ]),
+                0.02,
+                0.01);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    model.IsBoxClear(0.0, 0.0, 0.05, 0.10, 0.10, 0.10, out _),
+                    Is.True,
+                    "Touching a support is valid contact, not penetration.");
+                Assert.That(
+                    model.IsBoxClear(0.0, 0.0, 0.04, 0.10, 0.10, 0.10, out string hit),
+                    Is.False);
+                Assert.That(hit, Is.EqualTo("Support"));
+            });
+        }
+
         private static SimulatedCollisionModel BenchModel()
         {
             SimulatedObstacleBox[] obstacles =

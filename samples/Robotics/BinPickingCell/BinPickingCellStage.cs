@@ -38,7 +38,7 @@ namespace Vision.BinPickingCell
     /// <summary>
     /// Materialises the embedded USD assets to a stable per-user directory so
     /// the offscreen renderer can open the stage by file path. The cell layer
-    /// (<c>Cell.usda</c>) references <c>arm.usda</c> and <c>gripper.usda</c>
+    /// (<c>Cell.usda</c>) references <c>palletizer-arm.usda</c> and <c>gripper.usda</c>
     /// by relative path, so both sublayers must be extracted next to the root.
     /// </summary>
     /// <remarks>
@@ -53,7 +53,8 @@ namespace Vision.BinPickingCell
     internal sealed class BinPickingCellStage
     {
         public const string CellStageAsset = "Cell.usda";
-        public const string ArmAsset = "arm.usda";
+        public const string ArmAsset = "palletizer-arm.usda";
+        public const string PalletizerGripperAsset = "palletizer-gripper.usda";
         public const string GripperAsset = "gripper.usda";
 
         /// <summary>
@@ -79,6 +80,10 @@ namespace Vision.BinPickingCell
             StageDirectory = root;
             WriteAssetIfChanged(assembly, CellStageAsset, Path.Combine(root, CellStageAsset));
             WriteAssetIfChanged(assembly, ArmAsset, Path.Combine(root, ArmAsset));
+            WriteAssetIfChanged(
+                assembly,
+                PalletizerGripperAsset,
+                Path.Combine(root, PalletizerGripperAsset));
             WriteAssetIfChanged(assembly, GripperAsset, Path.Combine(root, GripperAsset));
             CellStagePath = Path.Combine(root, CellStageAsset);
             return CellStagePath;

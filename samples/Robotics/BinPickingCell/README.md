@@ -10,10 +10,10 @@ http://opcfoundation.org/License/MIT/1.00/
 # Bin Picking Cell
 
 Reference server for the vision-guided bin-picking sample. Hosts a
-UR5e-style robot arm as a Robot Intent controller, a Vision companion
-with an eye-in-hand camera parented to the flange, an in-address-space
-OpenUSD scene, and the frame tree the Robotics-Vision Addendum's
-example uses:
+branch-stable four-axis palletizer as a Robot Intent controller, a
+Vision companion with an eye-in-hand camera parented to the flange, an
+in-address-space OpenUSD scene, and the frame tree the Robotics-Vision
+Addendum's example uses:
 
 ```text
 world → robot_base → flange → gripper_tcp
@@ -22,10 +22,10 @@ world → robot_base → flange → gripper_tcp
 
 ```mermaid
 flowchart TD
-    World["world<br/>/World"] --> Base["robot_base<br/>/World/Robot/Arm/Base"]
-    Base --> Flange["flange<br/>/World/Robot/Arm/.../Flange"]
-    Flange --> Tcp["gripper_tcp<br/>/World/Robot/Arm/.../Flange/Gripper/Tcp"]
-    Flange --> Camera["camera_eih<br/>/World/Robot/Arm/.../Flange/Camera"]
+    World["world<br/>/World"] --> Base["robot_base<br/>/World/Robot/Palletizer/Base"]
+    Base --> Flange["flange<br/>/World/Robot/Palletizer/.../Flange"]
+    Flange --> Tcp["gripper_tcp<br/>/World/Robot/Palletizer/.../Flange/Gripper/Tcp"]
+    Flange --> Camera["camera_eih<br/>/World/Robot/Palletizer/.../Flange/Camera"]
 ```
 
 Five parts (`RedCube`, `GreenCylinder`, `BlueSphere`, `YellowSlab`,
@@ -101,9 +101,10 @@ rather than failing to start.
 ## What the cell publishes
 
 - Under `Server/RobotIntent`, one Robot Intent controller
-  (`BinPickingController`) with lookup tables for `Bin`, `Fixture` and
-  `ParallelGripper`. The controller ships `Pick` and `Place` intents
-  targeting the sample parts.
+  (`BinPickingController`) with four axes (`J1` base yaw, `J2` shoulder,
+  `J3` elbow and `J4` tool roll), lookup tables for `Bin`, `Fixture`,
+  one home location per part and `ParallelGripper`. The controller
+  ships `Pick` and `Place` intents targeting the sample parts.
 - Under `Server/Vision`:
   - The frame tree above. Every frame carries a unit `(x, y, z, w)`
     quaternion and a metres-based position; `camera_eih` is authored
@@ -135,10 +136,10 @@ rather than failing to start.
 The scene is authored in `Assets/Cell.usda` and is extracted at
 startup by `BinPickingCellStage.Extract()` into a working directory the
 `BinPickingMediaProvider` and `OpenUsdSceneCameraCaptureProvider` share.
-It references the UR5e-style arm from the sibling
-`samples/Robotics/IntentEnabledRobot` sample and its parallel gripper,
-adds the bin, fixture and parts, and parents the eye-in-hand
-`UsdGeomCamera` to the flange so the view moves with the arm.
+It references the cell-specific `palletizer-arm.usda` and
+`palletizer-gripper.usda` assets, plus the shared gripper geometry, adds
+the bin, fixture and parts, and parents the eye-in-hand `UsdGeomCamera`
+to the flange so the view moves with the arm.
 
 ### Scene lighting is load-bearing
 
@@ -155,11 +156,12 @@ scene-authoring change does not silently break the perception path.
 ### Frame tree contract
 
 - `/World` is the `world` frame origin.
-- `/World/Robot/Arm/Base` is the `robot_base` frame.
-- `/World/Robot/Arm/.../Flange` is the `flange` (mechanical interface).
-- `/World/Robot/Arm/.../Flange/Camera` is the `camera_eih`
+- `/World/Robot/Palletizer/Base` is the `robot_base` frame.
+- `/World/Robot/Palletizer/Base/J1/J2/J3/Leveling/J4/Flange` is the
+  `flange` (mechanical interface).
+- `/World/Robot/Palletizer/.../Flange/Camera` is the `camera_eih`
   `UsdGeomCamera` the Vision sensor renders from.
-- `/World/Robot/Arm/.../Flange/Gripper/Tcp` is `gripper_tcp`.
+- `/World/Robot/Palletizer/.../Flange/Gripper/Tcp` is `gripper_tcp`.
 
 The vision-side `flange` frame is authored at the scan pose the arm
 would hold to point the eye-in-hand camera at the bin. In a live cell
@@ -173,31 +175,44 @@ compose a detection's pose from the camera into the world frame using
 `VisionFrameGraph` and get a value it can hand straight to the robot-
 side `Pick` intent.
 
-The scan pose is not declared independently in three places, because it
-used to be and the three disagreed. The arm's home joint angles are
-**solved** so the `Camera` prim lands at the world position the Vision
-model declares for `camera_eih` — `(0.60, 0, 1.241)`, looking straight
-down — which puts the bin 0.50 m away and 1.8° off the optical axis.
-The same solution gives the `flange` frame's pose, and the same joint
-angles are authored into `Cell.usda` so the still render and the first
-live update agree. Change any one of them and the other two have to be
-re-solved with it.
+The scan pose is one analytic palletizer configuration: TCP
+`(0.60, 0, 0.32)` and flange `(0.60, 0, 0.505)` in `robot_base`.
+The camera is 20 mm along flange `+X` and 160 mm along flange `+Z`,
+which composes to world position `(0.60, -0.16, 1.405)`. The extra
+180-degree camera convention transform accounts for USD cameras
+looking down local `-Z` while Vision projection uses camera-forward
+`+Z`.
 
-Two constraints on that solution are easy to miss:
+The visual and numeric chain use the same geometry:
 
-- **The camera prim sits 0.16 m out along the flange `Z` axis**, not on
-  the tool axis. The gripper extends along flange `+X`, which is straight
-  down at the scan pose, so a camera on that axis photographs its own jaws.
-- **The solution is the elbow-back branch, with the camera rolled 15°.**
-  The elbow-forward branches reach the same camera pose but park a link
-  directly under the camera, so the frame shows the arm's own upper arm
-  instead of the bin. And aiming a straight-down camera from a point on
-  the base's own `X`-`Z` plane lands the wrist exactly on the J4/J6
-  singularity; the 15° roll gets 25° clear of it. A singular home pose is
-  not cosmetic — the first IK solve of any motion away from home fails, so
-  every intent comes back `Kinematics`. The roll is why the delivered
-  frame is tilted; the detections are expressed in the same rolled frame,
-  so they still land on the parts.
+- shoulder height 0.280 m;
+- upper arm and forearm 0.480 m each;
+- flange-to-jaw-centre TCP 0.185 m along flange `+X`;
+- mechanical leveling `90° - J2 - J3`, so the tool remains vertical;
+- `J4` rolls around the down-facing tool axis, keeping jaw aperture
+  visible without introducing offset-wrist IK branches.
+
+The analytic IK emits at most the two real elbow branches, rejects
+unsupported pitch or roll, and chooses the nearest collision-clear
+branch. It does not generate periodic duplicates or run a numerical
+seed search, so a Cartesian leg cannot silently switch to an identical-
+looking but discontinuous wrist configuration.
+
+### Detected-pose picking and collision
+
+`Pick` targets the selected detection pose, not the containing
+Location's centre. The target provider stores result id, timestamp,
+source frame and world pose by class label. Off-server detections must
+use the calibrated `camera_eih` frame and remain within 80 mm of the
+simulated part; targets expire after ten seconds. Only the built-in
+on-server ground-truth path may fall back to current simulation state.
+
+Motion retracts vertically, crosses at a clear height, descends, closes
+or opens the jaws, and reverses the exact local approach before the
+operation completes. A following Pick at the same fixture XY skips the
+cross-cell traverse. The collision model uses per-link radii and tests
+the bench, bin walls, fixture plate and pegs, every non-target part, the
+accumulated stack, and an explicit box swept by the held part.
 
 ## What an agent actually receives
 
@@ -292,12 +307,14 @@ attached:
   against a world it had not changed itself.
 
 The robot moves the parts too. `Pick` travels to its `Source`, closes the
-gripper on the part named by the intent's `ObjectClass`, and carries it: the
-part's world position follows the tool until `Place` opens the gripper and
-leaves it at the destination. The ground-truth detector projects from those
-same positions, so it stops reporting a part that has been moved out of the
-bin — which is what makes the paired client's `--demo` verification real
-rather than a formality.
+gripper around the current pose of the part named by the intent's
+`ObjectClass`, marks it held only after the jaws finish closing, then
+retracts. The part's world position follows the tool until `Place`
+opens the gripper, settles it on the highest support, and retracts. The
+ground-truth detector projects from those same positions, so it stops
+reporting a part that has been moved out of the bin — which is what
+makes the paired client's `--demo` verification real rather than a
+formality.
 
 ## Feedback validation
 
@@ -318,6 +335,10 @@ with `Bad_InvalidArgument` and a message the agent can act on:
 - **Zero-norm quaternion or `Orientation` with fewer than four
   components** — refused with an explanation that references §5.12.
 - **`Position` with fewer than three components** — refused likewise.
+- **Pose frame other than `camera_eih`** — refused with both the
+  submitted and calibrated frame ids.
+- **Pose more than 80 mm from the matching simulated part** — refused
+  with the measured residual.
 - **Purpose not in `Overlay | Reconciliation | GroundTruthLabel |
   Trigger`** — refused with the offending value.
 - **More than 15 detections in a single submission** — refused as

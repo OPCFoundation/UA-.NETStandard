@@ -152,7 +152,11 @@ namespace Vision.BinPickingCell
                 .WithFrameId(BinPickingRobotCell.ToolFrameId)
                 .WithRole(VisionFrameRoleEnum.Tool)
                 .WithParent(BinPickingRobotCell.FlangeFrameId)
-                .WithTransform(Pose(BinPickingRobotCell.FlangeFrameId, 0.0, 0.0, 0.115)));
+                .WithTransform(Pose(
+                    BinPickingRobotCell.FlangeFrameId,
+                    BinPickingPalletizerGeometry.FlangeToTcpMetres,
+                    0.0,
+                    0.0)));
             m_frames.Add(BinPickingRobotCell.ToolFrameId);
 
             nodes.AddFrame("CameraEih", frame => frame
@@ -432,29 +436,21 @@ namespace Vision.BinPickingCell
         }
 
         private static readonly double[] s_identityOrientation = [0.0, 0.0, 0.0, 1.0];
-        private static readonly double[] s_handEyePosition = [0.062, -0.031, 0.115];
-        private static readonly double[] s_handEyeOrientation = [0.0, 0.0, RootHalf, RootHalf];
+        private static readonly double[] s_handEyePosition = [0.020, 0.0, 0.160];
+        private static readonly double[] s_handEyeOrientation = [RootHalf, 0.0, RootHalf, 0.0];
         private static readonly double[] s_cameraInWorldPosition =
-            [BinPickingPartsCatalog.BinCentreX, 0.0, 1.241];
+            [BinPickingPartsCatalog.BinCentreX, -0.160, 1.405];
 
-        // A half turn about X - the camera looks down its own -Z where the world frame
-        // measures up - composed with the 15.0595-degree roll about the vertical that the
-        // scan pose carries. The roll is not decorative: aiming a straight-down camera
-        // from a point on the base's own X-Z plane puts the wrist exactly on the J4/J6
-        // singularity, and every motion away from home then fails to solve.
+        // The palletizer flange is tool-down and rolled 90 degrees at the scan pose.
+        // Composing the authored hand-eye transform places the camera 160 mm toward -Y
+        // and 20 mm below the flange, looking straight down with a -90 degree image roll.
         private static readonly double[] s_cameraInWorldOrientation =
-            [0.9913769539, -0.1310409679, 0.0, 0.0];
+            [RootHalf, -RootHalf, 0.0, 0.0];
 
-        // The scan pose the arm actually holds, which is what the eye-in-hand camera is
-        // aimed from. It is derived from CameraInWorld above rather than declared
-        // independently: the two used to disagree, and a frame tree that says the camera
-        // looks one way while the renderer points it another gives a consumer pixels and
-        // coordinates that do not correspond. The orientation is a quarter turn about Y -
-        // which points the flange X axis, and so the camera, straight down - composed with
-        // the same roll the camera carries.
-        private static readonly double[] s_flangeScanPosition = [0.4455, 0.0416, 0.3410];
+        // Analytic palletizer home: TCP (0.60, 0, 0.32), wrist/flange 185 mm above it.
+        private static readonly double[] s_flangeScanPosition = [0.600, 0.0, 0.505];
         private static readonly double[] s_flangeScanOrientation =
-            [0.0926599570, 0.7010093668, -0.0926599570, 0.7010093668];
+            [0.5, 0.5, -0.5, 0.5];
 
         // A 90-degree rotation, to full double precision. Writing it as 0.7071 leaves the
         // quaternion with a norm of 0.99999041, which is 9.6e-6 off unit - ten times the
@@ -494,7 +490,7 @@ namespace Vision.BinPickingCell
         internal const string DeploymentBrowseName = "OnServerDeployment";
         internal const string PixelFormat = "BayerRG8";
         internal const string CameraPrimPath =
-            "/World/Robot/Arm/Base/J1/J2/J3/J4/J5/J6/Flange/Camera";
+            "/World/Robot/Palletizer/Base/J1/J2/J3/Leveling/J4/Flange/Camera";
 
         private readonly ILogger<BinPickingVisionCell> m_logger;
         private readonly BinPickingMediaProvider m_mediaProvider;

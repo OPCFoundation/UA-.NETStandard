@@ -2487,6 +2487,17 @@ namespace Opc.Ua.RobotIntent.Server
                     IntentFailureEnum.Other,
                     $"Executor returned non-terminal outcome {outcome.State}.");
             }
+            else if (outcome.State == ExecutionStateEnum.Failed &&
+                outcome.Failure == IntentFailureEnum.None)
+            {
+                outcome = outcome with
+                {
+                    Failure = IntentFailureEnum.Other,
+                    Message = string.IsNullOrWhiteSpace(outcome.Message)
+                        ? "Executor reported failure without a failure classification."
+                        : outcome.Message
+                };
+            }
 
             ExecutionStateEnum previous = entry.State;
             entry.State = outcome.State;

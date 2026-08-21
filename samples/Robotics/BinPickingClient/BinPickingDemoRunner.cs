@@ -442,16 +442,19 @@ namespace BinPickingClient
             LogPickSubmitted(m_logger, submission.IntentId);
             IntentOperationHandle handle = await controller.TrackOperationAsync(
                 submission.IntentId, submission.Operation, cancellationToken).ConfigureAwait(false);
+            bool succeeded;
             await using (handle.ConfigureAwait(false))
             {
                 IntentResultDataType result = await handle.Completion.WaitAsync(cancellationToken)
                     .ConfigureAwait(false);
+                succeeded = handle.Current.ExecutionState == ExecutionStateEnum.Succeeded &&
+                    result.Failure == IntentFailureEnum.None;
                 Console.Error.WriteLine(
                     "Pick operation terminal state: " + handle.Current.ExecutionState +
                     " failure=" + result.Failure);
                 LogPickCompleted(m_logger, submission.IntentId, handle.Current.ExecutionState);
             }
-            return true;
+            return succeeded;
         }
 
         private async Task<bool> SubmitPlaceAsync(
@@ -478,16 +481,19 @@ namespace BinPickingClient
             LogPlaceSubmitted(m_logger, submission.IntentId);
             IntentOperationHandle handle = await controller.TrackOperationAsync(
                 submission.IntentId, submission.Operation, cancellationToken).ConfigureAwait(false);
+            bool succeeded;
             await using (handle.ConfigureAwait(false))
             {
                 IntentResultDataType result = await handle.Completion.WaitAsync(cancellationToken)
                     .ConfigureAwait(false);
+                succeeded = handle.Current.ExecutionState == ExecutionStateEnum.Succeeded &&
+                    result.Failure == IntentFailureEnum.None;
                 Console.Error.WriteLine(
                     "Place operation terminal state: " + handle.Current.ExecutionState +
                     " failure=" + result.Failure);
                 LogPlaceCompleted(m_logger, submission.IntentId, handle.Current.ExecutionState);
             }
-            return true;
+            return succeeded;
         }
 
         private static async Task<NodeId> ResolveFrameByFrameIdAsync(

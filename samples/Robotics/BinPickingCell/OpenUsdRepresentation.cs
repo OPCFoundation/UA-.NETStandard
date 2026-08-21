@@ -218,7 +218,7 @@ namespace Vision.BinPickingCell
                 "GripperLeftSlide",
                 GuidFor("gripper:left"),
                 m_gripperLeftSlideValue?.NodeId ?? NodeId.Null,
-                "/World/Robot/Arm/Base/J1/J2/J3/J4/J5/J6/Flange/Gripper/FingerLeftSlide",
+                "/World/Robot/Palletizer/Base/J1/J2/J3/Leveling/J4/Flange/Gripper/FingerLeftSlide",
                 "xformOp:translate",
                 "double3",
                 OpenUsdRenderTargetKindEnum.Translation,
@@ -226,10 +226,21 @@ namespace Vision.BinPickingCell
             CreateBinding(
                 controllerRep,
                 usdNs,
+                "PalletizerLeveling",
+                GuidFor("palletizer:leveling"),
+                m_levelingValue?.NodeId ?? NodeId.Null,
+                "/World/Robot/Palletizer/Base/J1/J2/J3/Leveling",
+                "xformOp:rotateY",
+                "double",
+                OpenUsdRenderTargetKindEnum.Rotation,
+                1.0);
+            CreateBinding(
+                controllerRep,
+                usdNs,
                 "GripperRightSlide",
                 GuidFor("gripper:right"),
                 m_gripperRightSlideValue?.NodeId ?? NodeId.Null,
-                "/World/Robot/Arm/Base/J1/J2/J3/J4/J5/J6/Flange/Gripper/FingerRightSlide",
+                "/World/Robot/Palletizer/Base/J1/J2/J3/Leveling/J4/Flange/Gripper/FingerRightSlide",
                 "xformOp:translate",
                 "double3",
                 OpenUsdRenderTargetKindEnum.Translation,
@@ -287,7 +298,14 @@ namespace Vision.BinPickingCell
             return
             [
                 new("stage.usda", OpenUsdAssetKindEnum.RootLayer, ReadEmbeddedAsset("Cell.usda")),
-                new("arm.usda", OpenUsdAssetKindEnum.Reference, ReadEmbeddedAsset("arm.usda")),
+                new(
+                    "palletizer-arm.usda",
+                    OpenUsdAssetKindEnum.Reference,
+                    ReadEmbeddedAsset("palletizer-arm.usda")),
+                new(
+                    "palletizer-gripper.usda",
+                    OpenUsdAssetKindEnum.Reference,
+                    ReadEmbeddedAsset("palletizer-gripper.usda")),
                 new("gripper.usda", OpenUsdAssetKindEnum.Reference, ReadEmbeddedAsset("gripper.usda"))
             ];
         }
@@ -405,12 +423,10 @@ namespace Vision.BinPickingCell
 
         private static readonly (string Name, string PrimPath, string RotateOp)[] s_axisUsd =
         [
-            ("J1", "/World/Robot/Arm/Base/J1", "xformOp:rotateZ"),
-            ("J2", "/World/Robot/Arm/Base/J1/J2", "xformOp:rotateY"),
-            ("J3", "/World/Robot/Arm/Base/J1/J2/J3", "xformOp:rotateY"),
-            ("J4", "/World/Robot/Arm/Base/J1/J2/J3/J4", "xformOp:rotateY"),
-            ("J5", "/World/Robot/Arm/Base/J1/J2/J3/J4/J5", "xformOp:rotateZ"),
-            ("J6", "/World/Robot/Arm/Base/J1/J2/J3/J4/J5/J6", "xformOp:rotateY")
+            ("J1", "/World/Robot/Palletizer/Base/J1", "xformOp:rotateZ"),
+            ("J2", "/World/Robot/Palletizer/Base/J1/J2", "xformOp:rotateY"),
+            ("J3", "/World/Robot/Palletizer/Base/J1/J2/J3", "xformOp:rotateY"),
+            ("J4", "/World/Robot/Palletizer/Base/J1/J2/J3/Leveling/J4", "xformOp:rotateX")
         ];
 
         private OpenUsdRootState? m_openUsdRoot;

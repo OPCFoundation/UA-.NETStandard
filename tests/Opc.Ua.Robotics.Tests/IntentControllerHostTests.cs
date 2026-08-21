@@ -1170,6 +1170,25 @@ namespace Opc.Ua.Robotics.Tests
         }
 
         [Test]
+        public async Task FailedExecutorOutcomeWithoutReasonIsNormalized()
+        {
+            m_executor.Outcome = new IntentOutcome { State = ExecutionStateEnum.Failed };
+
+            m_host.SubmitIntent(m_context, null, Move("missing-reason"));
+            IntentOperationState operation = await WaitForTerminalAsync("missing-reason")
+                .ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(operation.ExecutionState!.Value, Is.EqualTo(ExecutionStateEnum.Failed));
+                Assert.That(operation.Result!.Value!.Failure, Is.EqualTo(IntentFailureEnum.Other));
+                Assert.That(
+                    operation.Result.Value.Message.Text,
+                    Is.EqualTo("Executor reported failure without a failure classification."));
+            });
+        }
+
+        [Test]
         public async Task QueuedMissionStepCancellationAdvancesTheMission()
         {
             m_executor.Gate = new SemaphoreSlim(0);

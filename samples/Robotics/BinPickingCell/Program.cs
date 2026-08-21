@@ -30,6 +30,7 @@
 using System;
 using System.IO;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Opc.Ua;
@@ -81,17 +82,17 @@ builder.Services.AddSingleton(cellOptions);
 // BinPickingCellGeometry.CreateCollisionModel() describes the cell's furniture as solids
 // and SimulatedArmKinematics.Collisions enforces it along every link, so a configuration
 // that puts part of the arm inside the bench or through a bin wall is refused rather than
-// rendered. See BinPickingReachabilityTests for how much room that leaves at each of the
-// cell's work positions.
-builder.Services.AddSingleton(_ => new SimulatedArmKinematics
+// rendered. The palletizer kinematics tests pin the remaining work envelope at every cell
+// work position.
+builder.Services.AddSingleton(_ => new BinPickingPalletizerKinematics
 {
     MinimumLinkHeight =
         BinPickingCellGeometry.BenchTopMetres - BinPickingCellGeometry.RobotBaseHeightMetres,
     Collisions = BinPickingCellGeometry.CreateCollisionModel()
 });
-builder.Services.AddSingleton<SimulatedArmExecutor>();
 builder.Services.AddSingleton<BinPickingRobotCell>();
 builder.Services.AddSingleton<BinPickingWorldState>();
+builder.Services.AddSingleton<IBinPickingTargetProvider, BinPickingTargetProvider>();
 builder.Services.AddSingleton<BinPickingGroundTruthInferenceProvider>();
 builder.Services.AddSingleton<BinPickingAgentInferenceProvider>();
 builder.Services.AddSingleton<BinPickingVisionCell>();
@@ -166,6 +167,13 @@ builder.Services
         BinPickingVisionCell cell = context.GetRequiredService<BinPickingVisionCell>();
         await cell.ConfigureAsync(context, cancellationToken).ConfigureAwait(false);
     });
+
+// AddRobotIntentExecutor registers the concrete executor so its IIntentExecutor and any
+// observers share one instance. Replace that default-constructed UR executor after the
+// fluent registration with the palletizer-backed instance for this cell only.
+builder.Services.Replace(ServiceDescriptor.Singleton(
+    services => new SimulatedArmExecutor(
+        services.GetRequiredService<BinPickingPalletizerKinematics>())));
 
 using IHost app = builder.Build();
 await app.RunAsync().ConfigureAwait(false);

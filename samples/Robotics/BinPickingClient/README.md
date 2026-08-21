@@ -244,7 +244,8 @@ moves within a steady view rather than the view chasing the arm.
 - `--camera auto` hands framing back to the viewer, which fits the scene bounds.
 - `--camera <primPath>` opens on any other camera in the stage.
 
-The stage has a second camera, `/World/Robot/.../Flange/Camera`, which is the
+The stage has a second camera,
+`/World/Robot/Palletizer/.../Flange/Camera`, which is the
 eye-in-hand sensor the Vision model renders from. Opening the viewport on it
 shows what the tool sees rather than the cell, which is occasionally useful for
 debugging the perception path but is not a view of the robot working.
@@ -260,8 +261,8 @@ Pass `--verbose` to raise the log level to Debug. The OpenUSD connector then
 reports what it bound at start-up:
 
 ```
-OpenUSD live stream bound 11 binding(s) across 12 representation(s) and is
-monitoring 11 item(s).
+OpenUSD live stream bound 12 binding(s) across 10 representation(s) and is
+monitoring 12 item(s).
 ```
 
 and one line per live update, plus a warning for any target it had to leave
@@ -277,13 +278,18 @@ drives the cell, renders a scene that never changes — the arm included, not ju
 the parts. A single process that both views and commands (`--demo --view`)
 updates correctly.
 
-Measured with `--verbose`: the viewer-only session binds 11 bindings and monitors
-11 items, exactly as the working one does, and then receives **zero** live
+Measured with `--verbose`: the viewer-only session binds 12 bindings and monitors
+12 items, exactly as the working one does, and then receives **zero** live
 updates, where the commanding session receives about 1,900 over the same
 sequence. So the subscription is created and the notifications never arrive. The
-cause is not yet identified, and it is not the parts specifically.
+behavior is tracked as
+[openusd-dotnet#17](https://github.com/marcschier/openusd-dotnet/issues/17);
+it is not specific to the parts or the palletizer.
 
-Until it is fixed, watch the cell from the process that drives it.
+Until the packaged viewer contains that fix, watch the cell from the process
+that drives it. `--view --demo` does that for the scripted path;
+`--view --mcp --transport http` does it for an external agent because the
+agent's MCP calls execute through the viewer process's OPC UA session.
 
 The client fetches the cell's served OpenUSD assets automatically whenever the
 viewport opens, into a per-user cache directory. Pass `--fetch-assets <dir>` only

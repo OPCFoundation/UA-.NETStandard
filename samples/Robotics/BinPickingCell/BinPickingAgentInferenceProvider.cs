@@ -110,8 +110,10 @@ namespace Vision.BinPickingCell
         : IVisionInferenceProvider, IVisionFeedbackSink
     {
         public BinPickingAgentInferenceProvider(
+            IBinPickingTargetProvider targetProvider,
             ILogger<BinPickingAgentInferenceProvider> logger)
         {
+            m_targetProvider = targetProvider ?? throw new ArgumentNullException(nameof(targetProvider));
             m_logger = logger ?? throw new ArgumentNullException(nameof(logger));
         }
 
@@ -297,6 +299,12 @@ namespace Vision.BinPickingCell
             DateTimeUtc timestamp = DateTimeUtc.From(DateTime.UtcNow);
             try
             {
+                m_targetProvider.PublishDetections(
+                    resultId,
+                    timestamp,
+                    request.Detections,
+                    target.CameraInWorld,
+                    target.CameraFrameId);
                 await PublishAsync(
                     target,
                     resultId,
@@ -518,7 +526,7 @@ namespace Vision.BinPickingCell
                 }
                 if (detection.HasPose)
                 {
-                    ServiceResult? poseRefusal = ValidatePose(ii, detection.Pose);
+                    ServiceResult? poseRefusal = ValidatePose(target, ii, detection.Pose);
                     if (poseRefusal != null)
                     {
                         return poseRefusal;
@@ -568,8 +576,19 @@ namespace Vision.BinPickingCell
             return null;
         }
 
-        private ServiceResult? ValidatePose(int index, VisionPose3DDataType pose)
+        private ServiceResult? ValidatePose(
+            BinPickingInferenceTarget target,
+            int index,
+            VisionPose3DDataType pose)
         {
+            if (!string.Equals(pose.FrameId, target.CameraFrameId, StringComparison.Ordinal))
+            {
+                return Refuse(
+                    "Validate",
+                    StatusCodes.BadInvalidArgument,
+                    $"Detection {index} Pose.FrameId '{pose.FrameId}' does not match " +
+                    $"the calibrated camera frame '{target.CameraFrameId}'.");
+            }
             System.ReadOnlySpan<double> orientation = pose.Orientation.Span;
             if (orientation.Length < 4)
             {
@@ -712,6 +731,7 @@ namespace Vision.BinPickingCell
         private const int MaxDetectionsPerSubmission = 15;
 
         private readonly ILogger<BinPickingAgentInferenceProvider> m_logger;
+        private readonly IBinPickingTargetProvider m_targetProvider;
         private readonly ConcurrentDictionary<string, DetectionResultState> m_results
             = new(StringComparer.Ordinal);
         private BinPickingInferenceTarget? m_target;

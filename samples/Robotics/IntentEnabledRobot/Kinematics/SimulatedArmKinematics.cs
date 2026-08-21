@@ -86,6 +86,14 @@ namespace Robotics.IntentEnabledRobot.Kinematics
     public delegate bool LocationPoseResolver(NodeId location, out Pose3DDataType pose);
 
     /// <summary>
+    /// Resolves a named workpiece at a Pick source to a tool pose.
+    /// </summary>
+    public delegate bool PickPoseResolver(
+        NodeId source,
+        string objectClass,
+        out Pose3DDataType pose);
+
+    /// <summary>
     /// One inverse-kinematic solution for the simulated arm.
     /// </summary>
     public sealed class SimulatedArmIkSolution
@@ -281,8 +289,17 @@ namespace Robotics.IntentEnabledRobot.Kinematics
     /// <summary>
     /// Kinematics and path helpers for the UR5e-style sample arm.
     /// </summary>
-    public sealed class SimulatedArmKinematics
+    public sealed class SimulatedArmKinematics : ISimulatedArmKinematics
     {
+        /// <inheritdoc/>
+        public int AxisCount => JointCount;
+
+        /// <inheritdoc/>
+        public double MaximumReach => Reach;
+
+        /// <inheritdoc/>
+        public ArrayOf<double> InitialJointAngles => ArrayOf.Create(s_initialJointAngles.AsSpan());
+
         /// <summary>
         /// Initializes kinematics with the sample joint limits.
         /// </summary>
@@ -719,6 +736,12 @@ namespace Robotics.IntentEnabledRobot.Kinematics
             };
         }
 
+        /// <inheritdoc/>
+        public IntentFailureEnum MapFailure(SimulatedArmKinematicFailure failure)
+        {
+            return ToIntentFailure(failure);
+        }
+
         /// <summary>
         /// Gets a value indicating whether the joint vector is within configured limits.
         /// </summary>
@@ -1132,6 +1155,9 @@ namespace Robotics.IntentEnabledRobot.Kinematics
             [Math.PI, 0.4, -1.4, 1.0, 0.8, 0.0],
             [Math.PI, 0.4, -1.4, 1.0, -0.8, Math.PI]
         ];
+
+        private static readonly double[] s_initialJointAngles =
+            [-3.0484844, 0.3128706, 0.8261335, 2.0025887, -2.7856466, -1.5707963];
 
         private readonly double[] m_minimumLimits;
         private readonly double[] m_maximumLimits;

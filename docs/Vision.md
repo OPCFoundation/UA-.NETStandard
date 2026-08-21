@@ -829,13 +829,17 @@ composition rules.
 
 [`samples/Robotics/BinPickingCell`](../samples/Robotics/BinPickingCell) is
 the reference from the *OPC UA Robotics-Vision Addendum*: a
-UR5e-style arm with a parallel gripper, an eye-in-hand camera parented
-to the flange, a bin of five parts, a fixture, and the frame tree
+branch-stable four-axis palletizer with a parallel gripper, an
+eye-in-hand camera parented to the flange, a bin of five parts, a
+fixture, and the frame tree
 `world → robot_base → flange → gripper_tcp` with `camera_eih` on the
 flange. It hosts `Robot Intent`, the Vision companion and the
 `OpenUsdScene` companion side by side, and either the on-server
 deterministic detector (`--inferenceLocation OnServer`, the default)
 or the off-server agent path (`--inferenceLocation EdgeOffServer`).
+The selected detection pose drives the Pick target directly; the
+Location supplies containment and workflow semantics rather than
+substituting its centre for the detected workpiece.
 
 [`samples/Robotics/BinPickingClient`](../samples/Robotics/BinPickingClient)
 is the paired client: `--demo` runs the whole loop without an agent,

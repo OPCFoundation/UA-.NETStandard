@@ -75,17 +75,21 @@ namespace Vision.BinPickingCell
         public BinPickingRobotCell(
             ILogger<BinPickingRobotCell> logger,
             SimulatedArmExecutor executor,
-            SimulatedArmKinematics kinematics,
-            BinPickingWorldState worldState)
+            BinPickingPalletizerKinematics kinematics,
+            BinPickingWorldState worldState,
+            IBinPickingTargetProvider targetProvider)
         {
             m_logger = logger ?? throw new ArgumentNullException(nameof(logger));
             m_executor = executor ?? throw new ArgumentNullException(nameof(executor));
             m_kinematics = kinematics ?? throw new ArgumentNullException(nameof(kinematics));
             m_worldState = worldState ?? throw new ArgumentNullException(nameof(worldState));
+            m_targetProvider = targetProvider ?? throw new ArgumentNullException(nameof(targetProvider));
             m_toolDownOrientation = executor.CurrentSnapshot.ToolPose.Orientation;
             m_executor.SnapshotChanged += OnSnapshotChanged;
             m_executor.ResolveLocationPosition = TryResolveLocationPosition;
             m_executor.ResolveLocationPose = TryResolveLocationPose;
+            m_executor.ResolvePickPose = TryResolvePickPose;
+            m_executor.PickAttemptFinished = OnPickAttemptFinished;
             m_executor.PreferCartesianDescent = PreferCartesianDescent;
             m_executor.Diagnostic = message => m_logger.ArmTravel(message);
             UpdateMovingObstacles();
@@ -174,13 +178,17 @@ namespace Vision.BinPickingCell
                 "Flange",
                 FlangeFrameId,
                 FrameRoleEnum.MechanicalInterface,
-                Pose(RobotBaseFrameId, 0.0, 0.0, 0.1625),
+                m_kinematics.Forward(m_kinematics.InitialJointAngles.Span).JointFramePoses[3],
                 frame => frame.WithParent(@base));
             IIntentFrameBuilder tool = controller.AddFrame(
                 "GripperTcp",
                 ToolFrameId,
                 FrameRoleEnum.Tool,
-                Pose(FlangeFrameId, 0.0, 0.0, 0.115),
+                Pose(
+                    FlangeFrameId,
+                    BinPickingPalletizerGeometry.FlangeToTcpMetres,
+                    0.0,
+                    0.0),
                 frame => frame.WithParent(flange));
             controller.AddTool("ParallelGripper", tool, fitted: true);
 
@@ -194,16 +202,17 @@ namespace Vision.BinPickingCell
                 ToVariant(GripperSlide(m_executor.CurrentSnapshot.GripperOpening, -1.0)));
             m_gripperLeftSlideValue = gripperLeft.State.Value;
             m_gripperRightSlideValue = gripperRight.State.Value;
+            IIntentOutputSignalBuilder leveling = controller.AddOutput(
+                "PalletizerLeveling",
+                Opc.Ua.DataTypeIds.Double,
+                new Variant(LevelingDegrees(m_executor.CurrentSnapshot.JointAngles.Span)));
+            m_levelingValue = leveling.State.Value;
 
             for (uint index = 0; index < s_axes.Length; index++)
             {
                 IIntentAxisBuilder axis = controller.AddAxis(s_axes[index], index, AxisKindEnum.Revolute);
-
-                // Degrees, to match Position: PublishSnapshot converts the simulator's
-                // radians before publishing, so limits expressed in radians would tell a
-                // client the axis spans +/-6.28 while it reports values up to +/-360.
-                double limit = index == 2 ? HalfTurnDegrees : FullTurnDegrees;
-                ConfigureAxis(axis.State, -limit, limit);
+                (double minimum, double maximum) = AxisLimits(index);
+                ConfigureAxis(axis.State, minimum, maximum);
                 m_axes.Add(axis.State);
             }
 
@@ -237,7 +246,7 @@ namespace Vision.BinPickingCell
             controller.WithDescription(description => description
                 .WithKinematicChain(CreateKinematicChain())
                 .WithLimits(
-                    SimulatedArmKinematics.Reach,
+                    m_kinematics.MaximumReach,
                     payloadLimit: 2.0,
                     maxCartesianSpeed: 0.25,
                     maxCartesianAcceleration: 0.7));
@@ -252,19 +261,68 @@ namespace Vision.BinPickingCell
 
         private ArrayOf<KinematicJointDataType> CreateKinematicChain()
         {
-            var joints = new KinematicJointDataType[s_axes.Length];
-            for (int ii = 0; ii < joints.Length; ii++)
+            return ArrayOf.Create(
+            [
+                Joint(
+                    s_axes[0],
+                    Pose(
+                        RobotBaseFrameId,
+                        0.0,
+                        0.0,
+                        BinPickingPalletizerGeometry.ShoulderHeightMetres),
+                    s_axisZ),
+                Joint(s_axes[1], Pose(s_axes[0], 0.0, 0.0, 0.0), s_axisY),
+                Joint(
+                    s_axes[2],
+                    Pose(
+                        s_axes[1],
+                        BinPickingPalletizerGeometry.UpperArmLengthMetres,
+                        0.0,
+                        0.0),
+                    s_axisY),
+                Joint(
+                    s_axes[3],
+                    Pose(
+                        s_axes[2],
+                        BinPickingPalletizerGeometry.ForearmLengthMetres,
+                        0.0,
+                        0.0),
+                    s_axisX)
+            ]);
+        }
+
+        private static KinematicJointDataType Joint(
+            string axisId,
+            Pose3DDataType origin,
+            double[] axisVector)
+        {
+            return new KinematicJointDataType
             {
-                joints[ii] = new KinematicJointDataType
-                {
-                    AxisId = s_axes[ii],
-                    Kind = AxisKindEnum.Revolute,
-                    OriginTransform = Pose(
-                        ii == 0 ? RobotBaseFrameId : s_axes[ii - 1], 0.0, 0.0, ii == 0 ? 0.1625 : 0.12),
-                    AxisVector = (ii is 0 or 4 ? s_axisZ : s_axisY).ToArrayOf()
-                };
-            }
-            return joints.ToArrayOf();
+                AxisId = axisId,
+                Kind = AxisKindEnum.Revolute,
+                OriginTransform = origin,
+                AxisVector = axisVector.ToArrayOf()
+            };
+        }
+
+        private static (double Minimum, double Maximum) AxisLimits(uint index)
+        {
+            double radiansToDegrees = 180.0 / Math.PI;
+            return index switch
+            {
+                0 => (
+                    -BinPickingPalletizerGeometry.BaseYawLimitRadians * radiansToDegrees,
+                    BinPickingPalletizerGeometry.BaseYawLimitRadians * radiansToDegrees),
+                1 => (
+                    BinPickingPalletizerGeometry.ShoulderMinimumRadians * radiansToDegrees,
+                    BinPickingPalletizerGeometry.ShoulderMaximumRadians * radiansToDegrees),
+                2 => (
+                    BinPickingPalletizerGeometry.ElbowMinimumRadians * radiansToDegrees,
+                    BinPickingPalletizerGeometry.ElbowMaximumRadians * radiansToDegrees),
+                _ => (
+                    -BinPickingPalletizerGeometry.ToolRollLimitRadians * radiansToDegrees,
+                    BinPickingPalletizerGeometry.ToolRollLimitRadians * radiansToDegrees)
+            };
         }
 
         private void OnSnapshotChanged(object? sender, SimulatedArmSnapshot snapshot)
@@ -340,6 +398,63 @@ namespace Vision.BinPickingCell
             }
             pose = new Pose3DDataType();
             return false;
+        }
+
+        private bool TryResolvePickPose(
+            NodeId location,
+            string objectClass,
+            out Pose3DDataType pose)
+        {
+            if (!m_targetProvider.TryResolve(objectClass, out BinPickingTarget target))
+            {
+                pose = new Pose3DDataType();
+                return false;
+            }
+            foreach ((string name, double x, double y, double _, double _) in s_locations)
+            {
+                if (!m_locationNodes.TryGetValue(name, out NodeId nodeId) || nodeId != location)
+                {
+                    continue;
+                }
+                double radius = string.Equals(name, BinLocationName, StringComparison.Ordinal)
+                    ? BinSlotRadiusMetres
+                    : GraspReachRadiusMetres;
+                if (Math.Abs(target.WorldX - x) > radius ||
+                    Math.Abs(target.WorldY - y) > radius)
+                {
+                    break;
+                }
+                double baseYaw = Math.Atan2(target.WorldY, target.WorldX);
+                pose = new Pose3DDataType
+                {
+                    FrameId = RobotBaseFrameId,
+                    Position = new[]
+                    {
+                        target.WorldX,
+                        target.WorldY,
+                        target.WorldZ
+                            + SimulatedArmExecutor.HeldPartTcpOffset
+                            - RobotBaseHeightMetres
+                    }.ToArrayOf(),
+                    Orientation = BinPickingPalletizerKinematics.ToolDownOrientation(
+                        baseYaw,
+                        PalletizerWorkToolRollRadians)
+                };
+                m_pickTargetClass = objectClass;
+                UpdateMovingObstacles();
+                return true;
+            }
+            pose = new Pose3DDataType();
+            return false;
+        }
+
+        private void OnPickAttemptFinished(string objectClass)
+        {
+            if (string.Equals(m_pickTargetClass, objectClass, StringComparison.Ordinal))
+            {
+                m_pickTargetClass = string.Empty;
+                UpdateMovingObstacles();
+            }
         }
 
         /// <summary>
@@ -492,6 +607,8 @@ namespace Vision.BinPickingCell
                 }
                 _ = m_worldState.MarkHeld(snapshot.HeldObjectClass, worldX, worldY, worldZ);
                 m_carriedClass = snapshot.HeldObjectClass;
+                m_pickTargetClass = string.Empty;
+                SetHeldObjectEnvelope(snapshot.HeldObjectClass);
                 PublishPartPosition(snapshot.HeldObjectClass, worldX, worldY, worldZ);
                 UpdateLocationOccupancy();
                 UpdateMovingObstacles();
@@ -515,6 +632,8 @@ namespace Vision.BinPickingCell
                 _ = m_worldState.MarkPlaced(m_carriedClass, worldX, worldY, restingZ);
                 PublishPartPosition(m_carriedClass, worldX, worldY, restingZ);
                 m_carriedClass = string.Empty;
+                m_pickTargetClass = string.Empty;
+                m_kinematics.ClearHeldObjectEnvelope();
                 UpdateLocationOccupancy();
                 UpdateMovingObstacles();
             }
@@ -524,12 +643,10 @@ namespace Vision.BinPickingCell
         /// Republishes moving workpieces as solids the arm has to keep out of.
         /// </summary>
         /// <remarks>
-        /// The bench and the bin walls never move, so they are declared once. The fixture
-        /// plate is deliberately not an arm obstacle: the tool works immediately above it,
-        /// and treating the thin plate as a full-radius solid leaves valid final poses but
-        /// no connected final approach. The support model still uses the plate and pegs as
-        /// solids for placing parts. Whatever the gripper is carrying is left out, because
-        /// a part travelling with the tool cannot be in its way.
+        /// The bench and bin walls are fixed. The fixture, pegs, non-target workpieces and
+        /// accumulated stack are republished as moving solids. Whatever the gripper carries
+        /// is omitted from that list and represented by the palletizer's held-object swept
+        /// envelope instead.
         /// </remarks>
         private void UpdateMovingObstacles()
         {
@@ -539,23 +656,50 @@ namespace Vision.BinPickingCell
                 return;
             }
             IReadOnlyList<BinPickingPartSnapshot> parts = m_worldState.Snapshot();
-            var solids = new List<SimulatedObstacleBox>(parts.Count);
+            var solids = new List<SimulatedObstacleBox>(parts.Count + 4)
+            {
+                new(
+                    "FixturePlate",
+                    BinPickingCellGeometry.FixtureCentreX,
+                    0.0,
+                    0.140,
+                    0.140,
+                    FixturePlateTopMetres - RobotBaseHeightMetres - 0.018,
+                    FixturePlateTopMetres - RobotBaseHeightMetres),
+                new(
+                    "FixturePegA",
+                    BinPickingCellGeometry.FixtureCentreX -
+                        BinPickingCellGeometry.FixturePegOffsetMetres,
+                    BinPickingCellGeometry.FixturePegOffsetMetres,
+                    0.018,
+                    0.018,
+                    FixturePlateTopMetres - RobotBaseHeightMetres,
+                    FixturePegTopMetres - RobotBaseHeightMetres),
+                new(
+                    "FixturePegB",
+                    BinPickingCellGeometry.FixtureCentreX +
+                        BinPickingCellGeometry.FixturePegOffsetMetres,
+                    BinPickingCellGeometry.FixturePegOffsetMetres,
+                    0.018,
+                    0.018,
+                    FixturePlateTopMetres - RobotBaseHeightMetres,
+                    FixturePegTopMetres - RobotBaseHeightMetres),
+                new(
+                    "FixturePegC",
+                    BinPickingCellGeometry.FixtureCentreX,
+                    -BinPickingCellGeometry.FixturePegOffsetMetres,
+                    0.018,
+                    0.018,
+                    FixturePlateTopMetres - RobotBaseHeightMetres,
+                    FixturePegTopMetres - RobotBaseHeightMetres)
+            };
 
-            // The parts themselves are deliberately left out for now, and this is measured
-            // rather than assumed: with them in, the loop got five operations into a cycle
-            // before a Place onto the fixture was refused, against nine of ten with only
-            // the furniture. The reason is the same wrist geometry that made the bench a
-            // half-space rather than a solid - with the tool vertical this arm's J4 sits
-            // about 34 mm below the tool centre point, so placing a part on top of a stack
-            // puts J4 roughly a millimetre above the part underneath, inside its clearance.
-            // Including them needs the wrist to stop being a fat capsule near the workpiece
-            // (a per-link radius) or a longer tool; until then, declaring them would refuse
-            // the stacking the cell exists to do.
-            for (int ii = 0; ii < parts.Count && IncludePartsAsObstacles; ii++)
+            for (int ii = 0; ii < parts.Count; ii++)
             {
                 BinPickingPartSnapshot part = parts[ii];
                 if (part.Location == BinPickingPartLocation.Held
-                    || string.Equals(part.Part.ClassLabel, m_carriedClass, StringComparison.Ordinal))
+                    || string.Equals(part.Part.ClassLabel, m_carriedClass, StringComparison.Ordinal)
+                    || string.Equals(part.Part.ClassLabel, m_pickTargetClass, StringComparison.Ordinal))
                 {
                     continue;
                 }
@@ -570,6 +714,20 @@ namespace Vision.BinPickingCell
                     part.WorldZ + halfHeight - RobotBaseHeightMetres));
             }
             collisions.MovingObstacles = ArrayOf.Create(solids.ToArray().AsSpan());
+        }
+
+        private void SetHeldObjectEnvelope(string classLabel)
+        {
+            BinPickingPart? part = BinPickingPartsCatalog.TryGet(classLabel);
+            if (part == null)
+            {
+                m_kinematics.ClearHeldObjectEnvelope();
+                return;
+            }
+            m_kinematics.SetHeldObjectEnvelope(
+                part.Size[0],
+                part.Size[1],
+                part.Size[2]);
         }
 
         /// <summary>
@@ -680,6 +838,16 @@ namespace Vision.BinPickingCell
                     GripperSlide(snapshot.GripperOpening, -1.0));
                 m_gripperRightSlideValue.ClearChangeMasks(m_systemContext, true);
             }
+            if (m_levelingValue != null && snapshot.JointAngles.Count >= 3)
+            {
+                m_levelingValue.Value = LevelingDegrees(snapshot.JointAngles.Span);
+                m_levelingValue.ClearChangeMasks(m_systemContext, true);
+            }
+        }
+
+        private static double LevelingDegrees(ReadOnlySpan<double> jointAngles)
+        {
+            return (Math.PI / 2.0 - jointAngles[1] - jointAngles[2]) * 180.0 / Math.PI;
         }
 
         /// <summary>
@@ -784,9 +952,6 @@ namespace Vision.BinPickingCell
         internal const string FixtureLocationName = "Fixture";
 
         private const string HomeLocationPrefix = "Home";
-        private const double FullTurnDegrees = 360.0;
-        private const double HalfTurnDegrees = 180.0;
-
         // The robot stands on a 200 mm riser above the lowered work surface. Keeping these
         // in the shared geometry class makes the USD scene, frame tree, collision model and
         // support model describe one cell.
@@ -803,6 +968,7 @@ namespace Vision.BinPickingCell
         private const double PlaceReleaseClearanceMetres = 0.017;
         private const double GripperClosedHalfGap = 0.009;
         private const double GripperOpenHalfGap = 0.040;
+        private const double PalletizerWorkToolRollRadians = Math.PI / 2.0;
 
         // How close a part has to be to a Location to count as standing in it. The bin is a
         // tray parts are scattered across, so it reuses the catalogue's footprint; a home
@@ -816,10 +982,6 @@ namespace Vision.BinPickingCell
         // the part, and far narrower than the 0.70 m between the bin and the fixture, so a
         // grasp can never reach across the bench for something.
         private const double GraspReachRadiusMetres = 0.12;
-
-        // Whether the workpieces are declared as obstacles. See UpdateMovingObstacles for
-        // the measurement behind this being off.
-        private const bool IncludePartsAsObstacles = false;
 
         // The simulator's DefaultJointSpeed is 0.9 rad/s; Position and the limits are
         // published in degrees, so the speed limit is too.
@@ -836,26 +998,34 @@ namespace Vision.BinPickingCell
             new("Bench", 0.0, 0.0, 1.4, 0.9, BenchTopMetres),
             new("FixturePlate", BinPickingCellGeometry.FixtureCentreX, 0.0,
                 0.14, 0.14, FixturePlateTopMetres),
-            new("FixturePegA", BinPickingCellGeometry.FixtureCentreX - 0.032, 0.03,
+            new("FixturePegA", BinPickingCellGeometry.FixtureCentreX -
+                BinPickingCellGeometry.FixturePegOffsetMetres,
+                BinPickingCellGeometry.FixturePegOffsetMetres,
                 0.018, 0.018, FixturePegTopMetres),
-            new("FixturePegB", BinPickingCellGeometry.FixtureCentreX + 0.032, 0.03,
+            new("FixturePegB", BinPickingCellGeometry.FixtureCentreX +
+                BinPickingCellGeometry.FixturePegOffsetMetres,
+                BinPickingCellGeometry.FixturePegOffsetMetres,
                 0.018, 0.018, FixturePegTopMetres),
-            new("FixturePegC", BinPickingCellGeometry.FixtureCentreX, -0.03,
+            new("FixturePegC", BinPickingCellGeometry.FixtureCentreX,
+                -BinPickingCellGeometry.FixturePegOffsetMetres,
                 0.018, 0.018, FixturePegTopMetres)
         ];
 
-        private static readonly string[] s_axes = ["J1", "J2", "J3", "J4", "J5", "J6"];
+        private static readonly string[] s_axes = ["J1", "J2", "J3", "J4"];
+        private static readonly double[] s_axisX = [1.0, 0.0, 0.0];
         private static readonly double[] s_axisZ = [0.0, 0.0, 1.0];
         private static readonly double[] s_axisY = [0.0, 1.0, 0.0];
 
         private readonly ILogger<BinPickingRobotCell> m_logger;
         private readonly SimulatedArmExecutor m_executor;
-        private readonly SimulatedArmKinematics m_kinematics;
+        private readonly BinPickingPalletizerKinematics m_kinematics;
         private readonly BinPickingWorldState m_worldState;
+        private readonly IBinPickingTargetProvider m_targetProvider;
         private readonly ArrayOf<double> m_toolDownOrientation;
         private readonly SimulatedSupportModel m_support =
             new(ArrayOf.Create(s_supportFixtures.AsSpan()), BenchTopMetres);
         private string m_carriedClass = string.Empty;
+        private string m_pickTargetClass = string.Empty;
         private readonly List<global::Opc.Ua.RobotIntent.AxisState> m_axes = [];
         private readonly List<global::Opc.Ua.RobotIntent.LocationState> m_locations = [];
         private readonly Dictionary<string, NodeId> m_locationNodes = new(StringComparer.Ordinal);
@@ -863,6 +1033,7 @@ namespace Vision.BinPickingCell
             new(StringComparer.Ordinal);
         private BaseVariableState? m_gripperLeftSlideValue;
         private BaseVariableState? m_gripperRightSlideValue;
+        private BaseVariableState? m_levelingValue;
         private AsyncCustomNodeManager? m_manager;
         private IIntentControllerBuilder? m_controller;
         private ServerSystemContext? m_systemContext;
