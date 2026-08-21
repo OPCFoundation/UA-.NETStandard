@@ -1135,6 +1135,35 @@ namespace Opc.Ua.Client.Tests
         }
 
         [Test]
+        public async Task DisposeAsyncSendsCloseSessionAsync()
+        {
+            // Arrange
+            var sut = SessionMock.Create();
+            sut.SetConnected();
+            CloseSessionRequest? closeRequest = null;
+            sut.Channel
+                .Setup(c => c.SendRequestAsync(
+                    It.IsAny<CloseSessionRequest>(),
+                    It.IsAny<CancellationToken>()))
+                .Callback((IServiceRequest request, CancellationToken _) =>
+                    closeRequest = request as CloseSessionRequest)
+                .Returns(new ValueTask<IServiceResponse>(new CloseSessionResponse
+                {
+                    ResponseHeader = new ResponseHeader { ServiceResult = StatusCodes.Good }
+                }))
+                .Verifiable(Times.Once);
+
+            // Act
+            await sut.DisposeAsync().ConfigureAwait(false);
+
+            // Assert
+            sut.Channel.Verify();
+            Assert.That(closeRequest, Is.Not.Null);
+            Assert.That(closeRequest!.DeleteSubscriptions, Is.True);
+            Assert.That(closeRequest.RequestHeader.AuthenticationToken, Is.EqualTo(NodeId.Parse("s=auth")));
+        }
+
+        [Test]
         public async Task CloseAsyncShouldCloseSessionWithoutDeletingSubscriptionsAsync()
         {
             // Arrange

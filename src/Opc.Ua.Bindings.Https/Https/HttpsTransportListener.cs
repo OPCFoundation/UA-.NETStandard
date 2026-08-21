@@ -382,6 +382,28 @@ namespace Opc.Ua.Bindings
         }
 
         /// <summary>
+        /// Gets a value indicating whether the WSS (WebSocket Secure) transport
+        /// listener is functional in this compiled assembly.
+        /// </summary>
+        /// <remarks>
+        /// The WSS listener is hosted on Kestrel. The <c>netstandard2.1</c>
+        /// build binds against the legacy ASP.NET Core hosting packages, which
+        /// cannot open a Kestrel WebSocket listener when the assembly is loaded
+        /// on a modern .NET runtime, so the WSS transport is unavailable there.
+        /// Every other build (.NET Framework and .NET 5 or later) can open the
+        /// listener, so this probe returns <see langword="true"/> for them and
+        /// <see langword="false"/> only for the <c>netstandard2.1</c> build,
+        /// allowing callers and tests to react at runtime instead of assuming
+        /// compile-time availability.
+        /// </remarks>
+        public static bool IsWssTransportSupported =>
+#if NET5_0_OR_GREATER || NETFRAMEWORK
+            true;
+#else
+            false;
+#endif
+
+        /// <summary>
         /// Frees any unmanaged resources.
         /// </summary>
         public async ValueTask DisposeAsync()

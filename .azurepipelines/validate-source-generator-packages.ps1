@@ -319,7 +319,7 @@ function Test-SourceGeneratingConsumer
         [string] $RepoRoot
     )
 
-    $nodeSet = Join-Path $RepoRoot "samples\MinimalBoilerServer\Model\Boiler.NodeSet2.xml"
+    $nodeSet = Join-Path $RepoRoot "samples\MinimalApi\MinimalBoilerServer\Model\Boiler.NodeSet2.xml"
     Assert-Condition (Test-Path $nodeSet) "NodeSet '$nodeSet' used by the generator consumer test not found."
 
     $consumerDirectory = Join-Path $ValidationRoot "SourceGenerating"

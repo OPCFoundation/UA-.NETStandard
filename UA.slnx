@@ -1,21 +1,6 @@
 <Solution>
   <Folder Name="/samples/">
-    <Project Path="samples/MinimalIsa95Server/MinimalIsa95Server.csproj" />
     <File Path="samples/UAReferenceServer.ctt.xml" />
-    <Project Path="samples/ConsoleLdsServer/ConsoleLdsServer.csproj" />
-    <Project Path="samples/ConsoleReferenceClient/ConsoleReferenceClient.csproj" />
-    <Project Path="samples/ConsoleReferencePubSubClient/ConsoleReferencePubSubClient.csproj" />
-    <Project Path="samples/ConsoleReferenceServer/ConsoleReferenceServer.csproj" />
-    <Project Path="samples/Core/ConsoleDataChannelStreaming/ConsoleDataChannelStreaming.csproj" />
-    <Project Path="samples/Core/ConsoleDataChannelAudio/ConsoleDataChannelAudio.csproj" />
-    <Project Path="samples/RedundantPubSub/RedundantPubSub.csproj" />
-    <Project Path="samples/RedundantServer/RedundantServer.csproj" />
-    <Project Path="samples/MinimalBoilerServer/MinimalBoilerServer.csproj" />
-    <Project Path="samples/MinimalCalcServer/MinimalCalcServer.csproj" />
-    <Project Path="samples/MinimalClient/MinimalClient.csproj" />
-    <Project Path="samples/PumpDeviceIntegrationServer/PumpDeviceIntegrationServer.csproj" />
-    <Project Path="samples/GeneratorServer/GeneratorServer.csproj" />
-    <Project Path="samples/SiteCompositionServer/SiteCompositionServer.csproj" />
     <Project Path="samples/WotCon/AggregationClient/AggregationClient.csproj" />
     <Project Path="samples/WotCon/AggregationServer/AggregationServer.csproj" />
     <Project Path="samples/WotCon/FlatTagServer/FlatTagServer.csproj" />
@@ -24,7 +9,40 @@
     <Project Path="samples/Robotics/IntentEnabledRobot/IntentEnabledRobot.csproj" />
     <Project Path="samples/Robotics/IntentViewerClient/IntentViewerClient.csproj" />
     <Project Path="samples/Quickstarts.Servers/Quickstarts.Servers.csproj" />
-    <Project Path="samples/RedundantClient/RedundantClient.csproj" />
+  </Folder>
+  <Folder Name="/samples/Core/">
+    <Project Path="samples/Core/ConsoleDataChannelAudio/ConsoleDataChannelAudio.csproj" />
+    <Project Path="samples/Core/ConsoleDataChannelStreaming/ConsoleDataChannelStreaming.csproj" />
+  </Folder>
+  <Folder Name="/samples/DI/">
+    <Project Path="samples/DI/PumpDeviceIntegrationServer/PumpDeviceIntegrationServer.csproj" />
+  </Folder>
+  <Folder Name="/samples/Isa95/">
+    <Project Path="samples/Isa95/MinimalIsa95Server/MinimalIsa95Server.csproj" />
+  </Folder>
+  <Folder Name="/samples/Lds/">
+    <Project Path="samples/Lds/ConsoleLdsServer/ConsoleLdsServer.csproj" />
+  </Folder>
+  <Folder Name="/samples/MinimalApi/">
+    <Project Path="samples/MinimalApi/MinimalBoilerServer/MinimalBoilerServer.csproj" />
+    <Project Path="samples/MinimalApi/MinimalCalcServer/MinimalCalcServer.csproj" />
+    <Project Path="samples/MinimalApi/MinimalClient/MinimalClient.csproj" />
+  </Folder>
+  <Folder Name="/samples/OpenUsd/">
+    <Project Path="samples/OpenUsd/GeneratorServer/GeneratorServer.csproj" />
+    <Project Path="samples/OpenUsd/SiteCompositionServer/SiteCompositionServer.csproj" />
+  </Folder>
+  <Folder Name="/samples/PubSub/">
+    <Project Path="samples/PubSub/ConsoleReferencePubSubClient/ConsoleReferencePubSubClient.csproj" />
+  </Folder>
+  <Folder Name="/samples/Redundancy/">
+    <Project Path="samples/Redundancy/RedundantClient/RedundantClient.csproj" />
+    <Project Path="samples/Redundancy/RedundantPubSub/RedundantPubSub.csproj" />
+    <Project Path="samples/Redundancy/RedundantServer/RedundantServer.csproj" />
+  </Folder>
+  <Folder Name="/samples/Reference/">
+    <Project Path="samples/Reference/ConsoleReferenceClient/ConsoleReferenceClient.csproj" />
+    <Project Path="samples/Reference/ConsoleReferenceServer/ConsoleReferenceServer.csproj" />
   </Folder>
   <Folder Name="/fuzzing/">
     <File Path="fuzzing/Fuzzing.md" />

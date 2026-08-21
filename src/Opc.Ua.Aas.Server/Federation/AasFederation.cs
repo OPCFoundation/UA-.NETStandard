@@ -342,6 +342,27 @@ namespace Opc.Ua.Aas.Server.Federation
         }
 
         /// <summary>
+        /// Gets a value indicating whether the transport can observe the peer
+        /// address it actually connected to.
+        /// </summary>
+        /// <remarks>
+        /// The connected peer address is captured through
+        /// <c>SocketsHttpHandler.ConnectCallback</c>, which is only available on
+        /// .NET 6 and later. On builds that lack it (for example the
+        /// <c>netstandard2.1</c> build) the transport cannot observe the peer and
+        /// reports <see cref="IPAddress.None"/> instead of the real address, so
+        /// callers and tests that assert on <see cref="ConnectedAddress"/> should
+        /// consult this probe at runtime rather than assuming compile-time
+        /// availability. See #4282.
+        /// </remarks>
+        public static bool IsConnectedAddressObservable =>
+#if NET6_0_OR_GREATER
+            true;
+#else
+            false;
+#endif
+
+        /// <summary>
         /// HTTP status code.
         /// </summary>
         public int StatusCode { get; }

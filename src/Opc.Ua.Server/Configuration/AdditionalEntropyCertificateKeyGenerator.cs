@@ -95,6 +95,28 @@ namespace Opc.Ua.Server
                 throw new ArgumentNullException(nameof(serverEntropySource));
         }
 
+        /// <summary>
+        /// Gets a value indicating whether regenerating an ECC private key with
+        /// caller-supplied additional entropy (OPC 10000-12 §7.10.10) is
+        /// supported by this compiled assembly.
+        /// </summary>
+        /// <remarks>
+        /// Genuine incorporation of the §7.10.10 <c>Nonce</c> into an ECC private
+        /// key requires importing a private-only EC scalar, which is only
+        /// possible on .NET 5 or later. On target frameworks that cannot import
+        /// such a scalar (.NET Framework / <c>netstandard2.1</c>) an ECC
+        /// regenerate-key request fails with
+        /// <see cref="StatusCodes.BadNotSupported"/>, so this probe returns
+        /// <see langword="false"/> there. RSA regenerate-key requests remain
+        /// nonce-derived on every target framework.
+        /// </remarks>
+        public static bool IsEccKeyRegenerationSupported =>
+#if NET5_0_OR_GREATER
+            true;
+#else
+            false;
+#endif
+
         /// <inheritdoc/>
         public Certificate CreateApplicationCertificate(
             PushCertificateKeyGenerationRequest request,

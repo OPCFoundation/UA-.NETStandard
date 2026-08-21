@@ -58,6 +58,13 @@ namespace Opc.Ua.Redundancy.Server.Tests
         [Test]
         public async Task FactoryCreatesDistributedSessionManagerAsync()
         {
+            if (!ReplicatedGossipOptions.IsGossipStateDecodingSupported)
+            {
+                Assert.Ignore(
+                    "CRDT gossip state decoding is not binary-compatible on the " +
+                    "netstandard2.1 build (init-accessor modreq skew); see #4282.");
+            }
+
             // In-process gossip unit tests knowingly opt out of record protection.
             await using ServiceProvider services = ServicesWithNullProtector();
 
@@ -87,6 +94,13 @@ namespace Opc.Ua.Redundancy.Server.Tests
         [Test]
         public async Task FactoryRejectsReplicatedSessionStoreWithoutProtectorAsync()
         {
+            if (!ReplicatedGossipOptions.IsGossipStateDecodingSupported)
+            {
+                Assert.Ignore(
+                    "CRDT gossip state decoding is not binary-compatible on the " +
+                    "netstandard2.1 build (init-accessor modreq skew); see #4282.");
+            }
+
             await using ServiceProvider services = new ServiceCollection().BuildServiceProvider();
             await using var factory = new ReplicatedSessionManagerFactory(
                 services, new ReplicatedSessionOptions());
@@ -104,6 +118,13 @@ namespace Opc.Ua.Redundancy.Server.Tests
         [Test]
         public async Task FactoryRejectsFastReconnectWithoutStronglyConsistentNonceStoreAsync()
         {
+            if (!ReplicatedGossipOptions.IsGossipStateDecodingSupported)
+            {
+                Assert.Ignore(
+                    "CRDT gossip state decoding is not binary-compatible on the " +
+                    "netstandard2.1 build (init-accessor modreq skew); see #4282.");
+            }
+
             // Fast reconnect replays a session by AuthenticationToken; the
             // single-use nonce must be strongly consistent across the replica
             // set. A record protector alone (no shared nonce store) must fail
@@ -126,6 +147,13 @@ namespace Opc.Ua.Redundancy.Server.Tests
         [Test]
         public async Task FactoryCreatesWithFastReconnectAndRegisteredNonceStoreAsync()
         {
+            if (!ReplicatedGossipOptions.IsGossipStateDecodingSupported)
+            {
+                Assert.Ignore(
+                    "CRDT gossip state decoding is not binary-compatible on the " +
+                    "netstandard2.1 build (init-accessor modreq skew); see #4282.");
+            }
+
             await using ServiceProvider services = new ServiceCollection()
                 .AddSingleton<IRecordProtector>(NullRecordProtector.Instance)
                 .AddSingleton<ISharedKeyValueStore>(new InMemorySharedKeyValueStore())

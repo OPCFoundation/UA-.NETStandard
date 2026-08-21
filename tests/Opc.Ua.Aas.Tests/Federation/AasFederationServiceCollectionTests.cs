@@ -235,6 +235,14 @@ namespace Opc.Ua.Aas.Tests.Federation
         [Test]
         public async Task RealTransportKeepsReportingThePeerAcrossAPooledConnectionAsync()
         {
+            if (!AasFederationHttpResponse.IsConnectedAddressObservable)
+            {
+                Assert.Ignore(
+                    "The transport can only observe the connected peer address via " +
+                    "SocketsHttpHandler.ConnectCallback (.NET 6+); the netstandard2.1 " +
+                    "build reports IPAddress.None instead. See #4282.");
+            }
+
             using var listener = new LoopbackHttpListener();
             var policy = new AasFederationEgressPolicy();
             policy.TrustedRestrictedHosts.Add("127.0.0.1");
@@ -274,6 +282,14 @@ namespace Opc.Ua.Aas.Tests.Federation
         [Test]
         public async Task RealTransportRefusesToConnectToARestrictedPeerAsync()
         {
+            if (!AasFederationHttpResponse.IsConnectedAddressObservable)
+            {
+                Assert.Ignore(
+                    "Peer validation happens inside SocketsHttpHandler.ConnectCallback " +
+                    "(.NET 6+); the netstandard2.1 build cannot refuse the connection " +
+                    "before the request is written. See #4282.");
+            }
+
             using var listener = new LoopbackHttpListener();
             using ServiceProvider provider = CreateRealTransportProvider(new AasFederationEgressPolicy());
             var transport = provider.GetRequiredService<IAasFederationHttpTransport>();

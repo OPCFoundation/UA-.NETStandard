@@ -29,7 +29,7 @@ Foundation registry for the canonical URI form.
 
 ## Server Profiles
 
-The reference server (`samples/ConsoleReferenceServer`) advertises the
+The reference server (`samples/Reference/ConsoleReferenceServer`) advertises the
 following profiles in its `ServerProfileArray`:
 
 ### Core Server Profiles
@@ -58,7 +58,7 @@ following profiles in its `ServerProfileArray`:
 The `Opc.Ua.Lds.Server` library plus the `ConsoleLdsServer` reference
 application implement the Local Discovery Server. The LDS application
 advertises the **[Local Discovery Server 2017 Facet](http://opcfoundation.org/UA-Profile/Server/LocalDiscovery2017)**
-(see `samples/ConsoleLdsServer/Lds.Server.Config.xml`).
+(see `samples/Lds/ConsoleLdsServer/Lds.Server.Config.xml`).
 
 ### Additional facets supported by the implementation (beyond the default advertised set)
 
@@ -521,9 +521,9 @@ Security policies are configured in the `SecurityPolicies` section:
 </SecurityPolicies>
 ```
 
-See the [reference server configuration file](../samples/ConsoleReferenceServer/Quickstarts.ReferenceServer.Config.xml)
+See the [reference server configuration file](../samples/Reference/ConsoleReferenceServer/Quickstarts.ReferenceServer.Config.xml)
 for a complete example, or the
-[CTT configuration file](../samples/ConsoleReferenceServer/Ctt.ReferenceServer.Config.xml)
+[CTT configuration file](../samples/Reference/ConsoleReferenceServer/Ctt.ReferenceServer.Config.xml)
 for the variant selected by `--ctt`.
 
 ## Related Documentation

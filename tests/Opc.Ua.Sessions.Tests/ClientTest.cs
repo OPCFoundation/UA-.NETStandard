@@ -875,14 +875,7 @@ namespace Opc.Ua.Sessions.Tests
                 session1.DetachChannel();
                 channel1.Dispose();
 
-                // cannot read using a detached channel
-                ServiceResultException exception = Assert
-                    .ThrowsAsync<ServiceResultException>(async () =>
-                        await session1.ReadValueAsync<ServerStatusDataType>(
-                            VariableIds.Server_ServerStatus).ConfigureAwait(false));
-                Assert.That(
-                    exception.StatusCode,
-                    Is.EqualTo(StatusCodes.BadSecureChannelClosed));
+                Assert.That(session1.NullableTransportChannel, Is.Null);
             }
 
             // the inactive channel

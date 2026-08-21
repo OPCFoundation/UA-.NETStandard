@@ -1871,7 +1871,7 @@ namespace Opc.Ua.Client
                 UnwireSessionEvents(session);
                 try
                 {
-                    await session.CloseAsync(default)
+                    await session.DisposeAsync()
                         .ConfigureAwait(false);
                 }
                 catch (Exception ex)
@@ -1879,7 +1879,6 @@ namespace Opc.Ua.Client
                     m_logger.ManagedSessionDisposeCloseFailed(ex);
                 }
 
-                session.Dispose();
             }
 
             GC.SuppressFinalize(this);

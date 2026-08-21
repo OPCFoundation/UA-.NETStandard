@@ -278,6 +278,11 @@ services.AddOpcUa()
         wot => wot.AssetNamespaceUri = WotConnectivityServerOptions.DefaultAssetNamespaceUri);
 ```
 
+`AddHttpsTransport()` is supplied by
+`OPCFoundation.NetStandard.Opc.Ua.Bindings.Https`. Add that package directly
+when enabling HTTPS, WSS, Kestrel-hosted OPC TCP, or the REST binding; the GDS
+server package does not reference it transitively.
+
 ## Options binding
 
 Every feature `.AddXxx(...)` has three overloads:
@@ -1444,4 +1449,3 @@ services.AddOpcUa()
 - [WoT Connectivity](WoTConnectivity.md) — OPC 10100-1 information model.
 - [Diagnostics](Diagnostics.md) — `ITelemetryContext` end-to-end.
 - [CryptoProvider](CryptoProvider.md) — `AddCryptoProvider`, hardware-held private keys, FIPS posture and audit.
-

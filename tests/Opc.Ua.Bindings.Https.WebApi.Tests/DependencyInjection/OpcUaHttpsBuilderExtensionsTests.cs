@@ -155,6 +155,47 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests.DependencyInjection
             Assert.That(returned, Is.SameAs(builder));
         }
 
+        [Test]
+        public void AddHttpsTransportReturnsSameSpecializedBuilder()
+        {
+            var builder = new TestTransportBuilder(new ServiceCollection());
+
+            TestTransportBuilder returned = builder.AddHttpsTransport();
+
+            Assert.That(returned, Is.SameAs(builder));
+        }
+
+        [Test]
+        public void AddHttpsTransportWithOptionsReturnsSameSpecializedBuilder()
+        {
+            var builder = new TestTransportBuilder(new ServiceCollection());
+
+            TestTransportBuilder returned = builder.AddHttpsTransport(options => options.IncludeWss = false);
+
+            Assert.That(returned, Is.SameAs(builder));
+        }
+
+        [Test]
+        public void AddWssTransportReturnsSameSpecializedBuilder()
+        {
+            var builder = new TestTransportBuilder(new ServiceCollection());
+
+            TestTransportBuilder returned = builder.AddWssTransport();
+
+            Assert.That(returned, Is.SameAs(builder));
+        }
+
+        [Test]
+        public void SpecializedTransportBuilderThrowsWhenNull()
+        {
+            TestTransportBuilder builder = null!;
+
+            Assert.That(() => builder.AddHttpsTransport(), Throws.ArgumentNullException);
+            Assert.That(() => builder.AddHttpsTransport(_ => { }), Throws.ArgumentNullException);
+            Assert.That(() => builder.AddWssTransport(), Throws.ArgumentNullException);
+            Assert.That(() => builder.AddWssTransport(_ => { }), Throws.ArgumentNullException);
+        }
+
 #if NET8_0_OR_GREATER
         [Test]
         public void AddHttpsRateLimiterAddsContributorToHttpsListenerFactory()
