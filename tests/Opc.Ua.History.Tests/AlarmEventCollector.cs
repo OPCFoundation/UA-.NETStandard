@@ -398,9 +398,14 @@ namespace Opc.Ua.History.Tests
                     // Normal publish poll timeout; try again.
                     continue;
                 }
-                catch (ServiceResultException ex) when (IsShutdownStatus(ex.StatusCode) && m_shutdown.IsCancellationRequested)
+                catch (ServiceResultException) when (m_shutdown.IsCancellationRequested)
                 {
-                    // Session or subscription is gone during expected shutdown; exit the loop cleanly.
+                    // The session may report any service failure while expected shutdown tears it down.
+                    break;
+                }
+
+                if (m_shutdown.IsCancellationRequested)
+                {
                     break;
                 }
 

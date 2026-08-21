@@ -43,10 +43,11 @@ namespace Opc.Ua.Redundancy.Samples.Tests
     internal static class TestPorts
     {
         /// <summary>
-        /// Reserves and returns a currently-free loopback UDP port that has not
+        /// Finds and returns a currently-free loopback UDP port that has not
         /// been previously returned by this method in the current process. The
         /// allocation is tracked process-wide so that sequential OS port-0
         /// requests, which may return the same number, never produce a duplicate.
+        /// The port is released before this method returns.
         /// </summary>
         /// <returns>A free UDP port number.</returns>
         public static int GetFreeUdpPort()
@@ -63,7 +64,7 @@ namespace Opc.Ua.Redundancy.Samples.Tests
         }
 
         /// <summary>
-        /// Reserves and returns a currently-free loopback TCP port.
+        /// Finds and returns a currently-free loopback TCP port.
         /// </summary>
         /// <returns>A free TCP port number.</returns>
         public static int GetFreePort()
@@ -81,7 +82,7 @@ namespace Opc.Ua.Redundancy.Samples.Tests
         }
 
         /// <summary>
-        /// Reserves and returns the requested number of distinct free loopback TCP ports.
+        /// Finds and returns the requested number of distinct free loopback TCP ports.
         /// </summary>
         /// <param name="count">The number of ports to allocate.</param>
         /// <returns>The allocated distinct ports.</returns>
