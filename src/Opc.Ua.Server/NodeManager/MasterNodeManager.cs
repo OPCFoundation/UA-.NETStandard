@@ -7085,7 +7085,7 @@ namespace Opc.Ua.Server
         /// <param name="context">The Operation Context</param>
         /// <param name="nodeMetadata">Metadata</param>
         /// <returns>Good if the AccessRestrictions passes the validation</returns>
-        protected static ServiceResult ValidateAccessRestrictions(
+        protected internal static ServiceResult ValidateAccessRestrictions(
             OperationContext context,
             NodeMetadata nodeMetadata)
         {

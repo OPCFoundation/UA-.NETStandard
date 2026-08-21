@@ -292,6 +292,34 @@ jobs:
           echo "OPCUA_PKCS11_PIN=1234"
         } >> "$GITHUB_ENV"
 
+    # .NET reaches QUIC through msquic, which the hosted Linux images do not
+    # ship. Without it QuicListener.IsSupported is false and every QUIC test
+    # skips itself - 61 of them - so Opc.Ua.Bindings.Quic contributed no
+    # coverage at all and the transport was effectively untested in CI.
+    # Installing it here is what makes those tests actually run. Linux only:
+    # msquic is unavailable on macOS, where the honest skip still applies.
+    # Deliberately strict, like Setup SoftHSM2 above: a provisioning failure
+    # fails the step rather than quietly reducing the QUIC suite to skips.
+    - name: Setup msquic
+      if: ${{ matrix.csproj == 'Core.DataChannels' && runner.os == 'Linux' }}
+      shell: bash
+      run: |
+        set -euo pipefail
+        . /etc/os-release
+        curl -fsSL "https://packages.microsoft.com/config/${ID}/${VERSION_ID}/packages-microsoft-prod.deb" \
+          -o /tmp/packages-microsoft-prod.deb
+        sudo dpkg -i /tmp/packages-microsoft-prod.deb
+        sudo apt-get update
+        sudo apt-get install -y libmsquic
+
+        # Fail here rather than let the QUIC tests quietly skip everything.
+        ldconfig -p | grep -q libmsquic
+
+        # Turns the platform skip into a failure for this job, so a future
+        # image or package change cannot silently return the QUIC binding to
+        # zero coverage.
+        echo "UA_REQUIRE_QUIC=1" >> "$GITHUB_ENV"
+
     - name: Build
       # Build in parallel with the shared compiler (both `dotnet build` defaults).
       # These were previously pinned to `-maxcpucount:1 /p:UseSharedCompilation=false`

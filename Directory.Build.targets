@@ -49,6 +49,15 @@
          building against a framework the rest of the solution is not using. -->
     <_RestrictedToLegacyTfm
         Condition="'$(RestrictForLegacyTfm)' == 'true' and '$(CustomTestTarget)' != '' and '$(TargetFrameworks)' == '' and '$(TargetFramework)' != '' and '$(CustomTestTarget)' != '$(TargetFramework)'">true</_RestrictedToLegacyTfm>
+    <!-- A project whose floor is above net8.0 names the extra pins it cannot
+         take part in, semicolon separated, in
+         RestrictForLegacyTfmAdditionalTargets. The list above covers the
+         .NET Framework and netstandard pins, which is the right floor for a
+         .NET 8+ project; one that needs a newer runtime (Opc.Ua.Bindings.Quic
+         needs net9.0, because System.Net.Quic is behind RequiresPreviewFeatures
+         on net8.0) would otherwise be compiled against a pin it cannot use. -->
+    <_RestrictedToLegacyTfm
+        Condition="'$(RestrictForLegacyTfm)' == 'true' and '$(CustomTestTarget)' != '' and '$(RestrictForLegacyTfmAdditionalTargets)' != '' and $([System.String]::Concat(';', '$(RestrictForLegacyTfmAdditionalTargets)', ';').Contains(';$(CustomTestTarget);'))">true</_RestrictedToLegacyTfm>
   </PropertyGroup>
   <PropertyGroup Condition="'$(_RestrictedToLegacyTfm)' == 'true'">
     <OutputType>Library</OutputType>
@@ -76,7 +85,7 @@
     <Content Remove="@(Content)" />
   </ItemGroup>
   <Target Name="_LogSkippedForLegacyTfm" BeforeTargets="Build" Condition="'$(_RestrictedToLegacyTfm)' == 'true'">
-    <Message Importance="high" Text="Skipping $(MSBuildProjectName) for CustomTestTarget=$(CustomTestTarget) (.NET 8+ only)." />
+    <Message Importance="high" Text="Skipping $(MSBuildProjectName) for CustomTestTarget=$(CustomTestTarget) (the project cannot take part in this pin)." />
   </Target>
   <!--
     Every package in this repository is licensed under the OPC Foundation MIT

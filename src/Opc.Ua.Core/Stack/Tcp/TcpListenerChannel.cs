@@ -150,6 +150,7 @@ namespace Opc.Ua.Bindings
         /// </summary>
         protected override void Dispose(bool disposing)
         {
+            UaSCSecureChannelRegistry.Unbind(GlobalChannelId, this);
             base.Dispose(disposing);
         }
 
@@ -258,6 +259,13 @@ namespace Opc.Ua.Bindings
                 State = TcpChannelState.Connecting;
 
                 Transport = transport;
+
+                if (transport is IUaSCSecureChannelBoundTransport boundTransport)
+                {
+                    boundTransport.OnSecureChannelAttached(GlobalChannelId);
+                }
+
+                UaSCSecureChannelRegistry.Bind(GlobalChannelId, this);
 
                 m_logger.TcpListenChannelLog0(
                     ChannelName,
@@ -825,10 +833,11 @@ namespace Opc.Ua.Bindings
                     token,
                     response,
                     false,
-                    out bool limitsExceeded);
+                    out bool limitsExceeded,
+                    out SendGateTicket sendTicket);
 
                 // send message.
-                BeginWriteMessage(buffers, null);
+                BeginWriteMessage(buffers, null, sendTicket);
                 buffers = null;
             }
             catch (Exception e)

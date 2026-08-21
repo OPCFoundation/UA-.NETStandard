@@ -112,6 +112,16 @@ namespace Opc.Ua
         public const string UriSchemeOpcTcp = "opc.tcp";
 
         /// <summary>
+        /// The URI scheme for the UA protocol over QUIC.
+        /// </summary>
+        /// <remarks>
+        /// Experimental. Defined by the OPC UA Data Channels errata,
+        /// Part 6 clause 7. The default port is UDP 4840, which does not
+        /// collide with TCP 4840.
+        /// </remarks>
+        public const string UriSchemeOpcQuic = "opc.quic";
+
+        /// <summary>
         /// The URI scheme for the UA TCP protocol over Secure WebSockets.
         /// </summary>
         public const string UriSchemeOpcWss = "opc.wss";

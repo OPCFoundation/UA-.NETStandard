@@ -262,7 +262,7 @@ namespace Opc.Ua.Schema.Model.Tests
         {
             ModelDesignValidator validator = CreateValidatedValidator();
 
-            Assert.That(validator.GetListOfServices(), Has.Length.EqualTo(39));
+            Assert.That(validator.GetListOfServices(), Has.Length.EqualTo(42));
         }
 
         [Test]
@@ -270,8 +270,24 @@ namespace Opc.Ua.Schema.Model.Tests
         {
             ModelDesignValidator validator = CreateValidatedValidator();
 
-            Assert.That(validator.GetListOfServices(ServiceCategory.Session), Has.Length.EqualTo(4));
-            Assert.That(validator.GetListOfServices(ServiceCategory.None), Is.Empty);
+            Service[] session = validator.GetListOfServices(ServiceCategory.Session);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(session, Has.Length.EqualTo(7));
+
+                // Named rather than counted alone, so a change to this figure
+                // has to say which Service moved in or out of the category.
+                Assert.That(
+                    session.Select(service => service.Name),
+                    Is.SupersetOf(new[]
+                    {
+                        "OpenDataChannel",
+                        "ModifyDataChannel",
+                        "CloseDataChannel"
+                    }));
+                Assert.That(validator.GetListOfServices(ServiceCategory.None), Is.Empty);
+            });
         }
 
         [TestCase(SpecificationVersion.V103)]

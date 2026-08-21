@@ -10,6 +10,10 @@
     <Project Path="samples/Robotics/IntentViewerClient/IntentViewerClient.csproj" />
     <Project Path="samples/Quickstarts.Servers/Quickstarts.Servers.csproj" />
   </Folder>
+  <Folder Name="/samples/Core/">
+    <Project Path="samples/Core/ConsoleDataChannelAudio/ConsoleDataChannelAudio.csproj" />
+    <Project Path="samples/Core/ConsoleDataChannelStreaming/ConsoleDataChannelStreaming.csproj" />
+  </Folder>
   <Folder Name="/samples/DI/">
     <Project Path="samples/DI/PumpDeviceIntegrationServer/PumpDeviceIntegrationServer.csproj" />
   </Folder>
@@ -138,6 +142,7 @@
     <Project Path="src/Opc.Ua.WotCon.Client/Opc.Ua.WotCon.Client.csproj" />
     <Project Path="src/Opc.Ua.WotCon.Server/Opc.Ua.WotCon.Server.csproj" />
     <Project Path="src/Opc.Ua.Bindings.Https/Opc.Ua.Bindings.Https.csproj" />
+    <Project Path="src/Opc.Ua.Bindings.Quic/Opc.Ua.Bindings.Quic.csproj" />
     <Project Path="src/Opc.Ua.Core/Opc.Ua.Core.csproj" />
     <Project Path="src/Opc.Ua.Core.Types/Opc.Ua.Core.Types.csproj" />
     <Project Path="src/Opc.Ua.Core.Diagnostics/Opc.Ua.Core.Diagnostics.csproj" />
@@ -266,6 +271,7 @@
     <Project Path="tests/Opc.Ua.Aot.Tests/Opc.Ua.Aot.Tests.csproj" />
     <Project Path="tests/Opc.Ua.Configuration.Tests/Opc.Ua.Configuration.Tests.csproj" />
     <Project Path="tests/Opc.Ua.Core.Tests/Opc.Ua.Core.Tests.csproj" />
+    <Project Path="tests/Opc.Ua.Core.DataChannels.Tests/Opc.Ua.Core.DataChannels.Tests.csproj" />
     <Project Path="tests/Opc.Ua.Core.Encoders.Tests/Opc.Ua.Core.Encoders.Tests.csproj" />
     <Project Path="tests/Opc.Ua.Core.Security.Tests/Opc.Ua.Core.Security.Tests.csproj" />
     <Project Path="tests/Opc.Ua.Di.Tests/Opc.Ua.Di.Tests.csproj" />

@@ -638,6 +638,20 @@ namespace Opc.Ua.Bindings
             _ = DispatchRequestAsync(channel, requestId, request);
         }
 
+        private void NotifyResponseDispatched(SecureChannelContext context)
+        {
+            try
+            {
+                context.ResponseDispatched?.Invoke();
+            }
+            catch (Exception ex)
+            {
+                // A callback that throws must not fault the request loop; the
+                // response has already been handed to the transport.
+                Logger.KestrelResponseDispatchedCallbackFailed(ex);
+            }
+        }
+
         private async Task DispatchRequestAsync(
             TcpListenerChannel channel,
             uint requestId,
@@ -660,6 +674,7 @@ namespace Opc.Ua.Bindings
                     .ProcessRequestAsync(context, request)
                     .ConfigureAwait(false);
                 ((TcpServerChannel)channel).SendResponse(requestId, response);
+                NotifyResponseDispatched(context);
             }
             catch (Exception ex)
             {
@@ -790,6 +805,13 @@ namespace Opc.Ua.Bindings
         [LoggerMessage(EventId = BindingsHttpsEventIds.KestrelTcpTransportListener + 6, Level = LogLevel.Information,
             Message = "KestrelTcp closed {Count} SecureChannel(s) whose peer certificate is no longer trusted.")]
         public static partial void KestrelClosedUntrustedPeerSecureChannels(this ILogger logger, int count);
+
+        [LoggerMessage(EventId = BindingsHttpsEventIds.KestrelTcpTransportListener + 7, Level = LogLevel.Error,
+            Message = "KestrelTcp - A response-dispatched callback threw. " +
+                "The response itself has already been written.")]
+        public static partial void KestrelResponseDispatchedCallbackFailed(
+            this ILogger logger,
+            global::System.Exception? exception);
     }
 }
 #endif // NET8_0_OR_GREATER
