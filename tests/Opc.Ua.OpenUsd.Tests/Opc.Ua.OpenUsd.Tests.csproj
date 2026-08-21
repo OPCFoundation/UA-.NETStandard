@@ -63,7 +63,7 @@
           Link="Assets\Sample\%(Filename)%(Extension)">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
-    <None Include="..\..\samples\GeneratorServer\Assets\generator.usda"
+    <None Include="..\..\samples\OpenUsd\GeneratorServer\Assets\generator.usda"
           Link="Assets\Sample\generator.usda">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
@@ -74,7 +74,7 @@
        internals are excluded there. GeneratorAssetContractTests only reads the
        authored .usda as text, so it stays on every framework. -->
   <ItemGroup Condition="'$(TargetFramework)' != 'net472'">
-    <ProjectReference Include="..\..\samples\GeneratorServer\GeneratorServer.csproj" />
+    <ProjectReference Include="..\..\samples\OpenUsd\GeneratorServer\GeneratorServer.csproj" />
   </ItemGroup>
   <ItemGroup Condition="'$(TargetFramework)' == 'net472'">
     <Compile Remove="Generator\GeneratorDatasheetConformanceTests.cs" />

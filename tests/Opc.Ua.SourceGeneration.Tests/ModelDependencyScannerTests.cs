@@ -1049,6 +1049,14 @@ namespace Opc.Ua.SourceGeneration
                 ?? throw new InvalidOperationException("Test assembly directory was not found.");
             var directory = new DirectoryInfo(assemblyDirectory);
             string targetFramework = directory.Name;
+#if NET_STANDARD_TESTS
+            // TFM skew: this test assembly is compiled as net8.0, but on the
+            // .NETStandard 2.1 test leg the stack (Opc.Ua.Server and its
+            // dependencies) is compiled as netstandard2.1. Resolve the stack
+            // references from the netstandard2.1 output rather than the test's
+            // own target framework folder, which does not exist on that leg.
+            targetFramework = "netstandard2.1";
+#endif
             string configuration = directory.Parent?.Name
                 ?? throw new InvalidOperationException("Test configuration directory was not found.");
             for (int i = 0; i < 5; i++)

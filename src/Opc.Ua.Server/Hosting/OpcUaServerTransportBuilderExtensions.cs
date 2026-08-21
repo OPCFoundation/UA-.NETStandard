@@ -51,64 +51,7 @@ namespace Microsoft.Extensions.DependencyInjection
             new BuilderAdapter(builder.Services).AddOpcTcpTransport();
             return builder;
         }
-#if !NOHTTPS
-        /// <summary>
-        /// Adds the HTTPS transport and returns the server builder.
-        /// </summary>
-        /// <exception cref="ArgumentNullException"></exception>
-        public static IOpcUaServerBuilder AddHttpsTransport(this IOpcUaServerBuilder builder)
-        {
-            if (builder is null)
-            {
-                throw new ArgumentNullException(nameof(builder));
-            }
-            new BuilderAdapter(builder.Services).AddHttpsTransport();
-            return builder;
-        }
 
-        /// <summary>
-        /// Adds the WSS transport and returns the server builder.
-        /// </summary>
-        /// <exception cref="ArgumentNullException"></exception>
-        public static IOpcUaServerBuilder AddWssTransport(this IOpcUaServerBuilder builder)
-        {
-            if (builder is null)
-            {
-                throw new ArgumentNullException(nameof(builder));
-            }
-            new BuilderAdapter(builder.Services).AddWssTransport();
-            return builder;
-        }
-#if NET8_0_OR_GREATER
-        /// <summary>
-        /// Adds the Kestrel-hosted OPC TCP transport and returns the server builder.
-        /// </summary>
-        /// <exception cref="ArgumentNullException"></exception>
-        public static IOpcUaServerBuilder AddKestrelOpcTcpTransport(this IOpcUaServerBuilder builder)
-        {
-            if (builder is null)
-            {
-                throw new ArgumentNullException(nameof(builder));
-            }
-            new BuilderAdapter(builder.Services).AddKestrelOpcTcpTransport();
-            return builder;
-        }
-
-        /// <summary>
-        /// Adds the OPC UA REST transport and returns the server builder.
-        /// </summary>
-        /// <exception cref="ArgumentNullException"></exception>
-        public static IOpcUaServerBuilder AddWebApiTransport(this IOpcUaServerBuilder builder)
-        {
-            if (builder is null)
-            {
-                throw new ArgumentNullException(nameof(builder));
-            }
-            new BuilderAdapter(builder.Services).AddWebApiTransport();
-            return builder;
-        }
-#endif
-#endif
         private sealed class BuilderAdapter : IOpcUaBuilder
         {
             public BuilderAdapter(IServiceCollection services)

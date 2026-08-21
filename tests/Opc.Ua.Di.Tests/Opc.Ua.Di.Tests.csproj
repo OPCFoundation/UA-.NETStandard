@@ -40,7 +40,7 @@
     <!-- PumpDeviceIntegrationServer matches AppTargetFrameworks (net48/net8.0/net9.0/net10.0).
          The DI tests also target net472 where PumpDeviceIntegrationServer does not exist,
          so the reference and the Pump-specific fixtures are skipped on net472. -->
-    <ProjectReference Include="..\..\samples\PumpDeviceIntegrationServer\PumpDeviceIntegrationServer.csproj"
+    <ProjectReference Include="..\..\samples\DI\PumpDeviceIntegrationServer\PumpDeviceIntegrationServer.csproj"
                       Condition="'$(TargetFramework)' != 'net472'" />
     <ProjectReference Include="..\..\src\Opc.Ua.OpenUsd.Client\Opc.Ua.OpenUsd.Client.csproj"
                       Condition="'$(TargetFramework)' != 'net472'" />
@@ -50,7 +50,7 @@
                       Condition="'$(TargetFramework)' != 'net472'" />
     <ProjectReference Include="..\..\samples\Robotics\MinimalRobotServer\MinimalRobotServer.csproj"
                       Condition="'$(TargetFramework)' != 'net472'" />
-    <ProjectReference Include="..\..\samples\SiteCompositionServer\SiteCompositionServer.csproj"
+    <ProjectReference Include="..\..\samples\OpenUsd\SiteCompositionServer\SiteCompositionServer.csproj"
                       Condition="'$(TargetFramework)' != 'net472'" />
     <ProjectReference Include="..\Opc.Ua.Client.TestFramework\Opc.Ua.Client.TestFramework.csproj" />
     <ProjectReference Include="..\Opc.Ua.Server.TestFramework\Opc.Ua.Server.TestFramework.csproj" />

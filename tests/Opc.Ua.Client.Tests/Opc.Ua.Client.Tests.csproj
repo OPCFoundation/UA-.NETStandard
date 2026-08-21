@@ -4,7 +4,7 @@
     <TargetFrameworks>$(TestsTargetFrameworks)</TargetFrameworks>
     <RootNamespace>Opc.Ua.Client.Tests</RootNamespace>
     <GenerateProgramFile>false</GenerateProgramFile>
-    <!-- ClientSamples.cs (linked from samples/ConsoleReferenceClient) uses
+    <!-- ClientSamples.cs (linked from samples/Reference/ConsoleReferenceClient) uses
          nullable annotations; enable annotation parsing so the linked file compiles. -->
     <Nullable>annotations</Nullable>
   </PropertyGroup>
@@ -34,7 +34,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="..\Common\Main.cs" />
-    <Compile Include="..\..\samples\ConsoleReferenceClient\ClientSamples.cs" Link="Links\ClientSamples.cs" />
+    <Compile Include="..\..\samples\Reference\ConsoleReferenceClient\ClientSamples.cs" Link="Links\ClientSamples.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Update="test-browser-options.xml">

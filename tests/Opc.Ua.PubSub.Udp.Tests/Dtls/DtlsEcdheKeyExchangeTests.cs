@@ -49,6 +49,13 @@ namespace Opc.Ua.PubSub.Udp.Tests.Dtls
         [TestCase(DtlsNamedCurve.NistP384)]
         public void SupportedNistGroupsDeriveSameSecret(DtlsNamedCurve curve)
         {
+            if (!DtlsEcdheKeyExchange.IsRawSharedSecretSupported)
+            {
+                Assert.Ignore(
+                    "Raw ECDHE shared-secret derivation requires .NET 8 or later; the stack " +
+                    "assembly under test was compiled without it.");
+            }
+
             using var client = new DtlsEcdheKeyExchange(curve);
             using var server = new DtlsEcdheKeyExchange(curve);
 
@@ -62,6 +69,13 @@ namespace Opc.Ua.PubSub.Udp.Tests.Dtls
         [TestCase(DtlsNamedCurve.BrainpoolP384r1)]
         public void SupportedBrainpoolGroupsDeriveSameSecretWhenPlatformSupportsThem(DtlsNamedCurve curve)
         {
+            if (!DtlsEcdheKeyExchange.IsRawSharedSecretSupported)
+            {
+                Assert.Ignore(
+                    "Raw ECDHE shared-secret derivation requires .NET 8 or later; the stack " +
+                    "assembly under test was compiled without it.");
+            }
+
             try
             {
                 using var client = new DtlsEcdheKeyExchange(curve);

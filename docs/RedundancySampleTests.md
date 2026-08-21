@@ -1,8 +1,8 @@
 # Redundant Sample Integration Tests
 
 The `Opc.Ua.Redundancy.Samples.Tests` project contains process-level integration tests that launch the redundant sample applications
-&mdash; [`RedundantServer`](../samples/RedundantServer), [`RedundantClient`](../samples/RedundantClient) and
-[`RedundantPubSub`](../samples/RedundantPubSub) &mdash; as real external processes and assert on the high-availability behavior they log
+&mdash; [`RedundantServer`](../samples/Redundancy/RedundantServer), [`RedundantClient`](../samples/Redundancy/RedundantClient) and
+[`RedundantPubSub`](../samples/Redundancy/RedundantPubSub) &mdash; as real external processes and assert on the high-availability behavior they log
 (`FAILOVER:`, `DATA LOSS:`, `HA OK:`, and reconnect events). They exercise the samples in their supported setups so that regressions in the
 end-to-end high-availability experience are caught automatically, and they demonstrate both successful failover *and* the visibility of data loss.
 
@@ -56,7 +56,7 @@ The long-haul tests run in CI through dedicated, manually triggerable jobs on bo
 
 The full multi-replica leader-election topologies &mdash; strong (Raft) active/passive and eventual (CRDT gossip) active/active &mdash; rely on a
 stable virtual endpoint with DNS-based re-resolution to a surviving replica. These are demonstrated end-to-end by the docker-compose setups under
-[`samples/RedundantServer`](../samples/RedundantServer) and [`samples/RedundantClient`](../samples/RedundantClient), which run
+[`samples/Redundancy/RedundantServer`](../samples/Redundancy/RedundantServer) and [`samples/Redundancy/RedundantClient`](../samples/Redundancy/RedundantClient), which run
 several replicas on a container network and let you kill the active replica to observe cross-replica failover. The process-level long-haul soak
 above focuses on the failover-detection, reconnect, and data-loss-visibility behavior that runs deterministically inside a CI runner without
 container networking.

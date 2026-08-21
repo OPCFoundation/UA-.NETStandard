@@ -169,7 +169,7 @@ public void ExportNodesToNodeSet2(
 ## Related Topics
 
 - [Working with ComplexTypes](ComplexTypes.md)
-- [Console Reference Client](../samples/ConsoleReferenceClient/README.md)
+- [Console Reference Client](../samples/Reference/ConsoleReferenceClient/README.md)
 - OPC UA NodeSet2 XML Schema specification
 
 ## Examples
@@ -177,7 +177,7 @@ public void ExportNodesToNodeSet2(
 For complete examples of using the NodeSet export functionality, see:
 
 - `tests/Opc.Ua.Client.Tests/NodeSetExportTest.cs` - Unit tests demonstrating various export scenarios
-- `samples/ConsoleReferenceClient/ClientSamples.cs` - Integration in the reference client
+- `samples/Reference/ConsoleReferenceClient/ClientSamples.cs` - Integration in the reference client
 
 ## See Also
 

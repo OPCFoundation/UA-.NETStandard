@@ -766,7 +766,7 @@ pubsub.AddKafkaTransport()
 
 The Confluent backend uses native librdkafka and is not NativeAOT or trimming compatible.
 
-Subscribers set `GroupId` (consumer group) and `AutoOffsetReset` instead of the delivery guarantee. Writer and reader groups use the same fluent `PubSubConfigurationBuilder` shown under [Fluent builder walkthrough](#fluent-builder-walkthrough); the [reference sample](../samples/ConsoleReferencePubSubClient/README.md) contains complete Kafka publisher and subscriber configurations.
+Subscribers set `GroupId` (consumer group) and `AutoOffsetReset` instead of the delivery guarantee. Writer and reader groups use the same fluent `PubSubConfigurationBuilder` shown under [Fluent builder walkthrough](#fluent-builder-walkthrough); the [reference sample](../samples/PubSub/ConsoleReferencePubSubClient/README.md) contains complete Kafka publisher and subscriber configurations.
 
 **Topic mapping.** Kafka topics come from the OPC UA broker transport settings: `BrokerDataSetWriterTransportDataType.QueueName` / `BrokerDataSetReaderTransportDataType.QueueName` select the per-writer/reader data topic, `BrokerWriterGroupTransportDataType.QueueName` is the writer-group fallback, and `MetaDataQueueName` selects the metadata topic. When `MetaDataQueueName` is unset the transport derives a deterministic fallback from `KafkaConnectionOptions.Topics.Prefix`, the encoding, message type, PublisherId, WriterGroupId, and DataSetWriterId (segments joined with `.`). Use Kafka-safe characters (letters, digits, `.`, `_`, `-`).
 
@@ -1868,7 +1868,7 @@ For Actions, leave `ServerActionResponderOptions.AllowUnsecured` at its default 
 
 ### Sample
 
-See `samples\ConsoleReferencePubSubClient` (the `external` mode) for a complete host that wires PubSub configuration, transport registration, external session options, publisher/subscriber binding, and Action-to-Call mapping in one process.
+See `samples\PubSub\ConsoleReferencePubSubClient` (the `external` mode) for a complete host that wires PubSub configuration, transport registration, external session options, publisher/subscriber binding, and Action-to-Call mapping in one process.
 
 ### See also
 
@@ -2000,7 +2000,7 @@ The PubSub assemblies (`Opc.Ua.PubSub`, `.Udp`, `.Eth`, `.Mqtt`, and `.Kafka`) a
   AOT-published binary.
 - **Reference sample.** The combined reference application publishes AOT-clean
   with zero `IL2026` / `IL3050` warnings:
-  - [`samples/ConsoleReferencePubSubClient`](../samples/ConsoleReferencePubSubClient/README.md) (`publisher` / `subscriber` / `external` modes)
+  - [`samples/PubSub/ConsoleReferencePubSubClient`](../samples/PubSub/ConsoleReferencePubSubClient/README.md) (`publisher` / `subscriber` / `external` modes)
 
 ## Spec coverage
 
@@ -2050,4 +2050,4 @@ below maps Part 14 sections to the type / file that implements them.
 - [Profiles and Facets](Profiles.md#pubsub-transports)
 - [Certificate Manager](CertificateManager.md)
 - [Sessions](Sessions.md) — Part 4 service set used by the SKS client.
-- [Reference PubSub Client sample (`samples/ConsoleReferencePubSubClient/README.md`)](../samples/ConsoleReferencePubSubClient/README.md)
+- [Reference PubSub Client sample (`samples/PubSub/ConsoleReferencePubSubClient/README.md`)](../samples/PubSub/ConsoleReferencePubSubClient/README.md)

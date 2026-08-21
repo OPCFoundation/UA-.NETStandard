@@ -479,8 +479,14 @@ namespace Opc.Ua.Client
                 {
                     if (Connected)
                     {
-                        await WaitForOrCancelOutstandingPublishRequestsAsync(default).ConfigureAwait(false);
-                        await base.CloseSessionAsync(null, DeleteSubscriptionsOnClose, default).ConfigureAwait(false);
+                        var request = new CloseSessionRequest
+                        {
+                            DeleteSubscriptions = DeleteSubscriptionsOnClose
+                        };
+                        UpdateRequestHeader(request, true, "CloseSession");
+                        await TransportChannel
+                            .SendRequestAsync(request, default)
+                            .ConfigureAwait(false);
                     }
                 }
                 catch (Exception ex) when (ex is not OutOfMemoryException)

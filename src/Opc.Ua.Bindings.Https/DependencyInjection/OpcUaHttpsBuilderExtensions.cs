@@ -85,6 +85,26 @@ namespace Microsoft.Extensions.DependencyInjection
         }
 
         /// <summary>
+        /// Registers the HTTPS transport and returns the same specialized builder.
+        /// </summary>
+        /// <typeparam name="TBuilder">The specialized transport builder type.</typeparam>
+        /// <param name="builder">The OPC UA transport builder.</param>
+        /// <returns>The same <paramref name="builder"/> instance.</returns>
+        /// <exception cref="ArgumentNullException"><paramref name="builder"/> is <c>null</c>.</exception>
+        public static TBuilder AddHttpsTransport<TBuilder>(this TBuilder builder)
+            where TBuilder : IOpcUaTransportBuilder
+        {
+            if (builder is null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
+
+            IOpcUaBuilder rootBuilder = builder.Services.AddOpcUa();
+            rootBuilder.AddHttpsTransport();
+            return builder;
+        }
+
+        /// <summary>
         /// Registers the one-shot Kestrel-backed HTTPS/WSS transport stack
         /// and optionally attaches the OPC UA REST binding and
         /// authentication services.
@@ -122,6 +142,35 @@ namespace Microsoft.Extensions.DependencyInjection
         }
 
         /// <summary>
+        /// Registers the configured HTTPS transport and returns the same specialized builder.
+        /// </summary>
+        /// <typeparam name="TBuilder">The specialized transport builder type.</typeparam>
+        /// <param name="builder">The OPC UA transport builder.</param>
+        /// <param name="configure">Callback used to configure the composed HTTPS transport.</param>
+        /// <returns>The same <paramref name="builder"/> instance.</returns>
+        /// <exception cref="ArgumentNullException">
+        /// <paramref name="builder"/> or <paramref name="configure"/> is <c>null</c>.
+        /// </exception>
+        public static TBuilder AddHttpsTransport<TBuilder>(
+            this TBuilder builder,
+            Action<OpcUaHttpsTransportOptions> configure)
+            where TBuilder : IOpcUaTransportBuilder
+        {
+            if (builder is null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
+            if (configure is null)
+            {
+                throw new ArgumentNullException(nameof(configure));
+            }
+
+            IOpcUaBuilder rootBuilder = builder.Services.AddOpcUa();
+            rootBuilder.AddHttpsTransport(configure);
+            return builder;
+        }
+
+        /// <summary>
         /// Registers the WSS listener factories
         /// (<see cref="WssTransportListenerFactory"/>,
         /// <see cref="OpcWssTransportListenerFactory"/>) and the
@@ -142,6 +191,26 @@ namespace Microsoft.Extensions.DependencyInjection
         public static IOpcUaBuilder AddWssTransport(this IOpcUaBuilder builder)
         {
             return AddWssBindings(builder);
+        }
+
+        /// <summary>
+        /// Registers the WSS transport and returns the same specialized builder.
+        /// </summary>
+        /// <typeparam name="TBuilder">The specialized transport builder type.</typeparam>
+        /// <param name="builder">The OPC UA transport builder.</param>
+        /// <returns>The same <paramref name="builder"/> instance.</returns>
+        /// <exception cref="ArgumentNullException"><paramref name="builder"/> is <c>null</c>.</exception>
+        public static TBuilder AddWssTransport<TBuilder>(this TBuilder builder)
+            where TBuilder : IOpcUaTransportBuilder
+        {
+            if (builder is null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
+
+            IOpcUaBuilder rootBuilder = builder.Services.AddOpcUa();
+            rootBuilder.AddWssTransport();
+            return builder;
         }
 
         /// <summary>
@@ -176,6 +245,35 @@ namespace Microsoft.Extensions.DependencyInjection
             }
 #endif
             options.ConfigureAuthentication?.Invoke(builder);
+            return builder;
+        }
+
+        /// <summary>
+        /// Registers the configured WSS transport and returns the same specialized builder.
+        /// </summary>
+        /// <typeparam name="TBuilder">The specialized transport builder type.</typeparam>
+        /// <param name="builder">The OPC UA transport builder.</param>
+        /// <param name="configure">Callback used to configure the composed WSS transport.</param>
+        /// <returns>The same <paramref name="builder"/> instance.</returns>
+        /// <exception cref="ArgumentNullException">
+        /// <paramref name="builder"/> or <paramref name="configure"/> is <c>null</c>.
+        /// </exception>
+        public static TBuilder AddWssTransport<TBuilder>(
+            this TBuilder builder,
+            Action<OpcUaWssTransportOptions> configure)
+            where TBuilder : IOpcUaTransportBuilder
+        {
+            if (builder is null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
+            if (configure is null)
+            {
+                throw new ArgumentNullException(nameof(configure));
+            }
+
+            IOpcUaBuilder rootBuilder = builder.Services.AddOpcUa();
+            rootBuilder.AddWssTransport(configure);
             return builder;
         }
 
