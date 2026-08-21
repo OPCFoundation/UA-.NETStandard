@@ -1872,7 +1872,7 @@ The client (`ManagedSession` with `WithServerRedundancy()`) sees a transparent r
 2. **`ManagedNodeManager` gains `INodeBehaviorSource`;** `CustomNodeManager2`/`AsyncCustomNodeManager` keep every virtual, but the 55 never‑overridden ones become non‑virtual‑by‑default in the new base while the old bases stay for the 33 existing subclasses.
 3. **Retype the `object` leaks additively:** add `GetManagerHandleAsync : ValueTask<NodeManagerHandle?>`, `RestoreHistoryContinuationPointAsync : IHistoryContinuationState?`, and `GetServerDiagnosticsAsync`; mark the `object`/lock members `[Obsolete]`.
 4. **The Redundancy library rebinds to the new `IServerStartupTask(IServerContext, IServiceProvider)` overload** and stops calling `Set*` — no behaviour change, just a cleaner seam.
-5. Update `docs/HighAvailability.md` + `migrationguide.md`; the `samples/RedundantServer` "no data loss on strong store" test is the acceptance gate.
+5. Update `docs/HighAvailability.md` + `migrationguide.md`; the `samples/Redundancy/RedundantServer` "no data loss on strong store" test is the acceptance gate.
 
 ---
 

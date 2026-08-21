@@ -17,17 +17,15 @@
          legacy TFM this test project cannot target. -->
     <RestrictForLegacyTfm>true</RestrictForLegacyTfm>
   </PropertyGroup>
-  <!-- On macOS (notably ARM64 / Apple silicon CI runners) the Apple linker can hit a
-       "too many large addends" assertion when linking a very large NativeAOT
-       binary. Folding identical method bodies reduces the number of fixups
-       below the threshold, and falling back to ld_classic provides a second
-       safety net on toolchains that still ship the classic linker. -->
+  <!-- On macOS (notably ARM64 / Apple silicon CI runners) the Apple linker can hit
+       assertions when linking a very large NativeAOT binary. Folding identical method
+       bodies reduces the number of fixups and helps avoid linker thresholds.
+       Note: -ld_classic was previously used as a fallback but is now deprecated and
+       crashes with an assertion in recent Xcode toolchains; the default (new) linker
+       handles the binary correctly. -->
   <PropertyGroup Condition="$([MSBuild]::IsOSPlatform('OSX'))">
     <IlcFoldIdenticalMethodBodies>true</IlcFoldIdenticalMethodBodies>
   </PropertyGroup>
-  <ItemGroup Condition="$([MSBuild]::IsOSPlatform('OSX'))">
-    <LinkerArg Include="-ld_classic" />
-  </ItemGroup>
   <ItemGroup>
     <PackageReference Include="TUnit" />
   </ItemGroup>
@@ -61,13 +59,13 @@
     <ProjectReference Include="..\..\src\Opc.Ua.PubSub.Udp\Opc.Ua.PubSub.Udp.csproj" />
     <ProjectReference Include="..\..\src\Opc.Ua.PubSub.Eth\Opc.Ua.PubSub.Eth.csproj" />
     <ProjectReference Include="..\..\src\Opc.Ua.PubSub.Mqtt\Opc.Ua.PubSub.Mqtt.csproj" />
-    <ProjectReference Include="..\..\samples\MinimalBoilerServer\MinimalBoilerServer.csproj">
+    <ProjectReference Include="..\..\samples\MinimalApi\MinimalBoilerServer\MinimalBoilerServer.csproj">
       <Aliases>boilersample</Aliases>
     </ProjectReference>
-    <ProjectReference Include="..\..\samples\MinimalCalcServer\MinimalCalcServer.csproj">
+    <ProjectReference Include="..\..\samples\MinimalApi\MinimalCalcServer\MinimalCalcServer.csproj">
       <Aliases>calcsample</Aliases>
     </ProjectReference>
-    <ProjectReference Include="..\..\samples\ConsoleReferencePubSubClient\ConsoleReferencePubSubClient.csproj">
+    <ProjectReference Include="..\..\samples\PubSub\ConsoleReferencePubSubClient\ConsoleReferencePubSubClient.csproj">
       <Aliases>pubsubsample</Aliases>
     </ProjectReference>
   </ItemGroup>

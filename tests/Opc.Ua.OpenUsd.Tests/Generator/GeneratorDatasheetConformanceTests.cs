@@ -241,7 +241,7 @@ namespace Opc.Ua.OpenUsd.Tests.Generator
             while (dir != null)
             {
                 string candidate = Path.Combine(
-                    dir.FullName, "samples", "GeneratorServer", "DATASHEET.md");
+                    dir.FullName, "samples", "OpenUsd", "GeneratorServer", "DATASHEET.md");
                 if (File.Exists(candidate))
                 {
                     return candidate;

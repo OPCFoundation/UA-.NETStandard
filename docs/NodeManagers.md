@@ -732,7 +732,7 @@ ready-to-host `AsyncCustomNodeManager` for an information model design XML, and
 how to wire callbacks (read/write/method/lifecycle) using the fluent
 `INodeManagerBuilder` API. The combination is designed for **single-file,
 NativeAOT-friendly** servers — see
-`samples/MinimalBoilerServer` for the canonical sample.
+`samples/MinimalApi/MinimalBoilerServer` for the canonical sample.
 
 ### What the generator produces
 
@@ -1079,7 +1079,7 @@ public partial class CalcNodeManager
 ```
 
 The end-to-end sample lives in
-`samples/MinimalCalcServer/` (model in `Model/Calc.xml`, wiring
+`samples/MinimalApi/MinimalCalcServer/` (model in `Model/Calc.xml`, wiring
 in `CalcNodeManager.Configure.cs`). The companion AOT round-trip tests
 in `tests/Opc.Ua.Aot.Tests/CalculatorNodeManagerAotTests.cs` exercise
 each shape over a real `Session.CallAsync(...)`.
@@ -1205,7 +1205,7 @@ callback. Once attached, all `Publish` extensions resolve against the
 manager's registry exactly as for generated managers.
 
 The end-to-end sample lives in
-`samples/MinimalBoilerServer/BoilerNodeManager.Configure.cs`
+`samples/MinimalApi/MinimalBoilerServer/BoilerNodeManager.Configure.cs`
 (wiring `GenerateDrumHeartbeatAsync` on the drum). The companion AOT
 round-trip test in
 `tests/Opc.Ua.Aot.Tests/PublishedEventsAotTests.cs` subscribes a
@@ -1251,7 +1251,7 @@ legacy `INodeManagerFactory`. For advanced configuration (custom security
 policies, additional builder calls), set `OpcUaServerOptions.ConfigureBuilder`.
 
 That's the whole server. The Boiler version is in
-`samples/MinimalBoilerServer/Program.cs`.
+`samples/MinimalApi/MinimalBoilerServer/Program.cs`.
 
 ### Multi-namespace and manager-swap subclassing
 
@@ -1302,7 +1302,7 @@ Use `Microsoft.Extensions.Logging.Console` for AOT-friendly logging
 dotnet publish -c Release -r win-x64
 ```
 
-`samples/MinimalBoilerServer` publishes cleanly with **zero AOT/trim
+`samples/MinimalApi/MinimalBoilerServer` publishes cleanly with **zero AOT/trim
 warnings** (~29 MB self-contained EXE).
 
 ### Runtime NodeSet alternative
@@ -1820,15 +1820,15 @@ argument, every type — generated or hand-written — sees the real
 
 ### Sample
 
-- `samples/MinimalBoilerServer/` — a fully self-contained,
+- `samples/MinimalApi/MinimalBoilerServer/` — a fully self-contained,
   NativeAOT single-file Boiler server. Read it top-to-bottom in
   &lt;200 lines.
-- `samples/MinimalCalcServer/` — a calculator server that
+- `samples/MinimalApi/MinimalCalcServer/` — a calculator server that
   exercises the typed
   [methods-with-arguments OnCall overloads](#methods-with-arguments--typed-oncall-overloads)
   end-to-end (sync `int+int → int`, async `double+double → double`,
   sync `string+string → string`).
-- `samples/PumpDeviceIntegrationServer/` — the full OPC 40223
+- `samples/DI/PumpDeviceIntegrationServer/` — the full OPC 40223
   Pumps companion server. Exercises every fluent extension above
   (engineering units, identification properties, FunctionalGroup
   wiring, instance creation, limit alarm with NAMUR-style boolean
