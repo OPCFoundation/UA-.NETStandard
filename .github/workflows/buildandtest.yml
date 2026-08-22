@@ -159,7 +159,7 @@ jobs:
         }
         if ($includeMac -and $relevantChanges) {
             $testOs += 'macOS-latest'
-            $aotMatrix += @{ os = 'macos-13';     rid = 'osx-x64'  }
+            $aotMatrix += @{ os = 'macos-15-intel'; rid = 'osx-x64'  }
             $aotMatrix += @{ os = 'macos-latest'; rid = 'osx-arm64' }
         }
         Write-Host "Event=$($env:EVENT_NAME); include_macos=$includeMac"
