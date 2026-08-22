@@ -388,7 +388,7 @@ jobs:
     # application crash reports that accumulate on shared agents.  Qualifying reports
     # created in the last two hours are copied into $(Agent.TempDirectory)/mac-diagnostics/
     # so the 'Stage diagnostic dumps' CopyFiles step below picks them up automatically.
-    condition: and(succeededOrFailed(), eq(variables['Agent.OS'], 'Darwin'))
+    condition: and(failed(), eq(variables['Agent.OS'], 'Darwin'))
     continueOnError: true
     inputs:
       targetType: inline

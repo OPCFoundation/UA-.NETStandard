@@ -160,6 +160,7 @@ namespace Opc.Ua.Client.TestFramework
             Telemetry = telemetry ?? NUnitTelemetryContext.Create();
             m_logger = Telemetry.CreateLogger<ClientTestFramework>();
             UriScheme = uriScheme;
+            MaxFailedAuthenticationAttempts = 0;
             TestSetStatic = CommonTestWorkers.NodeIdTestSetStatic;
             TestSetStaticMassNumeric = CommonTestWorkers.NodeIdTestSetStaticMassNumeric;
             TestSetSimulation = CommonTestWorkers.NodeIdTestSetSimulation;

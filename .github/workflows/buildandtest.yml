@@ -368,7 +368,7 @@ jobs:
       # unrelated host or application crash reports on shared runners.  Qualifying
       # reports from the last two hours are copied into TESTRESULTS/mac-diagnostics/
       # so the existing 'Upload test results' step picks them up automatically.
-      if: ${{ always() && runner.os == 'macOS' }}
+      if: ${{ failure() && runner.os == 'macOS' }}
       shell: pwsh
       run: |
         $src = [System.IO.Path]::Combine($env:HOME, 'Library', 'Logs', 'DiagnosticReports')
