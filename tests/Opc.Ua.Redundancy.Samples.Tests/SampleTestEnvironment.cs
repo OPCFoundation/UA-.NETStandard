@@ -34,23 +34,35 @@ using System.Globalization;
 namespace Opc.Ua.Redundancy.Samples.Tests
 {
     /// <summary>
-    /// Shared environment-variable presets used to launch the redundant sample
-    /// applications from the integration tests.
+    /// Shared environment-variable helpers used to launch the redundant sample
+    /// applications from the integration tests. Factory methods rather than
+    /// static properties are used where the environment depends on a freshly
+    /// allocated port so that parallel test children do not share the same
+    /// network resource.
     /// </summary>
     internal static class SampleTestEnvironment
     {
         /// <summary>
-        /// Environment for the single-process PubSub demo that shortens the two demo
-        /// phases so the failover narrative completes quickly during tests.
+        /// Builds an environment for the single-process PubSub demo that shortens
+        /// the two demo phases so the failover narrative completes quickly during
+        /// tests. Each call allocates a fresh loopback UDP port so that parallel
+        /// test processes do not contend on the same endpoint.
         /// </summary>
-        public static IReadOnlyDictionary<string, string?> FastDemo { get; } =
-            new Dictionary<string, string?>(StringComparer.Ordinal)
+        /// <returns>
+        /// A new environment dictionary with a unique <c>PUBSUB_ENDPOINT</c> for
+        /// this child process.
+        /// </returns>
+        public static IReadOnlyDictionary<string, string?> BuildFastDemo()
+        {
+            int port = TestPorts.GetFreeUdpPort();
+            return new Dictionary<string, string?>(StringComparer.Ordinal)
             {
                 ["DEMO_FIRST_SECONDS"] = "1",
                 ["DEMO_SECOND_SECONDS"] = "1",
-                ["PUBSUB_ENDPOINT"] = "opc.udp://127.0.0.1:4841",
+                ["PUBSUB_ENDPOINT"] = "opc.udp://127.0.0.1:" + port.ToString(CultureInfo.InvariantCulture),
                 ["HA_INSECURE"] = "true"
             };
+        }
 
         /// <summary>
         /// Environment for a plain, independent managed RedundantClient (one that fails

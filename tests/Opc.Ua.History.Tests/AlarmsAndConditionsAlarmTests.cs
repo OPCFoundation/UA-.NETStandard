@@ -102,6 +102,7 @@ namespace Opc.Ua.History.Tests
             collector.Reset();
 
             await WriteAlarmSourceValueAsync(alarmId, new Variant(90)).ConfigureAwait(false);
+            await collector.ConditionRefreshAsync().ConfigureAwait(false);
             EventFieldList activeEvent = await collector.WaitForEventAsync(
                 alarmId,
                 e => AlarmEventCollector.TryGetBoolean(
@@ -121,6 +122,7 @@ namespace Opc.Ua.History.Tests
                 "Active transition should require acknowledgement.");
 
             await WriteAlarmSourceValueAsync(alarmId, new Variant(50)).ConfigureAwait(false);
+            await collector.ConditionRefreshAsync().ConfigureAwait(false);
             EventFieldList normalEvent = await collector.WaitForEventAsync(
                 alarmId,
                 e => AlarmEventCollector.TryGetBoolean(

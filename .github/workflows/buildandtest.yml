@@ -15,7 +15,7 @@ on:
   # Weekly nightly run mirroring azure-pipelines.yml — Sun 02:00 UTC.
   schedule:
     - cron: '0 2 * * 0'
-  # Manual dispatch with an opt-in for macOS runners.
+  # Manual dispatch can opt out of the macOS runners that are enabled by default.
   workflow_dispatch:
     inputs:
       include_macos:
@@ -101,11 +101,10 @@ jobs:
         Write-Host "Discovered $(@($projects).Count) project(s): $json"
         "csprojs=$json" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
 
-        # macOS is opt-in on pull_request events (default off) and included
-        # by default on push/schedule/workflow_dispatch.  When dispatched
+        # macOS is included by default on pull_request, push, and schedule events
+        # so platform-specific failures are caught before merge. When dispatched
         # manually the include_macos input can be flipped to false to skip.
         $includeMac = switch ($env:EVENT_NAME) {
-            'pull_request' { $false }
             'workflow_dispatch' { $env:INCLUDE_MACOS -eq 'true' }
             default { $true }
         }
@@ -160,7 +159,7 @@ jobs:
         }
         if ($includeMac -and $relevantChanges) {
             $testOs += 'macOS-latest'
-            $aotMatrix += @{ os = 'macos-13';     rid = 'osx-x64'  }
+            $aotMatrix += @{ os = 'macos-15-intel'; rid = 'osx-x64'  }
             $aotMatrix += @{ os = 'macos-latest'; rid = 'osx-arm64' }
         }
         Write-Host "Event=$($env:EVENT_NAME); include_macos=$includeMac"
@@ -188,9 +187,9 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # macOS is on by default for push/schedule/workflow_dispatch and
-        # off by default on pull_request; ubuntu drops out entirely when
-        # CI_BUILD_BACKEND hands the Linux matrix to Azure Pipelines.
+        # macOS is on by default for pull_request/push/schedule/workflow_dispatch;
+        # ubuntu drops out entirely when CI_BUILD_BACKEND hands the Linux matrix
+        # to Azure Pipelines.
         # Both are computed by discover.test_os.
         os: ${{ fromJSON(needs.discover.outputs.test_os) }}
         csproj: ${{ fromJSON(needs.discover.outputs.csprojs) }}
@@ -340,6 +339,15 @@ jobs:
           '10m',
           '--blame-hang-dump-type',
           'mini',
+          # --blame-crash enables crash detection so a sequence file records which
+          # test was running when the host exited.  --blame-crash-dump-type mini
+          # additionally captures a minidump on crash - every thread's stack without
+          # serialising the managed heap.  Only written on an actual crash so healthy
+          # runs pay no cost.  Both files land in TESTRESULTS and are uploaded by
+          # 'Upload test results' below.
+          '--blame-crash',
+          '--blame-crash-dump-type',
+          'mini',
           '--results-directory',
           '${{ env.TESTRESULTS }}')
 
@@ -350,6 +358,40 @@ jobs:
 
         dotnet test @testArgs
 
+    - name: Stage macOS crash reports
+      # Apple Crash Reporter writes .crash (legacy) and .ips (JSON, macOS 12+)
+      # diagnostic reports to ~/Library/Logs/DiagnosticReports/ when a process
+      # crashes.  These are separate from the VSTest blame collector dumps and
+      # contain the native crash stack and OS thread state needed to root-cause a
+      # testhost SIGABRT or SIGSEGV.  Only files whose base name contains
+      # 'testhost' or 'dotnet' (case-insensitive) are collected; this excludes
+      # unrelated host or application crash reports on shared runners.  Qualifying
+      # reports from the last two hours are copied into TESTRESULTS/mac-diagnostics/
+      # so the existing 'Upload test results' step picks them up automatically.
+      if: ${{ failure() && runner.os == 'macOS' }}
+      shell: pwsh
+      run: |
+        $src = [System.IO.Path]::Combine($env:HOME, 'Library', 'Logs', 'DiagnosticReports')
+        $dst = "$env:TESTRESULTS/mac-diagnostics"
+        if (-not (Test-Path $src)) {
+            Write-Host "No DiagnosticReports directory found at '$src'; skipping."
+            exit 0
+        }
+        $cutoff = (Get-Date).AddHours(-2)
+        $files = @(Get-ChildItem -Path $src -File -ErrorAction SilentlyContinue |
+            Where-Object { ($_.Extension -ieq '.crash' -or $_.Extension -ieq '.ips') -and
+                           ($_.BaseName -ilike '*testhost*' -or $_.BaseName -ilike '*dotnet*') -and
+                           $_.LastWriteTime -ge $cutoff })
+        if ($files.Count -eq 0) {
+            Write-Host 'No recent macOS crash reports found.'
+            exit 0
+        }
+        $null = New-Item -ItemType Directory -Path $dst -Force
+        foreach ($f in $files) {
+            Copy-Item -Path $f.FullName -Destination $dst -Force
+            Write-Host "Staged: $($f.Name)"
+        }
+        Write-Host "Staged $($files.Count) macOS crash report(s) to '$dst'."
     - name: Upload test results
       uses: actions/upload-artifact@v7
       with:
@@ -548,10 +590,9 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # OS + RID pairs computed by `discover` so macOS entries drop out
-        # entirely on pull_request (default off) and the ubuntu entry drops
-        # out when CI_BUILD_BACKEND hands AoT to Azure Pipelines.  Windows AoT
-        # is covered by the AzDO testaot stage.
+        # OS + RID pairs computed by `discover`; the ubuntu entry drops out when
+        # CI_BUILD_BACKEND hands AoT to Azure Pipelines. Windows AoT is covered by
+        # the AzDO testaot stage.
         include: ${{ fromJSON(needs.discover.outputs.aot_matrix) }}
 
     env:
