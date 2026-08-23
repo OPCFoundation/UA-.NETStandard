@@ -350,7 +350,7 @@ namespace Opc.Ua.Redundancy.Server.Tests
             // but the background capture/broadcast loops can be starved of CPU on a heavily
             // loaded CI runner (the full test matrix runs dozens of jobs per runner). Allow a
             // generous deadline so the assertion measures convergence correctness, not runner load.
-            DateTime deadline = DateTime.UtcNow + TimeSpan.FromSeconds(30);
+            DateTime deadline = DateTime.UtcNow + GetReplicationTimeout();
             while (DateTime.UtcNow < deadline)
             {
                 if (condition())
@@ -368,10 +368,15 @@ namespace Opc.Ua.Redundancy.Server.Tests
             // same background capture/broadcast loops, so it needs the same allowance
             // for a CPU-starved runner. The assertion still requires the replication
             // to complete - only the patience is bounded, not the outcome.
-            Task completed = await Task.WhenAny(task, Task.Delay(TimeSpan.FromSeconds(30)))
+            Task completed = await Task.WhenAny(task, Task.Delay(GetReplicationTimeout()))
                 .ConfigureAwait(false);
             Assert.That(completed, Is.SameAs(task), "replication did not complete within the timeout");
             await task.ConfigureAwait(false);
+        }
+
+        private static TimeSpan GetReplicationTimeout()
+        {
+            return OperatingSystem.IsMacOS() ? TimeSpan.FromSeconds(90) : TimeSpan.FromSeconds(30);
         }
 
         private sealed class TwoReplicaFixture : IAsyncDisposable
