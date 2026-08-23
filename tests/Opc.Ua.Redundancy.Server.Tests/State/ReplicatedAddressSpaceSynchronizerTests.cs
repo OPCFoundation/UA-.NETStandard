@@ -33,6 +33,7 @@
 #nullable enable
 
 using System;
+using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using Crdt;
 using Crdt.Transport;
@@ -376,7 +377,9 @@ namespace Opc.Ua.Redundancy.Server.Tests
 
         private static TimeSpan GetReplicationTimeout()
         {
-            return OperatingSystem.IsMacOS() ? TimeSpan.FromSeconds(90) : TimeSpan.FromSeconds(30);
+            return RuntimeInformation.IsOSPlatform(OSPlatform.OSX) ?
+                TimeSpan.FromSeconds(90) :
+                TimeSpan.FromSeconds(30);
         }
 
         private sealed class TwoReplicaFixture : IAsyncDisposable
