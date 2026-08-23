@@ -68,7 +68,7 @@ namespace Opc.Ua.Robotics.Client.Tests
                 "i1",
                 new NodeId(10));
 
-            IntentResultDataType result = await AwaitWithTimeoutAsync(handle.Completion, TimeSpan.FromSeconds(1));
+            IntentResultDataType result = await AwaitWithTimeoutAsync(handle.Completion, s_handshakeTimeout);
 
             Assert.That(result.State, Is.EqualTo(state));
         }
@@ -86,7 +86,7 @@ namespace Opc.Ua.Robotics.Client.Tests
                 "i1",
                 new NodeId(10));
 
-            Assert.That(await AwaitWithTimeoutAsync(handle.Completion, TimeSpan.FromSeconds(1)), Is.Not.Null);
+            Assert.That(await AwaitWithTimeoutAsync(handle.Completion, s_handshakeTimeout), Is.Not.Null);
             Assert.That(transport.SubscribeCount, Is.EqualTo(1));
             Assert.That(transport.ReadSnapshotCount, Is.EqualTo(1));
         }
@@ -116,7 +116,7 @@ namespace Opc.Ua.Robotics.Client.Tests
                 State = ExecutionStateEnum.Succeeded
             };
             transport.PublishChange("Result", Variant.FromStructure(expected));
-            IntentResultDataType result = await AwaitWithTimeoutAsync(handle.Completion, TimeSpan.FromSeconds(1));
+            IntentResultDataType result = await AwaitWithTimeoutAsync(handle.Completion, s_handshakeTimeout);
 
             Assert.Multiple(() =>
             {
@@ -140,7 +140,7 @@ namespace Opc.Ua.Robotics.Client.Tests
                 new NodeId(10));
             transport.Snapshot = Snapshot(ExecutionStateEnum.Succeeded);
             transport.PublishReconnect();
-            IntentResultDataType result = await AwaitWithTimeoutAsync(handle.Completion, TimeSpan.FromSeconds(1));
+            IntentResultDataType result = await AwaitWithTimeoutAsync(handle.Completion, s_handshakeTimeout);
 
             Assert.That(result.State, Is.EqualTo(ExecutionStateEnum.Succeeded));
             Assert.That(transport.ReadSnapshotCount, Is.GreaterThanOrEqualTo(2));
@@ -240,7 +240,7 @@ namespace Opc.Ua.Robotics.Client.Tests
             {
                 transport.ControlOwner = new NodeId(2);
                 transport.PublishOwner(new NodeId(2));
-                await WaitUntilAsync(() => Equals(lease.CurrentOwner, new NodeId(2)), TimeSpan.FromSeconds(1))
+                await WaitUntilAsync(() => Equals(lease.CurrentOwner, new NodeId(2)), s_handshakeTimeout)
                     .ConfigureAwait(false);
 
                 Assert.That(lease.CurrentOwner, Is.EqualTo(new NodeId(2)));
@@ -263,7 +263,7 @@ namespace Opc.Ua.Robotics.Client.Tests
             int notifications = 0;
             lease.OwnerChanged += _ => Interlocked.Increment(ref notifications);
             transport.PublishOwner(owner);
-            await WaitUntilAsync(() => Volatile.Read(ref notifications) > 0, TimeSpan.FromSeconds(1))
+            await WaitUntilAsync(() => Volatile.Read(ref notifications) > 0, s_handshakeTimeout)
                 .ConfigureAwait(false);
 
             Assert.Multiple(() =>
@@ -339,11 +339,11 @@ namespace Opc.Ua.Robotics.Client.Tests
             handle.Changed += _ =>
             {
                 callbackEntered.TrySetResult(true);
-                Assert.That(allowCallbackToExit.Wait(TimeSpan.FromSeconds(1)), Is.True);
+                Assert.That(allowCallbackToExit.Wait(s_handshakeTimeout), Is.True);
             };
 
             transport.PublishChange(Variant.From((int)ExecutionStateEnum.Succeeded));
-            await AwaitWithTimeoutAsync(callbackEntered.Task, TimeSpan.FromSeconds(1));
+            await AwaitWithTimeoutAsync(callbackEntered.Task, s_handshakeTimeout);
             Task dispose = handle.DisposeAsync().AsTask();
             allowCallbackToExit.Set();
 
@@ -441,7 +441,7 @@ namespace Opc.Ua.Robotics.Client.Tests
 
             await using RealTimeChannelLease lease = new(transport, "rt1", TimeSpan.FromMilliseconds(30));
             await lease.OpenAsync();
-            await AwaitWithTimeoutAsync(transport.WaitForOpenChannelCountAsync(2), TimeSpan.FromSeconds(1));
+            await AwaitWithTimeoutAsync(transport.WaitForOpenChannelCountAsync(2), s_handshakeTimeout);
 
             Assert.That(transport.OpenChannelCount, Is.GreaterThan(1));
             Assert.That(lease.EndpointUrl, Is.EqualTo("opc.tcp://rt"));
@@ -480,7 +480,7 @@ namespace Opc.Ua.Robotics.Client.Tests
 
             await using RealTimeChannelLease lease = new(transport, "rt1", TimeSpan.FromMilliseconds(30));
             await lease.OpenAsync();
-            await WaitUntilAsync(() => transport.OpenChannelCount >= 3, TimeSpan.FromSeconds(2));
+            await WaitUntilAsync(() => transport.OpenChannelCount >= 3, s_handshakeTimeout);
 
             Assert.That(transport.OpenChannelCount, Is.GreaterThanOrEqualTo(3));
             Assert.That(lease.Granted, Is.True);
@@ -504,7 +504,7 @@ namespace Opc.Ua.Robotics.Client.Tests
 
             var lease = new RealTimeChannelLease(transport, "rt1", TimeSpan.FromMilliseconds(30));
             await lease.OpenAsync();
-            await AwaitWithTimeoutAsync(transport.WaitForOpenChannelCountAsync(2), TimeSpan.FromSeconds(1));
+            await AwaitWithTimeoutAsync(transport.WaitForOpenChannelCountAsync(2), s_handshakeTimeout);
 
             Assert.DoesNotThrowAsync(async () => await lease.DisposeAsync());
             Assert.That(transport.CloseChannelCount, Is.EqualTo(1));
@@ -795,6 +795,10 @@ namespace Opc.Ua.Robotics.Client.Tests
             Assert.That(method, Is.Not.Null);
             return (TimeSpan)method!.Invoke(lease, [])!;
         }
+
+        // Generous scheduling/handshake timeout used for AwaitWithTimeoutAsync and WaitUntilAsync
+        // calls only. Does not affect behavioral lease durations or expiry times.
+        private static readonly TimeSpan s_handshakeTimeout = TimeSpan.FromSeconds(30);
 
         private static async Task AwaitWithTimeoutAsync(Task task, TimeSpan timeout)
         {

@@ -900,12 +900,14 @@ namespace Opc.Ua.Bindings
         /// </summary>
         protected void BeginWriteMessage(BufferCollection buffers, object? state)
         {
+            Interlocked.Increment(ref m_activeWriteRequests);
+
             IUaSCByteTransport? transport = m_transport;
             if (transport == null)
             {
-                // Mirror the legacy contract: report failure via HandleWriteComplete
-                // rather than throwing synchronously so callers' state is released.
-                HandleWriteComplete(
+                // The caller can hold the channel gate. Report asynchronously
+                // because client write completion enters the same non-reentrant gate.
+                ReportWriteComplete(
                     buffers,
                     state,
                     0,
@@ -914,8 +916,6 @@ namespace Opc.Ua.Bindings
                         "The transport was closed by the remote application."));
                 return;
             }
-
-            Interlocked.Increment(ref m_activeWriteRequests);
 
             // Queued rather than started inline, for the reason given in
             // BeginWriteMessage(ArraySegment{byte}, object).
