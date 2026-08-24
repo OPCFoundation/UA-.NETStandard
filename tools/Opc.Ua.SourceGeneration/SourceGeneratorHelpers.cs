@@ -97,6 +97,7 @@ namespace Opc.Ua.SourceGeneration
                 descriptor.Category,
                 descriptor.DefaultSeverity,
                 descriptor.IsEnabledByDefault,
+                description: descriptor.Description,
                 helpLinkUri: descriptor.HelpLinkUri,
                 customTags: descriptor.CustomTags.ToArray());
             return Diagnostic.Create(passthrough, Location.None, message);
