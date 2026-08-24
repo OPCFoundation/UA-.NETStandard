@@ -98,6 +98,7 @@ namespace Opc.Ua.SourceGeneration
             Assert.That(result.Id, Is.EqualTo("MODELGEN003"));
             Assert.That(diagnostic.Severity, Is.EqualTo(source.DefaultSeverity));
             Assert.That(result.Category, Is.EqualTo(source.Category));
+            Assert.That(result.Description, Is.EqualTo(source.Description));
             Assert.That(result.HelpLinkUri, Is.EqualTo(source.HelpLinkUri));
             Assert.That(result.IsEnabledByDefault, Is.EqualTo(source.IsEnabledByDefault));
             Assert.That(result.CustomTags, Is.EquivalentTo(source.CustomTags.ToArray()));
