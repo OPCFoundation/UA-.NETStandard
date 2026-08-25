@@ -1,0 +1,201 @@
+name: Release to nuget.org
+
+# Manual promotion of the exact signed package bytes produced by a successful
+# nuget-publish.yml run on a release/* branch. The release environment provides
+# the approval boundary and NuGet trusted publishing identity.
+#
+# One-time nuget.org trusted publishing policy:
+#   Repository Owner: OPCFoundation
+#   Repository: UA-.NETStandard
+#   Workflow File: release.yml
+#   Environment: release
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_run_id:
+        description: Successful nuget-publish.yml run ID from a release/* branch
+        required: true
+        type: string
+      dry_run:
+        description: Validate the selected package set without publishing
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  actions: read
+  contents: read
+  id-token: write
+
+concurrency:
+  group: nuget-release
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    name: Promote signed packages
+    runs-on: windows-2025
+    environment: release
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup .NET 10.0
+        uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Validate selected publish run
+        id: source
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_RUN_ID: ${{ inputs.release_run_id }}
+        run: |
+          if ($env:RELEASE_RUN_ID -notmatch '^\d+$') {
+              throw 'release_run_id must be a numeric GitHub Actions run ID.'
+          }
+
+          $run = gh api "repos/${{ github.repository }}/actions/runs/$env:RELEASE_RUN_ID" |
+              ConvertFrom-Json
+          if ($LASTEXITCODE -ne 0) {
+              throw "Unable to read workflow run $env:RELEASE_RUN_ID."
+          }
+          $workflow = gh api "repos/${{ github.repository }}/actions/workflows/$($run.workflow_id)" |
+              ConvertFrom-Json
+          if ($LASTEXITCODE -ne 0) {
+              throw "Unable to identify the workflow for run $env:RELEASE_RUN_ID."
+          }
+
+          if ($workflow.path -cne '.github/workflows/nuget-publish.yml') {
+              throw "Run $env:RELEASE_RUN_ID belongs to '$($workflow.path)', not nuget-publish.yml."
+          }
+          if ($run.status -cne 'completed' -or $run.conclusion -cne 'success') {
+              throw (
+                  "Run $env:RELEASE_RUN_ID is not successful: " +
+                  "status=$($run.status), conclusion=$($run.conclusion).")
+          }
+          if (-not $run.head_branch.StartsWith(
+              'release/',
+              [StringComparison]::OrdinalIgnoreCase)) {
+              throw (
+                  "Run $env:RELEASE_RUN_ID came from '$($run.head_branch)'. " +
+                  'Only release/* branches can be promoted.')
+          }
+          if ($run.head_repository.full_name -cne '${{ github.repository }}') {
+              throw (
+                  "Run $env:RELEASE_RUN_ID came from '$($run.head_repository.full_name)', " +
+                  "not '${{ github.repository }}'.")
+          }
+
+          "commit=$($run.head_sha)" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+          "branch=$($run.head_branch)" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+          "artifact=opcua-packages-$env:RELEASE_RUN_ID" |
+              Out-File -FilePath $env:GITHUB_OUTPUT -Append
+          Write-Host (
+              "Selected successful nuget-publish.yml run $env:RELEASE_RUN_ID " +
+              "for $($run.head_branch) at $($run.head_sha).")
+
+      - name: Download signed promotion artifact
+        uses: actions/download-artifact@v8
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          run-id: ${{ inputs.release_run_id }}
+          name: ${{ steps.source.outputs.artifact }}
+          path: promotion
+
+      - name: Validate promotion manifest and package bytes
+        shell: pwsh
+        run: |
+          $manifestPath = 'promotion/release-manifest.json'
+          if (-not (Test-Path -LiteralPath $manifestPath)) {
+              throw "The selected run artifact contains no release-manifest.json."
+          }
+          $manifest = Get-Content -LiteralPath $manifestPath -Raw | ConvertFrom-Json
+          $expectedRef = 'refs/heads/${{ steps.source.outputs.branch }}'
+          if ($manifest.schemaVersion -ne 1 -or
+              $manifest.repository -cne '${{ github.repository }}' -or
+              $manifest.workflow -cne '.github/workflows/nuget-publish.yml' -or
+              $manifest.runId -cne '${{ inputs.release_run_id }}' -or
+              $manifest.ref -cne $expectedRef -or
+              $manifest.commit -cne '${{ steps.source.outputs.commit }}') {
+              throw (
+                  "The promotion manifest does not match nuget-publish.yml run " +
+                  "${{ inputs.release_run_id }} on $expectedRef.")
+          }
+
+          $currentPath = 'promotion/current-package-set.json'
+          ./.azurepipelines/validate-nuget-package-set.ps1 `
+            -PackageDirectory promotion `
+            -ManifestPath $currentPath `
+            -ExpectedVersion $manifest.packageVersion `
+            -RequireDebug `
+            -VerifySignatures
+          $current = Get-Content -LiteralPath $currentPath -Raw | ConvertFrom-Json
+
+          if ($current.packageCount -ne $manifest.packageCount -or
+              $current.symbolPackageCount -ne $manifest.symbolPackageCount -or
+              $current.debugPackageCount -ne $manifest.debugPackageCount) {
+              throw 'The downloaded package counts do not match the promotion manifest.'
+          }
+
+          $expectedArchives = @($manifest.archives | Sort-Object id, type, file) |
+              ConvertTo-Json -Depth 5 -Compress
+          $actualArchives = @($current.archives | Sort-Object id, type, file) |
+              ConvertTo-Json -Depth 5 -Compress
+          if ($actualArchives -cne $expectedArchives) {
+              throw 'The downloaded package names, identities, versions, or hashes have changed.'
+          }
+
+          Write-Host (
+              "Validated $($current.packageCount) exact package bytes at version " +
+              "$($current.packageVersion) from run ${{ inputs.release_run_id }}.")
+
+      - name: NuGet login
+        if: ${{ !inputs.dry_run }}
+        id: login
+        uses: NuGet/login@v1
+        with:
+          user: ${{ secrets.NUGET_USER }}
+
+      - name: Push to nuget.org
+        if: ${{ !inputs.dry_run }}
+        shell: pwsh
+        run: |
+          $packages = @(Get-ChildItem promotion -Filter '*.nupkg' -File | Sort-Object Name)
+          foreach ($package in $packages) {
+              dotnet nuget push $package.FullName `
+                --source 'https://api.nuget.org/v3/index.json' `
+                --symbol-source 'https://api.nuget.org/v3/index.json' `
+                --api-key '${{ steps.login.outputs.NUGET_API_KEY }}' `
+                --skip-duplicate
+              if ($LASTEXITCODE -ne 0) {
+                  throw "nuget.org push failed for '$($package.Name)'."
+              }
+          }
+
+      - name: Summary
+        if: always()
+        shell: pwsh
+        run: |
+          $manifestPath = 'promotion/release-manifest.json'
+          if (Test-Path -LiteralPath $manifestPath) {
+              $manifest = Get-Content -LiteralPath $manifestPath -Raw | ConvertFrom-Json
+              $version = $manifest.packageVersion
+              $count = $manifest.packageCount
+          }
+          else {
+              $version = 'unavailable'
+              $count = 'unavailable'
+          }
+          @"
+          ### nuget.org release
+
+          - Source run: ``${{ inputs.release_run_id }}``
+          - Source branch: ``${{ steps.source.outputs.branch }}``
+          - Version: ``$version``
+          - Packages: ``$count``
+          - Dry run: ``${{ inputs.dry_run }}``
+          "@ | Add-Content -LiteralPath $env:GITHUB_STEP_SUMMARY
