@@ -64,6 +64,7 @@ namespace Opc.Ua.PubSub.Security.Sks
         private readonly ILogger m_logger;
         private readonly IPubSubSecurityEventSink? m_securityEventSink;
         private readonly IPubSubSecurityKeyStore m_keyStore;
+        private readonly IPubSubSecurityPolicyRegistry m_securityPolicies;
 
         /// <summary>
         /// Initializes a new
@@ -73,11 +74,17 @@ namespace Opc.Ua.PubSub.Security.Sks
         /// <param name="telemetry">Telemetry context.</param>
         /// <param name="securityEventSink">Optional structured security-event sink.</param>
         /// <param name="keyStore">Optional external SecurityGroup key store.</param>
+        /// <param name="securityPolicies">
+        /// The PubSub policy set SecurityGroups are validated against, or
+        /// <see langword="null"/> to use
+        /// <see cref="PubSubSecurityPolicyRegistry.Default"/>.
+        /// </param>
         public InMemoryPubSubKeyServiceServer(
             TimeProvider? timeProvider = null,
             ITelemetryContext? telemetry = null,
             IPubSubSecurityEventSink? securityEventSink = null,
-            IPubSubSecurityKeyStore? keyStore = null)
+            IPubSubSecurityKeyStore? keyStore = null,
+            IPubSubSecurityPolicyRegistry? securityPolicies = null)
         {
             m_timeProvider = timeProvider ?? TimeProvider.System;
             m_logger = telemetry is null
@@ -85,6 +92,7 @@ namespace Opc.Ua.PubSub.Security.Sks
                 : telemetry.CreateLogger<InMemoryPubSubKeyServiceServer>();
             m_securityEventSink = securityEventSink;
             m_keyStore = keyStore ?? new InMemoryPubSubSecurityKeyStore();
+            m_securityPolicies = securityPolicies ?? PubSubSecurityPolicyRegistry.Default;
             RestoreSecurityGroups();
         }
 
@@ -112,7 +120,7 @@ namespace Opc.Ua.PubSub.Security.Sks
             cancellationToken.ThrowIfCancellationRequested();
 
             IPubSubSecurityPolicy? policy =
-                PubSubSecurityPolicyRegistry.Default.GetByUri(group.SecurityPolicyUri) ??
+                m_securityPolicies.GetByUri(group.SecurityPolicyUri) ??
                 throw new OpcUaSksException(
                     StatusCodes.BadSecurityPolicyRejected,
                     $"SecurityPolicyUri '{group.SecurityPolicyUri}' is not supported.");
@@ -282,7 +290,7 @@ namespace Opc.Ua.PubSub.Security.Sks
         private void RestoreSecurityGroup(SksSecurityGroup group)
         {
             IPubSubSecurityPolicy? policy =
-                PubSubSecurityPolicyRegistry.Default.GetByUri(group.SecurityPolicyUri);
+                m_securityPolicies.GetByUri(group.SecurityPolicyUri);
             if (policy is null)
             {
                 return;

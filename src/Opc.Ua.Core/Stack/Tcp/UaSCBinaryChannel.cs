@@ -469,10 +469,8 @@ namespace Opc.Ua.Bindings
         protected bool VerifySequenceNumber(uint sequenceNumber, string context)
         {
             // Accept the first sequence number depending on security policy
-            if (m_firstReceivedSequenceNumber &&
-                (
-                    !CryptoUtils.IsEccPolicy(SecurityPolicyUri) ||
-                    (CryptoUtils.IsEccPolicy(SecurityPolicyUri) && (sequenceNumber == 0))))
+            bool isEccPolicy = SecurityPolicy?.CertificateKeyFamily == CertificateKeyFamily.ECC;
+            if (m_firstReceivedSequenceNumber && (!isEccPolicy || sequenceNumber == 0))
             {
                 m_remoteSequenceNumber = sequenceNumber;
                 m_firstReceivedSequenceNumber = false;
@@ -491,10 +489,7 @@ namespace Opc.Ua.Bindings
                 sequenceNumber < TcpMessageLimits.MaxRolloverSequenceNumber)
             {
                 // only one rollover per token is allowed and with valid values depending on security policy
-                if (!m_sequenceRollover &&
-                    (
-                        !CryptoUtils.IsEccPolicy(SecurityPolicyUri) ||
-                        (CryptoUtils.IsEccPolicy(SecurityPolicyUri) && (sequenceNumber == 0))))
+                if (!m_sequenceRollover && (!isEccPolicy || sequenceNumber == 0))
                 {
                     m_sequenceRollover = true;
                     m_remoteSequenceNumber = sequenceNumber;

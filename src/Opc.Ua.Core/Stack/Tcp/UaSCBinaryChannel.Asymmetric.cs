@@ -1720,7 +1720,10 @@ namespace Opc.Ua.Bindings
         /// </remarks>
         protected byte[] Sign(ArraySegment<byte> dataToSign, Certificate senderCertificate)
         {
-            return CryptoUtils.Sign(dataToSign, senderCertificate, SecurityPolicyUri!)!;
+            return CryptoUtils.Sign(
+                dataToSign,
+                senderCertificate,
+                SecurityPolicy!.AsymmetricSignatureAlgorithm)!;
         }
 
         /// <summary>
@@ -1741,14 +1744,12 @@ namespace Opc.Ua.Bindings
             Certificate senderCertificate,
             CancellationToken ct)
         {
-            SecurityPolicyInfo policy = SecurityPolicyRegistry.GetInfo(SecurityPolicyUri!)
-                ?? throw ServiceResultException.Create(
-                    StatusCodes.BadSecurityPolicyRejected,
-                    "Unsupported security policy: {0}",
-                    SecurityPolicyUri!);
-
             return (await CryptoUtils
-                .SignAsync(dataToSign, senderCertificate, policy.AsymmetricSignatureAlgorithm, ct)
+                .SignAsync(
+                    dataToSign,
+                    senderCertificate,
+                    SecurityPolicy!.AsymmetricSignatureAlgorithm,
+                    ct)
                 .ConfigureAwait(false))!;
         }
 
@@ -1769,7 +1770,7 @@ namespace Opc.Ua.Bindings
                 dataToVerify,
                 signature,
                 senderCertificate,
-                SecurityPolicyUri);
+                SecurityPolicy!.AsymmetricSignatureAlgorithm);
         }
 
         /// <summary>
@@ -1810,27 +1811,11 @@ namespace Opc.Ua.Bindings
                     dataToEncrypt.Count + headerToCopy.Count);
             }
 
-            switch (policy.AsymmetricEncryptionAlgorithm)
-            {
-                case AsymmetricEncryptionAlgorithm.RsaOaepSha1:
-                    return Rsa_Encrypt(
-                        dataToEncrypt,
-                        headerToCopy,
-                        receiverCertificate,
-                        RsaUtils.Padding.OaepSHA1);
-                case AsymmetricEncryptionAlgorithm.RsaOaepSha256:
-                    return Rsa_Encrypt(
-                        dataToEncrypt,
-                        headerToCopy,
-                        receiverCertificate,
-                        RsaUtils.Padding.OaepSHA256);
-                default:
-                    return Rsa_Encrypt(
-                        dataToEncrypt,
-                        headerToCopy,
-                        receiverCertificate,
-                        RsaUtils.Padding.Pkcs1);
-            }
+            return Rsa_Encrypt(
+                dataToEncrypt,
+                headerToCopy,
+                receiverCertificate,
+                GetAsymmetricPadding(policy));
         }
 
         /// <summary>
@@ -1870,29 +1855,11 @@ namespace Opc.Ua.Bindings
                     dataToDecrypt.Count + headerToCopy.Count);
             }
 
-            switch (SecurityPolicyUri)
-            {
-                case SecurityPolicies.Basic256:
-                case SecurityPolicies.Aes128_Sha256_RsaOaep:
-                case SecurityPolicies.Basic256Sha256:
-                    return Rsa_Decrypt(
-                        dataToDecrypt,
-                        headerToCopy,
-                        receiverCertificate,
-                        RsaUtils.Padding.OaepSHA1);
-                case SecurityPolicies.Basic128Rsa15:
-                    return Rsa_Decrypt(
-                        dataToDecrypt,
-                        headerToCopy,
-                        receiverCertificate,
-                        RsaUtils.Padding.Pkcs1);
-                default:
-                    return Rsa_Decrypt(
-                        dataToDecrypt,
-                        headerToCopy,
-                        receiverCertificate,
-                        RsaUtils.Padding.OaepSHA256);
-            }
+            return Rsa_Decrypt(
+                dataToDecrypt,
+                headerToCopy,
+                receiverCertificate,
+                GetAsymmetricPadding(policy));
         }
 
         /// <summary>
@@ -1928,17 +1895,32 @@ namespace Opc.Ua.Bindings
                     Decrypt(dataToDecrypt, headerToCopy, receiverCertificate));
             }
 
-            RsaUtils.Padding padding = SecurityPolicyUri switch
-            {
-                SecurityPolicies.Basic256 or
-                SecurityPolicies.Aes128_Sha256_RsaOaep or
-                SecurityPolicies.Basic256Sha256 => RsaUtils.Padding.OaepSHA1,
-                SecurityPolicies.Basic128Rsa15 => RsaUtils.Padding.Pkcs1,
-                _ => RsaUtils.Padding.OaepSHA256
-            };
-
             return Rsa_DecryptAsync(
-                dataToDecrypt, headerToCopy, receiverCertificate, padding, ct);
+                dataToDecrypt,
+                headerToCopy,
+                receiverCertificate,
+                GetAsymmetricPadding(policy),
+                ct);
+        }
+
+        /// <summary>
+        /// Returns the RSA padding the policy declares for asymmetric
+        /// encryption.
+        /// </summary>
+        /// <remarks>
+        /// The padding follows the policy's declared algorithm rather than a
+        /// fixed set of policy URIs, so a policy an application contributed
+        /// through its own <see cref="ISecurityPolicyRegistry"/> decrypts with
+        /// the padding its peer encrypted with.
+        /// </remarks>
+        private static RsaUtils.Padding GetAsymmetricPadding(SecurityPolicyInfo policy)
+        {
+            return policy.AsymmetricEncryptionAlgorithm switch
+            {
+                AsymmetricEncryptionAlgorithm.RsaOaepSha1 => RsaUtils.Padding.OaepSHA1,
+                AsymmetricEncryptionAlgorithm.RsaOaepSha256 => RsaUtils.Padding.OaepSHA256,
+                _ => RsaUtils.Padding.Pkcs1
+            };
         }
 
         private readonly List<EndpointDescription> m_endpoints;

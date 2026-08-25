@@ -111,7 +111,7 @@ namespace Opc.Ua.Bindings.WebApi
     /// <para>
     /// The original raw bearer token is recovered from the inbound
     /// <c>Authorization: Bearer …</c> request header and passed to
-    /// <see cref="UserIdentity(ReadOnlySpan{byte}, string)"/> so the
+    /// <see cref="UserIdentity(ReadOnlySpan{byte}, string, ISecurityPolicyRegistry)"/> so the
     /// server-side dispatcher can re-introduce the JWT into the
     /// <see cref="RequestHeader.AuthenticationToken"/> chain if it
     /// needs to. The <see cref="GetScopes(IUserIdentity)"/> /

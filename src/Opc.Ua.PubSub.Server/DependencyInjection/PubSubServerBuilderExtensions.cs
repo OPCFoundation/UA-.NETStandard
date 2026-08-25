@@ -31,6 +31,7 @@ using System;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Opc.Ua;
 using Opc.Ua.PubSub.Security;
+using Opc.Ua.PubSub.Security.Policies;
 using Opc.Ua.PubSub.Security.Sks;
 using Opc.Ua.PubSub.Server;
 using Opc.Ua.PubSub.Server.Hosting;
@@ -82,7 +83,8 @@ namespace Microsoft.Extensions.DependencyInjection
                 var server = new InMemoryPubSubKeyServiceServer(
                     sp.GetService<TimeProvider>() ?? TimeProvider.System,
                     sp.GetRequiredService<ITelemetryContext>(),
-                    keyStore: sp.GetRequiredService<IPubSubSecurityKeyStore>());
+                    keyStore: sp.GetRequiredService<IPubSubSecurityKeyStore>(),
+                    securityPolicies: sp.GetService<IPubSubSecurityPolicyRegistry>());
                 configure?.Invoke(server);
                 return server;
             });
