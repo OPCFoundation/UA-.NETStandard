@@ -154,38 +154,8 @@ variables:
     hostLinuxImage: 'ubuntu-24.04'
 
 stages:
-# TEMPORARY: remove immediately after PR 4312 transfers the secure file.
-- stage: exportstrongnamekey
-  dependsOn: []
-  displayName: 'Temporary strong-name key transfer'
-  condition: and(
-    eq(variables['Build.Reason'], 'PullRequest'),
-    eq(variables['System.PullRequest.PullRequestNumber'], '4312'))
-  pool:
-    ${{ if ne(variables.mgdPoolName, '') }}:
-      name: ${{ variables.mgdPoolName }}
-      demands:
-      - ImageOverride -equals ${{ variables.mgdWindowsImage }}
-    ${{ else }}:
-      vmImage: ${{ variables.mgdWindowsImage }}
-  jobs:
-  - job: exportkey
-    displayName: 'Export secure file'
-    steps:
-    - checkout: none
-    - task: DownloadSecureFile@1
-      name: strongnamefile
-      displayName: 'Download strong-name key'
-      inputs:
-        secureFile: 'OPCFoundation.NetStandard.Key.snk'
-    - task: PublishPipelineArtifact@1
-      displayName: 'Publish temporary strong-name key'
-      inputs:
-        targetPath: '$(strongnamefile.secureFilePath)'
-        artifact: 'temporary-strong-name-key'
-
 - stage: build
-  dependsOn: [exportstrongnamekey]
+  dependsOn: []
   displayName: 'Build'
   jobs:
   - template: .azurepipelines/sln.yml
@@ -223,7 +193,7 @@ stages:
         configurations: 'Release'
         tfms: 'netstandard2.1,net8.0,net9.0,net10.0'
 - stage: testfastpr
-  dependsOn: [exportstrongnamekey]
+  dependsOn: []
   displayName: 'Fast PR test'
   jobs:
   - template: .azurepipelines/test.yml
@@ -262,7 +232,7 @@ stages:
       windowsImage: ${{ variables.mgdWindowsImage }}
       condition: and(eq(variables.MacOSJobsEnabled, 'True'), ne(variables.ScheduledBuild, 'False'))
 - stage: testaot
-  dependsOn: [exportstrongnamekey]
+  dependsOn: []
   displayName: 'Test Native AoT'
   # Native AoT is Schedule/Manual-only while GitHub Actions runs its own ubuntu
   # AoT job.  When ADO owns the matrix this is the only place AoT runs, so it
