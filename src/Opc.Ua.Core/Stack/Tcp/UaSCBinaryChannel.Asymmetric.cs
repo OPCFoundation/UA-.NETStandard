@@ -105,6 +105,19 @@ namespace Opc.Ua.Bindings
         internal CertificateCollection? ClientCertificateChain { get; set; }
 
         /// <summary>
+        /// The security policy the channel negotiated, for the paths that
+        /// cannot proceed without one.
+        /// </summary>
+        /// <exception cref="ServiceResultException">
+        /// The registry the channel was built against does not carry the
+        /// negotiated policy.
+        /// </exception>
+        private SecurityPolicyInfo NegotiatedSecurityPolicy
+            => SecurityPolicy ?? throw ServiceResultException.Create(
+                StatusCodes.BadSecurityPolicyRejected,
+                "Unsupported security policy.");
+
+        /// <summary>
         /// Builds a new owned collection holding the entry's certificate
         /// followed by its issuer chain (<c>[leaf, ...issuers]</c>) for wire
         /// transmission. The caller owns and must dispose the result.
@@ -1723,7 +1736,7 @@ namespace Opc.Ua.Bindings
             return CryptoUtils.Sign(
                 dataToSign,
                 senderCertificate,
-                SecurityPolicy!.AsymmetricSignatureAlgorithm)!;
+                NegotiatedSecurityPolicy.AsymmetricSignatureAlgorithm)!;
         }
 
         /// <summary>
@@ -1748,7 +1761,7 @@ namespace Opc.Ua.Bindings
                 .SignAsync(
                     dataToSign,
                     senderCertificate,
-                    SecurityPolicy!.AsymmetricSignatureAlgorithm,
+                    NegotiatedSecurityPolicy.AsymmetricSignatureAlgorithm,
                     ct)
                 .ConfigureAwait(false))!;
         }
@@ -1770,7 +1783,7 @@ namespace Opc.Ua.Bindings
                 dataToVerify,
                 signature,
                 senderCertificate,
-                SecurityPolicy!.AsymmetricSignatureAlgorithm);
+                NegotiatedSecurityPolicy.AsymmetricSignatureAlgorithm);
         }
 
         /// <summary>
@@ -1786,7 +1799,7 @@ namespace Opc.Ua.Bindings
             ArraySegment<byte> headerToCopy,
             Certificate receiverCertificate)
         {
-            SecurityPolicyInfo policy = SecurityPolicy!;
+            SecurityPolicyInfo policy = NegotiatedSecurityPolicy;
             if (policy.AsymmetricSignatureAlgorithm == AsymmetricSignatureAlgorithm.None ||
                 policy.EphemeralKeyAlgorithm != CertificateKeyAlgorithm.None)
             {
@@ -1830,7 +1843,7 @@ namespace Opc.Ua.Bindings
             ArraySegment<byte> headerToCopy,
             Certificate receiverCertificate)
         {
-            SecurityPolicyInfo policy = SecurityPolicy!;
+            SecurityPolicyInfo policy = NegotiatedSecurityPolicy;
             if (policy.AsymmetricSignatureAlgorithm == AsymmetricSignatureAlgorithm.None ||
                 policy.EphemeralKeyAlgorithm != CertificateKeyAlgorithm.None)
             {
@@ -1885,7 +1898,7 @@ namespace Opc.Ua.Bindings
             Certificate receiverCertificate,
             CancellationToken ct)
         {
-            SecurityPolicyInfo policy = SecurityPolicy!;
+            SecurityPolicyInfo policy = NegotiatedSecurityPolicy;
             if (policy.AsymmetricSignatureAlgorithm == AsymmetricSignatureAlgorithm.None ||
                 policy.EphemeralKeyAlgorithm != CertificateKeyAlgorithm.None)
             {

@@ -518,6 +518,34 @@ var handler = new UserNameIdentityTokenHandler(username, password, policies);
 
 Passing nothing keeps the previous behaviour and uses `SecurityPolicies.Default`.
 
+### Reaching the secure channel and the session
+
+An application composed through the builder gets its registry threaded through the stack: the client
+channel manager, the session factory, the sessions it creates and the identity providers they select
+all resolve policies against it, and a server's listeners are opened with it. A policy registered with
+`AddSecurityPolicy` is therefore negotiable by that application's channels — the secure channel resolves
+the handshake policy, its key sizes, its asymmetric padding and its signature algorithm from the same
+registry.
+
+Constructing the transport directly carries the registry the same way:
+
+```csharp
+await channel.OpenAsync(
+    endpointUrl,
+    new TransportChannelSettings
+    {
+        Description = endpoint,
+        Configuration = endpointConfiguration,
+        SecurityPolicyRegistry = policies
+    },
+    ct);
+```
+
+`TransportListenerSettings` and `ChannelQuotas` expose the same property for the server side, and
+`Session`, `DefaultSessionFactory` and `ClientChannelManager` take one on construction. Leaving any of
+them unset falls back to `SecurityPolicies.Default`, so an application that configures nothing is
+unaffected.
+
 The registry a container builds is **its own**. A policy registered by one application is not visible to
 another hosted in the same process, and it is not visible to `SecurityPolicies.Default`. That
 fallback carries exactly the built-in set and is what the paths that run before any container exists —
