@@ -1309,6 +1309,14 @@ namespace Opc.Ua.Bindings
         protected ChannelQuotas Quotas { get; }
 
         /// <summary>
+        /// The security policies the channel negotiates against. This is the
+        /// registry the application configured, or
+        /// <see cref="SecurityPolicies.Default"/> when it configured none.
+        /// </summary>
+        protected ISecurityPolicyRegistry SecurityPolicyRegistry
+            => Quotas.SecurityPolicyRegistry ?? SecurityPolicies.Default;
+
+        /// <summary>
         /// The size of the receive buffer.
         /// </summary>
         protected int ReceiveBufferSize { get; set; }

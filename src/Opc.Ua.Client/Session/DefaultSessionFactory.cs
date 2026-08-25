@@ -78,6 +78,16 @@ namespace Opc.Ua.Client
         public TimeProvider? TimeProvider { get; init; }
 
         /// <summary>
+        /// Optional security policy registry forwarded to every channel and
+        /// <see cref="Session"/> created by this factory. Set it to the
+        /// registry composed through <c>AddSecurityPolicy</c> to make policies
+        /// registered by an application reachable by its own sessions. When
+        /// <see langword="null"/>, <see cref="SecurityPolicies.Default"/> is
+        /// used.
+        /// </summary>
+        public ISecurityPolicyRegistry? SecurityPolicyRegistry { get; init; }
+
+        /// <summary>
         /// Obsolete default constructor
         /// </summary>
         [Obsolete("Use DefaultSessionFactory(ITelemetryContext) instead.")]
@@ -304,7 +314,7 @@ namespace Opc.Ua.Client
                 ITransportChannel channel;
                 if (connection != null)
                 {
-                    channel = await UaChannelBase.CreateUaBinaryChannelAsync(
+                    channel = await ClientChannelManager.CreateUaBinaryChannelAsync(
                         configuration,
                         connection,
                         endpointDescription,
@@ -312,18 +322,20 @@ namespace Opc.Ua.Client
                         channelClientCertificate,
                         channelClientCertificateChain,
                         messageContext,
-                        ct).ConfigureAwait(false);
+                        securityPolicies: SecurityPolicyRegistry,
+                        ct: ct).ConfigureAwait(false);
                 }
                 else
                 {
-                    channel = await UaChannelBase.CreateUaBinaryChannelAsync(
+                    channel = await ClientChannelManager.CreateUaBinaryChannelAsync(
                         configuration,
                         endpointDescription,
                         endpointConfiguration,
                         channelClientCertificate,
                         channelClientCertificateChain,
                         messageContext,
-                        ct).ConfigureAwait(false);
+                        securityPolicies: SecurityPolicyRegistry,
+                        ct: ct).ConfigureAwait(false);
                 }
 
                 // Ownership of the cert and chain has been transferred to the
@@ -412,7 +424,8 @@ namespace Opc.Ua.Client
                 availableEndpoints,
                 discoveryProfileUris,
                 SubscriptionEngineFactory,
-                TimeProvider)
+                TimeProvider,
+                SecurityPolicyRegistry)
             {
                 ReturnDiagnostics = ReturnDiagnostics
             };

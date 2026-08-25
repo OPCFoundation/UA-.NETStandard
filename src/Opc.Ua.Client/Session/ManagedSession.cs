@@ -232,7 +232,8 @@ namespace Opc.Ua.Client
                 {
                     ReturnDiagnostics = dsf.ReturnDiagnostics,
                     SubscriptionEngineFactory = engineFactory,
-                    TimeProvider = timeProvider ?? dsf.TimeProvider
+                    TimeProvider = timeProvider ?? dsf.TimeProvider,
+                    SecurityPolicyRegistry = dsf.SecurityPolicyRegistry
                 };
             }
 
@@ -258,6 +259,7 @@ namespace Opc.Ua.Client
                 connectGate)
             {
                 m_engineFactory = engineFactory,
+                m_securityPolicies = (sessionFactory as DefaultSessionFactory)?.SecurityPolicyRegistry,
                 m_reverseConnectManager = reverseConnectManager
             };
 
@@ -1038,7 +1040,8 @@ namespace Opc.Ua.Client
                                 SessionFactory.Telemetry,
                                 SessionFactory.ReturnDiagnostics,
                                 m_timeProvider,
-                                m_engineFactory);
+                                m_engineFactory,
+                                m_securityPolicies);
                         }
 
                         session = (Session)await reverseFactory.CreateAsync(
@@ -1071,6 +1074,7 @@ namespace Opc.Ua.Client
                             m_preferredLocales,
                             m_engineFactory,
                             m_timeProvider,
+                            m_securityPolicies,
                             ct).ConfigureAwait(false);
                     }
                     else
@@ -1944,6 +1948,7 @@ namespace Opc.Ua.Client
         private ReverseConnectManager? m_reverseConnectManager;
         private readonly IClientConnectGate? m_connectGate;
         private ISubscriptionEngineFactory? m_engineFactory;
+        private ISecurityPolicyRegistry? m_securityPolicies;
         private int m_channelReconnectInProgress;
         private ServerRedundancyInfo? m_redundancyInfo;
         private readonly Lock m_identityRefreshLock = new();

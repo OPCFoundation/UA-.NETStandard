@@ -812,7 +812,8 @@ namespace Microsoft.Extensions.DependencyInjection
                     telemetry,
                     channelFactory: channelBindings,
                     reconnectPolicy: null,
-                    timeProvider: timeProvider);
+                    timeProvider: timeProvider,
+                    securityPolicies: sp.GetService<ISecurityPolicyRegistry>());
             });
 
             services.TryAddSingleton<ISessionFactory>(sp =>
@@ -825,7 +826,8 @@ namespace Microsoft.Extensions.DependencyInjection
                     SubscriptionEngineFactory =
                         options.Session.SubscriptionEngineFactory
                         ?? new DefaultSubscriptionEngineFactory(timeProvider),
-                    TimeProvider = timeProvider
+                    TimeProvider = timeProvider,
+                    SecurityPolicyRegistry = sp.GetService<ISecurityPolicyRegistry>()
                 };
             });
 

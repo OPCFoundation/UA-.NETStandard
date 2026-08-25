@@ -264,13 +264,25 @@ namespace Opc.Ua.Client
         /// Select the best supported endpoint from the
         /// EndpointDescriptions, with or without security.
         /// </summary>
+        /// <param name="configuration">The application configuration.</param>
+        /// <param name="url">The discovery url that was used.</param>
+        /// <param name="endpoints">The endpoints returned by the server.</param>
+        /// <param name="useSecurity">Whether to select a secure endpoint.</param>
+        /// <param name="telemetry">The telemetry context.</param>
+        /// <param name="securityPolicies">
+        /// The policies used to decide whether an advertised security policy is
+        /// supported, or <see langword="null"/> to use
+        /// <see cref="SecurityPolicies.Default"/>.
+        /// </param>
         public static EndpointDescription? SelectEndpoint(
             ApplicationConfiguration configuration,
             Uri url,
             ArrayOf<EndpointDescription> endpoints,
             bool useSecurity,
-            ITelemetryContext telemetry)
+            ITelemetryContext telemetry,
+            ISecurityPolicyRegistry? securityPolicies = null)
         {
+            ISecurityPolicyRegistry policies = securityPolicies ?? SecurityPolicies.Default;
             EndpointDescription? selectedEndpoint = null;
 
             // select the best endpoint to use based on the selected URL and the UseSecurity checkbox.
@@ -306,7 +318,7 @@ namespace Opc.Ua.Client
                             // SecurityPolicyUri is annotated nullable on EndpointDescription but is
                             // populated for any endpoint advertising security; downstream API takes
                             // a non-nullable string parameter.
-                            if (SecurityPolicies.Default.GetDisplayName(endpoint.SecurityPolicyUri!) == null)
+                            if (policies.GetDisplayName(endpoint.SecurityPolicyUri!) == null)
                             {
                                 continue;
                             }

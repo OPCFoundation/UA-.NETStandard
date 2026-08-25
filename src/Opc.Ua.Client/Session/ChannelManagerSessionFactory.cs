@@ -65,20 +65,27 @@ namespace Opc.Ua.Client
         /// <param name="returnDiagnostics">Diagnostics flags applied to created sessions.</param>
         /// <param name="timeProvider">Optional time provider forwarded to created sessions.</param>
         /// <param name="engineFactory">Optional subscription engine factory.</param>
+        /// <param name="securityPolicies">
+        /// Optional security policy registry forwarded to created sessions. When
+        /// <see langword="null"/>, <see cref="SecurityPolicies.Default"/> is used.
+        /// </param>
         public ChannelManagerSessionFactory(
             IClientChannelManager manager,
             ITelemetryContext telemetry,
             DiagnosticsMasks returnDiagnostics = DiagnosticsMasks.None,
             TimeProvider? timeProvider = null,
-            ISubscriptionEngineFactory? engineFactory = null)
+            ISubscriptionEngineFactory? engineFactory = null,
+            ISecurityPolicyRegistry? securityPolicies = null)
         {
             m_manager = manager ?? throw new ArgumentNullException(nameof(manager));
             Telemetry = telemetry ?? throw new ArgumentNullException(nameof(telemetry));
             m_timeProvider = timeProvider;
             m_engineFactory = engineFactory;
+            m_securityPolicies = securityPolicies;
             m_innerFactory = new DefaultSessionFactory(telemetry)
             {
-                TimeProvider = timeProvider
+                TimeProvider = timeProvider,
+                SecurityPolicyRegistry = securityPolicies
             };
             ReturnDiagnostics = returnDiagnostics;
         }
@@ -335,7 +342,8 @@ namespace Opc.Ua.Client
                             configuration,
                             endpoint,
                             engineFactory: m_engineFactory,
-                            timeProvider: m_timeProvider);
+                            timeProvider: m_timeProvider,
+                            securityPolicies: m_securityPolicies);
                         session.BindManagedChannel(m_manager, channel);
                         return session;
                     },
@@ -457,5 +465,6 @@ namespace Opc.Ua.Client
         private readonly DefaultSessionFactory m_innerFactory;
         private readonly TimeProvider? m_timeProvider;
         private readonly ISubscriptionEngineFactory? m_engineFactory;
+        private readonly ISecurityPolicyRegistry? m_securityPolicies;
     }
 }

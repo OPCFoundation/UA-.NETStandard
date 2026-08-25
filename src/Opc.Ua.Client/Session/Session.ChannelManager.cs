@@ -78,7 +78,7 @@ namespace Opc.Ua.Client
         /// Internal hook used by <see cref="CreateAsync(IClientChannelManager,
         /// ApplicationConfiguration, ConfiguredEndpoint, bool, bool, string,
         /// uint, IUserIdentity, ArrayOf{string}, ISubscriptionEngineFactory,
-        /// TimeProvider, CancellationToken)"/>
+        /// TimeProvider, ISecurityPolicyRegistry, CancellationToken)"/>
         /// to bind a freshly constructed Session to its managed channel
         /// while the channel-manager participant factory is running.
         /// </summary>
@@ -271,6 +271,8 @@ namespace Opc.Ua.Client
         /// <param name="engineFactory">Optional subscription engine
         /// factory (defaults to the classic engine).</param>
         /// <param name="timeProvider">Optional <see cref="TimeProvider"/>.</param>
+        /// <param name="securityPolicies">Optional security policy registry. When
+        /// <c>null</c>, <see cref="SecurityPolicies.Default"/> is used.</param>
         /// <param name="ct">Cancellation token.</param>
         /// <returns>The opened session.</returns>
         /// <exception cref="ArgumentNullException">A required argument is
@@ -287,6 +289,7 @@ namespace Opc.Ua.Client
             ArrayOf<string> preferredLocales = default,
             ISubscriptionEngineFactory? engineFactory = null,
             TimeProvider? timeProvider = null,
+            ISecurityPolicyRegistry? securityPolicies = null,
             CancellationToken ct = default)
         {
             if (manager == null)
@@ -347,7 +350,8 @@ namespace Opc.Ua.Client
                             endpoint,
                             probeContext,
                             engineFactory,
-                            timeProvider);
+                            timeProvider,
+                            securityPolicies);
                         session.BindManagedChannel(manager, channel);
                         return session;
                     },

@@ -62,7 +62,7 @@ namespace Opc.Ua
                 clientCertificateChain,
                 messageContext,
                 null,
-                ct).AsTask();
+                ct: ct).AsTask();
         }
 
         /// <summary>
@@ -93,7 +93,7 @@ namespace Opc.Ua
                 clientCertificateChain,
                 messageContext,
                 null,
-                ct).AsTask();
+                ct: ct).AsTask();
         }
 
         /// <summary>
