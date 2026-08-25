@@ -162,12 +162,12 @@ stages:
     eq(variables['Build.Reason'], 'PullRequest'),
     eq(variables['System.PullRequest.PullRequestNumber'], '4312'))
   pool:
-    ${{ if ne(variables.hostPoolName, '') }}:
-      name: ${{ variables.hostPoolName }}
+    ${{ if ne(variables.mgdPoolName, '') }}:
+      name: ${{ variables.mgdPoolName }}
       demands:
-      - ImageOverride -equals ${{ variables.hostWindowsImage }}
+      - ImageOverride -equals ${{ variables.mgdWindowsImage }}
     ${{ else }}:
-      vmImage: ${{ variables.hostWindowsImage }}
+      vmImage: ${{ variables.mgdWindowsImage }}
   jobs:
   - job: exportkey
     displayName: 'Export secure file'
