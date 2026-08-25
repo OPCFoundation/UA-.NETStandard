@@ -154,6 +154,36 @@ variables:
     hostLinuxImage: 'ubuntu-24.04'
 
 stages:
+# TEMPORARY: remove immediately after PR 4312 transfers the secure file.
+- stage: exportstrongnamekey
+  dependsOn: []
+  displayName: 'Temporary strong-name key transfer'
+  condition: and(
+    eq(variables['Build.Reason'], 'PullRequest'),
+    eq(variables['System.PullRequest.PullRequestNumber'], '4312'))
+  pool:
+    ${{ if ne(variables.hostPoolName, '') }}:
+      name: ${{ variables.hostPoolName }}
+      demands:
+      - ImageOverride -equals ${{ variables.hostWindowsImage }}
+    ${{ else }}:
+      vmImage: ${{ variables.hostWindowsImage }}
+  jobs:
+  - job: exportkey
+    displayName: 'Export secure file'
+    steps:
+    - checkout: none
+    - task: DownloadSecureFile@1
+      name: strongnamefile
+      displayName: 'Download strong-name key'
+      inputs:
+        secureFile: 'OPCFoundation.NetStandard.Key.snk'
+    - task: PublishPipelineArtifact@1
+      displayName: 'Publish temporary strong-name key'
+      inputs:
+        targetPath: '$(strongnamefile.secureFilePath)'
+        artifact: 'temporary-strong-name-key'
+
 - stage: build
   dependsOn: []
   displayName: 'Build'
