@@ -113,6 +113,7 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
                 new Uri($"https://localhost:{port}/"),
                 CreateListenerSettings(m_certificateRegistry, port),
                 m_callback).ConfigureAwait(false);
+            await WaitForListenerReadyAsync(port).ConfigureAwait(false);
 
             m_clientHandler = new HttpClientHandler
             {
@@ -258,6 +259,24 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
             finally
             {
                 listener.Stop();
+            }
+        }
+
+        private static async Task WaitForListenerReadyAsync(int port)
+        {
+            DateTime deadline = DateTime.UtcNow + TimeSpan.FromSeconds(10);
+            while (true)
+            {
+                try
+                {
+                    using var probe = new TcpClient();
+                    await probe.ConnectAsync(IPAddress.Loopback, port).ConfigureAwait(false);
+                    return;
+                }
+                catch (SocketException) when (DateTime.UtcNow < deadline)
+                {
+                    await Task.Delay(25).ConfigureAwait(false);
+                }
             }
         }
 
