@@ -560,6 +560,13 @@ namespace Opc.Ua.Robotics.Client.Tests
                 return new ValueTask<IntentOperationSnapshot>(Snapshot);
             }
 
+            public ValueTask<MissionSnapshot> ReadMissionSnapshotAsync(
+                NodeId mission,
+                CancellationToken ct = default)
+            {
+                return new ValueTask<MissionSnapshot>(new MissionSnapshot { MissionNode = mission });
+            }
+
             public ValueTask<NodeId> ReadControlOwnerAsync(CancellationToken ct = default)
             {
                 return new ValueTask<NodeId>(NodeId.Null);

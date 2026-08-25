@@ -221,7 +221,7 @@ namespace Opc.Ua.RobotIntent.Server
                     "A current safety snapshot is required before admission.");
             }
             return SubmitCore(
-                context, sessionId, ClientNameOf(context), intent, missionId, forceNewId: false);
+                context, sessionId, ClientNameOf(context), intent, missionId);
         }
 
         /// <summary>
@@ -243,7 +243,7 @@ namespace Opc.Ua.RobotIntent.Server
                 await RefreshSafetyStateAsync(context, cancellationToken).ConfigureAwait(false);
             }
             return SubmitCore(
-                context, sessionId, ClientNameOf(context), intent, missionId, forceNewId: false);
+                context, sessionId, ClientNameOf(context), intent, missionId);
         }
 
         /// <summary>
@@ -454,6 +454,8 @@ namespace Opc.Ua.RobotIntent.Server
             }
             IntentDataType? intent;
             string missionId;
+            string retryIntentId;
+            string baseIntentId;
             lock (m_lock)
             {
                 if (m_options.RequireControlAuthority && !HasAuthority(sessionId))
@@ -483,9 +485,20 @@ namespace Opc.Ua.RobotIntent.Server
                 }
                 intent = entry.Intent;
                 missionId = entry.MissionId;
+                baseIntentId = entry.BaseIntentId;
+                retryIntentId = NextRetryIntentIdLocked(baseIntentId);
             }
 
-            return SubmitCore(context, sessionId, ClientNameOf(context), intent!, missionId, forceNewId: true);
+            IntentDataType retryIntent = CloneIntent(intent!);
+            retryIntent.IntentId = retryIntentId;
+            return SubmitCore(
+                context,
+                sessionId,
+                ClientNameOf(context),
+                retryIntent,
+                missionId,
+                retryIntentId,
+                baseIntentId);
         }
 
         /// <summary>
@@ -862,6 +875,14 @@ namespace Opc.Ua.RobotIntent.Server
                     return MissionAdmission.Refused(IntentFailureEnum.ParameterInvalid,
                         $"MissionId '{id}' is already outstanding.");
                 }
+
+                Check intentIds = PreflightStepIntentIdsLocked(mission, id);
+                if (!intentIds.Ok)
+                {
+                    return MissionAdmission.Refused(IntentFailureEnum.ParameterInvalid,
+                        intentIds.Message ?? "A step IntentId is invalid.");
+                }
+
                 if (mission.Steps[0]?.Intent is { BufferMode: not BufferModeEnum.Aborting } &&
                     m_queue.Count >= m_options.MaxQueueDepth)
                 {
@@ -869,9 +890,10 @@ namespace Opc.Ua.RobotIntent.Server
                         "The queue is at MaxQueueDepth.");
                 }
 
-                var entry = new MissionEntry(id, mission);
+                var entry = new MissionEntry(id, mission, Interlocked.Increment(ref m_nextId));
                 m_missions[id] = entry;
                 CreateMissionNode(context, entry);
+                m_missionHistory.Add(entry.Node!.NodeId, entry);
                 SetMissionStateLocked(context, entry, ExecutionStateEnum.Executing);
                 StartNextStepLocked(context, entry, sessionId);
                 return MissionAdmission.Admitted(id, entry.Node!.NodeId);
@@ -927,6 +949,7 @@ namespace Opc.Ua.RobotIntent.Server
                         "MissionUpdateId must be greater than the mission's current value.");
                 }
 
+                uint released = MissionRules.ReleasedCount(entry.Mission.Steps);
                 Check conflict = MissionRules.ValidateBasePreserved(entry.Mission.Steps, steps);
                 if (!conflict.Ok)
                 {
@@ -946,7 +969,37 @@ namespace Opc.Ua.RobotIntent.Server
                         graph.Message ?? "The mission graph is not valid.");
                 }
 
-                entry.Mission.Steps = steps;
+                var reservedIds = new HashSet<string>(StringComparer.Ordinal);
+                for (int ii = 0; ii < released; ii++)
+                {
+                    string baseId = entry.GetBaseIntentId(entry.Mission.Steps[ii], ii);
+                    if (!string.IsNullOrEmpty(baseId))
+                    {
+                        reservedIds.Add(baseId);
+                    }
+                }
+                Check intentIds = PreflightStepIntentIdsLocked(
+                    steps,
+                    entry.MissionId,
+                    (int)released,
+                    reservedIds);
+                if (!intentIds.Ok)
+                {
+                    return new MissionUpdateOutcome(
+                        MissionUpdateResultEnum.Rejected,
+                        intentIds.Message ?? "A horizon step IntentId is invalid.");
+                }
+
+                var merged = new List<MissionStepDataType>(steps.Count);
+                for (int ii = 0; ii < released; ii++)
+                {
+                    merged.Add(entry.Mission.Steps[ii]);
+                }
+                for (int ii = (int)released; ii < steps.Count; ii++)
+                {
+                    merged.Add(steps[ii]);
+                }
+                entry.ReplaceSteps([.. merged], (int)released);
                 entry.Mission.MissionUpdateId = missionUpdateId;
                 PublishMissionLocked(context, entry);
                 return new MissionUpdateOutcome(MissionUpdateResultEnum.Accepted, null);
@@ -1084,7 +1137,8 @@ namespace Opc.Ua.RobotIntent.Server
             string clientName,
             IntentDataType? intent,
             string missionId,
-            bool forceNewId)
+            string? admittedIntentId = null,
+            string? baseIntentId = null)
         {
             if (context == null)
             {
@@ -1184,7 +1238,7 @@ namespace Opc.Ua.RobotIntent.Server
                         scope.Message ?? "The intent references an invalid node.");
                 }
 
-                string id = forceNewId ? string.Empty : intent.IntentId ?? string.Empty;
+                string id = admittedIntentId ?? intent.IntentId ?? string.Empty;
                 if (string.IsNullOrEmpty(id))
                 {
                     id = FormattableString.Invariant(
@@ -1205,6 +1259,7 @@ namespace Opc.Ua.RobotIntent.Server
 
                 var entry = new IntentEntry(
                     id,
+                    baseIntentId ?? id,
                     intent,
                     missionId,
                     Interlocked.Increment(ref m_nextAdmissionSequence))
@@ -2042,12 +2097,131 @@ namespace Opc.Ua.RobotIntent.Server
             node.ClearChangeMasks(context, true);
         }
 
+        private Check PreflightStepIntentIdsLocked(MissionDataType mission, string missionId)
+        {
+            return PreflightStepIntentIdsLocked(
+                mission.Steps,
+                missionId,
+                startIndex: 0,
+                reservedIds: null);
+        }
+
+        private Check PreflightStepIntentIdsLocked(
+            ArrayOf<MissionStepDataType> steps,
+            string missionId,
+            int startIndex,
+            HashSet<string>? reservedIds)
+        {
+            var assigned = reservedIds == null
+                ? new HashSet<string>(StringComparer.Ordinal)
+                : new HashSet<string>(reservedIds, StringComparer.Ordinal);
+            var generatedIds = new string[steps.Count];
+
+            for (int ii = startIndex; ii < steps.Count; ii++)
+            {
+                MissionStepDataType step = steps[ii];
+                IntentDataType? intent = step?.Intent;
+                if (intent == null)
+                {
+                    continue;
+                }
+
+                string suppliedId = intent.IntentId ?? string.Empty;
+                if (!string.IsNullOrEmpty(suppliedId))
+                {
+                    if (string.IsNullOrWhiteSpace(suppliedId))
+                    {
+                        return Check.Fail(
+                            $"Step '{step!.StepId}' has a whitespace-only IntentId.");
+                    }
+                    if (!assigned.Add(suppliedId))
+                    {
+                        return Check.Fail(
+                            $"IntentId '{suppliedId}' appears on more than one step.");
+                    }
+                    if (m_intents.ContainsKey(suppliedId))
+                    {
+                        return Check.Fail(
+                            $"IntentId '{suppliedId}' collides with a retained operation.");
+                    }
+                }
+                else
+                {
+                    string stepId = step!.StepId ?? string.Empty;
+                    string generatedId = string.IsNullOrEmpty(stepId)
+                        ? FormattableString.Invariant($"{missionId}/step-{ii}")
+                        : FormattableString.Invariant($"{missionId}/{stepId}");
+                    if (assigned.Contains(generatedId))
+                    {
+                        return Check.Fail(
+                            $"Generated IntentId '{generatedId}' appears on more than one step.");
+                    }
+                    generatedId = NextAvailableGeneratedIntentIdLocked(generatedId, assigned);
+                    assigned.Add(generatedId);
+                    generatedIds[ii] = generatedId;
+                }
+            }
+
+            for (int ii = startIndex; ii < steps.Count; ii++)
+            {
+                if (!string.IsNullOrEmpty(generatedIds[ii]) &&
+                    steps[ii]?.Intent is { } generatedIntent)
+                {
+                    generatedIntent.IntentId = generatedIds[ii];
+                }
+            }
+
+            return Check.Pass;
+        }
+
+        private string NextAvailableGeneratedIntentIdLocked(
+            string baseIntentId,
+            HashSet<string> assigned)
+        {
+            if (!assigned.Contains(baseIntentId) && !m_intents.ContainsKey(baseIntentId))
+            {
+                return baseIntentId;
+            }
+
+            for (int run = 2; ; run++)
+            {
+                string candidate = FormattableString.Invariant($"{baseIntentId}#run-{run}");
+                if (!assigned.Contains(candidate) && !m_intents.ContainsKey(candidate))
+                {
+                    return candidate;
+                }
+            }
+        }
+
+        private string NextRetryIntentIdLocked(string baseIntentId)
+        {
+            for (int attempt = 2; ; attempt++)
+            {
+                string candidate = FormattableString.Invariant($"{baseIntentId}#attempt-{attempt}");
+                if (!m_intents.ContainsKey(candidate))
+                {
+                    return candidate;
+                }
+            }
+        }
+
+        private static IntentDataType CloneIntent(IntentDataType intent)
+        {
+            if (intent.Clone() is IntentDataType clone)
+            {
+                return clone;
+            }
+            throw new InvalidOperationException(
+                $"Intent type '{intent.GetType().FullName}' did not clone as {nameof(IntentDataType)}.");
+        }
+
         private MissionAdvanceResult StartNextStepLocked(
             ISystemContext context,
             MissionEntry mission,
             NodeId? sessionId)
         {
-            MissionStepDataType? step = MissionRules.NextPending(mission.Mission.Steps, mission.NextIndex);
+            MissionStepDataType? step =
+                MissionRules.NextPending(mission.Mission.Steps, mission.NextIndex);
             if (step == null)
             {
                 FinishMissionLocked(context, mission, ExecutionStateEnum.Succeeded);
@@ -2055,15 +2229,56 @@ namespace Opc.Ua.RobotIntent.Server
             }
 
             mission.CurrentStepId = step.StepId ?? string.Empty;
-            IntentAdmission admission =
-                SubmitCore(
-                    context, sessionId, ClientNameOf(context), step.Intent, mission.MissionId, forceNewId: true);
-            if (!admission.Accepted)
+            IntentDataType? stepIntent = step.Intent;
+            if (stepIntent == null)
             {
-                FinishMissionLocked(context, mission, ExecutionStateEnum.Failed);
+                FinishMissionLocked(
+                    context,
+                    mission,
+                    ExecutionStateEnum.Failed,
+                    IntentFailureEnum.ParameterInvalid,
+                    $"Mission step '{mission.CurrentStepId}' has no intent.");
                 return MissionAdvanceResult.Refused;
             }
+
+            string baseId = mission.GetBaseIntentId(step, mission.NextIndex);
+            int attempt = mission.IncrementAttempt(mission.CurrentStepId);
+            string admittedId = attempt == 1
+                ? baseId
+                : FormattableString.Invariant($"{baseId}#attempt-{attempt}");
+            mission.CurrentIntentId = admittedId;
+            stepIntent.IntentId = admittedId;
+            IntentDataType admittedIntent = CloneIntent(stepIntent);
+
+            IntentAdmission admission = SubmitCore(
+                context,
+                sessionId,
+                ClientNameOf(context),
+                admittedIntent,
+                mission.MissionId,
+                admittedId,
+                baseId);
+            if (!admission.Accepted)
+            {
+                FinishMissionLocked(
+                    context,
+                    mission,
+                    ExecutionStateEnum.Failed,
+                    admission.Failure,
+                    admission.Message ?? "A mission step was refused.");
+                return MissionAdvanceResult.Refused;
+            }
+
             mission.CurrentIntentId = admission.IntentId;
+            stepIntent.IntentId = admission.IntentId;
+            if (m_intents.TryGetValue(admission.IntentId, out IntentEntry? entry))
+            {
+                MissionRules.SetStatus(
+                    mission.Mission.Steps,
+                    mission.NextIndex,
+                    entry.State,
+                    entry.Node?.NodeId);
+            }
             PublishMissionLocked(context, mission);
             return MissionAdvanceResult.Started;
         }
@@ -2090,7 +2305,10 @@ namespace Opc.Ua.RobotIntent.Server
                 {
                     // The compensation ran; the mission still ends, because that is
                     // what distinguishes Compensate from Fallback.
-                    FinishMissionLocked(context, mission, ExecutionStateEnum.Failed);
+                    FinishMissionLocked(
+                        context, mission, ExecutionStateEnum.Failed,
+                        IntentFailureEnum.Other,
+                        "Compensation completed; the mission is still failed.");
                     return;
                 }
                 mission.RetriesUsed = 0;
@@ -2107,7 +2325,7 @@ namespace Opc.Ua.RobotIntent.Server
                 return;
             }
 
-            ApplyErrorPolicyLocked(context, mission);
+            ApplyErrorPolicyLocked(context, mission, outcome);
         }
 
         /// <summary>
@@ -2189,7 +2407,10 @@ namespace Opc.Ua.RobotIntent.Server
         /// <summary>
         /// Applies a failed step's error policy, per clause 7.4.
         /// </summary>
-        private void ApplyErrorPolicyLocked(ISystemContext context, MissionEntry mission)
+        private void ApplyErrorPolicyLocked(
+            ISystemContext context,
+            MissionEntry mission,
+            IntentOutcome stepOutcome)
         {
             MissionStepDataType? step =
                 MissionRules.NextPending(mission.Mission.Steps, mission.NextIndex);
@@ -2204,7 +2425,10 @@ namespace Opc.Ua.RobotIntent.Server
                         StartNextStepLocked(context, mission, ControlOwner);
                         return;
                     }
-                    FinishMissionLocked(context, mission, ExecutionStateEnum.Failed);
+                    FinishMissionLocked(
+                        context, mission, ExecutionStateEnum.Failed,
+                        stepOutcome.Failure,
+                        stepOutcome.Message ?? "Retries exhausted.");
                     return;
                 case ErrorPolicyEnum.Skip:
                     mission.RetriesUsed = 0;
@@ -2219,7 +2443,10 @@ namespace Opc.Ua.RobotIntent.Server
                         mission.Mission.Steps, step?.FallbackStepId ?? string.Empty);
                     if (target < 0)
                     {
-                        FinishMissionLocked(context, mission, ExecutionStateEnum.Failed);
+                        FinishMissionLocked(
+                            context, mission, ExecutionStateEnum.Failed,
+                            stepOutcome.Failure,
+                            stepOutcome.Message ?? "Fallback step not found.");
                         return;
                     }
                     mission.RetriesUsed = 0;
@@ -2228,7 +2455,10 @@ namespace Opc.Ua.RobotIntent.Server
                     StartNextStepLocked(context, mission, ControlOwner);
                     return;
                 default:
-                    FinishMissionLocked(context, mission, ExecutionStateEnum.Failed);
+                    FinishMissionLocked(
+                        context, mission, ExecutionStateEnum.Failed,
+                        stepOutcome.Failure,
+                        stepOutcome.Message ?? "The step failed.");
                     return;
             }
         }
@@ -2237,17 +2467,42 @@ namespace Opc.Ua.RobotIntent.Server
             ISystemContext context,
             MissionEntry mission,
             ExecutionStateEnum state,
-            IntentFailureEnum failure = IntentFailureEnum.None)
+            IntentFailureEnum failure = IntentFailureEnum.None,
+            string failureMessage = "")
         {
             if (IntentOutcome.IsTerminal(mission.State))
             {
                 return;
             }
+            if (state == ExecutionStateEnum.Failed && failure == IntentFailureEnum.None)
+            {
+                failure = IntentFailureEnum.Other;
+                if (string.IsNullOrWhiteSpace(failureMessage))
+                {
+                    failureMessage = "The mission failed without a specific failure classification.";
+                }
+            }
             mission.Failure = state == ExecutionStateEnum.Failed ? failure : IntentFailureEnum.None;
-            PublishMissionFinalResultLocked(context, mission);
-            SetMissionStateLocked(context, mission, state);
+            mission.FailureMessage = state == ExecutionStateEnum.Failed
+                ? failureMessage ?? string.Empty
+                : string.Empty;
+            if (!string.IsNullOrEmpty(mission.CurrentStepId) &&
+                mission.NextIndex >= 0 &&
+                mission.NextIndex < mission.Mission.Steps.Count &&
+                mission.Mission.Steps[mission.NextIndex] is { } currentStep &&
+                !IntentOutcome.IsTerminal(currentStep.Status))
+            {
+                NodeId? operation = m_intents.TryGetValue(mission.CurrentIntentId, out IntentEntry? entry)
+                    ? entry.Node?.NodeId
+                    : null;
+                MissionRules.SetStatus(mission.Mission.Steps, mission.NextIndex, state, operation);
+            }
             mission.CurrentStepId = string.Empty;
+            mission.CurrentIntentId = string.Empty;
+            PublishMissionFinalResultLocked(context, mission);
             PublishMissionLocked(context, mission);
+            SetMissionStateLocked(context, mission, state);
+            PruneTerminalMissionsLocked();
         }
 
         private void CreateOperationNode(ISystemContext context, IntentEntry entry)
@@ -2257,7 +2512,7 @@ namespace Opc.Ua.RobotIntent.Server
             var node = new IntentOperationState(folder)
             {
                 NodeId = ChildNodeId(folder.NodeId, entry.OperationNodeName),
-                BrowseName = new QualifiedName(entry.IntentId, folder.BrowseName.NamespaceIndex),
+                BrowseName = new QualifiedName(entry.IntentId, m_controller.BrowseName.NamespaceIndex),
                 DisplayName = new LocalizedText(entry.IntentId),
                 SymbolicName = entry.IntentId,
                 ReferenceTypeId = global::Opc.Ua.ReferenceTypeIds.HasComponent,
@@ -2294,7 +2549,7 @@ namespace Opc.Ua.RobotIntent.Server
             var node = new MissionObjectState(folder)
             {
                 NodeId = ChildNodeId(folder.NodeId, entry.MissionNodeName),
-                BrowseName = new QualifiedName(entry.MissionId, folder.BrowseName.NamespaceIndex),
+                BrowseName = new QualifiedName(entry.MissionId, m_controller.BrowseName.NamespaceIndex),
                 DisplayName = new LocalizedText(entry.MissionId),
                 SymbolicName = entry.MissionId,
                 ReferenceTypeId = global::Opc.Ua.ReferenceTypeIds.HasComponent,
@@ -2303,6 +2558,16 @@ namespace Opc.Ua.RobotIntent.Server
                 EventNotifier = global::Opc.Ua.EventNotifiers.SubscribeToEvents
             };
             node.Create(context, node.NodeId, node.BrowseName, node.DisplayName, false);
+            EnsureFinalResultVariable(
+                context,
+                node,
+                nameof(IntentResultDataType.Failure),
+                DataTypeIds.IntentFailureEnum).Value = Variant.From((int)IntentFailureEnum.None);
+            EnsureFinalResultVariable(
+                context,
+                node,
+                nameof(IntentResultDataType.Message),
+                global::Opc.Ua.DataTypeIds.LocalizedText).Value = Variant.From(LocalizedText.Null);
             node.AddReference(global::Opc.Ua.ReferenceTypeIds.HasComponent, true, folder.NodeId);
             folder.AddReference(global::Opc.Ua.ReferenceTypeIds.HasComponent, false, node.NodeId);
 
@@ -2323,6 +2588,26 @@ namespace Opc.Ua.RobotIntent.Server
             ExecutionStateEnum previous = entry.State;
             entry.State = state;
             PublishExecutionStateLocked(context, entry, previous, state);
+            UpdateMissionStepStateLocked(context, entry, state);
+        }
+
+        private void UpdateMissionStepStateLocked(
+            ISystemContext context,
+            IntentEntry entry,
+            ExecutionStateEnum state)
+        {
+            if (string.IsNullOrEmpty(entry.MissionId) ||
+                !m_missions.TryGetValue(entry.MissionId, out MissionEntry? mission) ||
+                mission.CurrentIntentId != entry.IntentId)
+            {
+                return;
+            }
+            MissionRules.SetStatus(
+                mission.Mission.Steps,
+                mission.NextIndex,
+                state,
+                entry.Node?.NodeId);
+            PublishMissionLocked(context, mission);
         }
 
         private void PublishExecutionStateLocked(
@@ -2442,6 +2727,33 @@ namespace Opc.Ua.RobotIntent.Server
                 }
                 m_intents.Remove(victim.Key);
                 victim.Value.Dispose();
+            }
+        }
+
+        private void PruneTerminalMissionsLocked()
+        {
+            uint keep = m_options.RetainedTerminalMissions;
+            if (keep == 0)
+            {
+                return;
+            }
+            var terminal = m_missionHistory
+                .Where(kv => IntentOutcome.IsTerminal(kv.Value.State))
+                .OrderBy(kv => kv.Value.AdmissionSequence)
+                .ToList();
+            for (int i = 0; i < terminal.Count - (int)keep; i++)
+            {
+                KeyValuePair<NodeId, MissionEntry> victim = terminal[i];
+                if (m_removeNode != null && victim.Value.Node is { } stale)
+                {
+                    RemoveNode(stale);
+                }
+                m_missionHistory.Remove(victim.Key);
+                if (m_missions.TryGetValue(victim.Value.MissionId, out MissionEntry? current) &&
+                    ReferenceEquals(current, victim.Value))
+                {
+                    m_missions.Remove(victim.Value.MissionId);
+                }
             }
         }
 
@@ -2583,6 +2895,13 @@ namespace Opc.Ua.RobotIntent.Server
                 DataTypeIds.IntentFailureEnum);
             failure.Value = Variant.From((int)entry.Failure);
             failure.ClearChangeMasks(context, false);
+            BaseDataVariableState message = EnsureFinalResultVariable(
+                context,
+                node,
+                nameof(IntentResultDataType.Message),
+                global::Opc.Ua.DataTypeIds.LocalizedText);
+            message.Value = Variant.From(new LocalizedText(entry.FailureMessage));
+            message.ClearChangeMasks(context, false);
             node.ClearChangeMasks(context, true);
         }
 
@@ -2759,10 +3078,11 @@ namespace Opc.Ua.RobotIntent.Server
             {
                 return declared;
             }
+            ushort riNs = RobotIntentNamespaceIndex(context);
             var folder = new FolderState(m_controller)
             {
                 NodeId = ChildNodeId(m_controller.NodeId, browseName),
-                BrowseName = new QualifiedName(browseName, m_controller.BrowseName.NamespaceIndex),
+                BrowseName = new QualifiedName(browseName, riNs),
                 DisplayName = new LocalizedText(browseName),
                 SymbolicName = browseName,
                 ReferenceTypeId = global::Opc.Ua.ReferenceTypeIds.HasComponent,
@@ -2770,10 +3090,18 @@ namespace Opc.Ua.RobotIntent.Server
                 EventNotifier = global::Opc.Ua.EventNotifiers.None
             };
             m_controller.AddChild(folder);
-            folder.AddReference(global::Opc.Ua.ReferenceTypeIds.HasComponent, true, m_controller.NodeId);
-            m_controller.AddReference(global::Opc.Ua.ReferenceTypeIds.HasComponent, false, folder.NodeId);
+            folder.AddReference(
+                global::Opc.Ua.ReferenceTypeIds.HasComponent, true, m_controller.NodeId);
+            m_controller.AddReference(
+                global::Opc.Ua.ReferenceTypeIds.HasComponent, false, folder.NodeId);
             AddNode(folder);
             return folder;
+        }
+
+        private static ushort RobotIntentNamespaceIndex(ISystemContext context)
+        {
+            int idx = context.NamespaceUris.GetIndex(Namespaces.RobotIntent);
+            return idx < 0 ? (ushort)0 : (ushort)idx;
         }
 
         /// <summary>
@@ -2843,7 +3171,7 @@ namespace Opc.Ua.RobotIntent.Server
                 {
                     await RefreshSafetyStateAsync(context, ct).ConfigureAwait(false);
                     IntentAdmission admission = SubmitCore(
-                        context, SessionOf(ctx), ClientNameOf(ctx), intent, string.Empty, forceNewId: false);
+                        context, SessionOf(ctx), ClientNameOf(ctx), intent, string.Empty);
                     return ToSubmitIntentResult(admission);
                 };
             }
@@ -3306,6 +3634,7 @@ namespace Opc.Ua.RobotIntent.Server
         private readonly Func<NodeState, CancellationToken, ValueTask>? m_removeNode;
         private readonly Dictionary<string, IntentEntry> m_intents = [];
         private readonly Dictionary<string, MissionEntry> m_missions = [];
+        private readonly Dictionary<NodeId, MissionEntry> m_missionHistory = [];
         private readonly LinkedList<IntentEntry> m_queue = new();
         private readonly Dictionary<NodeId, IntentCapabilityDataType> m_capabilities = [];
         private NamespaceTable m_namespaceUris = new();
@@ -3399,12 +3728,14 @@ namespace Opc.Ua.RobotIntent.Server
 
         private sealed class IntentEntry(
             string intentId,
+            string baseIntentId,
             IntentDataType intent,
             string missionId,
             long admissionSequence)
             : IDisposable
         {
             public string IntentId { get; } = intentId;
+            public string BaseIntentId { get; } = baseIntentId;
             public string OperationNodeName { get; } = $"{intentId}-{Guid.NewGuid():N}";
             public IntentDataType Intent { get; } = intent;
             public string MissionId { get; } = missionId;
@@ -3464,19 +3795,90 @@ namespace Opc.Ua.RobotIntent.Server
             public DateTime Expiry { get; set; } = DateTime.MinValue;
         }
 
-        private sealed class MissionEntry(string missionId, MissionDataType mission)
+        private sealed class MissionEntry(string missionId, MissionDataType mission, long sequence)
         {
             public string MissionId { get; } = missionId;
             public string MissionNodeName { get; } = $"{missionId}-{Guid.NewGuid():N}";
             public MissionDataType Mission { get; } = mission;
+            public long AdmissionSequence { get; } = sequence;
             public MissionObjectState? Node { get; set; }
             public ExecutionStateEnum State { get; set; } = ExecutionStateEnum.Accepted;
             public IntentFailureEnum Failure { get; set; }
+            public string FailureMessage { get; set; } = string.Empty;
             public int NextIndex { get; set; }
             public uint RetriesUsed { get; set; }
             public bool Compensating { get; set; }
             public string CurrentStepId { get; set; } = string.Empty;
             public string CurrentIntentId { get; set; } = string.Empty;
+            public Dictionary<string, int> StepAttempts { get; } =
+                new(StringComparer.Ordinal);
+            public Dictionary<string, string> StepBaseIntentIds { get; } =
+                CreateStepBaseIntentIds(mission.Steps);
+
+            public int IncrementAttempt(string stepId)
+            {
+                if (!StepAttempts.TryGetValue(stepId, out int count))
+                {
+                    count = 0;
+                }
+                count++;
+                StepAttempts[stepId] = count;
+                return count;
+            }
+
+            public string GetBaseIntentId(MissionStepDataType step, int index)
+            {
+                string stepId = step.StepId ?? string.Empty;
+                if (StepBaseIntentIds.TryGetValue(stepId, out string? intentId) &&
+                    !string.IsNullOrEmpty(intentId))
+                {
+                    return intentId;
+                }
+                intentId = step.Intent?.IntentId ?? string.Empty;
+                if (string.IsNullOrEmpty(intentId))
+                {
+                    intentId = string.IsNullOrEmpty(stepId)
+                        ? FormattableString.Invariant($"{MissionId}/step-{index}")
+                        : FormattableString.Invariant($"{MissionId}/{stepId}");
+                    if (step.Intent != null)
+                    {
+                        step.Intent.IntentId = intentId;
+                    }
+                }
+                StepBaseIntentIds[stepId] = intentId;
+                return intentId;
+            }
+
+            public void ReplaceSteps(ArrayOf<MissionStepDataType> steps, int preservedCount)
+            {
+                for (int ii = preservedCount; ii < Mission.Steps.Count; ii++)
+                {
+                    string oldStepId = Mission.Steps[ii].StepId ?? string.Empty;
+                    StepAttempts.Remove(oldStepId);
+                    StepBaseIntentIds.Remove(oldStepId);
+                }
+
+                Mission.Steps = steps;
+                for (int ii = preservedCount; ii < steps.Count; ii++)
+                {
+                    MissionStepDataType step = steps[ii];
+                    string stepId = step.StepId ?? string.Empty;
+                    StepAttempts.Remove(stepId);
+                    StepBaseIntentIds[stepId] = step.Intent?.IntentId ?? string.Empty;
+                }
+            }
+
+            private static Dictionary<string, string> CreateStepBaseIntentIds(
+                ArrayOf<MissionStepDataType> steps)
+            {
+                var ids = new Dictionary<string, string>(StringComparer.Ordinal);
+                for (int ii = 0; ii < steps.Count; ii++)
+                {
+                    MissionStepDataType step = steps[ii];
+                    ids[step.StepId ?? string.Empty] = step.Intent?.IntentId ?? string.Empty;
+                }
+                return ids;
+            }
         }
     }
 

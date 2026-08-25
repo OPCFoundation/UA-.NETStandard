@@ -1408,11 +1408,52 @@ adds four tool groups:
 
 * discovery: list controllers and read a controller's declared `SupportedIntents`, `SupportedFacets`
   and lookup tables;
-* monitoring: read live state, list operations and missions, and wait for an operation with a bounded
-  timeout;
+* monitoring: read live state, page/filter concise operation and mission summaries, and wait for an
+  operation or mission with a bounded timeout;
 * direct control: request and release authority, cancel, pause, resume, retry, and submit one tool per
   intent kind;
 * missions: submit, update the horizon of, and cancel missions.
+
+Every controller argument is a selector: a NodeId remains valid, while an exact,
+unambiguous published name avoids copying NodeIds between calls. Tool, frame,
+location, output and program selectors inside an intent are resolved from the
+controller snapshot read for that call. Resolution is read-only and ambiguity
+is an error; it never requests command authority or submits exploratory work.
+
+Intent payloads are structured MCP objects rather than JSON text embedded in a
+string:
+
+```json
+{
+  "controller": "BinPickingController",
+  "input": {
+    "intentId": "pick-red",
+    "source": "Bin",
+    "tool": "ParallelGripper",
+    "objectClass": "RedCube"
+  }
+}
+```
+
+Mission `steps` and `transitions` are typed arrays. Each step carries a closed
+`kind` discriminator and exactly one matching payload. The server preserves a
+caller-supplied step IntentId, generates one only when omitted, and publishes
+the resulting `StepId -> IntentId -> operation NodeId -> state` correlation.
+`robotics_wait_mission` observes the mission operation NodeId returned by
+submission; it does not rediscover work through mutable active state.
+
+The list tools return bounded pages. Summary detail omits poses and full output
+payloads; request Full detail only for the page that needs it. A timeout from
+either wait tool is not a failure: it returns `completed=false` and a refreshed
+snapshot.
+
+When Vision and Robotics are composed, `robotics_vision_pick` runs one
+detection inference, applies exact class/detection filters and a confidence
+threshold, and deterministically chooses the highest-confidence candidate. It
+submits one Pick when no destination is supplied, or a two-step Pick/Place
+mission when a destination is supplied, then returns detection provenance and
+the authoritative submission handles. It never takes authority, retries,
+waits, cancels or converts a refusal into a success-shaped result.
 
 The sample `IntentViewerClient --mcp` is one host for these tools. In headless mode it defaults to MCP
 stdio. With `--view`, it automatically uses Streamable HTTP because MCP stdio carries protocol frames

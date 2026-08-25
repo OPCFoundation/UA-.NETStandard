@@ -94,7 +94,11 @@ namespace Opc.Ua.Robotics.Tests
             _ = state.MarkHeld(SampleLabel, 0.30, 0.0, 1.00);
             _ = state.MarkPlaced(SampleLabel, FixtureX, FixtureY, 0.85);
 
-            _ = state.MarkPlaced(SampleLabel, BinPickingPartsCatalog.BinCentreX, BinPickingPartsCatalog.BinCentreY, 0.85);
+            _ = state.MarkPlaced(
+                SampleLabel,
+                BinPickingPartsCatalog.BinCentreX,
+                BinPickingPartsCatalog.BinCentreY,
+                0.85);
 
             Assert.That(Find(state, SampleLabel).Location, Is.EqualTo(BinPickingPartLocation.InBin),
                 "A part put back in the bin has to become visible to the camera again, or a "
@@ -181,7 +185,7 @@ namespace Opc.Ua.Robotics.Tests
         }
 
         // The fixture the parts get stacked on, from Assets/Cell.usda.
-        private const double FixtureX = BinPickingCellGeometry.FixtureCentreX;
+        private const double FixtureX = BinPickingPartsCatalog.FixtureCentreX;
         private const double FixtureY = 0.0;
         private const string SampleLabel = "RedCube";
     }

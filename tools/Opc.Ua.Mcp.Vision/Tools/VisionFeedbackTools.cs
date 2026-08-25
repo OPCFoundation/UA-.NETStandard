@@ -61,7 +61,8 @@ namespace Opc.Ua.Mcp.Tools
             "silently and never acquires authority as a side effect.")]
         public static Task SubmitDetectionsAsync(
             VisionClientAccessor accessor,
-            [Description("Pipeline NodeId whose Feedback object should receive the detections.")] string pipelineNodeId,
+            [Description("Pipeline selector: an exact BrowseName, DisplayName, or NodeId string " +
+                "whose Feedback object should receive the detections.")] string pipeline,
             [Description("Purpose the detections are submitted for: Overlay, Reconciliation, GroundTruthLabel " +
                 "or Trigger.")]
             VisionFeedbackPurposeEnum purpose,
@@ -74,7 +75,7 @@ namespace Opc.Ua.Mcp.Tools
         {
             ArrayOf<VisionDetectionDataType> detections = VisionJson.BuildDetections(detectionsJson);
             return SubmitDetectionsCoreAsync(
-                accessor, pipelineNodeId, purpose, detections, sceneIsEmpty, sessionName, ct);
+                accessor, pipeline, purpose, detections, sceneIsEmpty, sessionName, ct);
         }
 
         /// <summary>
@@ -91,18 +92,20 @@ namespace Opc.Ua.Mcp.Tools
             "silently.")]
         public static Task SubmitInspectionResultAsync(
             VisionClientAccessor accessor,
-            [Description("Pipeline NodeId whose Feedback object should receive the inspection result.")] string pipelineNodeId,
+            [Description("Pipeline selector: an exact BrowseName, DisplayName, or NodeId string " +
+                "whose Feedback object should receive the inspection result.")] string pipeline,
             [Description("Stable identifier of the inspection result.")] string resultId,
             [Description("Overall evaluation: Ok, NotOk, NotDecidable or Undefined.")]
             VisionResultEvaluationEnum evaluation,
-            [Description("JSON array of measured characteristics as documented on this tool.")] string characteristicsJson,
+            [Description("JSON array of measured characteristics as documented on this tool.")]
+            string characteristicsJson,
             [Description("Session name to use; defaults to the only active session.")] string? sessionName = null,
             CancellationToken ct = default)
         {
             ArrayOf<VisionCharacteristicDataType> characteristics = VisionJson.BuildCharacteristics(
                 characteristicsJson);
             return SubmitInspectionCoreAsync(
-                accessor, pipelineNodeId, resultId, evaluation, characteristics, sessionName, ct);
+                accessor, pipeline, resultId, evaluation, characteristics, sessionName, ct);
         }
 
         /// <summary>
@@ -119,7 +122,8 @@ namespace Opc.Ua.Mcp.Tools
             "the server's refusal honestly; never retries silently.")]
         public static Task SubmitCorrectionAsync(
             VisionClientAccessor accessor,
-            [Description("Pipeline NodeId whose Feedback object should receive the correction.")] string pipelineNodeId,
+            [Description("Pipeline selector: an exact BrowseName, DisplayName, or NodeId string " +
+                "whose Feedback object should receive the correction.")] string pipeline,
             [Description("Stable identifier of the result being corrected.")] string resultId,
             [Description("Purpose the correction is submitted for: Overlay, Reconciliation, GroundTruthLabel " +
                 "or Trigger.")]
@@ -167,7 +171,7 @@ namespace Opc.Ua.Mcp.Tools
                 : new LocalizedText(reason);
             return SubmitCorrectionCoreAsync(
                 accessor,
-                pipelineNodeId,
+                pipeline,
                 resultId,
                 purpose,
                 detections,
@@ -191,7 +195,8 @@ namespace Opc.Ua.Mcp.Tools
             "silently.")]
         public static Task SubmitImageReferenceAsync(
             VisionClientAccessor accessor,
-            [Description("Pipeline NodeId whose Feedback object should receive the image reference.")] string pipelineNodeId,
+            [Description("Pipeline selector: an exact BrowseName, DisplayName, or NodeId string " +
+                "whose Feedback object should receive the image reference.")] string pipeline,
             [Description("Purpose the image is submitted for: Overlay, Reconciliation, GroundTruthLabel " +
                 "or Trigger.")]
             VisionFeedbackPurposeEnum purpose,
@@ -202,12 +207,12 @@ namespace Opc.Ua.Mcp.Tools
         {
             VisionImageReferenceDataType image = VisionJson.BuildImageReference(imageJson, nameof(imageJson));
             return SubmitImageReferenceCoreAsync(
-                accessor, pipelineNodeId, purpose, image, resultId, sessionName, ct);
+                accessor, pipeline, purpose, image, resultId, sessionName, ct);
         }
 
         private static async Task SubmitDetectionsCoreAsync(
             VisionClientAccessor accessor,
-            string pipelineNodeId,
+            string pipeline,
             VisionFeedbackPurposeEnum purpose,
             ArrayOf<VisionDetectionDataType> detections,
             bool sceneIsEmpty,
@@ -215,7 +220,7 @@ namespace Opc.Ua.Mcp.Tools
             CancellationToken ct)
         {
             VisionFeedbackClient feedback = await accessor.OpenPipelineFeedbackAsync(
-                pipelineNodeId, sessionName, ct).ConfigureAwait(false);
+                pipeline, sessionName, ct).ConfigureAwait(false);
             await feedback.SubmitDetectionsAsync(
                 purpose, detections, frameReference: null, inlineImage: ByteString.Empty,
                 sceneIsEmpty, ct)
@@ -224,7 +229,7 @@ namespace Opc.Ua.Mcp.Tools
 
         private static async Task SubmitInspectionCoreAsync(
             VisionClientAccessor accessor,
-            string pipelineNodeId,
+            string pipeline,
             string resultId,
             VisionResultEvaluationEnum evaluation,
             ArrayOf<VisionCharacteristicDataType> characteristics,
@@ -232,14 +237,14 @@ namespace Opc.Ua.Mcp.Tools
             CancellationToken ct)
         {
             VisionFeedbackClient feedback = await accessor.OpenPipelineFeedbackAsync(
-                pipelineNodeId, sessionName, ct).ConfigureAwait(false);
+                pipeline, sessionName, ct).ConfigureAwait(false);
             await feedback.SubmitInspectionResultAsync(resultId, evaluation, characteristics, ct)
                 .ConfigureAwait(false);
         }
 
         private static async Task SubmitCorrectionCoreAsync(
             VisionClientAccessor accessor,
-            string pipelineNodeId,
+            string pipeline,
             string resultId,
             VisionFeedbackPurposeEnum purpose,
             ArrayOf<VisionDetectionDataType> detections,
@@ -250,7 +255,7 @@ namespace Opc.Ua.Mcp.Tools
             CancellationToken ct)
         {
             VisionFeedbackClient feedback = await accessor.OpenPipelineFeedbackAsync(
-                pipelineNodeId, sessionName, ct).ConfigureAwait(false);
+                pipeline, sessionName, ct).ConfigureAwait(false);
             await feedback.SubmitCorrectionAsync(
                 resultId,
                 purpose,
@@ -264,7 +269,7 @@ namespace Opc.Ua.Mcp.Tools
 
         private static async Task SubmitImageReferenceCoreAsync(
             VisionClientAccessor accessor,
-            string pipelineNodeId,
+            string pipeline,
             VisionFeedbackPurposeEnum purpose,
             VisionImageReferenceDataType image,
             string resultId,
@@ -272,7 +277,7 @@ namespace Opc.Ua.Mcp.Tools
             CancellationToken ct)
         {
             VisionFeedbackClient feedback = await accessor.OpenPipelineFeedbackAsync(
-                pipelineNodeId, sessionName, ct).ConfigureAwait(false);
+                pipeline, sessionName, ct).ConfigureAwait(false);
             await feedback.SubmitImageReferenceAsync(purpose, image, resultId, ct)
                 .ConfigureAwait(false);
         }

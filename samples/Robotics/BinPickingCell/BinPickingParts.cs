@@ -366,11 +366,16 @@ namespace Vision.BinPickingCell
         public const double BinCentreY = 0.0;
 
         /// <summary>
+        /// Centre of the fixture in the world frame, matching <c>Assets/Cell.usda</c>.
+        /// </summary>
+        public const double FixtureCentreX = -0.600;
+
+        /// <summary>
         /// Half the bin's inner span; a part within this of the centre is in the bin.
         /// </summary>
         public const double BinHalfExtent = 0.12;
 
-        private static readonly BinPickingPart[] s_parts =        [
+        private static readonly BinPickingPart[] s_parts = [
             new BinPickingPart(
                 ClassLabel: "RedCube",
                 ClassId: 1u,

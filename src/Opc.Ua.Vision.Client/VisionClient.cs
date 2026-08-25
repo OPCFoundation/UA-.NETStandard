@@ -366,7 +366,103 @@ namespace Opc.Ua.Vision.Client
             return new VisionFrameGraph(m_operations);
         }
 
+        /// <summary>
+        /// Creates the one-shot inference service for running inference,
+        /// determining the result kind, and reading a bounded concise summary.
+        /// </summary>
+        public VisionInferenceService Inference()
+        {
+            return new VisionInferenceService(m_operations);
+        }
+
+        /// <summary>
+        /// Resolves a pipeline by exact unique name (BrowseName.Name or
+        /// DisplayName.Text, trimmed) or by NodeId string. Returns the
+        /// matching <see cref="VisionNodeEntry"/>.
+        /// </summary>
+        /// <param name="pipelineSelector">
+        /// A NodeId string (e.g. <c>ns=2;s=Vision/Pipelines/Abc</c>) or an
+        /// exact published name.
+        /// </param>
+        /// <param name="cancellationToken">
+        /// Cancels the operation.
+        /// </param>
+        /// <exception cref="ArgumentException">
+        /// <paramref name="pipelineSelector"/> is null or empty.
+        /// </exception>
+        /// <exception cref="InvalidOperationException">
+        /// No match found, or multiple pipelines matched the name.
+        /// </exception>
+        public async Task<VisionNodeEntry> ResolvePipelineAsync(
+            string pipelineSelector,
+            CancellationToken cancellationToken = default)
+        {
+            if (string.IsNullOrWhiteSpace(pipelineSelector))
+            {
+                throw new ArgumentException(
+                    "Pipeline selector must not be null, empty, or whitespace.",
+                    nameof(pipelineSelector));
+            }
+
+            string trimmed = pipelineSelector.Trim();
+
+            bool isNodeId = NodeId.TryParse(trimmed, out NodeId parsed)
+                && !parsed.IsNull;
+
+            var candidates = new List<VisionNodeEntry>();
+            var all = new List<string>();
+
+            await foreach (VisionNodeEntry entry in EnumeratePipelinesAsync(
+                cancellationToken).ConfigureAwait(false))
+            {
+                all.Add(FormatPipelineEntry(entry));
+
+                if (isNodeId && entry.NodeId == parsed)
+                {
+                    return entry;
+                }
+
+                string? browseName = entry.BrowseName.Name?.Trim();
+                string? displayName = entry.DisplayName.Text?.Trim();
+
+                if (string.Equals(trimmed, browseName, StringComparison.Ordinal) ||
+                    string.Equals(trimmed, displayName, StringComparison.Ordinal))
+                {
+                    candidates.Add(entry);
+                }
+            }
+
+            if (candidates.Count == 1)
+            {
+                return candidates[0];
+            }
+
+            if (candidates.Count > 1)
+            {
+                var names = new List<string>(candidates.Count);
+                for (int i = 0; i < candidates.Count; i++)
+                {
+                    names.Add(FormatPipelineEntry(candidates[i]));
+                }
+
+                throw new InvalidOperationException(
+                    $"Ambiguous pipeline name '{trimmed}': {string.Join(", ", names)}.");
+            }
+
+            string available = all.Count > 0
+                ? string.Join(", ", all)
+                : "(none)";
+            throw new InvalidOperationException(
+                $"Pipeline '{trimmed}' not found. Available: {available}.");
+        }
+
         internal VisionClientOperations Operations => m_operations;
+
+        private static string FormatPipelineEntry(VisionNodeEntry entry)
+        {
+            return $"BrowseName='{entry.BrowseName.Name}', " +
+                $"DisplayName='{entry.DisplayName.Text}', NodeId='{entry.NodeId}'";
+        }
 
         private async ValueTask<NodeId> ResolveOptionalRootChildAsync(
             string browseName,

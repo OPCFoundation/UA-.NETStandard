@@ -813,10 +813,18 @@ one.
 - Geometry — `vision_read_frame`, `vision_compose_pose`,
   `vision_compose_transform`.
 
+`vision_run_inference` accepts one structured `request`. Its `pipeline`
+selector is an exact BrowseName, DisplayName or NodeId; `expectedKind` can
+require a Detection, Inspection or Segmentation result; and `detail=Summary`
+returns a bounded typed summary together with the ResultId, result NodeId,
+sensor, requested/published pipeline, model and frame provenance. Use
+`detail=HandleOnly` when only the addressable result is needed, or call a
+`vision_read_*_result` tool for the complete payload.
+
 Profiles compose. A host that wires the `Vision` and `Robotics` profile
 sets together — the [BinPickingClient sample](../samples/Robotics/BinPickingClient)
-does this — exposes 62 tools in total, measured as
-`22 Vision + 4 Connection + 40 Robotics − 4 shared Connection = 62`.
+does this — exposes 64 tools in total, measured as
+`22 Vision + 4 Connection + 42 Robotics − 4 shared Connection = 64`.
 The `WithOpcUaVisionTools(McpToolProfileSet)` overload never registers
 `ConnectionTools` directly; the corresponding
 `WithOpcUaCoreTools(McpToolProfileSet)` overload owns and deduplicates
@@ -837,15 +845,23 @@ flange. It hosts `Robot Intent`, the Vision companion and the
 `OpenUsdScene` companion side by side, and either the on-server
 deterministic detector (`--inferenceLocation OnServer`, the default)
 or the off-server agent path (`--inferenceLocation EdgeOffServer`).
-The selected detection pose drives the Pick target directly; the
-Location supplies containment and workflow semantics rather than
-substituting its centre for the detected workpiece.
+The selected detection identifies the workpiece and preserves its pose as
+provenance. The Pick carries the selected class plus the source Location and
+tool; the cell's executor resolves that workpiece at its observed world pose
+rather than substituting the Location centre.
 
 [`samples/Robotics/BinPickingClient`](../samples/Robotics/BinPickingClient)
 is the paired client: `--demo` runs the whole loop without an agent,
-`--mcp` exposes the composed 62-tool MCP catalogue for a language-model
+`--mcp` exposes the composed 64-tool MCP catalogue for a language-model
 agent, and `--view` opens the in-process OpenUSD viewport so a human
 sees the same scene the agent sees.
+
+The composed Robotics package also contributes `robotics_vision_pick`. It runs
+one inference through the Vision client, selects one detection
+deterministically, and submits either a Pick operation or a two-step Pick/Place
+mission. It returns the selected detection provenance and the authoritative
+operation or mission handles. Command authority remains explicit: the helper
+never requests ownership, retries, waits, cancels or hides a refusal.
 
 ### Scene lighting
 

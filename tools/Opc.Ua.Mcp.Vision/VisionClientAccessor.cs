@@ -31,7 +31,6 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 using Opc.Ua.Client;
-using Opc.Ua.Mcp.Serialization;
 using Opc.Ua.Vision.Client;
 
 namespace Opc.Ua.Mcp
@@ -67,7 +66,7 @@ namespace Opc.Ua.Mcp
         {
             ArgumentException.ThrowIfNullOrWhiteSpace(sensorNodeId);
 
-            return CreateClient(sessionName).Sensor(OpcUaJsonHelper.ParseNodeId(sensorNodeId));
+            return CreateClient(sessionName).Sensor(Serialization.OpcUaJsonHelper.ParseNodeId(sensorNodeId));
         }
 
         /// <summary>
@@ -77,7 +76,8 @@ namespace Opc.Ua.Mcp
         {
             ArgumentException.ThrowIfNullOrWhiteSpace(pipelineNodeId);
 
-            return CreateClient(sessionName).Pipeline(OpcUaJsonHelper.ParseNodeId(pipelineNodeId));
+            return CreateClient(sessionName).Pipeline(
+                Serialization.OpcUaJsonHelper.ParseNodeId(pipelineNodeId));
         }
 
         /// <summary>
@@ -87,7 +87,8 @@ namespace Opc.Ua.Mcp
         {
             ArgumentException.ThrowIfNullOrWhiteSpace(mediaNodeId);
 
-            return CreateClient(sessionName).Media(OpcUaJsonHelper.ParseNodeId(mediaNodeId));
+            return CreateClient(sessionName).Media(
+                Serialization.OpcUaJsonHelper.ParseNodeId(mediaNodeId));
         }
 
         /// <summary>
@@ -97,18 +98,20 @@ namespace Opc.Ua.Mcp
         {
             ArgumentException.ThrowIfNullOrWhiteSpace(feedbackNodeId);
 
-            return CreateClient(sessionName).Feedback(OpcUaJsonHelper.ParseNodeId(feedbackNodeId));
+            return CreateClient(sessionName).Feedback(
+                Serialization.OpcUaJsonHelper.ParseNodeId(feedbackNodeId));
         }
 
         /// <summary>
-        /// Opens the feedback client attached to a pipeline over the named or sole active session.
+        /// Opens the feedback client attached to a selected pipeline over the named or sole active session.
         /// </summary>
         public async Task<VisionFeedbackClient> OpenPipelineFeedbackAsync(
-            string pipelineNodeId,
+            string pipelineSelector,
             string? sessionName = null,
             CancellationToken ct = default)
         {
-            VisionPipelineClient pipeline = OpenPipeline(pipelineNodeId, sessionName);
+            (_, VisionPipelineClient pipeline) = await ResolvePipelineAsync(
+                pipelineSelector, sessionName, ct).ConfigureAwait(false);
             VisionFeedbackClient? feedback = await pipeline.OpenFeedbackAsync(ct).ConfigureAwait(false);
             return feedback ?? throw new InvalidOperationException(
                 "Pipeline does not expose a Feedback object.");
@@ -121,7 +124,8 @@ namespace Opc.Ua.Mcp
         {
             ArgumentException.ThrowIfNullOrWhiteSpace(resultNodeId);
 
-            return CreateClient(sessionName).Result(OpcUaJsonHelper.ParseNodeId(resultNodeId));
+            return CreateClient(sessionName).Result(
+                Serialization.OpcUaJsonHelper.ParseNodeId(resultNodeId));
         }
 
         /// <summary>
@@ -130,6 +134,41 @@ namespace Opc.Ua.Mcp
         public VisionFrameGraph OpenFrames(string? sessionName = null)
         {
             return CreateClient(sessionName).Frames();
+        }
+
+        /// <summary>
+        /// Resolves a pipeline by exact unique name (BrowseName.Name or
+        /// DisplayName.Text) or by NodeId string, returning both the resolved
+        /// entry and a ready-to-use pipeline client.
+        /// </summary>
+        /// <param name="pipelineSelector">
+        /// A NodeId string or an exact pipeline name.
+        /// </param>
+        /// <param name="sessionName">
+        /// Session name to use; defaults to the only active session.
+        /// </param>
+        /// <param name="ct">
+        /// Cancels the operation.
+        /// </param>
+        public async Task<(VisionNodeEntry Entry, VisionPipelineClient Pipeline)>
+            ResolvePipelineAsync(
+                string pipelineSelector,
+                string? sessionName = null,
+                CancellationToken ct = default)
+        {
+            VisionClient client = CreateClient(sessionName);
+            VisionNodeEntry entry = await client.ResolvePipelineAsync(
+                pipelineSelector, ct).ConfigureAwait(false);
+            VisionPipelineClient pipeline = client.Pipeline(entry.NodeId);
+            return (entry, pipeline);
+        }
+
+        /// <summary>
+        /// Creates the one-shot inference service from the named or sole active session.
+        /// </summary>
+        public VisionInferenceService CreateInferenceService(string? sessionName = null)
+        {
+            return CreateClient(sessionName).Inference();
         }
 
         private readonly OpcUaSessionManager m_sessionManager;

@@ -17,14 +17,12 @@ model can drive the cell while a human watches. With `--view`, it can also open
 the in-process OpenUSD viewport so the same session is observable in 3-D while
 the agent runs.
 
-The MCP catalogue exposed to the agent contains **62 tools** measured from the
-running host: `26` Vision tools + `40` Robotics tools − `4` shared connection
+The MCP catalogue exposed to the agent contains **64 tools** measured from the
+running host: `26` Vision tools + `42` Robotics tools − `4` shared connection
 tools. This includes `vision_get_frame`, which returns the eye-in-hand camera
 image as an MCP `ImageContentBlock` so the model genuinely sees pixels; the
-Robotics tools that submit intents (`robotics_submit_pick`,
-`robotics_submit_place`, …); and the state and authority tools needed to plan
-against refusals. The count is logged on startup as
-`MCP catalogue exposes 62 tools (Vision + Robotics + Connection).`
+one-call `robotics_vision_pick`; typed intent/mission tools; and the state,
+authority, paging and bounded-wait tools needed to plan against refusals.
 
 ## MCP hosting
 
@@ -302,14 +300,14 @@ payload supports `win-x64`, `linux-x64` and `osx-arm64`; substitute the matching
 ## Agent workflow for vision-guided bin picking
 
 Use `--mcp --view` when an LLM agent should drive the same cell a human
-watches. The perception-to-grasp loop is deliberately short: observe the same
-cell, request authority, compose the detected camera pose into `world`, then
-submit and wait for the robot intents.
+watches. The perception-to-grasp loop is deliberately short: observe the cell,
+request authority explicitly, then let `robotics_vision_pick` run inference,
+select one detection and submit the Pick/Place mission on the same OPC UA
+session.
 
 ```mermaid
 sequenceDiagram
     participant Agent as LLM agent
-    participant Vision as Vision tools
     participant Robotics as Robotics tools
     participant Cell as BinPickingCell server
 
@@ -319,80 +317,62 @@ sequenceDiagram
     Agent->>Robotics: robotics_request_control
     Robotics->>Cell: RequestControl
     Cell-->>Agent: granted
-    Agent->>Vision: vision_get_frame BinPickingCameraTwin
-    Vision->>Cell: read eye-in-hand camera frame
-    Cell-->>Agent: PNG frame
-    Agent->>Vision: vision_run_inference BinPickingPipeline
-    Vision->>Cell: RunInference or submitted detections
-    Cell-->>Agent: detections in camera_eih
-    Agent->>Vision: vision_compose_pose camera_eih to world
-    Vision->>Cell: compose frame tree
-    Cell-->>Agent: target pose in world
-    Agent->>Robotics: robotics_submit_pick
-    Robotics->>Cell: SubmitIntent Pick
-    Cell-->>Agent: IntentOperation
-    Agent->>Robotics: robotics_wait_operation
-    Robotics->>Cell: watch ExecutionState
-    Cell-->>Agent: terminal result
-    Agent->>Robotics: robotics_submit_place
-    Robotics->>Cell: SubmitIntent Place
-    Cell-->>Agent: terminal result
+    Agent->>Robotics: robotics_vision_pick
+    Robotics->>Cell: RunInference
+    Cell-->>Robotics: DetectionResult + provenance
+    Robotics->>Cell: SubmitMission(Pick, Place)
+    Cell-->>Agent: selected detection + Mission handle
+    Agent->>Robotics: robotics_wait_mission
+    Robotics->>Cell: observe Mission ExecutionState
+    Cell-->>Agent: terminal Mission result
 ```
 
-The agent's tool sequence to pick one part:
+The agent's tool sequence to pick and place one part:
 
 ```text
 agent -> robotics_list_controllers()
 server -> [{ name: "BinPickingController", nodeId: "ns=3;s=7001_Controllers_BinPickingController" }]
 
-agent -> robotics_read_controller(controllerId)
+agent -> robotics_read_controller(controller="BinPickingController")
 server -> SupportedIntents includes Pick and Place; locations include Bin,
           Fixture and per-part staging; tools include ParallelGripper.
 
-agent -> robotics_read_state(controllerId)
+agent -> robotics_read_state(controller="BinPickingController")
 server -> Ready=true, OperationalMode=AutomaticExternal, ControlOwner=<other session>
 
-agent -> robotics_request_control(controllerId)
+agent -> robotics_request_control(controller="BinPickingController")
 server -> { granted: true }
 
-agent -> vision_get_frame(sensor="BinPickingCameraTwin")
-server -> <ImageContentBlock: PNG of the current bin>
+agent -> robotics_vision_pick(request={
+    controller: "BinPickingController",
+    pipeline: "BinPickingPipeline",
+    source: "Bin",
+    tool: "ParallelGripper",
+    destination: "Fixture",
+    classLabel: "RedCube",
+    minimumConfidence: 0.9,
+    missionId: "place-red-cube"
+})
+server -> {
+    provenance: { resultId: "run-...", selectedDetection: { classLabel: "RedCube", ... } },
+    missionSubmission: { accepted: true, missionId: "place-red-cube", operation: "ns=..."}
+}
 
-agent decision: identify the red cube on the far right of the bin.
-
-agent -> vision_run_inference(pipeline="BinPickingPipeline")
-server -> { resultId: "run-..." }
-
-agent -> vision_read_result(resultId)
-server -> { detections: [ { classLabel: "RedCube", pose: { frameId: "camera_eih", ... } }, ... ] }
-
-agent -> vision_compose_pose(pose, fromFrameId="camera_eih", toFrameId="world")
-server -> { position: [...], orientation: [...] }
-
-agent -> robotics_submit_pick(controllerId,
-    { intentId: "pick-red-cube", source: "<Bin NodeId>", tool: "<ParallelGripper NodeId>" })
-server -> { accepted: true, operation: "<IntentOperation NodeId>" }
-
-agent -> robotics_wait_operation(controllerId, "pick-red-cube", operation, 2000)
-server -> completed=true
-
-agent -> robotics_submit_place(controllerId,
-    { intentId: "place-red-cube", destination: "<Fixture NodeId>", tool: "<ParallelGripper NodeId>" })
-server -> { accepted: true, operation: "<IntentOperation NodeId>" }
-
-agent -> robotics_wait_operation(controllerId, "place-red-cube", operation, 2000)
-server -> completed=true
-
-agent -> vision_run_inference(pipeline="BinPickingPipeline")
-server -> { resultId: "run-..." }
-
-agent -> vision_read_result(resultId)
-server -> { detections: [ ...RedCube absent... ] }
+agent -> robotics_wait_mission(
+    controller="BinPickingController",
+    missionId="place-red-cube",
+    missionNodeId="ns=...",
+    timeoutMs=30000)
+server -> { completed: true, terminalState: "Succeeded", ... }
 ```
 
 If safety refuses the intent, the agent must observe the failure, re-read state,
 and either re-plan (for example, retry with a different tool or target
 location), ask for operator action, or stop.
+
+The lower-level `vision_run_inference`, `vision_read_detection_result`,
+`robotics_submit_pick` and `robotics_submit_place` tools remain available when
+an agent needs to inspect or control each stage separately.
 
 `--insecure` is for localhost demos only. It accepts any server certificate for
 localhost demos; do not use it for production systems.

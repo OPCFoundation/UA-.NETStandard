@@ -29,7 +29,6 @@
 
 #if NET10_0
 using System;
-using System.Globalization;
 using System.Linq;
 using System.Net;
 using System.Net.Sockets;
@@ -92,7 +91,7 @@ namespace Opc.Ua.Robotics.Intent.Tests
                 .SubmitLinearMoveAsync(
                     robotics,
                     controllerId,
-                    LinearMoveJson("refused-without-authority", 0.12, 0.16, 0.28),
+                    LinearMoveInput("refused-without-authority", 0.12, 0.16, 0.28),
                     kAgentSession,
                     CancellationToken.None)
                 .ConfigureAwait(false);
@@ -115,7 +114,7 @@ namespace Opc.Ua.Robotics.Intent.Tests
                 .SubmitPickAsync(
                     robotics,
                     controllerId,
-                    PickJson("direct-pick-slot-01", bin.NodeId, tool.NodeId),
+                    PickInput("direct-pick-slot-01", bin.NodeId, tool.NodeId),
                     kAgentSession,
                     CancellationToken.None)
                 .ConfigureAwait(false);
@@ -131,8 +130,12 @@ namespace Opc.Ua.Robotics.Intent.Tests
                 .SubmitJointMoveAsync(
                     robotics,
                     controllerId,
-                    "{\"intentId\":\"direct-stack-slot-01\",\"jointTargets\":[0.1,-1.0,1.5,-0.9,0.75,0.0]," +
-                    "\"blockingMode\":\"None\"}",
+                    new JointMoveIntentInput
+                    {
+                        IntentId = "direct-stack-slot-01",
+                        JointTargets = [0.1, -1.0, 1.5, -0.9, 0.75, 0.0],
+                        BlockingMode = BlockingModeEnum.None
+                    },
                     info.AxisCount,
                     kAgentSession,
                     CancellationToken.None)
@@ -152,7 +155,7 @@ namespace Opc.Ua.Robotics.Intent.Tests
                 .SubmitPlaceAsync(
                     robotics,
                     controllerId,
-                    PlaceJson("direct-place-slot-01", fixtureLocation.NodeId, tool.NodeId),
+                    PlaceInput("direct-place-slot-01", fixtureLocation.NodeId, tool.NodeId),
                     kAgentSession,
                     CancellationToken.None)
                 .ConfigureAwait(false);
@@ -169,7 +172,12 @@ namespace Opc.Ua.Robotics.Intent.Tests
                 .SubmitWaitAsync(
                     robotics,
                     controllerId,
-                    "{\"intentId\":\"pause-resume-cancel\",\"duration\":1500,\"blockingMode\":\"None\"}",
+                    new WaitIntentInput
+                    {
+                        IntentId = "pause-resume-cancel",
+                        Duration = 1500,
+                        BlockingMode = BlockingModeEnum.None
+                    },
                     kAgentSession,
                     CancellationToken.None)
                 .ConfigureAwait(false);
@@ -177,8 +185,13 @@ namespace Opc.Ua.Robotics.Intent.Tests
             IntentCommandOutcome pause = await RoboticsControlTools
                 .PauseAsync(robotics, controllerId, kAgentSession, CancellationToken.None)
                 .ConfigureAwait(false);
-            ArrayOf<IntentOperationSnapshot> operationsWhilePaused = await RoboticsMonitoringTools
-                .ListOperationsAsync(robotics, controllerId, kAgentSession, CancellationToken.None)
+            OperationListResult operationsWhilePaused = await RoboticsMonitoringTools
+                .ListOperationsAsync(
+                    robotics,
+                    controllerId,
+                    query: null,
+                    kAgentSession,
+                    CancellationToken.None)
                 .ConfigureAwait(false);
             IntentCommandOutcome resume = await RoboticsControlTools
                 .ResumeAsync(robotics, controllerId, kAgentSession, CancellationToken.None)
@@ -198,7 +211,12 @@ namespace Opc.Ua.Robotics.Intent.Tests
                 pausable,
                 kAgentSession).ConfigureAwait(false);
             IntentSubmissionResult retryRefusal = await RoboticsControlTools
-                .RetryAsync(robotics, controllerId, refusedWithoutAuthority.IntentId, kAgentSession, CancellationToken.None)
+                .RetryAsync(
+                    robotics,
+                    controllerId,
+                    refusedWithoutAuthority.IntentId,
+                    kAgentSession,
+                    CancellationToken.None)
                 .ConfigureAwait(false);
 
             MissionSubmissionResult stackMission = await RoboticsMissionTools
@@ -207,7 +225,7 @@ namespace Opc.Ua.Robotics.Intent.Tests
                     controllerId,
                     "stack-slot-02",
                     0,
-                    StackingMissionStepsJson(bin.NodeId, fixtureLocation.NodeId, tool.NodeId),
+                    StackingMissionSteps(bin.NodeId, fixtureLocation.NodeId, tool.NodeId),
                     null,
                     "stack pallet slot 02",
                     kAgentSession,
@@ -222,15 +240,25 @@ namespace Opc.Ua.Robotics.Intent.Tests
                     controllerId,
                     "cancelled-pallet-demo",
                     0,
-                    "[{\"stepId\":\"wait\",\"released\":true,\"intent\":{\"kind\":\"wait\"," +
-                    "\"intentId\":\"cancelled-pallet-demo-wait\",\"duration\":1000}}]",
+                    [
+                        WaitStep(
+                            "wait",
+                            "cancelled-pallet-demo-wait",
+                            duration: 1000,
+                            released: true)
+                    ],
                     null,
                     "cancelled pallet demonstration",
                     kAgentSession,
                     CancellationToken.None)
                 .ConfigureAwait(false);
-            ArrayOf<MissionSnapshot> missionsBeforeCancel = await RoboticsMonitoringTools
-                .ListMissionsAsync(robotics, controllerId, kAgentSession, CancellationToken.None)
+            MissionListResult missionsBeforeCancel = await RoboticsMonitoringTools
+                .ListMissionsAsync(
+                    robotics,
+                    controllerId,
+                    query: null,
+                    kAgentSession,
+                    CancellationToken.None)
                 .ConfigureAwait(false);
             MissionUpdateOutcome update = await RoboticsMissionTools
                 .UpdateMissionAsync(
@@ -238,10 +266,18 @@ namespace Opc.Ua.Robotics.Intent.Tests
                     controllerId,
                     "cancelled-pallet-demo",
                     1,
-                    "[{\"stepId\":\"wait\",\"released\":true,\"intent\":{\"kind\":\"wait\"," +
-                    "\"intentId\":\"cancelled-pallet-demo-wait\",\"duration\":1000}}," +
-                    "{\"stepId\":\"replacement\",\"released\":false,\"intent\":{\"kind\":\"wait\"," +
-                    "\"intentId\":\"cancelled-pallet-demo-replacement\",\"duration\":100}}]",
+                    [
+                        WaitStep(
+                            "wait",
+                            "cancelled-pallet-demo-wait",
+                            duration: 1000,
+                            released: true),
+                        WaitStep(
+                            "replacement",
+                            "cancelled-pallet-demo-replacement",
+                            duration: 100,
+                            released: false)
+                    ],
                     kAgentSession,
                     CancellationToken.None)
                 .ConfigureAwait(false);
@@ -277,13 +313,13 @@ namespace Opc.Ua.Robotics.Intent.Tests
                 Assert.That(placed.Result.State, Is.EqualTo(ExecutionStateEnum.Succeeded));
                 Assert.That(firstSlotFilled, Is.True);
                 Assert.That(pause.Accepted, Is.True);
-                Assert.That(operationsWhilePaused, Is.Not.Empty);
+                Assert.That(operationsWhilePaused.Returned, Is.GreaterThan(0));
                 Assert.That(resume.Accepted, Is.True);
                 Assert.That(cancelIntent.Accepted, Is.True);
                 Assert.That(cancelled.Result.State, Is.EqualTo(ExecutionStateEnum.Cancelled));
                 Assert.That(retryRefusal.Accepted, Is.False);
                 Assert.That(missionToCancel.Accepted, Is.True);
-                Assert.That(missionsBeforeCancel.Count, Is.GreaterThanOrEqualTo(0));
+                Assert.That(missionsBeforeCancel.Total, Is.GreaterThan(0));
                 Assert.That(update.Result, Is.EqualTo(MissionUpdateResultEnum.Accepted));
                 Assert.That(cancelMission.Accepted, Is.True);
                 Assert.That(cancelAll, Is.GreaterThanOrEqualTo(0));
@@ -310,9 +346,15 @@ namespace Opc.Ua.Robotics.Intent.Tests
 
             Assert.Multiple(() =>
             {
-                Assert.That(info.Lookups.Locations.ToArray()!.Select(entry => entry.Name), Does.Contain("Bin"));
-                Assert.That(info.Lookups.Locations.ToArray()!.Select(entry => entry.Name), Does.Contain("Fixture"));
-                Assert.That(info.Lookups.Outputs.ToArray()!.Select(entry => entry.Name), Does.Contain("HeldPartPosition"));
+                Assert.That(
+                    info.Lookups.Locations.ToArray()!.Select(entry => entry.Name),
+                    Does.Contain("Bin"));
+                Assert.That(
+                    info.Lookups.Locations.ToArray()!.Select(entry => entry.Name),
+                    Does.Contain("Fixture"));
+                Assert.That(
+                    info.Lookups.Outputs.ToArray()!.Select(entry => entry.Name),
+                    Does.Contain("HeldPartPosition"));
                 Assert.That(
                     info.Lookups.Outputs.ToArray()!.Select(entry => entry.Name),
                     Does.Contain("PayloadSlot01Filled"));
@@ -484,80 +526,102 @@ namespace Opc.Ua.Robotics.Intent.Tests
             return entry!;
         }
 
-        private static string LinearMoveJson(string intentId, double x, double y, double z)
+        private static LinearMoveIntentInput LinearMoveInput(
+            string intentId,
+            double x,
+            double y,
+            double z)
         {
-            // JSON numbers are culture-invariant. Interpolating a double directly would emit a
-            // comma decimal separator under a culture such as de-DE, turning a three-element
-            // position into a six-element one that no longer describes the requested pose.
-            string px = x.ToString(CultureInfo.InvariantCulture);
-            string py = y.ToString(CultureInfo.InvariantCulture);
-            string pz = z.ToString(CultureInfo.InvariantCulture);
-            return $$"""
+            return new LinearMoveIntentInput
+            {
+                IntentId = intentId,
+                Target = new PoseDto
                 {
-                  "intentId": "{{intentId}}",
-                  "target": {
-                    "position": [{{px}}, {{py}}, {{pz}}],
-                    "orientation": [0, 0, 0, 1],
-                    "frameId": "world"
-                  },
-                  "constraints": { "cartesianSpeed": 0.25 },
-                  "blockingMode": "None"
-                }
-                """;
+                    Position = new PosePositionDto { X = x, Y = y, Z = z },
+                    Orientation = new QuaternionDto { W = 1.0 },
+                    FrameId = "world"
+                },
+                Constraints = new MotionConstraintsDto { CartesianSpeed = 0.25 },
+                BlockingMode = BlockingModeEnum.None
+            };
         }
 
-        private static string PickJson(string intentId, NodeId source, NodeId tool)
+        private static PickIntentInput PickInput(string intentId, NodeId source, NodeId tool)
         {
-            return $$"""
-                {
-                  "intentId": "{{intentId}}",
-                  "source": "{{source}}",
-                  "tool": "{{tool}}",
-                  "blockingMode": "None"
-                }
-                """;
+            return new PickIntentInput
+            {
+                IntentId = intentId,
+                Source = source.ToString(),
+                Tool = tool.ToString(),
+                BlockingMode = BlockingModeEnum.None
+            };
         }
 
-        private static string PlaceJson(string intentId, NodeId destination, NodeId tool)
+        private static PlaceIntentInput PlaceInput(
+            string intentId,
+            NodeId destination,
+            NodeId tool)
         {
-            return $$"""
-                {
-                  "intentId": "{{intentId}}",
-                  "destination": "{{destination}}",
-                  "tool": "{{tool}}",
-                  "blockingMode": "None"
-                }
-                """;
+            return new PlaceIntentInput
+            {
+                IntentId = intentId,
+                Destination = destination.ToString(),
+                Tool = tool.ToString(),
+                BlockingMode = BlockingModeEnum.None
+            };
         }
 
-        private static string StackingMissionStepsJson(NodeId bin, NodeId fixture, NodeId tool)
+        private static MissionStepInput[] StackingMissionSteps(
+            NodeId bin,
+            NodeId fixture,
+            NodeId tool)
         {
-            return $$"""
-                [
-                  {
-                    "stepId": "pick-slot-02",
-                    "released": true,
-                    "intent": {
-                      "kind": "pick",
-                      "intentId": "mission-pick-slot-02",
-                      "source": "{{bin}}",
-                      "tool": "{{tool}}",
-                      "blockingMode": "None"
+            return
+            [
+                new MissionStepInput
+                {
+                    StepId = "pick-slot-02",
+                    Released = true,
+                    Intent = new MissionIntentInput
+                    {
+                        Kind = IntentKind.Pick,
+                        Pick = PickInput("mission-pick-slot-02", bin, tool)
                     }
-                  },
-                  {
-                    "stepId": "place-slot-02",
-                    "released": true,
-                    "intent": {
-                      "kind": "place",
-                      "intentId": "mission-place-slot-02",
-                      "destination": "{{fixture}}",
-                      "tool": "{{tool}}",
-                      "blockingMode": "None"
+                },
+                new MissionStepInput
+                {
+                    StepId = "place-slot-02",
+                    Released = true,
+                    Intent = new MissionIntentInput
+                    {
+                        Kind = IntentKind.Place,
+                        Place = PlaceInput("mission-place-slot-02", fixture, tool)
                     }
-                  }
-                ]
-                """;
+                }
+            ];
+        }
+
+        private static MissionStepInput WaitStep(
+            string stepId,
+            string intentId,
+            double duration,
+            bool released)
+        {
+            return new MissionStepInput
+            {
+                StepId = stepId,
+                Released = released,
+                Intent = new MissionIntentInput
+                {
+                    Kind = IntentKind.Wait,
+                    Wait = new WaitIntentInput
+                    {
+                        IntentId = intentId,
+                        Duration = duration,
+                        BlockingMode = BlockingModeEnum.None
+                    }
+                }
+            };
         }
 
         private static double Distance(double[] left, double[] right)

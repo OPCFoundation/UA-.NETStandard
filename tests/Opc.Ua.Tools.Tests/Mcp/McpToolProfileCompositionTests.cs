@@ -76,8 +76,8 @@ namespace Opc.Ua.Tools.Tests.Mcp
 
             Assert.That(composed, Has.Count.LessThan(full.Count),
                 "Composing bounded profiles must produce a smaller catalogue than Full.");
-            // 26 (vision) + 40 (robotics) - 4 (shared ConnectionTools) = 62.
-            Assert.That(composed, Has.Count.EqualTo(62));
+            // 26 (vision) + 42 (robotics) - 4 (shared ConnectionTools) = 64.
+            Assert.That(composed, Has.Count.EqualTo(64));
         }
 
         /// <summary>

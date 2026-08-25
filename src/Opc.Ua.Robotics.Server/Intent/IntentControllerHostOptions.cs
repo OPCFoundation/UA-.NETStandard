@@ -185,6 +185,13 @@ namespace Opc.Ua.RobotIntent.Server
         public uint RetainedTerminalOperations { get; set; } = 128;
 
         /// <summary>
+        /// How many terminal missions to keep browsable per controller, or zero to keep
+        /// every one of them. Mirrors <see cref="RetainedTerminalOperations"/> for
+        /// mission nodes. The default keeps the latest 32 terminal missions.
+        /// </summary>
+        public uint RetainedTerminalMissions { get; set; } = 32;
+
+        /// <summary>
         /// How long asynchronous disposal waits for an executing intent to observe
         /// shutdown cancellation and let the pump drain, in milliseconds.
         /// </summary>
@@ -1170,7 +1177,14 @@ namespace Opc.Ua.RobotIntent.Server
             {
                 return left == right;
             }
-            return left.IsEqual(right);
+            if (left.Clone() is not IntentDataType leftComparable ||
+                right.Clone() is not IntentDataType rightComparable)
+            {
+                return false;
+            }
+            leftComparable.IntentId = string.Empty;
+            rightComparable.IntentId = string.Empty;
+            return leftComparable.IsEqual(rightComparable);
         }
     }
 

@@ -69,6 +69,8 @@ namespace Opc.Ua.Mcp
             {
                 case McpToolProfile.Vision:
                 case McpToolProfile.Full:
+                    mcpServerBuilder.WithRequestFilters(filters =>
+                        filters.AddListToolsFilter(VisionMcpFilters.AddInferenceRequestSchema));
                     mcpServerBuilder
                         .WithTools<VisionDiscoveryTools>()
                         .WithTools<VisionMonitoringTools>()
@@ -137,6 +139,8 @@ namespace Opc.Ua.Mcp
             }
 
             return mcpServerBuilder
+                .WithRequestFilters(filters =>
+                    filters.AddListToolsFilter(VisionMcpFilters.AddInferenceRequestSchema))
                 .WithTools<VisionDiscoveryTools>()
                 .WithTools<VisionMonitoringTools>()
                 .WithTools<VisionSeeingTools>()
@@ -146,4 +150,3 @@ namespace Opc.Ua.Mcp
         }
     }
 }
-

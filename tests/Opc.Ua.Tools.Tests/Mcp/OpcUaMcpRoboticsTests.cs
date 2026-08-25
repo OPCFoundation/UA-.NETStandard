@@ -106,14 +106,19 @@ namespace Opc.Ua.Tools.Tests.Mcp
                 }
             };
             var controller = new RobotIntentControllerClient(transport);
-            const string json = "{\"target\":{\"position\":[1,2,3],\"orientation\":[0,0,0,1]},\"speedFraction\":0.2}";
+            var input = new LinearMoveIntentInput
+            {
+                Target = new PoseDto
+                {
+                    Position = new PosePositionDto { X = 1, Y = 2, Z = 3 },
+                    Orientation = new QuaternionDto { X = 0, Y = 0, Z = 0, W = 1 }
+                },
+                SpeedFraction = 0.2
+            };
+            IntentDataType intent = RoboticsIntentDtoConverter.ConvertLinearMove(input, null);
 
-            IntentSubmissionResult result = await RoboticsControlTools.SubmitIntentAsync(
-                controller,
-                "linearMove",
-                json,
-                0,
-                CancellationToken.None).ConfigureAwait(false);
+            IntentSubmissionResult result = await controller.TrySubmitIntentAsync(intent, CancellationToken.None)
+                .ConfigureAwait(false);
 
             Assert.That(result.Accepted, Is.False);
             Assert.That(result.Failure, Is.EqualTo(IntentFailureEnum.SafetyLimitExceeded));
@@ -137,7 +142,7 @@ namespace Opc.Ua.Tools.Tests.Mcp
             };
             var controller = new RobotIntentControllerClient(transport);
 
-            IntentOperationWaitResult result = await RoboticsMonitoringTools.WaitOperationAsync(
+            IntentOperationWaitResult result = await RoboticsMonitoringTools.WaitOperationCoreAsync(
                 controller,
                 "intent1",
                 operationNode.ToString(),
@@ -164,12 +169,23 @@ namespace Opc.Ua.Tools.Tests.Mcp
                 }
             };
             var controller = new RobotIntentControllerClient(transport);
-            const string steps = "[{\"stepId\":\"s1\",\"released\":true," +
-                "\"intent\":{\"kind\":\"wait\",\"duration\":10}}]";
+            MissionStepInput[] steps =
+            [
+                new MissionStepInput
+                {
+                    StepId = "s1",
+                    Released = true,
+                    Intent = new MissionIntentInput
+                    {
+                        Kind = IntentKind.Wait,
+                        Wait = new WaitIntentInput { Duration = 10 }
+                    }
+                }
+            ];
 
             RobotIntentControllerInfo info = await controller.ReadAsync().ConfigureAwait(false);
             RobotIntentControllerState state = await controller.ReadStateAsync().ConfigureAwait(false);
-            MissionDataType mission = RoboticsMissionTools.BuildMission("m1", 1, steps, null, null);
+            MissionDataType mission = RoboticsMissionTools.BuildMission("m1", 1, steps, default, null, null);
             MissionSubmissionResult missionResult = await controller.SubmitMissionAsync(mission).ConfigureAwait(false);
 
             Assert.That(info.AxisCount, Is.EqualTo(6));
@@ -243,7 +259,9 @@ namespace Opc.Ua.Tools.Tests.Mcp
                 return ValueTask.FromResult<ArrayOf<MissionSnapshot>>([]);
             }
 
-            public ValueTask<IntentSubmissionResult> SubmitIntentAsync(IntentDataType intent, CancellationToken ct = default)
+            public ValueTask<IntentSubmissionResult> SubmitIntentAsync(
+                IntentDataType intent,
+                CancellationToken ct = default)
             {
                 SubmitIntentCallCount++;
                 return ValueTask.FromResult(SubmissionResult);
@@ -290,7 +308,8 @@ namespace Opc.Ua.Tools.Tests.Mcp
                 ArrayOf<MissionStepDataType> steps,
                 CancellationToken ct = default)
             {
-                return ValueTask.FromResult(new MissionUpdateOutcome(MissionUpdateResultEnum.Accepted, LocalizedText.Null));
+                return ValueTask.FromResult(
+                    new MissionUpdateOutcome(MissionUpdateResultEnum.Accepted, LocalizedText.Null));
             }
 
             public ValueTask<IntentCommandOutcome> CancelMissionAsync(
@@ -334,6 +353,13 @@ namespace Opc.Ua.Tools.Tests.Mcp
                 CancellationToken ct = default)
             {
                 return ValueTask.FromResult(OperationSnapshot);
+            }
+
+            public ValueTask<MissionSnapshot> ReadMissionSnapshotAsync(
+                NodeId mission,
+                CancellationToken ct = default)
+            {
+                return ValueTask.FromResult(new MissionSnapshot());
             }
 
             public ValueTask<NodeId> ReadControlOwnerAsync(CancellationToken ct = default)

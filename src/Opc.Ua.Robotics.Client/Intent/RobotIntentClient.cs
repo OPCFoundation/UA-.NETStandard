@@ -337,6 +337,42 @@ namespace Opc.Ua.Robotics.Client.Intent
         }
 
         /// <summary>
+        /// Submits a mission and returns an awaitable handle when accepted.
+        /// </summary>
+        public async ValueTask<MissionHandle> SubmitAndTrackMissionAsync(
+            MissionDataType mission,
+            CancellationToken cancellationToken = default)
+        {
+            MissionSubmissionResult result = await SubmitMissionAsync(mission, cancellationToken)
+                .ConfigureAwait(false);
+            if (!result.Accepted)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadRequestNotAllowed,
+                    "Mission refused: {0} {1}",
+                    result.Failure,
+                    result.Message.Text ?? string.Empty);
+            }
+            string id = result.MissionId.Length == 0 ? mission.MissionId ?? string.Empty : result.MissionId;
+            MissionHandle handle = new(this, id, result.Operation);
+            await handle.StartAsync(cancellationToken).ConfigureAwait(false);
+            return handle;
+        }
+
+        /// <summary>
+        /// Opens an awaitable mission handle for an existing mission node.
+        /// </summary>
+        public async ValueTask<MissionHandle> TrackMissionAsync(
+            string missionId,
+            NodeId missionNode,
+            CancellationToken cancellationToken = default)
+        {
+            MissionHandle handle = new(this, missionId, missionNode);
+            await handle.StartAsync(cancellationToken).ConfigureAwait(false);
+            return handle;
+        }
+
+        /// <summary>
         /// Replaces the mission horizon after locally rejecting non-increasing update ids.
         /// </summary>
         public async ValueTask<MissionUpdateOutcome> UpdateMissionAsync(
@@ -357,7 +393,8 @@ namespace Opc.Ua.Robotics.Client.Intent
                         "MissionUpdateId shall be strictly greater than the mission's current value.");
                     return new MissionUpdateOutcome(
                         MissionUpdateResultEnum.Outdated,
-                        new LocalizedText("MissionUpdateId shall be strictly greater than the mission's current value."));
+                        new LocalizedText(
+                            "MissionUpdateId shall be strictly greater than the mission's current value."));
                 }
             }
             MissionUpdateOutcome outcome = await Transport.UpdateMissionAsync(

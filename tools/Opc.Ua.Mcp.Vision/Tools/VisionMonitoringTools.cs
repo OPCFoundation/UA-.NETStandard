@@ -112,14 +112,17 @@ namespace Opc.Ua.Mcp.Tools
             "InferenceLocation says where inference physically runs. Use vision_read_result instead when " +
             "you want a specific published result. Reports server state only, never infers pipeline state, " +
             "and never requests authority. Returns a VisionPipelineSnapshot.")]
-        public static Task<VisionPipelineSnapshot> ReadPipelineAsync(
+        public static async Task<VisionPipelineSnapshot> ReadPipelineAsync(
             VisionClientAccessor accessor,
-            [Description("Pipeline NodeId, for example ns=2;s=Vision/Pipelines/BinPickingPipeline.")] string pipelineNodeId,
+            [Description("Pipeline selector: an exact BrowseName, DisplayName, or NodeId string " +
+                "(e.g. 'BinPickingPipeline' or 'ns=2;s=Vision/Pipelines/BinPickingPipeline').")] string pipeline,
             [Description("Session name to use; defaults to the only active session.")] string? sessionName = null,
             CancellationToken ct = default)
         {
-            VisionPipelineClient pipeline = accessor.OpenPipeline(pipelineNodeId, sessionName);
-            return pipeline.ReadAsync(ct);
+            (_, VisionPipelineClient pipelineClient) =
+                await accessor.ResolvePipelineAsync(pipeline, sessionName, ct)
+                    .ConfigureAwait(false);
+            return await pipelineClient.ReadAsync(ct).ConfigureAwait(false);
         }
 
         /// <summary>

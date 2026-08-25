@@ -52,10 +52,7 @@ namespace Opc.Ua.Robotics.Client.Tests
     [Category("Robotics")]
     public sealed class IntentClientRuntimeTests
     {
-        [TestCase(ExecutionStateEnum.Succeeded)]
-        [TestCase(ExecutionStateEnum.Failed)]
-        [TestCase(ExecutionStateEnum.Cancelled)]
-        [TestCase(ExecutionStateEnum.Retriable)]
+        [TestCaseSource(nameof(TerminalExecutionStates))]
         public async Task OperationHandleCompletesOnTerminalStates(ExecutionStateEnum state)
         {
             FakeRobotIntentTransport transport = new()
@@ -224,6 +221,128 @@ namespace Opc.Ua.Robotics.Client.Tests
             Task completed = await Task.WhenAny(handle.Completion, Task.Delay(100));
 
             Assert.That(completed, Is.Not.SameAs(handle.Completion));
+        }
+
+        [Test]
+        public async Task MissionHandleReadsInitialStateAfterSubscribing()
+        {
+            FakeRobotIntentTransport transport = new()
+            {
+                MissionSnapshot = MissionSnapshot(ExecutionStateEnum.Succeeded)
+            };
+            RobotIntentControllerClient controller = new(transport);
+
+            await using MissionHandle handle = await controller.TrackMissionAsync(
+                "mission-1",
+                new NodeId(20));
+
+            MissionSnapshot terminal = await AwaitWithTimeoutAsync(handle.Completion, TimeSpan.FromSeconds(1));
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(terminal.ExecutionState, Is.EqualTo(ExecutionStateEnum.Succeeded));
+                Assert.That(transport.SubscribeCount, Is.EqualTo(1));
+                Assert.That(transport.ReadMissionSnapshotCount, Is.EqualTo(1));
+            });
+        }
+
+        [Test]
+        public async Task MissionHandleRefreshesAfterReconnect()
+        {
+            FakeRobotIntentTransport transport = new()
+            {
+                MissionSnapshot = MissionSnapshot(ExecutionStateEnum.Executing)
+            };
+            RobotIntentControllerClient controller = new(transport);
+
+            await using MissionHandle handle = await controller.TrackMissionAsync(
+                "mission-1",
+                new NodeId(20));
+            transport.MissionSnapshot = MissionSnapshot(ExecutionStateEnum.Failed) with
+            {
+                Failure = IntentFailureEnum.Other,
+                FailureMessage = new LocalizedText("executor failure")
+            };
+            transport.PublishReconnect();
+
+            MissionSnapshot terminal = await AwaitWithTimeoutAsync(handle.Completion, TimeSpan.FromSeconds(1));
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(terminal.ExecutionState, Is.EqualTo(ExecutionStateEnum.Failed));
+                Assert.That(terminal.Failure, Is.EqualTo(IntentFailureEnum.Other));
+                Assert.That(terminal.FailureMessage.Text, Is.EqualTo("executor failure"));
+                Assert.That(transport.ReadMissionSnapshotCount, Is.GreaterThanOrEqualTo(2));
+            });
+        }
+
+        [Test]
+        public async Task MissionHandleTimeoutRemainsIncompleteWhenRefreshObservesTerminalState()
+        {
+            FakeRobotIntentTransport transport = new()
+            {
+                MissionSnapshot = MissionSnapshot(ExecutionStateEnum.Executing)
+            };
+            RobotIntentControllerClient controller = new(transport);
+
+            await using MissionHandle handle = await controller.TrackMissionAsync(
+                "mission-1",
+                new NodeId(20));
+            transport.MissionSnapshot = MissionSnapshot(ExecutionStateEnum.Succeeded);
+
+            MissionWaitResult result = await handle.WaitForCompletionAsync(TimeSpan.Zero);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(result.Completed, Is.False);
+                Assert.That(result.Current.ExecutionState, Is.EqualTo(ExecutionStateEnum.Succeeded));
+                Assert.That(handle.Completion.IsCompleted, Is.True);
+            });
+        }
+
+        [Test]
+        public async Task MissionHandleCancellationDelegatesToTransport()
+        {
+            FakeRobotIntentTransport transport = new()
+            {
+                MissionSnapshot = MissionSnapshot(ExecutionStateEnum.Executing),
+                CancelMissionOutcome = new IntentCommandOutcome(false)
+            };
+            RobotIntentControllerClient controller = new(transport);
+
+            await using MissionHandle handle = await controller.TrackMissionAsync(
+                "mission-1",
+                new NodeId(20));
+            IntentCommandOutcome outcome = await handle.CancelAsync(StopModeEnum.QuickStop);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(outcome.Accepted, Is.False);
+                Assert.That(transport.CancelMissionCount, Is.EqualTo(1));
+                Assert.That(transport.LastCancelMissionId, Is.EqualTo("mission-1"));
+                Assert.That(transport.LastCancelMissionStopMode, Is.EqualTo(StopModeEnum.QuickStop));
+            });
+        }
+
+        [Test]
+        public async Task MissionHandleDisposalStopsItsSubscription()
+        {
+            FakeRobotIntentTransport transport = new()
+            {
+                MissionSnapshot = MissionSnapshot(ExecutionStateEnum.Executing)
+            };
+            RobotIntentControllerClient controller = new(transport);
+            MissionHandle handle = await controller.TrackMissionAsync("mission-1", new NodeId(20));
+            await WaitUntilAsync(
+                () => transport.ActiveSubscriptionCount == 1,
+                TimeSpan.FromSeconds(1)).ConfigureAwait(false);
+
+            await handle.DisposeAsync();
+
+            await WaitUntilAsync(
+                () => transport.ActiveSubscriptionCount == 0,
+                TimeSpan.FromSeconds(1)).ConfigureAwait(false);
+            Assert.That(transport.ActiveSubscriptionCount, Is.Zero);
         }
 
         [Test]
@@ -888,6 +1007,24 @@ namespace Opc.Ua.Robotics.Client.Tests
             };
         }
 
+        private static MissionSnapshot MissionSnapshot(ExecutionStateEnum state)
+        {
+            return new MissionSnapshot
+            {
+                MissionNode = new NodeId(20),
+                MissionId = "mission-1",
+                ExecutionState = state
+            };
+        }
+
+        private static IEnumerable<TestCaseData> TerminalExecutionStates()
+        {
+            yield return new TestCaseData(ExecutionStateEnum.Succeeded);
+            yield return new TestCaseData(ExecutionStateEnum.Failed);
+            yield return new TestCaseData(ExecutionStateEnum.Cancelled);
+            yield return new TestCaseData(ExecutionStateEnum.Retriable);
+        }
+
         private sealed class TestClientBuilder(IServiceCollection services) : IOpcUaClientBuilder
         {
             public IServiceCollection Services { get; } = services;
@@ -944,6 +1081,10 @@ namespace Opc.Ua.Robotics.Client.Tests
             public int SubscribeCount { get; private set; }
 
             public int ReadSnapshotCount { get; private set; }
+
+            public int ReadMissionSnapshotCount { get; private set; }
+
+            public int ActiveSubscriptionCount => Volatile.Read(ref m_activeSubscriptionCount);
 
             public int ReleaseCount { get; private set; }
 
@@ -1226,6 +1367,16 @@ namespace Opc.Ua.Robotics.Client.Tests
                 return new ValueTask<IntentOperationSnapshot>(Snapshot);
             }
 
+            public MissionSnapshot MissionSnapshot { get; set; } = new();
+
+            public ValueTask<MissionSnapshot> ReadMissionSnapshotAsync(
+                NodeId mission,
+                CancellationToken ct = default)
+            {
+                ReadMissionSnapshotCount++;
+                return new ValueTask<MissionSnapshot>(MissionSnapshot with { MissionNode = mission });
+            }
+
             public ValueTask<NodeId> ReadControlOwnerAsync(CancellationToken ct = default)
             {
                 return new ValueTask<NodeId>(ControlOwner);
@@ -1236,23 +1387,32 @@ namespace Opc.Ua.Robotics.Client.Tests
                 [EnumeratorCancellation] CancellationToken ct = default)
             {
                 SubscribeCount++;
-                while (!ct.IsCancellationRequested)
+                Interlocked.Increment(ref m_activeSubscriptionCount);
+                try
                 {
-                    await m_notificationAvailable.WaitAsync(ct).ConfigureAwait(false);
-                    if (ChangeNotifications.TryDequeue(out RobotIntentDataChange change))
+                    while (!ct.IsCancellationRequested)
                     {
-                        yield return change;
+                        await m_notificationAvailable.WaitAsync(ct).ConfigureAwait(false);
+                        if (ChangeNotifications.TryDequeue(out RobotIntentDataChange change))
+                        {
+                            yield return change;
+                        }
+                        else if (m_ownerNotifications.TryDequeue(out NodeId owner))
+                        {
+                            yield return new RobotIntentDataChange(new NodeId(1), Variant.From(owner));
+                        }
                     }
-                    else if (m_ownerNotifications.TryDequeue(out NodeId owner))
-                    {
-                        yield return new RobotIntentDataChange(new NodeId(1), Variant.From(owner));
-                    }
+                }
+                finally
+                {
+                    Interlocked.Decrement(ref m_activeSubscriptionCount);
                 }
             }
 
             private readonly ConcurrentQueue<NodeId> m_ownerNotifications = new();
             private readonly SemaphoreSlim m_notificationAvailable = new(0);
             private readonly System.Threading.Lock m_stateLock = new();
+            private int m_activeSubscriptionCount;
             private TaskCompletionSource<bool>? m_openChannelCountReached;
             private int m_openChannelCountTarget = int.MaxValue;
 

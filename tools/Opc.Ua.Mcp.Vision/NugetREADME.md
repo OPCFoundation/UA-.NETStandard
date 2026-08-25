@@ -18,6 +18,24 @@ reading a description of them. When the server cannot render — for example on
 CI without a graphics device — the tool returns an actionable text explanation
 instead of a broken image.
 
+`vision_run_inference` accepts one structured request and returns the ResultId,
+result NodeId, authoritative result kind and provenance in the same call. Its
+default `Summary` detail includes a bounded detection, inspection or
+segmentation summary; use the corresponding `vision_read_*_result` tool for the
+complete result. Pipelines can be selected by NodeId or by an exact,
+unambiguous BrowseName/DisplayName:
+
+```json
+{
+  "request": {
+    "pipeline": "BinPickingPipeline",
+    "expectedKind": "Detection",
+    "detail": "Summary",
+    "maxItems": 20
+  }
+}
+```
+
 ## Tools (22)
 
 - **Discovery (4)** — `vision_list_sensors`, `vision_list_pipelines`,

@@ -583,6 +583,8 @@ namespace Opc.Ua.Subscriptions.Tests
         /// </summary>
         private sealed class StubSubscriptionManagerContext : ISubscriptionManagerContext
         {
+            public int SessionSubscriptionCount => 0;
+
             public int CreateSubscriptionCallCount { get; private set; }
 
             public IMessageAckQueue? LastCreateQueue { get; private set; }

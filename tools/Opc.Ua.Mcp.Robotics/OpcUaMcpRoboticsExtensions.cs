@@ -40,13 +40,15 @@ namespace Opc.Ua.Mcp
     public static class OpcUaMcpRoboticsExtensions
     {
         /// <summary>
-        /// Registers the Robot Intent controller manager the Robotics tools resolve.
+        /// Registers the Robot Intent controller manager the Robotics tools resolve
+        /// and the vision-guided helper that composes it with the Vision client.
         /// </summary>
         public static IServiceCollection AddOpcUaMcpRobotics(this IServiceCollection services)
         {
             ArgumentNullException.ThrowIfNull(services);
 
             services.AddSingleton<RoboticsIntentManager>();
+            services.AddSingleton<VisionGuidedRoboticsManager>();
             return services;
         }
 
@@ -73,7 +75,8 @@ namespace Opc.Ua.Mcp
                         .WithTools<RoboticsDiscoveryTools>()
                         .WithTools<RoboticsMonitoringTools>()
                         .WithTools<RoboticsControlTools>()
-                        .WithTools<RoboticsMissionTools>();
+                        .WithTools<RoboticsMissionTools>()
+                        .WithTools<RoboticsVisionTools>();
 
                     if (toolProfile == McpToolProfile.Robotics)
                     {
@@ -138,7 +141,8 @@ namespace Opc.Ua.Mcp
                 .WithTools<RoboticsDiscoveryTools>()
                 .WithTools<RoboticsMonitoringTools>()
                 .WithTools<RoboticsControlTools>()
-                .WithTools<RoboticsMissionTools>();
+                .WithTools<RoboticsMissionTools>()
+                .WithTools<RoboticsVisionTools>();
         }
     }
 }

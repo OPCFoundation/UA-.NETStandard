@@ -471,8 +471,8 @@ namespace Opc.Ua.Tools.Tests.Mcp
                 }
 
                 var unique = new System.Collections.Generic.HashSet<string>(names, StringComparer.Ordinal);
-                Assert.That(names, Has.Count.EqualTo(62),
-                    "Vision + Robotics must publish 62 tools (26 + 40 - 4 shared connection tools).");
+                Assert.That(names, Has.Count.EqualTo(64),
+                    "Vision + Robotics must publish 64 tools (26 + 42 - 4 shared connection tools).");
                 Assert.That(unique, Has.Count.EqualTo(names.Count),
                     "The wire-level catalogue must not contain duplicate tool names.");
                 Assert.That(
@@ -481,6 +481,7 @@ namespace Opc.Ua.Tools.Tests.Mcp
                     "Connect must be exposed exactly once when Vision and Robotics are composed.");
                 Assert.That(unique, Does.Contain("vision_run_inference"));
                 Assert.That(unique, Does.Contain("robotics_submit_joint_move"));
+                Assert.That(unique, Does.Contain("robotics_vision_pick"));
             }
             finally
             {

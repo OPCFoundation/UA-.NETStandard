@@ -48,7 +48,7 @@ namespace Opc.Ua.Client.Subscriptions
         /// worker sizing, a session with only classic subscriptions never issues a
         /// Publish request even though notifications can be dispatched to it.
         /// </remarks>
-        int SessionSubscriptionCount => 0;
+        int SessionSubscriptionCount { get; }
 
         /// <summary>
         /// Create a managed subscription

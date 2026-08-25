@@ -65,7 +65,7 @@ namespace Vision.BinPickingCell
         /// <summary>
         /// Centre of the fixture in the world frame.
         /// </summary>
-        public const double FixtureCentreX = -0.600;
+        public const double FixtureCentreX = BinPickingPartsCatalog.FixtureCentreX;
 
         /// <summary>
         /// Top face of the fixture plate in the world frame.
