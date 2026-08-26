@@ -2,8 +2,9 @@ name: NuGet Publish
 
 # Builds the complete signed NuGet package set on every branch. Release
 # configuration supplies all normal package IDs; Debug configuration supplies
-# only package IDs ending in .Debug. A successful run publishes normal packages
-# to GitHub Packages and retains the exact signed bytes for release.yml.
+# only package IDs ending in .Debug. Automatic master and release/* runs publish
+# normal packages to GitHub Packages and retain the exact bytes for release.yml.
+# Manual runs can publish from any branch.
 
 on:
   workflow_dispatch:
@@ -315,6 +316,13 @@ jobs:
   publish:
     name: Publish signed package set
     needs: pack
+    if: >-
+      ${{
+        github.event_name == 'workflow_dispatch' ||
+        (github.event_name == 'push' &&
+          (github.ref == 'refs/heads/master' ||
+            startsWith(github.ref, 'refs/heads/release/')))
+      }}
     runs-on: windows-2025
     permissions:
       actions: read
