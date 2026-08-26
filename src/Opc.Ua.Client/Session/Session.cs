@@ -3923,7 +3923,7 @@ namespace Opc.Ua.Client
                 // A latched keep alive error is deliberately not cleared here:
                 // recovery stays the responsibility of an actual keep alive
                 // response in OnKeepAlive.
-                if (!KeepAliveStopped)
+                if (StatusCode.IsGood(m_lastKeepAliveErrorStatusCode))
                 {
                     UpdateLastKeepAliveTime();
                 }
