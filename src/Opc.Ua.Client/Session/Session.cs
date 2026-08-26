@@ -859,7 +859,8 @@ namespace Opc.Ua.Client
                 if (StatusCode.IsGood(lastKeepAliveErrorStatusCode) ||
                     lastKeepAliveErrorStatusCode == StatusCodes.BadNoCommunication)
                 {
-                    TimeSpan elapsed = m_timeProvider.GetElapsedTime(m_lastKeepAliveTimestamp);
+                    TimeSpan elapsed = m_timeProvider.GetElapsedTime(
+                        Interlocked.Read(ref m_lastKeepAliveTimestamp));
 
                     // add a guard band to allow for network lag.
                     return TimeSpan.FromMilliseconds(
@@ -890,7 +891,7 @@ namespace Opc.Ua.Client
         /// to compute the elapsed time since the last keep alive without DateTime drift or
         /// 32-bit tick wrap.
         /// </summary>
-        public long LastKeepAliveTimestamp => m_lastKeepAliveTimestamp;
+        public long LastKeepAliveTimestamp => Interlocked.Read(ref m_lastKeepAliveTimestamp);
 
         /// <summary>
         /// Gets the number of outstanding publish or keep alive requests.
@@ -3864,10 +3865,7 @@ namespace Opc.Ua.Client
             int keepAliveInterval = m_keepAliveInterval;
 
             m_lastKeepAliveErrorStatusCode = StatusCodes.Good;
-            Interlocked.Exchange(
-                ref m_lastKeepAliveTime,
-                m_timeProvider.GetUtcNow().UtcDateTime.Ticks);
-            m_lastKeepAliveTimestamp = m_timeProvider.GetTimestamp();
+            UpdateLastKeepAliveTime();
 
             m_serverState = ServerState.Unknown;
 
@@ -3917,10 +3915,37 @@ namespace Opc.Ua.Client
             {
                 // Any successful response proves the server is alive —
                 // reset keep-alive so we don't send a redundant read.
+                // The same response must also count as proof for the
+                // KeepAliveStopped freshness check, otherwise the timestamp goes
+                // stale while the keep alive read is perpetually deferred and the
+                // first pause in traffic reports a spurious BadNoCommunication on
+                // a perfectly healthy session.
+                // A latched keep alive error is deliberately not cleared here:
+                // recovery stays the responsibility of an actual keep alive
+                // response in OnKeepAlive.
+                if (!KeepAliveStopped)
+                {
+                    UpdateLastKeepAliveTime();
+                }
+
                 ResetKeepAliveTimer();
             }
 
             base.RequestCompleted(request, response!, serviceName);
+        }
+
+        /// <summary>
+        /// Records the current time as the last point in time the server proved
+        /// it is alive. Both the wall clock time exposed by
+        /// <see cref="LastKeepAliveTime"/> and the monotonic timestamp used by
+        /// <see cref="KeepAliveStopped"/> are updated.
+        /// </summary>
+        private void UpdateLastKeepAliveTime()
+        {
+            Interlocked.Exchange(
+                ref m_lastKeepAliveTime,
+                m_timeProvider.GetUtcNow().UtcDateTime.Ticks);
+            Interlocked.Exchange(ref m_lastKeepAliveTimestamp, m_timeProvider.GetTimestamp());
         }
 
         /// <summary>
@@ -4340,10 +4365,7 @@ namespace Opc.Ua.Client
                 }
 
                 m_lastKeepAliveErrorStatusCode = StatusCodes.Good;
-                Interlocked.Exchange(
-                    ref m_lastKeepAliveTime,
-                    m_timeProvider.GetUtcNow().UtcDateTime.Ticks);
-                m_lastKeepAliveTimestamp = m_timeProvider.GetTimestamp();
+                UpdateLastKeepAliveTime();
 
                 lock (m_outstandingRequests)
                 {
@@ -4363,10 +4385,7 @@ namespace Opc.Ua.Client
             else
             {
                 m_lastKeepAliveErrorStatusCode = StatusCodes.Good;
-                Interlocked.Exchange(
-                    ref m_lastKeepAliveTime,
-                    m_timeProvider.GetUtcNow().UtcDateTime.Ticks);
-                m_lastKeepAliveTimestamp = m_timeProvider.GetTimestamp();
+                UpdateLastKeepAliveTime();
             }
 
             // save server state.
@@ -4396,7 +4415,8 @@ namespace Opc.Ua.Client
             if (result.StatusCode == StatusCodes.BadNoCommunication)
             {
                 //keep alive read timed out
-                TimeSpan elapsed = m_timeProvider.GetElapsedTime(m_lastKeepAliveTimestamp);
+                TimeSpan elapsed = m_timeProvider.GetElapsedTime(
+                    Interlocked.Read(ref m_lastKeepAliveTimestamp));
                 m_logger.KEEPALIVELATEDurationMsEndpointUrl(
                     elapsed.TotalMilliseconds,
                     Endpoint?.EndpointUrl,
