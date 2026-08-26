@@ -3920,9 +3920,15 @@ namespace Opc.Ua.Client
                 // stale while the keep alive read is perpetually deferred and the
                 // first pause in traffic reports a spurious BadNoCommunication on
                 // a perfectly healthy session.
-                // A latched keep alive error is deliberately not cleared here:
-                // recovery stays the responsibility of an actual keep alive
-                // response in OnKeepAlive.
+                // Only a latched keep alive error suppresses the refresh, not
+                // KeepAliveStopped itself: clearing the error stays the
+                // responsibility of an actual keep alive response, and
+                // OnKeepAlive has to still observe KeepAliveStopped to run its
+                // recovery branch. Guarding on KeepAliveStopped instead would
+                // also drop the evidence while the timestamp is merely stale and
+                // no error has been reported yet - the keep alive read is in
+                // flight, the worker is skipping while reconnecting, or its tick
+                // is late - which is the very case this refresh exists for.
                 if (StatusCode.IsGood(m_lastKeepAliveErrorStatusCode))
                 {
                     UpdateLastKeepAliveTime();

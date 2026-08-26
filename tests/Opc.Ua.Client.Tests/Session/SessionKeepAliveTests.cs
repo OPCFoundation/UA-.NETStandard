@@ -117,6 +117,30 @@ namespace Opc.Ua.Client.Tests
             Assert.That(session.KeepAliveStopped, Is.True);
         }
 
+        /// <summary>
+        /// A good response also revives a timestamp that already went stale but
+        /// has not been reported as an error yet - the keep alive read is still
+        /// in flight, the worker is skipping while reconnecting, or its tick is
+        /// late. Without this no traffic could rescue the session from the
+        /// spurious BadNoCommunication the worker is about to raise.
+        /// </summary>
+        [Test]
+        public void GoodResponseRevivesAStaleTimestampWhenNoErrorIsLatched()
+        {
+            var timeProvider = new FakeTimeProvider();
+            using KeepAliveTestSession session = CreateSession(timeProvider);
+
+            timeProvider.Advance(s_pastKeepAliveThreshold);
+            Assert.That(session.KeepAliveStopped, Is.True);
+
+            session.CompleteRequest(StatusCodes.Good);
+
+            Assert.That(
+                session.KeepAliveStopped,
+                Is.False,
+                "a good response must count as proof of liveness");
+        }
+
         [Test]
         public void BadResponsesDoNotRefreshTheKeepAliveTimestamp()
         {
