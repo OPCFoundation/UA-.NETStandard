@@ -273,7 +273,7 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
                     await probe.ConnectAsync(IPAddress.Loopback, port).ConfigureAwait(false);
                     return;
                 }
-                catch (SocketException ex) when (DateTime.UtcNow < deadline)
+                catch (SocketException) when (DateTime.UtcNow < deadline)
                 {
                     await Task.Delay(25).ConfigureAwait(false);
                 }
