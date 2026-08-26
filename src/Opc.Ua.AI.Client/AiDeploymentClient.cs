@@ -206,7 +206,8 @@ namespace Opc.Ua.AI.Client
                     BrowseNames.GetCapabilities,
                     ArrayOf<Variant>.Empty,
                     cancellationToken).ConfigureAwait(false);
-                if (outputs.Count > 0 && outputs[0].TryGetValue(
+                if (outputs.Count > 0 &&
+                    outputs[0].TryGetValue(
                         out ArrayOf<CapabilityDataType> capabilities,
                         m_operations.Session.MessageContext))
                 {

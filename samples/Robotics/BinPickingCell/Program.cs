@@ -156,10 +156,7 @@ builder.Services
     .ConfigureRobotIntent(async (context, cancellationToken) =>
         await context.GetRequiredService<BinPickingRobotCell>()
             .ConfigureAsync(context, cancellationToken).ConfigureAwait(false))
-    .AddVision(options =>
-    {
-        options.InstanceNamespaceUri = "urn:opcfoundation:BinPickingCell:vision:instances";
-    })
+    .AddVision(options => options.InstanceNamespaceUri = "urn:opcfoundation:BinPickingCell:vision:instances")
     .AddVisionMediaProvider<BinPickingMediaProvider>(
         BinPickingVisionCell.SensorTwinBrowseName)
     .ConfigureVision(async (context, cancellationToken) =>

@@ -40,6 +40,7 @@ namespace Vision.BinPickingCell
         public const double UpperArmLengthMetres = 0.480;
         public const double ForearmLengthMetres = 0.480;
         public const double FlangeToTcpMetres = 0.185;
+
         public const double MaximumReachMetres =
             UpperArmLengthMetres + ForearmLengthMetres;
 

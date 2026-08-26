@@ -63,7 +63,7 @@ namespace Vision.BinPickingCell
     /// diagnostic entirely.
     /// </para>
     /// </remarks>
-    internal sealed partial class BinPickingCaptureProof : BackgroundService
+    internal sealed class BinPickingCaptureProof : BackgroundService
     {
         public BinPickingCaptureProof(
             ISceneCameraCaptureProvider capture,
@@ -156,12 +156,15 @@ namespace Vision.BinPickingCell
 
         private static (int R, int G, int B) MeanRgb(byte[] rgba, int width, int height)
         {
-            long r = 0, g = 0, b = 0, count = 0;
+            long r = 0;
+            long g = 0;
+            long b = 0;
+            long count = 0;
             for (int y = 0; y < height; y++)
             {
                 for (int x = 0; x < width; x++)
                 {
-                    int offset = 4 * (y * width + x);
+                    int offset = 4 * ((y * width) + x);
                     r += rgba[offset];
                     g += rgba[offset + 1];
                     b += rgba[offset + 2];
@@ -192,7 +195,10 @@ namespace Vision.BinPickingCell
         private static (int R, int G, int B) AverageWindow(
             byte[] rgba, int width, int height, int cx, int cy, int radius)
         {
-            long r = 0, g = 0, b = 0, count = 0;
+            long r = 0;
+            long g = 0;
+            long b = 0;
+            long count = 0;
             int x0 = Math.Max(0, cx - radius);
             int x1 = Math.Min(width - 1, cx + radius);
             int y0 = Math.Max(0, cy - radius);
@@ -201,7 +207,7 @@ namespace Vision.BinPickingCell
             {
                 for (int x = x0; x <= x1; x++)
                 {
-                    int offset = 4 * (y * width + x);
+                    int offset = 4 * ((y * width) + x);
                     r += rgba[offset];
                     g += rgba[offset + 1];
                     b += rgba[offset + 2];
@@ -246,15 +252,19 @@ namespace Vision.BinPickingCell
             }
         }
 
-        // The proof renders at the same resolution the sensor declares and the cell
-        // delivers, so what it checks is the picture an agent is actually handed.
+        /// <summary>
+        /// The proof renders at the same resolution the sensor declares and the cell
+        /// delivers, so what it checks is the picture an agent is actually handed.
+        /// </summary>
         private const int ProofWidth = (int)BinPickingVisionCell.SensorWidth;
         private const int ProofHeight = (int)BinPickingVisionCell.SensorHeight;
 
-        // Where each part projects to in the delivered frame, as a fraction of width and
-        // height. These are the ground-truth detector's own BoundingBox2D centres divided
-        // by the frame size, so the proof checks the colour at the pixel the detector
-        // points an agent at rather than at an independently guessed spot.
+        /// <summary>
+        /// Where each part projects to in the delivered frame, as a fraction of width and
+        /// height. These are the ground-truth detector's own BoundingBox2D centres divided
+        /// by the frame size, so the proof checks the colour at the pixel the detector
+        /// points an agent at rather than at an independently guessed spot.
+        /// </summary>
         private static readonly (string Label, double Fx, double Fy)[] s_partSampleFractions =
         [
             ("RedCube",       0.450, 0.690),

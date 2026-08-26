@@ -78,22 +78,23 @@ namespace Opc.Ua.Mcp
 
         private static bool SetInferenceRequestContract(JsonObject schema)
         {
-            return SetStringEnum(
+            bool expectedKindChanged = SetStringEnum(
                 schema,
                 ["properties", "request", "properties", "expectedKind"],
                 kExpectedResultKinds,
-                "Auto") |
-                SetStringEnum(
-                    schema,
-                    ["properties", "request", "properties", "detail"],
-                    kResultDetails,
-                    "Summary") |
-                SetIntegerRange(
-                    schema,
-                    ["properties", "request", "properties", "maxItems"],
-                    0,
-                    100,
-                    20);
+                "Auto");
+            bool detailChanged = SetStringEnum(
+                schema,
+                ["properties", "request", "properties", "detail"],
+                kResultDetails,
+                "Summary");
+            bool maxItemsChanged = SetIntegerRange(
+                schema,
+                ["properties", "request", "properties", "maxItems"],
+                0,
+                100,
+                20);
+            return expectedKindChanged || detailChanged || maxItemsChanged;
         }
 
         private static bool SetStringEnum(

@@ -2687,18 +2687,23 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
             Task dispose = manager.DisposeAsync().AsTask();
 
             await closeGateEntered.Task.ConfigureAwait(false);
-            Assert.That(
-                callback.IsCompleted,
-                Is.True,
-                "the held callback must drain before the listener is torn down");
-            Assert.That(
-                e.Accepted,
-                Is.False,
-                "the drained callback must leave the transport unaccepted");
-
-            releaseClose.TrySetResult(true);
-            await dispose.ConfigureAwait(false);
-            await callback.ConfigureAwait(false);
+            try
+            {
+                Assert.That(
+                    manager.ActiveConnectionCallbackCountForTest,
+                    Is.Zero,
+                    "the held callback must drain before the listener is torn down");
+                Assert.That(
+                    e.Accepted,
+                    Is.False,
+                    "the drained callback must leave the transport unaccepted");
+            }
+            finally
+            {
+                releaseClose.TrySetResult(true);
+                await dispose.ConfigureAwait(false);
+                await callback.ConfigureAwait(false);
+            }
 
             Assert.That(manager.CurrentStateForTest, Is.EqualTo("Disposed"));
             Assert.That(listener.IsOpen, Is.False);

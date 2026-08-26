@@ -68,6 +68,7 @@ namespace Opc.Ua.Vision.Client
         /// <param name="cancellationToken">
         /// Cancels the operation.
         /// </param>
+        /// <exception cref="ArgumentException"></exception>
         public async Task<VisionFrameSnapshot> ReadAsync(
             NodeId frameNodeId,
             CancellationToken cancellationToken = default)
@@ -159,6 +160,7 @@ namespace Opc.Ua.Vision.Client
         /// The frame chain cannot be resolved, is longer than <c>32</c>, contains a
         /// cycle, or carries a non-unit quaternion within tolerance <c>1e-6</c>.
         /// </exception>
+        /// <exception cref="ArgumentException"></exception>
         public async Task<VisionPose3DDataType> ComposeAsync(
             VisionPose3DDataType pose,
             NodeId fromFrameId,
@@ -198,6 +200,7 @@ namespace Opc.Ua.Vision.Client
         /// <param name="cancellationToken">
         /// Cancels the operation.
         /// </param>
+        /// <exception cref="ArgumentException"></exception>
         public Task<VisionPose3DDataType> ComposeTransformAsync(
             NodeId fromFrameId,
             NodeId toFrameId,
@@ -411,7 +414,7 @@ namespace Opc.Ua.Vision.Client
             double qy = q[1];
             double qz = q[2];
             double qw = q[3];
-            double norm = Math.Sqrt(qx * qx + qy * qy + qz * qz + qw * qw);
+            double norm = Math.Sqrt((qx * qx) + (qy * qy) + (qz * qz) + (qw * qw));
             if (Math.Abs(norm - 1.0) > UnitQuaternionTolerance)
             {
                 throw ServiceResultException.Create(
@@ -427,10 +430,10 @@ namespace Opc.Ua.Vision.Client
             double ax, double ay, double az, double aw,
             double bx, double by, double bz, double bw)
         {
-            double w = aw * bw - ax * bx - ay * by - az * bz;
-            double x = aw * bx + ax * bw + ay * bz - az * by;
-            double y = aw * by - ax * bz + ay * bw + az * bx;
-            double z = aw * bz + ax * by - ay * bx + az * bw;
+            double w = (aw * bw) - (ax * bx) - (ay * by) - (az * bz);
+            double x = (aw * bx) + (ax * bw) + (ay * bz) - (az * by);
+            double y = (aw * by) - (ax * bz) + (ay * bw) + (az * bx);
+            double z = (aw * bz) + (ax * by) - (ay * bx) + (az * bw);
             return (x, y, z, w);
         }
 
@@ -438,12 +441,12 @@ namespace Opc.Ua.Vision.Client
             double qx, double qy, double qz, double qw,
             double vx, double vy, double vz)
         {
-            double tx = 2.0 * (qy * vz - qz * vy);
-            double ty = 2.0 * (qz * vx - qx * vz);
-            double tz = 2.0 * (qx * vy - qy * vx);
-            double rx = vx + qw * tx + (qy * tz - qz * ty);
-            double ry = vy + qw * ty + (qz * tx - qx * tz);
-            double rz = vz + qw * tz + (qx * ty - qy * tx);
+            double tx = 2.0 * ((qy * vz) - (qz * vy));
+            double ty = 2.0 * ((qz * vx) - (qx * vz));
+            double tz = 2.0 * ((qx * vy) - (qy * vx));
+            double rx = vx + (qw * tx) + ((qy * tz) - (qz * ty));
+            double ry = vy + (qw * ty) + ((qz * tx) - (qx * tz));
+            double rz = vz + (qw * tz) + ((qx * ty) - (qy * tx));
             return (rx, ry, rz);
         }
     }

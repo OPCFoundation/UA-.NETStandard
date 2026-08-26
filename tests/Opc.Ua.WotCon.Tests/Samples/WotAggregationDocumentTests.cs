@@ -34,12 +34,15 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Text.Json;
+using System.Threading;
+using System.Threading.Tasks;
 using System.Xml.Linq;
 using NUnit.Framework;
 using Opc.Ua.Export;
 using Opc.Ua.Wot;
 using Opc.Ua.WotCon.Bindings;
 using Opc.Ua.WotCon.Bindings.Planners;
+using BindingAffordanceKind = Opc.Ua.WotCon.Bindings.WotAffordanceKind;
 
 namespace Opc.Ua.WotCon.Tests.Samples
 {
@@ -86,11 +89,28 @@ namespace Opc.Ua.WotCon.Tests.Samples
         }
 
         [Test]
+        public void PumpAssetProjectionDocumentsMatchCanonicalRegeneration()
+        {
+            foreach (string fileName in s_assetProjectionDocuments)
+            {
+                byte[] regenerated =
+                    WotAggregationDocumentGenerator.GeneratePumpAssetProjectionDocument(fileName);
+                byte[] checkedIn = File.ReadAllBytes(DocumentPath(fileName));
+
+                Assert.That(
+                    regenerated,
+                    Is.EqualTo(checkedIn),
+                    $"{fileName} is not the canonical projection document.");
+            }
+        }
+
+        [Test]
         public void CheckedInJsonDocumentsUseCanonicalSerialization()
         {
             IEnumerable<string> paths = s_modelDocuments
                 .Select(document => DocumentPath(document.FileName))
                 .Append(DocumentPath("SamplePump.td.json"))
+                .Concat(s_assetProjectionDocuments.Select(DocumentPath))
                 .Append(DocumentPath("documents.json"))
                 .Append(StructuredExamplePath);
 
@@ -130,6 +150,60 @@ namespace Opc.Ua.WotCon.Tests.Samples
             Assert.That(
                 kinds,
                 Is.EqualTo(s_expectedDocumentKinds));
+        }
+
+        [Test]
+        public async Task PumpAssetProjectionDocumentsResolveToExpectedGroupsAndMembers()
+        {
+            var resolver = new WotProjectionResolver(
+                new FileThingResolver(DocumentPath),
+                WotAggregationDocumentGenerator.CreateLargeDocumentOptions());
+
+            foreach (string pumpName in s_pumpAssetNames)
+            {
+                using WotDocument asset = WotDocument.Parse(
+                    File.ReadAllBytes(DocumentPath($"{pumpName}.Asset.td.json")),
+                    WotAggregationDocumentGenerator.CreateLargeDocumentOptions());
+
+                WotConversionResult<WotDocument> assetResult = await resolver
+                    .ResolveAsync(asset).ConfigureAwait(false);
+
+                Assert.That(assetResult.Success, Is.True, pumpName);
+                using WotDocument assetView = assetResult.Value!;
+                JsonElement root = assetView.RootElement;
+                Assert.That(TypeNames(root), Does.Not.Contain("uav:projection"));
+                Assert.That(
+                    PropertyNames(root.GetProperty("properties")),
+                    Is.EquivalentTo(s_identityMembers),
+                    pumpName);
+                Assert.That(
+                    root.GetProperty("links")
+                        .EnumerateArray()
+                        .Select(link => link.GetProperty("uav:refName").GetString()),
+                    Is.EqualTo(s_assetGroupNames),
+                    pumpName);
+
+                await AssertProjectionMembersAsync(
+                    resolver,
+                    $"{pumpName}.ProcessData.td.json",
+                    "properties",
+                    s_processDataMembers).ConfigureAwait(false);
+                await AssertProjectionMembersAsync(
+                    resolver,
+                    $"{pumpName}.ConditionData.td.json",
+                    "properties",
+                    s_conditionDataMembers).ConfigureAwait(false);
+                await AssertProjectionMembersAsync(
+                    resolver,
+                    $"{pumpName}.Supervision.td.json",
+                    "events",
+                    s_supervisionMembers).ConfigureAwait(false);
+                await AssertProjectionMembersAsync(
+                    resolver,
+                    $"{pumpName}.Management.td.json",
+                    "actions",
+                    s_managementMembers).ConfigureAwait(false);
+            }
         }
 
         [Test]
@@ -247,6 +321,28 @@ namespace Opc.Ua.WotCon.Tests.Samples
         }
 
         [Test]
+        public void PumpNodeSetRootsThePumpUnderTheObjectsFolder()
+        {
+            UANodeSet nodeSet = ReadPumpNodeSet();
+            UANode pump = FindNode<UANode>(nodeSet, "ns=1;s=Pump1");
+
+            // Without a hierarchical parent the pump imports as an orphan: it
+            // exists in the AddressSpace but nothing browses to it, so a Client
+            // starting from the root never finds it.
+            // Written as the NodeId rather than the "Organizes" alias: this
+            // NodeSet round-trips through a Thing Description, whose residue
+            // preserves a reference type verbatim, and the converter emits no
+            // <Aliases> block - so a bare name would not survive the trip.
+            Assert.That(
+                pump.References?.Any(r =>
+                    string.Equals(r.ReferenceType, "i=35", StringComparison.Ordinal) &&
+                    !r.IsForward &&
+                    string.Equals(r.Value, "i=85", StringComparison.Ordinal)),
+                Is.True,
+                "Pump1 must declare an inverse Organizes from the Objects folder.");
+        }
+
+        [Test]
         public void PumpNodeSetHasStableRequiredHierarchy()
         {
             UANodeSet nodeSet = ReadPumpNodeSet();
@@ -350,15 +446,17 @@ namespace Opc.Ua.WotCon.Tests.Samples
             foreach (JsonProperty property in properties.EnumerateObject())
             {
                 JsonElement affordance = property.Value;
-                string target = affordance.GetProperty("uav:mapToNodeId").GetString()!;
                 JsonElement form = affordance.GetProperty("forms")[0];
                 string href = form.GetProperty("href").GetString()!;
                 string sourceNodeId = form.GetProperty("uav:id").GetString()!;
 
                 placeholders.Add(href);
-                Assert.That(
-                    target,
-                    Does.StartWith($"nsu={WotAggregationDocumentGenerator.PumpInstanceNamespace};s=Pump1."));
+                if (affordance.TryGetProperty("uav:mapToNodeId", out JsonElement target))
+                {
+                    Assert.That(
+                        target.GetString(),
+                        Does.StartWith($"nsu={WotAggregationDocumentGenerator.PumpInstanceNamespace};s=Pump1."));
+                }
                 Assert.That(sourceNodeId, Does.StartWith("nsu=urn:opcfoundation.org:UA:WotAggregation:Source"));
             }
 
@@ -383,7 +481,17 @@ namespace Opc.Ua.WotCon.Tests.Samples
 
             Assert.That(plan.FullySupported, Is.True);
             Assert.That(plan.CompiledForms, Is.Not.Empty);
-            Assert.That(plan.CompiledForms.All(form => !form.TargetMapping.IsEmpty), Is.True);
+            Assert.That(
+                plan.CompiledForms
+                    .Where(form => form.AffordanceKind == BindingAffordanceKind.Property)
+                    .Where(form => !form.AffordanceName.StartsWith("Pump2", StringComparison.Ordinal))
+                    .All(form => !form.TargetMapping.IsEmpty),
+                Is.True);
+            Assert.That(
+                plan.CompiledForms
+                    .Where(form => form.AffordanceKind != BindingAffordanceKind.Property)
+                    .All(form => form.TargetMapping.IsEmpty),
+                Is.True);
         }
 
         [Test]
@@ -436,6 +544,32 @@ namespace Opc.Ua.WotCon.Tests.Samples
                 DocumentPath("SamplePump.NodeSet2.xml"));
         }
 
+        private static async Task AssertProjectionMembersAsync(
+            WotProjectionResolver resolver,
+            string fileName,
+            string mapName,
+            string[] expectedMembers)
+        {
+            using WotDocument document = WotDocument.Parse(
+                File.ReadAllBytes(DocumentPath(fileName)),
+                WotAggregationDocumentGenerator.CreateLargeDocumentOptions());
+            WotConversionResult<WotDocument> result = await resolver.ResolveAsync(document)
+                .ConfigureAwait(false);
+
+            Assert.That(result.Success, Is.True, fileName);
+            using WotDocument view = result.Value!;
+            JsonElement map = view.RootElement.GetProperty(mapName);
+            Assert.That(PropertyNames(map), Is.EqualTo(expectedMembers), fileName);
+            foreach (JsonProperty member in map.EnumerateObject())
+            {
+                Assert.That(
+                    member.Value.GetProperty("uav:resolvedFrom").GetString(),
+                    Does.StartWith(
+                        $"{fileName[..fileName.IndexOf('.', StringComparison.Ordinal)].ToLowerInvariant()}-members#"),
+                    member.Name);
+            }
+        }
+
         private static T FindNode<T>(UANodeSet nodeSet, string nodeId)
             where T : UANode
         {
@@ -477,6 +611,21 @@ namespace Opc.Ua.WotCon.Tests.Samples
             return separator < 0 ? browseName ?? string.Empty : browseName![(separator + 1)..];
         }
 
+        private static string[] PropertyNames(JsonElement map)
+        {
+            return [.. map.EnumerateObject().Select(property => property.Name)];
+        }
+
+        private static string[] TypeNames(JsonElement root)
+        {
+            JsonElement type = root.GetProperty("@type");
+            if (type.ValueKind == JsonValueKind.Array)
+            {
+                return [.. type.EnumerateArray().Select(item => item.GetString()!)];
+            }
+            return [type.GetString()!];
+        }
+
         private static string DocumentPath(string fileName)
         {
             return RepositoryPath("samples", "WotCon", "AggregationClient", "Documents", fileName);
@@ -498,6 +647,42 @@ namespace Opc.Ua.WotCon.Tests.Samples
             string Title,
             string ModelUri);
 
+        private sealed class FileThingResolver(Func<string, string> documentPath) : IWotThingResolver
+        {
+            public ValueTask<WotResolverResult> ResolveThingAsync(
+                string reference,
+                WotResolutionContext context,
+                CancellationToken cancellationToken)
+            {
+                string fileName = reference.StartsWith("./", StringComparison.Ordinal)
+                    ? reference[2..]
+                    : reference;
+                fileName = fileName switch
+                {
+                    "sample-pump" => "SamplePump.td.json",
+                    "pump1-members" => "Pump1.Members.td.json",
+                    "pump1-processdata" => "Pump1.ProcessData.td.json",
+                    "pump1-conditiondata" => "Pump1.ConditionData.td.json",
+                    "pump1-supervision" => "Pump1.Supervision.td.json",
+                    "pump1-management" => "Pump1.Management.td.json",
+                    "pump2-members" => "Pump2.Members.td.json",
+                    "pump2-processdata" => "Pump2.ProcessData.td.json",
+                    "pump2-conditiondata" => "Pump2.ConditionData.td.json",
+                    "pump2-supervision" => "Pump2.Supervision.td.json",
+                    "pump2-management" => "Pump2.Management.td.json",
+                    _ => fileName
+                };
+                string path = documentPath(fileName);
+                if (!File.Exists(path))
+                {
+                    return new ValueTask<WotResolverResult>(WotResolverResult.NotFound);
+                }
+
+                return new ValueTask<WotResolverResult>(
+                    WotResolverResult.FromBytes(File.ReadAllBytes(path)));
+            }
+        }
+
         private static readonly ModelDocument[] s_modelDocuments =
         [
             new(
@@ -513,6 +698,7 @@ namespace Opc.Ua.WotCon.Tests.Samples
                 "Opc.Ua.Machinery.tm.json",
                 Path.Combine(
                     "samples",
+                    "DI",
                     "PumpDeviceIntegrationServer",
                     "Model",
                     "Opc.Ua.Machinery.NodeSet2.xml"),
@@ -522,11 +708,74 @@ namespace Opc.Ua.WotCon.Tests.Samples
                 "Opc.Ua.Pumps.tm.json",
                 Path.Combine(
                     "samples",
+                    "DI",
                     "PumpDeviceIntegrationServer",
                     "Model",
                     "Opc.Ua.Pumps.NodeSet2.xml"),
                 "OPC UA Pumps",
                 PumpsNamespace)
+        ];
+
+        private static readonly string[] s_assetProjectionDocuments =
+        [
+            "Pump1.Members.td.json",
+            "Pump1.ProcessData.td.json",
+            "Pump1.ConditionData.td.json",
+            "Pump1.Supervision.td.json",
+            "Pump1.Management.td.json",
+            "Pump1.Asset.td.json",
+            "Pump2.Members.td.json",
+            "Pump2.ProcessData.td.json",
+            "Pump2.ConditionData.td.json",
+            "Pump2.Supervision.td.json",
+            "Pump2.Management.td.json",
+            "Pump2.Asset.td.json"
+        ];
+
+        private static readonly string[] s_pumpAssetNames = ["Pump1", "Pump2"];
+
+        private static readonly string[] s_assetGroupNames =
+        [
+            "ProcessData",
+            "ConditionData",
+            "Supervision",
+            "Management"
+        ];
+
+        private static readonly string[] s_identityMembers =
+        [
+            "Manufacturer",
+            "ProductInstanceUri",
+            "SerialNumber"
+        ];
+
+        private static readonly string[] s_processDataMembers =
+        [
+            "DifferentialPressure",
+            "FluidTemperature",
+            "Level",
+            "MassFlow"
+        ];
+
+        private static readonly string[] s_conditionDataMembers =
+        [
+            "BearingTemperature",
+            "NumberOfStarts",
+            "PumpEfficiency",
+            "PumpPowerInput"
+        ];
+
+        private static readonly string[] s_supervisionMembers =
+        [
+            "CavitationAlarm",
+            "MotorOverheatAlarm"
+        ];
+
+        private static readonly string[] s_managementMembers =
+        [
+            "reset",
+            "start",
+            "stop"
         ];
 
         private static readonly (string NodeId, string BrowseName, string TypeDefinition)[] s_pumpNodes =
@@ -591,6 +840,18 @@ namespace Opc.Ua.WotCon.Tests.Samples
             "ThingModel",
             "ThingModel",
             "ThingModel",
+            "ThingDescription",
+            "ThingDescription",
+            "ThingDescription",
+            "ThingDescription",
+            "ThingDescription",
+            "ThingDescription",
+            "ThingDescription",
+            "ThingDescription",
+            "ThingDescription",
+            "ThingDescription",
+            "ThingDescription",
+            "ThingDescription",
             "ThingDescription"
         ];
 

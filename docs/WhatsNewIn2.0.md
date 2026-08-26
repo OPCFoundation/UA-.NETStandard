@@ -25,8 +25,8 @@ If you are migrating an existing application, the companion
 - **New companion-spec coverage**: Part 9 (Alarms & Conditions), Part 11
   (Historical Access) + Part 13 (Aggregates), Part 16 (State Machines),
   Part 17 (Alias Names), Part 18 (Role Management), Part 20 (File Transfer),
-  Part 100 (Device Integration), plus OPC 10100-1 WoT Connectivity and a
-  Local Discovery Server.
+  Part 100 (Device Integration), OPC UA for Asset Administration Shell V3,
+  plus OPC 10100-1 WoT Connectivity and a Local Discovery Server.
 - **Source generators emit NodeManagers, typed `ObjectType` proxies, and
   `IEncodeable` data types from model design XML**, removing hand-written
   boilerplate while staying AOT-clean.
@@ -216,6 +216,12 @@ server- and client-side implementations:
   configurable `WotManagementAccessPolicy` (defaults: `SignAndEncrypt`
   channel + `SecurityAdmin` role + no anonymous). See
   [WoT Connectivity](WoTConnectivity.md).
+- **OPC UA for Asset Administration Shell V3**: source-generated I4AAS V3
+  model, AAS JSON/XML/AASX serialization, deterministic AAS NodeIds,
+  value-space round-trip fidelity, metamodel server/client, xRegistry-based
+  AAS registry, updateable materialization, package integrity, federation,
+  DPP disclosure tiers and the Annex F WoT bridge. See
+  [Asset Administration Shell V3](Aas.md).
 - **Local Discovery Server**: a built-in LDS implementation usable
   standalone or as part of a hosted server.
 
@@ -278,6 +284,30 @@ PKCS#11 certificate store addressed by RFC 7512 `pkcs11:` URIs. Which
 cryptographic module performed an operation, and whether it carries any
 validation, is auditable through logs, metrics and the address space, and can
 be constrained with a compliance policy.
+The symmetric primitives are pluggable too. `ISymmetricCryptoProvider`,
+`IKeyDerivationProvider` and `ISecureRandomSource` let a validated cryptographic
+module perform *every* operation rather than only the asymmetric ones, which is
+what a FIPS deployment needs. They are optional facets a provider opts into, so
+existing providers are unaffected, and they sit behind a null fast path: a
+deployment that registers nothing keeps the inline platform code, with no
+interface dispatch on the per-message path. A provider bound to a symmetric
+purpose it cannot actually perform is reported rather than silently replaced by
+the platform, and under `FipsOnly` it refuses to start.
+PubSub uses the same seam: the per-message AES-CTR and HMAC a publisher applies
+route through a registered provider, so a validated module performs those too.
+Full device custody is not achievable for PubSub, and the reason is worth stating
+— a standard Security Key Service returns raw key bytes over the wire, so the key
+is in process memory by construction. What is bounded instead is its lifetime.
+A key served over a network no longer has to occupy a thread. `RSA` and `ECDsa`
+are synchronous contracts belonging to .NET, so an implementation opts in by
+also implementing `IAsyncRsaKey` or `IAsyncEcdsaKey`, which the stack finds by
+type test and uses where it can — user identity token signing and decryption,
+session activation, and the secure channel open and renew path. A software key
+implements neither, so those paths complete synchronously and nothing about
+their ordering changes. The secure channel no longer serialises its state on a
+monitor, and `UaSCBinaryChannel.DataLock` is `[Obsolete]`. The gate that replaced
+it is not re-entrant, so the channel calls a lock-free `Core` variant on every
+path that used to take the lock recursively.
 
 ## By layer
 
@@ -523,3 +553,4 @@ coverage service; see
   [Container Reference Server](ContainerReferenceServer.md),
   [Provisioning Mode](ProvisioningMode.md).
 - PubSub: [PubSub library](PubSub.md).
+

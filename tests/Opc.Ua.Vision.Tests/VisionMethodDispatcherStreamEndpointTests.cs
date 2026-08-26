@@ -378,13 +378,13 @@ namespace Opc.Ua.Vision.Tests
                 SensorNodeId = new NodeId(701u, 4);
                 EndpointNodeId = new NodeId(801u, 4);
                 ClipEndpointNodeId = new NodeId(802u, 4);
-                var sensor = new VisionSensorState(null!);
-                Media = new VisionMediaManagementState(null!)
+                var sensor = new VisionSensorState(null);
+                Media = new VisionMediaManagementState(null)
                 {
-                    GetStreamEndpoint = new GetStreamEndpointMethodState(null!),
-                    ReleaseStreamEndpoint = new ReleaseStreamEndpointMethodState(null!),
-                    ConfigureStreamEndpoint = new ConfigureStreamEndpointMethodState(null!),
-                    SelectEndpoint = new SelectEndpointMethodState(null!),
+                    GetStreamEndpoint = new GetStreamEndpointMethodState(null),
+                    ReleaseStreamEndpoint = new ReleaseStreamEndpointMethodState(null),
+                    ConfigureStreamEndpoint = new ConfigureStreamEndpointMethodState(null),
+                    SelectEndpoint = new SelectEndpointMethodState(null),
                     PreferredStreamEndpoint = PropertyState<NodeId>.With<VariantBuilder>(
                         null!, NodeId.Null),
                     PreferredClipEndpoint = PropertyState<NodeId>.With<VariantBuilder>(

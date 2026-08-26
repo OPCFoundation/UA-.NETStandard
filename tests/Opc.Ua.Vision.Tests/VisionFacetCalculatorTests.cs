@@ -320,7 +320,7 @@ namespace Opc.Ua.Vision.Tests
             return new SensorRegistration(
                 browseName,
                 nodeId,
-                new VisionSensorState(null!),
+                new VisionSensorState(null),
                 VisionSensorModalityEnum.Area2D,
                 VisionRealityKindEnum.Physical,
                 facetSet,
@@ -337,7 +337,7 @@ namespace Opc.Ua.Vision.Tests
             return new PipelineRegistration(
                 browseName,
                 nodeId,
-                new InferencePipelineState(null!),
+                new InferencePipelineState(null),
                 facetSet);
         }
     }

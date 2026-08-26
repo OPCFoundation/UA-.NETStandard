@@ -98,6 +98,7 @@ namespace Opc.Ua.Vision.Server
         /// <summary>
         /// Gets the Vision root object.
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         public VisionRootState Root => m_root ??
             throw ServiceResultException.Create(
                 StatusCodes.BadConfigurationError,
@@ -160,6 +161,7 @@ namespace Opc.Ua.Vision.Server
         /// <param name="cancellationToken">
         /// Cancels the configuration.
         /// </param>
+        /// <exception cref="ArgumentNullException"><paramref name="configure"/> is <c>null</c>.</exception>
         public async ValueTask ConfigureVisionAsync(
             Action<IVisionBuildContext> configure,
             CancellationToken cancellationToken = default)
@@ -406,8 +408,7 @@ namespace Opc.Ua.Vision.Server
         private VisionRootState CreateRoot()
         {
             var browseName = new QualifiedName("Vision", GetVisionNamespaceIndex(SystemContext));
-            VisionRootState root = global::Opc.Ua.Vision.OpcUaVisionExtensions.CreateInstanceOfVisionRootType(
-                SystemContext,
+            VisionRootState root = SystemContext.CreateInstanceOfVisionRootType(
                 Server.ServerObject,
                 browseName);
             root.ReferenceTypeId = global::Opc.Ua.ReferenceTypeIds.HasComponent;

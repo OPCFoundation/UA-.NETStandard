@@ -116,9 +116,7 @@ namespace Opc.Ua.Vision.Server.Builders
     /// <summary>
     /// Configures a generic vision sensor instance.
     /// </summary>
-    public interface IVisionSensorBuilder : IVisionSensorBuilder<IVisionSensorBuilder>
-    {
-    }
+    public interface IVisionSensorBuilder : IVisionSensorBuilder<IVisionSensorBuilder>;
 
     /// <summary>
     /// Configures an <see cref="ImageSensorState"/> instance.

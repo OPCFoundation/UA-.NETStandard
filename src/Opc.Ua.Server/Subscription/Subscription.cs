@@ -410,6 +410,13 @@ namespace Opc.Ua.Server
         public bool IsDurable { get; private set; }
 
         /// <summary>
+        /// True once the subscription has been deleted. Set when <see cref="DeleteAsync"/> is
+        /// called and never cleared: a deleted subscription is on its way out and must not serve
+        /// any further work.
+        /// </summary>
+        public bool IsDeleted => Volatile.Read(ref m_deleted) != 0;
+
+        /// <summary>
         /// Applies an update to the subscription diagnostics while holding the
         /// subscription's diagnostics lock.
         /// </summary>
@@ -629,6 +636,11 @@ namespace Opc.Ua.Server
         /// </summary>
         public async ValueTask DeleteAsync(OperationContext context, CancellationToken cancellationToken = default)
         {
+            // Mark the subscription deleted first so any concurrent service call that reaches a
+            // publicly callable method fails fast with Bad_SubscriptionIdInvalid instead of
+            // operating on a subscription that is being torn down.
+            Volatile.Write(ref m_deleted, 1);
+
             // delete the diagnostics.
             if (!m_diagnosticsId.IsNull)
             {
@@ -641,26 +653,49 @@ namespace Opc.Ua.Server
             {
                 TraceState(LogLevel.Information, TraceStateId.Deleted, "DELETED");
 
-                // the context may be null if the server is cleaning up expired subscriptions.
-                // in this case we create a context with a dummy request and use the current session.
-                if (context == null)
+                // detach the monitored items from the subscription.
+                List<IMonitoredItem> monitoredItems;
+                lock (m_lock)
                 {
-                    var requestHeader = new RequestHeader
-                    {
-                        ReturnDiagnostics = (int)DiagnosticsMasks.OperationSymbolicIdAndText
-                    };
-                    // Passed on to DeleteMonitoredItemsAsync below; it tracks no request, so there
-                    // is nothing to release when this scope ends.
-#pragma warning disable CA2000
-                    context = new OperationContext(requestHeader, null, RequestType.Unknown, RequestLifetime.None);
-#pragma warning restore CA2000
+                    monitoredItems = m_monitoredItems.Values.Select(node => node.Value).ToList();
+                    m_monitoredItems.Clear();
+                    m_itemsToTrigger.Clear();
+                    m_itemsToCheck.Clear();
+                    m_itemsToPublish.Clear();
                 }
 
-                await DeleteMonitoredItemsAsync(
-                    context,
-                    [.. m_monitoredItems.Keys],
-                    true,
-                    cancellationToken).ConfigureAwait(false);
+                if (monitoredItems.Count > 0)
+                {
+                    // the context may be null if the server is cleaning up expired subscriptions.
+                    // in this case we create a context with a dummy request and use the current session.
+                    if (context == null)
+                    {
+                        var requestHeader = new RequestHeader
+                        {
+                            ReturnDiagnostics = (int)DiagnosticsMasks.OperationSymbolicIdAndText
+                        };
+                        // The context tracks no request, so there is nothing to release when this scope ends.
+#pragma warning disable CA2000
+                        context = new OperationContext(requestHeader, null, RequestType.Unknown, RequestLifetime.None);
+#pragma warning restore CA2000
+                    }
+
+                    var errors = new List<ServiceResult>(monitoredItems.Count);
+                    for (int ii = 0; ii < monitoredItems.Count; ii++)
+                    {
+                        errors.Add(null!);
+                    }
+
+                    await m_server.NodeManager
+                        .DeleteMonitoredItemsAsync(context, Id, monitoredItems, errors, cancellationToken)
+                        .ConfigureAwait(false);
+
+                    // dispose the monitored items.
+                    foreach (IMonitoredItem monitoredItem in monitoredItems)
+                    {
+                        monitoredItem?.Dispose();
+                    }
+                }
             }
             catch (Exception e)
             {
@@ -836,6 +871,8 @@ namespace Opc.Ua.Server
             bool sendInitialValues,
             CancellationToken cancellationToken = default)
         {
+            ThrowIfDeleted();
+
             ISession destinationSession = context.Session;
             ISession? sourceSession;
             List<IMonitoredItem> monitoredItems;
@@ -1285,6 +1322,8 @@ namespace Opc.Ua.Server
         /// </summary>
         public void ResendData(OperationContext context)
         {
+            ThrowIfDeleted();
+
             // check session.
             VerifySession(context);
             lock (m_lock)
@@ -1390,6 +1429,8 @@ namespace Opc.Ua.Server
         /// </summary>
         public ServiceResult? Acknowledge(OperationContext context, uint sequenceNumber)
         {
+            ThrowIfDeleted();
+
             lock (m_lock)
             {
                 // check session.
@@ -1849,6 +1890,7 @@ namespace Opc.Ua.Server
             {
                 throw new ArgumentNullException(nameof(context));
             }
+            ThrowIfDeleted();
 
             lock (m_diagnosticsLock)
             {
@@ -1900,6 +1942,8 @@ namespace Opc.Ua.Server
             uint maxNotificationsPerPublish,
             byte priority)
         {
+            ThrowIfDeleted();
+
             lock (m_lock)
             {
                 // check session.
@@ -1950,6 +1994,8 @@ namespace Opc.Ua.Server
         /// </summary>
         public void SetPublishingMode(OperationContext context, bool publishingEnabled)
         {
+            ThrowIfDeleted();
+
             lock (m_lock)
             {
                 // check session.
@@ -2006,6 +2052,7 @@ namespace Opc.Ua.Server
             {
                 throw new ArgumentNullException(nameof(context));
             }
+            ThrowIfDeleted();
 
             // allocate results.
             bool diagnosticsExist = false;
@@ -2184,31 +2231,17 @@ namespace Opc.Ua.Server
         /// Adds monitored items to a subscription.
         /// </summary>
         /// <exception cref="ArgumentNullException"><paramref name="context"/> is <c>null</c>.</exception>
-        public ValueTask<CreateMonitoredItemsResponse> CreateMonitoredItemsAsync(
+        public async ValueTask<CreateMonitoredItemsResponse> CreateMonitoredItemsAsync(
             OperationContext context,
             TimestampsToReturn timestampsToReturn,
             ArrayOf<MonitoredItemCreateRequest> itemsToCreate,
             CancellationToken cancellationToken = default)
         {
-            return CreateMonitoredItemsCoreAsync(
-                context,
-                timestampsToReturn,
-                itemsToCreate,
-                cancellationToken);
-        }
-
-        private async ValueTask<CreateMonitoredItemsResponse>
-            CreateMonitoredItemsCoreAsync(
-                OperationContext context,
-                TimestampsToReturn timestampsToReturn,
-                ArrayOf<MonitoredItemCreateRequest> itemsToCreate,
-                CancellationToken cancellationToken)
-        {
             if (context == null)
             {
                 throw new ArgumentNullException(nameof(context));
             }
-            EnsureSessionNotClosing(context);
+            ThrowIfDeleted();
 
             int count = itemsToCreate.Count;
 
@@ -2410,31 +2443,17 @@ namespace Opc.Ua.Server
         /// Modifies monitored items in a subscription.
         /// </summary>
         /// <exception cref="ArgumentNullException"><paramref name="context"/> is <c>null</c>.</exception>
-        public ValueTask<ModifyMonitoredItemsResponse> ModifyMonitoredItemsAsync(
+        public async ValueTask<ModifyMonitoredItemsResponse> ModifyMonitoredItemsAsync(
             OperationContext context,
             TimestampsToReturn timestampsToReturn,
             ArrayOf<MonitoredItemModifyRequest> itemsToModify,
             CancellationToken cancellationToken = default)
         {
-            return ModifyMonitoredItemsCoreAsync(
-                context,
-                timestampsToReturn,
-                itemsToModify,
-                cancellationToken);
-        }
-
-        private async ValueTask<ModifyMonitoredItemsResponse>
-            ModifyMonitoredItemsCoreAsync(
-                OperationContext context,
-                TimestampsToReturn timestampsToReturn,
-                ArrayOf<MonitoredItemModifyRequest> itemsToModify,
-                CancellationToken cancellationToken)
-        {
             if (context == null)
             {
                 throw new ArgumentNullException(nameof(context));
             }
-            EnsureSessionNotClosing(context);
+            ThrowIfDeleted();
 
             int count = itemsToModify.Count;
 
@@ -2592,50 +2611,17 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Deletes the monitored items in a subscription.
         /// </summary>
-        public ValueTask<DeleteMonitoredItemsResponse> DeleteMonitoredItemsAsync(
-            OperationContext context,
-            ArrayOf<uint> monitoredItemIds,
-            CancellationToken cancellationToken = default)
-        {
-            return DeleteMonitoredItemsAsync(
-                context,
-                monitoredItemIds,
-                false,
-                cancellationToken);
-        }
-
-        /// <summary>
-        /// Deletes the monitored items in a subscription.
-        /// </summary>
         /// <exception cref="ArgumentNullException"><paramref name="context"/> is <c>null</c>.</exception>
-        private ValueTask<DeleteMonitoredItemsResponse> DeleteMonitoredItemsAsync(
+        public async ValueTask<DeleteMonitoredItemsResponse> DeleteMonitoredItemsAsync(
             OperationContext context,
             ArrayOf<uint> monitoredItemIds,
-            bool doNotCheckSession,
             CancellationToken cancellationToken = default)
-        {
-            return DeleteMonitoredItemsCoreAsync(
-                context,
-                monitoredItemIds,
-                doNotCheckSession,
-                cancellationToken);
-        }
-
-        private async ValueTask<DeleteMonitoredItemsResponse>
-            DeleteMonitoredItemsCoreAsync(
-                OperationContext context,
-                ArrayOf<uint> monitoredItemIds,
-                bool doNotCheckSession,
-                CancellationToken cancellationToken)
         {
             if (context == null)
             {
                 throw new ArgumentNullException(nameof(context));
             }
-            if (!doNotCheckSession)
-            {
-                EnsureSessionNotClosing(context);
-            }
+            ThrowIfDeleted();
 
             int count = monitoredItemIds.Count;
 
@@ -2659,10 +2645,7 @@ namespace Opc.Ua.Server
             lock (m_lock)
             {
                 // check session.
-                if (!doNotCheckSession)
-                {
-                    VerifySession(context);
-                }
+                VerifySession(context);
 
                 // clear lifetime counter.
                 ResetLifetimeCount();
@@ -2799,32 +2782,17 @@ namespace Opc.Ua.Server
         /// Changes the monitoring mode for a set of items.
         /// </summary>
         /// <exception cref="ArgumentNullException"><paramref name="context"/> is <c>null</c>.</exception>
-        public ValueTask<(ArrayOf<StatusCode> results, ArrayOf<DiagnosticInfo> diagnosticInfos)> SetMonitoringModeAsync(
+        public async ValueTask<(ArrayOf<StatusCode> results, ArrayOf<DiagnosticInfo> diagnosticInfos)> SetMonitoringModeAsync(
             OperationContext context,
             MonitoringMode monitoringMode,
             ArrayOf<uint> monitoredItemIds,
             CancellationToken cancellationToken = default)
         {
-            return SetMonitoringModeCoreAsync(
-                context,
-                monitoringMode,
-                monitoredItemIds,
-                cancellationToken);
-        }
-
-        private async ValueTask<(
-            ArrayOf<StatusCode> results,
-            ArrayOf<DiagnosticInfo> diagnosticInfos)> SetMonitoringModeCoreAsync(
-                OperationContext context,
-                MonitoringMode monitoringMode,
-                ArrayOf<uint> monitoredItemIds,
-                CancellationToken cancellationToken)
-        {
             if (context == null)
             {
                 throw new ArgumentNullException(nameof(context));
             }
-            EnsureSessionNotClosing(context);
+            ThrowIfDeleted();
 
             int count = monitoredItemIds.Count;
 
@@ -2966,6 +2934,8 @@ namespace Opc.Ua.Server
         /// <exception cref="ServiceResultException"></exception>
         public void ValidateConditionRefresh(OperationContext context)
         {
+            ThrowIfDeleted();
+
             lock (m_lock)
             {
                 VerifySession(context);
@@ -3001,6 +2971,8 @@ namespace Opc.Ua.Server
         /// </summary>
         public async ValueTask ConditionRefreshAsync(CancellationToken cancellationToken = default)
         {
+            ThrowIfDeleted();
+
             var monitoredItems = new List<IEventMonitoredItem>();
 
             lock (m_lock)
@@ -3033,6 +3005,8 @@ namespace Opc.Ua.Server
         /// <exception cref="ServiceResultException"></exception>
         public async ValueTask ConditionRefresh2Async(uint monitoredItemId, CancellationToken cancellationToken = default)
         {
+            ThrowIfDeleted();
+
             var monitoredItems = new List<IEventMonitoredItem>();
 
             lock (m_lock)
@@ -3181,6 +3155,8 @@ namespace Opc.Ua.Server
         /// </summary>
         public ServiceResult SetSubscriptionDurable(uint maxLifetimeCount)
         {
+            ThrowIfDeleted();
+
             lock (m_lock)
             {
                 if (!m_supportsDurable)
@@ -3219,6 +3195,8 @@ namespace Opc.Ua.Server
         /// </summary>
         public void GetMonitoredItems(out ArrayOf<uint> serverHandles, out ArrayOf<uint> clientHandles)
         {
+            ThrowIfDeleted();
+
             lock (m_lock)
             {
                 uint[] serverHandleList = new uint[m_monitoredItems.Count];
@@ -3363,11 +3341,11 @@ namespace Opc.Ua.Server
             }
         }
 
-        private void EnsureSessionNotClosing(OperationContext context)
+        private void ThrowIfDeleted()
         {
-            if (context.Session is { IsClosing: true })
+            if (IsDeleted)
             {
-                throw new ServiceResultException(StatusCodes.BadSessionClosed);
+                throw new ServiceResultException(StatusCodes.BadSubscriptionIdInvalid);
             }
         }
 
@@ -3503,6 +3481,7 @@ namespace Opc.Ua.Server
         private bool m_refreshInProgress;
         private bool m_expired;
         private bool m_transferInProgress;
+        private int m_deleted;
         private readonly Dictionary<uint, List<ITriggeredMonitoredItem>> m_itemsToTrigger;
         private readonly bool m_supportsDurable;
         private readonly ILogger m_logger;

@@ -86,7 +86,8 @@ namespace Vision.VisualInspectionCell
                 throw new ArgumentNullException(nameof(jobOrder));
             }
             cancellationToken.ThrowIfCancellationRequested();
-            if (!AllowedOrders.Contains(jobOrder.JobOrderID))
+            string? jobOrderId = jobOrder.JobOrderID;
+            if (string.IsNullOrEmpty(jobOrderId) || !AllowedOrders.Contains(jobOrderId))
             {
                 return new Isa95JobOrderReceiptV2
                 {
@@ -105,7 +106,7 @@ namespace Vision.VisualInspectionCell
                 (receipt.ReturnStatus & Isa95JobReturnStatus.Success) != 0)
             {
                 Isa95JobOrderReceiptV2 transition = await m_provider.TransitionAsync(
-                    jobOrder.JobOrderID,
+                    jobOrderId,
                     Isa95JobExecutionTransition.BeginExecution,
                     cancellationToken).ConfigureAwait(false);
                 if ((transition.ReturnStatus & Isa95JobReturnStatus.Success) == 0)
@@ -161,12 +162,14 @@ namespace Vision.VisualInspectionCell
         {
             foreach (V2.ISA95JobOrderDataType order in SeedOrders())
             {
+                string jobOrderId = order.JobOrderID ??
+                    throw new InvalidOperationException("A seeded job order must have an identifier.");
                 _ = await m_provider.ReceiveJobOrderAsync(
                     Isa95JobOrderOperationV2.StoreAndStart,
                     order,
                     cancellationToken: cancellationToken).ConfigureAwait(false);
                 _ = await m_provider.TransitionAsync(
-                    order.JobOrderID,
+                    jobOrderId,
                     Isa95JobExecutionTransition.BeginExecution,
                     cancellationToken).ConfigureAwait(false);
             }
@@ -199,6 +202,7 @@ namespace Vision.VisualInspectionCell
 
         public const string InspectionOrderId = "VIS-INSP-BRACKET-001";
         public const string ReworkRejectOrderId = "VIS-REWORK-REJECT-001";
+
         private static readonly HashSet<string> AllowedOrders =
         [
             InspectionOrderId,

@@ -64,7 +64,7 @@ namespace Vision.BinPickingCell
     [System.Diagnostics.CodeAnalysis.SuppressMessage(
         "Performance", "CA1812",
         Justification = "Instantiated by the DI container via AddSingleton.")]
-    internal sealed partial class BinPickingMediaProvider : IVisionMediaProvider
+    internal sealed class BinPickingMediaProvider : IVisionMediaProvider
     {
         public BinPickingMediaProvider(
             ISceneCameraCaptureProvider capture,
@@ -220,7 +220,7 @@ namespace Vision.BinPickingCell
                     StatusCodes.BadEncodingError,
                     LocalizedText.From(result.Reason ?? "The rendered frame could not be encoded.")),
                 _ => new ServiceResult(StatusCodes.BadInternalError,
-                    LocalizedText.From(result.Reason ?? "The scene camera capture provider reported an unknown status.")),
+                    LocalizedText.From(result.Reason ?? "The scene camera capture provider reported an unknown status."))
             };
         }
 

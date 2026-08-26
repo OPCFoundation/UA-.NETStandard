@@ -69,9 +69,9 @@ namespace Opc.Ua.Vision.Server.Hosting
         {
             m_services = services;
             m_configurators = configurators.ToArray().ToArrayOf();
-            m_mediaRegistrations = mediaRegistrations.ToArray().ToArrayOf();
-            m_inferenceRegistrations = inferenceRegistrations.ToArray().ToArrayOf();
-            m_feedbackRegistrations = feedbackRegistrations.ToArray().ToArrayOf();
+            MediaRegistrations = mediaRegistrations.ToArray().ToArrayOf();
+            InferenceRegistrations = inferenceRegistrations.ToArray().ToArrayOf();
+            FeedbackRegistrations = feedbackRegistrations.ToArray().ToArrayOf();
         }
 
         public async ValueTask RunAsync(
@@ -101,17 +101,14 @@ namespace Opc.Ua.Vision.Server.Hosting
             await context.FlushPendingRegistrationsAsync(cancellationToken).ConfigureAwait(false);
         }
 
-        internal ArrayOf<VisionMediaProviderRegistration> MediaRegistrations => m_mediaRegistrations;
+        internal ArrayOf<VisionMediaProviderRegistration> MediaRegistrations { get; }
 
-        internal ArrayOf<VisionInferenceProviderRegistration> InferenceRegistrations => m_inferenceRegistrations;
+        internal ArrayOf<VisionInferenceProviderRegistration> InferenceRegistrations { get; }
 
-        internal ArrayOf<VisionFeedbackSinkRegistration> FeedbackRegistrations => m_feedbackRegistrations;
+        internal ArrayOf<VisionFeedbackSinkRegistration> FeedbackRegistrations { get; }
 
         private readonly IServiceProvider m_services;
         private readonly ArrayOf<IVisionPostSetupConfigurator> m_configurators;
-        private readonly ArrayOf<VisionMediaProviderRegistration> m_mediaRegistrations;
-        private readonly ArrayOf<VisionInferenceProviderRegistration> m_inferenceRegistrations;
-        private readonly ArrayOf<VisionFeedbackSinkRegistration> m_feedbackRegistrations;
     }
 
     internal sealed class VisionMediaProviderRegistration

@@ -50,8 +50,6 @@ namespace Opc.Ua.Vision.Client
     /// </remarks>
     public sealed class VisionClient
     {
-        private readonly VisionClientOperations m_operations;
-
         /// <summary>
         /// Creates a Vision client over a connected session.
         /// </summary>
@@ -63,25 +61,25 @@ namespace Opc.Ua.Vision.Client
         /// </param>
         public VisionClient(ISession session, ITelemetryContext telemetry)
         {
-            m_operations = new VisionClientOperations(session, telemetry);
+            Operations = new VisionClientOperations(session, telemetry);
         }
 
         /// <summary>
         /// Gets the connected session.
         /// </summary>
-        public ISession Session => m_operations.Session;
+        public ISession Session => Operations.Session;
 
         /// <summary>
         /// Gets the telemetry context.
         /// </summary>
-        public ITelemetryContext Telemetry => m_operations.Telemetry;
+        public ITelemetryContext Telemetry => Operations.Telemetry;
 
         /// <summary>
         /// Gets whether the Server exposes the Vision namespace at all. Where
         /// <c>false</c>, every enumeration on this client returns an empty result.
         /// </summary>
         public bool IsVisionNamespaceAvailable
-            => m_operations.TryGetVisionNamespaceIndex(out _);
+            => Operations.TryGetVisionNamespaceIndex(out _);
 
         /// <summary>
         /// Resolves the NodeId of the well-known <c>Vision</c> object (§4.2). Returns
@@ -91,7 +89,7 @@ namespace Opc.Ua.Vision.Client
         {
             get
             {
-                if (!m_operations.TryGetVisionNamespaceIndex(out ushort _))
+                if (!Operations.TryGetVisionNamespaceIndex(out ushort _))
                 {
                     return NodeId.Null;
                 }
@@ -108,7 +106,7 @@ namespace Opc.Ua.Vision.Client
         {
             get
             {
-                if (!m_operations.TryGetVisionNamespaceIndex(out ushort _))
+                if (!Operations.TryGetVisionNamespaceIndex(out ushort _))
                 {
                     return NodeId.Null;
                 }
@@ -185,9 +183,9 @@ namespace Opc.Ua.Vision.Client
             {
                 return ArrayOf<NodeId>.Empty;
             }
-            return await m_operations.DiscoverInstancesAsync(
+            return await Operations.DiscoverInstancesAsync(
                 sensors,
-                m_operations.VisionNamespaceType(ObjectTypes.VisionSensorType),
+                Operations.VisionNamespaceType(ObjectTypes.VisionSensorType),
                 cancellationToken).ConfigureAwait(false);
         }
 
@@ -206,9 +204,9 @@ namespace Opc.Ua.Vision.Client
             {
                 return ArrayOf<NodeId>.Empty;
             }
-            return await m_operations.DiscoverInstancesAsync(
+            return await Operations.DiscoverInstancesAsync(
                 pipelines,
-                m_operations.VisionNamespaceType(ObjectTypes.InferencePipelineType),
+                Operations.VisionNamespaceType(ObjectTypes.InferencePipelineType),
                 cancellationToken).ConfigureAwait(false);
         }
 
@@ -227,9 +225,9 @@ namespace Opc.Ua.Vision.Client
             {
                 return ArrayOf<NodeId>.Empty;
             }
-            return await m_operations.DiscoverInstancesAsync(
+            return await Operations.DiscoverInstancesAsync(
                 frames,
-                m_operations.VisionNamespaceType(ObjectTypes.CoordinateFrameType),
+                Operations.VisionNamespaceType(ObjectTypes.CoordinateFrameType),
                 cancellationToken).ConfigureAwait(false);
         }
 
@@ -303,7 +301,7 @@ namespace Opc.Ua.Vision.Client
         /// </param>
         public VisionSensorClient Sensor(NodeId sensorNodeId)
         {
-            return new VisionSensorClient(m_operations, sensorNodeId);
+            return new VisionSensorClient(Operations, sensorNodeId);
         }
 
         /// <summary>
@@ -316,7 +314,7 @@ namespace Opc.Ua.Vision.Client
         /// </param>
         public VisionPipelineClient Pipeline(NodeId pipelineNodeId)
         {
-            return new VisionPipelineClient(m_operations, pipelineNodeId);
+            return new VisionPipelineClient(Operations, pipelineNodeId);
         }
 
         /// <summary>
@@ -328,7 +326,7 @@ namespace Opc.Ua.Vision.Client
         /// </param>
         public VisionFeedbackClient Feedback(NodeId feedbackNodeId)
         {
-            return new VisionFeedbackClient(m_operations, feedbackNodeId);
+            return new VisionFeedbackClient(Operations, feedbackNodeId);
         }
 
         /// <summary>
@@ -340,7 +338,7 @@ namespace Opc.Ua.Vision.Client
         /// </param>
         public VisionMediaClient Media(NodeId mediaNodeId)
         {
-            return new VisionMediaClient(m_operations, mediaNodeId);
+            return new VisionMediaClient(Operations, mediaNodeId);
         }
 
         /// <summary>
@@ -352,7 +350,7 @@ namespace Opc.Ua.Vision.Client
         /// </param>
         public VisionResultReader Result(NodeId resultNodeId)
         {
-            return new VisionResultReader(m_operations, resultNodeId);
+            return new VisionResultReader(Operations, resultNodeId);
         }
 
         /// <summary>
@@ -363,7 +361,7 @@ namespace Opc.Ua.Vision.Client
         /// </summary>
         public VisionFrameGraph Frames()
         {
-            return new VisionFrameGraph(m_operations);
+            return new VisionFrameGraph(Operations);
         }
 
         /// <summary>
@@ -372,7 +370,7 @@ namespace Opc.Ua.Vision.Client
         /// </summary>
         public VisionInferenceService Inference()
         {
-            return new VisionInferenceService(m_operations);
+            return new VisionInferenceService(Operations);
         }
 
         /// <summary>
@@ -406,8 +404,8 @@ namespace Opc.Ua.Vision.Client
 
             string trimmed = pipelineSelector.Trim();
 
-            bool isNodeId = NodeId.TryParse(trimmed, out NodeId parsed)
-                && !parsed.IsNull;
+            bool isNodeId = NodeId.TryParse(trimmed, out NodeId parsed) &&
+                !parsed.IsNull;
 
             var candidates = new List<VisionNodeEntry>();
             var all = new List<string>();
@@ -456,7 +454,7 @@ namespace Opc.Ua.Vision.Client
                 $"Pipeline '{trimmed}' not found. Available: {available}.");
         }
 
-        internal VisionClientOperations Operations => m_operations;
+        internal VisionClientOperations Operations { get; }
 
         private static string FormatPipelineEntry(VisionNodeEntry entry)
         {
@@ -473,7 +471,7 @@ namespace Opc.Ua.Vision.Client
             {
                 return NodeId.Null;
             }
-            return await m_operations.ResolveChildAsync(
+            return await Operations.ResolveChildAsync(
                 root, browseName, cancellationToken).ConfigureAwait(false);
         }
 
@@ -486,12 +484,12 @@ namespace Opc.Ua.Vision.Client
             {
                 yield break;
             }
-            NodeId typeDefinition = m_operations.VisionNamespaceType(typeIdentifier);
+            NodeId typeDefinition = Operations.VisionNamespaceType(typeIdentifier);
             if (typeDefinition.IsNull)
             {
                 yield break;
             }
-            ArrayOf<ReferenceDescription> references = await m_operations
+            ArrayOf<ReferenceDescription> references = await Operations
                 .BrowseHierarchicalObjectsAsync(root, cancellationToken).ConfigureAwait(false);
             var matches = new List<VisionNodeEntry>();
             for (int ii = 0; ii < references.Count; ii++)

@@ -44,7 +44,7 @@ namespace Vision.VisualInspectionCell
         Stop
     }
 
-    internal sealed partial class OperatorDialogController
+    internal sealed class OperatorDialogController
     {
         public OperatorDialogController(
             VisualInspectionFeedbackSink feedbackSink,

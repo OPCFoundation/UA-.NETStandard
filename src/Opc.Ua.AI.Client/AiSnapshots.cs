@@ -230,4 +230,3 @@ namespace Opc.Ua.AI.Client
         public string? ResponseContentType { get; init; }
     }
 }
-

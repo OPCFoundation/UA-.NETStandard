@@ -178,9 +178,9 @@ namespace Opc.Ua.Vision.Tests
             if (provider.Backend.IsAvailable)
             {
                 Assert.Ignore(
-                    "A rendering backend is available on this host; the NoRenderingBackend "
-                    + "path only reproduces on hosts without a graphics device (typical CI). "
-                    + "This test asserts the CI-side invariants only.");
+                    "A rendering backend is available on this host; the NoRenderingBackend " +
+                    "path only reproduces on hosts without a graphics device (typical CI). " +
+                    "This test asserts the CI-side invariants only.");
                 return;
             }
             var request = new SceneCameraCaptureRequest

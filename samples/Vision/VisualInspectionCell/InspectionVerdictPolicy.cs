@@ -94,6 +94,10 @@ namespace Vision.VisualInspectionCell
             for (int ii = 0; ii < characteristics.Count; ii++)
             {
                 VisionCharacteristicDataType characteristic = characteristics[ii];
+                if (string.IsNullOrEmpty(characteristic.CharacteristicId))
+                {
+                    continue;
+                }
                 measurements.Add(new MeasuredCharacteristic(
                     characteristic.CharacteristicId,
                     characteristic.Actual,

@@ -479,9 +479,13 @@ namespace Opc.Ua.Server
         /// Session is on its way out, so nothing that would create new state for it is accepted
         /// again, even if the close itself fails.
         /// </summary>
-        internal void MarkClosing()
+        /// <returns>
+        /// <c>true</c> when this call transitioned the session into the closing state;
+        /// <c>false</c> when the session was already closing.
+        /// </returns>
+        internal bool MarkClosing()
         {
-            Volatile.Write(ref m_closing, 1);
+            return Interlocked.Exchange(ref m_closing, 1) == 0;
         }
 
         /// <summary>
@@ -694,7 +698,7 @@ namespace Opc.Ua.Server
 
             if (ClientCertificate != null)
             {
-                SecurityPolicyInfo securityPolicy = SecurityPolicies.GetInfo(
+                SecurityPolicyInfo securityPolicy = SecurityPolicies.Default.GetInfo(
                     EndpointDescription.SecurityPolicyUri!)!;
 
                 byte[] clientNonceData = ClientNonce.ToArray();
@@ -707,7 +711,7 @@ namespace Opc.Ua.Server
                     context.ChannelContext.ClientChannelCertificate,
                     clientNonceData);
 
-                if (!SecurityPolicies.VerifySignatureData(
+                if (!SecurityPolicies.Default.VerifySignatureData(
                         clientSignature!,
                         EndpointDescription.SecurityPolicyUri!,
                         ClientCertificate,
@@ -739,7 +743,7 @@ namespace Opc.Ua.Server
                             context.ChannelContext.ClientChannelCertificate,
                             clientNonceData);
 
-                        if (!SecurityPolicies.VerifySignatureData(
+                        if (!SecurityPolicies.Default.VerifySignatureData(
                               clientSignature!,
                               EndpointDescription.SecurityPolicyUri!,
                               ClientCertificate,
@@ -1216,7 +1220,7 @@ namespace Opc.Ua.Server
                 // verify the signature.
                 if (securityPolicyUri != SecurityPolicies.None)
                 {
-                    SecurityPolicyInfo securityPolicy = SecurityPolicies.GetInfo(
+                    SecurityPolicyInfo securityPolicy = SecurityPolicies.Default.GetInfo(
                         securityPolicyUri!)!;
 
                     SecureChannelContext channelContext = context.ChannelContext!;

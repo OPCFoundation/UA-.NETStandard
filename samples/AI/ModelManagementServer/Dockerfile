@@ -1,7 +1,7 @@
 # ModelManagementServer container image.
 #
 # Multi-stage, framework-dependent build on the .NET AzureLinux 3 base
-# images, following samples/PumpDeviceIntegrationServer/Dockerfile.
+# images, following samples/DI/PumpDeviceIntegrationServer/Dockerfile.
 #
 # IMPORTANT: the build context MUST be the repository ROOT (not this
 # folder), because the project pulls in the whole source tree. Build it

@@ -42,7 +42,7 @@ using Opc.Ua.Vision.Server.Builders;
 
 namespace Vision.VisualInspectionCell
 {
-    internal sealed partial class VisualInspectionCell
+    internal sealed class VisualInspectionCell
     {
         public VisualInspectionCell(
             VisualInspectionCellOptions options,
@@ -145,12 +145,15 @@ namespace Vision.VisualInspectionCell
 
         private void AttachRuntimeTargets(IVisionBuildContext context)
         {
-            InferencePipelineState pipeline = FindPipeline(context) ?? throw new InvalidOperationException(
-                "The visual-inspection pipeline was not registered.");
-            ImageSensorState sensor = FindSensor(context) ?? throw new InvalidOperationException(
-                "The visual-inspection sensor was not registered.");
-            FolderState results = pipeline.Results ?? throw new InvalidOperationException(
-                "The Vision builder did not materialise the pipeline Results folder.");
+            InferencePipelineState pipeline = FindPipeline(context) ??
+                throw new InvalidOperationException(
+                    "The visual-inspection pipeline was not registered.");
+            ImageSensorState sensor = FindSensor(context) ??
+                throw new InvalidOperationException(
+                    "The visual-inspection sensor was not registered.");
+            FolderState results = pipeline.Results ??
+                throw new InvalidOperationException(
+                    "The Vision builder did not materialise the pipeline Results folder.");
             NodeId deployment = pipeline.Deployment?.Value ?? NodeId.Null;
             NodeId learningJob = pipeline.LearningJob?.Value ?? NodeId.Null;
             var target = new VisualInspectionTarget(
@@ -180,20 +183,20 @@ namespace Vision.VisualInspectionCell
             dialog.ReferenceTypeId = global::Opc.Ua.ReferenceTypeIds.HasComponent;
             dialog.TypeDefinitionId = global::Opc.Ua.ObjectTypeIds.DialogConditionType;
             dialog.NodeId = new NodeId(OperatorDialogBrowseName, context.InstanceNamespaceIndex);
-            NodeInstanceExtensions.AssignInstanceChildNodeIds(context.Context, dialog, dialog.NodeId);
-            dialog.CreateOrReplacePrompt(context.Context, null!).Value =
+            context.Context.AssignInstanceChildNodeIds(dialog, dialog.NodeId);
+            dialog.CreateOrReplacePrompt(context.Context, null).Value =
                 LocalizedText.From(
                     "Visual inspection is not decidable. Choose the operator disposition.");
-            dialog.CreateOrReplaceResponseOptionSet(context.Context, null!).Value =
+            dialog.CreateOrReplaceResponseOptionSet(context.Context, null).Value =
             [
                 LocalizedText.From("AcceptAsOk"),
                 LocalizedText.From("AcceptAsNotOk"),
                 LocalizedText.From("Reinspect"),
                 LocalizedText.From("Stop")
             ];
-            dialog.CreateOrReplaceDefaultResponse(context.Context, null!).Value = 2;
-            dialog.CreateOrReplaceOkResponse(context.Context, null!).Value = 0;
-            dialog.CreateOrReplaceCancelResponse(context.Context, null!).Value = 3;
+            dialog.CreateOrReplaceDefaultResponse(context.Context, null).Value = 2;
+            dialog.CreateOrReplaceOkResponse(context.Context, null).Value = 0;
+            dialog.CreateOrReplaceCancelResponse(context.Context, null).Value = 3;
             dialog.Retain!.Value = false;
             dialog.Message!.Value = LocalizedText.From(
                 "Human disposition required for a not-decidable inspection.");

@@ -71,4 +71,3 @@ namespace Opc.Ua.AI.Client
         public LocalizedText Detail { get; init; } = LocalizedText.Null;
     }
 }
-

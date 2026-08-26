@@ -54,8 +54,8 @@ namespace Opc.Ua.Robotics.Tests
                 0.2, 0.1, CubeSize, CubeSize, CubeSize, ArrayOf<SimulatedSupportSolid>.Empty);
 
             Assert.That(z, Is.EqualTo(BenchTop + (CubeSize * 0.5)).Within(1e-9),
-                "A part released over the bench must stand on it; leaving it at the tool "
-                + "centre point is what left parts hanging in the air.");
+                "A part released over the bench must stand on it; leaving it at the tool " +
+                "centre point is what left parts hanging in the air.");
         }
 
         [Test]
@@ -68,8 +68,8 @@ namespace Opc.Ua.Robotics.Tests
             double z = model.RestingCentreHeight(0.2, 0.1, CubeSize, CubeSize, CubeSize, standing);
 
             Assert.That(z, Is.EqualTo(BenchTop + CubeSize + (CubeSize * 0.5)).Within(1e-9),
-                "Stacking is the resting rule applied twice: the second part's base sits on "
-                + "the first part's top.");
+                "Stacking is the resting rule applied twice: the second part's base sits on " +
+                "the first part's top.");
         }
 
         [Test]
@@ -116,8 +116,8 @@ namespace Opc.Ua.Robotics.Tests
                 -0.32, 0.0, CubeSize, CubeSize, CubeSize, ArrayOf<SimulatedSupportSolid>.Empty);
 
             Assert.That(z, Is.EqualTo(PlateTop + (CubeSize * 0.5)).Within(1e-9),
-                "The fixture plate stands on the bench, so a part on the fixture stands on "
-                + "the plate.");
+                "The fixture plate stands on the bench, so a part on the fixture stands on " +
+                "the plate.");
         }
 
         [Test]
@@ -130,22 +130,22 @@ namespace Opc.Ua.Robotics.Tests
                 BenchTop - 0.05, ArrayOf<SimulatedSupportSolid>.Empty);
 
             Assert.That(z, Is.EqualTo(BenchTop + (CubeSize * 0.5)).Within(1e-9),
-                "A part cannot be put through the bench, which is the whole point of "
-                + "clamping rather than trusting the requested height.");
+                "A part cannot be put through the bench, which is the whole point of " +
+                "clamping rather than trusting the requested height.");
         }
 
         [Test]
         public void RequestAboveTheSupportIsLeftAlone()
         {
             SimulatedSupportModel model = BenchModel();
-            double held = BenchTop + 0.30;
+            const double held = BenchTop + 0.30;
 
             double z = model.ClampAboveSupport(
                 0.2, 0.1, CubeSize, CubeSize, CubeSize, held, ArrayOf<SimulatedSupportSolid>.Empty);
 
             Assert.That(z, Is.EqualTo(held).Within(1e-9),
-                "A part in the gripper is legitimately above its resting height, so the "
-                + "clamp must not drag it down.");
+                "A part in the gripper is legitimately above its resting height, so the " +
+                "clamp must not drag it down.");
         }
 
         [Test]

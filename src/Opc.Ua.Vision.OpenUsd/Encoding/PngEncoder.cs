@@ -50,7 +50,7 @@ namespace Opc.Ua.Vision.OpenUsd.Encoding
     {
         private static readonly byte[] s_signature =
         [
-            0x89, (byte)'P', (byte)'N', (byte)'G', 0x0D, 0x0A, 0x1A, 0x0A,
+            0x89, (byte)'P', (byte)'N', (byte)'G', 0x0D, 0x0A, 0x1A, 0x0A
         ];
 
         /// <summary>

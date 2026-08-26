@@ -102,6 +102,12 @@ namespace Opc.Ua
         public static CryptoPurpose ChannelSymmetric { get; } = new("ChannelSymmetric");
 
         /// <summary>
+        /// Derivation of the channel and session key material from a shared
+        /// secret.
+        /// </summary>
+        public static CryptoPurpose KeyDerivation { get; } = new("KeyDerivation");
+
+        /// <summary>
         /// Generation of nonces and other random material.
         /// </summary>
         public static CryptoPurpose RandomNumberGeneration { get; } = new("RandomNumberGeneration");

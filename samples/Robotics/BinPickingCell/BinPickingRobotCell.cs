@@ -33,9 +33,9 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Opc.Ua;
-using Opc.Ua.RobotIntent;
 using Opc.Ua.Robotics.Server;
 using Opc.Ua.Robotics.Server.Builders;
+using Opc.Ua.RobotIntent;
 using Opc.Ua.Server;
 using Robotics.IntentEnabledRobot.Kinematics;
 using Robotics.IntentEnabledRobot.Simulation;
@@ -116,6 +116,7 @@ namespace Vision.BinPickingCell
         /// <summary>
         /// Configures the Robot Intent controller and OpenUSD nodes for the cell.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="context"/> is <c>null</c>.</exception>
         public async ValueTask ConfigureAsync(
             IRobotIntentBuildContext context, CancellationToken cancellationToken)
         {
@@ -254,9 +255,9 @@ namespace Vision.BinPickingCell
 
         private void ConfigureAxis(global::Opc.Ua.RobotIntent.AxisState axis, double min, double max)
         {
-            axis.CreateOrReplaceMinPosition(SystemContext, null!).Value = min;
-            axis.CreateOrReplaceMaxPosition(SystemContext, null!).Value = max;
-            axis.CreateOrReplaceMaxSpeed(SystemContext, null!).Value = MaxAxisSpeedDegreesPerSecond;
+            axis.CreateOrReplaceMinPosition(SystemContext, null).Value = min;
+            axis.CreateOrReplaceMaxPosition(SystemContext, null).Value = max;
+            axis.CreateOrReplaceMaxSpeed(SystemContext, null).Value = MaxAxisSpeedDegreesPerSecond;
         }
 
         private ArrayOf<KinematicJointDataType> CreateKinematicChain()
@@ -307,7 +308,7 @@ namespace Vision.BinPickingCell
 
         private static (double Minimum, double Maximum) AxisLimits(uint index)
         {
-            double radiansToDegrees = 180.0 / Math.PI;
+            const double radiansToDegrees = 180.0 / Math.PI;
             return index switch
             {
                 0 => (
@@ -356,9 +357,9 @@ namespace Vision.BinPickingCell
                     // support model settles the released part the remaining 17 mm instead
                     // of leaving it floating or driving the tool into what is already there.
                     double toolWorldZ = m_carriedClass.Length > 0
-                        ? RestingCentreHeight(m_carriedClass, x, y)
-                            + SimulatedArmExecutor.HeldPartTcpOffset
-                            + PlaceReleaseClearanceMetres
+                        ? RestingCentreHeight(m_carriedClass, x, y) +
+                            SimulatedArmExecutor.HeldPartTcpOffset +
+                            PlaceReleaseClearanceMetres
                         : z + ApproachHeightMetres;
                     position = new[] { x, y, toolWorldZ - RobotBaseHeightMetres }.ToArrayOf();
                     return true;
@@ -432,9 +433,9 @@ namespace Vision.BinPickingCell
                     {
                         target.WorldX,
                         target.WorldY,
-                        target.WorldZ
-                            + SimulatedArmExecutor.HeldPartTcpOffset
-                            - RobotBaseHeightMetres
+                        target.WorldZ +
+                        SimulatedArmExecutor.HeldPartTcpOffset -
+                        RobotBaseHeightMetres
                     }.ToArrayOf(),
                     Orientation = BinPickingPalletizerKinematics.ToolDownOrientation(
                         baseYaw,
@@ -472,8 +473,8 @@ namespace Vision.BinPickingCell
                     // the executor records every joint sample so the next command can replay
                     // the exact approach in reverse. The fixture keeps the short local joint
                     // approach because its final Cartesian branch is less reliable.
-                    return string.Equals(name, BinLocationName, StringComparison.Ordinal)
-                        || name.StartsWith(HomeLocationPrefix, StringComparison.Ordinal);
+                    return string.Equals(name, BinLocationName, StringComparison.Ordinal) ||
+                        name.StartsWith(HomeLocationPrefix, StringComparison.Ordinal);
                 }
             }
             return false;
@@ -504,8 +505,8 @@ namespace Vision.BinPickingCell
                 {
                     continue;
                 }
-                bool within = Math.Abs(part.WorldX - toolX) <= GraspReachRadiusMetres
-                    && Math.Abs(part.WorldY - toolY) <= GraspReachRadiusMetres;
+                bool within = Math.Abs(part.WorldX - toolX) <= GraspReachRadiusMetres &&
+                    Math.Abs(part.WorldY - toolY) <= GraspReachRadiusMetres;
                 if (!within)
                 {
                     m_logger.GraspFoundNothing(classLabel, FormatPosition(toolX, toolY));
@@ -556,8 +557,8 @@ namespace Vision.BinPickingCell
             for (int ii = 0; ii < parts.Count; ii++)
             {
                 BinPickingPartSnapshot snapshot = parts[ii];
-                if (string.Equals(snapshot.Part.ClassLabel, exclude, StringComparison.Ordinal)
-                    || snapshot.Location == BinPickingPartLocation.Held)
+                if (string.Equals(snapshot.Part.ClassLabel, exclude, StringComparison.Ordinal) ||
+                    snapshot.Location == BinPickingPartLocation.Held)
                 {
                     continue;
                 }
@@ -595,8 +596,8 @@ namespace Vision.BinPickingCell
 
             if (snapshot.HasObject && snapshot.HeldObjectClass.Length > 0)
             {
-                if (m_carriedClass.Length == 0
-                    && !CanGrasp(snapshot.HeldObjectClass, worldX, worldY))
+                if (m_carriedClass.Length == 0 &&
+                    !CanGrasp(snapshot.HeldObjectClass, worldX, worldY))
                 {
                     // The gripper closed where the part is not. Attaching it anyway is
                     // what let a Pick teleport a part out of a stack on the far side of
@@ -669,7 +670,7 @@ namespace Vision.BinPickingCell
                 new(
                     "FixturePegA",
                     BinPickingCellGeometry.FixtureCentreX -
-                        BinPickingCellGeometry.FixturePegOffsetMetres,
+                    BinPickingCellGeometry.FixturePegOffsetMetres,
                     BinPickingCellGeometry.FixturePegOffsetMetres,
                     0.018,
                     0.018,
@@ -678,7 +679,7 @@ namespace Vision.BinPickingCell
                 new(
                     "FixturePegB",
                     BinPickingCellGeometry.FixtureCentreX +
-                        BinPickingCellGeometry.FixturePegOffsetMetres,
+                    BinPickingCellGeometry.FixturePegOffsetMetres,
                     BinPickingCellGeometry.FixturePegOffsetMetres,
                     0.018,
                     0.018,
@@ -697,9 +698,9 @@ namespace Vision.BinPickingCell
             for (int ii = 0; ii < parts.Count; ii++)
             {
                 BinPickingPartSnapshot part = parts[ii];
-                if (part.Location == BinPickingPartLocation.Held
-                    || string.Equals(part.Part.ClassLabel, m_carriedClass, StringComparison.Ordinal)
-                    || string.Equals(part.Part.ClassLabel, m_pickTargetClass, StringComparison.Ordinal))
+                if (part.Location == BinPickingPartLocation.Held ||
+                    string.Equals(part.Part.ClassLabel, m_carriedClass, StringComparison.Ordinal) ||
+                    string.Equals(part.Part.ClassLabel, m_pickTargetClass, StringComparison.Ordinal))
                 {
                     continue;
                 }
@@ -748,8 +749,8 @@ namespace Vision.BinPickingCell
             IReadOnlyList<BinPickingPartSnapshot> parts = m_worldState.Snapshot();
             foreach ((string name, double x, double y, double _, double _) in s_locations)
             {
-                if (!m_locationStates.TryGetValue(name, out global::Opc.Ua.RobotIntent.LocationState? state)
-                    || state.Occupied == null)
+                if (!m_locationStates.TryGetValue(name, out global::Opc.Ua.RobotIntent.LocationState? state) ||
+                    state.Occupied == null)
                 {
                     continue;
                 }
@@ -760,9 +761,9 @@ namespace Vision.BinPickingCell
                 for (int ii = 0; ii < parts.Count && !occupied; ii++)
                 {
                     BinPickingPartSnapshot part = parts[ii];
-                    occupied = part.Location != BinPickingPartLocation.Held
-                        && Math.Abs(part.WorldX - x) <= radius
-                        && Math.Abs(part.WorldY - y) <= radius;
+                    occupied = part.Location != BinPickingPartLocation.Held &&
+                        Math.Abs(part.WorldX - x) <= radius &&
+                        Math.Abs(part.WorldY - y) <= radius;
                 }
                 if (state.Occupied.Value == occupied)
                 {
@@ -779,7 +780,7 @@ namespace Vision.BinPickingCell
         private static double PartSize(string classLabel, int axis)
         {
             BinPickingPart? part = BinPickingPartsCatalog.TryGet(classLabel);
-            return part == null ? 0.0 : part.Size[axis];
+            return (part?.Size[axis]) ?? 0.0;
         }
 
         /// <summary>
@@ -796,8 +797,8 @@ namespace Vision.BinPickingCell
         /// </remarks>
         private void PublishPartPosition(string classLabel, double worldX, double worldY, double worldZ)
         {
-            if (m_systemContext == null
-                || !m_partPositionNodes.TryGetValue(classLabel, out BaseDataVariableState? node))
+            if (m_systemContext == null ||
+                !m_partPositionNodes.TryGetValue(classLabel, out BaseDataVariableState? node))
             {
                 return;
             }
@@ -847,7 +848,7 @@ namespace Vision.BinPickingCell
 
         private static double LevelingDegrees(ReadOnlySpan<double> jointAngles)
         {
-            return (Math.PI / 2.0 - jointAngles[1] - jointAngles[2]) * 180.0 / Math.PI;
+            return ((Math.PI / 2.0) - jointAngles[1] - jointAngles[2]) * 180.0 / Math.PI;
         }
 
         /// <summary>
@@ -952,47 +953,60 @@ namespace Vision.BinPickingCell
         internal const string FixtureLocationName = "Fixture";
 
         private const string HomeLocationPrefix = "Home";
-        // The robot stands on a 200 mm riser above the lowered work surface. Keeping these
-        // in the shared geometry class makes the USD scene, frame tree, collision model and
-        // support model describe one cell.
+
+        /// <summary>
+        /// The robot stands on a 200 mm riser above the lowered work surface. Keeping these
+        /// in the shared geometry class makes the USD scene, frame tree, collision model and
+        /// support model describe one cell.
+        /// </summary>
         internal const double RobotBaseHeightMetres = BinPickingCellGeometry.RobotBaseHeightMetres;
         internal const double BenchTopMetres = BinPickingCellGeometry.BenchTopMetres;
         private const double FixturePlateTopMetres = BinPickingCellGeometry.FixturePlateTopMetres;
         private const double FixturePegTopMetres = BinPickingCellGeometry.FixturePegTopMetres;
 
-        // How far above a Location the tool travels to when it is going to pick something
-        // up. Far enough to read as an approach rather than a collision. A Place does not
-        // use this: it descends to the height that leaves the part resting on whatever is
-        // under it, so releasing does not drop the part from the approach height.
+        /// <summary>
+        /// How far above a Location the tool travels to when it is going to pick something
+        /// up. Far enough to read as an approach rather than a collision. A Place does not
+        /// use this: it descends to the height that leaves the part resting on whatever is
+        /// under it, so releasing does not drop the part from the approach height.
+        /// </summary>
         private const double ApproachHeightMetres = 0.20;
         private const double PlaceReleaseClearanceMetres = 0.017;
         private const double GripperClosedHalfGap = 0.009;
         private const double GripperOpenHalfGap = 0.040;
         private const double PalletizerWorkToolRollRadians = Math.PI / 2.0;
 
-        // How close a part has to be to a Location to count as standing in it. The bin is a
-        // tray parts are scattered across, so it reuses the catalogue's footprint; a home
-        // slot is one part's own spot, so its radius only has to cover the millimetre-scale
-        // settle a release leaves behind.
+        /// <summary>
+        /// How close a part has to be to a Location to count as standing in it. The bin is a
+        /// tray parts are scattered across, so it reuses the catalogue's footprint; a home
+        /// slot is one part's own spot, so its radius only has to cover the millimetre-scale
+        /// settle a release leaves behind.
+        /// </summary>
         private const double BinSlotRadiusMetres = BinPickingPartsCatalog.BinHalfExtent;
         private const double HomeSlotRadiusMetres = 0.02;
 
-        // How far a part may be from the tool and still be grasped by it. Wide enough to
-        // cover a Location's footprint, since a Pick travels to the Location rather than to
-        // the part, and far narrower than the 0.70 m between the bin and the fixture, so a
-        // grasp can never reach across the bench for something.
+        /// <summary>
+        /// How far a part may be from the tool and still be grasped by it. Wide enough to
+        /// cover a Location's footprint, since a Pick travels to the Location rather than to
+        /// the part, and far narrower than the 0.70 m between the bin and the fixture, so a
+        /// grasp can never reach across the bench for something.
+        /// </summary>
         private const double GraspReachRadiusMetres = 0.12;
 
-        // The simulator's DefaultJointSpeed is 0.9 rad/s; Position and the limits are
-        // published in degrees, so the speed limit is too.
+        /// <summary>
+        /// The simulator's DefaultJointSpeed is 0.9 rad/s; Position and the limits are
+        /// published in degrees, so the speed limit is too.
+        /// </summary>
         private const double MaxAxisSpeedDegreesPerSecond = 0.9 * 180.0 / Math.PI;
         private const uint PayloadSlotCount = 8u;
 
         private static readonly (string Name, double X, double Y, double Z, double Rz)[] s_locations =
             BuildLocations();
 
-        // The solids in this cell that never move and that a part can come to rest on, in
-        // the world frame. Sizes are full extents, matching Cell.usda.
+        /// <summary>
+        /// The solids in this cell that never move and that a part can come to rest on, in
+        /// the world frame. Sizes are full extents, matching Cell.usda.
+        /// </summary>
         private static readonly SimulatedSupportSolid[] s_supportFixtures =
         [
             new("Bench", 0.0, 0.0, 1.4, 0.9, BenchTopMetres),
@@ -1022,15 +1036,19 @@ namespace Vision.BinPickingCell
         private readonly BinPickingWorldState m_worldState;
         private readonly IBinPickingTargetProvider m_targetProvider;
         private readonly ArrayOf<double> m_toolDownOrientation;
+
         private readonly SimulatedSupportModel m_support =
             new(ArrayOf.Create(s_supportFixtures.AsSpan()), BenchTopMetres);
+
         private string m_carriedClass = string.Empty;
         private string m_pickTargetClass = string.Empty;
         private readonly List<global::Opc.Ua.RobotIntent.AxisState> m_axes = [];
         private readonly List<global::Opc.Ua.RobotIntent.LocationState> m_locations = [];
         private readonly Dictionary<string, NodeId> m_locationNodes = new(StringComparer.Ordinal);
+
         private readonly Dictionary<string, global::Opc.Ua.RobotIntent.LocationState> m_locationStates =
             new(StringComparer.Ordinal);
+
         private BaseVariableState? m_gripperLeftSlideValue;
         private BaseVariableState? m_gripperRightSlideValue;
         private BaseVariableState? m_levelingValue;

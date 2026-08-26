@@ -37,7 +37,7 @@ using Opc.Ua.Vision.Server;
 
 namespace Vision.VisualInspectionCell
 {
-    internal sealed partial class VisualInspectionInferenceProvider : IVisionInferenceProvider
+    internal sealed class VisualInspectionInferenceProvider : IVisionInferenceProvider
     {
         public VisualInspectionInferenceProvider(
             VisualInspectionAnalysisService analysis,

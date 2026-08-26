@@ -60,8 +60,6 @@ namespace Opc.Ua.Mcp
         private const char kListSeparatorSemicolon = ';';
         private const char kListSeparatorPipe = '|';
 
-        private readonly uint m_bits;
-
         /// <summary>
         /// Creates a set from a single profile.
         /// </summary>
@@ -72,7 +70,7 @@ namespace Opc.Ua.Mcp
         public McpToolProfileSet(McpToolProfile profile)
         {
             ValidateProfile(profile);
-            m_bits = ToBit(profile);
+            Bits = ToBit(profile);
         }
 
         /// <summary>
@@ -94,12 +92,12 @@ namespace Opc.Ua.Mcp
                 ValidateProfile(profile);
                 bits |= ToBit(profile);
             }
-            m_bits = bits;
+            Bits = bits;
         }
 
         private McpToolProfileSet(uint bits)
         {
-            m_bits = bits;
+            Bits = bits;
         }
 
         /// <summary>
@@ -110,12 +108,12 @@ namespace Opc.Ua.Mcp
         /// <summary>
         /// Whether the set is empty.
         /// </summary>
-        public bool IsEmpty => m_bits == 0;
+        public bool IsEmpty => Bits == 0;
 
         /// <summary>
         /// The number of distinct profiles in the set.
         /// </summary>
-        public int Count => BitOperations.PopCount(m_bits);
+        public int Count => BitOperations.PopCount(Bits);
 
         /// <summary>
         /// Whether <paramref name="profile"/> is a member of the set.
@@ -126,7 +124,7 @@ namespace Opc.Ua.Mcp
         /// </returns>
         public bool Contains(McpToolProfile profile)
         {
-            return Enum.IsDefined(profile) && (m_bits & ToBit(profile)) != 0;
+            return Enum.IsDefined(profile) && (Bits & ToBit(profile)) != 0;
         }
 
         /// <summary>
@@ -140,7 +138,7 @@ namespace Opc.Ua.Mcp
         public McpToolProfileSet With(McpToolProfile profile)
         {
             ValidateProfile(profile);
-            return new McpToolProfileSet(m_bits | ToBit(profile));
+            return new McpToolProfileSet(Bits | ToBit(profile));
         }
 
         /// <summary>
@@ -150,7 +148,7 @@ namespace Opc.Ua.Mcp
         /// <returns>The profiles in the set.</returns>
         public IEnumerable<McpToolProfile> Enumerate()
         {
-            uint bits = m_bits;
+            uint bits = Bits;
             foreach (McpToolProfile profile in Enum.GetValues<McpToolProfile>())
             {
                 if ((bits & ToBit(profile)) != 0)
@@ -268,7 +266,7 @@ namespace Opc.Ua.Mcp
         /// <returns>The text form of the set.</returns>
         public override string ToString()
         {
-            if (m_bits == 0)
+            if (Bits == 0)
             {
                 return string.Empty;
             }
@@ -288,7 +286,7 @@ namespace Opc.Ua.Mcp
         /// <inheritdoc/>
         public bool Equals(McpToolProfileSet other)
         {
-            return m_bits == other.m_bits;
+            return Bits == other.Bits;
         }
 
         /// <inheritdoc/>
@@ -300,7 +298,7 @@ namespace Opc.Ua.Mcp
         /// <inheritdoc/>
         public override int GetHashCode()
         {
-            return unchecked((int)m_bits);
+            return unchecked((int)Bits);
         }
 
         /// <summary>
@@ -330,7 +328,7 @@ namespace Opc.Ua.Mcp
             return new McpToolProfileSet(profile);
         }
 
-        internal uint Bits => m_bits;
+        internal uint Bits { get; }
 
         private static uint ToBit(McpToolProfile profile)
         {

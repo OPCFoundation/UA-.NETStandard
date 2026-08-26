@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -39,7 +40,7 @@ using Opc.Ua.Vision.Server;
 
 namespace Vision.VisualInspectionCell
 {
-    internal sealed partial class VisualInspectionFeedbackSink : IVisionFeedbackSink
+    internal sealed class VisualInspectionFeedbackSink : IVisionFeedbackSink
     {
         public VisualInspectionFeedbackSink(
             VisualInspectionResultPublisher publisher,
@@ -115,7 +116,7 @@ namespace Vision.VisualInspectionCell
             string resultId = string.IsNullOrEmpty(request.ResultId)
                 ? StableResultId(request.Pipeline, request.Characteristics)
                 : request.ResultId;
-            if (!TryGetImageReference(resultId, out VisionImageReferenceDataType frameReference))
+            if (!TryGetImageReference(resultId, out VisionImageReferenceDataType? frameReference))
             {
                 return new ServiceResult(StatusCodes.BadInvalidState,
                     LocalizedText.From("SubmitImageReference must provide provenance before publishing a result."));
@@ -308,7 +309,8 @@ namespace Vision.VisualInspectionCell
         {
             string key = characteristics.Count == 0
                 ? "empty"
-                : characteristics[0].CharacteristicId + ":" +
+                : characteristics[0].CharacteristicId +
+                    ":" +
                     characteristics[0].Actual.ToString(System.Globalization.CultureInfo.InvariantCulture);
             return FormattableString.Invariant($"agent-insp-{Sanitize(pipeline.ToString())}-{Sanitize(key)}");
         }
@@ -318,7 +320,9 @@ namespace Vision.VisualInspectionCell
             return string.IsNullOrEmpty(frame?.Uri) ? fallback : frame.Uri;
         }
 
-        private bool TryGetImageReference(string resultId, out VisionImageReferenceDataType image)
+        private bool TryGetImageReference(
+            string resultId,
+            [NotNullWhen(true)] out VisionImageReferenceDataType? image)
         {
             lock (m_lock)
             {

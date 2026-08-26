@@ -1097,7 +1097,8 @@ namespace Opc.Ua.Client.Subscriptions
         [Test]
         [CancelAfter(30_000)]
         public async Task PublishWorkerThrottlesWhileSubscriptionIdIsUnresolvedAsync(
-            CancellationToken testCt)        {
+            CancellationToken testCt)
+        {
             const int kMaxExpectedPublishes = 100;
 
             ILoggerFactory loggerFactory = m_telemetry.LoggerFactory;

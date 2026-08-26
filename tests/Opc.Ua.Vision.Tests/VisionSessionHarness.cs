@@ -342,8 +342,8 @@ namespace Opc.Ua.Vision.Tests
                             ReadValueId node = nodes[ii];
                             if (node.AttributeId == Attributes.Value)
                             {
-                                if (m_valueStatus.TryGetValue(node.NodeId, out StatusCode status)
-                                    && StatusCode.IsBad(status))
+                                if (m_valueStatus.TryGetValue(node.NodeId, out StatusCode status) &&
+                                    StatusCode.IsBad(status))
                                 {
                                     values.Add(new DataValue(Variant.Null, status));
                                 }

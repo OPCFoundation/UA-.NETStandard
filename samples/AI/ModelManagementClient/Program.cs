@@ -31,11 +31,11 @@ using System;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
-using Opc.Ua.AI.Client;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Opc.Ua;
+using Opc.Ua.AI.Client;
 using Opc.Ua.Client;
 
 try

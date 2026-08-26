@@ -103,6 +103,7 @@ namespace Vision.BinPickingCell
         /// <summary>
         /// Configures the Vision node manager for this cell.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="context"/> is <c>null</c>.</exception>
         public async ValueTask ConfigureAsync(IVisionBuildContext context, CancellationToken cancellationToken)
         {
             if (context == null)
@@ -327,17 +328,16 @@ namespace Vision.BinPickingCell
                 throw new InvalidOperationException(
                     "Sensor '" + SensorTwinBrowseName + "' was not registered on the Vision node manager.");
             }
-            IVisionSimulatedState simulated = OpcUaVisionExtensions.CreateInstanceOfIVisionSimulatedType(
-                context.Context,
+            IVisionSimulatedState simulated = context.Context.CreateInstanceOfIVisionSimulatedType(
                 sensor,
                 new QualifiedName("Simulated", context.VisionNamespaceIndex));
             simulated.ReferenceTypeId = Opc.Ua.ReferenceTypeIds.HasInterface;
             simulated.NodeId = context.Context.RequireNodeIdFactory().New(context.Context, simulated);
-            simulated.CreateOrReplaceSimulatorUri(context.Context, null!).Value =
+            simulated.CreateOrReplaceSimulatorUri(context.Context, null).Value =
                 "opcua-openusd://binpicking-cell";
-            simulated.CreateOrReplaceStageIdentifier(context.Context, null!).Value = m_stage.CellStagePath;
-            simulated.CreateOrReplacePrimPath(context.Context, null!).Value = CameraPrimPath;
-            simulated.CreateOrReplaceGroundTruthAvailable(context.Context, null!).Value = true;
+            simulated.CreateOrReplaceStageIdentifier(context.Context, null).Value = m_stage.CellStagePath;
+            simulated.CreateOrReplacePrimPath(context.Context, null).Value = CameraPrimPath;
+            simulated.CreateOrReplaceGroundTruthAvailable(context.Context, null).Value = true;
             sensor.AddChild(simulated);
             await context.Manager.AddPredefinedNodeAsync(simulated, cancellationToken).ConfigureAwait(false);
         }
@@ -438,48 +438,63 @@ namespace Vision.BinPickingCell
         private static readonly double[] s_identityOrientation = [0.0, 0.0, 0.0, 1.0];
         private static readonly double[] s_handEyePosition = [0.020, 0.0, 0.160];
         private static readonly double[] s_handEyeOrientation = [RootHalf, 0.0, RootHalf, 0.0];
+
         private static readonly double[] s_cameraInWorldPosition =
             [BinPickingPartsCatalog.BinCentreX, -0.160, 1.405];
 
-        // The palletizer flange is tool-down and rolled 90 degrees at the scan pose.
-        // Composing the authored hand-eye transform places the camera 160 mm toward -Y
-        // and 20 mm below the flange, looking straight down with a -90 degree image roll.
+        /// <summary>
+        /// The palletizer flange is tool-down and rolled 90 degrees at the scan pose.
+        /// Composing the authored hand-eye transform places the camera 160 mm toward -Y
+        /// and 20 mm below the flange, looking straight down with a -90 degree image roll.
+        /// </summary>
         private static readonly double[] s_cameraInWorldOrientation =
             [RootHalf, -RootHalf, 0.0, 0.0];
 
-        // Analytic palletizer home: TCP (0.60, 0, 0.32), wrist/flange 185 mm above it.
+        /// <summary>
+        /// Analytic palletizer home: TCP (0.60, 0, 0.32), wrist/flange 185 mm above it.
+        /// </summary>
         private static readonly double[] s_flangeScanPosition = [0.600, 0.0, 0.505];
+
         private static readonly double[] s_flangeScanOrientation =
             [0.5, 0.5, -0.5, 0.5];
 
-        // A 90-degree rotation, to full double precision. Writing it as 0.7071 leaves the
-        // quaternion with a norm of 0.99999041, which is 9.6e-6 off unit - ten times the
-        // 1e-6 tolerance the pose validator enforces - so composing a detection through
-        // these frames fails with BadOutOfRange.
+        /// <summary>
+        /// A 90-degree rotation, to full double precision. Writing it as 0.7071 leaves the
+        /// quaternion with a norm of 0.99999041, which is 9.6e-6 off unit - ten times the
+        /// 1e-6 tolerance the pose validator enforces - so composing a detection through
+        /// these frames fails with BadOutOfRange.
+        /// </summary>
         private const double RootHalf = 0.70710678118654752;
 
         internal const string SensorTwinBrowseName = "BinPickingCameraTwin";
 
-        // The simulated device is a 2448x2048 area-scan camera, but it is operated with
-        // 4x4 binning, which is what an industrial camera does when a bin-picking cycle
-        // needs frame rate more than it needs pixels. Every resolution the model reports -
-        // sensor, stream endpoint, clip endpoint, intrinsics - is the binned one, because
-        // that is what the device delivers. The native size survives only in the model and
-        // serial number, where it identifies the hardware rather than the image.
-        //
-        // These used to disagree: the sensor declared 2448x2048, the clip endpoint
-        // 1280x1024, and the renderer produced 640x512. The detector projects through the
-        // declared intrinsics, so its boxes landed in 2448x2048 space while an agent was
-        // handed a 640x512 picture - the coordinates pointed off the image it could see.
-        // 640x512 was not even the same aspect ratio as the camera it claimed to be.
+        /// <summary>
+        /// <para>
+        /// The simulated device is a 2448x2048 area-scan camera, but it is operated with
+        /// 4x4 binning, which is what an industrial camera does when a bin-picking cycle
+        /// needs frame rate more than it needs pixels. Every resolution the model reports -
+        /// sensor, stream endpoint, clip endpoint, intrinsics - is the binned one, because
+        /// that is what the device delivers. The native size survives only in the model and
+        /// serial number, where it identifies the hardware rather than the image.
+        /// </para>
+        /// <para>
+        /// These used to disagree: the sensor declared 2448x2048, the clip endpoint
+        /// 1280x1024, and the renderer produced 640x512. The detector projects through the
+        /// declared intrinsics, so its boxes landed in 2448x2048 space while an agent was
+        /// handed a 640x512 picture - the coordinates pointed off the image it could see.
+        /// 640x512 was not even the same aspect ratio as the camera it claimed to be.
+        /// </para>
+        /// </summary>
         internal const uint NativeSensorWidth = 2448u;
         internal const uint NativeSensorHeight = 2048u;
         internal const uint SensorBinning = 4u;
         internal const uint SensorWidth = NativeSensorWidth / SensorBinning;
         internal const uint SensorHeight = NativeSensorHeight / SensorBinning;
 
-        // The clip endpoint serves 612x512 PNGs. Allow headroom for a busier scene
-        // rather than have the Server refuse its own frames.
+        /// <summary>
+        /// The clip endpoint serves 612x512 PNGs. Allow headroom for a busier scene
+        /// rather than have the Server refuse its own frames.
+        /// </summary>
         internal const uint MaxInlineClipBytes = 32u * 1024u * 1024u;
         internal const string IntrinsicCalibrationBrowseName = "Intrinsics612x512";
         internal const string HandEyeCalibrationBrowseName = "HandEye";
@@ -489,6 +504,7 @@ namespace Vision.BinPickingCell
         internal const string PipelineId = "pipe-onserver-groundtruth";
         internal const string DeploymentBrowseName = "OnServerDeployment";
         internal const string PixelFormat = "BayerRG8";
+
         internal const string CameraPrimPath =
             "/World/Robot/Palletizer/Base/J1/J2/J3/Leveling/J4/Flange/Camera";
 

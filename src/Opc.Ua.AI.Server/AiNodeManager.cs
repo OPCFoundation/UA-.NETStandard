@@ -31,14 +31,14 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
-using Opc.Ua.AI.Inference;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Opc.Ua;
 using Opc.Ua.AI;
-using Opc.Ua.XRegistry;
+using Opc.Ua.AI.Inference;
 using Opc.Ua.Server;
+using Opc.Ua.XRegistry;
 
 namespace Opc.Ua.AI.Server
 {
@@ -331,6 +331,7 @@ namespace Opc.Ua.AI.Server
         /// <typeparam name="TChild">The instance state type of the child.</typeparam>
         /// <param name="parent">The node declaring the child.</param>
         /// <param name="browseName">The browse name of the child.</param>
+        /// <exception cref="InvalidOperationException"></exception>
         private TChild Child<TChild>(NodeState parent, string browseName)
             where TChild : BaseInstanceState
         {

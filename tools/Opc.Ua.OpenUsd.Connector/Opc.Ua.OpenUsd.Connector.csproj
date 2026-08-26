@@ -18,6 +18,7 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="NugetREADME.md" Pack="true" PackagePath="\" />
+    <InternalsVisibleTo Include="Opc.Ua.OpenUsd.Tests" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\src\Opc.Ua.Configuration\Opc.Ua.Configuration.csproj" />

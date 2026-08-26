@@ -49,6 +49,7 @@ namespace Microsoft.Extensions.DependencyInjection
         /// Registers the standalone Vision node manager and its default
         /// hosting glue.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="builder"/> is <c>null</c>.</exception>
         public static IOpcUaServerBuilder AddVision(
             this IOpcUaServerBuilder builder,
             Action<VisionServerOptions>? configure = null)
@@ -100,6 +101,8 @@ namespace Microsoft.Extensions.DependencyInjection
         /// <typeparam name="TProvider">
         /// The media provider type. Resolved via the DI container.
         /// </typeparam>
+        /// <exception cref="ArgumentNullException"><paramref name="builder"/> is <c>null</c>.</exception>
+        /// <exception cref="ArgumentException"></exception>
         public static IOpcUaServerBuilder AddVisionMediaProvider<
             [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] TProvider>(
             this IOpcUaServerBuilder builder,
@@ -125,6 +128,8 @@ namespace Microsoft.Extensions.DependencyInjection
         /// <summary>
         /// Registers a media provider instance for one sensor browse name.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="builder"/> is <c>null</c>.</exception>
+        /// <exception cref="ArgumentException"></exception>
         public static IOpcUaServerBuilder AddVisionMediaProvider(
             this IOpcUaServerBuilder builder,
             string sensorBrowseName,
@@ -157,6 +162,8 @@ namespace Microsoft.Extensions.DependencyInjection
         /// server advertises the on-server or off-server inference facet
         /// (§8.2).
         /// </remarks>
+        /// <exception cref="ArgumentNullException"><paramref name="builder"/> is <c>null</c>.</exception>
+        /// <exception cref="ArgumentException"></exception>
         public static IOpcUaServerBuilder AddVisionInferenceProvider<
             [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] TProvider>(
             this IOpcUaServerBuilder builder,
@@ -184,6 +191,8 @@ namespace Microsoft.Extensions.DependencyInjection
         /// <summary>
         /// Registers an inference provider instance for one pipeline browse name.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="builder"/> is <c>null</c>.</exception>
+        /// <exception cref="ArgumentException"></exception>
         public static IOpcUaServerBuilder AddVisionInferenceProvider(
             this IOpcUaServerBuilder builder,
             string pipelineBrowseName,
@@ -213,6 +222,8 @@ namespace Microsoft.Extensions.DependencyInjection
         /// <typeparam name="TSink">
         /// The feedback sink type. Resolved via the DI container.
         /// </typeparam>
+        /// <exception cref="ArgumentNullException"><paramref name="builder"/> is <c>null</c>.</exception>
+        /// <exception cref="ArgumentException"></exception>
         public static IOpcUaServerBuilder AddVisionFeedbackSink<
             [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] TSink>(
             this IOpcUaServerBuilder builder,
@@ -238,6 +249,8 @@ namespace Microsoft.Extensions.DependencyInjection
         /// <summary>
         /// Registers a feedback sink instance for one pipeline browse name.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="builder"/> is <c>null</c>.</exception>
+        /// <exception cref="ArgumentException"></exception>
         public static IOpcUaServerBuilder AddVisionFeedbackSink(
             this IOpcUaServerBuilder builder,
             string pipelineBrowseName,
@@ -272,6 +285,7 @@ namespace Microsoft.Extensions.DependencyInjection
         /// <summary>
         /// Registers a Vision configurator for the standalone manager.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="configure"/> is <c>null</c>.</exception>
         public static IOpcUaServerBuilder ConfigureVision(
             this IOpcUaServerBuilder builder,
             Action<IVisionBuildContext> configure)
@@ -295,6 +309,8 @@ namespace Microsoft.Extensions.DependencyInjection
         /// The target Vision node manager type. Only
         /// <see cref="VisionNodeManager"/> is currently supported.
         /// </typeparam>
+        /// <exception cref="ArgumentNullException"><paramref name="builder"/> is <c>null</c>.</exception>
+        /// <exception cref="NotSupportedException"></exception>
         public static IOpcUaServerBuilder ConfigureVisionFor<TNodeManager>(
             this IOpcUaServerBuilder builder,
             Func<IVisionBuildContext, CancellationToken, ValueTask> configure)

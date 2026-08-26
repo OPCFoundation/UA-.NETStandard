@@ -75,15 +75,15 @@ namespace Opc.Ua.Vision.Intent.Tests.Infrastructure
             string intentId = execution.Intent.IntentId ?? string.Empty;
             execution.Progress.ReportProgress(1.0);
 
-            if (execution.Intent is GraspIntentDataType grasp
-                && TryExtractClassLabel(intentId, "grasp-", out string graspLabel))
+            if (execution.Intent is GraspIntentDataType grasp &&
+                TryExtractClassLabel(intentId, "grasp-", out string graspLabel))
             {
                 m_world.MarkHeld(graspLabel);
                 return new ValueTask<IntentOutcome>(IntentOutcome.Success);
             }
 
-            if (execution.Intent is LinearMoveIntentDataType linear
-                && TryExtractClassLabel(intentId, "place-", out string placeLabel))
+            if (execution.Intent is LinearMoveIntentDataType linear &&
+                TryExtractClassLabel(intentId, "place-", out string placeLabel))
             {
                 Pose3DDataType target = linear.Target;
                 (double x, double y, double z) = ReadPosition(target);

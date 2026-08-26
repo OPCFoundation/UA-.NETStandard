@@ -764,8 +764,11 @@ namespace Opc.Ua.Vision.Server
             VisionClipResult providerResult)
         {
             ByteString inline = providerResult.InlineImage;
-            if (!inline.IsNull && !inline.IsEmpty && clip?.MaxInlineClipSize is PropertyState<uint> limit &&
-                limit.Value > 0u && inline.Length > (int)limit.Value)
+            if (!inline.IsNull &&
+                !inline.IsEmpty &&
+                clip?.MaxInlineClipSize is PropertyState<uint> limit &&
+                limit.Value > 0u &&
+                inline.Length > (int)limit.Value)
             {
                 return new GetClipMethodStateResult
                 {

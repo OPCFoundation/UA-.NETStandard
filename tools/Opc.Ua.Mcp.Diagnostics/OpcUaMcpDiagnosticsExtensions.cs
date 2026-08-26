@@ -209,6 +209,9 @@ namespace Opc.Ua.Mcp
         /// <exception cref="ArgumentNullException">
         /// <paramref name="configuration"/> is <c>null</c>.
         /// </exception>
+        // Preserve the established static API rather than exposing configuration values as extensions.
+        // TODO: Remove when RCS1224 supports intentionally static APIs in extension classes.
+#pragma warning disable RCS1224
         public static PcapOptions CreatePcapOptions(IConfiguration configuration)
         {
             ArgumentNullException.ThrowIfNull(configuration);
@@ -250,5 +253,6 @@ namespace Opc.Ua.Mcp
                     "true",
                     StringComparison.OrdinalIgnoreCase);
         }
+#pragma warning restore RCS1224
     }
 }

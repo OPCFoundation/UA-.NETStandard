@@ -211,7 +211,8 @@ namespace Opc.Ua.AI.Tests
             string config = mount.Write(
                 "external-account.json",
                 "{\"type\":\"external_account\",\"credential_source\":{\"file\":\"" +
-                token.Replace("\\", "\\\\", StringComparison.Ordinal) + "\"}}");
+                token.Replace("\\", "\\\\", StringComparison.Ordinal) +
+                "\"}}");
 
             // Google is the one platform that does not name the token in a variable
             // of its own: it names a configuration, and the configuration names the

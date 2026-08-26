@@ -56,4 +56,3 @@ namespace Opc.Ua.AI.Client
         private readonly ITelemetryContext m_telemetry;
     }
 }
-

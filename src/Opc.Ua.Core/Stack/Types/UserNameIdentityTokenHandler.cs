@@ -45,18 +45,33 @@ namespace Opc.Ua
         /// <summary>
         /// Create token handler
         /// </summary>
-        public UserNameIdentityTokenHandler(UserNameIdentityToken token)
+        /// <param name="token">The token to handle.</param>
+        /// <param name="securityPolicies">
+        /// The policies to resolve the token's security policy URI against, or
+        /// <see langword="null"/> to use <see cref="SecurityPolicies.Default"/>.
+        /// </param>
+        public UserNameIdentityTokenHandler(
+            UserNameIdentityToken token,
+            ISecurityPolicyRegistry? securityPolicies = null)
         {
             DecryptedPassword = null;
             m_token = token;
+            m_securityPolicies = securityPolicies ?? SecurityPolicies.Default;
         }
 
         /// <summary>
         /// Create token handler
         /// </summary>
+        /// <param name="username">The user name.</param>
+        /// <param name="password">The password.</param>
+        /// <param name="securityPolicies">
+        /// The policies to resolve the token's security policy URI against, or
+        /// <see langword="null"/> to use <see cref="SecurityPolicies.Default"/>.
+        /// </param>
         public UserNameIdentityTokenHandler(
             string username,
-            ReadOnlySpan<byte> password)
+            ReadOnlySpan<byte> password,
+            ISecurityPolicyRegistry? securityPolicies = null)
         {
             DecryptedPassword = password.ToArray();
             m_token = new UserNameIdentityToken
@@ -64,6 +79,7 @@ namespace Opc.Ua
                 UserName = username,
                 Password = password.ToByteString()
             };
+            m_securityPolicies = securityPolicies ?? SecurityPolicies.Default;
         }
 
         /// <inheritdoc/>
@@ -119,7 +135,7 @@ namespace Opc.Ua
             }
 
             // handle RSA encryption.
-            SecurityPolicyInfo? securityPolicy = SecurityPolicies.GetInfo(securityPolicyUri);
+            SecurityPolicyInfo? securityPolicy = m_securityPolicies.GetInfo(securityPolicyUri);
 
             if (securityPolicy!.EphemeralKeyAlgorithm == CertificateKeyAlgorithm.None)
             {
@@ -137,11 +153,10 @@ namespace Opc.Ua
                 byte[] dataToEncrypt = Utils.Append(DecryptedPassword, receiverNonce);
 
                 ILogger logger = context.Telemetry.CreateLogger<UserNameIdentityToken>();
-                EncryptedData encryptedData = SecurityPolicies.Encrypt(
+                EncryptedData encryptedData = m_securityPolicies.Encrypt(
                     receiverCertificate,
                     securityPolicyUri,
-                    dataToEncrypt,
-                    logger);
+                    dataToEncrypt);
 
                 m_token.Password = encryptedData.Data.ToByteString();
                 m_token.EncryptionAlgorithm = encryptedData.Algorithm;
@@ -212,7 +227,7 @@ namespace Opc.Ua
 
             // handle RSA encryption.
             // GetInfo returns null only for unknown URIs; bail/throw earlier handled None case.
-            SecurityPolicyInfo securityPolicy = SecurityPolicies.GetInfo(securityPolicyUri)
+            SecurityPolicyInfo securityPolicy = m_securityPolicies.GetInfo(securityPolicyUri)
                 ?? throw new ServiceResultException(StatusCodes.BadSecurityPolicyRejected,
                     "Unknown security policy: " + securityPolicyUri);
 
@@ -237,11 +252,9 @@ namespace Opc.Ua
                 };
 
                 ILogger logger = context.Telemetry.CreateLogger<UserNameIdentityTokenHandler>();
-                byte[]? decryptedPassword = SecurityPolicies.Decrypt(
-                    certificate,
-                    securityPolicyUri,
-                    encryptedData,
-                    logger);
+                byte[]? decryptedPassword = await m_securityPolicies
+                    .DecryptAsync(certificate, securityPolicyUri, encryptedData, ct)
+                    .ConfigureAwait(false);
 
                 if (decryptedPassword == null)
                 {
@@ -345,5 +358,6 @@ namespace Opc.Ua
         }
 
         private readonly UserNameIdentityToken m_token;
+        private readonly ISecurityPolicyRegistry m_securityPolicies;
     }
 }

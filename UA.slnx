@@ -1,24 +1,10 @@
 <Solution>
   <Folder Name="/samples/">
-    <Project Path="samples/MinimalIsa95Server/MinimalIsa95Server.csproj" />
     <File Path="samples/UAReferenceServer.ctt.xml" />
-    <Project Path="samples/ConsoleLdsServer/ConsoleLdsServer.csproj" />
-    <Project Path="samples/ConsoleReferenceClient/ConsoleReferenceClient.csproj" />
-    <Project Path="samples/ConsoleReferencePubSubClient/ConsoleReferencePubSubClient.csproj" />
-    <Project Path="samples/ConsoleReferenceServer/ConsoleReferenceServer.csproj" />
-    <Project Path="samples/RedundantPubSub/RedundantPubSub.csproj" />
-    <Project Path="samples/RedundantServer/RedundantServer.csproj" />
-    <Project Path="samples/MinimalBoilerServer/MinimalBoilerServer.csproj" />
-    <Project Path="samples/MinimalCalcServer/MinimalCalcServer.csproj" />
-    <Project Path="samples/MinimalClient/MinimalClient.csproj" />
-    <Project Path="samples/PumpDeviceIntegrationServer/PumpDeviceIntegrationServer.csproj" />
-    <Project Path="samples/OpenUsd/GeneratorServer/GeneratorServer.csproj" />
-    <Project Path="samples/SiteCompositionServer/SiteCompositionServer.csproj" />
     <Project Path="samples/WotCon/AggregationClient/AggregationClient.csproj" />
     <Project Path="samples/WotCon/AggregationServer/AggregationServer.csproj" />
     <Project Path="samples/WotCon/FlatTagServer/FlatTagServer.csproj" />
-    <Project Path="samples/AI/ModelManagementServer/ModelManagementServer.csproj" />
-    <Project Path="samples/AI/ModelManagementClient/ModelManagementClient.csproj" />
+    <Project Path="samples/Aas/AasSample.csproj" />
     <Project Path="samples/Robotics/MinimalRobotServer/MinimalRobotServer.csproj" />
     <Project Path="samples/Robotics/IntentEnabledRobot/IntentEnabledRobot.csproj" />
     <Project Path="samples/Robotics/IntentViewerClient/IntentViewerClient.csproj" />
@@ -27,7 +13,40 @@
     <Project Path="samples/Vision/VisualInspectionCell/VisualInspectionCell.csproj" />
     <Project Path="samples/Vision/VisualInspectionAgent/VisualInspectionAgent.csproj" />
     <Project Path="samples/Quickstarts.Servers/Quickstarts.Servers.csproj" />
-    <Project Path="samples/RedundantClient/RedundantClient.csproj" />
+  </Folder>
+  <Folder Name="/samples/AI/">
+    <Project Path="samples/AI/ModelManagementServer/ModelManagementServer.csproj" />
+    <Project Path="samples/AI/ModelManagementClient/ModelManagementClient.csproj" />
+  </Folder>
+  <Folder Name="/samples/DI/">
+    <Project Path="samples/DI/PumpDeviceIntegrationServer/PumpDeviceIntegrationServer.csproj" />
+  </Folder>
+  <Folder Name="/samples/Isa95/">
+    <Project Path="samples/Isa95/MinimalIsa95Server/MinimalIsa95Server.csproj" />
+  </Folder>
+  <Folder Name="/samples/Lds/">
+    <Project Path="samples/Lds/ConsoleLdsServer/ConsoleLdsServer.csproj" />
+  </Folder>
+  <Folder Name="/samples/MinimalApi/">
+    <Project Path="samples/MinimalApi/MinimalBoilerServer/MinimalBoilerServer.csproj" />
+    <Project Path="samples/MinimalApi/MinimalCalcServer/MinimalCalcServer.csproj" />
+    <Project Path="samples/MinimalApi/MinimalClient/MinimalClient.csproj" />
+  </Folder>
+  <Folder Name="/samples/OpenUsd/">
+    <Project Path="samples/OpenUsd/GeneratorServer/GeneratorServer.csproj" />
+    <Project Path="samples/OpenUsd/SiteCompositionServer/SiteCompositionServer.csproj" />
+  </Folder>
+  <Folder Name="/samples/PubSub/">
+    <Project Path="samples/PubSub/ConsoleReferencePubSubClient/ConsoleReferencePubSubClient.csproj" />
+  </Folder>
+  <Folder Name="/samples/Redundancy/">
+    <Project Path="samples/Redundancy/RedundantClient/RedundantClient.csproj" />
+    <Project Path="samples/Redundancy/RedundantPubSub/RedundantPubSub.csproj" />
+    <Project Path="samples/Redundancy/RedundantServer/RedundantServer.csproj" />
+  </Folder>
+  <Folder Name="/samples/Reference/">
+    <Project Path="samples/Reference/ConsoleReferenceClient/ConsoleReferenceClient.csproj" />
+    <Project Path="samples/Reference/ConsoleReferenceServer/ConsoleReferenceServer.csproj" />
   </Folder>
   <Folder Name="/fuzzing/">
     <File Path="fuzzing/Fuzzing.md" />
@@ -122,6 +141,10 @@
     <Project Path="src/Opc.Ua.XRegistry/Opc.Ua.XRegistry.csproj" />
     <Project Path="src/Opc.Ua.XRegistry.Client/Opc.Ua.XRegistry.Client.csproj" />
     <Project Path="src/Opc.Ua.XRegistry.Server/Opc.Ua.XRegistry.Server.csproj" />
+    <Project Path="src/Opc.Ua.Aas/Opc.Ua.Aas.csproj" />
+    <Project Path="src/Opc.Ua.Aas.Server/Opc.Ua.Aas.Server.csproj" />
+    <Project Path="src/Opc.Ua.Aas.Client/Opc.Ua.Aas.Client.csproj" />
+    <Project Path="src/Opc.Ua.Aas.WoT/Opc.Ua.Aas.WoT.csproj" />
     <Project Path="src/Opc.Ua.Redundancy.Server/Opc.Ua.Redundancy.Server.csproj" />
     <Project Path="src/Opc.Ua.Redundancy.Client/Opc.Ua.Redundancy.Client.csproj" />
     <Project Path="src/Opc.Ua.Redundancy.Kubernetes/Opc.Ua.Redundancy.Kubernetes.csproj" />
@@ -297,6 +320,7 @@
     <Project Path="tests/Opc.Ua.Server.Tests/Opc.Ua.Server.Tests.csproj" />
     <Project Path="tests/Opc.Ua.XRegistry.Tests/Opc.Ua.XRegistry.Tests.csproj" />
     <Project Path="tests/Opc.Ua.AI.Tests/Opc.Ua.AI.Tests.csproj" />
+    <Project Path="tests/Opc.Ua.Aas.Tests/Opc.Ua.Aas.Tests.csproj" />
     <Project Path="tests/Opc.Ua.Redundancy.Server.Tests/Opc.Ua.Redundancy.Server.Tests.csproj" />
     <Project Path="tests/Opc.Ua.Redundancy.Kubernetes.Tests/Opc.Ua.Redundancy.Kubernetes.Tests.csproj" />
     <Project Path="tests/Opc.Ua.Redundancy.Samples.Tests/Opc.Ua.Redundancy.Samples.Tests.csproj" />

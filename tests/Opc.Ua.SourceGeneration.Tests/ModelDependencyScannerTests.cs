@@ -1049,6 +1049,14 @@ namespace Opc.Ua.SourceGeneration
                 ?? throw new InvalidOperationException("Test assembly directory was not found.");
             var directory = new DirectoryInfo(assemblyDirectory);
             string targetFramework = directory.Name;
+#if NET_STANDARD_TESTS
+            // TFM skew: this test assembly is compiled as net8.0, but on the
+            // .NETStandard 2.1 test leg the stack (Opc.Ua.Server and its
+            // dependencies) is compiled as netstandard2.1. Resolve the stack
+            // references from the netstandard2.1 output rather than the test's
+            // own target framework folder, which does not exist on that leg.
+            targetFramework = "netstandard2.1";
+#endif
             string configuration = directory.Parent?.Name
                 ?? throw new InvalidOperationException("Test configuration directory was not found.");
             for (int i = 0; i < 5; i++)
@@ -1056,19 +1064,60 @@ namespace Opc.Ua.SourceGeneration
                 directory = directory.Parent
                     ?? throw new InvalidOperationException("Repository root was not found.");
             }
-            string serverOutput = Path.Combine(
+            string serverBin = Path.Combine(
                 directory.FullName,
                 "src",
                 "Opc.Ua.Server",
                 "bin",
-                configuration,
-                targetFramework);
+                configuration);
+            string serverOutput = ResolveServerOutputFolder(serverBin, targetFramework);
             return Directory.EnumerateFiles(serverOutput, "Opc.Ua*.dll")
                 .Where(path => !string.Equals(
                     Path.GetFileName(path),
                     "Opc.Ua.Types.dll",
                     StringComparison.OrdinalIgnoreCase))
                 .Select(path => MetadataReference.CreateFromFile(path));
+        }
+
+        private static string ResolveServerOutputFolder(string serverBin, string testTargetFramework)
+        {
+            if (!Directory.Exists(serverBin))
+            {
+                throw new InvalidOperationException(
+                    $"Opc.Ua.Server output folder was not found at '{serverBin}'. "
+                    + "Build Opc.Ua.Server before running these tests.");
+            }
+
+            // The Opc.Ua.Server project may be built for a different target framework
+            // than the test assembly (e.g. netstandard2.1 while the tests run as net8.0).
+            // Probe the actual bin folder for whichever TFM subfolder exists instead of
+            // assuming the test's TFM. Prefer an exact match, then well-known fallbacks.
+            var candidates = Directory
+                .EnumerateDirectories(serverBin)
+                .Select(path => new DirectoryInfo(path))
+                .ToList();
+
+            DirectoryInfo match =
+                candidates.Find(d => string.Equals(
+                    d.Name, testTargetFramework, StringComparison.OrdinalIgnoreCase))
+                ?? candidates.Find(d => string.Equals(
+                    d.Name, "netstandard2.1", StringComparison.OrdinalIgnoreCase))
+                ?? candidates.Find(d => string.Equals(
+                    d.Name, "netstandard2.0", StringComparison.OrdinalIgnoreCase))
+                ?? candidates
+                    .Select(d => new FileInfo(Path.Combine(d.FullName, "Opc.Ua.Server.dll")))
+                    .Where(f => f.Exists)
+                    .OrderByDescending(f => f.LastWriteTimeUtc)
+                    .Select(f => f.Directory)
+                    .FirstOrDefault();
+
+            if (match == null)
+            {
+                throw new InvalidOperationException(
+                    $"No Opc.Ua.Server build output was found under '{serverBin}'.");
+            }
+
+            return match.FullName;
         }
 
         private const string DemoModelUri = "urn:opcfoundation.org:2024-01:DemoModel";

@@ -327,6 +327,7 @@ namespace Opc.Ua.RobotIntent.Server
         /// <summary>
         /// Resolves this declaration into the value published in the address space.
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         public IntentCapabilityDataType Resolve(NamespaceTable namespaceUris)
         {
             ArrayOf<BufferModeEnum> buffers = SupportedBufferModes.IsNull || SupportedBufferModes.IsEmpty

@@ -233,6 +233,13 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public void GeneratedEccCertificateHasAWorkingPrivateKey()
         {
+            if (!AdditionalEntropyCertificateKeyGenerator.IsEccKeyRegenerationSupported)
+            {
+                Assert.Ignore(
+                    "ECC key regeneration with additional entropy requires .NET 5 or later; " +
+                    "the Opc.Ua.Server assembly under test was compiled without it.");
+            }
+
             AdditionalEntropyCertificateKeyGenerator generator = CreateGenerator(new byte[] { 2, 2, 2, 2 });
             byte[] nonce = CreateNonce(0x33);
 
@@ -251,6 +258,13 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public void DifferentNonceProducesADifferentEccKeyForTheSameServerEntropy()
         {
+            if (!AdditionalEntropyCertificateKeyGenerator.IsEccKeyRegenerationSupported)
+            {
+                Assert.Ignore(
+                    "ECC key regeneration with additional entropy requires .NET 5 or later; " +
+                    "the Opc.Ua.Server assembly under test was compiled without it.");
+            }
+
             byte[] serverEntropy = [3, 1, 4, 1, 5];
             var nonceA = new byte[32];
             var nonceB = new byte[32];

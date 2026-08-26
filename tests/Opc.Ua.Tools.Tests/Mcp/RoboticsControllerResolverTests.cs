@@ -162,6 +162,7 @@ namespace Opc.Ua.Tools.Tests.Mcp
             Assert.That(ex.Message, Does.Contain("Tool2"));
             Assert.That(ex.Message, Does.Contain("ns=2;s=T2"));
         }
+
         [Test]
         public void ResolveScopedResourceMatchesBrowseNameCandidate()
         {

@@ -391,7 +391,8 @@ namespace Opc.Ua.SourceGeneration
             context.Template.AddReplacement(Tokens.AccessorSymbol, "public new");
             if (!instance.IsOverridden())
             {
-                if (!s_builtInMethodNames.Contains(instance.SymbolicName.Name))
+                if (!s_builtInMethodNames.Contains(instance.SymbolicName.Name) &&
+                    !instance.HidesBaseTypePlaceholder())
                 {
                     context.Template.AddReplacement(Tokens.AccessorSymbol, "public");
                 }
@@ -1319,6 +1320,14 @@ namespace Opc.Ua.SourceGeneration
 
             if (node.Parent != null)
             {
+                if (node.Design is ViewDesign)
+                {
+                    // Views are never emitted as AddChild components (ViewState is
+                    // not a BaseInstanceState). They are collected as standalone
+                    // root nodes and linked purely via Organizes references, the
+                    // same way DataType/ReferenceType type designs are handled.
+                    return null;
+                }
                 if (node.Design is not InstanceDesign instance)
                 {
                     return null;
@@ -1402,10 +1411,10 @@ namespace Opc.Ua.SourceGeneration
                 GetDescriptionValue(root));
             context.Template.AddReplacement(
                 Tokens.WriteMaskValue,
-                "global::Opc.Ua.AttributeWriteMask.None");
+                root.GetWriteMaskAsCode());
             context.Template.AddReplacement(
                 Tokens.UserWriteMaskValue,
-                "global::Opc.Ua.AttributeWriteMask.None");
+                root.GetWriteMaskAsCode());
 
             // Add Children
             context.Template.AddReplacement(
@@ -1529,7 +1538,8 @@ namespace Opc.Ua.SourceGeneration
         private TemplateString LoadTemplate_ReplaceChild(ILoadContext context)
         {
             if (context.Target is not NodeToGenerate node ||
-                node.Design is not InstanceDesign instance)
+                node.Design is not InstanceDesign instance ||
+                node.Design is ViewDesign)
             {
                 return null;
             }
@@ -4059,6 +4069,11 @@ namespace Opc.Ua.SourceGeneration
             "Specification",
             "Update",
             "Delete",
+            // Children whose generated accessor property shadows the
+            // identically-named global::Opc.Ua.NodeState.Extensions property,
+            // which carries the NodeSet2 <Extensions> elements rather than an
+            // address-space member, and therefore must be declared "public new".
+            "Extensions",
             // Method children whose generated accessor property shadows the
             // identically-named global::Opc.Ua.NodeState.Validate(ISystemContext)
             // instance method and therefore must be declared "public new".

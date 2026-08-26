@@ -906,12 +906,12 @@ namespace IntentViewerClient
             OpenUsdConnector.FetchedAsset? root = fetched.Find(asset => asset.Kind == OpenUsdAssetKind.RootLayer);
             string rootName = root != null ? Path.GetFileName(root.LocalPath) : "base.usda";
             var builder = new StringBuilder();
-            builder.Append("#usda 1.0\n(\n");
-            builder.Append(
-                "    doc = \"Self-contained OpenUSD stage: server-delivered base layers + live override.\"\n");
-            builder.Append("    subLayers = [\n        @./live.usda@,\n        @./")
-                .Append(rootName).Append("@\n    ]\n");
-            builder.Append(")\n");
+            builder.Append("#usda 1.0\n(\n")
+                .Append(
+                "    doc = \"Self-contained OpenUSD stage: server-delivered base layers + live override.\"\n")
+                .Append("    subLayers = [\n        @./live.usda@,\n        @./")
+                .Append(rootName).Append("@\n    ]\n")
+                .Append(")\n");
             File.WriteAllText(Path.Combine(cacheDir, "stage.usda"), builder.ToString());
             string livePath = Path.Combine(cacheDir, "live.usda");
             if (!File.Exists(livePath))

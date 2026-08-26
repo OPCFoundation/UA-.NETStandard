@@ -42,6 +42,9 @@ namespace Opc.Ua.Robotics.Server.Builders
 {
     internal sealed class IntentControllerBuilder : IIntentControllerBuilder
     {
+        // Explicit calls select RobotIntent generated extensions over same-named Robotics extensions.
+        // TODO: Remove when RCS1196 recognizes deliberate extension-method disambiguation.
+#pragma warning disable RCS1196
         public IntentControllerBuilder(IRobotIntentBuildContext context, string browseName)
         {
             m_context = context ?? throw new ArgumentNullException(nameof(context));
@@ -319,6 +322,7 @@ namespace Opc.Ua.Robotics.Server.Builders
             m_realTimeChannels.Add(builder);
             return builder;
         }
+#pragma warning restore RCS1196
 
         public IIntentControllerBuilder Accepts<TIntent>(
             bool cancelSupported = true,
@@ -394,8 +398,8 @@ namespace Opc.Ua.Robotics.Server.Builders
             }
             if (pauseSupported)
             {
-                State.AddPause(m_context.Context);
-                State.AddResume(m_context.Context);
+                State.AddPause(m_context.Context)
+                    .AddResume(m_context.Context);
                 MarkCommandMethod(State.Pause!);
                 MarkCommandMethod(State.Resume!);
             }
@@ -430,7 +434,6 @@ namespace Opc.Ua.Robotics.Server.Builders
         {
             return RobotIntentFacetCalculator.Compute(State);
         }
-
 
         internal async ValueTask RegisterAsync(CancellationToken cancellationToken)
         {
@@ -562,8 +565,8 @@ namespace Opc.Ua.Robotics.Server.Builders
         {
             if (m_hostOptions.MissionsSupported)
             {
-                State.AddSubmitMission(m_context.Context);
-                State.AddCancelMission(m_context.Context);
+                State.AddSubmitMission(m_context.Context)
+                    .AddCancelMission(m_context.Context);
                 MarkCommandMethod(State.SubmitMission!);
                 MarkCommandMethod(State.CancelMission!);
             }
@@ -574,8 +577,8 @@ namespace Opc.Ua.Robotics.Server.Builders
             }
             if (m_hostOptions.RealTimeChannelsSupported)
             {
-                State.AddOpenRealTimeChannel(m_context.Context);
-                State.AddCloseRealTimeChannel(m_context.Context);
+                State.AddOpenRealTimeChannel(m_context.Context)
+                    .AddCloseRealTimeChannel(m_context.Context);
                 EnsureOpenRealTimeChannelArguments(State.OpenRealTimeChannel!);
                 EnsureCloseRealTimeChannelArguments(State.CloseRealTimeChannel!);
                 MarkCommandMethod(State.OpenRealTimeChannel!);
@@ -583,8 +586,8 @@ namespace Opc.Ua.Robotics.Server.Builders
             }
             if (m_capabilities.Any(static capability => capability.PauseSupported))
             {
-                State.AddPause(m_context.Context);
-                State.AddResume(m_context.Context);
+                State.AddPause(m_context.Context)
+                    .AddResume(m_context.Context);
                 MarkCommandMethod(State.Pause!);
                 MarkCommandMethod(State.Resume!);
             }
@@ -1324,9 +1327,7 @@ namespace Opc.Ua.Robotics.Server.Builders
             return false;
         }
 
-        private sealed class SafetyAdmissionGateBinding
-        {
-        }
+        private sealed class SafetyAdmissionGateBinding;
 
         private sealed class Interop40010Binding
         {
@@ -1340,6 +1341,7 @@ namespace Opc.Ua.Robotics.Server.Builders
 
         private static readonly ConditionalWeakTable<IntentControllerState, SafetyAdmissionGateBinding>
             s_safetyAdmissionGated = new();
+
         private static readonly ConditionalWeakTable<IntentControllerState, Interop40010Binding>
             s_interop40010Bindings = new();
     }

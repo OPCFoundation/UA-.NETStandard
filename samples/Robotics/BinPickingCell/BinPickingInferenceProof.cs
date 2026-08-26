@@ -58,7 +58,7 @@ namespace Vision.BinPickingCell
     /// the console output.
     /// </para>
     /// </remarks>
-    internal sealed partial class BinPickingInferenceProof : BackgroundService
+    internal sealed class BinPickingInferenceProof : BackgroundService
     {
         public BinPickingInferenceProof(
             BinPickingGroundTruthInferenceProvider provider,
@@ -99,8 +99,9 @@ namespace Vision.BinPickingCell
                 return;
             }
 
-            if (!m_provider.TryGetResult(first.ResultId, out DetectionResultState resultState)
-                || resultState == null || resultState.Detections == null)
+            if (!m_provider.TryGetResult(first.ResultId, out DetectionResultState resultState) ||
+                resultState == null ||
+                resultState.Detections == null)
             {
                 m_logger.ProofResultUnavailable(first.ResultId);
                 return;
@@ -129,8 +130,12 @@ namespace Vision.BinPickingCell
             }
 
             m_logger.ProofPicking(RedCubeClass);
-            const double gripperCarryX = 0.30, gripperCarryY = 0.05, gripperCarryZ = 0.95;
-            const double fixtureX = 0.10, fixtureY = 0.20, fixtureZ = 0.82;
+            const double gripperCarryX = 0.30;
+            const double gripperCarryY = 0.05;
+            const double gripperCarryZ = 0.95;
+            const double fixtureX = 0.10;
+            const double fixtureY = 0.20;
+            const double fixtureZ = 0.82;
             m_worldState.MarkHeld(RedCubeClass, gripperCarryX, gripperCarryY, gripperCarryZ);
             m_worldState.MarkPlaced(RedCubeClass, fixtureX, fixtureY, fixtureZ);
 
@@ -142,8 +147,9 @@ namespace Vision.BinPickingCell
                 m_logger.ProofRunFailed(second.ServiceResult.ToString());
                 return;
             }
-            if (!m_provider.TryGetResult(second.ResultId, out DetectionResultState secondState)
-                || secondState == null || secondState.Detections == null)
+            if (!m_provider.TryGetResult(second.ResultId, out DetectionResultState secondState) ||
+                secondState == null ||
+                secondState.Detections == null)
             {
                 m_logger.ProofResultUnavailable(second.ResultId);
                 return;
@@ -255,7 +261,7 @@ namespace Vision.BinPickingCell
                 double dx = worldX - ax;
                 double dy = worldY - ay;
                 double dz = worldZ - az;
-                double error = Math.Sqrt(dx * dx + dy * dy + dz * dz);
+                double error = Math.Sqrt((dx * dx) + (dy * dy) + (dz * dz));
                 m_logger.ProofComposedPose(
                     RedCubeClass,
                     worldX, worldY, worldZ,
@@ -288,12 +294,12 @@ namespace Vision.BinPickingCell
             double qx, double qy, double qz, double qw,
             double vx, double vy, double vz)
         {
-            double tx = qy * vz - qz * vy;
-            double ty = qz * vx - qx * vz;
-            double tz = qx * vy - qy * vx;
-            double rx = vx + 2.0 * (qw * tx + qy * tz - qz * ty);
-            double ry = vy + 2.0 * (qw * ty + qz * tx - qx * tz);
-            double rz = vz + 2.0 * (qw * tz + qx * ty - qy * tx);
+            double tx = (qy * vz) - (qz * vy);
+            double ty = (qz * vx) - (qx * vz);
+            double tz = (qx * vy) - (qy * vx);
+            double rx = vx + (2.0 * ((qw * tx) + (qy * tz) - (qz * ty)));
+            double ry = vy + (2.0 * ((qw * ty) + (qz * tx) - (qx * tz)));
+            double rz = vz + (2.0 * ((qw * tz) + (qx * ty) - (qy * tx)));
             return (rx, ry, rz);
         }
 

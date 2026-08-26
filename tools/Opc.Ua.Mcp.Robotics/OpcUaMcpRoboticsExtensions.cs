@@ -61,6 +61,7 @@ namespace Opc.Ua.Mcp
         /// tools can open one. <see cref="McpToolProfile.Full"/> already carries them through the
         /// core package, so they are not added twice.
         /// </remarks>
+        /// <exception cref="ArgumentOutOfRangeException"></exception>
         public static IMcpServerBuilder WithOpcUaRoboticsTools(
             this IMcpServerBuilder mcpServerBuilder,
             McpToolProfile toolProfile = McpToolProfile.Full)
@@ -146,4 +147,3 @@ namespace Opc.Ua.Mcp
         }
     }
 }
-

@@ -312,16 +312,20 @@ namespace Opc.Ua.Mcp
             return mcpServerBuilder.WithTools<ConnectionTools>();
         }
 
+        // Keep the helper as a regular static method; it is not part of the fluent API.
+        // TODO: Remove when RCS1224 supports intentionally non-extension helpers in extension classes.
+#pragma warning disable RCS1224
         internal static bool NeedsConnectionTools(McpToolProfileSet toolProfiles)
         {
-            return toolProfiles.Contains(McpToolProfile.Core)
-                || toolProfiles.Contains(McpToolProfile.Services)
-                || toolProfiles.Contains(McpToolProfile.Administration)
-                || toolProfiles.Contains(McpToolProfile.Diagnostics)
-                || toolProfiles.Contains(McpToolProfile.Robotics)
-                || toolProfiles.Contains(McpToolProfile.Vision)
-                || toolProfiles.Contains(McpToolProfile.Full);
+            return toolProfiles.Contains(McpToolProfile.Core) ||
+                toolProfiles.Contains(McpToolProfile.Services) ||
+                toolProfiles.Contains(McpToolProfile.Administration) ||
+                toolProfiles.Contains(McpToolProfile.Diagnostics) ||
+                toolProfiles.Contains(McpToolProfile.Robotics) ||
+                toolProfiles.Contains(McpToolProfile.Vision) ||
+                toolProfiles.Contains(McpToolProfile.Full);
         }
+#pragma warning restore RCS1224
 
         private static void AddCoreToolTypes(HashSet<Type> registered)
         {
@@ -355,9 +359,7 @@ namespace Opc.Ua.Mcp
             registered.Add(typeof(PkiTools));
         }
 
-        private sealed class ConnectionToolsMarker
-        {
-        }
+        private sealed class ConnectionToolsMarker;
 
         /// <summary>
         /// Registers each tool class the composed profiles asked for, exactly

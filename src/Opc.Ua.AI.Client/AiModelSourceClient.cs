@@ -136,4 +136,3 @@ namespace Opc.Ua.AI.Client
         private readonly ModelSourceTypeClient m_proxy;
     }
 }
-

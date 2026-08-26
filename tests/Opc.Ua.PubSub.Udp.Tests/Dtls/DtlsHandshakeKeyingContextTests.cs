@@ -47,6 +47,13 @@ namespace Opc.Ua.PubSub.Udp.Tests.Dtls
         [Test]
         public void FinishedVerificationAndApplicationRecordProtectionSucceed()
         {
+            if (!DtlsRecordProtection.IsAeadSupported)
+            {
+                Assert.Ignore(
+                    "AEAD DTLS record protection requires .NET 8 or later; the stack assembly " +
+                    "under test was compiled without it.");
+            }
+
             DtlsProfile profile = new("test", DtlsCipherSuite.TlsAes128GcmSha256,
                 DtlsNamedCurve.NistP256, DtlsNamedCurve.NistP256, isMandatory: false);
             byte[] shared = new byte[32];

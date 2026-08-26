@@ -48,6 +48,7 @@ namespace Microsoft.Extensions.DependencyInjection
         /// downstream services can request AI clients.
         /// </summary>
         /// <param name="builder">The client builder returned by <c>AddClient</c>.</param>
+        /// <exception cref="ArgumentNullException"><paramref name="builder"/> is <c>null</c>.</exception>
         public static IOpcUaClientBuilder AddAIClient(
             this IOpcUaClientBuilder builder)
         {

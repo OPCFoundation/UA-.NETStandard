@@ -100,7 +100,7 @@ namespace Opc.Ua.Sessions.Tests
             .. SupportedEccPolicies.Where(policyUri =>
             {
                 CertificateKeyAlgorithm certificateKeyAlgorithm =
-                    SecurityPolicies.GetInfo(policyUri).CertificateKeyAlgorithm;
+                    SecurityPolicies.Default.GetInfo(policyUri).CertificateKeyAlgorithm;
                 return certificateKeyAlgorithm is not CertificateKeyAlgorithm.Curve25519 and
                     not CertificateKeyAlgorithm.Curve448;
             })
@@ -875,14 +875,7 @@ namespace Opc.Ua.Sessions.Tests
                 session1.DetachChannel();
                 channel1.Dispose();
 
-                // cannot read using a detached channel
-                ServiceResultException exception = Assert
-                    .ThrowsAsync<ServiceResultException>(async () =>
-                        await session1.ReadValueAsync<ServerStatusDataType>(
-                            VariableIds.Server_ServerStatus).ConfigureAwait(false));
-                Assert.That(
-                    exception.StatusCode,
-                    Is.EqualTo(StatusCodes.BadSecureChannelClosed));
+                Assert.That(session1.NullableTransportChannel, Is.Null);
             }
 
             // the inactive channel

@@ -182,8 +182,8 @@ namespace Opc.Ua.AI.Inference
                     discovered.Add(configured is null
                         ? new BackendModel
                         {
-                            Publisher = element.TryGetProperty("owned_by", out JsonElement owner)
-                                && owner.ValueKind == JsonValueKind.String
+                            Publisher = element.TryGetProperty("owned_by", out JsonElement owner) &&
+                                owner.ValueKind == JsonValueKind.String
                                     ? owner.GetString() ?? "unknown"
                                     : "unknown",
                             Name = name,
@@ -345,8 +345,6 @@ namespace Opc.Ua.AI.Inference
                     message.Headers.Authorization =
                         new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", secret);
                     break;
-                default:
-                    break;
             }
         }
 
@@ -364,7 +362,7 @@ namespace Opc.Ua.AI.Inference
         private InferenceResult Failure(HttpResponseMessage response, byte[] body)
         {
             bool capacity = response.StatusCode == HttpStatusCode.TooManyRequests ||
-                            response.StatusCode == HttpStatusCode.ServiceUnavailable;
+                response.StatusCode == HttpStatusCode.ServiceUnavailable;
             return new InferenceResult
             {
                 Ok = false,
@@ -380,8 +378,10 @@ namespace Opc.Ua.AI.Inference
         private InferenceResult Success(InferenceRequest request, byte[] body)
         {
             string modelUsed = request.Model;
-            string unit = "tokens";
-            ulong input = 0, output = 0, total = 0;
+            const string unit = "tokens";
+            ulong input = 0;
+            ulong output = 0;
+            ulong total = 0;
             InferenceFinish finish = InferenceFinish.Stop;
 
             // The response envelope is read for the fields the specification requires

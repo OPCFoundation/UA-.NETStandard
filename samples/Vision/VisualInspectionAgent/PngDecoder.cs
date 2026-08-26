@@ -45,8 +45,15 @@ namespace Vision.VisualInspectionAgent
             {
                 throw new ArgumentNullException(nameof(png));
             }
-            if (png.Length < 8 || png[0] != 0x89 || png[1] != (byte)'P' || png[2] != (byte)'N' ||
-                png[3] != (byte)'G' || png[4] != 0x0D || png[5] != 0x0A || png[6] != 0x1A || png[7] != 0x0A)
+            if (png.Length < 8 ||
+                png[0] != 0x89 ||
+                png[1] != (byte)'P' ||
+                png[2] != (byte)'N' ||
+                png[3] != (byte)'G' ||
+                png[4] != 0x0D ||
+                png[5] != 0x0A ||
+                png[6] != 0x1A ||
+                png[7] != 0x0A)
             {
                 throw new InvalidDataException("Not a PNG stream.");
             }
@@ -150,9 +157,9 @@ namespace Vision.VisualInspectionAgent
                 {
                     byte value = filtered[srcRow + 1 + x];
                     byte left = x >= bytesPerPixel ? rgb[dstRow + x - bytesPerPixel] : (byte)0;
-                    byte up = y > 0 ? rgb[(y - 1) * rowBytes + x] : (byte)0;
+                    byte up = y > 0 ? rgb[((y - 1) * rowBytes) + x] : (byte)0;
                     byte upLeft = y > 0 && x >= bytesPerPixel
-                        ? rgb[(y - 1) * rowBytes + x - bytesPerPixel]
+                        ? rgb[((y - 1) * rowBytes) + x - bytesPerPixel]
                         : (byte)0;
                     rgb[dstRow + x] = type switch
                     {
@@ -182,8 +189,10 @@ namespace Vision.VisualInspectionAgent
 
         private static int ReadUInt32BE(byte[] source, int offset)
         {
-            return (source[offset] << 24) | (source[offset + 1] << 16) |
-                (source[offset + 2] << 8) | source[offset + 3];
+            return (source[offset] << 24) |
+                (source[offset + 1] << 16) |
+                (source[offset + 2] << 8) |
+                source[offset + 3];
         }
     }
 }

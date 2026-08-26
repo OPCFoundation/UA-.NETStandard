@@ -31,6 +31,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Net;
 using System.Net.Sockets;
 using System.Threading;
@@ -221,6 +222,124 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             await listener.CloseAsync(CancellationToken.None).ConfigureAwait(false);
         }
 
+        [Test]
+        [CancelAfter(30000)]
+        public async Task SecureClientAndTcpListenerKeepChunkOrderUnderConcurrentRequestsAsync()
+        {
+            const int requestCount = 60;
+
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            using Certificate serverCertificate = s_certificateFactory.CreateCertificate("CN=server").CreateForRSA();
+            using Certificate clientCertificate = s_certificateFactory.CreateCertificate("CN=client").CreateForRSA();
+            using var serverChain = new CertificateCollection();
+            using var clientChain = new CertificateCollection();
+            Uri endpointUrl = new($"opc.tcp://127.0.0.1:{GetFreeTcpPort()}");
+            EndpointDescription endpoint = CreateEndpoint(endpointUrl);
+            endpoint.SecurityMode = MessageSecurityMode.SignAndEncrypt;
+            endpoint.SecurityPolicyUri = SecurityPolicies.Basic256Sha256;
+            endpoint.ServerCertificate = serverCertificate.RawData.ToByteString();
+            EndpointConfiguration configuration = EndpointConfiguration.Create();
+            configuration.OperationTimeout = 20000;
+            configuration.MaxMessageSize = 64 * 1024;
+            configuration.MaxBufferSize = 8 * 1024;
+            configuration.ChannelLifetime = 60000;
+            configuration.SecurityTokenLifetime = 60000;
+            var callback = new EchoCallback();
+            var certificateRegistry = new Mock<ICertificateRegistry>();
+            certificateRegistry.SetupGet(r => r.SendCertificateChain).Returns(false);
+            certificateRegistry
+                .Setup(r => r.AcquireApplicationCertificateBySecurityPolicy(endpoint.SecurityPolicyUri))
+                .Returns(() => new CertificateEntry(
+                    serverCertificate,
+                    serverChain,
+                    ObjectTypeIds.RsaSha256ApplicationCertificateType));
+            var validator = new Mock<ICertificateValidatorEx>();
+            validator
+                .Setup(v => v.ValidateAsync(
+                    It.IsAny<Certificate>(),
+                    It.IsAny<TrustListIdentifier?>(),
+                    It.IsAny<CancellationToken>()))
+                .Returns(Task.FromResult(CertificateValidationResult.Success));
+            validator
+                .Setup(v => v.ValidateAsync(
+                    It.IsAny<CertificateCollection>(),
+                    It.IsAny<TrustListIdentifier?>(),
+                    It.IsAny<Opc.Ua.Security.Certificates.CertificateValidationOptions?>(),
+                    It.IsAny<CancellationToken>()))
+                .Returns(Task.FromResult(CertificateValidationResult.Success));
+
+            await using var listener = new TcpTransportListener(telemetry);
+            await listener.OpenAsync(
+                endpointUrl,
+                new TransportListenerSettings
+                {
+                    Descriptions = new List<EndpointDescription> { endpoint },
+                    Configuration = configuration,
+                    ServerCertificates = certificateRegistry.Object,
+                    CertificateValidator = validator.Object,
+                    NamespaceUris = new NamespaceTable(),
+                    Factory = EncodeableFactory.Create(),
+                    MaxChannelCount = 10
+                },
+                callback,
+                CancellationToken.None).ConfigureAwait(false);
+
+            using var channel = new UaSCUaBinaryTransportChannel(new TcpByteTransportFactory(telemetry), telemetry)
+            {
+                OperationTimeout = 20000
+            };
+            await channel.OpenAsync(
+                endpointUrl,
+                new TransportChannelSettings
+                {
+                    Description = endpoint,
+                    Configuration = configuration,
+                    ClientCertificate = clientCertificate,
+                    ClientCertificateChain = clientChain,
+                    ServerCertificate = serverCertificate,
+                    CertificateValidator = validator.Object,
+                    NamespaceUris = new NamespaceTable(),
+                    Factory = EncodeableFactory.Create()
+                },
+                CancellationToken.None).ConfigureAwait(false);
+
+            // Every request is large enough to be split into several chunks, and
+            // they are issued together. Sequence numbers are assigned while the
+            // channel gate is held, so a chunk that reaches the wire out of the
+            // order in which it was numbered is rejected by the peer with
+            // BadSequenceNumberInvalid and fails this test.
+            var nodesToRead = new ArrayOf<ReadValueId>(
+                Enumerable
+                    .Range(0, 400)
+                    .Select(i => new ReadValueId
+                    {
+                        NodeId = new NodeId($"a-node-identifier-long-enough-to-fill-chunks-{i}", 3),
+                        AttributeId = Attributes.Value
+                    })
+                    .ToArray());
+
+            var requests = new Task<IServiceResponse>[requestCount];
+            for (int i = 0; i < requestCount; i++)
+            {
+                requests[i] = channel.SendRequestAsync(
+                    new ReadRequest
+                    {
+                        RequestHeader = new RequestHeader { TimeoutHint = 20000 },
+                        NodesToRead = nodesToRead
+                    },
+                    CancellationToken.None).AsTask();
+            }
+
+            IServiceResponse[] responses = await Task.WhenAll(requests).ConfigureAwait(false);
+
+            Assert.That(responses, Has.Length.EqualTo(requestCount));
+            Assert.That(responses, Is.All.InstanceOf<ReadResponse>());
+            Assert.That(callback.RequestCount, Is.EqualTo(requestCount));
+
+            await channel.CloseAsync(CancellationToken.None).ConfigureAwait(false);
+            await listener.CloseAsync(CancellationToken.None).ConfigureAwait(false);
+        }
+
         private static EndpointDescription CreateEndpoint(Uri endpointUrl)
         {
             return new EndpointDescription
@@ -248,14 +367,14 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
 
         private sealed class EchoCallback : ITransportListenerCallback
         {
-            public int RequestCount { get; private set; }
+            public int RequestCount => Volatile.Read(ref m_requestCount);
 
             public ValueTask<IServiceResponse> ProcessRequestAsync(
                 SecureChannelContext secureChannelContext,
                 IServiceRequest request,
                 CancellationToken cancellationToken = default)
             {
-                RequestCount++;
+                Interlocked.Increment(ref m_requestCount);
                 Assert.That(secureChannelContext, Is.Not.Null);
                 Assert.That(request, Is.InstanceOf<ReadRequest>());
                 return new ValueTask<IServiceResponse>(
@@ -284,6 +403,8 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             public void ReportAuditCertificateEvent(Certificate clientCertificate, Exception exception)
             {
             }
+
+            private int m_requestCount;
         }
     }
 }

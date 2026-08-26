@@ -218,6 +218,42 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         }
 
         /// <summary>
+        /// A planned member whose NodeId no NodeManager owns is dropped rather
+        /// than organized, and the handle names it. Organizing it would leave the
+        /// View advertising a membership a client can never browse, which is how
+        /// a projection over a document that materialized no Node came to report
+        /// a full membership while every reference dangled.
+        /// </summary>
+        [Test]
+        public async Task AppliedViewDropsAndReportsAMemberThatIsNotInTheAddressSpace()
+        {
+            NodeId viewNodeId = ViewNodeId("dangling");
+            var missing = new NodeId("Pump1.Operational.Measurements.DifferentialPressure", 1);
+            WotViewProjectionRequest request = Request(
+                viewNodeId, Plan(4u, Members(Ua.ObjectIds.Server, missing)));
+
+            WotViewProjectionHandle handle = await m_viewHost.ApplyAsync(request)
+                .ConfigureAwait(false);
+
+            List<ReferenceDescription> organized = await BrowseAsync(
+                viewNodeId, Ua.ReferenceTypeIds.Organizes, BrowseDirection.Forward)
+                .ConfigureAwait(false);
+
+            Assert.That(
+                organized.Select(TargetOf),
+                Is.EquivalentTo(new[] { Ua.ObjectIds.Server }),
+                "Only the member that exists is reachable by Browse. This holds whether " +
+                "or not the dangling reference was added, because Browse drops a " +
+                "reference whose target no NodeManager owns - which is exactly why the " +
+                "membership has to be reported rather than inferred from the address space.");
+            Assert.That(handle.Omissions.Count, Is.EqualTo(1),
+                "The member that does not exist must be reported, not silently dropped.");
+            Assert.That(handle.Omissions[0], Does.Contain(missing.ToString()));
+            Assert.That(handle.Message, Does.Contain(missing.ToString()),
+                "The omission must reach the resource's load-result Message.");
+        }
+
+        /// <summary>
         /// Materializing a projection creates no affordance Node: the only child of the
         /// View is the standard <c>ViewVersion</c> Property, and it has no Variable or
         /// Method components.

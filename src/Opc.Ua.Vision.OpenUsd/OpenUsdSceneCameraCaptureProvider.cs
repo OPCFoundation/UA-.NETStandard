@@ -33,11 +33,11 @@ using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using Opc.Ua.Vision.OpenUsd.Encoding;
+using Opc.Ua.Vision.OpenUsd.Rendering;
 using OpenUsd;
 using OpenUsd.Rendering;
 using OpenUsd.Rendering.Silk;
-using Opc.Ua.Vision.OpenUsd.Encoding;
-using Opc.Ua.Vision.OpenUsd.Rendering;
 
 namespace Opc.Ua.Vision.OpenUsd
 {
@@ -82,37 +82,37 @@ namespace Opc.Ua.Vision.OpenUsd
         {
             m_options = options ?? throw new ArgumentNullException(nameof(options));
             m_logger = telemetry.CreateLogger<OpenUsdSceneCameraCaptureProvider>();
-            m_pluginPath = ResolvePluginPath(options.PluginPath);
+            PluginPath = ResolvePluginPath(options.PluginPath);
 
             if (DeviceSelector.TrySelectDevice(
                 options, m_logger, out SelectedSilkDevice selected, out string reason))
             {
                 m_device = selected.Device;
-                m_backend = selected.Backend;
+                Backend = selected.Backend;
                 m_backendUnavailableReason = null;
             }
             else
             {
                 m_device = null;
                 m_backendUnavailableReason = reason;
-                m_backend = new SceneCameraCaptureBackend
+                Backend = new SceneCameraCaptureBackend
                 {
                     Name = "None",
                     IsAvailable = false,
                     IsSoftware = false,
-                    UnavailableReason = reason,
+                    UnavailableReason = reason
                 };
             }
         }
 
         /// <inheritdoc/>
-        public SceneCameraCaptureBackend Backend => m_backend;
+        public SceneCameraCaptureBackend Backend { get; }
 
         /// <summary>
         /// The plugin path the provider probed for on construction; useful
         /// for a diagnostic /health endpoint.
         /// </summary>
-        public string? PluginPath => m_pluginPath;
+        public string? PluginPath { get; }
 
         /// <inheritdoc/>
         public async ValueTask<SceneCameraCaptureResult> CaptureAsync(
@@ -233,9 +233,9 @@ namespace Opc.Ua.Vision.OpenUsd
                         m_session = null;
                         m_sessionStageIdentifier = null;
 
-                        m_session = m_pluginPath is null
+                        m_session = PluginPath is null
                             ? OpenUsdSilkRuntime.Create(string.Empty, request.StageIdentifier)
-                            : OpenUsdSilkRuntime.Create(m_pluginPath, request.StageIdentifier);
+                            : OpenUsdSilkRuntime.Create(PluginPath, request.StageIdentifier);
                         m_capturer = new SilkFrameCapturer(m_device!);
                         m_sessionStageIdentifier = request.StageIdentifier;
                     }
@@ -247,7 +247,7 @@ namespace Opc.Ua.Vision.OpenUsd
                     m_capturer = null;
                     m_session = null;
                     m_sessionStageIdentifier = null;
-                    m_logger.RenderFailed(m_backend.Name, ex);
+                    m_logger.RenderFailed(Backend.Name, ex);
                     return Failure(SceneCameraCaptureStatus.RenderFailed,
                         $"OpenUsdSilkRuntime.Create failed: {ex.Message}",
                         request, timestamp, start);
@@ -263,9 +263,9 @@ namespace Opc.Ua.Vision.OpenUsd
                 }
                 catch (Exception ex) when (ex is not OperationCanceledException)
                 {
-                    m_logger.RenderFailed(m_backend.Name, ex);
+                    m_logger.RenderFailed(Backend.Name, ex);
                     return Failure(SceneCameraCaptureStatus.RenderFailed,
-                        $"SilkFrameCapturer.Capture failed on {m_backend.Name}: {ex.Message}",
+                        $"SilkFrameCapturer.Capture failed on {Backend.Name}: {ex.Message}",
                         request, timestamp, start);
                 }
 
@@ -293,7 +293,7 @@ namespace Opc.Ua.Vision.OpenUsd
 
                 TimeSpan elapsed = Stopwatch.GetElapsedTime(start);
                 m_logger.CaptureSucceeded(frame.Width, frame.Height, (long)elapsed.TotalMilliseconds,
-                    guard.DrawCount, guard.MeshCount, m_backend.Name);
+                    guard.DrawCount, guard.MeshCount, Backend.Name);
                 return new SceneCameraCaptureResult
                 {
                     Status = SceneCameraCaptureStatus.Succeeded,
@@ -304,7 +304,7 @@ namespace Opc.Ua.Vision.OpenUsd
                     Height = frame.Height,
                     TimestampUtc = timestamp,
                     Elapsed = elapsed,
-                    Backend = m_backend,
+                    Backend = Backend
                 };
             }
             finally
@@ -322,7 +322,8 @@ namespace Opc.Ua.Vision.OpenUsd
 
         private SceneCameraCaptureResult? ValidateRequest(
             SceneCameraCaptureRequest request, DateTime timestamp, long start)
-        {            if (string.IsNullOrWhiteSpace(request.StageIdentifier))
+        {
+            if (string.IsNullOrWhiteSpace(request.StageIdentifier))
             {
                 return Failure(SceneCameraCaptureStatus.InvalidRequest,
                     "StageIdentifier must not be empty.", request, timestamp, start);
@@ -374,7 +375,7 @@ namespace Opc.Ua.Vision.OpenUsd
                 Height = 0,
                 TimestampUtc = timestamp,
                 Elapsed = Stopwatch.GetElapsedTime(start),
-                Backend = m_backend,
+                Backend = Backend
             };
         }
 
@@ -397,7 +398,7 @@ namespace Opc.Ua.Vision.OpenUsd
                 Height = height == 0 ? request.Height : height,
                 TimestampUtc = timestamp,
                 Elapsed = Stopwatch.GetElapsedTime(start),
-                Backend = m_backend,
+                Backend = Backend
             };
         }
 
@@ -421,9 +422,7 @@ namespace Opc.Ua.Vision.OpenUsd
 
         private readonly OpenUsdSceneCaptureOptions m_options;
         private readonly ILogger m_logger;
-        private readonly string? m_pluginPath;
         private readonly ISilkGraphicsDevice? m_device;
-        private readonly SceneCameraCaptureBackend m_backend;
         private readonly string? m_backendUnavailableReason;
         private readonly SemaphoreSlim m_captureGate = new(1, 1);
         private OpenUsdSilkSession? m_session;

@@ -66,12 +66,13 @@ namespace Opc.Ua.Client.TestFramework
 
         /// <summary>
         /// The server's maximum failed-authentication attempts before a client is
-        /// locked out. Defaults to the production default (5). A value of zero or
-        /// less disables the brute-force lockout, which load/scale fixtures that
-        /// open many sessions from a single client certificate need so transient
-        /// connect failures cannot lock the shared certificate out.
+        /// locked out. Defaults to 0 (disabled) so that transient connection
+        /// failures in load and scale fixtures never lock out the shared client
+        /// certificate. Tests that explicitly validate lockout behaviour must set
+        /// this to a positive value (e.g. 5) before calling
+        /// <see cref="CreateReferenceServerFixtureAsync"/>.
         /// </summary>
-        public int MaxFailedAuthenticationAttempts { get; set; } = 5;
+        public int MaxFailedAuthenticationAttempts { get; set; }
 
         /// <summary>
         /// The server's maximum number of concurrent request-processing worker
@@ -159,6 +160,7 @@ namespace Opc.Ua.Client.TestFramework
             Telemetry = telemetry ?? NUnitTelemetryContext.Create();
             m_logger = Telemetry.CreateLogger<ClientTestFramework>();
             UriScheme = uriScheme;
+            MaxFailedAuthenticationAttempts = 0;
             TestSetStatic = CommonTestWorkers.NodeIdTestSetStatic;
             TestSetStaticMassNumeric = CommonTestWorkers.NodeIdTestSetStaticMassNumeric;
             TestSetSimulation = CommonTestWorkers.NodeIdTestSetSimulation;
@@ -180,7 +182,7 @@ namespace Opc.Ua.Client.TestFramework
         protected static IEnumerable<string> GetSupportedEccPolicyUris(
             bool includeCurvePolicies = true)
         {
-            IEnumerable<string> displayNames = SecurityPolicies.GetDisplayNames()
+            IEnumerable<string> displayNames = SecurityPolicies.Default.GetDisplayNames()
                 .Where(name => name.StartsWith("ECC_", StringComparison.Ordinal));
 
             if (!includeCurvePolicies)
@@ -189,12 +191,12 @@ namespace Opc.Ua.Client.TestFramework
                     .Where(name => !name.StartsWith("ECC_curve", StringComparison.Ordinal));
             }
 
-            return displayNames.Select(SecurityPolicies.GetUri);
+            return displayNames.Select(SecurityPolicies.Default.GetUri);
         }
 
         private static IEnumerable<string> GetPolicyUrisForTests()
         {
-            IEnumerable<string> displayNames = SecurityPolicies.GetDisplayNames();
+            IEnumerable<string> displayNames = SecurityPolicies.Default.GetDisplayNames();
 
 #if NETFRAMEWORK
             displayNames = displayNames.Where(name =>
@@ -202,7 +204,7 @@ namespace Opc.Ua.Client.TestFramework
                 !name.EndsWith("_ChaChaPoly", StringComparison.Ordinal));
 #endif
 
-            return displayNames.Select(SecurityPolicies.GetUri);
+            return displayNames.Select(SecurityPolicies.Default.GetUri);
         }
 
         protected async Task IgnoreIfPolicyNotAdvertisedAsync(string securityPolicyUri)
@@ -384,7 +386,7 @@ namespace Opc.Ua.Client.TestFramework
 
             void AddExplicitUserTokenPolicies(string securityPolicyUri)
             {
-                if (SecurityPolicies.GetInfo(securityPolicyUri) == null)
+                if (SecurityPolicies.Default.GetInfo(securityPolicyUri) == null)
                 {
                     return;
                 }

@@ -564,7 +564,6 @@ namespace Opc.Ua.Robotics.Tests
             };
         }
 
-
         private static Pose3DDataType ManualForward(ReadOnlySpan<double> jointAngles)
         {
             double[,] transform = Identity();
@@ -698,7 +697,6 @@ namespace Opc.Ua.Robotics.Tests
             return Math.Sqrt((dx * dx) + (dy * dy) + (dz * dz));
         }
 
-
         private static double QuaternionDistance(ReadOnlySpan<double> left, ReadOnlySpan<double> right)
         {
             double dot = Math.Abs(
@@ -733,7 +731,6 @@ namespace Opc.Ua.Robotics.Tests
             {
             }
         }
-
 
         private const double D1 = 0.1625;
         private const double A2 = -0.425;

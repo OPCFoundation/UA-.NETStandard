@@ -362,7 +362,7 @@ namespace Opc.Ua.Vision.Tests
             Assert.That(
                 async () => await runner.RunAsync(
                     null!,
-                    new VisionRootState(null!),
+                    new VisionRootState(null),
                     new VisionServerOptions(),
                     CancellationToken.None).ConfigureAwait(false),
                 Throws.InstanceOf<ArgumentNullException>()

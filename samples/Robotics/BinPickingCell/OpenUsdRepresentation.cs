@@ -54,13 +54,13 @@ namespace Vision.BinPickingCell
                     null!, new QualifiedName("OpenUSD", ns));
                 root.NodeId = new NodeId("OpenUSD", InstanceNamespaceIndex);
 
-                FolderState stages = root.Stages ?? root.CreateOrReplaceStages(SystemContext, null!);
-                _ = root.Representations ?? root.CreateOrReplaceRepresentations(SystemContext, null!);
+                FolderState stages = root.Stages ?? root.CreateOrReplaceStages(SystemContext, null);
+                _ = root.Representations ?? root.CreateOrReplaceRepresentations(SystemContext, null);
 
                 m_cellStage = SystemContext.CreateInstanceOfOpenUsdStageType(
                     stages, new QualifiedName("BinPickingCellStage", ns));
                 stages.AddChild(m_cellStage);
-                m_cellStage.CreateOrReplaceRootLayerIdentifier(SystemContext, null!).Value = RootLayerIdentifier;
+                m_cellStage.CreateOrReplaceRootLayerIdentifier(SystemContext, null).Value = RootLayerIdentifier;
 
                 List<ServedAsset> servedAssets = LoadServedAssets();
                 byte[] rootLayerBytes = servedAssets.Find(a => a.Kind == OpenUsdAssetKindEnum.RootLayer)!.Bytes;
@@ -122,8 +122,8 @@ namespace Vision.BinPickingCell
                 BrowseName = new QualifiedName("WorldState", InstanceNamespaceIndex),
                 DisplayName = new LocalizedText("WorldState"),
                 Description = new LocalizedText(
-                    "Simulation ground truth: where each part actually is, independent of what "
-                    + "the vision pipeline reports."),
+                    "Simulation ground truth: where each part actually is, independent of what " +
+                    "the vision pipeline reports."),
                 TypeDefinitionId = Opc.Ua.ObjectTypeIds.FolderType,
                 EventNotifier = EventNotifiers.None
             };
@@ -345,8 +345,8 @@ namespace Vision.BinPickingCell
             rep.ReferenceTypeId = ReferenceTypeIds.HasComponent;
             owner.AddChild(rep);
             AssignInstanceSubtree(rep, owner);
-            rep.CreateOrReplaceStage(SystemContext, null!).Value = m_cellStage!.NodeId;
-            rep.CreateOrReplacePrimPath(SystemContext, null!).Value = primPath;
+            rep.CreateOrReplaceStage(SystemContext, null).Value = m_cellStage!.NodeId;
+            rep.CreateOrReplacePrimPath(SystemContext, null).Value = primPath;
             return rep;
         }
 

@@ -110,7 +110,7 @@ namespace Opc.Ua.Vision.OpenUsd.Rendering
 
                 if (!options.AllowSoftwareFallback && caps.IsSoftware && !probe.PreferredAsSoftware)
                 {
-                    string reason = "created a software device but AllowSoftwareFallback is false";
+                    const string reason = "created a software device but AllowSoftwareFallback is false";
                     reasons.Add($"{probe.Name}: {reason}");
                     logger.BackendUnavailable(probe.Name, reason);
                     device.Dispose();
@@ -124,7 +124,7 @@ namespace Opc.Ua.Vision.OpenUsd.Rendering
                     ApiVersion = caps.ApiVersion ?? string.Empty,
                     IsSoftware = caps.IsSoftware,
                     IsAvailable = true,
-                    UnavailableReason = null,
+                    UnavailableReason = null
                 };
                 logger.BackendSelected(backend.Name, backend.DeviceName, backend.IsSoftware);
                 selected = new SelectedSilkDevice(device, backend);

@@ -55,6 +55,7 @@ namespace Opc.Ua
         private RSADiffieHellman? m_rsadh;
         private static readonly RandomNumberGenerator s_rng = RandomNumberGenerator.Create();
         private static uint s_minNonceLength = 32;
+        private static ISecureRandomSource? s_randomSource;
 
         /// <summary>
         /// Constructor
@@ -116,6 +117,29 @@ namespace Opc.Ua
         /// <param name="length">The length of the derived key.</param>
         /// <returns>The derived key.</returns>
         public byte[] DeriveKeyData(
+            byte[] secret,
+            byte[] salt,
+            KeyDerivationAlgorithm algorithm,
+            int length)
+        {
+            return DeriveHkdfKeyData(secret, salt, algorithm, length);
+        }
+
+        /// <summary>
+        /// Derives key material with the HKDF construction, without needing a
+        /// nonce instance.
+        /// </summary>
+        /// <param name="secret">The secret to use in key derivation.</param>
+        /// <param name="salt">The salt to use in key derivation.</param>
+        /// <param name="algorithm">The hash algorithm to use in key derivation.</param>
+        /// <param name="length">The length of the derived key.</param>
+        /// <returns>The derived key.</returns>
+        /// <remarks>
+        /// The derivation reads nothing from the nonce it used to hang off, so it
+        /// is exposed statically for <see cref="IKeyDerivationProvider"/>
+        /// implementations that have only the secret and the salt.
+        /// </remarks>
+        public static byte[] DeriveHkdfKeyData(
             byte[] secret,
             byte[] salt,
             KeyDerivationAlgorithm algorithm,
@@ -183,7 +207,7 @@ namespace Opc.Ua
         /// </summary>
         public static Nonce CreateNonce(string securityPolicyUri)
         {
-            SecurityPolicyInfo? info = SecurityPolicies.GetInfo(securityPolicyUri);
+            SecurityPolicyInfo? info = SecurityPolicies.Default.GetInfo(securityPolicyUri);
             return CreateNonce(info!);
         }
 
@@ -249,7 +273,7 @@ namespace Opc.Ua
         /// </summary>
         public static Nonce CreateNonce(string securityPolicyUri, byte[] nonceData)
         {
-            SecurityPolicyInfo? info = SecurityPolicies.GetInfo(securityPolicyUri);
+            SecurityPolicyInfo? info = SecurityPolicies.Default.GetInfo(securityPolicyUri);
             return CreateNonce(info!, nonceData);
         }
 
@@ -303,7 +327,7 @@ namespace Opc.Ua
         /// <returns>The requested Nonce as a</returns>
         public static byte[] CreateRandomNonceData(int length)
         {
-            return CreateRandomNonceData(length, true);
+            return CreateRandomNonceData(length, true, null);
         }
 
         /// <summary>
@@ -311,14 +335,67 @@ namespace Opc.Ua
         /// </summary>
         public static byte[] CreateRandomNonceData(int length, bool enforceMinimumLength)
         {
+            return CreateRandomNonceData(length, enforceMinimumLength, null);
+        }
+
+        /// <summary>
+        /// Generates nonce data from a specific random source.
+        /// </summary>
+        /// <param name="length">The requested length.</param>
+        /// <param name="enforceMinimumLength">
+        /// Whether to widen the request to the configured minimum.
+        /// </param>
+        /// <param name="randomSource">
+        /// The source to draw from, or <see langword="null"/> to use the one set
+        /// with <see cref="SetRandomSource"/>, and the platform when none is.
+        /// </param>
+        /// <returns>The nonce data.</returns>
+        public static byte[] CreateRandomNonceData(
+            int length,
+            bool enforceMinimumLength,
+            ISecureRandomSource? randomSource)
+        {
             if (enforceMinimumLength && length < s_minNonceLength)
             {
                 length = (int)s_minNonceLength;
             }
 
             byte[] randomBytes = new byte[length];
-            s_rng.GetBytes(randomBytes);
+
+            ISecureRandomSource? source = randomSource ?? s_randomSource;
+
+            if (source != null)
+            {
+                CryptoProviderOutput.Stamp(randomBytes);
+                source.GetBytes(randomBytes);
+                CryptoProviderOutput.Verify(randomBytes, "nonce generation", source);
+            }
+            else
+            {
+                s_rng.GetBytes(randomBytes);
+            }
+
             return randomBytes;
+        }
+
+        /// <summary>
+        /// Sets the source every nonce is drawn from when no source is passed
+        /// explicitly.
+        /// </summary>
+        /// <param name="randomSource">
+        /// The source to use, or <see langword="null"/> to restore the platform
+        /// generator.
+        /// </param>
+        /// <remarks>
+        /// Nonces are created from many places that have no container in scope,
+        /// so the source configured for the process is held here, in the same way
+        /// the minimum nonce length is. Dependency injection sets it once during
+        /// start up when a provider serving
+        /// <see cref="CryptoPurpose.RandomNumberGeneration"/> is registered.
+        /// </remarks>
+        public static void SetRandomSource(ISecureRandomSource? randomSource)
+        {
+            s_randomSource = randomSource;
         }
 
         /// <summary>

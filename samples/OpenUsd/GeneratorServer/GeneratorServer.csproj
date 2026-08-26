@@ -12,13 +12,6 @@
     <PublishAot Condition="$([MSBuild]::IsTargetFrameworkCompatible('$(TargetFramework)', 'net10.0'))">true</PublishAot>
   </PropertyGroup>
   <ItemGroup>
-    <!-- The conformance tests assert that the simulation constants and the
-         published datasheet agree, which means reading the constants rather
-         than re-declaring them - a test carrying its own copy of the numbers
-         would pass while the server served something else entirely. -->
-    <InternalsVisibleTo Include="Opc.Ua.OpenUsd.Tests" />
-  </ItemGroup>
-  <ItemGroup>
     <ProjectReference Include="..\..\..\src\Opc.Ua.Configuration\Opc.Ua.Configuration.csproj" />
     <ProjectReference Include="..\..\..\src\Opc.Ua.Server\Opc.Ua.Server.csproj" />
     <ProjectReference Include="..\..\..\src\Opc.Ua.Di\Opc.Ua.Di.csproj" />
@@ -35,6 +28,11 @@
   <ItemGroup>
     <PackageReference Include="Microsoft.Extensions.Hosting" />
     <PackageReference Include="Microsoft.Extensions.Logging.Console" />
+  </ItemGroup>
+  <!-- The conformance tests read the simulation constants to verify that they
+       agree with the published datasheet instead of duplicating those values. -->
+  <ItemGroup>
+    <InternalsVisibleTo Include="Opc.Ua.OpenUsd.Tests" />
   </ItemGroup>
   <!-- Authored USD layers embedded so the server ships (and serves) its own twin
        geometry: Powerhouse.usda (RootLayer) + generator.usda (Reference). -->

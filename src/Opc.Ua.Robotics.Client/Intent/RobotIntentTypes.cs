@@ -713,6 +713,7 @@ namespace Opc.Ua.Robotics.Client.Intent
         /// <summary>
         /// Derives the client-facing facet snapshot from a capability declaration.
         /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
         public static RobotIntentFacets DeriveFacets(RobotIntentControllerInfo controller)
         {
             if (controller is null)

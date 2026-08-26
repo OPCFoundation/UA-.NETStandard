@@ -18,6 +18,8 @@ The dependency injection surface is consistent across:
 - The LDS server (`src/Opc.Ua.Lds.Server`)
 - The WoT Connectivity server (`src/Opc.Ua.WotCon.Server`)
 - The WoT Connectivity client (`src/Opc.Ua.WotCon.Client`)
+- The AAS V3 server (`src/Opc.Ua.Aas.Server`)
+- The AAS V3 client (`src/Opc.Ua.Aas.Client`)
 - The PubSub stack (`src/Opc.Ua.PubSub`,
   `src/Opc.Ua.PubSub.Udp`, `src/Opc.Ua.PubSub.Mqtt`,
   `src/Opc.Ua.PubSub.Server`) — see [`PubSub.md`](PubSub.md)
@@ -57,6 +59,8 @@ you need finer control.
 | `Opc.Ua.Lds.Server`            | `builder.AddLdsServer(opt => …)`         | `ILdsServerBuilder`      | yes     | `OpcUa:Lds`              |
 | `Opc.Ua.WotCon.Server`         | `builder.AddWotConServer(opt => …)`      | `IWotConServerBuilder`   | yes (via `AddServer`) | `OpcUa:WotCon:Server` |
 | `Opc.Ua.WotCon.Client`         | `builder.AddWotConClient(opt => …)`      | `IOpcUaBuilder`          | —       | `OpcUa:WotCon:Client`    |
+| `Opc.Ua.Aas.Server`            | `builder.AddAasV3Server(opt => …)`         | `IAasServerBuilder`      | yes (via `AddServer`) | `OpcUa:Aas:Server`     |
+| `Opc.Ua.Aas.Client`            | `builder.AddAasV3Client(opt => …)` / `AddAasV3RegistryClient(opt => …)` | `IOpcUaBuilder` | — | `OpcUa:Aas:Client` |
 | `Opc.Ua.PubSub`                | `builder.AddPubSub(opt => …)`            | `IPubSubBuilder`         | yes     | `OpcUa:PubSub`           |
 | `Opc.Ua.PubSub` (publish-only) | `builder.AddPubSubPublisher(opt => …)`   | `IPubSubBuilder`         | yes     | `OpcUa:PubSub`           |
 | `Opc.Ua.PubSub` (subscribe-only) | `builder.AddPubSubSubscriber(opt => …)`| `IPubSubBuilder`         | yes     | `OpcUa:PubSub`           |
@@ -274,6 +278,11 @@ services.AddOpcUa()
         wot => wot.AssetNamespaceUri = WotConnectivityServerOptions.DefaultAssetNamespaceUri);
 ```
 
+`AddHttpsTransport()` is supplied by
+`OPCFoundation.NetStandard.Opc.Ua.Bindings.Https`. Add that package directly
+when enabling HTTPS, WSS, Kestrel-hosted OPC TCP, or the REST binding; the GDS
+server package does not reference it transitively.
+
 ## Options binding
 
 Every feature `.AddXxx(...)` has three overloads:
@@ -300,6 +309,8 @@ The default section names are:
 | LDS Server                     | `OpcUa:Lds`              |
 | WoT Connectivity Server        | `OpcUa:WotCon:Server`    |
 | WoT Connectivity Client        | `OpcUa:WotCon:Client`    |
+| AAS V3 Server                  | `OpcUa:Aas:Server`       |
+| AAS V3 Client                  | `OpcUa:Aas:Client`       |
 
 The `IConfiguration` / `IConfigurationSection` overloads are
 **AOT-safe** on every library. Each dependency-injection-emitting library opts into the
@@ -1284,6 +1295,45 @@ WotConnectivityClient client = await wotClient(ct);
 
 The WoT client reuses the connected `ManagedSession` registered by
 `AddClient(...)`.
+
+## Asset Administration Shell V3
+
+The AAS metamodel server is hosted inside the regular OPC UA server. Register
+custom providers first; `AddAasV3Server` uses `TryAddSingleton` defaults for the
+document-backed value provider and operation handler.
+
+```csharp
+services.AddSingleton<IAasValueProvider, MyAasValueProvider>();
+
+services
+    .AddOpcUa()
+    .AddServer(options => { /* endpoint and application options */ })
+    .Services
+    .AddOpcUa()
+    .AddAasV3Server(options =>
+    {
+        options.EnvironmentFolder = "aas-environments";
+        options.RetirementPolicy = AasProjectionRetirementPolicy.Graceful;
+    })
+    .AddOperationHandler<MyAasOperationHandler>();
+```
+
+`AddAasV3Client` registers a metamodel client factory over the connected
+`ManagedSession`; `AddAasV3RegistryClient` registers the registry client factory
+that resolves `Server/AASRegistry` on first use:
+
+```csharp
+services
+    .AddOpcUa()
+    .AddClient(options => { /* endpoint and application options */ })
+    .AddAasV3Client(options =>
+    {
+        options.InstanceNamespaceUri = "urn:example:aas:instances";
+    })
+    .AddAasV3RegistryClient();
+```
+
+See [OPC UA for Asset Administration Shell V3](Aas.md).
 
 ## Combined hosts
 

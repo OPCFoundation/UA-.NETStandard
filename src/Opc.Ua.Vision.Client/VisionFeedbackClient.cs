@@ -103,6 +103,7 @@ namespace Opc.Ua.Vision.Client
         /// <param name="cancellationToken">
         /// Cancels the operation.
         /// </param>
+        /// <exception cref="ArgumentException"></exception>
         public Task SubmitDetectionsAsync(
             VisionFeedbackPurposeEnum purpose,
             ArrayOf<VisionDetectionDataType> detections,
@@ -147,6 +148,7 @@ namespace Opc.Ua.Vision.Client
         /// <param name="cancellationToken">
         /// Cancels the operation.
         /// </param>
+        /// <exception cref="ArgumentException"></exception>
         public Task SubmitInspectionResultAsync(
             string resultId,
             VisionResultEvaluationEnum evaluation,
@@ -202,6 +204,7 @@ namespace Opc.Ua.Vision.Client
         /// <param name="cancellationToken">
         /// Cancels the operation.
         /// </param>
+        /// <exception cref="ArgumentException"></exception>
         public Task SubmitCorrectionAsync(
             string resultId,
             VisionFeedbackPurposeEnum purpose,
@@ -263,6 +266,7 @@ namespace Opc.Ua.Vision.Client
         /// <param name="cancellationToken">
         /// Cancels the operation.
         /// </param>
+        /// <exception cref="ArgumentNullException"></exception>
         public Task SubmitImageReferenceAsync(
             VisionFeedbackPurposeEnum purpose,
             VisionImageReferenceDataType image,

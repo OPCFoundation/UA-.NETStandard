@@ -433,6 +433,7 @@ namespace Opc.Ua.Vision.Client
         /// <param name="cancellationToken">
         /// Cancels the operation.
         /// </param>
+        /// <exception cref="ArgumentException"></exception>
         public async Task<VisionIntrinsicCalibrationSnapshot> ReadIntrinsicCalibrationAsync(
             NodeId calibrationNodeId,
             CancellationToken cancellationToken = default)
@@ -490,6 +491,7 @@ namespace Opc.Ua.Vision.Client
         /// <param name="cancellationToken">
         /// Cancels the operation.
         /// </param>
+        /// <exception cref="ArgumentException"></exception>
         public async Task<VisionExtrinsicCalibrationSnapshot> ReadExtrinsicCalibrationAsync(
             NodeId calibrationNodeId,
             CancellationToken cancellationToken = default)

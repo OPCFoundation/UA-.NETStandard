@@ -103,6 +103,7 @@ namespace Opc.Ua.Mcp.Tools
         /// <param name="entries">The lookup entries for the resource category.</param>
         /// <param name="category">Human-readable category name used in error messages.</param>
         /// <returns>The resolved NodeId, or a null NodeId when the selector is empty.</returns>
+        /// <exception cref="ArgumentException"></exception>
         public static NodeId ResolveScopedResource(
             string? nameOrNodeId,
             ArrayOf<RobotIntentNodeLookupEntry> entries,

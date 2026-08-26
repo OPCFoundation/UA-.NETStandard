@@ -59,8 +59,7 @@ namespace Opc.Ua.Vision.Server.Builders
             }
             FolderState sensorsFolder = EnsureSensorsFolder();
             var qualifiedName = new QualifiedName(browseName, m_context.InstanceNamespaceIndex);
-            ImageSensorState sensor = OpcUaVisionExtensions.CreateInstanceOfImageSensorType(
-                m_context.Context,
+            ImageSensorState sensor = m_context.Context.CreateInstanceOfImageSensorType(
                 sensorsFolder,
                 qualifiedName);
             sensor.ReferenceTypeId = global::Opc.Ua.ReferenceTypeIds.Organizes;
@@ -85,8 +84,7 @@ namespace Opc.Ua.Vision.Server.Builders
             }
             FolderState sensorsFolder = EnsureSensorsFolder();
             var qualifiedName = new QualifiedName(browseName, m_context.InstanceNamespaceIndex);
-            Depth3DSensorState sensor = OpcUaVisionExtensions.CreateInstanceOfDepth3DSensorType(
-                m_context.Context,
+            Depth3DSensorState sensor = m_context.Context.CreateInstanceOfDepth3DSensorType(
                 sensorsFolder,
                 qualifiedName);
             sensor.ReferenceTypeId = global::Opc.Ua.ReferenceTypeIds.Organizes;
@@ -111,8 +109,7 @@ namespace Opc.Ua.Vision.Server.Builders
             }
             FolderState sensorsFolder = EnsureSensorsFolder();
             var qualifiedName = new QualifiedName(browseName, m_context.InstanceNamespaceIndex);
-            VisionSensorState sensor = OpcUaVisionExtensions.CreateInstanceOfVisionSensorType(
-                m_context.Context,
+            VisionSensorState sensor = m_context.Context.CreateInstanceOfVisionSensorType(
                 sensorsFolder,
                 qualifiedName);
             sensor.ReferenceTypeId = global::Opc.Ua.ReferenceTypeIds.Organizes;
@@ -137,8 +134,7 @@ namespace Opc.Ua.Vision.Server.Builders
             }
             FolderState framesFolder = EnsureFramesFolder();
             var qualifiedName = new QualifiedName(browseName, m_context.InstanceNamespaceIndex);
-            CoordinateFrameState frame = OpcUaVisionExtensions.CreateInstanceOfCoordinateFrameType(
-                m_context.Context,
+            CoordinateFrameState frame = m_context.Context.CreateInstanceOfCoordinateFrameType(
                 framesFolder,
                 qualifiedName);
             frame.ReferenceTypeId = global::Opc.Ua.ReferenceTypeIds.Organizes;
@@ -163,8 +159,7 @@ namespace Opc.Ua.Vision.Server.Builders
             }
             FolderState pipelinesFolder = EnsurePipelinesFolder();
             var qualifiedName = new QualifiedName(browseName, m_context.InstanceNamespaceIndex);
-            InferencePipelineState pipeline = OpcUaVisionExtensions.CreateInstanceOfInferencePipelineType(
-                m_context.Context,
+            InferencePipelineState pipeline = m_context.Context.CreateInstanceOfInferencePipelineType(
                 pipelinesFolder,
                 qualifiedName);
             pipeline.ReferenceTypeId = global::Opc.Ua.ReferenceTypeIds.Organizes;
@@ -327,8 +322,8 @@ namespace Opc.Ua.Vision.Server.Builders
             TSensor sensor,
             string browseName)
         {
-            m_context = context;
-            m_registry = registry;
+            BuildContext = context;
+            Registry = registry;
             m_dispatcher = dispatcher;
             Sensor = sensor;
             m_browseName = browseName;
@@ -336,15 +331,15 @@ namespace Opc.Ua.Vision.Server.Builders
 
         protected TSensor Sensor { get; }
 
-        protected VisionBuildContext BuildContext => m_context;
+        protected VisionBuildContext BuildContext { get; }
 
-        protected VisionRegistry Registry => m_registry;
+        protected VisionRegistry Registry { get; }
 
         protected abstract TSelf Self { get; }
 
         public TSelf WithSensorId(string sensorId)
         {
-            Sensor.CreateOrReplaceSensorId(m_context.Context, null);
+            Sensor.CreateOrReplaceSensorId(BuildContext.Context, null);
             Sensor.SensorId!.Value = sensorId ?? string.Empty;
             return Self;
         }
@@ -352,7 +347,7 @@ namespace Opc.Ua.Vision.Server.Builders
         public TSelf WithRealityKind(VisionRealityKindEnum realityKind)
         {
             m_realityKind = realityKind;
-            Sensor.CreateOrReplaceRealityKind(m_context.Context, null);
+            Sensor.CreateOrReplaceRealityKind(BuildContext.Context, null);
             Sensor.RealityKind!.Value = realityKind;
             return Self;
         }
@@ -360,14 +355,14 @@ namespace Opc.Ua.Vision.Server.Builders
         public TSelf WithModality(VisionSensorModalityEnum modality)
         {
             m_modality = modality;
-            Sensor.CreateOrReplaceModality(m_context.Context, null);
+            Sensor.CreateOrReplaceModality(BuildContext.Context, null);
             Sensor.Modality!.Value = modality;
             return Self;
         }
 
         public TSelf WithManufacturer(string manufacturer)
         {
-            Sensor.CreateOrReplaceManufacturer(m_context.Context, null);
+            Sensor.CreateOrReplaceManufacturer(BuildContext.Context, null);
             Sensor.Manufacturer!.Value = new LocalizedText(manufacturer ?? string.Empty);
             m_hasSensorParams = true;
             return Self;
@@ -375,7 +370,7 @@ namespace Opc.Ua.Vision.Server.Builders
 
         public TSelf WithModel(string model)
         {
-            Sensor.CreateOrReplaceModel(m_context.Context, null);
+            Sensor.CreateOrReplaceModel(BuildContext.Context, null);
             Sensor.Model!.Value = new LocalizedText(model ?? string.Empty);
             m_hasSensorParams = true;
             return Self;
@@ -383,7 +378,7 @@ namespace Opc.Ua.Vision.Server.Builders
 
         public TSelf WithSerialNumber(string serialNumber)
         {
-            Sensor.CreateOrReplaceSerialNumber(m_context.Context, null);
+            Sensor.CreateOrReplaceSerialNumber(BuildContext.Context, null);
             Sensor.SerialNumber!.Value = serialNumber ?? string.Empty;
             m_hasSensorParams = true;
             return Self;
@@ -391,7 +386,7 @@ namespace Opc.Ua.Vision.Server.Builders
 
         public TSelf WithDeviceUri(string deviceUri)
         {
-            Sensor.CreateOrReplaceDeviceUri(m_context.Context, null);
+            Sensor.CreateOrReplaceDeviceUri(BuildContext.Context, null);
             Sensor.DeviceUri!.Value = deviceUri ?? string.Empty;
             return Self;
         }
@@ -399,7 +394,7 @@ namespace Opc.Ua.Vision.Server.Builders
         public TSelf WithFrameId(string frameId)
         {
             m_frameId = frameId ?? string.Empty;
-            Sensor.CreateOrReplaceFrameId(m_context.Context, null);
+            Sensor.CreateOrReplaceFrameId(BuildContext.Context, null);
             Sensor.FrameId!.Value = m_frameId;
             return Self;
         }
@@ -408,7 +403,7 @@ namespace Opc.Ua.Vision.Server.Builders
         {
             if (!scenePrimNodeId.IsNull)
             {
-                Sensor.AddReference(VisionReferenceTypeIds(m_context, "HasScenePrim"), false, scenePrimNodeId);
+                Sensor.AddReference(VisionReferenceTypeIds(BuildContext, "HasScenePrim"), false, scenePrimNodeId);
                 m_hasScenePrim = true;
             }
             return Self;
@@ -418,7 +413,7 @@ namespace Opc.Ua.Vision.Server.Builders
         {
             if (!mountNodeId.IsNull)
             {
-                Sensor.AddReference(VisionReferenceTypeIds(m_context, "MountedOn"), false, mountNodeId);
+                Sensor.AddReference(VisionReferenceTypeIds(BuildContext, "MountedOn"), false, mountNodeId);
             }
             return Self;
         }
@@ -429,8 +424,8 @@ namespace Opc.Ua.Vision.Server.Builders
             {
                 throw new ArgumentNullException(nameof(configure));
             }
-            Sensor.CreateOrReplaceOptics(m_context.Context, null);
-            var opticsBuilder = new VisionOpticsBuilder(m_context, Sensor.Optics!);
+            Sensor.CreateOrReplaceOptics(BuildContext.Context, null);
+            var opticsBuilder = new VisionOpticsBuilder(BuildContext, Sensor.Optics!);
             configure(opticsBuilder);
             m_hasOptics = true;
             return Self;
@@ -442,8 +437,8 @@ namespace Opc.Ua.Vision.Server.Builders
             {
                 throw new ArgumentNullException(nameof(configure));
             }
-            Sensor.CreateOrReplaceIllumination(m_context.Context, null);
-            var illuminationBuilder = new VisionIlluminationBuilder(m_context, Sensor.Illumination!);
+            Sensor.CreateOrReplaceIllumination(BuildContext.Context, null);
+            var illuminationBuilder = new VisionIlluminationBuilder(BuildContext, Sensor.Illumination!);
             configure(illuminationBuilder);
             m_hasIllumination = true;
             return Self;
@@ -462,14 +457,14 @@ namespace Opc.Ua.Vision.Server.Builders
                 throw new ArgumentNullException(nameof(configure));
             }
             FolderState calibrations = EnsureCalibrationsFolder();
-            var qualifiedName = new QualifiedName(browseName, m_context.InstanceNamespaceIndex);
-            IntrinsicCalibrationState calibration = OpcUaVisionExtensions
-                .CreateInstanceOfIntrinsicCalibrationType(m_context.Context, calibrations, qualifiedName);
+            var qualifiedName = new QualifiedName(browseName, BuildContext.InstanceNamespaceIndex);
+            IntrinsicCalibrationState calibration = BuildContext.Context
+                .CreateInstanceOfIntrinsicCalibrationType(calibrations, qualifiedName);
             calibration.ReferenceTypeId = global::Opc.Ua.ReferenceTypeIds.Organizes;
-            var builder = new VisionIntrinsicCalibrationBuilder(m_context, calibration);
+            var builder = new VisionIntrinsicCalibrationBuilder(BuildContext, calibration);
             configure(builder);
             calibrations.AddChild(calibration);
-            Sensor.AddReference(VisionReferenceTypeIds(m_context, "HasCalibration"), false, calibration.NodeId);
+            Sensor.AddReference(VisionReferenceTypeIds(BuildContext, "HasCalibration"), false, calibration.NodeId);
             m_hasCalibration = true;
             return Self;
         }
@@ -487,14 +482,14 @@ namespace Opc.Ua.Vision.Server.Builders
                 throw new ArgumentNullException(nameof(configure));
             }
             FolderState calibrations = EnsureCalibrationsFolder();
-            var qualifiedName = new QualifiedName(browseName, m_context.InstanceNamespaceIndex);
-            ExtrinsicCalibrationState calibration = OpcUaVisionExtensions
-                .CreateInstanceOfExtrinsicCalibrationType(m_context.Context, calibrations, qualifiedName);
+            var qualifiedName = new QualifiedName(browseName, BuildContext.InstanceNamespaceIndex);
+            ExtrinsicCalibrationState calibration = BuildContext.Context
+                .CreateInstanceOfExtrinsicCalibrationType(calibrations, qualifiedName);
             calibration.ReferenceTypeId = global::Opc.Ua.ReferenceTypeIds.Organizes;
-            var builder = new VisionExtrinsicCalibrationBuilder(m_context, calibration);
+            var builder = new VisionExtrinsicCalibrationBuilder(BuildContext, calibration);
             configure(builder);
             calibrations.AddChild(calibration);
-            Sensor.AddReference(VisionReferenceTypeIds(m_context, "HasCalibration"), false, calibration.NodeId);
+            Sensor.AddReference(VisionReferenceTypeIds(BuildContext, "HasCalibration"), false, calibration.NodeId);
             m_hasCalibration = true;
             m_hasExtrinsicCalibration = true;
             return Self;
@@ -513,15 +508,14 @@ namespace Opc.Ua.Vision.Server.Builders
                 throw new ArgumentNullException(nameof(configure));
             }
             VisionMediaManagementState media = EnsureMedia();
-            media.CreateOrReplaceStreamEndpoints(m_context.Context, null);
+            media.CreateOrReplaceStreamEndpoints(BuildContext.Context, null);
             FolderState endpoints = media.StreamEndpoints!;
-            var qualifiedName = new QualifiedName(browseName, m_context.InstanceNamespaceIndex);
-            StreamEndpointState endpoint = OpcUaVisionExtensions.CreateInstanceOfStreamEndpointType(
-                m_context.Context,
+            var qualifiedName = new QualifiedName(browseName, BuildContext.InstanceNamespaceIndex);
+            StreamEndpointState endpoint = BuildContext.Context.CreateInstanceOfStreamEndpointType(
                 endpoints,
                 qualifiedName);
             endpoint.ReferenceTypeId = global::Opc.Ua.ReferenceTypeIds.Organizes;
-            var builder = new VisionStreamEndpointBuilder(m_context, endpoint);
+            var builder = new VisionStreamEndpointBuilder(BuildContext, endpoint);
             configure(builder);
             endpoints.AddChild(endpoint);
             m_streamEndpoints.Add(endpoint);
@@ -541,15 +535,14 @@ namespace Opc.Ua.Vision.Server.Builders
                 throw new ArgumentNullException(nameof(configure));
             }
             VisionMediaManagementState media = EnsureMedia();
-            media.CreateOrReplaceClipEndpoints(m_context.Context, null);
+            media.CreateOrReplaceClipEndpoints(BuildContext.Context, null);
             FolderState endpoints = media.ClipEndpoints!;
-            var qualifiedName = new QualifiedName(browseName, m_context.InstanceNamespaceIndex);
-            ClipEndpointState endpoint = OpcUaVisionExtensions.CreateInstanceOfClipEndpointType(
-                m_context.Context,
+            var qualifiedName = new QualifiedName(browseName, BuildContext.InstanceNamespaceIndex);
+            ClipEndpointState endpoint = BuildContext.Context.CreateInstanceOfClipEndpointType(
                 endpoints,
                 qualifiedName);
             endpoint.ReferenceTypeId = global::Opc.Ua.ReferenceTypeIds.Organizes;
-            var builder = new VisionClipEndpointBuilder(m_context, endpoint);
+            var builder = new VisionClipEndpointBuilder(BuildContext, endpoint);
             configure(builder);
             endpoints.AddChild(endpoint);
             m_clipEndpoints.Add(endpoint);
@@ -594,12 +587,12 @@ namespace Opc.Ua.Vision.Server.Builders
                 registration.ClipEndpoints.Add(m_clipEndpoints[ii]);
             }
             OnFinalize(registration);
-            m_registry.AddSensor(registration);
+            Registry.AddSensor(registration);
             if (!string.IsNullOrEmpty(m_frameId) &&
-                m_registry.TryGetFrameByFrameId(m_frameId, out FrameRegistration? mountFrame) &&
+                Registry.TryGetFrameByFrameId(m_frameId, out FrameRegistration? mountFrame) &&
                 mountFrame != null)
             {
-                Sensor.AddReference(VisionReferenceTypeIds(m_context, "MountedOn"), false, mountFrame.NodeId);
+                Sensor.AddReference(VisionReferenceTypeIds(BuildContext, "MountedOn"), false, mountFrame.NodeId);
             }
             if (Sensor.Media is VisionMediaManagementState media)
             {
@@ -614,7 +607,7 @@ namespace Opc.Ua.Vision.Server.Builders
             {
                 return;
             }
-            ISystemContext context = m_context.Context;
+            ISystemContext context = BuildContext.Context;
             DeclareMedia(
                 media.CreateOrReplaceGetStreamEndpoint(context, null),
                 MethodIds.VisionMediaManagementType_GetStreamEndpoint,
@@ -643,10 +636,10 @@ namespace Opc.Ua.Vision.Server.Builders
             Action<ISystemContext, TMethod> declare)
             where TMethod : MethodState
         {
-            declare(m_context.Context, method);
+            declare(BuildContext.Context, method);
             method.ReferenceTypeId = global::Opc.Ua.ReferenceTypeIds.HasComponent;
             method.MethodDeclarationId = ExpandedNodeId.ToNodeId(
-                declarationId, m_context.Context.NamespaceUris);
+                declarationId, BuildContext.Context.NamespaceUris);
         }
 
         protected virtual void OnFinalize(SensorRegistration registration)
@@ -655,14 +648,14 @@ namespace Opc.Ua.Vision.Server.Builders
 
         protected VisionMediaManagementState EnsureMedia()
         {
-            Sensor.CreateOrReplaceMedia(m_context.Context, null);
+            Sensor.CreateOrReplaceMedia(BuildContext.Context, null);
             Sensor.Media!.ReferenceTypeId = global::Opc.Ua.ReferenceTypeIds.HasComponent;
             return Sensor.Media!;
         }
 
         private FolderState EnsureCalibrationsFolder()
         {
-            Sensor.CreateOrReplaceCalibrations(m_context.Context, null);
+            Sensor.CreateOrReplaceCalibrations(BuildContext.Context, null);
             return Sensor.Calibrations!;
         }
 
@@ -715,7 +708,7 @@ namespace Opc.Ua.Vision.Server.Builders
             return facets;
         }
 
-        internal static NodeId VisionReferenceTypeIds(VisionBuildContext context, string referenceName)
+        private NodeId VisionReferenceTypeIds(VisionBuildContext context, string referenceName)
         {
             ExpandedNodeId expanded = referenceName switch
             {
@@ -728,8 +721,6 @@ namespace Opc.Ua.Vision.Server.Builders
             return ExpandedNodeId.ToNodeId(expanded, context.Context.NamespaceUris);
         }
 
-        private readonly VisionBuildContext m_context;
-        private readonly VisionRegistry m_registry;
         private readonly VisionMethodDispatcher m_dispatcher;
         private readonly string m_browseName;
         private readonly List<StreamEndpointState> m_streamEndpoints = [];
@@ -1044,14 +1035,13 @@ namespace Opc.Ua.Vision.Server.Builders
                 throw new ArgumentNullException(nameof(transform));
             }
             m_calibration.CreateOrReplaceTransform(m_context.Context, null);
-            var pose = new VisionPose3DDataType
+            m_calibration.Transform!.Value = new VisionPose3DDataType
             {
                 FrameId = string.IsNullOrEmpty(transform.FrameId) ? m_targetFrame : transform.FrameId,
                 Position = transform.Position,
                 Orientation = transform.Orientation,
                 Covariance = transform.Covariance
             };
-            m_calibration.Transform!.Value = pose;
             return this;
         }
 

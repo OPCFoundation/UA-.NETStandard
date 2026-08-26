@@ -374,12 +374,15 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Raised when the state of the channel changes.
         /// </summary>
+        /// <remarks>
+        /// Deliberately takes no lock, for the same reason as
+        /// <c>TcpListenerChannel.SetRequestReceivedCallback</c>: a single
+        /// delegate field needs no more than a volatile write, and the gate is
+        /// not re-entrant.
+        /// </remarks>
         public void SetStateChangedCallback(TcpChannelStateEventHandler callback)
         {
-            lock (DataLock)
-            {
-                m_stateChanged = callback;
-            }
+            m_stateChanged = callback;
         }
 
         /// <summary>
@@ -513,10 +516,19 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Saves an intermediate chunk for an incoming message.
         /// </summary>
+        /// <param name="requestId">The request the chunk belongs to.</param>
+        /// <param name="chunk">The chunk to save.</param>
+        /// <param name="isServerContext">Whether this is a server channel.</param>
+        /// <param name="gateHeld">
+        /// Whether the caller already holds the channel gate. Passed on to
+        /// <see cref="DoMessageLimitsExceeded(bool)"/>, which tears the channel
+        /// down and must know whether it may take the gate.
+        /// </param>
         protected bool SaveIntermediateChunk(
             uint requestId,
             ArraySegment<byte> chunk,
-            bool isServerContext)
+            bool isServerContext,
+            bool gateHeld)
         {
             bool firstChunk = false;
             if (m_partialMessageChunks == null)
@@ -542,7 +554,7 @@ namespace Opc.Ua.Bindings
 
             if (chunkOrSizeLimitsExceeded)
             {
-                DoMessageLimitsExceeded();
+                DoMessageLimitsExceeded(gateHeld);
                 return firstChunk;
             }
 
@@ -558,12 +570,14 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Returns the chunks saved for message.
         /// </summary>
+        /// <inheritdoc cref="SaveIntermediateChunk" path="/param"/>
         protected BufferCollection GetSavedChunks(
             uint requestId,
             ArraySegment<byte> chunk,
-            bool isServerContext)
+            bool isServerContext,
+            bool gateHeld)
         {
-            SaveIntermediateChunk(requestId, chunk, isServerContext);
+            SaveIntermediateChunk(requestId, chunk, isServerContext, gateHeld);
             BufferCollection savedChunks = m_partialMessageChunks!;
             m_partialMessageChunks = null;
             return savedChunks;
@@ -580,7 +594,12 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Code executed when the message limits are exceeded.
         /// </summary>
-        protected virtual void DoMessageLimitsExceeded()
+        /// <param name="gateHeld">
+        /// Whether the caller already holds the channel gate. The gate is not
+        /// re-entrant, so an override that tears the channel down must call the
+        /// lock-free core of that teardown when this is <c>true</c>.
+        /// </param>
+        protected virtual void DoMessageLimitsExceeded(bool gateHeld)
         {
             m_logger.UaSCChannelLog5(ChannelId);
         }
@@ -592,8 +611,17 @@ namespace Opc.Ua.Bindings
         /// Dispatches a complete UASC <c>MessageChunk</c> pulled from the
         /// transport's receive loop into the channel pipeline.
         /// </summary>
-        /// <exception cref="ServiceResultException"></exception>
-        protected virtual void OnChunkReceived(ArraySegment<byte> message)
+        /// <param name="message">The chunk to dispatch.</param>
+        /// <param name="ct">Cancels the dispatch.</param>
+        /// <remarks>
+        /// This is the path the receive loop takes. It exists so that the secure
+        /// channel open path can await a private key served over a network; with
+        /// a software key nothing suspends and the sequencing is the same as the
+        /// synchronous path this replaces.
+        /// </remarks>
+        protected virtual async ValueTask OnChunkReceivedAsync(
+            ArraySegment<byte> message,
+            CancellationToken ct)
         {
             try
             {
@@ -611,7 +639,8 @@ namespace Opc.Ua.Bindings
 
                 uint messageType = BitConverter.ToUInt32(message.GetArray(), message.Offset);
 
-                if (!HandleIncomingMessage(messageType, message))
+                if (!await HandleIncomingMessageAsync(messageType, message, ct)
+                        .ConfigureAwait(false))
                 {
                     BufferManager.ReturnBuffer(message.GetArray(), "OnChunkReceived");
                 }
@@ -629,12 +658,16 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Processes an incoming message.
         /// </summary>
+        /// <param name="messageType">The UA TCP message type.</param>
+        /// <param name="messageChunk">The chunk to process.</param>
+        /// <param name="ct">Cancels the processing.</param>
         /// <returns>True if the implementor takes ownership of the buffer.</returns>
-        protected virtual bool HandleIncomingMessage(
+        protected virtual ValueTask<bool> HandleIncomingMessageAsync(
             uint messageType,
-            ArraySegment<byte> messageChunk)
+            ArraySegment<byte> messageChunk,
+            CancellationToken ct)
         {
-            return false;
+            return new ValueTask<bool>(false);
         }
 
         /// <summary>
@@ -671,12 +704,15 @@ namespace Opc.Ua.Bindings
         /// Reports a fatal transport-level error (connection closed, framing
         /// error, etc.) from the receive loop into the channel pipeline.
         /// </summary>
+        /// <remarks>
+        /// Deliberately does not hold the gate. <see cref="HandleSocketError"/>
+        /// tears the channel down, which notifies the listener, which disposes
+        /// the channel — and disposal takes the gate. Each override takes the
+        /// gate for the state it actually mutates instead.
+        /// </remarks>
         protected virtual void OnTransportError(ServiceResult result)
         {
-            lock (DataLock)
-            {
-                HandleSocketError(result);
-            }
+            HandleSocketError(result);
         }
 
         /// <summary>
@@ -689,7 +725,7 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Starts the long-running receive loop that pulls UASC chunks from
         /// the current <see cref="Transport"/> and dispatches them into the
-        /// channel via <see cref="OnChunkReceived"/>. Idempotent: subsequent
+        /// channel via <see cref="OnChunkReceivedAsync"/>. Idempotent: subsequent
         /// calls are no-ops while a loop is already running on the current
         /// transport.
         /// </summary>
@@ -804,7 +840,26 @@ namespace Opc.Ua.Bindings
                     return;
                 }
 
-                OnChunkReceived(chunk);
+                try
+                {
+                    await OnChunkReceivedAsync(chunk, ct).ConfigureAwait(false);
+                }
+                catch (OperationCanceledException) when (ct.IsCancellationRequested)
+                {
+                    return;
+                }
+                catch (Exception ex)
+                {
+                    // Dispatching a chunk must never end the loop silently. The
+                    // task this runs on is fire-and-forget, so an escaping
+                    // exception would otherwise stop the channel receiving with no
+                    // report at all, and the peer would simply time out.
+                    OnTransportError(ServiceResult.Create(
+                        ex,
+                        StatusCodes.BadTcpInternalError,
+                        "An error occurred dispatching a received message."));
+                    return;
+                }
             }
         }
 
@@ -826,7 +881,14 @@ namespace Opc.Ua.Bindings
 
             Interlocked.Increment(ref m_activeWriteRequests);
             ReadOnlyMemory<byte> chunk = new(buffer.GetArray(), buffer.Offset, buffer.Count);
-            _ = WriteSingleChunkAsync(transport, chunk, buffer.GetArray(), state);
+
+            // Queued rather than started inline. The write completes by calling
+            // HandleWriteComplete, which enters the gate, and the caller may be
+            // holding it: started inline, the synchronous prologue would run on
+            // the caller's stack, disclaim the caller's own entitlement and then
+            // block on a gate that this very thread holds.
+            byte[] backingBuffer = buffer.GetArray();
+            QueueWrite(() => WriteSingleChunkAsync(transport, chunk, backingBuffer, state));
         }
 
         /// <summary>
@@ -838,12 +900,14 @@ namespace Opc.Ua.Bindings
         /// </summary>
         protected void BeginWriteMessage(BufferCollection buffers, object? state)
         {
+            Interlocked.Increment(ref m_activeWriteRequests);
+
             IUaSCByteTransport? transport = m_transport;
             if (transport == null)
             {
-                // Mirror the legacy contract: report failure via HandleWriteComplete
-                // rather than throwing synchronously so callers' state is released.
-                HandleWriteComplete(
+                // The caller can hold the channel gate. Report asynchronously
+                // because client write completion enters the same non-reentrant gate.
+                ReportWriteComplete(
                     buffers,
                     state,
                     0,
@@ -853,8 +917,117 @@ namespace Opc.Ua.Bindings
                 return;
             }
 
-            Interlocked.Increment(ref m_activeWriteRequests);
-            _ = WriteBuffersAsync(transport, buffers, state);
+            // Queued rather than started inline, for the reason given in
+            // BeginWriteMessage(ArraySegment{byte}, object).
+            QueueWrite(() => WriteBuffersAsync(transport, buffers, state));
+        }
+
+        /// <summary>
+        /// Queues a write so that it runs off the caller's stack but still in
+        /// the order the caller issued it.
+        /// </summary>
+        /// <remarks>
+        /// Both matter. Running off the caller's stack is required because the
+        /// write reports completion through <see cref="HandleWriteComplete"/>,
+        /// which enters the gate the caller may be holding. Preserving order is
+        /// required because sequence numbers are assigned under that gate, and a
+        /// peer rejects a chunk whose sequence number does not follow its
+        /// predecessor. Independently queued work items carry no such guarantee,
+        /// so each write is appended to a chain and cannot start before the one
+        /// issued before it has finished.
+        /// </remarks>
+        private void QueueWrite(Func<Task> write)
+        {
+            lock (m_writeChainLock)
+            {
+                // No ExecuteSynchronously on the write itself: the continuation
+                // must reach the pool rather than run on whichever thread
+                // completed its predecessor, which may be the caller's. The
+                // trailing continuation observes any fault so that a write which
+                // fails outside its own error handling cannot surface later as an
+                // unobserved task exception.
+                m_writeChain = m_writeChain
+                    .ContinueWith(
+                        static (_, state) => ((Func<Task>)state!)(),
+                        write,
+                        CancellationToken.None,
+                        TaskContinuationOptions.DenyChildAttach,
+                        TaskScheduler.Default)
+                    .Unwrap()
+                    .ContinueWith(
+                        static completed => _ = completed.Exception,
+                        CancellationToken.None,
+                        TaskContinuationOptions.ExecuteSynchronously |
+                            TaskContinuationOptions.DenyChildAttach,
+                        TaskScheduler.Default);
+            }
+        }
+
+        /// <summary>
+        /// Sends a message on the caller's stack instead of queuing it.
+        /// </summary>
+        /// <param name="buffer">The encoded message. Ownership transfers.</param>
+        /// <exception cref="ServiceResultException">
+        /// Thrown synchronously if no transport is attached.
+        /// </exception>
+        /// <remarks>
+        /// Reserved for the terminal error message a faulting channel sends
+        /// immediately before closing its transport. A queued write would be
+        /// discarded by that close, and the peer would see the connection drop
+        /// rather than the reason for it. Starting the send here hands the bytes
+        /// to the socket before the caller's next statement closes it.
+        /// <para>
+        /// This deliberately does not report through
+        /// <see cref="HandleWriteComplete"/>, and touches the gate only to
+        /// disclaim what it inherited. Reporting would enter the gate — which
+        /// the caller holds — from a continuation that may resume on another
+        /// thread, and that is precisely the deadlock queuing exists to avoid.
+        /// Nothing is owed to a channel that is already faulted beyond returning
+        /// the buffer.
+        /// </para>
+        /// </remarks>
+        protected void WriteMessageInline(ArraySegment<byte> buffer)
+        {
+            IUaSCByteTransport transport = m_transport
+                ?? throw ServiceResultException.Create(
+                    StatusCodes.BadConnectionClosed,
+                    "The transport was closed by the remote application.");
+
+            ReadOnlyMemory<byte> chunk = new(buffer.GetArray(), buffer.Offset, buffer.Count);
+
+            _ = SendInlineAsync(transport, chunk, buffer.GetArray());
+        }
+
+        private async Task SendInlineAsync(
+            IUaSCByteTransport transport,
+            ReadOnlyMemory<byte> chunk,
+            byte[] backingBuffer)
+        {
+            try
+            {
+                await transport.SendChunkAsync(chunk, CancellationToken.None).ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                // The channel is already faulted and the caller is closing it;
+                // failing to deliver the reason changes nothing it can act on.
+                m_logger.UaSCChannelTerminalWriteFailed(ex, ChannelId);
+            }
+            finally
+            {
+                try
+                {
+                    if (backingBuffer != null)
+                    {
+                        BufferManager.ReturnBuffer(backingBuffer, "SendInlineAsync");
+                    }
+                }
+                catch
+                {
+                    // Best-effort: a double-return throws but must not escape a
+                    // fire-and-forget send.
+                }
+            }
         }
 
         private async Task WriteSingleChunkAsync(
@@ -895,7 +1068,7 @@ namespace Opc.Ua.Bindings
                 {
                     // Best-effort: a double-return throws but should not mask the write result.
                 }
-                HandleWriteComplete(null, state, sent, result);
+                ReportWriteComplete(null, state, sent, result);
             }
         }
 
@@ -925,8 +1098,39 @@ namespace Opc.Ua.Bindings
             }
             finally
             {
-                HandleWriteComplete(buffers, state, sent, result);
+                ReportWriteComplete(buffers, state, sent, result);
             }
+        }
+
+        /// <summary>
+        /// Reports a completed write without holding up the writes queued behind
+        /// it.
+        /// </summary>
+        /// <remarks>
+        /// The write chain exists to keep chunks in the order their sequence
+        /// numbers were assigned, which only concerns reaching the transport.
+        /// Reporting completion does not, and some channels implement it by
+        /// entering the gate — so leaving it in the chain would make every
+        /// subsequent write on the channel wait for a contended gate, throttling
+        /// a busy publisher badly enough to change its behaviour.
+        /// </remarks>
+        private void ReportWriteComplete(
+            BufferCollection? buffers,
+            object? state,
+            int sent,
+            ServiceResult result)
+        {
+            _ = Task.Run(() =>
+            {
+                try
+                {
+                    HandleWriteComplete(buffers, state, sent, result);
+                }
+                catch (Exception ex)
+                {
+                    m_logger.UaSCChannelWriteCompletionFailed(ex, ChannelId);
+                }
+            });
         }
 
         /// <summary>
@@ -1062,9 +1266,20 @@ namespace Opc.Ua.Bindings
         }
 
         /// <summary>
-        /// The synchronization object for the channel.
+        /// Serialises access to the channel's state.
         /// </summary>
-        protected object DataLock { get; } = new();
+        /// <remarks>
+        /// This replaces the monitor the channel used to serialise its state on.
+        /// A monitor cannot be held across an <see langword="await"/>, and the
+        /// secure channel open path has to await once a private key may be served
+        /// over a network.
+        /// <para>
+        /// Unlike a monitor it is <b>not re-entrant</b>. A method that runs with
+        /// the gate held must call the lock-free <c>Core</c> variant of anything
+        /// that would otherwise take it again.
+        /// </para>
+        /// </remarks>
+        internal ChannelGate Gate { get; } = new();
 
         /// <summary>
         /// The byte-level transport that carries UASC chunks for the channel.
@@ -1254,6 +1469,8 @@ namespace Opc.Ua.Bindings
         /// </summary>
         private int m_state;
         private int m_activeWriteRequests;
+        private readonly Lock m_writeChainLock = new();
+        private Task m_writeChain = Task.CompletedTask;
         private long m_lastActiveTimestamp;
         private readonly string m_contextId;
         private readonly ILogger m_logger;
@@ -1271,7 +1488,7 @@ namespace Opc.Ua.Bindings
         private Task? m_receiveLoopTask;
         private int m_receiveLoopRunning;
 
-        private TcpChannelStateEventHandler? m_stateChanged;
+        private volatile TcpChannelStateEventHandler? m_stateChanged;
         private const uint kMaxValueLegacyTrue = TcpMessageLimits.MinSequenceNumber;
         private const uint kMaxValueLegacyFalse = uint.MaxValue;
     }
@@ -1419,6 +1636,21 @@ namespace Opc.Ua.Bindings
             this ILogger logger,
             uint id,
             uint tokenId);
+
+        [LoggerMessage(EventId = CoreEventIds.UaSCBinaryChannel + 13, Level = LogLevel.Debug,
+            Message = "ChannelId {ChannelId}: Could not deliver the error message describing why " +
+                "the channel faulted. The peer will see the connection close instead.")]
+        public static partial void UaSCChannelTerminalWriteFailed(
+            this ILogger logger,
+            Exception exception,
+            uint channelId);
+
+        [LoggerMessage(EventId = CoreEventIds.UaSCBinaryChannel + 14, Level = LogLevel.Error,
+            Message = "ChannelId {ChannelId}: Reporting a completed write failed.")]
+        public static partial void UaSCChannelWriteCompletionFailed(
+            this ILogger logger,
+            Exception exception,
+            uint channelId);
     }
 
 }

@@ -214,11 +214,11 @@ namespace Opc.Ua.Vision.Server
             int commonSourceIndex = sourceToRoot.Count - 1;
             int commonTargetIndex = targetToRoot.Count - 1;
             while (commonSourceIndex > 0 &&
-                   commonTargetIndex > 0 &&
-                   string.Equals(
-                       sourceToRoot[commonSourceIndex].FrameId,
-                       targetToRoot[commonTargetIndex].FrameId,
-                       StringComparison.Ordinal))
+                commonTargetIndex > 0 &&
+                string.Equals(
+                    sourceToRoot[commonSourceIndex].FrameId,
+                    targetToRoot[commonTargetIndex].FrameId,
+                    StringComparison.Ordinal))
             {
                 commonSourceIndex--;
                 commonTargetIndex--;
@@ -233,14 +233,13 @@ namespace Opc.Ua.Vision.Server
             {
                 pose = Compose(Invert(targetToRoot[ii].Transform), pose);
             }
-            pose = new VisionPose3DDataType
+            return new VisionPose3DDataType
             {
                 FrameId = targetFrameId,
                 Position = pose.Position,
                 Orientation = pose.Orientation,
                 Covariance = ArrayOf<double>.Empty
             };
-            return pose;
         }
 
         private static List<CoordinateFrameSnapshot> WalkToRoot(

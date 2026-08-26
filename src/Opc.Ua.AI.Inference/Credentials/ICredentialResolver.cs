@@ -308,19 +308,23 @@ namespace Opc.Ua.AI.Inference
             }
         }
 
-        // The path Kubernetes mounts a projected service-account token at, which is
-        // the mechanism every cloud workload identity is layered on. Used only when
-        // no platform variable names one.
+        /// <summary>
+        /// The path Kubernetes mounts a projected service-account token at, which is
+        /// the mechanism every cloud workload identity is layered on. Used only when
+        /// no platform variable names one.
+        /// </summary>
         private const string KubernetesProjectedTokenPath =
             "/var/run/secrets/kubernetes.io/serviceaccount/token";
 
-        // The variables the platforms genuinely set, verified against each
-        // platform's own documentation rather than inferred from its name:
-        // AZURE_FEDERATED_TOKEN_FILE is injected by the Azure Workload Identity
-        // mutating webhook, and AWS_WEB_IDENTITY_TOKEN_FILE is the AWS SDK
-        // standard that EKS IAM-roles-for-service-accounts populates. There is
-        // deliberately no Google entry: Google has no such variable, and one
-        // invented to look like it would never match anything.
+        /// <summary>
+        /// The variables the platforms genuinely set, verified against each
+        /// platform's own documentation rather than inferred from its name:
+        /// AZURE_FEDERATED_TOKEN_FILE is injected by the Azure Workload Identity
+        /// mutating webhook, and AWS_WEB_IDENTITY_TOKEN_FILE is the AWS SDK
+        /// standard that EKS IAM-roles-for-service-accounts populates. There is
+        /// deliberately no Google entry: Google has no such variable, and one
+        /// invented to look like it would never match anything.
+        /// </summary>
         private static readonly string[] s_tokenPathVariables =
         [
             "AZURE_FEDERATED_TOKEN_FILE",

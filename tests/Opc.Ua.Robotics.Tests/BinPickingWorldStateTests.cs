@@ -101,8 +101,8 @@ namespace Opc.Ua.Robotics.Tests
                 0.85);
 
             Assert.That(Find(state, SampleLabel).Location, Is.EqualTo(BinPickingPartLocation.InBin),
-                "A part put back in the bin has to become visible to the camera again, or a "
-                + "stack-then-return cycle can only ever run once.");
+                "A part put back in the bin has to become visible to the camera again, or a " +
+                "stack-then-return cycle can only ever run once.");
         }
 
         [Test]
@@ -184,7 +184,9 @@ namespace Opc.Ua.Robotics.Tests
             return null!;
         }
 
-        // The fixture the parts get stacked on, from Assets/Cell.usda.
+        /// <summary>
+        /// The fixture the parts get stacked on, from Assets/Cell.usda.
+        /// </summary>
         private const double FixtureX = BinPickingPartsCatalog.FixtureCentreX;
         private const double FixtureY = 0.0;
         private const string SampleLabel = "RedCube";

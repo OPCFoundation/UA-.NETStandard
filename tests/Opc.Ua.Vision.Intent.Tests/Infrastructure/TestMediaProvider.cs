@@ -96,15 +96,17 @@ namespace Opc.Ua.Vision.Intent.Tests.Infrastructure
                     : request.Timestamp
             };
             ByteString inline = request.RequestInline
-                ? ByteString.From(s_clipBytes!)
+                ? ByteString.From(s_clipBytes)
                 : ByteString.Empty;
             return new ValueTask<VisionClipResult>(new VisionClipResult(
                 ServiceResult.Good, image, request.Endpoint, inline));
         }
 
-        // Deliberately tiny — the tests do not consume the pixels, they
-        // only prove that inline delivery either arrives or is refused
-        // per the endpoint's InlineDeliveryEnabled flag.
+        /// <summary>
+        /// Deliberately tiny — the tests do not consume the pixels, they
+        /// only prove that inline delivery either arrives or is refused
+        /// per the endpoint's InlineDeliveryEnabled flag.
+        /// </summary>
         private static readonly byte[] s_clipBytes =
         [
             0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A

@@ -111,6 +111,7 @@ namespace Opc.Ua.Mcp.Tools
         /// <summary>
         /// Submits a correction against an existing result.
         /// </summary>
+        /// <exception cref="ArgumentException"></exception>
         [McpServerTool(Name = "vision_submit_correction")]
         [Description("Publishes a correction to an existing Vision result identified by its ResultId. Use " +
             "this when the language model disagrees with a server-published detection or inspection and " +

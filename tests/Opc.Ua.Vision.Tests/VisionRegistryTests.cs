@@ -235,7 +235,7 @@ namespace Opc.Ua.Vision.Tests
         private static SensorRegistration NewSensor(
             string browseName, uint id, HashSet<string>? facets = null)
         {
-            var sensor = new VisionSensorState(null!);
+            var sensor = new VisionSensorState(null);
             return new SensorRegistration(
                 browseName,
                 new NodeId(id, 4),
@@ -249,7 +249,7 @@ namespace Opc.Ua.Vision.Tests
         private static PipelineRegistration NewPipeline(
             string browseName, uint id, HashSet<string>? facets = null)
         {
-            var pipeline = new InferencePipelineState(null!);
+            var pipeline = new InferencePipelineState(null);
             return new PipelineRegistration(
                 browseName,
                 new NodeId(id, 4),
@@ -260,13 +260,13 @@ namespace Opc.Ua.Vision.Tests
         private static FrameRegistration NewFrame(
             string browseName, uint id, string frameId, string? parentFrameId)
         {
-            var frame = new CoordinateFrameState(null!);
+            var frame = new CoordinateFrameState(null);
             var transform = new VisionPose3DDataType
             {
                 FrameId = frameId,
                 Position = new double[] { 0, 0, 0 },
                 Orientation = new double[] { 0, 0, 0, 1 },
-                Covariance = System.Array.Empty<double>(),
+                Covariance = System.Array.Empty<double>()
             };
             return new FrameRegistration(
                 browseName,

@@ -197,7 +197,7 @@ namespace Opc.Ua.Vision.Intent.Tests.Infrastructure
             }
             string resultId = "det-agent-correction-" + Guid.NewGuid().ToString("N");
             DateTimeUtc timestamp = DateTimeUtc.From(DateTime.UtcNow);
-            string modelVersion = "agent-off-server:correction";
+            const string modelVersion = "agent-off-server:correction";
             string explanation = FormattableString.Invariant(
                 $"{ExplanationUri}?corrects={Uri.EscapeDataString(request.ResultId)}");
             await PublishAsync(
@@ -225,8 +225,9 @@ namespace Opc.Ua.Vision.Intent.Tests.Infrastructure
 
         private TestInferenceTarget RequireTarget()
         {
-            return m_target ?? throw new InvalidOperationException(
-                "TestAgentInferenceProvider has not been attached.");
+            return m_target ??
+                throw new InvalidOperationException(
+                    "TestAgentInferenceProvider has not been attached.");
         }
 
         private ServiceResult? ValidateDetections(
@@ -284,8 +285,10 @@ namespace Opc.Ua.Vision.Intent.Tests.Infrastructure
 
         private ServiceResult? ValidateBox(int index, VisionBoundingBox2DDataType box)
         {
-            if (double.IsNaN(box.CenterX) || double.IsNaN(box.CenterY)
-                || double.IsNaN(box.Width) || double.IsNaN(box.Height))
+            if (double.IsNaN(box.CenterX) ||
+                double.IsNaN(box.CenterY) ||
+                double.IsNaN(box.Width) ||
+                double.IsNaN(box.Height))
             {
                 return Refuse(
                     StatusCodes.BadInvalidArgument,
@@ -324,10 +327,10 @@ namespace Opc.Ua.Vision.Intent.Tests.Infrastructure
                     FormattableString.Invariant(
                         $"Detection {index} Pose.Orientation must carry four components (x, y, z, w)."));
             }
-            double normSq = orientation[0] * orientation[0]
-                + orientation[1] * orientation[1]
-                + orientation[2] * orientation[2]
-                + orientation[3] * orientation[3];
+            double normSq = (orientation[0] * orientation[0]) +
+                (orientation[1] * orientation[1]) +
+                (orientation[2] * orientation[2]) +
+                (orientation[3] * orientation[3]);
             if (normSq <= 0.0)
             {
                 return Refuse(
@@ -374,13 +377,13 @@ namespace Opc.Ua.Vision.Intent.Tests.Infrastructure
             {
                 state.CreationTime.Value = timestamp;
             }
-            state.CreateOrReplaceSensor(context, null!).Value = target.SensorNodeId;
-            state.CreateOrReplacePipeline(context, null!).Value = target.PipelineNodeId;
-            state.CreateOrReplaceModelVersionUsed(context, null!).Value = modelVersion;
-            state.CreateOrReplaceConfidence(context, null!).Value = 0.9;
-            state.CreateOrReplaceExplanationUri(context, null!).Value = explanationUri;
+            state.CreateOrReplaceSensor(context, null).Value = target.SensorNodeId;
+            state.CreateOrReplacePipeline(context, null).Value = target.PipelineNodeId;
+            state.CreateOrReplaceModelVersionUsed(context, null).Value = modelVersion;
+            state.CreateOrReplaceConfidence(context, null).Value = 0.9;
+            state.CreateOrReplaceExplanationUri(context, null).Value = explanationUri;
             BaseDataVariableState<VisionImageReferenceDataType> frame =
-                state.CreateOrReplaceFrame(context, null!);
+                state.CreateOrReplaceFrame(context, null);
             frame.Value = new VisionImageReferenceDataType
             {
                 Uri = FormattableString.Invariant(
@@ -404,7 +407,7 @@ namespace Opc.Ua.Vision.Intent.Tests.Infrastructure
                 state.FrameId.Value = target.CameraFrameId;
             }
             state.NodeId = context.RequireNodeIdFactory().New(context, state);
-            NodeInstanceExtensions.AssignInstanceChildNodeIds(context, state, state.NodeId);
+            context.AssignInstanceChildNodeIds(state, state.NodeId);
             target.ResultsFolder.AddChild(state);
             await target.NodeManager.AddPredefinedNodeAsync(state, cancellationToken).ConfigureAwait(false);
             m_results[resultId] = state;

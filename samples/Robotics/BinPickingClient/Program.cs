@@ -168,8 +168,8 @@ namespace BinPickingClient
                 else
                 {
                     Console.Error.WriteLine(
-                        "Command authority: not requested - this session only observes, so another client "
-                        + "or an agent can command the cell while the viewport is open.");
+                        "Command authority: not requested - this session only observes, so another client " +
+                        "or an agent can command the cell while the viewport is open.");
                 }
 
                 int exitCode = 0;
@@ -644,8 +644,10 @@ namespace BinPickingClient
         private static partial void LogMcpHostStarted(ILogger logger, string transport);
 #endif
 
-        // How often a watching client reads the server while the viewport is open. Fast
-        // enough that the host is never idle for long, slow enough to stay a poll.
+        /// <summary>
+        /// How often a watching client reads the server while the viewport is open. Fast
+        /// enough that the host is never idle for long, slow enough to stay a poll.
+        /// </summary>
         private static readonly TimeSpan ViewportPumpInterval = TimeSpan.FromMilliseconds(50);
     }
 }

@@ -65,6 +65,8 @@ namespace Opc.Ua.Vision.Intent.Tests.Infrastructure
         /// Called from the test-cell configurator once the pipeline
         /// exists and its Results folder is created.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="target"/> is <c>null</c>.</exception>
+        /// <exception cref="InvalidOperationException"></exception>
         public void Attach(TestInferenceTarget target)
         {
             if (target == null)
@@ -119,8 +121,8 @@ namespace Opc.Ua.Vision.Intent.Tests.Infrastructure
                 };
                 double halfW = snapshot.Part.Size[0] * 0.5;
                 double halfH = snapshot.Part.Size[1] * 0.5;
-                double centerU = 300.0 + snapshot.Part.ClassId * 40.0;
-                double centerV = 200.0 + snapshot.Part.ClassId * 30.0;
+                double centerU = 300.0 + (snapshot.Part.ClassId * 40.0);
+                double centerV = 200.0 + (snapshot.Part.ClassId * 30.0);
                 var box2D = new VisionBoundingBox2DDataType
                 {
                     CenterX = centerU,
@@ -182,8 +184,9 @@ namespace Opc.Ua.Vision.Intent.Tests.Infrastructure
 
         private TestInferenceTarget RequireTarget()
         {
-            return m_target ?? throw new InvalidOperationException(
-                "TestGroundTruthInferenceProvider has not been attached.");
+            return m_target ??
+                throw new InvalidOperationException(
+                    "TestGroundTruthInferenceProvider has not been attached.");
         }
 
         private async Task PublishAsync(
@@ -207,13 +210,13 @@ namespace Opc.Ua.Vision.Intent.Tests.Infrastructure
             {
                 state.CreationTime.Value = timestamp;
             }
-            state.CreateOrReplaceSensor(context, null!).Value = request.Sensor;
-            state.CreateOrReplacePipeline(context, null!).Value = request.Pipeline;
-            state.CreateOrReplaceModelVersionUsed(context, null!).Value = ModelVersion;
-            state.CreateOrReplaceConfidence(context, null!).Value = 0.98;
-            state.CreateOrReplaceExplanationUri(context, null!).Value = ExplanationUri;
+            state.CreateOrReplaceSensor(context, null).Value = request.Sensor;
+            state.CreateOrReplacePipeline(context, null).Value = request.Pipeline;
+            state.CreateOrReplaceModelVersionUsed(context, null).Value = ModelVersion;
+            state.CreateOrReplaceConfidence(context, null).Value = 0.98;
+            state.CreateOrReplaceExplanationUri(context, null).Value = ExplanationUri;
             BaseDataVariableState<VisionImageReferenceDataType> frame =
-                state.CreateOrReplaceFrame(context, null!);
+                state.CreateOrReplaceFrame(context, null);
             frame.Value = new VisionImageReferenceDataType
             {
                 Uri = FormattableString.Invariant(
@@ -237,7 +240,7 @@ namespace Opc.Ua.Vision.Intent.Tests.Infrastructure
                 state.FrameId.Value = target.CameraFrameId;
             }
             state.NodeId = context.RequireNodeIdFactory().New(context, state);
-            NodeInstanceExtensions.AssignInstanceChildNodeIds(context, state, state.NodeId);
+            context.AssignInstanceChildNodeIds(state, state.NodeId);
             target.ResultsFolder.AddChild(state);
             await target.NodeManager.AddPredefinedNodeAsync(state, cancellationToken).ConfigureAwait(false);
             m_results[resultId] = state;

@@ -389,7 +389,7 @@ namespace Opc.Ua.Vision.Tests
         public async Task DetermineResultKindDetectsSubtype()
         {
             var harness = new VisionSessionHarness();
-            uint vendorSubtype = 99999;
+            const uint vendorSubtype = 99999;
             harness.AddBrowse(harness.InferenceResultNodeId,
                 [new ReferenceDescription
                 {

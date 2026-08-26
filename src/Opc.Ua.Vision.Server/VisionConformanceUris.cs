@@ -281,26 +281,7 @@ namespace Opc.Ua.Vision.Server
         /// Returns the ordered list of every facet name defined by the
         /// specification.
         /// </summary>
-        public static ArrayOf<string> AllFacets => s_allFacets;
-
-        internal static bool TryGetFacetUri(string facetName, out string facetUri)
-        {
-            const string facetNamePrefix = "VIS-";
-            if (!string.IsNullOrEmpty(facetName) &&
-                facetName.StartsWith(facetNamePrefix, StringComparison.Ordinal))
-            {
-#if NETSTANDARD || NETFRAMEWORK
-                facetUri = FacetBase + facetName.Substring(facetNamePrefix.Length);
-#else
-                facetUri = string.Concat(FacetBase, facetName.AsSpan(facetNamePrefix.Length));
-#endif
-                return true;
-            }
-            facetUri = string.Empty;
-            return false;
-        }
-
-        private static readonly ArrayOf<string> s_allFacets = new string[]
+        public static ArrayOf<string> AllFacets { get; } = new string[]
         {
             FacetNames.Base,
             FacetNames.SensorParams,
@@ -322,5 +303,22 @@ namespace Opc.Ua.Vision.Server
             FacetNames.Interop40100,
             FacetNames.InteropRobotIntent
         };
+
+        internal static bool TryGetFacetUri(string facetName, out string facetUri)
+        {
+            const string facetNamePrefix = "VIS-";
+            if (!string.IsNullOrEmpty(facetName) &&
+                facetName.StartsWith(facetNamePrefix, StringComparison.Ordinal))
+            {
+#if NETSTANDARD || NETFRAMEWORK
+                facetUri = FacetBase + facetName.Substring(facetNamePrefix.Length);
+#else
+                facetUri = string.Concat(FacetBase, facetName.AsSpan(facetNamePrefix.Length));
+#endif
+                return true;
+            }
+            facetUri = string.Empty;
+            return false;
+        }
     }
 }

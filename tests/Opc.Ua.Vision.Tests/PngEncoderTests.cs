@@ -177,17 +177,17 @@ namespace Opc.Ua.Vision.Tests
             {
                 throw new ArgumentException("Chunk type must be exactly 4 ASCII bytes.", nameof(fourcc));
             }
-            for (int i = 8; i + 8 <= png.Length; )
+            for (int i = 8; i + 8 <= png.Length;)
             {
                 uint length = ReadUInt32BE(png, i);
                 if (length > (uint)int.MaxValue)
                 {
                     return -1;
                 }
-                if (png[i + 4] == (byte)fourcc[0]
-                    && png[i + 5] == (byte)fourcc[1]
-                    && png[i + 6] == (byte)fourcc[2]
-                    && png[i + 7] == (byte)fourcc[3])
+                if (png[i + 4] == (byte)fourcc[0] &&
+                    png[i + 5] == (byte)fourcc[1] &&
+                    png[i + 6] == (byte)fourcc[2] &&
+                    png[i + 7] == (byte)fourcc[3])
                 {
                     return i;
                 }
@@ -212,10 +212,10 @@ namespace Opc.Ua.Vision.Tests
 
         private static uint ReadUInt32BE(byte[] buf, int offset)
         {
-            return ((uint)buf[offset] << 24)
-                | ((uint)buf[offset + 1] << 16)
-                | ((uint)buf[offset + 2] << 8)
-                | buf[offset + 3];
+            return ((uint)buf[offset] << 24) |
+                ((uint)buf[offset + 1] << 16) |
+                ((uint)buf[offset + 2] << 8) |
+                buf[offset + 3];
         }
 
         private static byte[] MakeGradient(int width, int height)

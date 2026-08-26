@@ -121,4 +121,3 @@ namespace Opc.Ua.AI.Client
         private readonly AIClientOperations m_operations;
     }
 }
-

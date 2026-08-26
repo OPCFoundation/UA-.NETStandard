@@ -48,6 +48,7 @@ namespace Microsoft.Extensions.DependencyInjection
         /// Registers the AI node manager, its options and the configured inference
         /// backends.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="builder"/> is <c>null</c>.</exception>
         public static IOpcUaServerBuilder AddAI(
             this IOpcUaServerBuilder builder,
             Action<AIOptions>? configure = null,
@@ -117,7 +118,7 @@ namespace Microsoft.Extensions.DependencyInjection
                     options,
                     CredentialResolverFor(options),
                     services.GetService<ILogger<RestChatCompletionsBackend>>() ??
-                        NullLogger<RestChatCompletionsBackend>.Instance),
+                    NullLogger<RestChatCompletionsBackend>.Instance),
                 _ => throw new InvalidOperationException(
                     "Unsupported inference backend kind '" + options.Kind + "'.")
             };

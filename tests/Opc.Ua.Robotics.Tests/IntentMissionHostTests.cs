@@ -93,7 +93,7 @@ namespace Opc.Ua.Robotics.Tests
             Assert.That(node, Is.Not.Null, "mission node should be browsable");
 
             m_executor.Gate.Release();
-            await WaitForCompletion(admission.Operation);
+            await WaitForCompletion(admission.Operation).ConfigureAwait(false);
 
             MissionObjectState? terminal = FindMissionNode(admission.Operation);
             Assert.That(terminal, Is.Not.Null, "terminal mission should be retained");
@@ -112,7 +112,7 @@ namespace Opc.Ua.Robotics.Tests
                 MissionAdmission a = m_host.SubmitMission(m_context, null, SimpleMission($"m-{i}"));
                 Assert.That(a.Accepted, Is.True);
                 admissions.Add(a);
-                await WaitForCompletion(a.Operation);
+                await WaitForCompletion(a.Operation).ConfigureAwait(false);
             }
 
             MissionObjectState? oldest = FindMissionNode(admissions[0].Operation);
@@ -177,7 +177,7 @@ namespace Opc.Ua.Robotics.Tests
             });
 
             Assert.That(admission.Accepted, Is.True);
-            await WaitForCompletion(admission.Operation);
+            await WaitForCompletion(admission.Operation).ConfigureAwait(false);
 
             Assert.Multiple(() =>
             {
@@ -198,7 +198,7 @@ namespace Opc.Ua.Robotics.Tests
                 m_context, null, SimpleMission("fail-mission"));
 
             Assert.That(admission.Accepted, Is.True);
-            await WaitForCompletion(admission.Operation);
+            await WaitForCompletion(admission.Operation).ConfigureAwait(false);
 
             MissionObjectState? node = FindMissionNode(admission.Operation);
             Assert.That(node, Is.Not.Null);
@@ -225,7 +225,7 @@ namespace Opc.Ua.Robotics.Tests
                 SimpleMission("executor-exception"));
 
             Assert.That(admission.Accepted, Is.True);
-            await WaitForCompletion(admission.Operation);
+            await WaitForCompletion(admission.Operation).ConfigureAwait(false);
 
             MissionObjectState? node = FindMissionNode(admission.Operation);
 
@@ -272,7 +272,7 @@ namespace Opc.Ua.Robotics.Tests
             Assert.That(collision.Accepted, Is.True);
 
             m_executor.Gate.Release();
-            await WaitForCompletion(admission.Operation);
+            await WaitForCompletion(admission.Operation).ConfigureAwait(false);
 
             MissionObjectState? node = FindMissionNode(admission.Operation);
 
@@ -298,7 +298,7 @@ namespace Opc.Ua.Robotics.Tests
             {
                 MissionAdmission a = m_host.SubmitMission(m_context, null, SimpleMission($"par-{i}"));
                 Assert.That(a.Accepted, Is.True);
-                await WaitForCompletion(a.Operation);
+                await WaitForCompletion(a.Operation).ConfigureAwait(false);
             }
 
             int missionCount = m_added.OfType<MissionObjectState>().Count();
@@ -329,7 +329,7 @@ namespace Opc.Ua.Robotics.Tests
             });
 
             Assert.That(admission.Accepted, Is.True);
-            await WaitForCompletion(admission.Operation);
+            await WaitForCompletion(admission.Operation).ConfigureAwait(false);
 
             Assert.That(admitted, Has.Count.EqualTo(1));
             Assert.That(admitted[0], Is.EqualTo("my-explicit-id"));
@@ -358,7 +358,7 @@ namespace Opc.Ua.Robotics.Tests
             });
 
             Assert.That(admission.Accepted, Is.True);
-            await WaitForCompletion(admission.Operation);
+            await WaitForCompletion(admission.Operation).ConfigureAwait(false);
 
             Assert.That(admitted, Has.Count.EqualTo(1));
             Assert.That(admitted[0], Is.EqualTo("gen-mission/step-x"));
@@ -445,7 +445,7 @@ namespace Opc.Ua.Robotics.Tests
                 null,
                 MoveWithId("retained-terminal"));
             Assert.That(standalone.Accepted, Is.True);
-            await WaitForIntentCompletion(standalone.Operation);
+            await WaitForIntentCompletion(standalone.Operation).ConfigureAwait(false);
 
             MissionAdmission admission = m_host.SubmitMission(m_context, null, new MissionDataType
             {
@@ -498,7 +498,7 @@ namespace Opc.Ua.Robotics.Tests
             });
 
             Assert.That(admission.Accepted, Is.True);
-            await WaitForCompletion(admission.Operation);
+            await WaitForCompletion(admission.Operation).ConfigureAwait(false);
 
             MissionObjectState? node = FindMissionNode(admission.Operation);
             MissionDataType mission = node!.Mission?.Value is MissionDataType value
@@ -557,7 +557,7 @@ namespace Opc.Ua.Robotics.Tests
             });
 
             Assert.That(admission.Accepted, Is.True);
-            await WaitForCompletion(admission.Operation);
+            await WaitForCompletion(admission.Operation).ConfigureAwait(false);
 
             MissionObjectState? node = FindMissionNode(admission.Operation);
             MissionDataType mission = node!.Mission?.Value is MissionDataType missionData
@@ -592,7 +592,7 @@ namespace Opc.Ua.Robotics.Tests
 
             MissionAdmission admission = m_host.SubmitMission(m_context, null, SimpleMission("exact-fail"));
             Assert.That(admission.Accepted, Is.True);
-            await WaitForCompletion(admission.Operation);
+            await WaitForCompletion(admission.Operation).ConfigureAwait(false);
 
             MissionObjectState? node = FindMissionNode(admission.Operation);
             Assert.That(node, Is.Not.Null);
@@ -615,7 +615,7 @@ namespace Opc.Ua.Robotics.Tests
 
             MissionAdmission admission = m_host.SubmitMission(m_context, null, SimpleMission("no-none"));
             Assert.That(admission.Accepted, Is.True);
-            await WaitForCompletion(admission.Operation);
+            await WaitForCompletion(admission.Operation).ConfigureAwait(false);
 
             MissionObjectState? node = FindMissionNode(admission.Operation);
             Assert.That(node, Is.Not.Null);
@@ -639,17 +639,14 @@ namespace Opc.Ua.Robotics.Tests
 
             MissionAdmission admission = m_host.SubmitMission(m_context, null, SimpleMission("success-m"));
             Assert.That(admission.Accepted, Is.True);
-            await WaitForCompletion(admission.Operation);
+            await WaitForCompletion(admission.Operation).ConfigureAwait(false);
 
             MissionObjectState? node = FindMissionNode(admission.Operation);
             Assert.That(node, Is.Not.Null);
             ExecutionStateEnum state = node!.ExecutionState?.Value is ExecutionStateEnum s
                 ? s : ExecutionStateEnum.Accepted;
 
-            Assert.Multiple(() =>
-            {
-                Assert.That(state, Is.EqualTo(ExecutionStateEnum.Succeeded));
-            });
+            Assert.Multiple(() => Assert.That(state, Is.EqualTo(ExecutionStateEnum.Succeeded)));
         }
 
         [Test]
@@ -665,7 +662,7 @@ namespace Opc.Ua.Robotics.Tests
             Assert.That(cancelled, Is.True);
 
             m_executor.Gate.Release();
-            await WaitForCompletion(admission.Operation);
+            await WaitForCompletion(admission.Operation).ConfigureAwait(false);
 
             MissionObjectState? node = FindMissionNode(admission.Operation);
             Assert.That(node, Is.Not.Null);
@@ -715,7 +712,7 @@ namespace Opc.Ua.Robotics.Tests
             });
 
             Assert.That(admission.Accepted, Is.True);
-            await WaitForCompletion(admission.Operation);
+            await WaitForCompletion(admission.Operation).ConfigureAwait(false);
 
             MissionObjectState? node = FindMissionNode(admission.Operation);
             Assert.That(node, Is.Not.Null);
@@ -764,7 +761,7 @@ namespace Opc.Ua.Robotics.Tests
             });
 
             Assert.That(admission.Accepted, Is.True);
-            await WaitForCompletion(admission.Operation);
+            await WaitForCompletion(admission.Operation).ConfigureAwait(false);
 
             Assert.That(callCount, Is.EqualTo(2), "Skip should have continued to s2");
             MissionObjectState? node = FindMissionNode(admission.Operation);
@@ -801,7 +798,7 @@ namespace Opc.Ua.Robotics.Tests
                 "IntentId should be written into the step at admission, before execution");
 
             m_executor.Gate.Release();
-            await WaitForCompletion(admission.Operation);
+            await WaitForCompletion(admission.Operation).ConfigureAwait(false);
         }
 
         [Test]
@@ -832,7 +829,7 @@ namespace Opc.Ua.Robotics.Tests
             });
 
             Assert.That(admission.Accepted, Is.True);
-            await WaitForCompletion(admission.Operation);
+            await WaitForCompletion(admission.Operation).ConfigureAwait(false);
 
             MissionObjectState? node = FindMissionNode(admission.Operation);
             Assert.That(node, Is.Not.Null);
@@ -878,7 +875,7 @@ namespace Opc.Ua.Robotics.Tests
             });
 
             m_executor.Gate.Release();
-            await WaitForCompletion(admission.Operation);
+            await WaitForCompletion(admission.Operation).ConfigureAwait(false);
         }
 
         [Test]
@@ -889,7 +886,7 @@ namespace Opc.Ua.Robotics.Tests
             MissionAdmission admission = m_host.SubmitMission(
                 m_context, null, SimpleMission("ns-check"));
             Assert.That(admission.Accepted, Is.True);
-            await WaitForCompletion(admission.Operation);
+            await WaitForCompletion(admission.Operation).ConfigureAwait(false);
 
             FolderState? missionsFolder = null;
             lock (m_addedLock)
@@ -925,13 +922,13 @@ namespace Opc.Ua.Robotics.Tests
             MissionAdmission first = m_host.SubmitMission(
                 m_context, null, SimpleMission("reuse-id", "reuse-id-first"));
             Assert.That(first.Accepted, Is.True);
-            await WaitForCompletion(first.Operation);
+            await WaitForCompletion(first.Operation).ConfigureAwait(false);
             NodeId firstNode = first.Operation;
 
             MissionAdmission second = m_host.SubmitMission(
                 m_context, null, SimpleMission("reuse-id", "reuse-id-second"));
             Assert.That(second.Accepted, Is.True);
-            await WaitForCompletion(second.Operation);
+            await WaitForCompletion(second.Operation).ConfigureAwait(false);
             NodeId secondNode = second.Operation;
 
             Assert.That(secondNode, Is.Not.EqualTo(firstNode),
@@ -955,11 +952,11 @@ namespace Opc.Ua.Robotics.Tests
 
             MissionAdmission first = m_host.SubmitMission(m_context, null, firstMission);
             Assert.That(first.Accepted, Is.True);
-            await WaitForCompletion(first.Operation);
+            await WaitForCompletion(first.Operation).ConfigureAwait(false);
 
             MissionAdmission second = m_host.SubmitMission(m_context, null, secondMission);
             Assert.That(second.Accepted, Is.True);
-            await WaitForCompletion(second.Operation);
+            await WaitForCompletion(second.Operation).ConfigureAwait(false);
 
             Assert.Multiple(() =>
             {
@@ -989,7 +986,7 @@ namespace Opc.Ua.Robotics.Tests
                     SimpleMission("reused-retention", $"reused-retention-{ii}"));
                 Assert.That(admission.Accepted, Is.True);
                 admissions.Add(admission);
-                await WaitForCompletion(admission.Operation);
+                await WaitForCompletion(admission.Operation).ConfigureAwait(false);
             }
 
             Assert.Multiple(() =>
@@ -1134,7 +1131,7 @@ namespace Opc.Ua.Robotics.Tests
             Assert.That(update.Result, Is.EqualTo(MissionUpdateResultEnum.Accepted));
 
             m_executor.Gate.Release(2);
-            await WaitForCompletion(admission.Operation);
+            await WaitForCompletion(admission.Operation).ConfigureAwait(false);
 
             MissionObjectState? node = FindMissionNode(admission.Operation);
             MissionDataType published = node?.Mission?.Value is MissionDataType value

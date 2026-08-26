@@ -66,8 +66,8 @@ namespace Opc.Ua.OpenUsd.Tests
             Variant converted = OpenUsdConnector.Convert(binding, value);
 
             Assert.That(converted.IsNull, Is.False,
-                "A structured 3D coordinate is the source shape the translation profile is "
-                + "defined for; leaving it unresolved would stop any prim following it.");
+                "A structured 3D coordinate is the source shape the translation profile is " +
+                "defined for; leaving it unresolved would stop any prim following it.");
             Assert.That(converted.ToString(), Does.Contain("1.5"));
         }
 
@@ -84,9 +84,9 @@ namespace Opc.Ua.OpenUsd.Tests
             Variant converted = OpenUsdConnector.Convert(binding, new Variant(new[] { 1.5, -2.5, 3.5 }));
 
             Assert.That(converted.IsNull, Is.True,
-                "A bare double[3] is not a structured 3D source. This is the behaviour that "
-                + "silently stopped the bin-picking parts moving, so it is pinned here to "
-                + "make the requirement visible rather than surprising.");
+                "A bare double[3] is not a structured 3D source. This is the behaviour that " +
+                "silently stopped the bin-picking parts moving, so it is pinned here to " +
+                "make the requirement visible rather than surprising.");
         }
     }
 }

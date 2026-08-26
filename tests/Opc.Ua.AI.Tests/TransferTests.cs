@@ -32,11 +32,11 @@ using System.Collections.Generic;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using Opc.Ua.AI.Inference;
-using Opc.Ua.AI.Server;
 using NUnit.Framework;
 using Opc.Ua;
 using Opc.Ua.AI;
+using Opc.Ua.AI.Inference;
+using Opc.Ua.AI.Server;
 
 namespace Opc.Ua.AI.Tests
 {

@@ -401,6 +401,8 @@ namespace Opc.Ua.Vision.Client
         /// <param name="cancellationToken">
         /// Cancels the operation.
         /// </param>
+        /// <exception cref="ArgumentNullException"></exception>
+        /// <exception cref="InvalidOperationException"></exception>
         public async Task<VisionInferenceResult> RunOneShotAsync(
             VisionPipelineClient pipeline,
             string? pipelineName,
@@ -543,6 +545,7 @@ namespace Opc.Ua.Vision.Client
         /// of a resolved result node. Handles zero, one, and multiple
         /// <c>HasTypeDefinition</c> references deterministically.
         /// </summary>
+        /// <exception cref="InvalidOperationException"></exception>
         public async Task<VisionResultKind> DetermineResultKindAsync(
             NodeId resultNodeId,
             CancellationToken cancellationToken = default)
@@ -585,19 +588,22 @@ namespace Opc.Ua.Vision.Client
                 return VisionResultKind.Unknown;
             }
 
-            if (!detectionType.IsNull && await m_operations.Session.NodeCache
+            if (!detectionType.IsNull &&
+                await m_operations.Session.NodeCache
                     .IsTypeOfAsync(typeDef, detectionType, cancellationToken)
                     .ConfigureAwait(false))
             {
                 return VisionResultKind.Detection;
             }
-            if (!inspectionType.IsNull && await m_operations.Session.NodeCache
+            if (!inspectionType.IsNull &&
+                await m_operations.Session.NodeCache
                     .IsTypeOfAsync(typeDef, inspectionType, cancellationToken)
                     .ConfigureAwait(false))
             {
                 return VisionResultKind.Inspection;
             }
-            if (!segmentationType.IsNull && await m_operations.Session.NodeCache
+            if (!segmentationType.IsNull &&
+                await m_operations.Session.NodeCache
                     .IsTypeOfAsync(typeDef, segmentationType, cancellationToken)
                     .ConfigureAwait(false))
             {

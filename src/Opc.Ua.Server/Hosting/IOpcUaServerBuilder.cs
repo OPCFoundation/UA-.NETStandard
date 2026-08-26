@@ -38,15 +38,8 @@ namespace Opc.Ua.Server.Hosting
     /// <see cref="OpcUaServerBuilderExtensions.AddServer(IOpcUaBuilder,Action{OpcUaServerOptions})"/>;
     /// allows chained registration of node-manager factories.
     /// </summary>
-    public interface IOpcUaServerBuilder
+    public interface IOpcUaServerBuilder : IOpcUaTransportBuilder
     {
-        /// <summary>
-        /// Underlying service collection. Use it to register additional services
-        /// the node-manager factories or custom <c>IAsyncNodeManagerFactory</c>
-        /// implementations may need.
-        /// </summary>
-        IServiceCollection Services { get; }
-
         /// <summary>
         /// Registers an asynchronous node-manager factory as a singleton.
         /// </summary>

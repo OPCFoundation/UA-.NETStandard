@@ -69,8 +69,8 @@ namespace Opc.Ua.Robotics.Tests
             double[] grazing = [-0.30, 0.0, 0.01, 0.30, 0.0, 0.01, 0.30, 0.0, 0.30];
 
             Assert.That(model.IsClear(grazing, out string hit), Is.False,
-                "A link is not a line: passing a hand's breadth under the surface is not "
-                + "clear just because the centre line is above it.");
+                "A link is not a line: passing a hand's breadth under the surface is not " +
+                "clear just because the centre line is above it.");
             Assert.That(hit, Is.EqualTo("Bench"));
         }
 

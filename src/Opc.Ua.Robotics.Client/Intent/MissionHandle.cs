@@ -138,6 +138,7 @@ namespace Opc.Ua.Robotics.Client.Intent
         /// <summary>
         /// Waits up to the timeout for the mission to complete, returning the current state on timeout.
         /// </summary>
+        /// <exception cref="ArgumentOutOfRangeException"></exception>
         public async ValueTask<MissionWaitResult> WaitForCompletionAsync(
             TimeSpan timeout,
             CancellationToken cancellationToken = default)
@@ -314,8 +315,10 @@ namespace Opc.Ua.Robotics.Client.Intent
         private readonly RobotIntentControllerClient m_controller;
         private readonly Lock m_lock = new();
         private readonly CancellationTokenSource m_disposeCts = new();
+
         private readonly TaskCompletionSource<MissionSnapshot> m_completion = new(
             TaskCreationOptions.RunContinuationsAsynchronously);
+
         private MissionSnapshot m_current = new();
         private NodeId m_executionStateNode = NodeId.Null;
         private Task? m_pumpTask;

@@ -476,16 +476,16 @@ namespace Opc.Ua.Vision.Tests
                 bool feedbackWithSubmitOnly = false)
             {
                 PipelineNodeId = new NodeId(pipelineId, 4);
-                var pipeline = new InferencePipelineState(null!);
-                var feedback = new VisionFeedbackState(null!)
+                var pipeline = new InferencePipelineState(null);
+                var feedback = new VisionFeedbackState(null)
                 {
-                    SubmitDetections = new SubmitDetectionsMethodState(null!),
+                    SubmitDetections = new SubmitDetectionsMethodState(null)
                 };
                 if (!feedbackWithSubmitOnly)
                 {
-                    feedback.SubmitCorrection = new SubmitCorrectionMethodState(null!);
-                    feedback.SubmitInspectionResult = new SubmitInspectionResultMethodState(null!);
-                    feedback.SubmitImageReference = new SubmitImageReferenceMethodState(null!);
+                    feedback.SubmitCorrection = new SubmitCorrectionMethodState(null);
+                    feedback.SubmitInspectionResult = new SubmitInspectionResultMethodState(null);
+                    feedback.SubmitImageReference = new SubmitImageReferenceMethodState(null);
                 }
 
                 var registration = new PipelineRegistration(
@@ -494,7 +494,7 @@ namespace Opc.Ua.Vision.Tests
                     pipeline,
                     new HashSet<string>(StringComparer.Ordinal))
                 {
-                    FeedbackSink = feedbackSink,
+                    FeedbackSink = feedbackSink
                 };
 
                 m_registry = new VisionRegistry();

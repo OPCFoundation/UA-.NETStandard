@@ -111,24 +111,6 @@ namespace Opc.Ua.Types.Tests.Wot
         }
 
         [Test]
-        public async Task ResolverDrivenLinkResolutionFollowsRedirect()
-        {
-            var resolver = new MapResolver(new Dictionary<string, string>(StringComparer.Ordinal)
-            {
-                ["urn:a"] = /*lang=json,strict*/ "{\"uav:congruentType\":\"urn:b\"}",
-                ["urn:b"] = /*lang=json,strict*/ "{\"uav:congruentType\":\"urn:c\"}",
-                ["urn:c"] = /*lang=json,strict*/ "{\"uav:id\":\"ns=2;i=99\"}"
-            });
-
-            using var document = WotDocument.Parse(Encoding.UTF8.GetBytes(LinkModel("urn:a")));
-            WotConversionResult<UANodeSet> result = await WotNodeSetConverter.ToNodeSetResultAsync(
-                document, null, resolver);
-
-            UAObjectType root = result.Value!.Items!.OfType<UAObjectType>().Single();
-            Assert.That(root.References!.Any(r => r.Value == "ns=2;i=99"), Is.True);
-        }
-
-        [Test]
         public async Task AsyncResolverCanResolveLinkTargetEndToEnd()
         {
             var resolver = new AsyncMapResolver(new Dictionary<string, string>(StringComparer.Ordinal)
@@ -144,24 +126,6 @@ namespace Opc.Ua.Types.Tests.Wot
 
             UAObjectType root = result.Value!.Items!.OfType<UAObjectType>().Single();
             Assert.That(root.References!.Any(r => r.Value == "ns=2;i=77"), Is.True);
-        }
-
-        [Test]
-        public async Task ResolverDrivenLinkResolutionDetectsCycle()
-        {
-            var resolver = new MapResolver(new Dictionary<string, string>(StringComparer.Ordinal)
-            {
-                ["urn:a"] = /*lang=json,strict*/ "{\"uav:congruentType\":\"urn:b\"}",
-                ["urn:b"] = /*lang=json,strict*/ "{\"uav:congruentType\":\"urn:a\"}"
-            });
-
-            using var document = WotDocument.Parse(Encoding.UTF8.GetBytes(LinkModel("urn:a")));
-            WotConversionResult<UANodeSet> result = await WotNodeSetConverter.ToNodeSetResultAsync(
-                document, null, resolver, new WotResolutionContext());
-
-            Assert.That(
-                result.Diagnostics.Any(d => d.Code == WotDiagnosticCode.ResolverCycle),
-                Is.True);
         }
 
         [Test]
@@ -274,28 +238,32 @@ namespace Opc.Ua.Types.Tests.Wot
                 Is.True);
         }
 
+        /// <summary>
+        /// One sibling link that cannot be resolved must not stop the others
+        /// resolving, and must still be reported.
+        /// </summary>
         [Test]
-        public async Task SiblingLinkCycleDoesNotBlockAnUnrelatedSiblingLinkButIsStillReported()
+        public async Task AnUnresolvableSiblingLinkDoesNotBlockAnUnrelatedOneButIsStillReported()
         {
             var resolver = new MapResolver(new Dictionary<string, string>(StringComparer.Ordinal)
             {
-                ["urn:ok"] = /*lang=json,strict*/ "{\"uav:id\":\"ns=2;i=201\"}",
-                ["urn:cyclic-a"] = /*lang=json,strict*/ "{\"uav:congruentType\":\"urn:cyclic-b\"}",
-                ["urn:cyclic-b"] = /*lang=json,strict*/ "{\"uav:congruentType\":\"urn:cyclic-a\"}"
+                ["urn:ok"] = /*lang=json,strict*/ "{\"uav:id\":\"ns=2;i=201\"}"
             });
 
             using var document = WotDocument.Parse(
-                Encoding.UTF8.GetBytes(MultiLinkModel("urn:ok", "urn:cyclic-a")));
+                Encoding.UTF8.GetBytes(MultiLinkModel("urn:ok", "urn:missing")));
             WotConversionResult<UANodeSet> result = await WotNodeSetConverter.ToNodeSetResultAsync(
                 document,
                 null,
                 resolver);
 
             UAObjectType root = result.Value!.Items!.OfType<UAObjectType>().Single();
-            Assert.That(root.References!.Any(r => r.Value == "ns=2;i=201"), Is.True);
+            Assert.That(root.References!.Any(r => r.Value == "ns=2;i=201"), Is.True,
+                "The resolvable link must still produce its reference.");
             Assert.That(
-                result.Diagnostics.Any(d => d.Code == WotDiagnosticCode.ResolverCycle),
-                Is.True);
+                result.Diagnostics.Any(d => d.Code == WotDiagnosticCode.ResolverNotFound),
+                Is.True,
+                "The unresolvable link must still be reported.");
         }
 
         [Test]

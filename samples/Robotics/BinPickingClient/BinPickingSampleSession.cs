@@ -50,13 +50,13 @@ namespace BinPickingClient
             ApplicationConfiguration configuration)
         {
             Session = session;
-            m_streaming = streaming;
+            Streaming = streaming;
             m_configuration = configuration;
         }
 
         public ISession Session { get; }
 
-        public IStreamingSubscription Streaming => m_streaming;
+        public IStreamingSubscription Streaming { get; }
 
         public static async Task<BinPickingSampleSession> ConnectAsync(
             BinPickingClientOptions options,
@@ -152,7 +152,7 @@ namespace BinPickingClient
 
         public async ValueTask DisposeAsync()
         {
-            await m_streaming.DisposeAsync().ConfigureAwait(false);
+            await Streaming.DisposeAsync().ConfigureAwait(false);
             await Session.CloseAsync(CancellationToken.None).ConfigureAwait(false);
             await Session.DisposeAsync().ConfigureAwait(false);
             (m_configuration.CertificateManager as IDisposable)?.Dispose();
@@ -171,6 +171,5 @@ namespace BinPickingClient
         }
 
         private readonly ApplicationConfiguration m_configuration;
-        private readonly IStreamingSubscription m_streaming;
     }
 }

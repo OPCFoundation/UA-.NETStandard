@@ -34,22 +34,19 @@ using System.Threading;
 namespace Opc.Ua.Server
 {
     /// <summary>
-    /// Optional request lifecycle coordination used by server shutdown and NodeManager lifecycle
-    /// operations.
+    /// Optional request lifecycle coordination used by NodeManager lifecycle operations.
     /// </summary>
     /// <remarks>
     /// <para>
     /// <see cref="RequestManager"/> owns ordinary request tracking. This extension adds the
-    /// lifecycle state that only shutdown and NodeManager replacement need:
-    /// request-admission closure and the set of executing requests that have stopped dispatching
-    /// because they are waiting for the lifecycle semaphore.
+    /// lifecycle state that only NodeManager replacement needs: the set of executing requests
+    /// that have stopped dispatching because they are waiting for the lifecycle semaphore.
     /// </para>
     /// <para>
-    /// The transitions are:
-    /// open admission -> closed admission, registered lifecycle waiter -> semaphore waiter, and
-    /// semaphore waiter -> unregistered. Shutdown depends on those transitions so it can first
-    /// reject new requests, then drain every request admitted before closure without waiting on a
-    /// request that is itself queued behind the lifecycle semaphore.
+    /// The transitions are: registered lifecycle waiter -> semaphore waiter, and semaphore
+    /// waiter -> unregistered. A NodeManager lifecycle drain depends on those transitions so it
+    /// can drain the requests that are in flight without waiting on a request that is itself
+    /// queued behind the lifecycle semaphore.
     /// </para>
     /// </remarks>
     internal sealed class RequestManagerLifecycleExtension
@@ -63,26 +60,6 @@ namespace Opc.Ua.Server
         {
             m_requestManager = requestManager ??
                 throw new ArgumentNullException(nameof(requestManager));
-        }
-
-        /// <summary>
-        /// Gets whether a request drain must keep resampling until no pre-closure validation or
-        /// request scope remains.
-        /// </summary>
-        internal bool MustRepeatDrainUntilIdleLocked => m_requestAdmissionClosed;
-
-        /// <summary>
-        /// Atomically prevents admission of new Client requests. Validation scopes admitted
-        /// before this call remain tracked and may still register and execute their request.
-        /// </summary>
-        /// <remarks>
-        /// <see cref="StandardServer"/> calls this as the first shutdown step. A validation
-        /// scope that was already admitted is allowed to promote its request, and the shutdown
-        /// drain repeats snapshots until those pre-admitted requests finish.
-        /// </remarks>
-        internal void CloseAdmission()
-        {
-            m_requestManager.CloseAdmission(this);
         }
 
         /// <summary>
@@ -112,57 +89,12 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Moves the lifecycle state from open admission to closed admission while the request
-        /// manager lock is held.
-        /// </summary>
-        internal void CloseAdmissionLocked()
-        {
-            m_requestAdmissionClosed = true;
-        }
-
-        /// <summary>
         /// Marks lifecycle coordination disposed and forgets every waiter while the request
         /// manager lock is held.
         /// </summary>
         internal void DisposeLocked()
         {
-            m_requestAdmissionClosed = true;
             m_requestsWaitingForLifecycle.Clear();
-        }
-
-        /// <summary>
-        /// Enforces the open-admission state before a new validation scope is created.
-        /// </summary>
-        /// <exception cref="ServiceResultException">Request admission has already closed.</exception>
-        internal void ValidateValidationAdmissionLocked()
-        {
-            if (m_requestAdmissionClosed)
-            {
-                throw new ServiceResultException(StatusCodes.BadServerHalted);
-            }
-        }
-
-        /// <summary>
-        /// Enforces request admission for a validated request.
-        /// </summary>
-        /// <remarks>
-        /// Direct requests are rejected after admission closes. Requests promoted from a
-        /// validation scope that was admitted before closure remain valid because the shutdown
-        /// drain is still tracking that validation scope.
-        /// </remarks>
-        /// <param name="validationId">The validation scope that admitted the request.</param>
-        /// <param name="activeValidationScopes">The validation scopes still allowed to register requests.</param>
-        /// <exception cref="ServiceResultException">The request was not admitted before lifecycle shutdown.</exception>
-        internal void ValidateRequestAdmissionLocked(
-            long? validationId,
-            HashSet<long> activeValidationScopes)
-        {
-            if (m_requestAdmissionClosed &&
-                (!validationId.HasValue ||
-                    !activeValidationScopes.Contains(validationId.Value)))
-            {
-                throw new ServiceResultException(StatusCodes.BadServerHalted);
-            }
         }
 
         /// <summary>
@@ -272,7 +204,6 @@ namespace Opc.Ua.Server
 
         private readonly RequestManager m_requestManager;
         private readonly Dictionary<uint, LifecycleWaiterState> m_requestsWaitingForLifecycle = [];
-        private bool m_requestAdmissionClosed;
 
         /// <summary>
         /// Unregisters one lifecycle-waiting request.

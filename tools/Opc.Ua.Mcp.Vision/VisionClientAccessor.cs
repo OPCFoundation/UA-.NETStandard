@@ -105,6 +105,7 @@ namespace Opc.Ua.Mcp
         /// <summary>
         /// Opens the feedback client attached to a selected pipeline over the named or sole active session.
         /// </summary>
+        /// <exception cref="InvalidOperationException"></exception>
         public async Task<VisionFeedbackClient> OpenPipelineFeedbackAsync(
             string pipelineSelector,
             string? sessionName = null,
@@ -113,8 +114,9 @@ namespace Opc.Ua.Mcp
             (_, VisionPipelineClient pipeline) = await ResolvePipelineAsync(
                 pipelineSelector, sessionName, ct).ConfigureAwait(false);
             VisionFeedbackClient? feedback = await pipeline.OpenFeedbackAsync(ct).ConfigureAwait(false);
-            return feedback ?? throw new InvalidOperationException(
-                "Pipeline does not expose a Feedback object.");
+            return feedback ??
+                throw new InvalidOperationException(
+                    "Pipeline does not expose a Feedback object.");
         }
 
         /// <summary>

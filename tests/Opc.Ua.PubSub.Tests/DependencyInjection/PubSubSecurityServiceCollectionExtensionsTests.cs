@@ -60,7 +60,7 @@ namespace Opc.Ua.PubSub.Tests.DependencyInjection
         private static FakeSecurityKeyService CreateFake()
         {
             return new FakeSecurityKeyService(
-                PubSubSecurityPolicyRegistry.GetByUri(PolicyUri)!,
+                PubSubSecurityPolicyRegistry.Default.GetByUri(PolicyUri)!,
                 TimeSpan.FromHours(1));
         }
 

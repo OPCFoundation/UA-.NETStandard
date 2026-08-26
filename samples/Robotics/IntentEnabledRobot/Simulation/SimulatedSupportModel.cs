@@ -254,8 +254,8 @@ namespace Robotics.IntentEnabledRobot.Simulation
             double aSizeY,
             in SimulatedSupportSolid b)
         {
-            return Math.Abs(aCentreX - b.CentreX) < ((aSizeX + b.SizeX) * 0.5)
-                && Math.Abs(aCentreY - b.CentreY) < ((aSizeY + b.SizeY) * 0.5);
+            return Math.Abs(aCentreX - b.CentreX) < ((aSizeX + b.SizeX) * 0.5) &&
+                Math.Abs(aCentreY - b.CentreY) < ((aSizeY + b.SizeY) * 0.5);
         }
 
         private static double Highest(

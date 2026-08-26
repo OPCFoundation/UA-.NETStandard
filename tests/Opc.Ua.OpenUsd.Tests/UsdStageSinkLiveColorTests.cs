@@ -108,9 +108,9 @@ namespace Opc.Ua.OpenUsd.Client.Tests
         public void PumpBearingTemperatureBindingTargetsAuthoredDisplayColor()
         {
             string representation = ReadRepositoryFile(
-                "samples", "PumpDeviceIntegrationServer", "OpenUsdRepresentation.cs");
+                "samples", "DI", "PumpDeviceIntegrationServer", "OpenUsdRepresentation.cs");
             string asset = ReadRepositoryFile(
-                "samples", "PumpDeviceIntegrationServer", "Assets", "Plant.usda");
+                "samples", "DI", "PumpDeviceIntegrationServer", "Assets", "Plant.usda");
 
             Assert.That(
                 representation,
@@ -121,8 +121,10 @@ namespace Opc.Ua.OpenUsd.Client.Tests
         [Test]
         public void GeneratorThermalBindingTargetsAuthoredDisplayColor()
         {
-            string bindings = ReadRepositoryFile("samples", "OpenUsd", "GeneratorServer", "OpenUsdBindings.cs");
-            string asset = ReadRepositoryFile("samples", "OpenUsd", "GeneratorServer", "Assets", "generator.usda");
+            string bindings = ReadRepositoryFile(
+                "samples", "OpenUsd", "GeneratorServer", "OpenUsdBindings.cs");
+            string asset = ReadRepositoryFile(
+                "samples", "OpenUsd", "GeneratorServer", "Assets", "generator.usda");
 
             Assert.That(bindings, Does.Contain("prim + \"/Radiator/Core\", \"primvars:displayColor\", \"color3f[]\""));
             Assert.That(BlockOf(asset, "Core"), Does.Contain("color3f[] primvars:displayColor"));

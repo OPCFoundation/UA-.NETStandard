@@ -29,6 +29,7 @@
 
 using System;
 using System.Diagnostics;
+using System.Linq;
 using Microsoft.CodeAnalysis;
 
 namespace Opc.Ua.SourceGeneration
@@ -68,6 +69,38 @@ namespace Opc.Ua.SourceGeneration
                         ex.Message,
                         ex.ToString()));
             }
+        }
+
+        /// <summary>
+        /// Creates a diagnostic that renders an already fully-formatted message
+        /// verbatim under the identity of <paramref name="descriptor"/>. The
+        /// looked-up descriptor's <c>messageFormat</c> may declare more
+        /// positional placeholders than the single formatted string carries
+        /// (for example the exception descriptor declares <c>{0}</c> and
+        /// <c>{1}</c>); reporting the message directly against it makes
+        /// <see cref="Diagnostic.GetMessage(System.IFormatProvider)"/> throw a
+        /// <see cref="System.FormatException"/> internally and fall back to the
+        /// raw, unsubstituted template. Reporting through a passthrough
+        /// descriptor whose format is exactly <c>"{0}"</c> avoids that, is
+        /// independent of the original placeholder arity, and is safe even when
+        /// the message itself contains <c>{</c> or <c>}</c> characters. All
+        /// other descriptor metadata is preserved.
+        /// </summary>
+        public static Diagnostic CreateFormattedDiagnostic(
+            DiagnosticDescriptor descriptor,
+            string message)
+        {
+            var passthrough = new DiagnosticDescriptor(
+                descriptor.Id,
+                descriptor.Title,
+                "{0}",
+                descriptor.Category,
+                descriptor.DefaultSeverity,
+                descriptor.IsEnabledByDefault,
+                description: descriptor.Description,
+                helpLinkUri: descriptor.HelpLinkUri,
+                customTags: descriptor.CustomTags.ToArray());
+            return Diagnostic.Create(passthrough, Location.None, message);
         }
 
         /// <summary>

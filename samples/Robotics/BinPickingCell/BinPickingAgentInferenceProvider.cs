@@ -106,7 +106,7 @@ namespace Vision.BinPickingCell
     [System.Diagnostics.CodeAnalysis.SuppressMessage(
         "Performance", "CA1812",
         Justification = "Instantiated by the DI container via AddSingleton.")]
-    internal sealed partial class BinPickingAgentInferenceProvider
+    internal sealed class BinPickingAgentInferenceProvider
         : IVisionInferenceProvider, IVisionFeedbackSink
     {
         public BinPickingAgentInferenceProvider(
@@ -193,6 +193,8 @@ namespace Vision.BinPickingCell
         /// Called from the Vision configurator once the pipeline node
         /// and its Results folder are available.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="target"/> is <c>null</c>.</exception>
+        /// <exception cref="InvalidOperationException"></exception>
         public void Attach(BinPickingInferenceTarget target)
         {
             if (target == null)
@@ -412,7 +414,7 @@ namespace Vision.BinPickingCell
                 : request.Reason.Text ?? string.Empty;
             string correctionResultId = "det-agent-correction-" + Guid.NewGuid().ToString("N");
             DateTimeUtc timestamp = DateTimeUtc.From(DateTime.UtcNow);
-            string modelVersion = "agent-off-server:correction";
+            const string modelVersion = "agent-off-server:correction";
             string explanation = FormattableString.Invariant(
                 $"{ExplanationUri}?purpose={request.Purpose}&corrects={Uri.EscapeDataString(request.ResultId)}");
             try
@@ -463,8 +465,9 @@ namespace Vision.BinPickingCell
         private BinPickingInferenceTarget RequireTarget()
         {
             BinPickingInferenceTarget? target = m_target;
-            return target ?? throw new InvalidOperationException(
-                "BinPickingAgentInferenceProvider has not been attached to a pipeline.");
+            return target ??
+                throw new InvalidOperationException(
+                    "BinPickingAgentInferenceProvider has not been attached to a pipeline.");
         }
 
         private ServiceResult? ValidateDetections(
@@ -508,7 +511,8 @@ namespace Vision.BinPickingCell
                 }
                 double confidence = detection.Confidence;
                 if (double.IsNaN(confidence) ||
-                    confidence < 0.0 || confidence > 1.0)
+                    confidence < 0.0 ||
+                    confidence > 1.0)
                 {
                     return Refuse(
                         "Validate",
@@ -541,8 +545,10 @@ namespace Vision.BinPickingCell
             int index,
             VisionBoundingBox2DDataType box)
         {
-            if (double.IsNaN(box.CenterX) || double.IsNaN(box.CenterY)
-                || double.IsNaN(box.Width) || double.IsNaN(box.Height))
+            if (double.IsNaN(box.CenterX) ||
+                double.IsNaN(box.CenterY) ||
+                double.IsNaN(box.Width) ||
+                double.IsNaN(box.Height))
             {
                 return Refuse(
                     "Validate",
@@ -564,8 +570,10 @@ namespace Vision.BinPickingCell
             double maxU = box.CenterX + halfW;
             double minV = box.CenterY - halfH;
             double maxV = box.CenterY + halfH;
-            if (maxU <= 0.0 || minU >= target.ImageWidth
-                || maxV <= 0.0 || minV >= target.ImageHeight)
+            if (maxU <= 0.0 ||
+                minU >= target.ImageWidth ||
+                maxV <= 0.0 ||
+                minV >= target.ImageHeight)
             {
                 return Refuse(
                     "Validate",
@@ -598,10 +606,10 @@ namespace Vision.BinPickingCell
                     FormattableString.Invariant(
                         $"Detection {index} Pose.Orientation must carry four components (x, y, z, w) per \u00a75.12."));
             }
-            double normSq = orientation[0] * orientation[0]
-                + orientation[1] * orientation[1]
-                + orientation[2] * orientation[2]
-                + orientation[3] * orientation[3];
+            double normSq = (orientation[0] * orientation[0]) +
+                (orientation[1] * orientation[1]) +
+                (orientation[2] * orientation[2]) +
+                (orientation[3] * orientation[3]);
             if (normSq <= 0.0)
             {
                 return Refuse(
@@ -670,26 +678,27 @@ namespace Vision.BinPickingCell
             {
                 state.CreationTime.Value = timestamp;
             }
-            state.CreateOrReplaceSensor(context, null!).Value = target.SensorNodeId;
-            state.CreateOrReplacePipeline(context, null!).Value = target.PipelineNodeId;
-            state.CreateOrReplaceModelVersionUsed(context, null!).Value = modelVersion;
-            state.CreateOrReplaceConfidence(context, null!).Value = ComputeAggregateConfidence(detections);
-            state.CreateOrReplaceExplanationUri(context, null!).Value = explanationUri;
+            state.CreateOrReplaceSensor(context, null).Value = target.SensorNodeId;
+            state.CreateOrReplacePipeline(context, null).Value = target.PipelineNodeId;
+            state.CreateOrReplaceModelVersionUsed(context, null).Value = modelVersion;
+            state.CreateOrReplaceConfidence(context, null).Value = ComputeAggregateConfidence(detections);
+            state.CreateOrReplaceExplanationUri(context, null).Value = explanationUri;
             BaseDataVariableState<VisionImageReferenceDataType> frame =
-                state.CreateOrReplaceFrame(context, null!);
-            frame.Value = frameReference ?? new VisionImageReferenceDataType
-            {
-                Uri = FormattableString.Invariant(
-                    $"opcua-inline://binpicking-cell/frames/{resultId}"),
-                Digest = ByteString.Empty,
-                DigestAlgorithm = string.Empty,
-                Format = VisionClipFormatEnum.Png,
-                PixelFormat = target.PixelFormat,
-                Width = (uint)Math.Round(target.ImageWidth),
-                Height = (uint)Math.Round(target.ImageHeight),
-                SizeBytes = 0u,
-                Timestamp = timestamp
-            };
+                state.CreateOrReplaceFrame(context, null);
+            frame.Value = frameReference ??
+                new VisionImageReferenceDataType
+                {
+                    Uri = FormattableString.Invariant(
+                            $"opcua-inline://binpicking-cell/frames/{resultId}"),
+                    Digest = ByteString.Empty,
+                    DigestAlgorithm = string.Empty,
+                    Format = VisionClipFormatEnum.Png,
+                    PixelFormat = target.PixelFormat,
+                    Width = (uint)Math.Round(target.ImageWidth),
+                    Height = (uint)Math.Round(target.ImageHeight),
+                    SizeBytes = 0u,
+                    Timestamp = timestamp
+                };
             if (state.Detections != null)
             {
                 state.Detections.Value = detections;
@@ -700,7 +709,7 @@ namespace Vision.BinPickingCell
                 state.FrameId.Value = target.CameraFrameId;
             }
             state.NodeId = context.RequireNodeIdFactory().New(context, state);
-            NodeInstanceExtensions.AssignInstanceChildNodeIds(context, state, state.NodeId);
+            context.AssignInstanceChildNodeIds(state, state.NodeId);
             target.ResultsFolder.AddChild(state);
             await target.NodeManager.AddPredefinedNodeAsync(state, cancellationToken).ConfigureAwait(false);
             m_results[resultId] = state;
@@ -732,8 +741,10 @@ namespace Vision.BinPickingCell
 
         private readonly ILogger<BinPickingAgentInferenceProvider> m_logger;
         private readonly IBinPickingTargetProvider m_targetProvider;
+
         private readonly ConcurrentDictionary<string, DetectionResultState> m_results
             = new(StringComparer.Ordinal);
+
         private BinPickingInferenceTarget? m_target;
         private string m_lastPublishedResultId = string.Empty;
     }

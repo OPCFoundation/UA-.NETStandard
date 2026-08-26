@@ -60,7 +60,7 @@ namespace Vision.BinPickingCell
     /// complements — never conflicts with — the on-server proof.
     /// </para>
     /// </remarks>
-    internal sealed partial class BinPickingOffServerProof : BackgroundService
+    internal sealed class BinPickingOffServerProof : BackgroundService
     {
         public BinPickingOffServerProof(
             BinPickingAgentInferenceProvider provider,
@@ -150,8 +150,8 @@ namespace Vision.BinPickingCell
                 return null;
             }
             string resultId = m_provider.LastPublishedResultId;
-            if (string.IsNullOrEmpty(resultId)
-                || !m_provider.TryGetResult(resultId, out DetectionResultState state))
+            if (string.IsNullOrEmpty(resultId) ||
+                !m_provider.TryGetResult(resultId, out DetectionResultState state))
             {
                 m_logger.ProofResultUnavailable(resultId);
                 return null;
@@ -540,7 +540,7 @@ namespace Vision.BinPickingCell
             double dx = x - ax;
             double dy = y - ay;
             double dz = z - az;
-            double residual = Math.Sqrt(dx * dx + dy * dy + dz * dz);
+            double residual = Math.Sqrt((dx * dx) + (dy * dy) + (dz * dz));
             m_logger.ProofComposedPose(classLabel, x, y, z, ax, ay, az, residual);
         }
 
@@ -560,12 +560,12 @@ namespace Vision.BinPickingCell
             double qy = -ori[1];
             double qz = -ori[2];
             double qw = ori[3];
-            double tx = qy * dz - qz * dy;
-            double ty = qz * dx - qx * dz;
-            double tz = qx * dy - qy * dx;
-            double rx = dx + 2.0 * (qw * tx + qy * tz - qz * ty);
-            double ry = dy + 2.0 * (qw * ty + qz * tx - qx * tz);
-            double rz = dz + 2.0 * (qw * tz + qx * ty - qy * tx);
+            double tx = (qy * dz) - (qz * dy);
+            double ty = (qz * dx) - (qx * dz);
+            double tz = (qx * dy) - (qy * dx);
+            double rx = dx + (2.0 * ((qw * tx) + (qy * tz) - (qz * ty)));
+            double ry = dy + (2.0 * ((qw * ty) + (qz * tx) - (qx * tz)));
+            double rz = dz + (2.0 * ((qw * tz) + (qx * ty) - (qy * tx)));
             return (rx, ry, rz);
         }
 
@@ -582,12 +582,12 @@ namespace Vision.BinPickingCell
             double qy = ori[1];
             double qz = ori[2];
             double qw = ori[3];
-            double tx = qy * cz - qz * cy;
-            double ty = qz * cx - qx * cz;
-            double tz = qx * cy - qy * cx;
-            double rx = cx + 2.0 * (qw * tx + qy * tz - qz * ty);
-            double ry = cy + 2.0 * (qw * ty + qz * tx - qx * tz);
-            double rz = cz + 2.0 * (qw * tz + qx * ty - qy * tx);
+            double tx = (qy * cz) - (qz * cy);
+            double ty = (qz * cx) - (qx * cz);
+            double tz = (qx * cy) - (qy * cx);
+            double rx = cx + (2.0 * ((qw * tx) + (qy * tz) - (qz * ty)));
+            double ry = cy + (2.0 * ((qw * ty) + (qz * tx) - (qx * tz)));
+            double rz = cz + (2.0 * ((qw * tz) + (qx * ty) - (qy * tx)));
             return (pos[0] + rx, pos[1] + ry, pos[2] + rz);
         }
 

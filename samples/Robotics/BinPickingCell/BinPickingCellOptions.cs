@@ -111,8 +111,8 @@ namespace Vision.BinPickingCell
                 location = BinPickingInferenceLocation.OnServer;
                 return true;
             }
-            if (string.Equals(normalised, "EdgeOffServer", StringComparison.OrdinalIgnoreCase)
-                || string.Equals(normalised, "OffServer", StringComparison.OrdinalIgnoreCase))
+            if (string.Equals(normalised, "EdgeOffServer", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(normalised, "OffServer", StringComparison.OrdinalIgnoreCase))
             {
                 location = BinPickingInferenceLocation.EdgeOffServer;
                 return true;

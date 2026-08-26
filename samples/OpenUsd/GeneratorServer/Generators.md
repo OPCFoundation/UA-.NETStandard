@@ -4,7 +4,7 @@ The draft **Generators companion specification**
 (`http://opcfoundation.org/UA/Generators/`) realised end to end by
 [`GeneratorServer`](README.md),
 and composed with the pump sample by
-[`SiteCompositionServer`](../../SiteCompositionServer).
+[`SiteCompositionServer`](../SiteCompositionServer).
 
 ## The model
 
@@ -221,7 +221,7 @@ is down is logged and skipped, and the rest of the scene still renders.
 ## See also
 
 - [`GeneratorServer`](README.md) and its [datasheet](DATASHEET.md)
-- [`SiteCompositionServer`](../../SiteCompositionServer)
+- [`SiteCompositionServer`](../SiteCompositionServer)
 - [OpenUSD](../../../docs/OpenUsd.md)
 - [Device Integration](../../../docs/DeviceIntegration.md)
 - [State machines](../../../docs/StateMachines.md)

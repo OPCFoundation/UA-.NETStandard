@@ -36,8 +36,9 @@ across industrial control, manufacturing, energy, and IoT systems.
   Part 17 (Alias Names), Part 18 (Role Management), Part 20 (File
   Transfer), Part 100 (Device Integration), Parts 210/211 (Relative
   Spatial Location and Global Positioning), OPC-10030 (ISA-95 Common
-  Model) with OPC-10031-4 Job Control V1/V2, OPC 10100-1 (WoT
-  Connectivity), OPC 40001-1 (Industrial Automation), OPC 40010-1
+  Model) with OPC-10031-4 Job Control V1/V2, OPC 30270 / OPC UA for Asset
+  Administration Shell V2 and V3, OPC 10100-1
+  (WoT Connectivity), OPC 40001-1 (Industrial Automation), OPC 40010-1
   (Robotics).
 - **Modern developer surface** — first-class `Microsoft.Extensions.DependencyInjection`
   hosting (`services.AddOpcUa()`), fluent server + client builders,
@@ -75,38 +76,38 @@ Each sample has its own `README.md` with build and run instructions.
 
 **Reference applications**
 
-- [Console Reference Server](samples/ConsoleReferenceServer/README.md) —
+- [Console Reference Server](samples/Reference/ConsoleReferenceServer/README.md) —
   the certified reference server (with Quickstarts, CTT, and Mono
   configs). Also ships as a
   [Docker container](docs/ContainerReferenceServer.md).
-- [Console Reference Client](samples/ConsoleReferenceClient/README.md) —
+- [Console Reference Client](samples/Reference/ConsoleReferenceClient/README.md) —
   cross-platform reference client demonstrating sessions, subscriptions,
   browsing, and method calls.
-- [Console LDS Server](samples/ConsoleLdsServer) — a standalone
+- [Console LDS Server](samples/Lds/ConsoleLdsServer) — a standalone
   Local Discovery Server built on `Opc.Ua.Lds.Server`.
 
 **PubSub samples**
 
-- [Console Reference PubSub Client](samples/ConsoleReferencePubSubClient/README.md) —
+- [Console Reference PubSub Client](samples/PubSub/ConsoleReferencePubSubClient/README.md) —
   one executable with `publisher`, `subscriber`, and `external` (external-server
   adapter) modes across the supported transport profiles.
 
 **Minimal / Device-Integration samples**
 
-- [Minimal Calc Server](samples/MinimalCalcServer) — minimal
+- [Minimal Calc Server](samples/MinimalApi/MinimalCalcServer) — minimal
   server built on the source-generated NodeManager pipeline (Calc
   model).
-- [Minimal Boiler Server](samples/MinimalBoilerServer) — minimal
+- [Minimal Boiler Server](samples/MinimalApi/MinimalBoilerServer) — minimal
   Boiler-model server with the fluent state-machine builder;
   Native-AOT publishable.
-- [Pump Device Integration Server](samples/PumpDeviceIntegrationServer/README.md) —
+- [Pump Device Integration Server](samples/DI/PumpDeviceIntegrationServer/README.md) —
   minimal Device Integration (Part 100) server using
   `Opc.Ua.Di.Server`'s fluent builder.
 - [Minimal Robot Server](samples/Robotics/MinimalRobotServer/README.md) — OPC 40010
   Robotics with independently configurable RSL/GPOS motion and live OpenUSD
   transforms.
 - [Intent Enabled Robot](samples/Robotics/IntentEnabledRobot/README.md) —
-  one collaborative arm exposing the draft Robot Intent command surface: task-level
+  one collaborative arm exposing the Robot Intent command surface: task-level
   motion verbs tracked on a Part 10 program lifecycle, with missions, command
   authority and safety-aware refusal.
 - [Intent Viewer Client](samples/Robotics/IntentViewerClient/README.md) — click a
@@ -127,7 +128,7 @@ Each sample has its own `README.md` with build and run instructions.
 - [AI Model Management sample](samples/AI/README.md) — `ModelManagementServer`
   publishes the draft AI Model Management catalogue and routes inference;
   `ModelManagementClient` discovers deployments and exercises the Methods.
-- [Minimal ISA-95 Server](samples/MinimalIsa95Server/README.md) —
+- [Minimal ISA-95 Server](samples/Isa95/MinimalIsa95Server/README.md) —
   minimal server hosting the OPC-10030 ISA-95 Common Model together
   with OPC-10031-4 Job Control V1 and V2, using the typed common-model
   builder and the in-memory Job Control provider.
@@ -188,6 +189,9 @@ vulnerabilities via the process documented in
   one-line description.
 - [What's New in 2.0](docs/WhatsNewIn2.0.md) — narrative tour of the
   1.5.378 → 2.0 changes grouped by theme and layer.
+- [OPC UA for Asset Administration Shell](docs/Aas.md) — OPC 30270 / AAS V2
+  ingestion-only metamodel support and the AAS V3 metamodel, registry,
+  document round-trip, packages, federation and conformance matrices.
 - [OPC UA Profiles and Facets](docs/Profiles.md) — facets / transports /
   security policies the stack implements.
 - [Migration Guide](docs/MigrationGuide.md) — prescriptive

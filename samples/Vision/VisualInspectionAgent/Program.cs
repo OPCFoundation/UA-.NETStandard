@@ -303,21 +303,6 @@ namespace Vision.VisualInspectionAgent
             }
         }
 
-        private Task<ArrayOf<MeasuredCharacteristic>> InvokeAIForMeasurementsAsync(
-            VisualInspectionCellContext cell,
-            string cycleId,
-            string fixture,
-            InspectionEvidence evidence,
-            CancellationToken cancellationToken)
-        {
-            return InvokeAIForMeasurementsAsync(
-                cell,
-                cycleId,
-                fixture,
-                evidence.Frame,
-                cancellationToken);
-        }
-
         private async Task<ArrayOf<MeasuredCharacteristic>> InvokeAIForMeasurementsAsync(
             VisualInspectionCellContext cell,
             string cycleId,
@@ -748,9 +733,9 @@ namespace Vision.VisualInspectionAgent
         {
             var builder = new StringBuilder();
             builder.Append(CultureInfo.InvariantCulture,
-                $"{{\"cycleId\":\"{cycleId}\",\"fixture\":\"{fixture}\",\"image\":\"");
-            builder.Append(frame.Uri);
-            builder.Append("\"}");
+                $"{{\"cycleId\":\"{cycleId}\",\"fixture\":\"{fixture}\",\"image\":\"")
+                .Append(frame.Uri)
+                .Append("\"}");
             return builder.ToString();
         }
 
@@ -870,79 +855,6 @@ namespace Vision.VisualInspectionAgent
         private static bool IsOperationalFailure(Exception exception)
         {
             return exception is ServiceResultException or JsonException or InvalidDataException or IOException;
-        }
-
-        private static bool IsExecutableState(string state)
-        {
-            return string.Equals(state, "Running", StringComparison.Ordinal) ||
-                string.Equals(state, "Held", StringComparison.Ordinal) ||
-                string.Equals(state, "Suspended", StringComparison.Ordinal);
-        }
-
-        private static string DecodeOrderState(ArrayOf<V2.ISA95StateDataType> states)
-        {
-            string top = "Unknown";
-            string sub = string.Empty;
-            for (int ii = 0; ii < states.Count; ii++)
-            {
-                V2.ISA95StateDataType state = states[ii];
-                string text = state.StateText.IsNull ? string.Empty : state.StateText.Text;
-                if (state.BrowsePath == null || state.BrowsePath.Elements.Count == 0)
-                {
-                    top = string.IsNullOrEmpty(text) ? StateNameFromTopNumber(state.StateNumber) : text;
-                }
-                else
-                {
-                    sub = string.IsNullOrEmpty(text) ? StateNameFromSubNumber(state.StateNumber) : text;
-                }
-            }
-            return string.IsNullOrEmpty(sub) ? top : sub;
-        }
-
-        private async Task<string> ReadOrderStateAsync(
-            Isa95JobControlV2Client jobControl,
-            string orderId,
-            CancellationToken cancellationToken)
-        {
-            try
-            {
-                (V2.ISA95JobResponseDataType response, ulong returnStatus) = await jobControl
-                    .RequestJobResponseByJobOrderIdAsync(orderId, cancellationToken)
-                    .ConfigureAwait(false);
-                if ((returnStatus & Isa95ReturnStatusSuccess) == 0 || response == null)
-                {
-                    return FormattableString.Invariant($"Unknown(ReturnStatus=0x{returnStatus:X})");
-                }
-                return DecodeOrderState(response.JobState);
-            }
-            catch (ServiceResultException ex) when (StatusCode.IsUncertain(ex.StatusCode))
-            {
-                return FormattableString.Invariant($"Unknown({ex.StatusCode})");
-            }
-        }
-
-        private static string StateNameFromTopNumber(uint number)
-        {
-            return number switch
-            {
-                1 => "NotAllowedToStart",
-                2 => "AllowedToStart",
-                3 => "Running",
-                4 => "Interrupted",
-                5 => "Ended",
-                6 => "Aborted",
-                _ => "Unknown"
-            };
-        }
-
-        private static string StateNameFromSubNumber(uint number)
-        {
-            return number switch
-            {
-                1 => "Completed",
-                2 => "Closed",
-                _ => "Unknown"
-            };
         }
 
         private static string FormatMeasurements(ArrayOf<MeasuredCharacteristic> measurements)

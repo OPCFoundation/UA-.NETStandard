@@ -216,8 +216,8 @@ namespace Robotics.IntentEnabledRobot.Simulation
                 double bx = points[segment + 3];
                 double by = points[segment + 4];
                 double bz = points[segment + 5];
-                if (!IsSegmentClear(boxes, ax, ay, az, bx, by, bz, radius, out hit)
-                    || !IsSegmentClear(moving, ax, ay, az, bx, by, bz, radius, out hit))
+                if (!IsSegmentClear(boxes, ax, ay, az, bx, by, bz, radius, out hit) ||
+                    !IsSegmentClear(moving, ax, ay, az, bx, by, bz, radius, out hit))
                 {
                     return false;
                 }
@@ -228,6 +228,7 @@ namespace Robotics.IntentEnabledRobot.Simulation
         /// <summary>
         /// Gets whether an axis-aligned workpiece stays clear of every obstacle.
         /// </summary>
+        /// <exception cref="ArgumentOutOfRangeException"></exception>
         public bool IsBoxClear(
             double centreX,
             double centreY,
@@ -372,8 +373,10 @@ namespace Robotics.IntentEnabledRobot.Simulation
             return Math.Sqrt((x * x) + (y * y) + (z * z));
         }
 
-        // Fine enough to catch a link clipping the corner of a bin wall, coarse enough that
-        // a whole configuration costs a few hundred comparisons.
+        /// <summary>
+        /// Fine enough to catch a link clipping the corner of a bin wall, coarse enough that
+        /// a whole configuration costs a few hundred comparisons.
+        /// </summary>
         private const double SampleSpacingMetres = 0.02;
         private const double ContactToleranceMetres = 1e-6;
     }

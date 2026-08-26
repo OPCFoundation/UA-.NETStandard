@@ -40,9 +40,9 @@ using NUnit.Framework;
 using Opc.Ua.Client;
 using Opc.Ua.Client.Subscriptions.Streaming;
 using Opc.Ua.Configuration;
-using Opc.Ua.RobotIntent;
 using Opc.Ua.Robotics.Server;
 using Opc.Ua.Robotics.Server.Builders;
+using Opc.Ua.RobotIntent;
 using Opc.Ua.Server.Hosting;
 
 namespace Opc.Ua.Vision.Intent.Tests.Infrastructure
@@ -74,28 +74,29 @@ namespace Opc.Ua.Vision.Intent.Tests.Infrastructure
         public VisionIntentServerFixture(Options? options = null)
         {
             m_options = options ?? new Options();
-            m_world = new TestBinWorld();
-            m_groundTruth = new TestGroundTruthInferenceProvider(m_world);
-            m_agent = new TestAgentInferenceProvider();
+            World = new TestBinWorld();
+            GroundTruth = new TestGroundTruthInferenceProvider(World);
+            Agent = new TestAgentInferenceProvider();
             m_media = new TestMediaProvider();
-            m_cell = new TestVisionCell(
-                m_groundTruth, m_agent, m_media,
+            Cell = new TestVisionCell(
+                GroundTruth, Agent, m_media,
                 offServer: m_options.OffServer,
                 inlineClipsEnabled: m_options.InlineClipsEnabled);
-            m_executor = new TestBinPickingExecutor(m_world);
+            m_executor = new TestBinPickingExecutor(World);
         }
 
         public string ServerUrl { get; private set; } = string.Empty;
 
-        public TestBinWorld World => m_world;
+        public TestBinWorld World { get; }
 
-        public TestGroundTruthInferenceProvider GroundTruth => m_groundTruth;
+        public TestGroundTruthInferenceProvider GroundTruth { get; }
 
-        public TestAgentInferenceProvider Agent => m_agent;
+        public TestAgentInferenceProvider Agent { get; }
 
-        public ITelemetryContext Telemetry => m_telemetry;
+        public ITelemetryContext Telemetry { get; } = DefaultTelemetry.Create(
+            builder => builder.SetMinimumLevel(LogLevel.Warning));
 
-        internal TestVisionCell Cell => m_cell;
+        internal TestVisionCell Cell { get; }
 
         public const string RobotControllerName = "TestRobot";
 
@@ -136,7 +137,7 @@ namespace Opc.Ua.Vision.Intent.Tests.Infrastructure
                 .AddVision(options =>
                     options.InstanceNamespaceUri =
                         "urn:opcfoundation:vision-intent-tests:instances")
-                .ConfigureVision((context, ct) => m_cell.ConfigureAsync(context, ct));
+                .ConfigureVision((context, ct) => Cell.ConfigureAsync(context, ct));
 
             if (m_options.IncludeRobotIntent)
             {
@@ -166,14 +167,14 @@ namespace Opc.Ua.Vision.Intent.Tests.Infrastructure
                 m_clientConfig,
                 ServerUrl,
                 useSecurity: false,
-                m_telemetry,
+                Telemetry,
                 CancellationToken.None).ConfigureAwait(false);
             Assert.That(endpointDescription, Is.Not.Null, "Endpoint must be discoverable.");
             var endpoint = new ConfiguredEndpoint(
                 null,
                 endpointDescription!,
                 EndpointConfiguration.Create(m_clientConfig));
-            var sessionFactory = new DefaultSessionFactory(m_telemetry)
+            var sessionFactory = new DefaultSessionFactory(Telemetry)
             {
                 SubscriptionEngineFactory = DefaultSubscriptionEngineFactory.Instance
             };
@@ -194,7 +195,7 @@ namespace Opc.Ua.Vision.Intent.Tests.Infrastructure
                     "The integration session did not expose the V2 subscription manager.");
             }
             var streaming = new StreamingSubscription(manager);
-            return new VisionIntentClientContext(session, m_telemetry, streaming);
+            return new VisionIntentClientContext(session, Telemetry, streaming);
         }
 
         public async ValueTask DisposeAsync()
@@ -260,7 +261,7 @@ namespace Opc.Ua.Vision.Intent.Tests.Infrastructure
                 TestContext.CurrentContext.WorkDirectory,
                 "pki",
                 Guid.NewGuid().ToString("N"));
-            var config = new ApplicationConfiguration(m_telemetry)
+            var config = new ApplicationConfiguration(Telemetry)
             {
                 ApplicationName = "VisionIntentIntegrationClient",
                 ApplicationUri = "urn:localhost:OPCFoundation:VisionIntentIntegrationClient",
@@ -283,11 +284,11 @@ namespace Opc.Ua.Vision.Intent.Tests.Infrastructure
                 ServerConfiguration = new ServerConfiguration()
             };
             await config.ValidateAsync(ApplicationType.Client).ConfigureAwait(false);
-            var appInstance = new ApplicationInstance(config, m_telemetry);
+            var appInstance = new ApplicationInstance(config, Telemetry);
             await appInstance.CheckApplicationInstanceCertificatesAsync(true).ConfigureAwait(false);
             config.CertificateManager ??= CertificateManagerFactory.Create(
                 config.SecurityConfiguration,
-                m_telemetry);
+                Telemetry);
             config.CertificateManager.AcceptError = static (_, _) => true;
             return config;
         }
@@ -313,7 +314,7 @@ namespace Opc.Ua.Vision.Intent.Tests.Infrastructure
                         m_clientConfig,
                         ServerUrl,
                         useSecurity: false,
-                        m_telemetry,
+                        Telemetry,
                         CancellationToken.None).ConfigureAwait(false);
                     if (endpoint != null)
                     {
@@ -341,14 +342,8 @@ namespace Opc.Ua.Vision.Intent.Tests.Infrastructure
         }
 
         private readonly Options m_options;
-        private readonly TestBinWorld m_world;
-        private readonly TestGroundTruthInferenceProvider m_groundTruth;
-        private readonly TestAgentInferenceProvider m_agent;
         private readonly TestMediaProvider m_media;
-        private readonly TestVisionCell m_cell;
         private readonly TestBinPickingExecutor m_executor;
-        private readonly ITelemetryContext m_telemetry = DefaultTelemetry.Create(
-            builder => builder.SetMinimumLevel(LogLevel.Warning));
         private Exception? m_configurationException;
         private IHost? m_host;
         private ApplicationConfiguration m_clientConfig = null!;

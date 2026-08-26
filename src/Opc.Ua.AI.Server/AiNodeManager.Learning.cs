@@ -67,6 +67,7 @@ namespace Opc.Ua.AI.Server
         /// and the set start empty after a restart, so a sample replayed across one
         /// is counted again.
         /// </remarks>
+        /// <exception cref="ArgumentOutOfRangeException"></exception>
         public ValueTask<bool> RecordLearningSampleAsync(
             string sampleId,
             AILearningSampleKind sampleKind = AILearningSampleKind.Positive,

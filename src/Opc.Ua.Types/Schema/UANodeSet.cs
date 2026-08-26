@@ -1539,6 +1539,8 @@ public string? MethodDeclarationId {
         
         private uint userAccessLevelField;
         
+        private bool userAccessLevelFieldSpecified;
+
         private double minimumSamplingIntervalField;
         
         private bool historizingField;
@@ -1624,13 +1626,24 @@ public string? ArrayDimensions {
         
         /// <remarks/>
         [System.Xml.Serialization.XmlAttributeAttribute()]
-        [System.ComponentModel.DefaultValueAttribute((uint)1)]
         public uint UserAccessLevel {
             get {
                 return this.userAccessLevelField;
             }
             set {
                 this.userAccessLevelField = value;
+                this.userAccessLevelFieldSpecified = true;
+            }
+        }
+
+        /// <remarks/>
+        [System.Xml.Serialization.XmlIgnoreAttribute()]
+        public bool UserAccessLevelSpecified {
+            get {
+                return this.userAccessLevelFieldSpecified;
+            }
+            set {
+                this.userAccessLevelFieldSpecified = value;
             }
         }
         

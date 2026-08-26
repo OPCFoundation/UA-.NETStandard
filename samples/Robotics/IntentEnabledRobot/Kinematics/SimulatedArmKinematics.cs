@@ -28,8 +28,8 @@
  * ======================================================================*/
 
 using System;
-using System.Diagnostics.CodeAnalysis;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using Opc.Ua;
 using Opc.Ua.RobotIntent;
@@ -356,6 +356,7 @@ namespace Robotics.IntentEnabledRobot.Kinematics
         /// <summary>
         /// Computes all valid inverse-kinematic solutions found from the eight UR-style branches.
         /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
         public SimulatedArmIkResult Inverse(Pose3DDataType target, ReadOnlySpan<double> referenceJointAngles)
         {
             if (target is null)
@@ -497,9 +498,9 @@ namespace Robotics.IntentEnabledRobot.Kinematics
             ReadOnlySpan<SimulatedArmIkSolution> candidates = result.Solutions.Span;
             for (int ii = 0; ii < candidates.Length; ii++)
             {
-                if (ClearsWorkSurface(candidates[ii].JointAngles.Span)
-                    && (!requireClearJointPath
-                        || ClearsPath(currentJointAngles, candidates[ii].JointAngles.Span)))
+                if (ClearsWorkSurface(candidates[ii].JointAngles.Span) &&
+                    (!requireClearJointPath ||
+                        ClearsPath(currentJointAngles, candidates[ii].JointAngles.Span)))
                 {
                     solution = candidates[ii];
                     return true;
@@ -676,6 +677,7 @@ namespace Robotics.IntentEnabledRobot.Kinematics
         /// <summary>
         /// Interpolates between poses with straight-line position and spherical-linear orientation.
         /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
         public Pose3DDataType InterpolateCartesian(Pose3DDataType start, Pose3DDataType end, double fraction)
         {
             if (start is null)
@@ -853,10 +855,10 @@ namespace Robotics.IntentEnabledRobot.Kinematics
             for (int iteration = 0; iteration < 80; iteration++)
             {
                 ComputeError(target, solution, error);
-                if (Math.Sqrt((error[0] * error[0]) + (error[1] * error[1]) + (error[2] * error[2]))
-                        < PositionTolerance &&
-                    Math.Sqrt((error[3] * error[3]) + (error[4] * error[4]) + (error[5] * error[5]))
-                        < OrientationTolerance)
+                if (Math.Sqrt((error[0] * error[0]) + (error[1] * error[1]) + (error[2] * error[2])) <
+                        PositionTolerance &&
+                    Math.Sqrt((error[3] * error[3]) + (error[4] * error[4]) + (error[5] * error[5])) <
+                        OrientationTolerance)
                 {
                     return !IsWristSingular(solution);
                 }
@@ -1064,16 +1066,6 @@ namespace Robotics.IntentEnabledRobot.Kinematics
             return Math.Sqrt((x * x) + (y * y) + (z * z));
         }
 
-        private static double SquaredNorm(ReadOnlySpan<double> values)
-        {
-            double sum = 0.0;
-            for (int i = 0; i < values.Length; i++)
-            {
-                sum += values[i] * values[i];
-            }
-            return sum;
-        }
-
         private static double MaxAbsoluteDifference(ReadOnlySpan<double> left, ReadOnlySpan<double> right)
         {
             double max = 0.0;
@@ -1137,13 +1129,15 @@ namespace Robotics.IntentEnabledRobot.Kinematics
             2.0 * Math.PI
         ];
 
-        // Eight UR-style branches: elbow up and down, wrist flipped, shoulder forward and
-        // back. Sixteen were tried - the extra eight starting J2 and J4 in other basins to
-        // look for a less contorted shape near the base - and measured: they raised the
-        // distinct-posture count but every shape they added was refused by clearance, so
-        // the number of *usable* postures at the home slots did not move. They were dropped
-        // again because a seed costs a full Newton refinement on every solve, and this
-        // solver runs per step of a Cartesian move.
+        /// <summary>
+        /// Eight UR-style branches: elbow up and down, wrist flipped, shoulder forward and
+        /// back. Sixteen were tried - the extra eight starting J2 and J4 in other basins to
+        /// look for a less contorted shape near the base - and measured: they raised the
+        /// distinct-posture count but every shape they added was refused by clearance, so
+        /// the number of *usable* postures at the home slots did not move. They were dropped
+        /// again because a seed costs a full Newton refinement on every solve, and this
+        /// solver runs per step of a Cartesian move.
+        /// </summary>
         private static readonly double[][] s_seedTemplates =
         [
             [0.0, -1.2, 1.4, -1.7, 0.8, 0.0],

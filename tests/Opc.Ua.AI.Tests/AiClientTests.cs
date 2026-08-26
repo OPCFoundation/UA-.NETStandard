@@ -142,4 +142,3 @@ namespace Opc.Ua.AI.Tests
         }
     }
 }
-

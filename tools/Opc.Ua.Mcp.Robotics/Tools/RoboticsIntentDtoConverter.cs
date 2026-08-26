@@ -691,9 +691,10 @@ namespace Opc.Ua.Mcp.Tools
         private static T GetPayload<T>(IntentKind kind, T? payload)
             where T : class
         {
-            return payload ?? throw new ArgumentException(
-                string.Create(CultureInfo.InvariantCulture,
-                    $"Intent kind '{kind}' requires the matching payload."));
+            return payload ??
+                throw new ArgumentException(
+                    string.Create(CultureInfo.InvariantCulture,
+                        $"Intent kind '{kind}' requires the matching payload."));
         }
 
         private static void RejectConflictingPayloads(MissionIntentInput input)
@@ -722,12 +723,16 @@ namespace Opc.Ua.Mcp.Tools
 
             if (present.Count > 1)
             {
+                // All concatenated operands must remain interpolated for string.Create handler binding.
+                // TODO: Remove when RCS1214 preserves interpolated-string-handler overload binding.
+#pragma warning disable RCS1214
                 throw new ArgumentException(
                     string.Create(CultureInfo.InvariantCulture,
                         $"Intent kind '{input.Kind}' has {present.Count} payloads set " +
                         $"([{string.Join(", ", present)}]); only the payload matching the kind " +
                         $"is allowed."),
                     nameof(input));
+#pragma warning restore RCS1214
             }
 
             if (present.Count == 1 &&
@@ -1028,7 +1033,7 @@ namespace Opc.Ua.Mcp.Tools
             {
                 throw new ArgumentException(
                     string.Create(CultureInfo.InvariantCulture,
-                        $"'{name}' must be exactly 3 elements but had {(vector is null ? 0 : vector.Length)}."),
+                        $"'{name}' must be exactly 3 elements but had {(vector?.Length) ?? 0}."),
                     name);
             }
 

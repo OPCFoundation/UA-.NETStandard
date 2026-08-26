@@ -61,7 +61,7 @@ into the server's `SpeedSetpoint` Variable. The stage also advertises a `RootLay
 ### 1. Build
 
 ```bash
-dotnet build samples/PumpDeviceIntegrationServer/PumpDeviceIntegrationServer.csproj -c Release -f net10.0
+dotnet build samples/DI/PumpDeviceIntegrationServer/PumpDeviceIntegrationServer.csproj -c Release -f net10.0
 dotnet build tools/Opc.Ua.OpenUsd.Connector/Opc.Ua.OpenUsd.Connector.csproj -c Release -f net10.0
 ```
 
@@ -78,7 +78,7 @@ cp <spec-repo>/core-specs/extras/openusd-binding/examples/pumps/stage.usda ~/pum
 ### 3. Start the server (terminal 1)
 
 ```bash
-dotnet run --project samples/PumpDeviceIntegrationServer -c Release -f net10.0 -- --host localhost --port 62810
+dotnet run --project samples/DI/PumpDeviceIntegrationServer -c Release -f net10.0 -- --host localhost --port 62810
 ```
 
 Wait for `OPC UA server listening at opc.tcp://localhost:62810/PumpDeviceIntegrationServer.`

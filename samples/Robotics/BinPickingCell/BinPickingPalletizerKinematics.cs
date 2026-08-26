@@ -164,11 +164,12 @@ namespace Vision.BinPickingCell
             double radius = Math.Sqrt((wristX * wristX) + (wristY * wristY));
             double verticalDrop =
                 BinPickingPalletizerGeometry.ShoulderHeightMetres - wristZ;
-            double upper = BinPickingPalletizerGeometry.UpperArmLengthMetres;
-            double forearm = BinPickingPalletizerGeometry.ForearmLengthMetres;
+            const double upper = BinPickingPalletizerGeometry.UpperArmLengthMetres;
+            const double forearm = BinPickingPalletizerGeometry.ForearmLengthMetres;
             double cosineElbow =
                 (((radius * radius) + (verticalDrop * verticalDrop)) -
-                    (upper * upper) - (forearm * forearm)) /
+                    (upper * upper) -
+                    (forearm * forearm)) /
                 (2.0 * upper * forearm);
             if (cosineElbow < -1.0 - PositionTolerance ||
                 cosineElbow > 1.0 + PositionTolerance)
@@ -384,8 +385,8 @@ namespace Vision.BinPickingCell
                 tool[0],
                 tool[1],
                 tool[2] -
-                    global::Robotics.IntentEnabledRobot.Simulation.SimulatedArmExecutor
-                        .HeldPartTcpOffset,
+                global::Robotics.IntentEnabledRobot.Simulation.SimulatedArmExecutor
+                    .HeldPartTcpOffset,
                 m_heldObjectSizeX,
                 m_heldObjectSizeY,
                 m_heldObjectSizeZ,
@@ -590,8 +591,10 @@ namespace Vision.BinPickingCell
         }
 
         private static readonly double[] s_axisX = [1.0, 0.0, 0.0];
+
         private static readonly double[] s_initialJointAngles =
             [0.0, 0.4811790135369469, -1.6798993676150382, HalfTurn];
+
         private const double HalfTurn = Math.PI / 2.0;
         private const double TwoPi = Math.PI * 2.0;
         private const double PositionTolerance = 1e-7;

@@ -76,21 +76,15 @@ namespace Opc.Ua.Gds.Tests.Hosting
         [Test]
         public void TransportForwardersThrowForNullBuilder()
         {
+            IGdsServerBuilder builder = null!;
+
             Assert.That(
                 () => OpcUaGdsServerBuilderExtensions.AddOpcTcpTransport(null),
                 Throws.ArgumentNullException);
-            Assert.That(
-                () => OpcUaGdsServerBuilderExtensions.AddHttpsTransport(null),
-                Throws.ArgumentNullException);
-            Assert.That(
-                () => OpcUaGdsServerBuilderExtensions.AddHttpsTransport(null, _ => { }),
-                Throws.ArgumentNullException);
-            Assert.That(
-                () => OpcUaGdsServerBuilderExtensions.AddWssTransport(null),
-                Throws.ArgumentNullException);
-            Assert.That(
-                () => OpcUaGdsServerBuilderExtensions.AddWssTransport(null, _ => { }),
-                Throws.ArgumentNullException);
+            Assert.That(() => builder.AddHttpsTransport(), Throws.ArgumentNullException);
+            Assert.That(() => builder.AddHttpsTransport(_ => { }), Throws.ArgumentNullException);
+            Assert.That(() => builder.AddWssTransport(), Throws.ArgumentNullException);
+            Assert.That(() => builder.AddWssTransport(_ => { }), Throws.ArgumentNullException);
         }
 
         [Test]

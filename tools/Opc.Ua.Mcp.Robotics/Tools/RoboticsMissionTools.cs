@@ -132,8 +132,8 @@ namespace Opc.Ua.Mcp.Tools
                 RoboticsIntentDtoConverter.ConvertMissionSteps(steps, scope);
             ArrayOf<MissionTransitionDataType> convertedTransitions =
                 RoboticsIntentDtoConverter.ConvertMissionTransitions(transitions);
-            builder.WithSteps(convertedSteps);
-            builder.WithTransitions(convertedTransitions);
+            builder.WithSteps(convertedSteps)
+                .WithTransitions(convertedTransitions);
             return builder.Build();
         }
     }

@@ -42,6 +42,33 @@ namespace Opc.Ua.Redundancy.Server
     public abstract class ReplicatedGossipOptions
     {
         /// <summary>
+        /// Gets a value indicating whether CRDT gossip state decoding is
+        /// binary-compatible in this compiled assembly.
+        /// </summary>
+        /// <remarks>
+        /// The gossip decoding limits are configured through the external CRDT
+        /// library's <c>CrdtReaderOptions</c>, whose properties use
+        /// <see langword="init"/> accessors. On the <c>netstandard2.1</c> build
+        /// the CRDT library resolves the <c>init</c> marker
+        /// (<c>System.Runtime.CompilerServices.IsExternalInit</c>) to a type it
+        /// defines internally, whereas the .NET 5+ builds resolve it to the one
+        /// in the base class library. When a <c>netstandard2.1</c>-compiled
+        /// assembly runs on a modern .NET runtime (which loads the .NET build of
+        /// the CRDT library) the <c>init</c> setter signatures no longer match
+        /// and invoking them throws <see cref="MissingMethodException"/>. This
+        /// probe therefore returns <see langword="true"/> for the .NET 5+ and
+        /// .NET Framework builds and <see langword="false"/> only for the
+        /// <c>netstandard2.1</c> build, allowing callers and tests to react at
+        /// runtime instead of assuming compile-time availability.
+        /// </remarks>
+        public static bool IsGossipStateDecodingSupported =>
+#if NET5_0_OR_GREATER || NETFRAMEWORK
+            true;
+#else
+            false;
+#endif
+
+        /// <summary>
         /// Gets or sets this replica's stable CRDT identity. Defaults to a new
         /// random identity; supply a stable value per replica in production.
         /// </summary>
@@ -188,12 +215,35 @@ namespace Opc.Ua.Redundancy.Server
         /// </summary>
         internal CrdtReaderOptions CreateReaderOptions()
         {
+#if NETSTANDARD
+            // Crdt's netstandard build declares MaxCollectionCount/MaxStringBytes/MaxDepth as init-only
+            // setters whose modreq references an IsExternalInit type defined *inside* the netstandard Crdt
+            // assembly (netstandard has no BCL IsExternalInit). When this netstandard-compiled assembly is
+            // loaded on a .NET runtime - as the nightly "NETStandard 2.1" test leg does on net8.0 - the
+            // matching net8.0 Crdt assembly is loaded instead, whose setters carry a modreq to the BCL
+            // IsExternalInit. That modreq mismatch makes the C#-emitted init call unresolvable at runtime
+            // (MissingMethodException on set_MaxCollectionCount). Reflection binds by name and ignores the
+            // modreq, so it resolves against whichever Crdt build is actually loaded.
+            var options = new CrdtReaderOptions();
+            SetLimit(nameof(CrdtReaderOptions.MaxCollectionCount), MaxEntryCount);
+            SetLimit(nameof(CrdtReaderOptions.MaxStringBytes), MaxPayloadBytes);
+            SetLimit(nameof(CrdtReaderOptions.MaxDepth), CrdtReaderOptions.Default.MaxDepth);
+            return options;
+
+            void SetLimit(string name, int value)
+            {
+                System.Reflection.PropertyInfo property = typeof(CrdtReaderOptions).GetProperty(name)
+                    ?? throw new MissingMemberException(nameof(CrdtReaderOptions), name);
+                property.SetValue(options, value);
+            }
+#else
             return new CrdtReaderOptions
             {
                 MaxCollectionCount = MaxEntryCount,
                 MaxStringBytes = MaxPayloadBytes,
                 MaxDepth = CrdtReaderOptions.Default.MaxDepth
             };
+#endif
         }
 
         /// <summary>

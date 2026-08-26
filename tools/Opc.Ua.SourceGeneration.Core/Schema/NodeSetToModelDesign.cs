@@ -950,6 +950,7 @@ namespace Opc.Ua.Schema.Model
                 return;
             }
             output.SupportsEvents = (input.EventNotifier & EventNotifiers.SubscribeToEvents) != 0;
+            output.ContainsNoLoops = input.ContainsNoLoops;
         }
 
         private void UpdateVariableDesign(UAVariable input, VariableDesign output)
@@ -976,6 +977,13 @@ namespace Opc.Ua.Schema.Model
             // verbatim bitmask is carried alongside it and preferred by
             // code generation. See GetAccessLevelAsCode.
             output.RawAccessLevel = input.AccessLevel;
+
+            // Carry the explicit UserAccessLevel when the NodeSet2 model sets it.
+            // When the attribute is absent the UserAccessLevel is derived from
+            // AccessLevel by code generation, matching the runtime importer.
+            output.RawUserAccessLevel = input.UserAccessLevelSpecified
+                ? input.UserAccessLevel
+                : (uint?)null;
 
             if (input.Value != null)
             {
@@ -1600,7 +1608,10 @@ namespace Opc.Ua.Schema.Model
                         continue;
                     }
 
-                    if (targetId.NamespaceIndex != nodeId.NamespaceIndex ||
+                    if ((ii.IsForward &&
+                            referenceTypeId == ReferenceTypeIds.Organizes &&
+                            target is ViewDesign) ||
+                        targetId.NamespaceIndex != nodeId.NamespaceIndex ||
                         IsTypeOf(referenceTypeId, ReferenceTypeIds.NonHierarchicalReferences))
                     {
                         references.Add(new Reference
@@ -1953,6 +1964,21 @@ namespace Opc.Ua.Schema.Model
 
                 if (node is UAInstance instance)
                 {
+                    // View nodes are independent address-space nodes even when an
+                    // exporter sets ParentNodeId to an organizing folder. ViewState
+                    // derives from NodeState (not BaseInstanceState) and therefore
+                    // cannot be added as an AddChild component. Keeping the parent
+                    // would absorb the view into the folder's Children, exclude it
+                    // from the top-level model items and make the generator emit an
+                    // invalid AddChild(...) call. Clearing the parent keeps the view
+                    // a standalone predefined node linked purely via Organizes
+                    // references (mirrors the DataTypeEncoding handling below and the
+                    // way DataType/ReferenceType type nodes are modelled).
+                    if (node is UAView)
+                    {
+                        instance.ParentNodeId = null;
+                    }
+
                     // ensure parents are in the same namespace.
                     if (instance.ParentNodeId != null)
                     {
@@ -2430,7 +2456,16 @@ namespace Opc.Ua.Schema.Model
 
             if (m_nodeset.ServerUris != null)
             {
-                serverUris.Append(m_serverUris.GetString(0));
+                // Index 0 of a ServerUris table is reserved for the local
+                // server. The converter has no running server, so this entry
+                // may be unset; only prepend it when present to avoid a null
+                // StringTable.Append (regression: NodeSets that declare a
+                // top-level <ServerUris> table previously crashed generation).
+                string localServerUri = m_serverUris.GetString(0);
+                if (localServerUri != null)
+                {
+                    serverUris.Append(localServerUri);
+                }
 
                 for (int ii = 0; ii < m_nodeset.ServerUris.Length; ii++)
                 {

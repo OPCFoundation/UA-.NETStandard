@@ -91,6 +91,6 @@ namespace Opc.Ua.Vision.OpenUsd
         /// Encoding the raw RGBA8 pixels to the requested output format
         /// failed. Rare; a defensive escape hatch for encoder bugs.
         /// </summary>
-        EncodingFailed = 7,
+        EncodingFailed = 7
     }
 }

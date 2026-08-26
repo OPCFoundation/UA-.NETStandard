@@ -230,6 +230,7 @@ namespace Opc.Ua.Vision.Client
         /// <param name="cancellationToken">
         /// Cancels the observation.
         /// </param>
+        /// <exception cref="ArgumentNullException"></exception>
         public IAsyncEnumerable<VisionDetectionResultSnapshot> ObserveDetectionsAsync(
             IStreamingSubscription streaming,
             CancellationToken cancellationToken = default)
@@ -274,6 +275,7 @@ namespace Opc.Ua.Vision.Client
         /// <param name="cancellationToken">
         /// Cancels the observation.
         /// </param>
+        /// <exception cref="ArgumentNullException"></exception>
         public IAsyncEnumerable<VisionInspectionResultSnapshot> ObserveInspectionAsync(
             IStreamingSubscription streaming,
             CancellationToken cancellationToken = default)
@@ -318,6 +320,7 @@ namespace Opc.Ua.Vision.Client
         /// <param name="cancellationToken">
         /// Cancels the observation.
         /// </param>
+        /// <exception cref="ArgumentNullException"></exception>
         public IAsyncEnumerable<VisionSegmentationResultSnapshot> ObserveSegmentationAsync(
             IStreamingSubscription streaming,
             CancellationToken cancellationToken = default)

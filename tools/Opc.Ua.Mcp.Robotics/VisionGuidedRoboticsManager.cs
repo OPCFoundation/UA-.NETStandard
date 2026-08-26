@@ -163,6 +163,7 @@ namespace Opc.Ua.Mcp
         /// Projects one inference result into the detection set selection runs
         /// over, reading the full snapshot when the bounded summary truncated it.
         /// </summary>
+        /// <exception cref="InvalidOperationException"></exception>
         internal static async Task<VisionPickObservation> ResolveObservationAsync(
             VisionInferenceResult result,
             Func<CancellationToken, Task<VisionDetectionResultSnapshot>> readFullSnapshot,
@@ -173,9 +174,13 @@ namespace Opc.Ua.Mcp
 
             if (!result.Resolved || result.ResultNodeId.IsNull)
             {
+                // All concatenated operands must remain interpolated for string.Create handler binding.
+                // TODO: Remove when RCS1214 preserves interpolated-string-handler overload binding.
+#pragma warning disable RCS1214
                 throw new InvalidOperationException(string.Create(CultureInfo.InvariantCulture,
                     $"The Vision pipeline published result '{result.ResultId}' but the result NodeId " +
                     $"could not be resolved, so no detection can be selected."));
+#pragma warning restore RCS1214
             }
 
             VisionDetectionSummary? summary = result.DetectionSummary;
@@ -331,6 +336,7 @@ namespace Opc.Ua.Mcp
         /// <summary>
         /// Filters the observed detections and selects one deterministically.
         /// </summary>
+        /// <exception cref="InvalidOperationException"></exception>
         internal static (VisionDetectionItem Selected, int Matched) SelectDetection(
             VisionGuidedPickRequest request,
             VisionPickObservation observation)
@@ -374,6 +380,8 @@ namespace Opc.Ua.Mcp
         /// <summary>
         /// Validates every request field explicitly before any server call.
         /// </summary>
+        /// <exception cref="ArgumentException"></exception>
+        /// <exception cref="ArgumentOutOfRangeException"></exception>
         internal static void ValidateRequest(VisionGuidedPickRequest request)
         {
             ArgumentNullException.ThrowIfNull(request);
@@ -514,8 +522,8 @@ namespace Opc.Ua.Mcp
                 Confidence = selected.Confidence,
                 HasPose = selected.HasPose,
                 PoseFrameId = pose?.FrameId,
-                PosePosition = pose is null ? null : pose.Position.ToArray(),
-                PoseOrientation = pose is null ? null : pose.Orientation.ToArray()
+                PosePosition = (pose?.Position.ToArray()),
+                PoseOrientation = (pose?.Orientation.ToArray())
             };
         }
 
@@ -574,11 +582,15 @@ namespace Opc.Ua.Mcp
         {
             if (!string.IsNullOrEmpty(value))
             {
+                // All concatenated operands must remain interpolated for string.Create handler binding.
+                // TODO: Remove when RCS1214 preserves interpolated-string-handler overload binding.
+#pragma warning disable RCS1214
                 throw new ArgumentException(
                     string.Create(CultureInfo.InvariantCulture,
                         $"'{parameterName}' requires 'destination'; without it a single Pick intent " +
                         $"is submitted."),
                     parameterName);
+#pragma warning restore RCS1214
             }
         }
 

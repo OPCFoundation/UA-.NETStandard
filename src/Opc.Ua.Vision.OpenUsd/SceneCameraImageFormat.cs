@@ -41,6 +41,6 @@ namespace Opc.Ua.Vision.OpenUsd
         /// RFC 2083 PNG, 8-bit RGBA. Encoded by the in-repo dependency-free
         /// encoder; always available.
         /// </summary>
-        Png = 0,
+        Png = 0
     }
 }

@@ -24,8 +24,8 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Opc.Ua;
 using Opc.Ua.Client;
-using Opc.Ua.RobotIntent;
 using Opc.Ua.Robotics.Client.Intent;
+using Opc.Ua.RobotIntent;
 using Opc.Ua.Vision;
 using Opc.Ua.Vision.Client;
 
@@ -107,8 +107,12 @@ namespace BinPickingClient
                 if (part is null)
                 {
                     Console.Error.WriteLine(
-                        "The chosen part label '" + m_options.PartClassLabel + "' was not present in the initial " +
-                        "inference result. Known class labels: " + FormatKnownClasses(initialDetections) + ".");
+                        "The chosen part label '" +
+                        m_options.PartClassLabel +
+                        "' was not present in the initial " +
+                        "inference result. Known class labels: " +
+                        FormatKnownClasses(initialDetections) +
+                        ".");
                     LogUnknownClass(m_logger, m_options.PartClassLabel);
                 }
                 else if (part.HasPose)
@@ -191,7 +195,9 @@ namespace BinPickingClient
                     // Nothing was there to pick, so "it is gone now" proves nothing. Say so
                     // rather than report a pass the run did not earn.
                     Console.Error.WriteLine(
-                        "Scripted loop INCONCLUSIVE: '" + m_options.PartClassLabel + "' was not detected " +
+                        "Scripted loop INCONCLUSIVE: '" +
+                        m_options.PartClassLabel +
+                        "' was not detected " +
                         "before the Pick, so its absence afterwards says nothing about the world changing.");
                 }
                 else if (worldChanged)
@@ -199,7 +205,8 @@ namespace BinPickingClient
                     LogWorldStateChanged(m_logger, m_options.PartClassLabel);
                     Console.Error.WriteLine(
                         "Scripted loop passed: after Pick+Place the detector no longer reports '" +
-                        m_options.PartClassLabel + "' at its original position.");
+                        m_options.PartClassLabel +
+                        "' at its original position.");
                 }
                 else
                 {
@@ -207,7 +214,8 @@ namespace BinPickingClient
                     Console.Error.WriteLine(
                         "Scripted loop FAILED: the pick-and-place cycle reported success over the OPC UA " +
                         "controller, but the on-server ground-truth detector still reports '" +
-                        m_options.PartClassLabel + "' at its original position. The robot moved and the " +
+                        m_options.PartClassLabel +
+                        "' at its original position. The robot moved and the " +
                         "intents succeeded, so the world state did not follow the arm.");
                 }
             }
@@ -326,7 +334,9 @@ namespace BinPickingClient
             {
                 Console.Error.WriteLine(
                     "Vision frame graph does not expose the frames the compose step needs " +
-                    "(source '" + cameraFrameId + "' or target 'world'); skipping compose step.");
+                    "(source '" +
+                    cameraFrameId +
+                    "' or target 'world'); skipping compose step.");
                 return;
             }
             VisionFrameGraph frames = vision.Frames();
@@ -450,8 +460,10 @@ namespace BinPickingClient
                 succeeded = handle.Current.ExecutionState == ExecutionStateEnum.Succeeded &&
                     result.Failure == IntentFailureEnum.None;
                 Console.Error.WriteLine(
-                    "Pick operation terminal state: " + handle.Current.ExecutionState +
-                    " failure=" + result.Failure);
+                    "Pick operation terminal state: " +
+                    handle.Current.ExecutionState +
+                    " failure=" +
+                    result.Failure);
                 LogPickCompleted(m_logger, submission.IntentId, handle.Current.ExecutionState);
             }
             return succeeded;
@@ -489,8 +501,10 @@ namespace BinPickingClient
                 succeeded = handle.Current.ExecutionState == ExecutionStateEnum.Succeeded &&
                     result.Failure == IntentFailureEnum.None;
                 Console.Error.WriteLine(
-                    "Place operation terminal state: " + handle.Current.ExecutionState +
-                    " failure=" + result.Failure);
+                    "Place operation terminal state: " +
+                    handle.Current.ExecutionState +
+                    " failure=" +
+                    result.Failure);
                 LogPlaceCompleted(m_logger, submission.IntentId, handle.Current.ExecutionState);
             }
             return succeeded;
@@ -534,8 +548,13 @@ namespace BinPickingClient
                 }
             }
             Console.Error.WriteLine(
-                "The controller did not publish a " + kind + " named '" + name +
-                "'. Known values: " + FormatLookupNames(lookup) + ".");
+                "The controller did not publish a " +
+                kind +
+                " named '" +
+                name +
+                "'. Known values: " +
+                FormatLookupNames(lookup) +
+                ".");
             return NodeId.Null;
         }
 
@@ -590,7 +609,7 @@ namespace BinPickingClient
             double dx = ax - bx;
             double dy = ay - by;
             double dz = az - bz;
-            return Math.Sqrt(dx * dx + dy * dy + dz * dz) < 1e-4;
+            return Math.Sqrt((dx * dx) + (dy * dy) + (dz * dz)) < 1e-4;
         }
 
         private static (double X, double Y, double Z) ReadVec3(ArrayOf<double> vec)

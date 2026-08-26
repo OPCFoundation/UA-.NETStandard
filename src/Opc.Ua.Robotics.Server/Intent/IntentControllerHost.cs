@@ -71,7 +71,7 @@ namespace Opc.Ua.RobotIntent.Server
             IntentControllerHostOptions? options = null,
             Func<NodeState, CancellationToken, ValueTask>? removeNode = null)
         {
-            m_controller = controller ?? throw new ArgumentNullException(nameof(controller));
+            Controller = controller ?? throw new ArgumentNullException(nameof(controller));
             m_executor = executor ?? throw new ArgumentNullException(nameof(executor));
             m_addNode = addNode ?? throw new ArgumentNullException(nameof(addNode));
             m_options = options ?? new IntentControllerHostOptions();
@@ -81,7 +81,7 @@ namespace Opc.Ua.RobotIntent.Server
         /// <summary>
         /// The controller node this host drives.
         /// </summary>
-        public IntentControllerState Controller => m_controller;
+        public IntentControllerState Controller { get; }
 
         /// <summary>
         /// The Session that currently holds command authority, or null.
@@ -123,6 +123,7 @@ namespace Opc.Ua.RobotIntent.Server
         /// <summary>
         /// Starts the execution pump and wires the controller's Methods.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="context"/> is <c>null</c>.</exception>
         public void Start(ISystemContext context)
         {
             if (context == null)
@@ -140,10 +141,10 @@ namespace Opc.Ua.RobotIntent.Server
             }
             m_logger = context.Telemetry.CreateLogger<IntentControllerHost>();
             m_namespaceUris = context.NamespaceUris;
-            m_intentsFolder = EnsureFolder(context, m_controller.Intents, BrowseNames.Intents);
+            m_intentsFolder = EnsureFolder(context, Controller.Intents, BrowseNames.Intents);
             if (m_options.MissionsSupported)
             {
-                m_missionsFolder = EnsureFolder(context, m_controller.Missions, BrowseNames.Missions);
+                m_missionsFolder = EnsureFolder(context, Controller.Missions, BrowseNames.Missions);
             }
             ResolveCapabilities(context);
             BuildReferenceIndexes(context);
@@ -165,11 +166,11 @@ namespace Opc.Ua.RobotIntent.Server
 
         private void WireVariableReads(ISystemContext context)
         {
-            if (m_options.SafetyStatusReader == null || m_controller.Ready == null)
+            if (m_options.SafetyStatusReader == null || Controller.Ready == null)
             {
                 return;
             }
-            m_controller.Ready.OnReadValueAsync = async (
+            Controller.Ready.OnReadValueAsync = async (
                 readContext,
                 variable,
                 indexRange,
@@ -204,6 +205,7 @@ namespace Opc.Ua.RobotIntent.Server
         /// parameters are wrong. A refusal creates no operation instance and moves
         /// nothing.
         /// </remarks>
+        /// <exception cref="ArgumentNullException"><paramref name="context"/> is <c>null</c>.</exception>
         public IntentAdmission SubmitIntent(
             ISystemContext context,
             NodeId? sessionId,
@@ -227,6 +229,7 @@ namespace Opc.Ua.RobotIntent.Server
         /// <summary>
         /// Admits one intent after refreshing the safety status, per OPC UA - Robot Intent clause 10.4.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="context"/> is <c>null</c>.</exception>
         public async ValueTask<IntentAdmission> SubmitIntentAsync(
             ISystemContext context,
             NodeId? sessionId,
@@ -255,6 +258,7 @@ namespace Opc.Ua.RobotIntent.Server
         /// cannot be abandoned part-way without leaving the cell in a worse state than
         /// completing them.
         /// </remarks>
+        /// <exception cref="ArgumentNullException"><paramref name="context"/> is <c>null</c>.</exception>
         public bool CancelIntent(
             ISystemContext context,
             NodeId? sessionId,
@@ -316,6 +320,7 @@ namespace Opc.Ua.RobotIntent.Server
         /// <summary>
         /// Asks the Server to end every outstanding intent and mission.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="context"/> is <c>null</c>.</exception>
         public uint CancelAll(
             ISystemContext context,
             NodeId? sessionId,
@@ -378,6 +383,7 @@ namespace Opc.Ua.RobotIntent.Server
         /// Pauses queue dispatch. The executing intent keeps running because the
         /// executor interface has no pause acknowledgement channel.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="context"/> is <c>null</c>.</exception>
         public bool Pause(ISystemContext context, NodeId? sessionId)
         {
             if (context == null)
@@ -407,6 +413,7 @@ namespace Opc.Ua.RobotIntent.Server
         /// <summary>
         /// Continues execution suspended by <see cref="Pause"/>.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="context"/> is <c>null</c>.</exception>
         public bool Resume(ISystemContext context, NodeId? sessionId)
         {
             if (context == null)
@@ -441,6 +448,7 @@ namespace Opc.Ua.RobotIntent.Server
         /// The new attempt is a NEW operation instance. The original stays where it is,
         /// terminal, with its own result, so the history of what was tried survives.
         /// </remarks>
+        /// <exception cref="ArgumentNullException"><paramref name="context"/> is <c>null</c>.</exception>
         public IntentAdmission Retry(ISystemContext context, NodeId? sessionId, string intentId)
         {
             if (context == null)
@@ -510,6 +518,7 @@ namespace Opc.Ua.RobotIntent.Server
         /// which concerns remote command against local manual control and is enforced
         /// by safety-rated means outside this interface.
         /// </remarks>
+        /// <exception cref="ArgumentNullException"><paramref name="context"/> is <c>null</c>.</exception>
         public bool RequestControl(ISystemContext context, NodeId? sessionId, out NodeId? owner)
         {
             if (context == null)
@@ -539,6 +548,7 @@ namespace Opc.Ua.RobotIntent.Server
         /// <summary>
         /// Gives up command authority. Outstanding intents are unaffected.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="context"/> is <c>null</c>.</exception>
         public void ReleaseControl(ISystemContext context, NodeId? sessionId)
         {
             if (context == null)
@@ -568,6 +578,7 @@ namespace Opc.Ua.RobotIntent.Server
         /// then refuses on the same values a client can read, so the refusal is
         /// explainable from the address space rather than from Server-internal state.
         /// </remarks>
+        /// <exception cref="ArgumentNullException"><paramref name="context"/> is <c>null</c>.</exception>
         public void UpdateSafetyState(ISystemContext context, SafetyStatus status)
         {
             if (context == null)
@@ -596,6 +607,7 @@ namespace Opc.Ua.RobotIntent.Server
         /// <remarks>
         /// Without this a crashed client locks the robot for good.
         /// </remarks>
+        /// <exception cref="ArgumentNullException"><paramref name="context"/> is <c>null</c>.</exception>
         public void OnSessionClosed(ISystemContext context, NodeId sessionId)
         {
             if (context == null)
@@ -620,6 +632,7 @@ namespace Opc.Ua.RobotIntent.Server
         /// <summary>
         /// Subscribes this host to the Server session lifetime notifications.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="context"/> is <c>null</c>.</exception>
         public void AttachSessionManager(
             ISystemContext context, global::Opc.Ua.Server.ISessionManager sessionManager)
         {
@@ -653,6 +666,7 @@ namespace Opc.Ua.RobotIntent.Server
         /// travel here. A lease that is not renewed lapses, so a client that dies does
         /// not hold the channel for good - the same reasoning as command authority.
         /// </remarks>
+        /// <exception cref="ArgumentNullException"><paramref name="context"/> is <c>null</c>.</exception>
         public RealTimeLease OpenRealTimeChannel(
             ISystemContext context, NodeId? sessionId, string channelId, double requestedLeaseMs)
         {
@@ -716,6 +730,7 @@ namespace Opc.Ua.RobotIntent.Server
         /// <summary>
         /// Gives up a lease on a brokered channel.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="context"/> is <c>null</c>.</exception>
         public bool CloseRealTimeChannel(ISystemContext context, NodeId? sessionId, string channelId)
         {
             if (context == null)
@@ -746,6 +761,7 @@ namespace Opc.Ua.RobotIntent.Server
         /// <summary>
         /// Submits an ordered sequence of intents tracked as one unit.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="context"/> is <c>null</c>.</exception>
         public MissionAdmission SubmitMission(
             ISystemContext context,
             NodeId? sessionId,
@@ -767,6 +783,7 @@ namespace Opc.Ua.RobotIntent.Server
         /// <summary>
         /// Submits a mission after refreshing the safety status, per OPC UA - Robot Intent clause 10.4.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="context"/> is <c>null</c>.</exception>
         public async ValueTask<MissionAdmission> SubmitMissionAsync(
             ISystemContext context,
             NodeId? sessionId,
@@ -908,6 +925,7 @@ namespace Opc.Ua.RobotIntent.Server
         /// executed, so an update that would alter a released step is refused rather
         /// than partly applied, and the whole update is applied atomically.
         /// </remarks>
+        /// <exception cref="ArgumentNullException"><paramref name="context"/> is <c>null</c>.</exception>
         public MissionUpdateOutcome UpdateMission(
             ISystemContext context,
             NodeId? sessionId,
@@ -1009,6 +1027,7 @@ namespace Opc.Ua.RobotIntent.Server
         /// <summary>
         /// Ends a mission and every intent belonging to it.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="context"/> is <c>null</c>.</exception>
         public bool CancelMission(
             ISystemContext context,
             NodeId? sessionId,
@@ -1089,8 +1108,7 @@ namespace Opc.Ua.RobotIntent.Server
             m_disposed = true;
             UnhookSessionManager();
             m_shutdown.Cancel();
-            IntentEntry[] entries = SnapshotIntents();
-            foreach (IntentEntry entry in entries)
+            foreach (IntentEntry entry in SnapshotIntents())
             {
                 entry.RequestCancel(IntentFailureEnum.Other, StopModeEnum.QuickStop);
             }
@@ -1113,6 +1131,7 @@ namespace Opc.Ua.RobotIntent.Server
         /// The clause 6.3 table, in code. A pairing not listed there is not legal, so
         /// this mapping is total and has no default arm that guesses.
         /// </summary>
+        /// <exception cref="ArgumentOutOfRangeException"></exception>
         internal static uint MapToProgramState(ExecutionStateEnum state)
         {
             return state switch
@@ -1359,7 +1378,7 @@ namespace Opc.Ua.RobotIntent.Server
 
         private void PublishSafetyLocked(ISystemContext context)
         {
-            if (m_controller.SafetyState is not { } node)
+            if (Controller.SafetyState is not { } node)
             {
                 return;
             }
@@ -1399,7 +1418,7 @@ namespace Opc.Ua.RobotIntent.Server
                 published.Add(resolved);
             }
 
-            if (m_controller.Capabilities is { } capabilities)
+            if (Controller.Capabilities is { } capabilities)
             {
                 SetValue(capabilities.SupportedIntents, new ArrayOf<IntentCapabilityDataType>(published.ToArray()));
                 SetValue(capabilities.MissionsSupported, m_options.MissionsSupported);
@@ -1781,8 +1800,8 @@ namespace Opc.Ua.RobotIntent.Server
                             next.IntentId,
                             next.Intent,
                             progress,
-                            m_controller.NodeId,
-                            m_controller.BrowseName.Name ?? string.Empty)
+                            Controller.NodeId,
+                            Controller.BrowseName.Name ?? string.Empty)
                         {
                             MissionId = next.MissionId
                         };
@@ -1961,11 +1980,11 @@ namespace Opc.Ua.RobotIntent.Server
             m_programs.Clear();
             m_outputDataTypes.Clear();
             m_frameIds.Clear();
-            IndexFolder<LocationState>(context, m_controller.Locations, m_locations);
-            IndexFolder<ToolState>(context, m_controller.Tools, m_tools);
-            IndexFolder<ProgramState>(context, m_controller.Programs, m_programs);
-            IndexFrames(context, m_controller.Frames);
-            IndexOutputs(context, m_controller.Outputs);
+            IndexFolder<LocationState>(context, Controller.Locations, m_locations);
+            IndexFolder<ToolState>(context, Controller.Tools, m_tools);
+            IndexFolder<ProgramState>(context, Controller.Programs, m_programs);
+            IndexFrames(context, Controller.Frames);
+            IndexOutputs(context, Controller.Outputs);
         }
 
         private void IndexFolder<T>(ISystemContext context, NodeState? folder, HashSet<NodeId> index)
@@ -2045,7 +2064,7 @@ namespace Opc.Ua.RobotIntent.Server
         private void CreateChannels(ISystemContext context)
         {
             FolderState folder = EnsureFolder(
-                context, m_controller.RealTimeChannels, BrowseNames.RealTimeChannels);
+                context, Controller.RealTimeChannels, BrowseNames.RealTimeChannels);
             foreach (DeclaredChannel declared in m_options.Channels)
             {
                 var node = new RealTimeChannelState(folder)
@@ -2512,7 +2531,7 @@ namespace Opc.Ua.RobotIntent.Server
             var node = new IntentOperationState(folder)
             {
                 NodeId = ChildNodeId(folder.NodeId, entry.OperationNodeName),
-                BrowseName = new QualifiedName(entry.IntentId, m_controller.BrowseName.NamespaceIndex),
+                BrowseName = new QualifiedName(entry.IntentId, Controller.BrowseName.NamespaceIndex),
                 DisplayName = new LocalizedText(entry.IntentId),
                 SymbolicName = entry.IntentId,
                 ReferenceTypeId = global::Opc.Ua.ReferenceTypeIds.HasComponent,
@@ -2521,9 +2540,9 @@ namespace Opc.Ua.RobotIntent.Server
                 EventNotifier = global::Opc.Ua.EventNotifiers.SubscribeToEvents
             };
             node.Create(context, node.NodeId, node.BrowseName, node.DisplayName, false);
-            node.AddProgress(context);
-            node.AddQueuePosition(context);
-            node.AddCurrentPose(context);
+            node.AddProgress(context)
+                .AddQueuePosition(context)
+                .AddCurrentPose(context);
             EnsureFinalResultVariable(context, node).Value = Variant.Null;
             node.AddReference(global::Opc.Ua.ReferenceTypeIds.HasComponent, true, folder.NodeId);
             folder.AddReference(global::Opc.Ua.ReferenceTypeIds.HasComponent, false, node.NodeId);
@@ -2549,7 +2568,7 @@ namespace Opc.Ua.RobotIntent.Server
             var node = new MissionObjectState(folder)
             {
                 NodeId = ChildNodeId(folder.NodeId, entry.MissionNodeName),
-                BrowseName = new QualifiedName(entry.MissionId, m_controller.BrowseName.NamespaceIndex),
+                BrowseName = new QualifiedName(entry.MissionId, Controller.BrowseName.NamespaceIndex),
                 DisplayName = new LocalizedText(entry.MissionId),
                 SymbolicName = entry.MissionId,
                 ReferenceTypeId = global::Opc.Ua.ReferenceTypeIds.HasComponent,
@@ -2976,13 +2995,13 @@ namespace Opc.Ua.RobotIntent.Server
 
         private void PublishControllerState(ISystemContext context)
         {
-            SetValue(m_controller.OperationalMode, m_options.OperationalMode);
-            SetValue(m_controller.Ready, IsReadyLocked());
-            SetValue(m_controller.ControlOwner, ControlOwner ?? global::Opc.Ua.NodeId.Null);
-            SetValue(m_controller.MaxQueueDepth, m_options.MaxQueueDepth);
-            SetValue(m_controller.ActiveIntent, m_current?.Node?.NodeId ?? NodeId.Null);
+            SetValue(Controller.OperationalMode, m_options.OperationalMode);
+            SetValue(Controller.Ready, IsReadyLocked());
+            SetValue(Controller.ControlOwner, ControlOwner ?? global::Opc.Ua.NodeId.Null);
+            SetValue(Controller.MaxQueueDepth, m_options.MaxQueueDepth);
+            SetValue(Controller.ActiveIntent, m_current?.Node?.NodeId ?? NodeId.Null);
             SetActiveMission(context, ActiveMissionNodeId());
-            m_controller.ClearChangeMasks(context, true);
+            Controller.ClearChangeMasks(context, true);
         }
 
         private bool IsReadyLocked()
@@ -3018,20 +3037,20 @@ namespace Opc.Ua.RobotIntent.Server
 
         private void SetActiveMission(ISystemContext context, NodeId value)
         {
-            var browseName = new QualifiedName("ActiveMission", m_controller.BrowseName.NamespaceIndex);
-            if (m_controller.FindChild(context, browseName) is BaseDataVariableState<NodeId> typed)
+            var browseName = new QualifiedName("ActiveMission", Controller.BrowseName.NamespaceIndex);
+            if (Controller.FindChild(context, browseName) is BaseDataVariableState<NodeId> typed)
             {
                 SetValue(typed, value);
                 typed.ClearChangeMasks(context, false);
                 return;
             }
-            if (m_controller.FindChild(context, browseName) is PropertyState<NodeId> property)
+            if (Controller.FindChild(context, browseName) is PropertyState<NodeId> property)
             {
                 SetValue(property, value);
                 property.ClearChangeMasks(context, false);
                 return;
             }
-            if (m_controller.FindChild(context, browseName) is BaseDataVariableState variable)
+            if (Controller.FindChild(context, browseName) is BaseDataVariableState variable)
             {
                 variable.Value = value;
                 variable.ClearChangeMasks(context, false);
@@ -3079,9 +3098,9 @@ namespace Opc.Ua.RobotIntent.Server
                 return declared;
             }
             ushort riNs = RobotIntentNamespaceIndex(context);
-            var folder = new FolderState(m_controller)
+            var folder = new FolderState(Controller)
             {
-                NodeId = ChildNodeId(m_controller.NodeId, browseName),
+                NodeId = ChildNodeId(Controller.NodeId, browseName),
                 BrowseName = new QualifiedName(browseName, riNs),
                 DisplayName = new LocalizedText(browseName),
                 SymbolicName = browseName,
@@ -3089,10 +3108,10 @@ namespace Opc.Ua.RobotIntent.Server
                 TypeDefinitionId = global::Opc.Ua.ObjectTypeIds.FolderType,
                 EventNotifier = global::Opc.Ua.EventNotifiers.None
             };
-            m_controller.AddChild(folder);
+            Controller.AddChild(folder);
             folder.AddReference(
-                global::Opc.Ua.ReferenceTypeIds.HasComponent, true, m_controller.NodeId);
-            m_controller.AddReference(
+                global::Opc.Ua.ReferenceTypeIds.HasComponent, true, Controller.NodeId);
+            Controller.AddReference(
                 global::Opc.Ua.ReferenceTypeIds.HasComponent, false, folder.NodeId);
             AddNode(folder);
             return folder;
@@ -3130,21 +3149,21 @@ namespace Opc.Ua.RobotIntent.Server
 
         private void WireMethods(ISystemContext context)
         {
-            SetMethodExecutable(m_controller.RequestControl);
-            SetMethodExecutable(m_controller.ReleaseControl);
-            SetMethodExecutable(m_controller.SubmitIntent);
-            SetMethodExecutable(m_controller.CancelIntent);
-            SetMethodExecutable(m_controller.CancelAll);
-            SetMethodExecutable(m_controller.Pause);
-            SetMethodExecutable(m_controller.Resume);
-            SetMethodExecutable(m_controller.Retry);
-            SetMethodExecutable(m_controller.SubmitMission);
-            SetMethodExecutable(m_controller.UpdateMission);
-            SetMethodExecutable(m_controller.CancelMission);
-            SetMethodExecutable(m_controller.OpenRealTimeChannel);
-            SetMethodExecutable(m_controller.CloseRealTimeChannel);
+            SetMethodExecutable(Controller.RequestControl);
+            SetMethodExecutable(Controller.ReleaseControl);
+            SetMethodExecutable(Controller.SubmitIntent);
+            SetMethodExecutable(Controller.CancelIntent);
+            SetMethodExecutable(Controller.CancelAll);
+            SetMethodExecutable(Controller.Pause);
+            SetMethodExecutable(Controller.Resume);
+            SetMethodExecutable(Controller.Retry);
+            SetMethodExecutable(Controller.SubmitMission);
+            SetMethodExecutable(Controller.UpdateMission);
+            SetMethodExecutable(Controller.CancelMission);
+            SetMethodExecutable(Controller.OpenRealTimeChannel);
+            SetMethodExecutable(Controller.CloseRealTimeChannel);
 
-            if (m_controller.RequestControl is { } requestControl)
+            if (Controller.RequestControl is { } requestControl)
             {
                 requestControl.OnCallAsync = (ctx, method, objectId, ct) =>
                 {
@@ -3157,7 +3176,7 @@ namespace Opc.Ua.RobotIntent.Server
                     });
                 };
             }
-            if (m_controller.ReleaseControl is { } releaseControl)
+            if (Controller.ReleaseControl is { } releaseControl)
             {
                 releaseControl.OnCallMethod2Async = (ctx, method, objectId, inputArguments, outputArguments, ct) =>
                 {
@@ -3165,7 +3184,7 @@ namespace Opc.Ua.RobotIntent.Server
                     return new ValueTask<ServiceResult>(ServiceResult.Good);
                 };
             }
-            if (m_controller.SubmitIntent is { } submit)
+            if (Controller.SubmitIntent is { } submit)
             {
                 submit.OnCallAsync = async (ctx, method, objectId, intent, ct) =>
                 {
@@ -3175,7 +3194,7 @@ namespace Opc.Ua.RobotIntent.Server
                     return ToSubmitIntentResult(admission);
                 };
             }
-            if (m_controller.CancelIntent is { } cancelIntent)
+            if (Controller.CancelIntent is { } cancelIntent)
             {
                 cancelIntent.OnCallAsync = (ctx, method, objectId, intentId, stopMode, ct) =>
                     new ValueTask<CancelIntentMethodStateResult>(new CancelIntentMethodStateResult
@@ -3184,7 +3203,7 @@ namespace Opc.Ua.RobotIntent.Server
                         Accepted = CancelIntent(context, SessionOf(ctx), intentId, stopMode)
                     });
             }
-            if (m_controller.CancelAll is { } cancelAll)
+            if (Controller.CancelAll is { } cancelAll)
             {
                 cancelAll.OnCallAsync = (ctx, method, objectId, stopMode, ct) =>
                     new ValueTask<CancelAllMethodStateResult>(new CancelAllMethodStateResult
@@ -3193,7 +3212,7 @@ namespace Opc.Ua.RobotIntent.Server
                         Cancelled = CancelAll(context, SessionOf(ctx), stopMode)
                     });
             }
-            if (m_controller.Pause is { } pause)
+            if (Controller.Pause is { } pause)
             {
                 pause.OnCallAsync = (ctx, method, objectId, ct) =>
                     new ValueTask<PauseMethodStateResult>(new PauseMethodStateResult
@@ -3202,7 +3221,7 @@ namespace Opc.Ua.RobotIntent.Server
                         Accepted = Pause(context, SessionOf(ctx))
                     });
             }
-            if (m_controller.Resume is { } resume)
+            if (Controller.Resume is { } resume)
             {
                 resume.OnCallAsync = (ctx, method, objectId, ct) =>
                     new ValueTask<ResumeMethodStateResult>(new ResumeMethodStateResult
@@ -3211,7 +3230,7 @@ namespace Opc.Ua.RobotIntent.Server
                         Accepted = Resume(context, SessionOf(ctx))
                     });
             }
-            if (m_controller.Retry is { } retry)
+            if (Controller.Retry is { } retry)
             {
                 retry.OnCallAsync = (ctx, method, objectId, intentId, ct) =>
                 {
@@ -3226,7 +3245,7 @@ namespace Opc.Ua.RobotIntent.Server
                     });
                 };
             }
-            if (m_controller.SubmitMission is { } submitMission)
+            if (Controller.SubmitMission is { } submitMission)
             {
                 submitMission.OnCallAsync = async (ctx, method, objectId, mission, ct) =>
                 {
@@ -3246,7 +3265,7 @@ namespace Opc.Ua.RobotIntent.Server
                     };
                 };
             }
-            if (m_controller.UpdateMission is { } updateMission)
+            if (Controller.UpdateMission is { } updateMission)
             {
                 updateMission.OnCallAsync = (ctx, method, objectId, missionId, updateId, steps, ct) =>
                 {
@@ -3259,7 +3278,7 @@ namespace Opc.Ua.RobotIntent.Server
                     });
                 };
             }
-            if (m_controller.CancelMission is { } cancelMission)
+            if (Controller.CancelMission is { } cancelMission)
             {
                 cancelMission.OnCallAsync = (ctx, method, objectId, missionId, stopMode, ct) =>
                     new ValueTask<CancelMissionMethodStateResult>(new CancelMissionMethodStateResult
@@ -3268,7 +3287,7 @@ namespace Opc.Ua.RobotIntent.Server
                         Accepted = CancelMission(context, SessionOf(ctx), missionId, stopMode)
                     });
             }
-            if (m_controller.OpenRealTimeChannel is { } openChannel)
+            if (Controller.OpenRealTimeChannel is { } openChannel)
             {
                 openChannel.OnCallAsync = (ctx, method, objectId, channelId, requestedLease, ct) =>
                 {
@@ -3286,7 +3305,7 @@ namespace Opc.Ua.RobotIntent.Server
                         });
                 };
             }
-            if (m_controller.CloseRealTimeChannel is { } closeChannel)
+            if (Controller.CloseRealTimeChannel is { } closeChannel)
             {
                 closeChannel.OnCallAsync = (ctx, method, objectId, channelId, ct) =>
                     new ValueTask<CloseRealTimeChannelMethodStateResult>(
@@ -3532,8 +3551,7 @@ namespace Opc.Ua.RobotIntent.Server
             m_shutdown.Cancel();
             m_shutdown.Dispose();
             m_pump.Dispose();
-            IntentEntry[] entries = SnapshotIntents();
-            foreach (IntentEntry entry in entries)
+            foreach (IntentEntry entry in SnapshotIntents())
             {
                 entry.Dispose();
             }
@@ -3622,12 +3640,12 @@ namespace Opc.Ua.RobotIntent.Server
         private const uint StateSuspended = 3;
         private const uint StateHalted = 4;
         private const StopModeEnum SupersededStopMode = StopModeEnum.QuickStop;
+
         private const string UnsupportedFastenJointMessage =
             "FastenIntent.Joint references from OPC 40450/40451 are not supported by this controller model; " +
             "omit Joint and provide the fastening parameters directly.";
 
         private readonly Lock m_lock = new();
-        private readonly IntentControllerState m_controller;
         private readonly IIntentExecutor m_executor;
         private readonly IntentControllerHostOptions m_options;
         private readonly Func<NodeState, CancellationToken, ValueTask> m_addNode;
@@ -3810,8 +3828,10 @@ namespace Opc.Ua.RobotIntent.Server
             public bool Compensating { get; set; }
             public string CurrentStepId { get; set; } = string.Empty;
             public string CurrentIntentId { get; set; } = string.Empty;
+
             public Dictionary<string, int> StepAttempts { get; } =
                 new(StringComparer.Ordinal);
+
             public Dictionary<string, string> StepBaseIntentIds { get; } =
                 CreateStepBaseIntentIds(mission.Steps);
 

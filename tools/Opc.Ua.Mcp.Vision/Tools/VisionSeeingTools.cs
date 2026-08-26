@@ -256,7 +256,6 @@ namespace Opc.Ua.Mcp.Tools
                         string.Create(
                             CultureInfo.InvariantCulture,
                             $"Last frame exceeded the inline delivery limit (LatestClip = Bad_EncodingLimitsExceeded). Request a smaller PNG/JPEG format or fetch out of band. GetClip returned {getClipError}."));
-                case VisionInlineClipState.Faulted:
                 default:
                     return (
                         ByteString.Empty,

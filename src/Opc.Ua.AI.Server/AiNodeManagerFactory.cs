@@ -29,10 +29,10 @@
 
 using System.Threading;
 using System.Threading.Tasks;
-using Opc.Ua.AI.Inference;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Opc.Ua;
+using Opc.Ua.AI.Inference;
 using Opc.Ua.Server;
 
 namespace Opc.Ua.AI.Server

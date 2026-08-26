@@ -178,6 +178,7 @@ namespace Opc.Ua.Client.Subscriptions.Fakes
         /// threads while the test thread inspects the recordings, so the
         /// backing lists must never be mutated without synchronization.
         /// </summary>
+        /// <typeparam name="T"></typeparam>
         /// <param name="recordings"></param>
         /// <param name="call"></param>
         private void Record<T>(List<T> recordings, T call)
@@ -192,6 +193,7 @@ namespace Opc.Ua.Client.Subscriptions.Fakes
         /// Returns a stable copy of a recording so assertions cannot
         /// observe a list that is being appended to concurrently.
         /// </summary>
+        /// <typeparam name="T"></typeparam>
         /// <param name="recordings"></param>
         private IReadOnlyList<T> Snapshot<T>(List<T> recordings)
         {
@@ -204,6 +206,7 @@ namespace Opc.Ua.Client.Subscriptions.Fakes
         /// <summary>
         /// Reads the number of recorded calls without allocating a snapshot.
         /// </summary>
+        /// <typeparam name="T"></typeparam>
         /// <param name="recordings"></param>
         private int Count<T>(List<T> recordings)
         {

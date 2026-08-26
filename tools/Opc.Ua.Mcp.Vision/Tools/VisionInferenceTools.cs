@@ -511,5 +511,4 @@ namespace Opc.Ua.Mcp.Tools
         /// </summary>
         public string? MaskFormat { get; init; }
     }
-
 }

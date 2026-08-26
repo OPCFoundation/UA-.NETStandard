@@ -851,7 +851,13 @@ namespace Opc.Ua.Server
             bool deleteSubscriptions,
             CancellationToken cancellationToken = default)
         {
-            MarkSessionClosing(sessionId);
+            // Only the first caller to mark the session closing performs the teardown. If the
+            // session is already closing another close is in progress, so return without racing it.
+            if (!MarkSessionClosing(sessionId))
+            {
+                return;
+            }
+
             try
             {
                 await NodeManager.SessionClosingAsync(context, sessionId, deleteSubscriptions, cancellationToken)
@@ -876,16 +882,21 @@ namespace Opc.Ua.Server
         /// on its way out.
         /// </summary>
         /// <param name="sessionId">The session being closed.</param>
-        private void MarkSessionClosing(NodeId sessionId)
+        /// <returns>
+        /// <c>true</c> when this call marked the session closing (or the session is unknown and the
+        /// teardown should still proceed); <c>false</c> when the session was already closing.
+        /// </returns>
+        private bool MarkSessionClosing(NodeId sessionId)
         {
             foreach (ISession session in SessionManager.GetSessions())
             {
                 if (session.Id == sessionId)
                 {
-                    (session as Session)?.MarkClosing();
-                    return;
+                    return (session as Session)?.MarkClosing() ?? true;
                 }
             }
+
+            return true;
         }
 
         /// <summary>

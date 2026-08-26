@@ -182,8 +182,8 @@ namespace Opc.Ua.Vision.Intent.Tests
                 toRead,
                 System.Threading.CancellationToken.None).ConfigureAwait(false);
             var profiles = new List<string>();
-            if (response.Results.Count == 0
-                || !StatusCode.IsGood(response.Results[0].StatusCode))
+            if (response.Results.Count == 0 ||
+                !StatusCode.IsGood(response.Results[0].StatusCode))
             {
                 return profiles;
             }

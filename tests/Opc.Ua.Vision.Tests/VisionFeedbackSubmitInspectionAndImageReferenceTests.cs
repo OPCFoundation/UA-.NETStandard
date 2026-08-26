@@ -297,13 +297,13 @@ namespace Opc.Ua.Vision.Tests
                 IVisionFeedbackSink? feedbackSink)
             {
                 PipelineNodeId = new NodeId(pipelineId, 4);
-                var pipeline = new InferencePipelineState(null!);
-                var feedback = new VisionFeedbackState(null!)
+                var pipeline = new InferencePipelineState(null);
+                var feedback = new VisionFeedbackState(null)
                 {
-                    SubmitDetections = new SubmitDetectionsMethodState(null!),
-                    SubmitCorrection = new SubmitCorrectionMethodState(null!),
-                    SubmitInspectionResult = new SubmitInspectionResultMethodState(null!),
-                    SubmitImageReference = new SubmitImageReferenceMethodState(null!),
+                    SubmitDetections = new SubmitDetectionsMethodState(null),
+                    SubmitCorrection = new SubmitCorrectionMethodState(null),
+                    SubmitInspectionResult = new SubmitInspectionResultMethodState(null),
+                    SubmitImageReference = new SubmitImageReferenceMethodState(null)
                 };
                 var registration = new PipelineRegistration(
                     "pipe",
@@ -311,7 +311,7 @@ namespace Opc.Ua.Vision.Tests
                     pipeline,
                     new HashSet<string>(StringComparer.Ordinal))
                 {
-                    FeedbackSink = feedbackSink,
+                    FeedbackSink = feedbackSink
                 };
                 var registry = new VisionRegistry();
                 registry.AddPipeline(registration);

@@ -225,8 +225,8 @@ namespace Opc.Ua.Vision.Client
                 // folder. Match that, but only on the ResultId itself: falling back to the
                 // most recently published result would answer confidently with the wrong
                 // one, which is worse than saying it was not found.
-                if (entry.BrowseName.Name is { } name
-                    && name.EndsWith(resultId, StringComparison.Ordinal))
+                if (entry.BrowseName.Name is { } name &&
+                    name.EndsWith(resultId, StringComparison.Ordinal))
                 {
                     return entry.NodeId;
                 }
@@ -288,7 +288,8 @@ namespace Opc.Ua.Vision.Client
                 {
                     continue;
                 }
-                if (!resultType.IsNull && !await m_operations.Session.NodeCache
+                if (!resultType.IsNull &&
+                    !await m_operations.Session.NodeCache
                         .IsTypeOfAsync(typeDef, resultType, cancellationToken)
                         .ConfigureAwait(false))
                 {

@@ -147,14 +147,14 @@ opcUa.AddIsa95Server(options =>
     options.EnableJobControlV1 = false;
     options.EnableJobControlV2 = true;
 });
-opcUa.AddVision(options =>
-{
-    options.InstanceNamespaceUri = "urn:opcfoundation:VisualInspectionCell:vision:instances";
-}).ConfigureVision(async (context, cancellationToken) =>
-{
-    VisualInspectionCell cell = context.GetRequiredService<VisualInspectionCell>();
-    await cell.ConfigureAsync(context, cancellationToken).ConfigureAwait(false);
-});
+opcUa
+    .AddVision(options =>
+        options.InstanceNamespaceUri = "urn:opcfoundation:VisualInspectionCell:vision:instances")
+    .ConfigureVision(async (context, cancellationToken) =>
+    {
+        VisualInspectionCell cell = context.GetRequiredService<VisualInspectionCell>();
+        await cell.ConfigureAsync(context, cancellationToken).ConfigureAwait(false);
+    });
 
 using IHost app = builder.Build();
 Console.WriteLine(FormattableString.Invariant(

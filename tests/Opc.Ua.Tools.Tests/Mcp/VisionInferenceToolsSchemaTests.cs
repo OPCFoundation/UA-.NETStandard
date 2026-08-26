@@ -54,14 +54,19 @@ namespace Opc.Ua.Tools.Tests.Mcp
     {
         private static readonly ArrayOf<string> s_segmentationLabels =
             new[] { "bg", "part", "defect" }.ToArrayOf();
+
         private static readonly string[] s_requestFields =
             ["pipeline", "expectedKind", "detail", "maxItems", "sessionName"];
+
         private static readonly string[] s_requestParameter =
             ["request"];
+
         private static readonly string[] s_requiredPipeline =
             ["pipeline"];
+
         private static readonly string[] s_expectedResultKinds =
             ["Auto", "Detection", "Inspection", "Segmentation"];
+
         private static readonly string[] s_resultDetails =
             ["Summary", "HandleOnly"];
 

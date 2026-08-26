@@ -213,6 +213,7 @@ namespace Vision.BinPickingCell
         /// <returns>
         /// <c>true</c> when the class was recognised.
         /// </returns>
+        /// <exception cref="ArgumentNullException"><paramref name="classLabel"/> is <c>null</c>.</exception>
         public bool MarkHeld(string classLabel, double worldX, double worldY, double worldZ)
         {
             if (classLabel == null)
@@ -253,6 +254,7 @@ namespace Vision.BinPickingCell
         /// <returns>
         /// <c>true</c> when the class was recognised.
         /// </returns>
+        /// <exception cref="ArgumentNullException"><paramref name="classLabel"/> is <c>null</c>.</exception>
         public bool MarkPlaced(string classLabel, double worldX, double worldY, double worldZ)
         {
             if (classLabel == null)
@@ -329,8 +331,8 @@ namespace Vision.BinPickingCell
         /// </remarks>
         public static bool IsInsideBin(double worldX, double worldY)
         {
-            return Math.Abs(worldX - BinCentreX) <= BinHalfExtent
-                && Math.Abs(worldY - BinCentreY) <= BinHalfExtent;
+            return Math.Abs(worldX - BinCentreX) <= BinHalfExtent &&
+                Math.Abs(worldY - BinCentreY) <= BinHalfExtent;
         }
 
         /// <summary>

@@ -88,18 +88,22 @@ namespace Vision.BinPickingCell
                 ArrayOf.Create(s_segmentRadii.AsSpan()));
         }
 
-        // Point pairs are J1->J2 (same shoulder origin), shoulder->elbow,
-        // elbow->wrist, and wrist->TCP.
+        /// <summary>
+        /// Point pairs are J1->J2 (same shoulder origin), shoulder->elbow,
+        /// elbow->wrist, and wrist->TCP.
+        /// </summary>
         private static readonly double[] s_segmentRadii = [0.0, 0.047, 0.042, 0.018];
 
-        // Bench top: world z 0.650 to 0.720, which is 0.200 m below the robot base frame.
-        // This is the one that stops a forearm crossing the table: the old height test only
-        // sampled joint origins, which a link can straddle. Its clearance is zero because
-        // it is a surface, not an obstacle standing on one - a link may come down to it,
-        // and with the tool vertical this arm's wrist has to.
-        // Bin walls: world z 0.713 to 0.753, 6 mm thick, around a 0.28 x 0.24 tray centred
-        // on the Bin location. These are objects, so they keep the full link radius. The
-        // tray's inside is deliberately left open so the tool can still descend into it.
+        /// <summary>
+        /// Bench top: world z 0.650 to 0.720, which is 0.200 m below the robot base frame.
+        /// This is the one that stops a forearm crossing the table: the old height test only
+        /// sampled joint origins, which a link can straddle. Its clearance is zero because
+        /// it is a surface, not an obstacle standing on one - a link may come down to it,
+        /// and with the tool vertical this arm's wrist has to.
+        /// Bin walls: world z 0.713 to 0.753, 6 mm thick, around a 0.28 x 0.24 tray centred
+        /// on the Bin location. These are objects, so they keep the full link radius. The
+        /// tray's inside is deliberately left open so the tool can still descend into it.
+        /// </summary>
         private static readonly SimulatedObstacleBox[] s_obstacles =
         [
             new("Bench", 0.0, 0.0, 1.4000, 0.9000, -0.2700, -0.2000, Clearance: 0.0),

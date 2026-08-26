@@ -49,7 +49,7 @@ The minimum SDK is the **.NET 10 SDK**, and projects compile with **`LangVersion
 | `NUnit.Analyzers` 4.14.0 | Added (test-only) | All NUnit test projects |
 | `ObjectLayoutInspector` 0.2.0 | Added (test-only) | `tests/Opc.Ua.Types.Tests/Opc.Ua.Types.Tests.csproj` |
 | `System.Reflection.Metadata` 9.0.0 | Added (pinned) | Centralised pin only, no direct reference; tracks `$(RoslynRuntimeVersion)` for the analyzer closure |
-| `Mono.Options` 6.12.0.148 | Removed | Previously referenced by `samples/ConsoleReferenceServer/MonoReferenceServer.csproj` |
+| `Mono.Options` 6.12.0.148 | Removed | Previously referenced by `samples/Reference/ConsoleReferenceServer/MonoReferenceServer.csproj` |
 
 ### ASP.NET Core packages are versioned per target framework
 

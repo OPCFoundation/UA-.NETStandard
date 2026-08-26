@@ -751,5 +751,89 @@ namespace Opc.Ua.Server.Tests
                 () => subscription.Republish(context: null, retransmitSequenceNumber: 1),
                 Throws.TypeOf<ArgumentNullException>());
         }
+
+        [Test]
+        public void IsDeletedIsFalseForNewSubscription()
+        {
+            using Subscription subscription = CreateSubscription();
+
+            Assert.That(subscription.IsDeleted, Is.False);
+        }
+
+        [Test]
+        public async System.Threading.Tasks.Task DeleteAsyncSetsIsDeleted()
+        {
+            using Subscription subscription = CreateSubscription();
+            OperationContext context = CreateOperationContext();
+
+            await subscription.DeleteAsync(context);
+
+            Assert.That(subscription.IsDeleted, Is.True);
+        }
+
+        [Test]
+        public async System.Threading.Tasks.Task GatedMethodsThrowBadSubscriptionIdInvalidAfterDelete()
+        {
+            using Subscription subscription = CreateSubscription();
+            OperationContext context = CreateOperationContext();
+
+            await subscription.DeleteAsync(context);
+
+            Assert.Multiple(() =>
+            {
+                AssertBadSubscriptionId(Assert.Throws<ServiceResultException>(
+                    () => subscription.Modify(context, 1000, 10, 5, 0, 0)));
+                AssertBadSubscriptionId(Assert.Throws<ServiceResultException>(
+                    () => subscription.SetPublishingMode(context, publishingEnabled: false)));
+                AssertBadSubscriptionId(Assert.Throws<ServiceResultException>(
+                    () => subscription.ResendData(context)));
+                AssertBadSubscriptionId(Assert.Throws<ServiceResultException>(
+                    () => subscription.Acknowledge(context, sequenceNumber: 1)));
+                AssertBadSubscriptionId(Assert.Throws<ServiceResultException>(
+                    () => subscription.Republish(context, retransmitSequenceNumber: 1)));
+                AssertBadSubscriptionId(Assert.Throws<ServiceResultException>(
+                    () => subscription.GetMonitoredItems(out _, out _)));
+                AssertBadSubscriptionId(Assert.Throws<ServiceResultException>(
+                    () => subscription.SetSubscriptionDurable(maxLifetimeCount: 100)));
+                AssertBadSubscriptionId(Assert.Throws<ServiceResultException>(
+                    () => subscription.ValidateConditionRefresh(context)));
+                AssertBadSubscriptionId(Assert.Throws<ServiceResultException>(
+                    () => subscription.SetTriggering(
+                        context, triggeringItemId: 1, linksToAdd: [], linksToRemove: [],
+                        out _, out _, out _, out _)));
+            });
+        }
+
+        [Test]
+        public async System.Threading.Tasks.Task GatedAsyncMethodsThrowBadSubscriptionIdInvalidAfterDelete()
+        {
+            using Subscription subscription = CreateSubscription();
+            OperationContext context = CreateOperationContext();
+
+            await subscription.DeleteAsync(context);
+
+            AssertBadSubscriptionId(Assert.ThrowsAsync<ServiceResultException>(
+                async () => await subscription.CreateMonitoredItemsAsync(
+                    context, TimestampsToReturn.Both, [])));
+            AssertBadSubscriptionId(Assert.ThrowsAsync<ServiceResultException>(
+                async () => await subscription.ModifyMonitoredItemsAsync(
+                    context, TimestampsToReturn.Both, [])));
+            AssertBadSubscriptionId(Assert.ThrowsAsync<ServiceResultException>(
+                async () => await subscription.DeleteMonitoredItemsAsync(context, [])));
+            AssertBadSubscriptionId(Assert.ThrowsAsync<ServiceResultException>(
+                async () => await subscription.SetMonitoringModeAsync(
+                    context, MonitoringMode.Reporting, [])));
+            AssertBadSubscriptionId(Assert.ThrowsAsync<ServiceResultException>(
+                async () => await subscription.ConditionRefreshAsync()));
+            AssertBadSubscriptionId(Assert.ThrowsAsync<ServiceResultException>(
+                async () => await subscription.TransferSessionAsync(
+                    context, sendInitialValues: false)));
+        }
+
+        private static void AssertBadSubscriptionId(ServiceResultException ex)
+        {
+            Assert.That(ex, Is.Not.Null);
+            Assert.That(ex.Code, Is.EqualTo(StatusCodes.BadSubscriptionIdInvalid));
+        }
     }
 }

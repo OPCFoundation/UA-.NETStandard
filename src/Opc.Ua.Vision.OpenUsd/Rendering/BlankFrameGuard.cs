@@ -62,6 +62,7 @@ namespace Opc.Ua.Vision.OpenUsd.Rendering
         /// either the render pipeline drew nothing, or every pixel in the
         /// buffer has the exact same value.
         /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
         public static BlankFrameCheck Check(SilkFrameCaptureResult result)
         {
             if (result is null)
@@ -116,10 +117,10 @@ namespace Opc.Ua.Vision.OpenUsd.Rendering
 
         private static uint ReadRgba(ReadOnlySpan<byte> rgba, int offset)
         {
-            return ((uint)rgba[offset] << 24)
-                | ((uint)rgba[offset + 1] << 16)
-                | ((uint)rgba[offset + 2] << 8)
-                | rgba[offset + 3];
+            return ((uint)rgba[offset] << 24) |
+                ((uint)rgba[offset + 1] << 16) |
+                ((uint)rgba[offset + 2] << 8) |
+                rgba[offset + 3];
         }
     }
 }

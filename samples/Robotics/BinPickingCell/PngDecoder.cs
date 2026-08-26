@@ -56,8 +56,14 @@ namespace Vision.BinPickingCell
                 throw new ArgumentNullException(nameof(png));
             }
             if (png.Length < 8 ||
-                png[0] != 0x89 || png[1] != (byte)'P' || png[2] != (byte)'N' || png[3] != (byte)'G' ||
-                png[4] != 0x0D || png[5] != 0x0A || png[6] != 0x1A || png[7] != 0x0A)
+                png[0] != 0x89 ||
+                png[1] != (byte)'P' ||
+                png[2] != (byte)'N' ||
+                png[3] != (byte)'G' ||
+                png[4] != 0x0D ||
+                png[5] != 0x0A ||
+                png[6] != 0x1A ||
+                png[7] != 0x0A)
             {
                 throw new InvalidDataException("Not a PNG stream.");
             }
@@ -143,8 +149,8 @@ namespace Vision.BinPickingCell
                 {
                     byte value = filtered[srcRow + 1 + x];
                     byte left = x >= 4 ? rgba[dstRow + x - 4] : (byte)0;
-                    byte up = y > 0 ? rgba[(y - 1) * rowBytes + x] : (byte)0;
-                    byte upLeft = y > 0 && x >= 4 ? rgba[(y - 1) * rowBytes + x - 4] : (byte)0;
+                    byte up = y > 0 ? rgba[((y - 1) * rowBytes) + x] : (byte)0;
+                    byte upLeft = y > 0 && x >= 4 ? rgba[((y - 1) * rowBytes) + x - 4] : (byte)0;
                     rgba[dstRow + x] = type switch
                     {
                         0 => value,
@@ -177,10 +183,10 @@ namespace Vision.BinPickingCell
 
         private static int ReadUInt32BE(byte[] source, int offset)
         {
-            return (source[offset] << 24)
-                | (source[offset + 1] << 16)
-                | (source[offset + 2] << 8)
-                | source[offset + 3];
+            return (source[offset] << 24) |
+                (source[offset + 1] << 16) |
+                (source[offset + 2] << 8) |
+                source[offset + 3];
         }
     }
 }

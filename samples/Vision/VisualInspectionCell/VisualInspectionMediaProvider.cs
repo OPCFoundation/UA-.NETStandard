@@ -39,7 +39,7 @@ using Opc.Ua.Vision.Server;
 
 namespace Vision.VisualInspectionCell
 {
-    internal sealed partial class VisualInspectionMediaProvider : IVisionMediaProvider
+    internal sealed class VisualInspectionMediaProvider : IVisionMediaProvider
     {
         public VisualInspectionMediaProvider(
             VisualInspectionAnalysisService analysis,

@@ -28,6 +28,6 @@
     <ProjectReference Include="..\..\samples\WotCon\FlatTagServer\FlatTagServer.csproj" />
     <ProjectReference Include="..\..\samples\WotCon\AggregationServer\AggregationServer.csproj" />
     <ProjectReference Include="..\..\samples\WotCon\AggregationClient\AggregationClient.csproj" />
-    <ProjectReference Include="..\..\samples\PumpDeviceIntegrationServer\PumpDeviceIntegrationServer.csproj" />
+    <ProjectReference Include="..\..\samples\DI\PumpDeviceIntegrationServer\PumpDeviceIntegrationServer.csproj" />
   </ItemGroup>
 </Project>

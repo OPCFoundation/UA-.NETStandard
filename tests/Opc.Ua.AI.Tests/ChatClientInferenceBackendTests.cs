@@ -115,10 +115,7 @@ namespace Opc.Ua.AI.Tests
         public async Task InvokeKeepsPlainStringContentAsATextMessage()
         {
             List<ChatMessage>? captured = null;
-            Mock<IChatClient> client = CreateCapturingClient((messages, _, _) =>
-            {
-                captured = new List<ChatMessage>(messages);
-            });
+            Mock<IChatClient> client = CreateCapturingClient((messages, _, _) => captured = new List<ChatMessage>(messages));
             using var backend = new ChatClientInferenceBackend(client.Object);
 
             await backend.InvokeAsync(
@@ -139,10 +136,7 @@ namespace Opc.Ua.AI.Tests
             byte[] imageBytes = [1, 2, 3, 4];
             string image = Convert.ToBase64String(imageBytes);
             List<ChatMessage>? captured = null;
-            Mock<IChatClient> client = CreateCapturingClient((messages, _, _) =>
-            {
-                captured = new List<ChatMessage>(messages);
-            });
+            Mock<IChatClient> client = CreateCapturingClient((messages, _, _) => captured = new List<ChatMessage>(messages));
             using var backend = new ChatClientInferenceBackend(client.Object);
 
             await backend.InvokeAsync(
@@ -172,10 +166,7 @@ namespace Opc.Ua.AI.Tests
         public async Task InvokeProjectsRemoteImagePartToUriContent()
         {
             List<ChatMessage>? captured = null;
-            Mock<IChatClient> client = CreateCapturingClient((messages, _, _) =>
-            {
-                captured = new List<ChatMessage>(messages);
-            });
+            Mock<IChatClient> client = CreateCapturingClient((messages, _, _) => captured = new List<ChatMessage>(messages));
             using var backend = new ChatClientInferenceBackend(client.Object);
 
             await backend.InvokeAsync(
@@ -198,10 +189,7 @@ namespace Opc.Ua.AI.Tests
         public async Task InvokeRefusesMalformedImageDataUriBeforeCallingTheClient()
         {
             List<ChatMessage>? captured = null;
-            Mock<IChatClient> client = CreateCapturingClient((messages, _, _) =>
-            {
-                captured = new List<ChatMessage>(messages);
-            });
+            Mock<IChatClient> client = CreateCapturingClient((messages, _, _) => captured = new List<ChatMessage>(messages));
             using var backend = new ChatClientInferenceBackend(client.Object);
 
             InferenceResult result = await backend.InvokeAsync(
@@ -229,16 +217,15 @@ namespace Opc.Ua.AI.Tests
         public async Task InvokeRefusesAnInvalidImageMediaTypeAsAStructuredResult(string url)
         {
             List<ChatMessage>? captured = null;
-            Mock<IChatClient> client = CreateCapturingClient((messages, _, _) =>
-            {
-                captured = new List<ChatMessage>(messages);
-            });
+            Mock<IChatClient> client = CreateCapturingClient((messages, _, _) => captured = new List<ChatMessage>(messages));
             using var backend = new ChatClientInferenceBackend(client.Object);
 
             InferenceResult result = await backend.InvokeAsync(
                 Request(
                     "{\"messages\":[{\"role\":\"user\",\"content\":[" +
-                    "{\"type\":\"image_url\",\"image_url\":{\"url\":\"" + url + "\"}}" +
+                    "{\"type\":\"image_url\",\"image_url\":{\"url\":\"" +
+                    url +
+                    "\"}}" +
                     "]}]}"),
                 CancellationToken.None).ConfigureAwait(false);
 
@@ -261,10 +248,8 @@ namespace Opc.Ua.AI.Tests
         public async Task InvokeRefusesANonStringRoleAsAStructuredResult()
         {
             List<ChatMessage>? captured = null;
-            Mock<IChatClient> client = CreateCapturingClient((messages, _, _) =>
-            {
-                captured = new List<ChatMessage>(messages);
-            });
+            Mock<IChatClient> client = CreateCapturingClient(
+                (messages, _, _) => captured = new List<ChatMessage>(messages));
             using var backend = new ChatClientInferenceBackend(client.Object);
 
             InferenceResult result = await backend.InvokeAsync(

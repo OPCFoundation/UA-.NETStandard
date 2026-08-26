@@ -105,34 +105,32 @@ namespace Opc.Ua.Vision.Intent.Tests.Infrastructure
             await FinalizePipelineAsync(context, cancellationToken).ConfigureAwait(false);
         }
 
-
         private static void AddFrames(IVisionBuildContext context)
         {
             IVisionNodeBuilder nodes = context.Nodes;
             nodes.AddFrame("World", frame => frame
                 .WithFrameId(WorldFrameId)
                 .WithRole(VisionFrameRoleEnum.World)
-                .WithTransform(Pose(WorldFrameId, 0.0, 0.0, 0.0)));
-
-            nodes.AddFrame("Base", frame => frame
+                .WithTransform(Pose(WorldFrameId, 0.0, 0.0, 0.0)))
+                .AddFrame("Base", frame => frame
                 .WithFrameId(BaseFrameId)
                 .WithRole(VisionFrameRoleEnum.Base)
                 .WithParent(WorldFrameId)
-                .WithTransform(Pose(WorldFrameId, 0.100, 0.000, 0.400)));
-
-            nodes.AddFrame("Flange", frame => frame
+                .WithTransform(Pose(WorldFrameId, 0.100, 0.000, 0.400)))
+                .AddFrame("Flange", frame => frame
                 .WithFrameId(FlangeFrameId)
                 .WithRole(VisionFrameRoleEnum.MechanicalInterface)
                 .WithParent(BaseFrameId)
-                .WithTransform(Pose(BaseFrameId, 0.200, 0.000, 0.500)));
-
-            // Camera-in-flange offset carries the remainder so
-            // camera composed to world = (0.500, 0.000, 1.100).
-            nodes.AddFrame("CameraEih", frame => frame
+                .WithTransform(Pose(BaseFrameId, 0.200, 0.000, 0.500)))
+                .AddFrame("CameraEih", frame => frame
                 .WithFrameId(CameraFrameId)
                 .WithRole(VisionFrameRoleEnum.Camera)
                 .WithParent(FlangeFrameId)
                 .WithTransform(Pose(FlangeFrameId, 0.200, 0.000, 0.200)));
+
+            // Camera-in-flange offset carries the remainder so
+            // camera composed to world = (0.500, 0.000, 1.100).
+
         }
 
         private void AddSensor(IVisionBuildContext context)
@@ -283,7 +281,6 @@ namespace Opc.Ua.Vision.Intent.Tests.Infrastructure
             }
             return null;
         }
-
 
         private static VisionPose3DDataType Pose(
             string frameId, double x, double y, double z)

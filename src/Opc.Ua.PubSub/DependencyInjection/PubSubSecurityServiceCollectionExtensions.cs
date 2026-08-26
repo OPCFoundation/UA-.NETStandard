@@ -229,7 +229,7 @@ namespace Microsoft.Extensions.DependencyInjection
             {
                 throw new ArgumentNullException(nameof(securityKeyServiceFactory));
             }
-            if (PubSubSecurityPolicyRegistry.GetByUri(securityPolicyUri) is null)
+            if (PubSubSecurityPolicyRegistry.Default.GetByUri(securityPolicyUri) is null)
             {
                 throw new ArgumentException(
                     $"Unknown PubSub security policy URI '{securityPolicyUri}'.",
@@ -247,7 +247,7 @@ namespace Microsoft.Extensions.DependencyInjection
 
             builder.Services.AddSingleton<IPubSubSecurityKeyProvider>(sp =>
             {
-                IPubSubSecurityPolicy policy = PubSubSecurityPolicyRegistry.GetByUri(securityPolicyUri)!;
+                IPubSubSecurityPolicy policy = PubSubSecurityPolicyRegistry.Default.GetByUri(securityPolicyUri)!;
                 PullSecurityKeyProviderOptions options = sp
                     .GetRequiredService<IOptionsMonitor<PullSecurityKeyProviderOptions>>()
                     .Get(securityGroupId);

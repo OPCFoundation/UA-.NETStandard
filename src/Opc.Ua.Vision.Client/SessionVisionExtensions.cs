@@ -47,6 +47,7 @@ namespace Opc.Ua.Vision.Client
         /// <param name="telemetry">
         /// The telemetry context used by generated proxies.
         /// </param>
+        /// <exception cref="ArgumentNullException"></exception>
         public static VisionClient Vision(
             this ISession session,
             ITelemetryContext telemetry)

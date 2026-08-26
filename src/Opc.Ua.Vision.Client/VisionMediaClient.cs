@@ -196,6 +196,7 @@ namespace Opc.Ua.Vision.Client
         /// <param name="cancellationToken">
         /// Cancels the operation.
         /// </param>
+        /// <exception cref="ArgumentException"></exception>
         public async Task<VisionInlineClipReading> ReadLatestClipAsync(
             NodeId clipEndpointNodeId,
             CancellationToken cancellationToken = default)
@@ -270,6 +271,7 @@ namespace Opc.Ua.Vision.Client
         /// <param name="cancellationToken">
         /// Cancels the operation.
         /// </param>
+        /// <exception cref="ArgumentException"></exception>
         public async Task<VisionImageReferenceDataType?> ReadLatestClipMetadataAsync(
             NodeId clipEndpointNodeId,
             CancellationToken cancellationToken = default)
@@ -313,6 +315,7 @@ namespace Opc.Ua.Vision.Client
         /// <param name="cancellationToken">
         /// Cancels the operation.
         /// </param>
+        /// <exception cref="ArgumentException"></exception>
         public Task ConfigureStreamEndpointAsync(
             NodeId streamEndpointNodeId,
             VisionVideoCodecEnum codec,
@@ -350,6 +353,7 @@ namespace Opc.Ua.Vision.Client
         /// <param name="cancellationToken">
         /// Cancels the operation.
         /// </param>
+        /// <exception cref="ArgumentNullException"></exception>
         public async Task<VisionStreamSessionDataType> GetStreamEndpointAsync(
             NodeId streamEndpointNodeId,
             string profileName,

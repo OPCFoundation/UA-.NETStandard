@@ -42,7 +42,7 @@ using Opc.Ua.Vision.Server;
 
 namespace Vision.VisualInspectionCell
 {
-    internal sealed partial class AINodeManagerRegistry : IServerStartupTask
+    internal sealed class AINodeManagerRegistry : IServerStartupTask
     {
         public AINodeManagerRegistry(ILogger<AINodeManagerRegistry> logger)
         {

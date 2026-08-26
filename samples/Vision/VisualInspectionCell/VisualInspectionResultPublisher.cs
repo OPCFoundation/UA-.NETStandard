@@ -56,7 +56,8 @@ namespace Vision.VisualInspectionCell
             }
 
             ISystemContext context = target.SystemContext;
-            if (TryGetPublished(resultId, out PublishedInspectionResult? existing))
+            if (TryGetPublished(resultId, out PublishedInspectionResult? existing) &&
+                existing != null)
             {
                 return existing;
             }
@@ -74,23 +75,23 @@ namespace Vision.VisualInspectionCell
                 state.CreationTime.Value = timestamp;
             }
             state.AddSensor(context);
-            state.CreateOrReplaceSensor(context, null!).Value = target.SensorNodeId;
+            state.CreateOrReplaceSensor(context, null).Value = target.SensorNodeId;
             state.AddPipeline(context);
-            state.CreateOrReplacePipeline(context, null!).Value = target.PipelineNodeId;
+            state.CreateOrReplacePipeline(context, null).Value = target.PipelineNodeId;
             state.AddModelVersionUsed(context);
-            state.CreateOrReplaceModelVersionUsed(context, null!).Value = modelVersion;
-            state.CreateOrReplaceEvaluation(context, null!).Value = evaluation;
+            state.CreateOrReplaceModelVersionUsed(context, null).Value = modelVersion;
+            state.CreateOrReplaceEvaluation(context, null).Value = evaluation;
             state.AddPartId(context);
-            state.CreateOrReplacePartId(context, null!).Value = InspectionRecipe.PartId;
+            state.CreateOrReplacePartId(context, null).Value = InspectionRecipe.PartId;
             state.AddRecipeId(context);
-            state.CreateOrReplaceRecipeId(context, null!).Value = InspectionRecipe.RecipeId;
-            state.CreateOrReplaceCharacteristics(context, null!).Value = characteristics;
+            state.CreateOrReplaceRecipeId(context, null).Value = InspectionRecipe.RecipeId;
+            state.CreateOrReplaceCharacteristics(context, null).Value = characteristics;
             state.AddFrame(context);
             BaseDataVariableState<VisionImageReferenceDataType> frame =
-                state.CreateOrReplaceFrame(context, null!);
+                state.CreateOrReplaceFrame(context, null);
             frame.Value = frameReference;
             state.NodeId = context.RequireNodeIdFactory().New(context, state);
-            NodeInstanceExtensions.AssignInstanceChildNodeIds(context, state, state.NodeId);
+            context.AssignInstanceChildNodeIds(state, state.NodeId);
             var published = new PublishedInspectionResult(
                 resultId,
                 state.NodeId,

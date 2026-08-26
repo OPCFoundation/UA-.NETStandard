@@ -29,11 +29,11 @@
 
 using System.Collections.Generic;
 using System.Threading.Tasks;
-using Opc.Ua.AI.Inference;
-using Opc.Ua.AI.Server;
 using Microsoft.Extensions.Options;
 using Moq;
 using Opc.Ua;
+using Opc.Ua.AI.Inference;
+using Opc.Ua.AI.Server;
 using Opc.Ua.Server;
 using Opc.Ua.Tests;
 

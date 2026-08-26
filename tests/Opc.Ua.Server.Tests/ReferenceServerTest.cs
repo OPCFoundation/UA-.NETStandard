@@ -592,6 +592,96 @@ namespace Opc.Ua.Server.Tests
         }
 
         /// <summary>
+        /// Tests that the discrete DataAccess node seed values (TrueState/FalseState,
+        /// EnumStrings, EnumValues, ValueAsText) baked into the NodeSet2 model are
+        /// materialized at runtime by the source generator.
+        /// </summary>
+        [Test]
+        public async Task ReferenceNodeManagerDiscreteSeedValuesAsync()
+        {
+            ushort namespaceIndex = (ushort)m_server.CurrentInstance.NamespaceUris.GetIndex(
+                Quickstarts.ReferenceServer.Namespaces.ReferenceServer);
+
+            var twoStateTrueId = new NodeId(
+                "DataAccess_TwoStateDiscreteType_DataAccess_TwoStateDiscreteType_001_TrueState",
+                namespaceIndex);
+            var twoStateFalseId = new NodeId(
+                "DataAccess_TwoStateDiscreteType_DataAccess_TwoStateDiscreteType_001_FalseState",
+                namespaceIndex);
+            var multiStateEnumStringsId = new NodeId(
+                "DataAccess_MultiStateDiscreteType_DataAccess_MultiStateDiscreteType_001_EnumStrings",
+                namespaceIndex);
+            var multiStateValueEnumValuesId = new NodeId(
+                "DataAccess_MultiStateValueDiscreteType_DataAccess_MultiStateValueDiscreteType_001_EnumValues",
+                namespaceIndex);
+            var multiStateValueAsTextId = new NodeId(
+                "DataAccess_MultiStateValueDiscreteType_DataAccess_MultiStateValueDiscreteType_001_ValueAsText",
+                namespaceIndex);
+
+            ArrayOf<ReadValueId> nodesToRead =
+            [
+                new ReadValueId { NodeId = twoStateTrueId, AttributeId = Attributes.Value },
+                new ReadValueId { NodeId = twoStateFalseId, AttributeId = Attributes.Value },
+                new ReadValueId { NodeId = multiStateEnumStringsId, AttributeId = Attributes.Value },
+                new ReadValueId { NodeId = multiStateValueEnumValuesId, AttributeId = Attributes.Value },
+                new ReadValueId { NodeId = multiStateValueAsTextId, AttributeId = Attributes.Value }
+            ];
+
+            RequestHeader requestHeader = m_requestHeader;
+            requestHeader.Timestamp = DateTimeUtc.Now;
+            ReadResponse readResponse = await m_server.ReadAsync(
+                m_secureChannelContext,
+                requestHeader,
+                kMaxAge,
+                TimestampsToReturn.Both,
+                nodesToRead,
+                RequestLifetime.None).ConfigureAwait(false);
+
+            Assert.That(readResponse, Is.Not.Null);
+            Assert.That(readResponse.Results.IsNull, Is.False);
+            Assert.That(readResponse.Results.Count, Is.EqualTo(nodesToRead.Count));
+
+            foreach (DataValue result in readResponse.Results)
+            {
+                Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.Good));
+            }
+
+            Assert.That(
+                readResponse.Results[0].WrappedValue.TryGetValue(out LocalizedText trueState),
+                Is.True);
+            Assert.That(trueState.Text, Is.EqualTo("red"));
+            Assert.That(
+                readResponse.Results[1].WrappedValue.TryGetValue(out LocalizedText falseState),
+                Is.True);
+            Assert.That(falseState.Text, Is.EqualTo("blue"));
+
+            Assert.That(
+                readResponse.Results[2].WrappedValue.TryGetValue(
+                    out ArrayOf<LocalizedText> enumStrings),
+                Is.True);
+            Assert.That(enumStrings, Has.Count.EqualTo(3));
+            Assert.That(enumStrings[0].Text, Is.EqualTo("open"));
+            Assert.That(enumStrings[1].Text, Is.EqualTo("closed"));
+            Assert.That(enumStrings[2].Text, Is.EqualTo("jammed"));
+
+            Assert.That(
+                readResponse.Results[3].WrappedValue.TryGetValue(
+                    out ArrayOf<ExtensionObject> enumValues),
+                Is.True);
+            Assert.That(enumValues, Has.Count.EqualTo(3));
+            Assert.That(
+                enumValues[0].TryGetValue(out EnumValueType firstEnumValue),
+                Is.True);
+            Assert.That(firstEnumValue.Value, Is.Zero);
+            Assert.That(firstEnumValue.DisplayName.Text, Is.EqualTo("open"));
+
+            Assert.That(
+                readResponse.Results[4].WrappedValue.TryGetValue(out LocalizedText valueAsText),
+                Is.True);
+            Assert.That(valueAsText.Text, Is.EqualTo("open"));
+        }
+
+        /// <summary>
         /// Tests that AccessLevelEx retains the same base access bits as AccessLevel.
         /// </summary>
         [Test]

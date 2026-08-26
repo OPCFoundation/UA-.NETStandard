@@ -52,7 +52,29 @@ namespace Opc.Ua.Core.Encoders.Tests
             .. typeof(BaseObjectState).Assembly
                 .GetExportedTypes()
                 .Where(IsEncodeableType)
+                .Where(PublishesStructureMetadata)
         ];
+
+        /// <summary>
+        /// Excludes the encodeable types that are not ordinary Structures.
+        /// </summary>
+        /// <remarks>
+        /// Every assertion below assumes a generated Structure: that the type
+        /// has its own binary and XML encoding Objects distinct from its
+        /// DataType, and that the standard factory can resolve it from an
+        /// encoding id. OPC 10000-6 5.1.10 defines <see cref="Opc.Ua.Decimal"/>
+        /// as the exception - its ExtensionObject TypeId is "the identifier for
+        /// the Decimal DataType" itself, it "is like a built-in type and a
+        /// DevelopmentPlatform has to have hardcoded knowledge of the type",
+        /// and "No Structure metadata is published for this type". So it has no
+        /// separate encoding Objects to be distinct from, and this suite's
+        /// premise does not apply to it. Its own encoding is covered end to end
+        /// by DecimalEncodingTests across binary, XML and JSON.
+        /// </remarks>
+        private static bool PublishesStructureMetadata(Type systemType)
+        {
+            return systemType != typeof(Opc.Ua.Decimal);
+        }
 
         /// <summary>
         /// Verify encode and decode of an encodeable type.

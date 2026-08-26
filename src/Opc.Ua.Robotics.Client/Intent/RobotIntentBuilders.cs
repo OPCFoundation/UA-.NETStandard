@@ -437,6 +437,7 @@ namespace Opc.Ua.Robotics.Client.Intent
         /// <summary>
         /// Sets joint targets and validates the axis count.
         /// </summary>
+        /// <exception cref="ArgumentException"></exception>
         public JointMoveIntentBuilder ToJoints(ArrayOf<double> jointTargets)
         {
             if (m_axisCount > 0 && jointTargets.Count != m_axisCount)
@@ -454,6 +455,7 @@ namespace Opc.Ua.Robotics.Client.Intent
         /// <summary>
         /// Sets a target pose.
         /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
         public JointMoveIntentBuilder ToPose(Pose3DDataType pose)
         {
             Intent.HasJointTargets = false;
@@ -481,6 +483,7 @@ namespace Opc.Ua.Robotics.Client.Intent
         /// <summary>
         /// Sets the target pose.
         /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
         public LinearMoveIntentBuilder To(Pose3DDataType target)
         {
             Intent.Target = target ?? throw new ArgumentNullException(nameof(target));
@@ -505,6 +508,7 @@ namespace Opc.Ua.Robotics.Client.Intent
         /// <summary>
         /// Sets the via point.
         /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
         public CircularMoveIntentBuilder Via(Pose3DDataType viaPoint)
         {
             Intent.ViaPoint = viaPoint ?? throw new ArgumentNullException(nameof(viaPoint));
@@ -514,6 +518,7 @@ namespace Opc.Ua.Robotics.Client.Intent
         /// <summary>
         /// Sets the target pose.
         /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
         public CircularMoveIntentBuilder To(Pose3DDataType target)
         {
             Intent.Target = target ?? throw new ArgumentNullException(nameof(target));
@@ -863,6 +868,7 @@ namespace Opc.Ua.Robotics.Client.Intent
         /// <summary>
         /// Creates an equality condition comparing an attribute operand with a literal value.
         /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
         public static ContentFilter Equals(SimpleAttributeOperand operand, Variant value)
         {
             if (operand is null)

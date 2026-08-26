@@ -7,9 +7,10 @@
     <TargetFrameworks Condition="'$(TargetFrameworks)' == ''">$(CustomTestTarget)</TargetFrameworks>
     <RestrictForLegacyTfm>true</RestrictForLegacyTfm>
     <!-- Deliberately NOT IsAotCompatible, unlike Opc.Ua.Mcp.Core. The capture tools sit on
-         Opc.Ua.Core.Diagnostics, which reaches SharpPcap for live capture and reflects over
-         IEncodeable properties when dissecting service calls; neither is trim- or AOT-safe,
-         which is why that package does not opt in either. Hosts publishing ahead of time
+         Opc.Ua.Core.Diagnostics, whose NicCaptureSource reaches SharpPcap for live capture
+         via dynamic native library loading; that implementation is deliberately kept
+         [RequiresDynamicCode]/[RequiresUnreferencedCode]-annotated (see that project's
+         comment) so it still fails a trim/AOT publish here. Hosts publishing ahead of time
          should take Opc.Ua.Mcp.Core alone. -->
     <AssemblyName>$(AssemblyPrefix).Mcp.Diagnostics</AssemblyName>
     <PackageId>$(PackagePrefix).Opc.Ua.Mcp.Diagnostics</PackageId>

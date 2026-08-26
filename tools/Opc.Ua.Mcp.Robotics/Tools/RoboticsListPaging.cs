@@ -239,13 +239,13 @@ namespace Opc.Ua.Mcp.Tools
             }
             list.Sort((a, b) =>
             {
-                int cmp = string.Compare(a.IntentId, b.IntentId, StringComparison.Ordinal);
+                int cmp = string.CompareOrdinal(a.IntentId, b.IntentId);
                 if (cmp != 0)
                 {
                     return cmp;
                 }
-                return string.Compare(
-                    a.Operation.ToString(), b.Operation.ToString(), StringComparison.Ordinal);
+                return string.CompareOrdinal(
+                    a.Operation.ToString(), b.Operation.ToString());
             });
             return [.. list];
         }
@@ -258,7 +258,7 @@ namespace Opc.Ua.Mcp.Tools
             {
                 list.Add(missions[i]);
             }
-            list.Sort((a, b) => string.Compare(a.MissionId, b.MissionId, StringComparison.Ordinal));
+            list.Sort((a, b) => string.CompareOrdinal(a.MissionId, b.MissionId));
             return [.. list];
         }
 

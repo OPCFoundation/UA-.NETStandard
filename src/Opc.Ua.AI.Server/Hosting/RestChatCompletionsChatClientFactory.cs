@@ -53,6 +53,7 @@ namespace Opc.Ua.AI.Server.Hosting
         /// chat-completions contract.
         /// </summary>
         /// <param name="services">The service collection to update.</param>
+        /// <exception cref="ArgumentNullException"><paramref name="services"/> is <c>null</c>.</exception>
         public static IServiceCollection AddRestChatCompletionsAIChatClientFactory(
             this IServiceCollection services)
         {
@@ -164,8 +165,6 @@ namespace Opc.Ua.AI.Server.Hosting
                 case BackendAuthentication.WorkloadIdentity:
                     message.Headers.Authorization = new AuthenticationHeaderValue("Bearer", secret);
                     break;
-                default:
-                    break;
             }
         }
 
@@ -229,7 +228,8 @@ namespace Opc.Ua.AI.Server.Hosting
             string content = choice
                 .GetProperty("message")
                 .GetProperty("content")
-                .GetString() ?? string.Empty;
+                .GetString() ??
+                string.Empty;
             var response = new ChatResponse(new ChatMessage(ChatRole.Assistant, content))
             {
                 ModelId = model,
@@ -310,7 +310,5 @@ namespace Opc.Ua.AI.Server.Hosting
     }
 
     [JsonSerializable(typeof(ChatCompletionRequest))]
-    internal sealed partial class RestChatCompletionsChatClientJsonContext : JsonSerializerContext
-    {
-    }
+    internal sealed partial class RestChatCompletionsChatClientJsonContext : JsonSerializerContext;
 }

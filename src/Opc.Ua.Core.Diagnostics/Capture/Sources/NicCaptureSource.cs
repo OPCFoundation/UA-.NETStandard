@@ -104,8 +104,22 @@ namespace Opc.Ua.Pcap.Capture.Sources
         public long ByteCount => Interlocked.Read(ref m_byteCount);
 
         /// <inheritdoc/>
+        // ICaptureSource.StartAsync is deliberately unannotated because most capture
+        // sources do not need SharpPcap's dynamic-loading requirement. Keeping the
+        // Requires* attributes here (rather than removing them to satisfy the
+        // analyzer) means any AOT/trim-analyzed caller that invokes
+        // NicCaptureSource.StartAsync directly still gets warned/fails; only the
+        // mismatch with the interface member itself is suppressed below.
         [RequiresDynamicCode(kSharpPcapDynamicLoadingMessage)]
         [RequiresUnreferencedCode(kSharpPcapDynamicLoadingMessage)]
+        [UnconditionalSuppressMessage("AOT", "IL3051",
+            Justification = "ICaptureSource.StartAsync is intentionally unannotated; only " +
+                "NicCaptureSource needs SharpPcap's dynamic-loading requirement, so this " +
+                "implementation is intentionally stricter than the interface it implements.")]
+        [UnconditionalSuppressMessage("Trimming", "IL2046",
+            Justification = "ICaptureSource.StartAsync is intentionally unannotated; only " +
+                "NicCaptureSource needs SharpPcap's dynamic-loading requirement, so this " +
+                "implementation is intentionally stricter than the interface it implements.")]
         public ValueTask StartAsync(StartCaptureRequest request, CancellationToken ct)
         {
             ArgumentNullException.ThrowIfNull(request);

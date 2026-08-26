@@ -250,14 +250,14 @@ namespace Opc.Ua.Vision.Tests
             Assert.Multiple(() =>
             {
                 Assert.That(harness.Clip.LatestClip!.Value.IsNull, Is.False,
-                    "A clip the Server has just encoded is by definition the latest one; leaving LatestClip "
-                    + "unwritten makes a consumer that reads the published frame first wait forever.");
+                    "A clip the Server has just encoded is by definition the latest one; leaving LatestClip " +
+                    "unwritten makes a consumer that reads the published frame first wait forever.");
                 Assert.That(harness.Clip.LatestClip!.Value.Length, Is.EqualTo(payload.Length));
                 Assert.That(StatusCode.IsGood(harness.Clip.LatestClip!.StatusCode), Is.True);
                 Assert.That(harness.Clip.LatestClipMetadata!.Value, Is.Not.Null);
                 Assert.That(harness.Clip.LatestClipMetadata!.Value.Uri, Is.EqualTo("opcua-inline://cell/frames/42"),
-                    "The descriptor beside the published frame is how a consumer learns which image the "
-                    + "detections are expressed in.");
+                    "The descriptor beside the published frame is how a consumer learns which image the " +
+                    "detections are expressed in.");
                 Assert.That(harness.Clip.LatestClipMetadata!.Value.Width, Is.EqualTo(612u));
                 Assert.That(StatusCode.IsGood(harness.Clip.LatestClipMetadata!.StatusCode), Is.True);
             });
@@ -315,12 +315,12 @@ namespace Opc.Ua.Vision.Tests
         [Test]
         public void ClipEndpointExposesLatestClipMetadataAlongsideLatestClipInlineDeliveryEnabledAndMaxInlineSize()
         {
-            var clip = new ClipEndpointState(null!)
+            var clip = new ClipEndpointState(null)
             {
                 InlineDeliveryEnabled = PropertyState<bool>.With<VariantBuilder>(null!, false),
                 MaxInlineClipSize = PropertyState<uint>.With<VariantBuilder>(null!, 1024u),
                 LatestClip = BaseDataVariableState<ByteString>.With<VariantBuilder>(null!),
-                LatestClipMetadata = BaseDataVariableState<VisionImageReferenceDataType>.With<StructureBuilder<VisionImageReferenceDataType>>(null!),
+                LatestClipMetadata = BaseDataVariableState<VisionImageReferenceDataType>.With<StructureBuilder<VisionImageReferenceDataType>>(null!)
             };
 
             Assert.Multiple(() =>
@@ -345,19 +345,19 @@ namespace Opc.Ua.Vision.Tests
             {
                 SensorNodeId = new NodeId(sensorId, 4);
                 EndpointNodeId = new NodeId(endpointId, 4);
-                var sensor = new VisionSensorState(null!);
-                var media = new VisionMediaManagementState(null!)
+                var sensor = new VisionSensorState(null);
+                var media = new VisionMediaManagementState(null)
                 {
-                    GetClip = new GetClipMethodState(null!)
+                    GetClip = new GetClipMethodState(null)
                 };
-                var clip = new ClipEndpointState(null!)
+                var clip = new ClipEndpointState(null)
                 {
                     NodeId = EndpointNodeId,
                     InlineDeliveryEnabled = PropertyState<bool>.With<VariantBuilder>(null!, inlineDeliveryEnabled),
                     MaxInlineClipSize = PropertyState<uint>.With<VariantBuilder>(null!, maxInlineClipSize),
                     LatestClip = BaseDataVariableState<ByteString>.With<VariantBuilder>(null!),
                     LatestClipMetadata = BaseDataVariableState<VisionImageReferenceDataType>
-                        .With<StructureBuilder<VisionImageReferenceDataType>>(null!),
+                        .With<StructureBuilder<VisionImageReferenceDataType>>(null!)
                 };
 
                 var registration = new SensorRegistration(

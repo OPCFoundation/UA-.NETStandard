@@ -71,7 +71,8 @@ namespace Opc.Ua.Robotics.Tests
         }
 
         [Test]
-        public void NamedGenericExecutorRegistrationResolvesOnlyMatchingController()        {
+        public void NamedGenericExecutorRegistrationResolvesOnlyMatchingController()
+        {
             var services = new ServiceCollection();
             IOpcUaServerBuilder builder = services.AddOpcUa().AddServer(static _ => { });
 

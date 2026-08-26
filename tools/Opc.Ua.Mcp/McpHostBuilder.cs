@@ -46,7 +46,6 @@ namespace Opc.Ua.Mcp
     /// </summary>
     internal static class McpHostBuilder
     {
-
         /// <summary>
         /// Registers the OPC UA client, session/PubSub managers and Pcap
         /// diagnostics services used by the MCP tools.

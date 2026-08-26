@@ -111,9 +111,16 @@ namespace Opc.Ua.Vision.Tests
             }
             finally
             {
-                try { Directory.Delete(tempPluginDir, recursive: true); }
-                catch (IOException) { }
-                catch (UnauthorizedAccessException) { }
+                try
+                {
+                    Directory.Delete(tempPluginDir, recursive: true);
+                }
+                catch (IOException)
+                {
+                }
+                catch (UnauthorizedAccessException)
+                {
+                }
             }
         }
 
@@ -155,7 +162,7 @@ namespace Opc.Ua.Vision.Tests
                 StageIdentifier = "urn:test:stage",
                 Width = 64,
                 Height = 64,
-                Format = (SceneCameraImageFormat)999,
+                Format = (SceneCameraImageFormat)999
             };
 
             SceneCameraCaptureResult result = await provider.CaptureAsync(request, CancellationToken.None)
@@ -181,7 +188,7 @@ namespace Opc.Ua.Vision.Tests
                 Width = 32,
                 Height = 32,
                 Format = SceneCameraImageFormat.Png,
-                TimestampUtc = ts,
+                TimestampUtc = ts
             };
 
             SceneCameraCaptureResult result = await provider.CaptureAsync(request, CancellationToken.None)
@@ -201,7 +208,7 @@ namespace Opc.Ua.Vision.Tests
                 StageIdentifier = string.Empty,
                 Width = 32,
                 Height = 32,
-                Format = SceneCameraImageFormat.Png,
+                Format = SceneCameraImageFormat.Png
             };
 
             SceneCameraCaptureResult result = await provider.CaptureAsync(request, CancellationToken.None)
@@ -228,7 +235,7 @@ namespace Opc.Ua.Vision.Tests
                 Height = 480,
                 TimeCode = 42.5,
                 Format = SceneCameraImageFormat.Png,
-                TimestampUtc = ts,
+                TimestampUtc = ts
             };
 
             Assert.Multiple(() =>
@@ -345,7 +352,7 @@ namespace Opc.Ua.Vision.Tests
                 StageIdentifier = "urn:test:stage",
                 Width = 32,
                 Height = 32,
-                Format = SceneCameraImageFormat.Png,
+                Format = SceneCameraImageFormat.Png
             };
 
             OperationCanceledException? thrown = null;
@@ -375,7 +382,7 @@ namespace Opc.Ua.Vision.Tests
                 StageIdentifier = "urn:test:stage",
                 Width = 32,
                 Height = 32,
-                Format = SceneCameraImageFormat.Png,
+                Format = SceneCameraImageFormat.Png
             };
 
             ObjectDisposedException? thrown = null;

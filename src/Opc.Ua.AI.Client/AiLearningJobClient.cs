@@ -143,4 +143,3 @@ namespace Opc.Ua.AI.Client
         private readonly LearningJobTypeClient m_proxy;
     }
 }
-

@@ -62,7 +62,7 @@ namespace Opc.Ua.Gds.Tests
 
         private static readonly HashSet<string> s_supportedPolicyUris =
         [
-            .. SecurityPolicies.GetDisplayNames().Select(SecurityPolicies.GetUri)
+            .. SecurityPolicies.Default.GetDisplayNames().Select(SecurityPolicies.Default.GetUri)
         ];
 
         /// <summary>
@@ -654,14 +654,15 @@ namespace Opc.Ua.Gds.Tests
             await ConnectPushClientAsync(true).ConfigureAwait(false);
             byte[] regenerateNonce = new byte[32];
             m_randomSource.NextBytes(regenerateNonce, 0, regenerateNonce.Length);
-#if !NET5_0_OR_GREATER
-            if (CryptoUtils.GetCurveFromCertificateTypeId(m_certificateType) != null)
+            if (CryptoUtils.GetCurveFromCertificateTypeId(m_certificateType) != null &&
+                !Opc.Ua.Server.AdditionalEntropyCertificateKeyGenerator.IsEccKeyRegenerationSupported)
             {
                 // §7.10.10: genuine additional-entropy incorporation into an ECC
-                // private key is unavailable on .NET Framework, so a
-                // regenerate-key request for an ECC CertificateType must be
-                // rejected with Bad_NotSupported rather than silently ignoring
-                // the mandated Nonce.
+                // private key is unavailable on target frameworks that cannot
+                // import a private-only EC scalar (.NET Framework /
+                // netstandard2.1), so a regenerate-key request for an ECC
+                // CertificateType must be rejected with Bad_NotSupported rather
+                // than silently ignoring the mandated Nonce.
                 ServiceResultException sre = Assert.ThrowsAsync<ServiceResultException>(
                     () => m_pushClient.PushClient.CreateSigningRequestAsync(
                         default,
@@ -672,7 +673,6 @@ namespace Opc.Ua.Gds.Tests
                 Assert.That(sre.StatusCode, Is.EqualTo(StatusCodes.BadNotSupported));
                 return;
             }
-#endif
             ByteString csr = await m_pushClient.PushClient.CreateSigningRequestAsync(
                 default,
                 m_certificateType,
@@ -689,11 +689,12 @@ namespace Opc.Ua.Gds.Tests
             await ConnectPushClientAsync(true).ConfigureAwait(false);
             byte[] nonce = new byte[32];
             m_randomSource.NextBytes(nonce, 0, nonce.Length);
-#if !NET5_0_OR_GREATER
-            if (CryptoUtils.GetCurveFromCertificateTypeId(m_certificateType) != null)
+            if (CryptoUtils.GetCurveFromCertificateTypeId(m_certificateType) != null &&
+                !Opc.Ua.Server.AdditionalEntropyCertificateKeyGenerator.IsEccKeyRegenerationSupported)
             {
                 // §7.10.10: ECC regenerate-key requests are rejected with
-                // Bad_NotSupported on .NET Framework (see
+                // Bad_NotSupported when a private-only EC scalar cannot be
+                // imported (see
                 // CreateSigningRequestNullParmsWithNewPrivateKeyAsync).
                 ServiceResultException sre = Assert.ThrowsAsync<ServiceResultException>(
                     () => m_pushClient.PushClient.CreateSigningRequestAsync(
@@ -705,7 +706,6 @@ namespace Opc.Ua.Gds.Tests
                 Assert.That(sre.StatusCode, Is.EqualTo(StatusCodes.BadNotSupported));
                 return;
             }
-#endif
             ByteString csr = await m_pushClient.PushClient.CreateSigningRequestAsync(
                 m_pushClient.PushClient.DefaultApplicationGroup,
                 m_certificateType,
@@ -904,6 +904,23 @@ namespace Opc.Ua.Gds.Tests
                 byte[] nonce = new byte[32];
                 m_randomSource.NextBytes(nonce, 0, nonce.Length);
                 regenerateNonce = ByteString.From(nonce);
+            }
+            if (regeneratePrivateKey &&
+                CryptoUtils.GetCurveFromCertificateTypeId(m_certificateType) != null &&
+                !Opc.Ua.Server.AdditionalEntropyCertificateKeyGenerator.IsEccKeyRegenerationSupported)
+            {
+                // §7.10.10: ECC regenerate-key requests are rejected with
+                // Bad_NotSupported when the server stack cannot import a
+                // private-only EC scalar (.NET Framework / netstandard2.1).
+                ServiceResultException sre = Assert.ThrowsAsync<ServiceResultException>(
+                    () => m_pushClient.PushClient.CreateSigningRequestAsync(
+                        default,
+                        m_certificateType,
+                        m_selfSignedServerCert.Subject + "2",
+                        regeneratePrivateKey,
+                        regenerateNonce).AsTask());
+                Assert.That(sre.StatusCode, Is.EqualTo(StatusCodes.BadNotSupported));
+                return;
             }
             ByteString csr = await m_pushClient.PushClient.CreateSigningRequestAsync(
                 default,

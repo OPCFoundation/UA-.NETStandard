@@ -129,19 +129,30 @@ namespace Opc.Ua.Client
         {
             int publishCount = GetDesiredPublishRequestCount(true);
 
-            // refill pipeline. Send at least one publish request
-            // if subscriptions are active.
-            if (publishCount > 0 && BeginPublish(timeout))
+            if (publishCount <= 0)
             {
-                int startCount = fullQueue
-                    ? 1
-                    : GoodPublishRequestCount + 1;
-                for (int ii = startCount; ii < publishCount; ii++)
+                return;
+            }
+
+            // Refill the pipeline up to the desired count. The reservation is
+            // the real bound: it counts the requests the session still expects
+            // plus the ones sent but not yet recorded, so this both refuses to
+            // overshoot and still refills a pipeline whose requests the session
+            // has written off.
+            int startCount = fullQueue
+                ? 0
+                : GoodPublishRequestCount;
+            for (int ii = startCount; ii < publishCount; ii++)
+            {
+                if (!TryReservePublishRequest(publishCount, out _))
                 {
-                    if (!BeginPublish(timeout))
-                    {
-                        break;
-                    }
+                    break;
+                }
+
+                if (!BeginPublishCore(timeout))
+                {
+                    Interlocked.Decrement(ref m_unrecordedPublishRequests);
+                    break;
                 }
             }
         }
@@ -211,10 +222,57 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Sends a publish request to the server.
         /// </summary>
+        /// <remarks>
+        /// This is the recovery nudge behind
+        /// <see cref="Subscription.HandleOnKeepAliveStopped"/>: a subscription
+        /// that has seen no notification asks for one more publish so the
+        /// server has a request to answer. It is bounded by the same
+        /// reservation as the automatic top up, because sending past the
+        /// desired count cannot help - the server already holds that many
+        /// requests and answers the surplus with
+        /// <see cref="StatusCodes.BadTooManyPublishRequests"/> - while every
+        /// subscription firing this nudge at once would otherwise multiply the
+        /// pipeline by the number of subscriptions. A drained pipeline always
+        /// has room, so the nudge still gets through when it is the outstanding
+        /// requests that have stopped coming back.
+        /// </remarks>
         /// <param name="timeout">The timeout for publish requests
         /// in milliseconds.</param>
-        /// <returns>True if the request was sent successfully.</returns>
+        /// <returns>
+        /// True if the pipeline holds the requested publish request when this
+        /// returns, whether it was sent here or was already outstanding.
+        /// </returns>
         internal bool BeginPublish(int timeout)
+        {
+            // At least one, so an empty pipeline is always refillable even
+            // when no subscription has been created yet.
+            int limit = Math.Max(1, GetDesiredPublishRequestCount(false));
+
+            if (!TryReservePublishRequest(limit, out _))
+            {
+                // The pipeline already holds the requests this nudge asks for,
+                // so the caller's intent is met without sending. Sending anyway
+                // cannot help: the server holds that many requests already and
+                // answers the surplus with BadTooManyPublishRequests.
+                return true;
+            }
+
+            if (!BeginPublishCore(timeout))
+            {
+                Interlocked.Decrement(ref m_unrecordedPublishRequests);
+                return false;
+            }
+
+            return true;
+        }
+
+        /// <summary>
+        /// Sends a publish request. The caller must have reserved the request
+        /// in <see cref="m_unrecordedPublishRequests"/>. The reservation is
+        /// released here once the session has recorded the request, or by the
+        /// caller if this returns <c>false</c>.
+        /// </summary>
+        private bool BeginPublishCore(int timeout)
         {
             // do not publish if reconnecting or the session is in closed state.
             if (!m_context.Connected)
@@ -295,6 +353,13 @@ namespace Opc.Ua.Client
                     activity,
                     requestHeader.RequestHandle,
                     DataTypes.PublishRequest);
+
+                // The session now counts this request, so the reservation that
+                // stood in for it is released. Releasing after the record is
+                // published keeps the total conservative: the request is
+                // briefly counted twice rather than not at all.
+                Interlocked.Decrement(ref m_unrecordedPublishRequests);
+
                 task.ConfigureAwait(false)
                     .GetAwaiter()
                     .OnCompleted(() => OnPublishComplete(
@@ -797,19 +862,73 @@ namespace Opc.Ua.Client
                 return;
             }
 
-            int requestCount = GoodPublishRequestCount;
             int minPublishRequestCount = GetDesiredPublishRequestCount(false);
 
-            if (requestCount < minPublishRequestCount)
-            {
-                BeginPublish(m_context.OperationTimeout);
-            }
-            else
+            // Reserve the slot before issuing. Reading a count and then
+            // sending is a check-then-act: concurrent publish completions all
+            // observe the same value, all conclude they are below the limit,
+            // and each sends a request, overshooting by the number of
+            // completions that overlap.
+            if (!TryReservePublishRequest(minPublishRequestCount, out int requestCount))
             {
                 m_logger.PUBLISHDidNotSendAnotherPublish(
                     requestCount,
                     minPublishRequestCount,
                     m_context.SessionId);
+                return;
+            }
+
+            if (!BeginPublishCore(m_context.OperationTimeout))
+            {
+                Interlocked.Decrement(ref m_unrecordedPublishRequests);
+            }
+        }
+
+        /// <summary>
+        /// Atomically reserves capacity for one more publish request if fewer
+        /// than <paramref name="limit"/> are outstanding.
+        /// </summary>
+        /// <remarks>
+        /// Outstanding means the requests the session still expects to return
+        /// (<see cref="ISubscriptionEngineContext.GoodPublishRequestCount"/>)
+        /// plus the requests this engine has sent that the session has not
+        /// recorded yet. The session's count is authoritative: it drops a
+        /// request as soon as the session writes it off, which is what
+        /// <see cref="Session.OnKeepAlive"/> does to the whole pipeline when
+        /// keep alives recover. Counting only what this engine has sent would
+        /// hold those write offs forever and the pipeline would never refill.
+        /// The unrecorded count closes the opposite gap: the session only
+        /// counts a request once <c>AsyncRequestStarted</c> has recorded it,
+        /// which happens after the request was issued, so concurrent callers
+        /// would otherwise all read the same lagging value and each send.
+        /// </remarks>
+        /// <param name="limit">The maximum number of outstanding requests.</param>
+        /// <param name="outstanding">The number observed outstanding.</param>
+        /// <returns>True if a slot was reserved.</returns>
+        private bool TryReservePublishRequest(int limit, out int outstanding)
+        {
+            while (true)
+            {
+                // Read the unrecorded count first. A request that moves from
+                // unrecorded to recorded between the two reads is then counted
+                // twice rather than missed, which errs towards sending less.
+                int unrecorded = Volatile.Read(ref m_unrecordedPublishRequests);
+                int current = m_context.GoodPublishRequestCount + unrecorded;
+
+                if (current >= limit)
+                {
+                    outstanding = current;
+                    return false;
+                }
+
+                if (Interlocked.CompareExchange(
+                        ref m_unrecordedPublishRequests,
+                        unrecorded + 1,
+                        unrecorded) == unrecorded)
+                {
+                    outstanding = current;
+                    return true;
+                }
             }
         }
 
@@ -1051,6 +1170,7 @@ namespace Opc.Ua.Client
         private readonly Lock m_acknowledgementsToSendLock = new();
         private List<SubscriptionAcknowledgement> m_acknowledgementsToSend = [];
         internal uint PublishCounter;
+        private int m_unrecordedPublishRequests;
         private int m_tooManyPublishRequests;
         private int m_minPublishRequestCount;
         private int m_maxPublishRequestCount;

@@ -87,7 +87,7 @@ namespace Vision.BinPickingCell
     [System.Diagnostics.CodeAnalysis.SuppressMessage(
         "Performance", "CA1812",
         Justification = "Instantiated by the DI container via AddSingleton.")]
-    internal sealed partial class BinPickingGroundTruthInferenceProvider : IVisionInferenceProvider, IDisposable
+    internal sealed class BinPickingGroundTruthInferenceProvider : IVisionInferenceProvider, IDisposable
     {
         public BinPickingGroundTruthInferenceProvider(
             BinPickingWorldState worldState,
@@ -148,6 +148,8 @@ namespace Vision.BinPickingCell
         /// the references the provider needs to publish
         /// <c>DetectionResultType</c> instances.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="target"/> is <c>null</c>.</exception>
+        /// <exception cref="InvalidOperationException"></exception>
         public void Attach(BinPickingInferenceTarget target)
         {
             if (target == null)
@@ -285,8 +287,9 @@ namespace Vision.BinPickingCell
         private BinPickingInferenceTarget RequireTarget()
         {
             BinPickingInferenceTarget? target = m_target;
-            return target ?? throw new InvalidOperationException(
-                "BinPickingGroundTruthInferenceProvider has not been attached to a pipeline.");
+            return target ??
+                throw new InvalidOperationException(
+                    "BinPickingGroundTruthInferenceProvider has not been attached to a pipeline.");
         }
 
         private async Task RunContinuousAsync(CancellationToken cancellationToken)
@@ -397,8 +400,8 @@ namespace Vision.BinPickingCell
                         local[0] = ii * (sizeX * 0.5);
                         local[1] = jj * (sizeY * 0.5);
                         local[2] = kk * (sizeZ * 0.5);
-                        double dxWorld = local[0] * cosZ - local[1] * sinZ;
-                        double dyWorld = local[0] * sinZ + local[1] * cosZ;
+                        double dxWorld = (local[0] * cosZ) - (local[1] * sinZ);
+                        double dyWorld = (local[0] * sinZ) + (local[1] * cosZ);
                         double dzWorld = local[2];
                         double x = snapshot.WorldX + dxWorld;
                         double y = snapshot.WorldY + dyWorld;
@@ -473,13 +476,13 @@ namespace Vision.BinPickingCell
             {
                 state.CreationTime.Value = timestamp;
             }
-            state.CreateOrReplaceSensor(context, null!).Value = request.Sensor;
-            state.CreateOrReplacePipeline(context, null!).Value = request.Pipeline;
-            state.CreateOrReplaceModelVersionUsed(context, null!).Value = ModelVersion;
-            state.CreateOrReplaceConfidence(context, null!).Value = 0.99;
-            state.CreateOrReplaceExplanationUri(context, null!).Value = ExplanationUri;
+            state.CreateOrReplaceSensor(context, null).Value = request.Sensor;
+            state.CreateOrReplacePipeline(context, null).Value = request.Pipeline;
+            state.CreateOrReplaceModelVersionUsed(context, null).Value = ModelVersion;
+            state.CreateOrReplaceConfidence(context, null).Value = 0.99;
+            state.CreateOrReplaceExplanationUri(context, null).Value = ExplanationUri;
             BaseDataVariableState<VisionImageReferenceDataType> frame =
-                state.CreateOrReplaceFrame(context, null!);
+                state.CreateOrReplaceFrame(context, null);
             frame.Value = new VisionImageReferenceDataType
             {
                 Uri = FormattableString.Invariant(
@@ -503,7 +506,7 @@ namespace Vision.BinPickingCell
                 state.FrameId.Value = target.CameraFrameId;
             }
             state.NodeId = context.RequireNodeIdFactory().New(context, state);
-            NodeInstanceExtensions.AssignInstanceChildNodeIds(context, state, state.NodeId);
+            context.AssignInstanceChildNodeIds(state, state.NodeId);
             target.ResultsFolder.AddChild(state);
             await target.NodeManager.AddPredefinedNodeAsync(state, cancellationToken).ConfigureAwait(false);
             m_results[resultId] = state;
@@ -615,12 +618,12 @@ namespace Vision.BinPickingCell
             double dy = y - m_cameraPositionInWorld.Y;
             double dz = z - m_cameraPositionInWorld.Z;
             (double qx, double qy, double qz, double qw) = m_cameraInvOrientation;
-            double tx = qy * dz - qz * dy;
-            double ty = qz * dx - qx * dz;
-            double tz = qx * dy - qy * dx;
-            double rotatedX = dx + 2.0 * (qw * tx + qy * tz - qz * ty);
-            double rotatedY = dy + 2.0 * (qw * ty + qz * tx - qx * tz);
-            double rotatedZ = dz + 2.0 * (qw * tz + qx * ty - qy * tx);
+            double tx = (qy * dz) - (qz * dy);
+            double ty = (qz * dx) - (qx * dz);
+            double tz = (qx * dy) - (qy * dx);
+            double rotatedX = dx + (2.0 * ((qw * tx) + (qy * tz) - (qz * ty)));
+            double rotatedY = dy + (2.0 * ((qw * ty) + (qz * tx) - (qx * tz)));
+            double rotatedZ = dz + (2.0 * ((qw * tz) + (qx * ty) - (qy * tx)));
             return (rotatedX, rotatedY, rotatedZ);
         }
 

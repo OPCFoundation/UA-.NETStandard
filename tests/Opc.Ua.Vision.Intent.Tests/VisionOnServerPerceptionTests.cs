@@ -132,13 +132,17 @@ namespace Opc.Ua.Vision.Intent.Tests
             double dx = cubePoseInWorld.Position[0] - authored[0];
             double dy = cubePoseInWorld.Position[1] - authored[1];
             double dz = cubePoseInWorld.Position[2] - authored[2];
-            double residual = Math.Sqrt(dx * dx + dy * dy + dz * dz);
+            double residual = Math.Sqrt((dx * dx) + (dy * dy) + (dz * dz));
             string message =
                 "On-server pose composition residual for TestCube = " +
-                residual.ToString("E3", CultureInfo.InvariantCulture) + " m (world pose = (" +
-                cubePoseInWorld.Position[0].ToString("F9", CultureInfo.InvariantCulture) + ", " +
-                cubePoseInWorld.Position[1].ToString("F9", CultureInfo.InvariantCulture) + ", " +
-                cubePoseInWorld.Position[2].ToString("F9", CultureInfo.InvariantCulture) + ")). " +
+                residual.ToString("E3", CultureInfo.InvariantCulture) +
+                " m (world pose = (" +
+                cubePoseInWorld.Position[0].ToString("F9", CultureInfo.InvariantCulture) +
+                ", " +
+                cubePoseInWorld.Position[1].ToString("F9", CultureInfo.InvariantCulture) +
+                ", " +
+                cubePoseInWorld.Position[2].ToString("F9", CultureInfo.InvariantCulture) +
+                ")). " +
                 "Frames traversed: camera_eih → flange → base → world.";
             TestContext.Progress.WriteLine(message);
 
@@ -182,8 +186,12 @@ namespace Opc.Ua.Vision.Intent.Tests
                 "The pipeline should have published at least one result after RunInference.");
             VisionNodeEntry chosen = results[^1];
             VisionResultReader reader = context.Vision.Result(chosen.NodeId);
+            // Keep the awaited result local because RCS1174 does not account for the await foreach above.
+            // TODO: Remove when the analyzer tracks preceding asynchronous enumeration.
+#pragma warning disable RCS1124
             VisionDetectionResultSnapshot snapshot = await reader.ReadDetectionAsync().ConfigureAwait(false);
             return snapshot;
+#pragma warning restore RCS1124
         }
 
         private static List<VisionDetectionDataType> SnapshotDetections(

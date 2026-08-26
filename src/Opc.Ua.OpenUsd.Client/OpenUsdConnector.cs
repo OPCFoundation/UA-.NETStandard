@@ -350,8 +350,8 @@ namespace Opc.Ua.OpenUsd.Client
                 {
                     continue;
                 }
-                if (!typeDef.IsNull
-                    && m_bindingTypeIntents.TryGetValue(typeDef, out OpenUsdIntentProfile intent))
+                if (!typeDef.IsNull &&
+                    m_bindingTypeIntents.TryGetValue(typeDef, out OpenUsdIntentProfile intent))
                 {
                     Dictionary<string, NodeId> bp = await ChildrenByNameAsync(childId, ct)
                         .ConfigureAwait(false);
@@ -509,7 +509,8 @@ namespace Opc.Ua.OpenUsd.Client
                 {
                     string? name = refs[i].BrowseName.Name;
                     string target = ExpandedNodeId.ToNodeId(refs[i].NodeId, m_session.NamespaceUris)
-                        .ToString() ?? string.Empty;
+                        .ToString() ??
+                        string.Empty;
                     if (string.Equals(name, semanticId, StringComparison.Ordinal) ||
                         string.Equals(target, semanticId, StringComparison.Ordinal) ||
                         string.Equals(refs[i].NodeId.ToString(), semanticId, StringComparison.Ordinal))
@@ -576,8 +577,10 @@ namespace Opc.Ua.OpenUsd.Client
             seen.Add(root);
             // The represented Object's subtree is bounded; two levels of nesting cover the
             // Object -> (Folder) -> Variable shapes the binding model uses.
-            int depth = 0;
-            while (queue.Count > 0 && depth < 4)
+            for (
+            // The represented Object's subtree is bounded; two levels of nesting cover the
+            // Object -> (Folder) -> Variable shapes the binding model uses.
+            int depth = 0; queue.Count > 0 && depth < 4; depth++)
             {
                 int level = queue.Count;
                 for (int i = 0; i < level; i++)
@@ -600,7 +603,6 @@ namespace Opc.Ua.OpenUsd.Client
                         }
                     }
                 }
-                depth++;
             }
             return found;
         }
@@ -670,10 +672,10 @@ namespace Opc.Ua.OpenUsd.Client
                     // live MonitoredItem. Telemetry and alarm bindings subscribe here.
                     // §5.4: Enabled = false is a tombstone — a suppressed binding is not
                     // subscribed at all.
-                    if (!b.Enabled
-                        || b.SourceNodeId.IsNull
-                        || b.Intent == OpenUsdIntentProfile.UsdToUaCommand
-                        || b.Intent == OpenUsdIntentProfile.UaHistoryToUsd)
+                    if (!b.Enabled ||
+                        b.SourceNodeId.IsNull ||
+                        b.Intent == OpenUsdIntentProfile.UsdToUaCommand ||
+                        b.Intent == OpenUsdIntentProfile.UaHistoryToUsd)
                     {
                         continue;
                     }
@@ -902,7 +904,6 @@ namespace Opc.Ua.OpenUsd.Client
                     return TryToDouble(raw, out double v)
                         ? new Variant(v != 0.0 ? "inherited" : "invisible")
                         : default;
-                case OpenUsdRenderTargetKind.Transform:
                 // A matrix4d/quaternion target requires the full §5.8 matrix profile
                 // (row-major, row-vector, translation in the 4th row; quaternions
                 // reordered (x,y,z,w) -> (w,x,y,z) and normalised). That profile is not
@@ -1019,8 +1020,7 @@ namespace Opc.Ua.OpenUsd.Client
             }
             string name = propertyName!;
             int sep = name.LastIndexOfAny([':', '.', '/']);
-            string leaf = (sep >= 0 ? name.Substring(sep + 1) : name).ToLowerInvariant();
-            switch (leaf)
+            switch ((sep >= 0 ? name.Substring(sep + 1) : name).ToLowerInvariant())
             {
                 case "latitude":
                 case "longitude":
@@ -1136,7 +1136,9 @@ namespace Opc.Ua.OpenUsd.Client
             return VariantConversions.TryGetDouble(v, out result);
         }
 
-        // UNECE common codes used by the §5.8 unit profiles.
+        /// <summary>
+        /// UNECE common codes used by the §5.8 unit profiles.
+        /// </summary>
         private const string kUneceRadian = "C81";
         private const string kUneceDegree = "DD";
 
@@ -1205,7 +1207,8 @@ namespace Opc.Ua.OpenUsd.Client
         {
             string source = UnitCode(b.SourceEngineeringUnits);
             string target = UnitCode(b.TargetEngineeringUnits);
-            if (source.Length == 0 || target.Length == 0 ||
+            if (source.Length == 0 ||
+                target.Length == 0 ||
                 string.Equals(source, target, StringComparison.Ordinal))
             {
                 return 1.0;
@@ -1250,8 +1253,7 @@ namespace Opc.Ua.OpenUsd.Client
                     return new string(chars, 0, n);
                 }
             }
-            string display = units.DisplayName.Text ?? string.Empty;
-            return display;
+            return units.DisplayName.Text ?? string.Empty;
         }
 
         /// <summary>
@@ -1373,10 +1375,10 @@ namespace Opc.Ua.OpenUsd.Client
             {
                 foreach (BindingInfo b in r.Bindings)
                 {
-                    if (b.Enabled
-                        && b.Intent == OpenUsdIntentProfile.UsdToUaCommand
-                        && b.SignalRole == OpenUsdSignalRole.Controllable
-                        && (!b.CommandTargetNodeId.IsNull || !b.CommandMethodId.IsNull))
+                    if (b.Enabled &&
+                        b.Intent == OpenUsdIntentProfile.UsdToUaCommand &&
+                        b.SignalRole == OpenUsdSignalRole.Controllable &&
+                        (!b.CommandTargetNodeId.IsNull || !b.CommandMethodId.IsNull))
                     {
                         return b;
                     }
@@ -1529,10 +1531,10 @@ namespace Opc.Ua.OpenUsd.Client
                 {
                     // §5.4: Enabled = false is a tombstone — a suppressed history binding
                     // is not replayed.
-                    if (!b.Enabled
-                        || b.Intent != OpenUsdIntentProfile.UaHistoryToUsd
-                        || b.SourceNodeId.IsNull
-                        || !b.TimeSampled)
+                    if (!b.Enabled ||
+                        b.Intent != OpenUsdIntentProfile.UaHistoryToUsd ||
+                        b.SourceNodeId.IsNull ||
+                        !b.TimeSampled)
                     {
                         continue;
                     }

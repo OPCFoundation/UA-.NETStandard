@@ -103,6 +103,27 @@ namespace Opc.Ua.Client.WebApi
             m_timeProvider = timeProvider ?? TimeProvider.System;
         }
 
+        /// <summary>
+        /// Gets a value indicating whether this compiled assembly performs
+        /// custom OPC UA server certificate validation for outbound WSS
+        /// connections.
+        /// </summary>
+        /// <remarks>
+        /// The custom validation callback relies on
+        /// <c>ClientWebSocketOptions.RemoteCertificateValidationCallback</c>,
+        /// which is only available on .NET 7 or later. When the assembly is
+        /// compiled for an older target framework (for example
+        /// <c>netstandard2.1</c>) the callback cannot be wired up and this
+        /// probe returns <see langword="false"/>, allowing callers and tests to
+        /// react at runtime instead of assuming compile-time availability.
+        /// </remarks>
+        public static bool IsServerCertificateValidationSupported =>
+#if NET7_0_OR_GREATER
+            true;
+#else
+            false;
+#endif
+
         /// <inheritdoc/>
         public string UriScheme => Utils.UriSchemeOpcWssOpenApi;
 

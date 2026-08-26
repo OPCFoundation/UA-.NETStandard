@@ -745,23 +745,23 @@ namespace Robotics.IntentEnabledRobot.Simulation
             ArrayOf<double> position;
             ArrayOf<double> orientation;
             string frameId;
-            if (objectClass.Length > 0
-                && ResolvePickPose != null
-                && ResolvePickPose(location, objectClass, out Pose3DDataType pickPose))
+            if (objectClass.Length > 0 &&
+                ResolvePickPose != null &&
+                ResolvePickPose(location, objectClass, out Pose3DDataType pickPose))
             {
                 position = pickPose.Position;
                 orientation = pickPose.Orientation;
                 frameId = pickPose.FrameId ?? current.FrameId ?? string.Empty;
             }
-            else if (ResolveLocationPose != null
-                && ResolveLocationPose(location, out Pose3DDataType resolvedPose))
+            else if (ResolveLocationPose != null &&
+                ResolveLocationPose(location, out Pose3DDataType resolvedPose))
             {
                 position = resolvedPose.Position;
                 orientation = resolvedPose.Orientation;
                 frameId = resolvedPose.FrameId ?? current.FrameId ?? string.Empty;
             }
-            else if (ResolveLocationPosition != null
-                && ResolveLocationPosition(location, out position))
+            else if (ResolveLocationPosition != null &&
+                ResolveLocationPosition(location, out position))
             {
                 orientation = current.Orientation;
                 frameId = current.FrameId ?? string.Empty;
@@ -796,13 +796,13 @@ namespace Robotics.IntentEnabledRobot.Simulation
             // object. A loaded gripper placing onto the fixture may need the short,
             // collision-checked joint approach instead. The host preference still marks
             // bin/home locations as vertical for both directions.
-            bool preferCartesianDescent = !CurrentSnapshot.HasObject
-                || PreferCartesianDescent?.Invoke(location) == true;
+            bool preferCartesianDescent = !CurrentSnapshot.HasObject ||
+                PreferCartesianDescent?.Invoke(location) == true;
             Diagnostic?.Invoke(string.Create(
                 CultureInfo.InvariantCulture,
-                $"start=({currentPosition[0]:F3},{currentPosition[1]:F3},{currentPosition[2]:F3}) "
-                + $"target=({targetPosition[0]:F3},{targetPosition[1]:F3},{targetPosition[2]:F3}) "
-                + $"cartesianDescent={preferCartesianDescent}"));
+                $"start=({currentPosition[0]:F3},{currentPosition[1]:F3},{currentPosition[2]:F3}) " +
+                $"target=({targetPosition[0]:F3},{targetPosition[1]:F3},{targetPosition[2]:F3}) " +
+                $"cartesianDescent={preferCartesianDescent}"));
 
             if (sameWorkPosition)
             {
@@ -1864,9 +1864,11 @@ namespace Robotics.IntentEnabledRobot.Simulation
 
         private const double DefaultCartesianSpeed = 0.25;
 
-        // How high the tool lifts to before crossing the cell, in the arm's base frame.
-        // Above the bin walls and above a full stack on the fixture, so a straight
-        // joint-space leg at this height clears the furniture between two work positions.
+        /// <summary>
+        /// How high the tool lifts to before crossing the cell, in the arm's base frame.
+        /// Above the bin walls and above a full stack on the fixture, so a straight
+        /// joint-space leg at this height clears the furniture between two work positions.
+        /// </summary>
         private const double TransitHeightMetres = 0.32;
         private const double TransitBypassXMetres = 0.20;
         private const double TransitBypassYMetres = -0.35;
@@ -1875,15 +1877,18 @@ namespace Robotics.IntentEnabledRobot.Simulation
         private const double RetractEndpointToleranceRadians = 1e-5;
         private const double SameLocationToleranceMetres = 0.01;
 
-        // The rotations about the vertical a Pick or Place may use when the orientation the
-        // arm is holding has no clear solution. Zero first, so a target that already works
-        // resolves exactly as before, then outwards in both directions.
+        /// <summary>
+        /// The rotations about the vertical a Pick or Place may use when the orientation the
+        /// arm is holding has no clear solution. Zero first, so a target that already works
+        /// resolves exactly as before, then outwards in both directions.
+        /// </summary>
         private static readonly double[] s_yawOffsetsDegrees =
         [
             0.0, 15.0, -15.0, 30.0, -30.0, 45.0, -45.0, 60.0, -60.0, 75.0, -75.0,
             90.0, -90.0, 105.0, -105.0, 120.0, -120.0, 135.0, -135.0, 150.0, -150.0,
             165.0, -165.0, 180.0
         ];
+
         private const double DefaultCartesianAcceleration = 0.7;
         private const double DefaultJointSpeed = 0.9;
         private const double DefaultJointAcceleration = 2.0;
@@ -1896,24 +1901,31 @@ namespace Robotics.IntentEnabledRobot.Simulation
         private readonly System.Threading.Lock m_lock = new();
         private readonly ISimulatedArmKinematics m_kinematics;
         private readonly ISimulatedArmClock m_clock;
-        // Home configuration, radians. This arm is mounted on a bench in both samples that
-        // use it, so the pose has to keep every joint above the work surface, and in the
-        // bin-picking cell it also has to aim the eye-in-hand camera: it is solved so the
-        // camera prim lands at the world position the Vision model declares for it
-        // (0.38, 0, 1.35) looking straight down, which puts the bin 0.50 m away and 1.8
-        // degrees off the optical axis - matching the standoff the detections report.
-        //
-        // Two constraints on the solution are easy to miss and both were violated by
-        // earlier attempts:
-        //
-        //  - It is the elbow-back branch. The elbow-forward solutions reach the same
-        //    camera pose but park a link directly under the camera, and the frame comes
-        //    back showing the arm's own upper arm instead of the bin.
-        //  - The wrist stays 25 degrees clear of J4 and J6 lining up. Aiming a
-        //    straight-down camera from a point on the base's own X-Z plane lands exactly
-        //    on that singularity, so the camera roll is tilted 15 degrees to get off it.
-        //    A singular home pose is not a cosmetic problem: the first IK solve of any
-        //    motion away from home fails, so every intent returns Kinematics.
+
+        /// <summary>
+        /// <para>
+        /// Home configuration, radians. This arm is mounted on a bench in both samples that
+        /// use it, so the pose has to keep every joint above the work surface, and in the
+        /// bin-picking cell it also has to aim the eye-in-hand camera: it is solved so the
+        /// camera prim lands at the world position the Vision model declares for it
+        /// (0.38, 0, 1.35) looking straight down, which puts the bin 0.50 m away and 1.8
+        /// degrees off the optical axis - matching the standoff the detections report.
+        /// </para>
+        /// <para>
+        /// Two constraints on the solution are easy to miss and both were violated by
+        /// earlier attempts:
+        /// </para>
+        /// <para>
+        /// - It is the elbow-back branch. The elbow-forward solutions reach the same
+        /// camera pose but park a link directly under the camera, and the frame comes
+        /// back showing the arm's own upper arm instead of the bin.
+        /// - The wrist stays 25 degrees clear of J4 and J6 lining up. Aiming a
+        /// straight-down camera from a point on the base's own X-Z plane lands exactly
+        /// on that singularity, so the camera roll is tilted 15 degrees to get off it.
+        /// A singular home pose is not a cosmetic problem: the first IK solve of any
+        /// motion away from home fails, so every intent returns Kinematics.
+        /// </para>
+        /// </summary>
         private readonly double[] m_jointAngles;
         private double[]? m_retractJointAngles;
         private double[]? m_retractJointEndpoint;

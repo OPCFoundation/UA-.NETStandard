@@ -35,7 +35,7 @@ using Microsoft.Extensions.Logging;
 
 namespace Vision.VisualInspectionCell
 {
-    internal sealed partial class InspectionJobSeeder : IHostedService
+    internal sealed class InspectionJobSeeder : IHostedService
     {
         public InspectionJobSeeder(
             InspectionJobControlProvider provider,

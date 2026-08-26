@@ -417,9 +417,9 @@ namespace Opc.Ua.Vision.Tests
             // A pipeline surface built without all three method children must not cause the
             // dispatcher to throw at attach time — the InferencePipelineState type's method
             // children are all optional per its generated declaration.
-            var pipeline = new InferencePipelineState(null!)
+            var pipeline = new InferencePipelineState(null)
             {
-                RunInference = new RunInferenceMethodState(null!),
+                RunInference = new RunInferenceMethodState(null)
                 // StartContinuous and Stop deliberately left null.
             };
             var registration = new PipelineRegistration(
@@ -458,11 +458,11 @@ namespace Opc.Ua.Vision.Tests
             {
                 PipelineNodeId = pipelineNodeId;
                 NodeId attachNodeId = attachOrphanNodeId.IsNull ? pipelineNodeId : attachOrphanNodeId;
-                var pipeline = new InferencePipelineState(null!)
+                var pipeline = new InferencePipelineState(null)
                 {
-                    RunInference = new RunInferenceMethodState(null!),
-                    StartContinuous = new MethodState(null!),
-                    Stop = new MethodState(null!),
+                    RunInference = new RunInferenceMethodState(null),
+                    StartContinuous = new MethodState(null),
+                    Stop = new MethodState(null)
                 };
                 if (!sensorNodeId.IsNull)
                 {
@@ -482,7 +482,7 @@ namespace Opc.Ua.Vision.Tests
                     pipeline,
                     new HashSet<string>(StringComparer.Ordinal))
                 {
-                    InferenceProvider = inferenceProvider,
+                    InferenceProvider = inferenceProvider
                 };
                 m_registry = new VisionRegistry();
                 m_registry.AddPipeline(registration);

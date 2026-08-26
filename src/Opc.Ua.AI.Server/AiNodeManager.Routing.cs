@@ -31,10 +31,10 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
-using Opc.Ua.AI.Inference;
 using Microsoft.Extensions.Logging;
 using Opc.Ua;
 using Opc.Ua.AI;
+using Opc.Ua.AI.Inference;
 using AIRefs = Opc.Ua.AI.ReferenceTypeIds;
 using BrowseNames = Opc.Ua.AI.BrowseNames;
 using ObjectIds = Opc.Ua.ObjectIds;
@@ -146,8 +146,8 @@ namespace Opc.Ua.AI.Server
             PropertyState<FallbackPolicyEnum>? policy =
                 deployment.FindChild(
                     SystemContext,
-                    new QualifiedName(BrowseNames.FallbackPolicy, NamespaceIndex))
-                as PropertyState<FallbackPolicyEnum>;
+                    new QualifiedName(BrowseNames.FallbackPolicy, NamespaceIndex)) as
+                PropertyState<FallbackPolicyEnum>;
 
             return policy?.Value == FallbackPolicyEnum.FallBackTo;
         }
@@ -250,8 +250,8 @@ namespace Opc.Ua.AI.Server
         {
             var failures = deployment.FindChild(
                 SystemContext,
-                new QualifiedName(BrowseNames.ConsecutiveFailures, NamespaceIndex))
-                as PropertyState<uint>;
+                new QualifiedName(BrowseNames.ConsecutiveFailures, NamespaceIndex)) as
+                PropertyState<uint>;
 
             if (failures is not null)
             {
@@ -263,8 +263,8 @@ namespace Opc.Ua.AI.Server
             {
                 var lastSuccess = deployment.FindChild(
                     SystemContext,
-                    new QualifiedName(BrowseNames.LastSuccessAt, NamespaceIndex))
-                    as PropertyState<DateTimeUtc>;
+                    new QualifiedName(BrowseNames.LastSuccessAt, NamespaceIndex)) as
+                    PropertyState<DateTimeUtc>;
 
                 if (lastSuccess is not null)
                 {
@@ -278,12 +278,9 @@ namespace Opc.Ua.AI.Server
 
         private void UpdateReachability(DeploymentState deployment, bool reachable)
         {
-            var state = deployment.FindChild(
+            if (!(deployment.FindChild(
                 SystemContext,
-                new QualifiedName(BrowseNames.Reachability, NamespaceIndex))
-                as PropertyState<ReachabilityEnum>;
-
-            if (state is null)
+                new QualifiedName(BrowseNames.Reachability, NamespaceIndex)) is PropertyState<ReachabilityEnum> state))
             {
                 return;
             }

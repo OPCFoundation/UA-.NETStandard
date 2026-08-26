@@ -63,9 +63,9 @@ namespace Opc.Ua.Robotics.Client.Tests
 
             await using IntentOperationHandle handle = await controller.TrackOperationAsync(
                 "i1",
-                new NodeId(10));
+                new NodeId(10)).ConfigureAwait(false);
 
-            IntentResultDataType result = await AwaitWithTimeoutAsync(handle.Completion, TimeSpan.FromSeconds(1));
+            IntentResultDataType result = await AwaitWithTimeoutAsync(handle.Completion, s_handshakeTimeout).ConfigureAwait(false);
 
             Assert.That(result.State, Is.EqualTo(state));
         }
@@ -81,9 +81,9 @@ namespace Opc.Ua.Robotics.Client.Tests
 
             await using IntentOperationHandle handle = await controller.TrackOperationAsync(
                 "i1",
-                new NodeId(10));
+                new NodeId(10)).ConfigureAwait(false);
 
-            Assert.That(await AwaitWithTimeoutAsync(handle.Completion, TimeSpan.FromSeconds(1)), Is.Not.Null);
+            Assert.That(await AwaitWithTimeoutAsync(handle.Completion, s_handshakeTimeout).ConfigureAwait(false), Is.Not.Null);
             Assert.That(transport.SubscribeCount, Is.EqualTo(1));
             Assert.That(transport.ReadSnapshotCount, Is.EqualTo(1));
         }
@@ -103,7 +103,7 @@ namespace Opc.Ua.Robotics.Client.Tests
 
             await using IntentOperationHandle handle = await controller.TrackOperationAsync(
                 "i1",
-                new NodeId(10));
+                new NodeId(10)).ConfigureAwait(false);
             transport.PublishChange("ExecutionState", Variant.From((int)ExecutionStateEnum.Succeeded));
             Task early = await Task.WhenAny(handle.Completion, Task.Delay(100)).ConfigureAwait(false);
 
@@ -113,7 +113,7 @@ namespace Opc.Ua.Robotics.Client.Tests
                 State = ExecutionStateEnum.Succeeded
             };
             transport.PublishChange("Result", Variant.FromStructure(expected));
-            IntentResultDataType result = await AwaitWithTimeoutAsync(handle.Completion, TimeSpan.FromSeconds(1));
+            IntentResultDataType result = await AwaitWithTimeoutAsync(handle.Completion, s_handshakeTimeout).ConfigureAwait(false);
 
             Assert.Multiple(() =>
             {
@@ -134,10 +134,10 @@ namespace Opc.Ua.Robotics.Client.Tests
 
             await using IntentOperationHandle handle = await controller.TrackOperationAsync(
                 "i1",
-                new NodeId(10));
+                new NodeId(10)).ConfigureAwait(false);
             transport.Snapshot = Snapshot(ExecutionStateEnum.Succeeded);
             transport.PublishReconnect();
-            IntentResultDataType result = await AwaitWithTimeoutAsync(handle.Completion, TimeSpan.FromSeconds(1));
+            IntentResultDataType result = await AwaitWithTimeoutAsync(handle.Completion, s_handshakeTimeout).ConfigureAwait(false);
 
             Assert.That(result.State, Is.EqualTo(ExecutionStateEnum.Succeeded));
             Assert.That(transport.ReadSnapshotCount, Is.GreaterThanOrEqualTo(2));
@@ -155,8 +155,8 @@ namespace Opc.Ua.Robotics.Client.Tests
 
             await using IntentOperationHandle handle = await controller.TrackOperationAsync(
                 "i1",
-                new NodeId(10));
-            IntentCommandOutcome outcome = await handle.CancelAsync(StopModeEnum.QuickStop);
+                new NodeId(10)).ConfigureAwait(false);
+            IntentCommandOutcome outcome = await handle.CancelAsync(StopModeEnum.QuickStop).ConfigureAwait(false);
 
             Assert.Multiple(() =>
             {
@@ -187,11 +187,11 @@ namespace Opc.Ua.Robotics.Client.Tests
 
             await using IntentOperationHandle handle = await controller.TrackOperationAsync(
                 "i1",
-                new NodeId(10));
+                new NodeId(10)).ConfigureAwait(false);
 
-            IntentCommandOutcome pause = await handle.PauseAsync();
-            IntentCommandOutcome resume = await handle.ResumeAsync();
-            IntentSubmissionResult retry = await handle.RetryAsync();
+            IntentCommandOutcome pause = await handle.PauseAsync().ConfigureAwait(false);
+            IntentCommandOutcome resume = await handle.ResumeAsync().ConfigureAwait(false);
+            IntentSubmissionResult retry = await handle.RetryAsync().ConfigureAwait(false);
 
             Assert.Multiple(() =>
             {
@@ -217,8 +217,8 @@ namespace Opc.Ua.Robotics.Client.Tests
 
             await using IntentOperationHandle handle = await controller.TrackOperationAsync(
                 "i1",
-                new NodeId(10));
-            Task completed = await Task.WhenAny(handle.Completion, Task.Delay(100));
+                new NodeId(10)).ConfigureAwait(false);
+            Task completed = await Task.WhenAny(handle.Completion, Task.Delay(100)).ConfigureAwait(false);
 
             Assert.That(completed, Is.Not.SameAs(handle.Completion));
         }
@@ -234,9 +234,9 @@ namespace Opc.Ua.Robotics.Client.Tests
 
             await using MissionHandle handle = await controller.TrackMissionAsync(
                 "mission-1",
-                new NodeId(20));
+                new NodeId(20)).ConfigureAwait(false);
 
-            MissionSnapshot terminal = await AwaitWithTimeoutAsync(handle.Completion, TimeSpan.FromSeconds(1));
+            MissionSnapshot terminal = await AwaitWithTimeoutAsync(handle.Completion, TimeSpan.FromSeconds(1)).ConfigureAwait(false);
 
             Assert.Multiple(() =>
             {
@@ -257,7 +257,7 @@ namespace Opc.Ua.Robotics.Client.Tests
 
             await using MissionHandle handle = await controller.TrackMissionAsync(
                 "mission-1",
-                new NodeId(20));
+                new NodeId(20)).ConfigureAwait(false);
             transport.MissionSnapshot = MissionSnapshot(ExecutionStateEnum.Failed) with
             {
                 Failure = IntentFailureEnum.Other,
@@ -265,7 +265,7 @@ namespace Opc.Ua.Robotics.Client.Tests
             };
             transport.PublishReconnect();
 
-            MissionSnapshot terminal = await AwaitWithTimeoutAsync(handle.Completion, TimeSpan.FromSeconds(1));
+            MissionSnapshot terminal = await AwaitWithTimeoutAsync(handle.Completion, TimeSpan.FromSeconds(1)).ConfigureAwait(false);
 
             Assert.Multiple(() =>
             {
@@ -287,10 +287,10 @@ namespace Opc.Ua.Robotics.Client.Tests
 
             await using MissionHandle handle = await controller.TrackMissionAsync(
                 "mission-1",
-                new NodeId(20));
+                new NodeId(20)).ConfigureAwait(false);
             transport.MissionSnapshot = MissionSnapshot(ExecutionStateEnum.Succeeded);
 
-            MissionWaitResult result = await handle.WaitForCompletionAsync(TimeSpan.Zero);
+            MissionWaitResult result = await handle.WaitForCompletionAsync(TimeSpan.Zero).ConfigureAwait(false);
 
             Assert.Multiple(() =>
             {
@@ -312,8 +312,8 @@ namespace Opc.Ua.Robotics.Client.Tests
 
             await using MissionHandle handle = await controller.TrackMissionAsync(
                 "mission-1",
-                new NodeId(20));
-            IntentCommandOutcome outcome = await handle.CancelAsync(StopModeEnum.QuickStop);
+                new NodeId(20)).ConfigureAwait(false);
+            IntentCommandOutcome outcome = await handle.CancelAsync(StopModeEnum.QuickStop).ConfigureAwait(false);
 
             Assert.Multiple(() =>
             {
@@ -332,12 +332,12 @@ namespace Opc.Ua.Robotics.Client.Tests
                 MissionSnapshot = MissionSnapshot(ExecutionStateEnum.Executing)
             };
             RobotIntentControllerClient controller = new(transport);
-            MissionHandle handle = await controller.TrackMissionAsync("mission-1", new NodeId(20));
+            MissionHandle handle = await controller.TrackMissionAsync("mission-1", new NodeId(20)).ConfigureAwait(false);
             await WaitUntilAsync(
                 () => transport.ActiveSubscriptionCount == 1,
                 TimeSpan.FromSeconds(1)).ConfigureAwait(false);
 
-            await handle.DisposeAsync();
+            await handle.DisposeAsync().ConfigureAwait(false);
 
             await WaitUntilAsync(
                 () => transport.ActiveSubscriptionCount == 0,
@@ -355,11 +355,11 @@ namespace Opc.Ua.Robotics.Client.Tests
             };
             RobotIntentControllerClient controller = new(transport);
 
-            await using (CommandAuthorityLease lease = await controller.RequestAuthorityAsync())
+            await using (CommandAuthorityLease lease = await controller.RequestAuthorityAsync().ConfigureAwait(false))
             {
                 transport.ControlOwner = new NodeId(2);
                 transport.PublishOwner(new NodeId(2));
-                await WaitUntilAsync(() => Equals(lease.CurrentOwner, new NodeId(2)), TimeSpan.FromSeconds(1))
+                await WaitUntilAsync(() => Equals(lease.CurrentOwner, new NodeId(2)), s_handshakeTimeout)
                     .ConfigureAwait(false);
 
                 Assert.That(lease.CurrentOwner, Is.EqualTo(new NodeId(2)));
@@ -378,11 +378,11 @@ namespace Opc.Ua.Robotics.Client.Tests
             };
             RobotIntentControllerClient controller = new(transport);
 
-            await using CommandAuthorityLease lease = await controller.RequestAuthorityAsync();
+            await using CommandAuthorityLease lease = await controller.RequestAuthorityAsync().ConfigureAwait(false);
             int notifications = 0;
             lease.OwnerChanged += _ => Interlocked.Increment(ref notifications);
             transport.PublishOwner(owner);
-            await WaitUntilAsync(() => Volatile.Read(ref notifications) > 0, TimeSpan.FromSeconds(1))
+            await WaitUntilAsync(() => Volatile.Read(ref notifications) > 0, s_handshakeTimeout)
                 .ConfigureAwait(false);
 
             Assert.Multiple(() =>
@@ -401,10 +401,10 @@ namespace Opc.Ua.Robotics.Client.Tests
                 ControlOwner = new NodeId(1)
             };
             RobotIntentControllerClient controller = new(transport);
-            CommandAuthorityLease lease = await controller.RequestAuthorityAsync();
+            CommandAuthorityLease lease = await controller.RequestAuthorityAsync().ConfigureAwait(false);
 
-            await lease.DisposeAsync();
-            Assert.DoesNotThrowAsync(async () => await lease.DisposeAsync());
+            await lease.DisposeAsync().ConfigureAwait(false);
+            Assert.DoesNotThrowAsync(async () => await lease.DisposeAsync().ConfigureAwait(false));
 
             Assert.That(transport.ReleaseCount, Is.EqualTo(1));
         }
@@ -419,10 +419,10 @@ namespace Opc.Ua.Robotics.Client.Tests
                 ReleaseException = ServiceResultException.Create(StatusCodes.BadSessionClosed, "closed")
             };
             RobotIntentControllerClient controller = new(transport);
-            CommandAuthorityLease lease = await controller.RequestAuthorityAsync();
+            CommandAuthorityLease lease = await controller.RequestAuthorityAsync().ConfigureAwait(false);
 
-            Assert.DoesNotThrowAsync(async () => await lease.DisposeAsync());
-            Assert.DoesNotThrowAsync(async () => await lease.DisposeAsync());
+            Assert.DoesNotThrowAsync(async () => await lease.DisposeAsync().ConfigureAwait(false));
+            Assert.DoesNotThrowAsync(async () => await lease.DisposeAsync().ConfigureAwait(false));
 
             Assert.That(transport.ReleaseCount, Is.EqualTo(1));
         }
@@ -436,10 +436,10 @@ namespace Opc.Ua.Robotics.Client.Tests
                 ControlOwner = new NodeId(2)
             };
             RobotIntentControllerClient controller = new(transport);
-            CommandAuthorityLease lease = await controller.RequestAuthorityAsync();
+            CommandAuthorityLease lease = await controller.RequestAuthorityAsync().ConfigureAwait(false);
 
-            await lease.DisposeAsync();
-            await lease.DisposeAsync();
+            await lease.DisposeAsync().ConfigureAwait(false);
+            await lease.DisposeAsync().ConfigureAwait(false);
 
             Assert.That(transport.ReleaseCount, Is.Zero);
         }
@@ -452,22 +452,22 @@ namespace Opc.Ua.Robotics.Client.Tests
                 Snapshot = Snapshot(ExecutionStateEnum.Executing)
             };
             RobotIntentControllerClient controller = new(transport);
-            IntentOperationHandle handle = await controller.TrackOperationAsync("i1", new NodeId(10));
+            IntentOperationHandle handle = await controller.TrackOperationAsync("i1", new NodeId(10)).ConfigureAwait(false);
             var callbackEntered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             using var allowCallbackToExit = new ManualResetEventSlim(false);
             handle.Changed += _ =>
             {
                 callbackEntered.TrySetResult(true);
-                Assert.That(allowCallbackToExit.Wait(TimeSpan.FromSeconds(1)), Is.True);
+                Assert.That(allowCallbackToExit.Wait(s_handshakeTimeout), Is.True);
             };
 
             transport.PublishChange(Variant.From((int)ExecutionStateEnum.Succeeded));
-            await AwaitWithTimeoutAsync(callbackEntered.Task, TimeSpan.FromSeconds(1));
+            await AwaitWithTimeoutAsync(callbackEntered.Task, s_handshakeTimeout).ConfigureAwait(false);
             Task dispose = handle.DisposeAsync().AsTask();
             allowCallbackToExit.Set();
 
-            Assert.DoesNotThrowAsync(async () => await dispose);
-            Assert.DoesNotThrowAsync(async () => await handle.DisposeAsync());
+            Assert.DoesNotThrowAsync(async () => await dispose.ConfigureAwait(false));
+            Assert.DoesNotThrowAsync(async () => await handle.DisposeAsync().ConfigureAwait(false));
         }
 
         [Test]
@@ -480,9 +480,9 @@ namespace Opc.Ua.Robotics.Client.Tests
                 .HorizonStep("a", RobotIntentBuilder.Wait(1).Build())
                 .Build();
 
-            _ = await controller.SubmitMissionAsync(mission);
+            _ = await controller.SubmitMissionAsync(mission).ConfigureAwait(false);
 
-            MissionUpdateOutcome outcome = await controller.UpdateMissionAsync("m1", 3, []);
+            MissionUpdateOutcome outcome = await controller.UpdateMissionAsync("m1", 3, []).ConfigureAwait(false);
 
             Assert.That(outcome.Result, Is.EqualTo(MissionUpdateResultEnum.Outdated));
             Assert.That(transport.UpdateMissionCount, Is.Zero);
@@ -497,13 +497,13 @@ namespace Opc.Ua.Robotics.Client.Tests
             _ = await controller.SubmitMissionAsync(RobotIntentBuilder.Mission("a")
                 .WithMissionUpdateId(5)
                 .HorizonStep("a1", RobotIntentBuilder.Wait(1).Build())
-                .Build());
+                .Build()).ConfigureAwait(false);
             _ = await controller.SubmitMissionAsync(RobotIntentBuilder.Mission("b")
                 .WithMissionUpdateId(1)
                 .HorizonStep("b1", RobotIntentBuilder.Wait(1).Build())
-                .Build());
-            MissionUpdateOutcome accepted = await controller.UpdateMissionAsync("b", 2, []);
-            MissionUpdateOutcome outdated = await controller.UpdateMissionAsync("a", 4, []);
+                .Build()).ConfigureAwait(false);
+            MissionUpdateOutcome accepted = await controller.UpdateMissionAsync("b", 2, []).ConfigureAwait(false);
+            MissionUpdateOutcome outdated = await controller.UpdateMissionAsync("a", 4, []).ConfigureAwait(false);
 
             Assert.Multiple(() =>
             {
@@ -559,8 +559,8 @@ namespace Opc.Ua.Robotics.Client.Tests
             };
 
             await using RealTimeChannelLease lease = new(transport, "rt1", TimeSpan.FromMilliseconds(30));
-            await lease.OpenAsync();
-            await AwaitWithTimeoutAsync(transport.WaitForOpenChannelCountAsync(2), TimeSpan.FromSeconds(1));
+            await lease.OpenAsync().ConfigureAwait(false);
+            await AwaitWithTimeoutAsync(transport.WaitForOpenChannelCountAsync(2), s_handshakeTimeout).ConfigureAwait(false);
 
             Assert.That(transport.OpenChannelCount, Is.GreaterThan(1));
             Assert.That(lease.EndpointUrl, Is.EqualTo("opc.tcp://rt"));
@@ -570,7 +570,7 @@ namespace Opc.Ua.Robotics.Client.Tests
                 Granted = false,
                 Message = new LocalizedText("busy")
             };
-            await lease.RenewAsync();
+            await lease.RenewAsync().ConfigureAwait(false);
 
             Assert.That(lease.Granted, Is.False);
             Assert.That(lease.Message.Text, Is.EqualTo("busy"));
@@ -598,8 +598,8 @@ namespace Opc.Ua.Robotics.Client.Tests
             });
 
             await using RealTimeChannelLease lease = new(transport, "rt1", TimeSpan.FromMilliseconds(30));
-            await lease.OpenAsync();
-            await WaitUntilAsync(() => transport.OpenChannelCount >= 3, TimeSpan.FromSeconds(2));
+            await lease.OpenAsync().ConfigureAwait(false);
+            await WaitUntilAsync(() => transport.OpenChannelCount >= 3, s_handshakeTimeout).ConfigureAwait(false);
 
             Assert.That(transport.OpenChannelCount, Is.GreaterThanOrEqualTo(3));
             Assert.That(lease.Granted, Is.True);
@@ -622,10 +622,10 @@ namespace Opc.Ua.Robotics.Client.Tests
             transport.EnqueueChannelFault(ServiceResultException.Create(StatusCodes.BadTimeout, "transient"));
 
             var lease = new RealTimeChannelLease(transport, "rt1", TimeSpan.FromMilliseconds(30));
-            await lease.OpenAsync();
-            await AwaitWithTimeoutAsync(transport.WaitForOpenChannelCountAsync(2), TimeSpan.FromSeconds(1));
+            await lease.OpenAsync().ConfigureAwait(false);
+            await AwaitWithTimeoutAsync(transport.WaitForOpenChannelCountAsync(2), s_handshakeTimeout).ConfigureAwait(false);
 
-            Assert.DoesNotThrowAsync(async () => await lease.DisposeAsync());
+            Assert.DoesNotThrowAsync(async () => await lease.DisposeAsync().ConfigureAwait(false));
             Assert.That(transport.CloseChannelCount, Is.EqualTo(1));
         }
 
@@ -643,9 +643,9 @@ namespace Opc.Ua.Robotics.Client.Tests
             };
 
             RealTimeChannelLease lease = new(transport, "rt1", TimeSpan.FromMilliseconds(30));
-            await lease.OpenAsync();
-            await lease.DisposeAsync();
-            Assert.DoesNotThrowAsync(async () => await lease.DisposeAsync());
+            await lease.OpenAsync().ConfigureAwait(false);
+            await lease.DisposeAsync().ConfigureAwait(false);
+            Assert.DoesNotThrowAsync(async () => await lease.DisposeAsync().ConfigureAwait(false));
 
             Assert.That(transport.CloseChannelCount, Is.EqualTo(1));
         }
@@ -665,10 +665,10 @@ namespace Opc.Ua.Robotics.Client.Tests
             };
 
             RealTimeChannelLease lease = new(transport, "rt1", TimeSpan.FromMilliseconds(30));
-            await lease.OpenAsync();
+            await lease.OpenAsync().ConfigureAwait(false);
 
-            Assert.DoesNotThrowAsync(async () => await lease.DisposeAsync());
-            Assert.DoesNotThrowAsync(async () => await lease.DisposeAsync());
+            Assert.DoesNotThrowAsync(async () => await lease.DisposeAsync().ConfigureAwait(false));
+            Assert.DoesNotThrowAsync(async () => await lease.DisposeAsync().ConfigureAwait(false));
             Assert.That(transport.CloseChannelCount, Is.EqualTo(1));
         }
 
@@ -685,9 +685,9 @@ namespace Opc.Ua.Robotics.Client.Tests
             };
 
             RealTimeChannelLease lease = new(transport, "rt1", TimeSpan.FromMilliseconds(30));
-            await lease.OpenAsync();
-            await lease.DisposeAsync();
-            await lease.DisposeAsync();
+            await lease.OpenAsync().ConfigureAwait(false);
+            await lease.DisposeAsync().ConfigureAwait(false);
+            await lease.DisposeAsync().ConfigureAwait(false);
 
             Assert.That(transport.CloseChannelCount, Is.Zero);
         }
@@ -710,8 +710,8 @@ namespace Opc.Ua.Robotics.Client.Tests
             IntentDataType refusalAwareIntent = RobotIntentBuilder.Wait(2).Build();
 
             ServiceResultException? ex = Assert.ThrowsAsync<ServiceResultException>(
-                async () => await controller.SubmitIntentAsync(throwingIntent));
-            IntentSubmissionResult result = await controller.TrySubmitIntentAsync(refusalAwareIntent);
+                async () => await controller.SubmitIntentAsync(throwingIntent).ConfigureAwait(false));
+            IntentSubmissionResult result = await controller.TrySubmitIntentAsync(refusalAwareIntent).ConfigureAwait(false);
 
             Assert.Multiple(() =>
             {
@@ -736,9 +736,9 @@ namespace Opc.Ua.Robotics.Client.Tests
                 .HorizonStep("a", RobotIntentBuilder.Wait(1).Build())
                 .Build();
 
-            MissionSubmissionResult submit = await controller.SubmitMissionAsync(mission);
-            MissionUpdateOutcome update = await controller.UpdateMissionAsync("m1", 5, []);
-            IntentCommandOutcome cancel = await controller.CancelMissionAsync("m1", StopModeEnum.QuickStop);
+            MissionSubmissionResult submit = await controller.SubmitMissionAsync(mission).ConfigureAwait(false);
+            MissionUpdateOutcome update = await controller.UpdateMissionAsync("m1", 5, []).ConfigureAwait(false);
+            IntentCommandOutcome cancel = await controller.CancelMissionAsync("m1", StopModeEnum.QuickStop).ConfigureAwait(false);
 
             Assert.Multiple(() =>
             {
@@ -770,7 +770,7 @@ namespace Opc.Ua.Robotics.Client.Tests
             };
 
             await using RealTimeChannelLease lease = new(transport, "rt1", TimeSpan.FromSeconds(1));
-            await lease.OpenAsync();
+            await lease.OpenAsync().ConfigureAwait(false);
             TimeSpan delay = InvokeComputeRenewDelay(lease);
 
             Assert.That(delay, Is.GreaterThan(TimeSpan.FromMilliseconds(250)));
@@ -792,7 +792,7 @@ namespace Opc.Ua.Robotics.Client.Tests
 
             await using RealTimeChannelLease lease = await controller.OpenRealTimeChannelAsync(
                 "rt1",
-                TimeSpan.FromSeconds(1));
+                TimeSpan.FromSeconds(1)).ConfigureAwait(false);
 
             Assert.Multiple(() =>
             {
@@ -914,6 +914,12 @@ namespace Opc.Ua.Robotics.Client.Tests
             Assert.That(method, Is.Not.Null);
             return (TimeSpan)method!.Invoke(lease, [])!;
         }
+
+        /// <summary>
+        /// Generous scheduling/handshake timeout used for AwaitWithTimeoutAsync and WaitUntilAsync
+        /// calls only. Does not affect behavioral lease durations or expiry times.
+        /// </summary>
+        private static readonly TimeSpan s_handshakeTimeout = TimeSpan.FromSeconds(30);
 
         private static async Task AwaitWithTimeoutAsync(Task task, TimeSpan timeout)
         {

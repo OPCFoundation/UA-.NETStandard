@@ -75,6 +75,7 @@ namespace Opc.Ua.Vision.Intent.Tests.Infrastructure
         /// <summary>
         /// Marks the named part as <see cref="TestPartLocation.Held"/>.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="classLabel"/> is <c>null</c>.</exception>
         public bool MarkHeld(string classLabel)
         {
             if (classLabel == null)
@@ -101,6 +102,7 @@ namespace Opc.Ua.Vision.Intent.Tests.Infrastructure
         /// no longer emits a detection for the part because the
         /// snapshot's Location leaves <see cref="TestPartLocation.InBin"/>.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="classLabel"/> is <c>null</c>.</exception>
         public bool MarkPlaced(string classLabel, double worldX, double worldY, double worldZ)
         {
             if (classLabel == null)

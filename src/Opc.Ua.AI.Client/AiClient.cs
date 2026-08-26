@@ -40,20 +40,20 @@ namespace Opc.Ua.AI.Client
     {
         public AIClient(ISession session, ITelemetryContext telemetry)
         {
-            m_operations = new AIClientOperations(session, telemetry);
+            Operations = new AIClientOperations(session, telemetry);
         }
 
-        public ISession Session => m_operations.Session;
+        public ISession Session => Operations.Session;
 
-        public ITelemetryContext Telemetry => m_operations.Telemetry;
+        public ITelemetryContext Telemetry => Operations.Telemetry;
 
-        public bool IsAINamespaceAvailable => m_operations.TryGetAINamespaceIndex(out _);
+        public bool IsAINamespaceAvailable => Operations.TryGetAINamespaceIndex(out _);
 
         public NodeId AIRootId
         {
             get
             {
-                if (!m_operations.TryGetAINamespaceIndex(out ushort _))
+                if (!Operations.TryGetAINamespaceIndex(out ushort _))
                 {
                     return NodeId.Null;
                 }
@@ -236,45 +236,45 @@ namespace Opc.Ua.AI.Client
 
         public AIModelClient Model(NodeId modelNodeId)
         {
-            return new AIModelClient(m_operations, modelNodeId);
+            return new AIModelClient(Operations, modelNodeId);
         }
 
         public AIDatasetClient Dataset(NodeId datasetNodeId)
         {
-            return new AIDatasetClient(m_operations, datasetNodeId);
+            return new AIDatasetClient(Operations, datasetNodeId);
         }
 
         public AIDeploymentClient Deployment(NodeId deploymentNodeId)
         {
-            return new AIDeploymentClient(m_operations, deploymentNodeId);
+            return new AIDeploymentClient(Operations, deploymentNodeId);
         }
 
         public AIModelSourceClient Source(NodeId sourceNodeId)
         {
-            return new AIModelSourceClient(m_operations, sourceNodeId);
+            return new AIModelSourceClient(Operations, sourceNodeId);
         }
 
         public AIInferenceJobClient InferenceJob(NodeId jobNodeId)
         {
-            return new AIInferenceJobClient(m_operations, jobNodeId);
+            return new AIInferenceJobClient(Operations, jobNodeId);
         }
 
         public AILearningJobClient LearningJob(NodeId jobNodeId)
         {
-            return new AILearningJobClient(m_operations, jobNodeId);
+            return new AILearningJobClient(Operations, jobNodeId);
         }
 
         public AIEvaluationRunClient EvaluationRun(NodeId runNodeId)
         {
-            return new AIEvaluationRunClient(m_operations, runNodeId);
+            return new AIEvaluationRunClient(Operations, runNodeId);
         }
 
         public AIInferenceTransferClient Transfer(NodeId transferNodeId)
         {
-            return new AIInferenceTransferClient(m_operations, transferNodeId);
+            return new AIInferenceTransferClient(Operations, transferNodeId);
         }
 
-        internal AIClientOperations Operations => m_operations;
+        internal AIClientOperations Operations { get; }
 
         private NodeId CreateWellKnownNode(uint identifier)
         {
@@ -303,14 +303,18 @@ namespace Opc.Ua.AI.Client
             return browseName switch
             {
                 BrowseNames.Registries => (await proxy.GetRegistriesAsync(Telemetry, cancellationToken)
-                    .ConfigureAwait(false))?.ObjectId ?? NodeId.Null,
+                    .ConfigureAwait(false))?.ObjectId ??
+                    NodeId.Null,
                 BrowseNames.Sources => (await proxy.GetSourcesAsync(Telemetry, cancellationToken)
-                    .ConfigureAwait(false))?.ObjectId ?? NodeId.Null,
+                    .ConfigureAwait(false))?.ObjectId ??
+                    NodeId.Null,
                 BrowseNames.Evaluations => (await proxy.GetEvaluationsAsync(Telemetry, cancellationToken)
-                    .ConfigureAwait(false))?.ObjectId ?? NodeId.Null,
+                    .ConfigureAwait(false))?.ObjectId ??
+                    NodeId.Null,
                 BrowseNames.Jobs => (await proxy.GetJobsAsync(Telemetry, cancellationToken)
-                    .ConfigureAwait(false))?.ObjectId ?? NodeId.Null,
-                _ => await m_operations.ResolveChildAsync(root, browseName, cancellationToken)
+                    .ConfigureAwait(false))?.ObjectId ??
+                    NodeId.Null,
+                _ => await Operations.ResolveChildAsync(root, browseName, cancellationToken)
                     .ConfigureAwait(false)
             };
         }
@@ -320,9 +324,9 @@ namespace Opc.Ua.AI.Client
             uint typeIdentifier,
             CancellationToken cancellationToken)
         {
-            return m_operations.DiscoverInstancesAsync(
+            return Operations.DiscoverInstancesAsync(
                 folder,
-                m_operations.AINamespaceType(typeIdentifier),
+                Operations.AINamespaceType(typeIdentifier),
                 cancellationToken);
         }
 
@@ -335,12 +339,12 @@ namespace Opc.Ua.AI.Client
             {
                 yield break;
             }
-            NodeId typeDefinition = m_operations.AINamespaceType(typeIdentifier);
+            NodeId typeDefinition = Operations.AINamespaceType(typeIdentifier);
             if (typeDefinition.IsNull)
             {
                 yield break;
             }
-            ArrayOf<ReferenceDescription> references = await m_operations
+            ArrayOf<ReferenceDescription> references = await Operations
                 .BrowseHierarchicalObjectsAsync(root, cancellationToken).ConfigureAwait(false);
             var matches = new List<AINodeEntry>();
             for (int ii = 0; ii < references.Count; ii++)
@@ -366,7 +370,5 @@ namespace Opc.Ua.AI.Client
                 yield return matches[ii];
             }
         }
-
-        private readonly AIClientOperations m_operations;
     }
 }

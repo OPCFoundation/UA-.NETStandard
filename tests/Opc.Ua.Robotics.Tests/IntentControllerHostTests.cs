@@ -522,16 +522,30 @@ namespace Opc.Ua.Robotics.Tests
             options.MaxQueueDepth = 1;
             using IntentControllerHost host = NewHost(options);
 
-            host.SubmitIntent(m_context, null, Move("a", BufferModeEnum.Buffered));
-            IntentAdmission overflow = host.SubmitIntent(
-                m_context, null, Move("b", BufferModeEnum.Buffered));
+            // Keep the first intent queued so the depth bound is exercised
+            // deterministically instead of racing the background dispatch pump,
+            // which can move "a" out of the queue into the executing slot (where
+            // it parks on the gate) before "b" is submitted. Pause only stops
+            // dispatch; admission still runs, so the bound is enforced reliably.
+            Assert.That(host.Pause(m_context, null), Is.True);
 
-            Assert.Multiple(() =>
+            try
             {
-                Assert.That(overflow.Accepted, Is.False);
-                Assert.That(overflow.Failure, Is.EqualTo(IntentFailureEnum.QueueFull));
-            });
-            m_executor.Gate!.Release(4);
+                host.SubmitIntent(m_context, null, Move("a", BufferModeEnum.Buffered));
+                IntentAdmission overflow = host.SubmitIntent(
+                    m_context, null, Move("b", BufferModeEnum.Buffered));
+
+                Assert.Multiple(() =>
+                {
+                    Assert.That(overflow.Accepted, Is.False);
+                    Assert.That(overflow.Failure, Is.EqualTo(IntentFailureEnum.QueueFull));
+                });
+            }
+            finally
+            {
+                host.Resume(m_context, null);
+                m_executor.Gate!.Release(4);
+            }
         }
 
         [Test]
@@ -1436,9 +1450,9 @@ namespace Opc.Ua.Robotics.Tests
                 AxisCount = 6,
                 MaxQueueDepth = 4
             };
-            options.Accept(RiDataTypeIds.LinearMoveIntentDataType);
-            options.Accept(RiDataTypeIds.JointMoveIntentDataType);
-            options.Accept(RiDataTypeIds.GraspIntentDataType, cancelSupported: false);
+            options.Accept(RiDataTypeIds.LinearMoveIntentDataType)
+                .Accept(RiDataTypeIds.JointMoveIntentDataType)
+                .Accept(RiDataTypeIds.GraspIntentDataType, cancelSupported: false);
             return options;
         }
 

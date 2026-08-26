@@ -257,6 +257,7 @@ namespace Vision.BinPickingCell
         private static readonly TimeSpan TargetLifetime = TimeSpan.FromSeconds(10);
         private readonly BinPickingWorldState m_worldState;
         private readonly BinPickingCellOptions m_options;
+
         private readonly ConcurrentDictionary<string, BinPickingTarget> m_targets =
             new(StringComparer.Ordinal);
     }
