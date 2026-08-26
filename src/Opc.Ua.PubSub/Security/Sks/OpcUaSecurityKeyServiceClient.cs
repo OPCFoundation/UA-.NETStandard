@@ -460,10 +460,103 @@ namespace Opc.Ua.PubSub.Security.Sks
             string securityPolicyUri,
             ISecurityPolicyRegistry? securityPolicies)
         {
-            return (securityPolicies ?? SecurityPolicies.Default).GetInfo(securityPolicyUri) is not null &&
-                !string.Equals(securityPolicyUri, SecurityPolicies.None, StringComparison.Ordinal) &&
-                !string.Equals(securityPolicyUri, SecurityPolicies.Basic128Rsa15, StringComparison.Ordinal) &&
-                !string.Equals(securityPolicyUri, SecurityPolicies.Basic256, StringComparison.Ordinal);
+            SecurityPolicyInfo? policy =
+                (securityPolicies ?? SecurityPolicies.Default).GetInfo(securityPolicyUri);
+            if (policy is null || policy.IsDeprecated)
+            {
+                return false;
+            }
+
+            bool hasStrongSymmetricEncryption =
+                policy.SymmetricEncryptionAlgorithm is
+                    SymmetricEncryptionAlgorithm.Aes128Cbc or
+                    SymmetricEncryptionAlgorithm.Aes256Cbc or
+                    SymmetricEncryptionAlgorithm.Aes128Ctr or
+                    SymmetricEncryptionAlgorithm.Aes256Ctr or
+                    SymmetricEncryptionAlgorithm.ChaCha20Poly1305 or
+                    SymmetricEncryptionAlgorithm.Aes128Gcm or
+                    SymmetricEncryptionAlgorithm.Aes256Gcm &&
+                policy.SymmetricEncryptionKeyLength >= 128 / 8 &&
+                policy.InitializationVectorLength > 0;
+            bool hasStrongSymmetricAuthentication =
+                policy.SymmetricSignatureAlgorithm is
+                    SymmetricSignatureAlgorithm.HmacSha256 or
+                    SymmetricSignatureAlgorithm.HmacSha384 or
+                    SymmetricSignatureAlgorithm.ChaCha20Poly1305 or
+                    SymmetricSignatureAlgorithm.Aes128Gcm or
+                    SymmetricSignatureAlgorithm.Aes256Gcm;
+            bool hasStrongKeyDerivation =
+                policy.KeyDerivationAlgorithm is
+                    KeyDerivationAlgorithm.PSha256 or
+                    KeyDerivationAlgorithm.HKDFSha256 or
+                    KeyDerivationAlgorithm.HKDFSha384;
+            bool hasStrongAsymmetricSignature =
+                policy.AsymmetricSignatureAlgorithm is
+                    AsymmetricSignatureAlgorithm.RsaPkcs15Sha256 or
+                    AsymmetricSignatureAlgorithm.RsaPssSha256 or
+                    AsymmetricSignatureAlgorithm.EcdsaSha256 or
+                    AsymmetricSignatureAlgorithm.EcdsaSha384 or
+                    AsymmetricSignatureAlgorithm.EcdsaPure25519 or
+                    AsymmetricSignatureAlgorithm.EcdsaPure448;
+            bool hasCoherentAsymmetricProtection = policy.CertificateKeyFamily switch
+            {
+                CertificateKeyFamily.RSA =>
+                    policy.CertificateKeyAlgorithm == CertificateKeyAlgorithm.RSA &&
+                    policy.MinAsymmetricKeyLength >= 2048 &&
+                    IsApprovedRsaKeyExchange(policy),
+                CertificateKeyFamily.ECC => IsApprovedEccKeyExchange(policy),
+                _ => false
+            };
+
+            return hasStrongSymmetricEncryption &&
+                hasStrongSymmetricAuthentication &&
+                hasStrongKeyDerivation &&
+                hasStrongAsymmetricSignature &&
+                hasCoherentAsymmetricProtection &&
+                policy.SecureChannelNonceLength >= 32;
+        }
+
+        private static bool IsApprovedRsaKeyExchange(SecurityPolicyInfo policy)
+        {
+            if (policy.AsymmetricSignatureAlgorithm is not
+                (AsymmetricSignatureAlgorithm.RsaPkcs15Sha256 or
+                AsymmetricSignatureAlgorithm.RsaPssSha256))
+            {
+                return false;
+            }
+
+            if (policy.EphemeralKeyAlgorithm == CertificateKeyAlgorithm.None)
+            {
+                return policy.AsymmetricEncryptionAlgorithm is
+                    AsymmetricEncryptionAlgorithm.RsaOaepSha1 or
+                    AsymmetricEncryptionAlgorithm.RsaOaepSha256;
+            }
+
+            return policy.EphemeralKeyAlgorithm == CertificateKeyAlgorithm.RSADH &&
+                policy.AsymmetricEncryptionAlgorithm == AsymmetricEncryptionAlgorithm.None &&
+                policy.SecureChannelEnhancements &&
+                !policy.LegacySequenceNumbers &&
+                policy.KeyDerivationAlgorithm is
+                    KeyDerivationAlgorithm.HKDFSha256 or
+                    KeyDerivationAlgorithm.HKDFSha384 &&
+                policy.SecureChannelNonceLength >= 384;
+        }
+
+        private static bool IsApprovedEccKeyExchange(SecurityPolicyInfo policy)
+        {
+            if (policy.AsymmetricEncryptionAlgorithm != AsymmetricEncryptionAlgorithm.None ||
+                policy.CertificateKeyAlgorithm != policy.EphemeralKeyAlgorithm)
+            {
+                return false;
+            }
+
+            return (policy.CertificateKeyAlgorithm, policy.AsymmetricSignatureAlgorithm) is
+                (CertificateKeyAlgorithm.NistP256, AsymmetricSignatureAlgorithm.EcdsaSha256) or
+                (CertificateKeyAlgorithm.NistP384, AsymmetricSignatureAlgorithm.EcdsaSha384) or
+                (CertificateKeyAlgorithm.BrainpoolP256r1, AsymmetricSignatureAlgorithm.EcdsaSha256) or
+                (CertificateKeyAlgorithm.BrainpoolP384r1, AsymmetricSignatureAlgorithm.EcdsaSha384) or
+                (CertificateKeyAlgorithm.Curve25519, AsymmetricSignatureAlgorithm.EcdsaPure25519) or
+                (CertificateKeyAlgorithm.Curve448, AsymmetricSignatureAlgorithm.EcdsaPure448);
         }
 
         private static bool HasNonAnonymousUserToken(EndpointDescription endpoint)

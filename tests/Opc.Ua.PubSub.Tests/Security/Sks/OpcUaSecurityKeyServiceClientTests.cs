@@ -340,6 +340,60 @@ namespace Opc.Ua.PubSub.Tests.Security.Sks
         }
 
         [Test]
+        [TestSpec("8.3.2", Part = 14, Summary = "SKS client rejects weak custom security policy")]
+        public void ConstructorRejectsInjectedPolicyWithoutEncryption()
+        {
+            var policy = new SecurityPolicyInfo(SecurityPolicyInfo.Basic256Sha256)
+            {
+                Name = "WeakInjectedPolicy",
+                Uri = SecurityPolicies.BaseUri + "WeakInjectedPolicy",
+                SymmetricEncryptionAlgorithm = SymmetricEncryptionAlgorithm.None,
+                IsDefault = false
+            };
+            using var securityPolicies = new SecurityPolicies();
+            securityPolicies.Register(policy);
+            EndpointDescription endpoint = BuildSksEndpoint(MessageSecurityMode.SignAndEncrypt);
+            endpoint.SecurityPolicyUri = policy.Uri;
+
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(
+                () => new OpcUaSecurityKeyServiceClient(
+                    endpoint,
+                    new ApplicationConfiguration(NUnitTelemetryContext.Create()),
+                    NUnitTelemetryContext.Create(),
+                    new FakeTimeProvider(),
+                    securityPolicies: securityPolicies))!;
+
+            Assert.That(ex.Code, Is.EqualTo(StatusCodes.BadSecurityModeRejected));
+        }
+
+        [Test]
+        [TestSpec("8.3.2", Part = 14, Summary = "SKS client rejects incoherent key exchange")]
+        public void ConstructorRejectsInjectedRsaPolicyWithEccEphemeralAlgorithm()
+        {
+            var policy = new SecurityPolicyInfo(SecurityPolicyInfo.Basic256Sha256)
+            {
+                Name = "IncoherentInjectedPolicy",
+                Uri = SecurityPolicies.BaseUri + "IncoherentInjectedPolicy",
+                EphemeralKeyAlgorithm = CertificateKeyAlgorithm.NistP256,
+                IsDefault = false
+            };
+            using var securityPolicies = new SecurityPolicies();
+            securityPolicies.Register(policy);
+            EndpointDescription endpoint = BuildSksEndpoint(MessageSecurityMode.SignAndEncrypt);
+            endpoint.SecurityPolicyUri = policy.Uri;
+
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(
+                () => new OpcUaSecurityKeyServiceClient(
+                    endpoint,
+                    new ApplicationConfiguration(NUnitTelemetryContext.Create()),
+                    NUnitTelemetryContext.Create(),
+                    new FakeTimeProvider(),
+                    securityPolicies: securityPolicies))!;
+
+            Assert.That(ex.Code, Is.EqualTo(StatusCodes.BadSecurityModeRejected));
+        }
+
+        [Test]
         [TestSpec("8.3.2", Part = 14, Summary = "Malformed SKS durations are rejected")]
         public void GetSecurityKeysAsyncRejectsMalformedKeyLifetime()
         {
