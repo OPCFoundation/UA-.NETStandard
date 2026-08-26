@@ -18,7 +18,7 @@
     into the preview build.
 
     Both `.azurepipelines/preview.yml` and
-    `.github/workflows/preview-publish.yml` invoke this script before
+    `.github/workflows/nuget-publish.yml` invoke this script before
     `dotnet restore` / `build` / `pack`.
 
 .PARAMETER OutputPath

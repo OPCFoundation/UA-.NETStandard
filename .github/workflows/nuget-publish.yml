@@ -1,0 +1,422 @@
+name: NuGet Publish
+
+# Builds the complete signed NuGet package set on every branch. Release
+# configuration supplies all normal package IDs; Debug configuration supplies
+# only package IDs ending in .Debug. Automatic master and release/* runs publish
+# normal packages to GitHub Packages and retain the exact bytes for release.yml.
+# Manual runs can publish from any branch.
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ '**' ]
+    tags: [ 'v*' ]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: nuget-publish-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  pack:
+    name: Build and sign ${{ matrix.configuration }}
+    runs-on: windows-2025
+    strategy:
+      fail-fast: false
+      matrix:
+        configuration: [ Release, Debug ]
+
+    env:
+      SIGNING_URL: ${{ secrets.SIGNING_URL }}
+      SIGNING_VAULT_URL: ${{ secrets.SIGNING_VAULT_URL }}
+      SIGNING_TENANT_ID: ${{ secrets.SIGNING_TENANT_ID }}
+      SIGNING_CLIENT_ID: ${{ secrets.SIGNING_CLIENT_ID }}
+      SIGNING_CLIENT_SECRET: ${{ secrets.SIGNING_CLIENT_SECRET }}
+      SIGNING_CERT_NAME: ${{ secrets.SIGNING_CERT_NAME }}
+      OPCFOUNDATION_NETSTANDARD_SNK_BASE64: ${{ secrets.OPCFOUNDATION_NETSTANDARD_SNK_BASE64 }}
+      ARTIFACTS_DIR: ${{ github.workspace }}/artifacts
+      TOOLS_DIR: ${{ github.workspace }}/tools
+
+    steps:
+      - name: Require signing configuration
+        shell: pwsh
+        run: |
+          $required = @(
+              'SIGNING_URL',
+              'SIGNING_VAULT_URL',
+              'SIGNING_TENANT_ID',
+              'SIGNING_CLIENT_ID',
+              'SIGNING_CLIENT_SECRET',
+              'SIGNING_CERT_NAME',
+              'OPCFOUNDATION_NETSTANDARD_SNK_BASE64')
+          $missing = @($required | Where-Object {
+              [string]::IsNullOrWhiteSpace([Environment]::GetEnvironmentVariable($_))
+          })
+          if ($missing.Count -gt 0) {
+              throw "Required signing secrets are unavailable: $($missing -join ', ')."
+          }
+
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Setup .NET 10.0
+        uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Decode strong-name key
+        shell: pwsh
+        run: |
+          $snkDir = Join-Path $env:GITHUB_WORKSPACE '.snk'
+          New-Item -ItemType Directory -Force -Path $snkDir | Out-Null
+          $snkPath = Join-Path $snkDir 'OPCFoundation.NetStandard.Key.snk'
+          try {
+              $key = [Convert]::FromBase64String($env:OPCFOUNDATION_NETSTANDARD_SNK_BASE64)
+          }
+          catch {
+              throw 'OPCFOUNDATION_NETSTANDARD_SNK_BASE64 is not valid base64.'
+          }
+          if ($key.Length -eq 0) {
+              throw 'The decoded strong-name key is empty.'
+          }
+          [IO.File]::WriteAllBytes($snkPath, $key)
+          "SNK_PATH=$snkPath" | Out-File -FilePath $env:GITHUB_ENV -Append
+
+      - name: Install signing tools
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path "$env:TOOLS_DIR" | Out-Null
+          dotnet tool install --version 3.0.0 --tool-path "$env:TOOLS_DIR" AzureSignTool
+          if ($LASTEXITCODE -ne 0) {
+              throw 'AzureSignTool installation failed.'
+          }
+          dotnet tool install --version 3.0.45 --tool-path "$env:TOOLS_DIR" NuGetKeyVaultSignTool
+          if ($LASTEXITCODE -ne 0) {
+              throw 'NuGetKeyVaultSignTool installation failed.'
+          }
+
+      - name: Setup NuGet
+        uses: NuGet/setup-nuget@v4
+        with:
+          nuget-version: '>=7.0.0'
+
+      - name: Compute version
+        shell: pwsh
+        run: ./.azurepipelines/set-version.ps1
+
+      - name: Generate pack solution
+        shell: pwsh
+        run: ./.azurepipelines/generate-slnx.ps1
+
+      - name: Determine package mode
+        shell: pwsh
+        run: |
+          if ('${{ github.ref_type }}' -eq 'tag') {
+              $mode = 'Public'
+          }
+          else {
+              $mode = 'Preview'
+          }
+          "PACK_MODE=$mode" | Out-File -FilePath $env:GITHUB_ENV -Append
+          Write-Host "Packing $mode packages."
+
+      - name: Restore
+        shell: pwsh
+        run: dotnet restore 'preview-pack.slnx' --disable-parallel
+
+      - name: Build with strong-name signing
+        shell: pwsh
+        run: |
+          dotnet build 'preview-pack.slnx' `
+            --no-incremental `
+            --configuration '${{ matrix.configuration }}' `
+            "/p:Version=$env:NBGV_Version" `
+            "/p:AssemblyVersion=$env:NBGV_SimpleVersion" `
+            "/p:FileVersion=$env:NBGV_AssemblyFileVersion" `
+            "/p:AssemblyOriginatorKeyFile=$env:SNK_PATH" `
+            /p:SignAssembly=true
+          if ($LASTEXITCODE -ne 0) {
+              throw '${{ matrix.configuration }} build failed.'
+          }
+
+      - name: Authenticode-sign assemblies
+        shell: pwsh
+        run: |
+          $signList = '.azurepipelines/signlist${{ matrix.configuration }}.txt'
+          & "$env:TOOLS_DIR/AzureSignTool" sign `
+            -du "$env:SIGNING_URL" `
+            -kvu "$env:SIGNING_VAULT_URL" `
+            -kvt "$env:SIGNING_TENANT_ID" `
+            -kvi "$env:SIGNING_CLIENT_ID" `
+            -tr http://timestamp.digicert.com `
+            -td sha384 `
+            -kvs "$env:SIGNING_CLIENT_SECRET" `
+            -kvc "$env:SIGNING_CERT_NAME" `
+            -v `
+            -ifl $signList
+          if ($LASTEXITCODE -ne 0) {
+              throw '${{ matrix.configuration }} assembly signing failed.'
+          }
+
+      - name: Pack modern NuGet packages
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path "$env:ARTIFACTS_DIR" | Out-Null
+          dotnet pack 'preview-pack.slnx' `
+            --no-build `
+            --configuration '${{ matrix.configuration }}' `
+            --output "$env:ARTIFACTS_DIR"
+          if ($LASTEXITCODE -ne 0) {
+              throw '${{ matrix.configuration }} package creation failed.'
+          }
+
+      - name: Read package version
+        shell: pwsh
+        run: |
+          Add-Type -AssemblyName System.IO.Compression.FileSystem
+          $versions = @(Get-ChildItem "$env:ARTIFACTS_DIR" -Filter '*.nupkg' -File |
+              ForEach-Object {
+                  $archive = [IO.Compression.ZipFile]::OpenRead($_.FullName)
+                  try {
+                      $nuspec = @($archive.Entries | Where-Object {
+                          $_.FullName -notmatch '/' -and $_.FullName.EndsWith('.nuspec')
+                      })
+                      if ($nuspec.Count -ne 1) {
+                          throw "Unable to identify package '$($_.Name)'."
+                      }
+                      $reader = [IO.StreamReader]::new($nuspec[0].Open())
+                      try {
+                          [xml]$metadata = $reader.ReadToEnd()
+                      }
+                      finally {
+                          $reader.Dispose()
+                      }
+                      [string]$metadata.package.metadata.version
+                  }
+                  finally {
+                      $archive.Dispose()
+                  }
+              } | Sort-Object -Unique)
+          if ($versions.Count -ne 1 -or [string]::IsNullOrWhiteSpace($versions[0])) {
+              throw "Modern packages contain unexpected versions: $($versions -join ', ')."
+          }
+          "PACK_VERSION=$($versions[0])" | Out-File -FilePath $env:GITHUB_ENV -Append
+          Write-Host "Package version is $($versions[0])."
+
+      - name: Keep only distinct Debug package IDs
+        if: matrix.configuration == 'Debug'
+        shell: pwsh
+        run: |
+          Add-Type -AssemblyName System.IO.Compression.FileSystem
+          $packages = @(Get-ChildItem "$env:ARTIFACTS_DIR" -Filter '*.nupkg' -File)
+          foreach ($package in $packages) {
+              $archive = [IO.Compression.ZipFile]::OpenRead($package.FullName)
+              try {
+                  $nuspec = @($archive.Entries | Where-Object {
+                      $_.FullName -notmatch '/' -and $_.FullName.EndsWith('.nuspec')
+                  })
+                  if ($nuspec.Count -ne 1) {
+                      throw "Unable to identify package '$($package.Name)'."
+                  }
+                  $reader = [IO.StreamReader]::new($nuspec[0].Open())
+                  try {
+                      [xml]$metadata = $reader.ReadToEnd()
+                  }
+                  finally {
+                      $reader.Dispose()
+                  }
+                  $id = [string]$metadata.package.metadata.id
+              }
+              finally {
+                  $archive.Dispose()
+              }
+
+              if (-not $id.EndsWith('.Debug', [StringComparison]::OrdinalIgnoreCase)) {
+                  Remove-Item -LiteralPath $package.FullName
+                  $symbols = Join-Path $package.DirectoryName "$($package.BaseName).snupkg"
+                  if (Test-Path -LiteralPath $symbols) {
+                      Remove-Item -LiteralPath $symbols
+                  }
+              }
+          }
+
+          $debugPackages = @(Get-ChildItem "$env:ARTIFACTS_DIR" -Filter '*.nupkg' -File)
+          if ($debugPackages.Count -eq 0) {
+              throw 'The Debug build produced no package IDs ending in .Debug.'
+          }
+          Write-Host "Retained $($debugPackages.Count) distinct Debug package(s)."
+
+      - name: Validate source-generator packages
+        if: matrix.configuration == 'Release'
+        shell: pwsh
+        run: |
+          ./.azurepipelines/validate-source-generator-packages.ps1 `
+            -PackageDirectory "$env:ARTIFACTS_DIR"
+
+      - name: Pack legacy NuGet packages
+        if: matrix.configuration == 'Release'
+        shell: pwsh
+        run: |
+          $nuspecs = @(Get-ChildItem -Path 'nuget' -Filter 'Opc.*.nuspec' -File)
+          foreach ($nuspec in $nuspecs) {
+              nuget pack $nuspec.FullName `
+                -NonInteractive `
+                -OutputDirectory "$env:ARTIFACTS_DIR" `
+                -Version "$env:PACK_VERSION"
+              if ($LASTEXITCODE -ne 0) {
+                  throw "Legacy package creation failed for '$($nuspec.Name)'."
+              }
+          }
+
+      - name: Sign NuGet packages
+        shell: pwsh
+        run: |
+          $packages = @(Get-ChildItem "$env:ARTIFACTS_DIR" -File | Where-Object {
+              $_.Name.EndsWith('.nupkg') -or $_.Name.EndsWith('.snupkg')
+          })
+          if ($packages.Count -eq 0) {
+              throw 'No NuGet packages were produced.'
+          }
+          foreach ($package in $packages) {
+              & "$env:TOOLS_DIR/NuGetKeyVaultSignTool" sign $package.FullName `
+                --file-digest sha256 `
+                --timestamp-rfc3161 http://timestamp.digicert.com `
+                --timestamp-digest sha256 `
+                --azure-key-vault-url "$env:SIGNING_VAULT_URL" `
+                --azure-key-vault-client-id "$env:SIGNING_CLIENT_ID" `
+                --azure-key-vault-tenant-id "$env:SIGNING_TENANT_ID" `
+                --azure-key-vault-client-secret "$env:SIGNING_CLIENT_SECRET" `
+                --azure-key-vault-certificate "$env:SIGNING_CERT_NAME"
+              if ($LASTEXITCODE -ne 0) {
+                  throw "Package signing failed for '$($package.Name)'."
+              }
+          }
+
+      - name: Verify signed package set
+        shell: pwsh
+        run: |
+          ./.azurepipelines/validate-nuget-package-set.ps1 `
+            -PackageDirectory "$env:ARTIFACTS_DIR" `
+            -ManifestPath "$env:ARTIFACTS_DIR/package-set.json" `
+            -ExpectedVersion "$env:PACK_VERSION" `
+            -VerifySignatures
+
+      - name: Upload signed package set
+        uses: actions/upload-artifact@v7
+        with:
+          name: opcua-${{ matrix.configuration }}-${{ github.run_id }}
+          path: ${{ env.ARTIFACTS_DIR }}
+          if-no-files-found: error
+          retention-days: 1
+
+  publish:
+    name: Publish signed package set
+    needs: pack
+    if: >-
+      ${{
+        github.event_name == 'workflow_dispatch' ||
+        (github.event_name == 'push' &&
+          (github.ref == 'refs/heads/master' ||
+            startsWith(github.ref, 'refs/heads/release/')))
+      }}
+    runs-on: windows-2025
+    permissions:
+      actions: read
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup .NET 10.0
+        uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Download signed package sets
+        uses: actions/download-artifact@v8
+        with:
+          pattern: opcua-*-${{ github.run_id }}
+          path: downloaded
+
+      - name: Aggregate and validate packages
+        shell: pwsh
+        run: |
+          $output = Join-Path $env:GITHUB_WORKSPACE 'promotion'
+          New-Item -ItemType Directory -Force -Path $output | Out-Null
+          $archives = @(Get-ChildItem downloaded -Recurse -File | Where-Object {
+              $_.Name.EndsWith('.nupkg') -or $_.Name.EndsWith('.snupkg')
+          })
+          foreach ($archive in $archives) {
+              $destination = Join-Path $output $archive.Name
+              if (Test-Path -LiteralPath $destination) {
+                  throw "Duplicate archive filename '$($archive.Name)' was produced."
+              }
+              Copy-Item -LiteralPath $archive.FullName -Destination $destination
+          }
+
+          $packageManifest = Join-Path $output 'package-set.json'
+          ./.azurepipelines/validate-nuget-package-set.ps1 `
+            -PackageDirectory $output `
+            -ManifestPath $packageManifest `
+            -RequireDebug `
+            -VerifySignatures
+
+          $inventory = Get-Content -LiteralPath $packageManifest -Raw | ConvertFrom-Json
+          $manifest = [ordered]@{
+              schemaVersion = 1
+              repository = '${{ github.repository }}'
+              workflow = '.github/workflows/nuget-publish.yml'
+              runId = '${{ github.run_id }}'
+              ref = '${{ github.ref }}'
+              commit = '${{ github.sha }}'
+              packageVersion = $inventory.packageVersion
+              packageCount = $inventory.packageCount
+              symbolPackageCount = $inventory.symbolPackageCount
+              debugPackageCount = $inventory.debugPackageCount
+              archives = $inventory.archives
+          }
+          $manifest | ConvertTo-Json -Depth 6 |
+              Set-Content -LiteralPath (Join-Path $output 'release-manifest.json') -Encoding utf8NoBOM
+
+      - name: Push to GitHub Packages
+        shell: pwsh
+        run: |
+          $packages = @(Get-ChildItem promotion -Filter '*.nupkg' -File | Sort-Object Name)
+          foreach ($package in $packages) {
+              dotnet nuget push $package.FullName `
+                --source 'https://nuget.pkg.github.com/OPCFoundation/index.json' `
+                --api-key '${{ secrets.GITHUB_TOKEN }}' `
+                --skip-duplicate `
+                --no-symbols
+              if ($LASTEXITCODE -ne 0) {
+                  throw "GitHub Packages push failed for '$($package.Name)'."
+              }
+          }
+
+      - name: Upload promotion artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: opcua-packages-${{ github.run_id }}
+          path: promotion
+          if-no-files-found: error
+          retention-days: ${{ startsWith(github.ref, 'refs/heads/release/') && 30 || 1 }}
+
+      - name: Summary
+        shell: pwsh
+        run: |
+          $manifest = Get-Content promotion/release-manifest.json -Raw | ConvertFrom-Json
+          @"
+          ### NuGet package publication
+
+          - Version: ``$($manifest.packageVersion)``
+          - Packages: ``$($manifest.packageCount)``
+          - Debug packages: ``$($manifest.debugPackageCount)``
+          - Symbol packages: ``$($manifest.symbolPackageCount)``
+          - Promotion artifact: ``opcua-packages-${{ github.run_id }}``
+          "@ | Add-Content -LiteralPath $env:GITHUB_STEP_SUMMARY
