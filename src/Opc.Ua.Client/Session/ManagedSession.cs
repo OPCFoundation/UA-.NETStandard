@@ -259,7 +259,7 @@ namespace Opc.Ua.Client
                 connectGate)
             {
                 m_engineFactory = engineFactory,
-                m_securityPolicies = (sessionFactory as DefaultSessionFactory)?.SecurityPolicyRegistry,
+                m_securityPolicies = ResolveSecurityPolicies(sessionFactory),
                 m_reverseConnectManager = reverseConnectManager
             };
 
@@ -1802,6 +1802,23 @@ namespace Opc.Ua.Client
                 m_identityRefreshTask = null;
             }
             cts?.Cancel();
+        }
+
+        /// <summary>
+        /// Returns the security policy registry the session factory was
+        /// composed with, so a policy the application contributed through
+        /// <c>AddSecurityPolicy</c> also reaches the sessions this managed
+        /// session creates and re-creates.
+        /// </summary>
+        private static ISecurityPolicyRegistry? ResolveSecurityPolicies(
+            ISessionFactory sessionFactory)
+        {
+            return sessionFactory switch
+            {
+                DefaultSessionFactory factory => factory.SecurityPolicyRegistry,
+                ChannelManagerSessionFactory factory => factory.SecurityPolicyRegistry,
+                _ => null
+            };
         }
 
         /// <inheritdoc/>

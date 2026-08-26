@@ -546,6 +546,19 @@ await channel.OpenAsync(
 them unset falls back to `SecurityPolicies.Default`, so an application that configures nothing is
 unaffected.
 
+`ManagedSession` sources the registry from the session factory it was given, so a session opened from
+the container already carries it. Building one by hand takes it through the fluent API:
+
+```csharp
+ManagedSession session = await new ManagedSessionBuilder(configuration, telemetry)
+    .UseEndpoint(endpoint)
+    .UseSecurityPolicies(policies)
+    .ConnectAsync(ct);
+```
+
+The registry then reaches both the sessions the builder creates and the channels they open, including
+the ones re-created on reconnect.
+
 The registry a container builds is **its own**. A policy registered by one application is not visible to
 another hosted in the same process, and it is not visible to `SecurityPolicies.Default`. That
 fallback carries exactly the built-in set and is what the paths that run before any container exists —

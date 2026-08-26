@@ -170,7 +170,8 @@ namespace Microsoft.Extensions.DependencyInjection
                     endpoint,
                     sp.GetRequiredService<ApplicationConfiguration>(),
                     sp.GetRequiredService<ITelemetryContext>(),
-                    sp.GetService<TimeProvider>() ?? TimeProvider.System),
+                    sp.GetService<TimeProvider>() ?? TimeProvider.System,
+                    securityPolicies: sp.GetService<ISecurityPolicyRegistry>()),
                 ownsSecurityKeyService: true,
                 configure);
         }

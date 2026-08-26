@@ -416,13 +416,16 @@ namespace Opc.Ua.PubSub.Security.Sks
                     null,
                     endpoint,
                     EndpointConfiguration.Create(applicationConfiguration));
-                return await new ManagedSessionBuilder(
+                var builder = new ManagedSessionBuilder(
                         applicationConfiguration,
                         telemetry)
                     .UseEndpoint(configuredEndpoint)
-                    .WithSessionName("Opc.Ua.PubSub.Sks")
-                    .ConnectAsync(ct)
-                    .ConfigureAwait(false);
+                    .WithSessionName("Opc.Ua.PubSub.Sks");
+                if (securityPolicies != null)
+                {
+                    builder = builder.UseSecurityPolicies(securityPolicies);
+                }
+                return await builder.ConnectAsync(ct).ConfigureAwait(false);
             };
         }
 

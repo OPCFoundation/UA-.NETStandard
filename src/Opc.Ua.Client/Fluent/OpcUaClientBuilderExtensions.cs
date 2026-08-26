@@ -1095,6 +1095,16 @@ namespace Microsoft.Extensions.DependencyInjection
                 builder.WithChannelManager(mgr);
             }
 
+            // The application's policy set, so a policy contributed through
+            // AddSecurityPolicy is resolvable by the session as well as by the
+            // channel it opens.
+            ISecurityPolicyRegistry? securityPolicies =
+                sp.GetService<ISecurityPolicyRegistry>();
+            if (securityPolicies != null)
+            {
+                builder.UseSecurityPolicies(securityPolicies);
+            }
+
             IClientConnectGate? connectGate =
                 sessionOptions.ConnectGate ?? sp.GetService<IClientConnectGate>();
             if (connectGate != null)

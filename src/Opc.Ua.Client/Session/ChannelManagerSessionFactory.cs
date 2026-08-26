@@ -81,7 +81,7 @@ namespace Opc.Ua.Client
             Telemetry = telemetry ?? throw new ArgumentNullException(nameof(telemetry));
             m_timeProvider = timeProvider;
             m_engineFactory = engineFactory;
-            m_securityPolicies = securityPolicies;
+            SecurityPolicyRegistry = securityPolicies;
             m_innerFactory = new DefaultSessionFactory(telemetry)
             {
                 TimeProvider = timeProvider,
@@ -92,6 +92,13 @@ namespace Opc.Ua.Client
 
         /// <inheritdoc/>
         public ITelemetryContext Telemetry { get; }
+
+        /// <summary>
+        /// The security policy registry forwarded to created sessions, or
+        /// <see langword="null"/> when <see cref="SecurityPolicies.Default"/>
+        /// is used.
+        /// </summary>
+        public ISecurityPolicyRegistry? SecurityPolicyRegistry { get; }
 
         /// <inheritdoc/>
         public DiagnosticsMasks ReturnDiagnostics
@@ -343,7 +350,7 @@ namespace Opc.Ua.Client
                             endpoint,
                             engineFactory: m_engineFactory,
                             timeProvider: m_timeProvider,
-                            securityPolicies: m_securityPolicies);
+                            securityPolicies: SecurityPolicyRegistry);
                         session.BindManagedChannel(m_manager, channel);
                         return session;
                     },
@@ -465,6 +472,5 @@ namespace Opc.Ua.Client
         private readonly DefaultSessionFactory m_innerFactory;
         private readonly TimeProvider? m_timeProvider;
         private readonly ISubscriptionEngineFactory? m_engineFactory;
-        private readonly ISecurityPolicyRegistry? m_securityPolicies;
     }
 }
