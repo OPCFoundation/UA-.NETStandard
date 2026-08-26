@@ -273,9 +273,15 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
                     await probe.ConnectAsync(IPAddress.Loopback, port).ConfigureAwait(false);
                     return;
                 }
-                catch (SocketException) when (DateTime.UtcNow < deadline)
+                catch (SocketException ex) when (DateTime.UtcNow < deadline)
                 {
                     await Task.Delay(25).ConfigureAwait(false);
+                }
+                catch (SocketException ex)
+                {
+                    throw new TimeoutException(
+                        $"HTTPS listener did not accept TCP connections on loopback port {port} within 10 seconds.",
+                        ex);
                 }
             }
         }
