@@ -150,6 +150,9 @@ namespace Opc.Ua.Server
             m_timeProvider = timeProvider
                 ?? (server as ITimeProviderProvider)?.TimeProvider
                 ?? TimeProvider.System;
+            m_securityPolicies =
+                (server as ISecurityPolicyRegistryProvider)?.SecurityPolicyRegistry
+                ?? SecurityPolicies.Default;
             m_logger = server.Telemetry.CreateLogger<Session>();
             m_eventLogger = server.Telemetry.CreateLogger(
                 ServerCompatibilityEventIds.CategoryName);
@@ -698,7 +701,7 @@ namespace Opc.Ua.Server
 
             if (ClientCertificate != null)
             {
-                SecurityPolicyInfo securityPolicy = SecurityPolicies.Default.GetInfo(
+                SecurityPolicyInfo securityPolicy = m_securityPolicies.GetInfo(
                     EndpointDescription.SecurityPolicyUri!)!;
 
                 byte[] clientNonceData = ClientNonce.ToArray();
@@ -711,7 +714,7 @@ namespace Opc.Ua.Server
                     context.ChannelContext.ClientChannelCertificate,
                     clientNonceData);
 
-                if (!SecurityPolicies.Default.VerifySignatureData(
+                if (!m_securityPolicies.VerifySignatureData(
                         clientSignature!,
                         EndpointDescription.SecurityPolicyUri!,
                         ClientCertificate,
@@ -743,7 +746,7 @@ namespace Opc.Ua.Server
                             context.ChannelContext.ClientChannelCertificate,
                             clientNonceData);
 
-                        if (!SecurityPolicies.Default.VerifySignatureData(
+                        if (!m_securityPolicies.VerifySignatureData(
                               clientSignature!,
                               EndpointDescription.SecurityPolicyUri!,
                               ClientCertificate,
@@ -960,7 +963,7 @@ namespace Opc.Ua.Server
             if (identityToken.TryGetValue(out UserIdentityToken? decodedToken))
             {
                 // get the token.
-                token = decodedToken.AsTokenHandler();
+                token = decodedToken.AsTokenHandler(m_securityPolicies);
             }
             else
             {
@@ -1029,7 +1032,7 @@ namespace Opc.Ua.Server
                             "Invalid user identity token provided.");
                 }
 
-                token = userToken.AsTokenHandler()!;
+                token = userToken.AsTokenHandler(m_securityPolicies)!;
             }
 
             // find the user token policy.
@@ -1098,7 +1101,7 @@ namespace Opc.Ua.Server
             // check for unrecognized token.
             if (identityToken.TryGetValue(out UserIdentityToken? decodedToken))
             {
-                token = decodedToken.AsTokenHandler();
+                token = decodedToken.AsTokenHandler(m_securityPolicies);
             }
             else
             {
@@ -1167,7 +1170,7 @@ namespace Opc.Ua.Server
                             "Invalid user identity token provided.");
                 }
 
-                token = userToken.AsTokenHandler()!;
+                token = userToken.AsTokenHandler(m_securityPolicies)!;
             }
 
             // find the user token policy.
@@ -1220,7 +1223,7 @@ namespace Opc.Ua.Server
                 // verify the signature.
                 if (securityPolicyUri != SecurityPolicies.None)
                 {
-                    SecurityPolicyInfo securityPolicy = SecurityPolicies.Default.GetInfo(
+                    SecurityPolicyInfo securityPolicy = m_securityPolicies.GetInfo(
                         securityPolicyUri!)!;
 
                     SecureChannelContext channelContext = context.ChannelContext!;
@@ -1496,6 +1499,7 @@ namespace Opc.Ua.Server
         private readonly ILogger m_eventLogger;
         private readonly IServerInternal m_server;
         private readonly TimeProvider m_timeProvider;
+        private readonly ISecurityPolicyRegistry m_securityPolicies;
         private readonly string m_sessionName;
         private Certificate m_serverCertificate;
         private Nonce m_serverNonce;

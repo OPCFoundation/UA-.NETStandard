@@ -3654,7 +3654,8 @@ namespace Opc.Ua.Server
                     ServerProperties!,
                     configuration,
                     MessageContext,
-                    TimeProvider);
+                    TimeProvider,
+                    SecurityPolicyRegistry);
 
                 m_serverInternal.SetRoleManager(CreateRoleManager(m_serverInternal, configuration));
 
