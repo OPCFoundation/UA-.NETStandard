@@ -56,14 +56,18 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="username">The user name.</param>
         /// <param name="password">The password.</param>
-        /// <param name="securityPolicies">
-        /// The policies to resolve the token's security policy URI against, or
-        /// <see langword="null"/> to use <see cref="SecurityPolicies.Default"/>.
-        /// </param>
+        public UserIdentity(string username, byte[] password)
+            : this(username, password, securityPolicies: null)
+        {
+        }
+
+        /// <summary>
+        /// Initializes the object with a username, utf8 password and security policies.
+        /// </summary>
         public UserIdentity(
             string username,
             byte[] password,
-            ISecurityPolicyRegistry? securityPolicies = null)
+            ISecurityPolicyRegistry? securityPolicies)
         {
             m_token = new UserNameIdentityTokenHandler(username, password, securityPolicies);
         }
@@ -73,14 +77,18 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="username">The user name.</param>
         /// <param name="password">The password.</param>
-        /// <param name="securityPolicies">
-        /// The policies to resolve the token's security policy URI against, or
-        /// <see langword="null"/> to use <see cref="SecurityPolicies.Default"/>.
-        /// </param>
+        public UserIdentity(string username, ReadOnlySpan<byte> password)
+            : this(username, password, securityPolicies: null)
+        {
+        }
+
+        /// <summary>
+        /// Initializes the object with a username, utf8 password and security policies.
+        /// </summary>
         public UserIdentity(
             string username,
             ReadOnlySpan<byte> password,
-            ISecurityPolicyRegistry? securityPolicies = null)
+            ISecurityPolicyRegistry? securityPolicies)
         {
             m_token = new UserNameIdentityTokenHandler(username, password, securityPolicies);
         }
@@ -90,14 +98,20 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="decryptedTokenData">The decrypted token data.</param>
         /// <param name="issuedTokenTypeProfileUri">The issued token profile.</param>
-        /// <param name="securityPolicies">
-        /// The policies to resolve the token's security policy URI against, or
-        /// <see langword="null"/> to use <see cref="SecurityPolicies.Default"/>.
-        /// </param>
+        public UserIdentity(
+            ReadOnlySpan<byte> decryptedTokenData,
+            string issuedTokenTypeProfileUri)
+            : this(decryptedTokenData, issuedTokenTypeProfileUri, securityPolicies: null)
+        {
+        }
+
+        /// <summary>
+        /// Initializes the object with a decrypted issued token and security policies.
+        /// </summary>
         public UserIdentity(
             ReadOnlySpan<byte> decryptedTokenData,
             string issuedTokenTypeProfileUri,
-            ISecurityPolicyRegistry? securityPolicies = null)
+            ISecurityPolicyRegistry? securityPolicies)
         {
             m_token = new IssuedIdentityTokenHandler(
                 issuedTokenTypeProfileUri,
@@ -119,13 +133,17 @@ namespace Opc.Ua
         /// Initializes the object with a UA identity token.
         /// </summary>
         /// <param name="token">The user identity token.</param>
-        /// <param name="securityPolicies">
-        /// The policies to resolve the token's security policy URI against, or
-        /// <see langword="null"/> to use <see cref="SecurityPolicies.Default"/>.
-        /// </param>
+        public UserIdentity(UserIdentityToken token)
+            : this(token, securityPolicies: null)
+        {
+        }
+
+        /// <summary>
+        /// Initializes the object with a UA identity token and security policies.
+        /// </summary>
         public UserIdentity(
             UserIdentityToken token,
-            ISecurityPolicyRegistry? securityPolicies = null)
+            ISecurityPolicyRegistry? securityPolicies)
         {
             m_token = token.AsTokenHandler(securityPolicies) ??
                 throw new ArgumentException(
@@ -154,16 +172,29 @@ namespace Opc.Ua
         /// <param name="certificateId">The user certificate identifier.</param>
         /// <param name="passwordProvider">Resolves the private key password.</param>
         /// <param name="certificateProvider">Materialises the certificate.</param>
-        /// <param name="securityPolicies">
-        /// The policies to resolve the token's security policy URI against, or
-        /// <see langword="null"/> to use <see cref="SecurityPolicies.Default"/>.
-        /// </param>
         /// <param name="ct">The cancellation token.</param>
         public static Task<UserIdentity> CreateAsync(
             CertificateIdentifier certificateId,
             ICertificatePasswordProvider passwordProvider,
             ICertificateProvider certificateProvider,
-            ISecurityPolicyRegistry? securityPolicies = null,
+            CancellationToken ct = default)
+        {
+            return CreateAsync(
+                certificateId,
+                passwordProvider,
+                certificateProvider,
+                securityPolicies: null,
+                ct);
+        }
+
+        /// <summary>
+        /// Creates a certificate identity using the specified security policies.
+        /// </summary>
+        public static Task<UserIdentity> CreateAsync(
+            CertificateIdentifier certificateId,
+            ICertificatePasswordProvider passwordProvider,
+            ICertificateProvider certificateProvider,
+            ISecurityPolicyRegistry? securityPolicies,
             CancellationToken ct = default)
         {
             if (certificateId == null)

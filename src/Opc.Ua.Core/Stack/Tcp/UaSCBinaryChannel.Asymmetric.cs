@@ -1930,9 +1930,13 @@ namespace Opc.Ua.Bindings
         {
             return policy.AsymmetricEncryptionAlgorithm switch
             {
+                AsymmetricEncryptionAlgorithm.RsaPkcs15Sha1 => RsaUtils.Padding.Pkcs1,
                 AsymmetricEncryptionAlgorithm.RsaOaepSha1 => RsaUtils.Padding.OaepSHA1,
                 AsymmetricEncryptionAlgorithm.RsaOaepSha256 => RsaUtils.Padding.OaepSHA256,
-                _ => RsaUtils.Padding.Pkcs1
+                _ => throw ServiceResultException.Create(
+                    StatusCodes.BadSecurityPolicyRejected,
+                    "Unsupported asymmetric encryption algorithm: {0}.",
+                    policy.AsymmetricEncryptionAlgorithm)
             };
         }
 

@@ -93,10 +93,6 @@ namespace Opc.Ua.Pcap.Dissection
         /// </summary>
         /// <param name="firstToken">The first observed key material.</param>
         /// <param name="loggerFactory">The logger factory.</param>
-        /// <param name="securityPolicies">
-        /// The registry used to resolve the trace's security policy URIs, or
-        /// <see langword="null"/> to use <see cref="SecurityPolicies.Default"/>.
-        /// </param>
         /// <exception cref="ArgumentNullException">
         /// Either argument is <c>null</c>.
         /// </exception>
@@ -106,8 +102,18 @@ namespace Opc.Ua.Pcap.Dissection
         /// </exception>
         public OfflineSecureChannel(
             ChannelKeyMaterial firstToken,
+            ILoggerFactory loggerFactory)
+            : this(firstToken, loggerFactory, securityPolicies: null)
+        {
+        }
+
+        /// <summary>
+        /// Constructs an offline decoder with explicit logging and security policies.
+        /// </summary>
+        public OfflineSecureChannel(
+            ChannelKeyMaterial firstToken,
             ILoggerFactory loggerFactory,
-            ISecurityPolicyRegistry? securityPolicies = null)
+            ISecurityPolicyRegistry? securityPolicies)
         {
             ArgumentNullException.ThrowIfNull(firstToken);
             ArgumentNullException.ThrowIfNull(loggerFactory);

@@ -1813,12 +1813,7 @@ namespace Opc.Ua.Client
         private static ISecurityPolicyRegistry? ResolveSecurityPolicies(
             ISessionFactory sessionFactory)
         {
-            return sessionFactory switch
-            {
-                DefaultSessionFactory factory => factory.SecurityPolicyRegistry,
-                ChannelManagerSessionFactory factory => factory.SecurityPolicyRegistry,
-                _ => null
-            };
+            return (sessionFactory as ISecurityPolicyRegistryProvider)?.SecurityPolicyRegistry;
         }
 
         /// <inheritdoc/>

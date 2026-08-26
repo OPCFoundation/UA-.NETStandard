@@ -33,6 +33,7 @@ using System;
 using System.Collections.Generic;
 using System.Net;
 using System.Net.Sockets;
+using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
@@ -94,6 +95,26 @@ namespace Opc.Ua.Core.Tests.Security
                 Assert.That(new TransportChannelSettings().SecurityPolicyRegistry, Is.Null);
                 Assert.That(new TransportListenerSettings().SecurityPolicyRegistry, Is.Null);
             });
+        }
+
+        [Test]
+        public void UnsupportedAsymmetricEncryptionFailsClosed()
+        {
+            var policy = new SecurityPolicyInfo("urn:test:unsupported")
+            {
+                AsymmetricEncryptionAlgorithm = AsymmetricEncryptionAlgorithm.None
+            };
+            MethodInfo getPadding = typeof(UaSCUaBinaryChannel).GetMethod(
+                "GetAsymmetricPadding",
+                BindingFlags.NonPublic | BindingFlags.Static)!;
+
+            var exception = Assert.Throws<TargetInvocationException>(
+                () => getPadding.Invoke(null, [policy]));
+
+            Assert.That(
+                exception!.InnerException,
+                Is.TypeOf<ServiceResultException>()
+                    .With.Property("StatusCode").EqualTo(StatusCodes.BadSecurityPolicyRejected));
         }
 
         /// <summary>

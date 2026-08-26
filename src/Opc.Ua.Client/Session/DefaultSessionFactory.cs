@@ -43,7 +43,7 @@ namespace Opc.Ua.Client
     /// <see cref="ManagedSession"/> instances that handle reconnection
     /// and failover automatically.
     /// </remarks>
-    public class DefaultSessionFactory : ISessionFactory
+    public class DefaultSessionFactory : ISessionFactory, ISecurityPolicyRegistryProvider
     {
         /// <summary>
         /// The default instance of the factory.
@@ -314,7 +314,7 @@ namespace Opc.Ua.Client
                 ITransportChannel channel;
                 if (connection != null)
                 {
-                    channel = await ClientChannelManager.CreateUaBinaryChannelAsync(
+                    channel = await UaChannelBase.CreateUaBinaryChannelAsync(
                         configuration,
                         connection,
                         endpointDescription,
@@ -327,7 +327,7 @@ namespace Opc.Ua.Client
                 }
                 else
                 {
-                    channel = await ClientChannelManager.CreateUaBinaryChannelAsync(
+                    channel = await UaChannelBase.CreateUaBinaryChannelAsync(
                         configuration,
                         endpointDescription,
                         endpointConfiguration,

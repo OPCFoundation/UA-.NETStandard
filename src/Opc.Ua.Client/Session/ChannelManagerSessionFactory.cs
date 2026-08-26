@@ -55,7 +55,7 @@ namespace Opc.Ua.Client
     /// <see cref="Session"/> programming model.
     /// </para>
     /// </remarks>
-    public sealed class ChannelManagerSessionFactory : ISessionFactory
+    public sealed class ChannelManagerSessionFactory : ISessionFactory, ISecurityPolicyRegistryProvider
     {
         /// <summary>
         /// Initializes a new instance of the <see cref="ChannelManagerSessionFactory"/> class.

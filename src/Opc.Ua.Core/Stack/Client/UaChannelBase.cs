@@ -53,6 +53,33 @@ namespace Opc.Ua
             IServiceMessageContext messageContext,
             CancellationToken ct = default)
         {
+            return CreateUaBinaryChannelAsync(
+                configuration,
+                connection,
+                description,
+                endpointConfiguration,
+                clientCertificate,
+                clientCertificateChain,
+                messageContext,
+                securityPolicies: null,
+                ct: ct);
+        }
+
+        /// <summary>
+        /// Creates a new UA-binary transport channel using the specified security policies.
+        /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
+        public static Task<ITransportChannel> CreateUaBinaryChannelAsync(
+            ApplicationConfiguration configuration,
+            ITransportWaitingConnection connection,
+            EndpointDescription description,
+            EndpointConfiguration endpointConfiguration,
+            Certificate? clientCertificate,
+            CertificateCollection? clientCertificateChain,
+            IServiceMessageContext messageContext,
+            ISecurityPolicyRegistry? securityPolicies,
+            CancellationToken ct = default)
+        {
             return ClientChannelManager.CreateUaBinaryChannelAsync(
                 configuration,
                 connection,
@@ -61,7 +88,8 @@ namespace Opc.Ua
                 clientCertificate,
                 clientCertificateChain,
                 messageContext,
-                null,
+                transportChannelBindings: null,
+                securityPolicies: securityPolicies,
                 ct: ct).AsTask();
         }
 
@@ -85,6 +113,39 @@ namespace Opc.Ua
             IServiceMessageContext messageContext,
             CancellationToken ct = default)
         {
+            return CreateUaBinaryChannelAsync(
+                configuration,
+                description,
+                endpointConfiguration,
+                clientCertificate,
+                clientCertificateChain,
+                messageContext,
+                securityPolicies: null,
+                ct: ct);
+        }
+
+        /// <summary>
+        /// Creates a new UA-binary transport channel using the specified security policies.
+        /// </summary>
+        /// <param name="configuration">The application configuration.</param>
+        /// <param name="description">The description for the endpoint.</param>
+        /// <param name="endpointConfiguration">The configuration to use with the endpoint.</param>
+        /// <param name="clientCertificate">The client certificate.</param>
+        /// <param name="clientCertificateChain">The client certificate chain.</param>
+        /// <param name="messageContext">The message context to use when serializing the messages.</param>
+        /// <param name="securityPolicies">The security policy registry used by the channel.</param>
+        /// <param name="ct">The cancellation token.</param>
+        /// <exception cref="ServiceResultException"></exception>
+        public static Task<ITransportChannel> CreateUaBinaryChannelAsync(
+            ApplicationConfiguration configuration,
+            EndpointDescription description,
+            EndpointConfiguration endpointConfiguration,
+            Certificate? clientCertificate,
+            CertificateCollection? clientCertificateChain,
+            IServiceMessageContext messageContext,
+            ISecurityPolicyRegistry? securityPolicies,
+            CancellationToken ct = default)
+        {
             return ClientChannelManager.CreateUaBinaryChannelAsync(
                 configuration,
                 description,
@@ -92,7 +153,8 @@ namespace Opc.Ua
                 clientCertificate,
                 clientCertificateChain,
                 messageContext,
-                null,
+                transportChannelBindings: null,
+                securityPolicies: securityPolicies,
                 ct: ct).AsTask();
         }
 

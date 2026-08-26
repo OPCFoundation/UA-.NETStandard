@@ -30,6 +30,7 @@
 #nullable enable
 
 using System;
+using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
@@ -135,6 +136,25 @@ namespace Opc.Ua.Client.Tests
                     Is.Null,
                     "A factory with no registry falls back to the built-in policy set.");
             });
+        }
+
+        [Test]
+        public void ManagedSessionReadsTheRegistryFromCustomFactoryProviders()
+        {
+            var registry = new Mock<ISecurityPolicyRegistry>();
+            var factory = new Mock<ISessionFactory>();
+            factory
+                .As<ISecurityPolicyRegistryProvider>()
+                .SetupGet(provider => provider.SecurityPolicyRegistry)
+                .Returns(registry.Object);
+
+            MethodInfo resolver = typeof(Opc.Ua.Client.ManagedSession).GetMethod(
+                "ResolveSecurityPolicies",
+                BindingFlags.NonPublic | BindingFlags.Static)!;
+
+            Assert.That(
+                resolver.Invoke(null, [factory.Object]),
+                Is.SameAs(registry.Object));
         }
 
         [Test]
