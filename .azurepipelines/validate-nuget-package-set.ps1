@@ -91,7 +91,7 @@ foreach ($package in $packages) {
         'package'
     }
 
-    if ($VerifySignatures) {
+    if ($VerifySignatures -and $type -eq 'package') {
         & dotnet nuget verify --all $package.FullName
         if ($LASTEXITCODE -ne 0) {
             throw "Signature verification failed for '$($package.Name)'."

@@ -58,16 +58,18 @@ jobs:
               throw 'release_run_id must be a numeric GitHub Actions run ID.'
           }
 
-          $run = gh api "repos/${{ github.repository }}/actions/runs/$env:RELEASE_RUN_ID" |
-              ConvertFrom-Json
+          $runJson = gh api "repos/${{ github.repository }}/actions/runs/$env:RELEASE_RUN_ID"
           if ($LASTEXITCODE -ne 0) {
               throw "Unable to read workflow run $env:RELEASE_RUN_ID."
           }
-          $workflow = gh api "repos/${{ github.repository }}/actions/workflows/$($run.workflow_id)" |
-              ConvertFrom-Json
+          $run = $runJson | ConvertFrom-Json
+
+          $workflowJson = gh api (
+              "repos/${{ github.repository }}/actions/workflows/$($run.workflow_id)")
           if ($LASTEXITCODE -ne 0) {
               throw "Unable to identify the workflow for run $env:RELEASE_RUN_ID."
           }
+          $workflow = $workflowJson | ConvertFrom-Json
 
           if ($workflow.path -cne '.github/workflows/nuget-publish.yml') {
               throw "Run $env:RELEASE_RUN_ID belongs to '$($workflow.path)', not nuget-publish.yml."
