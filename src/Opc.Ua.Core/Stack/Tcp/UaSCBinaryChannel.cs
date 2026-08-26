@@ -469,27 +469,29 @@ namespace Opc.Ua.Bindings
         protected bool VerifySequenceNumber(uint sequenceNumber, string context)
         {
             // Accept the first sequence number depending on security policy
-            bool isEccPolicy = SecurityPolicy?.CertificateKeyFamily == CertificateKeyFamily.ECC;
-            if (m_firstReceivedSequenceNumber && (!isEccPolicy || sequenceNumber == 0))
+            bool usesLegacySequenceNumbers = SecurityPolicy?.LegacySequenceNumbers ?? true;
+            if (m_firstReceivedSequenceNumber)
             {
+                if (usesLegacySequenceNumbers || sequenceNumber == 0)
+                {
+                    m_remoteSequenceNumber = sequenceNumber;
+                    m_firstReceivedSequenceNumber = false;
+                    return true;
+                }
+            }
+            else if (sequenceNumber > m_remoteSequenceNumber)
+            {
+                // everything ok if new number is greater.
                 m_remoteSequenceNumber = sequenceNumber;
-                m_firstReceivedSequenceNumber = false;
                 return true;
             }
-
-            // everything ok if new number is greater.
-            if (sequenceNumber > m_remoteSequenceNumber)
-            {
-                m_remoteSequenceNumber = sequenceNumber;
-                return true;
-            }
-
-            // check for a valid rollover.
-            if (m_remoteSequenceNumber > TcpMessageLimits.MinSequenceNumber &&
+            else if (m_remoteSequenceNumber > TcpMessageLimits.MinSequenceNumber &&
                 sequenceNumber < TcpMessageLimits.MaxRolloverSequenceNumber)
             {
+                // check for a valid rollover.
                 // only one rollover per token is allowed and with valid values depending on security policy
-                if (!m_sequenceRollover && (!isEccPolicy || sequenceNumber == 0))
+                if (!m_sequenceRollover &&
+                    (usesLegacySequenceNumbers || sequenceNumber == 0))
                 {
                     m_sequenceRollover = true;
                     m_remoteSequenceNumber = sequenceNumber;

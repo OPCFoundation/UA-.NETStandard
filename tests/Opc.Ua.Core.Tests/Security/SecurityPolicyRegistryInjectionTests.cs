@@ -153,6 +153,22 @@ namespace Opc.Ua.Core.Tests.Security
         }
 
         [Test]
+        public void ChannelUsesPolicySequenceNumberMetadata()
+        {
+            SecurityPolicyInfo policy = CreateCustomPolicy();
+            SecurityPolicies registry = CreateCustomRegistry(policy);
+
+            using var channel = new PolicyProbeChannel(m_telemetry, registry, policy.Uri);
+
+            Assert.That(
+                channel.AcceptSequenceNumber(1),
+                Is.False,
+                "A non-legacy policy must start its sequence at zero.");
+            Assert.That(channel.AcceptSequenceNumber(0), Is.True);
+            Assert.That(channel.AcceptSequenceNumber(1), Is.True);
+        }
+
+        [Test]
         public void IdentitySelectionContextResolvesThroughTheInjectedRegistry()
         {
             SecurityPolicyInfo policy = CreateCustomPolicy();
@@ -337,10 +353,10 @@ namespace Opc.Ua.Core.Tests.Security
             {
                 Name = "InjectedPolicy",
                 Uri = SecurityPolicies.BaseUri + "InjectedPolicy",
-                IsDefault = false
+                IsDefault = false,
+                LegacySequenceNumbers = false
             };
         }
-
 
         private static int GetFreeTcpPort()
         {
@@ -428,6 +444,11 @@ namespace Opc.Ua.Core.Tests.Security
                     securityPolicyUri: securityPolicyUri,
                     telemetry: telemetry)
             {
+            }
+
+            public bool AcceptSequenceNumber(uint sequenceNumber)
+            {
+                return VerifySequenceNumber(sequenceNumber, "test");
             }
 
             public SecurityPolicyInfo? ResolvedPolicy => SecurityPolicy;
