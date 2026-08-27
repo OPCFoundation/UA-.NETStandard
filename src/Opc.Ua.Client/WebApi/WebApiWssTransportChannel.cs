@@ -197,7 +197,8 @@ namespace Opc.Ua.Client.WebApi
                 MaxMessageSize = settings.Configuration.MaxMessageSize,
                 ChannelLifetime = settings.Configuration.ChannelLifetime,
                 SecurityTokenLifetime = settings.Configuration.SecurityTokenLifetime,
-                CertificateValidator = settings.CertificateValidator
+                CertificateValidator = settings.CertificateValidator,
+                SecurityPolicyRegistry = settings.SecurityPolicyRegistry
             };
 
             string subProtocol = string.IsNullOrEmpty(m_userOptions.BearerToken)
