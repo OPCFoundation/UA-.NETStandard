@@ -255,6 +255,22 @@ namespace Opc.Ua.Client.TestFramework
                     "skipping this teardown so the test host does not exceed the " +
                     "--blame-hang-timeout. References will be released for finalization.");
                 Session = null;
+                if (ServerFixture != null)
+                {
+                    try
+                    {
+                        // ServerFixture.StopAsync short-circuits when s_skipRemainingTeardowns
+                        // is true: it releases certificate managers and nulls heavyweight
+                        // references without hanging.  Call it even in the skip path so
+                        // certificate counters do not stay positive.
+                        await ServerFixture.StopAsync().ConfigureAwait(false);
+                    }
+                    catch (Exception ex)
+                    {
+                        m_logger.LogError(ex, "Error stopping server during teardown (early-skip path).");
+                    }
+                }
+
                 ServerFixture = null;
                 ClientFixture = null;
                 return;
@@ -315,9 +331,25 @@ namespace Opc.Ua.Client.TestFramework
 
                 if (s_skipRemainingTeardowns)
                 {
-                    // Skip all remaining teardown steps for this fixture too; they would
+                    // Skip session-dependent teardown steps for this fixture too; they would
                     // likely also block and there is no point in paying the cost since
-                    // the process is going to exit anyway.
+                    // the process is going to exit anyway.  Call ServerFixture.StopAsync()
+                    // regardless: its own skip-remaining guard releases certificate managers
+                    // and nulls the heavyweight references, which prevents the certificate-
+                    // leak counter from staying positive and causing AssertNoCertificateLeaks
+                    // to fail at the end of the assembly run.
+                    if (ServerFixture != null)
+                    {
+                        try
+                        {
+                            await ServerFixture.StopAsync().ConfigureAwait(false);
+                        }
+                        catch (Exception ex)
+                        {
+                            m_logger.LogError(ex, "Error stopping server during teardown (skip path).");
+                        }
+                    }
+
                     ServerFixture = null;
                     ClientFixture = null;
                     return;
