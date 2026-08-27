@@ -60,18 +60,25 @@ namespace Opc.Ua.InformationModel.Tests
     {
         [Description("Verify the optional Part 17 methods are exposed on the well-known categories at their reserved NodeIds.")]
         [Test]
-        [TestCase("Aliases", 24054u, 24057u, 24060u)]
-        [TestCase("TagVariables", 24063u, 24066u, 24069u)]
-        [TestCase("Topics", 24072u, 24075u, 24078u)]
+        [TestCase(23470u, 24054u, 24057u, 24060u)]       // Aliases
+        [TestCase(23479u, 24063u, 24066u, 24069u)]       // TagVariables
+        [TestCase(23488u, 24072u, 24075u, 24078u)]       // Topics
         public async Task StandardCategoryExposesOptionalMethodsAsync(
-            string categoryName, uint verboseId, uint addId, uint deleteId)
+            uint categoryId, uint verboseId, uint addId, uint deleteId)
         {
-            NodeId category = await ResolveCategoryAsync(Session, categoryName)
+            var category = new NodeId(categoryId);
+
+            // One browse serves all three assertions — the returned
+            // ReferenceDescriptions already carry NodeId and BrowseName.
+            IList<ReferenceDescription> children = await BrowseChildrenAsync(
+                Session, category, ReferenceTypeIds.HasComponent)
                 .ConfigureAwait(false);
 
             // Part 17 §9 allocates a NodeId for each optional child of the
-            // three well-known categories, and the source generator assigns
-            // them when the child is added to one of those parents.
+            // three well-known categories. The ModelDesign does not declare
+            // these children, so the source generator cannot assign the ids
+            // — DiagnosticsNodeManager.ReservedChildIds supplies them
+            // explicitly when the children are created.
             (string Name, uint Id)[] expected =
             [
                 ("FindAliasVerbose", verboseId),
@@ -81,32 +88,26 @@ namespace Opc.Ua.InformationModel.Tests
 
             foreach ((string name, uint id) in expected)
             {
-                NodeId methodId = await FindMethodAsync(Session, category, name)
-                    .ConfigureAwait(false);
-                Assert.That(methodId.IsNull, Is.False,
-                    $"{categoryName} should expose the optional {name} method.");
-                Assert.That(methodId, Is.EqualTo(new NodeId(id)),
-                    $"{categoryName}.{name} should use the NodeId Part 17 reserves for it.");
-
-                DataValue browseName = await ReadAttributeAsync(
-                    Session, methodId, Attributes.BrowseName).ConfigureAwait(false);
-                Assert.That(StatusCode.IsGood(browseName.StatusCode), Is.True,
-                    $"{categoryName}.{name} should be readable at {methodId}.");
-                Assert.That(browseName.GetValue<QualifiedName>(default).Name,
-                    Is.EqualTo(name));
+                ReferenceDescription method = children.FirstOrDefault(
+                    c => c.BrowseName.Name == name);
+                Assert.That(method, Is.Not.Null,
+                    $"{category} should expose the optional {name} method.");
+                Assert.That(
+                    ExpandedNodeId.ToNodeId(method.NodeId, Session.NamespaceUris),
+                    Is.EqualTo(new NodeId(id)),
+                    $"{category}.{name} should use the NodeId Part 17 reserves for it.");
             }
         }
 
         [Description("Verify the optional LastChange property is exposed on the well-known categories at its reserved NodeId.")]
         [Test]
-        [TestCase("Aliases", 32852u)]
-        [TestCase("TagVariables", 32854u)]
-        [TestCase("Topics", 32856u)]
+        [TestCase(23470u, 32852u)]       // Aliases
+        [TestCase(23479u, 32854u)]       // TagVariables
+        [TestCase(23488u, 32856u)]       // Topics
         public async Task StandardCategoryExposesLastChangeAsync(
-            string categoryName, uint lastChangeId)
+            uint categoryId, uint lastChangeId)
         {
-            NodeId category = await ResolveCategoryAsync(Session, categoryName)
-                .ConfigureAwait(false);
+            var category = new NodeId(categoryId);
 
             IList<ReferenceDescription> children = await BrowseChildrenAsync(
                 Session, category, ReferenceTypeIds.HasProperty).ConfigureAwait(false);
@@ -114,33 +115,17 @@ namespace Opc.Ua.InformationModel.Tests
             ReferenceDescription lastChange = children.FirstOrDefault(
                 c => c.BrowseName.Name == BrowseNames.LastChange);
             Assert.That(lastChange, Is.Not.Null,
-                $"{categoryName} should expose the LastChange property.");
+                $"{category} should expose the LastChange property.");
             Assert.That(
                 ExpandedNodeId.ToNodeId(lastChange.NodeId, Session.NamespaceUris),
                 Is.EqualTo(new NodeId(lastChangeId)),
-                $"{categoryName}.LastChange should use the NodeId Part 17 reserves for it.");
+                $"{category}.LastChange should use the NodeId Part 17 reserves for it.");
 
             // A VersionTime the client can actually read.
             DataValue value = await ReadAttributeAsync(
                 Session, new NodeId(lastChangeId), Attributes.Value).ConfigureAwait(false);
             Assert.That(StatusCode.IsGood(value.StatusCode), Is.True,
-                $"{categoryName}.LastChange should be readable: {value.StatusCode}");
-        }
-
-        /// <summary>
-        /// Resolves a well-known category by name. Aliases is the root of
-        /// the hierarchy, so it is not a child of itself.
-        /// </summary>
-        private static async Task<NodeId> ResolveCategoryAsync(
-            ISession session, string categoryName)
-        {
-            if (categoryName == "Aliases")
-            {
-                return AliasesNodeId;
-            }
-            (NodeId category, _) = await FindCategoryAsync(session, categoryName)
-                .ConfigureAwait(false);
-            return category;
+                $"{category}.LastChange should be readable: {value.StatusCode}");
         }
 
         [Description("Call FindAliasVerbose on TagVariables and verify the verbose fields are populated.")]
@@ -205,15 +190,91 @@ namespace Opc.Ua.InformationModel.Tests
                 "AddAliasesToCategory requires SecurityAdmin on a SignAndEncrypt channel.");
         }
 
-        [Description("Add an alias as SecurityAdmin, find it, then delete it again.")]
+        [Description("Verify a secure channel alone is not enough — the SecurityAdmin role is also required.")]
         [Test]
-        public async Task AddAndDeleteAliasRoundTripAsync()
+        public async Task AddAliasesWithoutAdminRoleOnSecureChannelIsDeniedAsync()
+        {
+            // The fixture Session runs over SecurityPolicies.None, so the
+            // anonymous test above only exercises the channel half of the
+            // gate. This one connects anonymously over SignAndEncrypt so
+            // the denial can only come from the missing role.
+            ISession secure;
+            try
+            {
+                secure = await OpenAuxSessionAsync(SecurityPolicies.Basic256Sha256)
+                    .ConfigureAwait(false);
+            }
+            catch (ServiceResultException)
+            {
+                Assert.Ignore("Server exposes no Basic256Sha256 endpoint.");
+                return;
+            }
+
+            try
+            {
+                if (secure.ConfiguredEndpoint.Description.SecurityMode !=
+                    MessageSecurityMode.SignAndEncrypt)
+                {
+                    Assert.Ignore("Server exposes no SignAndEncrypt endpoint.");
+                }
+
+                (NodeId category, _) = await FindCategoryAsync(secure, "TagVariables")
+                    .ConfigureAwait(false);
+                NodeId addAliases = await RequireMethodAsync(
+                    secure, category, "AddAliasesToCategory").ConfigureAwait(false);
+
+                CallMethodResult result = await CallMethodAsync(
+                    secure, category, addAliases,
+                    new Variant(new string[] { "NonAdminShouldNotAdd" }.ToArrayOf()),
+                    new Variant(new ExpandedNodeId[] { new(ObjectIds.Server) }.ToArrayOf()),
+                    new Variant(new string[] { string.Empty }.ToArrayOf()),
+                    new Variant(AliasForNodeId)).ConfigureAwait(false);
+
+                Assert.That(
+                    result.StatusCode,
+                    Is.EqualTo((StatusCode)StatusCodes.BadUserAccessDenied),
+                    "A caller without the SecurityAdmin role must be denied even on a secure channel.");
+            }
+            finally
+            {
+                await secure.CloseAsync(default).ConfigureAwait(false);
+                secure.Dispose();
+            }
+        }
+
+        /// <summary>
+        /// Connects as the seeded SecurityAdmin user and skips the test when
+        /// the server cannot satisfy the mutation gate's preconditions —
+        /// no username endpoint at all, or none with SignAndEncrypt (the
+        /// fixture helper falls back to Sign and None, which the gate
+        /// rejects, so the test would fail instead of skip).
+        /// </summary>
+        private async Task<ISession> ConnectSecureAdminOrIgnoreAsync()
         {
             ISession admin = await ConnectAsSysAdminAsync().ConfigureAwait(false);
             if (admin == null)
             {
                 Assert.Ignore("Server exposes no username endpoint for the SecurityAdmin user.");
             }
+
+            if (admin.ConfiguredEndpoint.Description.SecurityMode !=
+                MessageSecurityMode.SignAndEncrypt)
+            {
+                await admin.CloseAsync(default).ConfigureAwait(false);
+                admin.Dispose();
+                Assert.Ignore(
+                    "The SecurityAdmin mutation gate requires a SignAndEncrypt endpoint, " +
+                    "which this server does not expose.");
+            }
+
+            return admin;
+        }
+
+        [Description("Add an alias as SecurityAdmin, find it, then delete it again.")]
+        [Test]
+        public async Task AddAndDeleteAliasRoundTripAsync()
+        {
+            ISession admin = await ConnectSecureAdminOrIgnoreAsync().ConfigureAwait(false);
 
             const string aliasName = "RoundTripAlias";
             var target = new ExpandedNodeId(ObjectIds.Server);
@@ -240,6 +301,11 @@ namespace Opc.Ua.InformationModel.Tests
 
                 Assert.That(StatusCode.IsGood(added.StatusCode), Is.True,
                     $"AddAliasesToCategory should succeed for SecurityAdmin: {added.StatusCode}");
+                // A Good method-level status does not mean the entry was
+                // added — per-entry failures travel in the ErrorCodes
+                // output (e.g. a duplicate add), and a false pass here
+                // would let the test delete an alias it did not create.
+                AssertSingleErrorCodeGood(added, "AddAliasesToCategory");
 
                 CallMethodResult found = await CallFindAliasAsync(
                     admin, category, findAlias, aliasName, AliasForNodeId)
@@ -256,12 +322,14 @@ namespace Opc.Ua.InformationModel.Tests
                     new Variant(new ExpandedNodeId[] { target }.ToArrayOf()))
                     .ConfigureAwait(false);
 
-                // Only once the delete actually succeeded is the alias gone
-                // and the finally-block cleanup unnecessary.
-                deleteRequired = !StatusCode.IsGood(deleted.StatusCode);
+                // Only once the delete actually succeeded — method-level
+                // status AND the per-entry ErrorCodes value — is the alias
+                // gone and the finally-block cleanup unnecessary.
+                deleteRequired = !IsSingleErrorCodeGood(deleted);
 
                 Assert.That(StatusCode.IsGood(deleted.StatusCode), Is.True,
                     $"DeleteAliasesFromCategory should succeed: {deleted.StatusCode}");
+                AssertSingleErrorCodeGood(deleted, "DeleteAliasesFromCategory");
 
                 CallMethodResult gone = await CallFindAliasAsync(
                     admin, category, findAlias, aliasName, AliasForNodeId)
@@ -284,6 +352,47 @@ namespace Opc.Ua.InformationModel.Tests
                 await admin.CloseAsync(default).ConfigureAwait(false);
                 admin.Dispose();
             }
+        }
+
+        /// <summary>
+        /// Decodes the per-entry <c>ErrorCodes</c> output argument of an
+        /// <c>AddAliasesToCategory</c>/<c>DeleteAliasesFromCategory</c>
+        /// call (Part 17 §6.3.4/§6.3.5).
+        /// </summary>
+        private static ArrayOf<StatusCode> DecodeErrorCodes(CallMethodResult result)
+        {
+            if (result.OutputArguments.Count == 0 ||
+                !result.OutputArguments[0].TryGetValue(out ArrayOf<StatusCode> codes))
+            {
+                return [];
+            }
+            return codes;
+        }
+
+        /// <summary>
+        /// True when the method-level status and the single per-entry
+        /// <c>ErrorCodes</c> value both report success.
+        /// </summary>
+        private static bool IsSingleErrorCodeGood(CallMethodResult result)
+        {
+            ArrayOf<StatusCode> codes = DecodeErrorCodes(result);
+            return StatusCode.IsGood(result.StatusCode) &&
+                codes.Count == 1 &&
+                StatusCode.IsGood(codes[0]);
+        }
+
+        /// <summary>
+        /// Asserts the mutation's per-entry <c>ErrorCodes</c> output holds
+        /// exactly one Good entry — a Good method-level status alone does
+        /// not mean the entry was applied.
+        /// </summary>
+        private static void AssertSingleErrorCodeGood(CallMethodResult result, string method)
+        {
+            ArrayOf<StatusCode> codes = DecodeErrorCodes(result);
+            Assert.That(codes.Count, Is.EqualTo(1),
+                $"{method} should return one ErrorCodes entry per input entry.");
+            Assert.That(StatusCode.IsGood(codes[0]), Is.True,
+                $"{method} per-entry status should be Good: {codes[0]}");
         }
 
         /// <summary>
@@ -332,11 +441,7 @@ namespace Opc.Ua.InformationModel.Tests
         [Test]
         public async Task MutationAdvancesLastChangeAsync()
         {
-            ISession admin = await ConnectAsSysAdminAsync().ConfigureAwait(false);
-            if (admin == null)
-            {
-                Assert.Ignore("Server exposes no username endpoint for the SecurityAdmin user.");
-            }
+            ISession admin = await ConnectSecureAdminOrIgnoreAsync().ConfigureAwait(false);
 
             const string aliasName = "LastChangeProbeAlias";
             var target = new ExpandedNodeId(ObjectIds.Server);
@@ -366,6 +471,7 @@ namespace Opc.Ua.InformationModel.Tests
                     new Variant(AliasForNodeId)).ConfigureAwait(false);
                 Assert.That(StatusCode.IsGood(added.StatusCode), Is.True,
                     $"AddAliasesToCategory on Aliases should succeed: {added.StatusCode}");
+                AssertSingleErrorCodeGood(added, "AddAliasesToCategory");
 
                 DataValue after = await ReadAttributeAsync(
                     admin, lastChangeNodeId, Attributes.Value).ConfigureAwait(false);

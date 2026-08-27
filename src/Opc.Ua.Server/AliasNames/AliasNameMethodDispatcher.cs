@@ -206,7 +206,7 @@ namespace Opc.Ua.Server.AliasNames
         /// the caller must hold the <c>SecurityAdmin</c> role AND be on a
         /// <c>SignAndEncrypt</c> channel.
         /// </summary>
-        public static bool HasSecureAdminAccess(ISystemContext context)
+        internal static bool HasSecureAdminAccess(ISystemContext context)
         {
             if (context is SessionSystemContext { OperationContext: OperationContext op } session)
             {

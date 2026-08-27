@@ -296,8 +296,11 @@ namespace Opc.Ua.InformationModel.Tests
 
         /// <summary>
         /// Locates a method by BrowseName and fails the test when the server
-        /// does not expose it. The optional Part 17 methods carry no
-        /// well-known NodeIds, so they are always resolved by browsing.
+        /// does not expose it. The optional Part 17 methods do have reserved
+        /// NodeIds (StandardTypes.csv), but no generated <c>MethodIds</c>
+        /// constants exist for them — the ModelDesign does not declare the
+        /// children — so tests resolve them by browsing, as a client
+        /// without prior knowledge would.
         /// </summary>
         public static async Task<NodeId> RequireMethodAsync(
             ISession session, NodeId parent, string methodBrowseName)
@@ -375,57 +378,19 @@ namespace Opc.Ua.InformationModel.Tests
         public static async Task<bool> IsPublishedDataSetAsync(
             ISession session, ReferenceDescription target)
         {
-            var typeDefinition = ExpandedNodeId.ToNodeId(
-                target.TypeDefinition, session.NamespaceUris);
-            if (typeDefinition.IsNull)
+            if (target.TypeDefinition.IsNull)
             {
                 return false;
             }
-            if (typeDefinition == ObjectTypeIds.PublishedDataSetType)
-            {
-                return true;
-            }
 
-            // Walk HasSubtype inverse references up to PublishedDataSetType.
-            NodeId current = typeDefinition;
-            for (int depth = 0; depth < MaxTypeHierarchyDepth; depth++)
-            {
-                BrowseResponse response = await session.BrowseAsync(
-                    null, null, 0,
-                    new BrowseDescription[]
-                    {
-                        new() {
-                            NodeId = current,
-                            BrowseDirection = BrowseDirection.Inverse,
-                            ReferenceTypeId = ReferenceTypeIds.HasSubtype,
-                            IncludeSubtypes = false,
-                            NodeClassMask = 0,
-                            ResultMask = (uint)BrowseResultMask.All
-                        }
-                    }.ToArrayOf(),
-                    CancellationToken.None).ConfigureAwait(false);
-
-                if (response.Results.Count != 1 ||
-                    response.Results[0].References.Count == 0)
-                {
-                    return false;
-                }
-
-                current = ExpandedNodeId.ToNodeId(
-                    response.Results[0].References[0].NodeId, session.NamespaceUris);
-                if (current == ObjectTypeIds.PublishedDataSetType)
-                {
-                    return true;
-                }
-                if (current.IsNull || current == ObjectTypeIds.BaseObjectType)
-                {
-                    return false;
-                }
-            }
-            return false;
+            // The session's node cache walks (and memoizes) the subtype
+            // chain, so repeated targets of the same type cost one lookup
+            // instead of one Browse round trip per hierarchy level.
+            return await session.NodeCache.IsTypeOfAsync(
+                target.TypeDefinition,
+                ObjectTypeIds.PublishedDataSetType,
+                CancellationToken.None).ConfigureAwait(false);
         }
-
-        private const int MaxTypeHierarchyDepth = 16;
 
         /// <summary>
         /// Plain record describing a single alias entry returned by FindAlias.

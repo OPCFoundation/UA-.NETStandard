@@ -242,21 +242,33 @@ namespace Quickstarts.ReferenceServer
             // where DiagnosticsNodeManager materializes the node — which
             // means the namespace is registered here, ahead of the node
             // manager that would otherwise be the first to add it.
+            // BrowseName and NodeId share the diagnostics namespace:
+            // namespace 0 is reserved for OPC-Foundation-defined names, so
+            // a server-defined category (and the aliases that inherit its
+            // BrowseName namespace via the store) must not publish there.
+            ushort diagnosticsNamespaceIndex =
+                server.NamespaceUris.GetIndexOrAppend(DiagnosticsNamespaceUri);
             var devices = new Opc.Ua.Server.AliasNames.AliasNameCategoryDescriptor(
-                new NodeId(
-                    DevicesCategoryName,
-                    server.NamespaceUris.GetIndexOrAppend(DiagnosticsNamespaceUri)),
-                new QualifiedName(DevicesCategoryName, 0),
+                new NodeId(DevicesCategoryName, diagnosticsNamespaceIndex),
+                new QualifiedName(DevicesCategoryName, diagnosticsNamespaceIndex),
                 Opc.Ua.Server.AliasNames.AliasNameCapabilities.All);
 
+            // The descriptor BrowseName's namespace is what the store
+            // stamps onto every alias QualifiedName it reports, and the
+            // materializer re-homes ns=0 alias BrowseNames into the
+            // diagnostics namespace — declaring the diagnostics namespace
+            // here keeps FindAlias results and the browsable nodes'
+            // BrowseNames identical, so TranslateBrowsePaths with a
+            // returned alias name resolves. (The predefined TagVariables/
+            // Topics nodes keep their own NodeSet BrowseNames regardless.)
             var tagVariables = new Opc.Ua.Server.AliasNames.AliasNameCategoryDescriptor(
                 Opc.Ua.ObjectIds.TagVariables,
-                QualifiedName.From(Opc.Ua.BrowseNames.TagVariables),
+                new QualifiedName(Opc.Ua.BrowseNames.TagVariables, diagnosticsNamespaceIndex),
                 Opc.Ua.Server.AliasNames.AliasNameCapabilities.All,
                 subCategories: [devices]);
             var topics = new Opc.Ua.Server.AliasNames.AliasNameCategoryDescriptor(
                 Opc.Ua.ObjectIds.Topics,
-                QualifiedName.From(Opc.Ua.BrowseNames.Topics),
+                new QualifiedName(Opc.Ua.BrowseNames.Topics, diagnosticsNamespaceIndex),
                 Opc.Ua.Server.AliasNames.AliasNameCapabilities.All);
 
             // Root the Aliases (i=23470) object too so FindAlias /
@@ -272,7 +284,7 @@ namespace Quickstarts.ReferenceServer
             // SecurityAdmin caller on a SignAndEncrypt channel.
             var aliases = new Opc.Ua.Server.AliasNames.AliasNameCategoryDescriptor(
                 Opc.Ua.ObjectIds.Aliases,
-                QualifiedName.From(Opc.Ua.BrowseNames.Aliases),
+                new QualifiedName(Opc.Ua.BrowseNames.Aliases, diagnosticsNamespaceIndex),
                 Opc.Ua.Server.AliasNames.AliasNameCapabilities.All,
                 subCategories: [tagVariables, topics]);
 
@@ -288,8 +300,6 @@ namespace Quickstarts.ReferenceServer
             ushort refServerNs = refServerNsIndex >= 0
                 ? (ushort)refServerNsIndex
                 : ushort.MaxValue;
-
-            NodeId aliasFor = ReferenceTypeIds.AliasFor;
 
             if (refServerNs != ushort.MaxValue)
             {
@@ -313,27 +323,12 @@ namespace Quickstarts.ReferenceServer
                     new ExpandedNodeId("Scalar_Static_Int32", refServerNs));
             }
 
-            // Part 17 §9 constrains the Topics hierarchy to aliases for
-            // PublishedDataSetType instances, so these target the datasets
-            // ReferenceServerConfigurationNodeManager creates under
-            // PublishedDataSets (i=17371). They are addressed by namespace
-            // URI rather than by index so the seeds stay valid however the
-            // namespace table is ordered; the materializer resolves them
-            // against the live table.
-            store.Seed(Opc.Ua.ObjectIds.Topics,
-                ReferenceServerConfigurationNodeManager.ReferenceDataSetName,
-                new ExpandedNodeId(
-                    ReferenceServerConfigurationNodeManager.ReferenceDataSetName,
-                    DiagnosticsNamespaceUri),
-                serverUri: null, referenceTypeId: aliasFor);
-
-            foreach (string dataSetName in
-                ReferenceServerConfigurationNodeManager.EventDataSetNames)
-            {
-                store.Seed(Opc.Ua.ObjectIds.Topics, dataSetName,
-                    new ExpandedNodeId(dataSetName, DiagnosticsNamespaceUri),
-                    serverUri: null, referenceTypeId: aliasFor);
-            }
+            // The Topics aliases are NOT seeded here: Part 17 §9 constrains
+            // that hierarchy to aliases for PublishedDataSetType instances,
+            // and those dataset nodes are created later by
+            // ReferenceServerConfigurationNodeManager.AddConformanceDataSetsAsync
+            // — which seeds the aliases in the same place, so an alias can
+            // never point at a dataset that was not created.
 
             provider.AliasNameStoreRegistry.Register(store);
 
@@ -357,8 +352,11 @@ namespace Quickstarts.ReferenceServer
         /// <summary>
         /// Namespace that <c>DiagnosticsNodeManager</c> owns and in which
         /// the materialized alias nodes and the conformance datasets live.
+        /// Shared with <see cref="ReferenceServerConfigurationNodeManager"/>
+        /// so the dataset NodeIds and the alias seeds that target them can
+        /// never drift apart.
         /// </summary>
-        private const string DiagnosticsNamespaceUri = Opc.Ua.Namespaces.OpcUa + "Diagnostics";
+        internal const string DiagnosticsNamespaceUri = Opc.Ua.Namespaces.OpcUa + "Diagnostics";
 
         /// <summary>
         /// Overrides the SDK default factory to plug in a

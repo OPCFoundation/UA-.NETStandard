@@ -72,7 +72,7 @@ namespace Quickstarts.ReferenceServer
                 .ConfigureAwait(false);
 
             ushort diagnosticsNamespaceIndex = Server.NamespaceUris
-                .GetIndexOrAppend(Opc.Ua.Namespaces.OpcUa + "Diagnostics");
+                .GetIndexOrAppend(ReferenceServer.DiagnosticsNamespaceUri);
 
             var addedNodes = new List<NodeState>();
 
@@ -211,10 +211,14 @@ namespace Quickstarts.ReferenceServer
                 .ConfigureAwait(false));
 
             // CTT: Part 17 clients discover aliases by browsing, so turn the
-            // aliases seeded into the server's alias store (see
-            // ReferenceServer.ConfigureAliasNameStore) into AliasNameType
-            // instances and nested AliasNameCategoryType objects. This
-            // imports the created nodes into the CoreNodeManager itself.
+            // aliases seeded into the server's alias store (tag aliases in
+            // ReferenceServer.ConfigureAliasNameStore, Topics aliases in
+            // AddConformanceDataSetsAsync above) into AliasNameType
+            // instances and nested AliasNameCategoryType objects. The
+            // created nodes are registered as predefined nodes of this
+            // manager, which serves Browse and Call for them — they are
+            // deliberately NOT imported into the CoreNodeManager, which
+            // would register the same NodeIds twice.
             await MaterializeRegisteredAliasNameNodesAsync(
                 externalReferences, cancellationToken).ConfigureAwait(false);
 
@@ -233,12 +237,13 @@ namespace Quickstarts.ReferenceServer
         }
 
         /// <summary>
-        /// Creates the three PublishedDataSet instances that the Topics
-        /// aliases seeded in <c>ReferenceServer.ConfigureAliasNameStore</c>
-        /// point at. Part 17 §9 requires every alias in the Topics
-        /// hierarchy to reference an instance of <c>PublishedDataSetType</c>,
-        /// and the standard NodeSet ships the <c>PublishedDataSets</c>
-        /// folder (<c>i=17371</c>) empty.
+        /// Creates the three PublishedDataSet instances under the standard
+        /// <c>PublishedDataSets</c> folder (<c>i=17371</c>, shipped empty)
+        /// and seeds the matching Topics aliases into the server's alias
+        /// store. Part 17 §9 requires every alias in the Topics hierarchy
+        /// to reference an instance of <c>PublishedDataSetType</c> —
+        /// creating the dataset and seeding its alias in one place makes a
+        /// dangling alias impossible: no folder, no datasets, no aliases.
         /// </summary>
         /// <remarks>
         /// These are address-space instances only — the reference server
@@ -261,7 +266,7 @@ namespace Quickstarts.ReferenceServer
             }
 
             ushort diagnosticsNamespaceIndex = Server.NamespaceUris
-                .GetIndexOrAppend(Opc.Ua.Namespaces.OpcUa + "Diagnostics");
+                .GetIndexOrAppend(ReferenceServer.DiagnosticsNamespaceUri);
 
             PublishedDataItemsState dataItems = SystemContext
                 .CreateInstanceOfPublishedDataItemsType();
@@ -308,6 +313,26 @@ namespace Quickstarts.ReferenceServer
                     ReferenceTypeIds.HasComponent, true, publishedDataSets.NodeId);
                 await AddPredefinedNodeAsync(SystemContext, dataSet, cancellationToken)
                     .ConfigureAwait(false);
+            }
+
+            // Seed the Topics aliases only now that their targets exist.
+            // Index-form ExpandedNodeIds keep FindAlias results directly
+            // comparable with the NodeIds a client obtains by browsing
+            // PublishedDataSets (the tag aliases are seeded the same way).
+            if ((Server as Opc.Ua.Server.AliasNames.IAliasNameStoreRegistryProvider)?
+                    .AliasNameStoreRegistry
+                    .GetStoreForCategory(Opc.Ua.ObjectIds.Topics)
+                is Opc.Ua.Server.AliasNames.InMemoryAliasNameStore aliasStore)
+            {
+                foreach (NodeState dataSet in created)
+                {
+                    aliasStore.Seed(
+                        Opc.Ua.ObjectIds.Topics,
+                        dataSet.BrowseName.Name ?? dataSet.SymbolicName,
+                        new ExpandedNodeId(dataSet.NodeId),
+                        serverUri: null,
+                        referenceTypeId: ReferenceTypeIds.AliasFor);
+                }
             }
 
             return created;
@@ -386,8 +411,10 @@ namespace Quickstarts.ReferenceServer
 
         /// <summary>
         /// BrowseNames / string identifiers of the event datasets created
-        /// under <c>PublishedDataSets</c>. These match the Topics alias
-        /// names seeded by <c>ReferenceServer.ConfigureAliasNameStore</c>.
+        /// under <c>PublishedDataSets</c>. The matching Topics aliases are
+        /// seeded in <c>AddConformanceDataSetsAsync</c>, right after each
+        /// dataset node is created — never anywhere else, so an alias
+        /// cannot exist without its dataset.
         /// </summary>
         internal static readonly string[] EventDataSetNames =
         [
