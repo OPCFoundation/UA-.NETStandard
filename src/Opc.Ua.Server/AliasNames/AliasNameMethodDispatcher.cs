@@ -200,6 +200,27 @@ namespace Opc.Ua.Server.AliasNames
             };
         }
 
+        /// <summary>
+        /// The default authorization gate for the Part 17 mutation methods
+        /// (<c>AddAliasesToCategory</c>/<c>DeleteAliasesFromCategory</c>):
+        /// the caller must hold the <c>SecurityAdmin</c> role AND be on a
+        /// <c>SignAndEncrypt</c> channel.
+        /// </summary>
+        public static bool HasSecureAdminAccess(ISystemContext context)
+        {
+            if (context is SessionSystemContext { OperationContext: OperationContext op } session)
+            {
+                if (op.ChannelContext?.EndpointDescription?.SecurityMode !=
+                    MessageSecurityMode.SignAndEncrypt)
+                {
+                    return false;
+                }
+                return session.UserIdentity?.GrantedRoleIds
+                    .Contains(ObjectIds.WellKnownRole_SecurityAdmin) == true;
+            }
+            return false;
+        }
+
         private static ArrayOf<T> ToArrayOf<T>(IReadOnlyList<T> items)
         {
             if (items == null || items.Count == 0)

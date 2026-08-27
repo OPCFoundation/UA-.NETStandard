@@ -398,17 +398,7 @@ namespace Opc.Ua.Server.AliasNames
 
         private static bool HasSecureAdminAccess(ISystemContext context)
         {
-            if (context is SessionSystemContext { OperationContext: OperationContext op } session)
-            {
-                if (op.ChannelContext?.EndpointDescription?.SecurityMode !=
-                    MessageSecurityMode.SignAndEncrypt)
-                {
-                    return false;
-                }
-                return session.UserIdentity?.GrantedRoleIds
-                    .Contains(ObjectIds.WellKnownRole_SecurityAdmin) == true;
-            }
-            return false;
+            return AliasNameMethodDispatcher.HasSecureAdminAccess(context);
         }
 
         private static string ResolveNamespaceUri(AliasNameNodeManagerOptions? options)

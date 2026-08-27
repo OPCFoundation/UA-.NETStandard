@@ -26,8 +26,10 @@ side) and **`Opc.Ua.Client`** (client side). The implementation covers:
 | §9.2         | Well-known `Aliases (i=23470)`           | ✔ wired |
 | §9.3         | Well-known `TagVariables (i=23479)`      | ✔ wired |
 | §9.4         | Well-known `Topics (i=23488)`            | ✔ wired |
+| §6.2         | Browsable `AliasNameType` instance nodes | ✔ opt-in — see below |
+| §6.3.1       | Nested `AliasNameCategoryType` instances | ✔ opt-in — see below |
+| §6.3.3–6.3.5 | Optional methods on the well-known nodes | ✔ opt-in — see below |
 | Annex D      | PubSub replication (LastChange notifications) | ✔ transport-agnostic — see below |
-| Annex D      | PubSub replication                       | not implemented |
 
 ## Server side — `Opc.Ua.Server.AliasNames`
 
@@ -105,6 +107,64 @@ Options:
 * `RegisterWithServerRegistry` (default `true`) — also registers the
   store with `IAliasNameStoreRegistry` so the well-known standard nodes
   see it.
+
+### Browsable alias nodes
+
+Registering a store makes `FindAlias` answer from it, but the aliases
+themselves stay inside the store — nothing in the address space shows
+them. Part 17 §6.2 clients (the OPC Foundation CTT among them) also
+*browse* for aliases, so a server under conformance test needs the
+alias hierarchy materialized as real nodes.
+
+`DiagnosticsNodeManager.MaterializeRegisteredAliasNameNodesAsync` does
+that for every registered store: one `AliasNameType` instance per alias
+— BrowseName carrying the alias name, `AliasFor` references to its
+targets, and the inverse `HasAlias` reference added on each local
+target — plus an `AliasNameCategoryType` instance for every store
+category the standard NodeSet does not already ship (nested categories
+included). Call it from an overridden `CreateAddressSpaceAsync`, after
+`base` has loaded the standard categories:
+
+```csharp
+public override async ValueTask CreateAddressSpaceAsync(
+    IDictionary<NodeId, IList<IReference>> externalReferences,
+    CancellationToken cancellationToken = default)
+{
+    await base.CreateAddressSpaceAsync(externalReferences, cancellationToken)
+        .ConfigureAwait(false);
+
+    await MaterializeRegisteredAliasNameNodesAsync(
+        externalReferences, cancellationToken).ConfigureAwait(false);
+}
+```
+
+The same pass also instantiates the **optional Part 17 methods** —
+`FindAliasVerbose`, `AddAliasesToCategory`, `DeleteAliasesFromCategory`
+and `LastChange` — on every category whose descriptor declares them
+through `AliasNameCapabilities`, including the well-known ones the
+standard NodeSet ships without them:
+
+```csharp
+var tagVariables = new AliasNameCategoryDescriptor(
+    ObjectIds.TagVariables,
+    QualifiedName.From(BrowseNames.TagVariables),
+    AliasNameCapabilities.All);       // verbose + add + delete + LastChange
+```
+
+Mutation calls are gated on a `SecurityAdmin` caller over a
+`SignAndEncrypt` channel and return `BadUserAccessDenied` otherwise.
+
+It is opt-in: servers that only need `FindAlias` to answer from their
+store pay nothing. The created nodes are a snapshot taken at
+address-space creation — aliases added or removed later through
+`AddAliasesToCategory` / `DeleteAliasesFromCategory` change what
+`FindAlias` returns and advance `LastChange`, but do not add or remove
+`AliasNameType` nodes.
+
+`Quickstarts.ReferenceServer` uses this in
+`ReferenceServerConfigurationNodeManager`, which is also where its
+`Devices` sub-category under `TagVariables` and the `PublishedDataSet`
+instances the `Topics` aliases point at come from.
 
 ### Custom backend
 
@@ -227,15 +287,39 @@ monitored-item variant. Disposal is idempotent and never throws.
   Quickstart sample used `NodeId[]` and has been removed.
 * **Standard well-known nodes** — the OPC UA NodeSet instantiates only
   `FindAlias` on `Aliases`/`TagVariables`/`Topics` (plus `LastChange` on
-  `Aliases`). Optional methods (`FindAliasVerbose`/`Add`/`Delete`) on
-  the standard nodes would require NodeSet extension and are not wired
-  by the binder. To expose those, use a standalone
-  `AliasNameNodeManager` with your own category nodes.
+  `Aliases`), so the always-on binder wires just those. The optional
+  methods are added by `MaterializeRegisteredAliasNameNodesAsync`
+  through the generated `AddFindAliasVerbose` /
+  `AddAddAliasesToCategory` / `AddDeleteAliasesFromCategory` optional-
+  child helpers, for each category whose descriptor declares the
+  matching `AliasNameCapabilities`. Each child is created at the NodeId
+  the OPC Foundation reserves for it (`Aliases.FindAliasVerbose` =
+  `i=24054`, `TagVariables.LastChange` = `i=32854`, and so on).
+
+  Those identifiers are allocated in the standard identifier registry
+  (`StandardTypes.csv`) but are deliberately **not** declared in the
+  ModelDesign and **not** present in the published NodeSet — the
+  standard address space does not instantiate optional children. A
+  reserved id is a number set aside for the node *if* a server chooses
+  to expose it, not a node the server must have. Consequently the source
+  generator emits no parent-to-instance mapping and no `MethodIds`
+  constant for them, and `DiagnosticsNodeManager.ReservedChildIds`
+  supplies the nine method ids and the two missing `LastChange` ids
+  explicitly, each traceable to its registry row. The argument
+  properties do have generated `VariableIds` constants and are
+  referenced through those.
+
+  Do not "fix" this by declaring the children in `StandardTypes.xml`:
+  that file is a verbatim copy of the OPC Foundation's ModelDesign and
+  is re-synced from upstream, so a local edit is lost on the next sync
+  and the NodeIds silently revert to factory-minted ones.
 * **`AliasNameCapabilities.AddAliasesToCategory` /
-  `DeleteAliasesFromCategory`** — defaults to `SecurityAdmin`-only
-  via `AliasNameNodeManagerOptions.RequireSecurityAdminForMutations`.
-  The check requires both the role grant AND a `SignAndEncrypt`
-  channel; opt out via the option for development scenarios only.
+  `DeleteAliasesFromCategory`** — on an `AliasNameNodeManager` this
+  defaults to `SecurityAdmin`-only via
+  `AliasNameNodeManagerOptions.RequireSecurityAdminForMutations`; on the
+  standard well-known nodes the same check is always applied and cannot
+  be opted out of. It requires both the role grant AND a
+  `SignAndEncrypt` channel.
 * **`ReferenceTypeFilter` semantics** — null/empty and
   `ReferenceTypeIds.References` match every alias regardless of
   reference type. Otherwise matches are limited to aliases whose

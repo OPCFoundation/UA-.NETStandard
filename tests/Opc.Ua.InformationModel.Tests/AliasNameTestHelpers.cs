@@ -295,6 +295,139 @@ namespace Opc.Ua.InformationModel.Tests
         }
 
         /// <summary>
+        /// Locates a method by BrowseName and fails the test when the server
+        /// does not expose it. The optional Part 17 methods carry no
+        /// well-known NodeIds, so they are always resolved by browsing.
+        /// </summary>
+        public static async Task<NodeId> RequireMethodAsync(
+            ISession session, NodeId parent, string methodBrowseName)
+        {
+            NodeId methodId = await FindMethodAsync(session, parent, methodBrowseName)
+                .ConfigureAwait(false);
+            Assert.That(methodId.IsNull, Is.False,
+                $"Expected a '{methodBrowseName}' method under {parent}.");
+            return methodId;
+        }
+
+        /// <summary>
+        /// Calls a method with the given input arguments and returns the raw
+        /// <see cref="CallMethodResult"/> without asserting on its status —
+        /// callers that expect a failure inspect it themselves.
+        /// </summary>
+        public static async Task<CallMethodResult> CallMethodAsync(
+            ISession session,
+            NodeId objectId,
+            NodeId methodId,
+            params Variant[] inputArguments)
+        {
+            CallResponse response = await session.CallAsync(
+                null,
+                new CallMethodRequest[]
+                {
+                    new() {
+                        ObjectId = objectId,
+                        MethodId = methodId,
+                        InputArguments = inputArguments.ToArrayOf()
+                    }
+                }.ToArrayOf(),
+                CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(response.Results.Count, Is.EqualTo(1));
+            return response.Results[0];
+        }
+
+        /// <summary>
+        /// Decodes the AliasNameVerboseDataType[] returned by
+        /// FindAliasVerbose from the first output argument.
+        /// </summary>
+        public static IList<AliasNameVerboseDataType> DecodeVerboseAliasResults(
+            ISession session, CallMethodResult result)
+        {
+            var records = new List<AliasNameVerboseDataType>();
+            if (result == null || result.OutputArguments.Count == 0)
+            {
+                return records;
+            }
+            if (!result.OutputArguments[0].TryGetValue(out ArrayOf<ExtensionObject> aliasArray))
+            {
+                return records;
+            }
+
+            for (int i = 0; i < aliasArray.Count; i++)
+            {
+                ExtensionObject ext = aliasArray.Span[i];
+                if (!ext.IsNull &&
+                    ext.TryGetValue(out AliasNameVerboseDataType typed, session.MessageContext) &&
+                    typed != null)
+                {
+                    records.Add(typed);
+                }
+            }
+            return records;
+        }
+
+        /// <summary>
+        /// Returns true when the referenced node is an instance of
+        /// <c>PublishedDataSetType</c> (i=14509) or one of its subtypes —
+        /// the "is a Dataset" check the Topics conformance unit applies to
+        /// every alias target.
+        /// </summary>
+        public static async Task<bool> IsPublishedDataSetAsync(
+            ISession session, ReferenceDescription target)
+        {
+            var typeDefinition = ExpandedNodeId.ToNodeId(
+                target.TypeDefinition, session.NamespaceUris);
+            if (typeDefinition.IsNull)
+            {
+                return false;
+            }
+            if (typeDefinition == ObjectTypeIds.PublishedDataSetType)
+            {
+                return true;
+            }
+
+            // Walk HasSubtype inverse references up to PublishedDataSetType.
+            NodeId current = typeDefinition;
+            for (int depth = 0; depth < MaxTypeHierarchyDepth; depth++)
+            {
+                BrowseResponse response = await session.BrowseAsync(
+                    null, null, 0,
+                    new BrowseDescription[]
+                    {
+                        new() {
+                            NodeId = current,
+                            BrowseDirection = BrowseDirection.Inverse,
+                            ReferenceTypeId = ReferenceTypeIds.HasSubtype,
+                            IncludeSubtypes = false,
+                            NodeClassMask = 0,
+                            ResultMask = (uint)BrowseResultMask.All
+                        }
+                    }.ToArrayOf(),
+                    CancellationToken.None).ConfigureAwait(false);
+
+                if (response.Results.Count != 1 ||
+                    response.Results[0].References.Count == 0)
+                {
+                    return false;
+                }
+
+                current = ExpandedNodeId.ToNodeId(
+                    response.Results[0].References[0].NodeId, session.NamespaceUris);
+                if (current == ObjectTypeIds.PublishedDataSetType)
+                {
+                    return true;
+                }
+                if (current.IsNull || current == ObjectTypeIds.BaseObjectType)
+                {
+                    return false;
+                }
+            }
+            return false;
+        }
+
+        private const int MaxTypeHierarchyDepth = 16;
+
+        /// <summary>
         /// Plain record describing a single alias entry returned by FindAlias.
         /// </summary>
         internal sealed record AliasRecord(QualifiedName AliasName, NodeId[] ReferencedNodes);

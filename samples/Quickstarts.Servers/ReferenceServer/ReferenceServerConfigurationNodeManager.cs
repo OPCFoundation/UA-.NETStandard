@@ -203,6 +203,21 @@ namespace Quickstarts.ReferenceServer
 
             await RemovePubSubKeyServiceFoldersAsync(cancellationToken).ConfigureAwait(false);
 
+            // CTT: the AliasName Category Topics conformance unit requires
+            // every alias under Topics (i=23488) to reference a
+            // PublishedDataSetType instance. Create the datasets first, then
+            // materialize the alias nodes that point at them.
+            addedNodes.AddRange(await AddConformanceDataSetsAsync(cancellationToken)
+                .ConfigureAwait(false));
+
+            // CTT: Part 17 clients discover aliases by browsing, so turn the
+            // aliases seeded into the server's alias store (see
+            // ReferenceServer.ConfigureAliasNameStore) into AliasNameType
+            // instances and nested AliasNameCategoryType objects. This
+            // imports the created nodes into the CoreNodeManager itself.
+            await MaterializeRegisteredAliasNameNodesAsync(
+                externalReferences, cancellationToken).ConfigureAwait(false);
+
             // Push any newly added namespace-0 nodes into the CoreNodeManager
             // so they are reachable via Browse from the standard address
             // space (base.CreateAddressSpaceAsync already performed the bulk
@@ -214,6 +229,128 @@ namespace Quickstarts.ReferenceServer
                     addedNodes,
                     true,
                     cancellationToken).ConfigureAwait(false);
+            }
+        }
+
+        /// <summary>
+        /// Creates the three PublishedDataSet instances that the Topics
+        /// aliases seeded in <c>ReferenceServer.ConfigureAliasNameStore</c>
+        /// point at. Part 17 §9 requires every alias in the Topics
+        /// hierarchy to reference an instance of <c>PublishedDataSetType</c>,
+        /// and the standard NodeSet ships the <c>PublishedDataSets</c>
+        /// folder (<c>i=17371</c>) empty.
+        /// </summary>
+        /// <remarks>
+        /// These are address-space instances only — the reference server
+        /// implements no PubSub runtime, so the datasets publish nothing.
+        /// They exist so the alias targets have the type the Topics
+        /// conformance unit checks for. NodeIds are deterministic string
+        /// ids in the diagnostics namespace, matching the identifiers the
+        /// alias seeds resolve against.
+        /// </remarks>
+        private async ValueTask<IReadOnlyList<NodeState>> AddConformanceDataSetsAsync(
+            CancellationToken cancellationToken)
+        {
+            var created = new List<NodeState>();
+
+            FolderState publishedDataSets = FindPredefinedNode<FolderState>(
+                Opc.Ua.ObjectIds.PublishSubscribe_PublishedDataSets);
+            if (publishedDataSets == null)
+            {
+                return created;
+            }
+
+            ushort diagnosticsNamespaceIndex = Server.NamespaceUris
+                .GetIndexOrAppend(Opc.Ua.Namespaces.OpcUa + "Diagnostics");
+
+            PublishedDataItemsState dataItems = SystemContext
+                .CreateInstanceOfPublishedDataItemsType();
+            InitializeDataSet(dataItems, ReferenceDataSetName, diagnosticsNamespaceIndex);
+
+            // Only name a published variable when the reference node manager
+            // actually contributed its namespace — in provisioning mode it
+            // does not, and appending the namespace just to build a NodeId
+            // would advertise a namespace with no nodes behind it.
+            int referenceServerNamespaceIndex = Server.NamespaceUris
+                .GetIndex(Namespaces.ReferenceServer);
+            if (dataItems.PublishedData != null && referenceServerNamespaceIndex >= 0)
+            {
+                dataItems.PublishedData.Value = new PublishedVariableDataType[]
+                {
+                    new()
+                    {
+                        PublishedVariable = new NodeId(
+                            "Scalar_Simulation_Double",
+                            (ushort)referenceServerNamespaceIndex),
+                        AttributeId = Attributes.Value
+                    }
+                }.ToArrayOf();
+            }
+            created.Add(dataItems);
+
+            foreach (string name in EventDataSetNames)
+            {
+                PublishedEventsState events = SystemContext
+                    .CreateInstanceOfPublishedEventsType();
+                InitializeDataSet(events, name, diagnosticsNamespaceIndex);
+                if (events.PubSubEventNotifier != null)
+                {
+                    events.PubSubEventNotifier.Value = Opc.Ua.ObjectIds.Server;
+                }
+                created.Add(events);
+            }
+
+            foreach (NodeState dataSet in created)
+            {
+                publishedDataSets.AddReference(
+                    ReferenceTypeIds.HasComponent, false, dataSet.NodeId);
+                dataSet.AddReference(
+                    ReferenceTypeIds.HasComponent, true, publishedDataSets.NodeId);
+                await AddPredefinedNodeAsync(SystemContext, dataSet, cancellationToken)
+                    .ConfigureAwait(false);
+            }
+
+            return created;
+        }
+
+        /// <summary>
+        /// Applies the identity attributes and the mandatory
+        /// <c>PublishedDataSetType</c> properties to a freshly created
+        /// dataset instance.
+        /// </summary>
+        private void InitializeDataSet(
+            PublishedDataSetState dataSet,
+            string name,
+            ushort namespaceIndex)
+        {
+            // Mint ids for the mandatory children first: AssignNodeIds also
+            // replaces the node's own id, so it has to run before the
+            // deterministic id the alias seeds resolve against is applied.
+            dataSet.AssignNodeIds(SystemContext, []);
+
+            dataSet.SymbolicName = name;
+            dataSet.NodeId = new NodeId(name, namespaceIndex);
+            dataSet.BrowseName = new QualifiedName(name, namespaceIndex);
+            dataSet.DisplayName = LocalizedText.From(name);
+            dataSet.ReferenceTypeId = ReferenceTypeIds.HasComponent;
+
+            if (dataSet.ConfigurationVersion != null)
+            {
+                dataSet.ConfigurationVersion.Value = new ConfigurationVersionDataType
+                {
+                    MajorVersion = 1,
+                    MinorVersion = 0
+                };
+            }
+            if (dataSet.DataSetMetaData != null)
+            {
+                dataSet.DataSetMetaData.Value = new DataSetMetaDataType
+                {
+                    Name = name,
+                    Description = LocalizedText.From(name),
+                    ConfigurationVersion = dataSet.ConfigurationVersion?.Value ??
+                        new ConfigurationVersionDataType()
+                };
             }
         }
 
@@ -240,6 +377,23 @@ namespace Quickstarts.ReferenceServer
                 }
             }
         }
+
+        /// <summary>
+        /// BrowseName / string identifier of the data-items dataset created
+        /// under <c>PublishedDataSets</c>.
+        /// </summary>
+        internal const string ReferenceDataSetName = "ReferenceDataSet";
+
+        /// <summary>
+        /// BrowseNames / string identifiers of the event datasets created
+        /// under <c>PublishedDataSets</c>. These match the Topics alias
+        /// names seeded by <c>ReferenceServer.ConfigureAliasNameStore</c>.
+        /// </summary>
+        internal static readonly string[] EventDataSetNames =
+        [
+            "ServerEvents",
+            "AuditEvents"
+        ];
 
         private static readonly NodeId[] s_optionalPubSubFolders =
         [
