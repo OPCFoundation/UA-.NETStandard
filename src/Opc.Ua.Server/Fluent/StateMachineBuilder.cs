@@ -439,11 +439,15 @@ namespace Opc.Ua.Server.Fluent
             {
                 return 0;
             }
-            if (!value.TryGetValue(out uint numericId))
+            // The machine's own mapping resolves materialized
+            // (non-numeric) state NodeIds; the numeric fallback keeps
+            // externally-written vendor-namespace ids working.
+            uint stateId = StateMachine.GetStateId(value);
+            if (stateId != 0)
             {
-                return 0;
+                return stateId;
             }
-            return numericId;
+            return value.TryGetValue(out uint numericId) ? numericId : 0;
         }
 
         private NodeState? ResolveNode(NodeId nodeId)

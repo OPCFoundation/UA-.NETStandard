@@ -409,9 +409,81 @@ parent FSM already declares its sub-state machines as part of the
 type definition. Observe them through the client-side sub-SM
 accessors below.
 
+`WithSubStateMachine` and `WithInitialState` are order-independent:
+whichever is called second brings the sub-SM in line with the
+parent's current state. (`WithInitialState` goes through `SetState`,
+which is not a transition and so still runs no user lifecycle
+handler.)
+
 While suspended, the child FSM's `DoTransition` and `DoCause`
 return `BadInvalidState`. The flag is exposed publicly as
 `FluentFiniteStateMachineState.IsSuspended` for diagnostics.
+
+The resulting address space follows Part 16 §B.3 and the standard
+NodeSets:
+
+```
+LimitAlarm            --HasComponent-->       Active   (StateType)
+Active                --HasSubStateMachine--> LimitState
+LimitAlarm            --HasComponent-->       LimitState
+```
+
+`HasSubStateMachine` is a **non-hierarchical** reference, so it
+cannot double as the parent/child reference — the sub-SM is a
+`HasComponent` child of the state machine and the spec reference
+hangs off the parent *state* node.
+
+### Server side — materialized state and transition nodes
+
+To give `HasSubStateMachine` a state node to hang off — and to make
+`CurrentState/Id` and `LastTransition/Id` resolve to something a
+client can actually browse — `FluentFiniteStateMachineState`
+materializes a node per declared state and transition when the machine
+is created. All of them are `HasComponent` children of the machine.
+
+**States** — one `StateType` node each, carrying a `StateNumber`
+property equal to the numeric state id. `CurrentState/Id` points at
+the node for the current state and tracks it across transitions, and
+the optional `AvailableStates` property lists them, so
+`GetAvailableStatesAsync` works against a fluent-built server.
+
+**Transitions** — one `TransitionType` node each, carrying a
+`TransitionNumber` property and the Part 16 §B.4 references:
+
+* `FromState` / `ToState` to the two state nodes;
+* `HasEffect` to `TransitionEventType`, unless the transition was
+  declared with `hasEffect: false`;
+* `HasCause` to the method node, added by `WithCause(methodNodeId)`
+  for every transition the cause can trigger.
+
+`AvailableTransitions` lists them, and the optional `LastTransition`
+variable is materialized too — without it the base class has nowhere
+to record a completed transition and `ObserveFiniteTransitionsAsync`
+has nothing to subscribe to.
+
+NodeIds are **per instance**, derived from the machine's own NodeId,
+so several machines built from one definition coexist in a single
+address space. Use `sm.GetStateId(nodeId)` / `sm.GetTransitionId(nodeId)`
+and their inverses `sm.GetStateNodeId(stateId)` /
+`sm.GetTransitionNodeId(transitionId)` to move between a NodeId and
+the numeric id used by `AddState` / `AddTransition` / `OnCause` and
+the lifecycle hooks — never parse the NodeId's identifier directly.
+
+Element nodes land in the namespace given to `UseElementNamespace`,
+or in the state machine's own namespace when that was not called or
+the URI is not registered with the server (the element namespace
+defaults to the OPC UA namespace, which must never host vendor
+nodes).
+
+Because element NodeIds are derived from browse names, browse names
+must be unique across states and transitions (and must not shadow the
+standard `CurrentState` / `LastTransition` / `AvailableStates` /
+`AvailableTransitions` children); the builder rejects duplicates when
+the definition freezes.
+
+Cost is one node plus one property per declared state and transition,
+per machine instance — worth weighing for servers that instantiate
+many machines.
 
 ### Client side — sub-SM observation
 
@@ -419,10 +491,16 @@ return `BadInvalidState`. The flag is exposed publicly as
 FiniteStateMachineTypeClient parent =
     new FiniteStateMachineTypeClient(session, alarmId, telemetry);
 
-// Resolve the sub-SM attached to a parent state:
+// The state NodeId comes from AvailableStates ...
+IReadOnlyList<FiniteStateInfo> states =
+    await parent.GetAvailableStatesAsync(ct);
+NodeId activeStateId = states.First(s => s.BrowseName.Name == "Active").NodeId;
+
+// ... or from a snapshot's CurrentStateId, to reach the sub-SM of
+// whatever state the machine is in right now.
 FiniteStateMachineTypeClient? limitSm =
     await parent.GetSubStateMachineAsync(
-        parentStateNodeId: alarmStateNodeId, telemetry, ct);
+        parentStateNodeId: activeStateId, telemetry, ct);
 
 if (limitSm != null)
 {
@@ -494,18 +572,16 @@ Vendor models that add their own `<opc:Object>` children on a custom
 ObjectType benefit automatically; the generator emits the same shape
 for every Object child it encounters.
 
-### Per-spec `HasSubStateMachine` placement (deferred)
+### Breaking change — `HasSubStateMachine` moved to the state node
 
-Part 16 §B.3 places the `HasSubStateMachine` reference on the parent
-state node, not the FSM root. The fluent builder currently attaches
-the reference from the FSM root because `FluentFiniteStateMachineState`
-does not materialize per-state instance NodeStates — state nodes are
-shared across all instances of the type. Browsing
-`HasSubStateMachine` from the FSM root via `GetSubStateMachineAsync`
-and the typed accessors above works against this wiring; clients that
-strictly browse from the state node will not discover the sub-SM. A
-future iteration may materialize per-state instance nodes to align
-with the spec; this is tracked but deliberately deferred.
+Earlier releases attached `HasSubStateMachine` to the state machine
+**root**, because the fluent builder did not materialize state nodes.
+It now sits on the parent **state** node per Part 16 §B.3, and the
+root reference is gone.
+
+Callers that passed the state machine's `ObjectId` to
+`GetSubStateMachineAsync` must pass a state NodeId instead — from
+`GetAvailableStatesAsync` or from a snapshot's `CurrentStateId`.
 
 ## Extensibility recipes
 

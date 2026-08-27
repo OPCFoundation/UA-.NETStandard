@@ -268,6 +268,11 @@ namespace Opc.Ua.Server.StateMachines
             FreezeDefinition();
             ValidateDefinitionStateExists(stateId);
             m_stateMachine.SetState(m_context, stateId);
+            // SetState is not a transition, so no lifecycle handler
+            // runs — but a sub-state-machine attached to the initial
+            // state still has to activate, whichever order
+            // WithInitialState and WithSubStateMachine were called in.
+            m_dispatcher.SynchronizeInitialState(m_context, stateId);
             return this;
         }
 
@@ -603,14 +608,15 @@ namespace Opc.Ua.Server.StateMachines
             {
                 return 0;
             }
-            return id.Value.TryGetValue(out uint stateId) ? stateId : 0;
+            return StateMachineBuilder.ResolveStateId(sm, id.Value);
         }
 
         /// <summary>
         /// Attaches a sub-state-machine to the parent state identified
-        /// by <paramref name="parentStateId"/>. The sub-SM is added
-        /// as a <c>HasSubStateMachine</c>-referenced child of the
-        /// parent FSM, configured through the nested
+        /// by <paramref name="parentStateId"/>. The sub-SM is added as
+        /// a <c>HasComponent</c> child of the parent FSM and referenced
+        /// by <c>HasSubStateMachine</c> from the parent <em>state</em>
+        /// node per Part 16 §B.3, configured through the nested
         /// <paramref name="configure"/> builder, and managed by the
         /// dispatcher lifecycle:
         /// </summary>
@@ -637,6 +643,11 @@ namespace Opc.Ua.Server.StateMachines
         /// mode (when adopting a stack-shipped or vendor FSM) the
         /// sub-SM is already part of the type definition; observe it
         /// through the client-side sub-SM accessors instead.
+        /// </para>
+        /// <para>
+        /// Order-independent with respect to
+        /// <see cref="WithInitialState"/>: whichever is called second
+        /// brings the sub-SM in line with the parent's current state.
         /// </para>
         /// </remarks>
         /// <param name="parentStateId">The parent state whose entry
@@ -679,47 +690,112 @@ namespace Opc.Ua.Server.StateMachines
             }
 
             FreezeDefinition();
+            ValidateDefinitionStateExists(parentStateId);
+
+            // The sub-SM's NodeId is composed the same way as the
+            // element NodeIds, so its browse name must not collide with
+            // a declared state or transition (or a repeated sub-SM).
+            foreach (StateMachineStateDefinition s in m_definition.States)
+            {
+                if (string.Equals(s.BrowseName, browseName.Name, StringComparison.Ordinal))
+                {
+                    throw new ArgumentException(
+                        $"Sub-state-machine browse name '{browseName.Name}' " +
+                        "collides with a declared state.", nameof(browseName));
+                }
+            }
+            foreach (StateMachineTransitionDefinition t in m_definition.Transitions)
+            {
+                if (string.Equals(t.BrowseName, browseName.Name, StringComparison.Ordinal))
+                {
+                    throw new ArgumentException(
+                        $"Sub-state-machine browse name '{browseName.Name}' " +
+                        "collides with a declared transition.", nameof(browseName));
+                }
+            }
+
+            // The parent state node carries the HasSubStateMachine
+            // reference, so it has to exist. FreezeDefinition creates
+            // the parent, whose OnAfterCreate materializes the states.
+            if (m_stateMachine is not FluentFiniteStateMachineState parentFsm)
+            {
+                throw new InvalidOperationException(
+                    "WithSubStateMachine requires a builder that owns a " +
+                    "FluentFiniteStateMachineState (use StateMachineBuilder.Create).");
+            }
+            BaseObjectState parentStateNode = parentFsm.FindStateNode(parentStateId)
+                ?? throw new InvalidOperationException(
+                    $"No state node was materialized for state {parentStateId}; " +
+                    "the parent state machine must be created before a " +
+                    "sub-state-machine can be attached to one of its states.");
 
             // Configure the sub-SM through a nested builder. The
             // sub-SM's NodeId is derived from the parent's NodeId so
-            // it lives under the parent in the address space.
+            // it lives under the parent in the address space. Creation
+            // is deferred to the child's own FreezeDefinition so its
+            // states are declared by the time they are materialized.
             var subHolder = new MutableStateMachineDefinition();
             var child =
                 FluentFiniteStateMachineState.CreateWithHolder(m_stateMachine, subHolder);
             NodeId childNodeId = m_stateMachine.NodeId.IsNull
                 ? new NodeId(Guid.NewGuid())
                 : ComposeChildNodeId(m_stateMachine.NodeId, browseName);
-            child.Create(
-                m_context,
-                childNodeId,
-                browseName,
-                new LocalizedText(browseName.Name ?? string.Empty),
-                true);
+
+            // A repeated sub-SM browse name composes the same child
+            // NodeId — reject it before wiring anything.
+            var existingChildren = new List<BaseInstanceState>();
+            m_stateMachine.GetChildren(m_context, existingChildren);
+            if (existingChildren.Exists(c => c.NodeId == childNodeId))
+            {
+                throw new ArgumentException(
+                    $"A child with browse name '{browseName.Name}' already " +
+                    "exists on the state machine.", nameof(browseName));
+            }
+
             var childBuilder = new StateMachineBuilder<FluentFiniteStateMachineState>(
-                child, m_context, subHolder);
+                child, m_context, subHolder,
+                deferredCreateNodeId: childNodeId,
+                deferredCreateBrowseName: browseName);
             configure(childBuilder);
             // Read StateMachine to freeze the child's definition and
             // ensure it is fully constructed.
             FluentFiniteStateMachineState materializedChild = childBuilder.StateMachine;
-            // Set the reference type BEFORE adding to the parent so
-            // AddChild does not default it to HasComponent. Then add.
-            materializedChild.ReferenceTypeId = ReferenceTypeIds.HasSubStateMachine;
-            m_stateMachine.AddChild(materializedChild);
 
-            // Initial state of the sub-SM is "suspended" unless the
-            // parent already starts in the attached state.
+            // HasSubStateMachine is non-hierarchical, so it cannot
+            // double as the parent/child reference — the sub-SM is a
+            // HasComponent child (matching the standard NodeSets) and
+            // the spec reference hangs off the parent state node.
+            materializedChild.ReferenceTypeId = ReferenceTypeIds.HasComponent;
+            m_stateMachine.AddChild(materializedChild);
+            parentStateNode.AddReference(
+                ReferenceTypeIds.HasSubStateMachine,
+                false,
+                materializedChild.NodeId);
+            materializedChild.AddReference(
+                ReferenceTypeIds.HasSubStateMachine,
+                true,
+                parentStateNode.NodeId);
+
+            // The sub-SM is suspended unless the parent is in the
+            // attached state. WithInitialState goes through SetState,
+            // not DoTransition, so it fires no enter handler — the same
+            // sync therefore runs twice: once now (covering
+            // WithInitialState BEFORE this call) and once from
+            // WithInitialState itself (covering it AFTER).
             uint initialChildStateId = subHolder.InitialStateId ?? 0;
-            bool parentInAttachedState =
-                ExtractCurrentStateId(m_stateMachine) == parentStateId;
-            materializedChild.IsSuspended = !parentInAttachedState;
-            if (parentInAttachedState && initialChildStateId != 0)
+
+            void SyncChildToParentState(ISystemContext ctx, uint parentCurrentStateId)
             {
-                // Set the child to its initial state immediately —
-                // the parent's OnEnterState handler isn't fired on
-                // WithInitialState (it goes through SetState, not
-                // DoTransition), so we must seed the child here.
-                materializedChild.SetState(m_context, initialChildStateId);
+                bool attached = parentCurrentStateId == parentStateId;
+                materializedChild.IsSuspended = !attached;
+                if (attached && initialChildStateId != 0)
+                {
+                    materializedChild.SetState(ctx, initialChildStateId);
+                }
             }
+
+            SyncChildToParentState(m_context, ExtractCurrentStateId(m_stateMachine));
+            m_dispatcher.AddInitialStateSynchronizer(SyncChildToParentState);
 
             // Wire the lifecycle hooks on the parent.
             m_dispatcher.AddEnterStateHandler(parentStateId, (ctx, parent) =>
@@ -744,12 +820,10 @@ namespace Opc.Ua.Server.StateMachines
             // Derive a deterministic child NodeId from the parent
             // and the child's browse name so multiple
             // WithSubStateMachine calls produce stable, distinct ids.
-            string suffix = browseName.Name ?? "Child";
-            if (parentNodeId.TryGetValue(out string parentStr))
-            {
-                return new NodeId(parentStr + "_" + suffix, parentNodeId.NamespaceIndex);
-            }
-            return new NodeId(parentNodeId + "_" + suffix, parentNodeId.NamespaceIndex);
+            return FluentFiniteStateMachineState.ComposeElementNodeId(
+                parentNodeId,
+                browseName.Name ?? "Child",
+                parentNodeId.NamespaceIndex);
         }
 
         /// <summary>
@@ -795,6 +869,15 @@ namespace Opc.Ua.Server.StateMachines
                     nameof(methodNodeId));
 
             m_dispatcher.InstallCauseMethod(method, causeId);
+
+            // Part 16 §B.4: every transition this cause can trigger
+            // gets a HasCause reference to the method node. Only
+            // definition mode knows the cause-to-transition mapping;
+            // lifecycle-mode FSMs declare it in their type definition.
+            if (m_stateMachine is FluentFiniteStateMachineState fluent)
+            {
+                fluent.AddCauseReferences(causeId, methodNodeId);
+            }
             return this;
         }
 
@@ -974,6 +1057,19 @@ namespace Opc.Ua.Server.StateMachines
                     "definition is frozen.");
             }
 
+            // Element NodeIds are derived from browse names, so a name
+            // shared by two elements (or shadowing a standard child
+            // materialized next to them) would mint colliding NodeIds.
+            var elementNames = new HashSet<string>(StringComparer.Ordinal);
+            foreach (StateMachineStateDefinition s in def.States)
+            {
+                ValidateElementName(elementNames, s.BrowseName, "State");
+            }
+            foreach (StateMachineTransitionDefinition t in def.Transitions)
+            {
+                ValidateElementName(elementNames, t.BrowseName, "Transition");
+            }
+
             var stateIds = new HashSet<uint>();
             foreach (StateMachineStateDefinition s in def.States)
             {
@@ -1032,6 +1128,40 @@ namespace Opc.Ua.Server.StateMachines
                         "subsequent mappings would be silently " +
                         "shadowed by the first.");
                 }
+            }
+        }
+
+        /// <summary>
+        /// The browse names of the standard FiniteStateMachineType
+        /// children the fluent machine materializes alongside its
+        /// element nodes — a state or transition may not shadow them.
+        /// </summary>
+        private static readonly string[] s_reservedElementNames =
+        [
+            BrowseNames.CurrentState,
+            BrowseNames.LastTransition,
+            BrowseNames.AvailableStates,
+            BrowseNames.AvailableTransitions
+        ];
+
+        private static void ValidateElementName(
+            HashSet<string> seenNames,
+            string browseName,
+            string elementKind)
+        {
+            if (Array.IndexOf(s_reservedElementNames, browseName) >= 0)
+            {
+                throw new InvalidOperationException(
+                    $"{elementKind} browse name '{browseName}' shadows a " +
+                    "standard FiniteStateMachineType child.");
+            }
+            if (!seenNames.Add(browseName))
+            {
+                throw new InvalidOperationException(
+                    $"{elementKind} browse name '{browseName}' is used by " +
+                    "more than one state or transition — element NodeIds " +
+                    "are derived from browse names, so names must be " +
+                    "unique across both.");
             }
         }
 
@@ -1147,6 +1277,27 @@ namespace Opc.Ua.Server.StateMachines
             }
             return new StateMachineBuilder<TState>(stateMachine, context, null);
         }
+
+        /// <summary>
+        /// Resolves a <c>CurrentState/Id</c> NodeId to the numeric state
+        /// id: first through the machine's own mapping (so materialized
+        /// state NodeIds resolve), then — for lifecycle-mode machines
+        /// whose state variable is written by an external dispatcher in
+        /// a namespace the machine does not know about — by the
+        /// namespace-agnostic numeric convention the builder has always
+        /// honoured.
+        /// </summary>
+        internal static uint ResolveStateId(
+            FiniteStateMachineState sm,
+            NodeId nodeId)
+        {
+            uint stateId = sm.GetStateId(nodeId);
+            if (stateId != 0)
+            {
+                return stateId;
+            }
+            return nodeId.TryGetValue(out uint numericId) ? numericId : 0;
+        }
     }
 
     /// <summary>
@@ -1166,6 +1317,7 @@ namespace Opc.Ua.Server.StateMachines
         private readonly ISystemContext m_context;
         private readonly TimeProvider m_timeProvider;
         private readonly Dictionary<uint, List<Action<ISystemContext, TState>>> m_enterHandlers = [];
+        private readonly List<Action<ISystemContext, uint>> m_initialStateSynchronizers = [];
         private readonly Dictionary<uint, List<Action<ISystemContext, TState>>> m_exitHandlers = [];
         private readonly List<Action<ISystemContext, TState, uint, uint>> m_transitionObservers = [];
         private readonly List<Func<ISystemContext, TState, uint, uint, ServiceResult>> m_guards = [];
@@ -1234,6 +1386,31 @@ namespace Opc.Ua.Server.StateMachines
             }
             list.Add(handler);
             EnsureInstalled();
+        }
+
+        /// <summary>
+        /// Registers a callback that brings machine-owned state (today:
+        /// sub-state-machine activation) in line with a state the
+        /// machine was placed in by <c>SetState</c> rather than by a
+        /// transition. Deliberately separate from the enter-state
+        /// handlers so that <see cref="StateMachineBuilder{TState}.WithInitialState"/>
+        /// keeps its contract of not running user lifecycle handlers.
+        /// </summary>
+        public void AddInitialStateSynchronizer(Action<ISystemContext, uint> synchronizer)
+        {
+            m_initialStateSynchronizers.Add(synchronizer);
+        }
+
+        /// <summary>
+        /// Runs every registered synchronizer against
+        /// <paramref name="stateId"/>.
+        /// </summary>
+        public void SynchronizeInitialState(ISystemContext context, uint stateId)
+        {
+            foreach (Action<ISystemContext, uint> synchronizer in m_initialStateSynchronizers)
+            {
+                SafeInvoke(() => synchronizer(context, stateId));
+            }
         }
 
         public void AddExitStateHandler(
@@ -1512,13 +1689,13 @@ namespace Opc.Ua.Server.StateMachines
             }
         }
 
-        private static uint ExtractStateId(NodeId? nodeId)
+        private uint ExtractStateId(NodeId? nodeId)
         {
             if (!nodeId.HasValue || nodeId.Value.IsNull)
             {
                 return 0;
             }
-            return nodeId.Value.TryGetValue(out uint id) ? id : 0;
+            return StateMachineBuilder.ResolveStateId(m_stateMachine, nodeId.Value);
         }
 
         private static void SafeInvoke(Action action)

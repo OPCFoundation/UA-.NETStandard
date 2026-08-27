@@ -74,6 +74,7 @@ namespace Opc.Ua.SourceGeneration
         public static string EncodingMaskEncode => nameof(EncodingMaskEncode);
         public static string EncodingMaskDecode => nameof(EncodingMaskDecode);
         public static string EnumerationName => nameof(EnumerationName);
+        public static string ElementNamespaceOverride => nameof(ElementNamespaceOverride);
         public static string EventNotifier => nameof(EventNotifier);
         public static string FieldIndex => nameof(FieldIndex);
         public static string ExtraInterfaces => nameof(ExtraInterfaces);

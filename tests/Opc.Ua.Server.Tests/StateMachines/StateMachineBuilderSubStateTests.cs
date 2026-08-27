@@ -27,6 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
 using System.Collections.Generic;
 using NUnit.Framework;
 using Opc.Ua.Server.StateMachines;
@@ -55,7 +56,7 @@ namespace Opc.Ua.Server.Tests.StateMachines
         }
 
         [Test]
-        public void WithSubStateMachineAddsHasSubStateMachineChild()
+        public void WithSubStateMachineAddsHasComponentChild()
         {
             FluentFiniteStateMachineState parent = BuildParent()
                 .WithInitialState(1)
@@ -73,9 +74,196 @@ namespace Opc.Ua.Server.Tests.StateMachines
             BaseInstanceState child = children.Find(c => c.BrowseName.Name == "ChildSm")!;
 
             Assert.That(child, Is.Not.Null);
+            // HasSubStateMachine is non-hierarchical, so the parent /
+            // child relationship uses HasComponent — matching the
+            // standard NodeSets.
             Assert.That(child.ReferenceTypeId,
-                Is.EqualTo(ReferenceTypeIds.HasSubStateMachine));
+                Is.EqualTo(ReferenceTypeIds.HasComponent));
             Assert.That(child, Is.InstanceOf<FluentFiniteStateMachineState>());
+        }
+
+        [Test]
+        public void WithSubStateMachineReferencesSubMachineFromParentStateNode()
+        {
+            FluentFiniteStateMachineState parent = BuildParent()
+                .WithInitialState(1)
+                .WithSubStateMachine(
+                    parentStateId: 1,
+                    browseName: new QualifiedName("ChildSm", 1),
+                    configure: c => c
+                        .AddState(10, "ChildIdle", isInitial: true)
+                        .AddTransition(100, "Loop", from: 10, to: 10))
+                .StateMachine;
+
+            BaseInstanceState child = GetChild(parent, "ChildSm");
+            BaseInstanceState stateNode = GetChild(parent, "ParentA");
+
+            // Part 16 §B.3: the reference hangs off the parent STATE
+            // node, not the state machine root.
+            var forward = new List<IReference>();
+            stateNode.GetReferences(
+                m_context, forward, ReferenceTypeIds.HasSubStateMachine, false);
+            Assert.That(forward, Has.Count.EqualTo(1));
+            Assert.That(forward[0].TargetId, Is.EqualTo((ExpandedNodeId)child.NodeId));
+
+            // ... and the inverse (SubStateMachineOf) browses back.
+            var inverse = new List<IReference>();
+            child.GetReferences(
+                m_context, inverse, ReferenceTypeIds.HasSubStateMachine, true);
+            Assert.That(inverse, Has.Count.EqualTo(1));
+            Assert.That(inverse[0].TargetId, Is.EqualTo((ExpandedNodeId)stateNode.NodeId));
+
+            // The state machine root must NOT carry the reference.
+            var fromRoot = new List<IReference>();
+            parent.GetReferences(
+                m_context, fromRoot, ReferenceTypeIds.HasSubStateMachine, false);
+            Assert.That(fromRoot, Is.Empty);
+        }
+
+        [Test]
+        public void SubStateMachineIsDiscoverableThroughTheNodeBrowser()
+        {
+            // Drives the real NodeBrowser along the exact path a client
+            // takes: hierarchical browse of the machine to reach the
+            // state node and the sub-SM, then HasSubStateMachine from
+            // the state node. HasSubStateMachine is non-hierarchical,
+            // so using it as the parent/child reference would leave the
+            // sub-SM invisible to the first of those browses.
+            //
+            // NodeState.PopulateBrowser only walks children when the
+            // TypeTable can tell it the browsed reference type is
+            // hierarchical, so the bare test table needs that one fact.
+            var typeTable = (TypeTable)m_context.TypeTable;
+            typeTable.AddReferenceSubtype(
+                ReferenceTypeIds.HierarchicalReferences,
+                NodeId.Null,
+                new QualifiedName(BrowseNames.HierarchicalReferences));
+            typeTable.AddReferenceSubtype(
+                ReferenceTypeIds.HasComponent,
+                ReferenceTypeIds.HierarchicalReferences,
+                new QualifiedName(BrowseNames.HasComponent));
+
+            FluentFiniteStateMachineState parent = BuildParent()
+                .WithInitialState(1)
+                .WithSubStateMachine(
+                    parentStateId: 1,
+                    browseName: new QualifiedName("ChildSm", 1),
+                    configure: c => c
+                        .AddState(10, "ChildIdle", isInitial: true)
+                        .AddTransition(100, "Loop", from: 10, to: 10))
+                .StateMachine;
+
+            List<NodeId> components = BrowseTargets(
+                parent, ReferenceTypeIds.HasComponent, BrowseDirection.Forward);
+            NodeId stateNodeId = GetChild(parent, "ParentA").NodeId;
+            NodeId childNodeId = GetChild(parent, "ChildSm").NodeId;
+
+            Assert.That(components, Does.Contain(stateNodeId));
+            Assert.That(components, Does.Contain(childNodeId));
+
+            List<NodeId> subMachines = BrowseTargets(
+                GetChild(parent, "ParentA"),
+                ReferenceTypeIds.HasSubStateMachine,
+                BrowseDirection.Forward);
+
+            Assert.That(subMachines, Is.EqualTo(new[] { childNodeId }));
+        }
+
+        private List<NodeId> BrowseTargets(
+            NodeState node,
+            NodeId referenceTypeId,
+            BrowseDirection direction)
+        {
+            var targets = new List<NodeId>();
+            using INodeBrowser browser = node.CreateBrowser(
+                m_context,
+                null,
+                referenceTypeId,
+                false,
+                direction,
+                default,
+                null,
+                false);
+            for (IReference reference = browser.Next();
+                reference != null;
+                reference = browser.Next())
+            {
+                targets.Add(ExpandedNodeId.ToNodeId(
+                    reference.TargetId, m_context.NamespaceUris));
+            }
+            return targets;
+        }
+
+        [Test]
+        public void WithSubStateMachineRejectsBrowseNameCollidingWithState()
+        {
+            StateMachineBuilder<FluentFiniteStateMachineState> builder =
+                BuildParent().WithInitialState(1);
+
+            // The sub-SM NodeId is composed like the element NodeIds,
+            // so a browse name shared with a state would collide.
+            Assert.Throws<ArgumentException>(() =>
+                builder.WithSubStateMachine(
+                    parentStateId: 1,
+                    browseName: new QualifiedName("ParentA", 1),
+                    configure: c => c.AddState(10, "ChildIdle", isInitial: true)));
+        }
+
+        [Test]
+        public void WithSubStateMachineRejectsUnknownParentState()
+        {
+            StateMachineBuilder<FluentFiniteStateMachineState> builder =
+                BuildParent().WithInitialState(1);
+
+            Assert.Throws<InvalidOperationException>(() =>
+                builder.WithSubStateMachine(
+                    parentStateId: 99,
+                    browseName: new QualifiedName("ChildSm", 1),
+                    configure: c => c.AddState(10, "ChildIdle", isInitial: true)));
+        }
+
+        [Test]
+        public void SubStateMachineActivatesWhenInitialStateIsSetAfterwards()
+        {
+            // WithInitialState goes through SetState, which fires no
+            // enter handler — the sub-SM must still activate, so this
+            // call order behaves the same as the reverse one.
+            FluentFiniteStateMachineState parent = BuildParent()
+                .WithSubStateMachine(
+                    parentStateId: 1,
+                    browseName: new QualifiedName("ChildSm", 1),
+                    configure: c => c
+                        .AddState(10, "ChildIdle", isInitial: true)
+                        .AddState(11, "ChildRunning")
+                        .AddTransition(100, "IdleToRunning", from: 10, to: 11))
+                .WithInitialState(1)
+                .StateMachine;
+
+            var child = (FluentFiniteStateMachineState)GetChild(parent, "ChildSm");
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(child.IsSuspended, Is.False);
+                Assert.That(CurrentStateId(child), Is.EqualTo(10u));
+            });
+        }
+
+        [Test]
+        public void SubStateMachineStaysSuspendedWhenInitialStateIsElsewhere()
+        {
+            FluentFiniteStateMachineState parent = BuildParent()
+                .WithSubStateMachine(
+                    parentStateId: 1,
+                    browseName: new QualifiedName("ChildSm", 1),
+                    configure: c => c
+                        .AddState(10, "ChildIdle", isInitial: true)
+                        .AddTransition(100, "Loop", from: 10, to: 10))
+                .WithInitialState(2)
+                .StateMachine;
+
+            var child = (FluentFiniteStateMachineState)GetChild(parent, "ChildSm");
+
+            Assert.That(child.IsSuspended, Is.True);
         }
 
         [Test]
@@ -238,13 +426,13 @@ namespace Opc.Ua.Server.Tests.StateMachines
             return children.Find(c => c.BrowseName.Name == browseName)!;
         }
 
-        private static uint CurrentStateId(FiniteStateMachineState sm)
+        private static uint CurrentStateId(FluentFiniteStateMachineState sm)
         {
-            if (sm.CurrentState?.Id?.Value is { } id &&
-                !id.IsNull &&
-                id.TryGetValue(out uint stateId))
+            if (sm.CurrentState?.Id?.Value is { } id && !id.IsNull)
             {
-                return stateId;
+                // Resolve through the machine's own mapping so
+                // materialized state NodeIds are understood too.
+                return sm.GetStateId(id);
             }
             return 0;
         }

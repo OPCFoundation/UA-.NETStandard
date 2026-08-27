@@ -593,9 +593,11 @@ namespace Opc.Ua.Client.StateMachines
         /// <param name="parent">The parent finite state-machine
         /// client.</param>
         /// <param name="parentStateNodeId">The NodeId of the parent
-        /// state node (e.g. the <c>StateType</c> instance — for
-        /// servers that wire the reference from the FSM root rather
-        /// than the state node, pass the FSM's <c>ObjectId</c>).</param>
+        /// state node — the <c>StateType</c> node the reference hangs
+        /// off per Part 16 §B.3. Obtain it from
+        /// <see cref="GetAvailableStatesAsync"/> or from a snapshot's
+        /// <c>CurrentStateId</c>; passing the state machine's
+        /// <c>ObjectId</c> resolves nothing.</param>
         /// <param name="telemetry">Telemetry context for the returned
         /// sub-SM client.</param>
         /// <param name="ct">Cancellation token.</param>

@@ -52,6 +52,17 @@ namespace Opc.Ua.Server.StateMachines
     /// <remarks>
     /// Source-generated companion state machines do not currently emit StateTable and TransitionTable overrides.
     /// This dispatcher updates the standard state variables directly while preserving the generated node hierarchy.
+    /// <para>
+    /// Element NodeIds come from the machine's own
+    /// <see cref="FiniteStateMachineState.GetStateNodeId"/> /
+    /// <see cref="FiniteStateMachineState.GetTransitionNodeId"/>, so a generated machine writes
+    /// ids in its model namespace and a machine that materializes its own element nodes points
+    /// at the real node. That requires the machine to have completed its create lifecycle —
+    /// <c>ElementNamespaceUri</c> is resolved in <c>OnAfterCreate</c> — so a node assembled by a
+    /// <c>CreateInstanceOf</c> factory must be passed through
+    /// <see cref="NodeState.CreateAsPredefinedNode"/> first. <c>namespaceIndex</c> now only
+    /// backstops reading a state variable some other component wrote.
+    /// </para>
     /// </remarks>
     public sealed class FiniteStateMachineDispatcher
     {
@@ -103,7 +114,11 @@ namespace Opc.Ua.Server.StateMachines
 
             if (machine.CurrentState.Id != null)
             {
-                machine.CurrentState.Id.Value = new NodeId(stateId, m_namespaceIndex);
+                // The machine owns the element-NodeId convention:
+                // generated machines qualify the numeric id with their
+                // model namespace, and machines that materialize their
+                // own state nodes point at the real node.
+                machine.CurrentState.Id.Value = machine.GetStateNodeId(stateId);
             }
             if (machine.CurrentState.Number != null)
             {
@@ -138,7 +153,8 @@ namespace Opc.Ua.Server.StateMachines
 
             if (machine.LastTransition.Id != null)
             {
-                machine.LastTransition.Id.Value = new NodeId(transitionId, m_namespaceIndex);
+                machine.LastTransition.Id.Value =
+                    machine.GetTransitionNodeId(transitionId);
             }
             if (machine.LastTransition.Number != null)
             {
@@ -177,14 +193,27 @@ namespace Opc.Ua.Server.StateMachines
             }
 
             NodeId nodeId = machine.CurrentState.Id.Value;
-            if (nodeId.IsNull || nodeId.NamespaceIndex != m_namespaceIndex)
+            if (nodeId.IsNull)
             {
                 return false;
             }
 
-            if (nodeId.TryGetValue(out uint id))
+            // Ask the machine first — it owns the mapping — then fall
+            // back to the numeric convention for state variables a
+            // caller wrote in some other namespace.
+            uint id = machine.GetStateId(nodeId);
+            if (id != 0)
             {
                 stateId = id;
+                return true;
+            }
+            if (nodeId.NamespaceIndex != m_namespaceIndex)
+            {
+                return false;
+            }
+            if (nodeId.TryGetValue(out uint numericId))
+            {
+                stateId = numericId;
                 return true;
             }
             if (uint.TryParse(nodeId.IdentifierAsString, NumberStyles.Integer, CultureInfo.InvariantCulture,
