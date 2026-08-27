@@ -30,6 +30,7 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -247,6 +248,36 @@ namespace Opc.Ua.Client.Subscriptions
                 // Assert
                 Assert.That(sut.CurrentPublishingEnabled, Is.True);
                 // m_mockSession.Verify() was no-op (no Verifiable setups on the context); inner-mock verifications retained.
+            }
+        }
+
+        [Test]
+        public async Task OnSubscriptionUpdateCompleteShouldUseRevisedKeepAliveIntervalForTimerAsync()
+        {
+            var sut = new TestSubscription(m_session, m_mockNotificationDataHandler.Object,
+                m_completion, m_options, m_telemetry, 22);
+            await using (sut.ConfigureAwait(false))
+            {
+                sut.OnSubscriptionUpdateComplete(
+                    created: true,
+                    subscriptionId: 22,
+                    revisedPublishingInterval: TimeSpan.FromMilliseconds(2800),
+                    revisedKeepAliveCount: 30,
+                    revisedLifetimeCount: 300,
+                    priority: 3,
+                    maxNotificationsPerPublish: 10,
+                    publishingEnabled: true);
+
+                var keepAliveField = typeof(Subscription).GetField(
+                    "m_keepAliveInterval",
+                    BindingFlags.Instance | BindingFlags.NonPublic);
+
+                Assert.That(keepAliveField, Is.Not.Null);
+                TimeSpan keepAliveInterval = (TimeSpan)keepAliveField.GetValue(sut)!;
+                Assert.That(
+                    keepAliveInterval,
+                    Is.EqualTo(TimeSpan.FromMilliseconds(2800d * 31d)));
+                Assert.That(keepAliveInterval, Is.GreaterThan(TimeSpan.FromSeconds(1)));
             }
         }
 
