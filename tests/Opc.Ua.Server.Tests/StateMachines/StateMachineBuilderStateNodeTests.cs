@@ -180,6 +180,36 @@ namespace Opc.Ua.Server.Tests.StateMachines
                         .AddState(1, BrowseNames.AvailableStates, isInitial: true)
                         .StateMachine,
                     Throws.InvalidOperationException);
+
+                // An element name equal to another element's composed
+                // number-property name would mint the property's NodeId.
+                Assert.That(() => StateMachineTestFixtures.NewBuilder(m_context)
+                        .AddState(1, "A", isInitial: true)
+                        .AddState(2, "A_StateNumber")
+                        .StateMachine,
+                    Throws.InvalidOperationException);
+                Assert.That(() => StateMachineTestFixtures.NewBuilder(m_context)
+                        .AddState(1, "B", isInitial: true)
+                        .AddTransition(10, "B_StateNumber", from: 1, to: 1)
+                        .StateMachine,
+                    Throws.InvalidOperationException);
+            });
+        }
+
+        [Test]
+        public void ZeroElementIdsAreRejectedByTheBuilder()
+        {
+            // 0 is the "no state" / "no transition" sentinel throughout
+            // FiniteStateMachineState, so the builder refuses it.
+            Assert.Multiple(() =>
+            {
+                Assert.That(() => StateMachineTestFixtures.NewBuilder(m_context)
+                        .AddState(0, "Zero"),
+                    Throws.ArgumentException);
+                Assert.That(() => StateMachineTestFixtures.NewBuilder(m_context)
+                        .AddState(1, "One", isInitial: true)
+                        .AddTransition(0, "ZeroT", from: 1, to: 1),
+                    Throws.ArgumentException);
             });
         }
 
@@ -216,6 +246,41 @@ namespace Opc.Ua.Server.Tests.StateMachines
 
             Assert.That(GetChild(first, "Off").NodeId,
                 Is.Not.EqualTo(GetChild(second, "Off").NodeId));
+        }
+
+        [Test]
+        public void MachinesWithEqualIdentifiersInDifferentNamespacesDoNotCollide()
+        {
+            // The owner prefix carries the full NodeId (namespace
+            // included) — two machines whose identifiers coincide in
+            // different namespaces must still mint distinct element ids.
+            FluentFiniteStateMachineState first = StateMachineBuilder
+                .Create(null, m_context, new NodeId("Pump", 1), new QualifiedName("Pump", 1))
+                .AddState(1, "Off", isInitial: true)
+                .StateMachine;
+            FluentFiniteStateMachineState second = StateMachineBuilder
+                .Create(null, m_context, new NodeId("Pump", 2), new QualifiedName("Pump", 2))
+                .AddState(1, "Off", isInitial: true)
+                .StateMachine;
+
+            Assert.That(GetChild(first, "Off").NodeId,
+                Is.Not.EqualTo(GetChild(second, "Off").NodeId));
+        }
+
+        [Test]
+        public void DeclaredInitialStateIsAppliedWithoutWithInitialState()
+        {
+            // The documented minimal example never calls
+            // WithInitialState — the isInitial flag alone must leave
+            // the machine in a workable state.
+            FluentFiniteStateMachineState sm = Build().StateMachine;
+
+            Assert.That(sm.CurrentState!.Id!.Value,
+                Is.EqualTo(GetChild(sm, "Off").NodeId));
+
+            // ... and the machine can transition out of it.
+            ServiceResult result = sm.DoTransition(m_context, 10, 0, default, []);
+            Assert.That(ServiceResult.IsGood(result), Is.True);
         }
 
         [Test]

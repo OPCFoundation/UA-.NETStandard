@@ -263,7 +263,42 @@ namespace Opc.Ua.Server.Tests.StateMachines
 
             var child = (FluentFiniteStateMachineState)GetChild(parent, "ChildSm");
 
-            Assert.That(child.IsSuspended, Is.True);
+            Assert.Multiple(() =>
+            {
+                Assert.That(child.IsSuspended, Is.True);
+                // Part 16: an inactive sub-state machine publishes no
+                // current state — its declared initial state is only
+                // applied once the parent enters the attached state.
+                Assert.That(child.CurrentState!.Value.IsNullOrEmpty, Is.True);
+            });
+        }
+
+        [Test]
+        public void PreserveOnReentryChildSurvivesALaterWithInitialState()
+        {
+            StateMachineBuilder<FluentFiniteStateMachineState> builder =
+                BuildParent()
+                    .WithInitialState(1)
+                    .WithSubStateMachine(
+                        parentStateId: 1,
+                        browseName: new QualifiedName("ChildSm", 1),
+                        configure: c => c
+                            .AddState(10, "ChildIdle", isInitial: true)
+                            .AddState(11, "ChildRunning")
+                            .AddTransition(100, "IdleToRunning", from: 10, to: 11),
+                        preserveOnReentry: true);
+            FluentFiniteStateMachineState parent = builder.StateMachine;
+            var child = (FluentFiniteStateMachineState)GetChild(parent, "ChildSm");
+
+            // Move the child off its initial state, then re-apply the
+            // parent's initial state — a preserveOnReentry child must
+            // keep its state instead of being reset.
+            child.DoTransition(m_context, 100, 0, default, []);
+            Assert.That(CurrentStateId(child), Is.EqualTo(11u));
+
+            builder.WithInitialState(1);
+
+            Assert.That(CurrentStateId(child), Is.EqualTo(11u));
         }
 
         [Test]

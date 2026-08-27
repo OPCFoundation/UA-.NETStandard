@@ -196,7 +196,7 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Returns the current state of for the state machine.
+        /// Returns the current state id of the state machine.
         /// </summary>
         protected uint GetCurrentStateId()
         {

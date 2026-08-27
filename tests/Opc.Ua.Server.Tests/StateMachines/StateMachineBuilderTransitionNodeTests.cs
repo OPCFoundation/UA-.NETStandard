@@ -101,6 +101,32 @@ namespace Opc.Ua.Server.Tests.StateMachines
         }
 
         [Test]
+        public void StateNodesCarryTheInverseFromAndToStateReferences()
+        {
+            FluentFiniteStateMachineState sm = Build().StateMachine;
+
+            // Inverse-browsing FromState/ToState from a state node is
+            // how a §B.4 client discovers the state's transitions.
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    InverseTargets(GetChild(sm, "Off"), ReferenceTypeIds.FromState),
+                    Is.EqualTo(new[] { GetChild(sm, "OffToOn").NodeId }));
+                Assert.That(
+                    InverseTargets(GetChild(sm, "On"), ReferenceTypeIds.ToState),
+                    Is.EqualTo(new[] { GetChild(sm, "OffToOn").NodeId }));
+            });
+        }
+
+        private NodeId[] InverseTargets(BaseInstanceState node, NodeId referenceTypeId)
+        {
+            var references = new List<IReference>();
+            node.GetReferences(m_context, references, referenceTypeId, true);
+            return [.. references.Select(r =>
+                ExpandedNodeId.ToNodeId(r.TargetId, m_context.NamespaceUris))];
+        }
+
+        [Test]
         public void HasEffectFollowsTheTransitionDeclaration()
         {
             FluentFiniteStateMachineState sm = StateMachineTestFixtures
@@ -216,6 +242,16 @@ namespace Opc.Ua.Server.Tests.StateMachines
                 // The cause only maps to transition 10.
                 Assert.That(Targets(GetChild(sm, "OnToOff"), ReferenceTypeIds.HasCause),
                     Is.Empty);
+
+                // ... and the method carries the inverse edge, so
+                // inverse-browsing HasCause from the method finds the
+                // transition it triggers.
+                var inverse = new List<IReference>();
+                start.GetReferences(
+                    m_context, inverse, ReferenceTypeIds.HasCause, true);
+                Assert.That(inverse, Has.Count.EqualTo(1));
+                Assert.That(inverse[0].TargetId,
+                    Is.EqualTo((ExpandedNodeId)GetChild(sm, "OffToOn").NodeId));
             });
         }
 

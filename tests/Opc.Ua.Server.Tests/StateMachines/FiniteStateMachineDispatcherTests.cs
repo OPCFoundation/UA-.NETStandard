@@ -116,6 +116,38 @@ namespace Opc.Ua.Server.Tests.StateMachines
                 Is.EqualTo(Objects.ExclusiveLimitStateMachineType_Low));
         }
 
+        [Test]
+        public void InitializeToInitialStateMaterializesLastTransition()
+        {
+            // The optional LastTransition (and its Number) must exist
+            // by the time the machine is registered — minted later, at
+            // the first ApplyTransition, the nodes would be browsable
+            // but not readable.
+            var machine = new ExclusiveLimitStateMachineState(null);
+            machine.Create(
+                m_context,
+                new NodeId(4500, 1),
+                new QualifiedName("LimitState", 1),
+                new LocalizedText("LimitState"),
+                true);
+            machine.LastTransition?.Parent?.RemoveChild(machine.LastTransition);
+            var dispatcher = new FiniteStateMachineDispatcher(
+                0,
+                [new FiniteStateMachineEntry(
+                    Objects.ExclusiveLimitStateMachineType_High, 2, "High")],
+                []);
+
+            dispatcher.InitializeToInitialState(
+                machine, Objects.ExclusiveLimitStateMachineType_High, m_context);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(machine.LastTransition, Is.Not.Null);
+                Assert.That(machine.LastTransition!.Number, Is.Not.Null);
+                Assert.That(machine.LastTransition.Value.IsNullOrEmpty, Is.True);
+            });
+        }
+
         private BaseInstanceState FindChild(FluentFiniteStateMachineState parent, string browseName)
         {
             var children = new List<BaseInstanceState>();

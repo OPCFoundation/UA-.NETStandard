@@ -294,6 +294,11 @@ namespace Opc.Ua.Robotics.Server.Builders
             Scope.EnsureMutable();
             Machine.AddReadySubstateMachine(Scope.Context);
             Machine.ReadySubstateMachine!.AddResetToProgramStart(Scope.Context);
+            // The parent machine completed its create lifecycle in the
+            // builder constructor, so a child added afterwards has to
+            // complete its own — a state machine resolves the namespace
+            // qualifying its element NodeIds in OnAfterCreate.
+            Machine.ReadySubstateMachine.CreateAsPredefinedNode(Scope.Context);
             Machine.ReadySubstateMachine.ResetToProgramStart!.OnCallAsync = async (_, _, _, cancellationToken) =>
             {
                 RoboticsProgramResult result = await handler(cancellationToken).ConfigureAwait(false);

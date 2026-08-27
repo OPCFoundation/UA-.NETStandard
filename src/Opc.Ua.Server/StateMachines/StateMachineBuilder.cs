@@ -87,7 +87,8 @@ namespace Opc.Ua.Server.StateMachines
             ISystemContext context,
             MutableStateMachineDefinition? definition,
             NodeId deferredCreateNodeId = default,
-            QualifiedName deferredCreateBrowseName = default)
+            QualifiedName deferredCreateBrowseName = default,
+            bool suppressInitialStateAutoSeed = false)
         {
             m_stateMachine = stateMachine
                 ?? throw new ArgumentNullException(nameof(stateMachine));
@@ -96,6 +97,7 @@ namespace Opc.Ua.Server.StateMachines
             m_definition = definition;
             m_deferredCreateNodeId = deferredCreateNodeId;
             m_deferredCreateBrowseName = deferredCreateBrowseName;
+            m_suppressInitialStateAutoSeed = suppressInitialStateAutoSeed;
             TimeProvider timeProvider =
                 ((context as ServerSystemContext)?.Server as ITimeProviderProvider)?.TimeProvider
                 ?? TimeProvider.System;
@@ -104,6 +106,14 @@ namespace Opc.Ua.Server.StateMachines
 
         private readonly NodeId m_deferredCreateNodeId;
         private readonly QualifiedName m_deferredCreateBrowseName;
+
+        /// <summary>
+        /// Sub-state-machine child builders suppress the freeze-time
+        /// initial-state auto-seed: a sub-SM only receives its initial
+        /// state when its parent is in the attached state — Part 16
+        /// expects an inactive machine to publish no current state.
+        /// </summary>
+        private readonly bool m_suppressInitialStateAutoSeed;
 
         /// <summary>
         /// The underlying state machine. Reading this property freezes
@@ -141,6 +151,17 @@ namespace Opc.Ua.Server.StateMachines
             MutableStateMachineDefinition def = RequireDefinition();
             def.EnsureNotFrozen();
 
+            if (id == 0)
+            {
+                // 0 is the "no state" sentinel throughout
+                // FiniteStateMachineState (GetCurrentStateId, the
+                // mapping hooks, UpdateStateVariable) — a state with
+                // id 0 could never be entered.
+                throw new ArgumentException(
+                    "State id 0 is reserved as the \"no state\" sentinel.",
+                    nameof(id));
+            }
+
             if (string.IsNullOrEmpty(browseName))
             {
                 throw new ArgumentException("Browse name must not be empty.",
@@ -156,15 +177,19 @@ namespace Opc.Ua.Server.StateMachines
                 }
             }
 
-            def.States.Add(new StateMachineStateDefinition(id, browseName, isInitial));
+            // Validate BEFORE mutating, so a caller that catches the
+            // exception is not left with a phantom state in the holder.
+            if (isInitial &&
+                def.InitialStateId.HasValue &&
+                def.InitialStateId.Value != id)
+            {
+                throw new InvalidOperationException(
+                    "Only one state may be marked as the initial state.");
+            }
 
+            def.States.Add(new StateMachineStateDefinition(id, browseName, isInitial));
             if (isInitial)
             {
-                if (def.InitialStateId.HasValue && def.InitialStateId.Value != id)
-                {
-                    throw new InvalidOperationException(
-                        "Only one state may be marked as the initial state.");
-                }
                 def.InitialStateId = id;
             }
 
@@ -193,6 +218,14 @@ namespace Opc.Ua.Server.StateMachines
         {
             MutableStateMachineDefinition def = RequireDefinition();
             def.EnsureNotFrozen();
+
+            if (id == 0)
+            {
+                // 0 is the "no transition" sentinel — see AddState.
+                throw new ArgumentException(
+                    "Transition id 0 is reserved as the \"no transition\" sentinel.",
+                    nameof(id));
+            }
 
             if (string.IsNullOrEmpty(browseName))
             {
@@ -603,12 +636,12 @@ namespace Opc.Ua.Server.StateMachines
 
         private static uint ExtractCurrentStateId(TState sm)
         {
-            NodeId? id = sm.CurrentState?.Id?.Value;
-            if (id is null || id.Value.IsNull)
+            NodeId id = sm.CurrentState?.Id?.Value ?? NodeId.Null;
+            if (id.IsNull)
             {
                 return 0;
             }
-            return StateMachineBuilder.ResolveStateId(sm, id.Value);
+            return StateMachineBuilder.ResolveStateId(sm, id);
         }
 
         /// <summary>
@@ -697,20 +730,30 @@ namespace Opc.Ua.Server.StateMachines
             // a declared state or transition (or a repeated sub-SM).
             foreach (StateMachineStateDefinition s in m_definition.States)
             {
-                if (string.Equals(s.BrowseName, browseName.Name, StringComparison.Ordinal))
+                if (string.Equals(s.BrowseName, browseName.Name, StringComparison.Ordinal) ||
+                    string.Equals(
+                        s.BrowseName + "_" + BrowseNames.StateNumber,
+                        browseName.Name,
+                        StringComparison.Ordinal))
                 {
                     throw new ArgumentException(
                         $"Sub-state-machine browse name '{browseName.Name}' " +
-                        "collides with a declared state.", nameof(browseName));
+                        "collides with a declared state or its " +
+                        "StateNumber property.", nameof(browseName));
                 }
             }
             foreach (StateMachineTransitionDefinition t in m_definition.Transitions)
             {
-                if (string.Equals(t.BrowseName, browseName.Name, StringComparison.Ordinal))
+                if (string.Equals(t.BrowseName, browseName.Name, StringComparison.Ordinal) ||
+                    string.Equals(
+                        t.BrowseName + "_" + BrowseNames.TransitionNumber,
+                        browseName.Name,
+                        StringComparison.Ordinal))
                 {
                     throw new ArgumentException(
                         $"Sub-state-machine browse name '{browseName.Name}' " +
-                        "collides with a declared transition.", nameof(browseName));
+                        "collides with a declared transition or its " +
+                        "TransitionNumber property.", nameof(browseName));
                 }
             }
 
@@ -742,10 +785,14 @@ namespace Opc.Ua.Server.StateMachines
                 : ComposeChildNodeId(m_stateMachine.NodeId, browseName);
 
             // A repeated sub-SM browse name composes the same child
-            // NodeId — reject it before wiring anything.
+            // NodeId — reject it before wiring anything. The BrowseName
+            // comparison backstops the NodeId one for machines whose
+            // children were renumbered by a NodeId factory (or created
+            // without a NodeId), where the composed id never matches.
             var existingChildren = new List<BaseInstanceState>();
             m_stateMachine.GetChildren(m_context, existingChildren);
-            if (existingChildren.Exists(c => c.NodeId == childNodeId))
+            if (existingChildren.Exists(
+                c => c.NodeId == childNodeId || c.BrowseName == browseName))
             {
                 throw new ArgumentException(
                     $"A child with browse name '{browseName.Name}' already " +
@@ -755,7 +802,8 @@ namespace Opc.Ua.Server.StateMachines
             var childBuilder = new StateMachineBuilder<FluentFiniteStateMachineState>(
                 child, m_context, subHolder,
                 deferredCreateNodeId: childNodeId,
-                deferredCreateBrowseName: browseName);
+                deferredCreateBrowseName: browseName,
+                suppressInitialStateAutoSeed: true);
             configure(childBuilder);
             // Read StateMachine to freeze the child's definition and
             // ensure it is fully constructed.
@@ -776,19 +824,39 @@ namespace Opc.Ua.Server.StateMachines
                 true,
                 parentStateNode.NodeId);
 
-            // The sub-SM is suspended unless the parent is in the
-            // attached state. WithInitialState goes through SetState,
-            // not DoTransition, so it fires no enter handler — the same
-            // sync therefore runs twice: once now (covering
-            // WithInitialState BEFORE this call) and once from
-            // WithInitialState itself (covering it AFTER).
+            // One rule brings the sub-SM in line with the parent's
+            // state, shared by all three activation paths: attach time
+            // (covering WithInitialState BEFORE this call), the
+            // initial-state synchronizer (WithInitialState AFTER — it
+            // goes through SetState, which fires no enter handler), and
+            // the enter-state handler for real transitions. A
+            // preserveOnReentry child keeps its state across
+            // re-activations but is still seeded the first time it
+            // activates with no state at all.
             uint initialChildStateId = subHolder.InitialStateId ?? 0;
 
             void SyncChildToParentState(ISystemContext ctx, uint parentCurrentStateId)
             {
                 bool attached = parentCurrentStateId == parentStateId;
                 materializedChild.IsSuspended = !attached;
-                if (attached && initialChildStateId != 0)
+                if (!attached)
+                {
+                    // Part 16: an inactive sub-SM publishes no current
+                    // state. A preserveOnReentry child keeps it, so the
+                    // state survives until the next activation.
+                    if (!preserveOnReentry)
+                    {
+                        materializedChild.SetState(ctx, 0);
+                    }
+                    return;
+                }
+                if (initialChildStateId == 0)
+                {
+                    return;
+                }
+                bool childHasState =
+                    !(materializedChild.CurrentState?.Value.IsNullOrEmpty ?? true);
+                if (!preserveOnReentry || !childHasState)
                 {
                     materializedChild.SetState(ctx, initialChildStateId);
                 }
@@ -798,19 +866,10 @@ namespace Opc.Ua.Server.StateMachines
             m_dispatcher.AddInitialStateSynchronizer(SyncChildToParentState);
 
             // Wire the lifecycle hooks on the parent.
-            m_dispatcher.AddEnterStateHandler(parentStateId, (ctx, parent) =>
-            {
-                if (!preserveOnReentry && initialChildStateId != 0)
-                {
-                    materializedChild.IsSuspended = false;
-                    materializedChild.SetState(ctx, initialChildStateId);
-                }
-                else
-                {
-                    materializedChild.IsSuspended = false;
-                }
-            });
-            m_dispatcher.AddExitStateHandler(parentStateId, (ctx, parent) => materializedChild.IsSuspended = true);
+            m_dispatcher.AddEnterStateHandler(parentStateId,
+                (ctx, parent) => SyncChildToParentState(ctx, parentStateId));
+            m_dispatcher.AddExitStateHandler(parentStateId,
+                (ctx, parent) => materializedChild.IsSuspended = true);
 
             return this;
         }
@@ -876,7 +935,7 @@ namespace Opc.Ua.Server.StateMachines
             // lifecycle-mode FSMs declare it in their type definition.
             if (m_stateMachine is FluentFiniteStateMachineState fluent)
             {
-                fluent.AddCauseReferences(causeId, methodNodeId);
+                fluent.AddCauseReferences(causeId, method);
             }
             return this;
         }
@@ -1026,6 +1085,21 @@ namespace Opc.Ua.Server.StateMachines
                         new LocalizedText(m_deferredCreateBrowseName.Name),
                         true);
                 }
+
+                // A state declared with isInitial: true is applied as
+                // soon as the machine exists — otherwise a definition
+                // that never calls WithInitialState (the documented
+                // minimal example) is built with no current state and
+                // can never transition. Sub-SM child builders opt out:
+                // their initial state is applied only when the parent
+                // is in the attached state.
+                if (!m_suppressInitialStateAutoSeed &&
+                    m_definition.InitialStateId is uint declaredInitialState)
+                {
+                    m_stateMachine.SetState(m_context, declaredInitialState);
+                    m_dispatcher.SynchronizeInitialState(
+                        m_context, declaredInitialState);
+                }
             }
         }
 
@@ -1044,8 +1118,8 @@ namespace Opc.Ua.Server.StateMachines
                 }
             }
             throw new InvalidOperationException(
-                $"Initial state {stateId} is not declared. Call AddState " +
-                "to declare it before WithInitialState.");
+                $"State {stateId} is not declared. Call AddState to " +
+                "declare it first.");
         }
 
         private static void ValidateDefinition(MutableStateMachineDefinition def)
@@ -1057,17 +1131,22 @@ namespace Opc.Ua.Server.StateMachines
                     "definition is frozen.");
             }
 
-            // Element NodeIds are derived from browse names, so a name
-            // shared by two elements (or shadowing a standard child
-            // materialized next to them) would mint colliding NodeIds.
+            // Element NodeIds are derived from browse names — both the
+            // element node ("{owner}_{name}") and its number property
+            // ("{owner}_{name}_{StateNumber|TransitionNumber}") — so the
+            // full set of derived name suffixes must be unique, or two
+            // nodes would mint the same NodeId (e.g. a state "A" and a
+            // transition "A_StateNumber").
             var elementNames = new HashSet<string>(StringComparer.Ordinal);
             foreach (StateMachineStateDefinition s in def.States)
             {
-                ValidateElementName(elementNames, s.BrowseName, "State");
+                ValidateElementName(
+                    elementNames, s.BrowseName, BrowseNames.StateNumber, "State");
             }
             foreach (StateMachineTransitionDefinition t in def.Transitions)
             {
-                ValidateElementName(elementNames, t.BrowseName, "Transition");
+                ValidateElementName(
+                    elementNames, t.BrowseName, BrowseNames.TransitionNumber, "Transition");
             }
 
             var stateIds = new HashSet<uint>();
@@ -1147,6 +1226,7 @@ namespace Opc.Ua.Server.StateMachines
         private static void ValidateElementName(
             HashSet<string> seenNames,
             string browseName,
+            string numberBrowseName,
             string elementKind)
         {
             if (Array.IndexOf(s_reservedElementNames, browseName) >= 0)
@@ -1158,10 +1238,22 @@ namespace Opc.Ua.Server.StateMachines
             if (!seenNames.Add(browseName))
             {
                 throw new InvalidOperationException(
-                    $"{elementKind} browse name '{browseName}' is used by " +
-                    "more than one state or transition — element NodeIds " +
-                    "are derived from browse names, so names must be " +
-                    "unique across both.");
+                    $"{elementKind} browse name '{browseName}' collides " +
+                    "with another element or an element's number " +
+                    "property — element NodeIds are derived from browse " +
+                    "names, so the derived names must be unique.");
+            }
+            // Reserve the number-property suffix too, so no later
+            // element can claim the NodeId this element's StateNumber /
+            // TransitionNumber property will be minted with.
+            if (!seenNames.Add(browseName + "_" + numberBrowseName))
+            {
+                throw new InvalidOperationException(
+                    $"{elementKind} browse name '{browseName}' derives a " +
+                    $"number-property NodeId ('{browseName}_{numberBrowseName}') " +
+                    "that collides with another element — element NodeIds " +
+                    "are derived from browse names, so the derived names " +
+                    "must be unique.");
             }
         }
 
@@ -1403,13 +1495,28 @@ namespace Opc.Ua.Server.StateMachines
 
         /// <summary>
         /// Runs every registered synchronizer against
-        /// <paramref name="stateId"/>.
+        /// <paramref name="stateId"/>, and re-arms the timed-transition
+        /// timers to match — <c>SetState</c> fires no transition, so
+        /// this is the only chance to arm a timer for a state entered
+        /// that way (and to cancel timers for states left that way).
         /// </summary>
         public void SynchronizeInitialState(ISystemContext context, uint stateId)
         {
             foreach (Action<ISystemContext, uint> synchronizer in m_initialStateSynchronizers)
             {
                 SafeInvoke(() => synchronizer(context, stateId));
+            }
+
+            foreach (KeyValuePair<uint, TimedTransitionEntry> timed in m_timedTransitions)
+            {
+                if (timed.Key == stateId)
+                {
+                    ArmTimer(timed.Key, timed.Value);
+                }
+                else
+                {
+                    CancelTimer(timed.Key);
+                }
             }
         }
 
@@ -1506,7 +1613,7 @@ namespace Opc.Ua.Server.StateMachines
             // (applied via SetState, which doesn't fire OnAfterTransition)
             // would never arm a timer.
             uint currentState = ExtractStateId(
-                m_stateMachine.CurrentState?.Id?.Value);
+                m_stateMachine.CurrentState?.Id?.Value ?? NodeId.Null);
             if (currentState == fromStateId)
             {
                 ArmTimer(fromStateId, entry);
@@ -1537,7 +1644,7 @@ namespace Opc.Ua.Server.StateMachines
             // transitions safely (each DoTransition call is fully
             // synchronous on one thread).
             m_pendingFromByThread[Environment.CurrentManagedThreadId] = ExtractStateId(
-                m_stateMachine.CurrentState?.Id?.Value);
+                m_stateMachine.CurrentState?.Id?.Value ?? NodeId.Null);
 
             // Builder guards run before any pre-existing OnBefore.
             foreach (Func<ISystemContext, TState, uint, uint, ServiceResult> g in m_guards)
@@ -1588,7 +1695,7 @@ namespace Opc.Ua.Server.StateMachines
 
             m_pendingFromByThread.TryRemove(
                 Environment.CurrentManagedThreadId, out uint from);
-            uint to = ExtractStateId(m_stateMachine.CurrentState?.Id?.Value);
+            uint to = ExtractStateId(m_stateMachine.CurrentState?.Id?.Value ?? NodeId.Null);
 
             // Exit handlers fire first, then transition observers, then
             // enter handlers (standard reactive-FSM lifecycle order).
@@ -1689,13 +1796,13 @@ namespace Opc.Ua.Server.StateMachines
             }
         }
 
-        private uint ExtractStateId(NodeId? nodeId)
+        private uint ExtractStateId(NodeId nodeId)
         {
-            if (!nodeId.HasValue || nodeId.Value.IsNull)
+            if (nodeId.IsNull)
             {
                 return 0;
             }
-            return StateMachineBuilder.ResolveStateId(m_stateMachine, nodeId.Value);
+            return StateMachineBuilder.ResolveStateId(m_stateMachine, nodeId);
         }
 
         private static void SafeInvoke(Action action)

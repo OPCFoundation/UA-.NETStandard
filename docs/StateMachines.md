@@ -413,7 +413,16 @@ accessors below.
 whichever is called second brings the sub-SM in line with the
 parent's current state. (`WithInitialState` goes through `SetState`,
 which is not a transition and so still runs no user lifecycle
-handler.)
+handler — but it does re-arm timed transitions and synchronize
+sub-state machines.)
+
+A state declared with `isInitial: true` is applied automatically when
+the machine is created, so the minimal example above is fully
+functional without an explicit `WithInitialState` call; call
+`WithInitialState` to start in a different state. A sub-state
+machine's declared initial state is applied only while its parent is
+in the attached state — an inactive sub-SM publishes no current
+state.
 
 While suspended, the child FSM's `DoTransition` and `DoCause`
 return `BadInvalidState`. The flag is exposed publicly as
@@ -452,7 +461,9 @@ the optional `AvailableStates` property lists them, so
 
 * `FromState` / `ToState` to the two state nodes;
 * `HasEffect` to `TransitionEventType`, unless the transition was
-  declared with `hasEffect: false`;
+  declared with `hasEffect: false` — forward-only, matching how
+  companion NodeSets declare it (the target is a standard node owned
+  by another node manager, so no inverse edge is registered there);
 * `HasCause` to the method node, added by `WithCause(methodNodeId)`
   for every transition the cause can trigger.
 

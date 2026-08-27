@@ -71,20 +71,22 @@ namespace Opc.Ua.Server.StateMachines
         private int m_cacheVersion = -1;
 
         /// <summary>
-        /// The materialized <c>StateType</c> nodes, keyed both ways.
-        /// Populated once by <see cref="MaterializeStateNodes"/>; both
-        /// stay <c>null</c> until then, in which case the base
-        /// (numeric) element-NodeId convention applies.
+        /// The materialized <c>StateType</c> nodes by numeric id.
+        /// Populated once by <see cref="MaterializeStateNodes"/>; stays
+        /// <c>null</c> until then, in which case the base (numeric)
+        /// element-NodeId convention applies. The reverse direction is
+        /// resolved by scanning the nodes' <em>live</em> NodeIds — no
+        /// reverse map is kept, so a NodeId reassigned after
+        /// materialization (e.g. by a node manager's per-instance
+        /// NodeId rebase during registration) still resolves.
         /// </summary>
         private Dictionary<uint, BaseObjectState>? m_stateNodesById;
-        private Dictionary<NodeId, uint>? m_stateIdsByNodeId;
 
         /// <summary>
-        /// The materialized <c>TransitionType</c> nodes, keyed both
-        /// ways. See <see cref="MaterializeTransitionNodes"/>.
+        /// The materialized <c>TransitionType</c> nodes by numeric id.
+        /// See <see cref="MaterializeTransitionNodes"/>.
         /// </summary>
         private Dictionary<uint, BaseObjectState>? m_transitionNodesById;
-        private Dictionary<NodeId, uint>? m_transitionIdsByNodeId;
 
         /// <summary>
         /// When <c>true</c>, the state machine rejects all incoming
@@ -287,34 +289,75 @@ namespace Opc.Ua.Server.StateMachines
             string ownerPrefix = ComposeOwnerPrefix();
 
             var nodesById = new Dictionary<uint, BaseObjectState>();
-            var idsByNodeId = new Dictionary<NodeId, uint>();
-            var availableStates = new NodeId[MutableDefinition.States.Count];
 
-            for (int ii = 0; ii < MutableDefinition.States.Count; ii++)
+            foreach (StateMachineStateDefinition state in MutableDefinition.States)
             {
-                StateMachineStateDefinition state = MutableDefinition.States[ii];
-                BaseObjectState stateNode = MaterializeElementNode(
+                nodesById[state.Id] = MaterializeElementNode(
                     ownerPrefix,
                     state.BrowseName,
                     ObjectTypeIds.StateType,
                     BrowseNames.StateNumber,
                     state.Id,
                     elementNamespaceIndex);
-
-                nodesById[state.Id] = stateNode;
-                idsByNodeId[stateNode.NodeId] = state.Id;
-                availableStates[ii] = stateNode.NodeId;
             }
 
             m_stateNodesById = nodesById;
-            m_stateIdsByNodeId = idsByNodeId;
 
+            // The value is served live so it stays correct even if a
+            // node manager reassigns the element NodeIds when the
+            // machine is registered.
             AddAvailableStates(
                 context,
-                available => available.Value = ArrayOf.Wrapped(availableStates),
+                available =>
+                {
+                    available.Value = ReadLiveStateNodeIds();
+                    available.OnSimpleReadValue = (ISystemContext ctx, NodeState node, ref Variant value) =>
+                    {
+                        value = Variant.From(ReadLiveStateNodeIds());
+                        return ServiceResult.Good;
+                    };
+                },
                 new NodeId(
                     ownerPrefix + "_" + BrowseNames.AvailableStates,
                     NodeId.NamespaceIndex));
+        }
+
+        /// <summary>
+        /// Projects the state nodes' current NodeIds in declaration
+        /// order.
+        /// </summary>
+        private ArrayOf<NodeId> ReadLiveStateNodeIds()
+        {
+            if (m_stateNodesById == null)
+            {
+                return default;
+            }
+            var nodeIds = new NodeId[MutableDefinition.States.Count];
+            for (int ii = 0; ii < nodeIds.Length; ii++)
+            {
+                nodeIds[ii] =
+                    m_stateNodesById[MutableDefinition.States[ii].Id].NodeId;
+            }
+            return ArrayOf.Wrapped(nodeIds);
+        }
+
+        /// <summary>
+        /// Projects the transition nodes' current NodeIds in
+        /// declaration order.
+        /// </summary>
+        private ArrayOf<NodeId> ReadLiveTransitionNodeIds()
+        {
+            if (m_transitionNodesById == null)
+            {
+                return default;
+            }
+            var nodeIds = new NodeId[MutableDefinition.Transitions.Count];
+            for (int ii = 0; ii < nodeIds.Length; ii++)
+            {
+                nodeIds[ii] =
+                    m_transitionNodesById[MutableDefinition.Transitions[ii].Id].NodeId;
+            }
+            return ArrayOf.Wrapped(nodeIds);
         }
 
         /// <summary>
@@ -343,13 +386,10 @@ namespace Opc.Ua.Server.StateMachines
             string ownerPrefix = ComposeOwnerPrefix();
 
             var nodesById = new Dictionary<uint, BaseObjectState>();
-            var idsByNodeId = new Dictionary<NodeId, uint>();
-            var availableTransitions = new NodeId[MutableDefinition.Transitions.Count];
 
-            for (int ii = 0; ii < MutableDefinition.Transitions.Count; ii++)
+            foreach (StateMachineTransitionDefinition transition
+                in MutableDefinition.Transitions)
             {
-                StateMachineTransitionDefinition transition =
-                    MutableDefinition.Transitions[ii];
                 BaseObjectState transitionNode = MaterializeElementNode(
                     ownerPrefix,
                     transition.BrowseName,
@@ -374,16 +414,21 @@ namespace Opc.Ua.Server.StateMachines
                 }
 
                 nodesById[transition.Id] = transitionNode;
-                idsByNodeId[transitionNode.NodeId] = transition.Id;
-                availableTransitions[ii] = transitionNode.NodeId;
             }
 
             m_transitionNodesById = nodesById;
-            m_transitionIdsByNodeId = idsByNodeId;
 
             AddAvailableTransitions(
                 context,
-                available => available.Value = ArrayOf.Wrapped(availableTransitions),
+                available =>
+                {
+                    available.Value = ReadLiveTransitionNodeIds();
+                    available.OnSimpleReadValue = (ISystemContext ctx, NodeState node, ref Variant value) =>
+                    {
+                        value = Variant.From(ReadLiveTransitionNodeIds());
+                        return ServiceResult.Good;
+                    };
+                },
                 new NodeId(
                     ownerPrefix + "_" + BrowseNames.AvailableTransitions,
                     NodeId.NamespaceIndex));
@@ -446,23 +491,34 @@ namespace Opc.Ua.Server.StateMachines
 
         /// <summary>
         /// The stable string prefix all of this machine's materialized
-        /// element NodeIds share — the machine's own identifier, or one
-        /// random prefix for a machine created without a NodeId.
+        /// element NodeIds share — the machine's own <em>full</em>
+        /// NodeId string (namespace and id type included, so two
+        /// machines whose identifiers happen to coincide in different
+        /// namespaces cannot mint colliding element ids), or one random
+        /// prefix for a machine created without a NodeId.
         /// </summary>
         private string ComposeOwnerPrefix()
         {
-            return m_ownerPrefix ??= NodeId.IsNull
+            return m_ownerPrefix ??= ComposeOwnerPrefix(NodeId);
+        }
+
+        private static string ComposeOwnerPrefix(NodeId ownerNodeId)
+        {
+            return ownerNodeId.IsNull
                 ? Guid.NewGuid().ToString()
-                : NodeId.IdentifierAsString;
+                : ownerNodeId.ToString();
         }
 
         private string? m_ownerPrefix;
 
         /// <summary>
-        /// Links a transition node to one of its endpoint states.
-        /// Silently skips endpoints the definition does not declare —
-        /// <c>ValidateDefinition</c> already rejects those, and a
-        /// definition built by hand should not throw from create.
+        /// Links a transition node to one of its endpoint states, in
+        /// both directions — so a client can inverse-browse
+        /// <c>FromState</c> / <c>ToState</c> from a state node to find
+        /// its transitions. Silently skips endpoints the definition
+        /// does not declare — <c>ValidateDefinition</c> already rejects
+        /// those, and a definition built by hand should not throw from
+        /// create.
         /// </summary>
         private void AddTransitionEndpointReference(
             BaseObjectState transitionNode,
@@ -473,22 +529,26 @@ namespace Opc.Ua.Server.StateMachines
             if (stateNode != null)
             {
                 transitionNode.AddReference(referenceTypeId, false, stateNode.NodeId);
+                stateNode.AddReference(referenceTypeId, true, transitionNode.NodeId);
             }
         }
 
         /// <summary>
         /// Records a <c>HasCause</c> reference from every transition the
-        /// cause can trigger to the method node that carries it.
+        /// cause can trigger to the method node that carries it, plus
+        /// the inverse on the method so inverse-browsing
+        /// <c>HasCause</c> from the method finds the transitions.
         /// Invoked by <c>StateMachineBuilder.WithCause</c>, the only
         /// place where a numeric cause id is bound to a real method.
         /// </summary>
-        internal void AddCauseReferences(uint causeId, NodeId methodNodeId)
+        internal void AddCauseReferences(uint causeId, MethodState causeMethod)
         {
-            if (m_transitionNodesById == null || methodNodeId.IsNull)
+            if (m_transitionNodesById == null || causeMethod.NodeId.IsNull)
             {
                 return;
             }
 
+            NodeId methodNodeId = causeMethod.NodeId;
             foreach (StateMachineCauseMapping mapping in MutableDefinition.CauseMappings)
             {
                 // The ReferenceExists check keeps repeated WithCause
@@ -501,6 +561,8 @@ namespace Opc.Ua.Server.StateMachines
                 {
                     transitionNode.AddReference(
                         ReferenceTypeIds.HasCause, false, methodNodeId);
+                    causeMethod.AddReference(
+                        ReferenceTypeIds.HasCause, true, transitionNode.NodeId);
                 }
             }
         }
@@ -523,10 +585,14 @@ namespace Opc.Ua.Server.StateMachines
         /// <inheritdoc/>
         public override NodeId GetStateNodeId(uint stateId)
         {
-            if (m_stateNodesById != null &&
-                m_stateNodesById.TryGetValue(stateId, out BaseObjectState? node))
+            if (m_stateNodesById != null)
             {
-                return node.NodeId;
+                // Once nodes are materialized the map is authoritative —
+                // the numeric convention would mint a NodeId pointing
+                // at nothing (or at an unrelated standard node).
+                return m_stateNodesById.TryGetValue(stateId, out BaseObjectState? node)
+                    ? node.NodeId
+                    : NodeId.Null;
             }
             return base.GetStateNodeId(stateId);
         }
@@ -534,15 +600,15 @@ namespace Opc.Ua.Server.StateMachines
         /// <inheritdoc/>
         public override uint GetStateId(NodeId stateNodeId)
         {
-            if (m_stateIdsByNodeId != null)
+            if (m_stateNodesById != null)
             {
-                // Once nodes are materialized the map is authoritative —
-                // falling back to the base numeric convention would let
-                // any numeric NodeId in the element namespace resolve
-                // to a state this machine does not have.
-                return m_stateIdsByNodeId.TryGetValue(stateNodeId, out uint stateId)
-                    ? stateId
-                    : 0;
+                // Authoritative once materialized — falling back to the
+                // base numeric convention would let any numeric NodeId
+                // in the element namespace resolve to a state this
+                // machine does not have. Resolved against the nodes'
+                // LIVE NodeIds (not a snapshot map), so ids reassigned
+                // by a node manager during registration keep resolving.
+                return FindElementId(m_stateNodesById, stateNodeId);
             }
             return base.GetStateId(stateNodeId);
         }
@@ -550,11 +616,13 @@ namespace Opc.Ua.Server.StateMachines
         /// <inheritdoc/>
         public override NodeId GetTransitionNodeId(uint transitionId)
         {
-            if (m_transitionNodesById != null &&
-                m_transitionNodesById.TryGetValue(
-                    transitionId, out BaseObjectState? node))
+            if (m_transitionNodesById != null)
             {
-                return node.NodeId;
+                // Authoritative once materialized — see GetStateNodeId.
+                return m_transitionNodesById.TryGetValue(
+                    transitionId, out BaseObjectState? node)
+                    ? node.NodeId
+                    : NodeId.Null;
             }
             return base.GetTransitionNodeId(transitionId);
         }
@@ -562,15 +630,37 @@ namespace Opc.Ua.Server.StateMachines
         /// <inheritdoc/>
         public override uint GetTransitionId(NodeId transitionNodeId)
         {
-            if (m_transitionIdsByNodeId != null)
+            if (m_transitionNodesById != null)
             {
                 // Authoritative once materialized — see GetStateId.
-                return m_transitionIdsByNodeId.TryGetValue(
-                    transitionNodeId, out uint transitionId)
-                    ? transitionId
-                    : 0;
+                return FindElementId(m_transitionNodesById, transitionNodeId);
             }
             return base.GetTransitionId(transitionNodeId);
+        }
+
+        /// <summary>
+        /// Reverse-resolves an element NodeId by scanning the
+        /// materialized nodes' current NodeIds. Linear in the element
+        /// count (small by construction), allocation-free, and — unlike
+        /// a snapshot dictionary keyed by NodeId — correct even after a
+        /// node manager reassigns the element NodeIds.
+        /// </summary>
+        private static uint FindElementId(
+            Dictionary<uint, BaseObjectState> nodesById,
+            NodeId elementNodeId)
+        {
+            if (elementNodeId.IsNull)
+            {
+                return 0;
+            }
+            foreach (KeyValuePair<uint, BaseObjectState> entry in nodesById)
+            {
+                if (entry.Value.NodeId == elementNodeId)
+                {
+                    return entry.Key;
+                }
+            }
+            return 0;
         }
 
         /// <summary>
@@ -592,19 +682,21 @@ namespace Opc.Ua.Server.StateMachines
 
         /// <summary>
         /// Derives a deterministic, per-instance NodeId for a state
-        /// machine element from the owning node's NodeId and the
-        /// element's name, so repeated builds produce stable ids and
-        /// two machines built from the same definition do not collide.
+        /// machine element from the owning node's full NodeId string
+        /// and the element's name, so repeated builds produce stable
+        /// ids and two machines cannot mint colliding element ids —
+        /// not even machines with the same identifier in different
+        /// namespaces. (A machine with no NodeId gets a random prefix,
+        /// which is stable within one build but not across builds.)
         /// </summary>
         internal static NodeId ComposeElementNodeId(
             NodeId ownerNodeId,
             string elementName,
             ushort namespaceIndex)
         {
-            string owner = ownerNodeId.IsNull
-                ? Guid.NewGuid().ToString()
-                : ownerNodeId.IdentifierAsString;
-            return new NodeId(owner + "_" + elementName, namespaceIndex);
+            return new NodeId(
+                ComposeOwnerPrefix(ownerNodeId) + "_" + elementName,
+                namespaceIndex);
         }
 
         private void RefreshCache()

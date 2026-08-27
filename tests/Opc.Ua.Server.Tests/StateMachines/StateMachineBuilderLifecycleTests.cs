@@ -226,6 +226,46 @@ namespace Opc.Ua.Server.Tests.StateMachines
         }
 
         [Test]
+        public void WithTimedTransitionArmsWhenInitialStateIsSetAfterwards()
+        {
+            // WithInitialState goes through SetState (no transition),
+            // so the initial-state synchronizer is the only chance to
+            // arm the timer for the state entered that way.
+            using var done = new ManualResetEventSlim(false);
+            _ = BuildOnOffMachine()
+                .OnEnterState(2, (ctx, m) => done.Set())
+                .WithTimedTransition(
+                    fromStateId: 1,
+                    timeout: TimeSpan.FromMilliseconds(50),
+                    transitionId: 10)
+                .WithInitialState(1)
+                .StateMachine;
+
+            Assert.That(done.Wait(TimeSpan.FromSeconds(2)), Is.True,
+                "timed transition should fire when WithInitialState " +
+                "follows WithTimedTransition");
+        }
+
+        [Test]
+        public void AddStateFailureLeavesTheDefinitionUnchanged()
+        {
+            StateMachineBuilder<FluentFiniteStateMachineState> b =
+                StateMachineTestFixtures.NewBuilder(m_context)
+                    .AddState(1, "A", isInitial: true)
+                    .AddState(2, "B")
+                    .AddTransition(10, "AToB", from: 1, to: 2);
+
+            Assert.That(() => b.AddState(3, "C", isInitial: true),
+                Throws.InvalidOperationException);
+
+            // The rejected state must not linger in the definition —
+            // it would be materialized but invisible to the tables.
+            FluentFiniteStateMachineState sm = b.StateMachine;
+            Assert.That(sm.Definition.States, Has.Count.EqualTo(2));
+            Assert.That(sm.GetStateNodeId(3), Is.EqualTo(NodeId.Null));
+        }
+
+        [Test]
         public void WithTimedTransitionRejectsNonPositiveTimeout()
         {
             StateMachineBuilder<FluentFiniteStateMachineState> b = BuildOnOffMachine();

@@ -2119,14 +2119,14 @@ namespace Opc.Ua.SourceGeneration
         /// is not necessarily the machine's own namespace: a subtype
         /// that adds no states of its own keeps reporting the base
         /// type's, and the base class default (the OPC UA namespace) is
-        /// then already right. Returns an empty string for every other
-        /// object type.
+        /// then already right. Returns <c>null</c> (collapsing the
+        /// template line) for every other object type.
         /// </summary>
         private string BuildElementNamespaceOverride(ObjectTypeDesign objectType)
         {
             if (!IsFiniteStateMachineSubtype(objectType))
             {
-                return string.Empty;
+                return null;
             }
 
             string namespaceUri = FindElementNamespaceUri(objectType);
@@ -2134,14 +2134,39 @@ namespace Opc.Ua.SourceGeneration
                 namespaceUri == Namespaces.OpcUa)
             {
                 // The base class already returns the OPC UA namespace.
-                return string.Empty;
+                return null;
             }
 
-            string constant = m_context.ModelDesign.Namespaces
-                .GetConstantSymbolForNamespace(namespaceUri);
+            string constant;
+            try
+            {
+                constant = m_context.ModelDesign.Namespaces
+                    .GetConstantSymbolForNamespace(namespaceUri);
+            }
+            catch (ArgumentException e)
+            {
+                // A namespace entry with a URI but no Name — surface it
+                // instead of failing the whole generation for a
+                // diagnostic-only feature.
+                m_logger.LogWarning(
+                    "Cannot emit ElementNamespaceUri for {Type}: {Error}",
+                    objectType.SymbolicName?.Name,
+                    e.Message);
+                return null;
+            }
             if (string.IsNullOrEmpty(constant))
             {
-                return string.Empty;
+                // Failing open here means the machine keeps the base
+                // default (the OPC UA namespace) and its element ids
+                // land in namespace 0 — say so rather than being silent.
+                m_logger.LogWarning(
+                    "No namespace constant for '{Uri}' — {Type} will " +
+                    "qualify its state and transition ids with the OPC " +
+                    "UA namespace. Add the declaring model to the " +
+                    "design's <Namespaces> to fix this.",
+                    namespaceUri,
+                    objectType.SymbolicName?.Name);
+                return null;
             }
 
             return CoreUtils.Format(
@@ -2157,7 +2182,7 @@ namespace Opc.Ua.SourceGeneration
         /// children. A subtype that only adds behaviour inherits its
         /// elements — and therefore their namespace — from its base.
         /// </summary>
-        private static string FindElementNamespaceUri(ObjectTypeDesign objectType)
+        internal static string FindElementNamespaceUri(ObjectTypeDesign objectType)
         {
             TypeDesign current = objectType;
             while (current != null)
@@ -2171,7 +2196,7 @@ namespace Opc.Ua.SourceGeneration
             return null;
         }
 
-        private static bool DeclaresStateMachineElements(TypeDesign type)
+        internal static bool DeclaresStateMachineElements(TypeDesign type)
         {
             InstanceDesign[] children = type.Children?.Items;
             if (children == null)
@@ -2189,6 +2214,14 @@ namespace Opc.Ua.SourceGeneration
                 {
                     continue;
                 }
+                if (childObject.OveriddenNode != null)
+                {
+                    // Re-declaring an inherited state (to attach a
+                    // description, a modelling rule, ...) does not make
+                    // this type the one that declares the elements —
+                    // the ids still live in the base model's namespace.
+                    continue;
+                }
                 string typeDefName = childObject.TypeDefinition.Name;
                 if (string.Equals(typeDefName, kStateTypeName, StringComparison.Ordinal) ||
                     string.Equals(typeDefName, kInitialStateTypeName, StringComparison.Ordinal) ||
@@ -2204,7 +2237,7 @@ namespace Opc.Ua.SourceGeneration
         /// Whether the type derives, however indirectly, from the
         /// standard <c>FiniteStateMachineType</c>.
         /// </summary>
-        private static bool IsFiniteStateMachineSubtype(ObjectTypeDesign objectType)
+        internal static bool IsFiniteStateMachineSubtype(ObjectTypeDesign objectType)
         {
             TypeDesign current = objectType;
             while (current != null)

@@ -92,7 +92,13 @@ namespace Opc.Ua.Server.StateMachines
             ISystemContext context)
         {
             ApplyState(machine, stateId, context);
-            ClearLastTransition(machine);
+            // Materialize the optional LastTransition now, while the
+            // machine is typically still pre-registration — deferring
+            // it to the first ApplyTransition would mint nodes into an
+            // already-indexed address space, where clients can browse
+            // but not read them.
+            EnsureLastTransition(machine, context);
+            ClearLastTransition(machine, context);
         }
 
         /// <summary>
@@ -226,7 +232,9 @@ namespace Opc.Ua.Server.StateMachines
             return false;
         }
 
-        private static void ClearLastTransition(FiniteStateMachineState machine)
+        private static void ClearLastTransition(
+            FiniteStateMachineState machine,
+            ISystemContext context)
         {
             if (machine?.LastTransition is null)
             {
@@ -247,18 +255,23 @@ namespace Opc.Ua.Server.StateMachines
             {
                 machine.LastTransition.TransitionTime.Value = DateTime.MinValue;
             }
+
+            machine.LastTransition.ClearChangeMasks(context, includeChildren: true);
         }
 
         private static void EnsureLastTransition(
             FiniteStateMachineState machine,
             ISystemContext context)
         {
-            if (machine.LastTransition is not null)
+            if (machine.LastTransition is null)
             {
-                return;
+                machine.AddLastTransition(context);
             }
 
-            machine.AddLastTransition(context);
+            // ApplyTransition writes the optional Number child, so it
+            // has to exist by now too — created later it would land in
+            // an already-indexed address space.
+            machine.LastTransition!.AddNumber(context);
         }
 
         private static FiniteStateMachineEntry Lookup(
