@@ -259,10 +259,9 @@ namespace Opc.Ua.Client.TestFramework
                 {
                     try
                     {
-                        // ServerFixture.StopAsync short-circuits when s_skipRemainingTeardowns
-                        // is true: it releases certificate managers and nulls heavyweight
-                        // references without hanging.  Call it even in the skip path so
-                        // certificate counters do not stay positive.
+                        // Call ServerFixture.StopAsync even in the skip path so certificate
+                        // managers are disposed and the certificate-leak counter does not
+                        // stay positive. ServerFixture.StopAsync has its own teardown watchdog.
                         await ServerFixture.StopAsync().ConfigureAwait(false);
                     }
                     catch (Exception ex)
