@@ -37,7 +37,7 @@ namespace Opc.Ua.Server.Tests.StateMachines
     /// <summary>
     /// Unit tests for the <c>TransitionType</c> nodes that
     /// <see cref="FluentFiniteStateMachineState"/> materializes for its
-    /// declared transitions — the Part 16 §B.4 counterpart to the
+    /// declared transitions — the Part 16 §4.4.11 counterpart to the
     /// <c>StateType</c> nodes, which makes <c>LastTransition/Id</c>
     /// resolve to a real node and populates <c>AvailableTransitions</c>.
     /// </summary>
@@ -106,7 +106,7 @@ namespace Opc.Ua.Server.Tests.StateMachines
             FluentFiniteStateMachineState sm = Build().StateMachine;
 
             // Inverse-browsing FromState/ToState from a state node is
-            // how a §B.4 client discovers the state's transitions.
+            // how a §4.4.11 client discovers the state's transitions.
             Assert.Multiple(() =>
             {
                 Assert.That(

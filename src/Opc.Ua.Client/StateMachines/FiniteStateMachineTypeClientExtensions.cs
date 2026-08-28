@@ -594,7 +594,7 @@ namespace Opc.Ua.Client.StateMachines
         /// client.</param>
         /// <param name="parentStateNodeId">The NodeId of the parent
         /// state node — the <c>StateType</c> node the reference hangs
-        /// off per Part 16 §B.3. Obtain it from
+        /// off per Part 16 §4.4.16. Obtain it from
         /// <see cref="GetAvailableStatesAsync"/> or from a snapshot's
         /// <c>CurrentStateId</c>; passing the state machine's
         /// <c>ObjectId</c> resolves nothing.</param>

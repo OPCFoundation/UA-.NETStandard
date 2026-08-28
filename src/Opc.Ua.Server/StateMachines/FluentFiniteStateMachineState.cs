@@ -91,13 +91,53 @@ namespace Opc.Ua.Server.StateMachines
         /// <summary>
         /// When <c>true</c>, the state machine rejects all incoming
         /// transitions and cause invocations with
-        /// <see cref="StatusCodes.BadInvalidState"/>. Used to model
+        /// <see cref="StatusCodes.BadStateNotActive"/>. Used to model
         /// the inactive state of a sub-state-machine whose parent
         /// has exited the attached state. Set by
         /// <see cref="StateMachineBuilder{TState}.WithSubStateMachine"/>
-        /// lifecycle hooks.
+        /// lifecycle hooks via <see cref="SetSuspended"/>.
         /// </summary>
-        public bool IsSuspended { get; set; }
+        public bool IsSuspended { get; private set; }
+
+        /// <summary>
+        /// Suspends or resumes the machine. Per OPC 10000-16 §4.4.6, an
+        /// inactive sub-state machine's <c>CurrentState</c> and
+        /// <c>LastTransition</c> shall read with
+        /// <see cref="StatusCodes.BadStateNotActive"/> — this applies
+        /// (and clears) that status alongside the flag.
+        /// </summary>
+        internal void SetSuspended(ISystemContext context, bool suspended)
+        {
+            IsSuspended = suspended;
+
+            StatusCode status = suspended
+                ? StatusCodes.BadStateNotActive
+                : StatusCodes.Good;
+            ApplySuspensionStatus(context, CurrentState, status);
+            ApplySuspensionStatus(context, LastTransition, status);
+        }
+
+        private static void ApplySuspensionStatus(
+            ISystemContext context,
+            BaseVariableState? variable,
+            StatusCode status)
+        {
+            if (variable == null)
+            {
+                return;
+            }
+            variable.StatusCode = status;
+            var children = new List<BaseInstanceState>();
+            variable.GetChildren(context, children);
+            foreach (BaseInstanceState child in children)
+            {
+                if (child is BaseVariableState childVariable)
+                {
+                    childVariable.StatusCode = status;
+                }
+            }
+            variable.ClearChangeMasks(context, includeChildren: true);
+        }
 
         /// <inheritdoc/>
         public override bool IsCausePermitted(
@@ -122,7 +162,7 @@ namespace Opc.Ua.Server.StateMachines
         {
             if (IsSuspended)
             {
-                return StatusCodes.BadInvalidState;
+                return StatusCodes.BadStateNotActive;
             }
             return base.DoCause(context, causeMethod, causeId, inputArguments, outputArguments);
         }
@@ -137,7 +177,7 @@ namespace Opc.Ua.Server.StateMachines
         {
             if (IsSuspended)
             {
-                return StatusCodes.BadInvalidState;
+                return StatusCodes.BadStateNotActive;
             }
             return base.DoTransition(context, transitionId, causeId, inputArguments, outputArguments);
         }
@@ -266,7 +306,7 @@ namespace Opc.Ua.Server.StateMachines
         /// optional <c>AvailableStates</c> variable.
         /// </summary>
         /// <remarks>
-        /// Part 16 §B.3 hangs <c>HasSubStateMachine</c> off the parent
+        /// Part 16 §4.4.16 hangs <c>HasSubStateMachine</c> off the parent
         /// state node, and Part 5 has <c>CurrentState/Id</c> point at
         /// that same node — neither is expressible while the states
         /// exist only as <c>ElementInfo</c> table rows. Nodes are
@@ -292,6 +332,16 @@ namespace Opc.Ua.Server.StateMachines
                 ObjectTypeIds.StateType,
                 BrowseNames.StateNumber,
                 ownerPrefix);
+
+            // OPC 10000-16 §4.4.10: the entry state is an
+            // InitialStateType (a StateType subtype), so a client can
+            // tell which state the machine activates into.
+            if (MutableDefinition.InitialStateId is uint initialStateId &&
+                m_stateNodesById.TryGetValue(
+                    initialStateId, out BaseObjectState? initialStateNode))
+            {
+                initialStateNode.TypeDefinitionId = ObjectTypeIds.InitialStateType;
+            }
 
             AddAvailableStates(
                 context,
@@ -358,7 +408,7 @@ namespace Opc.Ua.Server.StateMachines
         /// Materializes one <c>TransitionType</c> node per declared
         /// transition as a <c>HasComponent</c> child of this state
         /// machine, each with a <c>TransitionNumber</c> property and the
-        /// Part 16 §B.4 <c>FromState</c> / <c>ToState</c> /
+        /// Part 16 §4.4.11 <c>FromState</c> / <c>ToState</c> /
         /// <c>HasEffect</c> references, and publishes them through the
         /// optional <c>AvailableTransitions</c> variable.
         /// </summary>
@@ -394,7 +444,7 @@ namespace Opc.Ua.Server.StateMachines
 
                 if (transition.HasEffect)
                 {
-                    // Part 16 §B.4: HasEffect names the event type the
+                    // Part 16 §4.4.11: HasEffect names the event type the
                     // transition causes the machine to report.
                     transitionNode.AddReference(
                         ReferenceTypeIds.HasEffect,

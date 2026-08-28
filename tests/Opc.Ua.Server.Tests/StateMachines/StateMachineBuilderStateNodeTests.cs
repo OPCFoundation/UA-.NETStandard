@@ -37,7 +37,7 @@ namespace Opc.Ua.Server.Tests.StateMachines
     /// <summary>
     /// Unit tests for the <c>StateType</c> nodes that
     /// <see cref="FluentFiniteStateMachineState"/> materializes for its
-    /// declared states — the address-space representation Part 16 §B.3
+    /// declared states — the address-space representation Part 16 §4.4.16
     /// requires so that <c>CurrentState/Id</c> resolves to a real node
     /// and <c>HasSubStateMachine</c> has a state node to hang off.
     /// </summary>
@@ -66,8 +66,11 @@ namespace Opc.Ua.Server.Tests.StateMachines
             Assert.Multiple(() =>
             {
                 Assert.That(off, Is.InstanceOf<BaseObjectState>());
+                // The declared initial state is an InitialStateType
+                // (OPC 10000-16 §4.4.10); every other state is a plain
+                // StateType.
                 Assert.That(((BaseObjectState)off).TypeDefinitionId,
-                    Is.EqualTo(ObjectTypeIds.StateType));
+                    Is.EqualTo(ObjectTypeIds.InitialStateType));
                 Assert.That(off.ReferenceTypeId,
                     Is.EqualTo(ReferenceTypeIds.HasComponent));
                 Assert.That(((BaseObjectState)on).TypeDefinitionId,

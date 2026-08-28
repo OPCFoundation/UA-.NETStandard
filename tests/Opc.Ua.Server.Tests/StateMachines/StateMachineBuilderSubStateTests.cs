@@ -98,7 +98,7 @@ namespace Opc.Ua.Server.Tests.StateMachines
             BaseInstanceState child = GetChild(parent, "ChildSm");
             BaseInstanceState stateNode = GetChild(parent, "ParentA");
 
-            // Part 16 §B.3: the reference hangs off the parent STATE
+            // Part 16 §4.4.16: the reference hangs off the parent STATE
             // node, not the state machine root.
             var forward = new List<IReference>();
             stateNode.GetReferences(
@@ -270,6 +270,42 @@ namespace Opc.Ua.Server.Tests.StateMachines
                 // current state — its declared initial state is only
                 // applied once the parent enters the attached state.
                 Assert.That(child.CurrentState!.Value.IsNullOrEmpty, Is.True);
+                // ... and OPC 10000-16 §4.4.6: CurrentState and
+                // LastTransition of an inactive sub-SM read with
+                // Bad_StateNotActive.
+                Assert.That(child.CurrentState.StatusCode,
+                    Is.EqualTo((StatusCode)StatusCodes.BadStateNotActive));
+                Assert.That(child.LastTransition!.StatusCode,
+                    Is.EqualTo((StatusCode)StatusCodes.BadStateNotActive));
+            });
+        }
+
+        [Test]
+        public void ResumedSubStateMachineReadsGoodAgain()
+        {
+            FluentFiniteStateMachineState parent = BuildParent()
+                .WithSubStateMachine(
+                    parentStateId: 1,
+                    browseName: new QualifiedName("ChildSm", 1),
+                    configure: c => c
+                        .AddState(10, "ChildIdle", isInitial: true)
+                        .AddTransition(100, "Loop", from: 10, to: 10))
+                .WithInitialState(2)
+                .StateMachine;
+            var child = (FluentFiniteStateMachineState)GetChild(parent, "ChildSm");
+            Assert.That(child.CurrentState!.StatusCode,
+                Is.EqualTo((StatusCode)StatusCodes.BadStateNotActive));
+
+            // Parent enters the attached state → the sub-SM activates
+            // and its state variables read Good with the seeded state.
+            parent.DoTransition(m_context, 21, 0, default, []);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(child.IsSuspended, Is.False);
+                Assert.That(child.CurrentState.StatusCode,
+                    Is.EqualTo((StatusCode)StatusCodes.Good));
+                Assert.That(CurrentStateId(child), Is.EqualTo(10u));
             });
         }
 
@@ -348,7 +384,7 @@ namespace Opc.Ua.Server.Tests.StateMachines
         }
 
         [Test]
-        public void SuspendedSubStateMachineRejectsTransitionsWithBadInvalidState()
+        public void SuspendedSubStateMachineRejectsTransitionsWithBadStateNotActive()
         {
             FluentFiniteStateMachineState parent = BuildParent()
                 .WithInitialState(2) // parent in state 2, sub-SM suspended
@@ -366,7 +402,7 @@ namespace Opc.Ua.Server.Tests.StateMachines
             ServiceResult result = child.DoTransition(m_context, 100, 0, default, []);
 
             Assert.That(ServiceResult.IsBad(result), Is.True);
-            Assert.That(result.Code, Is.EqualTo(StatusCodes.BadInvalidState));
+            Assert.That(result.Code, Is.EqualTo(StatusCodes.BadStateNotActive));
         }
 
         [Test]

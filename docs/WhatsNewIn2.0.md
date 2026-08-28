@@ -169,7 +169,7 @@ server- and client-side implementations:
   `AvailableTransitions` / `LastTransition` children), so
   `CurrentState/Id` and `LastTransition/Id` resolve to real nodes and
   `HasSubStateMachine` hangs off the parent **state** node per Part 16
-  §B.3 rather than off the machine root. Callers that passed a state
+  §4.4.16 rather than off the machine root. Callers that passed a state
   machine's `ObjectId` to `GetSubStateMachineAsync` must pass a state
   NodeId instead — from `GetAvailableStatesAsync` or a snapshot's
   `CurrentStateId` — and code that read a numeric id out of

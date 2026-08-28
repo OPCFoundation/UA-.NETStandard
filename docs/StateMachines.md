@@ -417,18 +417,20 @@ handler — but it does re-arm timed transitions and synchronize
 sub-state machines.)
 
 A state declared with `isInitial: true` is applied automatically when
-the machine is created, so the minimal example above is fully
-functional without an explicit `WithInitialState` call; call
-`WithInitialState` to start in a different state. A sub-state
-machine's declared initial state is applied only while its parent is
-in the attached state — an inactive sub-SM publishes no current
-state.
+the machine is created and its state node is materialized as an
+`InitialStateType` (OPC 10000-16 §4.4.10), so the minimal example
+above is fully functional without an explicit `WithInitialState`
+call; call `WithInitialState` to start in a different state. A
+sub-state machine's declared initial state is applied only while its
+parent is in the attached state.
 
-While suspended, the child FSM's `DoTransition` and `DoCause`
-return `BadInvalidState`. The flag is exposed publicly as
-`FluentFiniteStateMachineState.IsSuspended` for diagnostics.
+While suspended, the child FSM's `CurrentState` and `LastTransition`
+read with `Bad_StateNotActive` (per OPC 10000-16 §4.4.6), and its
+`DoTransition` / `DoCause` return `BadStateNotActive`. The flag is
+exposed publicly as `FluentFiniteStateMachineState.IsSuspended` for
+diagnostics.
 
-The resulting address space follows Part 16 §B.3 and the standard
+The resulting address space follows Part 16 §4.4.16 and the standard
 NodeSets:
 
 ```
@@ -457,7 +459,7 @@ the optional `AvailableStates` property lists them, so
 `GetAvailableStatesAsync` works against a fluent-built server.
 
 **Transitions** — one `TransitionType` node each, carrying a
-`TransitionNumber` property and the Part 16 §B.4 references:
+`TransitionNumber` property and the Part 16 §4.4.11 references:
 
 * `FromState` / `ToState` to the two state nodes;
 * `HasEffect` to `TransitionEventType`, unless the transition was
@@ -587,7 +589,7 @@ for every Object child it encounters.
 
 Earlier releases attached `HasSubStateMachine` to the state machine
 **root**, because the fluent builder did not materialize state nodes.
-It now sits on the parent **state** node per Part 16 §B.3, and the
+It now sits on the parent **state** node per Part 16 §4.4.16, and the
 root reference is gone.
 
 Callers that passed the state machine's `ObjectId` to

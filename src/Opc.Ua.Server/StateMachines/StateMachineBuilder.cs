@@ -649,7 +649,7 @@ namespace Opc.Ua.Server.StateMachines
         /// by <paramref name="parentStateId"/>. The sub-SM is added as
         /// a <c>HasComponent</c> child of the parent FSM and referenced
         /// by <c>HasSubStateMachine</c> from the parent <em>state</em>
-        /// node per Part 16 §B.3, configured through the nested
+        /// node per Part 16 §4.4.16, configured through the nested
         /// <paramref name="configure"/> builder, and managed by the
         /// dispatcher lifecycle:
         /// </summary>
@@ -838,18 +838,21 @@ namespace Opc.Ua.Server.StateMachines
             void SyncChildToParentState(ISystemContext ctx, uint parentCurrentStateId)
             {
                 bool attached = parentCurrentStateId == parentStateId;
-                materializedChild.IsSuspended = !attached;
                 if (!attached)
                 {
-                    // Part 16: an inactive sub-SM publishes no current
-                    // state. A preserveOnReentry child keeps it, so the
-                    // state survives until the next activation.
+                    // Part 16: an inactive sub-SM's state variables read
+                    // Bad_StateNotActive (applied by SetSuspended). A
+                    // preserveOnReentry child additionally keeps its
+                    // internal state for the next activation.
                     if (!preserveOnReentry)
                     {
                         materializedChild.SetState(ctx, 0);
                     }
+                    materializedChild.SetSuspended(ctx, true);
                     return;
                 }
+
+                materializedChild.SetSuspended(ctx, false);
                 if (initialChildStateId == 0)
                 {
                     return;
@@ -869,7 +872,7 @@ namespace Opc.Ua.Server.StateMachines
             m_dispatcher.AddEnterStateHandler(parentStateId,
                 (ctx, parent) => SyncChildToParentState(ctx, parentStateId));
             m_dispatcher.AddExitStateHandler(parentStateId,
-                (ctx, parent) => materializedChild.IsSuspended = true);
+                (ctx, parent) => materializedChild.SetSuspended(ctx, true));
 
             return this;
         }
@@ -929,7 +932,7 @@ namespace Opc.Ua.Server.StateMachines
 
             m_dispatcher.InstallCauseMethod(method, causeId);
 
-            // Part 16 §B.4: every transition this cause can trigger
+            // Part 16 §4.4.11: every transition this cause can trigger
             // gets a HasCause reference to the method node. Only
             // definition mode knows the cause-to-transition mapping;
             // lifecycle-mode FSMs declare it in their type definition.
