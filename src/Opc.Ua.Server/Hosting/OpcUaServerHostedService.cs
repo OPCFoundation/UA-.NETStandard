@@ -128,12 +128,19 @@ namespace Opc.Ua.Server.Hosting
                 m_services.GetService<ICertificateManager>();
             if (HasSuppliedConfiguration)
             {
-                if (!string.IsNullOrEmpty(m_options.ConfigurationFile) &&
-                    m_options.ConfigurationStream != null)
+                bool hasConfigurationFile = !string.IsNullOrEmpty(m_options.ConfigurationFile);
+                if (hasConfigurationFile && m_options.ConfigurationStream != null)
                 {
                     throw new InvalidOperationException(
                         "Set only one of OpcUaServerOptions.ConfigurationFile " +
                         "and OpcUaServerOptions.ConfigurationStream.");
+                }
+                if (hasConfigurationFile &&
+                    string.IsNullOrWhiteSpace(m_options.ConfigurationFile))
+                {
+                    throw new InvalidOperationException(
+                        "OpcUaServerOptions.ConfigurationFile must not be a " +
+                        "white-space path.");
                 }
 
                 // An explicitly supplied configuration document is the most

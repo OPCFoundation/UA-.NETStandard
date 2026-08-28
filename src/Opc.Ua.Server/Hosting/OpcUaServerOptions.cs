@@ -262,7 +262,7 @@ namespace Opc.Ua.Server.Hosting
         /// <see cref="OpcUaApplicationOptions.ConfigureSecurity"/> through
         /// <c>ConfigureApplication(...)</c> for post-security certificate and
         /// validation settings. Not applied when <see cref="ConfigurationFile"/>
-        /// is set.
+        /// or <see cref="ConfigurationStream"/> is set.
         /// </summary>
         public Action<IApplicationConfigurationBuilderServerSelected>? ConfigureBuilder { get; set; }
 

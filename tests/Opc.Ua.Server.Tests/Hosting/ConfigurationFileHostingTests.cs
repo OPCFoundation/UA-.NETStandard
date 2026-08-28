@@ -365,6 +365,24 @@ namespace Opc.Ua.Server.Tests.Hosting
         }
 
         [Test]
+        public async Task WhiteSpaceConfigurationFileFailsStartupWithClearErrorAsync()
+        {
+            // A white-space path can reach the options through configuration
+            // binding or the options callback, bypassing the AddServer
+            // argument validation. Startup must fail with a clear error
+            // instead of a confusing file-load failure.
+            var services = new ServiceCollection();
+            services.AddLogging();
+            services.AddOpcUa().AddServer(options => options.ConfigurationFile = "   ");
+
+            Exception? failure = await StartAndCaptureStartupFailureAsync(services)
+                .ConfigureAwait(false);
+
+            Assert.That(failure, Is.InstanceOf<InvalidOperationException>());
+            Assert.That(failure!.Message, Does.Contain("white-space"));
+        }
+
+        [Test]
         public async Task ConfigurationFileAndStreamTogetherFailStartupAsync()
         {
             using var stream = new MemoryStream([1, 2, 3]);
