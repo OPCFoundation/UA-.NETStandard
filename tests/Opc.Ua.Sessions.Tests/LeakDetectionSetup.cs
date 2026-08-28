@@ -27,7 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System;
+using System.Runtime.InteropServices;
 using NUnit.Framework;
 using Opc.Ua.Security.Certificates;
 using Opc.Ua.Tests;
@@ -50,7 +50,10 @@ namespace Opc.Ua.Sessions.Tests
         [OneTimeTearDown]
         public void GlobalTeardown()
         {
-            if (OperatingSystem.IsMacOS())
+            // OperatingSystem.IsMacOS() does not exist on net48 — this
+            // project multi-targets, so use the RuntimeInformation check
+            // the rest of the test tree uses.
+            if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
             {
                 _ = LeakDetectionHelpers.WaitForOutstandingDisposals(maxAttempts: 900);
             }
