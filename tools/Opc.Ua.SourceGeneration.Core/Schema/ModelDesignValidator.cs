@@ -347,16 +347,22 @@ namespace Opc.Ua.Schema.Model
 
             m_designFilePaths[Ua.Types.Namespaces.OpcUa] = string.Empty;
 
+            // load the design files.
+            List<Namespace> namespaces = GetNamespaceList(designFilePaths);
+
             // Apply any dependency payloads that were registered via ImportDependency()
             // before validation began. Their type entries become visible
             // to the dependency-loading pass below, so downstream
             // NodeSet2/ModelDesign inputs can resolve cross-namespace
             // references (e.g. BaseType lookups) without those upstream
-            // models being present in AdditionalFiles.
-            ApplyPendingDependencies();
-
-            // load the design files.
-            List<Namespace> namespaces = GetNamespaceList(designFilePaths);
+            // models being present in AdditionalFiles. Models backed by a
+            // design file are skipped: the explicit file always wins over
+            // the payload (loading a design file on top of the same
+            // payload-materialized nodes would otherwise fail with
+            // duplicate symbolic ids).
+            ApplyPendingDependencies(new HashSet<string>(
+                namespaces.Where(x => x.FilePath != null).Select(x => x.Value),
+                StringComparer.Ordinal));
 
             // The primary target (designFilePaths[0]) is loaded separately
             // below. It is identified by its FilePath, not by list index,
@@ -364,35 +370,54 @@ namespace Opc.Ua.Schema.Model
             // namespaces ahead of the namespaces they reference) is allowed
             // to move a dependency that imports the primary target ahead of
             // it. Skipping purely by "ii > 0" would then double-load the
-            // primary target as a dependency.
-            for (int ii = namespaces.Count - 1; ii >= 0; ii--)
+            // primary target as a dependency. Namespaces after the target
+            // in the list cannot reference it and are loaded first (in
+            // reverse order, so referenced models load before the models
+            // that reference them); namespaces before the target may import
+            // it (e.g. a downstream model of the same compilation supplied
+            // as a dependency) and can only be loaded once the target
+            // itself has been loaded.
+            int targetIndex = namespaces.FindIndex(x => x.FilePath == inputPath);
+
+            var dependencyModels = new List<ModelDesign>();
+
+            for (int ii = namespaces.Count - 1; ii > targetIndex; ii--)
             {
-                if (namespaces[ii].FilePath == null ||
-                    namespaces[ii].FilePath == inputPath)
-                {
-                    continue;
-                }
-
-                ModelDesign dependency = LoadDesignFile(
-                    namespaces,
-                    namespaces[ii].FilePath,
-                    null,
-                    validateDictionary: false);
-
-                if (dependency.Namespaces != null)
-                {
-                    Namespace ns = dependency.Namespaces
-                        .FirstOrDefault(x => x.Value == dependency.TargetNamespace);
-                    namespaces[ii].Name = ns.Name;
-                    namespaces[ii].Prefix = ns.Prefix;
-                    namespaces[ii].XmlPrefix = ns.XmlPrefix;
-                }
+                LoadDependencyDesignFile(namespaces, ii, dependencyModels);
             }
+
+            // With every upstream model loaded, re-link the payload-imported
+            // declarations (their base types may live in a design file that
+            // was not loaded when the payloads were applied) and link the
+            // data types of the dependency designs that were loaded without
+            // full dictionary validation. Without this, a target structure
+            // that subtypes a dependency structure inherits fields whose
+            // DataTypeNode is unresolved and whose parent classification is
+            // the BasicDataType enum default, crashing or corrupting the
+            // schema and code generators.
+            LinkDependencyChildren();
+            LinkDependencyDataTypes(m_payloadDataTypes);
+            foreach (ModelDesign dependency in dependencyModels)
+            {
+                LinkDependencyDataTypes(dependency.Items);
+            }
+
+            int upstreamDependencyCount = dependencyModels.Count;
 
             ModelDesign targetModel = LoadDesignFile(
                 namespaces,
                 designFilePaths[0],
                 identifierFilePath);
+
+            for (int ii = targetIndex - 1; ii >= 0; ii--)
+            {
+                LoadDependencyDesignFile(namespaces, ii, dependencyModels);
+            }
+
+            for (int ii = upstreamDependencyCount; ii < dependencyModels.Count; ii++)
+            {
+                LinkDependencyDataTypes(dependencyModels[ii].Items);
+            }
 
             // set a default xml namespace.
             if (string.IsNullOrEmpty(targetModel.TargetXmlNamespace))
@@ -1577,6 +1602,49 @@ namespace Opc.Ua.Schema.Model
                         "Node {Node} does not have a valid NodeId.",
                         node);
                 }
+            }
+        }
+
+        /// <summary>
+        /// Loads the design file backing <paramref name="namespaces"/>[<paramref name="index"/>]
+        /// as a dependency (without dictionary validation), records the
+        /// loaded model in <paramref name="dependencyModels"/> and copies
+        /// the authoritative namespace metadata of the loaded model back
+        /// into the namespace list. No-op for namespaces without a backing
+        /// file.
+        /// </summary>
+        private void LoadDependencyDesignFile(
+            List<Namespace> namespaces,
+            int index,
+            List<ModelDesign> dependencyModels)
+        {
+            if (namespaces[index].FilePath == null)
+            {
+                return;
+            }
+
+            ModelDesign dependency = LoadDesignFile(
+                namespaces,
+                namespaces[index].FilePath,
+                null,
+                validateDictionary: false);
+
+            // NodeSet2 dependencies are fully linked and classified by
+            // NodeSetToModelDesign during import; only ModelDesign
+            // dependencies skip dictionary validation and need the
+            // deferred data type linking.
+            if (!dependency.IsSourceNodeSet)
+            {
+                dependencyModels.Add(dependency);
+            }
+
+            if (dependency.Namespaces != null)
+            {
+                Namespace ns = dependency.Namespaces
+                    .FirstOrDefault(x => x.Value == dependency.TargetNamespace);
+                namespaces[index].Name = ns.Name;
+                namespaces[index].Prefix = ns.Prefix;
+                namespaces[index].XmlPrefix = ns.XmlPrefix;
             }
         }
 
@@ -6209,10 +6277,15 @@ namespace Opc.Ua.Schema.Model
         /// Called from inside <c>ValidateModel</c> right after the
         /// node-table reset and the built-in OpcUa model load, so all
         /// stored dependency entries are registered before dependency
-        /// design files are processed.
+        /// design files are processed. Payloads for models in
+        /// <paramref name="modelUrisWithDesignFile"/> are skipped: those
+        /// models are loaded from their design file, which is
+        /// authoritative.
         /// </summary>
-        internal void ApplyPendingDependencies()
+        internal void ApplyPendingDependencies(
+            ISet<string> modelUrisWithDesignFile = null)
         {
+            m_payloadDataTypes.Clear();
             if (m_pendingDependencies == null || m_pendingDependencies.Count == 0)
             {
                 return;
@@ -6220,6 +6293,11 @@ namespace Opc.Ua.Schema.Model
             EnsureDependencyTablesInitialised();
             foreach (PendingDependency pending in m_pendingDependencies)
             {
+                if (modelUrisWithDesignFile?.Contains(
+                    pending.Dependency.ModelUri) == true)
+                {
+                    continue;
+                }
                 ApplyDependency(pending.Dependency);
             }
             // Cross-dependency references can now resolve.
@@ -6256,6 +6334,13 @@ namespace Opc.Ua.Schema.Model
                     continue;
                 }
                 m_nodes[symbolicId] = design;
+
+                if (design is DataTypeDesign payloadDataType)
+                {
+                    // Collected so ValidateModel can link the fields and
+                    // classification once all design files are loaded.
+                    m_payloadDataTypes.Add(payloadDataType);
+                }
 
                 if (entry.NumericId != 0)
                 {
@@ -6327,6 +6412,11 @@ namespace Opc.Ua.Schema.Model
             if (!string.IsNullOrEmpty(entry.StringId))
             {
                 design.StringId = entry.StringId;
+            }
+
+            if (design is DataTypeDesign dataTypeDesign)
+            {
+                dataTypeDesign.IsEnumeration = entry.IsEnumeration;
             }
 
             if (design is DataTypeDesign dt && entry.Fields != null && entry.Fields.Count > 0)
@@ -6607,7 +6697,71 @@ namespace Opc.Ua.Schema.Model
             }
         }
 
+        /// <summary>
+        /// Links the data types of a dependency model that did not go
+        /// through <see cref="ValidateDictionary"/> (design files loaded as
+        /// dependencies, payload-materialised declarations): classifies
+        /// each data type (IsStructure / IsEnumeration / BasicDataType) and
+        /// resolves the DataTypeNode and Parent of its fields. The
+        /// generators need this whenever a target type references a
+        /// dependency data type — most notably when a target structure
+        /// subtypes a dependency structure and inherits its fields.
+        /// Resolution is best effort: references that cannot be resolved
+        /// are left null rather than failing the load.
+        /// </summary>
+        private void LinkDependencyDataTypes(IEnumerable<NodeDesign> nodes)
+        {
+            foreach (NodeDesign node in nodes)
+            {
+                if (node is not DataTypeDesign dataType)
+                {
+                    continue;
+                }
+
+                dataType.IsStructure |= IsTypeOf(dataType, s_structureQn);
+                dataType.IsEnumeration |=
+                    IsTypeOf(dataType, s_enumerationQn) ||
+                    dataType.IsOptionSet;
+                dataType.BasicDataType = dataType.DetermineBasicDataType();
+
+                if (dataType.Fields == null)
+                {
+                    continue;
+                }
+
+                foreach (Parameter parameter in dataType.Fields)
+                {
+                    parameter.Parent ??= dataType;
+
+                    if (parameter.DataTypeNode == null &&
+                        !IsNull(parameter.DataType) &&
+                        m_nodes.TryGetValue(
+                            parameter.DataType,
+                            out NodeDesign parameterDataType))
+                    {
+                        parameter.DataTypeNode =
+                            parameterDataType as DataTypeDesign;
+                    }
+
+                    // Mirror ValidateParameters: without UseAllowSubtypes a
+                    // structure field that allows subtypes degrades to the
+                    // abstract Structure (ExtensionObject on the wire).
+                    if (parameter.DataTypeNode != null &&
+                        parameter.AllowSubTypes &&
+                        !UseAllowSubtypes &&
+                        IsTypeOf(parameter.DataTypeNode, s_structureQn) &&
+                        m_nodes.TryGetValue(
+                            s_structureQn,
+                            out NodeDesign structure))
+                    {
+                        parameter.DataTypeNode = structure as DataTypeDesign;
+                    }
+                }
+            }
+        }
+
         private List<PendingDependency> m_pendingDependencies;
+        private readonly List<DataTypeDesign> m_payloadDataTypes = [];
 
         private sealed record PendingDependency(ModelDependencyV1 Dependency, string Prefix, string Name);
     }

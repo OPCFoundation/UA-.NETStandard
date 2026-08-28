@@ -84,6 +84,7 @@ namespace Opc.Ua.SourceGeneration
                 bindingModelCount,
                 null,
                 null,
+                null,
                 null);
         }
 
@@ -142,6 +143,14 @@ namespace Opc.Ua.SourceGeneration
         /// <param name="referencedAccessorProviders">
         /// All referenced assemblies that declare generated fluent accessors.
         /// </param>
+        /// <param name="referencedDependencies">
+        /// Per-URI model dependency payloads recovered from referenced
+        /// assemblies via <c>ReferencedModelDependencyScanner</c>. When
+        /// present, the validator pre-imports these dependency payloads
+        /// so a design file can resolve upstream types (e.g. subtype a
+        /// structure) without an explicit <c>AdditionalFiles</c> entry
+        /// for the upstream model.
+        /// </param>
         public static void GenerateCode(
             this DesignFileCollection designFiles,
             IFileSystem fileSystem,
@@ -157,7 +166,8 @@ namespace Opc.Ua.SourceGeneration
             int bindingModelCount,
             Action<string, string, string, string> reportFluentAccessorsOnlyDiagnostic,
             IReadOnlyList<ModelDependencyReference> referencedModelProviders,
-            IReadOnlyList<ModelFluentAccessorProviderReference> referencedAccessorProviders)
+            IReadOnlyList<ModelFluentAccessorProviderReference> referencedAccessorProviders,
+            IReadOnlyDictionary<string, Dependency.ModelDependencyV1> referencedDependencies = null)
         {
             if (designFiles.Targets == null || designFiles.Targets.Count == 0)
             {
@@ -187,7 +197,8 @@ namespace Opc.Ua.SourceGeneration
                     model,
                     options.Exclusions,
                     telemetry,
-                    useAllowSubtypes);
+                    useAllowSubtypes,
+                    referencedDependencies);
 
                 // Override resolution: if a referenced assembly already
                 // provides this model under the same C# prefix, silently

@@ -132,6 +132,11 @@ materialises the carried types into the validator's node table before the
 dependency-loading pass walks `AdditionalFiles`, so consumer types can
 resolve `BaseType` / `TypeDefinition` / `DataType` references against the
 upstream's published types without those upstream models being present in
-`AdditionalFiles`.
+`AdditionalFiles`. Payloads for models that *are* present as design files in
+the current compilation are skipped — the explicit file is authoritative.
+After all design files are loaded, the validator links the
+payload-materialised data types (base types, field data types, structure /
+enumeration classification), so a local `ModelDesign` structure can subtype
+a structure published only through a referenced assembly's payload.
 
 

@@ -254,7 +254,11 @@ namespace Opc.Ua.SourceGeneration
                 // dependency so cross-model references resolve — both
                 // ModelDesign -> NodeSet2 (e.g. an instance whose
                 // TypeDefinition is a NodeSet2-defined ObjectType) and
-                // ModelDesign -> ModelDesign across directories.
+                // ModelDesign -> ModelDesign across directories. Referenced
+                // assemblies' dependency payloads are supplied as well so a
+                // design file can resolve upstream types (e.g. subtype a
+                // structure of a referenced model) without the upstream
+                // model being present in AdditionalFiles.
                 new DesignFileCollection
                 {
                     Targets = designTargets,
@@ -274,7 +278,8 @@ namespace Opc.Ua.SourceGeneration
                     totalModelCount,
                     reportFluentAccessorsOnly,
                     m_referencedModels,
-                    m_referencedAccessorProviders);
+                    m_referencedAccessorProviders,
+                    referencedDependencies);
 
                 // Report any [NodeManager] bindings that neither pass matched,
                 // once, against the shared used-set aggregated across passes.
