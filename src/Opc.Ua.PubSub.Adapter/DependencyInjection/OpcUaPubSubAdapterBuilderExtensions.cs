@@ -471,7 +471,8 @@ namespace Microsoft.Extensions.DependencyInjection
 
         private static void RegisterCoreServices(IPubSubBuilder builder)
         {
-            builder.Services.TryAddSingleton<IServerSessionFactory, ServerSessionFactory>();
+            builder.Services.TryAddSingleton<IServerSessionFactory>(
+                sp => new ServerSessionFactory(sp.GetService<ISecurityPolicyRegistry>()));
             builder.Services.TryAddSingleton<AdapterMetrics>();
             builder.Services.TryAddSingleton<ServerAdapterRuntime>();
             builder.Services.TryAddSingleton<MutableDataSetSourceProvider>();

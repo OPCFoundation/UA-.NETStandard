@@ -84,14 +84,24 @@ namespace Opc.Ua.PubSub.Security.Sks
         /// <param name="allowInsecureChannel">
         /// Allows non-encrypted SKS channels. This is unsafe for symmetric keys and is disabled by default.
         /// </param>
+        /// <param name="securityPolicies">
+        /// The registry used to validate the endpoint's security policy, or
+        /// <see langword="null"/> to use <see cref="SecurityPolicies.Default"/>.
+        /// </param>
         public OpcUaSecurityKeyServiceClient(
             EndpointDescription endpoint,
             ApplicationConfiguration applicationConfiguration,
             ITelemetryContext telemetry,
             TimeProvider timeProvider,
-            bool allowInsecureChannel = false)
+            bool allowInsecureChannel = false,
+            ISecurityPolicyRegistry? securityPolicies = null)
             : this(
-                CreateDefaultFactory(endpoint, applicationConfiguration, telemetry, allowInsecureChannel),
+                CreateDefaultFactory(
+                    endpoint,
+                    applicationConfiguration,
+                    telemetry,
+                    allowInsecureChannel,
+                    securityPolicies),
                 telemetry,
                 timeProvider)
         {
@@ -377,7 +387,8 @@ namespace Opc.Ua.PubSub.Security.Sks
             EndpointDescription endpoint,
             ApplicationConfiguration applicationConfiguration,
             ITelemetryContext telemetry,
-            bool allowInsecureChannel)
+            bool allowInsecureChannel,
+            ISecurityPolicyRegistry? securityPolicies)
         {
             if (endpoint is null)
             {
@@ -393,29 +404,34 @@ namespace Opc.Ua.PubSub.Security.Sks
             }
             if (!allowInsecureChannel)
             {
-                ValidateSksEndpointSecurity(endpoint);
+                ValidateSksEndpointSecurity(endpoint, securityPolicies);
             }
             return async ct =>
             {
                 if (!allowInsecureChannel)
                 {
-                    ValidateSksEndpointSecurity(endpoint);
+                    ValidateSksEndpointSecurity(endpoint, securityPolicies);
                 }
                 var configuredEndpoint = new ConfiguredEndpoint(
                     null,
                     endpoint,
                     EndpointConfiguration.Create(applicationConfiguration));
-                return await new ManagedSessionBuilder(
+                var builder = new ManagedSessionBuilder(
                         applicationConfiguration,
                         telemetry)
                     .UseEndpoint(configuredEndpoint)
-                    .WithSessionName("Opc.Ua.PubSub.Sks")
-                    .ConnectAsync(ct)
-                    .ConfigureAwait(false);
+                    .WithSessionName("Opc.Ua.PubSub.Sks");
+                if (securityPolicies != null)
+                {
+                    builder = builder.UseSecurityPolicies(securityPolicies);
+                }
+                return await builder.ConnectAsync(ct).ConfigureAwait(false);
             };
         }
 
-        private static void ValidateSksEndpointSecurity(EndpointDescription endpoint)
+        private static void ValidateSksEndpointSecurity(
+            EndpointDescription endpoint,
+            ISecurityPolicyRegistry? securityPolicies)
         {
             if (endpoint.SecurityMode != MessageSecurityMode.SignAndEncrypt)
             {
@@ -425,7 +441,7 @@ namespace Opc.Ua.PubSub.Security.Sks
             }
 
             string securityPolicyUri = endpoint.SecurityPolicyUri ?? SecurityPolicies.None;
-            if (!IsApprovedSksSecurityPolicy(securityPolicyUri))
+            if (!IsApprovedSksSecurityPolicy(securityPolicyUri, securityPolicies))
             {
                 throw new ServiceResultException(
                     StatusCodes.BadSecurityModeRejected,
@@ -440,12 +456,13 @@ namespace Opc.Ua.PubSub.Security.Sks
             }
         }
 
-        private static bool IsApprovedSksSecurityPolicy(string securityPolicyUri)
+        private static bool IsApprovedSksSecurityPolicy(
+            string securityPolicyUri,
+            ISecurityPolicyRegistry? securityPolicies)
         {
-            return SecurityPolicies.Default.GetInfo(securityPolicyUri) is not null &&
-                !string.Equals(securityPolicyUri, SecurityPolicies.None, StringComparison.Ordinal) &&
-                !string.Equals(securityPolicyUri, SecurityPolicies.Basic128Rsa15, StringComparison.Ordinal) &&
-                !string.Equals(securityPolicyUri, SecurityPolicies.Basic256, StringComparison.Ordinal);
+            SecurityPolicyInfo? policy =
+                (securityPolicies ?? SecurityPolicies.Default).GetInfo(securityPolicyUri);
+            return policy?.MeetsMinimumSecurityRequirements == true;
         }
 
         private static bool HasNonAnonymousUserToken(EndpointDescription endpoint)

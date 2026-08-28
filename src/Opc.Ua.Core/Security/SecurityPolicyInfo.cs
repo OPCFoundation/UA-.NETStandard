@@ -164,6 +164,38 @@ namespace Opc.Ua
         public bool IsFipsApproved { get; init; }
 
         /// <summary>
+        /// Gets whether the declared cryptographic metadata meets the minimum
+        /// requirements for secure OPC UA communication.
+        /// </summary>
+        /// <remarks>
+        /// This evaluates the policy metadata against the modern algorithm and
+        /// key-exchange structures defined by OPC UA Part 2 and Part 6,
+        /// Sections 6.8 and 6.9. It does not assess a provider implementation.
+        /// </remarks>
+        public bool MeetsMinimumSecurityRequirements =>
+            !IsDeprecated &&
+            HasStrongSymmetricEncryption() &&
+            SymmetricSignatureAlgorithm is
+                SymmetricSignatureAlgorithm.HmacSha256 or
+                SymmetricSignatureAlgorithm.HmacSha384 or
+                SymmetricSignatureAlgorithm.ChaCha20Poly1305 or
+                SymmetricSignatureAlgorithm.Aes128Gcm or
+                SymmetricSignatureAlgorithm.Aes256Gcm &&
+            KeyDerivationAlgorithm is
+                KeyDerivationAlgorithm.PSha256 or
+                KeyDerivationAlgorithm.HKDFSha256 or
+                KeyDerivationAlgorithm.HKDFSha384 &&
+            AsymmetricSignatureAlgorithm is
+                AsymmetricSignatureAlgorithm.RsaPkcs15Sha256 or
+                AsymmetricSignatureAlgorithm.RsaPssSha256 or
+                AsymmetricSignatureAlgorithm.EcdsaSha256 or
+                AsymmetricSignatureAlgorithm.EcdsaSha384 or
+                AsymmetricSignatureAlgorithm.EcdsaPure25519 or
+                AsymmetricSignatureAlgorithm.EcdsaPure448 &&
+            IsApprovedKeyExchange() &&
+            SecureChannelNonceLength >= 32;
+
+        /// <summary>
         /// The symmetric signature algorithm to use.
         /// </summary>
         public SymmetricSignatureAlgorithm SymmetricSignatureAlgorithm { get; init; }
@@ -439,6 +471,76 @@ namespace Opc.Ua
                 KeyDerivationAlgorithm.HKDFSha384 => HashAlgorithmName.SHA384,
                 _ => HashAlgorithmName.SHA256
             };
+        }
+
+        private bool HasStrongSymmetricEncryption()
+        {
+            return SymmetricEncryptionAlgorithm is
+                SymmetricEncryptionAlgorithm.Aes128Cbc or
+                SymmetricEncryptionAlgorithm.Aes256Cbc or
+                SymmetricEncryptionAlgorithm.Aes128Ctr or
+                SymmetricEncryptionAlgorithm.Aes256Ctr or
+                SymmetricEncryptionAlgorithm.ChaCha20Poly1305 or
+                SymmetricEncryptionAlgorithm.Aes128Gcm or
+                SymmetricEncryptionAlgorithm.Aes256Gcm &&
+                SymmetricEncryptionKeyLength >= 128 / 8 &&
+                InitializationVectorLength > 0;
+        }
+
+        private bool IsApprovedKeyExchange()
+        {
+            return CertificateKeyFamily switch
+            {
+                CertificateKeyFamily.RSA =>
+                    CertificateKeyAlgorithm == CertificateKeyAlgorithm.RSA &&
+                    MinAsymmetricKeyLength >= 2048 &&
+                    IsApprovedRsaKeyExchange(),
+                CertificateKeyFamily.ECC => IsApprovedEccKeyExchange(),
+                _ => false
+            };
+        }
+
+        private bool IsApprovedRsaKeyExchange()
+        {
+            if (AsymmetricSignatureAlgorithm is not
+                (AsymmetricSignatureAlgorithm.RsaPkcs15Sha256 or
+                AsymmetricSignatureAlgorithm.RsaPssSha256))
+            {
+                return false;
+            }
+
+            if (EphemeralKeyAlgorithm == CertificateKeyAlgorithm.None)
+            {
+                return AsymmetricEncryptionAlgorithm is
+                    AsymmetricEncryptionAlgorithm.RsaOaepSha1 or
+                    AsymmetricEncryptionAlgorithm.RsaOaepSha256;
+            }
+
+            return EphemeralKeyAlgorithm == CertificateKeyAlgorithm.RSADH &&
+                AsymmetricEncryptionAlgorithm == AsymmetricEncryptionAlgorithm.None &&
+                SecureChannelEnhancements &&
+                !LegacySequenceNumbers &&
+                KeyDerivationAlgorithm is
+                    KeyDerivationAlgorithm.HKDFSha256 or
+                    KeyDerivationAlgorithm.HKDFSha384 &&
+                SecureChannelNonceLength >= 384;
+        }
+
+        private bool IsApprovedEccKeyExchange()
+        {
+            if (AsymmetricEncryptionAlgorithm != AsymmetricEncryptionAlgorithm.None ||
+                CertificateKeyAlgorithm != EphemeralKeyAlgorithm)
+            {
+                return false;
+            }
+
+            return (CertificateKeyAlgorithm, AsymmetricSignatureAlgorithm) is
+                (CertificateKeyAlgorithm.NistP256, AsymmetricSignatureAlgorithm.EcdsaSha256) or
+                (CertificateKeyAlgorithm.NistP384, AsymmetricSignatureAlgorithm.EcdsaSha384) or
+                (CertificateKeyAlgorithm.BrainpoolP256r1, AsymmetricSignatureAlgorithm.EcdsaSha256) or
+                (CertificateKeyAlgorithm.BrainpoolP384r1, AsymmetricSignatureAlgorithm.EcdsaSha384) or
+                (CertificateKeyAlgorithm.Curve25519, AsymmetricSignatureAlgorithm.EcdsaPure25519) or
+                (CertificateKeyAlgorithm.Curve448, AsymmetricSignatureAlgorithm.EcdsaPure448);
         }
 
         /// <summary>

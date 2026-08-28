@@ -54,6 +54,7 @@ namespace Opc.Ua.Server.Hosting
             : base(telemetry, timeProvider)
         {
             m_services = services ?? throw new ArgumentNullException(nameof(services));
+            SecurityPolicyRegistry = m_services.GetService<ISecurityPolicyRegistry>();
         }
 
         /// <inheritdoc/>

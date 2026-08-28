@@ -812,7 +812,8 @@ namespace Microsoft.Extensions.DependencyInjection
                     telemetry,
                     channelFactory: channelBindings,
                     reconnectPolicy: null,
-                    timeProvider: timeProvider);
+                    timeProvider: timeProvider,
+                    securityPolicies: sp.GetService<ISecurityPolicyRegistry>());
             });
 
             services.TryAddSingleton<ISessionFactory>(sp =>
@@ -825,7 +826,8 @@ namespace Microsoft.Extensions.DependencyInjection
                     SubscriptionEngineFactory =
                         options.Session.SubscriptionEngineFactory
                         ?? new DefaultSubscriptionEngineFactory(timeProvider),
-                    TimeProvider = timeProvider
+                    TimeProvider = timeProvider,
+                    SecurityPolicyRegistry = sp.GetService<ISecurityPolicyRegistry>()
                 };
             });
 
@@ -1091,6 +1093,16 @@ namespace Microsoft.Extensions.DependencyInjection
             if (mgr != null)
             {
                 builder.WithChannelManager(mgr);
+            }
+
+            // The application's policy set, so a policy contributed through
+            // AddSecurityPolicy is resolvable by the session as well as by the
+            // channel it opens.
+            ISecurityPolicyRegistry? securityPolicies =
+                sp.GetService<ISecurityPolicyRegistry>();
+            if (securityPolicies != null)
+            {
+                builder.UseSecurityPolicies(securityPolicies);
             }
 
             IClientConnectGate? connectGate =

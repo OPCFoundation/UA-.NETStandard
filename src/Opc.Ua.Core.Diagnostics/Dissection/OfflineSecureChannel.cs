@@ -91,6 +91,8 @@ namespace Opc.Ua.Pcap.Dissection
         /// <summary>
         /// Constructs an offline decoder with explicit logger factory.
         /// </summary>
+        /// <param name="firstToken">The first observed key material.</param>
+        /// <param name="loggerFactory">The logger factory.</param>
         /// <exception cref="ArgumentNullException">
         /// Either argument is <c>null</c>.
         /// </exception>
@@ -101,6 +103,17 @@ namespace Opc.Ua.Pcap.Dissection
         public OfflineSecureChannel(
             ChannelKeyMaterial firstToken,
             ILoggerFactory loggerFactory)
+            : this(firstToken, loggerFactory, securityPolicies: null)
+        {
+        }
+
+        /// <summary>
+        /// Constructs an offline decoder with explicit logging and security policies.
+        /// </summary>
+        public OfflineSecureChannel(
+            ChannelKeyMaterial firstToken,
+            ILoggerFactory loggerFactory,
+            ISecurityPolicyRegistry? securityPolicies)
         {
             ArgumentNullException.ThrowIfNull(firstToken);
             ArgumentNullException.ThrowIfNull(loggerFactory);
@@ -111,8 +124,8 @@ namespace Opc.Ua.Pcap.Dissection
             m_tokens = [];
 
             NoopTelemetryContext telemetry = NoopTelemetryContext.Instance;
-            m_clientToServer = new ChannelDecoderShim(firstToken, telemetry);
-            m_serverToClient = new ChannelDecoderShim(firstToken, telemetry);
+            m_clientToServer = new ChannelDecoderShim(firstToken, telemetry, securityPolicies);
+            m_serverToClient = new ChannelDecoderShim(firstToken, telemetry, securityPolicies);
 
             LoadKeyMaterial(firstToken);
         }
@@ -290,14 +303,18 @@ namespace Opc.Ua.Pcap.Dissection
 
             public ChannelDecoderShim(
                 ChannelKeyMaterial firstToken,
-                ITelemetryContext telemetry)
+                ITelemetryContext telemetry,
+                ISecurityPolicyRegistry? securityPolicies)
                 : base(
                     contextId: "offline",
                     bufferManager: new BufferManager(
                         "offline",
                         TcpMessageLimits.DefaultMaxBufferSize,
                         telemetry),
-                    quotas: new ChannelQuotas(ServiceMessageContext.CreateEmpty(telemetry)),
+                    quotas: new ChannelQuotas(ServiceMessageContext.CreateEmpty(telemetry))
+                    {
+                        SecurityPolicyRegistry = securityPolicies
+                    },
                     serverCertificates: null,
                     endpoints: null,
                     securityMode: firstToken.SecurityMode,
@@ -327,7 +344,7 @@ namespace Opc.Ua.Pcap.Dissection
                     TokenId = material.TokenId,
                     CreatedAt = material.CreatedAt,
                     Lifetime = int.MaxValue,
-                    SecurityPolicy = SecurityPolicies.Default.GetInfo(material.SecurityPolicyUri),
+                    SecurityPolicy = SecurityPolicyRegistry.GetInfo(material.SecurityPolicyUri),
                     ClientNonce = material.ClientNonce,
                     ServerNonce = material.ServerNonce,
                     ClientSigningKey = material.ClientSigningKey,

@@ -121,7 +121,10 @@ namespace Opc.Ua.Identity
             try
             {
                 byte[] tokenData = accessToken.TokenData.ToArray();
-                var identity = new UserIdentity(tokenData, accessToken.ProfileUri)
+                var identity = new UserIdentity(
+                    tokenData,
+                    accessToken.ProfileUri,
+                    context.SecurityPolicyRegistry)
                 {
                     PolicyId = policy.PolicyId ?? string.Empty
                 };

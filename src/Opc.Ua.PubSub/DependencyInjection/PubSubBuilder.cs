@@ -39,6 +39,7 @@ using Opc.Ua.PubSub.DataSets;
 using Opc.Ua.PubSub.Encoding;
 using Opc.Ua.PubSub.Redundancy;
 using Opc.Ua.PubSub.Security;
+using Opc.Ua.PubSub.Security.Policies;
 using Opc.Ua.PubSub.Security.Sks;
 using Opc.Ua.PubSub.Transports;
 
@@ -401,7 +402,9 @@ namespace Microsoft.Extensions.DependencyInjection
                 TimeProvider clock =
                     sp.GetService<TimeProvider>() ?? TimeProvider.System;
 
-                PubSubApplicationBuilder pb = new PubSubApplicationBuilder(telemetry)
+                PubSubApplicationBuilder pb = new PubSubApplicationBuilder(
+                        telemetry,
+                        sp.GetService<IPubSubSecurityPolicyRegistry>())
                     .WithTimeProvider(clock)
                     .WithDiagnosticsLevel(options.DiagnosticsLevel);
                 IDataSetSourceProvider? sourceProvider = sp.GetService<IDataSetSourceProvider>();
