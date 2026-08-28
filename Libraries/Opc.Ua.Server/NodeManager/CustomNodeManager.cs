@@ -1683,27 +1683,26 @@ namespace Opc.Ua.Server
                         nodeToRead.DataEncoding,
                         value);
 
-                    // Set timestamps after ReadAttribute to ensure consistency
-                    // For Value attributes, match ServerTimestamp to SourceTimestamp
-                    // For other attributes, just ensure ServerTimestamp is set
+                    // Set timestamps after ReadAttribute. ServerTimestamp reflects
+                    // when the Server verified the value. A value whose
+                    // SourceTimestamp was produced as part of this read (e.g.
+                    // ServerStatus children) keeps ServerTimestamp aligned with
+                    // SourceTimestamp; a stored/static value is verified now, so
+                    // ServerTimestamp is stamped with the current read time.
                     if (nodeToRead.AttributeId == Attributes.Value)
                     {
                         if (value.SourceTimestamp == DateTime.MinValue)
                         {
                             value.SourceTimestamp = readTime;
                         }
-
                         value.ServerTimestamp = value.SourceTimestamp >= readTime
                             ? value.SourceTimestamp
                             : readTime;
                     }
-                    else
+                    else if (value.ServerTimestamp == DateTime.MinValue)
                     {
                         // For non-value attributes, only ServerTimestamp is relevant
-                        if (value.ServerTimestamp == DateTime.MinValue)
-                        {
-                            value.ServerTimestamp = readTime;
-                        }
+                        value.ServerTimestamp = readTime;
                     }
 #if DEBUG
                     if (nodeToRead.AttributeId == Attributes.Value)

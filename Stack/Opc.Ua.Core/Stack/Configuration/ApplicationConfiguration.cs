@@ -518,12 +518,12 @@ namespace Opc.Ua
             if (configuration != null)
             {
                 // should not be here but need to preserve old behavior.
+#pragma warning disable CS0618 // Type or member is obsolete
                 if (applyTraceSettings && configuration.TraceConfiguration != null)
                 {
-#pragma warning disable CS0618 // Type or member is obsolete
                     configuration.TraceConfiguration.ApplySettings();
-#pragma warning restore CS0618 // Type or member is obsolete
                 }
+#pragma warning restore CS0618 // Type or member is obsolete
 
                 configuration.SecurityConfiguration.CertificatePasswordProvider
                     = certificatePasswordProvider;
@@ -637,6 +637,12 @@ namespace Opc.Ua
             {
                 ApplicationUri = GenerateDefaultUri();
             }
+
+            // Ensure the transport quotas are always available. The transport
+            // and secure channel layers rely on them being non-null (e.g. during
+            // server bring-up), so default them to sensible values when a
+            // configuration was assembled manually without specifying them.
+            TransportQuotas ??= new TransportQuotas();
 
             if (applicationType is ApplicationType.Client or ApplicationType.ClientAndServer)
             {

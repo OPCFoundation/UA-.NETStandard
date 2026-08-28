@@ -114,6 +114,7 @@ namespace Opc.Ua.Gds.Tests
                     pkiRoot);
 
             // build the application configuration.
+#pragma warning disable CS0618 // Type or member is obsolete
             Configuration = await m_application
                 .Build(
                     "urn:localhost:opcfoundation.org:GlobalDiscoveryTestClient",
@@ -131,6 +132,7 @@ namespace Opc.Ua.Gds.Tests
                 .SetTraceMasks(519)
                 .CreateAsync()
                 .ConfigureAwait(false);
+#pragma warning restore CS0618 // Type or member is obsolete
 #endif
 
             if (clean)
@@ -269,10 +271,12 @@ namespace Opc.Ua.Gds.Tests
             }
         }
 
-        public string ReadLogFile()
+        internal string ReadLogFile()
         {
+#pragma warning disable CS0618 // Type or member is obsolete
             return File.ReadAllText(
                 Utils.ReplaceSpecialFolderNames(Configuration.TraceConfiguration.OutputFilePath));
+#pragma warning restore CS0618 // Type or member is obsolete
         }
 
         private async Task ApplyNewApplicationInstanceCertificateAsync(

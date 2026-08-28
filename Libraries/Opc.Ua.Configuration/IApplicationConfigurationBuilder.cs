@@ -664,12 +664,15 @@ namespace Opc.Ua.Configuration
     public interface IApplicationConfigurationBuilderTraceConfiguration : IApplicationConfigurationBuilderCreate
     {
         /// <inheritdoc cref="TraceConfiguration.OutputFilePath"/>
+        [Obsolete("Use ITelemetryContext and ILogger-based diagnostics instead.")]
         IApplicationConfigurationBuilderTraceConfiguration SetOutputFilePath(string outputFilePath);
 
         /// <inheritdoc cref="TraceConfiguration.DeleteOnLoad"/>
+        [Obsolete("Use ITelemetryContext and ILogger-based diagnostics instead.")]
         IApplicationConfigurationBuilderTraceConfiguration SetDeleteOnLoad(bool deleteOnLoad);
 
         /// <inheritdoc cref="TraceConfiguration.TraceMasks"/>
+        [Obsolete("Use ITelemetryContext and ILogger-based diagnostics instead.")]
         IApplicationConfigurationBuilderTraceConfiguration SetTraceMasks(int traceMasks);
     }
 

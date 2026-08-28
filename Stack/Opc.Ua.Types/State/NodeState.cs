@@ -2710,9 +2710,9 @@ namespace Opc.Ua
         {
             Initialize(context);
 
-            if (PruneNonRuntimeInstanceChildrenOnCreate)
+            if (RemovePlaceholderChildrenOnCreate)
             {
-                PruneNonRuntimeInstanceChildren(context);
+                RemovePlaceholderChildren(context);
             }
 
             // Call OnBeforeCreate on all children.
@@ -2824,9 +2824,9 @@ namespace Opc.Ua
         {
             Initialize(context, source);
 
-            if (PruneNonRuntimeInstanceChildrenOnCreate)
+            if (RemovePlaceholderChildrenOnCreate)
             {
-                PruneNonRuntimeInstanceChildren(context);
+                RemovePlaceholderChildren(context);
             }
 
             CallOnBeforeCreate(context);
@@ -2837,14 +2837,14 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Whether generated children that should not exist on runtime instances should be removed during creation.
+        /// Whether placeholder declarations should be removed during runtime creation.
         /// </summary>
-        protected virtual bool PruneNonRuntimeInstanceChildrenOnCreate => false;
+        protected virtual bool RemovePlaceholderChildrenOnCreate => false;
 
         /// <summary>
-        /// Removes generated children that should not exist on runtime instances.
+        /// Removes instantiated placeholder declarations from runtime instances.
         /// </summary>
-        private void PruneNonRuntimeInstanceChildren(ISystemContext context)
+        private void RemovePlaceholderChildren(ISystemContext context)
         {
             var children = new List<BaseInstanceState>();
             GetChildren(context, children);
@@ -2853,7 +2853,7 @@ namespace Opc.Ua
             {
                 BaseInstanceState child = children[ii];
 
-                if (ShouldPruneChildOnCreate(child))
+                if (IsPlaceholderChild(child))
                 {
                     RemoveChild(child);
 
@@ -2865,25 +2865,17 @@ namespace Opc.Ua
                     continue;
                 }
 
-                child.PruneNonRuntimeInstanceChildren(context);
+                child.RemovePlaceholderChildren(context);
             }
         }
 
         /// <summary>
-        /// Returns true if the child should not be kept on a runtime instance.
+        /// Returns true if the child represents a placeholder declaration.
         /// </summary>
-        private bool ShouldPruneChildOnCreate(BaseInstanceState child)
+        private static bool IsPlaceholderChild(BaseInstanceState child)
         {
             if (child.ModellingRuleId == ObjectIds.ModellingRule_OptionalPlaceholder ||
                 child.ModellingRuleId == ObjectIds.ModellingRule_MandatoryPlaceholder)
-            {
-                return true;
-            }
-
-            if (IsDynamicChild(child) &&
-                HasGeneratedNumericNodeIdentity(child) &&
-                child.ModellingRuleId != ObjectIds.ModellingRule_Mandatory &&
-                child.ModellingRuleId != ObjectIds.ModellingRule_Optional)
             {
                 return true;
             }
@@ -2892,8 +2884,9 @@ namespace Opc.Ua
 
             // Some generated placeholder declarations reach runtime without their
             // placeholder modelling rule; the fallback is limited to model-defined
-            // nodes that still carry the generated <PlaceholderName> browse-name form.
-            return HasGeneratedNumericNodeIdentity(child) &&
+            // standard nodes that still carry the generated <PlaceholderName>
+            // browse-name form.
+            return IsGeneratedStandardNumericNode(child) &&
                 browseName != null &&
                 browseName.Length > 1 &&
                 browseName[0] == '<' &&
@@ -2901,42 +2894,16 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Returns true if the child still has its generated numeric node identity.
+        /// Returns true if the child still has its generated standard numeric node identity.
         /// </summary>
-        private static bool HasGeneratedNumericNodeIdentity(BaseInstanceState child)
+        private static bool IsGeneratedStandardNumericNode(BaseInstanceState child)
         {
             return child.NumericId != 0 &&
                 child.NodeId != null &&
+                child.NodeId.NamespaceIndex == 0 &&
                 child.NodeId.IdType == IdType.Numeric &&
                 child.NodeId.Identifier is uint identifier &&
                 identifier == child.NumericId;
-        }
-
-        /// <summary>
-        /// Returns true if the child is stored in the dynamic child list.
-        /// These are extra children decoded from the InitializationString that
-        /// do not match a strongly typed generated child and are stored in the
-        /// generic m_children list.
-        /// </summary>
-        private bool IsDynamicChild(BaseInstanceState child)
-        {
-            lock (m_childrenLock)
-            {
-                if (m_children == null)
-                {
-                    return false;
-                }
-
-                for (int ii = 0; ii < m_children.Count; ii++)
-                {
-                    if (ReferenceEquals(m_children[ii], child))
-                    {
-                        return true;
-                    }
-                }
-            }
-
-            return false;
         }
 
         /// <summary>

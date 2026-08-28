@@ -137,6 +137,7 @@ namespace Quickstarts.ReferenceServer
                 if (shadowConfig)
                 {
                     Console.WriteLine("Using shadow configuration.");
+#pragma warning disable CS0618 // Type or member is obsolete
                     string shadowPath = Directory
                         .GetParent(
                             Path.GetDirectoryName(
@@ -144,6 +145,7 @@ namespace Quickstarts.ReferenceServer
                             )
                         )
                         .FullName;
+#pragma warning restore CS0618 // Type or member is obsolete
                     string shadowFilePath = Path.Combine(
                         shadowPath,
                         Path.GetFileName(server.Configuration.SourceFilePath)

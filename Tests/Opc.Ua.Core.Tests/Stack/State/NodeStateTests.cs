@@ -141,28 +141,6 @@ namespace Opc.Ua.Core.Tests.Stack.State
         }
 
         /// <summary>
-        /// Verify generated state machine declarations without modelling rules are not instantiated.
-        /// </summary>
-        [Test]
-        public void ProgramStateMachineState_ShouldNotInstantiateChildrenWithoutMandatoryOrOptionalModellingRule()
-        {
-            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            var context = new SystemContext(telemetry) { NamespaceUris = Context.NamespaceUris };
-            var stateMachine = new ProgramStateMachineState(null);
-
-            stateMachine.Create(context, new NodeId(300000), "Name", "DisplayName", true);
-
-            Assert.NotNull(
-                stateMachine.FindChild(context, BrowseNames.CurrentState),
-                "Mandatory child CurrentState should be instantiated.");
-            Assert.Null(
-                stateMachine.FindChild(context, BrowseNames.Suspended),
-                "State declaration Suspended has no Mandatory or Optional modelling rule.");
-
-            stateMachine.Dispose();
-        }
-
-        /// <summary>
         /// Verify placeholder declarations remain available on type definitions.
         /// </summary>
         [Test]
