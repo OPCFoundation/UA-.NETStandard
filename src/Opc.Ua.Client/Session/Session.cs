@@ -118,6 +118,11 @@ namespace Opc.Ua.Client
         /// <param name="timeProvider">Optional <see cref="TimeProvider"/> used by the
         /// session for keep-alive timers and elapsed-time calculations. When
         /// <see langword="null"/>, <see cref="TimeProvider.System"/> is used.</param>
+        /// <param name="securityPolicies">Optional security policy registry the
+        /// session resolves policy URIs against. Pass the registry the
+        /// application configured through <c>AddSecurityPolicy</c>. When
+        /// <see langword="null"/>, <see cref="SecurityPolicies.Default"/> is
+        /// used.</param>
         /// <remarks>
         /// The application configuration is used to look up the certificate if none
         /// is provided. The clientCertificate must have the private key. This will
@@ -136,14 +141,16 @@ namespace Opc.Ua.Client
             ArrayOf<EndpointDescription> availableEndpoints = default,
             ArrayOf<string> discoveryProfileUris = default,
             ISubscriptionEngineFactory? engineFactory = null,
-            TimeProvider? timeProvider = null)
+            TimeProvider? timeProvider = null,
+            ISecurityPolicyRegistry? securityPolicies = null)
             : this(
                   channel,
                   configuration,
                   endpoint,
                   channel.MessageContext ?? configuration.CreateMessageContext(),
                   engineFactory,
-                  timeProvider)
+                  timeProvider,
+                  securityPolicies)
         {
             // Build a single owned entry from the supplied certificate and
             // chain. The public ctor transfers ownership of both; the entry
@@ -169,7 +176,8 @@ namespace Opc.Ua.Client
                   template.ConfiguredEndpoint,
                   channel.MessageContext ?? template.m_configuration.CreateMessageContext(),
                   template.SubscriptionEngineFactory,
-                  template.m_timeProvider)
+                  template.m_timeProvider,
+                  template.m_securityPolicies)
         {
             // AddRef so the clone has its own reference; the template
             // retains its existing one. Both Sessions independently
@@ -238,7 +246,8 @@ namespace Opc.Ua.Client
             ConfiguredEndpoint endpoint,
             IServiceMessageContext messageContext,
             ISubscriptionEngineFactory? engineFactory = null,
-            TimeProvider? timeProvider = null)
+            TimeProvider? timeProvider = null,
+            ISecurityPolicyRegistry? securityPolicies = null)
             : base(channel, messageContext.Telemetry)
         {
             if (messageContext == null)
@@ -247,12 +256,14 @@ namespace Opc.Ua.Client
             }
 
             m_timeProvider = timeProvider ?? TimeProvider.System;
+            m_securityPolicies = securityPolicies ?? SecurityPolicies.Default;
             m_telemetry = messageContext.Telemetry;
             m_logger = m_telemetry.CreateLogger<Session>();
 
             SessionFactory ??= new DefaultSessionFactory(m_telemetry)
             {
-                ReturnDiagnostics = ReturnDiagnostics
+                ReturnDiagnostics = ReturnDiagnostics,
+                SecurityPolicyRegistry = m_securityPolicies
             };
 
             NamespaceUris = new NamespaceTable();
@@ -1076,7 +1087,7 @@ namespace Opc.Ua.Client
                 string? ephemeralKeyPolicyUri = !string.IsNullOrEmpty(m_userTokenSecurityPolicyUri)
                     ? m_userTokenSecurityPolicyUri
                     : m_endpoint.Description?.SecurityPolicyUri ?? SecurityPolicies.None;
-                SecurityPolicyInfo? ephemeralKeyPolicy = SecurityPolicies.Default.GetInfo(ephemeralKeyPolicyUri!);
+                SecurityPolicyInfo? ephemeralKeyPolicy = m_securityPolicies.GetInfo(ephemeralKeyPolicyUri!);
                 m_eccServerEphemeralKey = Nonce.CreateNonce(
                     ephemeralKeyPolicy!,
                     sessionConfiguration.ServerEccEphemeralKey.ToArray());
@@ -1460,7 +1471,7 @@ namespace Opc.Ua.Client
                 ProcessResponseAdditionalHeader(response.ResponseHeader, serverCertificate);
 
                 // create the client signature.
-                SecurityPolicyInfo? securityPolicy = SecurityPolicies.Default.GetInfo(securityPolicyUri);
+                SecurityPolicyInfo? securityPolicy = m_securityPolicies.GetInfo(securityPolicyUri);
 
                 // create the client signature.
                 byte[] dataToSign = securityPolicy!.GetClientSignatureData(
@@ -1471,7 +1482,7 @@ namespace Opc.Ua.Client
                     TransportChannel.ClientChannelCertificate,
                     m_clientNonce ?? []);
 
-                SignatureData clientSignature = SecurityPolicies.Default.CreateSignatureData(
+                SignatureData clientSignature = m_securityPolicies.CreateSignatureData(
                     securityPolicyUri,
                     m_instanceCertificateEntry?.Certificate!,
                     dataToSign);
@@ -1743,7 +1754,8 @@ namespace Opc.Ua.Client
                     {
                         ClientInstanceCertificateAlgorithm = instanceAlg,
                         ClientInstanceCertificateKeySize = instanceKeySize,
-                        CurrentEphemeralKeyPolicyUri = boundEphemeralUri
+                        CurrentEphemeralKeyPolicyUri = boundEphemeralUri,
+                        SecurityPolicyRegistry = m_securityPolicies
                     };
                 }
 
@@ -1886,7 +1898,7 @@ namespace Opc.Ua.Client
             // get the identity token.
             string securityPolicyUri =
                 m_endpoint.Description.SecurityPolicyUri ?? SecurityPolicies.None;
-            SecurityPolicyInfo? securityPolicy = SecurityPolicies.Default.GetInfo(securityPolicyUri);
+            SecurityPolicyInfo? securityPolicy = m_securityPolicies.GetInfo(securityPolicyUri);
 
             // create the client signature.
             byte[] dataToSign = securityPolicy!.GetClientSignatureData(
@@ -1897,7 +1909,7 @@ namespace Opc.Ua.Client
                 TransportChannel.ClientChannelCertificate,
                 m_clientNonce ?? []);
 
-            SignatureData clientSignature = SecurityPolicies.Default.CreateSignatureData(
+            SignatureData clientSignature = m_securityPolicies.CreateSignatureData(
                 securityPolicyUri,
                 m_instanceCertificateEntry?.Certificate!,
                 dataToSign);
@@ -3411,7 +3423,7 @@ namespace Opc.Ua.Client
                 await LoadInstanceCertificateAsync(true, ct).ConfigureAwait(false);
 
                 string securityPolicyUri = m_endpoint.Description.SecurityPolicyUri ?? SecurityPolicies.None;
-                SecurityPolicyInfo? securityPolicy = SecurityPolicies.Default.GetInfo(securityPolicyUri);
+                SecurityPolicyInfo? securityPolicy = m_securityPolicies.GetInfo(securityPolicyUri);
                 EndpointDescription endpoint = m_endpoint.Description;
 
                 // check that the user identity is supported by the endpoint.
@@ -3553,7 +3565,7 @@ namespace Opc.Ua.Client
                     clientChannelCertificate,
                     m_clientNonce ?? []);
 
-                SignatureData clientSignature = SecurityPolicies.Default.CreateSignatureData(
+                SignatureData clientSignature = m_securityPolicies.CreateSignatureData(
                     endpoint.SecurityPolicyUri!,
                     m_instanceCertificateEntry?.Certificate!,
                     dataToSign);
@@ -4644,7 +4656,7 @@ namespace Opc.Ua.Client
             securityPolicyUri = m_endpoint.Description.SecurityPolicyUri ?? SecurityPolicies.None;
 
             // catch security policies which are not supported by core
-            if (SecurityPolicies.Default.GetDisplayName(securityPolicyUri) == null)
+            if (m_securityPolicies.GetDisplayName(securityPolicyUri) == null)
             {
                 throw ServiceResultException.Create(
                     StatusCodes.BadSecurityChecksFailed,
@@ -4760,7 +4772,7 @@ namespace Opc.Ua.Client
             }
 
             // validate the server's signature.
-            SecurityPolicyInfo? securityPolicy = SecurityPolicies.Default.GetInfo(m_endpoint.Description.SecurityPolicyUri!);
+            SecurityPolicyInfo? securityPolicy = m_securityPolicies.GetInfo(m_endpoint.Description.SecurityPolicyUri!);
 
             byte[] dataToSign = securityPolicy!.GetServerSignatureData(
                 TransportChannel.ChannelThumbprint,
@@ -4770,7 +4782,7 @@ namespace Opc.Ua.Client
                 TransportChannel.ClientChannelCertificate,
                 serverNonce.ToArray());
 
-            if (!SecurityPolicies.Default.VerifySignatureData(
+            if (!m_securityPolicies.VerifySignatureData(
                     serverSignature,
                     securityPolicy,
                     serverCertificate!,
@@ -4787,7 +4799,7 @@ namespace Opc.Ua.Client
                         TransportChannel.ClientChannelCertificate,
                         serverNonce.ToArray());
 
-                    if (!SecurityPolicies.Default.VerifySignatureData(
+                    if (!m_securityPolicies.VerifySignatureData(
                             serverSignature,
                             securityPolicy,
                             serverCertificate!,
@@ -5335,7 +5347,7 @@ namespace Opc.Ua.Client
 
             m_userTokenSecurityPolicyUri = userTokenSecurityPolicyUri;
 
-            SecurityPolicyInfo? securityPolicy = SecurityPolicies.Default.GetInfo(userTokenSecurityPolicyUri);
+            SecurityPolicyInfo? securityPolicy = m_securityPolicies.GetInfo(userTokenSecurityPolicyUri);
 
             if (securityPolicy!.EphemeralKeyAlgorithm != CertificateKeyAlgorithm.None)
             {
@@ -5366,7 +5378,7 @@ namespace Opc.Ua.Client
                 return null;
             }
 
-            SecurityPolicyInfo? userTokenSecurityPolicy = SecurityPolicies.Default.GetInfo(userTokenSecurityPolicyUri);
+            SecurityPolicyInfo? userTokenSecurityPolicy = m_securityPolicies.GetInfo(userTokenSecurityPolicyUri);
 
             if (userTokenSecurityPolicy!.EphemeralKeyAlgorithm == CertificateKeyAlgorithm.None)
             {
@@ -5477,7 +5489,7 @@ namespace Opc.Ua.Client
                         }
 
                         m_eccServerEphemeralKey = Nonce.CreateNonce(
-                            SecurityPolicies.Default.GetInfo(m_userTokenSecurityPolicyUri!)!,
+                            m_securityPolicies.GetInfo(m_userTokenSecurityPolicyUri!)!,
                             key.PublicKey.ToArray());
 
                         m_logger.UpdatingServerEphemeralKeyKeyBytes(m_eccServerEphemeralKey.Data?.Length ?? 0);
@@ -5605,6 +5617,7 @@ namespace Opc.Ua.Client
         private readonly ArrayOf<string> m_discoveryProfileUris;
         private new readonly ILogger m_logger;
         private readonly TimeProvider m_timeProvider;
+        private readonly ISecurityPolicyRegistry m_securityPolicies;
 #pragma warning disable CA2213 // Disposed in DisposeAsyncCore/Dispose
         private readonly ISubscriptionEngine m_engine;
 #pragma warning restore CA2213

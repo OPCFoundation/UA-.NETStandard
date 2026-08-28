@@ -68,6 +68,18 @@ namespace Opc.Ua.Bindings
         public ICryptoProviderRegistry? CryptoProviders { get; set; }
 
         /// <summary>
+        /// The security policies the channel negotiates against, or <c>null</c>
+        /// to use <see cref="SecurityPolicies.Default"/>.
+        /// </summary>
+        /// <remarks>
+        /// Set this from the registry the application configured so a policy it
+        /// contributed through <c>AddSecurityPolicy</c> is reachable by a peer.
+        /// Leaving it <c>null</c> keeps the built-in policy set, which is what a
+        /// caller that configures nothing gets.
+        /// </remarks>
+        public ISecurityPolicyRegistry? SecurityPolicyRegistry { get; set; }
+
+        /// <summary>
         /// The maximum size for a message sent or received.
         /// </summary>
         public int MaxMessageSize { get; set; }

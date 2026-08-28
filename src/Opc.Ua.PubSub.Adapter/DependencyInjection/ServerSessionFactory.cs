@@ -39,6 +39,34 @@ namespace Opc.Ua.PubSub.Adapter.DependencyInjection
     /// </summary>
     public sealed class ServerSessionFactory : IServerSessionFactory
     {
+        /// <summary>
+        /// Creates a factory whose sessions resolve security policy URIs
+        /// against <see cref="SecurityPolicies.Default"/>.
+        /// </summary>
+        public ServerSessionFactory()
+            : this(securityPolicies: null)
+        {
+        }
+
+        /// <summary>
+        /// Creates a factory whose sessions resolve security policy URIs
+        /// against the supplied registry, so a policy the application
+        /// contributed through <c>AddSecurityPolicy</c> is negotiable by the
+        /// sessions this adapter opens. Passing <see langword="null"/> falls
+        /// back to <see cref="SecurityPolicies.Default"/>.
+        /// </summary>
+        public ServerSessionFactory(ISecurityPolicyRegistry? securityPolicies)
+        {
+            SecurityPolicyRegistry = securityPolicies;
+        }
+
+        /// <summary>
+        /// The security policy registry forwarded to created sessions, or
+        /// <see langword="null"/> when <see cref="SecurityPolicies.Default"/>
+        /// is used.
+        /// </summary>
+        public ISecurityPolicyRegistry? SecurityPolicyRegistry { get; }
+
         /// <inheritdoc/>
         public IServerSession Create(
             ServerConnectionOptions options,
@@ -52,7 +80,7 @@ namespace Opc.Ua.PubSub.Adapter.DependencyInjection
             {
                 throw new ArgumentNullException(nameof(telemetry));
             }
-            return new ServerSession(options, telemetry);
+            return new ServerSession(options, telemetry, SecurityPolicyRegistry);
         }
     }
 }

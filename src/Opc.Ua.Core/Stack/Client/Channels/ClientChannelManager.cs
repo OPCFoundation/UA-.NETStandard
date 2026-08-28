@@ -96,6 +96,7 @@ namespace Opc.Ua
                 reconnectPolicy: null,
                 timeProvider: null,
                 options,
+                securityPolicies: null,
                 enableGeneralTelemetry: false)
         {
         }
@@ -137,6 +138,7 @@ namespace Opc.Ua
                     clientCertificateChain,
                     context,
                     ChannelBindings,
+                    SecurityPolicyRegistry,
                     ct).ConfigureAwait(false);
             }
             else
@@ -149,6 +151,7 @@ namespace Opc.Ua
                     clientCertificateChain,
                     context,
                     ChannelBindings,
+                    SecurityPolicyRegistry,
                     ct).ConfigureAwait(false);
             }
             if (channel is ISecureChannel secureChannel)
@@ -185,6 +188,7 @@ namespace Opc.Ua
             CertificateCollection? clientCertificateChain,
             IServiceMessageContext messageContext,
             ITransportChannelBindings? transportChannelBindings = null,
+            ISecurityPolicyRegistry? securityPolicies = null,
             CancellationToken ct = default)
         {
             // initialize the channel which will be created with the server.
@@ -211,7 +215,8 @@ namespace Opc.Ua
                 Description = description,
                 Configuration = endpointConfiguration,
                 ClientCertificate = clientCertificate,
-                ClientCertificateChain = clientCertificateChain
+                ClientCertificateChain = clientCertificateChain,
+                SecurityPolicyRegistry = securityPolicies
             };
 
             try
@@ -255,6 +260,9 @@ namespace Opc.Ua
         /// <param name="clientCertificateChain">The client certificate chain.</param>
         /// <param name="messageContext">The message context to use when serializing the messages.</param>
         /// <param name="transportChannelBindings">Optional bindings to use</param>
+        /// <param name="securityPolicies">Optional security policy registry the
+        /// channel negotiates against. Defaults to
+        /// <see cref="SecurityPolicies.Default"/>.</param>
         /// <param name="ct">The cancellation token</param>
         /// <exception cref="ServiceResultException"></exception>
         /// <exception cref="ArgumentException"></exception>
@@ -266,6 +274,7 @@ namespace Opc.Ua
             CertificateCollection? clientCertificateChain,
             IServiceMessageContext messageContext,
             ITransportChannelBindings? transportChannelBindings = null,
+            ISecurityPolicyRegistry? securityPolicies = null,
             CancellationToken ct = default)
         {
             var endpointUrl = new Uri(description.EndpointUrl
@@ -304,7 +313,8 @@ namespace Opc.Ua
                 Description = description,
                 Configuration = endpointConfiguration,
                 ClientCertificate = clientCertificate,
-                ClientCertificateChain = clientCertificateChain
+                ClientCertificateChain = clientCertificateChain,
+                SecurityPolicyRegistry = securityPolicies
             };
 
             try
@@ -453,13 +463,17 @@ namespace Opc.Ua
         /// <param name="timeProvider">Optional time provider for backoff
         /// timing. Defaults to <see cref="TimeProvider.System"/>.</param>
         /// <param name="options">Optional channel manager options.</param>
+        /// <param name="securityPolicies">Optional security policy registry the
+        /// channels this manager creates negotiate against. Defaults to
+        /// <see cref="SecurityPolicies.Default"/>.</param>
         public ClientChannelManager(
             ApplicationConfiguration configuration,
             ITelemetryContext telemetry,
             ITransportChannelBindings? channelFactory = null,
             IChannelReconnectPolicy? reconnectPolicy = null,
             TimeProvider? timeProvider = null,
-            ChannelManagerOptions? options = null)
+            ChannelManagerOptions? options = null,
+            ISecurityPolicyRegistry? securityPolicies = null)
             : this(
                 configuration,
                 telemetry,
@@ -467,6 +481,7 @@ namespace Opc.Ua
                 reconnectPolicy,
                 timeProvider,
                 options,
+                securityPolicies,
                 enableGeneralTelemetry: true)
         {
         }
@@ -478,10 +493,12 @@ namespace Opc.Ua
             IChannelReconnectPolicy? reconnectPolicy,
             TimeProvider? timeProvider,
             ChannelManagerOptions? options,
+            ISecurityPolicyRegistry? securityPolicies,
             bool enableGeneralTelemetry)
         {
             Configuration = configuration ?? throw new ArgumentNullException(nameof(configuration));
             ChannelBindings = channelFactory;
+            SecurityPolicyRegistry = securityPolicies;
             m_options = options ?? new ChannelManagerOptions();
             m_diagnostics = new ClientChannelManagerDiagnostics(
                 TelemetryExtensions.CreateLogger(
@@ -684,6 +701,12 @@ namespace Opc.Ua
         internal ApplicationConfiguration Configuration { get; }
 
         internal ITransportChannelBindings? ChannelBindings { get; }
+
+        /// <summary>
+        /// The security policies the channels this manager creates negotiate
+        /// against, or <c>null</c> for <see cref="SecurityPolicies.Default"/>.
+        /// </summary>
+        internal ISecurityPolicyRegistry? SecurityPolicyRegistry { get; }
 
         internal IChannelReconnectPolicy ReconnectPolicy { get; } = new ExponentialBackoffChannelReconnectPolicy();
 

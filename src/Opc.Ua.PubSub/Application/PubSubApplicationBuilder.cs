@@ -68,6 +68,7 @@ namespace Opc.Ua.PubSub.Application
     public sealed class PubSubApplicationBuilder
     {
         private readonly ITelemetryContext m_telemetry;
+        private readonly IPubSubSecurityPolicyRegistry m_securityPolicies;
         private readonly List<IPubSubTransportFactory> m_transportFactories = [];
         private readonly List<INetworkMessageEncoder> m_encoders = [];
         private readonly List<INetworkMessageDecoder> m_decoders = [];
@@ -107,14 +108,22 @@ namespace Opc.Ua.PubSub.Application
         /// DI, or a custom <c>TelemetryContextBase</c> implementation
         /// for tests.
         /// </param>
-        public PubSubApplicationBuilder(ITelemetryContext telemetry)
+        /// <param name="securityPolicies">
+        /// The PubSub policy set the application offers, or
+        /// <see langword="null"/> to use
+        /// <see cref="PubSubSecurityPolicyRegistry.Default"/>.
+        /// </param>
+        public PubSubApplicationBuilder(
+            ITelemetryContext telemetry,
+            IPubSubSecurityPolicyRegistry? securityPolicies = null)
         {
             if (telemetry is null)
             {
                 throw new ArgumentNullException(nameof(telemetry));
             }
             m_telemetry = telemetry;
-            foreach (IPubSubSecurityPolicy policy in PubSubSecurityPolicyRegistry.Default.Policies)
+            m_securityPolicies = securityPolicies ?? PubSubSecurityPolicyRegistry.Default;
+            foreach (IPubSubSecurityPolicy policy in m_securityPolicies.Policies)
             {
                 m_policies.Add(policy);
             }
@@ -335,7 +344,10 @@ namespace Opc.Ua.PubSub.Application
         public PubSubApplicationBuilder AddSecurityKeyServiceServer(
             Action<InMemoryPubSubKeyServiceServer>? configure = null)
         {
-            m_sksServer = new InMemoryPubSubKeyServiceServer(m_timeProvider, m_telemetry);
+            m_sksServer = new InMemoryPubSubKeyServiceServer(
+                m_timeProvider,
+                m_telemetry,
+                securityPolicies: m_securityPolicies);
             configure?.Invoke(m_sksServer);
             return this;
         }
