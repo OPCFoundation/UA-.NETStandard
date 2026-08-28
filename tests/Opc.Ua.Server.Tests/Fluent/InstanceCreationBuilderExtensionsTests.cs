@@ -590,5 +590,18 @@ namespace Opc.Ua.Server.Tests.Fluent
                     new QualifiedName("X", kNs),
                     null!));
         }
+
+        [Test]
+        public void RootInstanceBuilderNullArgsThrow()
+        {
+            NodeManagerBuilder b = CreateRootCapableBuilder();
+
+            Assert.Throws<ArgumentNullException>(
+                () => new InstanceBuilder<BaseObjectState>(
+                    (INodeManagerBuilder)null!,
+                    new BaseObjectState(parent: null)));
+            Assert.Throws<ArgumentNullException>(
+                () => new InstanceBuilder<BaseObjectState>(b, null!));
+        }
     }
 }

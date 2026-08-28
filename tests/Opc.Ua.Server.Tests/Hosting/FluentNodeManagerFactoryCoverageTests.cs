@@ -168,7 +168,7 @@ namespace Opc.Ua.Server.Tests.Hosting
         public async Task BuildCreatedInstanceUnderObjectsFolderIsMirroredToExternalReferencesAsync()
         {
             Mock<IServerInternal> mockServer = BuildMockServer();
-            NodeId? instanceId = null;
+            NodeId instanceId = NodeId.Null;
             var factory = new FluentNodeManagerFactory(
                 TestNamespaceUri,
                 builder => instanceId = builder
@@ -191,14 +191,13 @@ namespace Opc.Ua.Server.Tests.Hosting
             // The forward Organizes edge from the Objects folder to the
             // build-created instance must have been published for the
             // master node manager to distribute (issue #4329).
-            Assert.That(instanceId.HasValue, Is.True);
-            Assert.That(instanceId.Value.IsNull, Is.False);
+            Assert.That(instanceId.IsNull, Is.False);
             Assert.That(externalReferences.ContainsKey(ObjectIds.ObjectsFolder), Is.True);
             Assert.That(
                 externalReferences[ObjectIds.ObjectsFolder].Count(r =>
                     r.ReferenceTypeId == ReferenceTypeIds.Organizes &&
                     !r.IsInverse &&
-                    r.TargetId == new ExpandedNodeId(instanceId.Value)),
+                    r.TargetId == new ExpandedNodeId(instanceId)),
                 Is.EqualTo(1));
 
             ((IDisposable)manager).Dispose();
