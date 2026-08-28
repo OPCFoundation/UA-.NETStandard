@@ -1701,11 +1701,17 @@ namespace Opc.Ua.Server.Tests
                 MonitoringMode = MonitoringMode.Reporting,
                 RequestedParameters = new MonitoringParameters { ClientHandle = 1, SamplingInterval = 100, QueueSize = 10 }
             };
+            var secondItemToCreate = new MonitoredItemCreateRequest
+            {
+                ItemToMonitor = new ReadValueId { NodeId = variable.NodeId, AttributeId = Attributes.Value },
+                MonitoringMode = MonitoringMode.Reporting,
+                RequestedParameters = new MonitoringParameters { ClientHandle = 2, SamplingInterval = 100, QueueSize = 10 }
+            };
 
-            var itemsToCreate = new List<MonitoredItemCreateRequest> { itemToCreate };
-            var errors = new List<ServiceResult> { null };
-            var filterErrors = new List<MonitoringFilterResult> { null };
-            var monitoredItems = new List<IMonitoredItem> { null };
+            var itemsToCreate = new List<MonitoredItemCreateRequest> { itemToCreate, secondItemToCreate };
+            var errors = new List<ServiceResult> { null, null };
+            var filterErrors = new List<MonitoringFilterResult> { null, null };
+            var monitoredItems = new List<IMonitoredItem> { null, null };
 
             await manager.CreateMonitoredItemsAsync(
                 CreateMonitoredItemsContext(),
@@ -1720,8 +1726,10 @@ namespace Opc.Ua.Server.Tests
                 new MonitoredItemIdFactory()).ConfigureAwait(false);
 
             Assert.That(ServiceResult.IsGood(errors[0]), Is.True);
+            Assert.That(ServiceResult.IsGood(errors[1]), Is.True);
             IMonitoredItem monitoredItem = monitoredItems[0];
             Assert.That(monitoredItem, Is.Not.Null);
+            Assert.That(monitoredItems[1], Is.Not.Null);
 
             if (m_managerType == AsyncCustomNodeManagerType.CustomNodeManager2ViaAdapter)
             {
@@ -1734,6 +1742,10 @@ namespace Opc.Ua.Server.Tests
                 // instead of re-wrapping its sync adapter into a second adapter (issue #4334).
                 Assert.That(monitoredItem.NodeManager, Is.SameAs(manager));
             }
+
+            // All items created by one NodeManager must share the same NodeManager reference;
+            // the sync manager once allocated a fresh adapter per created item.
+            Assert.That(monitoredItems[1].NodeManager, Is.SameAs(monitoredItem.NodeManager));
 
             // The bound NodeManager must expose the monitored-item lifecycle; a double-wrapped
             // adapter chain hides it and reports an empty snapshot.
