@@ -2490,6 +2490,64 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
+        public async Task IsNodeInViewAsync_HandleWithNodeUsesOverridableIsNodeInViewAsync()
+        {
+            using ITestNodeManager manager = CreateManager();
+            ServerSystemContext systemContext = manager.SystemContext;
+            ushort nsIdx = manager.NamespaceIndexes[0];
+
+            var view = new ViewState();
+            view.CreateAsPredefinedNode(systemContext);
+            view.NodeId = new NodeId("TestView", nsIdx);
+            view.BrowseName = new QualifiedName("TestView", nsIdx);
+            await manager.AddPredefinedNodeAsync(systemContext, view).ConfigureAwait(false);
+
+            var node = new BaseObjectState(null);
+            node.CreateAsPredefinedNode(systemContext);
+            node.NodeId = new NodeId("ViewedNode", nsIdx);
+            node.BrowseName = new QualifiedName("ViewedNode", nsIdx);
+            await manager.AddPredefinedNodeAsync(systemContext, node).ConfigureAwait(false);
+
+            var handle = new NodeHandle(node.NodeId, node);
+            var context = new OperationContext(new RequestHeader(), null, RequestType.Browse, RequestLifetime.None);
+
+            // The default protected IsNodeInView accepts any view that is a predefined node.
+            // Before the fix the public overload recursed into itself and always returned false.
+            bool result = await manager.IsNodeInViewAsync(context, view.NodeId, handle).ConfigureAwait(false);
+            Assert.That(result, Is.True);
+
+            bool unknownView = await manager
+                .IsNodeInViewAsync(context, new NodeId("UnknownView", nsIdx), handle)
+                .ConfigureAwait(false);
+            Assert.That(unknownView, Is.False);
+
+            // A placeholder handle that carries no validated node reports false.
+            var placeholder = new NodeHandle { NodeId = new NodeId("Ghost", nsIdx) };
+            bool placeholderResult = await manager
+                .IsNodeInViewAsync(context, view.NodeId, placeholder)
+                .ConfigureAwait(false);
+            Assert.That(placeholderResult, Is.False);
+
+            // The sync entry point answers from the same logic.
+            var syncManager = (INodeManager2)manager.SyncNodeManager;
+            Assert.That(syncManager.IsNodeInView(context, view.NodeId, handle), Is.True);
+
+            // Sub-classes customize view membership by overriding the protected virtual.
+            NodeState nodeSeenByOverride = null;
+            manager.IsNodeInViewOverride = (overrideContext, overrideViewId, overrideNode) =>
+            {
+                Assert.That(overrideContext, Is.Not.Null);
+                Assert.That(overrideViewId, Is.EqualTo(view.NodeId));
+                nodeSeenByOverride = overrideNode;
+                return false;
+            };
+
+            bool overridden = await manager.IsNodeInViewAsync(context, view.NodeId, handle).ConfigureAwait(false);
+            Assert.That(overridden, Is.False);
+            Assert.That(nodeSeenByOverride, Is.SameAs(node));
+        }
+
+        [Test]
         public async Task GetPermissionMetadataAsync_ReturnsAccessAndRoleInformationAsync()
         {
             using ITestNodeManager manager = CreateManager();
@@ -4705,6 +4763,14 @@ namespace Opc.Ua.Server.Tests
 
         public Func<NodeState, CancellationToken, ValueTask> NodeRemovedCallback { get; set; } = null!;
 
+        public Func<ServerSystemContext, NodeId, NodeState, bool> IsNodeInViewOverride { get; set; }
+
+        protected override bool IsNodeInView(ServerSystemContext context, NodeId viewId, NodeState node)
+        {
+            return IsNodeInViewOverride?.Invoke(context, viewId, node)
+                ?? base.IsNodeInView(context, viewId, node);
+        }
+
         public ValueTask AddRootNotifierPublicAsync(NodeState notifier, CancellationToken cancellationToken = default)
         {
             return AddRootNotifierAsync(notifier, cancellationToken);
@@ -5056,6 +5122,12 @@ namespace Opc.Ua.Server.Tests
         NodeStateCollection? NodesToLoad { get; set; }
 
         /// <summary>
+        /// Optional replacement for the protected IsNodeInView(ServerSystemContext, NodeId, NodeState)
+        /// virtual so tests can verify the public entry points route through it.
+        /// </summary>
+        Func<ServerSystemContext, NodeId, NodeState, bool>? IsNodeInViewOverride { get; set; }
+
+        /// <summary>
         /// Tests whether a NodeId belongs to a managed namespace.
         /// </summary>
         bool IsNodeIdInNamespacePublic(NodeId nodeId);
@@ -5177,6 +5249,14 @@ namespace Opc.Ua.Server.Tests
         public Action<bool> EventSubscriptionCallback { get; set; } = null!;
 
         public Action<NodeState> NodeRemovedCallback { get; set; } = null!;
+
+        public Func<ServerSystemContext, NodeId, NodeState, bool>? IsNodeInViewOverride { get; set; }
+
+        protected override bool IsNodeInView(ServerSystemContext context, NodeId viewId, NodeState node)
+        {
+            return IsNodeInViewOverride?.Invoke(context, viewId, node)
+                ?? base.IsNodeInView(context, viewId, node);
+        }
 
         public void AddPredefinedNodePublic(ISystemContext context, NodeState node)
         {
@@ -5341,6 +5421,12 @@ namespace Opc.Ua.Server.Tests
         {
             get => m_cnm2.NodesToLoad;
             set => m_cnm2.NodesToLoad = value;
+        }
+
+        public Func<ServerSystemContext, NodeId, NodeState, bool>? IsNodeInViewOverride
+        {
+            get => m_cnm2.IsNodeInViewOverride;
+            set => m_cnm2.IsNodeInViewOverride = value;
         }
 
         public bool IsNodeIdInNamespacePublic(NodeId nodeId)

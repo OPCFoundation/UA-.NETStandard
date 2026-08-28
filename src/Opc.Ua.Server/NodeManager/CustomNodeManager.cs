@@ -5977,6 +5977,10 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Returns true if a node is in a view.
         /// </summary>
+        /// <remarks>
+        /// Delegates to <see cref="IsNodeInView(ServerSystemContext, NodeId, NodeState)"/>,
+        /// which sub-classes override to implement view membership.
+        /// </remarks>
         public virtual bool IsNodeInView(OperationContext context, NodeId viewId, object nodeHandle)
         {
             if (nodeHandle is not NodeHandle handle)
@@ -5986,7 +5990,7 @@ namespace Opc.Ua.Server
 
             if (handle.Node != null)
             {
-                return IsNodeInView(context, viewId, handle.Node);
+                return IsNodeInView(SystemContext.Copy(context), viewId, handle.Node);
             }
 
             return false;
