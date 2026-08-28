@@ -150,6 +150,36 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
         }
 
         /// <summary>
+        /// When a model is supplied both as a referenced-assembly payload
+        /// and as a design file (e.g. the upstream project is referenced
+        /// while its design XML is still in AdditionalFiles), the design
+        /// file wins and the payload is skipped. Importing both used to
+        /// fail with a duplicate symbolic id.
+        /// </summary>
+        [Test]
+        public void PayloadForFileBackedModelIsIgnored()
+        {
+            Dictionary<string, string> generated = Generate(
+                targets: [m_modelBPath],
+                dependencies: [m_modelBPath, m_modelAPath],
+                referencedDependencies: new Dictionary<string, ModelDependencyV1>
+                {
+                    [ModelAUri] = CreateModelAPayload()
+                });
+
+            string bsd = generated.Keys
+                .Where(f => f.EndsWith(".Types.bsd", System.StringComparison.Ordinal))
+                .Select(f => generated[f])
+                .FirstOrDefault();
+            Assert.That(bsd, Is.Not.Null, "No binary schema generated.");
+            // The design file's field set wins over the payload's: the
+            // Details field exists only in the design file.
+            Assert.That(bsd, Does.Contain("Name=\"Make\" TypeName=\"opc:CharArray\""));
+            Assert.That(bsd, Does.Contain("Name=\"Details\""));
+            Assert.That(bsd, Does.Contain("<opc:Field Name=\"Extra\" TypeName=\"opc:UInt32\" />"));
+        }
+
+        /// <summary>
         /// Three-level chain across all supply mechanisms: the target
         /// structure subtypes a payload structure whose own base structure
         /// is defined in a design-file dependency. The payload types must
