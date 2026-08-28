@@ -1680,6 +1680,71 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
+        public async Task CreateMonitoredItemsAsyncBindsOwningNodeManagerAsync()
+        {
+            using ITestNodeManager manager = CreateManager();
+            ServerSystemContext context = manager.SystemContext;
+            ushort nsIdx = manager.NamespaceIndexes[0];
+            var variable = new BaseDataVariableState(null);
+            variable.CreateAsPredefinedNode(context);
+            variable.NodeId = new NodeId("MyVar", nsIdx);
+            variable.BrowseName = new QualifiedName("MyVar", nsIdx);
+            variable.Value = 10;
+            variable.DataType = DataTypeIds.Int32;
+            variable.ValueRank = ValueRanks.Scalar;
+            variable.AccessLevel = AccessLevels.CurrentRead;
+            await manager.AddNodeAsync(context, default, variable).ConfigureAwait(false);
+
+            var itemToCreate = new MonitoredItemCreateRequest
+            {
+                ItemToMonitor = new ReadValueId { NodeId = variable.NodeId, AttributeId = Attributes.Value },
+                MonitoringMode = MonitoringMode.Reporting,
+                RequestedParameters = new MonitoringParameters { ClientHandle = 1, SamplingInterval = 100, QueueSize = 10 }
+            };
+
+            var itemsToCreate = new List<MonitoredItemCreateRequest> { itemToCreate };
+            var errors = new List<ServiceResult> { null };
+            var filterErrors = new List<MonitoringFilterResult> { null };
+            var monitoredItems = new List<IMonitoredItem> { null };
+
+            await manager.CreateMonitoredItemsAsync(
+                CreateMonitoredItemsContext(),
+                1,
+                1000,
+                TimestampsToReturn.Both,
+                itemsToCreate,
+                errors,
+                filterErrors,
+                monitoredItems,
+                false,
+                new MonitoredItemIdFactory()).ConfigureAwait(false);
+
+            Assert.That(ServiceResult.IsGood(errors[0]), Is.True);
+            IMonitoredItem monitoredItem = monitoredItems[0];
+            Assert.That(monitoredItem, Is.Not.Null);
+
+            if (m_managerType == AsyncCustomNodeManagerType.CustomNodeManager2ViaAdapter)
+            {
+                // The sync CustomNodeManager2 binds items through an adapter wrapping it directly.
+                Assert.That(monitoredItem.NodeManager.SyncNodeManager, Is.SameAs(manager.SyncNodeManager));
+            }
+            else
+            {
+                // AsyncCustomNodeManager implements IAsyncNodeManager and must bind items to itself
+                // instead of re-wrapping its sync adapter into a second adapter (issue #4334).
+                Assert.That(monitoredItem.NodeManager, Is.SameAs(manager));
+            }
+
+            // The bound NodeManager must expose the monitored-item lifecycle; a double-wrapped
+            // adapter chain hides it and reports an empty snapshot.
+            Assert.That(monitoredItem.NodeManager, Is.InstanceOf<INodeManagerMonitoredItemLifecycle>());
+            IReadOnlyList<IMonitoredItem> snapshot =
+                await ((INodeManagerMonitoredItemLifecycle)monitoredItem.NodeManager)
+                    .GetMonitoredItemsSnapshotAsync().ConfigureAwait(false);
+            Assert.That(snapshot, Does.Contain(monitoredItem));
+        }
+
+        [Test]
         public async Task ModifyMonitoredItemsAsync_ModifiesItemAsync()
         {
             // Setup manager and node
