@@ -375,5 +375,220 @@ namespace Opc.Ua.Server.Tests.Fluent
 
             Assert.That(captured, Is.SameAs(typed.Node));
         }
+
+        // ── Manager-level (root) CreateInstance ─────────────────────────────
+
+        /// <summary>
+        /// Mirrors the default <c>AsyncCustomNodeManager.New</c>: allocate
+        /// a fresh numeric id only when the node has none.
+        /// </summary>
+        private sealed class CounterNodeIdFactory : INodeIdFactory
+        {
+            private uint m_lastId;
+
+            public NodeId New(ISystemContext context, NodeState node)
+            {
+                return node.NodeId.IsNull
+                    ? new NodeId(++m_lastId, kNs)
+                    : node.NodeId;
+            }
+        }
+
+        /// <summary>
+        /// Instance state whose type model declares one child carrying a
+        /// type-declaration NodeId plus an internal reference to it, so
+        /// the rebasing of the subtree is observable.
+        /// </summary>
+        private sealed class DeclaredChildObjectState : BaseObjectState
+        {
+            public static readonly NodeId DeclarationChildId = new(9999u, 0);
+
+            public DeclaredChildObjectState(NodeState? parent)
+                : base(parent)
+            {
+            }
+
+            protected override void Initialize(ISystemContext context)
+            {
+                base.Initialize(context);
+                var child = new PropertyState(this)
+                {
+                    NodeId = DeclarationChildId,
+                    BrowseName = new QualifiedName("Declared", kNs),
+                    DisplayName = new LocalizedText("Declared"),
+                    TypeDefinitionId = VariableTypeIds.PropertyType,
+                    ReferenceTypeId = ReferenceTypeIds.HasProperty,
+                    DataType = DataTypeIds.Int32,
+                    ValueRank = ValueRanks.Scalar
+                };
+                AddChild(child);
+                AddReference(ReferenceTypeIds.HasOrderedComponent, false, DeclarationChildId);
+            }
+        }
+
+        private static NodeManagerBuilder CreateRootCapableBuilder()
+        {
+            SystemContext ctx = CreateContext();
+            ctx.NodeIdFactory = new CounterNodeIdFactory();
+
+            var builder = new NodeManagerBuilder(
+                ctx,
+                nodeManager: Mock.Of<IAsyncNodeManager>(),
+                defaultNamespaceIndex: kNs,
+                rootResolver: _ => null!,
+                nodeIdResolver: _ => null!,
+                typeIdResolver: _ => []);
+            return builder;
+        }
+
+        [Test]
+        public void ManagerLevelCreateInstanceMaterializesRootInstance()
+        {
+            NodeManagerBuilder b = CreateRootCapableBuilder();
+
+            IInstanceBuilder<BaseObjectState> ib = b.CreateInstance(
+                new QualifiedName("Boiler#2", kNs),
+                p => new BaseObjectState(p));
+
+            Assert.That(ib.Node.Parent, Is.Null);
+            Assert.That(ib.Node.BrowseName, Is.EqualTo(new QualifiedName("Boiler#2", kNs)));
+            Assert.That(ib.Node.SymbolicName, Is.EqualTo("Boiler#2"));
+            Assert.That(ib.Node.DisplayName.Text, Is.EqualTo("Boiler#2"));
+            Assert.That(ib.Node.NodeId.IsNull, Is.False, "NodeId must be minted by the factory");
+            Assert.That(ib.Node.NodeId.NamespaceIndex, Is.EqualTo(kNs));
+        }
+
+        [Test]
+        public void ManagerLevelCreateInstanceFactoryReceivesNullParent()
+        {
+            NodeManagerBuilder b = CreateRootCapableBuilder();
+
+            bool sawNullParent = false;
+            b.CreateInstance(
+                new QualifiedName("Boiler#2", kNs),
+                p =>
+                {
+                    sawNullParent = p == null;
+                    return new BaseObjectState(p);
+                });
+
+            Assert.That(sawNullParent, Is.True);
+        }
+
+        [Test]
+        public void ManagerLevelCreateInstanceRebasesDeclaredChildIds()
+        {
+            NodeManagerBuilder b = CreateRootCapableBuilder();
+
+            IInstanceBuilder<DeclaredChildObjectState> ib = b.CreateInstance(
+                new QualifiedName("Boiler#2", kNs),
+                p => new DeclaredChildObjectState(p));
+
+            var children = new List<BaseInstanceState>();
+            ib.Node.GetChildren(b.Context, children);
+            Assert.That(children, Has.Count.EqualTo(1));
+
+            BaseInstanceState child = children[0];
+            Assert.That(
+                child.NodeId,
+                Is.Not.EqualTo(DeclaredChildObjectState.DeclarationChildId),
+                "Child must be rebased off its type-declaration NodeId");
+            Assert.That(child.NodeId.NamespaceIndex, Is.EqualTo(kNs));
+
+            // The internal reference to the declared child must have been
+            // remapped to the fresh instance id.
+            Assert.That(
+                ib.Node.ReferenceExists(
+                    ReferenceTypeIds.HasOrderedComponent,
+                    isInverse: false,
+                    child.NodeId),
+                Is.True);
+        }
+
+        [Test]
+        public void ManagerLevelCreateInstanceParentAndDoneReturnSelfView()
+        {
+            NodeManagerBuilder b = CreateRootCapableBuilder();
+
+            IInstanceBuilder<BaseObjectState> ib = b.CreateInstance(
+                new QualifiedName("Boiler#2", kNs),
+                p => new BaseObjectState(p));
+
+            Assert.That(ib.Parent.Node, Is.SameAs(ib.Node));
+            Assert.That(ib.Done().Node, Is.SameAs(ib.Node));
+            Assert.That(ib.AsNode().Node, Is.SameAs(ib.Node));
+            Assert.That(ib.AsNode().Builder, Is.SameAs(b));
+        }
+
+        [Test]
+        public void ManagerLevelCreateInstanceConfigureSupportsReferenceSugar()
+        {
+            NodeManagerBuilder b = CreateRootCapableBuilder();
+
+            bool invoked = false;
+            IInstanceBuilder<BaseObjectState> ib = b.CreateInstance(
+                new QualifiedName("Boiler#2", kNs),
+                p => new BaseObjectState(p))
+                .Configure(n =>
+                {
+                    invoked = true;
+                    n.UnderObjectsFolder();
+                });
+
+            Assert.That(invoked, Is.True);
+            Assert.That(
+                ib.Node.ReferenceExists(
+                    ReferenceTypeIds.Organizes,
+                    isInverse: true,
+                    ObjectIds.ObjectsFolder),
+                Is.True);
+        }
+
+        [Test]
+        public void ManagerLevelCreateInstanceWithoutNodeIdFactoryThrows()
+        {
+            SystemContext ctx = CreateContext();
+            var builder = new NodeManagerBuilder(
+                ctx,
+                nodeManager: Mock.Of<IAsyncNodeManager>(),
+                defaultNamespaceIndex: kNs,
+                rootResolver: _ => null!,
+                nodeIdResolver: _ => null!,
+                typeIdResolver: _ => []);
+
+            Assert.Throws<InvalidOperationException>(
+                () => builder.CreateInstance(
+                    new QualifiedName("Boiler#2", kNs),
+                    p => new BaseObjectState(p)));
+        }
+
+        [Test]
+        public void ManagerLevelCreateInstanceNullFactoryReturnThrows()
+        {
+            NodeManagerBuilder b = CreateRootCapableBuilder();
+
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(
+                () => b.CreateInstance<BaseObjectState>(
+                    new QualifiedName("Boiler#2", kNs),
+                    p => null!))!;
+            Assert.That(ex.StatusCode, Is.EqualTo((uint)StatusCodes.BadInvalidArgument));
+        }
+
+        [Test]
+        public void ManagerLevelCreateInstanceNullArgsThrow()
+        {
+            NodeManagerBuilder b = CreateRootCapableBuilder();
+
+            Assert.Throws<ArgumentNullException>(
+                () => ((INodeManagerBuilder)null!).CreateInstance(
+                    new QualifiedName("X", kNs),
+                    p => new BaseObjectState(p)));
+            Assert.Throws<ArgumentNullException>(
+                () => b.CreateInstance(QualifiedName.Null, p => new BaseObjectState(p)));
+            Assert.Throws<ArgumentNullException>(
+                () => b.CreateInstance<BaseObjectState>(
+                    new QualifiedName("X", kNs),
+                    null!));
+        }
     }
 }

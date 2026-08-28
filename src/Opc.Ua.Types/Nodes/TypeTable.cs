@@ -624,7 +624,8 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Adds an encoding for an existing data type.
+        /// Adds an encoding for an existing data type. Registering the
+        /// same encoding again is a no-op that still succeeds.
         /// </summary>
         public bool AddEncoding(NodeId dataTypeId, ExpandedNodeId encodingId)
         {
@@ -646,7 +647,7 @@ namespace Opc.Ua
                 {
                     typeInfo.Encodings = [localId];
                 }
-                else
+                else if (System.Array.IndexOf(typeInfo.Encodings, localId) < 0)
                 {
                     var encodings = new NodeId[typeInfo.Encodings.Length + 1];
                     System.Array.Copy(typeInfo.Encodings, encodings, typeInfo.Encodings.Length);
