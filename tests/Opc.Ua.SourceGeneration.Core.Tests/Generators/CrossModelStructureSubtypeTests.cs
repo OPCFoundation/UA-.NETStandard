@@ -305,6 +305,14 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
                 .DataTypeNode;
             Assert.That(status.BasicDataType, Is.EqualTo(BasicDataType.Enumeration));
             Assert.That(status.IsEnumeration, Is.True);
+
+            // Without UseAllowSubtypes, a dependency structure field that
+            // allows subtypes degrades to the abstract Structure, matching
+            // ValidateParameters for target fields.
+            DataTypeDesign details = baseStruct.Fields
+                .Single(f => f.Name == "Details")
+                .DataTypeNode;
+            Assert.That(details.SymbolicName.Name, Is.EqualTo("Structure"));
         }
 
         private static void AssertGeneratedDerivedStruct(Dictionary<string, string> generated)
@@ -443,10 +451,16 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
                   <opc:Field Name="Running" Identifier="1" />
                 </opc:Fields>
               </opc:DataType>
+              <opc:DataType SymbolicName="DetailsStruct" BaseType="ua:Structure">
+                <opc:Fields>
+                  <opc:Field Name="Serial" DataType="ua:String" />
+                </opc:Fields>
+              </opc:DataType>
               <opc:DataType SymbolicName="BaseStruct" BaseType="ua:Structure">
                 <opc:Fields>
                   <opc:Field Name="Make" DataType="ua:String" />
                   <opc:Field Name="Status" DataType="StatusEnum" />
+                  <opc:Field Name="Details" DataType="DetailsStruct" AllowSubTypes="true" />
                 </opc:Fields>
               </opc:DataType>
             </opc:ModelDesign>
