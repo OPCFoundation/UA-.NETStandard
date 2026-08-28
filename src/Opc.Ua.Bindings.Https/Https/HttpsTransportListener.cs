@@ -592,7 +592,8 @@ namespace Opc.Ua.Bindings
                 MaxMessageSize = configuration.MaxMessageSize,
                 ChannelLifetime = configuration.ChannelLifetime,
                 SecurityTokenLifetime = configuration.SecurityTokenLifetime,
-                CertificateValidator = settings.CertificateValidator
+                CertificateValidator = settings.CertificateValidator,
+                SecurityPolicyRegistry = settings.SecurityPolicyRegistry
             };
 
             // save the callback to the server.

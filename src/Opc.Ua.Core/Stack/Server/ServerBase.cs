@@ -834,6 +834,18 @@ namespace Opc.Ua
         public CertificateManager? CertificateManager { get; protected set; }
 
         /// <summary>
+        /// The security policies the server's endpoints negotiate against, or
+        /// <c>null</c> to use <see cref="SecurityPolicies.Default"/>.
+        /// </summary>
+        /// <remarks>
+        /// Set this before starting the server - a dependency-injected server
+        /// sets it from the registry resolved out of its container - so a policy
+        /// the application contributed through <c>AddSecurityPolicy</c> is
+        /// reachable by a connecting client.
+        /// </remarks>
+        public ISecurityPolicyRegistry? SecurityPolicyRegistry { get; set; }
+
+        /// <summary>
         /// Gets or sets the encodeable factory to use for this server instance.
         /// </summary>
         /// <remarks>
@@ -973,6 +985,7 @@ namespace Opc.Ua
                     Configuration = endpointConfiguration,
                     ServerCertificates = CertificateManager,
                     CertificateValidator = certificateValidator,
+                    SecurityPolicyRegistry = SecurityPolicyRegistry,
                     NamespaceUris = messageContext.NamespaceUris,
                     Factory = messageContext.Factory,
                     MaxChannelCount = 0

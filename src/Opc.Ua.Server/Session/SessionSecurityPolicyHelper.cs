@@ -46,14 +46,16 @@ namespace Opc.Ua.Server
             Certificate instanceCertificate,
             Certificate? parsedClientCertificate,
             ByteString clientNonce,
-            ByteString serverNonce)
+            ByteString serverNonce,
+            ISecurityPolicyRegistry? securityPolicies = null)
         {
             if (parsedClientCertificate == null || clientNonce.IsEmpty)
             {
                 return null;
             }
 
-            SecurityPolicyInfo? securityPolicy = SecurityPolicies.Default.GetInfo(context.SecurityPolicyUri);
+            ISecurityPolicyRegistry policies = securityPolicies ?? SecurityPolicies.Default;
+            SecurityPolicyInfo? securityPolicy = policies.GetInfo(context.SecurityPolicyUri);
 
             // CreateServerSignature is invoked only when a secure channel is bound.
             SecureChannelContext channelContext = context.ChannelContext!;
@@ -66,7 +68,7 @@ namespace Opc.Ua.Server
                 channelContext.ClientChannelCertificate,
                 serverNonce.ToArray());
 
-            return SecurityPolicies.Default.CreateSignatureData(
+            return policies.CreateSignatureData(
                 context.SecurityPolicyUri,
                 instanceCertificate,
                 dataToSign);
@@ -78,7 +80,8 @@ namespace Opc.Ua.Server
         public static AdditionalParametersType? ProcessCreateSessionAdditionalParameters(
             ISession session,
             AdditionalParametersType parameters,
-            ILogger logger)
+            ILogger logger,
+            ISecurityPolicyRegistry? securityPolicies = null)
         {
             if (parameters == null)
             {
@@ -97,7 +100,8 @@ namespace Opc.Ua.Server
 
                 logger.ReceivedRequestForNewEphmeralKeyUsingSecurityPolicyUri(policyUri);
 
-                SecurityPolicyInfo? securityPolicy = SecurityPolicies.Default.GetInfo(policyUri);
+                SecurityPolicyInfo? securityPolicy = (securityPolicies ?? SecurityPolicies.Default)
+                    .GetInfo(policyUri);
 
                 if (securityPolicy != null &&
                     securityPolicy.EphemeralKeyAlgorithm != CertificateKeyAlgorithm.None)
