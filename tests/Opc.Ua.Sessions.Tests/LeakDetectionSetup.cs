@@ -27,6 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
 using NUnit.Framework;
 using Opc.Ua.Security.Certificates;
 using Opc.Ua.Tests;
@@ -49,6 +50,11 @@ namespace Opc.Ua.Sessions.Tests
         [OneTimeTearDown]
         public void GlobalTeardown()
         {
+            if (OperatingSystem.IsMacOS())
+            {
+                _ = LeakDetectionHelpers.WaitForOutstandingDisposals(maxAttempts: 900);
+            }
+
             LeakDetectionHelpers.AssertNoCertificateLeaks();
         }
     }
