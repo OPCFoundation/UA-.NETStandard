@@ -103,6 +103,44 @@ namespace Opc.Ua.Server.Tests
                 m_messageContext);
         }
 
+        /// <summary>
+        /// The datastore surfaces the policy set the server was composed with,
+        /// so the sessions it creates resolve policy URIs against the policies
+        /// the application registered rather than the built-in set.
+        /// </summary>
+        [Test]
+        public void SecurityPolicyRegistryIsTheOneTheServerWasComposedWith()
+        {
+            using var registry = new SecurityPolicies(m_telemetry);
+
+            using var data = new ServerInternalData(
+                m_serverProperties,
+                m_configuration,
+                m_messageContext,
+                timeProvider: null,
+                securityPolicies: registry);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(data.SecurityPolicyRegistry, Is.SameAs(registry));
+                Assert.That(
+                    (data as ISecurityPolicyRegistryProvider)?.SecurityPolicyRegistry,
+                    Is.SameAs(registry));
+            });
+        }
+
+        /// <summary>
+        /// A server composed without a registry keeps the previous behaviour
+        /// and resolves against the built-in policy set.
+        /// </summary>
+        [Test]
+        public void SecurityPolicyRegistryFallsBackToTheBuiltInPolicySet()
+        {
+            using ServerInternalData data = CreateServerInternalData();
+
+            Assert.That(data.SecurityPolicyRegistry, Is.SameAs(SecurityPolicies.Default));
+        }
+
         [Test]
         public void RequestManagerIsUnsetUntilTheServerObjectIsCreated()
         {
