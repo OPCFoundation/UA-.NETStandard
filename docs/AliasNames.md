@@ -236,7 +236,11 @@ public interface IAliasNameStore
 
 The reference `InMemoryAliasNameStore` is thread-safe (SemaphoreSlim),
 supports nested categories and emits `Changed` events that bubble up to
-the address-space `LastChange` property.
+the address-space `LastChange` property. A mutation on a nested
+category bumps — and notifies for — every ancestor category as well,
+per Part 17 §6.3.1/§9.2: a category's `LastChange` reflects the most
+recent change anywhere in its subtree, and the root `Aliases` value
+reflects any change at all.
 
 ## Client side — `Opc.Ua.Client.AliasNames`
 
