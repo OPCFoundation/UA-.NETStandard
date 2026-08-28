@@ -34,7 +34,11 @@ public sealed class MyServer : StandardServer
 
 Then start the server via `ApplicationInstance.StartAsync` (in the
 `OPCFoundation.NetStandard.Opc.Ua.Configuration` package), or host it
-through the fluent `services.AddOpcUa().AddServer(...)` DI surface. The
+through the fluent `services.AddOpcUa().AddServer(...)` DI surface.
+Applications that already own a classic configuration XML file can pass
+it directly — `AddServer("MyServer.Config.xml")`, or as a `Stream` for
+embedded resources — and keep every setting from the file while
+adopting dependency injection. The
 raw-socket `opc.tcp://` binding is built in; reference the
 `OPCFoundation.NetStandard.Opc.Ua.Bindings.Https` package to additionally
 expose an `https://` endpoint.

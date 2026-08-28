@@ -124,11 +124,27 @@ namespace Opc.Ua.Server.Hosting
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
-            string[] urls = new string[m_options.EndpointUrls.Count];
-            m_options.EndpointUrls.CopyTo(urls, 0);
             ICertificateManager? certificateManager =
                 m_services.GetService<ICertificateManager>();
-            if (m_configurationProvider != null)
+            if (HasSuppliedConfiguration)
+            {
+                if (!string.IsNullOrEmpty(m_options.ConfigurationFile) &&
+                    m_options.ConfigurationStream != null)
+                {
+                    throw new InvalidOperationException(
+                        "Set only one of OpcUaServerOptions.ConfigurationFile " +
+                        "and OpcUaServerOptions.ConfigurationStream.");
+                }
+
+                // An explicitly supplied configuration document is the most
+                // specific intent and therefore wins over a shared
+                // application registered via ConfigureApplication(...).
+                m_ownsApplication = true;
+                await LoadSuppliedApplicationConfigurationAsync(
+                    certificateManager,
+                    stoppingToken).ConfigureAwait(false);
+            }
+            else if (m_configurationProvider != null)
             {
                 m_application = m_configurationProvider.Application;
                 ApplyDependencyInjectedCertificateManager(certificateManager);
@@ -254,7 +270,7 @@ namespace Opc.Ua.Server.Hosting
                 }
             }
 
-            foreach (string url in urls)
+            foreach (string url in GetListenEndpointUrls(configuration))
             {
                 m_logger.OPCUAServerListeningAtEndpoint(url);
             }
@@ -310,6 +326,86 @@ namespace Opc.Ua.Server.Hosting
             await securityOptions.CreateAsync(ct).ConfigureAwait(false);
         }
 
+        /// <summary>
+        /// Whether an existing configuration XML document was supplied via
+        /// <see cref="OpcUaServerOptions.ConfigurationFile"/> or
+        /// <see cref="OpcUaServerOptions.ConfigurationStream"/>.
+        /// </summary>
+        private bool HasSuppliedConfiguration =>
+            !string.IsNullOrEmpty(m_options.ConfigurationFile) ||
+            m_options.ConfigurationStream != null;
+
+        /// <summary>
+        /// Loads the application configuration from the XML configuration
+        /// document supplied via <see cref="OpcUaServerOptions.ConfigurationFile"/>
+        /// or <see cref="OpcUaServerOptions.ConfigurationStream"/> so every
+        /// setting from the document is applied as-is, then applies the
+        /// optional <see cref="OpcUaServerOptions.ConfigureLoadedConfiguration"/>
+        /// override callback. A supplied stream is read once and disposed.
+        /// </summary>
+        private async Task LoadSuppliedApplicationConfigurationAsync(
+            ICertificateManager? certificateManager,
+            CancellationToken ct)
+        {
+            IApplicationInstance application = m_applicationFactory.Create(m_telemetry);
+            m_application = application;
+            application.ApplicationType = ApplicationType.Server;
+            application.CertificatePasswordProvider =
+                m_services.GetService<ICertificatePasswordProvider>();
+
+            ApplicationConfiguration configuration;
+            if (m_options.ConfigurationStream is { } configurationStream)
+            {
+                m_logger.LoadingOPCUAServerConfigurationFromStream();
+                using (configurationStream)
+                {
+                    configuration = await application
+                        .LoadApplicationConfigurationAsync(configurationStream, silent: false, ct)
+                        .ConfigureAwait(false);
+                }
+            }
+            else
+            {
+                string configurationFile = m_options.ConfigurationFile!;
+                m_logger.LoadingOPCUAServerConfigurationFromFile(configurationFile);
+                configuration = await application
+                    .LoadApplicationConfigurationAsync(configurationFile, silent: false, ct)
+                    .ConfigureAwait(false);
+            }
+
+            application.ApplicationName = configuration.ApplicationName;
+            m_options.ConfigureLoadedConfiguration?.Invoke(configuration);
+            ApplyDependencyInjectedCertificateManager(certificateManager);
+        }
+
+        /// <summary>
+        /// The endpoint URLs to report as listening: the configured
+        /// <see cref="OpcUaServerOptions.EndpointUrls"/> when present,
+        /// otherwise the base addresses of the effective configuration
+        /// (e.g. when it was loaded from a configuration file).
+        /// </summary>
+        private string[] GetListenEndpointUrls(ApplicationConfiguration configuration)
+        {
+            if (m_options.EndpointUrls.Count > 0)
+            {
+                string[] urls = new string[m_options.EndpointUrls.Count];
+                m_options.EndpointUrls.CopyTo(urls, 0);
+                return urls;
+            }
+
+            if (configuration.ServerConfiguration is { } serverConfiguration)
+            {
+                string[] urls = new string[serverConfiguration.BaseAddresses.Count];
+                for (int i = 0; i < urls.Length; i++)
+                {
+                    urls[i] = serverConfiguration.BaseAddresses[i];
+                }
+                return urls;
+            }
+
+            return [];
+        }
+
         private async Task BindKeyCredentialPushAsync(CancellationToken ct)
         {
             if (m_server == null)
@@ -348,7 +444,9 @@ namespace Opc.Ua.Server.Hosting
                 authenticators.Add(new AnonymousAuthenticator());
             }
 
-            WarnForUnmatchedUserTokenPolicies(authenticators);
+            WarnForUnmatchedUserTokenPolicies(
+                authenticators,
+                m_application?.ApplicationConfiguration);
 
             foreach (IUserTokenAuthenticator authenticator in authenticators)
             {
@@ -433,24 +531,56 @@ namespace Opc.Ua.Server.Hosting
             return certificates.Count > 0;
         }
 
-        private void WarnForUnmatchedUserTokenPolicies(IReadOnlyList<IUserTokenAuthenticator> authenticators)
+        private void WarnForUnmatchedUserTokenPolicies(
+            IReadOnlyList<IUserTokenAuthenticator> authenticators,
+            ApplicationConfiguration? configuration)
         {
-            IEnumerable<OpcUaUserTokenPolicy> policies = m_options.UserTokenPolicies.Count == 0
-                ? [new OpcUaUserTokenPolicy { TokenType = UserTokenType.Anonymous }]
-                : m_options.UserTokenPolicies;
-
-            foreach (OpcUaUserTokenPolicy policy in policies)
+            foreach (UserTokenType tokenType in GetAdvertisedUserTokenTypes(configuration))
             {
-                if (policy.TokenType == UserTokenType.Anonymous)
+                if (tokenType == UserTokenType.Anonymous)
                 {
                     continue;
                 }
 
-                if (!HasMatchingAuthenticator(policy.TokenType, authenticators))
+                if (!HasMatchingAuthenticator(tokenType, authenticators))
                 {
-                    m_logger.UserTokenPolicyTokenTypeIsConfiguredWithout(policy.TokenType);
+                    m_logger.UserTokenPolicyTokenTypeIsConfiguredWithout(tokenType);
                 }
             }
+        }
+
+        /// <summary>
+        /// The user token types the server advertises: the option-configured
+        /// policies when present, the policies of the loaded configuration
+        /// document on the <see cref="OpcUaServerOptions.ConfigurationFile"/> /
+        /// <see cref="OpcUaServerOptions.ConfigurationStream"/> path, and the
+        /// anonymous fallback otherwise.
+        /// </summary>
+        private IEnumerable<UserTokenType> GetAdvertisedUserTokenTypes(
+            ApplicationConfiguration? configuration)
+        {
+            if (m_options.UserTokenPolicies.Count > 0)
+            {
+                foreach (OpcUaUserTokenPolicy policy in m_options.UserTokenPolicies)
+                {
+                    yield return policy.TokenType;
+                }
+                yield break;
+            }
+
+            if (HasSuppliedConfiguration &&
+                configuration?.ServerConfiguration != null)
+            {
+                ArrayOf<UserTokenPolicy> policies =
+                    configuration.ServerConfiguration.UserTokenPolicies;
+                for (int i = 0; i < policies.Count; i++)
+                {
+                    yield return policies[i].TokenType;
+                }
+                yield break;
+            }
+
+            yield return UserTokenType.Anonymous;
         }
 
         private static bool HasMatchingAuthenticator(
@@ -546,5 +676,15 @@ namespace Opc.Ua.Server.Hosting
         [LoggerMessage(EventId = ServerEventIds.OpcUaServerHostedService + 4, Level = LogLevel.Warning,
             Message = "Error while stopping OPC UA server.")]
         public static partial void ErrorWhileStoppingOPCUAServer(this ILogger logger, Exception ex);
+
+        [LoggerMessage(EventId = ServerEventIds.OpcUaServerHostedService + 5, Level = LogLevel.Information,
+            Message = "Loading OPC UA server configuration from file {ConfigurationFile}.")]
+        public static partial void LoadingOPCUAServerConfigurationFromFile(
+            this ILogger logger,
+            string configurationFile);
+
+        [LoggerMessage(EventId = ServerEventIds.OpcUaServerHostedService + 6, Level = LogLevel.Information,
+            Message = "Loading OPC UA server configuration from a stream.")]
+        public static partial void LoadingOPCUAServerConfigurationFromStream(this ILogger logger);
     }
 }
