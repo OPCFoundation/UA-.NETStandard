@@ -92,7 +92,14 @@ Options:
 
 * `NamespaceUri` — controls the namespace under which the manager
   registers its category instances. Defaults to
-  `http://opcfoundation.org/UA/AliasName/`.
+  `http://opcfoundation.org/UA/AliasName/`. Every category descriptor's
+  NodeId must lie in this namespace; descriptors pointing anywhere else
+  are skipped with a warning rather than claiming another manager's
+  ids.
+* `MaterializeAliasNodes` (default `true`) — creates one browsable
+  `AliasNameType` node per alias, with `AliasFor` references to its
+  targets, exactly as the standard-node materialization below does.
+  Disable to expose only the category tree.
 * `LinkToStandardAliasesObject` (default `true`) — adds `Organizes`
   external references from the well-known `Aliases (i=23470)` object to
   the manager's root categories so they show up in the standard browse
@@ -112,6 +119,13 @@ themselves stay inside the store — nothing in the address space shows
 them. Part 17 §6.2 clients (the OPC Foundation CTT among them) also
 *browse* for aliases, so a server under conformance test needs the
 alias hierarchy materialized as real nodes.
+
+Both materialization paths — `AliasNameNodeManager` for
+application-defined namespaces and
+`DiagnosticsNodeManager.MaterializeRegisteredAliasNameNodesAsync` for
+the standard well-known nodes — run the same shared walker
+(`AliasNameNodeMaterializer`), so they produce structurally identical
+Part 17 trees and every fix lands in both at once.
 
 `DiagnosticsNodeManager.MaterializeRegisteredAliasNameNodesAsync` does
 that for every registered store: one `AliasNameType` instance per alias
