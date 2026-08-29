@@ -1,0 +1,37 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <OutputType>Exe</OutputType>
+    <IsPackable>false</IsPackable>
+    <AssemblyName>VisualInspectionCell</AssemblyName>
+    <PackageId>VisualInspectionCell</PackageId>
+    <Description>Visual inspection work cell hosting Vision, AI Model Management, ISA-95 Job Control V2 and an operator dialog condition.</Description>
+    <RootNamespace>Vision.VisualInspectionCell</RootNamespace>
+    <Nullable>enable</Nullable>
+    <NoWarn>$(NoWarn);CA1014;CA1812;CA1822</NoWarn>
+    <PublishAot>false</PublishAot>
+    <EnableConfigurationBindingGenerator>true</EnableConfigurationBindingGenerator>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <SelfContained>false</SelfContained>
+    <RestrictForLegacyTfm>true</RestrictForLegacyTfm>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\src\Opc.Ua.Configuration\Opc.Ua.Configuration.csproj" />
+    <ProjectReference Include="..\..\..\src\Opc.Ua.Server\Opc.Ua.Server.csproj" />
+    <ProjectReference Include="..\..\..\src\Opc.Ua.AI\Opc.Ua.AI.csproj" />
+    <ProjectReference Include="..\..\..\src\Opc.Ua.AI.Inference\Opc.Ua.AI.Inference.csproj" />
+    <ProjectReference Include="..\..\..\src\Opc.Ua.AI.Server\Opc.Ua.AI.Server.csproj" />
+    <ProjectReference Include="..\..\..\src\Opc.Ua.ISA95\Opc.Ua.ISA95.csproj" />
+    <ProjectReference Include="..\..\..\src\Opc.Ua.ISA95.Server\Opc.Ua.ISA95.Server.csproj" />
+    <ProjectReference Include="..\..\..\src\Opc.Ua.Vision\Opc.Ua.Vision.csproj" />
+    <ProjectReference Include="..\..\..\src\Opc.Ua.Vision.Server\Opc.Ua.Vision.Server.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Hosting" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Console" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Update="Fixtures\*.png" CopyToOutputDirectory="PreserveNewest" />
+    <None Update="Fixtures\generate_fixtures.py" />
+  </ItemGroup>
+</Project>

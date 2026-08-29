@@ -38,8 +38,7 @@ steps all use the generated Robot Intent DataTypes while keeping the client
 code concise.
 
 > The namespace `http://opcfoundation.org/UA/RobotIntent/` and every NodeId in
-> it are **provisional**. The model is a working-group draft and is neither
-> official nor endorsed by the OPC Foundation.
+> it are **provisional**. The model is a working-group draft.
 
 See the [Robotics developer guide](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/Robotics.md),
 the [Robot Intent guide](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/Robotics.md#robot-intent),

@@ -57,9 +57,11 @@ var portOption = new Option<int>("--port", "-p")
     DefaultValueFactory = _ => 5100
 };
 
-var profileOption = new Option<McpToolProfile?>("--profile")
+var profileOption = new Option<string?>("--profile")
 {
-    Description = "Tool profile: core, services, administration, pubsub, diagnostics, or full (default)"
+    Description = "Tool profiles: one profile or a comma-separated list of profiles - " +
+        "core, services, administration, pubsub, diagnostics, robotics, vision, or full (default). " +
+        "Compose profiles with ',' or '+', e.g. --profile vision,robotics for a vision-guided agent."
 };
 
 var rootCommand = new RootCommand("OPC UA MCP Server - Exposes OPC UA Part 4 services as MCP tools")
@@ -73,7 +75,14 @@ rootCommand.SetAction(async (parseResult, ct) =>
 {
     string transport = parseResult.GetValue(transportOption)!;
     int port = parseResult.GetValue(portOption);
-    McpToolProfile? toolProfile = parseResult.GetValue(profileOption);
+    string? toolProfile = parseResult.GetValue(profileOption);
+
+    if (!string.IsNullOrWhiteSpace(toolProfile) &&
+        !McpToolProfileSet.TryParse(toolProfile, out _, out string? profileError))
+    {
+        await Console.Error.WriteLineAsync(profileError).ConfigureAwait(false);
+        return 2;
+    }
 
     if (transport.Equals("stdio", StringComparison.OrdinalIgnoreCase))
     {
@@ -95,7 +104,7 @@ rootCommand.SetAction(async (parseResult, ct) =>
 
 return await rootCommand.Parse(args).InvokeAsync().ConfigureAwait(false);
 
-static async Task RunStdioServerAsync(McpToolProfile? toolProfileOverride, CancellationToken ct)
+static async Task RunStdioServerAsync(string? toolProfileOverride, CancellationToken ct)
 {
     await Console.Error.WriteLineAsync(
         "Starting MCP server with stdio transport...").ConfigureAwait(false);
@@ -115,7 +124,7 @@ static async Task RunStdioServerAsync(McpToolProfile? toolProfileOverride, Cance
         .WithStdioServerTransport();
     McpHostBuilder.ConfigureMcpTools(
         mcpServerBuilder,
-        OpcUaMcpOptions.ToolProfile,
+        OpcUaMcpOptions.EffectiveToolProfiles,
         diagnosticsToolsEnabled);
 
     IHost app = builder.Build();
@@ -125,7 +134,7 @@ static async Task RunStdioServerAsync(McpToolProfile? toolProfileOverride, Cance
 
 static async Task RunHttpServerAsync(
     int port,
-    McpToolProfile? toolProfileOverride,
+    string? toolProfileOverride,
     CancellationToken ct)
 {
     await Console.Error.WriteLineAsync(
@@ -146,7 +155,7 @@ static async Task RunHttpServerAsync(
         .WithHttpTransport();
     McpHostBuilder.ConfigureMcpTools(
         mcpServerBuilder,
-        OpcUaMcpOptions.ToolProfile,
+        OpcUaMcpOptions.EffectiveToolProfiles,
         diagnosticsToolsEnabled);
 
     WebApplication app = builder.Build();

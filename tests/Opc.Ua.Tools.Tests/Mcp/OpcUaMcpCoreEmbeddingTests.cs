@@ -162,6 +162,63 @@ namespace Opc.Ua.Tools.Tests.Mcp
             Assert.That(exception!.ParamName, Is.EqualTo("toolProfile"));
         }
 
+        /// <summary>
+        /// The composition mechanism the library split exists to enable: an
+        /// embedding host declares the profiles it wants and gets a single
+        /// composed catalogue - one <c>Connect</c>, one <c>Disconnect</c> -
+        /// using only the public extension methods.
+        /// </summary>
+        [Test]
+        public void AHostCanComposeSeveralBoundedProfilesInOneServer()
+        {
+            var toolProfiles = new McpToolProfileSet(
+                new[] { McpToolProfile.Vision, McpToolProfile.Robotics });
+            var services = new ServiceCollection();
+
+            services.AddMcpServer()
+                .WithOpcUaMcpFilters()
+                .WithOpcUaCoreTools(toolProfiles)
+                .WithOpcUaVisionTools(toolProfiles)
+                .WithOpcUaRoboticsTools(toolProfiles)
+                .WithTools<ApplicationSpecialtyTools>();
+
+            using ServiceProvider provider = services.BuildServiceProvider();
+            List<McpServerTool> tools = provider.GetServices<McpServerTool>().ToList();
+
+            Assert.That(
+                tools.Count(t => string.Equals(t.ProtocolTool.Name, "Connect", StringComparison.Ordinal)),
+                Is.EqualTo(1),
+                "Composed set-overloads must register the connection tools exactly once.");
+            HashSet<string> names = tools
+                .Select(t => t.ProtocolTool.Name)
+                .ToHashSet(StringComparer.Ordinal);
+            Assert.That(names, Does.Contain("vision_get_frame"));
+            Assert.That(names, Does.Contain("robotics_submit_linear_move"));
+            Assert.That(names, Does.Contain("application_specialty"));
+        }
+
+        /// <summary>
+        /// The idempotent connection-tool helper is what makes it safe for a
+        /// host to register connection tools directly and still call any of
+        /// the set-overloads that also depend on them.
+        /// </summary>
+        [Test]
+        public void WithOpcUaConnectionToolsRegistersConnectionToolsExactlyOnce()
+        {
+            var services = new ServiceCollection();
+
+            services.AddMcpServer()
+                .WithOpcUaConnectionTools()
+                .WithOpcUaConnectionTools();
+
+            using ServiceProvider provider = services.BuildServiceProvider();
+            int connectCount = provider
+                .GetServices<McpServerTool>()
+                .Count(t => string.Equals(t.ProtocolTool.Name, "Connect", StringComparison.Ordinal));
+
+            Assert.That(connectCount, Is.EqualTo(1));
+        }
+
         private static HashSet<string> ResolveToolNames(IServiceCollection services)
         {
             using ServiceProvider provider = services.BuildServiceProvider();

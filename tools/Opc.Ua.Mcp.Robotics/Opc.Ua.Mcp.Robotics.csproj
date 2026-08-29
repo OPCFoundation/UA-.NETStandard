@@ -29,6 +29,9 @@
   <ItemGroup>
     <ProjectReference Include="..\Opc.Ua.Mcp.Core\Opc.Ua.Mcp.Core.csproj" />
     <ProjectReference Include="..\..\src\Opc.Ua.Robotics.Client\Opc.Ua.Robotics.Client.csproj" />
+    <!-- The vision-guided pick helper composes the Vision client SDK directly on the same
+         session; it never depends on the Vision MCP package or any other MCP tool. -->
+    <ProjectReference Include="..\..\src\Opc.Ua.Vision.Client\Opc.Ua.Vision.Client.csproj" />
   </ItemGroup>
   <ItemGroup>
     <None Include="NugetREADME.md" Pack="true" PackagePath="\" />

@@ -39,6 +39,18 @@ namespace Opc.Ua.Client.Subscriptions
     internal interface ISubscriptionManagerContext
     {
         /// <summary>
+        /// Gets the number of created subscriptions the session owns outside this
+        /// manager's registry, for example through the classic
+        /// <c>Session.AddSubscription</c> API.
+        /// </summary>
+        /// <remarks>
+        /// These subscriptions still need Publish workers. Without including them in
+        /// worker sizing, a session with only classic subscriptions never issues a
+        /// Publish request even though notifications can be dispatched to it.
+        /// </remarks>
+        int SessionSubscriptionCount { get; }
+
+        /// <summary>
         /// Create a managed subscription
         /// </summary>
         /// <param name="handler"></param>
@@ -96,5 +108,33 @@ namespace Opc.Ua.Client.Subscriptions
             RequestHeader? requestHeader,
             ArrayOf<uint> subscriptionIds,
             CancellationToken ct = default);
+
+        /// <summary>
+        /// Delivers a publish response to a subscription the session holds outside
+        /// this manager's registry, for example one created through the classic
+        /// <c>Session.AddSubscription</c> API.
+        /// </summary>
+        /// <remarks>
+        /// A session can carry subscriptions the manager never created. Their
+        /// identifiers do not resolve here, and dropping the notification would
+        /// leave the subscription silent while it still reports itself as created
+        /// and publishing; deleting it as abandoned would destroy a live
+        /// subscription the application owns.
+        /// </remarks>
+        /// <param name="subscriptionId">The identifier from the publish response.</param>
+        /// <param name="message">The notification message to deliver.</param>
+        /// <param name="availableSequenceNumbers">Sequence numbers still available
+        /// for republish on the server.</param>
+        /// <param name="stringTable">The response string table.</param>
+        /// <param name="moreNotifications">Whether the server has more notifications
+        /// queued for this subscription.</param>
+        /// <returns><c>true</c> when the session owned the identifier and the
+        /// message was delivered.</returns>
+        bool TryDispatchToSessionSubscription(
+            uint subscriptionId,
+            NotificationMessage message,
+            ArrayOf<uint> availableSequenceNumbers,
+            ArrayOf<string> stringTable,
+            bool moreNotifications);
     }
 }

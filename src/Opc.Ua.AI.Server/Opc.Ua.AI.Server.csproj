@@ -1,0 +1,39 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <AssemblyName>$(AssemblyPrefix).AI.Server</AssemblyName>
+    <!-- Follows Opc.Ua.AI.Inference, which this references. -->
+    <TargetFrameworks Condition="'$(CustomTestTarget)' == ''">net10.0;net9.0;net8.0</TargetFrameworks>
+    <TargetFrameworks Condition="'$(CustomTestTarget)' == 'net8.0' OR '$(CustomTestTarget)' == 'net9.0' OR '$(CustomTestTarget)' == 'net10.0'">$(CustomTestTarget)</TargetFrameworks>
+    <TargetFrameworks Condition="'$(TargetFrameworks)' == ''">net10.0</TargetFrameworks>
+    <RestrictForLegacyTfm>true</RestrictForLegacyTfm>
+    <PackageId>$(PackagePrefix).Opc.Ua.AI.Server</PackageId>
+    <RootNamespace>Opc.Ua.AI.Server</RootNamespace>
+    <NoWarn>$(NoWarn);CS1591;CS0108</NoWarn>
+    <Nullable>enable</Nullable>
+    <Description>Server-side support for the OPC UA AI Model Management and Inference (draft) companion specification: a node manager that publishes the model catalogue, datasets, deployments and inference endpoints, routes Invoke to an IInferenceBackend, runs learning jobs, and streams model artefacts through the standard file-transfer types.</Description>
+    <IsPackable>true</IsPackable>
+    <PackageReadmeFile>NugetREADME.md</PackageReadmeFile>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <PublishAot>false</PublishAot>
+    <IsAotCompatible>false</IsAotCompatible>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)' == 'Debug'">
+    <PackageId>$(PackageId).Debug</PackageId>
+  </PropertyGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="Opc.Ua.AI.Tests" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Opc.Ua.AI\Opc.Ua.AI.csproj" />
+    <ProjectReference Include="..\Opc.Ua.AI.Inference\Opc.Ua.AI.Inference.csproj" />
+    <ProjectReference Include="..\Opc.Ua.Server\Opc.Ua.Server.csproj" />
+    <ProjectReference Include="..\Opc.Ua.XRegistry\Opc.Ua.XRegistry.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" />
+    <PackageReference Include="Microsoft.Extensions.Options" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="NugetREADME.md" Pack="true" PackagePath="\" />
+  </ItemGroup>
+</Project>

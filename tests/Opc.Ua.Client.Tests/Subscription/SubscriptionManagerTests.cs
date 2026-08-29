@@ -989,6 +989,106 @@ namespace Opc.Ua.Client.Subscriptions
         }
 
         /// <summary>
+        /// A subscription created through the classic <c>Session.AddSubscription</c>
+        /// API is unknown to this manager's registry, but it is live and owned by
+        /// the application. Deleting it as abandoned takes it down on the server
+        /// while the caller still believes it is streaming, which shows up as a
+        /// twin that silently stops updating.
+        /// </summary>
+        [Test]
+        [CancelAfter(30_000)]
+        public async Task PublishWorkerKeepsSubscriptionOwnedBySessionAsync(
+            CancellationToken testCt)
+        {
+            using ILoggerFactory loggerFactory = LoggerFactory.Create(b => b.AddDebug());
+            var session = new FakeSubscriptionManagerContext();
+            OptionsMonitor<SubscriptionOptions> createdOptions =
+                OptionsFactory.Create<SubscriptionOptions>();
+
+            var created = new FakeManagedSubscription { Id = 1u, Created = true };
+
+            var sut = new SubscriptionManager(session,
+                loggerFactory, DiagnosticsMasks.None);
+            await using (sut.ConfigureAwait(false))
+            {
+                session.CreateSubscriptionFactory = (handler, options, queue) => created;
+                sut.Add(m_mockNotificationDataHandler.Object, createdOptions);
+
+                // The session holds this one outside the manager's registry.
+                session.SessionOwnedSubscriptionIds.Add(4242u);
+
+                int publishCount = 0;
+                session.OnPublishAsync = (h, a, ct) =>
+                {
+                    Interlocked.Increment(ref publishCount);
+                    return new ValueTask<PublishResponse>(
+                        CreatePublishResponse(4242u, h.RequestHandle));
+                };
+
+                sut.MinPublishWorkerCount = 1;
+                sut.MaxPublishWorkerCount = 1;
+                sut.Resume();
+
+                await WaitUntilAsync(() => Volatile.Read(ref publishCount) >= 5,
+                    testCt).ConfigureAwait(false);
+
+                Assert.That(session.DeleteCalls, Is.Empty,
+                    "A subscription the session owns must never be deleted as abandoned.");
+                Assert.That(session.SessionDispatchCount, Is.GreaterThan(0),
+                    "Notifications for a session-owned subscription must be delivered to it.");
+            }
+        }
+
+        /// <summary>
+        /// A session with only a classic subscription still needs a Publish worker.
+        /// The manager does not own that subscription, but it owns the shared Publish
+        /// pipeline that dispatches responses to it.
+        /// </summary>
+        [Test]
+        [CancelAfter(30_000)]
+        public async Task ClassicSessionSubscriptionStartsPublishWorkerAsync(
+            CancellationToken testCt)
+        {
+            ILoggerFactory loggerFactory = m_telemetry.LoggerFactory;
+            var session = new FakeSubscriptionManagerContext();
+            session.SessionOwnedSubscriptionIds.Add(4242u);
+            var publishSeen = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            session.OnPublishAsync = (header, acknowledgements, ct) =>
+            {
+                publishSeen.TrySetResult(true);
+                return new ValueTask<PublishResponse>(
+                    CreatePublishResponse(4242u, header.RequestHandle));
+            };
+
+            var sut = new SubscriptionManager(
+                session,
+                loggerFactory,
+                DiagnosticsMasks.None)
+            {
+                MinPublishWorkerCount = 1,
+                MaxPublishWorkerCount = 1
+            };
+            await using (sut.ConfigureAwait(false))
+            {
+                sut.Resume();
+                sut.Update();
+
+                await publishSeen.Task.WaitAsync(testCt).ConfigureAwait(false);
+                await WaitUntilAsync(
+                    () => session.SessionDispatchCount > 0,
+                    testCt).ConfigureAwait(false);
+
+                Assert.Multiple(() =>
+                {
+                    Assert.That(sut.Count, Is.Zero);
+                    Assert.That(sut.PublishWorkerCount, Is.EqualTo(1));
+                    Assert.That(session.DeleteCalls, Is.Empty);
+                });
+            }
+        }
+
+        /// <summary>
         /// While an identifier stays unresolved the server keeps answering with
         /// the same undeliverable response. The worker must back off instead of
         /// republishing immediately - otherwise it busy-spins, hammers the
