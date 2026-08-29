@@ -32,6 +32,7 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
+using System.IO;
 using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
@@ -161,6 +162,189 @@ namespace Microsoft.Extensions.DependencyInjection
                 ActivatorOpcUaServerFactory<TServer>>());
 
             return new OpcUaServerBuilder(builder.Services);
+        }
+
+        /// <summary>
+        /// Registers an OPC UA server hosted as an <see cref="IHostedService"/>
+        /// whose <see cref="ApplicationConfiguration"/> is loaded from an
+        /// existing OPC UA XML configuration file
+        /// (e.g. <c>MyServer.Config.xml</c>).
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// This is the migration path for applications that already own a
+        /// configuration file: every setting in the file (base addresses,
+        /// security policies, certificate stores, transport quotas, operation
+        /// limits, ...) is applied as-is, exactly as when the file is loaded
+        /// through <c>ApplicationInstance.LoadApplicationConfigurationAsync</c>.
+        /// Node managers, identity authenticators, roles and the other
+        /// <see cref="IOpcUaServerBuilder"/> registrations compose with the
+        /// loaded file the same way they compose with option-built
+        /// configurations.
+        /// </para>
+        /// <para>
+        /// Equivalent to
+        /// <see cref="AddServer(IOpcUaBuilder, Action{OpcUaServerOptions})"/>
+        /// with <see cref="OpcUaServerOptions.ConfigurationFile"/> and
+        /// <see cref="OpcUaServerOptions.ConfigureLoadedConfiguration"/> set.
+        /// </para>
+        /// </remarks>
+        /// <param name="builder">The OPC UA builder.</param>
+        /// <param name="configurationFile">Path to the application
+        /// configuration XML file. A relative path is resolved against the
+        /// current working directory.</param>
+        /// <param name="configure">Optional callback invoked with the loaded
+        /// <see cref="ApplicationConfiguration"/> before certificates are
+        /// checked and the server starts; use it to override individual
+        /// settings from code.</param>
+        /// <returns>An <see cref="IOpcUaServerBuilder"/> for chaining.</returns>
+        /// <exception cref="ArgumentNullException"><paramref name="builder"/>
+        /// or <paramref name="configurationFile"/> is <c>null</c>.</exception>
+        /// <exception cref="ArgumentException"><paramref name="configurationFile"/>
+        /// is empty or white space.</exception>
+        /// <exception cref="InvalidOperationException">An OPC UA server
+        /// is already registered.</exception>
+        public static IOpcUaServerBuilder AddServer(
+            this IOpcUaBuilder builder,
+            string configurationFile,
+            Action<ApplicationConfiguration>? configure = null)
+        {
+            ValidateConfigurationFilePath(configurationFile);
+            return builder.AddServer(options =>
+            {
+                options.ConfigurationFile = configurationFile;
+                options.ConfigureLoadedConfiguration = configure;
+            });
+        }
+
+        /// <summary>
+        /// Registers an OPC UA server hosted as an <see cref="IHostedService"/>
+        /// using a custom <see cref="StandardServer"/> subclass whose
+        /// <see cref="ApplicationConfiguration"/> is loaded from an existing
+        /// OPC UA XML configuration file (e.g. <c>MyServer.Config.xml</c>).
+        /// </summary>
+        /// <remarks>
+        /// See <see cref="AddServer(IOpcUaBuilder, string, Action{ApplicationConfiguration})"/>
+        /// for how the configuration file is applied.
+        /// </remarks>
+        /// <typeparam name="TServer">The server type created by the hosted service.</typeparam>
+        /// <param name="builder">The OPC UA builder.</param>
+        /// <param name="configurationFile">Path to the application
+        /// configuration XML file. A relative path is resolved against the
+        /// current working directory.</param>
+        /// <param name="configure">Optional callback invoked with the loaded
+        /// <see cref="ApplicationConfiguration"/> before certificates are
+        /// checked and the server starts.</param>
+        /// <returns>An <see cref="IOpcUaServerBuilder"/> for chaining.</returns>
+        /// <exception cref="ArgumentNullException"><paramref name="builder"/>
+        /// or <paramref name="configurationFile"/> is <c>null</c>.</exception>
+        /// <exception cref="ArgumentException"><paramref name="configurationFile"/>
+        /// is empty or white space.</exception>
+        /// <exception cref="InvalidOperationException">An OPC UA server
+        /// is already registered.</exception>
+        public static IOpcUaServerBuilder AddServer<
+            [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] TServer>(
+                this IOpcUaBuilder builder,
+                string configurationFile,
+                Action<ApplicationConfiguration>? configure = null)
+            where TServer : StandardServer
+        {
+            ValidateConfigurationFilePath(configurationFile);
+            return builder.AddServer<TServer>(options =>
+            {
+                options.ConfigurationFile = configurationFile;
+                options.ConfigureLoadedConfiguration = configure;
+            });
+        }
+
+        /// <summary>
+        /// Registers an OPC UA server hosted as an <see cref="IHostedService"/>
+        /// whose <see cref="ApplicationConfiguration"/> is loaded from a
+        /// stream containing an OPC UA XML configuration document, e.g. an
+        /// embedded resource.
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// See <see cref="AddServer(IOpcUaBuilder, string, Action{ApplicationConfiguration})"/>
+        /// for how the loaded configuration is applied. Equivalent to
+        /// <see cref="AddServer(IOpcUaBuilder, Action{OpcUaServerOptions})"/>
+        /// with <see cref="OpcUaServerOptions.ConfigurationStream"/> and
+        /// <see cref="OpcUaServerOptions.ConfigureLoadedConfiguration"/> set.
+        /// </para>
+        /// <para>
+        /// The stream must remain open until the host starts the server; it
+        /// is read once and disposed by the hosted service during startup.
+        /// </para>
+        /// </remarks>
+        /// <param name="builder">The OPC UA builder.</param>
+        /// <param name="configurationStream">Stream containing the
+        /// application configuration XML document.</param>
+        /// <param name="configure">Optional callback invoked with the loaded
+        /// <see cref="ApplicationConfiguration"/> before certificates are
+        /// checked and the server starts; use it to override individual
+        /// settings from code.</param>
+        /// <returns>An <see cref="IOpcUaServerBuilder"/> for chaining.</returns>
+        /// <exception cref="ArgumentNullException"><paramref name="builder"/>
+        /// or <paramref name="configurationStream"/> is <c>null</c>.</exception>
+        /// <exception cref="InvalidOperationException">An OPC UA server
+        /// is already registered.</exception>
+        public static IOpcUaServerBuilder AddServer(
+            this IOpcUaBuilder builder,
+            Stream configurationStream,
+            Action<ApplicationConfiguration>? configure = null)
+        {
+            if (configurationStream is null)
+            {
+                throw new ArgumentNullException(nameof(configurationStream));
+            }
+
+            return builder.AddServer(options =>
+            {
+                options.ConfigurationStream = configurationStream;
+                options.ConfigureLoadedConfiguration = configure;
+            });
+        }
+
+        /// <summary>
+        /// Registers an OPC UA server hosted as an <see cref="IHostedService"/>
+        /// using a custom <see cref="StandardServer"/> subclass whose
+        /// <see cref="ApplicationConfiguration"/> is loaded from a stream
+        /// containing an OPC UA XML configuration document, e.g. an embedded
+        /// resource.
+        /// </summary>
+        /// <remarks>
+        /// See <see cref="AddServer(IOpcUaBuilder, Stream, Action{ApplicationConfiguration})"/>
+        /// for how the stream is applied and its lifetime.
+        /// </remarks>
+        /// <typeparam name="TServer">The server type created by the hosted service.</typeparam>
+        /// <param name="builder">The OPC UA builder.</param>
+        /// <param name="configurationStream">Stream containing the
+        /// application configuration XML document.</param>
+        /// <param name="configure">Optional callback invoked with the loaded
+        /// <see cref="ApplicationConfiguration"/> before certificates are
+        /// checked and the server starts.</param>
+        /// <returns>An <see cref="IOpcUaServerBuilder"/> for chaining.</returns>
+        /// <exception cref="ArgumentNullException"><paramref name="builder"/>
+        /// or <paramref name="configurationStream"/> is <c>null</c>.</exception>
+        /// <exception cref="InvalidOperationException">An OPC UA server
+        /// is already registered.</exception>
+        public static IOpcUaServerBuilder AddServer<
+            [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] TServer>(
+                this IOpcUaBuilder builder,
+                Stream configurationStream,
+                Action<ApplicationConfiguration>? configure = null)
+            where TServer : StandardServer
+        {
+            if (configurationStream is null)
+            {
+                throw new ArgumentNullException(nameof(configurationStream));
+            }
+
+            return builder.AddServer<TServer>(options =>
+            {
+                options.ConfigurationStream = configurationStream;
+                options.ConfigureLoadedConfiguration = configure;
+            });
         }
 
         /// <summary>
@@ -1238,6 +1422,20 @@ namespace Microsoft.Extensions.DependencyInjection
             }
         }
 
+        private static void ValidateConfigurationFilePath(string configurationFile)
+        {
+            if (configurationFile is null)
+            {
+                throw new ArgumentNullException(nameof(configurationFile));
+            }
+            if (string.IsNullOrWhiteSpace(configurationFile))
+            {
+                throw new ArgumentException(
+                    "The configuration file path must not be empty.",
+                    nameof(configurationFile));
+            }
+        }
+
         private static void EnsureFirstRegistration(IServiceCollection services)
         {
             foreach (ServiceDescriptor d in services)
@@ -1461,6 +1659,8 @@ namespace Microsoft.Extensions.DependencyInjection
             BindString(section, nameof(OpcUaServerOptions.ProductUri), value => options.ProductUri = value);
             BindString(section, nameof(OpcUaServerOptions.SubjectName), value => options.SubjectName = value);
             BindString(section, nameof(OpcUaServerOptions.PkiRoot), value => options.PkiRoot = value);
+            BindString(section, nameof(OpcUaServerOptions.ConfigurationFile),
+                value => options.ConfigurationFile = value);
             BindString(section, nameof(OpcUaServerOptions.RegistrationEndpointUrl),
                 value => options.RegistrationEndpointUrl = value);
             BindBoolean(section, nameof(OpcUaServerOptions.AutoAcceptUntrustedCertificates),
