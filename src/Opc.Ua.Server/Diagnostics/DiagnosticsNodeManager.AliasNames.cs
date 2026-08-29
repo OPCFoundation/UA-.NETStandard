@@ -259,37 +259,47 @@ namespace Opc.Ua.Server
             }
         }
 
+        /// <inheritdoc/>
         ISystemContext IAliasNameMaterializerHost.SystemContext => SystemContext;
 
+        /// <inheritdoc/>
         ITypeTable IAliasNameMaterializerHost.TypeTree => Server.TypeTree;
 
+        /// <inheritdoc/>
         NamespaceTable IAliasNameMaterializerHost.NamespaceUris => Server.NamespaceUris;
 
+        /// <inheritdoc/>
         StringTable IAliasNameMaterializerHost.ServerUris => Server.ServerUris;
 
+        /// <inheritdoc/>
         ushort IAliasNameMaterializerHost.MaterializationNamespaceIndex => m_namespaceIndex;
 
+        /// <inheritdoc/>
         AliasNameCategoryState? IAliasNameMaterializerHost.FindCategoryNode(NodeId nodeId)
         {
             return FindPredefinedNode<AliasNameCategoryState>(nodeId);
         }
 
+        /// <inheritdoc/>
         bool IAliasNameMaterializerHost.TryGetNode(NodeId nodeId, out NodeState? node)
         {
             return PredefinedNodes.TryGetValue(nodeId, out node);
         }
 
+        /// <inheritdoc/>
         ValueTask IAliasNameMaterializerHost.RegisterNodeAsync(
             NodeState node, CancellationToken cancellationToken)
         {
             return AddPredefinedNodeAsync(SystemContext, node, cancellationToken);
         }
 
+        /// <inheritdoc/>
         NodeId IAliasNameMaterializerHost.MintNodeId(NodeState node)
         {
             return New(SystemContext, node);
         }
 
+        /// <inheritdoc/>
         void IAliasNameMaterializerHost.LinkRootCategory(
             AliasNameCategoryState root,
             IDictionary<NodeId, IList<IReference>> externalReferences)
@@ -311,6 +321,7 @@ namespace Opc.Ua.Server
             }
         }
 
+        /// <inheritdoc/>
         void IAliasNameMaterializerHost.AddInverseAliasReference(
             NodeId targetId,
             NodeId aliasNodeId,
@@ -324,6 +335,7 @@ namespace Opc.Ua.Server
                 externalReferences);
         }
 
+        /// <inheritdoc/>
         void IAliasNameMaterializerHost.OnLastChangeBound(
             NodeId categoryId, PropertyState<uint> lastChange)
         {
