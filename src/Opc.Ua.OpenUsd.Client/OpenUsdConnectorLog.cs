@@ -67,5 +67,22 @@ namespace Opc.Ua.OpenUsd.Client
             Message = "Refusing OpenUSD command: the session does not hold the write/Call " +
                 "authorization required by {TargetNodeId}.")]
         public static partial void CommandRefusedUnauthorized(this ILogger logger, string targetNodeId);
+
+        [LoggerMessage(EventId = OpenUsdEventIds.Connector + 7, Level = LogLevel.Information,
+            Message = "OpenUSD live stream bound {BindingCount} binding(s) across " +
+                "{RepresentationCount} representation(s) and is monitoring {MonitoredCount} item(s).")]
+        public static partial void LiveBindingsSubscribed(
+            this ILogger logger, int bindingCount, int representationCount, int monitoredCount);
+
+        [LoggerMessage(EventId = OpenUsdEventIds.Connector + 8, Level = LogLevel.Debug,
+            Message = "OpenUSD live update: {PrimPath}.{PropertyName} resolved from {SourceNodeId}.")]
+        public static partial void LiveUpdateApplied(
+            this ILogger logger, string primPath, string propertyName, string sourceNodeId);
+
+        [LoggerMessage(EventId = OpenUsdEventIds.Connector + 9, Level = LogLevel.Warning,
+            Message = "OpenUSD live update left {PrimPath}.{PropertyName} unresolved: the value from " +
+                "{SourceNodeId} is not one the {Kind} profile accepts, so the prim will not follow it.")]
+        public static partial void LiveUpdateUnresolved(
+            this ILogger logger, string primPath, string propertyName, string sourceNodeId, string kind);
     }
 }

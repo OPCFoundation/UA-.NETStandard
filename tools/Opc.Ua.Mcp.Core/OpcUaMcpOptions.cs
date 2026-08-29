@@ -43,7 +43,37 @@ namespace Opc.Ua.Mcp
         /// <summary>
         /// Gets or sets the tool catalog exposed by the MCP server.
         /// </summary>
+        /// <remarks>
+        /// When <see cref="ToolProfiles"/> is empty this single value drives
+        /// the tool set, so a host that only wants one profile does not have to
+        /// think about composition. Setting <see cref="ToolProfiles"/> takes
+        /// precedence over this value, so an agent that needs several profiles
+        /// - vision plus robotics, for instance - configures the set and leaves
+        /// this property alone.
+        /// </remarks>
         public McpToolProfile ToolProfile { get; set; } = McpToolProfile.Full;
+
+        /// <summary>
+        /// Gets or sets the composed tool catalog exposed by the MCP server.
+        /// </summary>
+        /// <remarks>
+        /// When non-empty this set takes precedence over <see cref="ToolProfile"/>
+        /// and lists every profile the server should carry. This is how a host
+        /// composes several bounded profiles into one meaningful catalog - for
+        /// example, <c>Vision</c> plus <c>Robotics</c> for a vision-guided
+        /// pick-and-place agent - without pulling in every other profile
+        /// through <see cref="McpToolProfile.Full"/>.
+        /// </remarks>
+        public McpToolProfileSet ToolProfiles { get; set; }
+
+        /// <summary>
+        /// The effective set of tool profiles the host should register, so a
+        /// caller does not have to know whether the single-profile or composed
+        /// selection is in force.
+        /// </summary>
+        public McpToolProfileSet EffectiveToolProfiles => ToolProfiles.IsEmpty
+            ? new McpToolProfileSet(ToolProfile)
+            : ToolProfiles;
 
         /// <summary>
         /// Base directory under which the

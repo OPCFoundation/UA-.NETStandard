@@ -121,8 +121,7 @@ state transitions, cancellation admission, and outcomes; the executor owns the
 actual robot work and reports progress through `IIntentProgress`.
 
 > The namespace `http://opcfoundation.org/UA/RobotIntent/` and every NodeId in
-> it are **provisional**. The model is a working-group draft and is neither
-> official nor endorsed by the OPC Foundation.
+> it are **provisional**. The model is a working-group draft.
 
 See the [Robotics developer guide](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/Robotics.md),
 the [Robot Intent guide](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/Robotics.md#robot-intent),

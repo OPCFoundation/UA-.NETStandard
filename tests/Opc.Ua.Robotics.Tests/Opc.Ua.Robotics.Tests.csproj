@@ -33,7 +33,33 @@
     <ProjectReference Include="..\..\src\Opc.Ua.Server\Opc.Ua.Server.csproj" />
     <ProjectReference Include="..\..\samples\Robotics\IntentEnabledRobot\IntentEnabledRobot.csproj"
                       Condition="'$(TargetFramework)' == 'net10.0'" />
+    <ProjectReference Include="..\..\src\Opc.Ua.Vision\Opc.Ua.Vision.csproj"
+                      Condition="'$(TargetFramework)' == 'net10.0'" />
     <ProjectReference Include="..\Opc.Ua.Server.TestFramework\Opc.Ua.Server.TestFramework.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <!-- The bin-picking cell's world model is a plain state class with no OPC UA or
+         rendering dependencies, so it is compiled in directly rather than by referencing
+         the cell executable. It decides whether the camera still reports a part, which is
+         worth pinning: when that rule stopped following the part's coordinates, a part the
+         robot had put back in the bin stayed invisible. -->
+    <Compile Include="..\..\samples\Robotics\BinPickingCell\BinPickingParts.cs"
+                      Link="BinPicking\BinPickingParts.cs" />
+    <Compile Include="..\..\samples\Robotics\BinPickingCell\BinPickingCellGeometry.cs"
+                      Link="BinPicking\BinPickingCellGeometry.cs"
+                      Condition="'$(TargetFramework)' == 'net10.0'" />
+    <Compile Include="..\..\samples\Robotics\BinPickingCell\BinPickingPalletizerGeometry.cs"
+                      Link="BinPicking\BinPickingPalletizerGeometry.cs"
+                      Condition="'$(TargetFramework)' == 'net10.0'" />
+    <Compile Include="..\..\samples\Robotics\BinPickingCell\BinPickingPalletizerKinematics.cs"
+                      Link="BinPicking\BinPickingPalletizerKinematics.cs"
+                      Condition="'$(TargetFramework)' == 'net10.0'" />
+    <Compile Include="..\..\samples\Robotics\BinPickingCell\BinPickingCellOptions.cs"
+                      Link="BinPicking\BinPickingCellOptions.cs"
+                      Condition="'$(TargetFramework)' == 'net10.0'" />
+    <Compile Include="..\..\samples\Robotics\BinPickingCell\BinPickingTargetProvider.cs"
+                      Link="BinPicking\BinPickingTargetProvider.cs"
+                      Condition="'$(TargetFramework)' == 'net10.0'" />
   </ItemGroup>
   <!-- The simulated-arm tests exercise types from IntentEnabledRobot, which the
        OpenUSD rendering stack pins to net10.0. The reference above is conditional, so
@@ -42,5 +68,9 @@
   <ItemGroup Condition="'$(TargetFramework)' != 'net10.0'">
     <Compile Remove="SimulatedArmExecutorTests.cs" />
     <Compile Remove="SimulatedArmKinematicsTests.cs" />
+    <Compile Remove="SimulatedCollisionModelTests.cs" />
+    <Compile Remove="SimulatedSupportModelTests.cs" />
+    <Compile Remove="BinPickingPalletizerKinematicsTests.cs" />
+    <Compile Remove="BinPickingTargetProviderTests.cs" />
   </ItemGroup>
 </Project>

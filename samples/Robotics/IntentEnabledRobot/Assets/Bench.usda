@@ -80,8 +80,11 @@ def Xform "World"
             double size = 1
             color3f[] primvars:displayColor = [(0.54, 0.55, 0.55)]
             rel material:binding = </World/Materials/BenchTop>
-            double3 xformOp:translate = (0, 0, 0.7800)
-            double3 xformOp:scale = (1.4000, 0.9000, 0.0400)
+            # The work surface is z = 0.820, where the arm is referenced: this bench had a
+            # 0.800 top, so the arm floated 20 mm above it. The underside stays at 0.760
+            # where the legs meet, so the thickness carries the correction.
+            double3 xformOp:translate = (0, 0, 0.7900)
+            double3 xformOp:scale = (1.4000, 0.9000, 0.0600)
             uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
         }
 

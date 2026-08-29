@@ -38,7 +38,6 @@ quaternion and the core `ThreeDFrame`, and `FrameTree` composes transforms along
 frame tree.
 
 > The namespace `http://opcfoundation.org/UA/RobotIntent/` and every NodeId in it
-> are **provisional**. The model is a working-group draft and is neither official
-> nor endorsed by the OPC Foundation.
+> are **provisional**. The model is a working-group draft.
 
 See the [Robot Intent guide](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/Robotics.md#robot-intent).

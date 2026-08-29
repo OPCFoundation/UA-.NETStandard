@@ -162,6 +162,23 @@ server- and client-side implementations:
   (`FluentFiniteStateMachineState`) and *lifecycle* (attach behaviour to
   stack-shipped or generator-emitted FSMs) modes, plus client-side
   streaming / read helpers on the generated `*TypeClient` proxies.
+  Definition-mode machines materialize a `StateType` node per declared
+  state and a `TransitionType` node per declared transition (with
+  `StateNumber` / `TransitionNumber`, `FromState` / `ToState` /
+  `HasEffect` / `HasCause`, and the `AvailableStates` /
+  `AvailableTransitions` / `LastTransition` children), so
+  `CurrentState/Id` and `LastTransition/Id` resolve to real nodes and
+  `HasSubStateMachine` hangs off the parent **state** node per Part 16
+  §4.4.16 rather than off the machine root. Callers that passed a state
+  machine's `ObjectId` to `GetSubStateMachineAsync` must pass a state
+  NodeId instead — from `GetAvailableStatesAsync` or a snapshot's
+  `CurrentStateId` — and code that read a numeric id out of
+  `CurrentState/Id` should call `FiniteStateMachineState.GetStateId`
+  instead of parsing the identifier. Generated state-machine classes
+  now also override `ElementNamespaceUri` with the namespace of the
+  model that declares their states, so `CurrentState/Id` and
+  `LastTransition/Id` are qualified with the companion-spec namespace
+  rather than the OPC UA one.
 - **Part 17 — Alias Names**: full server + client support for
   `AliasNameType`, `AliasNameCategoryType`, `FindAlias`, `FindAliasVerbose`,
   `AddAliasesToCategory`, `DeleteAliasesFromCategory`, and `LastChange`.
@@ -194,6 +211,22 @@ server- and client-side implementations:
   gears, drives, safety states, and task controls with the correct
   companion-spec references. See [Robotics](Robotics.md), including the draft
   Robot Intent task-level command model.
+- **OPC UA — Vision** (draft): the `Opc.Ua.Vision` /
+  `Opc.Ua.Vision.Server` / `Opc.Ua.Vision.Client` /
+  `Opc.Ua.Vision.OpenUsd` package family, with a source-generated Vision model,
+  `AddVision` / `ConfigureVision` hosting, media/inference/feedback providers,
+  fluent frame/sensor/calibration/pipeline builders, typed `VisionClient`
+  discovery, result streaming, off-server feedback, facet derivation, and
+  OpenUSD camera capture. See [Vision](Vision.md), including the Robotics +
+  Vision bin-picking example.
+- **OPC UA — AI Model Management and Inference** (draft): the `Opc.Ua.AI` /
+  `Opc.Ua.AI.Inference` / `Opc.Ua.AI.Server` / `Opc.Ua.AI.Client` package
+  family over xRegistry, with a source-generated catalogue/deployment/inference
+  model, the `IInferenceBackend` contract, `Microsoft.Extensions.AI`
+  `IChatClient` and OpenAI-compatible REST backends, `AINodeManagerFactory`
+  hosting through `AddNodeManager<AINodeManagerFactory>`, `Invoke` routing,
+  learning jobs, and standard file-transfer artefact streaming. See
+  [AI Model Management](AI.md).
 - **OPC 10100-1 — WoT Connectivity**: model, server, and client libraries
   for surfacing OPC UA servers as Web of Things Thing Descriptions, with
   the `WoTAssetConnectionManagement` server methods gated by a
@@ -509,6 +542,8 @@ coverage service; see
   [Alias Names](AliasNames.md),
   [Device Integration](DeviceIntegration.md),
   [Relative Spatial Location and Global Positioning](Positioning.md),
+  [Vision](Vision.md),
+  [AI Model Management](AI.md),
   [Software Update](SoftwareUpdate.md),
   [WoT Connectivity](WoTConnectivity.md),
   [Subscriptions and Monitored Items](Subscriptions.md),
@@ -535,4 +570,3 @@ coverage service; see
   [Container Reference Server](ContainerReferenceServer.md),
   [Provisioning Mode](ProvisioningMode.md).
 - PubSub: [PubSub library](PubSub.md).
-

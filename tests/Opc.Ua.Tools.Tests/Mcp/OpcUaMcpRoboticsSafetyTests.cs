@@ -69,11 +69,8 @@ namespace Opc.Ua.Tools.Tests.Mcp
             };
             var controller = new RobotIntentControllerClient(transport);
 
-            IntentSubmissionResult result = await RoboticsControlTools.SubmitIntentAsync(
-                controller,
-                "linearMove",
-                kLinearMoveJson,
-                0,
+            IntentSubmissionResult result = await controller.TrySubmitIntentAsync(
+                RoboticsIntentDtoConverter.ConvertLinearMove(kLinearMoveDto, null),
                 CancellationToken.None).ConfigureAwait(false);
 
             Assert.Multiple(() =>
@@ -103,12 +100,10 @@ namespace Opc.Ua.Tools.Tests.Mcp
                 SubmitException = new ServiceResultException(StatusCodes.BadSessionClosed, "channel closed")
             };
 
-            IntentSubmissionResult refused = await RoboticsControlTools.SubmitIntentAsync(
-                new RobotIntentControllerClient(refusedTransport),
-                "linearMove",
-                kLinearMoveJson,
-                0,
-                CancellationToken.None).ConfigureAwait(false);
+            IntentSubmissionResult refused = await new RobotIntentControllerClient(refusedTransport)
+                .TrySubmitIntentAsync(
+                    RoboticsIntentDtoConverter.ConvertLinearMove(kLinearMoveDto, null),
+                    CancellationToken.None).ConfigureAwait(false);
 
             Assert.Multiple(() =>
             {
@@ -120,12 +115,10 @@ namespace Opc.Ua.Tools.Tests.Mcp
             ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(
                 async () =>
                 {
-                    _ = await RoboticsControlTools.SubmitIntentAsync(
-                        new RobotIntentControllerClient(failedTransport),
-                        "linearMove",
-                        kLinearMoveJson,
-                        0,
-                        CancellationToken.None).ConfigureAwait(false);
+                    _ = await new RobotIntentControllerClient(failedTransport)
+                        .TrySubmitIntentAsync(
+                            RoboticsIntentDtoConverter.ConvertLinearMove(kLinearMoveDto, null),
+                            CancellationToken.None).ConfigureAwait(false);
                 })!;
             Assert.That(exception.StatusCode, Is.EqualTo(StatusCodes.BadSessionClosed));
         }
@@ -145,6 +138,7 @@ namespace Opc.Ua.Tools.Tests.Mcp
                     McpToolProfile.PubSub,
                     McpToolProfile.Diagnostics,
                     McpToolProfile.Robotics,
+                    McpToolProfile.Vision,
                     McpToolProfile.Full
                 }));
 
@@ -184,8 +178,7 @@ namespace Opc.Ua.Tools.Tests.Mcp
             };
             var controller = new RobotIntentControllerClient(transport);
 
-            IntentOperationWaitResult result = await RoboticsMonitoringTools.WaitOperationAsync(
-                controller,
+            IntentOperationWaitResult result = await RoboticsMonitoringTools.WaitOperationCoreAsync(controller,
                 "intent1",
                 operation.ToString(),
                 1,
@@ -229,8 +222,15 @@ namespace Opc.Ua.Tools.Tests.Mcp
                 .ToHashSet(StringComparer.Ordinal);
         }
 
-        private const string kLinearMoveJson =
-            "{\"target\":{\"position\":[1,2,3],\"orientation\":[0,0,0,1]},\"speedFraction\":0.2}";
+        private static readonly LinearMoveIntentInput kLinearMoveDto = new()
+        {
+            Target = new PoseDto
+            {
+                Position = new PosePositionDto { X = 1, Y = 2, Z = 3 },
+                Orientation = new QuaternionDto { X = 0, Y = 0, Z = 0, W = 1 }
+            },
+            SpeedFraction = 0.2
+        };
 
         private sealed class CountingRobotIntentTransport : IRobotIntentTransport
         {
@@ -347,7 +347,8 @@ namespace Opc.Ua.Tools.Tests.Mcp
                 ArrayOf<MissionStepDataType> steps,
                 CancellationToken ct = default)
             {
-                return ValueTask.FromResult(new MissionUpdateOutcome(MissionUpdateResultEnum.Accepted, LocalizedText.Null));
+                return ValueTask.FromResult(
+                    new MissionUpdateOutcome(MissionUpdateResultEnum.Accepted, LocalizedText.Null));
             }
 
             public ValueTask<IntentCommandOutcome> CancelMissionAsync(
@@ -393,6 +394,13 @@ namespace Opc.Ua.Tools.Tests.Mcp
             {
                 ReadOperationSnapshotCallCount++;
                 return ValueTask.FromResult(OperationSnapshot);
+            }
+
+            public ValueTask<MissionSnapshot> ReadMissionSnapshotAsync(
+                NodeId mission,
+                CancellationToken ct = default)
+            {
+                return ValueTask.FromResult(new MissionSnapshot());
             }
 
             public ValueTask<NodeId> ReadControlOwnerAsync(CancellationToken ct = default)

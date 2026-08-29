@@ -49,6 +49,27 @@ namespace Opc.Ua.Robotics.Tests
     [TestFixture]
     public class RobotIntentExecutorRegistrationBehaviorTests
     {
+        /// <summary>
+        /// An application commonly injects its executor by concrete type to observe the
+        /// device it is driving. Resolving <see cref="IIntentExecutor"/> must therefore
+        /// yield that same instance: a second executor would run the intents while the
+        /// application watched a device that never moved.
+        /// </summary>
+        [Test]
+        public void GenericExecutorRegistrationSharesOneInstanceWithConcreteType()
+        {
+            var services = new ServiceCollection();
+            IOpcUaServerBuilder builder = services.AddOpcUa().AddServer(static _ => { });
+
+            builder.AddRobotIntentExecutor<ConstructedExecutor>();
+
+            using ServiceProvider provider = services.BuildServiceProvider();
+            var byInterface = provider.GetRequiredService<IIntentExecutor>();
+            var byConcreteType = provider.GetRequiredService<ConstructedExecutor>();
+
+            Assert.That(byInterface, Is.SameAs(byConcreteType));
+        }
+
         [Test]
         public void NamedGenericExecutorRegistrationResolvesOnlyMatchingController()
         {
