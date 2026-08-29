@@ -336,7 +336,7 @@ namespace Opc.Ua.Server
         /// Serializes the <c>LastChange</c> node updates raised by store
         /// mutations, which arrive on arbitrary client-call threads.
         /// </summary>
-        private readonly object m_lastChangeSync = new();
+        private readonly Lock m_lastChangeSync = new();
 
         /// <summary>
         /// The <c>LastChange</c> property of every category that exposes
