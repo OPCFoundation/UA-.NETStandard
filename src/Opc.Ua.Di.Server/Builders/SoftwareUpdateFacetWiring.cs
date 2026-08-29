@@ -119,16 +119,33 @@ namespace Opc.Ua.Di.Server.Builders
             // State machines — all four are present but only Installation
             // and Confirmation have method handlers wired by default;
             // PrepareForUpdate.Prepare/Abort/Resume also wired.
-            su.PrepareForUpdate = CreatePrepareForUpdate(
+            PrepareForUpdateStateMachineState prepareForUpdate = CreatePrepareForUpdate(
                 context, su, diNs, config, callbackContext, logger);
+            su.PrepareForUpdate = prepareForUpdate;
 
-            su.Installation = CreateInstallation(
+            InstallationStateMachineState installation = CreateInstallation(
                 context, su, diNs, config, callbackContext, logger);
+            su.Installation = installation;
 
-            su.PowerCycle = CreatePowerCycle(context, su, diNs);
+            PowerCycleStateMachineState powerCycle = CreatePowerCycle(context, su, diNs);
+            su.PowerCycle = powerCycle;
 
-            su.Confirmation = CreateConfirmation(
+            ConfirmationStateMachineState confirmation = CreateConfirmation(
                 context, su, diNs, config, callbackContext, logger);
+            su.Confirmation = confirmation;
+
+            // The subtree is fully assembled, so complete the create
+            // lifecycle for it in one pass — the generated CreateInstanceOf
+            // factories build the node graph and assign per-instance NodeIds
+            // but deliberately leave OnBeforeCreate / OnAfterCreate to the
+            // caller (see the generator's "Add predefined node" templates).
+            // Skipping it would leave every state machine below without the
+            // element namespace it resolves in OnAfterCreate, so the state
+            // seeding below has to follow this call.
+            su.CreateAsPredefinedNode(context);
+
+            SeedStateMachines(
+                prepareForUpdate, installation, powerCycle, confirmation, diNs, context);
 
             // Link the SU node into the device subtree and register
             // recursively with the manager. Per-instance NodeIds for the SU
@@ -140,6 +157,45 @@ namespace Opc.Ua.Di.Server.Builders
             manager.RecordSoftwareUpdateFacet(config.LoadingMode);
 
             return su;
+        }
+
+        /// <summary>
+        /// Writes each state machine's initial state. Runs after
+        /// <see cref="NodeState.CreateAsPredefinedNode"/> so that the
+        /// machines have resolved the namespace their element NodeIds
+        /// are qualified with.
+        /// </summary>
+        private static void SeedStateMachines(
+            PrepareForUpdateStateMachineState prepareForUpdate,
+            InstallationStateMachineState installation,
+            PowerCycleStateMachineState powerCycle,
+            ConfirmationStateMachineState confirmation,
+            ushort diNs,
+            ISystemContext context)
+        {
+            SoftwareUpdateStateMachineDispatcher.InitializeToInitialState(
+                prepareForUpdate,
+                SoftwareUpdateStateMachineDispatcher.PrepareForUpdate_Idle,
+                diNs,
+                context);
+
+            SoftwareUpdateStateMachineDispatcher.InitializeToInitialState(
+                installation,
+                SoftwareUpdateStateMachineDispatcher.Installation_Idle,
+                diNs,
+                context);
+
+            SoftwareUpdateStateMachineDispatcher.InitializeToInitialState(
+                powerCycle,
+                SoftwareUpdateStateMachineDispatcher.PowerCycle_NotWaiting,
+                diNs,
+                context);
+
+            SoftwareUpdateStateMachineDispatcher.InitializeToInitialState(
+                confirmation,
+                SoftwareUpdateStateMachineDispatcher.Confirmation_NotWaitingForConfirm,
+                diNs,
+                context);
         }
 
         private const string FileTransferBrowseName = "FileTransfer";
@@ -256,12 +312,6 @@ namespace Opc.Ua.Di.Server.Builders
             sm.Resume?.OnCallMethod2Async = (ctx, m, oid, ins, outs, ct) =>
                     InvokePrepareAsync(config, callbackContext, sm, diNs, logger, ct);
 
-            SoftwareUpdateStateMachineDispatcher.InitializeToInitialState(
-                sm,
-                SoftwareUpdateStateMachineDispatcher.PrepareForUpdate_Idle,
-                diNs,
-                context);
-
             return sm;
         }
 
@@ -320,12 +370,6 @@ namespace Opc.Ua.Di.Server.Builders
                     new QualifiedName("Resume", diNs));
             }
 
-            SoftwareUpdateStateMachineDispatcher.InitializeToInitialState(
-                sm,
-                SoftwareUpdateStateMachineDispatcher.Installation_Idle,
-                diNs,
-                context);
-
             return sm;
         }
 
@@ -338,12 +382,6 @@ namespace Opc.Ua.Di.Server.Builders
             PowerCycleStateMachineState sm =
                 context.CreateInstanceOfPowerCycleStateMachineType(parent, browseName);
             FinaliseChild(context, sm, browseName);
-
-            SoftwareUpdateStateMachineDispatcher.InitializeToInitialState(
-                sm,
-                SoftwareUpdateStateMachineDispatcher.PowerCycle_NotWaiting,
-                diNs,
-                context);
 
             return sm;
         }
@@ -369,12 +407,6 @@ namespace Opc.Ua.Di.Server.Builders
                     (ctx, m, oid, ins, outs, ct) =>
                         InvokeConfirmAsync(config, callbackContext, sm, diNs, logger, ct);
             }
-
-            SoftwareUpdateStateMachineDispatcher.InitializeToInitialState(
-                sm,
-                SoftwareUpdateStateMachineDispatcher.Confirmation_NotWaitingForConfirm,
-                diNs,
-                context);
 
             return sm;
         }
