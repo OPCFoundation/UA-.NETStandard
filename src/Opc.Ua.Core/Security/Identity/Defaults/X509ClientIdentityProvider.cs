@@ -111,7 +111,7 @@ namespace Opc.Ua.Identity
                 return CanSatisfyResult.Yes;
             }
 
-            SecurityPolicyInfo? info = SecurityPolicies.Default.GetInfo(effectivePolicyUri);
+            SecurityPolicyInfo? info = context.EffectiveSecurityPolicies.GetInfo(effectivePolicyUri);
             if (info == null)
             {
                 return CanSatisfyResult.No(
@@ -167,7 +167,12 @@ namespace Opc.Ua.Identity
             }
 
             UserIdentity identity = await UserIdentity
-                .CreateAsync(m_certificateId, m_passwordProvider, m_certificateProvider, ct)
+                .CreateAsync(
+                    m_certificateId,
+                    m_passwordProvider,
+                    m_certificateProvider,
+                    context.SecurityPolicyRegistry,
+                    ct)
                 .ConfigureAwait(false);
             identity.PolicyId = policy.PolicyId ?? string.Empty;
             return identity;

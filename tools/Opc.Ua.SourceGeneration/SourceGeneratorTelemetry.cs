@@ -157,7 +157,7 @@ namespace Opc.Ua.SourceGeneration
                     out DiagnosticDescriptor descriptor))
                 {
                     m_context.ReportDiagnostic(
-                        Diagnostic.Create(descriptor, Location.None, message));
+                        SourceGenerator.CreateFormattedDiagnostic(descriptor, message));
                     return;
                 }
 

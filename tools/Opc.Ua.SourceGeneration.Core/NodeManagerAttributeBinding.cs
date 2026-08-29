@@ -27,6 +27,8 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System.Collections.Generic;
+
 namespace Opc.Ua.SourceGeneration
 {
     /// <summary>
@@ -68,5 +70,13 @@ namespace Opc.Ua.SourceGeneration
         /// Defaults to <c>true</c>.
         /// </summary>
         public bool GenerateFactory { get; init; } = true;
+
+        /// <summary>
+        /// Additional namespace URIs (beyond the model namespace) that
+        /// the generated constructor reports to the base node manager,
+        /// e.g. a separate instance namespace. <c>null</c> when the
+        /// attribute did not specify any.
+        /// </summary>
+        public IReadOnlyList<string> AdditionalNamespaceUris { get; init; }
     }
 }

@@ -162,6 +162,54 @@ namespace Opc.Ua.PubSub.Adapter.Tests
                 Is.Not.Empty);
         }
 
+        /// <summary>
+        /// The adapter's sessions resolve policy URIs against the registry the
+        /// application composed, so a policy contributed through
+        /// <c>AddSecurityPolicy</c> is negotiable by the sessions the adapter
+        /// opens against an external server.
+        /// </summary>
+        [Test]
+        public void AddServerAsPublisherRegistersASessionFactoryCarryingTheSecurityPolicyRegistry()
+        {
+            var services = new ServiceCollection();
+            services.AddSingleton(NUnitTelemetryContext.Create());
+            services.AddLogging();
+            services.AddOpcUa()
+                .AddSecurityPolicyRegistry()
+                .AddPubSub(pubsub =>
+                    pubsub.AddServerAsPublisher(o => o.Connection.EndpointUrl =
+                        "opc.tcp://localhost:4840"));
+
+            using ServiceProvider sp = services.BuildServiceProvider();
+
+            var factory = sp.GetRequiredService<IServerSessionFactory>() as ServerSessionFactory;
+            Assert.That(factory, Is.Not.Null);
+            Assert.That(
+                factory!.SecurityPolicyRegistry,
+                Is.SameAs(sp.GetRequiredService<ISecurityPolicyRegistry>()));
+        }
+
+        /// <summary>
+        /// An application that composes no registry keeps the previous
+        /// behaviour and falls back to the built-in policy set.
+        /// </summary>
+        [Test]
+        public void AddServerAsPublisherLeavesTheSessionFactoryOnTheBuiltInPolicySet()
+        {
+            var services = new ServiceCollection();
+            services.AddSingleton(NUnitTelemetryContext.Create());
+            services.AddLogging();
+            services.AddOpcUa().AddPubSub(pubsub =>
+                pubsub.AddServerAsPublisher(o => o.Connection.EndpointUrl =
+                    "opc.tcp://localhost:4840"));
+
+            using ServiceProvider sp = services.BuildServiceProvider();
+
+            var factory = sp.GetRequiredService<IServerSessionFactory>() as ServerSessionFactory;
+            Assert.That(factory, Is.Not.Null);
+            Assert.That(factory!.SecurityPolicyRegistry, Is.Null);
+        }
+
         [Test]
         public async Task AddServerAdapterPubSubOneShotRegistersRuntimeAndAdaptersAsync()
         {

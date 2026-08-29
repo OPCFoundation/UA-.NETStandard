@@ -860,7 +860,8 @@ namespace Opc.Ua.Server
                 instanceCertificate,
                 parsedClientCertificate,
                 clientNonce,
-                serverNonce);
+                serverNonce,
+                SecurityPolicyRegistry);
         }
 
         /// <summary>
@@ -893,7 +894,8 @@ namespace Opc.Ua.Server
             return SessionSecurityPolicyHelper.ProcessCreateSessionAdditionalParameters(
                 session,
                 parameters,
-                m_logger)!;
+                m_logger,
+                SecurityPolicyRegistry)!;
         }
 
         /// <summary>
@@ -3668,7 +3670,8 @@ namespace Opc.Ua.Server
                     ServerProperties!,
                     configuration,
                     MessageContext,
-                    TimeProvider);
+                    TimeProvider,
+                    SecurityPolicyRegistry);
 
                 m_serverInternal.SetRoleManager(CreateRoleManager(m_serverInternal, configuration));
 

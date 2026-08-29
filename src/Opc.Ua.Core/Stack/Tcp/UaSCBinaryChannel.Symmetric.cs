@@ -266,7 +266,7 @@ namespace Opc.Ua.Bindings
         /// <exception cref="ServiceResultException"></exception>
         protected void CalculateSymmetricKeySizes()
         {
-            SecurityPolicyInfo info = SecurityPolicies.Default.GetInfo(SecurityPolicyUri)
+            SecurityPolicyInfo info = SecurityPolicyRegistry.GetInfo(SecurityPolicyUri)
                 ?? throw ServiceResultException.Create(
                     StatusCodes.BadSecurityPolicyRejected,
                     "Unsupported security policy: {0}",
@@ -422,7 +422,7 @@ namespace Opc.Ua.Bindings
         /// </summary>
         protected void ComputeKeys(ChannelToken token)
         {
-            token.SecurityPolicy = SecurityPolicies.Default.GetInfo(SecurityPolicyUri);
+            token.SecurityPolicy = SecurityPolicyRegistry.GetInfo(SecurityPolicyUri);
 
             if (SecurityMode == MessageSecurityMode.None)
             {

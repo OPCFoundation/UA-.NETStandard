@@ -104,6 +104,16 @@ namespace Opc.Ua.SourceGeneration
         /// to author the factory by hand.
         /// </summary>
         public bool EmitNodeManagerFactory { get; init; } = true;
+
+        /// <summary>
+        /// Additional namespace URIs (beyond the model namespace) that
+        /// the generated <c>NodeManager</c> constructor reports to the
+        /// base node manager and the generated factory advertises via
+        /// <c>NamespacesUris</c>. Used by the <c>[NodeManager]</c>
+        /// attribute discovery path
+        /// (<c>AdditionalNamespaceUris</c> named argument).
+        /// </summary>
+        public IReadOnlyList<string> NodeManagerAdditionalNamespaceUris { get; init; }
     }
 
     /// <summary>

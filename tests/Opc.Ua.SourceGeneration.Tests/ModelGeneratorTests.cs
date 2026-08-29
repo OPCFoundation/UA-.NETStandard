@@ -978,6 +978,61 @@ namespace Opc.Ua.SourceGeneration
         }
 
         [Theory]
+        public void NodeManagerWithAdditionalNamespaceUrisReportsThemAtConstruction(
+            LanguageVersion languageVersion)
+        {
+            // Issue #4329 companion: [NodeManager] can declare additional
+            // namespace URIs (e.g. a separate instance namespace) that the
+            // generated constructor passes to the base manager and the
+            // generated factory advertises, so the master node manager
+            // routes them to this manager from construction. SetNamespaces
+            // after the fact is too late for namespace routing.
+            const string bindingSource =
+                """
+                namespace Opc.Ua.Server.Fluent
+                {
+                public sealed class NodeManagerAttribute : global::System.Attribute
+                {
+                public string NamespaceUri { get; set; }
+                public string Design { get; set; }
+                public bool GenerateFactory { get; set; }
+                public string[] AdditionalNamespaceUris { get; set; }
+                }
+                }
+                namespace CrossModelConsumer
+                {
+                [global::Opc.Ua.Server.Fluent.NodeManager(
+                    NamespaceUri = "http://test.org/UA/CrossModel/Types",
+                    AdditionalNamespaceUris = new[] { "http://test.org/UA/CrossModel/Types/Instance" })]
+                public partial class TypesNodeManager
+                {
+                }
+                }
+                """;
+            (ImmutableArray<Diagnostic> diagnostics, GeneratorDriverRunResult runResult) =
+                RunMixedModelGenerator(languageVersion, bindingSource);
+
+            Assert.That(
+                diagnostics.Where(d => d.Id == "MODELGEN010"),
+                Is.Empty,
+                "the binding with additional namespace URIs must still match");
+
+            string generated = string.Join(
+                "\n",
+                runResult.Results[0].GeneratedSources.Select(s => s.SourceText.ToString()));
+            Assert.That(
+                generated,
+                Does.Match(
+                    @": base\(server, configuration, [^)]*""http://test\.org/UA/CrossModel/Types/Instance""\)"),
+                "the generated constructor must append the additional namespace URI to the base call");
+            Assert.That(
+                generated,
+                Does.Match(
+                    @"NamespacesUris[\s\S]{0,200}""http://test\.org/UA/CrossModel/Types/Instance"""),
+                "the generated factory must advertise the additional namespace URI");
+        }
+
+        [Theory]
         public void NodeManagerBoundToModelDesignInstancesIsNotReportedUnmatchedWithNodeSet2(
             LanguageVersion languageVersion)
         {
