@@ -1060,7 +1060,7 @@ namespace Microsoft.Extensions.DependencyInjection
                 if (resolvedOptions.Configuration == null)
                 {
                     if (sp.GetService<ClientSuppliedConfigurationProvider>() is
-                        { } suppliedProvider)
+                        ClientSuppliedConfigurationProvider suppliedProvider)
                     {
                         // An explicitly supplied configuration document is the
                         // most specific intent and therefore wins over a shared
