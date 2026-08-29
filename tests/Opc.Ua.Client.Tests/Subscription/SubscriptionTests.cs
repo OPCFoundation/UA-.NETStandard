@@ -30,7 +30,6 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -252,7 +251,7 @@ namespace Opc.Ua.Client.Subscriptions
         }
 
         [Test]
-        public async Task OnSubscriptionUpdateCompleteShouldUseRevisedKeepAliveIntervalForTimerAsync()
+        public async Task KeepAliveTimerShouldNotReportStoppedForNormalPublishGapAsync()
         {
             var sut = new TestSubscription(m_session, m_mockNotificationDataHandler.Object,
                 m_completion, m_options, m_telemetry, 22);
@@ -268,17 +267,30 @@ namespace Opc.Ua.Client.Subscriptions
                     maxNotificationsPerPublish: 10,
                     publishingEnabled: true);
 
-                var keepAliveField = typeof(Subscription).GetField(
-                    "m_keepAliveInterval",
-                    BindingFlags.Instance | BindingFlags.NonPublic);
+                sut.ResetPublishStateForTest();
 
-                Assert.That(keepAliveField, Is.Not.Null);
-                TimeSpan keepAliveInterval = (TimeSpan)keepAliveField.GetValue(sut)!;
-                Assert.That(
-                    keepAliveInterval,
-                    Is.EqualTo(TimeSpan.FromMilliseconds(2800d * 31d)));
-                Assert.That(keepAliveInterval, Is.GreaterThan(TimeSpan.FromSeconds(1)));
+                bool stoppedObserved = await WaitForSignalAsync(
+                    sut.PublishStateChanged,
+                    TimeSpan.FromSeconds(4)).ConfigureAwait(false);
+
+                Assert.That(stoppedObserved, Is.False);
+                Assert.That(sut.LastPublishState, Is.Default);
+
+                await sut.OnPublishReceivedAsync(BuildKeepAliveMessage(1), null, [])
+                    .ConfigureAwait(false);
+
+                Assert.That(sut.LastPublishState, Is.Default);
             }
+        }
+
+        private static async Task<bool> WaitForSignalAsync(
+            AsyncManualResetEvent signal,
+            TimeSpan timeout)
+        {
+            Task waitTask = signal.WaitAsync();
+            Task completedTask = await Task.WhenAny(waitTask, Task.Delay(timeout))
+                .ConfigureAwait(false);
+            return completedTask == waitTask;
         }
 
         [Test]
@@ -2159,6 +2171,12 @@ namespace Opc.Ua.Client.Subscriptions
             {
                 await Block.WaitAsync().ConfigureAwait(false);
                 Block.Release();
+            }
+
+            public void ResetPublishStateForTest()
+            {
+                LastPublishState = default;
+                PublishStateChanged.Reset();
             }
 
             protected override void OnSubscriptionStateChanged(SubscriptionState state)
