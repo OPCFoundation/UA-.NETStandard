@@ -69,7 +69,8 @@ namespace Opc.Ua.Server
         ITransportListenerRegistryProvider,
         IServerEndpointRegistryProvider,
         IAsyncDisposable,
-        ITimeProviderProvider
+        ITimeProviderProvider,
+        ISecurityPolicyRegistryProvider
     {
         /// <summary>
         /// Initializes the datastore with the server configuration.
@@ -99,8 +100,31 @@ namespace Opc.Ua.Server
             ApplicationConfiguration configuration,
             IServiceMessageContext messageContext,
             TimeProvider? timeProvider)
+            : this(serverDescription, configuration, messageContext, timeProvider, null)
+        {
+        }
+
+        /// <summary>
+        /// Initializes the datastore with the server configuration.
+        /// </summary>
+        /// <param name="serverDescription">The server description.</param>
+        /// <param name="configuration">The configuration.</param>
+        /// <param name="messageContext">The message context.</param>
+        /// <param name="timeProvider">The time provider used for all
+        /// time / duration calculations performed by the server, or
+        /// <c>null</c> to use <see cref="TimeProvider.System"/>.</param>
+        /// <param name="securityPolicies">The policy set the server resolves
+        /// security policy URIs against, or <c>null</c> to use
+        /// <see cref="SecurityPolicies.Default"/>.</param>
+        public ServerInternalData(
+            ServerProperties serverDescription,
+            ApplicationConfiguration configuration,
+            IServiceMessageContext messageContext,
+            TimeProvider? timeProvider,
+            ISecurityPolicyRegistry? securityPolicies)
         {
             TimeProvider = timeProvider ?? TimeProvider.System;
+            SecurityPolicyRegistry = securityPolicies ?? SecurityPolicies.Default;
             m_serverDescription = serverDescription;
             m_configuration = configuration;
             MessageContext = messageContext;
@@ -306,6 +330,15 @@ namespace Opc.Ua.Server
         /// never <c>null</c>.
         /// </summary>
         public TimeProvider TimeProvider { get; }
+
+        /// <summary>
+        /// The policy set the server resolves security policy URIs against.
+        /// Surfaces through the optional
+        /// <see cref="ISecurityPolicyRegistryProvider"/> interface so consumers
+        /// can discover it without any change to
+        /// <see cref="IServerInternal"/>; never <c>null</c>.
+        /// </summary>
+        public ISecurityPolicyRegistry SecurityPolicyRegistry { get; }
 
         /// <summary>
         /// The session manager to use with the server.

@@ -271,6 +271,27 @@ namespace Opc.Ua.Client
             bool useSecurity,
             ITelemetryContext telemetry)
         {
+            return SelectEndpoint(
+                configuration,
+                url,
+                endpoints,
+                useSecurity,
+                telemetry,
+                securityPolicies: null);
+        }
+
+        /// <summary>
+        /// Select the best supported endpoint using the specified security policies.
+        /// </summary>
+        public static EndpointDescription? SelectEndpoint(
+            ApplicationConfiguration configuration,
+            Uri url,
+            ArrayOf<EndpointDescription> endpoints,
+            bool useSecurity,
+            ITelemetryContext telemetry,
+            ISecurityPolicyRegistry? securityPolicies)
+        {
+            ISecurityPolicyRegistry policies = securityPolicies ?? SecurityPolicies.Default;
             EndpointDescription? selectedEndpoint = null;
 
             // select the best endpoint to use based on the selected URL and the UseSecurity checkbox.
@@ -306,7 +327,7 @@ namespace Opc.Ua.Client
                             // SecurityPolicyUri is annotated nullable on EndpointDescription but is
                             // populated for any endpoint advertising security; downstream API takes
                             // a non-nullable string parameter.
-                            if (SecurityPolicies.Default.GetDisplayName(endpoint.SecurityPolicyUri!) == null)
+                            if (policies.GetDisplayName(endpoint.SecurityPolicyUri!) == null)
                             {
                                 continue;
                             }

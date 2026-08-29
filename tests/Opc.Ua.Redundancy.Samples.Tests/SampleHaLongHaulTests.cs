@@ -160,7 +160,7 @@ namespace Opc.Ua.Redundancy.Samples.Tests
                 "Redundancy/RedundantPubSub",
                 "RedundantPubSub",
                 ["--role", "demo", "--ha-mode", mode],
-                SampleTestEnvironment.FastDemo);
+                SampleTestEnvironment.BuildFastDemo());
 
             await demo.WaitForLineAsync(
                 "FAILOVER: stopping publisher-a; publisher-b is promoted.",

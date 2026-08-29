@@ -407,6 +407,35 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             Assert.That(channel.CurrentState, Is.EqualTo(TcpChannelState.Closed));
         }
 
+        [Test]
+        public async Task ClosedTransportWriteCompletesWithoutGateReentryAsync()
+        {
+            using var channel = new TestClientChannel(
+                m_buffers,
+                new RecordingByteTransportFactory(),
+                m_quotas,
+                null,
+                BuildEndpoint(MessageSecurityMode.None, SecurityPolicies.None),
+                m_telemetry,
+                new FakeTimeProvider());
+            byte[] buffer = m_buffers.TakeBuffer(
+                16,
+                nameof(ClosedTransportWriteCompletesWithoutGateReentryAsync));
+            var buffers = new BufferCollection { new ArraySegment<byte>(buffer, 0, 16) };
+
+            Task beginWrite = Task.Run(() => channel.BeginClosedTransportWriteUnderGate(buffers));
+
+            Assert.That(
+                await CompletesWithinAsync(beginWrite, 30).ConfigureAwait(false),
+                Is.True,
+                "begin write re-entered its own channel gate");
+            await beginWrite.ConfigureAwait(false);
+            Assert.That(
+                await CompletesWithinAsync(channel.WriteCompletion, 30).ConfigureAwait(false),
+                Is.True,
+                "closed transport write completion was not reported");
+        }
+
         private async Task<ServiceResultException> RunHandshakeToFaultAsync(
             Func<TestClientChannel, ValueTask<bool>> feed)
         {
@@ -603,6 +632,16 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
 
             public int TestTransportReceiveBufferSize => TransportReceiveBufferSize;
 
+            public Task WriteCompletion => m_writeCompletion.Task;
+
+            public void BeginClosedTransportWriteUnderGate(BufferCollection buffers)
+            {
+                using (Gate.Enter())
+                {
+                    BeginWriteMessage(buffers, null);
+                }
+            }
+
             public void SetupReverseTransport(IUaSCByteTransport transport)
             {
                 ReverseSocket = true;
@@ -649,6 +688,19 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             {
                 ReadAndVerifyMessageTypeAndSize(decoder, expectedMessageType, count);
             }
+
+            protected override void HandleWriteComplete(
+                BufferCollection? buffers,
+                object? state,
+                int bytesWritten,
+                ServiceResult result)
+            {
+                base.HandleWriteComplete(buffers, state, bytesWritten, result);
+                m_writeCompletion.TrySetResult(true);
+            }
+
+            private readonly TaskCompletionSource<bool> m_writeCompletion =
+                new(TaskCreationOptions.RunContinuationsAsynchronously);
         }
 
         private sealed class RecordingByteTransportFactory : IUaSCByteTransportFactory

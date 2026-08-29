@@ -669,6 +669,73 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             return Task.CompletedTask;
         }
 
+        /// <summary>
+        /// A validation can race manager disposal and enqueue a rejected
+        /// chain after the rejected-certificate processor's channel has been
+        /// completed. The refused enqueue must release the per-certificate
+        /// references it took for the queued request instead of abandoning
+        /// them with it — an abandoned request pins each certificate's core
+        /// for the life of the process and surfaced as an intermittent
+        /// one-certificate leak in the test assemblies' teardown leak
+        /// detector on slow CI agents.
+        /// </summary>
+        [Test]
+        public async Task RejectCertificateAsyncAfterDisposeDoesNotLeakChainAsync()
+        {
+            string rejectedPath = CreateTempDir();
+            await using var manager = new CertificateManager(m_telemetry);
+            Certificate cert = CertificateBuilder
+                .Create("CN=RejectedAfterDispose")
+                .SetRSAKeySize(2048)
+                .CreateForRSA();
+            try
+            {
+                manager.RegisterTrustList(TrustListIdentifier.Rejected, rejectedPath);
+
+                // Prime the processor so the disposed manager still holds one,
+                // then dispose the manager: DisposeAsync drains the processor
+                // and completes its channel, so later writes are refused.
+                using (var primed = new CertificateCollection { cert })
+                {
+                    await manager.RejectCertificateAsync(primed).ConfigureAwait(false);
+                }
+                await manager.DisposeAsync().ConfigureAwait(false);
+
+                // The late enqueue is refused; it must neither throw for this
+                // benign teardown race nor keep the references taken for the
+                // refused request.
+                using (var late = new CertificateCollection { cert })
+                {
+                    Assert.DoesNotThrowAsync(async () =>
+                        await manager.RejectCertificateAsync(late).ConfigureAwait(false));
+                }
+            }
+            finally
+            {
+                cert.Dispose();
+            }
+
+            // cert held the sole surviving reference. After its Dispose every
+            // owning handle over the core must be gone, so AddRef must refuse.
+            Certificate leakedReference = null;
+            try
+            {
+                leakedReference = cert.AddRef();
+            }
+            catch (ObjectDisposedException)
+            {
+                // expected: no reference survived the refused enqueue.
+            }
+
+            if (leakedReference != null)
+            {
+                leakedReference.Dispose();
+                Assert.Fail(
+                    "The refused enqueue abandoned its request without releasing " +
+                    "the per-certificate references taken for it.");
+            }
+        }
+
         [Test]
         public void FactoryCreateFromSecurityConfiguration()
         {

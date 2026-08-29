@@ -57,8 +57,19 @@ namespace Opc.Ua
         /// <param name="username">The user name.</param>
         /// <param name="password">The password.</param>
         public UserIdentity(string username, byte[] password)
+            : this(username, password, securityPolicies: null)
         {
-            m_token = new UserNameIdentityTokenHandler(username, password);
+        }
+
+        /// <summary>
+        /// Initializes the object with a username, utf8 password and security policies.
+        /// </summary>
+        public UserIdentity(
+            string username,
+            byte[] password,
+            ISecurityPolicyRegistry? securityPolicies)
+        {
+            m_token = new UserNameIdentityTokenHandler(username, password, securityPolicies);
         }
 
         /// <summary>
@@ -67,18 +78,45 @@ namespace Opc.Ua
         /// <param name="username">The user name.</param>
         /// <param name="password">The password.</param>
         public UserIdentity(string username, ReadOnlySpan<byte> password)
+            : this(username, password, securityPolicies: null)
         {
-            m_token = new UserNameIdentityTokenHandler(username, password);
+        }
+
+        /// <summary>
+        /// Initializes the object with a username, utf8 password and security policies.
+        /// </summary>
+        public UserIdentity(
+            string username,
+            ReadOnlySpan<byte> password,
+            ISecurityPolicyRegistry? securityPolicies)
+        {
+            m_token = new UserNameIdentityTokenHandler(username, password, securityPolicies);
         }
 
         /// <summary>
         /// Initializes the object with a decrypted issued token.
         /// </summary>
+        /// <param name="decryptedTokenData">The decrypted token data.</param>
+        /// <param name="issuedTokenTypeProfileUri">The issued token profile.</param>
         public UserIdentity(
             ReadOnlySpan<byte> decryptedTokenData,
             string issuedTokenTypeProfileUri)
+            : this(decryptedTokenData, issuedTokenTypeProfileUri, securityPolicies: null)
         {
-            m_token = new IssuedIdentityTokenHandler(issuedTokenTypeProfileUri, decryptedTokenData);
+        }
+
+        /// <summary>
+        /// Initializes the object with a decrypted issued token and security policies.
+        /// </summary>
+        public UserIdentity(
+            ReadOnlySpan<byte> decryptedTokenData,
+            string issuedTokenTypeProfileUri,
+            ISecurityPolicyRegistry? securityPolicies)
+        {
+            m_token = new IssuedIdentityTokenHandler(
+                issuedTokenTypeProfileUri,
+                decryptedTokenData,
+                securityPolicies);
         }
 
         /// <summary>
@@ -96,8 +134,18 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="token">The user identity token.</param>
         public UserIdentity(UserIdentityToken token)
+            : this(token, securityPolicies: null)
         {
-            m_token = token.AsTokenHandler() ??
+        }
+
+        /// <summary>
+        /// Initializes the object with a UA identity token and security policies.
+        /// </summary>
+        public UserIdentity(
+            UserIdentityToken token,
+            ISecurityPolicyRegistry? securityPolicies)
+        {
+            m_token = token.AsTokenHandler(securityPolicies) ??
                 throw new ArgumentException(
                     "Unrecognized UA user identity token type.",
                     nameof(token));
@@ -121,10 +169,32 @@ namespace Opc.Ua
         /// </remarks>
         /// <exception cref="ArgumentNullException"/>
         /// <exception cref="ServiceResultException"/>
+        /// <param name="certificateId">The user certificate identifier.</param>
+        /// <param name="passwordProvider">Resolves the private key password.</param>
+        /// <param name="certificateProvider">Materialises the certificate.</param>
+        /// <param name="ct">The cancellation token.</param>
         public static Task<UserIdentity> CreateAsync(
             CertificateIdentifier certificateId,
             ICertificatePasswordProvider passwordProvider,
             ICertificateProvider certificateProvider,
+            CancellationToken ct = default)
+        {
+            return CreateAsync(
+                certificateId,
+                passwordProvider,
+                certificateProvider,
+                securityPolicies: null,
+                ct);
+        }
+
+        /// <summary>
+        /// Creates a certificate identity using the specified security policies.
+        /// </summary>
+        public static Task<UserIdentity> CreateAsync(
+            CertificateIdentifier certificateId,
+            ICertificatePasswordProvider passwordProvider,
+            ICertificateProvider certificateProvider,
+            ISecurityPolicyRegistry? securityPolicies,
             CancellationToken ct = default)
         {
             if (certificateId == null)
@@ -143,7 +213,8 @@ namespace Opc.Ua
             var handler = new X509IdentityTokenHandler(
                 certificateId,
                 passwordProvider,
-                certificateProvider);
+                certificateProvider,
+                securityPolicies);
             return Task.FromResult(new UserIdentity(handler));
         }
 

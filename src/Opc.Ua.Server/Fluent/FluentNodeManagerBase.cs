@@ -27,6 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -226,6 +227,41 @@ namespace Opc.Ua.Server.Fluent
             }
             builder.AttachEventSources(EventSources);
             builder.AttachSimulations(Simulations);
+        }
+
+        /// <summary>
+        /// Re-runs the reverse-reference collection pass after the user's
+        /// <c>Configure</c> callbacks return so that nodes registered
+        /// during <c>Configure</c> publish their references to nodes
+        /// owned by other node managers (e.g. an inverse
+        /// <c>Organizes</c> reference to the Objects folder) into
+        /// <paramref name="externalReferences"/>, exactly like nodes
+        /// declared in a NodeSet do. Inverse <c>HasNotifier</c>
+        /// references to external notifiers additionally register the
+        /// source as a root notifier.
+        /// </summary>
+        /// <remarks>
+        /// The source-generated <c>CreateAddressSpaceAsync</c> and the
+        /// hosting <c>FluentNodeManager</c> invoke this once between the
+        /// <c>Configure</c> callbacks and <see cref="NodeManagerBuilder.Seal"/>;
+        /// hand-written managers that drive
+        /// <see cref="CreateFluentBuilder"/> themselves should do the
+        /// same. Timing is safe because the master node manager
+        /// distributes <paramref name="externalReferences"/> only after
+        /// every manager's <c>CreateAddressSpaceAsync</c> has returned.
+        /// The pass is idempotent, so running it after an earlier
+        /// <c>LoadPredefinedNodesAsync</c> sweep adds no duplicates.
+        /// </remarks>
+        /// <param name="externalReferences">
+        /// The dictionary of references to add to external targets that
+        /// was handed to <c>CreateAddressSpaceAsync</c>.
+        /// </param>
+        /// <param name="cancellationToken">The cancellation token.</param>
+        protected ValueTask CompleteConfigureAsync(
+            IDictionary<NodeId, IList<IReference>> externalReferences,
+            CancellationToken cancellationToken = default)
+        {
+            return AddReverseReferencesAsync(externalReferences, cancellationToken);
         }
 
         /// <summary>

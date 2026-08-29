@@ -94,10 +94,11 @@ pr:
 # Weekly full-scope run.  Fires every Sunday at 02:00 UTC (late Saturday
 # night in the Americas / early Sunday morning in EU).  `always: true`
 # forces the run even when there are no commits since the previous one so
-# the badge in README.md reflects a recent green build.  All stages that
-# are gated on `ScheduledBuild` (AOT, Debug, .NET 9/8/472/netstandard,
-# mac matrix) are automatically included because Build.Reason
-# is 'Schedule' for these runs.
+# the badge in README.md reflects a recent green build. All stages that
+# are gated on `ScheduledBuild` (AOT, Debug, .NET 9/8/472/netstandard)
+# are automatically included because Build.Reason is 'Schedule' for these runs.
+# macOS jobs are additionally controlled by MacOSJobsEnabled and are disabled
+# while GitHub Actions owns them.
 schedules:
 - cron: '0 2 * * 0'
   displayName: 'Weekly full-scope tests (Sat night UTC)'
@@ -114,8 +115,9 @@ variables:
   # Schedule/Manual-only here, additionally runs on pull requests while this is
   # True, because it is then the only place that work happens.
   AdoOwnsMatrix: ${{ eq(parameters.ciBuildBackend, 'ado') }}
-  # macOS jobs always run on Microsoft-hosted agents because Managed DevOps Pools
-  # does not provide macOS images.
+  # GitHub Actions owns macOS validation. Keep the Azure definitions available
+  # for emergency/manual use, but do not schedule them unless explicitly enabled.
+  MacOSJobsEnabled: false
   macImage: 'macOS-15'
   # Two pool profiles are defined so stages can be routed independently and the
   # netstandard Managed DevOps Pool and the Microsoft-hosted agents share the
@@ -228,12 +230,7 @@ stages:
       hosted: true
       poolName: ${{ variables.mgdPoolName }}
       windowsImage: ${{ variables.mgdWindowsImage }}
-      # macOS runs only on Schedule/Manual (nightly + on-demand), not on
-      # PR or master push, to keep the PR gate fast and Windows-focused.
-      # Passed bare: test.yml wraps it in succeeded() for the test jobs and in
-      # not(canceled()) for the coverage gate, which has to report a failure
-      # rather than skip when a test job failed.
-      condition: ne(variables.ScheduledBuild, 'False')
+      condition: and(eq(variables.MacOSJobsEnabled, 'True'), ne(variables.ScheduledBuild, 'False'))
 - stage: testaot
   dependsOn: []
   displayName: 'Test Native AoT'
@@ -271,6 +268,7 @@ stages:
       hosted: true
       poolName: ${{ variables.hostPoolName }}
       windowsImage: ${{ variables.hostWindowsImage }}
+      condition: eq(variables.MacOSJobsEnabled, 'True')
 - stage: testnet90
   dependsOn: [build]
   displayName: 'Test .NET 9.0'
@@ -293,6 +291,7 @@ stages:
       hosted: true
       poolName: ${{ variables.mgdPoolName }}
       windowsImage: ${{ variables.mgdWindowsImage }}
+      condition: eq(variables.MacOSJobsEnabled, 'True')
 - stage: testnet80
   dependsOn: [build]
   displayName: 'Test .NET 8.0'
@@ -315,6 +314,7 @@ stages:
       hosted: true
       poolName: ${{ variables.hostPoolName }}
       windowsImage: ${{ variables.hostWindowsImage }}
+      condition: eq(variables.MacOSJobsEnabled, 'True')
 - stage: testnet472
   dependsOn: [build]
   displayName: 'Test .NET 4.7.2'
@@ -367,6 +367,7 @@ stages:
       hosted: true
       poolName: ${{ variables.mgdPoolName }}
       windowsImage: ${{ variables.mgdWindowsImage }}
+      condition: eq(variables.MacOSJobsEnabled, 'True')
 - stage: testnightly
   dependsOn: [build]
   displayName: 'Test long-running tiers'

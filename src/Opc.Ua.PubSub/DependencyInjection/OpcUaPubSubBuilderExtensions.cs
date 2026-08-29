@@ -359,6 +359,14 @@ namespace Microsoft.Extensions.DependencyInjection
                 sp => new PubSubAes256CtrPolicy(ResolvePubSubSymmetricProvider(sp)));
             services.AddSingleton<IPubSubSecurityPolicy>(PubSubNonePolicy.Instance);
 
+            // The application's PubSub policy set. Composed from every
+            // IPubSubSecurityPolicy in the container so a deployment that
+            // registers its own bundle is served that bundle rather than the
+            // process-wide PubSubSecurityPolicyRegistry.Default.
+            services.TryAddSingleton<IPubSubSecurityPolicyRegistry>(
+                sp => new PubSubSecurityPolicyRegistry(
+                    [.. sp.GetServices<IPubSubSecurityPolicy>()]));
+
             // Fail-closed security wrapper resolver. Sources key providers
             // registered in DI (none by default → secured connections fail
             // to resolve and the application refuses to start in the clear).

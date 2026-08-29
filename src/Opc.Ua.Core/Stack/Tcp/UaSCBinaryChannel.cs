@@ -469,32 +469,29 @@ namespace Opc.Ua.Bindings
         protected bool VerifySequenceNumber(uint sequenceNumber, string context)
         {
             // Accept the first sequence number depending on security policy
-            if (m_firstReceivedSequenceNumber &&
-                (
-                    !CryptoUtils.IsEccPolicy(SecurityPolicyUri) ||
-                    (CryptoUtils.IsEccPolicy(SecurityPolicyUri) && (sequenceNumber == 0))))
+            bool usesLegacySequenceNumbers = SecurityPolicy?.LegacySequenceNumbers ?? true;
+            if (m_firstReceivedSequenceNumber)
             {
+                if (usesLegacySequenceNumbers || sequenceNumber == 0)
+                {
+                    m_remoteSequenceNumber = sequenceNumber;
+                    m_firstReceivedSequenceNumber = false;
+                    return true;
+                }
+            }
+            else if (sequenceNumber > m_remoteSequenceNumber)
+            {
+                // everything ok if new number is greater.
                 m_remoteSequenceNumber = sequenceNumber;
-                m_firstReceivedSequenceNumber = false;
                 return true;
             }
-
-            // everything ok if new number is greater.
-            if (sequenceNumber > m_remoteSequenceNumber)
-            {
-                m_remoteSequenceNumber = sequenceNumber;
-                return true;
-            }
-
-            // check for a valid rollover.
-            if (m_remoteSequenceNumber > TcpMessageLimits.MinSequenceNumber &&
+            else if (m_remoteSequenceNumber > TcpMessageLimits.MinSequenceNumber &&
                 sequenceNumber < TcpMessageLimits.MaxRolloverSequenceNumber)
             {
+                // check for a valid rollover.
                 // only one rollover per token is allowed and with valid values depending on security policy
                 if (!m_sequenceRollover &&
-                    (
-                        !CryptoUtils.IsEccPolicy(SecurityPolicyUri) ||
-                        (CryptoUtils.IsEccPolicy(SecurityPolicyUri) && (sequenceNumber == 0))))
+                    (usesLegacySequenceNumbers || sequenceNumber == 0))
                 {
                     m_sequenceRollover = true;
                     m_remoteSequenceNumber = sequenceNumber;
@@ -900,12 +897,14 @@ namespace Opc.Ua.Bindings
         /// </summary>
         protected void BeginWriteMessage(BufferCollection buffers, object? state)
         {
+            Interlocked.Increment(ref m_activeWriteRequests);
+
             IUaSCByteTransport? transport = m_transport;
             if (transport == null)
             {
-                // Mirror the legacy contract: report failure via HandleWriteComplete
-                // rather than throwing synchronously so callers' state is released.
-                HandleWriteComplete(
+                // The caller can hold the channel gate. Report asynchronously
+                // because client write completion enters the same non-reentrant gate.
+                ReportWriteComplete(
                     buffers,
                     state,
                     0,
@@ -914,8 +913,6 @@ namespace Opc.Ua.Bindings
                         "The transport was closed by the remote application."));
                 return;
             }
-
-            Interlocked.Increment(ref m_activeWriteRequests);
 
             // Queued rather than started inline, for the reason given in
             // BeginWriteMessage(ArraySegment{byte}, object).
@@ -1307,6 +1304,14 @@ namespace Opc.Ua.Bindings
         /// The resource quotas for the channel.
         /// </summary>
         protected ChannelQuotas Quotas { get; }
+
+        /// <summary>
+        /// The security policies the channel negotiates against. This is the
+        /// registry the application configured, or
+        /// <see cref="SecurityPolicies.Default"/> when it configured none.
+        /// </summary>
+        protected ISecurityPolicyRegistry SecurityPolicyRegistry
+            => Quotas.SecurityPolicyRegistry ?? SecurityPolicies.Default;
 
         /// <summary>
         /// The size of the receive buffer.

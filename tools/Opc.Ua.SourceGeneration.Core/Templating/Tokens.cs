@@ -31,6 +31,7 @@ namespace Opc.Ua.SourceGeneration
 {
     internal static class Tokens
     {
+        public static string AdditionalNamespaceUris => nameof(AdditionalNamespaceUris);
         public static string ArrayDimensions => nameof(ArrayDimensions);
         public static string BaseClassName => nameof(BaseClassName);
         public static string BaseInterfaces => nameof(BaseInterfaces);

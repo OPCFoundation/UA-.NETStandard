@@ -28,12 +28,5 @@
  * ======================================================================*/
 
 using System;
-using System.Runtime.CompilerServices;
 
 [assembly: CLSCompliant(false)]
-
-// The conformance tests assert that the simulation constants and the published
-// datasheet agree, which means reading the constants rather than re-declaring
-// them - a test that carried its own copy of the numbers would pass while the
-// server served something else entirely.
-[assembly: InternalsVisibleTo("Opc.Ua.OpenUsd.Tests")]

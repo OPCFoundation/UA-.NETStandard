@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.IO;
 using Opc.Ua.Configuration;
 
 namespace Opc.Ua.Server.Hosting
@@ -43,7 +44,9 @@ namespace Opc.Ua.Server.Hosting
     /// server-policy and server-option builder stages. Use
     /// <see cref="OpcUaApplicationOptions.ConfigureSecurity"/> through
     /// <c>ConfigureApplication(...)</c> for post-security certificate and
-    /// validation settings.
+    /// validation settings. Set <see cref="ConfigurationFile"/> to load the
+    /// configuration from an existing OPC UA XML configuration file instead
+    /// of building it from these options.
     /// </remarks>
     public sealed class OpcUaServerOptions
     {
@@ -194,13 +197,72 @@ namespace Opc.Ua.Server.Hosting
         public OperationLimitsOptions? OperationLimits { get; set; }
 
         /// <summary>
+        /// Optional path to a classic OPC UA application configuration XML
+        /// file (e.g. <c>MyServer.Config.xml</c>). When set, the hosted
+        /// service loads the <see cref="ApplicationConfiguration"/> from this
+        /// file instead of building one from the other options, so existing
+        /// applications can adopt dependency injection and keep every setting
+        /// from their configuration file (base addresses, security policies,
+        /// certificate stores, transport quotas, operation limits, ...).
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// A relative path is resolved against the current working directory.
+        /// The file must validate as a <see cref="ApplicationType.Server"/>
+        /// (or client-and-server) configuration.
+        /// </para>
+        /// <para>
+        /// Because the file is authoritative, the options that feed the
+        /// configuration builder (<see cref="ApplicationName"/>,
+        /// <see cref="EndpointUrls"/>, <see cref="PkiRoot"/>, the policy
+        /// toggles, transport quotas, <see cref="ConfigureBuilder"/>, ...)
+        /// are not applied on this path. Use
+        /// <see cref="ConfigureLoadedConfiguration"/> for programmatic
+        /// overrides of the loaded file. Options that act on the hosted
+        /// server rather than the configuration (<see cref="Identity"/>,
+        /// <see cref="ConfigureRateLimits"/>) keep working. This path also
+        /// takes precedence over a shared application registered with
+        /// <c>ConfigureApplication(...)</c>. Mutually exclusive with
+        /// <see cref="ConfigurationStream"/>.
+        /// </para>
+        /// </remarks>
+        public string? ConfigurationFile { get; set; }
+
+        /// <summary>
+        /// Optional stream containing a classic OPC UA application
+        /// configuration XML document, e.g. an embedded resource. When set,
+        /// the hosted service loads the <see cref="ApplicationConfiguration"/>
+        /// from this stream instead of building one from the other options,
+        /// with the same semantics as <see cref="ConfigurationFile"/>.
+        /// </summary>
+        /// <remarks>
+        /// The stream must remain open until the host starts the server; it
+        /// is read once and disposed by the hosted service during startup.
+        /// Mutually exclusive with <see cref="ConfigurationFile"/>.
+        /// </remarks>
+        public Stream? ConfigurationStream { get; set; }
+
+        /// <summary>
+        /// Optional callback invoked with the <see cref="ApplicationConfiguration"/>
+        /// loaded from <see cref="ConfigurationFile"/> or
+        /// <see cref="ConfigurationStream"/>, after the document has been
+        /// read and validated but before certificates are checked and the
+        /// server starts. Use it to override individual settings from code
+        /// without editing the document. Ignored when neither
+        /// <see cref="ConfigurationFile"/> nor
+        /// <see cref="ConfigurationStream"/> is set.
+        /// </summary>
+        public Action<ApplicationConfiguration>? ConfigureLoadedConfiguration { get; set; }
+
+        /// <summary>
         /// Optional escape hatch invoked after the standard transport-quota,
         /// server-policy, and server-option steps, but before the application
         /// security configuration is added. Use it to add bespoke server
         /// policies or override server options. Use
         /// <see cref="OpcUaApplicationOptions.ConfigureSecurity"/> through
         /// <c>ConfigureApplication(...)</c> for post-security certificate and
-        /// validation settings.
+        /// validation settings. Not applied when <see cref="ConfigurationFile"/>
+        /// or <see cref="ConfigurationStream"/> is set.
         /// </summary>
         public Action<IApplicationConfigurationBuilderServerSelected>? ConfigureBuilder { get; set; }
 
