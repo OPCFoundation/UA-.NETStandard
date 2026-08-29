@@ -705,6 +705,9 @@ namespace Opc.Ua.SourceGeneration
         /// <param name="referencedModels">Models supplied by referenced assemblies.</param>
         /// <param name="nodeManagerBindings">Optional node manager bindings.</param>
         /// <param name="reportBindingDiagnostic">Optional binding diagnostic callback.</param>
+        /// <param name="referencedDependencies">Per-URI model dependency
+        /// payloads. Leave <c>null</c> to derive them from the payloads
+        /// carried by <paramref name="referencedModels"/>.</param>
         /// <param name="sharedUsedBindings">Optional set that accumulates matched bindings.</param>
         /// <param name="bindingModelCount">Total number of generatable models across all passes.</param>
         public static void GenerateCode(
@@ -717,6 +720,7 @@ namespace Opc.Ua.SourceGeneration
             IReadOnlyDictionary<string, ModelDependencyReference> referencedModels = null,
             IReadOnlyList<NodeManagerAttributeBinding> nodeManagerBindings = null,
             Action<NodeManagerAttributeBinding, string> reportBindingDiagnostic = null,
+            IReadOnlyDictionary<string, Dependency.ModelDependencyV1> referencedDependencies = null,
             HashSet<NodeManagerAttributeBinding> sharedUsedBindings = null,
             int bindingModelCount = 0)
         {
@@ -730,6 +734,7 @@ namespace Opc.Ua.SourceGeneration
                 referencedModels,
                 nodeManagerBindings,
                 reportBindingDiagnostic,
+                referencedDependencies,
                 sharedUsedBindings,
                 bindingModelCount,
                 null,
@@ -767,6 +772,14 @@ namespace Opc.Ua.SourceGeneration
         /// Optional callback invoked for each binding-related warning or
         /// error (e.g. unmatched URI, ambiguous fallback).
         /// </param>
+        /// <param name="referencedDependencies">
+        /// Per-URI model dependency payloads recovered from referenced
+        /// assemblies. The validator pre-imports them so downstream models
+        /// can resolve upstream types without an explicit
+        /// <c>AdditionalFiles</c> entry for them. Pass <c>null</c> to
+        /// derive the map from the payloads already carried by
+        /// <paramref name="referencedModels"/>.
+        /// </param>
         /// <param name="sharedUsedBindings">
         /// Optional caller-owned set that accumulates the bindings matched
         /// across multiple generation passes (NodeSet2 and ModelDesign).
@@ -803,6 +816,7 @@ namespace Opc.Ua.SourceGeneration
             IReadOnlyDictionary<string, ModelDependencyReference> referencedModels,
             IReadOnlyList<NodeManagerAttributeBinding> nodeManagerBindings,
             Action<NodeManagerAttributeBinding, string> reportBindingDiagnostic,
+            IReadOnlyDictionary<string, Dependency.ModelDependencyV1> referencedDependencies,
             HashSet<NodeManagerAttributeBinding> sharedUsedBindings,
             int bindingModelCount,
             Action<string, string, string, string> reportFluentAccessorsOnlyDiagnostic,
@@ -818,12 +832,10 @@ namespace Opc.Ua.SourceGeneration
             referencedModelProviders ??= [.. referencedModels.Values];
             referencedAccessorProviders ??= [];
 
-            // The dependency payloads are carried inside the referenced
-            // model attributes; decode them here so downstream models can
-            // resolve upstream types without an explicit AdditionalFiles
-            // entry for them.
-            IReadOnlyDictionary<string, Dependency.ModelDependencyV1> referencedDependencies =
-                BuildReferencedDependencyMap(referencedModels);
+            // The payloads are carried inside the referenced model
+            // attributes, so a caller that already supplies the models does
+            // not have to decode and thread the map as well.
+            referencedDependencies ??= BuildReferencedDependencyMap(referencedModels);
 
             // Combine with embedded resources in this assembly.
             fileSystem = typeof(Generators).Assembly

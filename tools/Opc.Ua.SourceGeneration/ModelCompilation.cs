@@ -240,6 +240,8 @@ namespace Opc.Ua.SourceGeneration
                     referencedModels,
                     bindings.Count > 0 ? bindings : null,
                     bindings.Count > 0 ? reportBinding : null,
+                    // Derived from referencedModels, which carries the payloads.
+                    null,
                     usedBindings,
                     totalModelCount,
                     reportFluentAccessorsOnly,
