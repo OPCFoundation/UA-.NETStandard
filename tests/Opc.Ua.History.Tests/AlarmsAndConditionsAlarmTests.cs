@@ -172,6 +172,7 @@ namespace Opc.Ua.History.Tests
             Assert.That(StatusCode.IsGood(confirm.StatusCode), Is.True,
                 $"Confirm should succeed: {confirm.StatusCode}");
 
+            await collector.ConditionRefreshAsync().ConfigureAwait(false);
             EventFieldList confirmEvent = await collector.WaitForEventAsync(
                 alarmId,
                 e => AlarmEventCollector.TryGetBoolean(
