@@ -28,10 +28,16 @@
  * ======================================================================*/
 
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Client.TestFramework;
 using static Opc.Ua.InformationModel.Tests.AliasNameTestHelpers;
+
+// Conformance tests use inline literal arrays as expected-value
+// assertions; the per-call allocation cost is irrelevant for tests
+// and keeping the literal adjacent to the assertion improves readability.
+#pragma warning disable CA1861 // Avoid constant arrays as arguments
 
 namespace Opc.Ua.InformationModel.Tests
 {
@@ -87,13 +93,94 @@ namespace Opc.Ua.InformationModel.Tests
                 "Expected at least two nested categories under Aliases (TagVariables and Topics).");
             Assert.That(categoryNames, Contains.Item("TagVariables"));
             Assert.That(categoryNames, Contains.Item("Topics"));
-            if (aliasNamesFound == 0)
-            {
-                Assert.Ignore(
-                    "Nested categories expose no AliasName instances on this server.");
-            }
             Assert.That(aliasNamesFound, Is.GreaterThan(0),
                 "Nested categories should expose AliasName instances.");
+        }
+
+        [Description("Verify that an AliasNameCategoryType instance exists under another AliasNameCategoryType instance.")]
+        [Test]
+        public async Task AliasNameCategoryNestedUnderCategoryAsync()
+        {
+            (NodeId tagVariables, _) = await FindCategoryAsync(
+                Session, "TagVariables").ConfigureAwait(false);
+
+            ReferenceDescription nested = await FindNestedCategoryAsync(
+                Session, tagVariables).ConfigureAwait(false);
+
+            Assert.That(nested, Is.Not.Null,
+                "TagVariables should organize a nested AliasNameCategoryType instance.");
+            Assert.That(nested.BrowseName.Name, Is.EqualTo("Devices"));
+
+            // The nested category must carry the mandatory FindAlias method.
+            var nestedId = ExpandedNodeId.ToNodeId(
+                nested.NodeId, Session.NamespaceUris);
+            NodeId methodId = await FindMethodAsync(
+                Session, nestedId, "FindAlias").ConfigureAwait(false);
+            Assert.That(methodId.IsNull, Is.False,
+                "The nested category should expose a FindAlias method.");
+        }
+
+        [Description("Verify FindAlias on a nested category is restricted to that category's hierarchical structure.")]
+        [Test]
+        public async Task FindAliasOnNestedCategoryIsRestrictedToItsSubtreeAsync()
+        {
+            (NodeId tagVariables, NodeId parentMethod) = await FindCategoryAsync(
+                Session, "TagVariables").ConfigureAwait(false);
+
+            ReferenceDescription nested = await FindNestedCategoryAsync(
+                Session, tagVariables).ConfigureAwait(false);
+            Assert.That(nested, Is.Not.Null);
+
+            var nestedId = ExpandedNodeId.ToNodeId(
+                nested.NodeId, Session.NamespaceUris);
+            NodeId nestedMethod = await FindMethodAsync(
+                Session, nestedId, "FindAlias").ConfigureAwait(false);
+            Assert.That(nestedMethod.IsNull, Is.False);
+
+            CallMethodResult nestedResult = await CallFindAliasAsync(
+                Session, nestedId, nestedMethod, "%", AliasForNodeId)
+                .ConfigureAwait(false);
+            Assert.That(StatusCode.IsGood(nestedResult.StatusCode), Is.True,
+                $"FindAlias on the nested category should succeed: {nestedResult.StatusCode}");
+            string[] nestedNames =
+                [.. DecodeAliasResults(Session, nestedResult).Select(r => r.AliasName.Name)];
+
+            Assert.That(nestedNames, Is.EquivalentTo(new[] { "Pump1_Status", "Heater_Power" }),
+                "FindAlias on the nested category should return only its own aliases.");
+
+            // Per Part 17 §6.3.2 the parent search covers the sub-tree too.
+            CallMethodResult parentResult = await CallFindAliasAsync(
+                Session, tagVariables, parentMethod, "%", AliasForNodeId)
+                .ConfigureAwait(false);
+            Assert.That(StatusCode.IsGood(parentResult.StatusCode), Is.True);
+            string[] parentNames =
+                [.. DecodeAliasResults(Session, parentResult).Select(r => r.AliasName.Name)];
+
+            Assert.That(parentNames, Is.SupersetOf(nestedNames),
+                "FindAlias on the parent category should also return the nested aliases.");
+            Assert.That(parentNames, Has.Some.EqualTo("TIC101_Setpoint"),
+                "FindAlias on the parent should still return its own aliases.");
+        }
+
+        /// <summary>
+        /// Returns the first AliasNameCategoryType instance organized under
+        /// <paramref name="categoryId"/>, or null when there is none.
+        /// </summary>
+        private static async Task<ReferenceDescription> FindNestedCategoryAsync(
+            Opc.Ua.Client.ISession session, NodeId categoryId)
+        {
+            IList<ReferenceDescription> children =
+                await BrowseChildrenAsync(session, categoryId).ConfigureAwait(false);
+
+            foreach (ReferenceDescription child in children)
+            {
+                if (ExpandedNodeId.ToNodeId(child.TypeDefinition, session.NamespaceUris) ==
+                    AliasNameCategoryTypeNodeId)
+                {
+                    return child;
+                }
+            }
+            return null;
         }
 
         [Description("Call the FindAlias method on an instance of AliasNameCategoryType (under Aliases), passing in a '%' for the filter. Pass in the AliasFor for the Reference type.")]

@@ -217,6 +217,86 @@ namespace Opc.Ua.Server.Tests.AliasNames
         }
 
         [Test]
+        public async Task CreateAddressSpaceMaterializesAliasNodesAsync()
+        {
+            // Aliases present in the store BEFORE the address space is
+            // built become browsable AliasNameType nodes (Part 17 §6.2) —
+            // the same materialization DiagnosticsNodeManager applies to
+            // the standard well-known categories.
+            var categoryId = new NodeId("MyCategory", 1);
+            var target = new ExpandedNodeId("Tgt", 1);
+            await m_store.AddAliasesAsync(categoryId,
+                [
+                    new AliasAddRequest("Alpha", target, null, ReferenceTypeIds.AliasFor)
+                ],
+                CancellationToken.None).ConfigureAwait(false);
+
+            using AliasNameNodeManager manager = CreateManager();
+            var externalReferences = new Dictionary<NodeId, IList<IReference>>();
+            await manager.CreateAddressSpaceAsync(externalReferences).ConfigureAwait(false);
+
+            var aliasNodeId = new NodeId(
+                Utils.Format("{0}.{1}", categoryId, "Alpha"), 1);
+            AliasNameState aliasNode = manager
+                .FindPredefinedNode<AliasNameState>(aliasNodeId);
+            Assert.That(aliasNode, Is.Not.Null,
+                "The alias must be materialized as a browsable AliasNameType node.");
+            Assert.That(aliasNode.BrowseName.Name, Is.EqualTo("Alpha"));
+            Assert.That(aliasNode.TypeDefinitionId,
+                Is.EqualTo(ObjectTypeIds.AliasNameType));
+
+            AliasNameCategoryState category = manager
+                .FindPredefinedNode<AliasNameCategoryState>(categoryId);
+            Assert.That(
+                category.ReferenceExists(
+                    ReferenceTypeIds.Organizes, false, aliasNodeId),
+                Is.True,
+                "The category organizes its alias node.");
+            Assert.That(
+                aliasNode.ReferenceExists(
+                    ReferenceTypeIds.AliasFor, false, new NodeId("Tgt", 1)),
+                Is.True,
+                "The alias node carries the AliasFor reference to its target.");
+            Assert.That(externalReferences.ContainsKey(new NodeId("Tgt", 1)),
+                Is.True,
+                "The inverse HasAlias reference is queued for the target's manager.");
+        }
+
+        [Test]
+        public async Task MaterializeAliasNodesCanBeDisabledAsync()
+        {
+            var categoryId = new NodeId("MyCategory", 1);
+            await m_store.AddAliasesAsync(categoryId,
+                [
+                    new AliasAddRequest("Alpha",
+                        new ExpandedNodeId("Tgt", 1),
+                        null,
+                        ReferenceTypeIds.AliasFor)
+                ],
+                CancellationToken.None).ConfigureAwait(false);
+
+            using AliasNameNodeManager manager = CreateManager(
+                new AliasNameNodeManagerOptions
+                {
+                    NamespaceUri = c_namespaceUri,
+                    RegisterWithServerRegistry = false,
+                    MaterializeAliasNodes = false
+                });
+            await manager.CreateAddressSpaceAsync(
+                new Dictionary<NodeId, IList<IReference>>()).ConfigureAwait(false);
+
+            Assert.That(
+                manager.FindPredefinedNode<AliasNameCategoryState>(categoryId),
+                Is.Not.Null,
+                "The category tree is still built.");
+            Assert.That(
+                manager.FindPredefinedNode<AliasNameState>(
+                    new NodeId(Utils.Format("{0}.{1}", categoryId, "Alpha"), 1)),
+                Is.Null,
+                "No alias instance nodes are created when the option is off.");
+        }
+
+        [Test]
         public async Task LastChangeReflectsStoreUpdatesAsync()
         {
             using AliasNameNodeManager manager = CreateManager();
