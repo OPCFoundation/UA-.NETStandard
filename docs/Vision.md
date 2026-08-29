@@ -8,10 +8,9 @@ Model Context Protocol tool package that lets a language-model agent see through
 a Vision server and act on what it sees.
 
 > **Draft.** The namespace `http://opcfoundation.org/UA/Vision/` and every
-> NodeId in it are provisional. The model is a working-group draft and is
-> neither official nor endorsed by the OPC Foundation. The API is stable within
-> this repository but every ObjectType, DataType and BrowseName can still change
-> when the specification is published.
+> NodeId in it are provisional. The API is stable within this repository but
+> every ObjectType, DataType and BrowseName can still change when the
+> specification is published.
 
 Vision layers on top of the base OPC UA namespace only — it does not require
 Devices, Machinery or Robotics. It composes cleanly with Robotics, as shown in the
@@ -1130,7 +1129,7 @@ This closes a limitation called out in the [Vision developer guide](Vision.md#li
 only names the learning job by `NodeId`. A standalone Vision node manager cannot
 increment a counter owned by another companion. A host binding Vision and AI
 Model Management together can, and this cell is that host. See also the
-[AI Model Management developer guide](AiIntegration.md) for the deployment
+[AI Model Management developer guide](AI.md) for the deployment
 and learning-job model.
 
 ### Modes
@@ -1168,7 +1167,7 @@ takes the same line.
   stage.
 - [MCP Server guide](McpServer.md) — the `vision` MCP profile and its
   composition with `robotics`.
-- [AI Model Management developer guide](AiIntegration.md) — the
+- [AI Model Management developer guide](AI.md) — the
   companion that owns the model, dataset and deployment a Vision
   pipeline's `Deployment` and `LearningJob` point at, and the counter
   §9.4 asks a learning job to keep.

@@ -48,8 +48,7 @@ See the [Vision developer guide](https://github.com/OPCFoundation/UA-.NETStandar
 for the full end-to-end story, code examples and the bin-picking sample.
 
 > The namespace `http://opcfoundation.org/UA/Vision/` and every NodeId in it are
-> **provisional**. The model is a working-group draft and is neither official
-> nor endorsed by the OPC Foundation.
+> **provisional**. The model is a working-group draft.
 
 ## License
 

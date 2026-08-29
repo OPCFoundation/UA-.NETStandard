@@ -6,8 +6,7 @@ implementation of the draft *OPC UA — AI Model Management and Inference*
 companion specification.
 
 > **Draft.** The namespace `http://opcfoundation.org/UA/AI/` and every NodeId
-> in it are provisional. The model is neither official nor endorsed by the OPC
-> Foundation until the working group publishes it.
+> in it are provisional until the working group publishes the specification.
 
 AI Model Management publishes model sources, models, datasets, deployments and
 inference methods through OPC UA. The control plane is OPC UA: clients discover

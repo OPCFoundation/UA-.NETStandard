@@ -74,7 +74,7 @@ that quietly degrades appears to work while demonstrating nothing.
   design, safety boundary, verdict rule, escalation, and learning feedback path.
 - [Vision developer guide](../../docs/Vision.md) — the Vision companion and its
   §9 feedback / learning semantics.
-- [AI Model Management developer guide](../../docs/AiIntegration.md) — the
+- [AI Model Management developer guide](../../docs/AI.md) — the
   deployment `Invoke` and learning-job ownership used by the cell.
 - [ISA-95 developer guide](../../docs/ISA95.md) — Job Control V2 clients,
   providers, and job-state semantics.

@@ -118,6 +118,6 @@ demonstrate.
 
 - [Vision developer guide](../../../docs/Vision.md) — see *Visual inspection: a cross-companion cell*
 - [Vision developer guide](../../../docs/Vision.md)
-- [AI Model Management developer guide](../../../docs/AiIntegration.md)
+- [AI Model Management developer guide](../../../docs/AI.md)
 - [ISA-95 developer guide](../../../docs/ISA95.md)
 - [Alarms and Conditions](../../../docs/AlarmsAndConditions.md)

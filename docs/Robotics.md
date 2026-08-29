@@ -9,11 +9,11 @@ builds on Device Integration
 models are source-generated from their released NodeSets and loaded in
 dependency order.
 
-> **Status: draft companion model.** The namespace `http://opcfoundation.org/UA/RobotIntent/` and every
-> NodeId in it are **provisional**. This implements the working-group draft
-> *OPC UA — Robot Intent*; nothing here is official or endorsed by the OPC
-> Foundation. Do not deploy it on a production robot and expect the identifiers
-> to survive.
+> **Status: draft companion model.** The namespace
+> `http://opcfoundation.org/UA/RobotIntent/` and every NodeId in it are
+> **provisional**. This implements the working-group draft *OPC UA — Robot
+> Intent*. Do not deploy it on a production robot and expect the identifiers to
+> survive.
 
 OPC 40010 describes a robot in detail — its motion device system, its axes, its power trains, its
 controller, its safety states — and defines **no motion verbs at all**. Its whole actuation surface is

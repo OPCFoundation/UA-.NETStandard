@@ -116,8 +116,7 @@ perception paths (`OnServer` vs `EdgeOffServer`), facet derivation and the
 bin-picking sample.
 
 > The namespace `http://opcfoundation.org/UA/Vision/` and every NodeId in it
-> are **provisional**. The model is a working-group draft and is neither
-> official nor endorsed by the OPC Foundation.
+> are **provisional**. The model is a working-group draft.
 
 ## License
 

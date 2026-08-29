@@ -71,8 +71,7 @@ for discovery, streaming, feedback and the frame-graph composition
 example.
 
 > The namespace `http://opcfoundation.org/UA/Vision/` and every NodeId in it
-> are **provisional**. The model is a working-group draft and is neither
-> official nor endorsed by the OPC Foundation.
+> are **provisional**. The model is a working-group draft.
 
 ## Related packages
 

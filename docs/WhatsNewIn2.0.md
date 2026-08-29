@@ -226,7 +226,7 @@ server- and client-side implementations:
   `IChatClient` and OpenAI-compatible REST backends, `AINodeManagerFactory`
   hosting through `AddNodeManager<AINodeManagerFactory>`, `Invoke` routing,
   learning jobs, and standard file-transfer artefact streaming. See
-  [AI Model Management](AiIntegration.md).
+  [AI Model Management](AI.md).
 - **OPC 10100-1 — WoT Connectivity**: model, server, and client libraries
   for surfacing OPC UA servers as Web of Things Thing Descriptions, with
   the `WoTAssetConnectionManagement` server methods gated by a
@@ -543,7 +543,7 @@ coverage service; see
   [Device Integration](DeviceIntegration.md),
   [Relative Spatial Location and Global Positioning](Positioning.md),
   [Vision](Vision.md),
-  [AI Model Management](AiIntegration.md),
+  [AI Model Management](AI.md),
   [Software Update](SoftwareUpdate.md),
   [WoT Connectivity](WoTConnectivity.md),
   [Subscriptions and Monitored Items](Subscriptions.md),
@@ -570,4 +570,3 @@ coverage service; see
   [Container Reference Server](ContainerReferenceServer.md),
   [Provisioning Mode](ProvisioningMode.md).
 - PubSub: [PubSub library](PubSub.md).
-
