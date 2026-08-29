@@ -6233,7 +6233,7 @@ namespace Opc.Ua.Server
 
             bool success = m_monitoredItemManager.RestoreMonitoredItem(
                 Server,
-                m_syncNodeManager.ToAsyncNodeManager(),
+                this,
                 context,
                 handle,
                 storedMonitoredItem,
@@ -6444,7 +6444,7 @@ namespace Opc.Ua.Server
             ISampledDataChangeMonitoredItem dataChangeMonitoredItem =
                 m_monitoredItemManager.CreateMonitoredItem(
                     Server,
-                    m_syncNodeManager.ToAsyncNodeManager(),
+                    this,
                     context,
                     handle,
                     subscriptionId,
