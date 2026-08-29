@@ -13,8 +13,8 @@ side) and **`Opc.Ua.Client`** (client side). The implementation covers:
 
 | Spec section | Type / Method                            | Status |
 | ------------ | ---------------------------------------- | ------ |
-| §6.2         | `AliasNameType`                          | ✔      |
-| §6.3.1       | `AliasNameCategoryType`                  | ✔      |
+| §6.2         | `AliasNameType` (browsable instance nodes) | ✔ opt-in — see below |
+| §6.3.1       | `AliasNameCategoryType` (incl. nesting)  | ✔ (nested instances opt-in — see below) |
 | §6.3.1       | `LastChange` (`VersionTime`)             | ✔      |
 | §6.3.2       | `FindAlias`                              | ✔      |
 | §6.3.3       | `FindAliasVerbose`                       | ✔      |
@@ -23,11 +23,10 @@ side) and **`Opc.Ua.Client`** (client side). The implementation covers:
 | §7.2         | `AliasNameDataType`                      | ✔      |
 | §7.3         | `AliasNameVerboseDataType`               | ✔      |
 | §8.2         | `AliasFor` reference type                | ✔      |
-| §9.2         | Well-known `Aliases (i=23470)`           | ✔ wired |
-| §9.3         | Well-known `TagVariables (i=23479)`      | ✔ wired |
-| §9.4         | Well-known `Topics (i=23488)`            | ✔ wired |
+| §9.2         | Well-known `Aliases (i=23470)`           | ✔ wired; optional methods opt-in — see below |
+| §9.3         | Well-known `TagVariables (i=23479)`      | ✔ wired; optional methods opt-in — see below |
+| §9.4         | Well-known `Topics (i=23488)`            | ✔ wired; optional methods opt-in — see below |
 | Annex D      | PubSub replication (LastChange notifications) | ✔ transport-agnostic — see below |
-| Annex D      | PubSub replication                       | not implemented |
 
 ## Server side — `Opc.Ua.Server.AliasNames`
 
@@ -93,7 +92,14 @@ Options:
 
 * `NamespaceUri` — controls the namespace under which the manager
   registers its category instances. Defaults to
-  `http://opcfoundation.org/UA/AliasName/`.
+  `http://opcfoundation.org/UA/AliasName/`. Every category descriptor's
+  NodeId must lie in this namespace; descriptors pointing anywhere else
+  are skipped with a warning rather than claiming another manager's
+  ids.
+* `MaterializeAliasNodes` (default `true`) — creates one browsable
+  `AliasNameType` node per alias, with `AliasFor` references to its
+  targets, exactly as the standard-node materialization below does.
+  Disable to expose only the category tree.
 * `LinkToStandardAliasesObject` (default `true`) — adds `Organizes`
   external references from the well-known `Aliases (i=23470)` object to
   the manager's root categories so they show up in the standard browse
@@ -105,6 +111,107 @@ Options:
 * `RegisterWithServerRegistry` (default `true`) — also registers the
   store with `IAliasNameStoreRegistry` so the well-known standard nodes
   see it.
+
+### Browsable alias nodes
+
+Registering a store makes `FindAlias` answer from it, but the aliases
+themselves stay inside the store — nothing in the address space shows
+them. Part 17 §6.2 clients (the OPC Foundation CTT among them) also
+*browse* for aliases, so a server under conformance test needs the
+alias hierarchy materialized as real nodes.
+
+Both materialization paths — `AliasNameNodeManager` for
+application-defined namespaces and
+`DiagnosticsNodeManager.MaterializeRegisteredAliasNameNodesAsync` for
+the standard well-known nodes — run the same shared walker
+(`AliasNameNodeMaterializer`), so they produce structurally identical
+Part 17 trees and every fix lands in both at once.
+
+`DiagnosticsNodeManager.MaterializeRegisteredAliasNameNodesAsync` does
+that for every registered store: one `AliasNameType` instance per alias
+— BrowseName carrying the alias name, `AliasFor` references to its
+targets, and the inverse `HasAlias` reference added on each local
+target — plus an `AliasNameCategoryType` instance for every store
+category the standard NodeSet does not already ship (nested categories
+included; a root category from the store is organized under the
+standard `Aliases` object so it stays browse-discoverable). Remote
+targets get their server URI registered in the server's `ServerUris`
+table and referenced with the matching `ServerIndex`. Server-defined
+BrowseNames that a descriptor left in namespace 0 — reserved for
+OPC-Foundation-defined names — are re-homed into the diagnostics
+namespace; Part 17 clients compare alias names ignoring the namespace,
+so this is transparent to them. The pass is idempotent, and only
+creates category nodes whose NodeId lies in the diagnostics namespace —
+a descriptor pointing anywhere else is skipped with a warning rather
+than claiming another manager's (or the standard NodeSet's) ids. Call
+it from an overridden `CreateAddressSpaceAsync`, after `base` has
+loaded the standard categories:
+
+```csharp
+public override async ValueTask CreateAddressSpaceAsync(
+    IDictionary<NodeId, IList<IReference>> externalReferences,
+    CancellationToken cancellationToken = default)
+{
+    await base.CreateAddressSpaceAsync(externalReferences, cancellationToken)
+        .ConfigureAwait(false);
+
+    await MaterializeRegisteredAliasNameNodesAsync(
+        externalReferences, cancellationToken).ConfigureAwait(false);
+}
+```
+
+The same pass also instantiates the **optional Part 17 methods** —
+`FindAliasVerbose`, `AddAliasesToCategory`, `DeleteAliasesFromCategory`
+and `LastChange` — on every category whose descriptor declares them
+through `AliasNameCapabilities`, including the well-known ones the
+standard NodeSet ships without them:
+
+```csharp
+var tagVariables = new AliasNameCategoryDescriptor(
+    ObjectIds.TagVariables,
+    QualifiedName.From(BrowseNames.TagVariables),
+    AliasNameCapabilities.All);       // verbose + add + delete + LastChange
+```
+
+Mutation calls are gated on a `SecurityAdmin` caller over a
+`SignAndEncrypt` channel and return `BadUserAccessDenied` otherwise.
+
+It is opt-in: servers that only need `FindAlias` to answer from their
+store pay nothing. The created nodes are a snapshot taken at
+address-space creation — aliases added or removed later through
+`AddAliasesToCategory` / `DeleteAliasesFromCategory` change what
+`FindAlias` returns and advance `LastChange`, but do not add or remove
+`AliasNameType` nodes.
+
+The browse view carries `AliasFor` associations only: an entry a store
+holds under an unrelated reference type is not a Part 17 §6.2 alias
+association, so it is served by `FindAlias` (with a matching filter)
+but not materialized. Entries stored under an `AliasFor` *subtype* are
+materialized, but always as the base `AliasFor` reference — the
+verbose record does not carry the concrete reference type.
+
+Two things the caller controls:
+
+* Give category descriptors a BrowseName in a namespace the server
+  owns. The store stamps that namespace onto every alias
+  `QualifiedName` it reports, and the materializer re-homes ns=0
+  BrowseNames out of the reserved OPC Foundation namespace — with a
+  server-owned descriptor namespace the query results and the
+  browsable nodes agree, so a returned alias name resolves via
+  `TranslateBrowsePathsToNodeIds`. The reference server uses the
+  diagnostics namespace for all its descriptors.
+* Part 17 §9 constrains `Topics` aliases to `PublishedDataSetType`
+  targets. Neither the store nor `AddAliasesToCategory` enforces
+  this — a server that exposes the mutation methods on `Topics` should
+  only grant them to operators who preserve the constraint.
+
+`Quickstarts.ReferenceServer` uses this in
+`ReferenceServerConfigurationNodeManager`, which also creates the
+`PublishedDataSet` instances and seeds the `Topics` aliases that point
+at them — in the same place, so an alias can never target a dataset
+that was not created. The nested `Devices` sub-category under
+`TagVariables` is declared with the store seeding in
+`ReferenceServer.ConfigureAliasNameStore`.
 
 ### Custom backend
 
@@ -129,7 +236,11 @@ public interface IAliasNameStore
 
 The reference `InMemoryAliasNameStore` is thread-safe (SemaphoreSlim),
 supports nested categories and emits `Changed` events that bubble up to
-the address-space `LastChange` property.
+the address-space `LastChange` property. A mutation on a nested
+category bumps — and notifies for — every ancestor category as well,
+per Part 17 §6.3.1/§9.2: a category's `LastChange` reflects the most
+recent change anywhere in its subtree, and the root `Aliases` value
+reflects any change at all.
 
 ## Client side — `Opc.Ua.Client.AliasNames`
 
@@ -227,15 +338,39 @@ monitored-item variant. Disposal is idempotent and never throws.
   Quickstart sample used `NodeId[]` and has been removed.
 * **Standard well-known nodes** — the OPC UA NodeSet instantiates only
   `FindAlias` on `Aliases`/`TagVariables`/`Topics` (plus `LastChange` on
-  `Aliases`). Optional methods (`FindAliasVerbose`/`Add`/`Delete`) on
-  the standard nodes would require NodeSet extension and are not wired
-  by the binder. To expose those, use a standalone
-  `AliasNameNodeManager` with your own category nodes.
+  `Aliases`), so the always-on binder wires just those. The optional
+  methods are added by `MaterializeRegisteredAliasNameNodesAsync`
+  through the generated `AddFindAliasVerbose` /
+  `AddAddAliasesToCategory` / `AddDeleteAliasesFromCategory` optional-
+  child helpers, for each category whose descriptor declares the
+  matching `AliasNameCapabilities`. Each child is created at the NodeId
+  the OPC Foundation reserves for it (`Aliases.FindAliasVerbose` =
+  `i=24054`, `TagVariables.LastChange` = `i=32854`, and so on).
+
+  Those identifiers are allocated in the standard identifier registry
+  (`StandardTypes.csv`) but are deliberately **not** declared in the
+  ModelDesign and **not** present in the published NodeSet — the
+  standard address space does not instantiate optional children. A
+  reserved id is a number set aside for the node *if* a server chooses
+  to expose it, not a node the server must have. Consequently the source
+  generator emits no parent-to-instance mapping and no `MethodIds`
+  constant for them, and `DiagnosticsNodeManager.ReservedChildIds`
+  supplies the nine method ids and the two missing `LastChange` ids
+  explicitly, each traceable to its registry row. The argument
+  properties do have generated `VariableIds` constants and are
+  referenced through those.
+
+  Do not "fix" this by declaring the children in `StandardTypes.xml`:
+  that file is a verbatim copy of the OPC Foundation's ModelDesign and
+  is re-synced from upstream, so a local edit is lost on the next sync
+  and the NodeIds silently revert to factory-minted ones.
 * **`AliasNameCapabilities.AddAliasesToCategory` /
-  `DeleteAliasesFromCategory`** — defaults to `SecurityAdmin`-only
-  via `AliasNameNodeManagerOptions.RequireSecurityAdminForMutations`.
-  The check requires both the role grant AND a `SignAndEncrypt`
-  channel; opt out via the option for development scenarios only.
+  `DeleteAliasesFromCategory`** — on an `AliasNameNodeManager` this
+  defaults to `SecurityAdmin`-only via
+  `AliasNameNodeManagerOptions.RequireSecurityAdminForMutations`; on the
+  standard well-known nodes the same check is always applied and cannot
+  be opted out of. It requires both the role grant AND a
+  `SignAndEncrypt` channel.
 * **`ReferenceTypeFilter` semantics** — null/empty and
   `ReferenceTypeIds.References` match every alias regardless of
   reference type. Otherwise matches are limited to aliases whose
