@@ -44,6 +44,11 @@ var sessionFactory =
 ManagedSession session = await sessionFactory(ct);
 ```
 
+Applications that already own a classic configuration XML file can pass
+it directly — `AddClient("MyClient.Config.xml", ...)`, or as a `Stream`
+for embedded resources — and keep every setting from the file while
+adopting dependency injection.
+
 ## Reverse connect lifecycle
 
 `ReverseConnectManager` uses an asynchronous, cancellation-aware lifecycle:

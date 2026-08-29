@@ -473,7 +473,9 @@ builder.Services
 The certificate manager and certificate password provider registered in
 dependency injection are honored the same way as on the options path,
 and the unmatched user-token-policy startup warning is derived from the
-policies advertised by the file.
+policies advertised by the file. The client offers the same migration
+path — see
+[Client: using an existing configuration XML file](#client-using-an-existing-configuration-xml-file).
 
 ### Server security and resource controls
 
@@ -894,7 +896,51 @@ var managedSessions = sp.GetRequiredService<IManagedSessionFactory>();
 ManagedSession dynamicSession = await managedSessions.ConnectAsync(endpoint, ct);
 ```
 
-Misconfiguration is validated through `IValidateOptions<OpcUaClientOptions>` when the host starts and again before a DI-created session connects. Supply either an explicit `Configuration`, the application identity fields directly on `OpcUaClientOptions` (as shown above), or the shared `ConfigureApplication(...)` options for a combined client/server host (see [Shared application configuration](#shared-application-configuration)). `Session.Endpoint` is required by the cached fixed-endpoint delegate; `IManagedSessionFactory.ConnectAsync(endpoint, ...)` supplies it at runtime.
+Misconfiguration is validated through `IValidateOptions<OpcUaClientOptions>` when the host starts and again before a DI-created session connects. Supply either an explicit `Configuration`, the application identity fields directly on `OpcUaClientOptions` (as shown above), an existing configuration XML document (`ConfigurationFile` / `ConfigurationStream`, see below), or the shared `ConfigureApplication(...)` options for a combined client/server host (see [Shared application configuration](#shared-application-configuration)). `Session.Endpoint` is required by the cached fixed-endpoint delegate; `IManagedSessionFactory.ConnectAsync(endpoint, ...)` supplies it at runtime.
+
+### Client: using an existing configuration XML file
+
+The client offers the same migration path as
+[the server](#migrating-with-an-existing-configuration-xml-file):
+applications that already own a classic client configuration file
+(`*.Config.xml`) can pass it to `AddClient` and keep every setting in it
+— security configuration, certificate stores, transport quotas, client
+configuration:
+
+```csharp
+services
+    .AddOpcUa()
+    .AddClient("MyClient.Config.xml", opt =>
+    {
+        opt.Session = new ManagedSessionOptions { Endpoint = endpoint };
+    });
+```
+
+The same file can be referenced from configuration
+(`OpcUa:Client:ConfigurationFile`), and a stream works for documents
+that are not files on disk, e.g. embedded resources
+(`OpcUaClientOptions.ConfigurationStream`; read once and disposed after
+loading):
+
+```csharp
+Stream stream = typeof(Program).Assembly
+    .GetManifestResourceStream("MyApp.MyClient.Config.xml")!;
+services.AddOpcUa().AddClient(stream);
+```
+
+The document loads lazily through
+`ApplicationInstance.LoadApplicationConfigurationAsync` on first use —
+the first session connect, reverse-connect startup, or an explicit
+`GetAsync` on `OpcUaClientOptions.ConfigurationProvider` — which also
+runs the optional `ConfigureLoadedConfiguration` override callback and
+ensures the application-instance certificate, exactly like the shared
+`ConfigureApplication(...)` path. The supplied document is
+authoritative: it takes precedence over a shared application registered
+with `ConfigureApplication(...)`, and combining it with an explicit
+`Configuration`, with the application identity properties, or setting
+both file and stream is rejected with a clear
+`InvalidOperationException` at registration. DI-registered
+`ICertificateManager` / `ICertificatePasswordProvider` are honored.
 
 ### Fluent shortcuts
 

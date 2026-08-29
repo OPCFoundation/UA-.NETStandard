@@ -22,7 +22,13 @@ opcua-mcp --transport http --port 5100
 
 ## Tools
 
-The server exposes tools through a **tool profile** — a bounded, named catalog selected with `--profile core|services|administration|pubsub|diagnostics|full`. `full` is the default and currently registers every tool listed below; `core` and the other profiles expose a smaller, focused subset. See the [full documentation](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/McpServer.md#tool-profiles) for the profile-to-tool mapping.
+The server exposes tools through a **tool profile** — a bounded, named catalog
+selected with
+`--profile core|services|administration|pubsub|diagnostics|robotics|vision|full`.
+Profiles can be composed, for example `--profile vision,robotics`. `full` is the
+default; the other profiles expose smaller focused subsets. See the
+[full documentation](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/McpServer.md#tool-profiles)
+for the profile-to-tool mapping.
 
 Tools in the `full` profile cover all OPC UA Part 4 service sets:
 
@@ -35,6 +41,10 @@ Tools in the `full` profile cover all OPC UA Part 4 service sets:
 - **MonitoredItem**: CreateMonitoredItems, ModifyMonitoredItems, SetMonitoringMode, SetTriggering, DeleteMonitoredItems
 - **Discovery**: FindServers, FindServersOnNetwork, GetEndpoints, RegisterServer, RegisterServer2
 - **Convenience**: ReadValue, ReadValues, WriteValue, BrowseAll, CallMethod, ReadNode, Cancel
+- **Robotics**: typed Robot Intent control and missions, paged monitoring,
+  bounded operation/mission waits, and same-session `robotics_vision_pick`
+- **Vision**: image capture, structured one-shot inference, result monitoring,
+  feedback and frame-graph composition
 
 ## Embedding
 
@@ -57,6 +67,8 @@ builder.Services.AddMcpServer()
 | `OPCFoundation.NetStandard.Opc.Ua.Mcp.PubSub` | PubSub runtime, actions, discovery |
 | `OPCFoundation.NetStandard.Opc.Ua.Mcp.Diagnostics` | UA-TCP capture, decode, replay |
 | `OPCFoundation.NetStandard.Opc.Ua.Mcp.PubSub.Diagnostics` | PubSub capture, decode |
+| `OPCFoundation.NetStandard.Opc.Ua.Mcp.Robotics` | Robot Intent control, missions, waits and Vision-guided Pick |
+| `OPCFoundation.NetStandard.Opc.Ua.Mcp.Vision` | Vision discovery, seeing, inference, feedback and geometry |
 
 ## Documentation
 

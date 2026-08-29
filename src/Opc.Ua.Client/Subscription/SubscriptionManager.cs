@@ -1515,7 +1515,7 @@ namespace Opc.Ua.Client.Subscriptions
 
             int GetDesiredPublishWorkerCount()
             {
-                int publishCount = CreatedCount;
+                int publishCount = CreatedCount + m_session.SessionSubscriptionCount;
                 if (publishCount != 0)
                 {
                     //
@@ -1751,6 +1751,21 @@ namespace Opc.Ua.Client.Subscriptions
                                 moreNotifications = false;
                                 await DelayUnresolvedSubscriptionAsync(ct)
                                     .ConfigureAwait(false);
+                            }
+                            else if (m_outer.m_session.TryDispatchToSessionSubscription(
+                                subscriptionId,
+                                notificationMessage,
+                                availableSequenceNumbers,
+                                response.ResponseHeader.StringTable,
+                                moreNotifications))
+                            {
+                                // The session holds this subscription through the classic
+                                // API. It is live and owned by the application, so the
+                                // notification belongs to it: deliver rather than drop it,
+                                // and never delete it as abandoned.
+                                Interlocked.Increment(ref m_outer.m_goodPublishRequestCount);
+                                m_lastUnknownSubscriptionId = 0;
+                                m_consecutiveUnresolvedResponses = 0;
                             }
                             else
                             {

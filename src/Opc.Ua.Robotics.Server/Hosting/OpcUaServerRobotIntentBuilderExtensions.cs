@@ -49,6 +49,7 @@ namespace Microsoft.Extensions.DependencyInjection
         /// <summary>
         /// Registers the standalone Robot Intent node manager.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="builder"/> is <c>null</c>.</exception>
         public static IOpcUaServerBuilder AddRobotIntent(
             this IOpcUaServerBuilder builder,
             Action<RobotIntentServerOptions>? configure = null)
@@ -103,6 +104,7 @@ namespace Microsoft.Extensions.DependencyInjection
         /// <typeparam name="TExecutor">
         /// The executor implementation type.
         /// </typeparam>
+        /// <exception cref="ArgumentNullException"><paramref name="builder"/> is <c>null</c>.</exception>
         public static IOpcUaServerBuilder AddRobotIntentExecutor<
             [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] TExecutor>(
             this IOpcUaServerBuilder builder)
@@ -112,7 +114,15 @@ namespace Microsoft.Extensions.DependencyInjection
             {
                 throw new ArgumentNullException(nameof(builder));
             }
-            builder.Services.AddSingleton<IIntentExecutor, TExecutor>();
+
+            // Register the concrete type and resolve the interface from it, so an
+            // application that also injects TExecutor directly - to observe the arm
+            // it is driving, for example - shares the instance the intents run on.
+            // Registering IIntentExecutor against the type would construct a second
+            // executor, leaving the application watching a device that never moves.
+            builder.Services.AddSingleton<TExecutor>();
+            builder.Services.AddSingleton<IIntentExecutor>(
+                services => services.GetRequiredService<TExecutor>());
             return builder;
         }
 
@@ -122,6 +132,7 @@ namespace Microsoft.Extensions.DependencyInjection
         /// <typeparam name="TExecutor">
         /// The executor implementation type.
         /// </typeparam>
+        /// <exception cref="ArgumentNullException"><paramref name="builder"/> is <c>null</c>.</exception>
         public static IOpcUaServerBuilder AddRobotIntentExecutor<
             [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] TExecutor>(
             this IOpcUaServerBuilder builder,
@@ -142,6 +153,7 @@ namespace Microsoft.Extensions.DependencyInjection
         /// <summary>
         /// Registers an executor instance for one Robot Intent controller browse name.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="builder"/> is <c>null</c>.</exception>
         public static IOpcUaServerBuilder AddRobotIntentExecutor(
             this IOpcUaServerBuilder builder,
             string controllerBrowseName,
@@ -169,6 +181,7 @@ namespace Microsoft.Extensions.DependencyInjection
         /// <summary>
         /// Registers a Robot Intent configurator for the standalone manager.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="configure"/> is <c>null</c>.</exception>
         public static IOpcUaServerBuilder ConfigureRobotIntent(
             this IOpcUaServerBuilder builder,
             Action<IRobotIntentBuildContext> configure)
@@ -190,6 +203,8 @@ namespace Microsoft.Extensions.DependencyInjection
         /// <typeparam name="TNodeManager">
         /// The standalone Robot Intent node manager type.
         /// </typeparam>
+        /// <exception cref="ArgumentNullException"><paramref name="builder"/> is <c>null</c>.</exception>
+        /// <exception cref="NotSupportedException"></exception>
         public static IOpcUaServerBuilder ConfigureRobotIntentFor<TNodeManager>(
             this IOpcUaServerBuilder builder,
             Func<IRobotIntentBuildContext, CancellationToken, ValueTask> configure)

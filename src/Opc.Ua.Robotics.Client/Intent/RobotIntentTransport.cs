@@ -97,6 +97,11 @@ namespace Opc.Ua.Robotics.Client.Intent
         ValueTask<ArrayOf<MissionSnapshot>> ListMissionsAsync(CancellationToken ct = default);
 
         /// <summary>
+        /// Reads a single mission snapshot by node id.
+        /// </summary>
+        ValueTask<MissionSnapshot> ReadMissionSnapshotAsync(NodeId mission, CancellationToken ct = default);
+
+        /// <summary>
         /// Submits an intent.
         /// </summary>
         ValueTask<IntentSubmissionResult> SubmitIntentAsync(IntentDataType intent, CancellationToken ct = default);
@@ -218,14 +223,55 @@ namespace Opc.Ua.Robotics.Client.Intent
             Logger = telemetry.CreateLogger<UaRobotIntentTransport>();
             m_streaming = streaming ?? RoboticsClient.GetDefaultStreaming(session);
             m_proxy = new IntentControllerTypeClient(session, controllerId, telemetry);
-            if (observeReconnect && session is ManagedSession managedSession)
-            {
-                managedSession.ConnectionStateChanged += OnConnectionStateChanged;
-            }
+            m_reconnectSource = observeReconnect ? session as ManagedSession : null;
         }
 
         /// <inheritdoc/>
-        public event RobotIntentReconnectHandler? Reconnected;
+        /// <remarks>
+        /// The underlying session notification is attached only while somebody is
+        /// listening here, and detached again when the last listener leaves.
+        /// <para>
+        /// A transport is short-lived — a new one is created per controller
+        /// lookup, and an MCP tool call creates one per invocation — while the
+        /// <see cref="ManagedSession"/> it observes lives for the whole
+        /// connection. Subscribing in the constructor therefore handed the
+        /// session a strong reference to every transport ever created: memory
+        /// grew without bound, and each reconnect had to fan out to a longer and
+        /// longer list of transports nobody was using. Attaching on demand means
+        /// the common path, where no caller wants reconnect notifications at all,
+        /// costs nothing and retains nothing.
+        /// </para>
+        /// </remarks>
+        public event RobotIntentReconnectHandler? Reconnected
+        {
+            add
+            {
+                lock (m_reconnectLock)
+                {
+                    bool attach = m_reconnected == null;
+                    m_reconnected += value;
+                    if (attach && m_reconnected != null && m_reconnectSource != null)
+                    {
+                        m_reconnectSource.ConnectionStateChanged += OnConnectionStateChanged;
+                    }
+                }
+            }
+            remove
+            {
+                lock (m_reconnectLock)
+                {
+                    if (m_reconnected == null)
+                    {
+                        return;
+                    }
+                    m_reconnected -= value;
+                    if (m_reconnected == null && m_reconnectSource != null)
+                    {
+                        m_reconnectSource.ConnectionStateChanged -= OnConnectionStateChanged;
+                    }
+                }
+            }
+        }
 
         /// <inheritdoc/>
         public ILogger Logger { get; }
@@ -281,16 +327,18 @@ namespace Opc.Ua.Robotics.Client.Intent
             uint maxQueueDepth = await ReadChildValueOrDefaultAsync(ControllerId, ["MaxQueueDepth"], 0u, ct)
                 .ConfigureAwait(false);
 
+            ArrayOf<RobotIntentNodeLookupEntry> frames =
+                await BrowseOptionalFolderAsync("Frames", ct).ConfigureAwait(false);
             RobotIntentLookups lookups = new()
             {
-                Frames = await BrowseOptionalFolderAsync("Frames", ct).ConfigureAwait(false),
+                Frames = frames,
+                FramesByFrameId = await ReadFrameIdLookupsAsync(frames, ct).ConfigureAwait(false),
                 Tools = await BrowseOptionalFolderAsync("Tools", ct).ConfigureAwait(false),
                 Locations = await BrowseOptionalFolderAsync("Locations", ct).ConfigureAwait(false),
                 Axes = await BrowseOptionalFolderAsync("Axes", ct).ConfigureAwait(false),
                 Outputs = await BrowseOptionalFolderAsync("Outputs", ct).ConfigureAwait(false),
                 Programs = await BrowseOptionalFolderAsync("Programs", ct).ConfigureAwait(false)
             };
-            lookups = lookups with { FramesByFrameId = lookups.Frames };
 
             RobotIntentControllerInfo info = new()
             {
@@ -409,7 +457,7 @@ namespace Opc.Ua.Robotics.Client.Intent
             var snapshots = new List<MissionSnapshot>(missionIds.Count);
             for (int ii = 0; ii < missionIds.Count; ii++)
             {
-                snapshots.Add(await ReadMissionSnapshotAsync(missionIds[ii], ct).ConfigureAwait(false));
+                snapshots.Add(await ReadMissionSnapshotInternalAsync(missionIds[ii], ct).ConfigureAwait(false));
             }
             return [.. snapshots];
         }
@@ -693,26 +741,157 @@ namespace Opc.Ua.Robotics.Client.Intent
             };
         }
 
-        private async ValueTask<MissionSnapshot> ReadMissionSnapshotAsync(NodeId mission, CancellationToken ct)
+        private async ValueTask<MissionSnapshot> ReadMissionSnapshotInternalAsync(
+            NodeId mission, CancellationToken ct)
         {
             NodeId stateNode = await TranslateAsync(mission, ["ExecutionState"], ct).ConfigureAwait(false);
+            ExecutionStateEnum executionState = stateNode.IsNull
+                ? ExecutionStateEnum.Accepted
+                : await ReadEnumValueAsync<ExecutionStateEnum>(stateNode, ct).ConfigureAwait(false);
+            IntentFailureEnum failure = IntentFailureEnum.None;
+            LocalizedText failureMessage = LocalizedText.Null;
+            if (RobotIntentRules.IsTerminal(executionState))
+            {
+                failure = await ReadFinalResultEnumAsync(mission, ct).ConfigureAwait(false);
+                failureMessage = await ReadFinalResultMessageAsync(mission, ct).ConfigureAwait(false);
+            }
+            MissionDataType missionData = await ReadChildValueOrDefaultAsync(
+                mission, ["Mission"], new MissionDataType(), ct).ConfigureAwait(false);
+            string currentStepId = await ReadChildValueOrDefaultAsync(
+                mission, ["CurrentStepId"], string.Empty, ct).ConfigureAwait(false);
             return new MissionSnapshot
             {
                 MissionNode = mission,
-                MissionId = await ReadChildValueOrDefaultAsync(mission, ["MissionId"], string.Empty, ct)
-                    .ConfigureAwait(false),
-                MissionUpdateId = await ReadChildValueOrDefaultAsync(mission, ["MissionUpdateId"], 0u, ct)
-                    .ConfigureAwait(false),
-                Mission = await ReadChildValueOrDefaultAsync(mission, ["Mission"], new MissionDataType(), ct)
-                    .ConfigureAwait(false),
-                ExecutionState = stateNode.IsNull
-                    ? ExecutionStateEnum.Accepted
-                    : await ReadEnumValueAsync<ExecutionStateEnum>(stateNode, ct).ConfigureAwait(false),
-                CurrentStepId = await ReadChildValueOrDefaultAsync(mission, ["CurrentStepId"], string.Empty, ct)
-                    .ConfigureAwait(false),
-                ReleasedStepCount = await ReadChildValueOrDefaultAsync(mission, ["ReleasedStepCount"], 0u, ct)
-                    .ConfigureAwait(false)
+                MissionId = await ReadChildValueOrDefaultAsync(
+                    mission, ["MissionId"], string.Empty, ct).ConfigureAwait(false),
+                MissionUpdateId = await ReadChildValueOrDefaultAsync(
+                    mission, ["MissionUpdateId"], 0u, ct).ConfigureAwait(false),
+                Mission = missionData,
+                ExecutionState = executionState,
+                CurrentStepId = currentStepId,
+                CurrentIntentId = DeriveCurrentIntentId(missionData, currentStepId),
+                ReleasedStepCount = await ReadChildValueOrDefaultAsync(
+                    mission, ["ReleasedStepCount"], 0u, ct).ConfigureAwait(false),
+                Failure = failure,
+                FailureMessage = failureMessage,
+                Steps = DeriveStepOperations(missionData)
             };
+        }
+
+        private async ValueTask<ArrayOf<RobotIntentNodeLookupEntry>> ReadFrameIdLookupsAsync(
+            ArrayOf<RobotIntentNodeLookupEntry> frames,
+            CancellationToken ct)
+        {
+            var frameIds = new List<RobotIntentNodeLookupEntry>(frames.Count);
+            for (int ii = 0; ii < frames.Count; ii++)
+            {
+                RobotIntentNodeLookupEntry frame = frames[ii];
+                string frameId = await ReadChildValueOrDefaultAsync(
+                    frame.NodeId,
+                    ["FrameId"],
+                    string.Empty,
+                    ct).ConfigureAwait(false);
+                if (!string.IsNullOrEmpty(frameId))
+                {
+                    frameIds.Add(frame with { Name = frameId });
+                }
+            }
+            return [.. frameIds];
+        }
+
+        /// <inheritdoc/>
+        public ValueTask<MissionSnapshot> ReadMissionSnapshotAsync(NodeId mission, CancellationToken ct = default)
+        {
+            return ReadMissionSnapshotInternalAsync(mission, ct);
+        }
+
+        private static ArrayOf<MissionStepOperation> DeriveStepOperations(MissionDataType missionData)
+        {
+            if (missionData.Steps.IsNull || missionData.Steps.IsEmpty)
+            {
+                return [];
+            }
+            var ops = new List<MissionStepOperation>(missionData.Steps.Count);
+            for (int ii = 0; ii < missionData.Steps.Count; ii++)
+            {
+                MissionStepDataType step = missionData.Steps[ii];
+                if (step == null)
+                {
+                    continue;
+                }
+                ops.Add(new MissionStepOperation
+                {
+                    StepId = step.StepId ?? string.Empty,
+                    IntentId = step.Intent?.IntentId ?? string.Empty,
+                    OperationNodeId = step.Operation.IsNull
+                        ? NodeId.Null : step.Operation,
+                    State = step.Status
+                });
+            }
+            return [.. ops];
+        }
+
+        private static string DeriveCurrentIntentId(
+            MissionDataType missionData,
+            string currentStepId)
+        {
+            if (string.IsNullOrEmpty(currentStepId) ||
+                missionData.Steps.IsNull ||
+                missionData.Steps.IsEmpty)
+            {
+                return string.Empty;
+            }
+            for (int ii = 0; ii < missionData.Steps.Count; ii++)
+            {
+                MissionStepDataType step = missionData.Steps[ii];
+                if (step != null &&
+                    string.Equals(
+                        step.StepId, currentStepId, StringComparison.Ordinal))
+                {
+                    return step.Intent?.IntentId ?? string.Empty;
+                }
+            }
+            return string.Empty;
+        }
+
+        private async ValueTask<IntentFailureEnum> ReadFinalResultEnumAsync(NodeId parent, CancellationToken ct)
+        {
+            NodeId finalResult = await ResolveHierarchicalChildByNameAsync(
+                parent,
+                "FinalResultData",
+                ct).ConfigureAwait(false);
+            if (finalResult.IsNull)
+            {
+                return IntentFailureEnum.None;
+            }
+            NodeId failureNode = await ResolveHierarchicalChildByNameAsync(
+                finalResult,
+                "Failure",
+                ct).ConfigureAwait(false);
+            if (failureNode.IsNull)
+            {
+                return IntentFailureEnum.None;
+            }
+            return await ReadEnumValueAsync<IntentFailureEnum>(failureNode, ct).ConfigureAwait(false);
+        }
+
+        private async ValueTask<LocalizedText> ReadFinalResultMessageAsync(NodeId parent, CancellationToken ct)
+        {
+            NodeId finalResult = await ResolveHierarchicalChildByNameAsync(
+                parent,
+                "FinalResultData",
+                ct).ConfigureAwait(false);
+            if (finalResult.IsNull)
+            {
+                return LocalizedText.Null;
+            }
+            NodeId messageNode = await ResolveHierarchicalChildByNameAsync(
+                finalResult,
+                "Message",
+                ct).ConfigureAwait(false);
+            return messageNode.IsNull
+                ? LocalizedText.Null
+                : await m_session.ReadValueAsync<LocalizedText>(messageNode, ct).ConfigureAwait(false);
         }
 
         private async ValueTask<ArrayOf<RobotIntentNodeLookupEntry>> BrowseOptionalFolderAsync(
@@ -767,6 +946,49 @@ namespace Opc.Ua.Robotics.Client.Intent
                 return [];
             }
             return results[0];
+        }
+
+        private async ValueTask<NodeId> ResolveHierarchicalChildByNameAsync(
+            NodeId parent,
+            string browseName,
+            CancellationToken ct)
+        {
+            (ArrayOf<ArrayOf<ReferenceDescription>> results, _) = await m_session.ManagedBrowseAsync(
+                null,
+                null,
+                [parent],
+                0,
+                BrowseDirection.Forward,
+                global::Opc.Ua.ReferenceTypeIds.HierarchicalReferences,
+                includeSubtypes: true,
+                nodeClassMask: 0,
+                ct).ConfigureAwait(false);
+            if (results.Count == 0)
+            {
+                return NodeId.Null;
+            }
+
+            NodeId match = NodeId.Null;
+            for (int ii = 0; ii < results[0].Count; ii++)
+            {
+                ReferenceDescription reference = results[0][ii];
+                if (!string.Equals(reference.BrowseName.Name, browseName, StringComparison.Ordinal))
+                {
+                    continue;
+                }
+                NodeId nodeId = ExpandedNodeId.ToNodeId(reference.NodeId, m_session.NamespaceUris);
+                if (nodeId.IsNull)
+                {
+                    continue;
+                }
+                if (!match.IsNull)
+                {
+                    throw new InvalidOperationException(
+                        $"Node '{parent}' has more than one hierarchical child named '{browseName}'.");
+                }
+                match = nodeId;
+            }
+            return match;
         }
 
         private async ValueTask<T> ReadChildValueOrDefaultAsync<T>(
@@ -900,7 +1122,12 @@ namespace Opc.Ua.Robotics.Client.Intent
             if (e.NewState == ConnectionState.Connected &&
                 e.PreviousState is ConnectionState.Reconnecting or ConnectionState.Failover)
             {
-                Reconnected?.Invoke();
+                RobotIntentReconnectHandler? handler;
+                lock (m_reconnectLock)
+                {
+                    handler = m_reconnected;
+                }
+                handler?.Invoke();
             }
         }
 
@@ -909,6 +1136,9 @@ namespace Opc.Ua.Robotics.Client.Intent
         private readonly ISession m_session;
         private readonly IStreamingSubscription m_streaming;
         private readonly IntentControllerTypeClient m_proxy;
+        private readonly ManagedSession? m_reconnectSource;
+        private readonly Lock m_reconnectLock = new();
+        private RobotIntentReconnectHandler? m_reconnected;
     }
 
     internal static partial class UaRobotIntentTransportLog

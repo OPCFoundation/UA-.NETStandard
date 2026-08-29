@@ -2105,7 +2105,163 @@ namespace Opc.Ua.SourceGeneration
             context.Template.AddReplacement(Tokens.IsAbstract, objectType.IsAbstract);
             context.Template.AddReplacement(Tokens.EventNotifier,
                 objectType.GetEventNotifierAsCode());
+            context.Template.AddReplacement(
+                Tokens.ElementNamespaceOverride,
+                BuildElementNamespaceOverride(objectType));
         }
+
+        /// <summary>
+        /// Emits the <c>ElementNamespaceUri</c> override for
+        /// <c>FiniteStateMachineType</c> subtypes. Part 5 qualifies the
+        /// numeric state and transition NodeIds a machine reports in
+        /// <c>CurrentState/Id</c> and <c>LastTransition/Id</c> with the
+        /// namespace of the model that declares those elements — which
+        /// is not necessarily the machine's own namespace: a subtype
+        /// that adds no states of its own keeps reporting the base
+        /// type's, and the base class default (the OPC UA namespace) is
+        /// then already right. Returns <c>null</c> (collapsing the
+        /// template line) for every other object type.
+        /// </summary>
+        private string BuildElementNamespaceOverride(ObjectTypeDesign objectType)
+        {
+            if (!IsFiniteStateMachineSubtype(objectType))
+            {
+                return null;
+            }
+
+            string namespaceUri = FindElementNamespaceUri(objectType);
+            if (string.IsNullOrEmpty(namespaceUri) ||
+                namespaceUri == Namespaces.OpcUa)
+            {
+                // The base class already returns the OPC UA namespace.
+                return null;
+            }
+
+            string constant;
+            try
+            {
+                constant = m_context.ModelDesign.Namespaces
+                    .GetConstantSymbolForNamespace(namespaceUri);
+            }
+            catch (ArgumentException e)
+            {
+                // A namespace entry with a URI but no Name — surface it
+                // instead of failing the whole generation for a
+                // diagnostic-only feature.
+                m_logger.LogWarning(
+                    "Cannot emit ElementNamespaceUri for {Type}: {Error}",
+                    objectType.SymbolicName?.Name,
+                    e.Message);
+                return null;
+            }
+            if (string.IsNullOrEmpty(constant))
+            {
+                // Failing open here means the machine keeps the base
+                // default (the OPC UA namespace) and its element ids
+                // land in namespace 0 — say so rather than being silent.
+                m_logger.LogWarning(
+                    "No namespace constant for '{Uri}' — {Type} will " +
+                    "qualify its state and transition ids with the OPC " +
+                    "UA namespace. Add the declaring model to the " +
+                    "design's <Namespaces> to fix this.",
+                    namespaceUri,
+                    objectType.SymbolicName?.Name);
+                return null;
+            }
+
+            return CoreUtils.Format(
+                "/// <inheritdoc/>{0}" +
+                "        protected override string ElementNamespaceUri => {1};",
+                Environment.NewLine,
+                constant);
+        }
+
+        /// <summary>
+        /// The namespace of the nearest type in the hierarchy that
+        /// actually declares <c>StateType</c> / <c>TransitionType</c>
+        /// children. A subtype that only adds behaviour inherits its
+        /// elements — and therefore their namespace — from its base.
+        /// </summary>
+        internal static string FindElementNamespaceUri(ObjectTypeDesign objectType)
+        {
+            TypeDesign current = objectType;
+            while (current != null)
+            {
+                if (DeclaresStateMachineElements(current))
+                {
+                    return current.SymbolicName?.Namespace;
+                }
+                current = current.BaseTypeNode;
+            }
+            return null;
+        }
+
+        internal static bool DeclaresStateMachineElements(TypeDesign type)
+        {
+            InstanceDesign[] children = type.Children?.Items;
+            if (children == null)
+            {
+                return false;
+            }
+            foreach (InstanceDesign child in children)
+            {
+                if (child is not ObjectDesign childObject ||
+                    childObject.TypeDefinition == null ||
+                    !string.Equals(
+                        childObject.TypeDefinition.Namespace,
+                        Namespaces.OpcUa,
+                        StringComparison.Ordinal))
+                {
+                    continue;
+                }
+                if (childObject.OveriddenNode != null)
+                {
+                    // Re-declaring an inherited state (to attach a
+                    // description, a modelling rule, ...) does not make
+                    // this type the one that declares the elements —
+                    // the ids still live in the base model's namespace.
+                    continue;
+                }
+                string typeDefName = childObject.TypeDefinition.Name;
+                if (string.Equals(typeDefName, kStateTypeName, StringComparison.Ordinal) ||
+                    string.Equals(typeDefName, kInitialStateTypeName, StringComparison.Ordinal) ||
+                    string.Equals(typeDefName, kTransitionTypeName, StringComparison.Ordinal))
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        /// <summary>
+        /// Whether the type derives, however indirectly, from the
+        /// standard <c>FiniteStateMachineType</c>.
+        /// </summary>
+        internal static bool IsFiniteStateMachineSubtype(ObjectTypeDesign objectType)
+        {
+            TypeDesign current = objectType;
+            while (current != null)
+            {
+                if (string.Equals(
+                        current.SymbolicName?.Name,
+                        kFiniteStateMachineTypeName,
+                        StringComparison.Ordinal) &&
+                    string.Equals(
+                        current.SymbolicName?.Namespace,
+                        Namespaces.OpcUa,
+                        StringComparison.Ordinal))
+                {
+                    return true;
+                }
+                current = current.BaseTypeNode;
+            }
+            return false;
+        }
+
+        private const string kFiniteStateMachineTypeName = "FiniteStateMachineType";
+        private const string kStateTypeName = "StateType";
+        private const string kInitialStateTypeName = "InitialStateType";
+        private const string kTransitionTypeName = "TransitionType";
 
         private void AddNodeStateClassMethodTypeReplacements(
             IWriteContext context,
