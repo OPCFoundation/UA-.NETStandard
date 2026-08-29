@@ -4013,8 +4013,30 @@ namespace Opc.Ua.Client
                 await keepAliveCancellation!.CancelAsync().ConfigureAwait(false);
                 if (!m_inKeepAliveCallback)
                 {
-                    // Make sure no circular loops
-                    await keepAliveWorker.ConfigureAwait(false);
+                    // Make sure no circular loops. Bound the wait: when the
+                    // keep-alive worker is blocked inside a ReadAsync whose
+                    // underlying socket operation does not honour the CT
+                    // (observed on macOS net10.0 CI), awaiting the task
+                    // unconditionally hangs Session teardown for the full
+                    // server response timeout (up to KeepAliveInterval * 2,
+                    // typically 10 s).  Race the worker against a short
+                    // deadline; if it wins the race we surface its exception
+                    // normally; if the deadline wins we log a warning and
+                    // abandon the task — it runs on the thread pool (not a
+                    // foreground thread) so it will not prevent process exit.
+                    Task winner = await Task
+                        .WhenAny(keepAliveWorker, Task.Delay(s_keepAliveStopTimeout))
+                        .ConfigureAwait(false);
+
+                    if (winner == keepAliveWorker)
+                    {
+                        await keepAliveWorker.ConfigureAwait(false);
+                    }
+                    else
+                    {
+                        m_logger.KeepAliveWorkerDidNotStopWithinTimeout(
+                            (int)s_keepAliveStopTimeout.TotalSeconds);
+                    }
                 }
             }
             catch (OperationCanceledException)
@@ -5622,6 +5644,16 @@ namespace Opc.Ua.Client
         private readonly ISubscriptionEngine m_engine;
 #pragma warning restore CA2213
 
+        /// <summary>
+        /// Maximum time to wait for the keep-alive worker task to acknowledge cancellation
+        /// before abandoning it. The worker runs on the thread-pool (not a foreground thread),
+        /// so abandoning it does not prevent process exit. Five seconds is long enough for a
+        /// cancellation-aware transport to notice the token; if the underlying socket
+        /// operation ignores cancellation on the current platform the deadline fires and
+        /// teardown continues without blocking.
+        /// </summary>
+        private static readonly TimeSpan s_keepAliveStopTimeout = TimeSpan.FromSeconds(5);
+
         private sealed class AsyncRequestState : IDisposable
         {
             public uint RequestTypeId { get; init; }
@@ -6192,6 +6224,12 @@ namespace Opc.Ua.Client
         [LoggerMessage(EventId = ClientEventIds.Session + 68, Level = LogLevel.Warning,
             Message = "Updating ServerEphemeralKey: {Key} bytes")]
         public static partial void UpdatingServerEphemeralKeyKeyBytes(this ILogger logger, int key);
+
+        [LoggerMessage(EventId = ClientEventIds.Session + 69, Level = LogLevel.Warning,
+            Message = "Keep-alive worker did not stop within {TimeoutSeconds}s after cancellation; " +
+                      "abandoning it. The worker task runs on the thread pool and will not " +
+                      "prevent process exit.")]
+        public static partial void KeepAliveWorkerDidNotStopWithinTimeout(this ILogger logger, int timeoutSeconds);
     }
 
 }
