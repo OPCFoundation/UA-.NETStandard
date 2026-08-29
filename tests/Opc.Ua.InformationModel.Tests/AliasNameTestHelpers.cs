@@ -295,6 +295,104 @@ namespace Opc.Ua.InformationModel.Tests
         }
 
         /// <summary>
+        /// Locates a method by BrowseName and fails the test when the server
+        /// does not expose it. The optional Part 17 methods do have reserved
+        /// NodeIds (StandardTypes.csv), but no generated <c>MethodIds</c>
+        /// constants exist for them — the ModelDesign does not declare the
+        /// children — so tests resolve them by browsing, as a client
+        /// without prior knowledge would.
+        /// </summary>
+        public static async Task<NodeId> RequireMethodAsync(
+            ISession session, NodeId parent, string methodBrowseName)
+        {
+            NodeId methodId = await FindMethodAsync(session, parent, methodBrowseName)
+                .ConfigureAwait(false);
+            Assert.That(methodId.IsNull, Is.False,
+                $"Expected a '{methodBrowseName}' method under {parent}.");
+            return methodId;
+        }
+
+        /// <summary>
+        /// Calls a method with the given input arguments and returns the raw
+        /// <see cref="CallMethodResult"/> without asserting on its status —
+        /// callers that expect a failure inspect it themselves.
+        /// </summary>
+        public static async Task<CallMethodResult> CallMethodAsync(
+            ISession session,
+            NodeId objectId,
+            NodeId methodId,
+            params Variant[] inputArguments)
+        {
+            CallResponse response = await session.CallAsync(
+                null,
+                new CallMethodRequest[]
+                {
+                    new() {
+                        ObjectId = objectId,
+                        MethodId = methodId,
+                        InputArguments = inputArguments.ToArrayOf()
+                    }
+                }.ToArrayOf(),
+                CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(response.Results.Count, Is.EqualTo(1));
+            return response.Results[0];
+        }
+
+        /// <summary>
+        /// Decodes the AliasNameVerboseDataType[] returned by
+        /// FindAliasVerbose from the first output argument.
+        /// </summary>
+        public static IList<AliasNameVerboseDataType> DecodeVerboseAliasResults(
+            ISession session, CallMethodResult result)
+        {
+            var records = new List<AliasNameVerboseDataType>();
+            if (result == null || result.OutputArguments.Count == 0)
+            {
+                return records;
+            }
+            if (!result.OutputArguments[0].TryGetValue(out ArrayOf<ExtensionObject> aliasArray))
+            {
+                return records;
+            }
+
+            for (int i = 0; i < aliasArray.Count; i++)
+            {
+                ExtensionObject ext = aliasArray.Span[i];
+                if (!ext.IsNull &&
+                    ext.TryGetValue(out AliasNameVerboseDataType typed, session.MessageContext) &&
+                    typed != null)
+                {
+                    records.Add(typed);
+                }
+            }
+            return records;
+        }
+
+        /// <summary>
+        /// Returns true when the referenced node is an instance of
+        /// <c>PublishedDataSetType</c> (i=14509) or one of its subtypes —
+        /// the "is a Dataset" check the Topics conformance unit applies to
+        /// every alias target.
+        /// </summary>
+        public static async Task<bool> IsPublishedDataSetAsync(
+            ISession session, ReferenceDescription target)
+        {
+            if (target.TypeDefinition.IsNull)
+            {
+                return false;
+            }
+
+            // The session's node cache walks (and memoizes) the subtype
+            // chain, so repeated targets of the same type cost one lookup
+            // instead of one Browse round trip per hierarchy level.
+            return await session.NodeCache.IsTypeOfAsync(
+                target.TypeDefinition,
+                ObjectTypeIds.PublishedDataSetType,
+                CancellationToken.None).ConfigureAwait(false);
+        }
+
+        /// <summary>
         /// Plain record describing a single alias entry returned by FindAlias.
         /// </summary>
         internal sealed record AliasRecord(QualifiedName AliasName, NodeId[] ReferencedNodes);

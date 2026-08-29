@@ -100,12 +100,6 @@ namespace Opc.Ua.InformationModel.Tests
                 }
             }
 
-            if (aliasInstances == 0)
-            {
-                Assert.Ignore(
-                    "TagVariables category exposes no AliasName instances on this server.");
-            }
-
             Assert.That(aliasInstances, Is.GreaterThan(0),
                 "TagVariables should contain at least one AliasName instance.");
             Assert.That(aliasForVariable, Is.GreaterThan(0),
