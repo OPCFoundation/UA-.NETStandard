@@ -585,9 +585,9 @@ Vendor models that add their own `<opc:Object>` children on a custom
 ObjectType benefit automatically; the generator emits the same shape
 for every Object child it encounters.
 
-### Breaking change — `HasSubStateMachine` moved to the state node
+### Fluent builder behavior — `HasSubStateMachine` is on the state node
 
-Earlier releases attached `HasSubStateMachine` to the state machine
+Earlier fluent-builder implementations attached `HasSubStateMachine` to the state machine
 **root**, because the fluent builder did not materialize state nodes.
 It now sits on the parent **state** node per Part 16 §4.4.16, and the
 root reference is gone.
