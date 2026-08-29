@@ -138,6 +138,37 @@ namespace Opc.Ua.Server.Tests.Fluent
         }
 
         [Test]
+        public void OrganizedByAddsInverseReference()
+        {
+            (NodeManagerBuilder b, BaseObjectState root, BaseDataVariableState t1, _) = CreateBuilder();
+            INodeBuilder nb = b.Node(new NodeId("Root", kNs));
+
+            INodeBuilder chained = nb.OrganizedBy(t1.NodeId);
+
+            Assert.That(chained, Is.SameAs(nb));
+            Assert.That(
+                root.ReferenceExists(ReferenceTypeIds.Organizes, isInverse: true, t1.NodeId),
+                Is.True);
+        }
+
+        [Test]
+        public void UnderObjectsFolderAddsInverseOrganizesToObjectsFolder()
+        {
+            (NodeManagerBuilder b, BaseObjectState root, _, _) = CreateBuilder();
+            INodeBuilder nb = b.Node(new NodeId("Root", kNs));
+
+            INodeBuilder chained = nb.UnderObjectsFolder();
+
+            Assert.That(chained, Is.SameAs(nb));
+            Assert.That(
+                root.ReferenceExists(
+                    ReferenceTypeIds.Organizes,
+                    isInverse: true,
+                    ObjectIds.ObjectsFolder),
+                Is.True);
+        }
+
+        [Test]
         public void HasComponentAddsForwardReference()
         {
             (NodeManagerBuilder b, BaseObjectState root, BaseDataVariableState t1, _) = CreateBuilder();

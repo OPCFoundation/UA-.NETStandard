@@ -1680,6 +1680,83 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
+        public async Task CreateMonitoredItemsAsyncBindsOwningNodeManagerAsync()
+        {
+            using ITestNodeManager manager = CreateManager();
+            ServerSystemContext context = manager.SystemContext;
+            ushort nsIdx = manager.NamespaceIndexes[0];
+            var variable = new BaseDataVariableState(null);
+            variable.CreateAsPredefinedNode(context);
+            variable.NodeId = new NodeId("MyVar", nsIdx);
+            variable.BrowseName = new QualifiedName("MyVar", nsIdx);
+            variable.Value = 10;
+            variable.DataType = DataTypeIds.Int32;
+            variable.ValueRank = ValueRanks.Scalar;
+            variable.AccessLevel = AccessLevels.CurrentRead;
+            await manager.AddNodeAsync(context, default, variable).ConfigureAwait(false);
+
+            var itemToCreate = new MonitoredItemCreateRequest
+            {
+                ItemToMonitor = new ReadValueId { NodeId = variable.NodeId, AttributeId = Attributes.Value },
+                MonitoringMode = MonitoringMode.Reporting,
+                RequestedParameters = new MonitoringParameters { ClientHandle = 1, SamplingInterval = 100, QueueSize = 10 }
+            };
+            var secondItemToCreate = new MonitoredItemCreateRequest
+            {
+                ItemToMonitor = new ReadValueId { NodeId = variable.NodeId, AttributeId = Attributes.Value },
+                MonitoringMode = MonitoringMode.Reporting,
+                RequestedParameters = new MonitoringParameters { ClientHandle = 2, SamplingInterval = 100, QueueSize = 10 }
+            };
+
+            var itemsToCreate = new List<MonitoredItemCreateRequest> { itemToCreate, secondItemToCreate };
+            var errors = new List<ServiceResult> { null, null };
+            var filterErrors = new List<MonitoringFilterResult> { null, null };
+            var monitoredItems = new List<IMonitoredItem> { null, null };
+
+            await manager.CreateMonitoredItemsAsync(
+                CreateMonitoredItemsContext(),
+                1,
+                1000,
+                TimestampsToReturn.Both,
+                itemsToCreate,
+                errors,
+                filterErrors,
+                monitoredItems,
+                false,
+                new MonitoredItemIdFactory()).ConfigureAwait(false);
+
+            Assert.That(ServiceResult.IsGood(errors[0]), Is.True);
+            Assert.That(ServiceResult.IsGood(errors[1]), Is.True);
+            IMonitoredItem monitoredItem = monitoredItems[0];
+            Assert.That(monitoredItem, Is.Not.Null);
+            Assert.That(monitoredItems[1], Is.Not.Null);
+
+            if (m_managerType == AsyncCustomNodeManagerType.CustomNodeManager2ViaAdapter)
+            {
+                // The sync CustomNodeManager2 binds items through an adapter wrapping it directly.
+                Assert.That(monitoredItem.NodeManager.SyncNodeManager, Is.SameAs(manager.SyncNodeManager));
+            }
+            else
+            {
+                // AsyncCustomNodeManager implements IAsyncNodeManager and must bind items to itself
+                // instead of re-wrapping its sync adapter into a second adapter (issue #4334).
+                Assert.That(monitoredItem.NodeManager, Is.SameAs(manager));
+            }
+
+            // All items created by one NodeManager must share the same NodeManager reference;
+            // the sync manager once allocated a fresh adapter per created item.
+            Assert.That(monitoredItems[1].NodeManager, Is.SameAs(monitoredItem.NodeManager));
+
+            // The bound NodeManager must expose the monitored-item lifecycle; a double-wrapped
+            // adapter chain hides it and reports an empty snapshot.
+            Assert.That(monitoredItem.NodeManager, Is.InstanceOf<INodeManagerMonitoredItemLifecycle>());
+            IReadOnlyList<IMonitoredItem> snapshot =
+                await ((INodeManagerMonitoredItemLifecycle)monitoredItem.NodeManager)
+                    .GetMonitoredItemsSnapshotAsync().ConfigureAwait(false);
+            Assert.That(snapshot, Does.Contain(monitoredItem));
+        }
+
+        [Test]
         public async Task ModifyMonitoredItemsAsync_ModifiesItemAsync()
         {
             // Setup manager and node
@@ -3287,6 +3364,73 @@ namespace Opc.Ua.Server.Tests
 
             Assert.That(externalReferences.ContainsKey(sharedExternalTarget), Is.True);
             Assert.That(externalReferences[sharedExternalTarget], Has.Count.EqualTo(2));
+        }
+
+        [Test]
+        public async Task AddReverseReferencesAsyncDoesNotDuplicateExternalReferenceWhenRunTwiceAsync()
+        {
+            using ITestNodeManager manager = CreateManager();
+            ServerSystemContext context = manager.SystemContext;
+            ushort nsIdx = manager.NamespaceIndexes[0];
+
+            var source = new BaseObjectState(null);
+            source.CreateAsPredefinedNode(context);
+            source.NodeId = new NodeId("Source", nsIdx);
+            source.BrowseName = new QualifiedName("Source", nsIdx);
+
+            var externalTarget = new NodeId("ExternalTarget", 0);
+            source.AddReference(ReferenceTypeIds.Organizes, false, externalTarget);
+            await manager.AddNodeAsync(context, default, source).ConfigureAwait(false);
+
+            // The pass runs once after the predefined nodes load and again
+            // after fluent Configure callbacks return; the dictionary must
+            // not accumulate duplicates.
+            var externalReferences = new Dictionary<NodeId, IList<IReference>>();
+            await manager.AddReverseReferencesPublicAsync(externalReferences).ConfigureAwait(false);
+            await manager.AddReverseReferencesPublicAsync(externalReferences).ConfigureAwait(false);
+
+            Assert.That(externalReferences.ContainsKey(externalTarget), Is.True);
+            Assert.That(externalReferences[externalTarget], Has.Count.EqualTo(1));
+        }
+
+        [Test]
+        public async Task AddReverseReferencesAsyncSecondRunAddsReferencesOfNewlyRegisteredNodesAsync()
+        {
+            using ITestNodeManager manager = CreateManager();
+            ServerSystemContext context = manager.SystemContext;
+            ushort nsIdx = manager.NamespaceIndexes[0];
+
+            var first = new BaseObjectState(null);
+            first.CreateAsPredefinedNode(context);
+            first.NodeId = new NodeId("First", nsIdx);
+            first.BrowseName = new QualifiedName("First", nsIdx);
+            first.AddReference(ReferenceTypeIds.Organizes, true, ObjectIds.ObjectsFolder);
+            await manager.AddNodeAsync(context, default, first).ConfigureAwait(false);
+
+            var externalReferences = new Dictionary<NodeId, IList<IReference>>();
+            await manager.AddReverseReferencesPublicAsync(externalReferences).ConfigureAwait(false);
+
+            // A node registered later (like a fluent Configure callback does)
+            // is picked up by the second pass without duplicating the first
+            // node's mirror entry.
+            var second = new BaseObjectState(null);
+            second.CreateAsPredefinedNode(context);
+            second.NodeId = new NodeId("Second", nsIdx);
+            second.BrowseName = new QualifiedName("Second", nsIdx);
+            second.AddReference(ReferenceTypeIds.Organizes, true, ObjectIds.ObjectsFolder);
+            await manager.AddPredefinedNodeAsync(context, second).ConfigureAwait(false);
+
+            await manager.AddReverseReferencesPublicAsync(externalReferences).ConfigureAwait(false);
+
+            Assert.That(externalReferences.ContainsKey(ObjectIds.ObjectsFolder), Is.True);
+            IList<IReference> mirrored = externalReferences[ObjectIds.ObjectsFolder];
+            Assert.That(mirrored, Has.Count.EqualTo(2));
+            Assert.That(
+                mirrored.Count(r =>
+                    r.ReferenceTypeId == ReferenceTypeIds.Organizes &&
+                    !r.IsInverse &&
+                    r.TargetId == new ExpandedNodeId(second.NodeId)),
+                Is.EqualTo(1));
         }
 
         [Test]

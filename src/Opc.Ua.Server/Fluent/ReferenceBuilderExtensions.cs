@@ -42,6 +42,11 @@ namespace Opc.Ua.Server.Fluent
     ///   <item><description><see cref="Organizes(INodeBuilder, NodeId)"/>
     ///     — adds an <c>Organizes</c> reference (DI uses this to gather
     ///     unrelated variables under a FunctionalGroup).</description></item>
+    ///   <item><description><see cref="OrganizedBy(INodeBuilder, NodeId)"/>
+    ///     / <see cref="UnderObjectsFolder(INodeBuilder)"/>
+    ///     — the inverse direction: places the node under an organizing
+    ///     parent, including parents owned by another node manager such
+    ///     as the Objects folder.</description></item>
     ///   <item><description><see cref="HasComponent(INodeBuilder, NodeId)"/>
     ///     / <see cref="HasProperty(INodeBuilder, NodeId)"/>
     ///     — common hierarchical references.</description></item>
@@ -92,6 +97,46 @@ namespace Opc.Ua.Server.Fluent
                 throw new ArgumentNullException(nameof(target));
             }
             return builder.Organizes(target.NodeId);
+        }
+
+        /// <summary>
+        /// Adds an inverse <see cref="ReferenceTypeIds.Organizes"/>
+        /// reference from the current node to
+        /// <paramref name="parentId"/>, declaring that the node is
+        /// organized by that parent.
+        /// </summary>
+        /// <remarks>
+        /// When the parent is owned by another node manager (e.g. the
+        /// Objects folder managed by the CoreNodeManager), the matching
+        /// forward reference is published automatically at the end of
+        /// <c>Configure</c> by the
+        /// <c>FluentNodeManagerBase.CompleteConfigureAsync</c> pass —
+        /// the same mechanism that places NodeSet-declared nodes.
+        /// </remarks>
+        /// <param name="builder">The owning node builder.</param>
+        /// <param name="parentId">NodeId of the organizing parent.</param>
+        /// <returns>The same builder, for chaining.</returns>
+        public static INodeBuilder OrganizedBy(
+            this INodeBuilder builder,
+            NodeId parentId)
+        {
+            return builder.AddReference(ReferenceTypeIds.Organizes, isInverse: true, parentId);
+        }
+
+        /// <summary>
+        /// Places the current node under the standard Objects folder by
+        /// adding an inverse <see cref="ReferenceTypeIds.Organizes"/>
+        /// reference to <see cref="ObjectIds.ObjectsFolder"/>. Shorthand
+        /// for <c>OrganizedBy(ObjectIds.ObjectsFolder)</c>; see
+        /// <see cref="OrganizedBy(INodeBuilder, NodeId)"/> for how the
+        /// forward edge reaches the CoreNodeManager.
+        /// </summary>
+        /// <param name="builder">The owning node builder.</param>
+        /// <returns>The same builder, for chaining.</returns>
+        public static INodeBuilder UnderObjectsFolder(
+            this INodeBuilder builder)
+        {
+            return builder.OrganizedBy(ObjectIds.ObjectsFolder);
         }
 
         /// <summary>
