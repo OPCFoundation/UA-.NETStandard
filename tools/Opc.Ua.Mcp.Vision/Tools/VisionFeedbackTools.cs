@@ -87,8 +87,9 @@ namespace Opc.Ua.Mcp.Tools
             "persist the verdict and its measured characteristics. Use vision_submit_detections instead " +
             "for detection payloads and vision_submit_correction to correct an existing published result. " +
             "Characteristics are JSON: an array of objects with characteristicId, name, nominal, actual, " +
-            "deviation, lowerTolerance, upperTolerance, uncertainty, optional unit NodeId string and status " +
-            "(Ok, NotOk, NotDecidable, Undefined). Reports the server's refusal honestly; never retries " +
+            "deviation, lowerTolerance, upperTolerance, uncertainty, optional unit object " +
+            "(namespaceUri, shortName, longName), and status (InTolerance, OutOfTolerance, Indeterminate). " +
+            "Reports the server's refusal honestly; never retries " +
             "silently.")]
         public static Task SubmitInspectionResultAsync(
             VisionClientAccessor accessor,

@@ -201,6 +201,17 @@ namespace Opc.Ua.AI.Client
             return nodes.Count > 0 ? nodes[0] : NodeId.Null;
         }
 
+        public async ValueTask<NodeId> ResolveChildAsync(
+            NodeId parent,
+            string browseName,
+            ushort namespaceIndex,
+            CancellationToken cancellationToken)
+        {
+            ArrayOf<NodeId> nodes = await ResolveChildrenAsync(
+                parent, [browseName], namespaceIndex, cancellationToken).ConfigureAwait(false);
+            return nodes.Count > 0 ? nodes[0] : NodeId.Null;
+        }
+
         public async ValueTask<NodeId> FollowReferenceAsync(
             NodeId source,
             uint referenceTypeIdentifier,
@@ -267,24 +278,21 @@ namespace Opc.Ua.AI.Client
         {
             NodeId methodId = await ResolveChildAsync(
                 objectId, methodBrowseName, cancellationToken).ConfigureAwait(false);
-            if (methodId.IsNull)
-            {
-                throw new ServiceResultException(StatusCodes.BadMethodInvalid);
-            }
-            var request = new CallMethodRequest
-            {
-                ObjectId = objectId,
-                MethodId = methodId,
-                InputArguments = inputArguments
-            };
-            CallResponse response = await Session.CallAsync(null, [request], cancellationToken)
-                .ConfigureAwait(false);
-            CallMethodResult result = response.Results[0];
-            if (StatusCode.IsBad(result.StatusCode))
-            {
-                throw new ServiceResultException(result.StatusCode);
-            }
-            return result.OutputArguments;
+            return await CallResolvedAsync(
+                objectId, methodId, inputArguments, cancellationToken).ConfigureAwait(false);
+        }
+
+        public async ValueTask<ArrayOf<Variant>> CallInNamespaceAsync(
+            NodeId objectId,
+            string methodBrowseName,
+            ushort namespaceIndex,
+            ArrayOf<Variant> inputArguments,
+            CancellationToken cancellationToken)
+        {
+            NodeId methodId = await ResolveChildAsync(
+                objectId, methodBrowseName, namespaceIndex, cancellationToken).ConfigureAwait(false);
+            return await CallResolvedAsync(
+                objectId, methodId, inputArguments, cancellationToken).ConfigureAwait(false);
         }
 
         public async ValueTask WriteFileAsync(
@@ -329,8 +337,12 @@ namespace Opc.Ua.AI.Client
         {
             ValidateChunkSize(chunkSize);
             const byte writeEraseExisting = 6;
-            ArrayOf<Variant> opened = await CallAsync(
-                file, global::Opc.Ua.BrowseNames.Open, [Variant.From(writeEraseExisting)], cancellationToken)
+            ArrayOf<Variant> opened = await CallInNamespaceAsync(
+                file,
+                global::Opc.Ua.BrowseNames.Open,
+                0,
+                [Variant.From(writeEraseExisting)],
+                cancellationToken)
                 .ConfigureAwait(false);
             uint handle = opened.Count > 0 && opened[0].TryGetValue(out uint value) ? value : 0;
             try
@@ -341,9 +353,10 @@ namespace Opc.Ua.AI.Client
                 for (int offset = 0; offset < bytes.Length; offset += chunkSize)
                 {
                     int take = Math.Min(chunkSize, bytes.Length - offset);
-                    await CallAsync(
+                    await CallInNamespaceAsync(
                         file,
                         global::Opc.Ua.BrowseNames.Write,
+                        0,
                         [
                             Variant.From(handle),
                             Variant.From(ByteString.From(bytes.Slice(offset, take).ToArray()))
@@ -353,9 +366,10 @@ namespace Opc.Ua.AI.Client
             }
             finally
             {
-                await CallAsync(
+                await CallInNamespaceAsync(
                     file,
                     global::Opc.Ua.BrowseNames.Close,
+                    0,
                     [Variant.From(handle)],
                     CancellationToken.None).ConfigureAwait(false);
             }
@@ -427,8 +441,12 @@ namespace Opc.Ua.AI.Client
         {
             ValidateChunkSize(chunkSize);
             const byte readMode = 1;
-            ArrayOf<Variant> opened = await CallAsync(
-                file, global::Opc.Ua.BrowseNames.Open, [Variant.From(readMode)], cancellationToken)
+            ArrayOf<Variant> opened = await CallInNamespaceAsync(
+                file,
+                global::Opc.Ua.BrowseNames.Open,
+                0,
+                [Variant.From(readMode)],
+                cancellationToken)
                 .ConfigureAwait(false);
             uint handle = opened.Count > 0 && opened[0].TryGetValue(out uint value) ? value : 0;
             using MemoryStream buffer = new();
@@ -436,9 +454,10 @@ namespace Opc.Ua.AI.Client
             {
                 while (true)
                 {
-                    ArrayOf<Variant> outputs = await CallAsync(
+                    ArrayOf<Variant> outputs = await CallInNamespaceAsync(
                         file,
                         global::Opc.Ua.BrowseNames.Read,
+                        0,
                         [Variant.From(handle), Variant.From(chunkSize)],
                         cancellationToken).ConfigureAwait(false);
                     if (outputs.Count == 0 ||
@@ -459,7 +478,12 @@ namespace Opc.Ua.AI.Client
             }
             finally
             {
-                await CallAsync(file, global::Opc.Ua.BrowseNames.Close, [Variant.From(handle)], CancellationToken.None)
+                await CallInNamespaceAsync(
+                    file,
+                    global::Opc.Ua.BrowseNames.Close,
+                    0,
+                    [Variant.From(handle)],
+                    CancellationToken.None)
                     .ConfigureAwait(false);
             }
             return ByteString.From(buffer.ToArray());
@@ -582,6 +606,32 @@ namespace Opc.Ua.AI.Client
                 nulls.Add(NodeId.Null);
             }
             return nulls.ToArrayOf();
+        }
+
+        private async ValueTask<ArrayOf<Variant>> CallResolvedAsync(
+            NodeId objectId,
+            NodeId methodId,
+            ArrayOf<Variant> inputArguments,
+            CancellationToken cancellationToken)
+        {
+            if (methodId.IsNull)
+            {
+                throw new ServiceResultException(StatusCodes.BadMethodInvalid);
+            }
+            var request = new CallMethodRequest
+            {
+                ObjectId = objectId,
+                MethodId = methodId,
+                InputArguments = inputArguments
+            };
+            CallResponse response = await Session.CallAsync(null, [request], cancellationToken)
+                .ConfigureAwait(false);
+            CallMethodResult result = response.Results[0];
+            if (StatusCode.IsBad(result.StatusCode))
+            {
+                throw new ServiceResultException(result.StatusCode);
+            }
+            return result.OutputArguments;
         }
 
         private static BrowsePath CreateBrowsePath(

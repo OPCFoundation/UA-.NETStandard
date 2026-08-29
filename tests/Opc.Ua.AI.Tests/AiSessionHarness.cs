@@ -38,8 +38,9 @@ namespace Opc.Ua.AI.Tests
 {
     internal sealed class AISessionHarness
     {
-        private readonly Dictionary<(NodeId Parent, string BrowseName), NodeId> m_children = [];
+        private readonly Dictionary<(NodeId Parent, QualifiedName BrowseName), NodeId> m_children = [];
         private readonly Dictionary<NodeId, List<ReferenceDescription>> m_browse = [];
+        private readonly HashSet<(NodeId TypeDefinition, NodeId SuperType)> m_subtypes = [];
         private readonly Dictionary<NodeId, Variant> m_values = [];
 
         public AISessionHarness()
@@ -60,7 +61,10 @@ namespace Opc.Ua.AI.Tests
             NodeCache
                 .Setup(c => c.IsTypeOfAsync(
                     It.IsAny<NodeId>(), It.IsAny<NodeId>(), It.IsAny<CancellationToken>()))
-                .Returns(new ValueTask<bool>(true));
+                .Returns<NodeId, NodeId, CancellationToken>((typeDefinition, superType, _) =>
+                    new ValueTask<bool>(
+                        typeDefinition == superType ||
+                        m_subtypes.Contains((typeDefinition, superType))));
             SetupTranslate();
             SetupBrowse();
             SetupRead();
@@ -124,7 +128,17 @@ namespace Opc.Ua.AI.Tests
 
         public void AddChild(NodeId parent, string browseName, NodeId child)
         {
-            m_children[(parent, browseName)] = child;
+            AddChild(parent, new QualifiedName(browseName, AINamespaceIndex), child);
+        }
+
+        public void AddChild(NodeId parent, string browseName, ushort namespaceIndex, NodeId child)
+        {
+            AddChild(parent, new QualifiedName(browseName, namespaceIndex), child);
+        }
+
+        public void AddSubtype(NodeId typeDefinition, NodeId superType)
+        {
+            m_subtypes.Add((typeDefinition, superType));
         }
 
         public void AddValueChild(NodeId parent, string browseName, NodeId nodeId, Variant value)
@@ -149,8 +163,8 @@ namespace Opc.Ua.AI.Tests
                         bool found = true;
                         for (int jj = 0; jj < path.RelativePath.Elements.Count; jj++)
                         {
-                            string name = path.RelativePath.Elements[jj].TargetName.Name ?? string.Empty;
-                            if (!m_children.TryGetValue((current, name), out NodeId next))
+                            QualifiedName browseName = path.RelativePath.Elements[jj].TargetName;
+                            if (!m_children.TryGetValue((current, browseName), out NodeId next))
                             {
                                 found = false;
                                 break;
@@ -253,6 +267,11 @@ namespace Opc.Ua.AI.Tests
         private static BrowsePathResult BadPath()
         {
             return new BrowsePathResult { StatusCode = StatusCodes.BadNoMatch, Targets = [] };
+        }
+
+        private void AddChild(NodeId parent, QualifiedName browseName, NodeId child)
+        {
+            m_children[(parent, browseName)] = child;
         }
     }
 }
