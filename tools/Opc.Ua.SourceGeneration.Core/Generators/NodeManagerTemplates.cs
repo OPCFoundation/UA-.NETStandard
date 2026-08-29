@@ -68,7 +68,7 @@ namespace Opc.Ua.SourceGeneration
                     public {{Tokens.NodeManagerClassName}}(
                         global::Opc.Ua.Server.IServerInternal server,
                         global::Opc.Ua.ApplicationConfiguration configuration)
-                        : base(server, configuration, {{Tokens.NamespaceUri}})
+                        : base(server, configuration, {{Tokens.NamespaceUri}}{{Tokens.AdditionalNamespaceUris}})
                     {
                         SystemContext.NodeIdFactory = this;
                     }
@@ -122,6 +122,12 @@ namespace Opc.Ua.SourceGeneration
 
                         Configure(__m_builder);
                         Configure(new {{Tokens.NodeManagerClassName}}TypedBuilder(__m_builder));
+
+                        // Mirror references from configure-created nodes to
+                        // nodes owned by other node managers (e.g. the Objects
+                        // folder) into the externalReferences dictionary.
+                        await CompleteConfigureAsync(externalReferences, cancellationToken).ConfigureAwait(false);
+
                         __m_builder.Seal();
 
                         foreach (global::Opc.Ua.NodeState __node in PredefinedNodes.Values)
@@ -299,7 +305,7 @@ namespace Opc.Ua.SourceGeneration
                 {
                     /// <inheritdoc/>
                     public virtual global::Opc.Ua.ArrayOf<string> NamespacesUris
-                        => new global::Opc.Ua.ArrayOf<string>(new string[] { {{Tokens.NamespaceUri}} });
+                        => new global::Opc.Ua.ArrayOf<string>(new string[] { {{Tokens.NamespaceUri}}{{Tokens.AdditionalNamespaceUris}} });
 
                     /// <inheritdoc/>
                     public virtual global::System.Threading.Tasks.ValueTask<global::Opc.Ua.Server.IAsyncNodeManager> CreateAsync(

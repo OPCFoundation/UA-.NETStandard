@@ -146,6 +146,108 @@ namespace Opc.Ua.Server.Fluent
 
             return new InstanceBuilder<TState>(parent, instance);
         }
+
+        /// <summary>
+        /// Creates a new root-level (parentless) instance of
+        /// <typeparamref name="TState"/> and registers it with the
+        /// owning node manager.
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// Unlike the parent-scoped
+        /// <see cref="CreateInstance{TState}(INodeBuilder, QualifiedName, Func{NodeState, TState})"/>,
+        /// this overload fully materializes the instance from its type
+        /// model (mandatory children, references, default values) via
+        /// <see cref="NodeState.Create(ISystemContext, NodeId, QualifiedName, LocalizedText, bool)"/>
+        /// and mints per-instance NodeIds for the whole subtree through
+        /// the manager's <see cref="INodeIdFactory"/>, so the factory
+        /// delegate should be a plain constructor call:
+        /// </para>
+        /// <code>
+        /// builder.CreateInstance(
+        ///         new QualifiedName("Boiler #2", instanceNamespaceIndex),
+        ///         p => new BoilerState(p))
+        ///     .Configure(n => n.UnderObjectsFolder());
+        /// </code>
+        /// <para>
+        /// Place the new instance below a node owned by another node
+        /// manager (e.g. the Objects folder) by adding an inverse
+        /// hierarchical reference — for example via
+        /// <see cref="ReferenceBuilderExtensions.UnderObjectsFolder(INodeBuilder)"/>
+        /// or <see cref="ReferenceBuilderExtensions.OrganizedBy(INodeBuilder, NodeId)"/>;
+        /// the forward edge is published to the owning manager at the
+        /// end of <c>Configure</c>.
+        /// </para>
+        /// </remarks>
+        /// <typeparam name="TState">Concrete instance state class.</typeparam>
+        /// <param name="builder">The owning node-manager builder.</param>
+        /// <param name="browseName">Browse name of the new instance.</param>
+        /// <param name="factory">
+        /// Factory that constructs the (uninitialized) state instance,
+        /// typically <c>p => new BoilerState(p)</c>. It receives
+        /// <see langword="null"/> as the parent.
+        /// </param>
+        /// <returns>A typed instance builder for further configuration.</returns>
+        /// <exception cref="ArgumentNullException">
+        /// <paramref name="builder"/>, <paramref name="browseName"/>, or
+        /// <paramref name="factory"/> is <c>null</c>.
+        /// </exception>
+        /// <exception cref="InvalidOperationException">
+        /// The builder's context does not supply an
+        /// <see cref="INodeIdFactory"/> to mint instance NodeIds.
+        /// </exception>
+        /// <exception cref="ServiceResultException">
+        /// The factory returned <c>null</c>.
+        /// </exception>
+        public static IInstanceBuilder<TState> CreateInstance<TState>(
+            this INodeManagerBuilder builder,
+            QualifiedName browseName,
+            Func<NodeState?, TState> factory)
+            where TState : BaseInstanceState
+        {
+            if (builder == null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
+            if (browseName.IsNull)
+            {
+                throw new ArgumentNullException(nameof(browseName));
+            }
+            if (factory == null)
+            {
+                throw new ArgumentNullException(nameof(factory));
+            }
+
+            // Fail fast: without a NodeIdFactory the subtree would keep
+            // its type-declaration NodeIds and collide with the type
+            // model on registration.
+            builder.Context.RequireNodeIdFactory();
+
+            TState instance = factory(null) ??
+                throw ServiceResultException.Create(
+                    StatusCodes.BadInvalidArgument,
+                    "Factory returned null for instance '{0}'.",
+                    browseName);
+
+            // Materialize the subtree from the type model. The children
+            // carry type-declaration NodeIds at this point.
+            instance.Create(
+                builder.Context,
+                NodeId.Null,
+                browseName,
+                displayName: default,
+                assignNodeIds: false);
+
+            // Rebase the whole subtree onto per-instance NodeIds minted
+            // by the manager's INodeIdFactory (same pass the generated
+            // CreateXxx(parent, browseName) factories run).
+            NodeId previousNodeId = builder.Context.AssignInstanceNodeId(instance);
+            builder.Context.AssignInstanceChildNodeIds(instance, previousNodeId);
+
+            FluentNodeRegistration.RegisterCreatedNode(builder, instance);
+
+            return new InstanceBuilder<TState>(builder, instance);
+        }
     }
 
     /// <summary>
@@ -162,7 +264,11 @@ namespace Opc.Ua.Server.Fluent
         TState Node { get; }
 
         /// <summary>
-        /// The owning parent builder.
+        /// The owning parent builder. For a root-level instance created
+        /// via the manager-scoped
+        /// <see cref="InstanceCreationBuilderExtensions.CreateInstance{TState}(INodeManagerBuilder, QualifiedName, Func{NodeState, TState})"/>
+        /// overload there is no parent node, so this is a builder view
+        /// of the instance itself.
         /// </summary>
         INodeBuilder Parent { get; }
 
@@ -186,6 +292,8 @@ namespace Opc.Ua.Server.Fluent
 
         /// <summary>
         /// Returns control to the parent builder for further chaining.
+        /// For a root-level instance this is a builder view of the
+        /// instance itself; see <see cref="Parent"/>.
         /// </summary>
         INodeBuilder Done();
     }
@@ -204,6 +312,21 @@ namespace Opc.Ua.Server.Fluent
         {
             Parent = parent ?? throw new ArgumentNullException(nameof(parent));
             Node = node ?? throw new ArgumentNullException(nameof(node));
+        }
+
+        /// <summary>
+        /// Root-level (parentless) variant: the instance was created at
+        /// manager scope, so <see cref="Parent"/> is a builder view of
+        /// the instance itself.
+        /// </summary>
+        public InstanceBuilder(INodeManagerBuilder owner, TState node)
+        {
+            if (owner == null)
+            {
+                throw new ArgumentNullException(nameof(owner));
+            }
+            Node = node ?? throw new ArgumentNullException(nameof(node));
+            Parent = new AdHocInstanceNodeBuilder<TState>(owner, node);
         }
 
         public TState Node { get; }

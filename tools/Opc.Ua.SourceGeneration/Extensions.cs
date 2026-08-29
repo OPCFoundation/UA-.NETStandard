@@ -338,6 +338,35 @@ namespace Opc.Ua.SourceGeneration
         }
 
         /// <summary>
+        /// Get a named string-array argument from the attribute. Returns
+        /// <c>null</c> when the argument is absent or empty; entries
+        /// that are not non-empty strings are skipped.
+        /// </summary>
+        public static string[] GetStringArray(
+            this AttributeData attr,
+            string name)
+        {
+            if (attr == null)
+            {
+                return null;
+            }
+            foreach (KeyValuePair<string, TypedConstant> kvp in attr.NamedArguments)
+            {
+                if (kvp.Key != name ||
+                    kvp.Value.Kind != TypedConstantKind.Array ||
+                    kvp.Value.IsNull)
+                {
+                    continue;
+                }
+                string[] values = [.. kvp.Value.Values
+                    .Select(v => v.Value as string)
+                    .Where(s => !string.IsNullOrEmpty(s))];
+                return values.Length > 0 ? values : null;
+            }
+            return null;
+        }
+
+        /// <summary>
         /// Get a named argument from the attribute
         /// </summary>
         public static int GetInteger(

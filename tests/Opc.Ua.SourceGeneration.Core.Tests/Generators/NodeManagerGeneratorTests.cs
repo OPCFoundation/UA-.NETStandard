@@ -93,15 +93,58 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             Assert.That(mgr, Does.Contain("global::Opc.Ua.Server.Fluent.NodeManagerBuilder"));
             Assert.That(mgr, Does.Contain("global::Opc.Ua.Server.Fluent.INodeManagerBuilder"));
 
-            // The Configure/Seal sequence inside CreateAddressSpace must be
-            // wired before any NotifyNodeAdded replays. Order is part of
-            // the contract and is exercised by the hybrid integration test.
+            // The Configure/CompleteConfigure/Seal sequence inside
+            // CreateAddressSpace must be wired before any NotifyNodeAdded
+            // replays. Order is part of the contract and is exercised by
+            // the hybrid integration test. CompleteConfigureAsync re-runs
+            // the reverse-reference pass so configure-created nodes publish
+            // references to nodes owned by other managers (issue #4329).
             int idxConfigure = mgr.IndexOf("Configure(__m_builder)", StringComparison.Ordinal);
+            int idxComplete = mgr.IndexOf(
+                "await CompleteConfigureAsync(externalReferences, cancellationToken)",
+                StringComparison.Ordinal);
             int idxSeal = mgr.IndexOf(".Seal()", StringComparison.Ordinal);
             int idxNotify = mgr.IndexOf("NotifyNodeAdded(", StringComparison.Ordinal);
             Assert.That(idxConfigure, Is.GreaterThan(0), "Configure call must be emitted");
-            Assert.That(idxSeal, Is.GreaterThan(idxConfigure), "Seal must run after Configure");
+            Assert.That(idxComplete, Is.GreaterThan(idxConfigure),
+                "CompleteConfigureAsync must run after Configure");
+            Assert.That(idxSeal, Is.GreaterThan(idxComplete),
+                "Seal must run after CompleteConfigureAsync");
             Assert.That(idxNotify, Is.GreaterThan(idxSeal), "NotifyNodeAdded replay must run after Seal");
+        }
+
+        [Test]
+        public void EmittedNodeManager_WithoutAdditionalNamespaceUris_ReportsModelNamespaceOnly()
+        {
+            Dictionary<string, string> files = GenerateForTestModel(generateNodeManager: true);
+
+            string mgr = files.Single(kv => kv.Key.EndsWith(".NodeManager.g.cs", StringComparison.Ordinal)).Value;
+            string factory = files.Single(kv => kv.Key.EndsWith(".NodeManagerFactory.g.cs", StringComparison.Ordinal)).Value;
+
+            Assert.That(mgr, Does.Not.Contain("/Instance"));
+            Assert.That(factory, Does.Not.Contain("/Instance"));
+        }
+
+        [Test]
+        public void EmittedNodeManager_WithAdditionalNamespaceUris_ReportsThemAtConstruction()
+        {
+            const string instanceUri = "http://test.org/UA/TestModel/Instance";
+            Dictionary<string, string> files = GenerateForTestModel(
+                generateNodeManager: true,
+                additionalNamespaceUris: [instanceUri]);
+
+            string mgr = files.Single(kv => kv.Key.EndsWith(".NodeManager.g.cs", StringComparison.Ordinal)).Value;
+            string factory = files.Single(kv => kv.Key.EndsWith(".NodeManagerFactory.g.cs", StringComparison.Ordinal)).Value;
+
+            // The constructor must pass the extra namespace to the base
+            // manager so the master node manager routes it to this manager
+            // from construction (SetNamespaces after the fact is too late).
+            Assert.That(mgr, Does.Contain(", \"" + instanceUri + "\")"),
+                "Constructor must append the additional namespace URI to the base call");
+
+            // The factory must advertise the same namespace set.
+            Assert.That(factory, Does.Contain(", \"" + instanceUri + "\" })"),
+                "Factory NamespacesUris must include the additional namespace URI");
         }
 
         [Test]
@@ -445,7 +488,9 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             return string.Empty;
         }
 
-        private static Dictionary<string, string> GenerateForTestModel(bool generateNodeManager)
+        private static Dictionary<string, string> GenerateForTestModel(
+            bool generateNodeManager,
+            IReadOnlyList<string> additionalNamespaceUris = null)
         {
             const string designFile = "TestModel.xml";
             ITelemetryContext telemetry = NUnitTelemetryContext.Create(logLevel: LogLevel.Error);
@@ -460,7 +505,8 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
                     Path.GetFileNameWithoutExtension(designFile) + ".csv"),
                 Options = new DesignFileOptions
                 {
-                    GenerateNodeManager = generateNodeManager
+                    GenerateNodeManager = generateNodeManager,
+                    NodeManagerAdditionalNamespaceUris = additionalNamespaceUris
                 }
             }, fileSystem, string.Empty, telemetry);
 

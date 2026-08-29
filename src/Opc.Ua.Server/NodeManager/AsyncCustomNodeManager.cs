@@ -2463,7 +2463,11 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Adds an external reference to the dictionary.
+        /// Adds an external reference to the dictionary if it is not
+        /// already present. The if-missing semantics keep the dictionary
+        /// clean when the collection pass runs more than once for the
+        /// same manager (e.g. after fluent <c>Configure</c> callbacks
+        /// register additional nodes).
         /// </summary>
         protected void AddExternalReference(
             NodeId sourceId,
@@ -2476,6 +2480,18 @@ namespace Opc.Ua.Server
             if (!externalReferences.TryGetValue(sourceId, out IList<IReference>? referencesToAdd))
             {
                 externalReferences[sourceId] = referencesToAdd = [];
+            }
+
+            for (int ii = 0; ii < referencesToAdd.Count; ii++)
+            {
+                IReference existingReference = referencesToAdd[ii];
+                if (existingReference.ReferenceTypeId == referenceTypeId &&
+                    existingReference.IsInverse == isInverse &&
+                    !existingReference.TargetId.IsAbsolute &&
+                    (NodeId)existingReference.TargetId == targetId)
+                {
+                    return;
+                }
             }
 
             // add reserve reference from external node.
@@ -6233,7 +6249,7 @@ namespace Opc.Ua.Server
 
             bool success = m_monitoredItemManager.RestoreMonitoredItem(
                 Server,
-                m_syncNodeManager.ToAsyncNodeManager(),
+                this,
                 context,
                 handle,
                 storedMonitoredItem,
@@ -6444,7 +6460,7 @@ namespace Opc.Ua.Server
             ISampledDataChangeMonitoredItem dataChangeMonitoredItem =
                 m_monitoredItemManager.CreateMonitoredItem(
                     Server,
-                    m_syncNodeManager.ToAsyncNodeManager(),
+                    this,
                     context,
                     handle,
                     subscriptionId,

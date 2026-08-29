@@ -209,6 +209,20 @@ namespace Opc.Ua.Types.Tests.Nodes
         }
 
         [Test]
+        public void AddEncodingIsIdempotentForSameEncoding()
+        {
+            Assert.That(
+                m_typeTable.AddEncoding(s_dataTypeId, new ExpandedNodeId(s_encodingId1)),
+                Is.True);
+            Assert.That(
+                m_typeTable.AddEncoding(s_dataTypeId, new ExpandedNodeId(s_encodingId1)),
+                Is.True,
+                "Registering the same encoding again must succeed as a no-op");
+
+            Assert.That(m_typeTable.FindDataTypeId(s_encodingId1), Is.EqualTo(s_dataTypeId));
+        }
+
+        [Test]
         public void IsKnownNodeIdReturnsFalseForNull()
         {
             Assert.That(m_typeTable.IsKnown(NodeId.Null), Is.False);
