@@ -434,16 +434,11 @@ namespace Opc.Ua.Server.Fluent
                 return 0;
             }
 
-            NodeId value = StateMachine.CurrentState.Id.Value;
-            if (value.IsNull)
-            {
-                return 0;
-            }
-            if (!value.TryGetValue(out uint numericId))
-            {
-                return 0;
-            }
-            return numericId;
+            // One shared resolve rule: the machine's own mapping first
+            // (materialized state NodeIds), then the namespace-agnostic
+            // numeric fallback for externally-written vendor ids.
+            return StateMachines.StateMachineBuilder.ResolveStateId(
+                StateMachine, StateMachine.CurrentState.Id.Value);
         }
 
         private NodeState? ResolveNode(NodeId nodeId)

@@ -118,6 +118,11 @@ namespace Opc.Ua.Client
         /// <param name="timeProvider">Optional <see cref="TimeProvider"/> used by the
         /// session for keep-alive timers and elapsed-time calculations. When
         /// <see langword="null"/>, <see cref="TimeProvider.System"/> is used.</param>
+        /// <param name="securityPolicies">Optional security policy registry the
+        /// session resolves policy URIs against. Pass the registry the
+        /// application configured through <c>AddSecurityPolicy</c>. When
+        /// <see langword="null"/>, <see cref="SecurityPolicies.Default"/> is
+        /// used.</param>
         /// <remarks>
         /// The application configuration is used to look up the certificate if none
         /// is provided. The clientCertificate must have the private key. This will
@@ -136,14 +141,16 @@ namespace Opc.Ua.Client
             ArrayOf<EndpointDescription> availableEndpoints = default,
             ArrayOf<string> discoveryProfileUris = default,
             ISubscriptionEngineFactory? engineFactory = null,
-            TimeProvider? timeProvider = null)
+            TimeProvider? timeProvider = null,
+            ISecurityPolicyRegistry? securityPolicies = null)
             : this(
                   channel,
                   configuration,
                   endpoint,
                   channel.MessageContext ?? configuration.CreateMessageContext(),
                   engineFactory,
-                  timeProvider)
+                  timeProvider,
+                  securityPolicies)
         {
             // Build a single owned entry from the supplied certificate and
             // chain. The public ctor transfers ownership of both; the entry
@@ -169,7 +176,8 @@ namespace Opc.Ua.Client
                   template.ConfiguredEndpoint,
                   channel.MessageContext ?? template.m_configuration.CreateMessageContext(),
                   template.SubscriptionEngineFactory,
-                  template.m_timeProvider)
+                  template.m_timeProvider,
+                  template.m_securityPolicies)
         {
             // AddRef so the clone has its own reference; the template
             // retains its existing one. Both Sessions independently
@@ -238,7 +246,8 @@ namespace Opc.Ua.Client
             ConfiguredEndpoint endpoint,
             IServiceMessageContext messageContext,
             ISubscriptionEngineFactory? engineFactory = null,
-            TimeProvider? timeProvider = null)
+            TimeProvider? timeProvider = null,
+            ISecurityPolicyRegistry? securityPolicies = null)
             : base(channel, messageContext.Telemetry)
         {
             if (messageContext == null)
@@ -247,12 +256,14 @@ namespace Opc.Ua.Client
             }
 
             m_timeProvider = timeProvider ?? TimeProvider.System;
+            m_securityPolicies = securityPolicies ?? SecurityPolicies.Default;
             m_telemetry = messageContext.Telemetry;
             m_logger = m_telemetry.CreateLogger<Session>();
 
             SessionFactory ??= new DefaultSessionFactory(m_telemetry)
             {
-                ReturnDiagnostics = ReturnDiagnostics
+                ReturnDiagnostics = ReturnDiagnostics,
+                SecurityPolicyRegistry = m_securityPolicies
             };
 
             NamespaceUris = new NamespaceTable();
@@ -859,7 +870,8 @@ namespace Opc.Ua.Client
                 if (StatusCode.IsGood(lastKeepAliveErrorStatusCode) ||
                     lastKeepAliveErrorStatusCode == StatusCodes.BadNoCommunication)
                 {
-                    TimeSpan elapsed = m_timeProvider.GetElapsedTime(m_lastKeepAliveTimestamp);
+                    TimeSpan elapsed = m_timeProvider.GetElapsedTime(
+                        Interlocked.Read(ref m_lastKeepAliveTimestamp));
 
                     // add a guard band to allow for network lag.
                     return TimeSpan.FromMilliseconds(
@@ -890,7 +902,7 @@ namespace Opc.Ua.Client
         /// to compute the elapsed time since the last keep alive without DateTime drift or
         /// 32-bit tick wrap.
         /// </summary>
-        public long LastKeepAliveTimestamp => m_lastKeepAliveTimestamp;
+        public long LastKeepAliveTimestamp => Interlocked.Read(ref m_lastKeepAliveTimestamp);
 
         /// <summary>
         /// Gets the number of outstanding publish or keep alive requests.
@@ -1075,7 +1087,7 @@ namespace Opc.Ua.Client
                 string? ephemeralKeyPolicyUri = !string.IsNullOrEmpty(m_userTokenSecurityPolicyUri)
                     ? m_userTokenSecurityPolicyUri
                     : m_endpoint.Description?.SecurityPolicyUri ?? SecurityPolicies.None;
-                SecurityPolicyInfo? ephemeralKeyPolicy = SecurityPolicies.Default.GetInfo(ephemeralKeyPolicyUri!);
+                SecurityPolicyInfo? ephemeralKeyPolicy = m_securityPolicies.GetInfo(ephemeralKeyPolicyUri!);
                 m_eccServerEphemeralKey = Nonce.CreateNonce(
                     ephemeralKeyPolicy!,
                     sessionConfiguration.ServerEccEphemeralKey.ToArray());
@@ -1459,7 +1471,7 @@ namespace Opc.Ua.Client
                 ProcessResponseAdditionalHeader(response.ResponseHeader, serverCertificate);
 
                 // create the client signature.
-                SecurityPolicyInfo? securityPolicy = SecurityPolicies.Default.GetInfo(securityPolicyUri);
+                SecurityPolicyInfo? securityPolicy = m_securityPolicies.GetInfo(securityPolicyUri);
 
                 // create the client signature.
                 byte[] dataToSign = securityPolicy!.GetClientSignatureData(
@@ -1470,7 +1482,7 @@ namespace Opc.Ua.Client
                     TransportChannel.ClientChannelCertificate,
                     m_clientNonce ?? []);
 
-                SignatureData clientSignature = SecurityPolicies.Default.CreateSignatureData(
+                SignatureData clientSignature = m_securityPolicies.CreateSignatureData(
                     securityPolicyUri,
                     m_instanceCertificateEntry?.Certificate!,
                     dataToSign);
@@ -1742,7 +1754,8 @@ namespace Opc.Ua.Client
                     {
                         ClientInstanceCertificateAlgorithm = instanceAlg,
                         ClientInstanceCertificateKeySize = instanceKeySize,
-                        CurrentEphemeralKeyPolicyUri = boundEphemeralUri
+                        CurrentEphemeralKeyPolicyUri = boundEphemeralUri,
+                        SecurityPolicyRegistry = m_securityPolicies
                     };
                 }
 
@@ -1885,7 +1898,7 @@ namespace Opc.Ua.Client
             // get the identity token.
             string securityPolicyUri =
                 m_endpoint.Description.SecurityPolicyUri ?? SecurityPolicies.None;
-            SecurityPolicyInfo? securityPolicy = SecurityPolicies.Default.GetInfo(securityPolicyUri);
+            SecurityPolicyInfo? securityPolicy = m_securityPolicies.GetInfo(securityPolicyUri);
 
             // create the client signature.
             byte[] dataToSign = securityPolicy!.GetClientSignatureData(
@@ -1896,7 +1909,7 @@ namespace Opc.Ua.Client
                 TransportChannel.ClientChannelCertificate,
                 m_clientNonce ?? []);
 
-            SignatureData clientSignature = SecurityPolicies.Default.CreateSignatureData(
+            SignatureData clientSignature = m_securityPolicies.CreateSignatureData(
                 securityPolicyUri,
                 m_instanceCertificateEntry?.Certificate!,
                 dataToSign);
@@ -3410,7 +3423,7 @@ namespace Opc.Ua.Client
                 await LoadInstanceCertificateAsync(true, ct).ConfigureAwait(false);
 
                 string securityPolicyUri = m_endpoint.Description.SecurityPolicyUri ?? SecurityPolicies.None;
-                SecurityPolicyInfo? securityPolicy = SecurityPolicies.Default.GetInfo(securityPolicyUri);
+                SecurityPolicyInfo? securityPolicy = m_securityPolicies.GetInfo(securityPolicyUri);
                 EndpointDescription endpoint = m_endpoint.Description;
 
                 // check that the user identity is supported by the endpoint.
@@ -3552,7 +3565,7 @@ namespace Opc.Ua.Client
                     clientChannelCertificate,
                     m_clientNonce ?? []);
 
-                SignatureData clientSignature = SecurityPolicies.Default.CreateSignatureData(
+                SignatureData clientSignature = m_securityPolicies.CreateSignatureData(
                     endpoint.SecurityPolicyUri!,
                     m_instanceCertificateEntry?.Certificate!,
                     dataToSign);
@@ -3864,10 +3877,7 @@ namespace Opc.Ua.Client
             int keepAliveInterval = m_keepAliveInterval;
 
             m_lastKeepAliveErrorStatusCode = StatusCodes.Good;
-            Interlocked.Exchange(
-                ref m_lastKeepAliveTime,
-                m_timeProvider.GetUtcNow().UtcDateTime.Ticks);
-            m_lastKeepAliveTimestamp = m_timeProvider.GetTimestamp();
+            UpdateLastKeepAliveTime();
 
             m_serverState = ServerState.Unknown;
 
@@ -3917,10 +3927,43 @@ namespace Opc.Ua.Client
             {
                 // Any successful response proves the server is alive —
                 // reset keep-alive so we don't send a redundant read.
+                // The same response must also count as proof for the
+                // KeepAliveStopped freshness check, otherwise the timestamp goes
+                // stale while the keep alive read is perpetually deferred and the
+                // first pause in traffic reports a spurious BadNoCommunication on
+                // a perfectly healthy session.
+                // Only a latched keep alive error suppresses the refresh, not
+                // KeepAliveStopped itself: clearing the error stays the
+                // responsibility of an actual keep alive response, and
+                // OnKeepAlive has to still observe KeepAliveStopped to run its
+                // recovery branch. Guarding on KeepAliveStopped instead would
+                // also drop the evidence while the timestamp is merely stale and
+                // no error has been reported yet - the keep alive read is in
+                // flight, the worker is skipping while reconnecting, or its tick
+                // is late - which is the very case this refresh exists for.
+                if (StatusCode.IsGood(m_lastKeepAliveErrorStatusCode))
+                {
+                    UpdateLastKeepAliveTime();
+                }
+
                 ResetKeepAliveTimer();
             }
 
             base.RequestCompleted(request, response!, serviceName);
+        }
+
+        /// <summary>
+        /// Records the current time as the last point in time the server proved
+        /// it is alive. Both the wall clock time exposed by
+        /// <see cref="LastKeepAliveTime"/> and the monotonic timestamp used by
+        /// <see cref="KeepAliveStopped"/> are updated.
+        /// </summary>
+        private void UpdateLastKeepAliveTime()
+        {
+            Interlocked.Exchange(
+                ref m_lastKeepAliveTime,
+                m_timeProvider.GetUtcNow().UtcDateTime.Ticks);
+            Interlocked.Exchange(ref m_lastKeepAliveTimestamp, m_timeProvider.GetTimestamp());
         }
 
         /// <summary>
@@ -3970,8 +4013,30 @@ namespace Opc.Ua.Client
                 await keepAliveCancellation!.CancelAsync().ConfigureAwait(false);
                 if (!m_inKeepAliveCallback)
                 {
-                    // Make sure no circular loops
-                    await keepAliveWorker.ConfigureAwait(false);
+                    // Make sure no circular loops. Bound the wait: when the
+                    // keep-alive worker is blocked inside a ReadAsync whose
+                    // underlying socket operation does not honour the CT
+                    // (observed on macOS net10.0 CI), awaiting the task
+                    // unconditionally hangs Session teardown for the full
+                    // server response timeout (up to KeepAliveInterval * 2,
+                    // typically 10 s).  Race the worker against a short
+                    // deadline; if it wins the race we surface its exception
+                    // normally; if the deadline wins we log a warning and
+                    // abandon the task — it runs on the thread pool (not a
+                    // foreground thread) so it will not prevent process exit.
+                    Task winner = await Task
+                        .WhenAny(keepAliveWorker, Task.Delay(s_keepAliveStopTimeout))
+                        .ConfigureAwait(false);
+
+                    if (winner == keepAliveWorker)
+                    {
+                        await keepAliveWorker.ConfigureAwait(false);
+                    }
+                    else
+                    {
+                        m_logger.KeepAliveWorkerDidNotStopWithinTimeout(
+                            (int)s_keepAliveStopTimeout.TotalSeconds);
+                    }
                 }
             }
             catch (OperationCanceledException)
@@ -4340,10 +4405,7 @@ namespace Opc.Ua.Client
                 }
 
                 m_lastKeepAliveErrorStatusCode = StatusCodes.Good;
-                Interlocked.Exchange(
-                    ref m_lastKeepAliveTime,
-                    m_timeProvider.GetUtcNow().UtcDateTime.Ticks);
-                m_lastKeepAliveTimestamp = m_timeProvider.GetTimestamp();
+                UpdateLastKeepAliveTime();
 
                 lock (m_outstandingRequests)
                 {
@@ -4363,10 +4425,7 @@ namespace Opc.Ua.Client
             else
             {
                 m_lastKeepAliveErrorStatusCode = StatusCodes.Good;
-                Interlocked.Exchange(
-                    ref m_lastKeepAliveTime,
-                    m_timeProvider.GetUtcNow().UtcDateTime.Ticks);
-                m_lastKeepAliveTimestamp = m_timeProvider.GetTimestamp();
+                UpdateLastKeepAliveTime();
             }
 
             // save server state.
@@ -4396,7 +4455,8 @@ namespace Opc.Ua.Client
             if (result.StatusCode == StatusCodes.BadNoCommunication)
             {
                 //keep alive read timed out
-                TimeSpan elapsed = m_timeProvider.GetElapsedTime(m_lastKeepAliveTimestamp);
+                TimeSpan elapsed = m_timeProvider.GetElapsedTime(
+                    Interlocked.Read(ref m_lastKeepAliveTimestamp));
                 m_logger.KEEPALIVELATEDurationMsEndpointUrl(
                     elapsed.TotalMilliseconds,
                     Endpoint?.EndpointUrl,
@@ -4618,7 +4678,7 @@ namespace Opc.Ua.Client
             securityPolicyUri = m_endpoint.Description.SecurityPolicyUri ?? SecurityPolicies.None;
 
             // catch security policies which are not supported by core
-            if (SecurityPolicies.Default.GetDisplayName(securityPolicyUri) == null)
+            if (m_securityPolicies.GetDisplayName(securityPolicyUri) == null)
             {
                 throw ServiceResultException.Create(
                     StatusCodes.BadSecurityChecksFailed,
@@ -4734,7 +4794,7 @@ namespace Opc.Ua.Client
             }
 
             // validate the server's signature.
-            SecurityPolicyInfo? securityPolicy = SecurityPolicies.Default.GetInfo(m_endpoint.Description.SecurityPolicyUri!);
+            SecurityPolicyInfo? securityPolicy = m_securityPolicies.GetInfo(m_endpoint.Description.SecurityPolicyUri!);
 
             byte[] dataToSign = securityPolicy!.GetServerSignatureData(
                 TransportChannel.ChannelThumbprint,
@@ -4744,7 +4804,7 @@ namespace Opc.Ua.Client
                 TransportChannel.ClientChannelCertificate,
                 serverNonce.ToArray());
 
-            if (!SecurityPolicies.Default.VerifySignatureData(
+            if (!m_securityPolicies.VerifySignatureData(
                     serverSignature,
                     securityPolicy,
                     serverCertificate!,
@@ -4761,7 +4821,7 @@ namespace Opc.Ua.Client
                         TransportChannel.ClientChannelCertificate,
                         serverNonce.ToArray());
 
-                    if (!SecurityPolicies.Default.VerifySignatureData(
+                    if (!m_securityPolicies.VerifySignatureData(
                             serverSignature,
                             securityPolicy,
                             serverCertificate!,
@@ -5309,7 +5369,7 @@ namespace Opc.Ua.Client
 
             m_userTokenSecurityPolicyUri = userTokenSecurityPolicyUri;
 
-            SecurityPolicyInfo? securityPolicy = SecurityPolicies.Default.GetInfo(userTokenSecurityPolicyUri);
+            SecurityPolicyInfo? securityPolicy = m_securityPolicies.GetInfo(userTokenSecurityPolicyUri);
 
             if (securityPolicy!.EphemeralKeyAlgorithm != CertificateKeyAlgorithm.None)
             {
@@ -5340,7 +5400,7 @@ namespace Opc.Ua.Client
                 return null;
             }
 
-            SecurityPolicyInfo? userTokenSecurityPolicy = SecurityPolicies.Default.GetInfo(userTokenSecurityPolicyUri);
+            SecurityPolicyInfo? userTokenSecurityPolicy = m_securityPolicies.GetInfo(userTokenSecurityPolicyUri);
 
             if (userTokenSecurityPolicy!.EphemeralKeyAlgorithm == CertificateKeyAlgorithm.None)
             {
@@ -5451,7 +5511,7 @@ namespace Opc.Ua.Client
                         }
 
                         m_eccServerEphemeralKey = Nonce.CreateNonce(
-                            SecurityPolicies.Default.GetInfo(m_userTokenSecurityPolicyUri!)!,
+                            m_securityPolicies.GetInfo(m_userTokenSecurityPolicyUri!)!,
                             key.PublicKey.ToArray());
 
                         m_logger.UpdatingServerEphemeralKeyKeyBytes(m_eccServerEphemeralKey.Data?.Length ?? 0);
@@ -5579,9 +5639,20 @@ namespace Opc.Ua.Client
         private readonly ArrayOf<string> m_discoveryProfileUris;
         private new readonly ILogger m_logger;
         private readonly TimeProvider m_timeProvider;
+        private readonly ISecurityPolicyRegistry m_securityPolicies;
 #pragma warning disable CA2213 // Disposed in DisposeAsyncCore/Dispose
         private readonly ISubscriptionEngine m_engine;
 #pragma warning restore CA2213
+
+        /// <summary>
+        /// Maximum time to wait for the keep-alive worker task to acknowledge cancellation
+        /// before abandoning it. The worker runs on the thread-pool (not a foreground thread),
+        /// so abandoning it does not prevent process exit. Five seconds is long enough for a
+        /// cancellation-aware transport to notice the token; if the underlying socket
+        /// operation ignores cancellation on the current platform the deadline fires and
+        /// teardown continues without blocking.
+        /// </summary>
+        private static readonly TimeSpan s_keepAliveStopTimeout = TimeSpan.FromSeconds(5);
 
         private sealed class AsyncRequestState : IDisposable
         {
@@ -6153,6 +6224,12 @@ namespace Opc.Ua.Client
         [LoggerMessage(EventId = ClientEventIds.Session + 68, Level = LogLevel.Warning,
             Message = "Updating ServerEphemeralKey: {Key} bytes")]
         public static partial void UpdatingServerEphemeralKeyKeyBytes(this ILogger logger, int key);
+
+        [LoggerMessage(EventId = ClientEventIds.Session + 69, Level = LogLevel.Warning,
+            Message = "Keep-alive worker did not stop within {TimeoutSeconds}s after cancellation; " +
+                      "abandoning it. The worker task runs on the thread pool and will not " +
+                      "prevent process exit.")]
+        public static partial void KeepAliveWorkerDidNotStopWithinTimeout(this ILogger logger, int timeoutSeconds);
     }
 
 }

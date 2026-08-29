@@ -30,6 +30,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
+using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Configuration;
@@ -115,6 +116,126 @@ namespace Microsoft.Extensions.DependencyInjection
             RegisterCoreServices(builder.Services);
 
             return new OpcUaClientBuilder(builder.Services);
+        }
+
+        /// <summary>
+        /// Registers OPC UA client services whose
+        /// <see cref="ApplicationConfiguration"/> is loaded from an existing
+        /// OPC UA XML configuration file (e.g. <c>MyClient.Config.xml</c>).
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// This is the migration path for applications that already own a
+        /// configuration file: every setting in the file (security
+        /// configuration, certificate stores, transport quotas, client
+        /// configuration, ...) is applied as-is, exactly as when the file is
+        /// loaded through
+        /// <c>ApplicationInstance.LoadApplicationConfigurationAsync</c>. The
+        /// document is loaded and the application-instance certificate is
+        /// ensured on first use (first session connect or reverse-connect
+        /// startup). Identity providers, reverse connect, and the other
+        /// <see cref="IOpcUaClientBuilder"/> registrations compose with the
+        /// loaded file the same way they compose with built configurations.
+        /// </para>
+        /// <para>
+        /// Equivalent to
+        /// <see cref="AddClient(IOpcUaBuilder, Action{OpcUaClientOptions})"/>
+        /// with <see cref="OpcUaClientOptions.ConfigurationFile"/> set. Use
+        /// <paramref name="configure"/> to set the session endpoint and the
+        /// other client options, and
+        /// <see cref="OpcUaClientOptions.ConfigureLoadedConfiguration"/>
+        /// within it to override individual settings of the loaded file from
+        /// code.
+        /// </para>
+        /// </remarks>
+        /// <param name="builder">The OPC UA builder.</param>
+        /// <param name="configurationFile">Path to the application
+        /// configuration XML file. A relative path is resolved against the
+        /// current working directory.</param>
+        /// <param name="configure">Optional configuration delegate for the
+        /// remaining <see cref="OpcUaClientOptions"/> (session, identity,
+        /// reverse connect, ...). The application identity properties and an
+        /// explicit <see cref="OpcUaClientOptions.Configuration"/> must not
+        /// be combined with the configuration file.</param>
+        /// <returns>An <see cref="IOpcUaClientBuilder"/> for chaining.</returns>
+        /// <exception cref="ArgumentNullException"><paramref name="builder"/>
+        /// or <paramref name="configurationFile"/> is <c>null</c>.</exception>
+        /// <exception cref="ArgumentException"><paramref name="configurationFile"/>
+        /// is empty or white space.</exception>
+        /// <exception cref="InvalidOperationException">The configuration file
+        /// is combined with an explicit
+        /// <see cref="OpcUaClientOptions.Configuration"/>, a
+        /// <see cref="OpcUaClientOptions.ConfigurationStream"/>, or client
+        /// application identity options.</exception>
+        public static IOpcUaClientBuilder AddClient(
+            this IOpcUaBuilder builder,
+            string configurationFile,
+            Action<OpcUaClientOptions>? configure = null)
+        {
+            if (configurationFile is null)
+            {
+                throw new ArgumentNullException(nameof(configurationFile));
+            }
+            if (string.IsNullOrWhiteSpace(configurationFile))
+            {
+                throw new ArgumentException(
+                    "The configuration file path must not be empty.",
+                    nameof(configurationFile));
+            }
+
+            return builder.AddClient(options =>
+            {
+                options.ConfigurationFile = configurationFile;
+                configure?.Invoke(options);
+            });
+        }
+
+        /// <summary>
+        /// Registers OPC UA client services whose
+        /// <see cref="ApplicationConfiguration"/> is loaded from a stream
+        /// containing an OPC UA XML configuration document, e.g. an embedded
+        /// resource.
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// See <see cref="AddClient(IOpcUaBuilder, string, Action{OpcUaClientOptions})"/>
+        /// for how the loaded configuration is applied. Equivalent to
+        /// <see cref="AddClient(IOpcUaBuilder, Action{OpcUaClientOptions})"/>
+        /// with <see cref="OpcUaClientOptions.ConfigurationStream"/> set.
+        /// </para>
+        /// <para>
+        /// The stream must remain open until the configuration is first
+        /// used; it is read once and disposed after loading.
+        /// </para>
+        /// </remarks>
+        /// <param name="builder">The OPC UA builder.</param>
+        /// <param name="configurationStream">Stream containing the
+        /// application configuration XML document.</param>
+        /// <param name="configure">Optional configuration delegate for the
+        /// remaining <see cref="OpcUaClientOptions"/>.</param>
+        /// <returns>An <see cref="IOpcUaClientBuilder"/> for chaining.</returns>
+        /// <exception cref="ArgumentNullException"><paramref name="builder"/>
+        /// or <paramref name="configurationStream"/> is <c>null</c>.</exception>
+        /// <exception cref="InvalidOperationException">The configuration
+        /// stream is combined with an explicit
+        /// <see cref="OpcUaClientOptions.Configuration"/>, a
+        /// <see cref="OpcUaClientOptions.ConfigurationFile"/>, or client
+        /// application identity options.</exception>
+        public static IOpcUaClientBuilder AddClient(
+            this IOpcUaBuilder builder,
+            Stream configurationStream,
+            Action<OpcUaClientOptions>? configure = null)
+        {
+            if (configurationStream is null)
+            {
+                throw new ArgumentNullException(nameof(configurationStream));
+            }
+
+            return builder.AddClient(options =>
+            {
+                options.ConfigurationStream = configurationStream;
+                configure?.Invoke(options);
+            });
         }
 
         /// <summary>
@@ -812,7 +933,8 @@ namespace Microsoft.Extensions.DependencyInjection
                     telemetry,
                     channelFactory: channelBindings,
                     reconnectPolicy: null,
-                    timeProvider: timeProvider);
+                    timeProvider: timeProvider,
+                    securityPolicies: sp.GetService<ISecurityPolicyRegistry>());
             });
 
             services.TryAddSingleton<ISessionFactory>(sp =>
@@ -825,7 +947,8 @@ namespace Microsoft.Extensions.DependencyInjection
                     SubscriptionEngineFactory =
                         options.Session.SubscriptionEngineFactory
                         ?? new DefaultSubscriptionEngineFactory(timeProvider),
-                    TimeProvider = timeProvider
+                    TimeProvider = timeProvider,
+                    SecurityPolicyRegistry = sp.GetService<ISecurityPolicyRegistry>()
                 };
             });
 
@@ -872,7 +995,13 @@ namespace Microsoft.Extensions.DependencyInjection
             OpcUaClientOptions options = sp.GetRequiredService<OpcUaClientOptions>();
             if (options.ConfigurationProvider != null)
             {
-                await options.ConfigurationProvider.GetAsync(ct).ConfigureAwait(false);
+                // Completes validation and application-instance certificate
+                // setup; a lazily loaded supplied configuration document
+                // (ConfigurationFile / ConfigurationStream) also becomes
+                // available here, so publish it on the resolved options.
+                ApplicationConfiguration providedConfiguration = await options
+                    .ConfigurationProvider.GetAsync(ct).ConfigureAwait(false);
+                options.Configuration ??= providedConfiguration;
             }
             ValidateClientOptions(options, sessionOptions);
             ITelemetryContext telemetry = sp.GetRequiredService<ITelemetryContext>();
@@ -897,12 +1026,31 @@ namespace Microsoft.Extensions.DependencyInjection
             IServiceCollection services,
             OpcUaClientOptions options)
         {
-            if (options.Configuration == null)
+            if (options.Configuration == null && !options.HasSuppliedConfigurationDocument)
             {
                 services.TryAddEnumerable(
                     ServiceDescriptor.Singleton<
                         IOpcUaApplicationConfigurationFeature,
                         OpcUaClientApplicationConfigurationFeature>());
+            }
+
+            if (options.HasSuppliedConfigurationDocument)
+            {
+                // Capture the document source eagerly: the provider factory
+                // must not resolve OpcUaClientOptions, whose own factory
+                // resolves this provider.
+                string? configurationFile = options.ConfigurationFile;
+                Stream? configurationStream = options.ConfigurationStream;
+                Action<ApplicationConfiguration>? configureLoadedConfiguration =
+                    options.ConfigureLoadedConfiguration;
+                services.TryAddSingleton(sp => new ClientSuppliedConfigurationProvider(
+                    configurationFile,
+                    configurationStream,
+                    configureLoadedConfiguration,
+                    sp.GetRequiredService<IApplicationInstanceFactory>(),
+                    sp.GetRequiredService<ITelemetryContext>(),
+                    sp.GetService<ICertificateManager>(),
+                    sp.GetService<ICertificatePasswordProvider>()));
             }
 
             services.TryAddSingleton<OpcUaClientOptions>(sp =>
@@ -911,10 +1059,23 @@ namespace Microsoft.Extensions.DependencyInjection
                 CopyClientOptions(options, resolvedOptions);
                 if (resolvedOptions.Configuration == null)
                 {
-                    resolvedOptions.ConfigurationProvider =
-                        sp.GetService<IOpcUaApplicationConfigurationProvider>();
-                    resolvedOptions.Configuration =
-                        resolvedOptions.ConfigurationProvider?.Configuration;
+                    if (sp.GetService<ClientSuppliedConfigurationProvider>() is
+                        ClientSuppliedConfigurationProvider suppliedProvider)
+                    {
+                        // An explicitly supplied configuration document is the
+                        // most specific intent and therefore wins over a shared
+                        // application registered via ConfigureApplication(...).
+                        // It loads lazily: Configuration is filled in after the
+                        // first GetAsync completes.
+                        resolvedOptions.ConfigurationProvider = suppliedProvider;
+                    }
+                    else
+                    {
+                        resolvedOptions.ConfigurationProvider =
+                            sp.GetService<IOpcUaApplicationConfigurationProvider>();
+                        resolvedOptions.Configuration =
+                            resolvedOptions.ConfigurationProvider?.Configuration;
+                    }
                 }
                 return resolvedOptions;
             });
@@ -935,6 +1096,10 @@ namespace Microsoft.Extensions.DependencyInjection
         /// <summary>
         /// Copies every publicly settable field of <paramref name="source"/>
         /// (application identity/security options, <see cref="OpcUaClientOptions.Configuration"/>,
+        /// the supplied configuration document
+        /// (<see cref="OpcUaClientOptions.ConfigurationFile"/> /
+        /// <see cref="OpcUaClientOptions.ConfigurationStream"/> /
+        /// <see cref="OpcUaClientOptions.ConfigureLoadedConfiguration"/>),
         /// <see cref="OpcUaClientOptions.Session"/>, <see cref="OpcUaClientOptions.Identity"/>
         /// and <see cref="OpcUaClientOptions.ReverseConnect"/>) into
         /// <paramref name="target"/>.
@@ -942,6 +1107,9 @@ namespace Microsoft.Extensions.DependencyInjection
         private static void CopyClientOptions(OpcUaClientOptions source, OpcUaClientOptions target)
         {
             target.Configuration = source.Configuration;
+            target.ConfigurationFile = source.ConfigurationFile;
+            target.ConfigurationStream = source.ConfigurationStream;
+            target.ConfigureLoadedConfiguration = source.ConfigureLoadedConfiguration;
             target.ApplicationName = source.ApplicationName;
             target.ApplicationUri = source.ApplicationUri;
             target.ProductUri = source.ProductUri;
@@ -976,6 +1144,17 @@ namespace Microsoft.Extensions.DependencyInjection
             IOpcUaBuilder builder,
             OpcUaClientOptions options)
         {
+            ValidateSuppliedConfigurationDocument(options);
+            if (options.HasSuppliedConfigurationDocument)
+            {
+                // The supplied document is loaded through an
+                // IApplicationInstance created by the shared factory; ensure
+                // the factory is registered even when no ConfigureApplication
+                // call is made.
+                builder.AddApplicationInstance();
+                return;
+            }
+
             if (!options.HasApplicationOptions)
             {
                 return;
@@ -995,6 +1174,54 @@ namespace Microsoft.Extensions.DependencyInjection
             // instance registered by a root ConfigureApplication(...) call
             // made before or after this AddClient(...) call.
             builder.ConfigureApplication(_ => { });
+        }
+
+        /// <summary>
+        /// Rejects ambiguous combinations of an existing configuration XML
+        /// document (<see cref="OpcUaClientOptions.ConfigurationFile"/> /
+        /// <see cref="OpcUaClientOptions.ConfigurationStream"/>) with other
+        /// configuration sources. Unlike the argument validation on the
+        /// <c>AddClient(string, ...)</c> overload, this also covers values
+        /// that arrive through configuration binding or the options
+        /// callback.
+        /// </summary>
+        /// <exception cref="InvalidOperationException">An invalid
+        /// combination was configured.</exception>
+        private static void ValidateSuppliedConfigurationDocument(OpcUaClientOptions options)
+        {
+            bool hasConfigurationFile = !string.IsNullOrEmpty(options.ConfigurationFile);
+            if (hasConfigurationFile && string.IsNullOrWhiteSpace(options.ConfigurationFile))
+            {
+                throw new InvalidOperationException(
+                    "OpcUaClientOptions.ConfigurationFile must not be a white-space path.");
+            }
+            if (hasConfigurationFile && options.ConfigurationStream != null)
+            {
+                throw new InvalidOperationException(
+                    "Set only one of OpcUaClientOptions.ConfigurationFile and " +
+                    "OpcUaClientOptions.ConfigurationStream.");
+            }
+            if (!options.HasSuppliedConfigurationDocument)
+            {
+                return;
+            }
+            if (options.Configuration != null)
+            {
+                throw new InvalidOperationException(
+                    "OpcUaClientOptions.ConfigurationFile / ConfigurationStream cannot " +
+                    "be combined with an explicit OpcUaClientOptions.Configuration.");
+            }
+            if (options.HasApplicationOptions)
+            {
+                throw new InvalidOperationException(
+                    "OpcUaClientOptions.ConfigurationFile / ConfigurationStream cannot " +
+                    "be combined with client application identity options " +
+                    "(ApplicationName, ApplicationUri, ProductUri, SubjectName, " +
+                    "PkiRoot, AutoAcceptUntrustedCertificates, " +
+                    "RejectSHA1SignedCertificates, MinimumCertificateKeySize). The " +
+                    "supplied document is authoritative; use " +
+                    "ConfigureLoadedConfiguration for programmatic overrides.");
+            }
         }
 
         private static void ValidateClientOptions(
@@ -1091,6 +1318,16 @@ namespace Microsoft.Extensions.DependencyInjection
             if (mgr != null)
             {
                 builder.WithChannelManager(mgr);
+            }
+
+            // The application's policy set, so a policy contributed through
+            // AddSecurityPolicy is resolvable by the session as well as by the
+            // channel it opens.
+            ISecurityPolicyRegistry? securityPolicies =
+                sp.GetService<ISecurityPolicyRegistry>();
+            if (securityPolicies != null)
+            {
+                builder.UseSecurityPolicies(securityPolicies);
             }
 
             IClientConnectGate? connectGate =
@@ -1357,7 +1594,9 @@ namespace Microsoft.Extensions.DependencyInjection
                 bool hasConfigurationProvider = false)
             {
                 var failures = new List<string>();
-                if (options.Configuration == null && !hasConfigurationProvider)
+                if (options.Configuration == null &&
+                    !hasConfigurationProvider &&
+                    !options.HasSuppliedConfigurationDocument)
                 {
                     failures.Add("OpcUaClientOptions.Configuration is required.");
                 }

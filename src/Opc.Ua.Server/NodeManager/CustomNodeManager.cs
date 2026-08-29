@@ -166,17 +166,21 @@ namespace Opc.Ua.Server
             m_namespaceUris = namespaceUris;
             m_namespaceIndexes = namespaceIndexes;
 
+            // identity checks against MonitoredItem.NodeManager require every item created by
+            // this NodeManager to share one async adapter instance.
+            m_asyncNodeManager = this.ToAsyncNodeManager();
+
             // create a monitored item manager that owns sampling groups / monitoredNodes
             if (useSamplingGroups)
             {
                 m_monitoredItemManager = new SamplingGroupMonitoredItemManager(
-                    this.ToAsyncNodeManager(),
+                    m_asyncNodeManager,
                     server,
                     configuration!);
             }
             else
             {
-                m_monitoredItemManager = new MonitoredNodeMonitoredItemManager(this.ToAsyncNodeManager(), server);
+                m_monitoredItemManager = new MonitoredNodeMonitoredItemManager(m_asyncNodeManager, server);
             }
 
             PredefinedNodes = [];
@@ -1164,7 +1168,7 @@ namespace Opc.Ua.Server
             if (Server.NodeManager is ISyncNodeManagerMonitoredItemRecovery recovery)
             {
                 recovery.RecoverDetachedMonitoredItems(
-                    this.ToAsyncNodeManager(),
+                    m_asyncNodeManager,
                     [activeNode.NodeId]);
             }
         }
@@ -1339,7 +1343,10 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Adds an external reference to the dictionary.
+        /// Adds an external reference to the dictionary if it is not
+        /// already present. The if-missing semantics keep the dictionary
+        /// clean when the collection pass runs more than once for the
+        /// same manager.
         /// </summary>
         protected void AddExternalReference(
             NodeId sourceId,
@@ -1352,6 +1359,18 @@ namespace Opc.Ua.Server
             if (!externalReferences.TryGetValue(sourceId, out IList<IReference>? referencesToAdd))
             {
                 externalReferences[sourceId] = referencesToAdd = [];
+            }
+
+            for (int ii = 0; ii < referencesToAdd.Count; ii++)
+            {
+                IReference existingReference = referencesToAdd[ii];
+                if (existingReference.ReferenceTypeId == referenceTypeId &&
+                    existingReference.IsInverse == isInverse &&
+                    !existingReference.TargetId.IsAbsolute &&
+                    (NodeId)existingReference.TargetId == targetId)
+                {
+                    return;
+                }
             }
 
             // add reserve reference from external node.
@@ -4864,7 +4883,7 @@ namespace Opc.Ua.Server
 
             bool success = m_monitoredItemManager.RestoreMonitoredItem(
                 Server,
-                this.ToAsyncNodeManager(),
+                m_asyncNodeManager,
                 context,
                 handle,
                 storedMonitoredItem,
@@ -5084,7 +5103,7 @@ namespace Opc.Ua.Server
             ISampledDataChangeMonitoredItem dataChangeMonitoredItem =
                 m_monitoredItemManager.CreateMonitoredItem(
                     Server,
-                    this.ToAsyncNodeManager(),
+                    m_asyncNodeManager,
                     context,
                     handle,
                     subscriptionId,
@@ -5977,6 +5996,10 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Returns true if a node is in a view.
         /// </summary>
+        /// <remarks>
+        /// Delegates to <see cref="IsNodeInView(ServerSystemContext, NodeId, NodeState)"/>,
+        /// which sub-classes override to implement view membership.
+        /// </remarks>
         public virtual bool IsNodeInView(OperationContext context, NodeId viewId, object nodeHandle)
         {
             if (nodeHandle is not NodeHandle handle)
@@ -5986,7 +6009,7 @@ namespace Opc.Ua.Server
 
             if (handle.Node != null)
             {
-                return IsNodeInView(context, viewId, handle.Node);
+                return IsNodeInView(SystemContext.Copy(context), viewId, handle.Node);
             }
 
             return false;
@@ -6268,6 +6291,7 @@ namespace Opc.Ua.Server
         private IReadOnlyList<string>? m_namespaceUris;
         private ushort[] m_namespaceIndexes;
         private NodeIdDictionary<CacheEntry>? m_componentCache;
+        private readonly IAsyncNodeManager m_asyncNodeManager;
 
         /// <summary>
         /// A logger to use

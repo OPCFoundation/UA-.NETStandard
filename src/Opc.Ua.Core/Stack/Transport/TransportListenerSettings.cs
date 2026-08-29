@@ -64,6 +64,17 @@ namespace Opc.Ua
         public ICertificateValidatorEx? CertificateValidator { get; set; }
 
         /// <summary>
+        /// The security policies channels accepted by the listener negotiate
+        /// against, or <c>null</c> to use <see cref="SecurityPolicies.Default"/>.
+        /// </summary>
+        /// <remarks>
+        /// Set this from the registry the application configured so a policy it
+        /// contributed through <c>AddSecurityPolicy</c> is reachable by a
+        /// connecting client.
+        /// </remarks>
+        public ISecurityPolicyRegistry? SecurityPolicyRegistry { get; set; }
+
+        /// <summary>
         /// Gets or sets a reference to the table of namespaces for the server.
         /// </summary>
         /// <remarks>

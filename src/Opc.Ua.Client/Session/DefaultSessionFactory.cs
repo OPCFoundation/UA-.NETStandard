@@ -43,7 +43,7 @@ namespace Opc.Ua.Client
     /// <see cref="ManagedSession"/> instances that handle reconnection
     /// and failover automatically.
     /// </remarks>
-    public class DefaultSessionFactory : ISessionFactory
+    public class DefaultSessionFactory : ISessionFactory, ISecurityPolicyRegistryProvider
     {
         /// <summary>
         /// The default instance of the factory.
@@ -76,6 +76,16 @@ namespace Opc.Ua.Client
         /// <see cref="TimeProvider.System"/>.
         /// </summary>
         public TimeProvider? TimeProvider { get; init; }
+
+        /// <summary>
+        /// Optional security policy registry forwarded to every channel and
+        /// <see cref="Session"/> created by this factory. Set it to the
+        /// registry composed through <c>AddSecurityPolicy</c> to make policies
+        /// registered by an application reachable by its own sessions. When
+        /// <see langword="null"/>, <see cref="SecurityPolicies.Default"/> is
+        /// used.
+        /// </summary>
+        public ISecurityPolicyRegistry? SecurityPolicyRegistry { get; init; }
 
         /// <summary>
         /// Obsolete default constructor
@@ -312,7 +322,8 @@ namespace Opc.Ua.Client
                         channelClientCertificate,
                         channelClientCertificateChain,
                         messageContext,
-                        ct).ConfigureAwait(false);
+                        securityPolicies: SecurityPolicyRegistry,
+                        ct: ct).ConfigureAwait(false);
                 }
                 else
                 {
@@ -323,7 +334,8 @@ namespace Opc.Ua.Client
                         channelClientCertificate,
                         channelClientCertificateChain,
                         messageContext,
-                        ct).ConfigureAwait(false);
+                        securityPolicies: SecurityPolicyRegistry,
+                        ct: ct).ConfigureAwait(false);
                 }
 
                 // Ownership of the cert and chain has been transferred to the
@@ -412,7 +424,8 @@ namespace Opc.Ua.Client
                 availableEndpoints,
                 discoveryProfileUris,
                 SubscriptionEngineFactory,
-                TimeProvider)
+                TimeProvider,
+                SecurityPolicyRegistry)
             {
                 ReturnDiagnostics = ReturnDiagnostics
             };

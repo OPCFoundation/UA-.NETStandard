@@ -162,6 +162,23 @@ server- and client-side implementations:
   (`FluentFiniteStateMachineState`) and *lifecycle* (attach behaviour to
   stack-shipped or generator-emitted FSMs) modes, plus client-side
   streaming / read helpers on the generated `*TypeClient` proxies.
+  Definition-mode machines materialize a `StateType` node per declared
+  state and a `TransitionType` node per declared transition (with
+  `StateNumber` / `TransitionNumber`, `FromState` / `ToState` /
+  `HasEffect` / `HasCause`, and the `AvailableStates` /
+  `AvailableTransitions` / `LastTransition` children), so
+  `CurrentState/Id` and `LastTransition/Id` resolve to real nodes and
+  `HasSubStateMachine` hangs off the parent **state** node per Part 16
+  §4.4.16 rather than off the machine root. Callers that passed a state
+  machine's `ObjectId` to `GetSubStateMachineAsync` must pass a state
+  NodeId instead — from `GetAvailableStatesAsync` or a snapshot's
+  `CurrentStateId` — and code that read a numeric id out of
+  `CurrentState/Id` should call `FiniteStateMachineState.GetStateId`
+  instead of parsing the identifier. Generated state-machine classes
+  now also override `ElementNamespaceUri` with the namespace of the
+  model that declares their states, so `CurrentState/Id` and
+  `LastTransition/Id` are qualified with the companion-spec namespace
+  rather than the OPC UA one.
 - **Part 17 — Alias Names**: full server + client support for
   `AliasNameType`, `AliasNameCategoryType`, `FindAlias`, `FindAliasVerbose`,
   `AddAliasesToCategory`, `DeleteAliasesFromCategory`, and `LastChange`.
