@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Text;
 using System.Threading;
@@ -53,40 +54,58 @@ namespace Opc.Ua.AI.Tests
         [Test]
         public async Task AnAsynchronousInferenceReturnsAJobThatLaterCarriesTheResultAsync()
         {
-            using AINodeManager nm = await CreateAsync().ConfigureAwait(false);
+            var backend = new BlockingInferenceBackend();
+            using AINodeManager nm = await AIServerTestHarness
+                .CreateAsync(
+                    new InferenceBackends(backend),
+                    new AIOptions
+                    {
+                        EnableFallback = false,
+                        AsyncInferenceDelay = TimeSpan.Zero
+                    })
+                .ConfigureAwait(false);
 
             var deployment = nm.FindPredefinedNode<DeploymentState>(nm.PrimaryDeploymentId);
 
-            InvokeAsyncMethodStateResult started =
-                await deployment.InvokeAsync!.OnCallAsync!(
-                    nm.SystemContext,
-                    deployment.InvokeAsync,
-                    nm.PrimaryDeploymentId,
-                    ByteString.From(Encoding.UTF8.GetBytes("{}")),
-                    string.Empty,
-                    "application/json",
-                    ArrayOf<Opc.Ua.KeyValuePair>.Empty,
-                    CancellationToken.None).ConfigureAwait(false);
-
-            Assert.That(started.Job, Is.Not.EqualTo(NodeId.Null));
-
-            var job = nm.FindPredefinedNode<InferenceJobState>(started.Job);
-
-            // Running before Halted: the caller has a NodeId to watch, and the
-            // result belongs to the job rather than to the call that asked for it.
-            Assert.That(
-                job.CurrentState!.Id!.Value,
-                Is.EqualTo(Opc.Ua.ObjectIds.ProgramStateMachineType_Running));
-
-            await WaitForHaltedAsync(job).ConfigureAwait(false);
-
-            Assert.Multiple(() =>
+            try
             {
-                Assert.That(job.ResponsePayload!.Value.Length, Is.GreaterThan(0));
-                Assert.That(job.ModelUsed!.Value, Is.Not.EqualTo(NodeId.Null));
-                Assert.That(job.Progress!.Value, Is.EqualTo(100));
-                Assert.That(job.FinishedAt, Is.Not.Null);
-            });
+                InvokeAsyncMethodStateResult started =
+                    await deployment.InvokeAsync!.OnCallAsync!(
+                        nm.SystemContext,
+                        deployment.InvokeAsync,
+                        nm.PrimaryDeploymentId,
+                        ByteString.From(Encoding.UTF8.GetBytes("{}")),
+                        string.Empty,
+                        "application/json",
+                        ArrayOf<Opc.Ua.KeyValuePair>.Empty,
+                        CancellationToken.None).ConfigureAwait(false);
+
+                Assert.That(started.Job, Is.Not.EqualTo(NodeId.Null));
+
+                var job = nm.FindPredefinedNode<InferenceJobState>(started.Job);
+                await backend.Entered.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+
+                // Running before Halted: the caller has a NodeId to watch, and the
+                // result belongs to the job rather than to the call that asked for it.
+                Assert.That(
+                    job.CurrentState!.Id!.Value,
+                    Is.EqualTo(Opc.Ua.ObjectIds.ProgramStateMachineType_Running));
+
+                backend.Release();
+                await WaitForHaltedAsync(job).ConfigureAwait(false);
+
+                Assert.Multiple(() =>
+                {
+                    Assert.That(job.ResponsePayload!.Value.Length, Is.GreaterThan(0));
+                    Assert.That(job.ModelUsed!.Value, Is.Not.EqualTo(NodeId.Null));
+                    Assert.That(job.Progress!.Value, Is.EqualTo(100));
+                    Assert.That(job.FinishedAt, Is.Not.Null);
+                });
+            }
+            finally
+            {
+                backend.Release();
+            }
         }
 
         [Test]
@@ -262,6 +281,46 @@ namespace Opc.Ua.AI.Tests
             }
 
             Assert.Fail("The job did not reach Halted.");
+        }
+
+        private sealed class BlockingInferenceBackend : IInferenceBackend
+        {
+            private readonly FakeInferenceBackend m_inner = new("primary");
+            private readonly TaskCompletionSource m_entered =
+                new(TaskCreationOptions.RunContinuationsAsynchronously);
+            private readonly TaskCompletionSource m_release =
+                new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+            public InferenceSite Site => m_inner.Site;
+
+            public Task Entered => m_entered.Task;
+
+            public void Release()
+            {
+                m_release.TrySetResult();
+            }
+
+            public ValueTask<IReadOnlyList<BackendModel>> ListModelsAsync(
+                string? filter,
+                uint maxResults,
+                CancellationToken ct)
+            {
+                return m_inner.ListModelsAsync(filter, maxResults, ct);
+            }
+
+            public async ValueTask<InferenceResult> InvokeAsync(
+                InferenceRequest request,
+                CancellationToken ct)
+            {
+                m_entered.TrySetResult();
+                await m_release.Task.WaitAsync(ct).ConfigureAwait(false);
+                return await m_inner.InvokeAsync(request, ct).ConfigureAwait(false);
+            }
+
+            public ValueTask<BackendProbe> ProbeAsync(CancellationToken ct)
+            {
+                return m_inner.ProbeAsync(ct);
+            }
         }
     }
 }
