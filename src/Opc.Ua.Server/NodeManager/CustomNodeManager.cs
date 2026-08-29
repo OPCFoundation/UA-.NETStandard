@@ -1343,7 +1343,10 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Adds an external reference to the dictionary.
+        /// Adds an external reference to the dictionary if it is not
+        /// already present. The if-missing semantics keep the dictionary
+        /// clean when the collection pass runs more than once for the
+        /// same manager.
         /// </summary>
         protected void AddExternalReference(
             NodeId sourceId,
@@ -1356,6 +1359,18 @@ namespace Opc.Ua.Server
             if (!externalReferences.TryGetValue(sourceId, out IList<IReference>? referencesToAdd))
             {
                 externalReferences[sourceId] = referencesToAdd = [];
+            }
+
+            for (int ii = 0; ii < referencesToAdd.Count; ii++)
+            {
+                IReference existingReference = referencesToAdd[ii];
+                if (existingReference.ReferenceTypeId == referenceTypeId &&
+                    existingReference.IsInverse == isInverse &&
+                    !existingReference.TargetId.IsAbsolute &&
+                    (NodeId)existingReference.TargetId == targetId)
+                {
+                    return;
+                }
             }
 
             // add reserve reference from external node.

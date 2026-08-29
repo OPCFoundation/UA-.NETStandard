@@ -3367,6 +3367,73 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
+        public async Task AddReverseReferencesAsyncDoesNotDuplicateExternalReferenceWhenRunTwiceAsync()
+        {
+            using ITestNodeManager manager = CreateManager();
+            ServerSystemContext context = manager.SystemContext;
+            ushort nsIdx = manager.NamespaceIndexes[0];
+
+            var source = new BaseObjectState(null);
+            source.CreateAsPredefinedNode(context);
+            source.NodeId = new NodeId("Source", nsIdx);
+            source.BrowseName = new QualifiedName("Source", nsIdx);
+
+            var externalTarget = new NodeId("ExternalTarget", 0);
+            source.AddReference(ReferenceTypeIds.Organizes, false, externalTarget);
+            await manager.AddNodeAsync(context, default, source).ConfigureAwait(false);
+
+            // The pass runs once after the predefined nodes load and again
+            // after fluent Configure callbacks return; the dictionary must
+            // not accumulate duplicates.
+            var externalReferences = new Dictionary<NodeId, IList<IReference>>();
+            await manager.AddReverseReferencesPublicAsync(externalReferences).ConfigureAwait(false);
+            await manager.AddReverseReferencesPublicAsync(externalReferences).ConfigureAwait(false);
+
+            Assert.That(externalReferences.ContainsKey(externalTarget), Is.True);
+            Assert.That(externalReferences[externalTarget], Has.Count.EqualTo(1));
+        }
+
+        [Test]
+        public async Task AddReverseReferencesAsyncSecondRunAddsReferencesOfNewlyRegisteredNodesAsync()
+        {
+            using ITestNodeManager manager = CreateManager();
+            ServerSystemContext context = manager.SystemContext;
+            ushort nsIdx = manager.NamespaceIndexes[0];
+
+            var first = new BaseObjectState(null);
+            first.CreateAsPredefinedNode(context);
+            first.NodeId = new NodeId("First", nsIdx);
+            first.BrowseName = new QualifiedName("First", nsIdx);
+            first.AddReference(ReferenceTypeIds.Organizes, true, ObjectIds.ObjectsFolder);
+            await manager.AddNodeAsync(context, default, first).ConfigureAwait(false);
+
+            var externalReferences = new Dictionary<NodeId, IList<IReference>>();
+            await manager.AddReverseReferencesPublicAsync(externalReferences).ConfigureAwait(false);
+
+            // A node registered later (like a fluent Configure callback does)
+            // is picked up by the second pass without duplicating the first
+            // node's mirror entry.
+            var second = new BaseObjectState(null);
+            second.CreateAsPredefinedNode(context);
+            second.NodeId = new NodeId("Second", nsIdx);
+            second.BrowseName = new QualifiedName("Second", nsIdx);
+            second.AddReference(ReferenceTypeIds.Organizes, true, ObjectIds.ObjectsFolder);
+            await manager.AddPredefinedNodeAsync(context, second).ConfigureAwait(false);
+
+            await manager.AddReverseReferencesPublicAsync(externalReferences).ConfigureAwait(false);
+
+            Assert.That(externalReferences.ContainsKey(ObjectIds.ObjectsFolder), Is.True);
+            IList<IReference> mirrored = externalReferences[ObjectIds.ObjectsFolder];
+            Assert.That(mirrored, Has.Count.EqualTo(2));
+            Assert.That(
+                mirrored.Count(r =>
+                    r.ReferenceTypeId == ReferenceTypeIds.Organizes &&
+                    !r.IsInverse &&
+                    r.TargetId == new ExpandedNodeId(second.NodeId)),
+                Is.EqualTo(1));
+        }
+
+        [Test]
         public void SetNamespacesUpdatesUrisAndIndexes()
         {
             using ITestNodeManager manager = CreateManager();
