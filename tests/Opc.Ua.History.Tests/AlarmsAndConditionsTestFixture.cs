@@ -30,7 +30,6 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
@@ -49,19 +48,12 @@ namespace Opc.Ua.History.Tests
     {
         /// <summary>
         /// Default timeout for AlarmEventCollector.WaitForEventAsync calls in
-        /// the Alarms &amp; Conditions test suite. macOS and Windows hosted agents
-        /// get extra headroom for slow CI runners under load, while healthy
-        /// systems remain unaffected because WaitForEventAsync polls at 50 ms
-        /// intervals and returns as soon as the predicate matches. Observed flake
-        /// before this constant existed: build 14598 log 652,
-        /// ConfirmAlreadyConfirmedAcrossSessionsReturnsBranchAlreadyConfirmedAsync
-        /// timed out at 5 s on a Mac PR run.
+        /// the Alarms &amp; Conditions test suite. WaitForEventAsync polls at 50 ms
+        /// intervals and returns as soon as the predicate matches, so a generous
+        /// timeout does not slow down healthy runs. Observed flakes: Mac PR run
+        /// timed out at 5 s (build 14598, log 652) and Ubuntu CI timed out at 30 s.
         /// </summary>
-        protected static readonly TimeSpan DefaultEventWaitTimeout =
-            RuntimeInformation.IsOSPlatform(OSPlatform.OSX) ||
-            RuntimeInformation.IsOSPlatform(OSPlatform.Windows)
-                ? TimeSpan.FromSeconds(90)
-                : TimeSpan.FromSeconds(30);
+        protected static readonly TimeSpan DefaultEventWaitTimeout = TimeSpan.FromSeconds(90);
 
         /// <summary>
         /// NodeId of the Alarms folder created by AlarmNodeManager.
