@@ -683,7 +683,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         public async Task RejectCertificateAsyncAfterDisposeDoesNotLeakChainAsync()
         {
             string rejectedPath = CreateTempDir();
-            var manager = new CertificateManager(m_telemetry);
+            await using var manager = new CertificateManager(m_telemetry);
             Certificate cert = CertificateBuilder
                 .Create("CN=RejectedAfterDispose")
                 .SetRSAKeySize(2048)
