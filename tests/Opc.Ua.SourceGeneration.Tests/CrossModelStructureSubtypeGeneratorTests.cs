@@ -27,6 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
@@ -160,7 +161,7 @@ namespace Opc.Ua.SourceGeneration
             Assert.That(
                 producerOutput.SyntaxTrees
                     .Select(t => t.ToString())
-                    .Any(t => t.Contains("ModelDependencyAttribute")),
+                    .Any(t => t.Contains("ModelDependencyAttribute", StringComparison.Ordinal)),
                 Is.True,
                 "Producer did not emit the model dependency metadata.");
 
