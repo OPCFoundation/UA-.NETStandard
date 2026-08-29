@@ -6711,6 +6711,11 @@ namespace Opc.Ua.Schema.Model
         /// </summary>
         private void LinkDependencyDataTypes(IEnumerable<NodeDesign> nodes)
         {
+            if (nodes == null)
+            {
+                return;
+            }
+
             foreach (NodeDesign node in nodes)
             {
                 if (node is not DataTypeDesign dataType)
