@@ -103,6 +103,13 @@ namespace Opc.Ua.Robotics.Server.Builders
                 (ushort)scope.Context.NamespaceUris.GetIndex(Namespaces.Robotics),
                 states,
                 transitions);
+            // The generated CreateInstanceOf factory builds the node graph
+            // and assigns per-instance NodeIds but leaves OnBeforeCreate /
+            // OnAfterCreate to the caller. A state machine resolves the
+            // namespace qualifying its element NodeIds in OnAfterCreate, so
+            // the create lifecycle has to complete before the initial state
+            // is written.
+            Machine.CreateAsPredefinedNode(scope.Context);
             m_dispatcher.InitializeToInitialState(
                 Machine,
                 StateId(RoboticsOperationState.Idle),

@@ -1,0 +1,67 @@
+/* ========================================================================
+ * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
+ *
+ * OPC Foundation MIT License 1.00
+ *
+ * Permission is hereby granted, free of charge, to any person
+ * obtaining a copy of this software and associated documentation
+ * files (the "Software"), to deal in the Software without
+ * restriction, including without limitation the rights to use,
+ * copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following
+ * conditions:
+ *
+ * The above copyright notice and this permission notice shall be
+ * included in all copies or substantial portions of the Software.
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+ * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+ * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ * OTHER DEALINGS IN THE SOFTWARE.
+ *
+ * The complete license agreement can be found here:
+ * http://opcfoundation.org/License/MIT/1.00/
+ * ======================================================================*/
+
+namespace Opc.Ua.Vision.Server
+{
+    /// <summary>
+    /// Logger event identifiers used by the Vision server surface.
+    /// </summary>
+    internal static class VisionServerEventIds
+    {
+        /// <summary>
+        /// The Vision node manager finished creating its address space.
+        /// </summary>
+        public const int NodeManagerReady = 16000;
+
+        /// <summary>
+        /// A Vision media provider is missing for a sensor.
+        /// </summary>
+        public const int MediaProviderMissing = 16001;
+
+        /// <summary>
+        /// A Vision inference provider is missing for a pipeline.
+        /// </summary>
+        public const int InferenceProviderMissing = 16002;
+
+        /// <summary>
+        /// A Vision feedback sink is missing for a pipeline.
+        /// </summary>
+        public const int FeedbackSinkMissing = 16003;
+
+        /// <summary>
+        /// A Vision method failed and produced a Bad_ status.
+        /// </summary>
+        public const int MethodFailed = 16004;
+
+        /// <summary>
+        /// A published result was accepted from an off-server caller.
+        /// </summary>
+        public const int FeedbackAccepted = 16005;
+    }
+}

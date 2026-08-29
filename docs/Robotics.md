@@ -9,11 +9,11 @@ builds on Device Integration
 models are source-generated from their released NodeSets and loaded in
 dependency order.
 
-> **Status: draft companion model.** The namespace `http://opcfoundation.org/UA/RobotIntent/` and every
-> NodeId in it are **provisional**. This implements the working-group draft
-> [*OPC UA — Robot Intent*](https://github.com/marcschier/opcua-drafts/blob/main/metaverse-specs/robot-intent/OPC-UA-Robot-Intent.md);
-> nothing here is official or endorsed by the OPC Foundation. Do not deploy it on a production robot
-> and expect the identifiers to survive.
+> **Status: draft companion model.** The namespace
+> `http://opcfoundation.org/UA/RobotIntent/` and every NodeId in it are
+> **provisional**. This implements the working-group draft *OPC UA — Robot
+> Intent*. Do not deploy it on a production robot and expect the identifiers to
+> survive.
 
 OPC 40010 describes a robot in detail — its motion device system, its axes, its power trains, its
 controller, its safety states — and defines **no motion verbs at all**. Its whole actuation surface is
@@ -39,6 +39,24 @@ Robot Intent without pulling in OPC 40010, OPC 10000-100 DI, or anything else.
 | `OPCFoundation.NetStandard.Opc.Ua.Robotics` | Source-generated OPC 40010/IA and draft Robot Intent models, generated NodeIds/DataTypes/ObjectType clients, `ArrayOf<T>`-based common contracts shared by client and server, the `IIntentExecutor` contract, `IntentExecution`, `IIntentProgress`, `IntentOutcome`, `PoseMath` and `FrameTree`. |
 | `OPCFoundation.NetStandard.Opc.Ua.Robotics.Server` | Stock Robotics node manager, Robot Intent node manager, model providers, hosting extensions (`AddRobotics`, `AddRobotIntent`, `ConfigureRobotics`, `ConfigureRobotIntent`), validated fluent topology builders, `IntentControllerHost`, safety binding, real-time channel declarations and facet calculation. |
 | `OPCFoundation.NetStandard.Opc.Ua.Robotics.Client` | Continuation-safe, subtype-aware discovery of Robotics instances over the DI client, Robotics type classification, Robot Intent discovery, the awaitable operation handle, command authority, real-time-channel leases, missions and `RobotIntentBuilder`. |
+
+```mermaid
+graph TD
+    Di["Opc.Ua.Di<br/>Device Integration base model"]
+    Model["Opc.Ua.Robotics<br/>OPC 40010 + Robot Intent model"]
+    Server["Opc.Ua.Robotics.Server<br/>node managers + builders + IntentControllerHost"]
+    Client["Opc.Ua.Robotics.Client<br/>discovery + RobotIntentClient"]
+    Mcp["Opc.Ua.Mcp.Robotics<br/>agent tools"]
+    Executor["IIntentExecutor"]
+    Safety["IRobotIntentSafetySource"]
+
+    Di --> Model
+    Model --> Server
+    Model --> Client
+    Client --> Mcp
+    Executor -.->|"executes admitted intents"| Server
+    Safety -.->|"guards admission"| Server
+```
 
 Generated OPC 40010 model types stay in the specification namespaces `Opc.Ua.Robotics` and
 `Opc.Ua.IA`; hand-written APIs compose the generated NodeStates, factories,
@@ -125,6 +143,35 @@ await host.Build().RunAsync();
 `AddRobotics()` owns the DI namespace and therefore cannot be combined with
 `AddOpcUaDi()`; both register the shared `DiAddressSpaceOwnership` marker and the
 second call throws with the name of the conflicting extension.
+
+The two address-space shapes are separate but composable. OPC 40010 Robotics
+instances live below the DI `DeviceSet`; Robot Intent lives below
+`Server/RobotIntent` and exposes the command surface a client or MCP agent uses.
+
+```mermaid
+flowchart TD
+    Objects["Objects"] --> DeviceSet["DeviceSet<br/>OPC 10000-100 DI"]
+    DeviceSet --> Mds["MotionDeviceSystemType"]
+    Mds --> C40010["Controllers"]
+    Mds --> Motion["MotionDevices"]
+    Mds --> Safety40010["SafetyStates"]
+    Motion --> Axes40010["Axes"]
+    Motion --> Power["PowerTrains"]
+
+    ServerObj["Server"] --> Root["RobotIntent<br/>RobotIntentRootType"]
+    Root --> IntentControllers["Controllers"]
+    IntentControllers --> Controller["IntentControllerType"]
+    Controller --> Frames["Frames"]
+    Controller --> Tools["Tools"]
+    Controller --> Locations["Locations"]
+    Controller --> Axes["Axes"]
+    Controller --> Intents["Intents<br/>IntentOperationType instances"]
+    Controller --> Missions["Missions<br/>MissionType instances"]
+    Controller --> Channels["RealTimeChannels"]
+    Controller --> Capabilities["Capabilities<br/>SupportedIntents + facets"]
+    Frames -.->|"HasFrameParent tree"| Frames
+    Controller -.->|"optional HasIntentController"| Mds
+```
 
 ## Hosting API
 
@@ -420,7 +467,7 @@ model, and the configured instance namespace before returning. The manager's
 must be thread-safe, must reserve unique NodeIds for unregistered nodes, and must
 allocate Robotics instances in the configured instance namespace.
 
-[`MinimalRobotServer`](../samples/Robotics/MinimalRobotServer) is the worked example of
+[`MinimalRobotServer`](../samples/Robotics/MinimalRobotServer) is the example of
 the custom-manager route: it composes Robotics, IA, DI, the draft OpenUSD
 binding, and RSL/GPOS in one `DiNodeManager` subclass.
 
@@ -1361,11 +1408,52 @@ adds four tool groups:
 
 * discovery: list controllers and read a controller's declared `SupportedIntents`, `SupportedFacets`
   and lookup tables;
-* monitoring: read live state, list operations and missions, and wait for an operation with a bounded
-  timeout;
+* monitoring: read live state, page/filter concise operation and mission summaries, and wait for an
+  operation or mission with a bounded timeout;
 * direct control: request and release authority, cancel, pause, resume, retry, and submit one tool per
   intent kind;
 * missions: submit, update the horizon of, and cancel missions.
+
+Every controller argument is a selector: a NodeId remains valid, while an exact,
+unambiguous published name avoids copying NodeIds between calls. Tool, frame,
+location, output and program selectors inside an intent are resolved from the
+controller snapshot read for that call. Resolution is read-only and ambiguity
+is an error; it never requests command authority or submits exploratory work.
+
+Intent payloads are structured MCP objects rather than JSON text embedded in a
+string:
+
+```json
+{
+  "controller": "BinPickingController",
+  "input": {
+    "intentId": "pick-red",
+    "source": "Bin",
+    "tool": "ParallelGripper",
+    "objectClass": "RedCube"
+  }
+}
+```
+
+Mission `steps` and `transitions` are typed arrays. Each step carries a closed
+`kind` discriminator and exactly one matching payload. The server preserves a
+caller-supplied step IntentId, generates one only when omitted, and publishes
+the resulting `StepId -> IntentId -> operation NodeId -> state` correlation.
+`robotics_wait_mission` observes the mission operation NodeId returned by
+submission; it does not rediscover work through mutable active state.
+
+The list tools return bounded pages. Summary detail omits poses and full output
+payloads; request Full detail only for the page that needs it. A timeout from
+either wait tool is not a failure: it returns `completed=false` and a refreshed
+snapshot.
+
+When Vision and Robotics are composed, `robotics_vision_pick` runs one
+detection inference, applies exact class/detection filters and a confidence
+threshold, and deterministically chooses the highest-confidence candidate. It
+submits one Pick when no destination is supplied, or a two-step Pick/Place
+mission when a destination is supplied, then returns detection provenance and
+the authoritative submission handles. It never takes authority, retries,
+waits, cancels or converts a refusal into a success-shaped result.
 
 The sample `IntentViewerClient --mcp` is one host for these tools. In headless mode it defaults to MCP
 stdio. With `--view`, it automatically uses Streamable HTTP because MCP stdio carries protocol frames
@@ -1550,6 +1638,26 @@ it, because `Queued`, `Cancelling` and the three distinct terminal outcomes cann
 | `Failed` | `Halted` | Terminal. `Result.Failure` carries the reason. |
 | `Cancelled` | `Halted` | Terminal. Ended early because a cancel was accepted. |
 | `Retriable` | `Halted` | Terminal for now; `Retry` may re-attempt it. |
+
+```mermaid
+stateDiagram-v2
+    [*] --> Accepted: SubmitIntent admitted
+    Accepted --> Queued: queued or buffered
+    Queued --> Executing: dispatch starts
+    Accepted --> Executing: no predecessor
+    Executing --> Succeeded: executor returns success
+    Executing --> Failed: executor fault or failure
+    Executing --> Retriable: executor returns retriable
+    Executing --> Cancelling: CancelIntent accepted
+    Queued --> Cancelled: CancelIntent accepted
+    Accepted --> Cancelled: CancelIntent on an admitted intent that is not current
+    Cancelling --> Cancelled: controlled stop completes
+    Cancelling --> Failed: executor fails while stopping
+    Retriable --> Accepted: Retry creates a new operation
+    Succeeded --> [*]
+    Failed --> [*]
+    Cancelled --> [*]
+```
 
 `Cancelling` is **not** terminal. A client that treats acceptance of a cancel as the end of motion acts
 too early.

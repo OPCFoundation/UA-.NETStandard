@@ -52,6 +52,17 @@ namespace Opc.Ua.Server.StateMachines
     /// <remarks>
     /// Source-generated companion state machines do not currently emit StateTable and TransitionTable overrides.
     /// This dispatcher updates the standard state variables directly while preserving the generated node hierarchy.
+    /// <para>
+    /// Element NodeIds come from the machine's own
+    /// <see cref="FiniteStateMachineState.GetStateNodeId"/> /
+    /// <see cref="FiniteStateMachineState.GetTransitionNodeId"/>, so a generated machine writes
+    /// ids in its model namespace and a machine that materializes its own element nodes points
+    /// at the real node. That requires the machine to have completed its create lifecycle —
+    /// <c>ElementNamespaceUri</c> is resolved in <c>OnAfterCreate</c> — so a node assembled by a
+    /// <c>CreateInstanceOf</c> factory must be passed through
+    /// <see cref="NodeState.CreateAsPredefinedNode"/> first. <c>namespaceIndex</c> now only
+    /// backstops reading a state variable some other component wrote.
+    /// </para>
     /// </remarks>
     public sealed class FiniteStateMachineDispatcher
     {
@@ -81,7 +92,13 @@ namespace Opc.Ua.Server.StateMachines
             ISystemContext context)
         {
             ApplyState(machine, stateId, context);
-            ClearLastTransition(machine);
+            // Materialize the optional LastTransition now, while the
+            // machine is typically still pre-registration — deferring
+            // it to the first ApplyTransition would mint nodes into an
+            // already-indexed address space, where clients can browse
+            // but not read them.
+            EnsureLastTransition(machine, context);
+            ClearLastTransition(machine, context);
         }
 
         /// <summary>
@@ -103,7 +120,11 @@ namespace Opc.Ua.Server.StateMachines
 
             if (machine.CurrentState.Id != null)
             {
-                machine.CurrentState.Id.Value = new NodeId(stateId, m_namespaceIndex);
+                // The machine owns the element-NodeId convention:
+                // generated machines qualify the numeric id with their
+                // model namespace, and machines that materialize their
+                // own state nodes point at the real node.
+                machine.CurrentState.Id.Value = machine.GetStateNodeId(stateId);
             }
             if (machine.CurrentState.Number != null)
             {
@@ -138,7 +159,8 @@ namespace Opc.Ua.Server.StateMachines
 
             if (machine.LastTransition.Id != null)
             {
-                machine.LastTransition.Id.Value = new NodeId(transitionId, m_namespaceIndex);
+                machine.LastTransition.Id.Value =
+                    machine.GetTransitionNodeId(transitionId);
             }
             if (machine.LastTransition.Number != null)
             {
@@ -177,14 +199,27 @@ namespace Opc.Ua.Server.StateMachines
             }
 
             NodeId nodeId = machine.CurrentState.Id.Value;
-            if (nodeId.IsNull || nodeId.NamespaceIndex != m_namespaceIndex)
+            if (nodeId.IsNull)
             {
                 return false;
             }
 
-            if (nodeId.TryGetValue(out uint id))
+            // Ask the machine first — it owns the mapping — then fall
+            // back to the numeric convention for state variables a
+            // caller wrote in some other namespace.
+            uint id = machine.GetStateId(nodeId);
+            if (id != 0)
             {
                 stateId = id;
+                return true;
+            }
+            if (nodeId.NamespaceIndex != m_namespaceIndex)
+            {
+                return false;
+            }
+            if (nodeId.TryGetValue(out uint numericId))
+            {
+                stateId = numericId;
                 return true;
             }
             if (uint.TryParse(nodeId.IdentifierAsString, NumberStyles.Integer, CultureInfo.InvariantCulture,
@@ -197,7 +232,9 @@ namespace Opc.Ua.Server.StateMachines
             return false;
         }
 
-        private static void ClearLastTransition(FiniteStateMachineState machine)
+        private static void ClearLastTransition(
+            FiniteStateMachineState machine,
+            ISystemContext context)
         {
             if (machine?.LastTransition is null)
             {
@@ -218,18 +255,23 @@ namespace Opc.Ua.Server.StateMachines
             {
                 machine.LastTransition.TransitionTime.Value = DateTime.MinValue;
             }
+
+            machine.LastTransition.ClearChangeMasks(context, includeChildren: true);
         }
 
         private static void EnsureLastTransition(
             FiniteStateMachineState machine,
             ISystemContext context)
         {
-            if (machine.LastTransition is not null)
+            if (machine.LastTransition is null)
             {
-                return;
+                machine.AddLastTransition(context);
             }
 
-            machine.AddLastTransition(context);
+            // ApplyTransition writes the optional Number child, so it
+            // has to exist by now too — created later it would land in
+            // an already-indexed address space.
+            machine.LastTransition!.AddNumber(context);
         }
 
         private static FiniteStateMachineEntry Lookup(

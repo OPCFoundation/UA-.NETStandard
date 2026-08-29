@@ -662,6 +662,11 @@ namespace IntentViewerClient
             string cacheDir = options.FetchAssetsDirectory
                 ?? Path.GetDirectoryName(liveLayerPath)
                 ?? AppContext.BaseDirectory;
+
+            // The viewport needs the served geometry: without it only the live override layer
+            // composes, which carries transforms but no geometry and renders as an empty scene.
+            await FetchAssetsAsync(session, cacheDir, cancellationToken).ConfigureAwait(false);
+
             string stagePath = Path.Combine(cacheDir, "stage.usda");
             if (!File.Exists(stagePath))
             {
@@ -901,12 +906,12 @@ namespace IntentViewerClient
             OpenUsdConnector.FetchedAsset? root = fetched.Find(asset => asset.Kind == OpenUsdAssetKind.RootLayer);
             string rootName = root != null ? Path.GetFileName(root.LocalPath) : "base.usda";
             var builder = new StringBuilder();
-            builder.Append("#usda 1.0\n(\n");
-            builder.Append(
-                "    doc = \"Self-contained OpenUSD stage: server-delivered base layers + live override.\"\n");
-            builder.Append("    subLayers = [\n        @./live.usda@,\n        @./")
-                .Append(rootName).Append("@\n    ]\n");
-            builder.Append(")\n");
+            builder.Append("#usda 1.0\n(\n")
+                .Append(
+                "    doc = \"Self-contained OpenUSD stage: server-delivered base layers + live override.\"\n")
+                .Append("    subLayers = [\n        @./live.usda@,\n        @./")
+                .Append(rootName).Append("@\n    ]\n")
+                .Append(")\n");
             File.WriteAllText(Path.Combine(cacheDir, "stage.usda"), builder.ToString());
             string livePath = Path.Combine(cacheDir, "live.usda");
             if (!File.Exists(livePath))

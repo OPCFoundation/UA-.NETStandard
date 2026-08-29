@@ -28,11 +28,12 @@
  * ======================================================================*/
 
 using System;
-using System.Diagnostics.CodeAnalysis;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using Opc.Ua;
 using Opc.Ua.RobotIntent;
+using Robotics.IntentEnabledRobot.Simulation;
 
 namespace Robotics.IntentEnabledRobot.Kinematics
 {
@@ -59,8 +60,38 @@ namespace Robotics.IntentEnabledRobot.Kinematics
         /// <summary>
         /// Every geometric solution violates at least one joint limit.
         /// </summary>
-        JointLimit
+        JointLimit,
+
+        /// <summary>
+        /// Every geometric solution drives a link through the work surface the arm is
+        /// mounted on.
+        /// </summary>
+        WorkSurface
     }
+
+    /// <summary>
+    /// Resolves a Location NodeId to a position in the arm's base frame.
+    /// </summary>
+    /// <param name="location">The Location NodeId carried by a Pick or Place intent.</param>
+    /// <param name="position">The resolved position (x, y, z) in metres.</param>
+    /// <returns><c>true</c> when the location is known to the host.</returns>
+    public delegate bool LocationPositionResolver(NodeId location, out ArrayOf<double> position);
+
+    /// <summary>
+    /// Resolves a Location NodeId to a complete tool pose in the arm's base frame.
+    /// </summary>
+    /// <param name="location">The Location NodeId carried by a Pick or Place intent.</param>
+    /// <param name="pose">The resolved tool pose.</param>
+    /// <returns><c>true</c> when the location is known to the host.</returns>
+    public delegate bool LocationPoseResolver(NodeId location, out Pose3DDataType pose);
+
+    /// <summary>
+    /// Resolves a named workpiece at a Pick source to a tool pose.
+    /// </summary>
+    public delegate bool PickPoseResolver(
+        NodeId source,
+        string objectClass,
+        out Pose3DDataType pose);
 
     /// <summary>
     /// One inverse-kinematic solution for the simulated arm.
@@ -258,8 +289,17 @@ namespace Robotics.IntentEnabledRobot.Kinematics
     /// <summary>
     /// Kinematics and path helpers for the UR5e-style sample arm.
     /// </summary>
-    public sealed class SimulatedArmKinematics
+    public sealed class SimulatedArmKinematics : ISimulatedArmKinematics
     {
+        /// <inheritdoc/>
+        public int AxisCount => JointCount;
+
+        /// <inheritdoc/>
+        public double MaximumReach => Reach;
+
+        /// <inheritdoc/>
+        public ArrayOf<double> InitialJointAngles => ArrayOf.Create(s_initialJointAngles.AsSpan());
+
         /// <summary>
         /// Initializes kinematics with the sample joint limits.
         /// </summary>
@@ -316,6 +356,7 @@ namespace Robotics.IntentEnabledRobot.Kinematics
         /// <summary>
         /// Computes all valid inverse-kinematic solutions found from the eight UR-style branches.
         /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
         public SimulatedArmIkResult Inverse(Pose3DDataType target, ReadOnlySpan<double> referenceJointAngles)
         {
             if (target is null)
@@ -394,15 +435,249 @@ namespace Robotics.IntentEnabledRobot.Kinematics
             [NotNullWhen(true)] out SimulatedArmIkSolution? solution,
             out SimulatedArmKinematicFailure failure)
         {
+            return TrySelectNearestCore(
+                target,
+                currentJointAngles,
+                requireClearJointPath: true,
+                out solution,
+                out failure);
+        }
+
+        /// <summary>
+        /// Selects the nearest clear configuration without testing a joint-space path to
+        /// it.
+        /// </summary>
+        /// <remarks>
+        /// Used while following an explicitly sampled Cartesian path. Each sample is checked
+        /// for collision, and selecting the nearest solution to the previous sample keeps
+        /// the branch continuous. Testing a second, joint-interpolated path between those
+        /// samples rejects valid Cartesian motion and is the wrong path to validate.
+        /// </remarks>
+        public bool TrySelectNearestConfiguration(
+            Pose3DDataType target,
+            ReadOnlySpan<double> currentJointAngles,
+            [NotNullWhen(true)] out SimulatedArmIkSolution? solution,
+            out SimulatedArmKinematicFailure failure)
+        {
+            return TrySelectNearestCore(
+                target,
+                currentJointAngles,
+                requireClearJointPath: false,
+                out solution,
+                out failure);
+        }
+
+        private bool TrySelectNearestCore(
+            Pose3DDataType target,
+            ReadOnlySpan<double> currentJointAngles,
+            bool requireClearJointPath,
+            [NotNullWhen(true)] out SimulatedArmIkSolution? solution,
+            out SimulatedArmKinematicFailure failure)
+        {
             SimulatedArmIkResult result = Inverse(target, currentJointAngles);
             failure = result.Failure;
-            solution = result.Solutions.IsEmpty ? null : result.Solutions[0];
-            return solution is not null;
+            solution = null;
+            if (result.Solutions.IsEmpty)
+            {
+                return false;
+            }
+
+            // Solutions come back nearest-first. Take the nearest one that neither reaches
+            // through the surface the arm stands on nor into the cell's furniture, and that
+            // can be reached without sweeping a link through either when the caller asks us
+            // to validate a joint-space path.
+            //
+            // Ordering these by WristInversionPenalty first - so a shape that holds the
+            // wrist the right way up wins over a closer one that doubles it back - was
+            // tried and measured worse: the loop failed on its third operation against nine
+            // of ten without it. Choosing a different solution changes where the arm starts
+            // the next move from, and the tidier shape led into dead ends. The penalty is
+            // kept because it names what is wrong with the posture in the close-ups, but
+            // preferring it needs the approach and retract poses solved for properly first,
+            // so that a tidy choice does not strand the next one.
+            ReadOnlySpan<SimulatedArmIkSolution> candidates = result.Solutions.Span;
+            for (int ii = 0; ii < candidates.Length; ii++)
+            {
+                if (ClearsWorkSurface(candidates[ii].JointAngles.Span) &&
+                    (!requireClearJointPath ||
+                        ClearsPath(currentJointAngles, candidates[ii].JointAngles.Span)))
+                {
+                    solution = candidates[ii];
+                    return true;
+                }
+            }
+
+            // Refusing is the honest answer. Returning the first solution anyway would put
+            // a link through the bench, and a move that cannot be made without doing that
+            // is one the arm should decline rather than mime.
+            failure = SimulatedArmKinematicFailure.WorkSurface;
+            return false;
+        }
+
+        /// <summary>
+        /// Gets how far a configuration has the wrist the wrong way up.
+        /// </summary>
+        /// <remarks>
+        /// With the tool pointing down the chain should descend from the wrist to the part:
+        /// J4 above J5 above J6 above the tool centre point. A configuration that climbs
+        /// instead has doubled the wrist back over itself, which reaches the same point and
+        /// looks like a fault. Counting the steps that climb gives an order to prefer
+        /// between candidates that are otherwise all legal, and zero means the wrist hangs
+        /// the way a person would expect.
+        /// </remarks>
+        /// <param name="jointAngles">
+        /// The configuration to score, in radians.
+        /// </param>
+        public int WristInversionPenalty(ReadOnlySpan<double> jointAngles)
+        {
+            SimulatedArmForwardPose pose = Forward(jointAngles);
+            ReadOnlySpan<Pose3DDataType> frames = pose.JointFramePoses.Span;
+            if (frames.Length < JointCount)
+            {
+                return 0;
+            }
+            double toolZ = pose.ToolPose.Position.Span[2];
+            int penalty = 0;
+            for (int ii = 3; ii < JointCount - 1; ii++)
+            {
+                if (frames[ii + 1].Position.Span[2] > frames[ii].Position.Span[2])
+                {
+                    penalty++;
+                }
+            }
+            if (toolZ > frames[JointCount - 1].Position.Span[2])
+            {
+                penalty++;
+            }
+            return penalty;
+        }
+
+        /// <summary>
+        /// Gets or sets the lowest height, in the arm's own base frame, that any joint
+        /// origin may occupy. Defaults to no constraint.
+        /// </summary>
+        /// <remarks>
+        /// An arm bolted to a bench has the bench at zero in its base frame, so a host that
+        /// mounts it that way sets this to zero and the solver stops handing back poses
+        /// that pass through the work surface.
+        /// </remarks>
+        public double MinimumLinkHeight { get; set; } = double.NegativeInfinity;
+
+        /// <summary>
+        /// Gets or sets the solids the arm must not move through. Defaults to none.
+        /// </summary>
+        /// <remarks>
+        /// <see cref="MinimumLinkHeight"/> only knows about a horizontal plane and only
+        /// samples joint origins, so it cannot see a link crossing the middle of a bench,
+        /// and it does not know the bin or the fixture are there at all. A host that
+        /// describes its furniture here gets configurations refused for reaching into any
+        /// of it.
+        /// </remarks>
+        public SimulatedCollisionModel? Collisions { get; set; }
+
+        /// <summary>
+        /// Gets a value indicating whether a configuration keeps the whole arm out of the
+        /// work surface and out of every declared obstacle.
+        /// </summary>
+        /// <param name="jointAngles">
+        /// The configuration to test, in radians.
+        /// </param>
+        /// <returns>
+        /// <c>true</c> when no part of the arm reaches below the work surface or inside a
+        /// solid.
+        /// </returns>
+        public bool ClearsWorkSurface(ReadOnlySpan<double> jointAngles)
+        {
+            if (double.IsNegativeInfinity(MinimumLinkHeight) && Collisions == null)
+            {
+                return true;
+            }
+            SimulatedArmForwardPose pose = Forward(jointAngles);
+            ReadOnlySpan<Pose3DDataType> frames = pose.JointFramePoses.Span;
+            if (!double.IsNegativeInfinity(MinimumLinkHeight))
+            {
+                for (int ii = 0; ii < frames.Length; ii++)
+                {
+                    if (frames[ii].Position.Span[2] < MinimumLinkHeight)
+                    {
+                        return false;
+                    }
+                }
+                if (pose.ToolPose.Position.Span[2] < MinimumLinkHeight)
+                {
+                    return false;
+                }
+            }
+            if (Collisions == null)
+            {
+                return true;
+            }
+
+            // The chain starts at the first joint origin, not at the base: the arm is
+            // bolted to the bench, so a capsule around the pedestal is inside the bench by
+            // construction and would refuse every configuration there is. The tool point
+            // closes the chain past the flange - a wrist that clears everything while the
+            // gripper is buried in the bin is not a configuration the arm can hold.
+            Span<double> points = stackalloc double[(frames.Length + 1) * 3];
+            for (int ii = 0; ii < frames.Length; ii++)
+            {
+                ReadOnlySpan<double> position = frames[ii].Position.Span;
+                points[(ii * 3) + 0] = position[0];
+                points[(ii * 3) + 1] = position[1];
+                points[(ii * 3) + 2] = position[2];
+            }
+            ReadOnlySpan<double> tool = pose.ToolPose.Position.Span;
+            points[(frames.Length * 3) + 0] = tool[0];
+            points[(frames.Length * 3) + 1] = tool[1];
+            points[(frames.Length * 3) + 2] = tool[2];
+            return Collisions.IsClear(points, out _);
+        }
+
+        /// <summary>
+        /// Gets a value indicating whether every configuration along a joint-space move
+        /// stays clear.
+        /// </summary>
+        /// <remarks>
+        /// Filtering the goal alone is not enough: the arm travels by interpolating from
+        /// where it is to where it is going, so a start and a goal that both clear the
+        /// bench can still be joined by a path that sweeps a link straight through it.
+        /// </remarks>
+        /// <param name="start">
+        /// The configuration the move starts from, in radians.
+        /// </param>
+        /// <param name="target">
+        /// The configuration the move ends at, in radians.
+        /// </param>
+        public bool ClearsPath(ReadOnlySpan<double> start, ReadOnlySpan<double> target)
+        {
+            // Only checked when a host has described its furniture. The height plane alone
+            // is too blunt for a path: a swing from one side of the cell to the other dips
+            // a link below the plane part-way round almost every time, so enforcing it here
+            // refuses ordinary moves and the arm stops rather than travels.
+            if (Collisions == null)
+            {
+                return true;
+            }
+            Span<double> configuration = stackalloc double[start.Length];
+            for (int step = 0; step <= PathSampleCount; step++)
+            {
+                double fraction = (double)step / PathSampleCount;
+                for (int ii = 0; ii < start.Length && ii < target.Length; ii++)
+                {
+                    configuration[ii] = start[ii] + ((target[ii] - start[ii]) * fraction);
+                }
+                if (!ClearsWorkSurface(configuration))
+                {
+                    return false;
+                }
+            }
+            return true;
         }
 
         /// <summary>
         /// Interpolates between poses with straight-line position and spherical-linear orientation.
         /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
         public Pose3DDataType InterpolateCartesian(Pose3DDataType start, Pose3DDataType end, double fraction)
         {
             if (start is null)
@@ -461,6 +736,12 @@ namespace Robotics.IntentEnabledRobot.Kinematics
                 SimulatedArmKinematicFailure.Kinematics => IntentFailureEnum.Kinematics,
                 _ => IntentFailureEnum.None
             };
+        }
+
+        /// <inheritdoc/>
+        public IntentFailureEnum MapFailure(SimulatedArmKinematicFailure failure)
+        {
+            return ToIntentFailure(failure);
         }
 
         /// <summary>
@@ -574,10 +855,10 @@ namespace Robotics.IntentEnabledRobot.Kinematics
             for (int iteration = 0; iteration < 80; iteration++)
             {
                 ComputeError(target, solution, error);
-                if (Math.Sqrt((error[0] * error[0]) + (error[1] * error[1]) + (error[2] * error[2]))
-                        < PositionTolerance &&
-                    Math.Sqrt((error[3] * error[3]) + (error[4] * error[4]) + (error[5] * error[5]))
-                        < OrientationTolerance)
+                if (Math.Sqrt((error[0] * error[0]) + (error[1] * error[1]) + (error[2] * error[2])) <
+                        PositionTolerance &&
+                    Math.Sqrt((error[3] * error[3]) + (error[4] * error[4]) + (error[5] * error[5])) <
+                        OrientationTolerance)
                 {
                     return !IsWristSingular(solution);
                 }
@@ -785,16 +1066,6 @@ namespace Robotics.IntentEnabledRobot.Kinematics
             return Math.Sqrt((x * x) + (y * y) + (z * z));
         }
 
-        private static double SquaredNorm(ReadOnlySpan<double> values)
-        {
-            double sum = 0.0;
-            for (int i = 0; i < values.Length; i++)
-            {
-                sum += values[i] * values[i];
-            }
-            return sum;
-        }
-
         private static double MaxAbsoluteDifference(ReadOnlySpan<double> left, ReadOnlySpan<double> right)
         {
             double max = 0.0;
@@ -832,6 +1103,7 @@ namespace Robotics.IntentEnabledRobot.Kinematics
         private const double D5 = 0.0997;
         private const double D6 = 0.0996;
         private const double FlangeToTcp = 0.165;
+        private const int PathSampleCount = 24;
         private const double PositionTolerance = 1e-5;
         private const double OrientationTolerance = 1e-5;
         private const double SingularityTolerance = 1e-4;
@@ -857,6 +1129,15 @@ namespace Robotics.IntentEnabledRobot.Kinematics
             2.0 * Math.PI
         ];
 
+        /// <summary>
+        /// Eight UR-style branches: elbow up and down, wrist flipped, shoulder forward and
+        /// back. Sixteen were tried - the extra eight starting J2 and J4 in other basins to
+        /// look for a less contorted shape near the base - and measured: they raised the
+        /// distinct-posture count but every shape they added was refused by clearance, so
+        /// the number of *usable* postures at the home slots did not move. They were dropped
+        /// again because a seed costs a full Newton refinement on every solve, and this
+        /// solver runs per step of a Cartesian move.
+        /// </summary>
         private static readonly double[][] s_seedTemplates =
         [
             [0.0, -1.2, 1.4, -1.7, 0.8, 0.0],
@@ -868,6 +1149,9 @@ namespace Robotics.IntentEnabledRobot.Kinematics
             [Math.PI, 0.4, -1.4, 1.0, 0.8, 0.0],
             [Math.PI, 0.4, -1.4, 1.0, -0.8, Math.PI]
         ];
+
+        private static readonly double[] s_initialJointAngles =
+            [-3.0484844, 0.3128706, 0.8261335, 2.0025887, -2.7856466, -1.5707963];
 
         private readonly double[] m_minimumLimits;
         private readonly double[] m_maximumLimits;

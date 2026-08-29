@@ -105,7 +105,7 @@ namespace Opc.Ua.Robotics.Client.Tests
             };
             RobotIntentControllerClient controller = new(transport);
 
-            RobotIntentControllerState state = await controller.ReadStateAsync();
+            RobotIntentControllerState state = await controller.ReadStateAsync().ConfigureAwait(false);
 
             Assert.Multiple(() =>
             {
@@ -136,7 +136,7 @@ namespace Opc.Ua.Robotics.Client.Tests
             };
             RobotIntentControllerClient controller = new(transport);
 
-            RobotIntentControllerState state = await controller.ReadStateAsync();
+            RobotIntentControllerState state = await controller.ReadStateAsync().ConfigureAwait(false);
 
             Assert.Multiple(() =>
             {
@@ -160,7 +160,7 @@ namespace Opc.Ua.Robotics.Client.Tests
             };
             RobotIntentControllerClient controller = new(transport);
 
-            RobotIntentControllerState state = await controller.ReadStateAsync();
+            RobotIntentControllerState state = await controller.ReadStateAsync().ConfigureAwait(false);
 
             Assert.Multiple(() =>
             {
@@ -175,12 +175,12 @@ namespace Opc.Ua.Robotics.Client.Tests
             FakeTransport transport = new();
             RobotIntentControllerClient controller = new(transport);
 
-            IntentCommandOutcome cancel = await controller.CancelIntentAsync("intent-1", StopModeEnum.QuickStop);
-            uint cancelAll = await controller.CancelAllAsync(StopModeEnum.OnPath);
-            IntentCommandOutcome pause = await controller.PauseAsync();
-            IntentCommandOutcome resume = await controller.ResumeAsync();
-            IntentSubmissionResult retry = await controller.RetryAsync("intent-2");
-            await controller.ReleaseControlAsync();
+            IntentCommandOutcome cancel = await controller.CancelIntentAsync("intent-1", StopModeEnum.QuickStop).ConfigureAwait(false);
+            uint cancelAll = await controller.CancelAllAsync(StopModeEnum.OnPath).ConfigureAwait(false);
+            IntentCommandOutcome pause = await controller.PauseAsync().ConfigureAwait(false);
+            IntentCommandOutcome resume = await controller.ResumeAsync().ConfigureAwait(false);
+            IntentSubmissionResult retry = await controller.RetryAsync("intent-2").ConfigureAwait(false);
+            await controller.ReleaseControlAsync().ConfigureAwait(false);
 
             Assert.Multiple(() =>
             {
@@ -227,8 +227,8 @@ namespace Opc.Ua.Robotics.Client.Tests
             };
             RobotIntentControllerClient controller = new(transport);
 
-            ArrayOf<IntentOperationSnapshot> operations = await controller.ListOperationsAsync();
-            ArrayOf<MissionSnapshot> missions = await controller.ListMissionsAsync();
+            ArrayOf<IntentOperationSnapshot> operations = await controller.ListOperationsAsync().ConfigureAwait(false);
+            ArrayOf<MissionSnapshot> missions = await controller.ListMissionsAsync().ConfigureAwait(false);
 
             Assert.Multiple(() =>
             {
@@ -252,7 +252,7 @@ namespace Opc.Ua.Robotics.Client.Tests
             };
             RobotIntentControllerClient controller = new(transport);
 
-            await using IntentOperationHandle handle = await controller.TrackOperationAsync("intent-1", OperationNode);
+            await using IntentOperationHandle handle = await controller.TrackOperationAsync("intent-1", OperationNode).ConfigureAwait(false);
             transport.PublishChange("ExecutionState", Variant.From((int)ExecutionStateEnum.Succeeded));
             transport.PublishChange("Result", Variant.FromStructure(new IntentResultDataType
             {
@@ -260,7 +260,7 @@ namespace Opc.Ua.Robotics.Client.Tests
                 State = ExecutionStateEnum.Succeeded
             }));
 
-            IntentOperationWaitResult result = await handle.WaitForCompletionAsync(TimeSpan.FromSeconds(1));
+            IntentOperationWaitResult result = await handle.WaitForCompletionAsync(TimeSpan.FromSeconds(1)).ConfigureAwait(false);
 
             Assert.Multiple(() =>
             {
@@ -279,7 +279,7 @@ namespace Opc.Ua.Robotics.Client.Tests
             };
             RobotIntentControllerClient controller = new(transport);
 
-            await using IntentOperationHandle handle = await controller.TrackOperationAsync("intent-1", OperationNode);
+            await using IntentOperationHandle handle = await controller.TrackOperationAsync("intent-1", OperationNode).ConfigureAwait(false);
             transport.Snapshot = new IntentOperationSnapshot
             {
                 Operation = OperationNode,
@@ -288,7 +288,7 @@ namespace Opc.Ua.Robotics.Client.Tests
                 Progress = 0.25
             };
 
-            IntentOperationWaitResult result = await handle.WaitForCompletionAsync(TimeSpan.FromMilliseconds(20));
+            IntentOperationWaitResult result = await handle.WaitForCompletionAsync(TimeSpan.FromMilliseconds(20)).ConfigureAwait(false);
 
             Assert.Multiple(() =>
             {
@@ -315,7 +315,7 @@ namespace Opc.Ua.Robotics.Client.Tests
             };
             RobotIntentControllerClient controller = new(transport);
 
-            await using IntentOperationHandle handle = await controller.TrackOperationAsync("intent-1", OperationNode);
+            await using IntentOperationHandle handle = await controller.TrackOperationAsync("intent-1", OperationNode).ConfigureAwait(false);
             Assert.That(handle.Current.QueuePosition, Is.EqualTo(3u));
 
             transport.Snapshot = new IntentOperationSnapshot
@@ -326,7 +326,7 @@ namespace Opc.Ua.Robotics.Client.Tests
                 QueuePosition = 0,
                 MissionId = "mission-1"
             };
-            await handle.RefreshAsync();
+            await handle.RefreshAsync().ConfigureAwait(false);
 
             Assert.Multiple(() =>
             {
@@ -558,6 +558,13 @@ namespace Opc.Ua.Robotics.Client.Tests
             {
                 ReadSnapshotCount++;
                 return new ValueTask<IntentOperationSnapshot>(Snapshot);
+            }
+
+            public ValueTask<MissionSnapshot> ReadMissionSnapshotAsync(
+                NodeId mission,
+                CancellationToken ct = default)
+            {
+                return new ValueTask<MissionSnapshot>(new MissionSnapshot { MissionNode = mission });
             }
 
             public ValueTask<NodeId> ReadControlOwnerAsync(CancellationToken ct = default)
