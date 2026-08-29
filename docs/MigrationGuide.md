@@ -79,8 +79,8 @@ objects or arrays. Values that become OPC UA Variants use an explicit
 `dataType` plus `value`; they are never inferred through an `object`-typed API.
 
 Mission steps and transitions are arrays rather than stringified arrays. The
-intent `kind` is a closed discriminator and exactly one matching payload is
-required:
+intent `kind` is a closed discriminator. Kind-specific fields now sit directly
+beside it, so agents do not pay for or navigate 20 nested payload wrappers:
 
 ```json
 {
@@ -93,11 +93,9 @@ required:
       "released": true,
       "intent": {
         "kind": "Pick",
-        "pick": {
-          "source": "Bin",
-          "tool": "ParallelGripper",
-          "objectClass": "RedCube"
-        }
+        "source": "Bin",
+        "tool": "ParallelGripper",
+        "objectClass": "RedCube"
       }
     },
     {
@@ -105,10 +103,8 @@ required:
       "released": true,
       "intent": {
         "kind": "Place",
-        "place": {
-          "destination": "Fixture",
-          "tool": "ParallelGripper"
-        }
+        "destination": "Fixture",
+        "tool": "ParallelGripper"
       }
     }
   ],

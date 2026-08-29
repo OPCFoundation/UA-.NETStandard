@@ -32,6 +32,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using Microsoft.Extensions.DependencyInjection;
 using ModelContextProtocol.Server;
 using NUnit.Framework;
@@ -42,7 +43,7 @@ namespace Opc.Ua.Tools.Tests.Mcp
 {
     /// <summary>
     /// Asserts the generated MCP InputSchema of the Robot Intent tools: typed
-    /// nested inputs and arrays, required members, exact enum sets and
+    /// inputs and arrays, required members, exact enum sets and
     /// defaults, and the absence of every legacy JSON-string parameter.
     /// </summary>
     [TestFixture]
@@ -236,22 +237,22 @@ namespace Opc.Ua.Tools.Tests.Mcp
         }
 
         [Test]
-        public void MissionStepIntentExposesEveryTypedPayload()
+        public void MissionStepIntentExposesFlatTypedFields()
         {
             JsonElement intent = Path(
                 Schema("robotics_submit_mission"),
                 "properties", "steps", "items", "properties", "intent");
             JsonElement properties = intent.GetProperty("properties");
 
-            string[] payloads = kIntentPayloads;
-
             Assert.Multiple(() =>
             {
-                foreach (string payload in payloads)
+                foreach (string field in kMissionIntentFields)
                 {
-                    Assert.That(properties.TryGetProperty(payload, out _), Is.True,
-                        $"mission intent must expose the typed '{payload}' payload.");
+                    Assert.That(properties.TryGetProperty(field, out _), Is.True,
+                        $"mission intent must expose the flat typed '{field}' field.");
                 }
+                Assert.That(properties.TryGetProperty("pick", out _), Is.False);
+                Assert.That(properties.TryGetProperty("linearMove", out _), Is.False);
             });
         }
 
@@ -265,7 +266,7 @@ namespace Opc.Ua.Tools.Tests.Mcp
             Assert.Multiple(() =>
             {
                 Assert.That(Types(transitions), Does.Contain("array"));
-                Assert.That(Types(transitions), Does.Contain("null"));
+                Assert.That(Types(transitions), Does.Not.Contain("null"));
                 Assert.That(item.GetProperty("properties").TryGetProperty("fromStepId", out _), Is.True);
                 Assert.That(item.GetProperty("properties").TryGetProperty("toStepId", out _), Is.True);
                 Assert.That(
@@ -389,12 +390,18 @@ namespace Opc.Ua.Tools.Tests.Mcp
             "argumentsJson", "attributesJson"
         ];
 
-        private static readonly string[] kIntentPayloads =
+        private static readonly string[] kMissionIntentFields =
         [
-            "jointMove", "linearMove", "circularMove", "trajectory", "cartesianPath",
-            "force", "arcWeld", "spotWeld", "dispense", "fasten", "palletise",
-            "surfaceFinish", "grasp", "release", "pick", "place", "toolChange",
-            "setOutput", "callProgram", "wait"
+            "kind", "intentId", "label", "bufferMode", "blockingMode", "toolFrame",
+            "constraints", "blend", "speedFraction", "cartesianSpeed", "processProgram",
+            "attributes", "jointTargets", "target", "viaPoint", "points", "waypoints",
+            "direction", "contactForce", "frameId", "maxDistance", "holdForce",
+            "voltage", "wireFeedSpeed", "travelSpeed", "seamTrackingEnabled",
+            "weldProcedureRef", "weldSchedule", "gunForce", "flowRate", "beadWidth",
+            "purgeCycles", "joint", "programNumber", "targetTorque", "pattern", "layer",
+            "row", "column", "feedRate", "toolSpeed", "stepOver", "tool", "force",
+            "source", "objectClass", "destination", "dockStation", "output", "value",
+            "program", "arguments", "duration", "signal"
         ];
 
         private static JsonElement Schema(string toolName)
@@ -403,7 +410,70 @@ namespace Opc.Ua.Tools.Tests.Mcp
                 .FirstOrDefault(t => string.Equals(
                     t.ProtocolTool.Name, toolName, StringComparison.Ordinal))
                 ?? throw new AssertionException($"Tool '{toolName}' is not registered.");
-            return tool.ProtocolTool.InputSchema;
+            return ExpandReferences(tool.ProtocolTool.InputSchema);
+        }
+
+        private static JsonElement ExpandReferences(JsonElement schema)
+        {
+            JsonNode root = JsonNode.Parse(schema.GetRawText())!;
+            JsonNode expanded = ExpandNode(root, root);
+            using JsonDocument document = JsonDocument.Parse(expanded.ToJsonString());
+            return document.RootElement.Clone();
+        }
+
+        private static JsonNode ExpandNode(JsonNode node, JsonNode root)
+        {
+            if (node is JsonObject obj)
+            {
+                if (obj["$ref"] is JsonValue reference &&
+                    reference.TryGetValue(out string? pointer) &&
+                    pointer != null)
+                {
+                    JsonNode target = ResolvePointer(root, pointer);
+                    var expanded = (JsonObject)ExpandNode(target.DeepClone(), root);
+                    foreach ((string name, JsonNode? value) in obj)
+                    {
+                        if (name != "$ref" && value != null)
+                        {
+                            expanded[name] = ExpandNode(value.DeepClone(), root);
+                        }
+                    }
+                    return expanded;
+                }
+
+                var result = new JsonObject();
+                foreach ((string name, JsonNode? value) in obj)
+                {
+                    result[name] = value == null ? null : ExpandNode(value.DeepClone(), root);
+                }
+                return result;
+            }
+
+            if (node is JsonArray array)
+            {
+                var result = new JsonArray();
+                foreach (JsonNode? value in array)
+                {
+                    result.Add(value == null ? null : ExpandNode(value.DeepClone(), root));
+                }
+                return result;
+            }
+
+            return node.DeepClone();
+        }
+
+        private static JsonNode ResolvePointer(JsonNode root, string pointer)
+        {
+            Assert.That(pointer, Does.StartWith("#/"));
+            JsonNode? current = root;
+            foreach (string segment in pointer[2..].Split('/'))
+            {
+                string name = segment.Replace("~1", "/", StringComparison.Ordinal)
+                    .Replace("~0", "~", StringComparison.Ordinal);
+                current = current?[name];
+                Assert.That(current, Is.Not.Null, $"Unresolvable schema reference '{pointer}'.");
+            }
+            return current!;
         }
 
         private static JsonElement Path(JsonElement element, params string[] segments)
@@ -445,7 +515,7 @@ namespace Opc.Ua.Tools.Tests.Mcp
                 .Select(e => e.GetString()!)];
         }
 
-        private static IReadOnlyList<McpServerTool> ResolveTools()
+        private static List<McpServerTool> ResolveTools()
         {
             var services = new ServiceCollection();
             services.AddOpcUaMcpCore();
@@ -453,7 +523,9 @@ namespace Opc.Ua.Tools.Tests.Mcp
             services.AddMcpServer().WithOpcUaRoboticsTools(McpToolProfile.Robotics);
 
             using ServiceProvider provider = services.BuildServiceProvider();
-            return [.. provider.GetServices<McpServerTool>()];
+            List<McpServerTool> tools = [.. provider.GetServices<McpServerTool>()];
+            RoboticsMcpFilters.CompactIntentSchemas(tools.Select(tool => tool.ProtocolTool));
+            return tools;
         }
 
         private static HashSet<string> ResolveToolNames()

@@ -46,10 +46,7 @@ namespace Opc.Ua.Mcp.Tools
         /// Builds and submits a mission from typed step/transition DTOs.
         /// </summary>
         [McpServerTool(Name = "robotics_submit_mission")]
-        [Description("Compiles a mission from typed steps and transitions using the Robot Intent MissionBuilder and " +
-            "submits it. Server refusals such as NotPermittedInMode, SafetyLimitExceeded, ControlNotOwned, " +
-            "CapabilityNotSupported, ParameterInvalid, or QueueFull are returned verbatim with message; this tool " +
-            "does not retry or request command authority implicitly.")]
+        [Description("Submits typed mission steps; returns the server result.")]
         public static async Task<MissionSubmissionResult> SubmitMissionAsync(
             RoboticsIntentManager manager,
             [Description(RoboticsControlTools.ControllerDescription)] string controller,
@@ -74,9 +71,7 @@ namespace Opc.Ua.Mcp.Tools
         /// Updates a mission horizon from typed step DTOs.
         /// </summary>
         [McpServerTool(Name = "robotics_update_mission")]
-        [Description("Updates a mission horizon from a typed step list. The client API performs stale-update checks " +
-            "and the server returns the authoritative MissionUpdateResult and message; the MCP layer does not " +
-            "invent mission state or retry refused updates.")]
+        [Description("Replaces a mission horizon; returns the server result.")]
         public static async Task<MissionUpdateOutcome> UpdateMissionAsync(
             RoboticsIntentManager manager,
             [Description(RoboticsControlTools.ControllerDescription)] string controller,

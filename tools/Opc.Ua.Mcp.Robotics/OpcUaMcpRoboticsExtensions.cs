@@ -72,6 +72,8 @@ namespace Opc.Ua.Mcp
             {
                 case McpToolProfile.Robotics:
                 case McpToolProfile.Full:
+                    mcpServerBuilder.WithRequestFilters(filters =>
+                        filters.AddListToolsFilter(RoboticsMcpFilters.AddCompactIntentSchemas));
                     mcpServerBuilder
                         .WithTools<RoboticsDiscoveryTools>()
                         .WithTools<RoboticsMonitoringTools>()
@@ -139,6 +141,8 @@ namespace Opc.Ua.Mcp
             }
 
             return mcpServerBuilder
+                .WithRequestFilters(filters =>
+                    filters.AddListToolsFilter(RoboticsMcpFilters.AddCompactIntentSchemas))
                 .WithTools<RoboticsDiscoveryTools>()
                 .WithTools<RoboticsMonitoringTools>()
                 .WithTools<RoboticsControlTools>()

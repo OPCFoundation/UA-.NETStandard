@@ -282,13 +282,32 @@ namespace Opc.Ua.Mcp
                 {
                     StepId = kPickStepId,
                     Released = true,
-                    Intent = new MissionIntentInput { Kind = IntentKind.Pick, Pick = pick }
+                    Intent = new MissionIntentInput
+                    {
+                        Kind = IntentKind.Pick,
+                        Source = pick.Source,
+                        Tool = pick.Tool,
+                        ObjectClass = pick.ObjectClass,
+                        IntentId = pick.IntentId,
+                        Label = pick.Label,
+                        BufferMode = pick.BufferMode,
+                        BlockingMode = pick.BlockingMode
+                    }
                 },
                 new MissionStepInput
                 {
                     StepId = kPlaceStepId,
                     Released = true,
-                    Intent = new MissionIntentInput { Kind = IntentKind.Place, Place = place }
+                    Intent = new MissionIntentInput
+                    {
+                        Kind = IntentKind.Place,
+                        Destination = place.Destination,
+                        Tool = place.Tool,
+                        IntentId = place.IntentId,
+                        Label = place.Label,
+                        BufferMode = place.BufferMode,
+                        BlockingMode = place.BlockingMode
+                    }
                 }
             ];
 

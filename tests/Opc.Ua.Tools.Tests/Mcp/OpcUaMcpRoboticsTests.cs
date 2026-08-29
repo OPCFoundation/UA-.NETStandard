@@ -178,7 +178,7 @@ namespace Opc.Ua.Tools.Tests.Mcp
                     Intent = new MissionIntentInput
                     {
                         Kind = IntentKind.Wait,
-                        Wait = new WaitIntentInput { Duration = 10 }
+                        Duration = 10
                     }
                 }
             ];

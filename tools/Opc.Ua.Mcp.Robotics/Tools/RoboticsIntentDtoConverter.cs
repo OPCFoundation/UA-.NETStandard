@@ -51,50 +51,160 @@ namespace Opc.Ua.Mcp.Tools
             RoboticsScopeResolver? scope)
         {
             ArgumentNullException.ThrowIfNull(input);
-            RejectConflictingPayloads(input);
+            ValidateMissionIntentFields(input);
 
             return input.Kind switch
             {
                 IntentKind.JointMove => ConvertJointMove(
-                    GetPayload(input.Kind, input.JointMove), 0, scope),
+                    CopyMissionMotion(input, new JointMoveIntentInput
+                    {
+                        JointTargets = input.JointTargets,
+                        TargetPose = input.Target
+                    }),
+                    0,
+                    scope),
                 IntentKind.LinearMove => ConvertLinearMove(
-                    GetPayload(input.Kind, input.LinearMove), scope),
+                    CopyMissionMotion(input, new LinearMoveIntentInput
+                    {
+                        Target = input.Target
+                    }),
+                    scope),
                 IntentKind.CircularMove => ConvertCircularMove(
-                    GetPayload(input.Kind, input.CircularMove), scope),
+                    CopyMissionMotion(input, new CircularMoveIntentInput
+                    {
+                        ViaPoint = input.ViaPoint,
+                        Target = input.Target
+                    }),
+                    scope),
                 IntentKind.Trajectory => ConvertTrajectory(
-                    GetPayload(input.Kind, input.Trajectory), scope),
+                    CopyMissionMotion(input, new TrajectoryIntentInput
+                    {
+                        Points = input.Points ?? []
+                    }),
+                    scope),
                 IntentKind.CartesianPath => ConvertCartesianPath(
-                    GetPayload(input.Kind, input.CartesianPath), scope),
+                    CopyMissionMotion(input, new CartesianPathIntentInput
+                    {
+                        Waypoints = input.Waypoints ?? []
+                    }),
+                    scope),
                 IntentKind.Force => ConvertForce(
-                    GetPayload(input.Kind, input.Force), scope),
+                    CopyMissionMotion(input, new ForceIntentInput
+                    {
+                        Direction = input.Direction ?? [],
+                        ContactForce = input.ContactForce ?? 0,
+                        FrameId = input.FrameId,
+                        MaxDistance = input.MaxDistance ?? 0,
+                        HoldForce = input.HoldForce ?? false
+                    }),
+                    scope),
                 IntentKind.ArcWeld => ConvertArcWeld(
-                    GetPayload(input.Kind, input.ArcWeld), scope),
+                    CopyMissionProcess(input, new ArcWeldIntentInput
+                    {
+                        Voltage = input.Voltage ?? 0,
+                        WireFeedSpeed = input.WireFeedSpeed ?? 0,
+                        TravelSpeed = input.TravelSpeed ?? 0,
+                        SeamTrackingEnabled = input.SeamTrackingEnabled ?? false,
+                        WeldProcedureRef = input.WeldProcedureRef
+                    }),
+                    scope),
                 IntentKind.SpotWeld => ConvertSpotWeld(
-                    GetPayload(input.Kind, input.SpotWeld), scope),
+                    CopyMissionProcess(input, new SpotWeldIntentInput
+                    {
+                        WeldSchedule = input.WeldSchedule ?? 0,
+                        GunForce = input.GunForce ?? 0
+                    }),
+                    scope),
                 IntentKind.Dispense => ConvertDispense(
-                    GetPayload(input.Kind, input.Dispense), scope),
+                    CopyMissionProcess(input, new DispenseIntentInput
+                    {
+                        FlowRate = input.FlowRate ?? 0,
+                        BeadWidth = input.BeadWidth ?? 0,
+                        PurgeCycles = input.PurgeCycles ?? 0
+                    }),
+                    scope),
                 IntentKind.Fasten => ConvertFasten(
-                    GetPayload(input.Kind, input.Fasten), scope),
+                    CopyMissionProcess(input, new FastenIntentInput
+                    {
+                        Joint = input.Joint,
+                        ProgramNumber = input.ProgramNumber ?? 0,
+                        TargetTorque = input.TargetTorque ?? 0
+                    }),
+                    scope),
                 IntentKind.Palletise => ConvertPalletise(
-                    GetPayload(input.Kind, input.Palletise), scope),
+                    CopyMissionProcess(input, new PalletiseIntentInput
+                    {
+                        Pattern = input.Pattern,
+                        Layer = input.Layer ?? 0,
+                        Row = input.Row ?? 0,
+                        Column = input.Column ?? 0
+                    }),
+                    scope),
                 IntentKind.SurfaceFinish => ConvertSurfaceFinish(
-                    GetPayload(input.Kind, input.SurfaceFinish), scope),
+                    CopyMissionProcess(input, new SurfaceFinishIntentInput
+                    {
+                        ContactForce = input.ContactForce ?? 0,
+                        FeedRate = input.FeedRate ?? 0,
+                        ToolSpeed = input.ToolSpeed ?? 0,
+                        StepOver = input.StepOver ?? 0
+                    }),
+                    scope),
                 IntentKind.Grasp => ConvertGrasp(
-                    GetPayload(input.Kind, input.Grasp), scope),
+                    CopyMissionCommon(input, new GraspIntentInput
+                    {
+                        Tool = input.Tool ?? string.Empty,
+                        Force = input.Force ?? 0
+                    }),
+                    scope),
                 IntentKind.Release => ConvertRelease(
-                    GetPayload(input.Kind, input.Release), scope),
+                    CopyMissionCommon(input, new ReleaseIntentInput
+                    {
+                        Tool = input.Tool ?? string.Empty
+                    }),
+                    scope),
                 IntentKind.Pick => ConvertPick(
-                    GetPayload(input.Kind, input.Pick), scope),
+                    CopyMissionCommon(input, new PickIntentInput
+                    {
+                        Source = input.Source ?? string.Empty,
+                        Tool = input.Tool ?? string.Empty,
+                        ObjectClass = input.ObjectClass
+                    }),
+                    scope),
                 IntentKind.Place => ConvertPlace(
-                    GetPayload(input.Kind, input.Place), scope),
+                    CopyMissionCommon(input, new PlaceIntentInput
+                    {
+                        Destination = input.Destination ?? string.Empty,
+                        Tool = input.Tool ?? string.Empty
+                    }),
+                    scope),
                 IntentKind.ToolChange => ConvertToolChange(
-                    GetPayload(input.Kind, input.ToolChange), scope),
+                    CopyMissionCommon(input, new ToolChangeIntentInput
+                    {
+                        Tool = input.Tool,
+                        DockStation = input.DockStation
+                    }),
+                    scope),
                 IntentKind.SetOutput => ConvertSetOutput(
-                    GetPayload(input.Kind, input.SetOutput), scope),
+                    CopyMissionCommon(input, new SetOutputIntentInput
+                    {
+                        Output = input.Output ?? string.Empty,
+                        Value = input.Value
+                    }),
+                    scope),
                 IntentKind.CallProgram => ConvertCallProgram(
-                    GetPayload(input.Kind, input.CallProgram), scope),
+                    CopyMissionCommon(input, new CallProgramIntentInput
+                    {
+                        Program = input.Program ?? string.Empty,
+                        Arguments = input.Arguments
+                    }),
+                    scope),
                 IntentKind.Wait => ConvertWait(
-                    GetPayload(input.Kind, input.Wait), scope),
+                    CopyMissionCommon(input, new WaitIntentInput
+                    {
+                        Duration = input.Duration ?? 0,
+                        Signal = input.Signal
+                    }),
+                    scope),
                 _ => throw new ArgumentException(
                     string.Create(CultureInfo.InvariantCulture,
                         $"Unknown intent kind '{input.Kind}'."),
@@ -688,68 +798,179 @@ namespace Opc.Ua.Mcp.Tools
             return nodeId;
         }
 
-        private static T GetPayload<T>(IntentKind kind, T? payload)
-            where T : class
+        private static T CopyMissionCommon<T>(MissionIntentInput source, T target)
+            where T : IntentCommonDto
         {
-            return payload ??
-                throw new ArgumentException(
-                    string.Create(CultureInfo.InvariantCulture,
-                        $"Intent kind '{kind}' requires the matching payload."));
+            target.IntentId = source.IntentId;
+            target.Label = source.Label;
+            target.BufferMode = source.BufferMode;
+            target.BlockingMode = source.BlockingMode;
+            return target;
         }
 
-        private static void RejectConflictingPayloads(MissionIntentInput input)
+        private static T CopyMissionMotion<T>(MissionIntentInput source, T target)
+            where T : MotionIntentDto
         {
-            var present = new List<string>();
-            AddIfSet(present, nameof(input.JointMove), input.JointMove);
-            AddIfSet(present, nameof(input.LinearMove), input.LinearMove);
-            AddIfSet(present, nameof(input.CircularMove), input.CircularMove);
-            AddIfSet(present, nameof(input.Trajectory), input.Trajectory);
-            AddIfSet(present, nameof(input.CartesianPath), input.CartesianPath);
-            AddIfSet(present, nameof(input.Force), input.Force);
-            AddIfSet(present, nameof(input.ArcWeld), input.ArcWeld);
-            AddIfSet(present, nameof(input.SpotWeld), input.SpotWeld);
-            AddIfSet(present, nameof(input.Dispense), input.Dispense);
-            AddIfSet(present, nameof(input.Fasten), input.Fasten);
-            AddIfSet(present, nameof(input.Palletise), input.Palletise);
-            AddIfSet(present, nameof(input.SurfaceFinish), input.SurfaceFinish);
-            AddIfSet(present, nameof(input.Grasp), input.Grasp);
-            AddIfSet(present, nameof(input.Release), input.Release);
-            AddIfSet(present, nameof(input.Pick), input.Pick);
-            AddIfSet(present, nameof(input.Place), input.Place);
-            AddIfSet(present, nameof(input.ToolChange), input.ToolChange);
-            AddIfSet(present, nameof(input.SetOutput), input.SetOutput);
-            AddIfSet(present, nameof(input.CallProgram), input.CallProgram);
-            AddIfSet(present, nameof(input.Wait), input.Wait);
-
-            if (present.Count > 1)
-            {
-                // All concatenated operands must remain interpolated for string.Create handler binding.
-                // TODO: Remove when RCS1214 preserves interpolated-string-handler overload binding.
-#pragma warning disable RCS1214
-                throw new ArgumentException(
-                    string.Create(CultureInfo.InvariantCulture,
-                        $"Intent kind '{input.Kind}' has {present.Count} payloads set " +
-                        $"([{string.Join(", ", present)}]); only the payload matching the kind " +
-                        $"is allowed."),
-                    nameof(input));
-#pragma warning restore RCS1214
-            }
-
-            if (present.Count == 1 &&
-                !string.Equals(present[0], input.Kind.ToString(), StringComparison.Ordinal))
-            {
-                throw new ArgumentException(
-                    string.Create(CultureInfo.InvariantCulture,
-                        $"Intent kind '{input.Kind}' does not match the '{present[0]}' payload."),
-                    nameof(input));
-            }
+            CopyMissionCommon(source, target);
+            target.ToolFrame = source.ToolFrame;
+            target.Constraints = source.Constraints;
+            target.Blend = source.Blend;
+            target.SpeedFraction = source.SpeedFraction ?? 0;
+            target.CartesianSpeed = source.CartesianSpeed ?? 0;
+            return target;
         }
 
-        private static void AddIfSet(List<string> present, string name, object? payload)
+        private static T CopyMissionProcess<T>(MissionIntentInput source, T target)
+            where T : ProcessIntentDto
         {
-            if (payload != null)
+            CopyMissionCommon(source, target);
+            target.ProcessProgram = source.ProcessProgram;
+            target.Attributes = source.Attributes;
+            return target;
+        }
+
+        private static void ValidateMissionIntentFields(MissionIntentInput input)
+        {
+            IntentKind kind = input.Kind;
+            bool motion = kind is IntentKind.JointMove or IntentKind.LinearMove or
+                IntentKind.CircularMove or IntentKind.Trajectory or IntentKind.CartesianPath or
+                IntentKind.Force;
+            bool process = kind is IntentKind.ArcWeld or IntentKind.SpotWeld or IntentKind.Dispense or
+                IntentKind.Fasten or IntentKind.Palletise or IntentKind.SurfaceFinish;
+
+            RejectUnlessAllowed(
+                input.ToolFrame != null || input.Constraints != null || input.Blend != null ||
+                    input.SpeedFraction.HasValue || input.CartesianSpeed.HasValue,
+                motion,
+                "motion fields",
+                kind);
+            RejectUnlessAllowed(
+                input.ProcessProgram != null || input.Attributes != null,
+                process,
+                "process fields",
+                kind);
+            RejectUnlessAllowed(
+                input.JointTargets != null,
+                kind == IntentKind.JointMove,
+                nameof(input.JointTargets),
+                kind);
+            RejectUnlessAllowed(
+                input.Target != null,
+                kind is IntentKind.JointMove or IntentKind.LinearMove or IntentKind.CircularMove,
+                nameof(input.Target),
+                kind);
+            RejectUnlessAllowed(
+                input.ViaPoint != null,
+                kind == IntentKind.CircularMove,
+                nameof(input.ViaPoint),
+                kind);
+            RejectUnlessAllowed(
+                input.Points != null,
+                kind == IntentKind.Trajectory,
+                nameof(input.Points),
+                kind);
+            RejectUnlessAllowed(
+                input.Waypoints != null,
+                kind == IntentKind.CartesianPath,
+                nameof(input.Waypoints),
+                kind);
+            RejectUnlessAllowed(
+                input.Direction != null || input.FrameId != null || input.MaxDistance.HasValue ||
+                    input.HoldForce.HasValue,
+                kind == IntentKind.Force,
+                "Force fields",
+                kind);
+            RejectUnlessAllowed(
+                input.ContactForce.HasValue,
+                kind is IntentKind.Force or IntentKind.SurfaceFinish,
+                nameof(input.ContactForce),
+                kind);
+            RejectUnlessAllowed(
+                input.Voltage.HasValue || input.WireFeedSpeed.HasValue || input.TravelSpeed.HasValue ||
+                    input.SeamTrackingEnabled.HasValue || input.WeldProcedureRef != null,
+                kind == IntentKind.ArcWeld,
+                "ArcWeld fields",
+                kind);
+            RejectUnlessAllowed(
+                input.WeldSchedule.HasValue || input.GunForce.HasValue,
+                kind == IntentKind.SpotWeld,
+                "SpotWeld fields",
+                kind);
+            RejectUnlessAllowed(
+                input.FlowRate.HasValue || input.BeadWidth.HasValue || input.PurgeCycles.HasValue,
+                kind == IntentKind.Dispense,
+                "Dispense fields",
+                kind);
+            RejectUnlessAllowed(
+                input.Joint != null || input.ProgramNumber.HasValue || input.TargetTorque.HasValue,
+                kind == IntentKind.Fasten,
+                "Fasten fields",
+                kind);
+            RejectUnlessAllowed(
+                input.Pattern != null || input.Layer.HasValue || input.Row.HasValue || input.Column.HasValue,
+                kind == IntentKind.Palletise,
+                "Palletise fields",
+                kind);
+            RejectUnlessAllowed(
+                input.FeedRate.HasValue || input.ToolSpeed.HasValue || input.StepOver.HasValue,
+                kind == IntentKind.SurfaceFinish,
+                "SurfaceFinish fields",
+                kind);
+            RejectUnlessAllowed(
+                input.Tool != null,
+                kind is IntentKind.Grasp or IntentKind.Release or IntentKind.Pick or IntentKind.Place or
+                    IntentKind.ToolChange,
+                nameof(input.Tool),
+                kind);
+            RejectUnlessAllowed(
+                input.Force.HasValue,
+                kind == IntentKind.Grasp,
+                nameof(input.Force),
+                kind);
+            RejectUnlessAllowed(
+                input.Source != null || input.ObjectClass != null,
+                kind == IntentKind.Pick,
+                "Pick fields",
+                kind);
+            RejectUnlessAllowed(
+                input.Destination != null,
+                kind == IntentKind.Place,
+                nameof(input.Destination),
+                kind);
+            RejectUnlessAllowed(
+                input.DockStation != null,
+                kind == IntentKind.ToolChange,
+                nameof(input.DockStation),
+                kind);
+            RejectUnlessAllowed(
+                input.Output != null || input.Value != null,
+                kind == IntentKind.SetOutput,
+                "SetOutput fields",
+                kind);
+            RejectUnlessAllowed(
+                input.Program != null || input.Arguments != null,
+                kind == IntentKind.CallProgram,
+                "CallProgram fields",
+                kind);
+            RejectUnlessAllowed(
+                input.Duration.HasValue || input.Signal != null,
+                kind == IntentKind.Wait,
+                "Wait fields",
+                kind);
+        }
+
+        private static void RejectUnlessAllowed(
+            bool isSet,
+            bool isAllowed,
+            string field,
+            IntentKind kind)
+        {
+            if (isSet && !isAllowed)
             {
-                present.Add(name);
+                throw new ArgumentException(
+                    string.Create(CultureInfo.InvariantCulture,
+                        $"Intent kind '{kind}' does not accept {field}."),
+                    nameof(kind));
             }
         }
 

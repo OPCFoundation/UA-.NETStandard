@@ -944,7 +944,7 @@ namespace Opc.Ua.Mcp.Tools
     }
 
     /// <summary>
-    /// A discriminated union for mission step intents. Set kind and the matching typed payload.
+    /// A flat discriminated union for mission step intents.
     /// </summary>
     public sealed class MissionIntentInput
     {
@@ -955,124 +955,322 @@ namespace Opc.Ua.Mcp.Tools
         public IntentKind Kind { get; set; }
 
         /// <summary>
-        /// Gets or sets the JointMove payload.
+        /// Gets or sets the optional intent identifier.
         /// </summary>
-        [Description("JointMove payload. Set when kind is 'JointMove'.")]
-        public JointMoveIntentInput? JointMove { get; set; }
+        [Description("Optional intent identifier.")]
+        public string? IntentId { get; set; }
 
         /// <summary>
-        /// Gets or sets the LinearMove payload.
+        /// Gets or sets the optional human-readable label.
         /// </summary>
-        [Description("LinearMove payload. Set when kind is 'LinearMove'.")]
-        public LinearMoveIntentInput? LinearMove { get; set; }
+        [Description("Optional human-readable label.")]
+        public string? Label { get; set; }
 
         /// <summary>
-        /// Gets or sets the CircularMove payload.
+        /// Gets or sets the buffer mode.
         /// </summary>
-        [Description("CircularMove payload. Set when kind is 'CircularMove'.")]
-        public CircularMoveIntentInput? CircularMove { get; set; }
+        [Description("Buffer mode: Immediate, Buffered, or Aborting.")]
+        public BufferModeEnum? BufferMode { get; set; }
 
         /// <summary>
-        /// Gets or sets the Trajectory payload.
+        /// Gets or sets the blocking mode.
         /// </summary>
-        [Description("Trajectory payload. Set when kind is 'Trajectory'.")]
-        public TrajectoryIntentInput? Trajectory { get; set; }
+        [Description("Blocking mode: NonBlocking or Single.")]
+        public BlockingModeEnum? BlockingMode { get; set; }
 
         /// <summary>
-        /// Gets or sets the CartesianPath payload.
+        /// Gets or sets the motion tool frame.
         /// </summary>
-        [Description("CartesianPath payload. Set when kind is 'CartesianPath'.")]
-        public CartesianPathIntentInput? CartesianPath { get; set; }
+        [Description("Motion tool frame name or NodeId.")]
+        public string? ToolFrame { get; set; }
 
         /// <summary>
-        /// Gets or sets the Force payload.
+        /// Gets or sets the motion constraints.
         /// </summary>
-        [Description("Force payload. Set when kind is 'Force'.")]
-        public ForceIntentInput? Force { get; set; }
+        [Description("Motion constraints.")]
+        public MotionConstraintsDto? Constraints { get; set; }
 
         /// <summary>
-        /// Gets or sets the ArcWeld payload.
+        /// Gets or sets the blend parameters.
         /// </summary>
-        [Description("ArcWeld payload. Set when kind is 'ArcWeld'.")]
-        public ArcWeldIntentInput? ArcWeld { get; set; }
+        [Description("Motion blend parameters.")]
+        public BlendDto? Blend { get; set; }
 
         /// <summary>
-        /// Gets or sets the SpotWeld payload.
+        /// Gets or sets the speed fraction shorthand.
         /// </summary>
-        [Description("SpotWeld payload. Set when kind is 'SpotWeld'.")]
-        public SpotWeldIntentInput? SpotWeld { get; set; }
+        [Description("Optional speed fraction within [0, 1].")]
+        public double? SpeedFraction { get; set; }
 
         /// <summary>
-        /// Gets or sets the Dispense payload.
+        /// Gets or sets the Cartesian speed shorthand.
         /// </summary>
-        [Description("Dispense payload. Set when kind is 'Dispense'.")]
-        public DispenseIntentInput? Dispense { get; set; }
+        [Description("Optional Cartesian speed in m/s.")]
+        public double? CartesianSpeed { get; set; }
 
         /// <summary>
-        /// Gets or sets the Fasten payload.
+        /// Gets or sets the process program.
         /// </summary>
-        [Description("Fasten payload. Set when kind is 'Fasten'.")]
-        public FastenIntentInput? Fasten { get; set; }
+        [Description("Optional process program name or NodeId.")]
+        public string? ProcessProgram { get; set; }
 
         /// <summary>
-        /// Gets or sets the Palletise payload.
+        /// Gets or sets the process attributes.
         /// </summary>
-        [Description("Palletise payload. Set when kind is 'Palletise'.")]
-        public PalletiseIntentInput? Palletise { get; set; }
+        [Description("Optional typed process attributes.")]
+        public NamedTypedValueDto[]? Attributes { get; set; }
 
         /// <summary>
-        /// Gets or sets the SurfaceFinish payload.
+        /// Gets or sets joint targets for JointMove.
         /// </summary>
-        [Description("SurfaceFinish payload. Set when kind is 'SurfaceFinish'.")]
-        public SurfaceFinishIntentInput? SurfaceFinish { get; set; }
+        [Description("JointMove targets in radians.")]
+        public double[]? JointTargets { get; set; }
 
         /// <summary>
-        /// Gets or sets the Grasp payload.
+        /// Gets or sets the target pose for JointMove, LinearMove, or CircularMove.
         /// </summary>
-        [Description("Grasp payload. Set when kind is 'Grasp'.")]
-        public GraspIntentInput? Grasp { get; set; }
+        [Description("Target pose for the selected motion kind.")]
+        public PoseDto? Target { get; set; }
 
         /// <summary>
-        /// Gets or sets the Release payload.
+        /// Gets or sets the intermediate pose for CircularMove.
         /// </summary>
-        [Description("Release payload. Set when kind is 'Release'.")]
-        public ReleaseIntentInput? Release { get; set; }
+        [Description("CircularMove intermediate pose.")]
+        public PoseDto? ViaPoint { get; set; }
 
         /// <summary>
-        /// Gets or sets the Pick payload.
+        /// Gets or sets trajectory points.
         /// </summary>
-        [Description("Pick payload. Set when kind is 'Pick'.")]
-        public PickIntentInput? Pick { get; set; }
+        [Description("Trajectory points.")]
+        public TrajectoryPointDto[]? Points { get; set; }
 
         /// <summary>
-        /// Gets or sets the Place payload.
+        /// Gets or sets Cartesian path waypoints.
         /// </summary>
-        [Description("Place payload. Set when kind is 'Place'.")]
-        public PlaceIntentInput? Place { get; set; }
+        [Description("Cartesian path waypoints.")]
+        public CartesianWaypointDto[]? Waypoints { get; set; }
 
         /// <summary>
-        /// Gets or sets the ToolChange payload.
+        /// Gets or sets the Force direction.
         /// </summary>
-        [Description("ToolChange payload. Set when kind is 'ToolChange'.")]
-        public ToolChangeIntentInput? ToolChange { get; set; }
+        [Description("Force direction as a three-element unit vector.")]
+        public double[]? Direction { get; set; }
 
         /// <summary>
-        /// Gets or sets the SetOutput payload.
+        /// Gets or sets the contact force.
         /// </summary>
-        [Description("SetOutput payload. Set when kind is 'SetOutput'.")]
-        public SetOutputIntentInput? SetOutput { get; set; }
+        [Description("Contact force in newtons.")]
+        public double? ContactForce { get; set; }
 
         /// <summary>
-        /// Gets or sets the CallProgram payload.
+        /// Gets or sets the Force reference frame.
         /// </summary>
-        [Description("CallProgram payload. Set when kind is 'CallProgram'.")]
-        public CallProgramIntentInput? CallProgram { get; set; }
+        [Description("Force reference frame name or NodeId.")]
+        public string? FrameId { get; set; }
 
         /// <summary>
-        /// Gets or sets the Wait payload.
+        /// Gets or sets the maximum Force search distance.
         /// </summary>
-        [Description("Wait payload. Set when kind is 'Wait'.")]
-        public WaitIntentInput? Wait { get; set; }
+        [Description("Maximum Force search distance in metres.")]
+        public double? MaxDistance { get; set; }
+
+        /// <summary>
+        /// Gets or sets whether Force holds after contact.
+        /// </summary>
+        [Description("Whether Force holds after contact.")]
+        public bool? HoldForce { get; set; }
+
+        /// <summary>
+        /// Gets or sets the ArcWeld voltage.
+        /// </summary>
+        [Description("ArcWeld voltage.")]
+        public double? Voltage { get; set; }
+
+        /// <summary>
+        /// Gets or sets the ArcWeld wire feed speed.
+        /// </summary>
+        [Description("ArcWeld wire feed speed.")]
+        public double? WireFeedSpeed { get; set; }
+
+        /// <summary>
+        /// Gets or sets the ArcWeld travel speed.
+        /// </summary>
+        [Description("ArcWeld travel speed.")]
+        public double? TravelSpeed { get; set; }
+
+        /// <summary>
+        /// Gets or sets whether ArcWeld seam tracking is enabled.
+        /// </summary>
+        [Description("Whether ArcWeld seam tracking is enabled.")]
+        public bool? SeamTrackingEnabled { get; set; }
+
+        /// <summary>
+        /// Gets or sets the ArcWeld procedure reference.
+        /// </summary>
+        [Description("ArcWeld procedure reference.")]
+        public string? WeldProcedureRef { get; set; }
+
+        /// <summary>
+        /// Gets or sets the SpotWeld schedule.
+        /// </summary>
+        [Description("SpotWeld schedule.")]
+        public uint? WeldSchedule { get; set; }
+
+        /// <summary>
+        /// Gets or sets the SpotWeld gun force.
+        /// </summary>
+        [Description("SpotWeld gun force in newtons.")]
+        public double? GunForce { get; set; }
+
+        /// <summary>
+        /// Gets or sets the Dispense flow rate.
+        /// </summary>
+        [Description("Dispense flow rate.")]
+        public double? FlowRate { get; set; }
+
+        /// <summary>
+        /// Gets or sets the Dispense bead width.
+        /// </summary>
+        [Description("Dispense bead width in metres.")]
+        public double? BeadWidth { get; set; }
+
+        /// <summary>
+        /// Gets or sets the Dispense purge cycles.
+        /// </summary>
+        [Description("Dispense purge cycles.")]
+        public uint? PurgeCycles { get; set; }
+
+        /// <summary>
+        /// Gets or sets the Fasten joining node.
+        /// </summary>
+        [Description("Fasten joining-model NodeId.")]
+        public string? Joint { get; set; }
+
+        /// <summary>
+        /// Gets or sets the Fasten program number.
+        /// </summary>
+        [Description("Fasten program number.")]
+        public uint? ProgramNumber { get; set; }
+
+        /// <summary>
+        /// Gets or sets the Fasten target torque.
+        /// </summary>
+        [Description("Fasten target torque in Nm.")]
+        public double? TargetTorque { get; set; }
+
+        /// <summary>
+        /// Gets or sets the Palletise pattern.
+        /// </summary>
+        [Description("Palletise pattern name or NodeId.")]
+        public string? Pattern { get; set; }
+
+        /// <summary>
+        /// Gets or sets the Palletise layer.
+        /// </summary>
+        [Description("Palletise layer index.")]
+        public uint? Layer { get; set; }
+
+        /// <summary>
+        /// Gets or sets the Palletise row.
+        /// </summary>
+        [Description("Palletise row index.")]
+        public uint? Row { get; set; }
+
+        /// <summary>
+        /// Gets or sets the Palletise column.
+        /// </summary>
+        [Description("Palletise column index.")]
+        public uint? Column { get; set; }
+
+        /// <summary>
+        /// Gets or sets the SurfaceFinish feed rate.
+        /// </summary>
+        [Description("SurfaceFinish feed rate.")]
+        public double? FeedRate { get; set; }
+
+        /// <summary>
+        /// Gets or sets the SurfaceFinish tool speed.
+        /// </summary>
+        [Description("SurfaceFinish tool speed.")]
+        public double? ToolSpeed { get; set; }
+
+        /// <summary>
+        /// Gets or sets the SurfaceFinish step-over.
+        /// </summary>
+        [Description("SurfaceFinish step-over in metres.")]
+        public double? StepOver { get; set; }
+
+        /// <summary>
+        /// Gets or sets the tool used by Grasp, Release, Pick, Place, or ToolChange.
+        /// </summary>
+        [Description("Tool name or NodeId.")]
+        public string? Tool { get; set; }
+
+        /// <summary>
+        /// Gets or sets the Grasp force.
+        /// </summary>
+        [Description("Grasp force in newtons.")]
+        public double? Force { get; set; }
+
+        /// <summary>
+        /// Gets or sets the Pick source.
+        /// </summary>
+        [Description("Pick source location name or NodeId.")]
+        public string? Source { get; set; }
+
+        /// <summary>
+        /// Gets or sets the Pick object class.
+        /// </summary>
+        [Description("Pick object class label.")]
+        public string? ObjectClass { get; set; }
+
+        /// <summary>
+        /// Gets or sets the Place destination.
+        /// </summary>
+        [Description("Place destination location name or NodeId.")]
+        public string? Destination { get; set; }
+
+        /// <summary>
+        /// Gets or sets the ToolChange dock station.
+        /// </summary>
+        [Description("ToolChange dock station name or NodeId.")]
+        public string? DockStation { get; set; }
+
+        /// <summary>
+        /// Gets or sets the SetOutput signal.
+        /// </summary>
+        [Description("SetOutput signal name or NodeId.")]
+        public string? Output { get; set; }
+
+        /// <summary>
+        /// Gets or sets the SetOutput value.
+        /// </summary>
+        [Description("SetOutput typed value.")]
+        public TypedValueDto? Value { get; set; }
+
+        /// <summary>
+        /// Gets or sets the program to call.
+        /// </summary>
+        [Description("Program name or NodeId.")]
+        public string? Program { get; set; }
+
+        /// <summary>
+        /// Gets or sets the program arguments.
+        /// </summary>
+        [Description("Optional typed program arguments.")]
+        public NamedTypedValueDto[]? Arguments { get; set; }
+
+        /// <summary>
+        /// Gets or sets the Wait duration.
+        /// </summary>
+        [Description("Wait duration in seconds.")]
+        public double? Duration { get; set; }
+
+        /// <summary>
+        /// Gets or sets the Wait signal.
+        /// </summary>
+        [Description("Wait signal name or NodeId.")]
+        public string? Signal { get; set; }
     }
 
     /// <summary>

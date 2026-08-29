@@ -452,7 +452,7 @@ namespace Opc.Ua.Tools.Tests.Mcp
             var input = new MissionIntentInput
             {
                 Kind = IntentKind.Wait,
-                Wait = new WaitIntentInput { Duration = 1.5 }
+                Duration = 1.5
             };
 
             var intent = (WaitIntentDataType)RoboticsIntentDtoConverter.ConvertIntent(input, null);
@@ -461,7 +461,7 @@ namespace Opc.Ua.Tools.Tests.Mcp
         }
 
         [Test]
-        public void MissingPayloadForDiscriminatorIsRejected()
+        public void MissingRequiredFieldsForDiscriminatorAreRejected()
         {
             var input = new MissionIntentInput { Kind = IntentKind.Wait };
 
@@ -474,27 +474,27 @@ namespace Opc.Ua.Tools.Tests.Mcp
             var input = new MissionIntentInput
             {
                 Kind = IntentKind.Wait,
-                Grasp = new GraspIntentInput { Tool = "ns=2;s=Gripper", Force = 5 }
+                Force = 5
             };
 
             Assert.That(
                 () => RoboticsIntentDtoConverter.ConvertIntent(input, null),
-                Throws.ArgumentException.With.Message.Contains("does not match"));
+                Throws.ArgumentException.With.Message.Contains("does not accept"));
         }
 
         [Test]
-        public void MultiplePayloadsAreRejected()
+        public void FieldsForAnotherIntentKindAreRejected()
         {
             var input = new MissionIntentInput
             {
                 Kind = IntentKind.Wait,
-                Wait = new WaitIntentInput { Duration = 1.0 },
-                Grasp = new GraspIntentInput { Tool = "ns=2;s=Gripper", Force = 5 }
+                Duration = 1.0,
+                Tool = "ns=2;s=Gripper"
             };
 
             Assert.That(
                 () => RoboticsIntentDtoConverter.ConvertIntent(input, null),
-                Throws.ArgumentException.With.Message.Contains("payloads set"));
+                Throws.ArgumentException.With.Message.Contains("does not accept"));
         }
 
         [Test]
@@ -514,7 +514,7 @@ namespace Opc.Ua.Tools.Tests.Mcp
                 new MissionIntentInput
                 {
                     Kind = IntentKind.CartesianPath,
-                    CartesianPath = new CartesianPathIntentInput()
+                    Waypoints = []
                 },
                 kMcpJson);
 
@@ -568,7 +568,7 @@ namespace Opc.Ua.Tools.Tests.Mcp
                     Intent = new MissionIntentInput
                     {
                         Kind = IntentKind.Wait,
-                        Wait = new WaitIntentInput { Duration = 1.0 }
+                        Duration = 1.0
                     }
                 },
                 new MissionStepInput
@@ -580,7 +580,7 @@ namespace Opc.Ua.Tools.Tests.Mcp
                     Intent = new MissionIntentInput
                     {
                         Kind = IntentKind.Wait,
-                        Wait = new WaitIntentInput { Duration = 2.0 }
+                        Duration = 2.0
                     }
                 }
             ];
@@ -612,7 +612,7 @@ namespace Opc.Ua.Tools.Tests.Mcp
                     Intent = new MissionIntentInput
                     {
                         Kind = IntentKind.Wait,
-                        Wait = new WaitIntentInput { Duration = 1.0 }
+                        Duration = 1.0
                     }
                 }
             ];
@@ -1157,7 +1157,7 @@ namespace Opc.Ua.Tools.Tests.Mcp
                     Intent = new MissionIntentInput
                     {
                         Kind = IntentKind.Wait,
-                        Wait = new WaitIntentInput { Duration = 1.0 }
+                        Duration = 1.0
                     }
                 },
                 new MissionStepInput
@@ -1166,7 +1166,7 @@ namespace Opc.Ua.Tools.Tests.Mcp
                     Intent = new MissionIntentInput
                     {
                         Kind = IntentKind.Wait,
-                        Wait = new WaitIntentInput { Duration = 2.0 }
+                        Duration = 2.0
                     }
                 }
             ];

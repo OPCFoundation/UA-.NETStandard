@@ -429,7 +429,8 @@ namespace Opc.Ua.Tools.Tests.Mcp
                     Intent = new MissionIntentInput
                     {
                         Kind = IntentKind.Pick,
-                        Pick = new PickIntentInput { Source = "Bin1", Tool = "Gripper" }
+                        Source = "Bin1",
+                        Tool = "Gripper"
                     }
                 },
                 new MissionStepInput
@@ -438,11 +439,8 @@ namespace Opc.Ua.Tools.Tests.Mcp
                     Intent = new MissionIntentInput
                     {
                         Kind = IntentKind.LinearMove,
-                        LinearMove = new LinearMoveIntentInput
-                        {
-                            Target = MakePose("Tcp"),
-                            ToolFrame = "Tcp"
-                        }
+                        Target = MakePose("Tcp"),
+                        ToolFrame = "Tcp"
                     }
                 },
                 new MissionStepInput
@@ -451,7 +449,7 @@ namespace Opc.Ua.Tools.Tests.Mcp
                     Intent = new MissionIntentInput
                     {
                         Kind = IntentKind.CallProgram,
-                        CallProgram = new CallProgramIntentInput { Program = "WeldProgram" }
+                        Program = "WeldProgram"
                     }
                 }
             ];
@@ -485,7 +483,8 @@ namespace Opc.Ua.Tools.Tests.Mcp
                     Intent = new MissionIntentInput
                     {
                         Kind = IntentKind.Place,
-                        Place = new PlaceIntentInput { Destination = "Slot1", Tool = "Gripper" }
+                        Destination = "Slot1",
+                        Tool = "Gripper"
                     }
                 }
             ];

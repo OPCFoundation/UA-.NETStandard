@@ -585,7 +585,10 @@ namespace Opc.Ua.Robotics.Intent.Tests
                     Intent = new MissionIntentInput
                     {
                         Kind = IntentKind.Pick,
-                        Pick = PickInput("mission-pick-slot-02", bin, tool)
+                        IntentId = "mission-pick-slot-02",
+                        Source = bin.ToString(),
+                        Tool = tool.ToString(),
+                        BlockingMode = BlockingModeEnum.None
                     }
                 },
                 new MissionStepInput
@@ -595,7 +598,10 @@ namespace Opc.Ua.Robotics.Intent.Tests
                     Intent = new MissionIntentInput
                     {
                         Kind = IntentKind.Place,
-                        Place = PlaceInput("mission-place-slot-02", fixture, tool)
+                        IntentId = "mission-place-slot-02",
+                        Destination = fixture.ToString(),
+                        Tool = tool.ToString(),
+                        BlockingMode = BlockingModeEnum.None
                     }
                 }
             ];
@@ -614,12 +620,9 @@ namespace Opc.Ua.Robotics.Intent.Tests
                 Intent = new MissionIntentInput
                 {
                     Kind = IntentKind.Wait,
-                    Wait = new WaitIntentInput
-                    {
-                        IntentId = intentId,
-                        Duration = duration,
-                        BlockingMode = BlockingModeEnum.None
-                    }
+                    IntentId = intentId,
+                    Duration = duration,
+                    BlockingMode = BlockingModeEnum.None
                 }
             };
         }
