@@ -84,7 +84,6 @@ namespace Opc.Ua.SourceGeneration
                 bindingModelCount,
                 null,
                 null,
-                null,
                 null);
         }
 
@@ -143,14 +142,6 @@ namespace Opc.Ua.SourceGeneration
         /// <param name="referencedAccessorProviders">
         /// All referenced assemblies that declare generated fluent accessors.
         /// </param>
-        /// <param name="referencedDependencies">
-        /// Per-URI model dependency payloads recovered from referenced
-        /// assemblies via <c>ReferencedModelDependencyScanner</c>. When
-        /// present, the validator pre-imports these dependency payloads
-        /// so a design file can resolve upstream types (e.g. subtype a
-        /// structure) without an explicit <c>AdditionalFiles</c> entry
-        /// for the upstream model.
-        /// </param>
         public static void GenerateCode(
             this DesignFileCollection designFiles,
             IFileSystem fileSystem,
@@ -166,8 +157,7 @@ namespace Opc.Ua.SourceGeneration
             int bindingModelCount,
             Action<string, string, string, string> reportFluentAccessorsOnlyDiagnostic,
             IReadOnlyList<ModelDependencyReference> referencedModelProviders,
-            IReadOnlyList<ModelFluentAccessorProviderReference> referencedAccessorProviders,
-            IReadOnlyDictionary<string, Dependency.ModelDependencyV1> referencedDependencies = null)
+            IReadOnlyList<ModelFluentAccessorProviderReference> referencedAccessorProviders)
         {
             if (designFiles.Targets == null || designFiles.Targets.Count == 0)
             {
@@ -177,6 +167,13 @@ namespace Opc.Ua.SourceGeneration
             referencedModels ??= ImmutableDictionary<string, ModelDependencyReference>.Empty;
             referencedModelProviders ??= [.. referencedModels.Values];
             referencedAccessorProviders ??= [];
+
+            // The dependency payloads are carried inside the referenced
+            // model attributes; decode them here so a design file can
+            // resolve upstream types (e.g. subtype a structure) without an
+            // AdditionalFiles entry for the upstream model.
+            IReadOnlyDictionary<string, Dependency.ModelDependencyV1> referencedDependencies =
+                BuildReferencedDependencyMap(referencedModels);
 
             // Combine with embedded resources in this assembly.
             fileSystem = typeof(Generators).Assembly
@@ -708,7 +705,6 @@ namespace Opc.Ua.SourceGeneration
         /// <param name="referencedModels">Models supplied by referenced assemblies.</param>
         /// <param name="nodeManagerBindings">Optional node manager bindings.</param>
         /// <param name="reportBindingDiagnostic">Optional binding diagnostic callback.</param>
-        /// <param name="referencedDependencies">Per-URI model dependency payloads.</param>
         /// <param name="sharedUsedBindings">Optional set that accumulates matched bindings.</param>
         /// <param name="bindingModelCount">Total number of generatable models across all passes.</param>
         public static void GenerateCode(
@@ -721,7 +717,6 @@ namespace Opc.Ua.SourceGeneration
             IReadOnlyDictionary<string, ModelDependencyReference> referencedModels = null,
             IReadOnlyList<NodeManagerAttributeBinding> nodeManagerBindings = null,
             Action<NodeManagerAttributeBinding, string> reportBindingDiagnostic = null,
-            IReadOnlyDictionary<string, Dependency.ModelDependencyV1> referencedDependencies = null,
             HashSet<NodeManagerAttributeBinding> sharedUsedBindings = null,
             int bindingModelCount = 0)
         {
@@ -735,7 +730,6 @@ namespace Opc.Ua.SourceGeneration
                 referencedModels,
                 nodeManagerBindings,
                 reportBindingDiagnostic,
-                referencedDependencies,
                 sharedUsedBindings,
                 bindingModelCount,
                 null,
@@ -773,13 +767,6 @@ namespace Opc.Ua.SourceGeneration
         /// Optional callback invoked for each binding-related warning or
         /// error (e.g. unmatched URI, ambiguous fallback).
         /// </param>
-        /// <param name="referencedDependencies">
-        /// Per-URI model dependency payloads recovered from referenced
-        /// assemblies via <c>ReferencedModelDependencyScanner</c>. When
-        /// present, the validator pre-imports these dependency payloads
-        /// so downstream models can resolve upstream types without an
-        /// explicit <c>AdditionalFiles</c> entry for them.
-        /// </param>
         /// <param name="sharedUsedBindings">
         /// Optional caller-owned set that accumulates the bindings matched
         /// across multiple generation passes (NodeSet2 and ModelDesign).
@@ -816,7 +803,6 @@ namespace Opc.Ua.SourceGeneration
             IReadOnlyDictionary<string, ModelDependencyReference> referencedModels,
             IReadOnlyList<NodeManagerAttributeBinding> nodeManagerBindings,
             Action<NodeManagerAttributeBinding, string> reportBindingDiagnostic,
-            IReadOnlyDictionary<string, Dependency.ModelDependencyV1> referencedDependencies,
             HashSet<NodeManagerAttributeBinding> sharedUsedBindings,
             int bindingModelCount,
             Action<string, string, string, string> reportFluentAccessorsOnlyDiagnostic,
@@ -831,6 +817,13 @@ namespace Opc.Ua.SourceGeneration
             referencedModels ??= ImmutableDictionary<string, ModelDependencyReference>.Empty;
             referencedModelProviders ??= [.. referencedModels.Values];
             referencedAccessorProviders ??= [];
+
+            // The dependency payloads are carried inside the referenced
+            // model attributes; decode them here so downstream models can
+            // resolve upstream types without an explicit AdditionalFiles
+            // entry for them.
+            IReadOnlyDictionary<string, Dependency.ModelDependencyV1> referencedDependencies =
+                BuildReferencedDependencyMap(referencedModels);
 
             // Combine with embedded resources in this assembly.
             fileSystem = typeof(Generators).Assembly
@@ -875,7 +868,6 @@ namespace Opc.Ua.SourceGeneration
                 IReadOnlyDictionary<string, Dependency.ModelDependencyV1>
                     validationDependencies = referencedDependencies;
                 if (options.FluentAccessorsOnly &&
-                    referencedDependencies != null &&
                     referencedDependencies.ContainsKey(modelUri))
                 {
                     Dictionary<string, Dependency.ModelDependencyV1> dependenciesWithoutTarget =
@@ -958,6 +950,36 @@ namespace Opc.Ua.SourceGeneration
                     totalDesigns,
                     reportBindingDiagnostic);
             }
+        }
+
+        /// <summary>
+        /// Build a per-URI dictionary of the deserialised model dependency
+        /// payloads carried by the referenced model attributes. Payloads
+        /// with unknown versions or malformed encodings are silently
+        /// dropped (the validator then falls back to explicit
+        /// AdditionalFiles resolution).
+        /// </summary>
+        private static IReadOnlyDictionary<string, Dependency.ModelDependencyV1>
+            BuildReferencedDependencyMap(
+                IReadOnlyDictionary<string, ModelDependencyReference> referencedModels)
+        {
+            if (referencedModels.Count == 0)
+            {
+                return ImmutableDictionary<string, Dependency.ModelDependencyV1>.Empty;
+            }
+            var map = new Dictionary<string, Dependency.ModelDependencyV1>(
+                StringComparer.Ordinal);
+            foreach (KeyValuePair<string, ModelDependencyReference> entry in referencedModels)
+            {
+                Dependency.ModelDependencyV1 decoded = entry.Value.GetDependency();
+                if (decoded == null ||
+                    !string.Equals(decoded.ModelUri, entry.Key, StringComparison.Ordinal))
+                {
+                    continue;
+                }
+                map[entry.Key] = decoded;
+            }
+            return map;
         }
 
         /// <summary>

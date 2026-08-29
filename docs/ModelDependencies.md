@@ -123,6 +123,12 @@ The cross-namespace prefix override step lives in
 generation so that all downstream emitters see the harmonised prefix/name
 values.
 
+Both `GenerateCode` passes (NodeSet2 and ModelDesign) take the referenced
+models as a single per-URI map of `ModelDependencyReference` and derive the
+decoded payload map from it themselves via `BuildReferencedDependencyMap` —
+the reference carries the raw base64 payload and memoises `GetDependency()`,
+so the payload map is never threaded as a separate argument.
+
 The payload-import surface lives directly on
 `tools/Opc.Ua.SourceGeneration.Core/Schema/ModelDesignValidator.cs` (the
 former `ModelDesignValidator.SnapshotImport.cs` partial was folded into the

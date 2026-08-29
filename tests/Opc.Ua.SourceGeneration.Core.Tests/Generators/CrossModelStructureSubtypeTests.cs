@@ -141,10 +141,8 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             Dictionary<string, string> generated = Generate(
                 targets: [m_modelBPath],
                 dependencies: [m_modelBPath],
-                referencedDependencies: new Dictionary<string, ModelDependencyV1>
-                {
-                    [ModelAUri] = CreateModelAPayload()
-                });
+                referencedModels: CreateReferencedModels(
+                    ModelAUri, "Test.ModelA", "ModelA", CreateModelAPayload()));
 
             AssertGeneratedDerivedStruct(generated);
         }
@@ -162,10 +160,8 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             Dictionary<string, string> generated = Generate(
                 targets: [m_modelBPath],
                 dependencies: [m_modelBPath, m_modelAPath],
-                referencedDependencies: new Dictionary<string, ModelDependencyV1>
-                {
-                    [ModelAUri] = CreateModelAPayload()
-                });
+                referencedModels: CreateReferencedModels(
+                    ModelAUri, "Test.ModelA", "ModelA", CreateModelAPayload()));
 
             string bsd = generated.Keys
                 .Where(f => f.EndsWith(".Types.bsd", System.StringComparison.Ordinal))
@@ -223,10 +219,8 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             Dictionary<string, string> generated = Generate(
                 targets: [modelDPath],
                 dependencies: [modelDPath, m_modelAPath],
-                referencedDependencies: new Dictionary<string, ModelDependencyV1>
-                {
-                    [modelCUri] = payload
-                });
+                referencedModels: CreateReferencedModels(
+                    modelCUri, "Test.ModelC", "ModelC", payload));
 
             string bsd = generated.Keys
                 .Where(f => f.EndsWith(".Types.bsd", System.StringComparison.Ordinal))
@@ -383,7 +377,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
         private static Dictionary<string, string> Generate(
             IReadOnlyList<string> targets,
             IReadOnlyList<string> dependencies,
-            IReadOnlyDictionary<string, ModelDependencyV1> referencedDependencies = null)
+            IReadOnlyDictionary<string, ModelDependencyReference> referencedModels = null)
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create(logLevel: LogLevel.Error);
             using var fileSystem = new VirtualFileSystem();
@@ -404,17 +398,39 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
                 },
                 useAllowSubtypes: false,
                 identifierFiles: null,
-                referencedModels: null,
+                referencedModels: referencedModels,
                 nodeManagerBindings: null,
                 reportBindingDiagnostic: null,
                 sharedUsedBindings: null,
                 bindingModelCount: 0,
                 reportFluentAccessorsOnlyDiagnostic: null,
                 referencedModelProviders: null,
-                referencedAccessorProviders: null,
-                referencedDependencies: referencedDependencies);
+                referencedAccessorProviders: null);
             return fileSystem.CreatedFiles
                 .ToDictionary(c => c, c => Encoding.UTF8.GetString(fileSystem.Get(c)));
+        }
+
+        /// <summary>
+        /// Wraps a dependency payload the way a referenced assembly's
+        /// [assembly: ModelDependency] attribute carries it.
+        /// </summary>
+        private static Dictionary<string, ModelDependencyReference> CreateReferencedModels(
+            string modelUri,
+            string prefix,
+            string name,
+            ModelDependencyV1 payload)
+        {
+            return new Dictionary<string, ModelDependencyReference>
+            {
+                [modelUri] = new ModelDependencyReference(
+                    "ReferencedModelAssembly",
+                    modelUri,
+                    prefix,
+                    "1.0.0",
+                    null,
+                    name,
+                    payload.ToBase64Payload())
+            };
         }
 
         /// <summary>
