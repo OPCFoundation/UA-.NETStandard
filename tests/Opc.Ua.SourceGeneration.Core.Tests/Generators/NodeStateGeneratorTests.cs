@@ -144,6 +144,175 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
         }
 
         /// <summary>
+        /// A subtype that declares its own state elements reports the
+        /// namespace of its declaring model.
+        /// </summary>
+        [TestCase("StateType")]
+        [TestCase("InitialStateType")]
+        [TestCase("TransitionType")]
+        public void FindElementNamespaceUriUsesTheDeclaringTypesNamespace(
+            string elementTypeName)
+        {
+            const string vendorNs = "http://vendor.test/UA/";
+            ObjectTypeDesign machine = CreateFsmSubtype(
+                vendorNs, DeclareElement(elementTypeName));
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    NodeStateGenerator.IsFiniteStateMachineSubtype(machine),
+                    Is.True);
+                Assert.That(
+                    NodeStateGenerator.FindElementNamespaceUri(machine),
+                    Is.EqualTo(vendorNs));
+            });
+        }
+
+        /// <summary>
+        /// A behaviour-only subtype inherits its elements — and their
+        /// namespace — from the nearest base that declares them.
+        /// </summary>
+        [Test]
+        public void FindElementNamespaceUriWalksUpToTheDeclaringBase()
+        {
+            const string baseNs = "http://base.test/UA/";
+            const string derivedNs = "http://derived.test/UA/";
+            ObjectTypeDesign baseMachine = CreateFsmSubtype(
+                baseNs, DeclareElement("StateType"));
+            var derived = new ObjectTypeDesign
+            {
+                SymbolicName = new System.Xml.XmlQualifiedName(
+                    "DerivedMachineType", derivedNs),
+                BaseTypeNode = baseMachine
+            };
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    NodeStateGenerator.IsFiniteStateMachineSubtype(derived),
+                    Is.True);
+                Assert.That(
+                    NodeStateGenerator.FindElementNamespaceUri(derived),
+                    Is.EqualTo(baseNs));
+            });
+        }
+
+        /// <summary>
+        /// A subtype whose elements are declared by the standard model
+        /// resolves to the OPC UA namespace — for which no override is
+        /// emitted, because the base class already returns it.
+        /// </summary>
+        [Test]
+        public void FindElementNamespaceUriResolvesInheritedStandardElements()
+        {
+            ObjectTypeDesign standardMachine = CreateFsmSubtype(
+                Types.Namespaces.OpcUa, DeclareElement("StateType"));
+            var vendorSubtype = new ObjectTypeDesign
+            {
+                SymbolicName = new System.Xml.XmlQualifiedName(
+                    "VendorProgramType", "http://vendor.test/UA/"),
+                BaseTypeNode = standardMachine
+            };
+
+            Assert.That(
+                NodeStateGenerator.FindElementNamespaceUri(vendorSubtype),
+                Is.EqualTo(Types.Namespaces.OpcUa));
+        }
+
+        /// <summary>
+        /// Types outside the FiniteStateMachineType hierarchy get no
+        /// override, and a hierarchy with no declared elements resolves
+        /// to nothing.
+        /// </summary>
+        [Test]
+        public void FindElementNamespaceUriIgnoresNonStateMachineTypes()
+        {
+            var plainType = new ObjectTypeDesign
+            {
+                SymbolicName = new System.Xml.XmlQualifiedName(
+                    "PlainType", "http://vendor.test/UA/")
+            };
+            ObjectTypeDesign elementFreeMachine = CreateFsmSubtype(
+                "http://vendor.test/UA/", children: null);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    NodeStateGenerator.IsFiniteStateMachineSubtype(plainType),
+                    Is.False);
+                Assert.That(
+                    NodeStateGenerator.IsFiniteStateMachineSubtype(elementFreeMachine),
+                    Is.True);
+                Assert.That(
+                    NodeStateGenerator.FindElementNamespaceUri(elementFreeMachine),
+                    Is.Null);
+            });
+        }
+
+        /// <summary>
+        /// A subtype that merely re-declares an inherited state (to
+        /// attach a description or modelling rule) is not the type that
+        /// declares the elements — the namespace walk must continue to
+        /// its base.
+        /// </summary>
+        [Test]
+        public void FindElementNamespaceUriSkipsOverriddenElements()
+        {
+            const string baseNs = "http://base.test/UA/";
+            ObjectTypeDesign baseMachine = CreateFsmSubtype(
+                baseNs, DeclareElement("StateType"));
+            ObjectDesign overriddenState = DeclareElement("StateType");
+            overriddenState.OveriddenNode = DeclareElement("StateType");
+            var derived = new ObjectTypeDesign
+            {
+                SymbolicName = new System.Xml.XmlQualifiedName(
+                    "OverridingMachineType", "http://derived.test/UA/"),
+                BaseTypeNode = baseMachine,
+                Children = new ListOfChildren { Items = [overriddenState] }
+            };
+
+            Assert.That(
+                NodeStateGenerator.FindElementNamespaceUri(derived),
+                Is.EqualTo(baseNs));
+        }
+
+        /// <summary>
+        /// Builds a subtype of the standard FiniteStateMachineType in
+        /// <paramref name="namespaceUri"/>, optionally declaring
+        /// state-machine element children.
+        /// </summary>
+        private static ObjectTypeDesign CreateFsmSubtype(
+            string namespaceUri,
+            params InstanceDesign[] children)
+        {
+            var fsmRoot = new ObjectTypeDesign
+            {
+                SymbolicName = new System.Xml.XmlQualifiedName(
+                    "FiniteStateMachineType", Types.Namespaces.OpcUa)
+            };
+            return new ObjectTypeDesign
+            {
+                SymbolicName = new System.Xml.XmlQualifiedName(
+                    "TestMachineType", namespaceUri),
+                BaseTypeNode = fsmRoot,
+                Children = children == null || children.Length == 0
+                    ? null
+                    : new ListOfChildren { Items = children }
+            };
+        }
+
+        private static ObjectDesign DeclareElement(string elementTypeName)
+        {
+            return new ObjectDesign
+            {
+                SymbolicName = new System.Xml.XmlQualifiedName(
+                    "SomeElement", "http://vendor.test/UA/"),
+                TypeDefinition = new System.Xml.XmlQualifiedName(
+                    elementTypeName, Types.Namespaces.OpcUa)
+            };
+        }
+
+        /// <summary>
         /// Tests that Emit returns early without creating files when no node state classes exist.
         /// </summary>
         [Test]

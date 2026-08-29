@@ -403,6 +403,80 @@ an anonymous authenticator matching its default anonymous user-token policy.
 If a non-anonymous user-token policy is configured without a corresponding
 authenticator, startup logs a warning.
 
+### Migrating with an existing configuration XML file
+
+Applications that already own a classic OPC UA application configuration
+file (`*.Config.xml`, previously loaded through
+`ApplicationInstance.LoadApplicationConfigurationAsync`) can pass that
+file to `AddServer` directly and keep every setting in it — base
+addresses, security policies, certificate stores, transport quotas,
+operation limits, user-token policies — while adopting the hosted
+dependency-injection surface:
+
+```csharp
+builder.Services
+    .AddOpcUa()
+    .AddServer("MyServer.Config.xml")
+    .AddNodeManager<MyNodeManagerFactory>();
+```
+
+The same file can be referenced from configuration instead
+(`OpcUa:Server:ConfigurationFile`), and a custom `StandardServer`
+subclass works too:
+
+```json
+{ "OpcUa": { "Server": { "ConfigurationFile": "MyServer.Config.xml" } } }
+```
+
+```csharp
+builder.Services.AddOpcUa().AddServer<MyServer>("MyServer.Config.xml");
+```
+
+On this path the file is authoritative: the `OpcUaServerOptions` knobs
+that feed the configuration builder (`ApplicationName`, `EndpointUrls`,
+`PkiRoot`, policy toggles, transport quotas, `ConfigureBuilder`, ...)
+are not applied, and the file also takes precedence over a shared
+application registered with `ConfigureApplication(...)`. Options that
+act on the hosted server itself (`Identity`, `ConfigureRateLimits`) and
+all fluent registrations (`AddNodeManager`, `ConfigureRoles`,
+`AddDefaultIdentityAuthenticators`, ...) keep working. To override
+individual file settings from code, pass the optional callback, which
+runs after the file is loaded and validated but before certificates are
+checked and the server starts:
+
+```csharp
+builder.Services
+    .AddOpcUa()
+    .AddServer("MyServer.Config.xml", configuration =>
+    {
+        configuration.ServerConfiguration.MaxSessionCount = 25;
+    });
+```
+
+A configuration document that is not a file on disk — an embedded
+resource, a document fetched from a store — can be supplied as a
+`Stream` instead (`OpcUaServerOptions.ConfigurationStream`; mutually
+exclusive with `ConfigurationFile`). The stream must remain open until
+the host starts the server; it is read once and disposed by the hosted
+service during startup, so do not wrap it in a `using` yourself:
+
+```csharp
+Stream stream = typeof(Program).Assembly
+    .GetManifestResourceStream("MyApp.MyServer.Config.xml")!;
+
+builder.Services
+    .AddOpcUa()
+    .AddServer(stream)   // read + disposed when the host starts the server
+    .AddNodeManager<MyNodeManagerFactory>();
+```
+
+The certificate manager and certificate password provider registered in
+dependency injection are honored the same way as on the options path,
+and the unmatched user-token-policy startup warning is derived from the
+policies advertised by the file. The client offers the same migration
+path — see
+[Client: using an existing configuration XML file](#client-using-an-existing-configuration-xml-file).
+
 ### Server security and resource controls
 
 The hosted server is secure by default: sign-and-encrypt policies are included,
@@ -504,6 +578,9 @@ properties (bindable from `IConfiguration` or set via the
 | `RegistrationEndpointUrl` | `SetRegistrationEndpoint(EndpointDescription)` | LDS/GDS endpoint URL the server registers itself with on startup. |
 | `ReverseConnect` | `SetReverseConnect(ReverseConnectServerConfiguration)` | Server-side reverse-connect clients (see below). |
 | `OperationLimits` | `SetOperationLimits(OperationLimits)` | Per-service node limits (max nodes per read/write/browse/...). |
+| `ConfigurationFile` | `LoadApplicationConfigurationAsync(path)` | Load the configuration from an existing OPC UA XML configuration file instead of building it from the options (see [Migrating with an existing configuration XML file](#migrating-with-an-existing-configuration-xml-file)). |
+| `ConfigurationStream` | `LoadApplicationConfigurationAsync(stream)` | Code-only: load the configuration from a stream (e.g. an embedded resource); read once and disposed at startup. Mutually exclusive with `ConfigurationFile`. |
+| `ConfigureLoadedConfiguration` | Code-only callback | Override individual settings of the configuration loaded from `ConfigurationFile` / `ConfigurationStream`. |
 | `ConfigureBuilder` | Code-only callback | Pre-security server-policy and server-option escape hatch, including max failed authentication attempts, sessions, channels, auditing, and HTTPS mutual TLS. |
 | `ConfigureRateLimits` | Code-only callback | Tunes the default connection and session-establishment admission controls. |
 
@@ -819,7 +896,51 @@ var managedSessions = sp.GetRequiredService<IManagedSessionFactory>();
 ManagedSession dynamicSession = await managedSessions.ConnectAsync(endpoint, ct);
 ```
 
-Misconfiguration is validated through `IValidateOptions<OpcUaClientOptions>` when the host starts and again before a DI-created session connects. Supply either an explicit `Configuration`, the application identity fields directly on `OpcUaClientOptions` (as shown above), or the shared `ConfigureApplication(...)` options for a combined client/server host (see [Shared application configuration](#shared-application-configuration)). `Session.Endpoint` is required by the cached fixed-endpoint delegate; `IManagedSessionFactory.ConnectAsync(endpoint, ...)` supplies it at runtime.
+Misconfiguration is validated through `IValidateOptions<OpcUaClientOptions>` when the host starts and again before a DI-created session connects. Supply either an explicit `Configuration`, the application identity fields directly on `OpcUaClientOptions` (as shown above), an existing configuration XML document (`ConfigurationFile` / `ConfigurationStream`, see below), or the shared `ConfigureApplication(...)` options for a combined client/server host (see [Shared application configuration](#shared-application-configuration)). `Session.Endpoint` is required by the cached fixed-endpoint delegate; `IManagedSessionFactory.ConnectAsync(endpoint, ...)` supplies it at runtime.
+
+### Client: using an existing configuration XML file
+
+The client offers the same migration path as
+[the server](#migrating-with-an-existing-configuration-xml-file):
+applications that already own a classic client configuration file
+(`*.Config.xml`) can pass it to `AddClient` and keep every setting in it
+— security configuration, certificate stores, transport quotas, client
+configuration:
+
+```csharp
+services
+    .AddOpcUa()
+    .AddClient("MyClient.Config.xml", opt =>
+    {
+        opt.Session = new ManagedSessionOptions { Endpoint = endpoint };
+    });
+```
+
+The same file can be referenced from configuration
+(`OpcUa:Client:ConfigurationFile`), and a stream works for documents
+that are not files on disk, e.g. embedded resources
+(`OpcUaClientOptions.ConfigurationStream`; read once and disposed after
+loading):
+
+```csharp
+Stream stream = typeof(Program).Assembly
+    .GetManifestResourceStream("MyApp.MyClient.Config.xml")!;
+services.AddOpcUa().AddClient(stream);
+```
+
+The document loads lazily through
+`ApplicationInstance.LoadApplicationConfigurationAsync` on first use —
+the first session connect, reverse-connect startup, or an explicit
+`GetAsync` on `OpcUaClientOptions.ConfigurationProvider` — which also
+runs the optional `ConfigureLoadedConfiguration` override callback and
+ensures the application-instance certificate, exactly like the shared
+`ConfigureApplication(...)` path. The supplied document is
+authoritative: it takes precedence over a shared application registered
+with `ConfigureApplication(...)`, and combining it with an explicit
+`Configuration`, with the application identity properties, or setting
+both file and stream is rejected with a clear
+`InvalidOperationException` at registration. DI-registered
+`ICertificateManager` / `ICertificatePasswordProvider` are honored.
 
 ### Fluent shortcuts
 

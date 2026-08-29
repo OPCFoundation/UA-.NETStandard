@@ -80,6 +80,8 @@ namespace Opc.Ua.SourceGeneration
 
             string namespaceUri = attr.GetValue(nameof(NodeManagerAttributeBinding.NamespaceUri));
             string design = attr.GetValue(nameof(NodeManagerAttributeBinding.Design));
+            string[] additionalNamespaceUris = attr.GetStringArray(
+                nameof(NodeManagerAttributeBinding.AdditionalNamespaceUris));
             bool generateFactory = attr == null ||
                 !attr.NamedArguments
                     .Any(p => p.Key == nameof(NodeManagerAttributeBinding.GenerateFactory) &&
@@ -104,7 +106,8 @@ namespace Opc.Ua.SourceGeneration
                     TargetClassName = targetClassName,
                     NamespaceUri = namespaceUri,
                     Design = design,
-                    GenerateFactory = generateFactory
+                    GenerateFactory = generateFactory,
+                    AdditionalNamespaceUris = additionalNamespaceUris
                 },
                 Location = location,
                 IsPartial = isPartial

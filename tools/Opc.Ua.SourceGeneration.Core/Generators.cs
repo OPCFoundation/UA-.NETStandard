@@ -617,7 +617,8 @@ namespace Opc.Ua.SourceGeneration
                 GenerateNodeManager = true,
                 NodeManagerNamespace = match.TargetNamespace,
                 NodeManagerClassName = match.TargetClassName,
-                EmitNodeManagerFactory = match.GenerateFactory
+                EmitNodeManagerFactory = match.GenerateFactory,
+                NodeManagerAdditionalNamespaceUris = match.AdditionalNamespaceUris
             };
         }
 
@@ -1167,7 +1168,8 @@ namespace Opc.Ua.SourceGeneration
                 {
                     OverrideNamespace = designOptions.NodeManagerNamespace,
                     OverrideClassName = designOptions.NodeManagerClassName,
-                    EmitFactory = designOptions.EmitNodeManagerFactory
+                    EmitFactory = designOptions.EmitNodeManagerFactory,
+                    AdditionalNamespaceUris = designOptions.NodeManagerAdditionalNamespaceUris
                 }.Emit();
             }
 

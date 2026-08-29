@@ -8,7 +8,15 @@
     <Project Path="samples/Robotics/MinimalRobotServer/MinimalRobotServer.csproj" />
     <Project Path="samples/Robotics/IntentEnabledRobot/IntentEnabledRobot.csproj" />
     <Project Path="samples/Robotics/IntentViewerClient/IntentViewerClient.csproj" />
+    <Project Path="samples/Robotics/BinPickingCell/BinPickingCell.csproj" />
+    <Project Path="samples/Robotics/BinPickingClient/BinPickingClient.csproj" />
+    <Project Path="samples/Vision/VisualInspectionCell/VisualInspectionCell.csproj" />
+    <Project Path="samples/Vision/VisualInspectionAgent/VisualInspectionAgent.csproj" />
     <Project Path="samples/Quickstarts.Servers/Quickstarts.Servers.csproj" />
+  </Folder>
+  <Folder Name="/samples/AI/">
+    <Project Path="samples/AI/ModelManagementServer/ModelManagementServer.csproj" />
+    <Project Path="samples/AI/ModelManagementClient/ModelManagementClient.csproj" />
   </Folder>
   <Folder Name="/samples/DI/">
     <Project Path="samples/DI/PumpDeviceIntegrationServer/PumpDeviceIntegrationServer.csproj" />
@@ -103,6 +111,10 @@
     <Project Path="src/Opc.Ua.Robotics/Opc.Ua.Robotics.csproj" />
     <Project Path="src/Opc.Ua.Robotics.Server/Opc.Ua.Robotics.Server.csproj" />
     <Project Path="src/Opc.Ua.Robotics.Client/Opc.Ua.Robotics.Client.csproj" />
+    <Project Path="src/Opc.Ua.Vision/Opc.Ua.Vision.csproj" />
+    <Project Path="src/Opc.Ua.Vision.Client/Opc.Ua.Vision.Client.csproj" />
+    <Project Path="src/Opc.Ua.Vision.Server/Opc.Ua.Vision.Server.csproj" />
+    <Project Path="src/Opc.Ua.Vision.OpenUsd/Opc.Ua.Vision.OpenUsd.csproj" />
     <Project Path="src/Opc.Ua.Gds.Client.Common/Opc.Ua.Gds.Client.Common.csproj" />
     <Project Path="src/Opc.Ua.Gds.Common/Opc.Ua.Gds.Common.csproj" />
     <Project Path="src/Opc.Ua.Gds.Server.Common/Opc.Ua.Gds.Server.Common.csproj" />
@@ -122,6 +134,10 @@
     <Project Path="src/Opc.Ua.PubSub.Udp/Opc.Ua.PubSub.Udp.csproj" />
     <Project Path="src/Opc.Ua.Redundancy.PubSub/Opc.Ua.Redundancy.PubSub.csproj" />
     <Project Path="src/Opc.Ua.Server/Opc.Ua.Server.csproj" />
+    <Project Path="src/Opc.Ua.AI/Opc.Ua.AI.csproj" />
+    <Project Path="src/Opc.Ua.AI.Inference/Opc.Ua.AI.Inference.csproj" />
+    <Project Path="src/Opc.Ua.AI.Server/Opc.Ua.AI.Server.csproj" />
+    <Project Path="src/Opc.Ua.AI.Client/Opc.Ua.AI.Client.csproj" />
     <Project Path="src/Opc.Ua.XRegistry/Opc.Ua.XRegistry.csproj" />
     <Project Path="src/Opc.Ua.XRegistry.Client/Opc.Ua.XRegistry.Client.csproj" />
     <Project Path="src/Opc.Ua.XRegistry.Server/Opc.Ua.XRegistry.Server.csproj" />
@@ -272,6 +288,9 @@
     <Project Path="tests/Opc.Ua.OpenUsd.Tests/Opc.Ua.OpenUsd.Tests.csproj" />
     <Project Path="tests/Opc.Ua.Robotics.Tests/Opc.Ua.Robotics.Tests.csproj" />
     <Project Path="tests/Opc.Ua.Robotics.Intent.Tests/Opc.Ua.Robotics.Intent.Tests.csproj" />
+    <Project Path="tests/Opc.Ua.Vision.Tests/Opc.Ua.Vision.Tests.csproj" />
+    <Project Path="tests/Opc.Ua.VisualInspection.Tests/Opc.Ua.VisualInspection.Tests.csproj" />
+    <Project Path="tests/Opc.Ua.Vision.Intent.Tests/Opc.Ua.Vision.Intent.Tests.csproj" />
     <Project Path="tests/Opc.Ua.Core.Diagnostics.Tests/Opc.Ua.Core.Diagnostics.Tests.csproj" />
     <Project Path="tests/Opc.Ua.Bindings.Https.WebApi.Tests/Opc.Ua.Bindings.Https.WebApi.Tests.csproj" />
     <Project Path="tests/Opc.Ua.Features.Tests/Opc.Ua.Features.Tests.csproj" />
@@ -300,6 +319,7 @@
     <Project Path="tests/Opc.Ua.Security.Pkcs11.Tests/Opc.Ua.Security.Pkcs11.Tests.csproj" />
     <Project Path="tests/Opc.Ua.Server.Tests/Opc.Ua.Server.Tests.csproj" />
     <Project Path="tests/Opc.Ua.XRegistry.Tests/Opc.Ua.XRegistry.Tests.csproj" />
+    <Project Path="tests/Opc.Ua.AI.Tests/Opc.Ua.AI.Tests.csproj" />
     <Project Path="tests/Opc.Ua.Aas.Tests/Opc.Ua.Aas.Tests.csproj" />
     <Project Path="tests/Opc.Ua.Redundancy.Server.Tests/Opc.Ua.Redundancy.Server.Tests.csproj" />
     <Project Path="tests/Opc.Ua.Redundancy.Kubernetes.Tests/Opc.Ua.Redundancy.Kubernetes.Tests.csproj" />
@@ -328,6 +348,7 @@
     <Project Path="tools/Opc.Ua.Mcp.PubSub/Opc.Ua.Mcp.PubSub.csproj" />
     <Project Path="tools/Opc.Ua.Mcp.PubSub.Diagnostics/Opc.Ua.Mcp.PubSub.Diagnostics.csproj" />
     <Project Path="tools/Opc.Ua.Mcp.Robotics/Opc.Ua.Mcp.Robotics.csproj" />
+    <Project Path="tools/Opc.Ua.Mcp.Vision/Opc.Ua.Mcp.Vision.csproj" />
     <Project Path="tools/Opc.Ua.OpenUsd.Connector/Opc.Ua.OpenUsd.Connector.csproj" />
     <Project Path="tools/Opc.Ua.OpenUsd.Connector.Viewer/Opc.Ua.OpenUsd.Connector.Viewer.csproj" />
   </Folder>

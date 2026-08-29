@@ -457,6 +457,32 @@ namespace Opc.Ua.Robotics.Client.Intent
     public sealed record CommandAuthorityOutcome(bool Granted, NodeId CurrentOwner);
 
     /// <summary>
+    /// Per-step correlation between the mission step and its operation instance.
+    /// </summary>
+    public sealed record MissionStepOperation
+    {
+        /// <summary>
+        /// Gets the step id within the mission.
+        /// </summary>
+        public string StepId { get; init; } = string.Empty;
+
+        /// <summary>
+        /// Gets the intent id admitted for this step.
+        /// </summary>
+        public string IntentId { get; init; } = string.Empty;
+
+        /// <summary>
+        /// Gets the operation node tracking this step, or <see cref="NodeId.Null"/> if it has not executed yet.
+        /// </summary>
+        public NodeId OperationNodeId { get; init; } = NodeId.Null;
+
+        /// <summary>
+        /// Gets the execution state of this step.
+        /// </summary>
+        public ExecutionStateEnum State { get; init; } = ExecutionStateEnum.Accepted;
+    }
+
+    /// <summary>
     /// Current observable state of a mission.
     /// </summary>
     public sealed record MissionSnapshot
@@ -492,9 +518,62 @@ namespace Opc.Ua.Robotics.Client.Intent
         public string CurrentStepId { get; init; } = string.Empty;
 
         /// <summary>
+        /// Gets the intent id of the currently executing step, or an empty string.
+        /// </summary>
+        public string CurrentIntentId { get; init; } = string.Empty;
+
+        /// <summary>
         /// Gets the number of committed steps in the mission base.
         /// </summary>
         public uint ReleasedStepCount { get; init; }
+
+        /// <summary>
+        /// Gets the failure classification when the mission failed.
+        /// </summary>
+        public IntentFailureEnum Failure { get; init; } = IntentFailureEnum.None;
+
+        /// <summary>
+        /// Gets the human-readable failure message when the mission failed.
+        /// </summary>
+        public LocalizedText FailureMessage { get; init; } = LocalizedText.Null;
+
+        /// <summary>
+        /// Gets per-step operation correlation for the mission. A MissionStep can
+        /// retain one operation, so a retried or revisited step reports its latest
+        /// admitted attempt.
+        /// </summary>
+        public ArrayOf<MissionStepOperation> Steps { get; init; } = [];
+    }
+
+    /// <summary>
+    /// Result of a bounded wait for a mission to reach a terminal state.
+    /// </summary>
+    public sealed record MissionWaitResult
+    {
+        /// <summary>
+        /// Gets a value indicating whether the mission reached a terminal state before the timeout.
+        /// </summary>
+        public bool Completed { get; init; }
+
+        /// <summary>
+        /// Gets the terminal execution state when <see cref="Completed"/> is true.
+        /// </summary>
+        public ExecutionStateEnum TerminalState { get; init; } = ExecutionStateEnum.Accepted;
+
+        /// <summary>
+        /// Gets the failure classification when the mission failed.
+        /// </summary>
+        public IntentFailureEnum Failure { get; init; } = IntentFailureEnum.None;
+
+        /// <summary>
+        /// Gets the human-readable failure message when the mission failed.
+        /// </summary>
+        public LocalizedText FailureMessage { get; init; } = LocalizedText.Null;
+
+        /// <summary>
+        /// Gets the current mission snapshot, refreshed on timeout.
+        /// </summary>
+        public MissionSnapshot Current { get; init; } = new();
     }
 
     /// <summary>
@@ -634,6 +713,7 @@ namespace Opc.Ua.Robotics.Client.Intent
         /// <summary>
         /// Derives the client-facing facet snapshot from a capability declaration.
         /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
         public static RobotIntentFacets DeriveFacets(RobotIntentControllerInfo controller)
         {
             if (controller is null)

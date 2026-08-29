@@ -96,15 +96,20 @@ namespace Opc.Ua.Server.Hosting
                 throw new ArgumentNullException(nameof(externalReferences));
             }
             ushort namespaceIndex = (ushort)m_server.NamespaceUris.GetIndex(m_namespaceUri);
+
+            // The root folder's inverse Organizes reference to the Objects
+            // folder is mirrored into externalReferences by the
+            // CompleteConfigureAsync pass below.
             FolderState root = CreateRootFolder(namespaceIndex);
-            if (!externalReferences.TryGetValue(ObjectIds.ObjectsFolder, out IList<IReference>? references))
-            {
-                externalReferences[ObjectIds.ObjectsFolder] = references = [];
-            }
-            references.Add(new NodeStateReference(ReferenceTypeIds.Organizes, false, root.NodeId));
             await AddPredefinedNodeAsync(root, cancellationToken).ConfigureAwait(false);
             NodeManagerBuilder builder = CreateFluentBuilder(namespaceIndex);
             m_build(builder);
+
+            // Mirror references from build-created nodes to nodes owned by
+            // other node managers (e.g. the Objects folder) into the
+            // externalReferences dictionary before sealing the builder.
+            await CompleteConfigureAsync(externalReferences, cancellationToken).ConfigureAwait(false);
+
             builder.Seal();
         }
 

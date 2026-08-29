@@ -195,8 +195,13 @@ def Xform "Arm" (
                                     uniform token axis = "Y"
                                     double height = 0.0900
                                     double radius = 0.0520
-                                    color3f[] primvars:displayColor = [(0.16, 0.17, 0.18)]
-                                    rel material:binding = </Arm/Materials/DarkGrey>
+                                    # This is the mechanical bridge from the blue wrist to
+                                    # the silver ISO flange. DarkGrey disappears against the
+                                    # viewport's black background and makes the attached
+                                    # gripper read as a floating object, so keep the bridge
+                                    # visible with the same silver used by the flange.
+                                    color3f[] primvars:displayColor = [(0.78, 0.79, 0.78)]
+                                    rel material:binding = </Arm/Materials/Silver>
                                 }
 
                                 def Xform "Flange"
@@ -219,6 +224,7 @@ def Xform "Arm" (
                                     {
                                         double3 xformOp:translate = (0.1200, 0, 0)
                                         uniform token[] xformOpOrder = ["xformOp:translate"]
+                                        token visibility = "invisible"
 
                                         def Sphere "Marker" (
                                             prepend apiSchemas = ["MaterialBindingAPI"]

@@ -96,20 +96,20 @@ namespace Generators
         private void PublishState(GeneratorStateMachineState machine, GeneratorRunState state)
         {
             if (machine.CurrentState == null ||
-                !GeneratorStateMap.StateNumbers.TryGetValue(state, out uint number))
+                !GeneratorStateMap.StateIds.TryGetValue(state, out uint stateNodeId))
             {
                 return;
             }
 
             // CurrentState carries the human-readable name; its Id property carries
-            // the state node a client actually compares against, so both are written
-            // or a client sees a name it cannot resolve.
+            // the state NODE the model declares (not the state number — that is the
+            // StateNumber property's value), so a client can browse what it reads.
             machine.CurrentState.Value = new LocalizedText(state.ToString());
             PropertyState<NodeId>? id = machine.CurrentState.CreateOrReplaceId(SystemContext, null!);
             if (id != null)
             {
                 id.Value = NodeId.Create(
-                    number,
+                    stateNodeId,
                     Opc.Ua.Generators.Namespaces.Generators,
                     Server.NamespaceUris);
                 id.ClearChangeMasks(SystemContext, false);

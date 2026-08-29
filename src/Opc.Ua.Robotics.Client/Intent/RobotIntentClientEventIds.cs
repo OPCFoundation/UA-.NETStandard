@@ -46,5 +46,6 @@ namespace Opc.Ua.Robotics.Client.Intent
         public const int ChannelLeaseRenewalFailed = 7212;
         public const int AuthorityReleaseFailed = 7213;
         public const int OperationSubscriptionFailed = 7214;
+        public const int MissionSubscriptionFailed = 7215;
     }
 }

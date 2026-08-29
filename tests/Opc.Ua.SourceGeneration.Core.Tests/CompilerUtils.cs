@@ -1084,6 +1084,7 @@ namespace Opc.Ua.SourceGeneration
                 public class FiniteStateMachineState : BaseObjectState
                 {
                     public FiniteStateMachineState(NodeState? parent) : base(parent) { }
+                    protected virtual string ElementNamespaceUri => "http://opcfoundation.org/UA/";
                     public void CreateOrReplaceCurrentState(
                         ISystemContext context, BaseInstanceState? replacement, bool assignInstanceNodeIds = true) { }
                 }

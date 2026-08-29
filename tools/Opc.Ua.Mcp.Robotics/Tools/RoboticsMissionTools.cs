@@ -43,50 +43,51 @@ namespace Opc.Ua.Mcp.Tools
     public sealed class RoboticsMissionTools
     {
         /// <summary>
-        /// Builds and submits a mission.
+        /// Builds and submits a mission from typed step/transition DTOs.
         /// </summary>
         [McpServerTool(Name = "robotics_submit_mission")]
-        [Description("Compiles a mission from JSON steps/transitions using the Robot Intent MissionBuilder and " +
-            "submits it. Server refusals such as NotPermittedInMode, SafetyLimitExceeded, ControlNotOwned, " +
-            "CapabilityNotSupported, ParameterInvalid, or QueueFull are returned verbatim with message; this tool " +
-            "does not retry or request command authority implicitly.")]
+        [Description("Submits typed mission steps; returns the server result.")]
         public static async Task<MissionSubmissionResult> SubmitMissionAsync(
             RoboticsIntentManager manager,
-            [Description("Controller NodeId.")] string controllerId,
+            [Description(RoboticsControlTools.ControllerDescription)] string controller,
             [Description("MissionId to submit.")] string missionId,
             [Description("MissionUpdateId for this submission.")] uint missionUpdateId,
-            [Description("JSON array of mission steps. Each step has stepId, released, and intent { kind, ... }.")]
-            string stepsJson,
-            [Description("Optional JSON array of transitions; an omitted/empty array is a flat ordered mission.")]
-            string? transitionsJson = null,
+            [Description("Array of mission steps. Each step has stepId, released, and intent with kind discriminator.")]
+            MissionStepInput[] steps,
+            [Description("Optional array of transitions; an omitted/empty array is a flat ordered mission.")]
+            MissionTransitionInput[]? transitions = null,
             [Description("Optional localized label text.")] string? label = null,
             [Description("Session name to use; defaults to the only active session.")] string? sessionName = null,
             CancellationToken ct = default)
         {
-            RobotIntentControllerClient controller = manager.OpenController(controllerId, sessionName);
-            MissionDataType mission = BuildMission(missionId, missionUpdateId, stepsJson, transitionsJson, label);
-            return await controller.SubmitMissionAsync(mission, ct).ConfigureAwait(false);
+            RoboticsResolutionContext context = await RoboticsResolutionContext.CreateAsync(
+                manager, controller, sessionName, ct).ConfigureAwait(false);
+            MissionDataType mission = BuildMission(
+                missionId, missionUpdateId, steps, transitions, label, context.Scope);
+            return await context.Client.SubmitMissionAsync(mission, ct).ConfigureAwait(false);
         }
 
         /// <summary>
-        /// Updates a mission horizon.
+        /// Updates a mission horizon from typed step DTOs.
         /// </summary>
         [McpServerTool(Name = "robotics_update_mission")]
-        [Description("Updates a mission horizon from a JSON step list. The client API performs stale-update checks " +
-            "and the server returns the authoritative MissionUpdateResult and message; the MCP layer does not " +
-            "invent mission state or retry refused updates.")]
+        [Description("Replaces a mission horizon; returns the server result.")]
         public static async Task<MissionUpdateOutcome> UpdateMissionAsync(
             RoboticsIntentManager manager,
-            [Description("Controller NodeId.")] string controllerId,
+            [Description(RoboticsControlTools.ControllerDescription)] string controller,
             [Description("MissionId to update.")] string missionId,
             [Description("Strictly increasing MissionUpdateId.")] uint missionUpdateId,
-            [Description("JSON array of replacement horizon steps.")] string horizonStepsJson,
+            [Description("Array of replacement horizon steps.")]
+            MissionStepInput[] horizonSteps,
             [Description("Session name to use; defaults to the only active session.")] string? sessionName = null,
             CancellationToken ct = default)
         {
-            RobotIntentControllerClient controller = manager.OpenController(controllerId, sessionName);
-            ArrayOf<MissionStepDataType> steps = RoboticsIntentJson.BuildMissionSteps(horizonStepsJson);
-            return await controller.UpdateMissionAsync(missionId, missionUpdateId, steps, ct).ConfigureAwait(false);
+            RoboticsResolutionContext context = await RoboticsResolutionContext.CreateAsync(
+                manager, controller, sessionName, ct).ConfigureAwait(false);
+            ArrayOf<MissionStepDataType> steps = RoboticsIntentDtoConverter.ConvertMissionSteps(
+                horizonSteps, context.Scope);
+            return await context.Client.UpdateMissionAsync(missionId, missionUpdateId, steps, ct)
+                .ConfigureAwait(false);
         }
 
         /// <summary>
@@ -97,22 +98,24 @@ namespace Opc.Ua.Mcp.Tools
             "ControlNotOwned is returned by the client API; this tool never retries or submits compensating work.")]
         public static async Task<IntentCommandOutcome> CancelMissionAsync(
             RoboticsIntentManager manager,
-            [Description("Controller NodeId.")] string controllerId,
+            [Description(RoboticsControlTools.ControllerDescription)] string controller,
             [Description("MissionId to cancel.")] string missionId,
             [Description("Stop mode requested from the server.")] StopModeEnum stopMode = StopModeEnum.QuickStop,
             [Description("Session name to use; defaults to the only active session.")] string? sessionName = null,
             CancellationToken ct = default)
         {
-            return await manager.OpenController(controllerId, sessionName).CancelMissionAsync(missionId, stopMode, ct)
-                .ConfigureAwait(false);
+            RobotIntentControllerClient resolved = await manager.ResolveControllerAsync(
+                controller, sessionName, ct).ConfigureAwait(false);
+            return await resolved.CancelMissionAsync(missionId, stopMode, ct).ConfigureAwait(false);
         }
 
         internal static MissionDataType BuildMission(
             string missionId,
             uint missionUpdateId,
-            string stepsJson,
-            string? transitionsJson,
-            string? label)
+            MissionStepInput[] steps,
+            MissionTransitionInput[]? transitions,
+            string? label,
+            RoboticsScopeResolver? scope)
         {
             MissionBuilder builder = RobotIntentBuilder.Mission(missionId).WithMissionUpdateId(missionUpdateId);
             if (!string.IsNullOrEmpty(label))
@@ -120,10 +123,12 @@ namespace Opc.Ua.Mcp.Tools
                 builder.WithLabel(new LocalizedText(label));
             }
 
-            ArrayOf<MissionStepDataType> steps = RoboticsIntentJson.BuildMissionSteps(stepsJson);
-            ArrayOf<MissionTransitionDataType> transitions = RoboticsIntentJson.BuildMissionTransitions(transitionsJson);
-            builder.WithSteps(steps);
-            builder.WithTransitions(transitions);
+            ArrayOf<MissionStepDataType> convertedSteps =
+                RoboticsIntentDtoConverter.ConvertMissionSteps(steps, scope);
+            ArrayOf<MissionTransitionDataType> convertedTransitions =
+                RoboticsIntentDtoConverter.ConvertMissionTransitions(transitions);
+            builder.WithSteps(convertedSteps)
+                .WithTransitions(convertedTransitions);
             return builder.Build();
         }
     }

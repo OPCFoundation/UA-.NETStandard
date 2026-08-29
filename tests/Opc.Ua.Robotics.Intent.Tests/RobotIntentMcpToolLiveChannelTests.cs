@@ -83,7 +83,12 @@ namespace Opc.Ua.Robotics.Intent.Tests
                 .RequestControlAsync(robotics, controllerId, kSessionName, CancellationToken.None)
                 .ConfigureAwait(false);
             IntentSubmissionResult submission = await RoboticsControlTools
-                .SubmitLinearMoveAsync(robotics, controllerId, kLinearMoveJson, kSessionName, CancellationToken.None)
+                .SubmitLinearMoveAsync(
+                    robotics,
+                    controllerId,
+                    kLinearMoveInput,
+                    kSessionName,
+                    CancellationToken.None)
                 .ConfigureAwait(false);
             IntentOperationWaitResult completed = await WaitForCompletionThroughMcpAsync(
                 robotics,
@@ -149,10 +154,19 @@ namespace Opc.Ua.Robotics.Intent.Tests
 
         private const string kSessionName = "mcp-live-robotics";
 
-        private const string kLinearMoveJson =
-            "{\"intentId\":\"mcp-live-linear\",\"target\":{\"position\":[0.1,0.2,0.3]," +
-            "\"orientation\":[0,0,0,1],\"frameId\":\"world\"},\"constraints\":{\"cartesianSpeed\":0.05}," +
-            "\"bufferMode\":\"Aborting\",\"blockingMode\":\"None\"}";
+        private static readonly LinearMoveIntentInput kLinearMoveInput = new()
+        {
+            IntentId = "mcp-live-linear",
+            Target = new PoseDto
+            {
+                Position = new PosePositionDto { X = 0.1, Y = 0.2, Z = 0.3 },
+                Orientation = new QuaternionDto { W = 1.0 },
+                FrameId = "world"
+            },
+            Constraints = new MotionConstraintsDto { CartesianSpeed = 0.05 },
+            BufferMode = BufferModeEnum.Aborting,
+            BlockingMode = BlockingModeEnum.None
+        };
 
         private sealed class LiveChannelFixture : IAsyncDisposable
         {

@@ -27,6 +27,8 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
+using System.IO;
 using Opc.Ua.Configuration;
 
 namespace Opc.Ua.Client
@@ -41,9 +43,70 @@ namespace Opc.Ua.Client
         /// The application configuration. When omitted,
         /// <c>ConfigureApplication(...)</c> must be registered on the root
         /// OPC UA builder, or the application identity properties below
-        /// must be set instead.
+        /// must be set instead, or the configuration must be supplied as an
+        /// existing XML document via <see cref="ConfigurationFile"/> /
+        /// <see cref="ConfigurationStream"/>.
         /// </summary>
         public ApplicationConfiguration? Configuration { get; set; }
+
+        /// <summary>
+        /// Optional path to a classic OPC UA application configuration XML
+        /// file (e.g. <c>MyClient.Config.xml</c>). When set, the client
+        /// loads the <see cref="ApplicationConfiguration"/> from this file
+        /// instead of building one, so existing applications can adopt
+        /// dependency injection and keep every setting from their
+        /// configuration file (security configuration, certificate stores,
+        /// transport quotas, client configuration, ...).
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// A relative path is resolved against the current working
+        /// directory. The file must validate as a client (or
+        /// client-and-server) configuration. The document is loaded and the
+        /// application-instance certificate is ensured on first use (first
+        /// session connect, reverse-connect startup, or an explicit
+        /// <c>GetAsync</c> on the resolved configuration provider),
+        /// mirroring how a shared <c>ConfigureApplication(...)</c>
+        /// application completes asynchronously.
+        /// </para>
+        /// <para>
+        /// Because the file is authoritative, it must not be combined with
+        /// an explicit <see cref="Configuration"/> or with the application
+        /// identity properties (<see cref="ApplicationName"/>, ...); use
+        /// <see cref="ConfigureLoadedConfiguration"/> for programmatic
+        /// overrides of the loaded file. This path also takes precedence
+        /// over a shared application registered with
+        /// <c>ConfigureApplication(...)</c>. Mutually exclusive with
+        /// <see cref="ConfigurationStream"/>.
+        /// </para>
+        /// </remarks>
+        public string? ConfigurationFile { get; set; }
+
+        /// <summary>
+        /// Optional stream containing a classic OPC UA application
+        /// configuration XML document, e.g. an embedded resource. When set,
+        /// the client loads the <see cref="ApplicationConfiguration"/> from
+        /// this stream with the same semantics as
+        /// <see cref="ConfigurationFile"/>.
+        /// </summary>
+        /// <remarks>
+        /// The stream must remain open until the configuration is first
+        /// used; it is read once and disposed after loading. Mutually
+        /// exclusive with <see cref="ConfigurationFile"/>.
+        /// </remarks>
+        public Stream? ConfigurationStream { get; set; }
+
+        /// <summary>
+        /// Optional callback invoked with the <see cref="ApplicationConfiguration"/>
+        /// loaded from <see cref="ConfigurationFile"/> or
+        /// <see cref="ConfigurationStream"/>, after the document has been
+        /// read and validated but before the application-instance
+        /// certificate is checked. Use it to override individual settings
+        /// from code without editing the document. Ignored when neither
+        /// <see cref="ConfigurationFile"/> nor
+        /// <see cref="ConfigurationStream"/> is set.
+        /// </summary>
+        public Action<ApplicationConfiguration>? ConfigureLoadedConfiguration { get; set; }
 
         /// <summary>
         /// The application name. When set (and <see cref="Configuration"/>
@@ -153,5 +216,13 @@ namespace Opc.Ua.Client
             || AutoAcceptUntrustedCertificates != null
             || RejectSHA1SignedCertificates != null
             || MinimumCertificateKeySize != null;
+
+        /// <summary>
+        /// <c>true</c> when an existing configuration XML document was
+        /// supplied via <see cref="ConfigurationFile"/> or
+        /// <see cref="ConfigurationStream"/>.
+        /// </summary>
+        internal bool HasSuppliedConfigurationDocument =>
+            !string.IsNullOrEmpty(ConfigurationFile) || ConfigurationStream != null;
     }
 }

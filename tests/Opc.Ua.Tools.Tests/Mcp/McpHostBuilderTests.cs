@@ -177,7 +177,7 @@ namespace Opc.Ua.Tools.Tests.Mcp
 
             Opc.Ua.Mcp.OpcUaMcpOptions options = McpHostBuilder.CreateOpcUaMcpOptions(
                 configuration,
-                McpToolProfile.Core);
+                "core");
 
             Assert.That(options.ToolProfile, Is.EqualTo(McpToolProfile.Core));
         }
@@ -220,6 +220,163 @@ namespace Opc.Ua.Tools.Tests.Mcp
             Assert.That(
                 () => McpHostBuilder.CreateOpcUaMcpOptions(configuration, null),
                 Throws.InvalidOperationException.With.Message.Contains("Unknown MCP tool profile"));
+        }
+
+        [TestCase("vision,robotics")]
+        [TestCase("vision+robotics")]
+        [TestCase("VISION, ROBOTICS")]
+        public void CreateOpcUaMcpOptionsParsesComposedProfiles(string configuredProfile)
+        {
+            IConfiguration configuration = new ConfigurationBuilder()
+                .AddInMemoryCollection(new Dictionary<string, string?>
+                {
+                    ["McpServer:ToolProfile"] = configuredProfile
+                })
+                .Build();
+
+            Opc.Ua.Mcp.OpcUaMcpOptions options = McpHostBuilder.CreateOpcUaMcpOptions(
+                configuration,
+                null);
+
+            Assert.That(options.ToolProfiles.Count, Is.EqualTo(2));
+            Assert.That(options.ToolProfiles.Contains(McpToolProfile.Vision), Is.True);
+            Assert.That(options.ToolProfiles.Contains(McpToolProfile.Robotics), Is.True);
+            Assert.That(options.EffectiveToolProfiles, Is.EqualTo(options.ToolProfiles));
+        }
+
+        [Test]
+        public void CreateOpcUaMcpOptionsCliOverrideAcceptsComposedProfiles()
+        {
+            IConfiguration configuration = new ConfigurationBuilder()
+                .AddInMemoryCollection(new Dictionary<string, string?>
+                {
+                    ["McpServer:ToolProfile"] = "services"
+                })
+                .Build();
+
+            Opc.Ua.Mcp.OpcUaMcpOptions options = McpHostBuilder.CreateOpcUaMcpOptions(
+                configuration,
+                "vision,robotics");
+
+            Assert.That(options.ToolProfiles.Count, Is.EqualTo(2));
+            Assert.That(options.ToolProfiles.Contains(McpToolProfile.Vision), Is.True);
+            Assert.That(options.ToolProfiles.Contains(McpToolProfile.Robotics), Is.True);
+        }
+
+        [Test]
+        public void CreateOpcUaMcpOptionsSingletonComposedProfileFallsBackToLegacySlot()
+        {
+            IConfiguration configuration = new ConfigurationBuilder()
+                .AddInMemoryCollection(new Dictionary<string, string?>
+                {
+                    ["McpServer:ToolProfile"] = "vision"
+                })
+                .Build();
+
+            Opc.Ua.Mcp.OpcUaMcpOptions options = McpHostBuilder.CreateOpcUaMcpOptions(
+                configuration,
+                null);
+
+            Assert.That(options.ToolProfile, Is.EqualTo(McpToolProfile.Vision));
+            Assert.That(options.ToolProfiles.IsEmpty, Is.True);
+            Assert.That(options.EffectiveToolProfiles.Count, Is.EqualTo(1));
+            Assert.That(
+                options.EffectiveToolProfiles.Contains(McpToolProfile.Vision),
+                Is.True);
+        }
+
+        [Test]
+        public void ConfigureMcpToolsWithProfileSetComposesBoundedCatalogues()
+        {
+            HashSet<string> vision = GetToolNames(McpToolProfile.Vision, false);
+            HashSet<string> robotics = GetToolNames(McpToolProfile.Robotics, false);
+
+            var services = new ServiceCollection();
+            IMcpServerBuilder builder = services.AddMcpServer();
+            McpHostBuilder.ConfigureMcpTools(
+                builder,
+                new McpToolProfileSet(new[] { McpToolProfile.Vision, McpToolProfile.Robotics }),
+                diagnosticsToolsEnabled: false);
+
+            using ServiceProvider provider = services.BuildServiceProvider();
+            HashSet<string> composed = provider
+                .GetServices<McpServerTool>()
+                .Select(tool => tool.ProtocolTool.Name)
+                .ToHashSet(StringComparer.Ordinal);
+
+            HashSet<string> unionByHand = new(vision, StringComparer.Ordinal);
+            unionByHand.UnionWith(robotics);
+            Assert.That(composed, Is.EquivalentTo(unionByHand));
+            Assert.That(composed, Does.Contain("Connect"));
+            Assert.That(composed, Does.Contain("vision_get_frame"));
+            Assert.That(composed, Does.Contain("robotics_submit_linear_move"));
+        }
+
+        [Test]
+        public void ConfigureMcpToolsWithProfileSetDelegatesEmptySetToDefaultFull()
+        {
+            HashSet<string> full = GetToolNames(McpToolProfile.Full, false);
+
+            var services = new ServiceCollection();
+            IMcpServerBuilder builder = services.AddMcpServer();
+            McpHostBuilder.ConfigureMcpTools(
+                builder,
+                McpToolProfileSet.Empty,
+                diagnosticsToolsEnabled: false);
+
+            using ServiceProvider provider = services.BuildServiceProvider();
+            HashSet<string> tools = provider
+                .GetServices<McpServerTool>()
+                .Select(tool => tool.ProtocolTool.Name)
+                .ToHashSet(StringComparer.Ordinal);
+
+            Assert.That(tools, Is.EquivalentTo(full));
+        }
+
+        [Test]
+        public void ConfigureMcpToolsWithSingletonProfileSetReproducesLegacyCatalogue()
+        {
+            HashSet<string> legacyVision = GetToolNames(McpToolProfile.Vision, false);
+
+            var services = new ServiceCollection();
+            IMcpServerBuilder builder = services.AddMcpServer();
+            McpHostBuilder.ConfigureMcpTools(
+                builder,
+                new McpToolProfileSet(McpToolProfile.Vision),
+                diagnosticsToolsEnabled: false);
+
+            using ServiceProvider provider = services.BuildServiceProvider();
+            HashSet<string> composed = provider
+                .GetServices<McpServerTool>()
+                .Select(tool => tool.ProtocolTool.Name)
+                .ToHashSet(StringComparer.Ordinal);
+
+            Assert.That(composed, Is.EquivalentTo(legacyVision));
+        }
+
+        [TestCase("core", 15)]
+        [TestCase("services", 47)]
+        [TestCase("administration", 14)]
+        [TestCase("pubsub", 18)]
+        [TestCase("diagnostics", 10)]
+        [TestCase("robotics", 42)]
+        [TestCase("vision", 26)]
+        [TestCase("full", 138)]
+        public void ExistingProfilesRegisterTheExpectedToolCount(string profile, int expectedCount)
+        {
+            var toolProfiles = McpToolProfileSet.Parse(profile);
+            var services = new ServiceCollection();
+            IMcpServerBuilder builder = services.AddMcpServer();
+            McpHostBuilder.ConfigureMcpTools(builder, toolProfiles, diagnosticsToolsEnabled: false);
+
+            using ServiceProvider provider = services.BuildServiceProvider();
+            HashSet<string> tools = provider
+                .GetServices<McpServerTool>()
+                .Select(tool => tool.ProtocolTool.Name)
+                .ToHashSet(StringComparer.Ordinal);
+
+            Assert.That(tools, Has.Count.EqualTo(expectedCount),
+                $"Profile '{profile}' must publish exactly {expectedCount} tools.");
         }
 
         [TestCase("true", true)]
@@ -315,6 +472,12 @@ namespace Opc.Ua.Tools.Tests.Mcp
             Assert.That(robotics, Does.Contain("robotics_submit_linear_move"));
             Assert.That(robotics, Does.Contain("Connect"));
 
+            HashSet<string> vision = GetToolNames(McpToolProfile.Vision, false);
+            Assert.That(vision, Does.Contain("vision_list_sensors"));
+            Assert.That(vision, Does.Contain("vision_get_frame"));
+            Assert.That(vision, Does.Contain("Connect"));
+            Assert.That(vision, Does.Not.Contain("robotics_list_controllers"));
+
             Assert.That(full, Does.Contain("Browse"));
             Assert.That(full, Does.Contain("ListCertificates"));
             Assert.That(full, Does.Contain("SetConfiguration"));
@@ -349,7 +512,8 @@ namespace Opc.Ua.Tools.Tests.Mcp
                 HashSet<string> tools = GetToolNames(toolProfile, false);
 
                 bool needsSession = tools.Any(
-                    name => name.StartsWith("robotics_", StringComparison.Ordinal));
+                    name => name.StartsWith("robotics_", StringComparison.Ordinal) ||
+                        name.StartsWith("vision_", StringComparison.Ordinal));
 
                 if (!needsSession)
                 {
@@ -441,6 +605,12 @@ namespace Opc.Ua.Tools.Tests.Mcp
                 Throws.ArgumentNullException);
             Assert.That(
                 () => McpHostBuilder.ConfigureMcpTools(null!, McpToolProfile.Core, false),
+                Throws.ArgumentNullException);
+            Assert.That(
+                () => McpHostBuilder.ConfigureMcpTools(
+                    null!,
+                    new McpToolProfileSet(McpToolProfile.Core),
+                    false),
                 Throws.ArgumentNullException);
             Assert.That(
                 () => McpHostBuilder.LogDiagnosticsToolsWarning(null!, false),

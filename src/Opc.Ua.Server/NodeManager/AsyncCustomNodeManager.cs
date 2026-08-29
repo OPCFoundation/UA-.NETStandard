@@ -2463,7 +2463,11 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Adds an external reference to the dictionary.
+        /// Adds an external reference to the dictionary if it is not
+        /// already present. The if-missing semantics keep the dictionary
+        /// clean when the collection pass runs more than once for the
+        /// same manager (e.g. after fluent <c>Configure</c> callbacks
+        /// register additional nodes).
         /// </summary>
         protected void AddExternalReference(
             NodeId sourceId,
@@ -2476,6 +2480,18 @@ namespace Opc.Ua.Server
             if (!externalReferences.TryGetValue(sourceId, out IList<IReference>? referencesToAdd))
             {
                 externalReferences[sourceId] = referencesToAdd = [];
+            }
+
+            for (int ii = 0; ii < referencesToAdd.Count; ii++)
+            {
+                IReference existingReference = referencesToAdd[ii];
+                if (existingReference.ReferenceTypeId == referenceTypeId &&
+                    existingReference.IsInverse == isInverse &&
+                    !existingReference.TargetId.IsAbsolute &&
+                    (NodeId)existingReference.TargetId == targetId)
+                {
+                    return;
+                }
             }
 
             // add reserve reference from external node.
@@ -6233,7 +6249,7 @@ namespace Opc.Ua.Server
 
             bool success = m_monitoredItemManager.RestoreMonitoredItem(
                 Server,
-                m_syncNodeManager.ToAsyncNodeManager(),
+                this,
                 context,
                 handle,
                 storedMonitoredItem,
@@ -6444,7 +6460,7 @@ namespace Opc.Ua.Server
             ISampledDataChangeMonitoredItem dataChangeMonitoredItem =
                 m_monitoredItemManager.CreateMonitoredItem(
                     Server,
-                    m_syncNodeManager.ToAsyncNodeManager(),
+                    this,
                     context,
                     handle,
                     subscriptionId,
@@ -7441,7 +7457,11 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Returns true if a node is in a view.
         /// </summary>
-        public virtual async ValueTask<bool> IsNodeInViewAsync(
+        /// <remarks>
+        /// Delegates to <see cref="IsNodeInView(ServerSystemContext, NodeId, NodeState)"/>,
+        /// which sub-classes override to implement view membership.
+        /// </remarks>
+        public virtual ValueTask<bool> IsNodeInViewAsync(
             OperationContext context,
             NodeId viewId,
             object nodeHandle,
@@ -7449,15 +7469,16 @@ namespace Opc.Ua.Server
         {
             if (nodeHandle is not NodeHandle handle)
             {
-                return false;
+                return new ValueTask<bool>(false);
             }
 
             if (handle.Node != null)
             {
-                return await IsNodeInViewAsync(context, viewId, handle.Node, cancellationToken).ConfigureAwait(false);
+                return new ValueTask<bool>(
+                    IsNodeInView(SystemContext.Copy(context), viewId, handle.Node));
             }
 
-            return false;
+            return new ValueTask<bool>(false);
         }
 
         /// <summary>

@@ -1680,6 +1680,83 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
+        public async Task CreateMonitoredItemsAsyncBindsOwningNodeManagerAsync()
+        {
+            using ITestNodeManager manager = CreateManager();
+            ServerSystemContext context = manager.SystemContext;
+            ushort nsIdx = manager.NamespaceIndexes[0];
+            var variable = new BaseDataVariableState(null);
+            variable.CreateAsPredefinedNode(context);
+            variable.NodeId = new NodeId("MyVar", nsIdx);
+            variable.BrowseName = new QualifiedName("MyVar", nsIdx);
+            variable.Value = 10;
+            variable.DataType = DataTypeIds.Int32;
+            variable.ValueRank = ValueRanks.Scalar;
+            variable.AccessLevel = AccessLevels.CurrentRead;
+            await manager.AddNodeAsync(context, default, variable).ConfigureAwait(false);
+
+            var itemToCreate = new MonitoredItemCreateRequest
+            {
+                ItemToMonitor = new ReadValueId { NodeId = variable.NodeId, AttributeId = Attributes.Value },
+                MonitoringMode = MonitoringMode.Reporting,
+                RequestedParameters = new MonitoringParameters { ClientHandle = 1, SamplingInterval = 100, QueueSize = 10 }
+            };
+            var secondItemToCreate = new MonitoredItemCreateRequest
+            {
+                ItemToMonitor = new ReadValueId { NodeId = variable.NodeId, AttributeId = Attributes.Value },
+                MonitoringMode = MonitoringMode.Reporting,
+                RequestedParameters = new MonitoringParameters { ClientHandle = 2, SamplingInterval = 100, QueueSize = 10 }
+            };
+
+            var itemsToCreate = new List<MonitoredItemCreateRequest> { itemToCreate, secondItemToCreate };
+            var errors = new List<ServiceResult> { null, null };
+            var filterErrors = new List<MonitoringFilterResult> { null, null };
+            var monitoredItems = new List<IMonitoredItem> { null, null };
+
+            await manager.CreateMonitoredItemsAsync(
+                CreateMonitoredItemsContext(),
+                1,
+                1000,
+                TimestampsToReturn.Both,
+                itemsToCreate,
+                errors,
+                filterErrors,
+                monitoredItems,
+                false,
+                new MonitoredItemIdFactory()).ConfigureAwait(false);
+
+            Assert.That(ServiceResult.IsGood(errors[0]), Is.True);
+            Assert.That(ServiceResult.IsGood(errors[1]), Is.True);
+            IMonitoredItem monitoredItem = monitoredItems[0];
+            Assert.That(monitoredItem, Is.Not.Null);
+            Assert.That(monitoredItems[1], Is.Not.Null);
+
+            if (m_managerType == AsyncCustomNodeManagerType.CustomNodeManager2ViaAdapter)
+            {
+                // The sync CustomNodeManager2 binds items through an adapter wrapping it directly.
+                Assert.That(monitoredItem.NodeManager.SyncNodeManager, Is.SameAs(manager.SyncNodeManager));
+            }
+            else
+            {
+                // AsyncCustomNodeManager implements IAsyncNodeManager and must bind items to itself
+                // instead of re-wrapping its sync adapter into a second adapter (issue #4334).
+                Assert.That(monitoredItem.NodeManager, Is.SameAs(manager));
+            }
+
+            // All items created by one NodeManager must share the same NodeManager reference;
+            // the sync manager once allocated a fresh adapter per created item.
+            Assert.That(monitoredItems[1].NodeManager, Is.SameAs(monitoredItem.NodeManager));
+
+            // The bound NodeManager must expose the monitored-item lifecycle; a double-wrapped
+            // adapter chain hides it and reports an empty snapshot.
+            Assert.That(monitoredItem.NodeManager, Is.InstanceOf<INodeManagerMonitoredItemLifecycle>());
+            IReadOnlyList<IMonitoredItem> snapshot =
+                await ((INodeManagerMonitoredItemLifecycle)monitoredItem.NodeManager)
+                    .GetMonitoredItemsSnapshotAsync().ConfigureAwait(false);
+            Assert.That(snapshot, Does.Contain(monitoredItem));
+        }
+
+        [Test]
         public async Task ModifyMonitoredItemsAsync_ModifiesItemAsync()
         {
             // Setup manager and node
@@ -2490,6 +2567,64 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
+        public async Task IsNodeInViewAsync_HandleWithNodeUsesOverridableIsNodeInViewAsync()
+        {
+            using ITestNodeManager manager = CreateManager();
+            ServerSystemContext systemContext = manager.SystemContext;
+            ushort nsIdx = manager.NamespaceIndexes[0];
+
+            var view = new ViewState();
+            view.CreateAsPredefinedNode(systemContext);
+            view.NodeId = new NodeId("TestView", nsIdx);
+            view.BrowseName = new QualifiedName("TestView", nsIdx);
+            await manager.AddPredefinedNodeAsync(systemContext, view).ConfigureAwait(false);
+
+            var node = new BaseObjectState(null);
+            node.CreateAsPredefinedNode(systemContext);
+            node.NodeId = new NodeId("ViewedNode", nsIdx);
+            node.BrowseName = new QualifiedName("ViewedNode", nsIdx);
+            await manager.AddPredefinedNodeAsync(systemContext, node).ConfigureAwait(false);
+
+            var handle = new NodeHandle(node.NodeId, node);
+            var context = new OperationContext(new RequestHeader(), null, RequestType.Browse, RequestLifetime.None);
+
+            // The default protected IsNodeInView accepts any view that is a predefined node.
+            // Before the fix the public overload recursed into itself and always returned false.
+            bool result = await manager.IsNodeInViewAsync(context, view.NodeId, handle).ConfigureAwait(false);
+            Assert.That(result, Is.True);
+
+            bool unknownView = await manager
+                .IsNodeInViewAsync(context, new NodeId("UnknownView", nsIdx), handle)
+                .ConfigureAwait(false);
+            Assert.That(unknownView, Is.False);
+
+            // A placeholder handle that carries no validated node reports false.
+            var placeholder = new NodeHandle { NodeId = new NodeId("Ghost", nsIdx) };
+            bool placeholderResult = await manager
+                .IsNodeInViewAsync(context, view.NodeId, placeholder)
+                .ConfigureAwait(false);
+            Assert.That(placeholderResult, Is.False);
+
+            // The sync entry point answers from the same logic.
+            var syncManager = (INodeManager2)manager.SyncNodeManager;
+            Assert.That(syncManager.IsNodeInView(context, view.NodeId, handle), Is.True);
+
+            // Sub-classes customize view membership by overriding the protected virtual.
+            NodeState nodeSeenByOverride = null;
+            manager.IsNodeInViewOverride = (overrideContext, overrideViewId, overrideNode) =>
+            {
+                Assert.That(overrideContext, Is.Not.Null);
+                Assert.That(overrideViewId, Is.EqualTo(view.NodeId));
+                nodeSeenByOverride = overrideNode;
+                return false;
+            };
+
+            bool overridden = await manager.IsNodeInViewAsync(context, view.NodeId, handle).ConfigureAwait(false);
+            Assert.That(overridden, Is.False);
+            Assert.That(nodeSeenByOverride, Is.SameAs(node));
+        }
+
+        [Test]
         public async Task GetPermissionMetadataAsync_ReturnsAccessAndRoleInformationAsync()
         {
             using ITestNodeManager manager = CreateManager();
@@ -3287,6 +3422,73 @@ namespace Opc.Ua.Server.Tests
 
             Assert.That(externalReferences.ContainsKey(sharedExternalTarget), Is.True);
             Assert.That(externalReferences[sharedExternalTarget], Has.Count.EqualTo(2));
+        }
+
+        [Test]
+        public async Task AddReverseReferencesAsyncDoesNotDuplicateExternalReferenceWhenRunTwiceAsync()
+        {
+            using ITestNodeManager manager = CreateManager();
+            ServerSystemContext context = manager.SystemContext;
+            ushort nsIdx = manager.NamespaceIndexes[0];
+
+            var source = new BaseObjectState(null);
+            source.CreateAsPredefinedNode(context);
+            source.NodeId = new NodeId("Source", nsIdx);
+            source.BrowseName = new QualifiedName("Source", nsIdx);
+
+            var externalTarget = new NodeId("ExternalTarget", 0);
+            source.AddReference(ReferenceTypeIds.Organizes, false, externalTarget);
+            await manager.AddNodeAsync(context, default, source).ConfigureAwait(false);
+
+            // The pass runs once after the predefined nodes load and again
+            // after fluent Configure callbacks return; the dictionary must
+            // not accumulate duplicates.
+            var externalReferences = new Dictionary<NodeId, IList<IReference>>();
+            await manager.AddReverseReferencesPublicAsync(externalReferences).ConfigureAwait(false);
+            await manager.AddReverseReferencesPublicAsync(externalReferences).ConfigureAwait(false);
+
+            Assert.That(externalReferences.ContainsKey(externalTarget), Is.True);
+            Assert.That(externalReferences[externalTarget], Has.Count.EqualTo(1));
+        }
+
+        [Test]
+        public async Task AddReverseReferencesAsyncSecondRunAddsReferencesOfNewlyRegisteredNodesAsync()
+        {
+            using ITestNodeManager manager = CreateManager();
+            ServerSystemContext context = manager.SystemContext;
+            ushort nsIdx = manager.NamespaceIndexes[0];
+
+            var first = new BaseObjectState(null);
+            first.CreateAsPredefinedNode(context);
+            first.NodeId = new NodeId("First", nsIdx);
+            first.BrowseName = new QualifiedName("First", nsIdx);
+            first.AddReference(ReferenceTypeIds.Organizes, true, ObjectIds.ObjectsFolder);
+            await manager.AddNodeAsync(context, default, first).ConfigureAwait(false);
+
+            var externalReferences = new Dictionary<NodeId, IList<IReference>>();
+            await manager.AddReverseReferencesPublicAsync(externalReferences).ConfigureAwait(false);
+
+            // A node registered later (like a fluent Configure callback does)
+            // is picked up by the second pass without duplicating the first
+            // node's mirror entry.
+            var second = new BaseObjectState(null);
+            second.CreateAsPredefinedNode(context);
+            second.NodeId = new NodeId("Second", nsIdx);
+            second.BrowseName = new QualifiedName("Second", nsIdx);
+            second.AddReference(ReferenceTypeIds.Organizes, true, ObjectIds.ObjectsFolder);
+            await manager.AddPredefinedNodeAsync(context, second).ConfigureAwait(false);
+
+            await manager.AddReverseReferencesPublicAsync(externalReferences).ConfigureAwait(false);
+
+            Assert.That(externalReferences.ContainsKey(ObjectIds.ObjectsFolder), Is.True);
+            IList<IReference> mirrored = externalReferences[ObjectIds.ObjectsFolder];
+            Assert.That(mirrored, Has.Count.EqualTo(2));
+            Assert.That(
+                mirrored.Count(r =>
+                    r.ReferenceTypeId == ReferenceTypeIds.Organizes &&
+                    !r.IsInverse &&
+                    r.TargetId == new ExpandedNodeId(second.NodeId)),
+                Is.EqualTo(1));
         }
 
         [Test]
@@ -4705,6 +4907,14 @@ namespace Opc.Ua.Server.Tests
 
         public Func<NodeState, CancellationToken, ValueTask> NodeRemovedCallback { get; set; } = null!;
 
+        public Func<ServerSystemContext, NodeId, NodeState, bool> IsNodeInViewOverride { get; set; }
+
+        protected override bool IsNodeInView(ServerSystemContext context, NodeId viewId, NodeState node)
+        {
+            return IsNodeInViewOverride?.Invoke(context, viewId, node)
+                ?? base.IsNodeInView(context, viewId, node);
+        }
+
         public ValueTask AddRootNotifierPublicAsync(NodeState notifier, CancellationToken cancellationToken = default)
         {
             return AddRootNotifierAsync(notifier, cancellationToken);
@@ -5056,6 +5266,12 @@ namespace Opc.Ua.Server.Tests
         NodeStateCollection? NodesToLoad { get; set; }
 
         /// <summary>
+        /// Optional replacement for the protected IsNodeInView(ServerSystemContext, NodeId, NodeState)
+        /// virtual so tests can verify the public entry points route through it.
+        /// </summary>
+        Func<ServerSystemContext, NodeId, NodeState, bool>? IsNodeInViewOverride { get; set; }
+
+        /// <summary>
         /// Tests whether a NodeId belongs to a managed namespace.
         /// </summary>
         bool IsNodeIdInNamespacePublic(NodeId nodeId);
@@ -5177,6 +5393,14 @@ namespace Opc.Ua.Server.Tests
         public Action<bool> EventSubscriptionCallback { get; set; } = null!;
 
         public Action<NodeState> NodeRemovedCallback { get; set; } = null!;
+
+        public Func<ServerSystemContext, NodeId, NodeState, bool>? IsNodeInViewOverride { get; set; }
+
+        protected override bool IsNodeInView(ServerSystemContext context, NodeId viewId, NodeState node)
+        {
+            return IsNodeInViewOverride?.Invoke(context, viewId, node)
+                ?? base.IsNodeInView(context, viewId, node);
+        }
 
         public void AddPredefinedNodePublic(ISystemContext context, NodeState node)
         {
@@ -5341,6 +5565,12 @@ namespace Opc.Ua.Server.Tests
         {
             get => m_cnm2.NodesToLoad;
             set => m_cnm2.NodesToLoad = value;
+        }
+
+        public Func<ServerSystemContext, NodeId, NodeState, bool>? IsNodeInViewOverride
+        {
+            get => m_cnm2.IsNodeInViewOverride;
+            set => m_cnm2.IsNodeInViewOverride = value;
         }
 
         public bool IsNodeIdInNamespacePublic(NodeId nodeId)

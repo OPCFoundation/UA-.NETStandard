@@ -47,12 +47,21 @@ namespace Opc.Ua.Mcp.Tools
         [McpServerTool(Name = "robotics_list_controllers")]
         [Description("Lists Robot Intent controllers visible in the active OPC UA session. This performs discovery " +
             "only; it does not request command authority and therefore cannot be refused for ControlNotOwned.")]
-        public static async Task<ArrayOf<RobotIntentNodeLookupEntry>> ListControllersAsync(
+        public static async Task<RobotIntentNodeLookupEntry[]> ListControllersAsync(
             RoboticsIntentManager manager,
             [Description("Session name to use; defaults to the only active session.")] string? sessionName = null,
             CancellationToken ct = default)
         {
-            return await manager.CreateClient(sessionName).DiscoverControllersAsync(ct).ConfigureAwait(false);
+            ArrayOf<RobotIntentNodeLookupEntry> controllers = await manager
+                .CreateClient(sessionName)
+                .DiscoverControllersAsync(ct)
+                .ConfigureAwait(false);
+            var result = new RobotIntentNodeLookupEntry[controllers.Count];
+            for (int i = 0; i < controllers.Count; i++)
+            {
+                result[i] = controllers[i];
+            }
+            return result;
         }
 
         /// <summary>
@@ -64,11 +73,13 @@ namespace Opc.Ua.Mcp.Tools
             "does not infer missing capabilities or command authority.")]
         public static async Task<RobotIntentControllerInfo> ReadControllerAsync(
             RoboticsIntentManager manager,
-            [Description("Controller NodeId, for example ns=2;s=RobotIntent/Controllers/Controller1.")] string controllerId,
+            [Description(RoboticsControlTools.ControllerDescription)] string controller,
             [Description("Session name to use; defaults to the only active session.")] string? sessionName = null,
             CancellationToken ct = default)
         {
-            return await manager.OpenController(controllerId, sessionName).ReadAsync(ct).ConfigureAwait(false);
+            RobotIntentControllerClient resolved = await manager.ResolveControllerAsync(
+                controller, sessionName, ct).ConfigureAwait(false);
+            return await resolved.ReadAsync(ct).ConfigureAwait(false);
         }
     }
 }
