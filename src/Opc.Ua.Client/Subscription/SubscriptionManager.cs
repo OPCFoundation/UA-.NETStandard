@@ -1619,16 +1619,20 @@ namespace Opc.Ua.Client.Subscriptions
                 try
                 {
                     await m_cts.CancelAsync().ConfigureAwait(false);
-                    if (!Task.IsCompleted)
+                    try
                     {
-                        try
-                        {
-                            await Task.ConfigureAwait(false);
-                        }
-                        catch
-                        {
-                        } // Ignore
+                        //
+                        // Await unconditionally. The controller reaps a
+                        // worker whose task has already completed, and that
+                        // completion is usually a fault or a cancellation -
+                        // skipping the await for completed tasks would leave
+                        // those exceptions unobserved.
+                        //
+                        await Task.ConfigureAwait(false);
                     }
+                    catch
+                    {
+                    } // Ignore
                 }
                 finally
                 {

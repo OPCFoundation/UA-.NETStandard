@@ -1122,11 +1122,15 @@ namespace Opc.Ua.Client.Subscriptions
             await using (sut.ConfigureAwait(false))
             {
                 // Nothing has signalled the controller yet, so the defaults
-                // are still in force - MinPublishWorkerCount is 2 and the
-                // session already reports one subscription.
+                // are still in force. Guard that they still make the
+                // scenario meaningful: the bug only shows when the default
+                // minimum inflates the count the session alone asks for.
                 Assert.Multiple(() =>
                 {
-                    Assert.That(sut.MinPublishWorkerCount, Is.EqualTo(2));
+                    Assert.That(sut.MinPublishWorkerCount,
+                        Is.GreaterThan(session.SessionSubscriptionCount),
+                        "Defaults no longer inflate the pool; pick a scenario " +
+                        "that still exercises constructor-time sizing.");
                     Assert.That(sut.PublishWorkerCount, Is.Zero,
                         "The constructor must not size the publish worker pool.");
                 });
