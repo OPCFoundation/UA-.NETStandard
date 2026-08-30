@@ -2238,10 +2238,8 @@ namespace Opc.Ua.Server
             RepublishResponse response;
             try
             {
-                NotificationMessage notificationMessage = ServerInternal.SubscriptionManager.Republish(
-                    context,
-                    subscriptionId,
-                    retransmitSequenceNumber);
+                NotificationMessage notificationMessage = GetSubscription(subscriptionId)
+                    .Republish(context, retransmitSequenceNumber);
 
                 response = new RepublishResponse
                 {
@@ -2416,9 +2414,8 @@ namespace Opc.Ua.Server
                     monitoredItemsCount,
                     OperationLimits.MaxMonitoredItemsPerCall);
 
-                ServerInternal.SubscriptionManager.SetTriggering(
+                GetSubscription(subscriptionId).SetTriggering(
                     context,
-                    subscriptionId,
                     triggeringItemId,
                     linksToAdd,
                     linksToRemove,
@@ -2526,12 +2523,12 @@ namespace Opc.Ua.Server
             {
                 ValidateOperationLimits(itemsToModify, OperationLimits.MaxMonitoredItemsPerCall);
 
-                ModifyMonitoredItemsResponse response = await ServerInternal.SubscriptionManager.ModifyMonitoredItemsAsync(
-                    context,
-                    subscriptionId,
-                    timestampsToReturn,
-                    itemsToModify,
-                    requestLifetime.CancellationToken).ConfigureAwait(false);
+                ModifyMonitoredItemsResponse response = await GetSubscription(subscriptionId)
+                    .ModifyMonitoredItemsAsync(
+                        context,
+                        timestampsToReturn,
+                        itemsToModify,
+                        requestLifetime.CancellationToken).ConfigureAwait(false);
 
                 response.ResponseHeader = CreateResponse(requestHeader, context.StringTable);
 
@@ -2625,9 +2622,8 @@ namespace Opc.Ua.Server
                 ValidateOperationLimits(monitoredItemIds, OperationLimits.MaxMonitoredItemsPerCall);
 
                 (ArrayOf<StatusCode> results, ArrayOf<DiagnosticInfo> diagnosticInfos) =
-                    await ServerInternal.SubscriptionManager.SetMonitoringModeAsync(
+                    await GetSubscription(subscriptionId).SetMonitoringModeAsync(
                     context,
-                    subscriptionId,
                     monitoringMode,
                     monitoredItemIds,
                     requestLifetime.CancellationToken)
@@ -2658,6 +2654,25 @@ namespace Opc.Ua.Server
             {
                 OnRequestComplete(context);
             }
+        }
+
+        /// <summary>
+        /// Resolves the subscription a service request addresses by id.
+        /// </summary>
+        /// <exception cref="ServiceResultException">
+        /// Thrown with <see cref="StatusCodes.BadSubscriptionIdInvalid"/> when no subscription
+        /// with the given id exists.
+        /// </exception>
+        private ISubscription GetSubscription(uint subscriptionId)
+        {
+            if (!ServerInternal.SubscriptionManager.TryGetSubscription(
+                subscriptionId,
+                out ISubscription? subscription))
+            {
+                throw new ServiceResultException(StatusCodes.BadSubscriptionIdInvalid);
+            }
+
+            return subscription;
         }
 
         /// <inheritdoc/>

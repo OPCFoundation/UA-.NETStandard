@@ -163,28 +163,6 @@ namespace Opc.Ua.Server
             CancellationToken cancellationToken = default);
 
         /// <summary>
-        /// Republishes a previously published notification message.
-        /// </summary>
-        NotificationMessage Republish(
-            OperationContext context,
-            uint subscriptionId,
-            uint retransmitSequenceNumber);
-
-        /// <summary>
-        /// Updates the triggers for the monitored item.
-        /// </summary>
-        void SetTriggering(
-            OperationContext context,
-            uint subscriptionId,
-            uint triggeringItemId,
-            ArrayOf<uint> linksToAdd,
-            ArrayOf<uint> linksToRemove,
-            out ArrayOf<StatusCode> addResults,
-            out ArrayOf<DiagnosticInfo> addDiagnosticInfos,
-            out ArrayOf<StatusCode> removeResults,
-            out ArrayOf<DiagnosticInfo> removeDiagnosticInfos);
-
-        /// <summary>
         /// Adds monitored items to a subscription.
         /// </summary>
         ValueTask<CreateMonitoredItemsResponse> CreateMonitoredItemsAsync(
@@ -195,31 +173,11 @@ namespace Opc.Ua.Server
             CancellationToken cancellationToken = default);
 
         /// <summary>
-        /// Modifies monitored items in a subscription.
-        /// </summary>
-        ValueTask<ModifyMonitoredItemsResponse> ModifyMonitoredItemsAsync(
-            OperationContext context,
-            uint subscriptionId,
-            TimestampsToReturn timestampsToReturn,
-            ArrayOf<MonitoredItemModifyRequest> itemsToModify,
-            CancellationToken cancellationToken = default);
-
-        /// <summary>
         /// Deletes the monitored items in a subscription.
         /// </summary>
         ValueTask<DeleteMonitoredItemsResponse> DeleteMonitoredItemsAsync(
             OperationContext context,
             uint subscriptionId,
-            ArrayOf<uint> monitoredItemIds,
-            CancellationToken cancellationToken = default);
-
-        /// <summary>
-        /// Changes the monitoring mode for a set of items.
-        /// </summary>
-        ValueTask<(ArrayOf<StatusCode> results, ArrayOf<DiagnosticInfo> diagnosticInfos)> SetMonitoringModeAsync(
-            OperationContext context,
-            uint subscriptionId,
-            MonitoringMode monitoringMode,
             ArrayOf<uint> monitoredItemIds,
             CancellationToken cancellationToken = default);
 
