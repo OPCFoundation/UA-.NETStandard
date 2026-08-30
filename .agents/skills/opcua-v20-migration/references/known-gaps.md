@@ -28,7 +28,7 @@ existing `<ItemGroup>`:
 ```xml
 <ItemGroup>
   <Reference Include="…" />     <!-- existing -->
-  <PackageReference Include="OPCFoundation.NetStandard.Opc.Ua.MigrationAnalyzer" Version="2.0.*-*" PrivateAssets="all" />
+  <PackageReference Include="OPCFoundation.NetStandard.Opc.Ua.MigrationAnalyzer" Version="2.0.0-preview.*" PrivateAssets="all" />
 </ItemGroup>
 ```
 
@@ -56,20 +56,7 @@ automatically.
 MSBuild), not `dotnet build`. Unrelated to the migration analyzer — would
 happen on plain 1.5.378 too.
 
-## G3 — `OPCFoundation.NetStandard.Opc.Ua.Quickstarts.Servers` meta-package not on 2.0
-
-**Symptom:** `Reference Server.csproj` depends on the legacy
-`OPCFoundation.NetStandard.Opc.Ua.Quickstarts.Servers` meta-package which is
-not published on 2.0.
-
-**Mitigation:** consumers must switch to a `<ProjectReference>` to
-`samples/Quickstarts.Servers` in this repo, or to an equivalent
-first-party project of their own. All 2.0 packages are published to the
-OPC Foundation Azure Artifacts preview feed
-(`https://opcfoundation.visualstudio.com/opcua-netstandard/_packaging/opcua-preview/nuget/v3/index.json`)
-until they are promoted to nuget.org.
-
-## G4 — `Samples/Opc.Ua.Sample` has > 1000 errors from `INodeManager` interface changes
+## G3 — `Samples/Opc.Ua.Sample` has > 1000 errors from `INodeManager` interface changes
 
 **Symptom:** the legacy `Samples/Opc.Ua.Sample` consumer hit 146–1364 build
 errors on initial 2.0 migration (depending on TFM): deep
@@ -87,16 +74,15 @@ deep `INodeManager` interface changes require the structural migration to
 `AsyncCustomNodeManager` documented in
 [`migration-patterns.md` §8](migration-patterns.md#8-server-side-node-manager-changes).
 
-## G5 — Public APIs returning `<Type>Collection` shim trip `CS0050`
+## G4 — Public APIs can retain temporary `<Type>Collection` shims
 
-The shim source generator emits `internal sealed` types by design (so
-the shim never leaks across the consumer's public surface). Internal
-call sites that consume the shim continue to compile incrementally
-while the public API migrates to `List<T>` / `ArrayOf<T>`. No further
-action required — `internal` accessibility is the intended design
-and matches the long-term migration path.
+The source generator emits `public sealed [Obsolete]` shim types so legacy
+public signatures keep compiling during an incremental migration. Those types
+exist only while the MigrationAnalyzer package is installed. Migrate every
+public signature and call site to `List<T>` / `ArrayOf<T>` before removing the
+package, or the remaining references become `CS0246` errors.
 
-## G6 — `GlobalDiscoverySampleServer` ctor inserted `ITelemetryContext` mid-arg-list
+## G5 — `GlobalDiscoverySampleServer` ctor inserted `ITelemetryContext` mid-arg-list
 
 **Symptom:** the 1.5.378 sample code
 
@@ -113,23 +99,27 @@ fails to compile on 2.0 because the new 6-arg ctor takes
 matching the 1.5.378 signature (forwards to the modern ctor with `telemetry:
 null!`). The shim covers downstream consumers using this 5-arg shape.
 
-## G7 — Generator MIG01 on element types from unreferenced NuGets
+## G6 — Generator MIG01 on element types from dependency metadata
 
 **Symptom:**
 
 ```
-MIG01: Cannot resolve element type 'Foo' for legacy wrapper 'FooCollection'.
+MIG01: Cannot resolve a unique element type 'Foo' for legacy wrapper 'FooCollection'.
 ```
 
-…even though `Foo` is "obvious" to a human reader because it lived in a NuGet
-that 1.5.378 referenced transitively (via `Quickstarts.Servers`) but 2.0 no
-longer pulls in.
+…even though `Foo` is visible from a referenced project or NuGet.
 
-**Mitigation:** add the missing `<PackageReference>` (or `<ProjectReference>`)
-explicitly. The generator runs in the consumer's compilation context and can
-only see types that `dotnet restore` materialized.
+**Cause:** source-declaration lookup covers the consumer project; metadata
+lookup checks only the exact names `System.<Type>` and `Opc.Ua.<Type>`. Adding
+a `PackageReference`, `ProjectReference`, or `using` does not extend that
+lookup.
 
-## G8 — `TreatWarningsAsErrors=true` blocks the warning-driven migration
+**Mitigation:** migrate the site manually to the intended fully qualified
+`List<T>` / `ArrayOf<T>`, or define the legacy wrapper class explicitly in
+consumer source so the unresolved reference binds and generator emission is
+skipped.
+
+## G7 — `TreatWarningsAsErrors=true` blocks the warning-driven migration
 
 **Symptom:** every UA00xx warning becomes a build error; the consumer can't
 even start applying fixes incrementally.
@@ -139,7 +129,7 @@ even start applying fixes incrementally.
 for the migration window. Peel each ID back as you fix the rule. Drop the
 whole block once the MigrationAnalyzer package is removed.
 
-## G9 — Analyzer silently doesn't load under csc.exe (historical, fixed)
+## G8 — Analyzer silently doesn't load under csc.exe (historical, fixed)
 
 **Symptom (historical):** the analyzer DLL initially co-shipped its
 code-fixers in one assembly, which transitively referenced
@@ -158,7 +148,7 @@ DLL is Workspaces-free. Each DLL now ships once per Roslyn band (`roslyn4.14`,
 `Opc.Ua.MigrationAnalyzer.Generator` appear in the per-analyzer-execution
 report. See [`compatibility-matrix.md`](compatibility-matrix.md).
 
-## G10 — `XmlElement` ambiguous between `Opc.Ua.XmlElement` and `System.Xml.XmlElement`
+## G9 — `XmlElement` ambiguous between `Opc.Ua.XmlElement` and `System.Xml.XmlElement`
 
 **Symptom:** `CS0104: 'XmlElement' is an ambiguous reference between
 'Opc.Ua.XmlElement' and 'System.Xml.XmlElement'`.
@@ -171,7 +161,7 @@ rare case the user needs the BCL type, use:
 System.Xml.XmlElement sysXml = opcUaXmlElement.ToXmlElement();
 ```
 
-## G11 — Auto-fix may produce verbose `Variant.From(...)` for hot paths
+## G10 — Auto-fix may produce verbose `Variant.From(...)` for hot paths
 
 **Symptom:** UA0008's auto-fix wraps every `Session.Call` argument with
 `Variant.From(...)`, which is correct but verbose for hot paths.
@@ -181,7 +171,7 @@ System.Xml.XmlElement sysXml = opcUaXmlElement.ToXmlElement();
 source type and may go through the boxed-object overload. For genuine
 hot paths, construct the `Variant[]` once and reuse it across calls.
 
-## G12 — Migration analyzer + central package management interaction
+## G11 — Migration analyzer + central package management interaction
 
 **Symptom:** consumer uses Central Package Management (`Directory.Packages.props`),
 but the migration package's transitive `<PackageReference>` declarations get
@@ -189,21 +179,26 @@ overridden by older entries in the consumer's CPM file.
 
 **Mitigation:** add `<PackageVersion>` entries for all OPC UA packages
 (including `MigrationAnalyzer`) to `Directory.Packages.props` at the new 2.0
-version. See [`package-install.md`](package-install.md#central-pinning-recommended-for-multi-project-solutions).
+version. See
+[`package-install.md`](package-install.md#centralized-variant-recommended-for-multi-project-solutions).
 
-## G13 — Old Net4 projects that depend on `OPCFoundation.NetStandard.Opc.Ua.Configuration.Debug`
+## G12 — Old Net4 projects that depend on `.Debug` package IDs
 
 **Symptom:** older sample projects reference `.Debug` variants of the OPC UA
 packages (e.g. `OPCFoundation.NetStandard.Opc.Ua.Configuration.Debug`,
 `OPCFoundation.NetStandard.Opc.Ua.Server.Debug`).
 
-**Cause:** 1.5.378 published `.Debug` variants of every package; 2.0 publishes
-the Debug build under the same package id (configuration switches).
+**Status:** the 2.0 previews continue to publish the `.Debug` package IDs.
+The stack projects append `.Debug` to `PackageId` for Debug builds, so
+`OPCFoundation.NetStandard.Opc.Ua.Configuration.Debug` and
+`OPCFoundation.NetStandard.Opc.Ua.Server.Debug` are valid 2.0 preview packages.
 
-**Mitigation:** strip the `.Debug` suffix from the package id and use
-`Configuration=Debug` in the consumer's build.
+**Mitigation:** retain the `.Debug` suffix and upgrade that package to the same
+2.0 preview version as the corresponding release package. Do not silently
+replace it with the non-`.Debug` package unless changing the consumer's package
+selection is intentional.
 
-## G14 — Sample csprojs without `<Nullable>enable</Nullable>` see cascade of `CS8600`
+## G13 — Sample csprojs without `<Nullable>enable</Nullable>` see cascade of `CS8600`
 
 **Symptom:** after migration, projects without explicit `<Nullable>enable</Nullable>`
 see many `CS8600 Converting null literal or possible null value to non-nullable

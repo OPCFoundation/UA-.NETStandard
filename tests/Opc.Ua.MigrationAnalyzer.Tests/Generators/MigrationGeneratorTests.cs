@@ -281,8 +281,17 @@ namespace Opc.Ua.MigrationAnalyzer.Tests.Generators
             Assert.That(emitted, Is.False, "MIG01 path must not emit a shim type");
 
             ImmutableArray<Diagnostic> diagnostics = result.Diagnostics;
-            Assert.That(diagnostics.Any(d => d.Id == "MIG01"), Is.True,
+            Diagnostic? diagnostic = diagnostics.SingleOrDefault(d => d.Id == "MIG01");
+            Assert.That(diagnostic, Is.Not.Null,
                 $"Expected MIG01 diagnostic; saw: {string.Join(", ", diagnostics.Select(d => d.Id))}");
+            string message = diagnostic!.GetMessage(System.Globalization.CultureInfo.InvariantCulture);
+            Assert.That(message, Does.Contain("consumer source declarations"));
+            Assert.That(message, Does.Not.Contain("using directive"));
+            Assert.That(
+                diagnostic.Descriptor.HelpLinkUri,
+                Is.EqualTo(
+                    "https://github.com/OPCFoundation/UA-.NETStandard/blob/master/" +
+                    "docs/migrate/2.0.x/source-generation.md#mig01-resolution-playbook"));
         }
 
         [Test]

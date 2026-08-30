@@ -1,5 +1,9 @@
 # Migrating from 1.5.378 to 2.0.x
 
+> **Bundled plugin snapshot.** These thematic migration docs ship with the
+> `opcua-v20-migration` plugin so its core workflow works offline. Links to
+> files outside this directory are optional upstream references.
+
 Version **2.0** introduces a major architectural change from pre-generated
 code files to runtime source generation and more efficient memory use,
 with several major breaking changes requiring changes to your applications.
@@ -15,13 +19,13 @@ find the sub-doc that matches the symptom you are seeing.
 > one-click fixes for many of the patterns in these sub-docs. The package
 > implements 25 analyzer rules through `UA0028` (excluding `UA0013`, `UA0016`,
 > and `UA0017`) across the index below and the cross-cutting guidance in the
-> [Migration Guide](../../MigrationGuide.md). `UA0029` is currently a
+> [Migration Guide](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/MigrationGuide.md). `UA0029` is currently a
 > runtime-shim/manual marker surfaced through `CS0618`, not an analyzer. The type-safety
 > subset (`UA0002`–`UA0008`, `UA0014`, `UA0019`) maps to
 > [`types.md`](types.md).
 
 > **Pro TIP.** Point your favorite coding agent at the
-> [`opcua-v20-migration`](../../../.agents/skills/opcua-v20-migration/SKILL.md)
+> [`opcua-v20-migration`](../../SKILL.md)
 > skill, which knows when to load each sub-doc and runs the codefixer
 > for you.
 
@@ -67,10 +71,10 @@ table; loading a single sub-doc keeps the context window small.
 
 ## See also
 
-- [Migration Guide landing page](../../MigrationGuide.md) — index across
+- [Migration Guide landing page](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/MigrationGuide.md) — index across
   all versions, including the small `1.05.377` → `1.05.378` and
   `1.04` → `1.05` legacy notes.
-- [What's New in 2.0](../../WhatsNewIn2.0.md) — narrative tour of the
+- [What's New in 2.0](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/WhatsNewIn2.0.md) — narrative tour of the
   2.0 changes, grouped by theme and layer.
-- [Profiles](../../Profiles.md) — facet / profile coverage of the 2.0
+- [Profiles](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/Profiles.md) — facet / profile coverage of the 2.0
   release.

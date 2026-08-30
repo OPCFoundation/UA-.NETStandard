@@ -72,13 +72,6 @@ namespace Opc.Ua.MigrationAnalyzer.Diagnostics
         /// </summary>
         public const string UA0028 = "UA0028";
 
-        /// <summary>
-        /// The SecurityPolicies lookup and cryptography statics moved onto
-        /// ISecurityPolicyRegistry: they operate on the set of registered
-        /// policies rather than on constants.
-        /// </summary>
-        public const string UA0029 = "UA0029";
-
         /// <summary>The diagnostic category every UA00xx rule belongs to.</summary>
         public const string Category = "Migration";
 

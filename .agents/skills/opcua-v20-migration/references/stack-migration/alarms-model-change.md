@@ -44,7 +44,7 @@ The quickstart `AlarmNodeManager` itself was also modernized:
   writable `/Alarms/MaintenanceMode` boolean — clients can flip
   MaintenanceMode and watch every member alarm transition into
   `SuppressedState`. See
-  [Alarms and Conditions](../../AlarmsAndConditions.md#alarm-groups-and-first-in-group)
+  [Alarms and Conditions](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/AlarmsAndConditions.md#alarm-groups-and-first-in-group)
   for the developer guide.
 
 Neither change is breaking for stack consumers — they only affect
@@ -77,7 +77,7 @@ public MyNodeManager(...)
 The aggregator API (`ModelChangeAggregator.RecordNodeAdded/Deleted/
 ReferenceAdded/ReferenceDeleted/DataTypeChanged`, `Drain`,
 `HasPending`) is also available for manual control — see
-[Model Change Tracking](../../ModelChangeTracking.md).
+[Model Change Tracking](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/ModelChangeTracking.md).
 
 ## Address-space model change tracking
 
@@ -92,7 +92,7 @@ void InvalidateNode(NodeId nodeId);
 The stack's built-in `NodeCache` implements this with true per-node
 eviction. The `ModelChangeTracker` uses it to keep the cache in sync
 with server-reported address-space changes — see
-[Model Change Tracking](../../ModelChangeTracking.md).
+[Model Change Tracking](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/ModelChangeTracking.md).
 
 **Migration:** Custom `INodeCache` implementations must add an
 implementation. The simplest is to delegate to `Clear()`:
@@ -119,4 +119,4 @@ available.
 
 - Related: [node-states.md](node-states.md), [sessions-subscriptions.md](sessions-subscriptions.md).
 - [2.0 migration index](README.md) — analyzer quick-start + symptom → sub-doc table.
-- [Migration Guide](../../MigrationGuide.md) — landing page across versions.
+- [Migration Guide](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/MigrationGuide.md) — landing page across versions.

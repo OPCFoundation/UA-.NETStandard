@@ -1,8 +1,10 @@
 # UA00xx + MIG01 — full analyzer / generator rule reference
 
-Each rule documented below ships as a `DiagnosticAnalyzer` in
-`Opc.Ua.MigrationAnalyzer.dll` (or the `MigrationGenerator` for `MIG01`). The
-companion `CodeFixProvider` (when available) lives in
+The implemented `UA0001`–`UA0028` rules below ship as `DiagnosticAnalyzer`
+types in `Opc.Ua.MigrationAnalyzer.dll` (excluding the unused IDs `UA0013`,
+`UA0016`, and `UA0017`). `MIG01` comes from the `MigrationGenerator`. `UA0029`
+is currently a runtime-shim/manual-migration marker only; no analyzer reports
+that ID. The companion `CodeFixProvider` types, when available, live in
 `Opc.Ua.MigrationAnalyzer.CodeFixer.dll`.
 
 Apply all auto-fixable rules in one shot via the
@@ -45,8 +47,8 @@ the call chain.
 | | |
 |---|---|
 | **Default severity** | Warning |
-| **Auto-fix** | ✅ Rewrites to `List<TElement>` (mutable) or `ArrayOf<TElement>` (read-only) based on usage |
-| **Why** | 2.0 removed every model-compiler-emitted `<Type>Collection` wrapper. Mutable storage goes to `List<T>`; read-only consumers (which is most OPC UA APIs) go to `ArrayOf<T>`. |
+| **Auto-fix** | ✅ Always rewrites to `List<TElement>` |
+| **Why** | 2.0 removed every model-compiler-emitted `<Type>Collection` wrapper. The mechanical fixer uses `List<T>` so collection initializers and mutations keep compiling. Review API boundaries afterward and convert to `ArrayOf<T>` where the 2.0 API expects immutable OPC UA collections. |
 
 ```csharp
 // Before
@@ -55,12 +57,12 @@ NodeIdCollection nodes = await session.BrowseAsync(...);
 
 // After (mutable)
 var items = new List<int> { 1, 2, 3 };
-// After (read-only)
+// Manual follow-up at a read-only OPC UA API boundary
 ArrayOf<NodeId> nodes = await session.BrowseAsync(...);
 ```
 
 The source generator (see [`source-generator.md`](source-generator.md)) emits
-`internal sealed [Obsolete] class <Name>Collection : List<TElement>` for every
+`public sealed [Obsolete] class <Name>Collection : List<TElement>` for every
 unresolved reference, so `CS0246` becomes a `CS0618` `[Obsolete]` warning plus
 this `UA0002` diagnostic.
 
@@ -246,16 +248,17 @@ detail.
 | | |
 |---|---|
 | **Default severity** | Warning |
-| **Auto-fix** | ✅ Rewrites to call the instance method on a default-constructed factory |
-| **Why** | 2.0 made `CertificateFactory` an instance type so multiple factories (with different defaults / providers) can coexist. |
+| **Auto-fix** | ✅ Rewrites the receiver to `DefaultCertificateFactory.Instance` |
+| **Why** | 2.0 moved certificate creation behind the injectable `ICertificateFactory` contract. `DefaultCertificateFactory.Instance` is the built-in fallback when no application-specific factory is available. |
 
 ```csharp
 // Before
 var cert = CertificateFactory.CreateCertificate(...).CreateForRSA();
 
 // After
-var factory = new CertificateFactory();
-var cert = factory.CreateCertificate(...).CreateForRSA();
+var cert = DefaultCertificateFactory.Instance
+    .CreateCertificate(...)
+    .CreateForRSA();
 ```
 
 ---
@@ -288,38 +291,44 @@ if (dv.IsGood) Process(dv);
 
 ---
 
-## UA0018 — `CertificateIdentifier.Certificate` getter → `LoadCertificate2Async`
+## UA0018 — `CertificateIdentifier.Certificate` getter → `CertificateIdentifierResolver.ResolveAsync`
 
 | | |
 |---|---|
 | **Default severity** | Info |
 | **Auto-fix** | No |
-| **Why** | The 1.5.378 sync `Certificate` getter blocked on disk / cert-store I/O. 2.0 surfaces an async `LoadCertificate2Async` instead. The migration is structural — you reshape the caller to be async. |
+| **Why** | The 1.5.378 sync `Certificate` getter blocked on disk / cert-store I/O. 2.0 resolves an identifier asynchronously with explicit registry, private-key, application-URI, telemetry, and cancellation inputs. The migration is structural — reshape the caller to be async and dispose the returned ref-counted `Certificate`. |
 
 ```csharp
 // Before
 var cert = ci.Certificate;
 
 // After
-var cert = await ci.LoadCertificate2Async(applicationCertificate: true, ct).ConfigureAwait(false);
+using Certificate? cert = await CertificateIdentifierResolver.ResolveAsync(
+    ci,
+    registry: registry,
+    needPrivateKey: true,
+    applicationUri: applicationUri,
+    telemetry: telemetry,
+    ct: ct).ConfigureAwait(false);
 ```
 
 ---
 
-## UA0019 — `new DataValue(StatusCode[, ts])` → object initializer
+## UA0019 — `new DataValue(StatusCode[, ts])` → `DataValue.FromStatusCode`
 
 | | |
 |---|---|
 | **Default severity** | Warning |
-| **Auto-fix** | ✅ Rewrites `new DataValue(sc, ts)` to `new DataValue { StatusCode = sc, SourceTimestamp = ts }` |
-| **Why** | Reduces ctor-overload combinatorics in 2.0; the object-initializer form scales to the now-richer property surface. |
+| **Auto-fix** | ✅ Rewrites to `DataValue.FromStatusCode(sc[, serverTimestamp])` |
+| **Why** | The named factory avoids constructor ambiguity with numeric types while preserving the optional server timestamp. |
 
 ```csharp
 // Before
 var dv = new DataValue(StatusCodes.Good, DateTime.UtcNow);
 
 // After
-var dv = new DataValue { StatusCode = StatusCodes.Good, SourceTimestamp = DateTimeUtc.Now };
+var dv = DataValue.FromStatusCode(StatusCodes.Good, DateTimeUtc.Now);
 ```
 
 ---
@@ -350,7 +359,7 @@ var child = f.Fork();                          // explicit "branch from this"
 |---|---|
 | **Default severity** | Info |
 | **Auto-fix** | No (structural redesign) |
-| **Why** | 2.0 replaces the event-based per-error accept handler (`CertificateValidator.CertificateValidation += (s, e) => e.Accept = …`) with a return-value model (`ICertificateValidatorEx.ValidateAsync(...)` returns a `CertificateValidationResult`). Per-error accept logic moves to `CertificateValidationOptions.AcceptError`. |
+| **Why** | 2.0 replaces the event-based per-error accept handler (`CertificateValidator.CertificateValidation += (s, e) => e.Accept = …`) with a return-value model (`ICertificateValidatorEx.ValidateAsync(...)` returns a `CertificateValidationResult`). Set the manager's global `AcceptError` callback, or pass `CertificateValidationOptions.AcceptError` to one validation call. |
 
 ```csharp
 // Before
@@ -359,13 +368,15 @@ config.CertificateValidator.CertificateValidation += (s, e) => {
         e.Accept = true;
 };
 
-// After
-config.CertificateManager.Options.AcceptError = (cert, error) =>
+// After — global policy for this manager
+config.CertificateManager.AcceptError = (cert, error) =>
     error.StatusCode == StatusCodes.BadCertificateUntrusted;
-// or implement ICertificateValidatorEx.ValidateAsync for full control.
+
+// Or create CertificateValidationOptions with AcceptError and pass it
+// to the applicable ValidateAsync call for per-call policy.
 ```
 
-See [`docs/migrate/2.0.x/certificates.md`](../../../../docs/migrate/2.0.x/certificates.md)
+See [`stack-migration/certificates.md`](stack-migration/certificates.md)
 §"Certificate Manager and segregated interfaces" for the structural model in full.
 
 ---
@@ -388,6 +399,189 @@ var m = config.CertificateManager;
 
 ---
 
+## UA0023 — Legacy PubSub top-level API → builder and DI APIs
+
+| | |
+|---|---|
+| **Default severity** | Warning |
+| **Auto-fix** | No (application lifecycle and DI design require judgement) |
+| **Why** | 2.0 removes or obsoletes `UaPubSubApplication.Create*` and the legacy `IUaPubSubConnection`, `UaPubSubConnection`, `IUaPublisher`, `UaPublisher`, `IUaPubSubDataStore`, `UaPubSubDataStore`, and `UaPubSubConfigurator` surface. `IUaPubSubDataStore` remains temporarily as an obsolete bridge. |
+
+```csharp
+// Before
+UaPubSubApplication app = UaPubSubApplication.Create("publisher.xml");
+app.Start();
+
+// After (using the application's ITelemetryContext)
+var builder = new PubSubApplicationBuilder(telemetry)
+    .UseConfigurationFile("publisher.xml");
+await using IPubSubApplication app = await builder.BuildAndStartAsync();
+```
+
+Use `PubSubApplicationBuilder`, or call `AddPubSub(...)` on `IOpcUaBuilder` and
+configure `AddUdpTransport()` / `AddMqttTransport()` on the callback's
+`IPubSubBuilder`.
+See the bundled
+[`pubsub.md`](stack-migration/pubsub.md)
+guide.
+
+---
+
+## UA0024 — Exposed diagnostics locks → owner-side update/read methods
+
+| | |
+|---|---|
+| **Default severity** | Warning |
+| **Auto-fix** | No (the lock body must be reshaped into a callback safely) |
+| **Why** | `IServerInternal`, `ISession`, and `ISubscription` no longer expose `DiagnosticsLock` / `DiagnosticsWriteLock`. The owner now performs synchronization. |
+
+```csharp
+// Before
+lock (server.DiagnosticsLock)
+{
+    server.ServerDiagnostics.RejectedSessionCount++;
+}
+
+// After
+server.UpdateServerDiagnostics(
+    diagnostics => diagnostics.RejectedSessionCount++);
+```
+
+Use `UpdateDiagnostics(...)` for session/subscription writes and
+`ReadDiagnostics(...)` for projections. Do not let the diagnostics object
+escape the callback. See the canonical
+[diagnostics-lock guidance](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/MigrationGuide.md#migrating-code-that-used-the-exposed-diagnostics-locks).
+
+---
+
+## UA0025 — `ILocalNode.DataLock` / `Node.DataLock` → owner-controlled synchronization
+
+| | |
+|---|---|
+| **Default severity** | Warning |
+| **Auto-fix** | No (the required atomic boundary is application-specific) |
+| **Why** | A node guards its own state and no longer exposes its synchronization root. |
+
+```csharp
+// Before
+lock (node.DataLock)
+{
+    value = node.Value;
+}
+
+// After — a single node operation is already synchronized
+value = node.Value;
+```
+
+For an atomic operation spanning multiple calls, use a
+`System.Threading.Lock` owned by the calling component. See the canonical
+[`ILocalNode.DataLock` guidance](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/MigrationGuide.md#migrating-code-that-used-ilocalnodedatalock).
+
+---
+
+## UA0026 — `BaseVariableValue.Lock` → caller-owned `System.Threading.Lock`
+
+| | |
+|---|---|
+| **Default severity** | Warning |
+| **Auto-fix** | No (the correct owner of the critical section is contextual) |
+| **Why** | `BaseVariableValue` no longer hands its lock to callers. A component needing shared atomicity passes a lock it owns to the constructor; derived value classes use `EnterLock()` / `ExitLock()`. |
+
+```csharp
+EnterLock();
+try
+{
+    // Read or update the derived value fields.
+}
+finally
+{
+    ExitLock();
+}
+```
+
+See the canonical
+[`BaseVariableValue.Lock` guidance](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/MigrationGuide.md#migrating-code-that-used-basevariablevaluelock).
+
+---
+
+## UA0027 — `NodeBrowser.DataLock` → single-consumer browser access
+
+| | |
+|---|---|
+| **Default severity** | Warning |
+| **Auto-fix** | No (the analyzer cannot prove the lock body is safe to unwrap) |
+| **Why** | A browser belongs to one consumer and no longer exposes a lock. Its owner serializes continuation-point use. |
+
+```csharp
+// Before
+lock (DataLock)
+{
+    return base.Next();
+}
+
+// After
+return base.Next();
+```
+
+Custom `CreateBrowser` overrides that populate a browser directly should use
+`PopulateBrowserSynchronized`. See the bundled
+[`node-states.md`](stack-migration/node-states.md)
+guide.
+
+---
+
+## UA0028 — `ApplicationConfiguration.PropertiesLock` → concurrent properties APIs
+
+| | |
+|---|---|
+| **Default severity** | Warning |
+| **Auto-fix** | No (multi-operation critical sections need manual review) |
+| **Why** | `Properties` synchronizes individual operations internally, so the dictionary is no longer exposed as a lock. |
+
+```csharp
+// Before
+lock (configuration.PropertiesLock)
+{
+    configuration.Properties["MyKey"] = value;
+}
+
+// After
+configuration.Properties["MyKey"] = value;
+```
+
+Use `GetOrAddProperty(...)` for atomic get-or-add behavior. See the canonical
+[`PropertiesLock` guidance](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/MigrationGuide.md#migrating-code-that-used-applicationconfigurationpropertieslock).
+
+---
+
+## UA0029 — `SecurityPolicies` lookup/crypto statics → `ISecurityPolicyRegistry`
+
+| | |
+|---|---|
+| **Current status** | Runtime-shim/manual-migration marker; no active `DiagnosticAnalyzer` reports `UA0029` |
+| **Signal** | Calls supplied by the migration shim produce compiler `[Obsolete]` warnings (`CS0618`) whose messages reference `UA0029` |
+| **Auto-fix** | No |
+| **Why** | Lookup and cryptography operations depend on the application's registered policy set and its logger, so they moved from the constants class to the registry that owns that state. |
+
+```csharp
+// Before
+string? uri = SecurityPolicies.GetUri("Basic256Sha256");
+
+// After — preferred when the application container is available
+public sealed class MyService(ISecurityPolicyRegistry policies)
+{
+    public string? Uri => policies.GetUri("Basic256Sha256");
+}
+
+// Fallback when no container is in scope
+string? uri = SecurityPolicies.Default.GetUri("Basic256Sha256");
+```
+
+`SecurityPolicies` still owns the policy URI constants. For `Encrypt` and
+`Decrypt`, call the registry instance and remove the old `ILogger` argument.
+
+---
+
 ## MIG01 — generator can't resolve element type for `<Foo>Collection`
 
 | | |
@@ -395,20 +589,22 @@ var m = config.CertificateManager;
 | **Default severity** | Warning |
 | **Source** | `Opc.Ua.MigrationAnalyzer.Generator` |
 | **Auto-fix** | No |
-| **Why** | The source generator's element-type lookup needs exactly one `INamedTypeSymbol` matching the short name (e.g. `Foo` for `FooCollection`). Zero or > 1 matches → MIG01. |
+| **Why** | The source generator needs one source-declared type matching the short name (e.g. `Foo` for `FooCollection`), or a metadata type named exactly `System.<Type>` / `Opc.Ua.<Type>`. Unsupported metadata, zero source matches, or > 1 source matches → MIG01. |
 
 **Resolution steps:**
 
-1. **Most common cause:** missing `using` for the namespace that defines `Foo`.
-   Add the `using` to the file containing the `<Foo>Collection` reference.
-2. **Multiple candidates:** the consumer compilation has two types named `Foo`
-   in different namespaces. Fully-qualify the wrapper reference or rename one of
-   the conflicting `Foo` types.
-3. **`Foo` lives in an unreferenced NuGet:** add the missing package
-   reference; the generator runs in the consumer's compilation context and can
-   only see what `dotnet restore` brought in.
-4. **`Foo` doesn't exist anywhere yet:** migrate the call site manually to
-   `List<…>` / `ArrayOf<…>` of the actual element type you intended.
+1. **Zero source matches:** migrate the wrapper reference manually to
+   `List<global::Namespace.Foo>` / `ArrayOf<global::Namespace.Foo>`, using the
+   intended element type.
+2. **Multiple source matches:** choose the intended fully qualified element
+   type in the manual replacement. Qualifying the legacy wrapper does not
+   disambiguate the generator's element lookup.
+3. **`Foo` only exists in dependency metadata without the exact full name
+   `System.Foo` or `Opc.Ua.Foo`:** adding or importing the dependency does not
+   extend the lookup. Migrate manually or define the legacy wrapper class
+   explicitly in consumer source.
+4. **`Foo` no longer exists:** replace the stale wrapper with `List<NewFoo>` /
+   `ArrayOf<NewFoo>` using the replacement element type.
 
 See [`source-generator.md`](source-generator.md) for the generator pipeline.
 

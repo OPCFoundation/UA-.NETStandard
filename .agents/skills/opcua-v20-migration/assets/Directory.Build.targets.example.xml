@@ -13,10 +13,12 @@
       migration. Re-enable as soon as you've removed the MigrationAnalyzer
       package.
     - MIG01: source-generator diagnostic for unresolvable <Foo>Collection element
-      types. Usually means a missing `using` directive - keep this enabled
-      and address each one as it appears.
-    - UA0001 .. UA0022: the analyzer rules. Each one corresponds to a specific
-      pattern; see references/analyzer-rules.md for the full table.
+      types. The generator found no unique consumer-source declaration and no
+      exact System.<Type> / Opc.Ua.<Type> metadata name. A `using` directive
+      does not change that lookup; keep this enabled and migrate each site
+      manually.
+    - 25 UA00xx rules through UA0028: UA0013, UA0016, and UA0017 are unused.
+      See references/analyzer-rules.md for the full table.
 
     For per-rule suppression instead of NoWarn, use .editorconfig:
         [*.cs]
@@ -51,7 +53,13 @@
       UA0019;
       UA0020;
       UA0021;
-      UA0022
+      UA0022;
+      UA0023;
+      UA0024;
+      UA0025;
+      UA0026;
+      UA0027;
+      UA0028
     </NoWarn>
   </PropertyGroup>
 </Project>

@@ -3,7 +3,7 @@
   <metadata minClientVersion="2.12">
     <id>OPCFoundation.NetStandard.Opc.Ua.MigrationAnalyzer</id>
     <version>$version$</version>
-    <title>OPC UA .NET Standard 1.5.378 to 1.6 migration analyzers, code fixers, and compatibility shim</title>
+    <title>OPC UA .NET Standard 1.5.378 to 2.0 migration analyzers, code fixers, and compatibility shim</title>
     <authors>OPC Foundation</authors>
     <owners>OPC Foundation</owners>
     <requireLicenseAcceptance>true</requireLicenseAcceptance>
@@ -11,7 +11,7 @@
     <projectUrl>https://github.com/OPCFoundation/UA-.NETStandard</projectUrl>
     <icon>images/logo.jpg</icon>
     <readme>NugetREADME.md</readme>
-    <description>OPC UA .NET Standard migration analyzers and code fixers (UA0001-UA0020) bundled with the Opc.Ua.MigrationAnalyzer.Core compatibility assembly that re-exposes the 1.5.378 obsolete surface to ease the move to 1.6.</description>
+    <description>25 OPC UA analyzers (through UA0028, with gaps), code fixes, and a 1.5.378 API shim.</description>
     <copyright>Copyright (c) 2004-2025 OPC Foundation, Inc</copyright>
     <tags>OPCFoundation OPC UA analyzer codefix roslyn migration shim</tags>
     <developmentDependency>true</developmentDependency>

@@ -81,4 +81,4 @@ Use `Version="13.0.4"` or any compatible later `13.x` release.
 
 - Related: [configuration.md](configuration.md), [encoders.md](encoders.md).
 - [2.0 migration index](README.md) — analyzer quick-start + symptom → sub-doc table.
-- [Migration Guide](../../MigrationGuide.md) — landing page across versions.
+- [Migration Guide](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/MigrationGuide.md) — landing page across versions.

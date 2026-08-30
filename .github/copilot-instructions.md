@@ -212,4 +212,4 @@ This is the official OPC UA .NET Standard Stack from the OPC Foundation. It prov
   - Core: https://www.nuget.org/packages/OPCFoundation.NetStandard.Opc.Ua.Core/
   - Client: https://www.nuget.org/packages/OPCFoundation.NetStandard.Opc.Ua.Client/
   - Server: https://www.nuget.org/packages/OPCFoundation.NetStandard.Opc.Ua.Server/
-- Preview Feed: https://opcfoundation.visualstudio.com/opcua-netstandard/_packaging?_a=feed&feed=opcua-preview%40Local
+- Preview NuGet packages: https://www.nuget.org/packages/OPCFoundation.NetStandard.Opc.Ua/ (`2.0.0-preview.*`; select *Include prerelease*)

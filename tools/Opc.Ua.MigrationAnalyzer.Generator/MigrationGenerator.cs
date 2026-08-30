@@ -63,9 +63,10 @@ namespace Opc.Ua.MigrationAnalyzer.Generator
     ///   renames across the 1.5.378 → 2.0 boundary (only 4 entries).</item>
     ///   <item><c>Compilation.GetSymbolsWithName</c> — model-compiled
     ///   <c>&lt;UserType&gt;</c>s declared in the consumer's source.</item>
-    ///   <item><c>Compilation.GetTypeByMetadataName</c> against <c>System.*</c> and
-    ///   <c>Opc.Ua.*</c> — primitive aliases (Int32, Boolean, ...) and built-in
-    ///   OPC UA element types (NodeId, Variant, DataValue, ...).</item>
+    ///   <item><c>Compilation.GetTypeByMetadataName</c> against exact
+    ///   <c>System.&lt;Type&gt;</c> and <c>Opc.Ua.&lt;Type&gt;</c> metadata names —
+    ///   primitive aliases (Int32, Boolean, ...) and built-in OPC UA element
+    ///   types (NodeId, Variant, DataValue, ...).</item>
     ///   </list>
     ///   On zero / ambiguous matches, report <c>MIG01</c> instead of emitting.
     /// </item>
@@ -197,8 +198,8 @@ namespace Opc.Ua.MigrationAnalyzer.Generator
             // like System.Int32 (from mscorlib) or Opc.Ua.NodeId (from the
             // Opc.Ua.Types reference) won't be found there. We try the well-known
             // namespaces a 1.5.378 <Type>Collection might wrap, in priority order:
-            //   1. System.*       — covers primitive aliases (Int32, Boolean, ...).
-            //   2. Opc.Ua.*       — covers all built-in OPC UA element types
+            //   1. System.<Type> — covers primitive aliases (Int32, Boolean, ...).
+            //   2. Opc.Ua.<Type> — covers all built-in OPC UA element types
             //                        (NodeId, Variant, DataValue, ExpandedNodeId,
             //                         EndpointDescription, ReadValueId, ...).
             INamedTypeSymbol? metadataType =

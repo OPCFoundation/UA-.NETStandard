@@ -82,7 +82,7 @@ Version 2.0 introduces `ManagedSession`, a wrapper around `Session` that automat
 - **`DefaultSessionFactory`** is **unchanged** — it continues to create raw `Session` instances. Existing code that constructs `DefaultSessionFactory` directly keeps the same behavior in 2.0.
 - **`SessionReconnectHandler`** is **retained** as a supported legacy entry point for callers that already manage raw `Session` instances. The type itself is not removed. Its parameterless legacy constructor remains marked `[Obsolete("Use SessionReconnectHandler(ITelemetryContext, bool, int) instead.")]` in 2.0 (the same attribute was already present in 1.5.378); pass an `ITelemetryContext` to the new ctor when adopting it. It now also requires the wrapped `ISession` to be a `Session` (or a derived type) — passing a `ManagedSession` (or any other `ISession` facade) throws `NotSupportedException`, since those facades drive their own reconnect / failover state machine. New code should still prefer `ManagedSessionFactory` / `ManagedSession.CreateAsync`.
 
-For a deeper architectural picture of how `Session`, `ManagedSession`, `SessionReconnectHandler`, and the subscription engines fit together, see [Sessions, Reconnection, and Subscription Engines](../../Sessions.md).
+For a deeper architectural picture of how `Session`, `ManagedSession`, `SessionReconnectHandler`, and the subscription engines fit together, see [Sessions, Reconnection, and Subscription Engines](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/Sessions.md).
 
 **Migration**:
 
@@ -265,7 +265,7 @@ after the handler `await` completes and calls
 their static activator pools. The recorded benchmarks show ~315× fewer
 allocations per `MonitoredItemNotification` and a corresponding drop in
 gen-0 GC pressure
-(see [`docs/Benchmarks.md` → *Pooled encodeable*](../../Benchmarks.md#pooled-encodeable)).
+(see [`docs/Benchmarks.md` → *Pooled encodeable*](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/Benchmarks.md#pooled-encodeable)).
 
 **Handler contract change (only when `WithPoolNotifications` is enabled):**
 Handlers must **not** retain references to notification objects past the
@@ -275,7 +275,7 @@ values must **copy** them out of the dispatched struct before returning.
 The `DataValueChange` / `EventNotification` projection structs are
 designed not to surface pooled instances directly — copy-by-value of the
 struct itself is safe and is the recommended pattern. See
-[`docs/Sessions.md`](../../Sessions.md#v2-notification-pooling-opt-in) for full
+[`docs/Sessions.md`](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/Sessions.md#v2-notification-pooling-opt-in) for full
 detail and a code example.
 
 ```csharp
@@ -353,7 +353,7 @@ Consumers adopting the new shape may need to add a `using Opc.Ua.Client.Subscrip
 
 The server-side `ISubscriptionStore` definition-persistence methods are asynchronous: `StoreSubscriptions` is now `ValueTask<bool> StoreSubscriptionsAsync(IEnumerable<IStoredSubscription>, CancellationToken)`, `RestoreSubscriptions` is now `ValueTask<RestoreSubscriptionResult> RestoreSubscriptionsAsync(CancellationToken)`, and `OnSubscriptionRestoreComplete` is now `ValueTask OnSubscriptionRestoreCompleteAsync(Dictionary<uint, ArrayOf<uint>>, CancellationToken)`. This lets subscription definitions be persisted to an async network backend without a sync-over-async wrapper. Custom `ISubscriptionStore` implementations must adopt the async signatures; a synchronous body can simply return `new ValueTask<T>(result)`.
 
-`ISubscriptionStore` also adds asynchronous per-monitored-item queue-restore hooks - `ValueTask<IDataChangeMonitoredItemQueue?> RestoreDataChangeMonitoredItemQueueAsync(uint, CancellationToken)` and `ValueTask<IEventMonitoredItemQueue?> RestoreEventMonitoredItemQueueAsync(uint, CancellationToken)` - so a networked store can re-hydrate a monitored-item queue without blocking. The master node manager pre-fetches these queues asynchronously at the start of subscription restore and hands the pre-hydrated queue to the (still synchronous) `MonitoredItem` constructor via new runtime-only `IStoredMonitoredItem.RestoredDataChangeQueue`/`RestoredEventQueue` properties. Custom `ISubscriptionStore` implementations must add the two async members; a store that keeps queues locally can simply delegate to the existing synchronous `RestoreDataChangeMonitoredItemQueue`/`RestoreEventMonitoredItemQueue`, which remain as the fallback used when no pre-hydrated queue is supplied. Custom `IStoredMonitoredItem` implementations must add the two new properties (the built-in `StoredMonitoredItem` already does). The high-availability `SharedKeyValueMonitoredItemQueueFactory` uses these hooks to restore mirrored queue contents on failover (see [High Availability](../../HighAvailability.md)).
+`ISubscriptionStore` also adds asynchronous per-monitored-item queue-restore hooks - `ValueTask<IDataChangeMonitoredItemQueue?> RestoreDataChangeMonitoredItemQueueAsync(uint, CancellationToken)` and `ValueTask<IEventMonitoredItemQueue?> RestoreEventMonitoredItemQueueAsync(uint, CancellationToken)` - so a networked store can re-hydrate a monitored-item queue without blocking. The master node manager pre-fetches these queues asynchronously at the start of subscription restore and hands the pre-hydrated queue to the (still synchronous) `MonitoredItem` constructor via new runtime-only `IStoredMonitoredItem.RestoredDataChangeQueue`/`RestoredEventQueue` properties. Custom `ISubscriptionStore` implementations must add the two async members; a store that keeps queues locally can simply delegate to the existing synchronous `RestoreDataChangeMonitoredItemQueue`/`RestoreEventMonitoredItemQueue`, which remain as the fallback used when no pre-hydrated queue is supplied. Custom `IStoredMonitoredItem` implementations must add the two new properties (the built-in `StoredMonitoredItem` already does). The high-availability `SharedKeyValueMonitoredItemQueueFactory` uses these hooks to restore mirrored queue contents on failover (see [High Availability](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/HighAvailability.md)).
 
 ### Request completion is owned by `OperationContext`
 
@@ -425,7 +425,7 @@ The runtime transport boundary moved from `IMessageSocket` to the new public `IU
 | `UaSCUaBinaryClientChannel(..., IMessageSocketFactory, ...)` ctor | `UaSCUaBinaryClientChannel(..., IUaSCByteTransportFactory, ...)` ctor |
 | `ITcpChannelListener.ReconnectToExistingChannel(IMessageSocket, ...)` | `ITcpChannelListener.ReconnectToExistingChannel(IUaSCByteTransport, ...)` |
 
-**If you previously implemented a custom `IMessageSocket`** (rare in practice — almost no consumer subclasses `TcpMessageSocket`): the recommended migration path is to implement [`IUaSCByteTransport`](../../../src/Opc.Ua.Core/Stack/Tcp/IUaSCByteTransport.cs) directly. See [`docs/Transports.md`](../../Transports.md) § "Implementing a custom byte transport" for the contract, an implementation checklist, and a worked example (the public [`InProcessTransport`](../../../src/Opc.Ua.Core/Stack/Tcp/InProcessTransport.cs) reference implementation that consumes only the public surface). The new abstraction is chunk-oriented (one Send / Receive per UASC `MessageChunk`) and exposes only `ValueTask`-based async; it is intentionally narrower than the old SAEA-based `IMessageSocket` and most legacy implementations collapse to ~150 lines.
+**If you previously implemented a custom `IMessageSocket`** (rare in practice — almost no consumer subclasses `TcpMessageSocket`): the recommended migration path is to implement [`IUaSCByteTransport`](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/src/Opc.Ua.Core/Stack/Tcp/IUaSCByteTransport.cs) directly. See [`docs/Transports.md`](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/Transports.md) § "Implementing a custom byte transport" for the contract, an implementation checklist, and a worked example (the public [`InProcessTransport`](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/src/Opc.Ua.Core/Stack/Tcp/InProcessTransport.cs) reference implementation that consumes only the public surface). The new abstraction is chunk-oriented (one Send / Receive per UASC `MessageChunk`) and exposes only `ValueTask`-based async; it is intentionally narrower than the old SAEA-based `IMessageSocket` and most legacy implementations collapse to ~150 lines.
 
 ### Transport binding registry — `TransportBindings` static API removed
 
@@ -508,4 +508,4 @@ The DI extension resolves both factory types out of the container (so they may h
 
 - Related: [certificates.md](certificates.md), [identity.md](identity.md), [node-states.md](node-states.md).
 - [2.0 migration index](README.md) — analyzer quick-start + symptom → sub-doc table.
-- [Migration Guide](../../MigrationGuide.md) — landing page across versions.
+- [Migration Guide](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/MigrationGuide.md) — landing page across versions.
