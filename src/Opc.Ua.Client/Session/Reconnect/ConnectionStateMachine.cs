@@ -65,7 +65,18 @@ namespace Opc.Ua.Client
         private readonly AsyncAutoResetEvent m_trigger = new(false);
         private readonly AsyncManualResetEvent m_connected = new(false);
         private readonly AsyncManualResetEvent m_closed = new(false);
+
+        /// <summary>
+        /// Set once the current connect cycle has settled, i.e. the machine
+        /// either reached <see cref="ConnectionState.Connected"/> or gave up
+        /// (<see cref="ConnectionState.Disconnected"/> after a failed failover,
+        /// or <see cref="ConnectionState.Closed"/>). Lets
+        /// <see cref="WaitForConnectedAsync"/> surface a terminal failure
+        /// instead of waiting forever.
+        /// </summary>
+        private readonly AsyncManualResetEvent m_settled = new(false);
         private readonly Lock m_lock = new();
+        private ServiceResult? m_lastError;
         private IRetryBudget? m_reconnectBudget;
         private Task? m_worker;
         private int m_disposed;
@@ -151,18 +162,53 @@ namespace Opc.Ua.Client
             StateChanged;
 
         /// <summary>
-        /// Wait until connected or cancelled.
+        /// The error reported by the most recent failed connect, reconnect or
+        /// failover attempt, or <c>null</c> when the last attempt succeeded.
+        /// </summary>
+        public ServiceResult? LastError
+        {
+            get
+            {
+                lock (m_lock)
+                {
+                    return m_lastError;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Wait until connected or cancelled. Throws when the machine gives up
+        /// on the connection instead of waiting for a state that can no longer
+        /// be reached.
         /// </summary>
         /// <param name="ct">Cancellation token.</param>
         /// <returns>A task that completes when connected.</returns>
-        public ValueTask WaitForConnectedAsync(CancellationToken ct)
+        /// <exception cref="ServiceResultException">
+        /// The connection attempt terminally failed: the reconnect policy and
+        /// failover are exhausted, or the session was closed while waiting. The
+        /// result carries the error of the last failed attempt.
+        /// </exception>
+        public async ValueTask WaitForConnectedAsync(CancellationToken ct)
         {
             if (m_connected.IsSet)
             {
-                return default;
+                return;
             }
 
-            return new ValueTask(m_connected.WaitAsync(ct));
+            await m_settled.WaitAsync(ct).ConfigureAwait(false);
+
+            if (m_connected.IsSet)
+            {
+                return;
+            }
+
+            ct.ThrowIfCancellationRequested();
+
+            throw new ServiceResultException(
+                LastError ??
+                new ServiceResult(
+                    StatusCodes.BadNotConnected,
+                    new LocalizedText("The managed session could not be connected.")));
         }
 
         /// <summary>
@@ -213,7 +259,9 @@ namespace Opc.Ua.Client
                         error: underlyingChannelState?.Error,
                         reconnectAttempt: 0,
                         underlyingChannelState);
+                    m_lastError = null;
                     m_connected.Reset();
+                    m_settled.Reset();
                 }
             }
 
@@ -237,6 +285,11 @@ namespace Opc.Ua.Client
                     ConnectionState.Closing,
                     error: null,
                     reconnectAttempt: 0);
+
+                // Closing abandons any pending connect: release the waiters so
+                // they observe the failure instead of blocking forever.
+                m_connected.Reset();
+                m_settled.Set();
             }
 
             m_trigger.Set();
@@ -261,6 +314,8 @@ namespace Opc.Ua.Client
                     ConnectionState.Connecting,
                     error: null,
                     reconnectAttempt: 0);
+                m_lastError = null;
+                m_settled.Reset();
             }
 
             m_trigger.Set();
@@ -348,6 +403,7 @@ namespace Opc.Ua.Client
                             error: null,
                             reconnectAttempt: 0);
                         m_connected.Reset();
+                        m_settled.Set();
                     }
                 }
 
@@ -370,14 +426,20 @@ namespace Opc.Ua.Client
                 if (ServiceResult.IsGood(result))
                 {
                     m_reconnectPolicy.Reset();
+                    m_lastError = null;
                     TransitionTo(
                         ConnectionState.Connected,
                         error: null,
                         reconnectAttempt: 0);
                     m_connected.Set();
+                    m_settled.Set();
                 }
                 else
                 {
+                    // Remember why the initial connect failed so a later
+                    // terminal give-up reports the original error rather than
+                    // the generic failover result.
+                    m_lastError = result;
                     TransitionTo(
                         ConnectionState.Reconnecting,
                         error: result,
@@ -455,11 +517,13 @@ namespace Opc.Ua.Client
 
                     lock (m_lock)
                     {
+                        m_lastError = null;
                         TransitionTo(
                             ConnectionState.Connected,
                             error: null,
                             reconnectAttempt: 0);
                         m_connected.Set();
+                        m_settled.Set();
                     }
 
                     return;
@@ -467,6 +531,8 @@ namespace Opc.Ua.Client
 
                 lock (m_lock)
                 {
+                    m_lastError = result;
+
                     // Stay in Reconnecting but notify observers
                     // of the failed attempt.
                     if (m_state is ConnectionState.Closing
@@ -586,22 +652,35 @@ namespace Opc.Ua.Client
                     budget.Reset();
                     ClearReconnectBudget();
                     m_reconnectPolicy.Reset();
+                    m_lastError = null;
                     TransitionTo(
                         ConnectionState.Connected,
                         error: null,
                         reconnectAttempt: 0);
                     m_connected.Set();
+                    m_settled.Set();
                 }
                 else
                 {
                     ClearReconnectBudget();
                     m_logger.ConnectionStateMachineFailoverFailedError(result);
 
+                    // Only fall back to the failover result when no connect or
+                    // reconnect attempt recorded an error: the attempt error
+                    // describes the actual failure, while failover typically
+                    // reports BadNotSupported / BadNothingToDo because no
+                    // redundant server is configured.
+                    m_lastError ??= result;
+
                     TransitionTo(
                         ConnectionState.Disconnected,
                         error: result,
                         reconnectAttempt: 0);
                     m_connected.Reset();
+
+                    // Reconnect and failover are exhausted; this connect cycle
+                    // is over and will not resume on its own.
+                    m_settled.Set();
                 }
             }
         }
@@ -634,6 +713,7 @@ namespace Opc.Ua.Client
                     error: null,
                     reconnectAttempt: 0);
                 m_connected.Reset();
+                m_settled.Set();
                 m_closed.Set();
             }
         }

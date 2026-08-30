@@ -1162,14 +1162,16 @@ namespace Opc.Ua.Client
         {
             try
             {
-                m_logger.ManagedSessionReconnecting();
+                Session? session;
 
                 using (await m_serviceLock.WriterLockAsync(ct)
                     .ConfigureAwait(false))
                 {
-                    Session? session = m_session;
+                    session = m_session;
                     if (session != null)
                     {
+                        m_logger.ManagedSessionReconnecting();
+
                         try
                         {
                             await session.ReconnectAsync(
@@ -1219,6 +1221,21 @@ namespace Opc.Ua.Client
                                 .ConfigureAwait(false);
                         }
                     }
+                }
+
+                if (session == null)
+                {
+                    // There is no inner session to reactivate: the initial
+                    // connect failed before one was created and the state
+                    // machine moved straight from Connecting to Reconnecting
+                    // (or the session was closed concurrently). Run a full
+                    // connect so the reconnect policy actually retries the
+                    // initial connect. Reporting Good here would transition the
+                    // state machine to Connected with a null inner session, so
+                    // the caller would get an apparently connected
+                    // ManagedSession whose every member throws BadNotConnected.
+                    m_logger.ManagedSessionReconnectWithoutSessionConnecting();
+                    return await HandleConnectAsync(ct).ConfigureAwait(false);
                 }
 
                 m_reconnectPolicy.Reset();
@@ -2069,6 +2086,10 @@ namespace Opc.Ua.Client
         public static partial void ManagedSessionDisposalAfterConnectionFailureFailed(
             this ILogger logger,
             Exception? exception);
+
+        [LoggerMessage(EventId = ClientEventIds.ManagedSession + 27, Level = LogLevel.Information,
+            Message = "ManagedSession: no session to reconnect; retrying the initial connect.")]
+        public static partial void ManagedSessionReconnectWithoutSessionConnecting(this ILogger logger);
     }
 
 }
