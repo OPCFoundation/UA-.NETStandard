@@ -10,12 +10,13 @@ on:
       iterations:
         description: 'Sequential Sessions test runs per shard'
         required: false
-        default: '3'
+        default: '10'
         type: string
       test_filter:
         description: 'Optional dotnet test filter, for example FullyQualifiedName~Wss'
         required: false
-        default: ''
+        default: >-
+          FullyQualifiedName=Opc.Ua.Sessions.Tests.ChannelManagerTransparentReconnectIntegrationTests.ChannelManagerExhaustionEscalatesAndRecoversWhenServerReturns
         type: string
 
 permissions:
@@ -53,8 +54,8 @@ jobs:
       CUSTOM_TEST_TARGET: 'net10.0'
       SESSIONS_PROJECT: './tests/Opc.Ua.Sessions.Tests/Opc.Ua.Sessions.Tests.csproj'
       TESTRESULTS: './TestResults/sessions-${{ matrix.shard }}'
-      ITERATIONS: ${{ github.event.inputs.iterations || '3' }}
-      TEST_FILTER: ${{ github.event.inputs.test_filter || '' }}
+      ITERATIONS: ${{ github.event.inputs.iterations || '10' }}
+      TEST_FILTER: ${{ github.event.inputs.test_filter }}
       OPCUA_CERTIFICATE_LEAK_TRACKING: ${{ matrix.tracking_value }}
 
     steps:
@@ -91,6 +92,15 @@ jobs:
             throw 'iterations must be at least 1.'
         }
 
+        $testFilter = $env:TEST_FILTER
+        if ([string]::IsNullOrWhiteSpace($testFilter))
+        {
+            $testFilter =
+                'FullyQualifiedName=Opc.Ua.Sessions.Tests.' +
+                'ChannelManagerTransparentReconnectIntegrationTests.' +
+                'ChannelManagerExhaustionEscalatesAndRecoversWhenServerReturns'
+        }
+
         $failed = $false
         New-Item -ItemType Directory -Force -Path $env:TESTRESULTS | Out-Null
         Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value @"
@@ -99,7 +109,7 @@ jobs:
         - Shard: ${{ matrix.shard }}
         - Allocation tracking: ${{ matrix.tracking }}
         - Iterations: $iterationCount
-        - Filter: $(if ([string]::IsNullOrWhiteSpace($env:TEST_FILTER)) { '(none)' } else { $env:TEST_FILTER })
+        - Filter: $testFilter
 
         "@
 
@@ -135,9 +145,9 @@ jobs:
                 '--results-directory',
                 $iterationDirectory)
 
-            if (![string]::IsNullOrWhiteSpace($env:TEST_FILTER))
+            if (![string]::IsNullOrWhiteSpace($testFilter))
             {
-                $testArgs += @('--filter', $env:TEST_FILTER)
+                $testArgs += @('--filter', $testFilter)
             }
 
             Write-Host "Starting iteration $iteration of $iterationCount."
