@@ -950,6 +950,64 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
+        public void CreateSubscriptionRejectsAnImplementationNotDerivedFromSubscription()
+        {
+            var impostor = new Mock<ISubscription>();
+            using var manager = new NonPipelineSubscriptionManager(
+                m_serverMock.Object,
+                new ApplicationConfiguration
+                {
+                    ServerConfiguration = new ServerConfiguration()
+                },
+                impostor.Object);
+            var context = new OperationContext(m_sessionMock.Object, new DiagnosticsMasks());
+
+            ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(
+                async () => await manager.CreateSubscriptionAsync(
+                    context,
+                    requestedPublishingInterval: 1000,
+                    requestedLifetimeCount: 30,
+                    requestedMaxKeepAliveCount: 10,
+                    maxNotificationsPerPublish: 0,
+                    publishingEnabled: true,
+                    priority: 0).ConfigureAwait(false));
+
+            Assert.That(exception.StatusCode, Is.EqualTo(StatusCodes.BadInternalError));
+            impostor.Verify(subscription => subscription.Dispose(), Times.Once);
+        }
+
+        /// <summary>
+        /// Returns a fixed ISubscription that does not derive from Subscription, so the
+        /// manager's pipeline admission check has something to reject.
+        /// </summary>
+        private sealed class NonPipelineSubscriptionManager : SubscriptionManager
+        {
+            public NonPipelineSubscriptionManager(
+                IServerInternal server,
+                ApplicationConfiguration configuration,
+                ISubscription created)
+                : base(server, configuration)
+            {
+                m_created = created;
+            }
+
+            protected override ISubscription CreateSubscription(
+                OperationContext context,
+                uint subscriptionId,
+                double publishingInterval,
+                uint lifetimeCount,
+                uint keepAliveCount,
+                uint maxNotificationsPerPublish,
+                byte priority,
+                bool publishingEnabled)
+            {
+                return m_created;
+            }
+
+            private readonly ISubscription m_created;
+        }
+
+        [Test]
         public void RestoreTransferClaimRemovesCurrentClaimWhenRestoreEntryAlreadyExists()
         {
             using Subscription subscription = CreateSubscription();
