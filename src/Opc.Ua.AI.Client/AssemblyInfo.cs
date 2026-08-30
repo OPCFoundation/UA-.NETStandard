@@ -28,11 +28,8 @@
  * ======================================================================*/
 
 using System;
-using System.Runtime.CompilerServices;
 
 // The OPC UA stack surface this builds on is not CLS compliant (unsigned
 // integers appear throughout the specification's own data types), so claiming
 // compliance here would be false.
 [assembly: CLSCompliant(false)]
-
-[assembly: InternalsVisibleTo("Opc.Ua.AI.Tests")]
