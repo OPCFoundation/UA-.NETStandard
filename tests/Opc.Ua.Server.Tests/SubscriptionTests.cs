@@ -967,7 +967,7 @@ namespace Opc.Ua.Server.Tests
                 Is.True);
             Assert.That(claim, Is.Not.Null);
 
-            var collidingSubscription = new Mock<ISubscription>();
+            var collidingSubscription = new Mock<ISubscriptionPublishPipeline>();
             collidingSubscription.SetupGet(sub => sub.Id).Returns(subscription.Id);
             queue.Add(collidingSubscription.Object);
 
@@ -1169,7 +1169,7 @@ namespace Opc.Ua.Server.Tests
             IReadOnlyList<SessionPublishQueue.QueuedSubscription> staleSnapshot =
                 sourceQueue.CapturePublishTimerSnapshot();
             using var publishCancellation = new CancellationTokenSource();
-            Task<ISubscription> sourcePublish = sourceQueue.PublishAsync(
+            Task<ISubscriptionPublishPipeline> sourcePublish = sourceQueue.PublishAsync(
                 "source-channel",
                 DateTime.MaxValue,
                 requeue: false,
@@ -1628,7 +1628,7 @@ namespace Opc.Ua.Server.Tests
             Task staleTimer = Task.Run(
                 async () =>
                 {
-                    IReadOnlyList<ISubscription> snapshot =
+                    IReadOnlyList<ISubscriptionPublishPipeline> snapshot =
                         manager.CaptureAbandonedPublishTimerSnapshot();
                     snapshotCaptured.TrySetResult(true);
                     await releaseSnapshot.Task.ConfigureAwait(false);
@@ -1859,7 +1859,7 @@ namespace Opc.Ua.Server.Tests
             SessionPublishQueue destinationQueue = GetPublishQueue(
                 manager,
                 fixture.DestinationContext.SessionId);
-            Task<ISubscription> destinationPublish = destinationQueue.PublishAsync(
+            Task<ISubscriptionPublishPipeline> destinationPublish = destinationQueue.PublishAsync(
                 "destination-channel",
                 DateTime.MaxValue,
                 requeue: false,
@@ -2025,7 +2025,7 @@ namespace Opc.Ua.Server.Tests
             });
 
             Assert.That(queue.RestoreTransferClaim(claim!), Is.True);
-            Task<ISubscription> publish = queue.PublishAsync(
+            Task<ISubscriptionPublishPipeline> publish = queue.PublishAsync(
                 "channel1",
                 DateTime.MaxValue,
                 requeue: false,
@@ -2323,7 +2323,7 @@ namespace Opc.Ua.Server.Tests
             SessionPublishQueue sourceQueue = GetPublishQueue(
                 manager,
                 fixture.SourceContext.SessionId);
-            var collidingSubscription = new Mock<ISubscription>();
+            var collidingSubscription = new Mock<ISubscriptionPublishPipeline>();
             collidingSubscription.Setup(candidate => candidate.Id).Returns(subscription.Id);
             int transferCalls = 0;
             m_nodeManagerMock

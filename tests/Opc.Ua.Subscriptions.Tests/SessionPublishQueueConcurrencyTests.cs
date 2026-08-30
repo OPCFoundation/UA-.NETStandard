@@ -50,13 +50,13 @@ namespace Opc.Ua.Subscriptions.Tests
         public async Task ConcurrentPublishRequeueAndExpirationDoesNotDuplicateSubscriptionAsync()
         {
             SessionPublishQueue queue = CreateQueue(out Mock<ISession> session);
-            Mock<ISubscription> subscription = CreateSubscription(1, session.Object);
+            Mock<ISubscriptionPublishPipeline> subscription = CreateSubscription(1, session.Object);
             queue.Add(subscription.Object);
             IReadOnlyList<SessionPublishQueue.QueuedSubscription> snapshot = queue.CapturePublishTimerSnapshot();
 
             using var start = new Barrier(3);
             using var cancellationTokenSource = new CancellationTokenSource();
-            Task<ISubscription?> publishTask = Task.Run(
+            Task<ISubscriptionPublishPipeline?> publishTask = Task.Run(
                 async () =>
                 {
                     start.SignalAndWait();
@@ -95,7 +95,7 @@ namespace Opc.Ua.Subscriptions.Tests
 
             await Task.WhenAll(requeueTask, expirationTask).ConfigureAwait(false);
             cancellationTokenSource.Cancel();
-            ISubscription? publishedSubscription = await publishTask.ConfigureAwait(false);
+            ISubscriptionPublishPipeline? publishedSubscription = await publishTask.ConfigureAwait(false);
 
             Assert.That(
                 publishedSubscription == null || ReferenceEquals(publishedSubscription, subscription.Object),
@@ -104,13 +104,13 @@ namespace Opc.Ua.Subscriptions.Tests
             if (queue.ContainsSubscription(subscription.Object))
             {
                 queue.Requeue(subscription.Object);
-                Task<ISubscription> firstPublish = queue.PublishAsync(
+                Task<ISubscriptionPublishPipeline> firstPublish = queue.PublishAsync(
                     "secure-channel",
                     DateTime.MaxValue,
                     requeue: false,
                     parkSink: null,
                     CancellationToken.None);
-                Task<ISubscription> secondPublish = queue.PublishAsync(
+                Task<ISubscriptionPublishPipeline> secondPublish = queue.PublishAsync(
                     "secure-channel",
                     DateTime.MaxValue,
                     requeue: false,
@@ -173,7 +173,7 @@ namespace Opc.Ua.Subscriptions.Tests
             Assert.That(await secondClaimTask.ConfigureAwait(false), Is.False);
             Assert.That(queue.RestoreTransferClaim(claim!), Is.True);
 
-            Task<ISubscription> publishTask = queue.PublishAsync(
+            Task<ISubscriptionPublishPipeline> publishTask = queue.PublishAsync(
                 "secure-channel",
                 DateTime.MaxValue,
                 requeue: false,
@@ -215,9 +215,9 @@ namespace Opc.Ua.Subscriptions.Tests
             return identityToken;
         }
 
-        private static Mock<ISubscription> CreateSubscription(uint id, ISession session)
+        private static Mock<ISubscriptionPublishPipeline> CreateSubscription(uint id, ISession session)
         {
-            var subscription = new Mock<ISubscription>(MockBehavior.Loose);
+            var subscription = new Mock<ISubscriptionPublishPipeline>(MockBehavior.Loose);
             subscription.SetupGet(value => value.Id).Returns(id);
             subscription.SetupGet(value => value.Session).Returns(session);
             subscription.SetupGet(value => value.SessionId).Returns(session.Id);
