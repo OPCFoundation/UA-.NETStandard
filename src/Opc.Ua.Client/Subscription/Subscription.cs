@@ -1338,9 +1338,9 @@ namespace Opc.Ua.Client.Subscriptions
             {
                 m_keepAliveInterval = options.PublishingInterval.Multiply(options.KeepAliveCount + 1);
             }
-            if (m_keepAliveInterval > Timeout.InfiniteTimeSpan)
+            if (m_keepAliveInterval > s_maxKeepAliveTimerInterval)
             {
-                m_keepAliveInterval = Timeout.InfiniteTimeSpan;
+                m_keepAliveInterval = s_maxKeepAliveTimerInterval;
             }
             if (m_keepAliveInterval < s_minKeepAliveTimerInterval)
             {
@@ -1447,6 +1447,8 @@ namespace Opc.Ua.Client.Subscriptions
         }
 
         private static readonly TimeSpan s_minKeepAliveTimerInterval = TimeSpan.FromSeconds(1);
+        private static readonly TimeSpan s_maxKeepAliveTimerInterval =
+            TimeSpan.FromMilliseconds(uint.MaxValue - 1u);
         private static readonly TimeSpan s_keepAliveTimerMargin = TimeSpan.FromSeconds(1);
         private const int kBaseApplyRetryBackoffMs = 250;
         private const int kMaxApplyRetryBackoffMs = 5000;
