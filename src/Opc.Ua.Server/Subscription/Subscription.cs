@@ -360,32 +360,6 @@ namespace Opc.Ua.Server
             => Session != null ? Session.EffectiveIdentity : m_savedOwnerIdentity!;
 
         /// <summary>
-        /// Queues an item that is ready to publish.
-        /// </summary>
-        public void ItemReadyToPublish(IMonitoredItem monitoredItem)
-        {
-            /*
-            lock (m_itemsReadyToPublish)
-            {
-                m_itemsReadyToPublish.Enqueue(monitoredItem);
-            }
-            */
-        }
-
-        /// <summary>
-        /// Tells the subscription that notifications are available but the item is not ready to publish.
-        /// </summary>
-        public void ItemNotificationsAvailable(IMonitoredItem monitoredItem)
-        {
-            /*
-            lock (m_itemsReadyToPublish)
-            {
-                m_itemsNotificationsAvailable.AddLast(monitoredItem);
-            }
-            */
-        }
-
-        /// <summary>
         /// The identifier for the session that owns the subscription.
         /// </summary>
         public NodeId SessionId
@@ -1333,22 +1307,6 @@ namespace Opc.Ua.Server
                 {
                     monitoredItem.SetupResendDataTrigger();
                 }
-            }
-        }
-
-        /// <inheritdoc/>
-        [Obsolete("Use SessionClosed(ISession) instead, which only releases the subscription when the closing session still owns it.")]
-        public void SessionClosed()
-        {
-            ISession session;
-            lock (m_lock)
-            {
-                session = Session;
-            }
-
-            if (session != null)
-            {
-                SessionClosed(session);
             }
         }
 

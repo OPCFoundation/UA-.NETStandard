@@ -114,16 +114,6 @@ namespace Opc.Ua.Server
         SubscriptionDiagnosticsDataType Diagnostics { get; }
 
         /// <summary>
-        /// Called when a monitored item is ready to publish.
-        /// </summary>
-        void ItemReadyToPublish(IMonitoredItem monitoredItem);
-
-        /// <summary>
-        /// Called when a monitored item is ready to publish.
-        /// </summary>
-        void ItemNotificationsAvailable(IMonitoredItem monitoredItem);
-
-        /// <summary>
         /// Called when a value of monitored item is discarded in the monitoring queue.
         /// </summary>
         void QueueOverflowHandler();
@@ -216,12 +206,6 @@ namespace Opc.Ua.Server
         /// Initiates resending of all data monitored items in a Subscription
         /// </summary>
         void ResendData(OperationContext context);
-
-        /// <summary>
-        /// Tells the subscription that the owning session is being closed.
-        /// </summary>
-        [Obsolete("Use SessionClosed(ISession) instead, which only releases the subscription when the closing session still owns it.")]
-        void SessionClosed();
 
         /// <summary>
         /// Tells the subscription that a session is being closed, and releases the subscription
