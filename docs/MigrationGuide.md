@@ -734,6 +734,107 @@ the removed members as `[Obsolete]` extension members that forward to
 a warning rather than an error. The `ILogger` argument on the `Encrypt` and
 `Decrypt` shims is accepted and **ignored**.
 
+<a id="ua0030"></a>
+
+## Migrating code that drove the server subscription publish pipeline
+
+Eleven members left the server `Opc.Ua.Server.ISubscription`, and the
+`SessionPublishQueue` class became internal. The publish pipeline — timer
+expiry, message acknowledgement, notification consumption, session release —
+is now driven exclusively by `SubscriptionManager` and the publish queue
+through an internal contract that only `Subscription` implements. Any holder
+of an `ISubscription` (for example via
+`IServerInternal.SubscriptionManager.GetSubscriptions()`) could previously
+call these members and corrupt the publishing state machine: consume
+notifications a client never saw, advance sequence numbers, or release a
+subscription its session still owned.
+
+**Deleted outright — remove the call.** `ItemReadyToPublish` and
+`ItemNotificationsAvailable` had commented-out bodies since 1.5.x, so every
+call was already a no-op. The obsolete parameterless `SessionClosed()` is
+gone with them.
+
+**Internalized — use the service operations.** `PublishTimerExpired`,
+`Acknowledge`, `PublishTimeout`, `SubscriptionTransferred`,
+`AvailableSequenceNumbersForRetransmission`, `QueueOverflowHandler`,
+`SessionClosed(ISession)` and `Publish` are no longer on the interface.
+Code that called them was reimplementing a slice of the server; the
+supported path is the service set (`Publish`, `Republish`,
+`TransferSubscriptions`) and the `ISubscriptionManager` surface
+(`SessionClosingAsync` for session teardown). `ResendData`,
+`GetMonitoredItems` and the monitored-item service operations remain on
+`ISubscription` — resolve the subscription with
+`ISubscriptionManager.TryGetSubscription` first, the way the
+`Server_ResendData` method handler does.
+
+```csharp
+// was: drive the pipeline directly
+if (server.SubscriptionManager.TryGetSubscription(subscriptionId, out ISubscription? subscription))
+{
+    subscription.PublishTimerExpired();
+    subscription.Acknowledge(context, sequenceNumber);
+}
+
+// now: the pipeline is server-internal; acknowledgements travel with the
+// Publish service request, and the publish timer belongs to the server
+Task<PublishResponse> response = server.SubscriptionManager.PublishAsync(
+    context, subscriptionAcknowledgements, parkSink, cancellationToken);
+```
+
+**Custom subscription implementations must derive from `Subscription`.**
+`SubscriptionManager.CreateSubscription` and `RestoreSubscriptionAsync`
+still return `ISubscription`, but an override returning a type that does not
+derive from `Subscription` now fails at creation with `Bad_InternalError`
+instead of publishing partially (transfer already required the concrete
+type). Derive from `Subscription` and override the behaviour you need; the
+pipeline members are explicit implementations of the internal contract and
+are not virtual.
+
+The no-`[Obsolete]`-shim rule [above](#why-there-is-no-obsolete-shim)
+applies here for the same reason: `ISubscription` is implemented by
+downstream code, and re-adding an interface member later would break every
+implementer. Analyzer `UA0030` flags each removed member on the migration
+path and names the replacement.
+
+<a id="ua0031"></a>
+
+## Migrating callers of the ISubscriptionManager routing wrappers
+
+Four members left `Opc.Ua.Server.ISubscriptionManager`: `Republish`,
+`SetTriggering`, `ModifyMonitoredItemsAsync` and `SetMonitoringModeAsync`.
+Each was a dictionary lookup that re-declared an `ISubscription` operation
+with an extra `subscriptionId` parameter, so a reader learned every
+operation twice. Resolve the subscription once and call the operation on it:
+
+```csharp
+// was
+NotificationMessage message = server.SubscriptionManager.Republish(
+    context, subscriptionId, retransmitSequenceNumber);
+
+// now
+if (!server.SubscriptionManager.TryGetSubscription(subscriptionId, out ISubscription? subscription))
+{
+    throw new ServiceResultException(StatusCodes.BadSubscriptionIdInvalid);
+}
+
+NotificationMessage message = subscription.Republish(context, retransmitSequenceNumber);
+```
+
+The error semantics are unchanged: the removed wrappers threw
+`Bad_SubscriptionIdInvalid` for an unknown id, and the resolve-then-call
+shape produces the same result.
+
+The id-addressed members that carry logic of their own remain:
+`CreateMonitoredItemsAsync` and `DeleteMonitoredItemsAsync` (session
+monitored-item-count accounting), `SetPublishingMode` (a batch operation
+over many ids), `ConditionRefresh` and `ConditionRefresh2` (the manager owns
+the refresh queue and worker), `DeleteSubscriptionAsync` (deletion
+orchestration across the registry, publish queue and diagnostics) and
+`ModifySubscription` / `SetSubscriptionDurable` (parameter revision and
+ownership checks).
+
+Analyzer `UA0031` flags each removed wrapper and names the replacement.
+
 ## Migrating channel subclasses that guarded state with DataLock
 
 `UaSCBinaryChannel.DataLock` has been **removed**. The channel no longer

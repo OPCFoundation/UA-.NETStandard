@@ -547,13 +547,27 @@ impact, and the replacement pattern already exists on the same interface.
    blanket safety net that a narrower set of explicit invalidation points would replace?
    (Note it is a `bool` assignment, not a scan — see
    [the side-effect section](#the-lock-getter-has-a-side-effect-that-runs-outside-the-lock).)
-3. Can the publish-pipeline protocol become an internal interface consumed only by
+3. ~~Can the publish-pipeline protocol become an internal interface consumed only by
    `SubscriptionManager` and `SessionPublishQueue`, or does durable-subscription restore
-   (see [DurableSubscription.md](../docs/DurableSubscription.md)) require external access?
+   (see [DurableSubscription.md](../docs/DurableSubscription.md)) require external access?~~
+   **Answered (issue #4185): yes, and restore needs no external access.** The persistence
+   seam (`Subscription/Persistence/`) never references `ISubscription` — the store deals in
+   `IStoredSubscription` DTOs and restore constructs the concrete type via
+   `Subscription.RestoreAsync` inside the manager. The eight live pipeline members moved to
+   the internal `ISubscriptionPublishPipeline` (implemented explicitly by `Subscription`),
+   `ItemReadyToPublish`/`ItemNotificationsAvailable` were deleted as dead (bodies commented
+   out since 1.5.x), and `SessionPublishQueue` became internal. `ResendData` stayed public:
+   its caller is the `Server_ResendData` method handler, not the pipeline.
 4. Is there an existing documented lock hierarchy for the four nested diagnostics locks,
    or has ordering been maintained by convention only?
-5. Should `ISubscriptionManager`'s routing members be collapsed, or is the flat
-   id-addressed surface load-bearing for the service-set dispatch in `StandardServer`?
+5. ~~Should `ISubscriptionManager`'s routing members be collapsed, or is the flat
+   id-addressed surface load-bearing for the service-set dispatch in `StandardServer`?~~
+   **Answered (issue #4186): collapse 4, keep 6.** Only `Republish`, `SetTriggering`,
+   `ModifyMonitoredItemsAsync` and `SetMonitoringModeAsync` were pure lookup-and-delegate
+   (one caller each, in `StandardServer`, which now resolves via `TryGetSubscription`). The
+   other six carry logic with no `ISubscription` substitute: session monitored-item-count
+   accounting (create/delete), the `SetPublishingMode` batch loop, the manager-private
+   condition-refresh queue, and the `DeleteSubscriptionAsync` orchestrator.
 
 ## Reproducing the evidence
 

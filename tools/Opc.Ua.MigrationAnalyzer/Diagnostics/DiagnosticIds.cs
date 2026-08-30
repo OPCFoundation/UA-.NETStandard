@@ -79,6 +79,20 @@ namespace Opc.Ua.MigrationAnalyzer.Diagnostics
         /// </summary>
         public const string UA0029 = "UA0029";
 
+        /// <summary>
+        /// The ISubscription publish-pipeline members and SessionPublishQueue
+        /// are server-internal in 2.0: only SubscriptionManager and the publish
+        /// queue may drive the publishing state machine.
+        /// </summary>
+        public const string UA0030 = "UA0030";
+
+        /// <summary>
+        /// The four ISubscriptionManager routing wrappers were collapsed in 2.0:
+        /// resolve the subscription with TryGetSubscription and call the
+        /// operation on ISubscription.
+        /// </summary>
+        public const string UA0031 = "UA0031";
+
         /// <summary>The diagnostic category every UA00xx rule belongs to.</summary>
         public const string Category = "Migration";
 

@@ -238,5 +238,19 @@ namespace Opc.Ua.MigrationAnalyzer.Diagnostics
             "'SecurityPolicies.{0}' was removed in 2.0 — resolve an 'ISecurityPolicyRegistry' and call '{0}' on it, or use 'SecurityPolicies.Default' where no container is in scope",
             DiagnosticSeverity.Warning,
             "These operate on the set of registered security policies rather than on constants, so they are members of the registry that owns that set. The registry also carries its own logger, so the Encrypt/Decrypt logger argument is gone. SecurityPolicies keeps the policy URI constants. See docs/MigrationGuide.md#ua0029.");
+
+        public static readonly DiagnosticDescriptor UA0030_SubscriptionPublishPipelineInternalized = Create(
+            DiagnosticIds.UA0030,
+            "The ISubscription publish pipeline is server-internal in 2.0",
+            "'{0}' was removed from the public API in 2.0 — {1}",
+            DiagnosticSeverity.Warning,
+            "The members that drive the publishing state machine (PublishTimerExpired, Acknowledge, PublishTimeout, SubscriptionTransferred, AvailableSequenceNumbersForRetransmission, QueueOverflowHandler, SessionClosed and Publish) moved onto an internal contract implemented only by Subscription, and SessionPublishQueue became internal: a caller outside the pipeline invoking them corrupted the publishing state machine (consumed notifications, advanced sequence numbers, released a subscription its session still owned). ItemReadyToPublish and ItemNotificationsAvailable were deleted outright - their bodies had been commented out since 1.5.x, so every call was already a no-op. Custom ISubscription implementations must derive from Subscription; subscription creation fails with Bad_InternalError otherwise. See docs/MigrationGuide.md#ua0030.");
+
+        public static readonly DiagnosticDescriptor UA0031_SubscriptionManagerWrapperCollapsed = Create(
+            DiagnosticIds.UA0031,
+            "ISubscriptionManager routing wrappers collapsed in 2.0",
+            "'ISubscriptionManager.{0}' was removed in 2.0 — resolve the subscription with 'TryGetSubscription' (throw Bad_SubscriptionIdInvalid when it returns false) and call '{0}' on the ISubscription",
+            DiagnosticSeverity.Warning,
+            "Republish, SetTriggering, ModifyMonitoredItemsAsync and SetMonitoringModeAsync were dictionary-lookup wrappers that re-declared the ISubscription operation with an extra subscriptionId parameter, so a reader learned every operation twice. The id-addressed members that carry logic of their own (the monitored-item create/delete diagnostics accounting, the SetPublishingMode batch loop, the condition-refresh queue, DeleteSubscriptionAsync) remain. See docs/MigrationGuide.md#ua0031.");
     }
 }
