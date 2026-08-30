@@ -38,7 +38,7 @@ using Microsoft.Extensions.Logging;
 namespace Opc.Ua.Server
 {
     /// <inheritdoc/>
-    public class MasterNodeManager :
+    public partial class MasterNodeManager :
         IDisposable,
         IMasterNodeManager,
         IMonitoredItemTransferCoordinator,
@@ -967,6 +967,16 @@ namespace Opc.Ua.Server
             m_retiredGenerationDrainObserver = observer;
         }
 
+        /// <summary>
+        /// Signals the lifecycle drain observer that a retired generation may have released
+        /// its last monitored item. Service dispatch calls this instead of touching the
+        /// lifecycle-owned observer field directly.
+        /// </summary>
+        internal void NotifyRetiredGenerationDrainObserver()
+        {
+            m_retiredGenerationDrainObserver?.Invoke();
+        }
+
         void IDynamicNodeManagerHost.SetRetiredGenerationNotifications(
             IAsyncNodeManager nodeManager,
             bool enabled)
@@ -1187,7 +1197,7 @@ namespace Opc.Ua.Server
             return [.. dispatches];
         }
 
-        private NotificationDispatchLease[] GetAllEventNotificationDispatches(
+        internal NotificationDispatchLease[] GetAllEventNotificationDispatches(
             IReadOnlyList<IAsyncNodeManager> activeNodeManagers,
             IEventMonitoredItem monitoredItem)
         {
@@ -1214,7 +1224,7 @@ namespace Opc.Ua.Server
             return [.. dispatches];
         }
 
-        private NotificationDispatchLease[] GetConditionRefreshDispatches(
+        internal NotificationDispatchLease[] GetConditionRefreshDispatches(
             IReadOnlyList<IAsyncNodeManager> activeNodeManagers,
             IList<IEventMonitoredItem> monitoredItems)
         {
@@ -1259,7 +1269,7 @@ namespace Opc.Ua.Server
             return [.. dispatches];
         }
 
-        private NotificationDispatchLease[] GetAllEventUnsubscribeDispatches(
+        internal NotificationDispatchLease[] GetAllEventUnsubscribeDispatches(
             IEventMonitoredItem monitoredItem)
         {
             IAsyncNodeManager[] activeNodeManagers = [.. m_nodeManagers];
@@ -1286,7 +1296,7 @@ namespace Opc.Ua.Server
             return [.. dispatches];
         }
 
-        private void CompleteRetiredAllEventUnsubscribe(
+        internal void CompleteRetiredAllEventUnsubscribe(
             IEventMonitoredItem monitoredItem,
             IReadOnlyList<NotificationDispatchLease> dispatches)
         {
@@ -1309,7 +1319,7 @@ namespace Opc.Ua.Server
             }
         }
 
-        private void CompleteRetiredAllEventUnsubscribe(
+        internal void CompleteRetiredAllEventUnsubscribe(
             IEventMonitoredItem monitoredItem,
             RetiredGenerationNotifications notifications)
         {
@@ -1439,7 +1449,7 @@ namespace Opc.Ua.Server
             return dispatchState;
         }
 
-        private static void DisposeNotificationDispatches(
+        internal static void DisposeNotificationDispatches(
             IReadOnlyList<NotificationDispatchLease> dispatches)
         {
             foreach (NotificationDispatchLease dispatch in dispatches)
@@ -5847,7 +5857,7 @@ namespace Opc.Ua.Server
 
             if (retiredGenerationDrained)
             {
-                m_retiredGenerationDrainObserver?.Invoke();
+                NotifyRetiredGenerationDrainObserver();
             }
         }
 
@@ -6070,7 +6080,7 @@ namespace Opc.Ua.Server
 
             if (retiredGenerationDrained)
             {
-                m_retiredGenerationDrainObserver?.Invoke();
+                NotifyRetiredGenerationDrainObserver();
             }
         }
 
@@ -6601,6 +6611,12 @@ namespace Opc.Ua.Server
         /// </summary>
         internal IReadOnlyDictionary<int, IReadOnlyList<IAsyncNodeManager>> NamespaceManagers
             => m_nodeManagers.NamespaceManagers;
+
+        /// <summary>
+        /// The maximum number of continuation points per Browse request, read live so
+        /// service dispatch observes the configured value on every call.
+        /// </summary>
+        internal uint MaxContinuationPointsPerBrowse => m_maxContinuationPointsPerBrowse;
 
         /// <summary>
         /// Validates a monitoring attributes parameter.
@@ -7313,7 +7329,7 @@ namespace Opc.Ua.Server
         private static readonly TimeSpan s_nodeManagementCompensationTimeout =
             TimeSpan.FromSeconds(5);
 
-        private sealed class NotificationDispatchLease : IDisposable
+        internal sealed class NotificationDispatchLease : IDisposable
         {
             public NotificationDispatchLease(
                 MasterNodeManager owner,
@@ -7345,7 +7361,7 @@ namespace Opc.Ua.Server
             private MasterNodeManager? m_owner;
         }
 
-        private sealed class RetiredGenerationNotifications
+        internal sealed class RetiredGenerationNotifications
         {
             public RetiredGenerationNotifications(
                 IAsyncNodeManager nodeManager,
@@ -7369,7 +7385,7 @@ namespace Opc.Ua.Server
 
         }
 
-        private sealed class NotificationDispatchState
+        internal sealed class NotificationDispatchState
         {
             public NotificationDispatchState(IAsyncNodeManager nodeManager)
             {
