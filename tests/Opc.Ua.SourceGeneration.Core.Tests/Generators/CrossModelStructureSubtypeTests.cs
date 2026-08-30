@@ -208,13 +208,23 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             File.WriteAllText(
                 modelDPath,
                 ModelBDesign
-                    .Replace("http://test.org/UA/ModelB/", "http://test.org/UA/ModelD/")
-                    .Replace("xmlns:s0=\"http://test.org/UA/ModelA/\"", "xmlns:s0=\"" + modelCUri + "\"")
+                    .Replace(
+                        "http://test.org/UA/ModelB/",
+                        "http://test.org/UA/ModelD/",
+                        System.StringComparison.Ordinal)
+                    .Replace(
+                        "xmlns:s0=\"http://test.org/UA/ModelA/\"",
+                        "xmlns:s0=\"" + modelCUri + "\"",
+                        System.StringComparison.Ordinal)
                     .Replace(
                         "<opc:Namespace Name=\"ModelA\" Prefix=\"Test.ModelA\">http://test.org/UA/ModelA/</opc:Namespace>",
                         "<opc:Namespace Name=\"ModelC\" Prefix=\"Test.ModelC\">" + modelCUri + "</opc:Namespace>" +
-                        "<opc:Namespace Name=\"ModelA\" Prefix=\"Test.ModelA\">http://test.org/UA/ModelA/</opc:Namespace>")
-                    .Replace("BaseType=\"s0:BaseStruct\"", "BaseType=\"s0:MidStruct\""));
+                        "<opc:Namespace Name=\"ModelA\" Prefix=\"Test.ModelA\">http://test.org/UA/ModelA/</opc:Namespace>",
+                        System.StringComparison.Ordinal)
+                    .Replace(
+                        "BaseType=\"s0:BaseStruct\"",
+                        "BaseType=\"s0:MidStruct\"",
+                        System.StringComparison.Ordinal));
 
             Dictionary<string, string> generated = Generate(
                 targets: [modelDPath],
