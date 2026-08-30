@@ -855,6 +855,50 @@ namespace Opc.Ua.Configuration.Tests
             }
         }
 
+        /// <summary>
+        /// The certificate identifier overload of AddSecurityConfiguration must accept an
+        /// identifier which does not name a certificate type, the same way the obsolete
+        /// subject name overload does. See https://github.com/OPCFoundation/UA-.NETStandard/issues/4315.
+        /// </summary>
+        [Test]
+        public async Task AddSecurityConfigurationWithoutCertificateTypeKeepsTheCertificateAsync()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            var appInstance = new ApplicationInstance(telemetry)
+            {
+                ApplicationName = ApplicationName,
+                ApplicationType = ApplicationType.Client
+            };
+            await using (appInstance.ConfigureAwait(false))
+            {
+                ApplicationConfiguration configuration = await appInstance
+                    .Build(ApplicationUri, ProductUri)
+                    .AsClient()
+                    .AddSecurityConfiguration(
+                        [
+                            new CertificateIdentifier
+                            {
+                                StoreType = CertificateStoreType.Directory,
+                                StorePath = Path.Combine(m_pkiRoot, "own"),
+                                SubjectName = SubjectName
+                                // CertificateType deliberately not set
+                            }
+                        ],
+                        m_pkiRoot)
+                    .SetAutoAcceptUntrustedCertificates(true)
+                    .CreateAsync();
+
+                SecurityConfiguration securityConfiguration = configuration.SecurityConfiguration;
+                Assert.That(securityConfiguration.ApplicationCertificates, Has.Count.EqualTo(1));
+                Assert.That(
+                    securityConfiguration.ApplicationCertificates[0].CertificateType,
+                    Is.EqualTo(ObjectTypeIds.RsaSha256ApplicationCertificateType));
+                Assert.That(
+                    securityConfiguration.SupportedSecurityPolicies.ToArray(),
+                    Contains.Item(SecurityPolicies.Basic256Sha256));
+            }
+        }
+
         [Test]
         public async Task AddUnsecurePolicyNoneAddsPolicyWhenTrueAsync()
         {

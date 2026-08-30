@@ -594,6 +594,7 @@ namespace Opc.Ua
                 if (value.IsEmpty)
                 {
                     m_applicationCertificates = [];
+                    m_rejectedCertificateTypes = [];
                     return;
                 }
 
@@ -603,16 +604,32 @@ namespace Opc.Ua
                 // deprecated flag when we process the collection below.
 
                 var newCertificates = new List<CertificateIdentifier>(value.ToArray() ?? []);
+                var rejectedCertificateTypes = new List<string>();
 
                 // Remove unsupported certificate types
                 for (int i = newCertificates.Count - 1; i >= 0; i--)
                 {
-                    if (!Utils.IsSupportedCertificateType(newCertificates[i].CertificateType))
+                    NodeId certificateType = newCertificates[i].CertificateType;
+
+                    // An identifier which does not name a certificate type means the default
+                    // application certificate type, the same assumption the legacy single
+                    // ApplicationCertificate element carries.
+                    if (certificateType.IsNull)
                     {
-                        // TODO: Log when ITelemetry instance is available
+                        newCertificates[i].CertificateType = ObjectTypeIds
+                            .RsaSha256ApplicationCertificateType;
+                        continue;
+                    }
+
+                    if (!Utils.IsSupportedCertificateType(certificateType))
+                    {
+                        // remember what was dropped, Validate reports it once telemetry is available
+                        rejectedCertificateTypes.Insert(0, certificateType.ToString());
                         newCertificates.RemoveAt(i);
                     }
                 }
+
+                m_rejectedCertificateTypes = rejectedCertificateTypes;
 
                 // Remove any duplicates based on thumbprint
                 for (int i = 0; i < newCertificates.Count; i++)
@@ -823,6 +840,7 @@ namespace Opc.Ua
         public bool IsDeprecatedConfiguration { get; set; }
 
         private ArrayOf<CertificateIdentifier> m_applicationCertificates;
+        private List<string> m_rejectedCertificateTypes = [];
         private CertificateTrustList m_trustedIssuerCertificates;
         private CertificateTrustList m_trustedPeerCertificates;
         private CertificateTrustList? m_httpsIssuerCertificates;
