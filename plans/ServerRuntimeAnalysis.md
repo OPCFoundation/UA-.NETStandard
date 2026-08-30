@@ -562,12 +562,15 @@ impact, and the replacement pattern already exists on the same interface.
    or has ordering been maintained by convention only?
 5. ~~Should `ISubscriptionManager`'s routing members be collapsed, or is the flat
    id-addressed surface load-bearing for the service-set dispatch in `StandardServer`?~~
-   **Answered (issue #4186): collapse 4, keep 6.** Only `Republish`, `SetTriggering`,
-   `ModifyMonitoredItemsAsync` and `SetMonitoringModeAsync` were pure lookup-and-delegate
-   (one caller each, in `StandardServer`, which now resolves via `TryGetSubscription`). The
-   other six carry logic with no `ISubscription` substitute: session monitored-item-count
-   accounting (create/delete), the `SetPublishingMode` batch loop, the manager-private
-   condition-refresh queue, and the `DeleteSubscriptionAsync` orchestrator.
+   **Answered (issue #4186): keep the flat surface.** Measurement showed only `Republish`,
+   `SetTriggering`, `ModifyMonitoredItemsAsync` and `SetMonitoringModeAsync` are pure
+   lookup-and-delegate (one caller each, in `StandardServer`); the other six carry logic
+   with no `ISubscription` substitute (session monitored-item-count accounting, the
+   `SetPublishingMode` batch loop, the manager-private condition-refresh queue, the
+   `DeleteSubscriptionAsync` orchestrator). A collapse of the four was prototyped and
+   rejected: it traded ten uniform id-addressed members for a mixed dispatch shape in
+   `StandardServer` without reducing what a reader must understand. Every service keeps
+   going through `ISubscriptionManager`.
 
 ## Reproducing the evidence
 

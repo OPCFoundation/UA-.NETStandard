@@ -416,19 +416,6 @@ rest of the pipeline members.
 queue is the other half of the publish protocol. Code that constructed or drove one should use
 the `Publish` service path via `ISubscriptionManager.PublishAsync`.
 
-### `Opc.Ua.Server.ISubscriptionManager`: four routing wrappers collapsed
-
-**Source-breaking for callers.** `Republish`, `SetTriggering`, `ModifyMonitoredItemsAsync` and
-`SetMonitoringModeAsync` leave `ISubscriptionManager` (analyzer `UA0031`; see
-[MigrationGuide.md](../../MigrationGuide.md#ua0031)). Each was a dictionary lookup that
-re-declared the `ISubscription` operation with an extra `subscriptionId` parameter. Resolve the
-subscription with `TryGetSubscription`, throw `Bad_SubscriptionIdInvalid` when it returns
-`false`, and call the operation on the `ISubscription` — the same shape the built-in
-`Server_GetMonitoredItems` and `Server_ResendData` method handlers use. The id-addressed
-members that carry their own logic (`CreateMonitoredItemsAsync`, `DeleteMonitoredItemsAsync`,
-`SetPublishingMode`, `ConditionRefresh`, `ConditionRefresh2`, `DeleteSubscriptionAsync`,
-`ModifySubscription`, `SetSubscriptionDurable`) remain.
-
 ### PubSub
 
 **Not source-breaking.** No public top-level types in `Opc.Ua.PubSub` were removed or renamed in 2.0. Changes are limited to internal modernization, AOT preparation, and diagnostics improvements. `Newtonsoft.Json` remains a direct `<PackageReference>` of `src/Opc.Ua.PubSub/Opc.Ua.PubSub.csproj`, so PubSub consumers keep receiving it transitively (see [Newtonsoft.Json - what really changed](#newtonsoftjson---what-really-changed)).

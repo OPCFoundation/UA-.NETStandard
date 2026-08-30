@@ -1989,6 +1989,58 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Republishes a previously published notification message.
+        /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
+        public NotificationMessage Republish(
+            OperationContext context,
+            uint subscriptionId,
+            uint retransmitSequenceNumber)
+        {
+            // find subscription.
+            if (!m_subscriptions.TryGetValue(subscriptionId, out ISubscriptionPublishPipeline? subscription))
+            {
+                throw new ServiceResultException(StatusCodes.BadSubscriptionIdInvalid);
+            }
+
+            // fetch the message.
+            return subscription.Republish(context, retransmitSequenceNumber);
+        }
+
+        /// <summary>
+        /// Updates the triggers for the monitored item.
+        /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
+        public void SetTriggering(
+            OperationContext context,
+            uint subscriptionId,
+            uint triggeringItemId,
+            ArrayOf<uint> linksToAdd,
+            ArrayOf<uint> linksToRemove,
+            out ArrayOf<StatusCode> addResults,
+            out ArrayOf<DiagnosticInfo> addDiagnosticInfos,
+            out ArrayOf<StatusCode> removeResults,
+            out ArrayOf<DiagnosticInfo> removeDiagnosticInfos)
+        {
+            // find subscription.
+            if (!m_subscriptions.TryGetValue(subscriptionId, out ISubscriptionPublishPipeline? subscription))
+            {
+                throw new ServiceResultException(StatusCodes.BadSubscriptionIdInvalid);
+            }
+
+            // update the triggers.
+            subscription.SetTriggering(
+                context,
+                triggeringItemId,
+                linksToAdd,
+                linksToRemove,
+                out addResults,
+                out addDiagnosticInfos,
+                out removeResults,
+                out removeDiagnosticInfos);
+        }
+
+        /// <summary>
         /// Adds monitored items to a subscription.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
@@ -2029,6 +2081,31 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Modifies monitored items in a subscription.
+        /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
+        public ValueTask<ModifyMonitoredItemsResponse> ModifyMonitoredItemsAsync(
+            OperationContext context,
+            uint subscriptionId,
+            TimestampsToReturn timestampsToReturn,
+            ArrayOf<MonitoredItemModifyRequest> itemsToModify,
+            CancellationToken cancellationToken = default)
+        {
+            // find subscription.
+            if (!m_subscriptions.TryGetValue(subscriptionId, out ISubscriptionPublishPipeline? subscription))
+            {
+                throw new ServiceResultException(StatusCodes.BadSubscriptionIdInvalid);
+            }
+
+            // modify the items.
+            return subscription.ModifyMonitoredItemsAsync(
+                context,
+                timestampsToReturn,
+                itemsToModify,
+                cancellationToken);
+        }
+
+        /// <summary>
         /// Deletes the monitored items in a subscription.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
@@ -2064,6 +2141,31 @@ namespace Opc.Ua.Server
             }
 
             return response;
+        }
+
+        /// <summary>
+        /// Changes the monitoring mode for a set of items.
+        /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
+        public ValueTask<(ArrayOf<StatusCode> results, ArrayOf<DiagnosticInfo> diagnosticInfos)> SetMonitoringModeAsync(
+            OperationContext context,
+            uint subscriptionId,
+            MonitoringMode monitoringMode,
+            ArrayOf<uint> monitoredItemIds,
+            CancellationToken cancellationToken = default)
+        {
+            // find subscription.
+            if (!m_subscriptions.TryGetValue(subscriptionId, out ISubscriptionPublishPipeline? subscription))
+            {
+                throw new ServiceResultException(StatusCodes.BadSubscriptionIdInvalid);
+            }
+
+            // create the items.
+            return subscription.SetMonitoringModeAsync(
+                context,
+                monitoringMode,
+                monitoredItemIds,
+                cancellationToken);
         }
 
         /// <summary>

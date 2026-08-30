@@ -796,45 +796,6 @@ downstream code, and re-adding an interface member later would break every
 implementer. Analyzer `UA0030` flags each removed member on the migration
 path and names the replacement.
 
-<a id="ua0031"></a>
-
-## Migrating callers of the ISubscriptionManager routing wrappers
-
-Four members left `Opc.Ua.Server.ISubscriptionManager`: `Republish`,
-`SetTriggering`, `ModifyMonitoredItemsAsync` and `SetMonitoringModeAsync`.
-Each was a dictionary lookup that re-declared an `ISubscription` operation
-with an extra `subscriptionId` parameter, so a reader learned every
-operation twice. Resolve the subscription once and call the operation on it:
-
-```csharp
-// was
-NotificationMessage message = server.SubscriptionManager.Republish(
-    context, subscriptionId, retransmitSequenceNumber);
-
-// now
-if (!server.SubscriptionManager.TryGetSubscription(subscriptionId, out ISubscription? subscription))
-{
-    throw new ServiceResultException(StatusCodes.BadSubscriptionIdInvalid);
-}
-
-NotificationMessage message = subscription.Republish(context, retransmitSequenceNumber);
-```
-
-The error semantics are unchanged: the removed wrappers threw
-`Bad_SubscriptionIdInvalid` for an unknown id, and the resolve-then-call
-shape produces the same result.
-
-The id-addressed members that carry logic of their own remain:
-`CreateMonitoredItemsAsync` and `DeleteMonitoredItemsAsync` (session
-monitored-item-count accounting), `SetPublishingMode` (a batch operation
-over many ids), `ConditionRefresh` and `ConditionRefresh2` (the manager owns
-the refresh queue and worker), `DeleteSubscriptionAsync` (deletion
-orchestration across the registry, publish queue and diagnostics) and
-`ModifySubscription` / `SetSubscriptionDurable` (parameter revision and
-ownership checks).
-
-Analyzer `UA0031` flags each removed wrapper and names the replacement.
-
 ## Migrating channel subclasses that guarded state with DataLock
 
 `UaSCBinaryChannel.DataLock` has been **removed**. The channel no longer
