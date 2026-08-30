@@ -1097,6 +1097,24 @@ namespace Opc.Ua.Server
                 nodeMetadata.NodeId);
         }
 
+        ValueTask<IMonitoredItemTransferTransaction>
+            IMonitoredItemTransferCoordinator.PrepareMonitoredItemsTransferAsync(
+                OperationContext destinationContext,
+                bool sendInitialValues,
+                IList<IMonitoredItem> monitoredItems,
+                IList<ServiceResult> errors,
+                MonitoredItemTransferOptions transferOptions,
+                CancellationToken cancellationToken)
+        {
+            return m_serviceDispatch.PrepareMonitoredItemsTransferAsync(
+                destinationContext,
+                sendInitialValues,
+                monitoredItems,
+                errors,
+                transferOptions,
+                cancellationToken);
+        }
+
         private readonly uint m_maxContinuationPointsPerBrowse;
         private readonly NodeManagerServiceDispatcher m_serviceDispatch;
     }
