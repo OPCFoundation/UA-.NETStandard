@@ -4578,6 +4578,23 @@ namespace Opc.Ua.Client
                         ct = m_cts.Token;
                     }
 
+                    // A registration may have been inserted and the hold token renewed between the
+                    // initial MatchRegistration call and capturing the current token. Re-check before
+                    // waiting so we don't miss a now-available match.
+                    matched = MatchRegistration(sender, e);
+                    if (matched)
+                    {
+                        if (m_logger.IsEnabled(LogLevel.Information))
+                        {
+                            m_logger.MatchedReverseConnectionServerUriEndpointUrlAfter(
+                                e.ServerUri,
+                                e.EndpointUrl,
+                                (long)m_timeProvider.GetElapsedTime(startTimestamp).TotalMilliseconds);
+                        }
+
+                        break;
+                    }
+
                     m_logger.HoldingReverseConnectionServerUriEndpointUrl(
                         e.ServerUri,
                         e.EndpointUrl);
