@@ -176,6 +176,25 @@ namespace Opc.Ua.Configuration.Tests
         }
 
         [Test]
+        public void EmptyApplicationCertificatesStillReportsTheClassicError()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
+            var configuration = new SecurityConfiguration
+            {
+                ApplicationCertificates = [],
+                TrustedPeerCertificates = new CertificateTrustList { StorePath = "Test" },
+                TrustedIssuerCertificates = new CertificateTrustList { StorePath = "Test" }
+            };
+
+            ServiceResultException sre = Assert.Throws<ServiceResultException>(
+                () => configuration.Validate(telemetry));
+
+            Assert.That(sre.Code, Is.EqualTo(StatusCodes.BadConfigurationError));
+            Assert.That(sre.Message, Does.Contain("ApplicationCertificate must be specified."));
+        }
+
+        [Test]
         public void ClearingApplicationCertificatesRebuildsSupportedSecurityPolicies()
         {
             var configuration = new SecurityConfiguration
