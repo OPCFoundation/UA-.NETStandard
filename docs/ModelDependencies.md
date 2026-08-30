@@ -123,6 +123,12 @@ The cross-namespace prefix override step lives in
 generation so that all downstream emitters see the harmonised prefix/name
 values.
 
+Both `GenerateCode` passes (NodeSet2 and ModelDesign) take the referenced
+models as a single per-URI map of `ModelDependencyReference` and derive the
+decoded payload map from it themselves via `BuildReferencedDependencyMap` —
+the reference carries the raw base64 payload and memoises `GetDependency()`,
+so the payload map is never threaded as a separate argument.
+
 The payload-import surface lives directly on
 `tools/Opc.Ua.SourceGeneration.Core/Schema/ModelDesignValidator.cs` (the
 former `ModelDesignValidator.SnapshotImport.cs` partial was folded into the
@@ -132,6 +138,11 @@ materialises the carried types into the validator's node table before the
 dependency-loading pass walks `AdditionalFiles`, so consumer types can
 resolve `BaseType` / `TypeDefinition` / `DataType` references against the
 upstream's published types without those upstream models being present in
-`AdditionalFiles`.
+`AdditionalFiles`. Payloads for models that *are* present as design files in
+the current compilation are skipped — the explicit file is authoritative.
+After all design files are loaded, the validator links the
+payload-materialised data types (base types, field data types, structure /
+enumeration classification), so a local `ModelDesign` structure can subtype
+a structure published only through a referenced assembly's payload.
 
 
