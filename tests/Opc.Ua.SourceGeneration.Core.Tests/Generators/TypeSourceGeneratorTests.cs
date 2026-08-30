@@ -190,6 +190,84 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
         }
 
         [Test]
+        public void GenerateClassCloneUsesMemberwiseClone()
+        {
+            var model = new TypeSourceModel
+            {
+                ClassName = "MyConfig",
+                Namespace = "MyApp.Config",
+                NamespaceUri = "urn:myapp:config",
+                NamespaceSymbol = "MyAppConfig",
+                IsEnum = false,
+                IsRecord = false,
+                Fields =
+                [
+                    CreateField("Name", "String"),
+                    new TypeFieldModel
+                    {
+                        PropertyName = "Child",
+                        FieldName = "Child",
+                        TypeName = "global::Test.Ns.ChildType",
+                        ShortTypeName = "ChildType",
+                        IsEncodeable = true,
+                        Order = 1
+                    }
+                ]
+            };
+
+            string result = TypeSourceGenerator.Generate(model);
+
+            Assert.That(result, Does.Contain("public virtual object Clone()"));
+            Assert.That(result, Does.Contain(
+                "return (MyConfig)this.MemberwiseClone();"));
+            Assert.That(result, Does.Contain(
+                "public new object MemberwiseClone()"));
+            Assert.That(result, Does.Contain(
+                "MyConfig clone = (MyConfig)base.MemberwiseClone();"));
+            Assert.That(result, Does.Contain(
+                "clone.Child = (global::Test.Ns.ChildType)global::Opc.Ua.CoreUtils.Clone(Child);"),
+                "Own reference-typed fields must be deep copied");
+            Assert.That(result, Does.Not.Contain("clone = new MyConfig()"),
+                "Clone must not start from a fresh instance");
+            Assert.That(result, Does.Not.Contain("clone.Name = Name;"),
+                "MemberwiseClone already carries simple fields");
+        }
+
+        [Test]
+        public void GenerateDerivedClassCloneCarriesInheritedState()
+        {
+            var model = new TypeSourceModel
+            {
+                ClassName = "MyDerivedConfig",
+                Namespace = "MyApp.Config",
+                NamespaceUri = "urn:myapp:config",
+                NamespaceSymbol = "MyAppConfig",
+                IsEnum = false,
+                IsRecord = false,
+                IsDerived = true,
+                BaseTypeIsEncodeable = true,
+                Fields =
+                [
+                    CreateField("Count", "UInt32")
+                ]
+            };
+
+            string result = TypeSourceGenerator.Generate(model);
+
+            Assert.That(result, Does.Contain("public override object Clone()"));
+            Assert.That(result, Does.Contain(
+                "return (MyDerivedConfig)this.MemberwiseClone();"));
+            Assert.That(result, Does.Contain(
+                "public new object MemberwiseClone()"));
+            Assert.That(result, Does.Contain(
+                "MyDerivedConfig clone = (MyDerivedConfig)base.MemberwiseClone();"),
+                "The clone must start from base.MemberwiseClone() so " +
+                "inherited fields are not dropped");
+            Assert.That(result, Does.Not.Contain("clone = new MyDerivedConfig()"),
+                "A fresh instance would drop every inherited field");
+        }
+
+        [Test]
         public void GenerateEnumProducesEnumeratedTypeActivator()
         {
             var model = new TypeSourceModel

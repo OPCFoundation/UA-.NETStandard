@@ -254,7 +254,11 @@ the record's `Equals` implementation.
 
 When a `[DataType]` class derives from another `IEncodeable` base type, the
 generator uses `override` instead of `virtual` and calls `base.Encode()`/
-`base.Decode()` before encoding the derived fields.
+`base.Decode()` before encoding the derived fields. `Clone()` delegates to a
+generated `MemberwiseClone()` that starts from a shallow copy of the whole
+object — carrying the inherited fields — and then deep copies the derived
+class's own reference-typed fields, the same shape the model-based generator
+emits.
 
 ### Internal Class
 
