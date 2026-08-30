@@ -1078,6 +1078,7 @@ namespace Opc.Ua.Client.Subscriptions
                 await WaitUntilAsync(
                     () => session.SessionDispatchCount > 0,
                     testCt).ConfigureAwait(false);
+                await WaitForPublishWorkerCountAsync(sut, 1).ConfigureAwait(false);
 
                 Assert.Multiple(() =>
                 {
@@ -1085,6 +1086,72 @@ namespace Opc.Ua.Client.Subscriptions
                     Assert.That(sut.PublishWorkerCount, Is.EqualTo(1));
                     Assert.That(session.DeleteCalls, Is.Empty);
                 });
+            }
+        }
+
+        /// <summary>
+        /// The publish controller must never size the pool from the default
+        /// Min/MaxPublishWorkerCount. It runs synchronously up to its first
+        /// wait, i.e. inside the constructor, so sizing there happened before
+        /// the owner could configure the pool: a session that already carries
+        /// subscriptions got MinPublishWorkerCount (default 2) workers that
+        /// were torn down again by the first resize, and PublishWorkerCount
+        /// transiently reported that overshoot.
+        /// </summary>
+        [Test]
+        [CancelAfter(30_000)]
+        public async Task PublishWorkerPoolIsNeverSizedFromDefaultsBeforeConfigurationAsync(
+            CancellationToken testCt)
+        {
+            ILoggerFactory loggerFactory = m_telemetry.LoggerFactory;
+            var session = new FakeSubscriptionManagerContext();
+            session.SessionOwnedSubscriptionIds.Add(4242u);
+            // Model a transport that does not complete synchronously - the
+            // manager has no created subscription to derive a publish
+            // interval from, so an instantly completing fake would spin the
+            // worker at full speed for the duration of the test.
+            session.OnPublishAsync = async (header, acknowledgements, ct) =>
+            {
+                await Task.Delay(5, ct).ConfigureAwait(false);
+                return CreatePublishResponse(4242u, header.RequestHandle);
+            };
+
+            var sut = new SubscriptionManager(session,
+                loggerFactory, DiagnosticsMasks.None);
+
+            await using (sut.ConfigureAwait(false))
+            {
+                // Nothing has signalled the controller yet, so the defaults
+                // are still in force. Guard that they still make the
+                // scenario meaningful: the bug only shows when the default
+                // minimum inflates the count the session alone asks for.
+                Assert.Multiple(() =>
+                {
+                    Assert.That(sut.MinPublishWorkerCount,
+                        Is.GreaterThan(session.SessionSubscriptionCount),
+                        "Defaults no longer inflate the pool; pick a scenario " +
+                        "that still exercises constructor-time sizing.");
+                    Assert.That(sut.PublishWorkerCount, Is.Zero,
+                        "The constructor must not size the publish worker pool.");
+                });
+
+                sut.MinPublishWorkerCount = 1;
+                sut.MaxPublishWorkerCount = 1;
+                sut.Resume();
+                sut.Update();
+
+                await WaitForPublishWorkerCountAsync(sut, 1).ConfigureAwait(false);
+
+                // The pool must stay at the configured maximum while the
+                // workers publish - a worker that exits is reaped before its
+                // replacement is created, so the two are never counted
+                // together.
+                var sw = Stopwatch.StartNew();
+                while (sw.Elapsed < TimeSpan.FromSeconds(1))
+                {
+                    Assert.That(sut.PublishWorkerCount, Is.EqualTo(1));
+                    await Task.Delay(10, testCt).ConfigureAwait(false);
+                }
             }
         }
 
