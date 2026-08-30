@@ -347,7 +347,7 @@ namespace Opc.Ua.Gds.Client
         /// rather than the <c>-1</c> sentinel of the service. Zero leaves the
         /// interval to the server, which revises it to what it supports.
         /// </summary>
-        private static int ToMilliseconds(TimeSpan interval)
+        internal static int ToMilliseconds(TimeSpan interval)
         {
             double milliseconds = interval.TotalMilliseconds;
 
