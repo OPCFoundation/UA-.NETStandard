@@ -235,6 +235,24 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
                     Is.Not.Null,
                     "The dependency VariableType's DataTypeNode must be linked.");
             });
+
+            var reset = widget.Hierarchy.Nodes["Reset"].Instance as MethodDesign;
+            Assert.That(reset, Is.Not.Null);
+            Parameter hard = reset.InputArguments
+                .FirstOrDefault(a => a.Name == "Hard");
+            Parameter config = reset.InputArguments
+                .FirstOrDefault(a => a.Name == "Config");
+            Assert.Multiple(() =>
+            {
+                Assert.That(hard?.DataTypeNode?.SymbolicName.Name, Is.EqualTo("Boolean"),
+                    "The method argument's DataTypeNode must be linked.");
+                // Mirrors ValidateParameters: without UseAllowSubtypes a
+                // structure argument that allows subtypes degrades to the
+                // abstract Structure.
+                Assert.That(config?.DataTypeNode?.SymbolicName.Name, Is.EqualTo("Structure"),
+                    "The AllowSubTypes structure argument must degrade to " +
+                    "Structure like a locally validated method argument.");
+            });
         }
 
         private static string GetNodeStateExtensions(Dictionary<string, string> generated)
@@ -315,6 +333,11 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
                 <opc:Namespace Name="OpcUa" Prefix="Opc.Ua" XmlNamespace="http://opcfoundation.org/UA/2008/02/Types.xsd">http://opcfoundation.org/UA/</opc:Namespace>
                 <opc:Namespace Name="ModelA" Prefix="Test.ModelA">http://test.org/UA/ModelA/</opc:Namespace>
               </opc:Namespaces>
+              <opc:DataType SymbolicName="WidgetConfigType" BaseType="ua:Structure">
+                <opc:Fields>
+                  <opc:Field Name="Setting" DataType="ua:String" />
+                </opc:Fields>
+              </opc:DataType>
               <opc:VariableType SymbolicName="WidgetLevelType" BaseType="ua:BaseDataVariableType" DataType="ua:Double" ValueRank="Scalar">
                 <opc:Children>
                   <opc:Property SymbolicName="HighLimit" DataType="ua:Double" ValueRank="Scalar" />
@@ -327,6 +350,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
                   <opc:Method SymbolicName="Reset">
                     <opc:InputArguments>
                       <opc:Argument Name="Hard" DataType="ua:Boolean" ValueRank="Scalar" />
+                      <opc:Argument Name="Config" DataType="WidgetConfigType" ValueRank="Scalar" AllowSubTypes="true" />
                     </opc:InputArguments>
                   </opc:Method>
                 </opc:Children>
@@ -380,6 +404,11 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
                 <opc:Namespace Name="ModelL" Prefix="Test.ModelL">http://test.org/UA/ModelL/</opc:Namespace>
                 <opc:Namespace Name="OpcUa" Prefix="Opc.Ua" XmlNamespace="http://opcfoundation.org/UA/2008/02/Types.xsd">http://opcfoundation.org/UA/</opc:Namespace>
               </opc:Namespaces>
+              <opc:DataType SymbolicName="WidgetConfigType" BaseType="ua:Structure">
+                <opc:Fields>
+                  <opc:Field Name="Setting" DataType="ua:String" />
+                </opc:Fields>
+              </opc:DataType>
               <opc:VariableType SymbolicName="WidgetLevelType" BaseType="ua:BaseDataVariableType" DataType="ua:Double" ValueRank="Scalar">
                 <opc:Children>
                   <opc:Property SymbolicName="HighLimit" DataType="ua:Double" ValueRank="Scalar" />
@@ -392,6 +421,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
                   <opc:Method SymbolicName="Reset">
                     <opc:InputArguments>
                       <opc:Argument Name="Hard" DataType="ua:Boolean" ValueRank="Scalar" />
+                      <opc:Argument Name="Config" DataType="WidgetConfigType" ValueRank="Scalar" AllowSubTypes="true" />
                     </opc:InputArguments>
                   </opc:Method>
                 </opc:Children>
