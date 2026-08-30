@@ -109,6 +109,45 @@ namespace Opc.Ua.Client
         public Action<ApplicationConfiguration>? ConfigureLoadedConfiguration { get; set; }
 
         /// <summary>
+        /// When <c>true</c>, the client configuration is loaded and
+        /// validated during host start instead of on first use.
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// Registers an <c>IHostedService</c> that awaits
+        /// <see cref="IOpcUaApplicationConfigurationProvider.GetAsync"/> on
+        /// <see cref="ConfigurationProvider"/> while the .NET Generic Host
+        /// starts. When <c>host.StartAsync()</c> returns, the configuration
+        /// document is loaded and validated, the application-instance
+        /// certificate is ensured, <see cref="Configuration"/> is filled in,
+        /// and a failure fails the host start rather than surfacing on the
+        /// first session connect. This is what user-interface hosts need,
+        /// which must hand the <see cref="ApplicationConfiguration"/> to
+        /// their views before any session exists.
+        /// </para>
+        /// <para>
+        /// Applies to every configuration-provider source: a document
+        /// supplied via <see cref="ConfigurationFile"/> or
+        /// <see cref="ConfigurationStream"/>, and a shared application
+        /// registered with <c>ConfigureApplication(...)</c>. It is a no-op
+        /// when an explicit <see cref="Configuration"/> was set, which is
+        /// already complete, and when no host is present - the
+        /// configuration then still loads lazily on first use. Applications
+        /// without a host call
+        /// <see cref="IOpcUaApplicationConfigurationProvider.GetAsync"/> on
+        /// <see cref="ConfigurationProvider"/> instead; both routes share
+        /// the provider's single-flight load.
+        /// </para>
+        /// <para>
+        /// Because it decides a service registration, this must be set
+        /// within the <c>AddClient(...)</c> callback or bound from the
+        /// <c>OpcUa:Client</c> configuration section; setting it on the
+        /// resolved options afterwards has no effect.
+        /// </para>
+        /// </remarks>
+        public bool LoadConfigurationOnStart { get; set; }
+
+        /// <summary>
         /// The application name. When set (and <see cref="Configuration"/>
         /// is omitted), the root <c>ConfigureApplication(...)</c>
         /// infrastructure is used internally to build and validate the
@@ -196,7 +235,33 @@ namespace Opc.Ua.Client
         /// </summary>
         public ClientReverseConnectOptions? ReverseConnect { get; set; }
 
-        internal IOpcUaApplicationConfigurationProvider? ConfigurationProvider { get; set; }
+        /// <summary>
+        /// The configuration provider resolved for this client, or
+        /// <c>null</c> when an explicit <see cref="Configuration"/> was set
+        /// and no provider is involved.
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// Only available on the <see cref="OpcUaClientOptions"/> instance
+        /// resolved from the service provider, not on the instance passed to
+        /// the <c>AddClient(...)</c> callback. It is the supplied-document
+        /// provider when <see cref="ConfigurationFile"/> or
+        /// <see cref="ConfigurationStream"/> was set, and otherwise the
+        /// shared provider registered by <c>ConfigureApplication(...)</c>.
+        /// </para>
+        /// <para>
+        /// Use <see cref="IOpcUaApplicationConfigurationProvider.GetAsync"/>
+        /// to trigger the load explicitly without connecting a session,
+        /// <see cref="IOpcUaApplicationConfigurationProvider.Configuration"/>
+        /// to read the loaded document back, and
+        /// <see cref="IOpcUaApplicationConfigurationProvider.Application"/>
+        /// for the <see cref="IApplicationInstance"/> that owns the
+        /// application-instance certificate. Set
+        /// <see cref="LoadConfigurationOnStart"/> to have a hosted
+        /// application await the load during host start instead.
+        /// </para>
+        /// </remarks>
+        public IOpcUaApplicationConfigurationProvider? ConfigurationProvider { get; internal set; }
 
         /// <summary>
         /// <c>true</c> when any application identity or security property
