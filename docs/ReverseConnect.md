@@ -67,6 +67,8 @@ await Task.WhenAll(serverA, serverB).ConfigureAwait(false);
 
 Pass each returned `ITransportWaitingConnection` to the session factory for the corresponding Server.
 
+`HoldTime` controls how long an incoming `ReverseHello` that does not match any registration yet is held open before it is rejected. This matters when several Servers connect before the application has registered a waiting connection for each of them: every held connection waits for the remainder of its own hold time, also when a registration for a different Server arrives in the meantime. A Server whose hold time expires without a matching registration is rejected and reconnects on its next `ReverseHello` interval. A committed stop or dispose releases the held connections immediately.
+
 `StartServiceAsync` validates and prepares the complete listener set before it changes a running service. If activation fails after existing listeners have stopped, the manager recreates and reopens the previous configuration. Cancellation cleans partially initialized candidates and either preserves or restores the prior service. Use `await manager.StopServiceAsync(...)` for an explicit stop and `await manager.DisposeAsync()` (or `await using`) for teardown.
 
 The synchronous `StartService`, `RegisterWaitingConnection`, and `Dispose` APIs remain as obsolete compatibility wrappers. New code should use `StartServiceAsync`, `RegisterWaitingConnectionAsync`, and `DisposeAsync`; the compatibility wrappers may block a caller thread.
