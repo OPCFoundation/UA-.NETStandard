@@ -670,14 +670,13 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Prepare a cache per NodeManager and unique NodeId that holds the attributes needed to validate the AccessRestrictions and RolePermissions.
-        /// This cache is then used in subsequenct calls to avoid triggering unnecessary time consuming callbacks.
-        /// The current services that benefit from this are the Read service
+        /// Prepares a cache per NodeManager and unique NodeId that holds the attributes needed to validate AccessRestrictions and RolePermissions.
+        /// This cache is then used in subsequent calls to avoid triggering unnecessary, time-consuming callbacks.
+        /// The current services that benefit from this are the Read, Write and Call services.
         /// </summary>
-        /// <typeparam name="T">One of the following types used in the service calls:
-        ///     ReadValueId used in the Read service</typeparam>
-        /// <param name="nodesList">The collection of nodes on which the service operates uppon</param>
-        /// <param name="uniqueNodesServiceAttributes">The resulting cache that holds the values of the AccessRestrictions and RolePermissions attributes needed for Read service</param>
+        /// <typeparam name="T">One of the types used in the service calls (ReadValueId, WriteValue, BrowseDescription, CallMethodRequest).</typeparam>
+        /// <param name="nodesList">The collection of nodes on which the service operates upon</param>
+        /// <param name="uniqueNodesServiceAttributes">The resulting cache that holds the attribute values needed by the validation process</param>
         /// <exception cref="ArgumentException"></exception>
         private static void PrepareValidationCache<T>(
             ArrayOf<T> nodesList,
