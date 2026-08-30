@@ -3,8 +3,8 @@ name: Temporary macOS Sessions Leak Repro
 
 on:
   push:
-    branches:
-      - develop/leak-repro-4338
+    tags:
+      - temp-sessions-leak-repro-4338*
   workflow_dispatch:
     inputs:
       iterations:
