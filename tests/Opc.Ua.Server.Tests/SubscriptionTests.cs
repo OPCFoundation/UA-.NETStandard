@@ -1891,7 +1891,9 @@ namespace Opc.Ua.Server.Tests
                 Assert.That(destinationPublish.IsCompleted, Is.False);
             });
 
-            destinationQueue.PublishCompleted(destinationSubscription!, moreNotifications: true);
+            destinationQueue.PublishCompleted(
+                destinationSubscription!.AsPipeline(),
+                moreNotifications: true);
 
             ISubscription publishedSubscription = await destinationPublish.ConfigureAwait(false);
             Assert.That(publishedSubscription, Is.SameAs(destinationSubscription!));
@@ -1973,7 +1975,7 @@ namespace Opc.Ua.Server.Tests
                 m_sessionMock.Object,
                 maxPublishRequests: 10);
             queue.Add(subscription);
-            var impostor = new Mock<ISubscription>();
+            var impostor = new Mock<ISubscriptionPublishPipeline>();
             impostor.Setup(candidate => candidate.Id).Returns(subscription.Id);
 
             Assert.Multiple(() =>

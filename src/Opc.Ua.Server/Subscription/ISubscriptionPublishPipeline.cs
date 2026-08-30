@@ -27,6 +27,9 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System.Threading;
+using System.Threading.Tasks;
+
 namespace Opc.Ua.Server
 {
     /// <summary>
@@ -92,5 +95,49 @@ namespace Opc.Ua.Server
             OperationContext context,
             out ArrayOf<uint> availableSequenceNumbers,
             out bool moreNotifications);
+
+        /// <summary>
+        /// Reserves the subscription for transfer while it is still owned by the expected source session.
+        /// </summary>
+        /// <param name="sourceSession">The session that currently owns the subscription.</param>
+        /// <returns><c>true</c> when the transfer reservation was acquired.</returns>
+        bool TryBeginTransfer(ISession? sourceSession);
+
+        /// <summary>
+        /// Prepares monitored item state for a session transfer without making the new owner visible yet.
+        /// </summary>
+        /// <param name="context">The operation context for the destination session.</param>
+        /// <param name="sourceSession">The session that currently owns the subscription.</param>
+        /// <param name="sendInitialValues">Whether initial values should be sent after transfer commits.</param>
+        /// <param name="cancellationToken">The token that aborts transfer preparation.</param>
+        /// <returns>A prepared transfer that can be committed or rolled back by the caller.</returns>
+        /// <exception cref="ServiceResultException">
+        /// The subscription is no longer reserved by the source session.
+        /// </exception>
+        ValueTask<Subscription.PreparedSessionTransfer> PrepareSessionTransferAsync(
+            OperationContext context,
+            ISession? sourceSession,
+            bool sendInitialValues,
+            CancellationToken cancellationToken);
+
+        /// <summary>
+        /// Releases the transfer reservation after the destination session is already the owner.
+        /// </summary>
+        /// <param name="destinationSession">The session that must currently own the subscription.</param>
+        /// <exception cref="ServiceResultException">Ownership changed before transfer completion.</exception>
+        void CompleteTransfer(ISession destinationSession);
+
+        /// <summary>
+        /// Releases a transfer reservation without changing ownership when preparation cannot continue.
+        /// </summary>
+        /// <param name="sourceSession">The source session that still owns the subscription.</param>
+        void AbortTransfer(ISession? sourceSession);
+
+        /// <summary>
+        /// Restores ownership if a transfer failed after assigning its destination.
+        /// </summary>
+        bool TryRestoreSessionAfterFailedTransfer(
+            ISession destinationSession,
+            ISession? sourceSession);
     }
 }

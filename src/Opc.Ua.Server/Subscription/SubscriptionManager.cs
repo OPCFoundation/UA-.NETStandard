@@ -1553,7 +1553,6 @@ namespace Opc.Ua.Server
                         diagnostics => diagnostics.TransferRequestCount++);
 
                     ISession ownerSession = null!;
-                    var concreteSubscription = subscription as Subscription;
                     SessionPublishQueue? sourcePublishQueue = null;
                     SessionPublishQueue.SubscriptionTransferClaim? sourceQueueClaim = null;
                     bool sourceIsAbandoned = false;
@@ -1643,44 +1642,10 @@ namespace Opc.Ua.Server
                                 continue;
                             }
 
-                            if (concreteSubscription != null)
-                            {
-                                if (!sourcePublishQueue.TryClaimForTransfer(
-                                        concreteSubscription,
-                                        ownerSession,
-                                        out sourceQueueClaim))
-                                {
-                                    result.StatusCode = StatusCodes.BadSubscriptionIdInvalid;
-                                    results.Add(result);
-                                    if ((context.DiagnosticsMask & DiagnosticsMasks.OperationAll) != 0)
-                                    {
-                                        diagnosticInfos.Add(null!);
-                                    }
-                                    continue;
-                                }
-                                sourceRemoved = true;
-                                transferStarted = true;
-                            }
-                            else
-                            {
-                                sourceRemoved = sourcePublishQueue.TryRemoveForTransfer(subscription);
-                                if (!sourceRemoved)
-                                {
-                                    result.StatusCode = StatusCodes.BadSubscriptionIdInvalid;
-                                    results.Add(result);
-                                    if ((context.DiagnosticsMask & DiagnosticsMasks.OperationAll) != 0)
-                                    {
-                                        diagnosticInfos.Add(null!);
-                                    }
-                                    continue;
-                                }
-                            }
-                        }
-                        else if (ContainsAbandonedSubscription(subscription))
-                        {
-                            sourceIsAbandoned = true;
-                            if (concreteSubscription != null &&
-                                !concreteSubscription.TryBeginTransfer(null))
+                            if (!sourcePublishQueue.TryClaimForTransfer(
+                                    subscription,
+                                    ownerSession,
+                                    out sourceQueueClaim))
                             {
                                 result.StatusCode = StatusCodes.BadSubscriptionIdInvalid;
                                 results.Add(result);
@@ -1690,11 +1655,27 @@ namespace Opc.Ua.Server
                                 }
                                 continue;
                             }
-                            transferStarted = concreteSubscription != null;
+                            sourceRemoved = true;
+                            transferStarted = true;
+                        }
+                        else if (ContainsAbandonedSubscription(subscription))
+                        {
+                            sourceIsAbandoned = true;
+                            if (!subscription.TryBeginTransfer(null))
+                            {
+                                result.StatusCode = StatusCodes.BadSubscriptionIdInvalid;
+                                results.Add(result);
+                                if ((context.DiagnosticsMask & DiagnosticsMasks.OperationAll) != 0)
+                                {
+                                    diagnosticInfos.Add(null!);
+                                }
+                                continue;
+                            }
+                            transferStarted = true;
                             sourceRemoved = TryRemoveAbandonedSubscription(subscription);
                             if (!sourceRemoved)
                             {
-                                concreteSubscription?.AbortTransfer(null);
+                                subscription.AbortTransfer(null);
                                 result.StatusCode = StatusCodes.BadSubscriptionIdInvalid;
                                 results.Add(result);
                                 if ((context.DiagnosticsMask & DiagnosticsMasks.OperationAll) != 0)
@@ -1714,9 +1695,9 @@ namespace Opc.Ua.Server
                             }
                             continue;
                         }
-                        else if (concreteSubscription != null)
+                        else
                         {
-                            if (!concreteSubscription.TryBeginTransfer(null))
+                            if (!subscription.TryBeginTransfer(null))
                             {
                                 result.StatusCode = StatusCodes.BadSubscriptionIdInvalid;
                                 results.Add(result);
@@ -1731,25 +1712,14 @@ namespace Opc.Ua.Server
 
                         try
                         {
-                            if (concreteSubscription != null)
-                            {
-                                preparedTransfer = await concreteSubscription
-                                    .PrepareSessionTransferAsync(
-                                        context,
-                                        ownerSession,
-                                        sendInitialValues,
-                                        cancellationToken)
-                                    .ConfigureAwait(false);
-                                preparedTransfer.CommitOwnership();
-                            }
-                            else
-                            {
-                                await subscription.TransferSessionAsync(
-                                        context,
-                                        sendInitialValues,
-                                        cancellationToken)
-                                    .ConfigureAwait(false);
-                            }
+                            preparedTransfer = await subscription
+                                .PrepareSessionTransferAsync(
+                                    context,
+                                    ownerSession,
+                                    sendInitialValues,
+                                    cancellationToken)
+                                .ConfigureAwait(false);
+                            preparedTransfer.CommitOwnership();
 
                             // add to queue in new session, create queue if necessary
                             if (!m_publishQueues.TryGetValue(
@@ -1766,11 +1736,8 @@ namespace Opc.Ua.Server
                             }
                             destinationPublishQueue.Add(subscription);
                             destinationAdded = true;
-                            preparedTransfer?.CommitMonitoredItemEffects();
-                            if (concreteSubscription != null)
-                            {
-                                concreteSubscription.CompleteTransfer(context.Session);
-                            }
+                            preparedTransfer.CommitMonitoredItemEffects();
+                            subscription.CompleteTransfer(context.Session);
                             if (sourceQueueClaim != null)
                             {
                                 sourcePublishQueue!.CompleteTransferClaim(sourceQueueClaim);
@@ -1798,8 +1765,7 @@ namespace Opc.Ua.Server
                                 }
                             }
                             else if (!ReferenceEquals(subscription.Session, ownerSession) &&
-                                concreteSubscription != null &&
-                                !concreteSubscription.TryRestoreSessionAfterFailedTransfer(
+                                !subscription.TryRestoreSessionAfterFailedTransfer(
                                     context.Session,
                                     ownerSession))
                             {
@@ -1836,7 +1802,7 @@ namespace Opc.Ua.Server
 
                             if (transferStarted)
                             {
-                                concreteSubscription!.AbortTransfer(ownerSession);
+                                subscription.AbortTransfer(ownerSession);
                             }
 
                             if (rollbackErrors.Count > 0)
@@ -2603,7 +2569,7 @@ namespace Opc.Ua.Server
                 return;
             }
 
-            var subscriptionsToDelete = new List<ISubscription>();
+            var subscriptionsToDelete = new List<ISubscriptionPublishPipeline>();
             for (int ii = 0; ii < abandonedSubscriptions.Count; ii++)
             {
                 ISubscriptionPublishPipeline subscription = abandonedSubscriptions[ii];
@@ -2703,7 +2669,7 @@ namespace Opc.Ua.Server
         /// before the caller that scheduled it goes away.</param>
         internal static void CleanupSubscriptions(
             IServerInternal server,
-            IList<ISubscription> subscriptionsToDelete,
+            IList<ISubscriptionPublishPipeline> subscriptionsToDelete,
             ILogger logger,
             BackgroundTaskScope backgroundWork)
         {
@@ -2723,7 +2689,7 @@ namespace Opc.Ua.Server
         /// </summary>
         private static async ValueTask CleanupSubscriptionsCoreAsync(
             IServerInternal server,
-            IList<ISubscription> subscriptionsToDelete,
+            IList<ISubscriptionPublishPipeline> subscriptionsToDelete,
             ILogger logger,
             CancellationToken cancellationToken = default)
         {
@@ -2731,7 +2697,7 @@ namespace Opc.Ua.Server
             {
                 logger.ServerCleanupSubscriptionsTaskStarted();
 
-                foreach (ISubscription subscription in subscriptionsToDelete)
+                foreach (ISubscriptionPublishPipeline subscription in subscriptionsToDelete)
                 {
                     await server.DeleteSubscriptionAsync(subscription.Id, cancellationToken).ConfigureAwait(false);
                 }

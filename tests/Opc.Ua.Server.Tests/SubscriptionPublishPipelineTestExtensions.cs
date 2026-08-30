@@ -99,5 +99,34 @@ namespace Opc.Ua.Server.Tests
                 out availableSequenceNumbers,
                 out moreNotifications);
         }
+
+        public static bool TryBeginTransfer(this ISubscription subscription, ISession? sourceSession)
+        {
+            return subscription.AsPipeline().TryBeginTransfer(sourceSession);
+        }
+
+        public static System.Threading.Tasks.ValueTask<Subscription.PreparedSessionTransfer> PrepareSessionTransferAsync(
+            this ISubscription subscription,
+            OperationContext context,
+            ISession? sourceSession,
+            bool sendInitialValues,
+            System.Threading.CancellationToken cancellationToken)
+        {
+            return subscription.AsPipeline().PrepareSessionTransferAsync(
+                context,
+                sourceSession,
+                sendInitialValues,
+                cancellationToken);
+        }
+
+        public static void CompleteTransfer(this ISubscription subscription, ISession destinationSession)
+        {
+            subscription.AsPipeline().CompleteTransfer(destinationSession);
+        }
+
+        public static void AbortTransfer(this ISubscription subscription, ISession? sourceSession)
+        {
+            subscription.AsPipeline().AbortTransfer(sourceSession);
+        }
     }
 }

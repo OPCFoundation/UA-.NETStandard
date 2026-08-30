@@ -236,7 +236,7 @@ namespace Opc.Ua.Server
         /// Removes a subscription from the publish queue.
         /// </summary>
         /// <exception cref="ArgumentNullException"><paramref name="subscription"/> is <c>null</c>.</exception>
-        public void Remove(ISubscription subscription, bool removeQueuedRequests)
+        public void Remove(ISubscriptionPublishPipeline subscription, bool removeQueuedRequests)
         {
             if (subscription == null)
             {
@@ -258,7 +258,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Checks whether the exact subscription is still in this queue.
         /// </summary>
-        internal bool ContainsSubscription(ISubscription subscription)
+        internal bool ContainsSubscription(ISubscriptionPublishPipeline subscription)
         {
             return m_queuedSubscriptions.TryGetValue(
                     subscription.Id,
@@ -270,7 +270,7 @@ namespace Opc.Ua.Server
         /// Claims and removes the exact subscription entry before transfer callbacks run.
         /// </summary>
         internal bool TryClaimForTransfer(
-            Subscription subscription,
+            ISubscriptionPublishPipeline subscription,
             ISession sourceSession,
             out SubscriptionTransferClaim? claim)
         {
@@ -344,7 +344,7 @@ namespace Opc.Ua.Server
             }
         }
 
-        internal bool TryRemoveForTransfer(ISubscription subscription)
+        internal bool TryRemoveForTransfer(ISubscriptionPublishPipeline subscription)
         {
             lock (m_lock)
             {
@@ -503,7 +503,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Adds a subscription back into the queue because it has more notifications to publish.
         /// </summary>
-        public void PublishCompleted(ISubscription subscription, bool moreNotifications)
+        public void PublishCompleted(ISubscriptionPublishPipeline subscription, bool moreNotifications)
         {
             if (!m_queuedSubscriptions.TryGetValue(
                     subscription.Id,
@@ -543,7 +543,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Puts a subscription back in the queue to be published.
         /// </summary>
-        public void Requeue(ISubscription subscription)
+        public void Requeue(ISubscriptionPublishPipeline subscription)
         {
             if (!m_queuedSubscriptions.TryGetValue(
                     subscription.Id,
@@ -598,7 +598,7 @@ namespace Opc.Ua.Server
         /// </summary>
         internal void PublishTimerExpired(IReadOnlyList<QueuedSubscription> queuedSubscriptions)
         {
-            var subscriptionsToDelete = new List<ISubscription>();
+            var subscriptionsToDelete = new List<ISubscriptionPublishPipeline>();
             List<QueuedSubscription>? notifyingSubscriptions = null;
 
             // check each available subscription.
@@ -703,7 +703,7 @@ namespace Opc.Ua.Server
         }
 
         private void PublishCompletedTransferClaimNoLock(
-            ISubscription subscription,
+            ISubscriptionPublishPipeline subscription,
             bool moreNotifications)
         {
             if (m_transferClaims.TryGetValue(
@@ -716,7 +716,7 @@ namespace Opc.Ua.Server
             }
         }
 
-        private void RequeueTransferClaimNoLock(ISubscription subscription)
+        private void RequeueTransferClaimNoLock(ISubscriptionPublishPipeline subscription)
         {
             if (m_transferClaims.TryGetValue(
                     subscription.Id,

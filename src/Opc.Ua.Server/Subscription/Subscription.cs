@@ -946,7 +946,7 @@ namespace Opc.Ua.Server
         /// </summary>
         /// <param name="sourceSession">The session that currently owns the subscription.</param>
         /// <returns><c>true</c> when the transfer reservation was acquired.</returns>
-        internal bool TryBeginTransfer(ISession? sourceSession)
+        bool ISubscriptionPublishPipeline.TryBeginTransfer(ISession? sourceSession)
         {
             lock (m_lock)
             {
@@ -973,7 +973,7 @@ namespace Opc.Ua.Server
         /// <exception cref="ServiceResultException">
         /// The subscription is no longer reserved by the source session.
         /// </exception>
-        internal async ValueTask<PreparedSessionTransfer> PrepareSessionTransferAsync(
+        async ValueTask<PreparedSessionTransfer> ISubscriptionPublishPipeline.PrepareSessionTransferAsync(
             OperationContext context,
             ISession? sourceSession,
             bool sendInitialValues,
@@ -1064,7 +1064,7 @@ namespace Opc.Ua.Server
         /// </summary>
         /// <param name="destinationSession">The session that must currently own the subscription.</param>
         /// <exception cref="ServiceResultException">Ownership changed before transfer completion.</exception>
-        internal void CompleteTransfer(ISession destinationSession)
+        void ISubscriptionPublishPipeline.CompleteTransfer(ISession destinationSession)
         {
             lock (m_lock)
             {
@@ -1083,7 +1083,7 @@ namespace Opc.Ua.Server
         /// Releases a transfer reservation without changing ownership when preparation cannot continue.
         /// </summary>
         /// <param name="sourceSession">The source session that still owns the subscription.</param>
-        internal void AbortTransfer(ISession? sourceSession)
+        void ISubscriptionPublishPipeline.AbortTransfer(ISession? sourceSession)
         {
             lock (m_lock)
             {
@@ -1260,7 +1260,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Restores ownership if a transfer failed after assigning its destination.
         /// </summary>
-        internal bool TryRestoreSessionAfterFailedTransfer(
+        bool ISubscriptionPublishPipeline.TryRestoreSessionAfterFailedTransfer(
             ISession destinationSession,
             ISession? sourceSession)
         {
