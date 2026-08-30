@@ -1134,7 +1134,7 @@ namespace Opc.Ua.Server.Tests
             TransferSubscriptionsResponse transferred = await transferTask.ConfigureAwait(false);
             await closeTask.ConfigureAwait(false);
             var abandonedSubscriptions =
-                GetPrivateField<ConcurrentDictionary<uint, ISubscription>>(
+                GetPrivateField<ConcurrentDictionary<uint, ISubscriptionPublishPipeline>>(
                     manager,
                     "m_abandonedSubscriptions");
 
@@ -1657,8 +1657,8 @@ namespace Opc.Ua.Server.Tests
                 releaseSnapshot.TrySetResult(true);
             }
             await staleTimer.ConfigureAwait(false);
-            ConcurrentDictionary<uint, ISubscription> abandonedSubscriptions =
-                GetPrivateField<ConcurrentDictionary<uint, ISubscription>>(
+            ConcurrentDictionary<uint, ISubscriptionPublishPipeline> abandonedSubscriptions =
+                GetPrivateField<ConcurrentDictionary<uint, ISubscriptionPublishPipeline>>(
                     manager,
                     "m_abandonedSubscriptions");
 
@@ -1795,14 +1795,14 @@ namespace Opc.Ua.Server.Tests
                 if (abandonBeforeTransfer)
                 {
                     Assert.That(subscription.Session, Is.Null);
-                    ConcurrentDictionary<uint, ISubscription> abandonedSubscriptions =
-                        GetPrivateField<ConcurrentDictionary<uint, ISubscription>>(
+                    ConcurrentDictionary<uint, ISubscriptionPublishPipeline> abandonedSubscriptions =
+                        GetPrivateField<ConcurrentDictionary<uint, ISubscriptionPublishPipeline>>(
                             manager,
                             "m_abandonedSubscriptions");
                     Assert.That(
                         abandonedSubscriptions.TryGetValue(
                             subscription.Id,
-                            out ISubscription restoredSubscription),
+                            out ISubscriptionPublishPipeline restoredSubscription),
                         Is.True);
                     Assert.That(restoredSubscription, Is.SameAs(subscription));
                 }
@@ -2217,8 +2217,8 @@ namespace Opc.Ua.Server.Tests
                     sendInitialValues: false)
                 .ConfigureAwait(false);
 
-            ConcurrentDictionary<uint, ISubscription> abandonedSubscriptions =
-                GetPrivateField<ConcurrentDictionary<uint, ISubscription>>(
+            ConcurrentDictionary<uint, ISubscriptionPublishPipeline> abandonedSubscriptions =
+                GetPrivateField<ConcurrentDictionary<uint, ISubscriptionPublishPipeline>>(
                     manager,
                     "m_abandonedSubscriptions");
             Assert.Multiple(() =>
@@ -2231,7 +2231,7 @@ namespace Opc.Ua.Server.Tests
                 Assert.That(
                     abandonedSubscriptions.TryGetValue(
                         subscription.Id,
-                        out ISubscription retainedSubscription),
+                        out ISubscriptionPublishPipeline retainedSubscription),
                     Is.True,
                     "A refused reservation must leave the subscription abandoned, not lost.");
                 Assert.That(retainedSubscription, Is.SameAs(subscription));
