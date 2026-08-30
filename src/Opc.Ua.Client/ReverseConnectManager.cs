@@ -4556,38 +4556,59 @@ namespace Opc.Ua.Client
                 bool matched = MatchRegistration(sender, e);
                 while (!matched)
                 {
-                    m_logger.HoldingReverseConnectionServerUriEndpointUrl(
-                        e.ServerUri,
-                        e.EndpointUrl);
+                    TimeSpan delay = holdTime - m_timeProvider.GetElapsedTime(startTimestamp);
+                    if (delay <= TimeSpan.Zero)
+                    {
+                        // the hold time expired without a matching registration.
+                        break;
+                    }
+
+                    // A committed Stop/Dispose drains the in-flight callbacks
+                    // before the terminal listener close, and cancels the hold
+                    // token without renewing it. Release the transport instead
+                    // of re-arming the hold on an already cancelled token.
+                    if (IsCallbackDrainPending())
+                    {
+                        break;
+                    }
+
                     CancellationToken ct;
                     lock (m_registrationsLock)
                     {
                         ct = m_cts.Token;
                     }
-                    TimeSpan delay = holdTime - m_timeProvider.GetElapsedTime(startTimestamp);
-                    if (delay > TimeSpan.Zero)
-                    {
-                        await m_timeProvider.Delay(delay, ct)
-                            .ContinueWith(tsk =>
-                            {
-                                if (tsk.IsCanceled)
-                                {
-                                    matched = MatchRegistration(sender, e);
-                                    if (matched && m_logger.IsEnabled(LogLevel.Information))
-                                    {
-                                        m_logger.MatchedReverseConnectionServerUriEndpointUrlAfter(
-                                            e.ServerUri,
-                                            e.EndpointUrl,
-                                            (long)m_timeProvider.GetElapsedTime(startTimestamp).TotalMilliseconds);
-                                    }
-                                }
-                            },
+
+                    m_logger.HoldingReverseConnectionServerUriEndpointUrl(
+                        e.ServerUri,
+                        e.EndpointUrl);
+
+                    bool registrationsChanged = false;
+                    await m_timeProvider.Delay(delay, ct)
+                        .ContinueWith(
+                            tsk => registrationsChanged = tsk.IsCanceled,
                             default,
                             TaskContinuationOptions.None,
                             TaskScheduler.Default)
-                            .ConfigureAwait(false);
+                        .ConfigureAwait(false);
+
+                    if (!registrationsChanged)
+                    {
+                        // the hold time elapsed without a matching registration.
+                        break;
                     }
-                    break;
+
+                    // The registrations changed, try to match again. If the
+                    // registration which caused the wakeup was for another
+                    // Server, keep holding this connection for the remainder
+                    // of its own hold time instead of rejecting it.
+                    matched = MatchRegistration(sender, e);
+                    if (matched && m_logger.IsEnabled(LogLevel.Information))
+                    {
+                        m_logger.MatchedReverseConnectionServerUriEndpointUrlAfter(
+                            e.ServerUri,
+                            e.EndpointUrl,
+                            (long)m_timeProvider.GetElapsedTime(startTimestamp).TotalMilliseconds);
+                    }
                 }
 
                 if (m_logger.IsEnabled(LogLevel.Information))
@@ -4745,6 +4766,23 @@ namespace Opc.Ua.Client
                 }
                 m_activeCallbacks++;
                 return true;
+            }
+        }
+
+        /// <summary>
+        /// Whether a Stop/Dispose is draining the in-flight
+        /// <see cref="OnConnectionWaitingAsync"/> callbacks. A callback that is
+        /// already inside the tracking region must then stop holding its
+        /// transport instead of re-arming the hold: the drain cancels the hold
+        /// token without renewing it, so a renewed hold would spin on an
+        /// already cancelled token until the hold time expires and would block
+        /// the drain until then.
+        /// </summary>
+        private bool IsCallbackDrainPending()
+        {
+            lock (m_callbackLock)
+            {
+                return m_callbacksDrainedSignal != null;
             }
         }
 
