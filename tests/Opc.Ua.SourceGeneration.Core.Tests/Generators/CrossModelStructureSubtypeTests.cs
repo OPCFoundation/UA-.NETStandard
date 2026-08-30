@@ -205,26 +205,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             });
 
             string modelDPath = Path.Combine(m_rootPath, "B", "ModelD.xml");
-            File.WriteAllText(
-                modelDPath,
-                ModelBDesign
-                    .Replace(
-                        "http://test.org/UA/ModelB/",
-                        "http://test.org/UA/ModelD/",
-                        System.StringComparison.Ordinal)
-                    .Replace(
-                        "xmlns:s0=\"http://test.org/UA/ModelA/\"",
-                        "xmlns:s0=\"" + modelCUri + "\"",
-                        System.StringComparison.Ordinal)
-                    .Replace(
-                        "<opc:Namespace Name=\"ModelA\" Prefix=\"Test.ModelA\">http://test.org/UA/ModelA/</opc:Namespace>",
-                        "<opc:Namespace Name=\"ModelC\" Prefix=\"Test.ModelC\">" + modelCUri + "</opc:Namespace>" +
-                        "<opc:Namespace Name=\"ModelA\" Prefix=\"Test.ModelA\">http://test.org/UA/ModelA/</opc:Namespace>",
-                        System.StringComparison.Ordinal)
-                    .Replace(
-                        "BaseType=\"s0:BaseStruct\"",
-                        "BaseType=\"s0:MidStruct\"",
-                        System.StringComparison.Ordinal));
+            File.WriteAllText(modelDPath, ModelDDesign);
 
             Dictionary<string, string> generated = Generate(
                 targets: [modelDPath],
@@ -537,6 +518,35 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
                 <opc:Namespace Name="OpcUa" Prefix="Opc.Ua" XmlNamespace="http://opcfoundation.org/UA/2008/02/Types.xsd">http://opcfoundation.org/UA/</opc:Namespace>
               </opc:Namespaces>
               <opc:DataType SymbolicName="DerivedStruct" BaseType="s0:BaseStruct">
+                <opc:Fields>
+                  <opc:Field Name="Extra" DataType="ua:UInt32" />
+                </opc:Fields>
+              </opc:DataType>
+            </opc:ModelDesign>
+            """;
+
+        /// <summary>
+        /// Target of the three-level chain: subtypes MidStruct, which the
+        /// ModelC payload defines as a subtype of ModelA's BaseStruct. The
+        /// grandparent's namespace has to be declared here as well so the
+        /// chain resolves all the way down to the design file.
+        /// </summary>
+        private const string ModelDDesign =
+            """
+            <?xml version="1.0" encoding="utf-8" ?>
+            <opc:ModelDesign
+              xmlns:opc="http://opcfoundation.org/UA/ModelDesign.xsd"
+              xmlns:ua="http://opcfoundation.org/UA/"
+              xmlns:s0="http://test.org/UA/ModelC/"
+              xmlns="http://test.org/UA/ModelD/"
+              TargetNamespace="http://test.org/UA/ModelD/">
+              <opc:Namespaces>
+                <opc:Namespace Name="ModelD" Prefix="Test.ModelD">http://test.org/UA/ModelD/</opc:Namespace>
+                <opc:Namespace Name="ModelC" Prefix="Test.ModelC">http://test.org/UA/ModelC/</opc:Namespace>
+                <opc:Namespace Name="ModelA" Prefix="Test.ModelA">http://test.org/UA/ModelA/</opc:Namespace>
+                <opc:Namespace Name="OpcUa" Prefix="Opc.Ua" XmlNamespace="http://opcfoundation.org/UA/2008/02/Types.xsd">http://opcfoundation.org/UA/</opc:Namespace>
+              </opc:Namespaces>
+              <opc:DataType SymbolicName="DerivedStruct" BaseType="s0:MidStruct">
                 <opc:Fields>
                   <opc:Field Name="Extra" DataType="ua:UInt32" />
                 </opc:Fields>
