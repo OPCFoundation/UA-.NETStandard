@@ -518,7 +518,7 @@ namespace Opc.Ua.Server
         /// Transfers a set of monitored items.
         /// </summary>
         /// <exception cref="ArgumentNullException"><paramref name="context"/> is <c>null</c>.</exception>
-        [Obsolete("User TransferMonitoredItemsAsync")]
+        [Obsolete("Use TransferMonitoredItemsAsync")]
         public virtual void TransferMonitoredItems(
             OperationContext context,
             bool sendInitialValues,
