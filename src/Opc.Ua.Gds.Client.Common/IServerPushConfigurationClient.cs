@@ -87,8 +87,13 @@ namespace Opc.Ua.Gds.Client
         /// <summary>Raised on every keep-alive callback.</summary>
         event KeepAliveEventHandler? KeepAlive;
 
-        /// <summary>Raised when monitored item notifications change server status.</summary>
-        event MonitoredItemNotificationEventHandler? ServerStatusChanged;
+        /// <summary>
+        /// Raised for every data change of the <c>Server_ServerStatus</c>
+        /// variable of the connected server, including the initial value.
+        /// Requires <see cref="GdsClientOptions.MonitorServerStatus"/>, which
+        /// is enabled by default.
+        /// </summary>
+        event EventHandler<ServerStatusChangedEventArgs>? ServerStatusChanged;
 
         /// <summary>Clears the cached <see cref="AdminCredentials"/>.</summary>
         void ResetCredentials();

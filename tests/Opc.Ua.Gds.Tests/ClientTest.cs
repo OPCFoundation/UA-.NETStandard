@@ -190,6 +190,44 @@ namespace Opc.Ua.Gds.Tests
         }
 
         /// <summary>
+        /// The client monitors Server_ServerStatus once connected and raises
+        /// ServerStatusChanged for the initial value of the monitored item.
+        /// </summary>
+        [Test]
+        [Order(11)]
+        public async Task ServerStatusChangedIsRaisedAsync()
+        {
+            var received = new TaskCompletionSource<Client.ServerStatusChangedEventArgs>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            EventHandler<Client.ServerStatusChangedEventArgs> handler =
+                (_, e) => received.TrySetResult(e);
+
+            m_gdsClient.GDSClient.ServerStatusChanged += handler;
+            try
+            {
+                await ConnectGDSAsync(true).ConfigureAwait(false);
+
+                Task completed = await Task.WhenAny(
+                    received.Task,
+                    Task.Delay(TimeSpan.FromSeconds(30))).ConfigureAwait(false);
+                Assert.That(
+                    completed,
+                    Is.SameAs(received.Task),
+                    "ServerStatusChanged was not raised within 30 seconds.");
+
+                Client.ServerStatusChangedEventArgs status = await received.Task
+                    .ConfigureAwait(false);
+                Assert.That(StatusCode.IsGood(status.Value.StatusCode), Is.True);
+                Assert.That(status.Status, Is.Not.Null);
+                Assert.That(status.Status.State, Is.EqualTo(ServerState.Running));
+            }
+            finally
+            {
+                m_gdsClient.GDSClient.ServerStatusChanged -= handler;
+            }
+        }
+
+        /// <summary>
         /// Register the good applications in the database.
         /// </summary>
         [Test]

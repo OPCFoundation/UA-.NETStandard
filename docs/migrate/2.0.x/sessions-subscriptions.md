@@ -68,6 +68,55 @@ ServerCapabilityInfo? info = ServerCapabilities.Find(id);  // null if not regist
 
 If you currently rely on a `[Obsolete]` member, switch to the `Async` equivalent and apply the `ValueTask` migration notes above. If a particular API has no direct replacement, the migration is described inline in the XML doc comment of the replacement member.
 
+### `ServerStatusChanged` is implemented and changes its handler type
+
+**Breaking Change**: `IGlobalDiscoveryServerClient.ServerStatusChanged` and
+`IServerPushConfigurationClient.ServerStatusChanged` change from
+`MonitoredItemNotificationEventHandler` to
+`EventHandler<ServerStatusChangedEventArgs>`.
+
+**Rationale**: The event was declared on both clients but never raised — neither
+class created a subscription or a monitored item, and the declarations sat
+behind `#pragma warning disable CS0067`. The clients now monitor
+`Server_ServerStatus` themselves once connected. The old handler type is a
+classic-engine type: its first parameter is the concrete classic `MonitoredItem`
+and `MonitoredItemNotificationEventArgs` has an internal constructor, so it
+cannot carry a notification from the V2 engine. `ServerStatusChangedEventArgs`
+is engine-neutral and carries the decoded status directly.
+
+```csharp
+// Before — never called
+client.ServerStatusChanged += (item, e) =>
+{
+    var notification = (MonitoredItemNotification)e.NotificationValue;
+    // ...
+};
+
+// After
+client.ServerStatusChanged += (sender, e) =>
+{
+    // e.Value is the raw DataValue; e.Status is null unless the status is good
+    ServerState? state = e.Status?.State;
+};
+```
+
+Monitoring is on by default and costs one subscription with one monitored item
+per connected session. Turn it off, or retune it, through `GdsClientOptions`:
+
+```csharp
+var options = new GdsClientOptions
+{
+    MonitorServerStatus = false,                              // default: true
+    ServerStatusPublishingInterval = TimeSpan.FromSeconds(5), // default: 1s
+    ServerStatusSamplingInterval = TimeSpan.FromSeconds(5)    // default: 1s
+};
+```
+
+The monitor works on both subscription engines: it uses `ISubscriptionManager`
+when the session exposes one (`ManagedSession`) and the classic `Subscription` /
+`MonitoredItem` API otherwise (`DefaultSessionFactory`). A failure to set up
+monitoring is logged and never fails the connect.
+
 ## ManagedSession and Automatic Reconnection
 
 Version 2.0 introduces `ManagedSession`, a wrapper around `Session` that automatically handles connection lifecycle including reconnection and server redundancy failover.

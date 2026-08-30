@@ -78,6 +78,10 @@ namespace Opc.Ua.Gds.Client
             m_options = options ?? new GdsClientOptions();
             MessageContext = configuration.CreateMessageContext();
             m_logger = MessageContext.Telemetry.CreateLogger<ServerPushConfigurationClient>();
+            m_serverStatusMonitor = new ServerStatusMonitor(
+                m_options,
+                m_logger,
+                e => ServerStatusChanged?.Invoke(this, e));
             m_sessionFactory = sessionFactory ??
                 new DefaultSessionFactory(MessageContext.Telemetry)
                 {
@@ -307,12 +311,8 @@ namespace Opc.Ua.Gds.Client
         /// <inheritdoc/>
         public event KeepAliveEventHandler? KeepAlive;
 
-        /// <summary>
-        /// Occurs when the server status changes.
-        /// </summary>
-#pragma warning disable CS0067
-        public event MonitoredItemNotificationEventHandler? ServerStatusChanged;
-#pragma warning restore CS0067
+        /// <inheritdoc/>
+        public event EventHandler<ServerStatusChangedEventArgs>? ServerStatusChanged;
 
         /// <inheritdoc/>
         public void Dispose()
@@ -340,6 +340,7 @@ namespace Opc.Ua.Gds.Client
                 await m_lock.WaitAsync().ConfigureAwait(false);
                 try
                 {
+                    await m_serverStatusMonitor.StopAsync().ConfigureAwait(false);
                     Session?.Dispose();
                     Session = null;
                     m_serverConfiguration = null;
@@ -356,11 +357,13 @@ namespace Opc.Ua.Gds.Client
                 GC.SuppressFinalize(this);
             }
         }
+
         /// <inheritdoc/>
         public ValueTask ConnectAsync(CancellationToken ct = default)
         {
             return ConnectAsync(m_endpoint, ct);
         }
+
         /// <inheritdoc/>
         public async ValueTask ConnectAsync(string endpointUrl, CancellationToken ct = default)
         {
@@ -418,6 +421,7 @@ namespace Opc.Ua.Gds.Client
                     "Failed to connect after {0} attempts.",
                     maxAttempts);
         }
+
         /// <inheritdoc/>
         public async ValueTask ConnectAsync(ConfiguredEndpoint? endpoint, CancellationToken ct = default)
         {
@@ -452,12 +456,15 @@ namespace Opc.Ua.Gds.Client
                     "Failed to connect after {0} attempts.",
                     maxAttempts);
         }
+
         /// <inheritdoc/>
         public async ValueTask DisconnectAsync(CancellationToken ct = default)
         {
             await m_lock.WaitAsync(ct).ConfigureAwait(false);
             try
             {
+                await m_serverStatusMonitor.StopAsync(ct).ConfigureAwait(false);
+
                 ISession? session = Session;
                 Session = null;
                 m_serverConfiguration = null;
@@ -482,6 +489,7 @@ namespace Opc.Ua.Gds.Client
                 m_lock.Release();
             }
         }
+
         /// <inheritdoc/>
         public async ValueTask<ArrayOf<string>> GetSupportedKeyFormatsAsync(CancellationToken ct = default)
         {
@@ -710,6 +718,7 @@ namespace Opc.Ua.Gds.Client
                 await RevertPermissionsAsync(session, oldUser, ct).ConfigureAwait(false);
             }
         }
+
         /// <inheritdoc/>
         public async ValueTask<ByteString> CreateSigningRequestAsync(
             NodeId certificateGroupId,
@@ -737,6 +746,7 @@ namespace Opc.Ua.Gds.Client
                 await RevertPermissionsAsync(session, oldUser, ct).ConfigureAwait(false);
             }
         }
+
         /// <inheritdoc/>
         public async ValueTask<bool> UpdateCertificateAsync(
             NodeId certificateGroupId,
@@ -766,6 +776,7 @@ namespace Opc.Ua.Gds.Client
                 await RevertPermissionsAsync(session, oldUser, ct).ConfigureAwait(false);
             }
         }
+
         /// <inheritdoc/>
         public async ValueTask<CertificateCollection> GetRejectedListAsync(CancellationToken ct = default)
         {
@@ -787,6 +798,7 @@ namespace Opc.Ua.Gds.Client
                 await RevertPermissionsAsync(session, oldUser, ct).ConfigureAwait(false);
             }
         }
+
         /// <inheritdoc/>
         public async ValueTask ApplyChangesAsync(CancellationToken ct = default)
         {
@@ -1045,6 +1057,7 @@ namespace Opc.Ua.Gds.Client
             await m_lock.WaitAsync(ct).ConfigureAwait(false);
             try
             {
+                await m_serverStatusMonitor.StopAsync(ct).ConfigureAwait(false);
                 Session?.Dispose();
                 Session = null;
 
@@ -1087,6 +1100,8 @@ namespace Opc.Ua.Gds.Client
                     ExpandedNodeId.ToNodeId(Ua.ObjectIds.ServerConfiguration, Session.NamespaceUris),
                     MessageContext.Telemetry);
 
+                await m_serverStatusMonitor.StartAsync(Session, ct).ConfigureAwait(false);
+
                 m_logger.ConnectedToEndpoint(EndpointUrl);
             }
             finally
@@ -1128,6 +1143,7 @@ namespace Opc.Ua.Gds.Client
         private readonly GdsClientOptions m_options;
         private readonly TimeProvider m_timeProvider;
         private readonly CancellationTokenSource m_disposeCts = new();
+        private readonly ServerStatusMonitor m_serverStatusMonitor;
         private ConfiguredEndpoint? m_endpoint;
         private ServerConfigurationTypeClient? m_serverConfiguration;
         private bool m_disposed;
