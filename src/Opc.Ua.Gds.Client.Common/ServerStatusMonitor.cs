@@ -164,8 +164,11 @@ namespace Opc.Ua.Gds.Client
             for (int ii = 0; ii < changes.Length; ii++)
             {
                 V2.DataValueChange change = changes[ii];
-                if (change.MonitoredItem != null &&
-                    change.MonitoredItem.Name != ServerStatusItemName)
+
+                // Dispatch only what this monitor created. A change without a
+                // monitored item cannot be attributed to it, so it is dropped
+                // rather than surfaced as a server status.
+                if (change.MonitoredItem?.Name != ServerStatusItemName)
                 {
                     continue;
                 }
@@ -275,7 +278,7 @@ namespace Opc.Ua.Gds.Client
                     DisplayName = ServerStatusItemName,
                     PublishingEnabled = true,
                     PublishingInterval =
-                        (int)m_options.ServerStatusPublishingInterval.TotalMilliseconds,
+                        ToMilliseconds(m_options.ServerStatusPublishingInterval),
                     KeepAliveCount = kKeepAliveCount,
                     LifetimeCount = kLifetimeCount
                 };
@@ -295,7 +298,7 @@ namespace Opc.Ua.Gds.Client
                     AttributeId = Attributes.Value,
                     DisplayName = ServerStatusItemName,
                     SamplingInterval =
-                        (int)m_options.ServerStatusSamplingInterval.TotalMilliseconds,
+                        ToMilliseconds(m_options.ServerStatusSamplingInterval),
                     QueueSize = 1,
                     DiscardOldest = true
                 };
@@ -334,6 +337,26 @@ namespace Opc.Ua.Gds.Client
             {
                 Raise(notification.Value);
             }
+        }
+
+        /// <summary>
+        /// The classic API takes its intervals as milliseconds in an
+        /// <see cref="int"/>, so a caller-supplied <see cref="TimeSpan"/> has
+        /// to be clamped: a very large one overflows the cast, and a negative
+        /// one is a misconfiguration of an option documented as an interval
+        /// rather than the <c>-1</c> sentinel of the service. Zero leaves the
+        /// interval to the server, which revises it to what it supports.
+        /// </summary>
+        private static int ToMilliseconds(TimeSpan interval)
+        {
+            double milliseconds = interval.TotalMilliseconds;
+
+            if (milliseconds <= 0)
+            {
+                return 0;
+            }
+
+            return milliseconds >= int.MaxValue ? int.MaxValue : (int)milliseconds;
         }
 
         /// <summary>
