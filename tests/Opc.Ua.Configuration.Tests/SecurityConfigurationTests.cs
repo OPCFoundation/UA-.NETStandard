@@ -176,6 +176,35 @@ namespace Opc.Ua.Configuration.Tests
         }
 
         [Test]
+        public void ClearingApplicationCertificatesRebuildsSupportedSecurityPolicies()
+        {
+            var configuration = new SecurityConfiguration
+            {
+                ApplicationCertificates =
+                [
+                    new CertificateIdentifier
+                    {
+                        StoreType = CertificateStoreType.Directory,
+                        StorePath = "pki/own",
+                        SubjectName = "CN=Test",
+                        CertificateType = ObjectTypeIds.RsaSha256ApplicationCertificateType
+                    }
+                ]
+            };
+
+            Assert.That(
+                configuration.SupportedSecurityPolicies.ToArray(),
+                Contains.Item(SecurityPolicies.Basic256Sha256));
+
+            configuration.ApplicationCertificates = [];
+
+            Assert.That(configuration.ApplicationCertificates, Is.Empty);
+            Assert.That(
+                configuration.SupportedSecurityPolicies.ToArray(),
+                Is.EqualTo(new[] { SecurityPolicies.None }));
+        }
+
+        [Test]
         public void LoadingConfigurationWithApplicationCertificateShouldMarkItDeprecated()
         {
             string file = Path.Combine(TestContext.CurrentContext.WorkDirectory, "testlegacyconfig.xml");

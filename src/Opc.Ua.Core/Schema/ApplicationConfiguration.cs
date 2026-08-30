@@ -595,6 +595,7 @@ namespace Opc.Ua
                 {
                     m_applicationCertificates = [];
                     m_rejectedCertificateTypes = [];
+                    SupportedSecurityPolicies = BuildSupportedSecurityPolicies();
                     return;
                 }
 
