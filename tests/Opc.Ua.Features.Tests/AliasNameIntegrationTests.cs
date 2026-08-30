@@ -217,10 +217,10 @@ namespace Opc.Ua.Features.Tests
         [Test]
         public async Task EnumerateSubCategoriesAsyncOnLeafReturnsEmptyAsync()
         {
-            // TagVariables has no sub-categories in the standard NodeSet —
-            // the enumeration must yield zero results without throwing.
+            // Topics organizes only aliases, no sub-categories — the
+            // enumeration must yield zero results without throwing.
             var client = AliasNameClient
-                .OpenStandardTagVariables(m_session);
+                .OpenStandardTopics(m_session);
             int count = 0;
             await foreach (AliasNameSubCategoryInfo _ in
                 client.EnumerateSubCategoriesAsync().ConfigureAwait(false))
@@ -228,6 +228,26 @@ namespace Opc.Ua.Features.Tests
                 count++;
             }
             Assert.That(count, Is.Zero);
+        }
+
+        [Test]
+        public async Task EnumerateSubCategoriesAsyncReturnsNestedCategoryAsync()
+        {
+            // The reference server nests a Devices category under
+            // TagVariables (Part 17 §6.3.1 category nesting).
+            var client = AliasNameClient
+                .OpenStandardTagVariables(m_session);
+
+            var names = new HashSet<string>();
+            await foreach (AliasNameSubCategoryInfo info in
+                client.EnumerateSubCategoriesAsync().ConfigureAwait(false))
+            {
+                Assert.That(info.NodeId.IsNull, Is.False);
+                names.Add(info.BrowseName.Name);
+            }
+
+            Assert.That(names, Does.Contain("Devices"),
+                "TagVariables must Organize-link to the nested Devices category.");
         }
     }
 }

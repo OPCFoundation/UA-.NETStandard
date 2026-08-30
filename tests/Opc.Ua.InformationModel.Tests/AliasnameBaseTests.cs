@@ -121,6 +121,61 @@ namespace Opc.Ua.InformationModel.Tests
                 "Aliases (i=23470) should expose at least one AliasNameCategory child.");
         }
 
+        [Description("Verify the address space contains at least one AliasNameType instance with an association to a Node.")]
+        [Test]
+        public async Task AddressSpaceContainsAliasNameInstanceAsync()
+        {
+            // The AliasName Base conformance unit is skipped entirely when
+            // no AliasNameType instance can be found, so walk the Aliases
+            // hierarchy and require one that aliases an actual node.
+            var pending = new Queue<NodeId>();
+            pending.Enqueue(AliasesNodeId);
+
+            int aliasInstances = 0;
+            int aliasesWithTarget = 0;
+
+            while (pending.Count > 0)
+            {
+                NodeId current = pending.Dequeue();
+                IList<ReferenceDescription> children =
+                    await BrowseChildrenAsync(Session, current).ConfigureAwait(false);
+
+                foreach (ReferenceDescription child in children)
+                {
+                    var typeDef = ExpandedNodeId.ToNodeId(
+                        child.TypeDefinition, Session.NamespaceUris);
+                    var childId = ExpandedNodeId.ToNodeId(
+                        child.NodeId, Session.NamespaceUris);
+
+                    if (typeDef == AliasNameCategoryTypeNodeId)
+                    {
+                        pending.Enqueue(childId);
+                        continue;
+                    }
+                    if (typeDef != AliasNameTypeNodeId)
+                    {
+                        continue;
+                    }
+
+                    aliasInstances++;
+                    Assert.That(child.BrowseName.Name, Is.Not.Null.And.Not.Empty,
+                        "An AliasName instance carries its alias in the BrowseName.");
+
+                    IList<ReferenceDescription> targets = await BrowseChildrenAsync(
+                        Session, childId, AliasForNodeId).ConfigureAwait(false);
+                    if (targets.Count > 0)
+                    {
+                        aliasesWithTarget++;
+                    }
+                }
+            }
+
+            Assert.That(aliasInstances, Is.GreaterThan(0),
+                "The address space should contain at least one AliasNameType instance.");
+            Assert.That(aliasesWithTarget, Is.GreaterThan(0),
+                "At least one AliasName instance should have an AliasFor association to a Node.");
+        }
+
         [Description("Call the FindAlias method on the Aliases object, passing in the string name part of the name of an AliasName instance. Pass in the AliasFor Reference type.")]
         [Test]
         public async Task FindAliasByExactNameAsync()

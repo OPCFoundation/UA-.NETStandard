@@ -234,33 +234,58 @@ namespace Quickstarts.ReferenceServer
                 return;
             }
 
+            // A nested category under TagVariables: Part 17 §6.3.1 allows
+            // AliasNameCategoryType instances to be organized under one
+            // another, and FindAlias on the parent searches the whole
+            // sub-tree while FindAlias on the child is restricted to it.
+            // Its NodeId lives in the diagnostics namespace because that is
+            // where DiagnosticsNodeManager materializes the node — which
+            // means the namespace is registered here, ahead of the node
+            // manager that would otherwise be the first to add it.
+            // BrowseName and NodeId share the diagnostics namespace:
+            // namespace 0 is reserved for OPC-Foundation-defined names, so
+            // a server-defined category (and the aliases that inherit its
+            // BrowseName namespace via the store) must not publish there.
+            ushort diagnosticsNamespaceIndex =
+                server.NamespaceUris.GetIndexOrAppend(DiagnosticsNamespaceUri);
+            var devices = new Opc.Ua.Server.AliasNames.AliasNameCategoryDescriptor(
+                new NodeId(DevicesCategoryName, diagnosticsNamespaceIndex),
+                new QualifiedName(DevicesCategoryName, diagnosticsNamespaceIndex),
+                Opc.Ua.Server.AliasNames.AliasNameCapabilities.All);
+
+            // The descriptor BrowseName's namespace is what the store
+            // stamps onto every alias QualifiedName it reports, and the
+            // materializer re-homes ns=0 alias BrowseNames into the
+            // diagnostics namespace — declaring the diagnostics namespace
+            // here keeps FindAlias results and the browsable nodes'
+            // BrowseNames identical, so TranslateBrowsePaths with a
+            // returned alias name resolves. (The predefined TagVariables/
+            // Topics nodes keep their own NodeSet BrowseNames regardless.)
             var tagVariables = new Opc.Ua.Server.AliasNames.AliasNameCategoryDescriptor(
                 Opc.Ua.ObjectIds.TagVariables,
-                QualifiedName.From(Opc.Ua.BrowseNames.TagVariables),
-                Opc.Ua.Server.AliasNames.AliasNameCapabilities.FindAliasVerbose);
+                new QualifiedName(Opc.Ua.BrowseNames.TagVariables, diagnosticsNamespaceIndex),
+                Opc.Ua.Server.AliasNames.AliasNameCapabilities.All,
+                subCategories: [devices]);
             var topics = new Opc.Ua.Server.AliasNames.AliasNameCategoryDescriptor(
                 Opc.Ua.ObjectIds.Topics,
-                QualifiedName.From(Opc.Ua.BrowseNames.Topics),
-                Opc.Ua.Server.AliasNames.AliasNameCapabilities.FindAliasVerbose);
+                new QualifiedName(Opc.Ua.BrowseNames.Topics, diagnosticsNamespaceIndex),
+                Opc.Ua.Server.AliasNames.AliasNameCapabilities.All);
 
             // Root the Aliases (i=23470) object too so FindAlias /
             // FindAliasVerbose / LastChange dispatched against it
             // aggregate the TagVariables / Topics sub-categories
             // (per Part 17 §6.3.2 recursive matching semantics).
-            // AddAliasesToCategory / DeleteAliasesFromCategory are enabled
-            // on the in-memory store so server-side test/admin code can
-            // bump LastChange via store.AddAliasesAsync / DeleteAliasesAsync.
-            // The standard well-known Aliases (i=23470) node does not
-            // instantiate Add/Delete method nodes (per the OPC UA NodeSet),
-            // so this is a server-side capability only and does not
-            // expose mutation methods over the wire on the standard node.
+            //
+            // Every category declares the full capability set: the standard
+            // NodeSet instantiates none of the optional Part 17 children on
+            // the well-known objects, so DiagnosticsNodeManager adds them
+            // during materialization.
+            // AddAliasesToCategory / DeleteAliasesFromCategory require a
+            // SecurityAdmin caller on a SignAndEncrypt channel.
             var aliases = new Opc.Ua.Server.AliasNames.AliasNameCategoryDescriptor(
                 Opc.Ua.ObjectIds.Aliases,
-                QualifiedName.From(Opc.Ua.BrowseNames.Aliases),
-                Opc.Ua.Server.AliasNames.AliasNameCapabilities.FindAliasVerbose |
-                Opc.Ua.Server.AliasNames.AliasNameCapabilities.LastChange |
-                Opc.Ua.Server.AliasNames.AliasNameCapabilities.AddAliasesToCategory |
-                Opc.Ua.Server.AliasNames.AliasNameCapabilities.DeleteAliasesFromCategory,
+                new QualifiedName(Opc.Ua.BrowseNames.Aliases, diagnosticsNamespaceIndex),
+                Opc.Ua.Server.AliasNames.AliasNameCapabilities.All,
                 subCategories: [tagVariables, topics]);
 
             // CA2000: ownership transferred to the registry which disposes
@@ -276,44 +301,62 @@ namespace Quickstarts.ReferenceServer
                 ? (ushort)refServerNsIndex
                 : ushort.MaxValue;
 
-            NodeId aliasFor = ReferenceTypeIds.AliasFor;
-
             if (refServerNs != ushort.MaxValue)
             {
-                SeedTag(store, "TIC101_Setpoint",
+                SeedTag(store, Opc.Ua.ObjectIds.TagVariables, "TIC101_Setpoint",
                     new ExpandedNodeId("Scalar_Static_Double", refServerNs));
-                SeedTag(store, "TIC101_PV",
+                SeedTag(store, Opc.Ua.ObjectIds.TagVariables, "TIC101_PV",
                     new ExpandedNodeId("Scalar_Static_Float", refServerNs));
-                SeedTag(store, "FIC202_Flow",
+                SeedTag(store, Opc.Ua.ObjectIds.TagVariables, "FIC202_Flow",
                     new ExpandedNodeId("Scalar_Simulation_Double", refServerNs));
-                SeedTag(store, "Pump1_Status",
-                    new ExpandedNodeId("Scalar_Static_Boolean", refServerNs));
-                SeedTag(store, "Heater_Power",
-                    new ExpandedNodeId("Scalar_Static_Int32", refServerNs));
-                SeedTag(store, "MultiRefAlias",
+                SeedTag(store, Opc.Ua.ObjectIds.TagVariables, "MultiRefAlias",
                     new ExpandedNodeId("Scalar_Static_Double", refServerNs));
-                SeedTag(store, "MultiRefAlias",
+                SeedTag(store, Opc.Ua.ObjectIds.TagVariables, "MultiRefAlias",
+                    new ExpandedNodeId("Scalar_Static_Int32", refServerNs));
+
+                // The device tags live in the nested category, so FindAlias
+                // on Devices returns exactly these two while FindAlias on
+                // TagVariables still returns all six.
+                SeedTag(store, devices.NodeId, "Pump1_Status",
+                    new ExpandedNodeId("Scalar_Static_Boolean", refServerNs));
+                SeedTag(store, devices.NodeId, "Heater_Power",
                     new ExpandedNodeId("Scalar_Static_Int32", refServerNs));
             }
 
-            store.Seed(Opc.Ua.ObjectIds.Topics, "ServerEvents",
-                Opc.Ua.ObjectIds.Server, serverUri: null, referenceTypeId: aliasFor);
-            store.Seed(Opc.Ua.ObjectIds.Topics, "AuditEvents",
-                new ExpandedNodeId(ObjectTypes.AuditEventType),
-                serverUri: null, referenceTypeId: aliasFor);
+            // The Topics aliases are NOT seeded here: Part 17 §9 constrains
+            // that hierarchy to aliases for PublishedDataSetType instances,
+            // and those dataset nodes are created later by
+            // ReferenceServerConfigurationNodeManager.AddConformanceDataSetsAsync
+            // — which seeds the aliases in the same place, so an alias can
+            // never point at a dataset that was not created.
 
             provider.AliasNameStoreRegistry.Register(store);
 
             static void SeedTag(
                 Opc.Ua.Server.AliasNames.InMemoryAliasNameStore store,
+                NodeId categoryId,
                 string name,
                 ExpandedNodeId target)
             {
-                store.Seed(Opc.Ua.ObjectIds.TagVariables, name, target,
+                store.Seed(categoryId, name, target,
                     serverUri: null,
                     referenceTypeId: ReferenceTypeIds.AliasFor);
             }
         }
+
+        /// <summary>
+        /// BrowseName of the AliasNameCategory nested under TagVariables.
+        /// </summary>
+        private const string DevicesCategoryName = "Devices";
+
+        /// <summary>
+        /// Namespace that <c>DiagnosticsNodeManager</c> owns and in which
+        /// the materialized alias nodes and the conformance datasets live.
+        /// Shared with <see cref="ReferenceServerConfigurationNodeManager"/>
+        /// so the dataset NodeIds and the alias seeds that target them can
+        /// never drift apart.
+        /// </summary>
+        internal const string DiagnosticsNamespaceUri = Opc.Ua.Namespaces.OpcUa + "Diagnostics";
 
         /// <summary>
         /// Overrides the SDK default factory to plug in a
