@@ -6791,7 +6791,7 @@ namespace Opc.Ua.Schema.Model
                 {
                     try
                     {
-                        var decoder = new XmlDecoder(variable.DefaultValue, m_context);
+                        using var decoder = new XmlDecoder(variable.DefaultValue, m_context);
                         Variant variant = decoder.ReadVariantValue(null, default);
                         if (!variant.TypeInfo.IsUnknown)
                         {
@@ -6802,8 +6802,6 @@ namespace Opc.Ua.Schema.Model
                             variable.DecodedValue =
                                 variant.AsBoxedObject(Variant.BoxingBehavior.Legacy);
                         }
-
-                        decoder.Close();
                     }
                     catch (Exception e)
                     {
@@ -6827,9 +6825,34 @@ namespace Opc.Ua.Schema.Model
                 method.OutputArguments = methodDefinition.OutputArguments ?? [];
                 LinkDependencyMethodArguments(method.InputArguments);
                 LinkDependencyMethodArguments(method.OutputArguments);
+
+                if (!UseAllowSubtypes &&
+                    m_nodes.TryGetValue(s_structureQn, out NodeDesign structureNode) &&
+                    structureNode is DataTypeDesign structureDesign)
+                {
+                    foreach (Parameter argument in method.InputArguments)
+                    {
+                        if (argument?.DataTypeNode != null &&
+                            IsTypeOf(argument.DataTypeNode, s_structureQn) &&
+                            argument.AllowSubTypes)
+                        {
+                            argument.DataTypeNode = structureDesign;
+                        }
+                    }
+
+                    foreach (Parameter argument in method.OutputArguments)
+                    {
+                        if (argument?.DataTypeNode != null &&
+                            IsTypeOf(argument.DataTypeNode, s_structureQn) &&
+                            argument.AllowSubTypes)
+                        {
+                            argument.DataTypeNode = structureDesign;
+                        }
+                    }
+                }
+
                 method.HasArguments =
                     MethodDesignArgumentResolver.HasMethodArguments(method);
-
                 // Mirror ValidateInstance: a child method carries the
                 // InputArguments / OutputArguments argument properties as
                 // children, so a target instance of the dependency type
