@@ -1079,6 +1079,16 @@ namespace Microsoft.Extensions.DependencyInjection
                 }
                 return resolvedOptions;
             });
+
+            if (options.LoadConfigurationOnStart)
+            {
+                // Registered before the reverse-connect hosted service in
+                // RegisterCoreServices, so the configuration is loaded and
+                // validated before anything consumes it on host start.
+                services.TryAddEnumerable(ServiceDescriptor.Singleton<IHostedService,
+                    ClientConfigurationLoaderHostedService>());
+            }
+
             RegisterOptionsValidation(services, options);
         }
 
@@ -1099,7 +1109,8 @@ namespace Microsoft.Extensions.DependencyInjection
         /// the supplied configuration document
         /// (<see cref="OpcUaClientOptions.ConfigurationFile"/> /
         /// <see cref="OpcUaClientOptions.ConfigurationStream"/> /
-        /// <see cref="OpcUaClientOptions.ConfigureLoadedConfiguration"/>),
+        /// <see cref="OpcUaClientOptions.ConfigureLoadedConfiguration"/> /
+        /// <see cref="OpcUaClientOptions.LoadConfigurationOnStart"/>),
         /// <see cref="OpcUaClientOptions.Session"/>, <see cref="OpcUaClientOptions.Identity"/>
         /// and <see cref="OpcUaClientOptions.ReverseConnect"/>) into
         /// <paramref name="target"/>.
@@ -1110,6 +1121,7 @@ namespace Microsoft.Extensions.DependencyInjection
             target.ConfigurationFile = source.ConfigurationFile;
             target.ConfigurationStream = source.ConfigurationStream;
             target.ConfigureLoadedConfiguration = source.ConfigureLoadedConfiguration;
+            target.LoadConfigurationOnStart = source.LoadConfigurationOnStart;
             target.ApplicationName = source.ApplicationName;
             target.ApplicationUri = source.ApplicationUri;
             target.ProductUri = source.ProductUri;
