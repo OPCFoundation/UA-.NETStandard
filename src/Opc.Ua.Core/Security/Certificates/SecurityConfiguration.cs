@@ -69,8 +69,26 @@ namespace Opc.Ua
         /// <exception cref="ServiceResultException"></exception>
         public void Validate(ITelemetryContext telemetry)
         {
+            if (m_rejectedCertificateTypes.Count > 0)
+            {
+                ILogger<SecurityConfiguration> logger = telemetry
+                    .CreateLogger<SecurityConfiguration>();
+                logger.UnsupportedApplicationCertificateTypes(
+                    m_rejectedCertificateTypes.Count,
+                    string.Join(", ", m_rejectedCertificateTypes));
+            }
+
             if (m_applicationCertificates.IsNull || m_applicationCertificates.Count == 0)
             {
+                if (m_rejectedCertificateTypes.Count > 0)
+                {
+                    throw ServiceResultException.ConfigurationError(
+                        "No supported application certificate configured: {0} certificate identifier(s) " +
+                        "were rejected because their CertificateType is not supported ({1}).",
+                        m_rejectedCertificateTypes.Count,
+                        string.Join(", ", m_rejectedCertificateTypes));
+                }
+
                 throw ServiceResultException.ConfigurationError(
                     "ApplicationCertificate must be specified.");
             }
@@ -298,5 +316,13 @@ namespace Opc.Ua
             this ILogger logger,
             Exception? exception,
             string storeName);
+
+        [LoggerMessage(EventId = CoreEventIds.SecurityConfiguration + 1, Level = LogLevel.Warning,
+            Message = "{Count} application certificate identifier(s) were dropped from " +
+                "ApplicationCertificates because their CertificateType is not supported: {CertificateTypes}")]
+        public static partial void UnsupportedApplicationCertificateTypes(
+            this ILogger logger,
+            int count,
+            string certificateTypes);
     }
 }
