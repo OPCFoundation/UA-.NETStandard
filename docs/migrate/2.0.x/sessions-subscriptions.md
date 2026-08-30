@@ -68,31 +68,20 @@ ServerCapabilityInfo? info = ServerCapabilities.Find(id);  // null if not regist
 
 If you currently rely on a `[Obsolete]` member, switch to the `Async` equivalent and apply the `ValueTask` migration notes above. If a particular API has no direct replacement, the migration is described inline in the XML doc comment of the replacement member.
 
-### `ServerStatusChanged` is implemented and changes its handler type
+### `ServerStatusChanged` now works
 
-**Breaking Change**: `IGlobalDiscoveryServerClient.ServerStatusChanged` and
-`IServerPushConfigurationClient.ServerStatusChanged` change from
-`MonitoredItemNotificationEventHandler` to
-`EventHandler<ServerStatusChangedEventArgs>`.
+`GlobalDiscoveryServerClient.ServerStatusChanged` and
+`ServerPushConfigurationClient.ServerStatusChanged` never fired in 1.5.378 —
+the GDS client had an empty `if (ServerStatusChanged != null) { }` marked
+`// TODO: implement` and the push client had no raiser at all. Both clients now
+monitor `Server_ServerStatus` once connected and raise the event for every
+notification, including the initial value. There is nothing to migrate: no
+1.5.378 handler ever ran.
 
-**Rationale**: The event was declared on both clients but never raised — neither
-class created a subscription or a monitored item, and the declarations sat
-behind `#pragma warning disable CS0067`. The clients now monitor
-`Server_ServerStatus` themselves once connected. The old handler type is a
-classic-engine type: its first parameter is the concrete classic `MonitoredItem`
-and `MonitoredItemNotificationEventArgs` has an internal constructor, so it
-cannot carry a notification from the V2 engine. `ServerStatusChangedEventArgs`
-is engine-neutral and carries the decoded status directly.
+The handler type is `EventHandler<ServerStatusChangedEventArgs>`, which carries
+the raw `DataValue` and the decoded status:
 
 ```csharp
-// Before — never called
-client.ServerStatusChanged += (item, e) =>
-{
-    var notification = (MonitoredItemNotification)e.NotificationValue;
-    // ...
-};
-
-// After
 client.ServerStatusChanged += (sender, e) =>
 {
     // e.Value is the raw DataValue; e.Status is null unless the status is good

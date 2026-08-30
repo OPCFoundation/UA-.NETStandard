@@ -116,38 +116,30 @@ namespace Opc.Ua.Gds.Client
         }
 
         /// <summary>
-        /// Deletes the subscription from the server if one was created. Safe to
+        /// Releases the monitoring set up by <see cref="StartAsync"/>. Safe to
         /// call when monitoring was never started or when the session has
         /// already gone away.
         /// </summary>
-        /// <param name="ct">The cancellation token.</param>
-        public async ValueTask StopAsync(CancellationToken ct = default)
+        /// <remarks>
+        /// The classic subscription is deliberately not deleted from the server
+        /// here. <see cref="ISession.AddSubscription"/> hands it to the session,
+        /// and every caller of this method closes or disposes that session
+        /// immediately afterwards - a close deletes the server's subscriptions
+        /// and a dispose disposes them locally. Issuing our own
+        /// DeleteSubscriptions first is a redundant round trip that blocks
+        /// teardown on a channel that is frequently already unhealthy at this
+        /// point: after a server certificate update, a forced channel
+        /// renegotiation or a bad keep-alive, the call never completes and the
+        /// client hangs waiting for it. Dropping the references is enough.
+        /// </remarks>
+        public async ValueTask StopAsync()
         {
+            m_classicSubscription = null;
+
             V2.ISubscription? v2 = Interlocked.Exchange(ref m_v2Subscription, null);
             if (v2 != null)
             {
                 await DisposeV2SubscriptionAsync(v2).ConfigureAwait(false);
-            }
-
-            Subscription? classic = Interlocked.Exchange(ref m_classicSubscription, null);
-            ISession? session = Interlocked.Exchange(ref m_classicSession, null);
-            if (classic != null)
-            {
-                try
-                {
-                    if (session != null)
-                    {
-                        await session.RemoveSubscriptionAsync(classic, ct).ConfigureAwait(false);
-                    }
-                }
-                catch (Exception ex)
-                {
-                    m_logger.FailedToStopMonitoringServerStatus(ex);
-                }
-                finally
-                {
-                    classic.Dispose();
-                }
             }
         }
 
@@ -307,7 +299,6 @@ namespace Opc.Ua.Gds.Client
                 subscription.AddItem(item);
                 await subscription.ApplyChangesAsync(ct).ConfigureAwait(false);
 
-                m_classicSession = session;
                 m_classicSubscription = subscription;
             }
             catch (Exception ex)
@@ -376,15 +367,32 @@ namespace Opc.Ua.Gds.Client
         }
 
         /// <summary>
-        /// Disposing a V2 subscription deletes it on the server, which fails
-        /// when the session is already gone - a routine situation on a bad
-        /// keep-alive teardown, so failures are logged, not raised.
+        /// Disposing a V2 subscription deletes it on the server, so it can fail
+        /// or block when the session is already gone - a routine situation on a
+        /// bad keep-alive teardown. It takes no cancellation token, so it is
+        /// raced against a deadline instead: teardown has to make progress, and
+        /// the session is closed or disposed right after this returns, which
+        /// removes the subscription server-side anyway.
         /// </summary>
         private async ValueTask DisposeV2SubscriptionAsync(V2.ISubscription subscription)
         {
             try
             {
-                await subscription.DisposeAsync().ConfigureAwait(false);
+                Task dispose = subscription.DisposeAsync().AsTask();
+
+                using var timeout = new CancellationTokenSource();
+                Task completed = await Task.WhenAny(
+                    dispose,
+                    Task.Delay(kTeardownTimeout, timeout.Token)).ConfigureAwait(false);
+                timeout.Cancel();
+
+                if (!ReferenceEquals(completed, dispose))
+                {
+                    m_logger.TimedOutStoppingServerStatusMonitoring();
+                    return;
+                }
+
+                await dispose.ConfigureAwait(false);
             }
             catch (Exception ex)
             {
@@ -395,12 +403,13 @@ namespace Opc.Ua.Gds.Client
         private const uint kKeepAliveCount = 10;
         private const uint kLifetimeCount = 100;
 
+        private static readonly TimeSpan kTeardownTimeout = TimeSpan.FromSeconds(5);
+
         private readonly GdsClientOptions m_options;
         private readonly ILogger m_logger;
         private readonly Action<ServerStatusChangedEventArgs> m_onServerStatusChanged;
         private V2.ISubscription? m_v2Subscription;
         private Subscription? m_classicSubscription;
-        private ISession? m_classicSession;
     }
 
     internal static partial class ServerStatusMonitorLog
@@ -417,5 +426,10 @@ namespace Opc.Ua.Gds.Client
             Message = "Subscriber threw in ServerStatusChanged handler.")]
         public static partial void SubscriberThrewInServerStatusChangedHandler(
             this ILogger logger, Exception ex);
+
+        [LoggerMessage(EventId = GdsClientCommonEventIds.ServerStatusMonitor + 3, Level = LogLevel.Debug,
+            Message = "Timed out deleting the Server_ServerStatus subscription; " +
+                "closing the session removes it.")]
+        public static partial void TimedOutStoppingServerStatusMonitoring(this ILogger logger);
     }
 }

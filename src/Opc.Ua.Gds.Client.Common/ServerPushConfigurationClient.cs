@@ -463,7 +463,7 @@ namespace Opc.Ua.Gds.Client
             await m_lock.WaitAsync(ct).ConfigureAwait(false);
             try
             {
-                await m_serverStatusMonitor.StopAsync(ct).ConfigureAwait(false);
+                await m_serverStatusMonitor.StopAsync().ConfigureAwait(false);
 
                 ISession? session = Session;
                 Session = null;
@@ -1057,7 +1057,7 @@ namespace Opc.Ua.Gds.Client
             await m_lock.WaitAsync(ct).ConfigureAwait(false);
             try
             {
-                await m_serverStatusMonitor.StopAsync(ct).ConfigureAwait(false);
+                await m_serverStatusMonitor.StopAsync().ConfigureAwait(false);
                 Session?.Dispose();
                 Session = null;
 
