@@ -1,0 +1,180 @@
+# Temporary diagnostic workflow for #4338. Delete after the leak is fixed.
+name: Temporary macOS Sessions Leak Repro
+
+on:
+  push:
+    branches:
+      - develop/leak-repro-4338
+  workflow_dispatch:
+    inputs:
+      iterations:
+        description: 'Sequential Sessions test runs per shard'
+        required: false
+        default: '3'
+        type: string
+      test_filter:
+        description: 'Optional dotnet test filter, for example FullyQualifiedName~Wss'
+        required: false
+        default: ''
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  sessions:
+    name: macOS Sessions shard ${{ matrix.shard }} (tracking ${{ matrix.tracking }})
+    runs-on: macos-latest
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - shard: 1
+            tracking: 'on'
+            tracking_value: '1'
+          - shard: 2
+            tracking: 'on'
+            tracking_value: '1'
+          - shard: 3
+            tracking: 'on'
+            tracking_value: '1'
+          - shard: 4
+            tracking: 'off-control'
+            tracking_value: '0'
+          - shard: 5
+            tracking: 'off-control'
+            tracking_value: '0'
+
+    env:
+      DOTNET_VERSION: '10.0.x'
+      TARGET_FRAMEWORK: 'net10.0'
+      CONFIGURATION: 'Release'
+      CUSTOM_TEST_TARGET: 'net10.0'
+      SESSIONS_PROJECT: './tests/Opc.Ua.Sessions.Tests/Opc.Ua.Sessions.Tests.csproj'
+      TESTRESULTS: './TestResults/sessions-${{ matrix.shard }}'
+      ITERATIONS: ${{ github.event.inputs.iterations || '3' }}
+      TEST_FILTER: ${{ github.event.inputs.test_filter || '' }}
+      OPCUA_CERTIFICATE_LEAK_TRACKING: ${{ matrix.tracking_value }}
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v7
+      with:
+        fetch-depth: 0
+
+    - name: Setup .NET ${{ env.DOTNET_VERSION }}
+      uses: actions/setup-dotnet@v6
+      with:
+        dotnet-version: ${{ env.DOTNET_VERSION }}
+
+    - name: Set Cloud Version
+      shell: pwsh
+      run: ./.azurepipelines/set-version.ps1
+
+    - name: Build Sessions tests
+      run: >
+        dotnet build ${{ env.SESSIONS_PROJECT }}
+        --framework ${{ env.TARGET_FRAMEWORK }}
+        --configuration ${{ env.CONFIGURATION }}
+        /p:CustomTestTarget=${{ env.CUSTOM_TEST_TARGET }}
+
+    - name: Run Sessions tests repeatedly
+      shell: pwsh
+      timeout-minutes: 70
+      run: |
+        $iterationCount = [int]::Parse(
+            $env:ITERATIONS,
+            [System.Globalization.CultureInfo]::InvariantCulture)
+        if ($iterationCount -lt 1)
+        {
+            throw 'iterations must be at least 1.'
+        }
+
+        $failed = $false
+        New-Item -ItemType Directory -Force -Path $env:TESTRESULTS | Out-Null
+        Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value @"
+        ## macOS Sessions leak reproduction
+
+        - Shard: ${{ matrix.shard }}
+        - Allocation tracking: ${{ matrix.tracking }}
+        - Iterations: $iterationCount
+        - Filter: $(if ([string]::IsNullOrWhiteSpace($env:TEST_FILTER)) { '(none)' } else { $env:TEST_FILTER })
+
+        "@
+
+        for ($iteration = 1; $iteration -le $iterationCount; $iteration++)
+        {
+            $iterationDirectory = Join-Path $env:TESTRESULTS "iteration-$iteration"
+            $logPath = Join-Path $env:TESTRESULTS "iteration-$iteration.log"
+            New-Item -ItemType Directory -Force -Path $iterationDirectory | Out-Null
+
+            $testArgs = @(
+                $env:SESSIONS_PROJECT,
+                '--no-build',
+                '--framework',
+                $env:TARGET_FRAMEWORK,
+                '--configuration',
+                $env:CONFIGURATION,
+                '/p:CollectCoverage=true',
+                "/p:CustomTestTarget=$($env:CUSTOM_TEST_TARGET)",
+                '--collect:XPlat Code Coverage',
+                '--settings',
+                './tests/coverlet.runsettings.xml',
+                '--logger',
+                'console;verbosity=detailed',
+                '--logger',
+                "trx;LogFileName=sessions-$iteration.trx",
+                '--blame-hang-timeout',
+                '10m',
+                '--blame-hang-dump-type',
+                'mini',
+                '--blame-crash',
+                '--blame-crash-dump-type',
+                'mini',
+                '--results-directory',
+                $iterationDirectory)
+
+            if (![string]::IsNullOrWhiteSpace($env:TEST_FILTER))
+            {
+                $testArgs += @('--filter', $env:TEST_FILTER)
+            }
+
+            Write-Host "Starting iteration $iteration of $iterationCount."
+            dotnet test @testArgs 2>&1 | Tee-Object -FilePath $logPath
+            $exitCode = $LASTEXITCODE
+            Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value (
+                "### Iteration $iteration`: exit code $exitCode")
+
+            $leakMatch = Select-String -Path $logPath -Pattern 'Certificate leak detected:' |
+                Select-Object -First 1
+            if ($null -ne $leakMatch)
+            {
+                $reportPath = Join-Path $env:TESTRESULTS "leak-report-$iteration.txt"
+                $report = Get-Content -Path $logPath |
+                    Select-Object -Skip ($leakMatch.LineNumber - 1)
+                $report | Set-Content -Path $reportPath
+                Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value '```text'
+                Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value (
+                    $report | Select-Object -First 300)
+                Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value '```'
+            }
+
+            if ($exitCode -ne 0)
+            {
+                $failed = $true
+            }
+        }
+
+        if ($failed)
+        {
+            throw 'At least one Sessions test iteration failed. See the uploaded artifacts.'
+        }
+
+    - name: Upload test results
+      if: ${{ always() }}
+      uses: actions/upload-artifact@v7
+      with:
+        name: sessions-leak-repro-shard-${{ matrix.shard }}-${{ matrix.tracking }}-attempt-${{ github.run_attempt }}
+        path: ${{ env.TESTRESULTS }}
+        retention-days: 7
