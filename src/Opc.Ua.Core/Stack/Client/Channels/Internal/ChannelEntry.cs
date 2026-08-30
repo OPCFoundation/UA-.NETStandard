@@ -140,13 +140,21 @@ namespace Opc.Ua
                     clientCertificate, clientCertificateChain, ct)
                     .ConfigureAwait(false);
                 bool entryClosed;
+                bool channelInstalled;
+                bool recordActiveMetric;
                 lock (m_lock)
                 {
                     entryClosed = m_state is ChannelState.Closed or ChannelState.Faulted;
-                    if (!entryClosed)
+                    channelInstalled = !entryClosed && m_underlying == null;
+                    if (channelInstalled)
                     {
                         m_underlying = channel;
                         m_clientCertificateVersion = clientCertificateVersion;
+                    }
+
+                    recordActiveMetric = !entryClosed && !m_activeMetricRecorded;
+                    if (recordActiveMetric)
+                    {
                         m_activeMetricRecorded = true;
                     }
                 }
@@ -158,7 +166,23 @@ namespace Opc.Ua
                         "Channel is {0}.",
                         State);
                 }
-                OwnerManager.RecordChannelActiveChanged(this, 1);
+
+                if (recordActiveMetric)
+                {
+                    OwnerManager.RecordChannelActiveChanged(this, 1);
+                }
+
+                if (!channelInstalled)
+                {
+                    // A reconnect cycle can start while this initial open awaits
+                    // network I/O. If that cycle installs a newer transport first,
+                    // keep it and dispose this losing candidate instead of
+                    // overwriting the only reference to the reconnect transport.
+                    await CloseTransportBestEffortAsync(channel).ConfigureAwait(false);
+                    OwnerManager.OnEntryClosed(this, ChannelCloseReason.Faulted);
+                    return;
+                }
+
                 TransitionTo(ChannelState.Ready, error: null, attempt: 0);
                 SignalReady();
             }
@@ -1376,7 +1400,8 @@ namespace Opc.Ua
             public bool FatalForChannel;
         }
 
-        private const string kReconnectOutcomeSuccess = "success";        private const string kReconnectOutcomeTransientFailure = "transient-failure";
+        private const string kReconnectOutcomeSuccess = "success";
+        private const string kReconnectOutcomeTransientFailure = "transient-failure";
         private const string kReconnectOutcomeFatalChannel = "fatal-channel";
         private const string kReconnectOutcomePolicyExhausted = "policy-exhausted";
         private readonly Lock m_lock = new();
