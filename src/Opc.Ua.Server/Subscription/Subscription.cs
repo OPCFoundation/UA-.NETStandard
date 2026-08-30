@@ -42,6 +42,7 @@ namespace Opc.Ua.Server
     /// </summary>
     public class Subscription :
         ISubscription,
+        ISubscriptionPublishPipeline,
         ISubscriptionMonitoredItemLifecycle
     {
         /// <summary>
@@ -680,7 +681,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Checks if the subscription is ready to publish.
         /// </summary>
-        public PublishingState PublishTimerExpired()
+        PublishingState ISubscriptionPublishPipeline.PublishTimerExpired()
         {
             lock (m_lock)
             {
@@ -1311,7 +1312,7 @@ namespace Opc.Ua.Server
         }
 
         /// <inheritdoc/>
-        public bool SessionClosed(ISession closingSession)
+        bool ISubscriptionPublishPipeline.SessionClosed(ISession closingSession)
         {
             lock (m_lock)
             {
@@ -1373,7 +1374,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Update the monitoring queue overflow count.
         /// </summary>
-        public void QueueOverflowHandler()
+        void ISubscriptionPublishPipeline.QueueOverflowHandler()
         {
             lock (m_diagnosticsLock)
             {
@@ -1385,7 +1386,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Removes a message from the message queue.
         /// </summary>
-        public ServiceResult? Acknowledge(OperationContext context, uint sequenceNumber)
+        ServiceResult? ISubscriptionPublishPipeline.Acknowledge(OperationContext context, uint sequenceNumber)
         {
             ThrowIfDeleted();
 
@@ -1419,7 +1420,7 @@ namespace Opc.Ua.Server
         /// Returns all available notifications.
         /// </summary>
         /// <exception cref="ArgumentNullException"><paramref name="context"/> is <c>null</c>.</exception>
-        public NotificationMessage? Publish(
+        NotificationMessage? ISubscriptionPublishPipeline.Publish(
             OperationContext context,
             out ArrayOf<uint> availableSequenceNumbers,
             out bool moreNotifications)
@@ -1480,7 +1481,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Publishes a timeout status message.
         /// </summary>
-        public NotificationMessage PublishTimeout()
+        NotificationMessage ISubscriptionPublishPipeline.PublishTimeout()
         {
             NotificationMessage? message = null;
 
@@ -1510,7 +1511,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Publishes a SubscriptionTransferred status message.
         /// </summary>
-        public NotificationMessage SubscriptionTransferred()
+        NotificationMessage ISubscriptionPublishPipeline.SubscriptionTransferred()
         {
             NotificationMessage? message = null;
 
@@ -1756,7 +1757,7 @@ namespace Opc.Ua.Server
         /// Returns the available sequence numbers for retransmission
         /// For example used in Transfer Subscription
         /// </summary>
-        public ArrayOf<uint> AvailableSequenceNumbersForRetransmission()
+        ArrayOf<uint> ISubscriptionPublishPipeline.AvailableSequenceNumbersForRetransmission()
         {
             return m_messageQueue.AvailableSequenceNumbersForRetransmission();
         }

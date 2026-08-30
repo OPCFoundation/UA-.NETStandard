@@ -39,7 +39,7 @@ namespace Opc.Ua.Server
     /// <summary>
     /// Manages the publish queues for a session.
     /// </summary>
-    public class SessionPublishQueue : IDisposable
+    internal sealed class SessionPublishQueue : IDisposable
     {
         /// <summary>
         /// Creates a new queue.
@@ -83,9 +83,9 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// An overrideable version of the Dispose.
+        /// Releases the queued requests and clears the queue state.
         /// </summary>
-        protected virtual void Dispose(bool disposing)
+        private void Dispose(bool disposing)
         {
             if (disposing)
             {
@@ -122,7 +122,7 @@ namespace Opc.Ua.Server
         /// queued to wait for the next notification), the supplied park sink is notified
         /// so the request-processing worker can be released for the duration of the wait.
         /// </summary>
-        public Task<ISubscription> PublishAsync(string secureChannelId,
+        public Task<ISubscriptionPublishPipeline> PublishAsync(string secureChannelId,
                                                 DateTime operationTimeout,
                                                 bool requeue,
                                                 IRequestParkSink? parkSink,
@@ -130,7 +130,7 @@ namespace Opc.Ua.Server
         {
             if (m_queuedSubscriptions.IsEmpty)
             {
-                return Task.FromException<ISubscription>(
+                return Task.FromException<ISubscriptionPublishPipeline>(
                     new ServiceResultException(StatusCodes.BadNoSubscription));
             }
 
@@ -148,7 +148,7 @@ namespace Opc.Ua.Server
                 // check if queue is full.
                 if (m_queuedRequests.Count >= m_maxRequestCount)
                 {
-                    return Task.FromException<ISubscription>(
+                    return Task.FromException<ISubscriptionPublishPipeline>(
                         new ServiceResultException(StatusCodes.BadTooManyPublishRequests));
                 }
 
@@ -176,10 +176,10 @@ namespace Opc.Ua.Server
         /// Clears the queues because the session is closing.
         /// </summary>
         /// <returns>The list of subscriptions in the queue.</returns>
-        public IList<ISubscription> Close()
+        public IList<ISubscriptionPublishPipeline> Close()
         {
-            var queuedSubscriptions = new List<ISubscription>();
-            var subscriptions = new List<ISubscription>();
+            var queuedSubscriptions = new List<ISubscriptionPublishPipeline>();
+            var subscriptions = new List<ISubscriptionPublishPipeline>();
 
             lock (m_lock)
             {
@@ -205,7 +205,7 @@ namespace Opc.Ua.Server
                 m_transferClaims.Clear();
             }
 
-            foreach (ISubscription subscription in queuedSubscriptions)
+            foreach (ISubscriptionPublishPipeline subscription in queuedSubscriptions)
             {
                 if (subscription.SessionClosed(m_session))
                 {
@@ -220,7 +220,7 @@ namespace Opc.Ua.Server
         /// Adds a subscription from the publish queue.
         /// </summary>
         /// <exception cref="ArgumentNullException"><paramref name="subscription"/> is <c>null</c>.</exception>
-        public void Add(ISubscription subscription)
+        public void Add(ISubscriptionPublishPipeline subscription)
         {
             if (subscription == null)
             {
@@ -883,7 +883,7 @@ namespace Opc.Ua.Server
             {
                 SecureChannelId = secureChannelId;
                 OperationTimeout = operationTimeout;
-                Tcs = new TaskCompletionSource<ISubscription>(
+                Tcs = new TaskCompletionSource<ISubscriptionPublishPipeline>(
                     TaskCreationOptions.RunContinuationsAsynchronously);
                 m_cancellationTokenRegistration = cancellationToken.Register(
                     () => Tcs.TrySetCanceled());
@@ -908,7 +908,7 @@ namespace Opc.Ua.Server
 
             public readonly string SecureChannelId;
             public readonly DateTime OperationTimeout;
-            public readonly TaskCompletionSource<ISubscription> Tcs;
+            public readonly TaskCompletionSource<ISubscriptionPublishPipeline> Tcs;
             private readonly CancellationTokenRegistration m_cancellationTokenRegistration;
             private readonly CancellationTokenSource? m_cancellationTokenSource;
             private readonly CancellationTokenRegistration m_cancellationTokenRegistration2;
@@ -923,7 +923,7 @@ namespace Opc.Ua.Server
             /// Initializes the queue entry for a subscription owned by this session.
             /// </summary>
             /// <param name="subscription">The subscription tracked by the publish queue.</param>
-            public QueuedSubscription(ISubscription subscription)
+            public QueuedSubscription(ISubscriptionPublishPipeline subscription)
             {
                 Subscription = subscription;
                 ReadyToPublish = false;
@@ -933,7 +933,7 @@ namespace Opc.Ua.Server
             /// <summary>
             /// Gets the subscription associated with the queue entry.
             /// </summary>
-            public ISubscription Subscription { get; }
+            public ISubscriptionPublishPipeline Subscription { get; }
 
             /// <summary>
             /// Gets or sets the UTC timestamp used for publish scheduling and timeout decisions.
