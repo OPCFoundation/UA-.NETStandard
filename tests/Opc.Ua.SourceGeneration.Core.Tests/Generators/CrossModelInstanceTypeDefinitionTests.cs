@@ -276,6 +276,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             return Regex.Matches(
                     code,
                     @"internal static [^\r\n(]*\b(Create" + Regex.Escape(instanceName) + @"\w*)\(")
+                .Cast<Match>()
                 .Select(m => m.Groups[1].Value)
                 .ToHashSet();
         }
