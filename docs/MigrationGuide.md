@@ -738,7 +738,7 @@ a warning rather than an error. The `ILogger` argument on the `Encrypt` and
 
 ## Migrating code that drove the server subscription publish pipeline
 
-Eleven members left the server `Opc.Ua.Server.ISubscription`, and the
+Twelve members left the server `Opc.Ua.Server.ISubscription`, and the
 `SessionPublishQueue` class became internal. The publish pipeline — timer
 expiry, message acknowledgement, notification consumption, session release —
 is now driven exclusively by `SubscriptionManager` and the publish queue
@@ -752,7 +752,12 @@ subscription its session still owned.
 **Deleted outright — remove the call.** `ItemReadyToPublish` and
 `ItemNotificationsAvailable` had commented-out bodies since 1.5.x, so every
 call was already a no-op. The obsolete parameterless `SessionClosed()` is
-gone with them.
+gone with them, and so is `TransferSessionAsync`: the server transfers
+subscriptions through its internal claim/prepare/commit protocol, reached
+via the `TransferSubscriptions` service
+(`ISubscriptionManager.TransferSubscriptionsAsync`) — the one-shot direct
+transfer bypassed the reservation that protects a transfer against a
+concurrently closing source session.
 
 **Internalized — use the service operations.** `PublishTimerExpired`,
 `Acknowledge`, `PublishTimeout`, `SubscriptionTransferred`,

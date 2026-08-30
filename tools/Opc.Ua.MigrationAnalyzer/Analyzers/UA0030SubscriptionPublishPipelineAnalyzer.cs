@@ -145,6 +145,10 @@ namespace Opc.Ua.MigrationAnalyzer.Analyzers
                 "SessionClosed" =>
                     "session teardown releases subscriptions through " +
                     "ISubscriptionManager.SessionClosingAsync; custom subscriptions derive from Subscription",
+                "TransferSessionAsync" =>
+                    "use ISubscriptionManager.TransferSubscriptionsAsync (the TransferSubscriptions " +
+                    "service); the server performs the transfer through its internal " +
+                    "claim/prepare/commit protocol",
                 "PublishTimerExpired" or "PublishTimeout" or "SubscriptionTransferred" or
                 "AvailableSequenceNumbersForRetransmission" or "QueueOverflowHandler" or
                 "Acknowledge" or "Publish" =>

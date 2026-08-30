@@ -58,6 +58,7 @@ namespace Opc.Ua.MigrationAnalyzer.Tests.Analyzers
                     object Acknowledge(object context, uint sequenceNumber);
                     void ItemReadyToPublish(object monitoredItem);
                     object Publish(object context, out uint[] availableSequenceNumbers, out bool moreNotifications);
+                    System.Threading.Tasks.ValueTask TransferSessionAsync(object context, bool sendInitialValues);
                 }
             }
             """;
@@ -119,6 +120,26 @@ namespace Opc.Ua.MigrationAnalyzer.Tests.Analyzers
             Diagnostic diagnostic = await SingleAsync(source).ConfigureAwait(false);
 
             Assert.That(diagnostic.Id, Is.EqualTo("UA0030"));
+        }
+
+        [Test]
+        public async Task ReportsOnTransferSessionAsync()
+        {
+            string source = SubscriptionShim + """
+
+                class C
+                {
+                    static System.Threading.Tasks.ValueTask M(Opc.Ua.Server.ISubscription subscription)
+                        => subscription.TransferSessionAsync(null, sendInitialValues: false);
+                }
+                """;
+
+            Diagnostic diagnostic = await SingleAsync(source).ConfigureAwait(false);
+
+            Assert.That(
+                diagnostic.GetMessage(CultureInfo.InvariantCulture),
+                Does.Contain("TransferSubscriptions"),
+                "the message must point at the service that replaces the direct transfer.");
         }
 
         [Test]

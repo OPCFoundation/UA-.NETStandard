@@ -2114,7 +2114,7 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
-        public async Task TransferSessionAsyncMovesOwnershipToTheDestinationAsync()
+        public async Task PreparedSessionTransferMovesOwnershipToTheDestinationAsync()
         {
             using Subscription subscription = CreateSubscription();
             var destinationSession = new Mock<ISession>();
@@ -2126,20 +2126,20 @@ namespace Opc.Ua.Server.Tests
                 destinationSession.Object,
                 DiagnosticsMasks.None);
 
-            await subscription
-                .TransferSessionAsync(context, sendInitialValues: true, CancellationToken.None)
+            Assert.That(subscription.TryBeginTransfer(m_sessionMock.Object), Is.True);
+            Subscription.PreparedSessionTransfer prepared = await subscription
+                .PrepareSessionTransferAsync(
+                    context,
+                    m_sessionMock.Object,
+                    sendInitialValues: true,
+                    CancellationToken.None)
                 .ConfigureAwait(false);
+            prepared.CommitOwnership();
+            prepared.CommitMonitoredItemEffects();
+            subscription.CompleteTransfer(destinationSession.Object);
+            prepared.Complete();
 
             Assert.That(subscription.Session, Is.SameAs(destinationSession.Object));
-            m_nodeManagerMock.Verify(
-                nodeManager => nodeManager.TransferMonitoredItemsAsync(
-                    context,
-                    true,
-                    It.IsAny<IList<IMonitoredItem>>(),
-                    It.IsAny<IList<ServiceResult>>(),
-                    It.IsAny<MonitoredItemTransferOptions>(),
-                    It.IsAny<CancellationToken>()),
-                Times.Once);
         }
 
         [Test]

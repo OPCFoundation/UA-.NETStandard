@@ -228,14 +228,6 @@ namespace Opc.Ua.Server
         bool IsTransferIdentityCompatible(ISession targetSession);
 
         /// <summary>
-        /// Transfers the subscription to a new session.
-        /// </summary>
-        /// <param name="context">The session to which the subscription is transferred.</param>
-        /// <param name="sendInitialValues">Whether the first Publish response shall contain current values.</param>
-        /// <param name="cancellationToken">The cancellation token.</param>
-        ValueTask TransferSessionAsync(OperationContext context, bool sendInitialValues, CancellationToken cancellationToken = default);
-
-        /// <summary>
         /// Updates the triggers for the monitored item.
         /// </summary>
         void SetTriggering(

@@ -385,7 +385,7 @@ already implements them.
 
 **Source-breaking for custom implementations and for callers.** This is the **server-side**
 `Opc.Ua.Server.ISubscription` — not the client-side `Opc.Ua.Client.Subscriptions.ISubscription`
-introduced by the V2 subscription shape above. Eleven members leave the interface
+introduced by the V2 subscription shape above. Twelve members leave the interface
 (analyzer `UA0030`; see [MigrationGuide.md](../../MigrationGuide.md#ua0030) for the
 caller-side migration):
 
@@ -394,6 +394,9 @@ caller-side migration):
   the implementations.
 - The parameterless obsolete `SessionClosed()` is **deleted**; session teardown goes through
   `ISubscriptionManager.SessionClosingAsync`.
+- `TransferSessionAsync` is **deleted**; the server transfers subscriptions through its
+  internal claim/prepare/commit protocol, reached via the `TransferSubscriptions` service
+  (`ISubscriptionManager.TransferSubscriptionsAsync`).
 - `PublishTimerExpired`, `Acknowledge`, `PublishTimeout`, `SubscriptionTransferred`,
   `AvailableSequenceNumbersForRetransmission`, `QueueOverflowHandler`, `SessionClosed(ISession)`
   and `Publish` move to an **internal contract** implemented only by the built-in `Subscription`.
@@ -407,8 +410,9 @@ not derived from `Subscription` previously worked partially (the pipeline drove 
 public members, but transfer already required the concrete type); it now fails at creation with
 `Bad_InternalError`. Derive from `Subscription` instead — the interface members that remain
 (`ResendData`, `GetMonitoredItems`, the monitored-item operations, `Modify`,
-`SetPublishingMode`, `Republish`, transfer and durable members) keep their meaning, and the
-pipeline members are explicit implementations the runtime drives for you. Implementations that
+`SetPublishingMode`, `Republish`, `IsTransferIdentityCompatible` and the durable members)
+keep their meaning, and the pipeline members are explicit implementations the runtime drives
+for you. Implementations that
 had added `SessionClosed(ISession)` per the earlier 2.0 guidance delete it together with the
 rest of the pipeline members.
 
