@@ -30,8 +30,8 @@
 
 using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Globalization;
+using System.IO;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
@@ -96,7 +96,7 @@ namespace Opc.Ua.Wot
                         diagnostics.Add(new WotDiagnostic(
                             WotDiagnosticSeverity.Error,
                             WotDiagnosticCode.JsonDocumentTooLarge,
-                            $"Unmapped WoT residue exceeds the configured " +
+                            "Unmapped WoT residue exceeds the configured " +
                             $"{options.MaxJsonDocumentSize} byte limit."));
                         return;
                     }
@@ -136,7 +136,7 @@ namespace Opc.Ua.Wot
                 diagnostics.Add(new WotDiagnostic(
                     WotDiagnosticSeverity.Error,
                     WotDiagnosticCode.ResidueInvalid,
-                    $"The generated WoT document could not be parsed before " +
+                    "The generated WoT document could not be parsed before " +
                     $"applying residue: {ex.Message}"));
                 return generatedJson;
             }
@@ -229,7 +229,7 @@ namespace Opc.Ua.Wot
                     case "actions":
                     case "events":
                         CaptureAffordanceMap(
-                            property.Value, pointer, property.Name, entries);
+                            root, property.Value, pointer, property.Name, entries);
                         break;
                     case "links":
                         CaptureLinks(property.Value, pointer, entries);
@@ -245,6 +245,16 @@ namespace Opc.Ua.Wot
                     case "uav:nodeSet":
                     case "uav:nodes":
                     case "uav:dataTypeDefinitions":
+                        break;
+                    case WotNodeSetConverter.TitlesMember:
+                    case WotNodeSetConverter.DescriptionsMember:
+                        // Section 9.1.1 maps every locale of the root's
+                        // DisplayName and Description onto one LocalizedText of
+                        // the projected Node.
+                        if (!WotNodeSetConverter.MapsLocalizedText(root, property.Name))
+                        {
+                            Add(entries, pointer, property.Value);
+                        }
                         break;
                     default:
                         Add(entries, pointer, property.Value);
@@ -305,6 +315,17 @@ namespace Opc.Ua.Wot
             {
                 return true;
             }
+
+            // Section 9.1.1 makes @language the document's default locale, and
+            // the forward direction derives it from the locale the projected
+            // Node's own LocalizedText carries - which the reverse direction
+            // writes back onto it. So the declaration is re-derivable from the
+            // NodeSet and carrying it as residue as well would state the same
+            // language twice.
+            if (property.Name is "@language")
+            {
+                return property.Value.ValueKind == JsonValueKind.String;
+            }
             if (!property.Name.StartsWith("ns", StringComparison.Ordinal) ||
                 property.Name.Length == 2)
             {
@@ -321,6 +342,7 @@ namespace Opc.Ua.Wot
         }
 
         private static void CaptureAffordanceMap(
+            JsonElement root,
             JsonElement map,
             string pointer,
             string kind,
@@ -370,6 +392,100 @@ namespace Opc.Ua.Wot
                         case "readOnly":
                         case "writeOnly":
                         case "observable":
+                            break;
+                        case WotNodeSetConverter.ValueRankTerm:
+                        case WotNodeSetConverter.ArrayDimensionsTerm:
+                            // §9.1 maps a Variable's ValueRank and
+                            // ArrayDimensions onto the Attributes of the same
+                            // name, so both come back from the Node itself.
+                            break;
+                        case "uav:componentOf":
+                            // §9.1 maps the term onto the inverse component
+                            // Reference that says which Variable holds this
+                            // one, and the forward direction restates it from
+                            // there.
+                            if (!WotNodeSetConverter.MapsComponentOf(affordance.Value))
+                            {
+                                Add(
+                                    entries,
+                                    affordancePointer + "/" + Escape(property.Name),
+                                    property.Value);
+                            }
+                            break;
+                        case WotNodeSetConverter.UnitMember:
+                            // Section 6.4 takes the engineering unit from the
+                            // EUInformation of the Property the unit pointer
+                            // names, so a unit that agrees with it is derived
+                            // rather than carried. One that names no such
+                            // Property, or disagrees with it, is kept.
+                            if (!WotNodeSetConverter.MapsUnit(root, affordance.Value))
+                            {
+                                Add(
+                                    entries,
+                                    affordancePointer + "/" + Escape(property.Name),
+                                    property.Value);
+                            }
+                            break;
+                        case WotNodeSetConverter.UnitPropertyTerm:
+                            if (!WotNodeSetConverter.MapsUnitProperty(root, affordance.Value))
+                            {
+                                Add(
+                                    entries,
+                                    affordancePointer + "/" + Escape(property.Name),
+                                    property.Value);
+                            }
+                            break;
+                        case WotNodeSetConverter.TitlesMember:
+                        case WotNodeSetConverter.DescriptionsMember:
+                            // Section 9.1.1 maps every locale onto one
+                            // LocalizedText of the Node's DisplayName or
+                            // Description. A plural member that is not a map of
+                            // language tags to strings is not mapped and is
+                            // kept, so an invalid document keeps what it said.
+                            if (!WotNodeSetConverter.MapsLocalizedText(
+                                affordance.Value, property.Name))
+                            {
+                                Add(
+                                    entries,
+                                    affordancePointer + "/" + Escape(property.Name),
+                                    property.Value);
+                            }
+                            break;
+                        case WotNodeSetConverter.MinimumMember:
+                        case WotNodeSetConverter.MaximumMember:
+                            // Section 6.4.1 maps the pair onto the Variable's
+                            // own EURange Property, so carrying them here as
+                            // well would state one interval twice. A lone or
+                            // reversed bound is not mapped and is kept.
+                            if (!WotNodeSetConverter.MapsEuRange(affordance.Value))
+                            {
+                                Add(
+                                    entries,
+                                    affordancePointer + "/" + Escape(property.Name),
+                                    property.Value);
+                            }
+                            break;
+                        case WotNodeSetConverter.InstrumentRangeTerm:
+                            if (!WotNodeSetConverter.MapsInstrumentRange(affordance.Value))
+                            {
+                                Add(
+                                    entries,
+                                    affordancePointer + "/" + Escape(property.Name),
+                                    property.Value);
+                            }
+                            break;
+                        case WotNodeSetConverter.EngineeringUnitsTerm:
+                            // Section 6.4.1 maps the object onto the
+                            // EUInformation the EngineeringUnits Property
+                            // holds, and the forward direction reads it back
+                            // from that value.
+                            if (!WotNodeSetConverter.MapsEngineeringUnits(affordance.Value))
+                            {
+                                Add(
+                                    entries,
+                                    affordancePointer + "/" + Escape(property.Name),
+                                    property.Value);
+                            }
                             break;
                         case WotNodeSetConverter.SeverityTerm:
                             // Section 6.6 maps a severity in range onto the
@@ -484,12 +600,14 @@ namespace Opc.Ua.Wot
                 return candidate;
             }
             int suffix = 2;
-            string unique = candidate + "_" +
+            string unique = candidate +
+                "_" +
                 suffix.ToString(CultureInfo.InvariantCulture);
             while (!used.Add(unique))
             {
                 suffix++;
-                unique = candidate + "_" +
+                unique = candidate +
+                    "_" +
                     suffix.ToString(CultureInfo.InvariantCulture);
             }
             return unique;
@@ -873,7 +991,7 @@ namespace Opc.Ua.Wot
                         diagnostics.Add(new WotDiagnostic(
                             WotDiagnosticSeverity.Error,
                             WotDiagnosticCode.JsonDocumentTooLarge,
-                            $"WoT residue exceeds the configured " +
+                            "WoT residue exceeds the configured " +
                             $"{options.MaxJsonDocumentSize} byte limit."));
                         return entries;
                     }
@@ -1244,7 +1362,7 @@ namespace Opc.Ua.Wot
                 {
                     if (token[ii] == '~' &&
                         (ii + 1 >= token.Length ||
-                         token[ii + 1] is not ('0' or '1')))
+                            token[ii + 1] is not ('0' or '1')))
                     {
                         return false;
                     }
@@ -1288,8 +1406,8 @@ namespace Opc.Ua.Wot
             int start = 0;
             while (index >= 0)
             {
-                builder.Append(source, start, index - start);
-                builder.Append(newValue);
+                builder.Append(source, start, index - start)
+                    .Append(newValue);
                 start = index + oldValue.Length;
                 index = source.IndexOf(oldValue, start, StringComparison.Ordinal);
             }
@@ -1306,7 +1424,5 @@ namespace Opc.Ua.Wot
             return sha256.ComputeHash(data);
 #endif
         }
-
-
     }
 }

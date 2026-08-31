@@ -109,7 +109,7 @@ namespace Opc.Ua.Wot
             string? DataType,
             int ValueRank,
             string? ArrayDimensions,
-            string? Description);
+            Opc.Ua.Export.LocalizedText[]? Description);
 
         /// <summary>
         /// The arguments a Method holds, in declaration order.
@@ -351,12 +351,30 @@ namespace Opc.Ua.Wot
         }
 
         /// <summary>
-        /// Reads an <c>Argument</c>'s Description text.
+        /// Reads an <c>Argument</c>'s Description text, keeping the locale it
+        /// states (WoT Binding Section 9.1.1).
         /// </summary>
-        private static string? ReadArgumentDescription(System.Xml.XmlElement? description)
+        private static Opc.Ua.Export.LocalizedText[]? ReadArgumentDescription(
+            System.Xml.XmlElement? description)
         {
-            System.Xml.XmlElement? text = description is null ? null : FindChild(description, "Text");
-            return text is null || text.InnerText.Length == 0 ? null : text.InnerText;
+            if (description is null)
+            {
+                return null;
+            }
+            System.Xml.XmlElement? text = FindChild(description, "Text");
+            if (text is null || text.InnerText.Length == 0)
+            {
+                return null;
+            }
+            System.Xml.XmlElement? locale = FindChild(description, "Locale");
+            return
+            [
+                new Opc.Ua.Export.LocalizedText
+                {
+                    Locale = locale?.InnerText ?? string.Empty,
+                    Value = text.InnerText
+                }
+            ];
         }
 
         private static System.Xml.XmlElement? FindChild(System.Xml.XmlElement parent, string localName)
@@ -387,7 +405,8 @@ namespace Opc.Ua.Wot
             Utf8JsonWriter writer,
             string member,
             List<WotMethodArgument>? arguments,
-            UANodeSet nodeSet)
+            UANodeSet nodeSet,
+            string defaultLocale)
         {
             if (arguments is not { Count: > 0 })
             {
@@ -410,7 +429,7 @@ namespace Opc.Ua.Wot
             foreach (WotMethodArgument argument in arguments)
             {
                 writer.WritePropertyName(argument.Name);
-                WriteArgument(writer, argument, nodeSet);
+                WriteArgument(writer, argument, nodeSet, defaultLocale);
             }
             writer.WriteEndObject();
 
@@ -438,11 +457,12 @@ namespace Opc.Ua.Wot
         private static void WriteArgument(
             Utf8JsonWriter writer,
             WotMethodArgument argument,
-            UANodeSet nodeSet)
+            UANodeSet nodeSet,
+            string defaultLocale)
         {
             writer.WriteStartObject();
             WriteArgumentJsonType(writer, argument.DataType);
-            WriteOptional(writer, "description", argument.Description);
+            WriteLocalizedDescription(writer, argument.Description, defaultLocale);
             WriteOptional(
                 writer,
                 "uav:mapToType",
@@ -559,8 +579,6 @@ namespace Opc.Ua.Wot
                         "(WoT Binding Section 6.11.4).",
                         WotLocation.FromPointer(pointer)));
                     return;
-                default:
-                    break;
             }
 
             JsonElement schema = action.GetProperty(member);
@@ -771,7 +789,7 @@ namespace Opc.Ua.Wot
                 MapJsonSchemaToDataType(document, schema, nodeSet, diagnostics),
                 GetElementInt32(schema, "uav:valueRank") ?? -1,
                 ReadArrayDimensions(schema),
-                GetElementString(schema, "description"));
+                ReadDescription(schema, GetDeclaredLocale(document)));
         }
 
         /// <summary>
@@ -844,8 +862,15 @@ namespace Opc.Ua.Wot
 
             System.Xml.XmlElement description = document.CreateElement(
                 "uax", "Description", UaXmlNamespace);
-            if (argument.Description is { Length: > 0 } text)
+            if (FirstText(argument.Description) is { Length: > 0 } text)
             {
+                if (FirstLocale(argument.Description) is { Length: > 0 } locale)
+                {
+                    System.Xml.XmlElement localeElement = document.CreateElement(
+                        "uax", "Locale", UaXmlNamespace);
+                    localeElement.InnerText = locale;
+                    description.AppendChild(localeElement);
+                }
                 System.Xml.XmlElement value = document.CreateElement("uax", "Text", UaXmlNamespace);
                 value.InnerText = text;
                 description.AppendChild(value);

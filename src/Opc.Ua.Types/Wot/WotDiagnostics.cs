@@ -215,9 +215,12 @@ namespace Opc.Ua.Wot
         NonAbsoluteIri = 6007,
 
         /// <summary>
-        /// A <c>uav:unitProperty</c> value was not a non-empty RFC 6901 JSON
-        /// Pointer resolving, within the same document, to a string-valued
-        /// property (WoT Binding Section 6.5).
+        /// A <c>uav:unitProperty</c> value was not a canonical RFC 6901 JSON
+        /// Pointer of the form <c>/properties/&lt;name&gt;</c> naming a sibling
+        /// string-valued property affordance of the same document (WoT Binding
+        /// Sections 6.4 and 7). The OPC UA fact it records is an
+        /// <c>EngineeringUnits</c> Property Node of its own, so a pointer into
+        /// the annotated affordance names nothing that exists.
         /// </summary>
         InvalidUnitPointer = 6008,
 
@@ -443,7 +446,49 @@ namespace Opc.Ua.Wot
         /// is left unstated, because naming an arbitrary one of several
         /// candidate events would invent a relation the source does not have.
         /// </summary>
-        ConditionActionTargetUnresolved = 6035
+        ConditionActionTargetUnresolved = 6035,
+
+        /// <summary>
+        /// A <c>uav:valueRank</c> is not an integer, or is below <c>-3</c>,
+        /// or a <c>uav:arrayDimensions</c> list contradicts it (WoT Binding
+        /// Section 7). OPC 10000-3 gives ArrayDimensions one bound per
+        /// dimension, so its length is the rank by construction and only a
+        /// fixed rank of at least one admits it at all. The value is rejected
+        /// rather than collapsed to a scalar, because a rank of <c>-2</c>,
+        /// <c>-3</c> or <c>0</c> says something a scalar does not.
+        /// </summary>
+        InvalidValueRank = 6036,
+
+        /// <summary>
+        /// A range is not a range: <c>minimum</c> exceeds <c>maximum</c>, a
+        /// <c>uav:instrumentRange</c> is not an object carrying two numbers,
+        /// or the engineering range the DataSchema states is not contained in
+        /// the instrument range (WoT Binding Sections 6.4.1 and 7). An
+        /// engineering range outside what the instrument can measure is not a
+        /// fact about any instrument, so it is reported rather than narrowed.
+        /// </summary>
+        InvalidRangeValue = 6037,
+
+        /// <summary>
+        /// A <c>uav:engineeringUnits</c> object does not carry the
+        /// <c>namespaceUri</c>, integer <c>unitId</c> and <c>displayName</c>
+        /// that WoT Binding Section 6.4.1 requires of the readable
+        /// <c>EUInformation</c> preservation. A display string alone is lossy,
+        /// because the authority's machine-readable UnitId cannot be recovered
+        /// from it, so an incomplete object is rejected rather than materialized
+        /// as a unit identity it never stated.
+        /// </summary>
+        InvalidEngineeringUnits = 6038,
+
+        /// <summary>
+        /// A document carries <c>titles</c> without <c>title</c>, or
+        /// <c>descriptions</c> without <c>description</c>, or the singular
+        /// member disagrees with the plural member's entry for the document's
+        /// default locale, or that entry is missing (WoT Binding Section
+        /// 9.1.1). Restating one value in two places is only safe while the two
+        /// agree.
+        /// </summary>
+        InvalidLocalizedText = 6039
     }
 
     /// <summary>

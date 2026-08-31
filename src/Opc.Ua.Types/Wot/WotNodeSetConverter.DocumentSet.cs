@@ -263,7 +263,7 @@ namespace Opc.Ua.Wot
                 return;
             }
             byte[] json = WriteReadableDocument(
-                nodeSet, node, title, nodeSetBytes,
+                nodeSet, node, title, explicitTitle: true, nodeSetBytes,
                 nativeProjection: null, emitEnvelope: false,
                 options, diagnostics, parentHref);
 #pragma warning disable CA2000 // Ownership transfers to the entry, disposed with the set.
@@ -374,17 +374,20 @@ namespace Opc.Ua.Wot
         /// Selects every Node that roots a document of its own.
         /// </summary>
         /// <remarks>
+        /// <para>
         /// A single NodeSet is not a single Thing. A companion model states
         /// many type definitions side by side, and §9.1 gives each of them a
         /// document: an ObjectType is a Thing Model, a VariableType a property
         /// in one. Choosing one root and walking its references leaves
         /// everything else unreachable, which is what forced an entire
         /// companion model into the native projection.
-        ///
+        /// </para>
+        /// <para>
         /// A Node contained by another Node in the same set is not a root; it
         /// is reached by the walk from the Node that contains it. Everything
         /// else roots a document, in the order the NodeSet states it so the
         /// result is stable.
+        /// </para>
         /// </remarks>
         private static List<UANode> SelectRootNodes(UANodeSet nodeSet)
         {
@@ -479,7 +482,8 @@ namespace Opc.Ua.Wot
             return contained;
         }
 
-        private static string ChildHref(string parentHref, string local, HashSet<string> taken)        {
+        private static string ChildHref(string parentHref, string local, HashSet<string> taken)
+        {
             var builder = new StringBuilder(parentHref.Length + local.Length + 1);
             builder.Append(parentHref).Append('-');
             foreach (char character in local)
@@ -495,7 +499,8 @@ namespace Opc.Ua.Wot
             }
             for (int suffix = 2; ; suffix++)
             {
-                string next = candidate + "-" +
+                string next = candidate +
+                    "-" +
                     suffix.ToString(CultureInfo.InvariantCulture);
                 if (!taken.Contains(next))
                 {

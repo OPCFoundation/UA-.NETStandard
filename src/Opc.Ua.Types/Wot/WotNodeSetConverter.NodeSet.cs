@@ -31,9 +31,9 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
-using System.Text.Json;
 using Opc.Ua.Export;
 
 namespace Opc.Ua.Wot
@@ -86,6 +86,7 @@ namespace Opc.Ua.Wot
         /// <param name="title">An optional document title.</param>
         /// <param name="options">Resource limits; defaults are used when omitted.</param>
         /// <returns>The generated, byte-preserving WoT document.</returns>
+        /// <exception cref="FormatException"></exception>
         public static WotDocument FromNodeSet(
             UANodeSet nodeSet,
             string? title = null,
@@ -105,6 +106,7 @@ namespace Opc.Ua.Wot
         /// <param name="title">An optional document title.</param>
         /// <param name="options">Resource limits; defaults are used when omitted.</param>
         /// <returns>The conversion result and its diagnostics.</returns>
+        /// <exception cref="ArgumentNullException"></exception>
         public static WotConversionResult<WotDocument> FromNodeSetResult(
             UANodeSet nodeSet,
             string? title = null,
@@ -146,6 +148,7 @@ namespace Opc.Ua.Wot
                 nodeSet,
                 root,
                 resolvedTitle,
+                title is not null,
                 nodeSetBytes,
                 null,
                 emitEnvelope: false,
@@ -215,6 +218,7 @@ namespace Opc.Ua.Wot
                     nodeSet,
                     root,
                     resolvedTitle,
+                    title is not null,
                     nodeSetBytes,
                     nativeProjection,
                     emitEnvelope,
@@ -228,6 +232,7 @@ namespace Opc.Ua.Wot
                     nodeSet,
                     root,
                     resolvedTitle,
+                    title is not null,
                     nodeSetBytes,
                     null,
                     emitEnvelope: true,
@@ -241,7 +246,7 @@ namespace Opc.Ua.Wot
                 diagnostics.Add(new WotDiagnostic(
                     WotDiagnosticSeverity.Error,
                     WotDiagnosticCode.JsonDocumentTooLarge,
-                    $"Generated WoT document exceeds the configured " +
+                    "Generated WoT document exceeds the configured " +
                     $"{options.MaxJsonDocumentSize} byte limit."));
                 return new WotConversionResult<WotDocument>(null, diagnostics);
             }
@@ -255,6 +260,7 @@ namespace Opc.Ua.Wot
             UANodeSet nodeSet,
             UANode? root,
             string resolvedTitle,
+            bool explicitTitle,
             byte[] nodeSetBytes,
             byte[]? nativeProjection,
             bool emitEnvelope,
@@ -270,10 +276,20 @@ namespace Opc.Ua.Wot
                     new JsonWriterOptions { Indented = true, SkipValidation = false }))
                 {
                     writer.WriteStartObject();
-                    WriteContext(writer, nodeSet);
+                    string? documentLocale = SelectDocumentLocale(root);
+                    string defaultLocale = EffectiveLocale(documentLocale);
+                    WriteContext(writer, nodeSet, documentLocale);
                     bool rootIsEventType = IsEventTypeRoot(root, nodeSet);
                     WriteRootType(writer, root, rootIsEventType);
-                    writer.WriteString("title", resolvedTitle);
+                    if (explicitTitle)
+                    {
+                        writer.WriteString("title", resolvedTitle);
+                    }
+                    else
+                    {
+                        WriteLocalizedTitle(
+                            writer, root?.DisplayName, defaultLocale, resolvedTitle);
+                    }
                     if (!string.IsNullOrEmpty(root?.BrowseName))
                     {
                         writer.WriteString(
@@ -294,10 +310,10 @@ namespace Opc.Ua.Wot
                     {
                         writer.WriteBoolean("uav:isEvent", true);
                     }
-                    WriteDescription(writer, root?.Description);
-                    WriteDataTypeDefinitions(writer, nodeSet);
+                    WriteLocalizedDescription(writer, root?.Description, defaultLocale);
+                    WriteDataTypeDefinitions(writer, nodeSet, defaultLocale);
                     WriteAffordances(
-                        writer, nodeSet, root, diagnostics, options, parentHref,
+                        writer, nodeSet, root, diagnostics, options, defaultLocale, parentHref,
                         TypeDefinitionHref(root, nodeSet));
 
                     if (emitEnvelope)
@@ -429,7 +445,10 @@ namespace Opc.Ua.Wot
             return new ExpandedNodeId(parsed, namespaceUri);
         }
 
-        private static void WriteContext(Utf8JsonWriter writer, UANodeSet nodeSet)
+        private static void WriteContext(
+            Utf8JsonWriter writer,
+            UANodeSet nodeSet,
+            string? documentLocale)
         {
             writer.WritePropertyName("@context");
             writer.WriteStartArray();
@@ -442,10 +461,21 @@ namespace Opc.Ua.Wot
                 for (int ii = 0; ii < nodeSet.NamespaceUris.Length; ii++)
                 {
                     writer.WriteString(
-                        "ns" + (ii + 1).ToString(
+                        "ns" +
+                        (ii + 1).ToString(
                             System.Globalization.CultureInfo.InvariantCulture),
                         nodeSet.NamespaceUris[ii]);
                 }
+            }
+
+            // Section 9.1.1 makes the @language of the context the default
+            // locale of the document, and every localized member is read
+            // against it. It is declared only where the source states one, so
+            // a NodeSet that names no language does not gain a claim it never
+            // made.
+            if (!string.IsNullOrEmpty(documentLocale))
+            {
+                writer.WriteString("@language", documentLocale);
             }
             writer.WriteEndObject();
             writer.WriteEndArray();
@@ -509,21 +539,13 @@ namespace Opc.Ua.Wot
             }
         }
 
-        private static void WriteDescription(Utf8JsonWriter writer, Opc.Ua.Export.LocalizedText[]? description)
-        {
-            string? text = FirstText(description);
-            if (!string.IsNullOrEmpty(text))
-            {
-                writer.WriteString("description", text);
-            }
-        }
-
         private static void WriteAffordances(
             Utf8JsonWriter writer,
             UANodeSet nodeSet,
             UANode? root,
             List<WotDiagnostic> diagnostics,
             WotNodeSetConverterOptions options,
+            string defaultLocale,
             string? parentHref = null,
             string? typeDefinitionHref = null)
         {
@@ -588,7 +610,7 @@ namespace Opc.Ua.Wot
                     typedComponentLinks.Add(new TypedComponentLink(
                         portableTarget!,
                         ToReferenceTypeModelName(reference.ReferenceType)
-                            ?? "ua:HasOrderedComponent",
+                        ?? "ua:HasOrderedComponent",
                         subtypeNodeId,
                         ComponentRefName(reference.Value, index)));
                 }
@@ -673,21 +695,43 @@ namespace Opc.Ua.Wot
             WriteComponentArray(writer, "uav:hasComponent", componentChildren);
             WriteComponentArray(writer, "uav:componentOf", componentParents);
 
+            // Section 6.4 makes the unit of a Variable a pointer to the
+            // affordance its EngineeringUnits Property projects to, so the
+            // affordance names have to be settled before anything is written -
+            // a pointer at a name chosen later would name nothing.
+            var propertyNames = new Dictionary<string, string>(StringComparer.Ordinal);
+            var propertyKeys = new List<string>(properties.Count);
+            var usedPropertyNames = new HashSet<string>(StringComparer.Ordinal);
+            foreach (UAVariable variable in properties)
+            {
+                string key = UniqueKey(LocalName(variable.BrowseName), usedPropertyNames);
+                propertyKeys.Add(key);
+                if (variable.NodeId is { Length: > 0 } propertyNodeId)
+                {
+                    propertyNames[propertyNodeId] = key;
+                }
+            }
+            Dictionary<string, WotAnalogFacets> analogFacets =
+                CollectAnalogFacets(properties, index, propertyNames);
+
             if (properties.Count > 0)
             {
                 writer.WritePropertyName("properties");
                 writer.WriteStartObject();
-                var used = new HashSet<string>(StringComparer.Ordinal);
-                foreach (UAVariable variable in properties)
+                for (int ii = 0; ii < properties.Count; ii++)
                 {
                     if (!CheckAffordanceBudget(ref affordanceCount, options, diagnostics))
                     {
                         break;
                     }
-                    writer.WritePropertyName(UniqueKey(LocalName(variable.BrowseName), used));
+                    UAVariable variable = properties[ii];
+                    writer.WritePropertyName(propertyKeys[ii]);
                     nestedParents.TryGetValue(variable.NodeId ?? string.Empty, out string? owner);
+                    analogFacets.TryGetValue(
+                        variable.NodeId ?? string.Empty, out WotAnalogFacets? facets);
                     WriteVariableAffordance(
-                        writer, variable, isThingModel, namespaceUris, nodeSet, owner);
+                        writer, variable, isThingModel, namespaceUris, nodeSet, defaultLocale,
+                        facets, owner);
                 }
                 writer.WriteEndObject();
             }
@@ -714,7 +758,8 @@ namespace Opc.Ua.Wot
                         ? (conditionAction, actsOn)
                         : null;
                     WriteMethodAffordance(
-                        writer, method, namespaceUris, nodeSet, arguments, condition);
+                        writer, method, namespaceUris, nodeSet, defaultLocale, arguments,
+                        condition);
                 }
                 writer.WriteEndObject();
             }
@@ -731,7 +776,7 @@ namespace Opc.Ua.Wot
                     }
                     writer.WritePropertyName(eventKeys[ii]);
                     WriteEventAffordance(
-                        writer, events[ii], namespaceUris, nodeSet, index,
+                        writer, events[ii], namespaceUris, nodeSet, index, defaultLocale,
                         eventProjections[ii]);
                 }
                 writer.WriteEndObject();
@@ -1082,6 +1127,8 @@ namespace Opc.Ua.Wot
             bool isThingModel,
             string[]? namespaceUris,
             UANodeSet nodeSet,
+            string defaultLocale,
+            WotAnalogFacets? analogFacets = null,
             string? componentOf = null)
         {
             writer.WriteStartObject();
@@ -1093,8 +1140,8 @@ namespace Opc.Ua.Wot
                 writer.WriteStringValue(componentOf);
                 writer.WriteEndArray();
             }
-            WriteOptional(writer, "title", FirstText(variable.DisplayName));
-            WriteDescription(writer, variable.Description);
+            WriteLocalizedTitle(writer, variable.DisplayName, defaultLocale);
+            WriteLocalizedDescription(writer, variable.Description, defaultLocale);
             WriteOptional(
                 writer,
                 "uav:browseName",
@@ -1107,7 +1154,15 @@ namespace Opc.Ua.Wot
             // AnalogUnitType, PropertyType or TwoStateDiscreteType finds none.
             WriteTypeDefinitionLink(writer, TypeDefinitionHref(variable, nodeSet));
 
-            string? jsonType = MapDataTypeToJson(variable.DataType);
+            // Section 6.4 makes the affordance a EngineeringUnits Property
+            // projects a string-valued one: what a client reads there at run
+            // time is the unit string, and the EUInformation structure behind
+            // it travels under uav:engineeringUnits with the definitive
+            // DataType of Section 5.4 alongside.
+            bool isUnitAffordance = IsUnitAffordance(variable);
+            string? jsonType = isUnitAffordance
+                ? "string"
+                : MapDataTypeToJson(variable.DataType);
             if (jsonType is not null)
             {
                 writer.WriteString("type", jsonType);
@@ -1122,11 +1177,23 @@ namespace Opc.Ua.Wot
                 "uav:mapToType",
                 ToPortableDataTypeId(variable.DataType, nodeSet));
 
+            // §9.1 maps a Variable's DataType together with its ValueRank and
+            // ArrayDimensions. The json type says only whether the value is an
+            // array, so the rank is what separates a scalar from a
+            // one-dimensional array of the same type, and from the three ranks
+            // that fix neither.
+            WriteVariableRank(writer, variable.ValueRank, variable.ArrayDimensions);
+
             // §9.1 maps a Variable's Value onto the property's value. Only the
             // shapes this converter can rebuild exactly are written: emitting a
             // value it could not reconstruct would trade a reported gap for a
             // silent corruption.
             WriteVariableValue(writer, variable);
+
+            // Sections 6.4 and 6.4.1: the engineering unit, its authority and
+            // identity, and the two ranges that say what the value means.
+            WriteAnalogFacets(writer, analogFacets);
+            WriteEngineeringUnits(writer, variable, defaultLocale);
 
             bool readable = (variable.AccessLevel & AccessLevelCurrentRead) != 0;
             bool writable = (variable.AccessLevel & AccessLevelCurrentWrite) != 0;
@@ -1155,13 +1222,14 @@ namespace Opc.Ua.Wot
             UAMethod method,
             string[]? namespaceUris,
             UANodeSet nodeSet,
+            string defaultLocale,
             WotMethodArguments arguments,
             (string Action, string ActsOn)? condition)
         {
             writer.WriteStartObject();
             writer.WriteString("@type", "uav:method");
-            WriteOptional(writer, "title", FirstText(method.DisplayName));
-            WriteDescription(writer, method.Description);
+            WriteLocalizedTitle(writer, method.DisplayName, defaultLocale);
+            WriteLocalizedDescription(writer, method.Description, defaultLocale);
             WriteOptional(
                 writer,
                 "uav:browseName",
@@ -1179,8 +1247,8 @@ namespace Opc.Ua.Wot
 
             // §9.1: the Method's input and output arguments are the action's
             // input and output DataSchemas.
-            WriteArgumentSchema(writer, InputMember, arguments.Input, nodeSet);
-            WriteArgumentSchema(writer, OutputMember, arguments.Output, nodeSet);
+            WriteArgumentSchema(writer, InputMember, arguments.Input, nodeSet, defaultLocale);
+            WriteArgumentSchema(writer, OutputMember, arguments.Output, nodeSet, defaultLocale);
             WriteModellingRule(writer, method);
             writer.WriteEndObject();
         }
@@ -1191,14 +1259,15 @@ namespace Opc.Ua.Wot
             string[]? namespaceUris,
             UANodeSet nodeSet,
             Dictionary<string, UANode> index,
+            string defaultLocale,
             WotConditionProjection projection)
         {
             writer.WriteStartObject();
             // uav:eventType is the @type annotation counterpart of the uav:isEvent
             // flag; an EventType projection carries both (WoT Binding Section 5.2).
             writer.WriteString("@type", WotVocabulary.EventTypeAnnotation);
-            WriteOptional(writer, "title", FirstText(eventType.DisplayName));
-            WriteDescription(writer, eventType.Description);
+            WriteLocalizedTitle(writer, eventType.DisplayName, defaultLocale);
+            WriteLocalizedDescription(writer, eventType.Description, defaultLocale);
             writer.WriteBoolean("uav:isEvent", true);
             WriteOptional(
                 writer,
@@ -1215,7 +1284,7 @@ namespace Opc.Ua.Wot
             // Sections 13.2 and 13.3: the ConditionType the event projects and
             // the notification schema its fields fill.
             WriteEventConditionAndData(
-                writer, eventType, projection, namespaceUris, nodeSet, index);
+                writer, eventType, projection, namespaceUris, nodeSet, index, defaultLocale);
             WriteModellingRule(writer, eventType);
             writer.WriteEndObject();
         }
@@ -1671,16 +1740,6 @@ namespace Opc.Ua.Wot
         private static string? GetUavString(WotDocument document, string localName)
         {
             return document.TryGetUav(localName, out JsonElement value) &&
-                value.ValueKind == JsonValueKind.String
-                ? value.GetString()
-                : null;
-        }
-
-        private static string? GetRootString(WotDocument document, string name)
-        {
-            JsonElement root = document.RootElement;
-            return root.ValueKind == JsonValueKind.Object &&
-                root.TryGetProperty(name, out JsonElement value) &&
                 value.ValueKind == JsonValueKind.String
                 ? value.GetString()
                 : null;

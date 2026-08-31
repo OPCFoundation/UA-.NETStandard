@@ -31,9 +31,11 @@ them.
 | Property affordance `uav:id` | **Default** | Deterministic NodeId `ns=1;s=<rootLocal>/<propertyLocal>`. |
 | Property DataSchema `type` or an unrecognized `type` | **Default** | The canonical table of WoT Binding §6.11.4: `boolean` → `Boolean`, `integer` → the **abstract** `Integer` (`i=27`), `number` → the **abstract** `Number` (`i=26`), `string` → `String`, refined by `contentEncoding: base64` → `ByteString`, `format: date-time` → `DateTime`, `format: uuid` → `Guid`, `format: uri` → `UriString`. An explicit `uav:dataTypeId` or `uav:mapToType` outranks the inference. Anything unrecognized falls back to `BaseDataType` (`i=24`). A bare `integer` or `number` is deliberately abstract: the schema states only that the value is whole or numeric, and a concrete width is recovered from an annotation rather than guessed. |
 | Property `readOnly` and `writeOnly` | **Default** | Missing flags mean read/write access (`CurrentRead | CurrentWrite`, value `3`). If both flags are `true`, the zero-access result is coerced to `CurrentRead` (`1`); this is an arbitrary safety default and should be specified explicitly. |
-| Property `title` | **Default** | No `DisplayName` field is materialized for the variable. |
-| Property `description` | **Default** | No `Description` field is materialized for the variable. |
-| Property type definition | **Default** | `HasTypeDefinition` to `BaseDataVariableType` (`i=63`). |
+| Property `title` | **Default** | No `DisplayName` field is materialized for the variable. A `titles` map materializes one `LocalizedText` per locale, the default locale's entry first (Section 9.1.1). |
+| Property `description` | **Default** | No `Description` field is materialized for the variable. A `descriptions` map materializes one `LocalizedText` per locale. |
+| Property `uav:valueRank` (Sections 7, 9.1) | **Default** / **Fails** | Absent: `ValueRank` `-1` (Scalar), which is what a NodeSet omits. Present: the stated rank, so `-3`, `-2`, `-1`, `0` and a fixed positive rank stay distinct. Not an integer literal, or below `-3`: `InvalidValueRank` error. |
+| Property `uav:arrayDimensions` (Sections 7, 9.1) | **Default** / **Fails** | Absent: no `ArrayDimensions` attribute. Present: the ordered bounds, with `0` meaning a dimension whose length is not fixed. Not an array of non-negative integers, a length other than a fixed `uav:valueRank`, or any dimension against a rank that fixes none: `InvalidValueRank` error. |
+| Property type definition | **Default** | `HasTypeDefinition` to `BaseDataVariableType` (`i=63`). An affordance that binds itself to `PropertyType` (`i=68`) is held by `HasProperty` rather than `HasComponent`, which is the only ReferenceType OPC 10000-3 reaches a Property through. |
 | Action affordance `uav:browseName` | **Default** | The affordance map key is used as the local name and BrowseName `1:<key>`. |
 | Action affordance `uav:id` | **Default** | Deterministic NodeId `ns=1;s=<rootLocal>/<actionLocal>`. |
 | Action `title` | **Default** | No `DisplayName` field is materialized for the method. |
@@ -54,9 +56,13 @@ them.
 | `uav:isComposite` (Section 6.1) | **Default** / **Fails** | Absent: the type is treated as atomic and no `HasComponent` walk is forced. Malformed (non-boolean): `InvalidModelVocabularyValue` error and `ToNodeSet` throws. Present and valid: the flag has no distinct readable NodeSet structure, so it is carried verbatim through the `uav:nodes` residue and restored on the reverse conversion. |
 | `uav:contains` (Section 6.3) | **Default** / **Fails** | Absent: sub-components come from links only. Malformed (not an array, or an entry that does not match a link `uav:refName` declared on the same type): `InvalidContainment` error. Present and valid: preserved via residue. |
 | `uav:containedIn` (Section 6.3) | **Default** / **Fails** | Absent: no parent is recorded. Malformed (not a non-empty string, or naming the type itself, which is a cycle): `InvalidContainment` error. The reciprocal "the named composite exists" check is cross-document and out of scope for the single-document converter, which validates range and self-cycle only. Present and valid: preserved via residue. |
-| `uav:unitProperty` (Section 6.5) | **Default** / **Fails** | Absent: the value is treated as already in engineering units and no `EngineeringUnits` pointer is recorded. Malformed (not a non-empty RFC 6901 JSON Pointer resolving, within the same document, to a string property): `InvalidUnitPointer` error. Present and valid: preserved via residue. |
-| `uav:scaleFactor` (Section 6.5) | **Default** / **Fails** | Absent: identity scaling (factor `1`). Malformed (not a non-zero number): `InvalidModelVocabularyValue` error. Present and valid: preserved via residue. |
-| `uav:decimalPlaces` (Section 6.5) | **Default** / **Fails** | Absent: no rounding is recorded. Malformed (not an integer greater than or equal to zero; `2.0` is rejected as a non-integer literal): `InvalidModelVocabularyValue` error. Present and valid: preserved via residue. |
+| `uav:unitProperty` (Section 6.4) | **Default** / **Fails** | Absent: the affordance names no unit Property. Malformed (not a canonical RFC 6901 pointer of the form `/properties/<name>`, naming the affordance that carries it, or resolving to something other than a sibling property affordance whose DataSchema `type` is `string`): `InvalidUnitPointer` error. Present and valid: the named affordance becomes the annotated Variable's own `EngineeringUnits` Property (`HasProperty`), unless it states its own `uav:componentOf`. |
+| `uav:engineeringUnits` (Section 6.4.1) | **Default** / **Fails** | Absent: no `EUInformation` value is materialized. Malformed (not an object carrying `namespaceUri`, an integer `unitId` and `displayName`): `InvalidEngineeringUnits` error. Present and valid: the affordance's Variable gets `DataType` `EUInformation` (`i=887`) — unless `uav:mapToType` pins another — and a `Value` holding the `EUInformation` in its default XML encoding (`i=888`). |
+| `minimum` / `maximum` (Section 6.4.1) | **Default** / **Fails** | Absent, or only one of the two: no `EURange` Property is materialized. `minimum` above `maximum`: `InvalidRangeValue` error. Present and valid: an `EURange` Property (`Range` `i=884`, `HasTypeDefinition` `PropertyType`, `HasModellingRule` `Mandatory`, NodeId `ns=1;s=<rootLocal>/<propertyLocal>/EURange`) holding the interval, or the value of the `EURange` affordance the document authored itself. |
+| `uav:instrumentRange` (Section 6.4.1) | **Default** / **Fails** | Absent: no `InstrumentRange` Property. Malformed, or an engineering range not contained in it: `InvalidRangeValue` error. Present and valid: an `InstrumentRange` Property (`Range` `i=884`, `HasModellingRule` `Optional`) holding the interval. |
+| `uav:scaleFactor` (Section 6.4) | **Default** / **Fails** | Absent: identity scaling (factor `1`). Malformed (not a non-zero number): `InvalidModelVocabularyValue` error. Present and valid: preserved via residue. It is a static presentation and transport transform, never derived from — nor used to derive — `EngineeringUnits`, `EURange` or `InstrumentRange`. |
+| `uav:decimalPlaces` (Section 6.4) | **Default** / **Fails** | Absent: no rounding is recorded. Malformed (not an integer greater than or equal to zero; `2.0` is rejected as a non-integer literal): `InvalidModelVocabularyValue` error. Present and valid: preserved via residue. |
+| `titles` / `descriptions` (Section 9.1.1) | **Default** / **Fails** | Absent: the singular member alone materializes one locale-free `LocalizedText` — the form a UANodeSet writes when it names one language — or one tagged with the document's `@language` where the context declares it. A plural member without its singular member, without an entry for the document's default locale, or whose default-locale entry differs from the singular member: `InvalidLocalizedText` error. |
 | `uav:semanticId` (Section 6.7) | **Default** / **Fails** | Absent: no semantic reference is recorded. Malformed (not an absolute IRI with a scheme): `NonAbsoluteIri` error. Present and valid: preserved via residue. |
 | `uav:metadata` (Section 6.7) | **Default** | Absent: nothing is recorded. Present: opaque; carried verbatim through residue, never validated and never a reason to reject the document (Section 6.7). |
 | `uav:propertyConfiguration` (Section 6.7) | **Default** | Absent: nothing is recorded. Present: opaque per-affordance configuration; carried verbatim through residue and never validated. |
@@ -205,13 +211,12 @@ semantic normal forms to be equal.
 ## Model and platform vocabulary (Section 6)
 
 The WoT Binding Section 6 model- and platform-vocabulary terms
-(composition, containment, naming, units and scaling, semantics,
-inheritance) and the anchored browse-path term of Section 5.1.4 are
-**readable annotations**: they record OPC UA model facts but have no
-distinct structure that this converter materializes into the readable
-NodeSet (it does not model, for example, `AnalogUnitType`,
-`EngineeringUnits`, or `HasDictionaryEntry` structures). The converter
-therefore handles them in one direction with full round-trip fidelity:
+(composition, containment, naming, semantics, inheritance) and the
+anchored browse-path term of Section 5.1.4 are **readable annotations**:
+they record OPC UA model facts but have no distinct structure that this
+converter materializes into the readable NodeSet (it does not model, for
+example, a `HasDictionaryEntry` structure). The converter therefore
+handles them in one direction with full round-trip fidelity:
 
 - **WoT to NodeSet.** Each term is validated during synthesis against
   the per-term domain and range table of Section 7. A malformed value is
@@ -226,10 +231,10 @@ therefore handles them in one direction with full round-trip fidelity:
   captured for a term is re-applied by JSON Pointer.
 - **Round-trip.** A document carrying these terms survives
   WoT &rarr; NodeSet &rarr; WoT unchanged. Affordance-level terms
-  (`uav:scaleFactor`, `uav:decimalPlaces`, `uav:unitProperty`,
-  `uav:semanticId`) are preserved under the affordance's projected local
-  name, so an affordance that also carries `uav:browseName` round-trips
-  under that browse name's local part rather than its original map key.
+  (`uav:scaleFactor`, `uav:decimalPlaces`, `uav:semanticId`) are
+  preserved under the affordance's projected local name, so an affordance
+  that also carries `uav:browseName` round-trips under that browse name's
+  local part rather than its original map key.
 
 The opaque terms `uav:metadata`, `uav:propertyConfiguration`,
 `uav:actionConfiguration` and `uav:eventConfiguration` are never
@@ -242,6 +247,92 @@ directions map it rather than carrying it. A NodeSet whose EventType declares a
 authoring the term materializes that Property. Because the term is mapped it is
 **not** also captured as residue — an out-of-range value, which is not mapped,
 still is, so a rejected document keeps what its author wrote.
+
+## Engineering units, ranges and scaling (Sections 6.4 and 6.4.1)
+
+`unit`, `uav:unitProperty`, `uav:engineeringUnits`, `minimum`/`maximum` and
+`uav:instrumentRange` are **mapped**, not carried: each names a Property Node
+of an `AnalogUnitType` or `AnalogItemType` Variable, and both directions
+materialize it.
+
+**NodeSet to WoT.** For every Variable that holds them, the converter decodes
+the three OPC 10000-8 Properties:
+
+- `EngineeringUnits` projects to a property affordance of its own. That
+  affordance carries `type: "string"` — what a client reads there at run time —
+  the definitive `uav:mapToType` `i=887`, and `uav:engineeringUnits` with the
+  `EUInformation`'s `namespaceUri`, integer `unitId`, `displayName` and
+  `description`. The authority and its machine-readable code are what a display
+  string alone cannot recover.
+- The annotated Variable's affordance states `unit` (the `EUInformation`
+  `DisplayName`, never a quantity kind) and `uav:unitProperty`, a canonical
+  `/properties/<name>` pointer at that sibling affordance.
+- `EURange` becomes `minimum` and `maximum`; `InstrumentRange` becomes
+  `uav:instrumentRange`.
+
+Only a Property whose value actually decodes contributes. A foreign encoding, a
+partial structure or a missing value leaves the Property an ordinary affordance,
+the readable mapping is then incomplete, and the `uav:nodes` projection carries
+it — a reported gap rather than a number nobody wrote. Nothing is ever derived
+from the width of a DataType: an `Int16` reads from −32768 to 32767, and that is
+a fact about the machine representation rather than an engineering range.
+
+**WoT to NodeSet.** `uav:engineeringUnits` materializes the `EUInformation`
+value; `uav:unitProperty` makes the affordance it names a `HasProperty` child of
+the annotated Variable, unless that affordance states its own `uav:componentOf`;
+`minimum`/`maximum` and `uav:instrumentRange` materialize `EURange` and
+`InstrumentRange` Properties (`Range` `i=884`, `PropertyType`), or fill in the
+value of the Node an authored `EURange`/`InstrumentRange` affordance already
+produced.
+
+`uav:scaleFactor` and `uav:decimalPlaces` stay readable annotations carried
+through residue. Section 6.4 describes them as a static presentation and
+transport transform, so a converter neither derives them from the analog
+Properties nor derives those Properties from them; a source NodeSet that states
+neither never gains either.
+
+## Localized text (Section 9.1.1)
+
+`DisplayName` and `Description` are `LocalizedText`, and both directions carry
+every locale.
+
+**NodeSet to WoT.** The document's default locale is the locale the root Node's
+own `DisplayName` (or `Description`) states, declared as the `@language` of the
+generated `@context`; a source that names none declares none, and Section
+9.1.1's `en` then applies. A Node with one locale writes `title` and
+`description` alone. A Node with several writes the plural `titles` and
+`descriptions` maps as well, and the singular member is always the
+default-locale entry, so the two never disagree. Where a Node's locales do not
+include the document's default locale, the plural member is **not** written —
+inventing an entry would state a translation the source never made — and the
+completeness check reports the gap so preservation carries the rest.
+
+**WoT to NodeSet.** A plural member becomes one `LocalizedText` per entry with
+the default locale's entry first, which is the one the Node's own attribute
+carries. A singular member alone becomes one `LocalizedText` tagged with the
+document's declared `@language`, or untagged where the context declares none —
+the form a UANodeSet writes when it names one language without saying which.
+
+The mapping applies to the root, to property, action and event affordances, to
+event fields, to `Method` argument descriptions, and to DataType definitions and
+their structure and enumeration fields. A field's `DisplayName` used to be
+dropped on the way out; it is now `title`.
+
+## ValueRank and ArrayDimensions (Sections 7 and 9.1)
+
+A DataSchema's `type` says whether a value is an array, not which of the five
+things an OPC 10000-3 ValueRank says. `uav:valueRank` and `uav:arrayDimensions`
+are therefore emitted and read on ordinary Variable affordances as well as on
+`Method` arguments, event fields and DataType-definition fields.
+
+The scalar rank `-1` is the default a NodeSet omits, so it is not restated;
+`-3` (ScalarOrOneDimension), `-2` (Any), `0` (OneOrMoreDimensions) and every
+fixed positive rank are written and read back exactly, and none of them is
+collapsed to a scalar. `uav:arrayDimensions` carries one bound per dimension —
+`0` for a dimension whose length is not fixed — so its length is the rank by
+construction: a count that disagrees with a fixed rank, or any dimension against
+a rank that fixes none, is an `InvalidValueRank` error rather than a silently
+malformed Variable.
 
 ## Method arguments (Section 9.1)
 

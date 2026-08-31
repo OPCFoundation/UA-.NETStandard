@@ -469,8 +469,8 @@ namespace Opc.Ua.Wot
             foreach (KeyValuePair<string, JsonElement> affordance in document.Events)
             {
                 if (affordance.Value.ValueKind != JsonValueKind.Object ||
-                    !HasNonEmptyString(affordance.Value, ConditionTypeTerm) &&
-                    !HasNonEmptyString(affordance.Value, ConditionTypeIdTerm))
+                    (!HasNonEmptyString(affordance.Value, ConditionTypeTerm) &&
+                        !HasNonEmptyString(affordance.Value, ConditionTypeIdTerm)))
                 {
                     continue;
                 }
@@ -721,8 +721,8 @@ namespace Opc.Ua.Wot
                 if (!reference.IsForward &&
                     reference.Value is { Length: > 0 } target &&
                     (string.Equals(reference.ReferenceType, "HasSubtype", StringComparison.Ordinal) ||
-                     string.Equals(
-                         reference.ReferenceType, WotVocabulary.HasSubtype, StringComparison.Ordinal)))
+                        string.Equals(
+                            reference.ReferenceType, WotVocabulary.HasSubtype, StringComparison.Ordinal)))
                 {
                     return target;
                 }
@@ -802,7 +802,8 @@ namespace Opc.Ua.Wot
             WotConditionProjection projection,
             string[]? namespaceUris,
             UANodeSet nodeSet,
-            Dictionary<string, UANode> index)
+            Dictionary<string, UANode> index,
+            string defaultLocale)
         {
             if (projection.IsCondition)
             {
@@ -839,7 +840,7 @@ namespace Opc.Ua.Wot
                 }
                 declared.TryGetValue(field.Name, out UAVariable? node);
                 writer.WritePropertyName(field.Name);
-                WriteStandardEventField(writer, field, node);
+                WriteStandardEventField(writer, field, node, defaultLocale);
                 if (IsRequiredEventField(field, node))
                 {
                     required.Add(field.Name);
@@ -857,7 +858,8 @@ namespace Opc.Ua.Wot
                     continue;
                 }
                 writer.WritePropertyName(field.Key);
-                WriteDeclaredEventField(writer, field.Value, namespaceUris, nodeSet);
+                WriteDeclaredEventField(
+                    writer, field.Value, namespaceUris, nodeSet, defaultLocale);
                 if (IsMandatory(field.Value))
                 {
                     required.Add(field.Key);
@@ -963,7 +965,8 @@ namespace Opc.Ua.Wot
         private static void WriteStandardEventField(
             Utf8JsonWriter writer,
             WotStandardEventField field,
-            UAVariable? declared)
+            UAVariable? declared,
+            string defaultLocale)
         {
             writer.WriteStartObject();
             switch (field.Kind)
@@ -1007,7 +1010,7 @@ namespace Opc.Ua.Wot
             }
             if (declared is not null)
             {
-                WriteDescription(writer, declared.Description);
+                WriteLocalizedDescription(writer, declared.Description, defaultLocale);
             }
             writer.WriteEndObject();
         }
@@ -1027,11 +1030,13 @@ namespace Opc.Ua.Wot
             Utf8JsonWriter writer,
             UAVariable field,
             string[]? namespaceUris,
-            UANodeSet nodeSet)
+            UANodeSet nodeSet,
+            string defaultLocale)
         {
             writer.WriteStartObject();
             WriteArgumentJsonType(writer, field.DataType);
-            WriteDescription(writer, field.Description);
+            WriteLocalizedTitle(writer, field.DisplayName, defaultLocale);
+            WriteLocalizedDescription(writer, field.Description, defaultLocale);
             WriteOptional(
                 writer,
                 "uav:browseName",
@@ -1190,7 +1195,7 @@ namespace Opc.Ua.Wot
                 WotDiagnosticSeverity.Warning,
                 WotDiagnosticCode.ConditionActionTargetUnresolved,
                 $"The Method '{method.BrowseName}' names the Condition Method '{action}', " +
-                $"which acts on one Event occurrence, but it neither declares an " +
+                "which acts on one Event occurrence, but it neither declares an " +
                 $"'{EventIdField}' input argument nor states the standard " +
                 "MethodDeclarationId OPC 10000-9 gives that Method. A pairing without an " +
                 $"'{EventIdField}' input is one WoT Binding Section 13.4 rejects, so the " +
@@ -1387,8 +1392,12 @@ namespace Opc.Ua.Wot
 
             foreach (JsonProperty member in properties.EnumerateObject())
             {
-                string pointer = "/events/" + EscapeJsonPointerToken(key) + "/" + DataMember +
-                    "/properties/" + EscapeJsonPointerToken(member.Name);
+                string pointer = "/events/" +
+                    EscapeJsonPointerToken(key) +
+                    "/" +
+                    DataMember +
+                    "/properties/" +
+                    EscapeJsonPointerToken(member.Name);
                 if (member.Value.ValueKind != JsonValueKind.Object)
                 {
                     diagnostics.Add(new WotDiagnostic(
@@ -1412,7 +1421,7 @@ namespace Opc.Ua.Wot
                     diagnostics.Add(new WotDiagnostic(
                         WotDiagnosticSeverity.Error,
                         WotDiagnosticCode.EventFieldInvalid,
-                        $"Two members of an event 'data' object name the same EventType " +
+                        "Two members of an event 'data' object name the same EventType " +
                         $"field '{local}'. One field cannot be declared twice, so the " +
                         "second is carried by preservation rather than materialized.",
                         WotLocation.FromPointer(pointer)));
@@ -1459,7 +1468,7 @@ namespace Opc.Ua.Wot
                 BrowseName = authoredBrowseName is null
                     ? "1:" + local
                     : ToNodeSetQualifiedName(document, authoredBrowseName, nodeSet, diagnostics),
-                DisplayName = MakeText(GetElementString(schema, "title") ?? local),
+                DisplayName = ReadTitle(schema, GetDeclaredLocale(document), local),
                 ParentNodeId = eventNodeId,
                 DataType = MapJsonSchemaToDataType(document, schema, nodeSet, diagnostics),
                 ValueRank = GetElementInt32(schema, "uav:valueRank") ?? -1,
@@ -1492,7 +1501,7 @@ namespace Opc.Ua.Wot
             string? description = GetElementString(schema, "description");
             if (description is not null)
             {
-                field.Description = MakeText(description);
+                field.Description = ReadDescription(schema, GetDeclaredLocale(document));
             }
             items.Add(field);
             eventReferences.Add(new Reference
@@ -1620,10 +1629,12 @@ namespace Opc.Ua.Wot
                         WotDiagnosticCode.ConditionActionNotDeclared,
                         $"A '{conditionAction}' action acts on an event projecting " +
                         $"'{(typeName.Length > 0 ? typeName : "BaseEventType")}', which does " +
-                        $"not declare that Method. OPC 10000-9 declares it on " +
+                        "not declare that Method. OPC 10000-9 declares it on " +
                         $"'{declaringName}' (WoT Binding Sections 13.1 and 13.4).",
                         WotLocation.FromPointer(
-                            "/actions/" + EscapeJsonPointerToken(key) + "/" +
+                            "/actions/" +
+                            EscapeJsonPointerToken(key) +
+                            "/" +
                             ConditionActionTerm)));
                 }
                 return null;

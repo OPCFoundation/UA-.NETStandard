@@ -31,9 +31,9 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
-using System.Text.Json;
 using Opc.Ua.Export;
 
 namespace Opc.Ua.Wot
@@ -44,13 +44,14 @@ namespace Opc.Ua.Wot
     /// </summary>
     public static partial class WotNodeSetConverter
     {        /// <summary>
-        /// Restores or synthesizes the NodeSet2 document described by a WoT
-        /// document, throwing on any error diagnostic.
-        /// </summary>
-        /// <param name="document">The WoT document.</param>
-        /// <param name="options">Resource limits; defaults are used when omitted.</param>
-        /// <returns>The restored or synthesized NodeSet2 document.</returns>
-        /// <exception cref="FormatException">Thrown when the conversion fails.</exception>
+             /// Restores or synthesizes the NodeSet2 document described by a WoT
+             /// document, throwing on any error diagnostic.
+             /// </summary>
+             /// <param name="document">The WoT document.</param>
+             /// <param name="options">Resource limits; defaults are used when omitted.</param>
+             /// <returns>The restored or synthesized NodeSet2 document.</returns>
+             /// <exception cref="FormatException">Thrown when the conversion fails.</exception>
+        /// <exception cref="ArgumentNullException"></exception>
         public static UANodeSet ToNodeSet(
             WotDocument document,
             WotNodeSetConverterOptions? options = null)
@@ -259,6 +260,7 @@ namespace Opc.Ua.Wot
         /// <param name="document">The WoT document.</param>
         /// <param name="options">Resource limits; defaults are used when omitted.</param>
         /// <returns>The conversion result and its diagnostics.</returns>
+        /// <exception cref="ArgumentNullException"></exception>
         public static WotConversionResult<UANodeSet> ToNodeSetResult(
             WotDocument document,
             WotNodeSetConverterOptions? options = null)
@@ -932,14 +934,18 @@ namespace Opc.Ua.Wot
                     rootBrowseName,
                     nodeSet,
                     diagnostics);
-            rootNode.DisplayName = MakeText(document.Title ?? rootLocal);
-            string? rootDescription = GetRootString(document, "description");
-            if (rootDescription is not null)
-            {
-                rootNode.Description = MakeText(rootDescription);
-            }
+
+            // §9.1.1: every locale the document states survives, and the
+            // default locale's entry is the one the Node's own DisplayName
+            // carries.
+            string? declaredLocale = GetDeclaredLocale(document);
+            rootNode.DisplayName = ReadTitle(
+                document.RootElement, declaredLocale, document.Title ?? rootLocal) ??
+                MakeText(rootLocal);
+            rootNode.Description = ReadDescription(document.RootElement, declaredLocale);
 
             int affordanceCount = 0;
+            var propertyNodeIds = new Dictionary<string, string>(StringComparer.Ordinal);
 
             foreach (KeyValuePair<string, JsonElement> property in document.Properties)
             {
@@ -949,9 +955,16 @@ namespace Opc.Ua.Wot
                 }
                 SynthesizeProperty(
                     document, nodeSet, property.Key, property.Value, rootLocal,
-                    rootNodeId, isThingModel,
-                    items, rootReferences, diagnostics);
+                    rootNodeId, isThingModel, declaredLocale,
+                    items, rootReferences, propertyNodeIds, diagnostics);
             }
+
+            // Sections 6.4 and 6.4.1 relate two affordances - the annotated one
+            // and the sibling that carries its unit - so the analog Properties
+            // are materialized once every affordance has become a Variable.
+            SynthesizeAnalogFacets(
+                document, nodeSet, rootLocal, rootNodeId, propertyNodeIds,
+                items, rootReferences, diagnostics);
 
             foreach (KeyValuePair<string, JsonElement> action in document.Actions)
             {
@@ -1014,8 +1027,10 @@ namespace Opc.Ua.Wot
             string rootLocal,
             string rootNodeId,
             bool isThingModel,
+            string? declaredLocale,
             List<UANode> items,
             List<Reference> rootReferences,
+            Dictionary<string, string> propertyNodeIds,
             List<WotDiagnostic> diagnostics)
         {
             string local = LocalName(GetElementString(schema, "uav:browseName")) ?? key;
@@ -1038,34 +1053,45 @@ namespace Opc.Ua.Wot
                 DataType = MapJsonSchemaToDataType(document, schema, nodeSet, diagnostics),
                 AccessLevel = MapAccessLevel(schema)
             };
-            string? title = GetElementString(schema, "title");
-            if (title is not null)
-            {
-                variable.DisplayName = MakeText(title);
-            }
-            string? description = GetElementString(schema, "description");
-            if (description is not null)
-            {
-                variable.Description = MakeText(description);
-            }
+
+            // §9.1 maps a Variable's DataType together with its ValueRank and
+            // ArrayDimensions, and OPC 10000-3 tells five ranks apart that a
+            // json type cannot.
+            variable.ValueRank = ReadValueRank(schema);
+            variable.ArrayDimensions = ReadArrayDimensions(schema);
+            variable.DisplayName = ReadTitle(schema, declaredLocale);
+            variable.Description = ReadDescription(schema, declaredLocale);
+
+            // §6.4.1: the affordance reads as a string at run time but the Node
+            // behind it holds the EUInformation structure the term states.
+            ApplyEngineeringUnits(variable, schema);
 
             // §9.1: a property may state the Variable it belongs to rather than
             // the Thing. Without this a Variable's own Variables — EURange and
             // EngineeringUnits below an analog Variable — come back re-parented
             // onto the Thing, one level higher than the source put them.
             string owner = ReadComponentOfParent(schema, nodeSet, diagnostics) ?? rootNodeId;
+            string? typeDefinition = ReadAffordanceTypeDefinition(schema, nodeSet, diagnostics);
+
+            // OPC 10000-3 reaches a Property through HasProperty and nothing
+            // else, so an affordance that binds itself to PropertyType - which
+            // is what EngineeringUnits, EURange and every other Property does -
+            // is held that way rather than as a component.
+            string ownership = string.Equals(
+                typeDefinition, WotVocabulary.PropertyType, StringComparison.Ordinal)
+                ? "HasProperty"
+                : "HasComponent";
             var references = new List<Reference>
             {
                 new Reference
                 {
                     ReferenceType = "HasTypeDefinition",
                     IsForward = true,
-                    Value = ReadAffordanceTypeDefinition(schema, nodeSet, diagnostics)
-                        ?? WotVocabulary.BaseDataVariableType
+                    Value = typeDefinition ?? WotVocabulary.BaseDataVariableType
                 },
                 new Reference
                 {
-                    ReferenceType = "HasComponent",
+                    ReferenceType = ownership,
                     IsForward = false,
                     Value = owner
                 }
@@ -1073,25 +1099,54 @@ namespace Opc.Ua.Wot
             AddModellingRule(schema, references);
             variable.ParentNodeId = owner;
             variable.References = [.. references];
-            variable.Value = BuildVariableValue(schema, variable.DataType);
+            variable.Value ??= BuildVariableValue(schema, variable.DataType);
 
             ReportUnsupportedSchema(schema, nodeId, diagnostics);
 
             items.Add(variable);
+            propertyNodeIds[key] = nodeId;
             if (string.Equals(owner, rootNodeId, StringComparison.Ordinal))
             {
                 rootReferences.Add(new Reference
                 {
-                    ReferenceType = "HasComponent",
+                    ReferenceType = ownership,
                     IsForward = true,
                     Value = nodeId
                 });
             }
             else
             {
-                AddOwnedComponent(items, owner, nodeId);
+                AddOwnedComponent(items, owner, nodeId, ownership);
             }
             _ = isThingModel;
+        }
+
+        /// <summary>
+        /// Gets whether the converter maps an affordance's <c>uav:componentOf</c>
+        /// onto the Variable that holds it, which is what decides whether
+        /// preservation must also carry the term.
+        /// </summary>
+        /// <remarks>
+        /// One parent is one inverse component Reference, and the forward
+        /// direction restates it from that Reference. A list naming more than
+        /// one parent states something a single ParentNodeId cannot, so it is
+        /// not mapped and is kept verbatim instead.
+        /// </remarks>
+        internal static bool MapsComponentOf(JsonElement affordance)
+        {
+            if (affordance.ValueKind != JsonValueKind.Object ||
+                !affordance.TryGetProperty("uav:componentOf", out JsonElement declared) ||
+                declared.ValueKind != JsonValueKind.Array ||
+                declared.GetArrayLength() != 1)
+            {
+                return false;
+            }
+            foreach (JsonElement entry in declared.EnumerateArray())
+            {
+                return entry.ValueKind == JsonValueKind.String &&
+                    entry.GetString() is { Length: > 0 };
+            }
+            return false;
         }
 
         /// <summary>
@@ -1122,7 +1177,11 @@ namespace Opc.Ua.Wot
         /// Adds the forward component reference from the owning Variable, so the
         /// child hangs where the document says rather than being orphaned.
         /// </summary>
-        private static void AddOwnedComponent(List<UANode> items, string owner, string nodeId)
+        private static void AddOwnedComponent(
+            List<UANode> items,
+            string owner,
+            string nodeId,
+            string referenceType = "HasComponent")
         {
             foreach (UANode node in items)
             {
@@ -1134,7 +1193,7 @@ namespace Opc.Ua.Wot
                 {
                     new Reference
                     {
-                        ReferenceType = "HasComponent",
+                        ReferenceType = referenceType,
                         IsForward = true,
                         Value = nodeId
                     }
@@ -1310,11 +1369,9 @@ namespace Opc.Ua.Wot
                 MethodDeclarationId = declaration,
                 ParentNodeId = rootNodeId
             };
-            string? title = GetElementString(action, "title");
-            if (title is not null)
-            {
-                method.DisplayName = MakeText(title);
-            }
+            string? declaredLocale = GetDeclaredLocale(document);
+            method.DisplayName = ReadTitle(action, declaredLocale);
+            method.Description = ReadDescription(action, declaredLocale);
 
             string owner = rootNodeId;
             if (isConditionMethod &&
@@ -1395,11 +1452,9 @@ namespace Opc.Ua.Wot
                         diagnostics),
                 IsAbstract = false
             };
-            string? title = GetElementString(eventAffordance, "title");
-            if (title is not null)
-            {
-                eventType.DisplayName = MakeText(title);
-            }
+            string? declaredLocale = GetDeclaredLocale(document);
+            eventType.DisplayName = ReadTitle(eventAffordance, declaredLocale);
+            eventType.Description = ReadDescription(eventAffordance, declaredLocale);
             eventType.References =
             [
                 new Reference
@@ -1523,8 +1578,11 @@ namespace Opc.Ua.Wot
             diagnostics.Add(new WotDiagnostic(
                 WotDiagnosticSeverity.Error,
                 WotDiagnosticCode.InvalidTypeBinding,
-                "The document instantiates a Thing Model that projects '" + extendsTarget +
-                "', but its type binding resolves to '" + boundType + "'. The two must " +
+                "The document instantiates a Thing Model that projects '" +
+                extendsTarget +
+                "', but its type binding resolves to '" +
+                boundType +
+                "'. The two must " +
                 "resolve to the same type node (WoT Binding Section 5.2.1).",
                 new WotLocation(jsonPointer: "/links")));
         }
@@ -1666,19 +1724,19 @@ namespace Opc.Ua.Wot
                 out bool resolvedForward))
             {
                 if (canonicalDefinitive is not null &&
-                !string.Equals(
-                    resolvedName,
-                    canonicalDefinitive,
-                    StringComparison.Ordinal))
+                    !string.Equals(
+                        resolvedName,
+                        canonicalDefinitive,
+                        StringComparison.Ordinal))
                 {
-                diagnostics.Add(new WotDiagnostic(
-                    WotDiagnosticSeverity.Error,
-                    WotDiagnosticCode.ModelConceptConflict,
-                    $"The ReferenceType model name '{modelName}' resolves to " +
-                    $"'{resolvedName}' but uav:refId is '{definitive}'.",
-                    new WotLocation(reference: modelName)));
-                referenceType = string.Empty;
-                return false;
+                    diagnostics.Add(new WotDiagnostic(
+                        WotDiagnosticSeverity.Error,
+                        WotDiagnosticCode.ModelConceptConflict,
+                        $"The ReferenceType model name '{modelName}' resolves to " +
+                        $"'{resolvedName}' but uav:refId is '{definitive}'.",
+                        new WotLocation(reference: modelName)));
+                    referenceType = string.Empty;
+                    return false;
                 }
                 referenceType = resolvedName;
                 isForward = resolvedForward;
@@ -1857,7 +1915,8 @@ namespace Opc.Ua.Wot
             WotDocument document,
             string prefix,
             out string namespaceUri)
-        {            if (string.Equals(prefix, "ua", StringComparison.Ordinal))
+        {
+            if (string.Equals(prefix, "ua", StringComparison.Ordinal))
             {
                 namespaceUri = WotVocabulary.OpcUaNamespace;
                 return true;
@@ -2935,9 +2994,10 @@ namespace Opc.Ua.Wot
             }
             foreach (Reference reference in node.References)
             {
-                if (!reference.IsForward && reference.Value is not null &&
+                if (!reference.IsForward &&
+                    reference.Value is not null &&
                     (string.Equals(reference.ReferenceType, "HasSubtype", StringComparison.Ordinal) ||
-                     string.Equals(reference.ReferenceType, WotVocabulary.HasSubtype, StringComparison.Ordinal)))
+                        string.Equals(reference.ReferenceType, WotVocabulary.HasSubtype, StringComparison.Ordinal)))
                 {
                     return reference.Value;
                 }
