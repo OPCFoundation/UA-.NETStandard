@@ -77,6 +77,13 @@ namespace Opc.Ua.Server.Tests
         [TearDown]
         public void TearDown()
         {
+            // Release the store instances cached on the per-test identifiers;
+            // operations like AddCRL enumerate the store and would otherwise
+            // retain the parsed certificates past the test (flagged by the
+            // assembly-level leak detector).
+            m_trustedStore?.DisposeCachedStore();
+            m_issuerStore?.DisposeCachedStore();
+
             if (Directory.Exists(m_basePath))
             {
                 Directory.Delete(m_basePath, true);
