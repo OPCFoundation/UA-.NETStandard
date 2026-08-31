@@ -1160,82 +1160,72 @@ namespace Opc.Ua.Client
             IRetryBudget budget,
             CancellationToken ct)
         {
+            Session? session = m_session;
+            if (session == null)
+            {
+                // Nothing to reactivate: the initial connect failed before it
+                // created an inner session, and the state machine went straight
+                // from Connecting to Reconnecting. Run a full connect so the
+                // reconnect policy retries it. Reporting Good instead would
+                // move the state machine to Connected with no inner session.
+                return await HandleConnectAsync(ct).ConfigureAwait(false);
+            }
+
             try
             {
-                Session? session;
+                m_logger.ManagedSessionReconnecting();
 
                 using (await m_serviceLock.WriterLockAsync(ct)
                     .ConfigureAwait(false))
                 {
-                    session = m_session;
-                    if (session != null)
+                    try
                     {
-                        m_logger.ManagedSessionReconnecting();
-
-                        try
-                        {
-                            await session.ReconnectAsync(
-                                    budget,
-                                    ct)
-                                .ConfigureAwait(false);
-                        }
-                        catch (ServiceResultException sre) when (
-                            sre.StatusCode == StatusCodes.BadSecureChannelClosed &&
-                            session.ManagedChannel?.State is ChannelState.Closed or ChannelState.Faulted)
-                        {
-                            ConfiguredEndpoint? alternateEndpoint =
-                                SelectNextNetworkEndpoint(ConfiguredEndpoint);
-                            if (alternateEndpoint == null)
-                            {
-                                m_logger.ManagedSessionManagedChannelFaultedRecreatingSession(sre);
-                            }
-                            else
-                            {
-                                m_logger.ManagedSessionManagedChannelFaultedRecreatingSession2(sre);
-                            }
-                            await session.RecreateInPlaceAsync(
-                                    endpoint: alternateEndpoint,
-                                    budget: budget,
-                                    ct: ct)
-                                .ConfigureAwait(false);
-                        }
-                        catch (ServiceResultException sre) when (
-                            RequiresSessionRecreate(sre.StatusCode))
-                        {
-                            // The server-side session can no longer be reactivated
-                            // by a plain reconnect: e.g. under load the server
-                            // processed an ActivateSession (rotating its nonce) but
-                            // the response was lost, so every subsequent reconnect
-                            // signs the now-stale nonce and is rejected with
-                            // BadApplicationSignatureInvalid forever. Fall back to a
-                            // fresh CreateSession/ActivateSession, which establishes
-                            // a new nonce and recovers the session instead of
-                            // looping on the unrecoverable reactivate.
-                            m_logger.ManagedSessionReconnectRejectedStatusRecreatingSession(
-                                sre,
-                                sre.StatusCode);
-                            await session.RecreateInPlaceAsync(
-                                    endpoint: null,
-                                    budget: budget,
-                                    ct: ct)
-                                .ConfigureAwait(false);
-                        }
+                        await session.ReconnectAsync(
+                                budget,
+                                ct)
+                            .ConfigureAwait(false);
                     }
-                }
-
-                if (session == null)
-                {
-                    // There is no inner session to reactivate: the initial
-                    // connect failed before one was created and the state
-                    // machine moved straight from Connecting to Reconnecting
-                    // (or the session was closed concurrently). Run a full
-                    // connect so the reconnect policy actually retries the
-                    // initial connect. Reporting Good here would transition the
-                    // state machine to Connected with a null inner session, so
-                    // the caller would get an apparently connected
-                    // ManagedSession whose every member throws BadNotConnected.
-                    m_logger.ManagedSessionReconnectWithoutSessionConnecting();
-                    return await HandleConnectAsync(ct).ConfigureAwait(false);
+                    catch (ServiceResultException sre) when (
+                        sre.StatusCode == StatusCodes.BadSecureChannelClosed &&
+                        session.ManagedChannel?.State is ChannelState.Closed or ChannelState.Faulted)
+                    {
+                        ConfiguredEndpoint? alternateEndpoint =
+                            SelectNextNetworkEndpoint(ConfiguredEndpoint);
+                        if (alternateEndpoint == null)
+                        {
+                            m_logger.ManagedSessionManagedChannelFaultedRecreatingSession(sre);
+                        }
+                        else
+                        {
+                            m_logger.ManagedSessionManagedChannelFaultedRecreatingSession2(sre);
+                        }
+                        await session.RecreateInPlaceAsync(
+                                endpoint: alternateEndpoint,
+                                budget: budget,
+                                ct: ct)
+                            .ConfigureAwait(false);
+                    }
+                    catch (ServiceResultException sre) when (
+                        RequiresSessionRecreate(sre.StatusCode))
+                    {
+                        // The server-side session can no longer be reactivated
+                        // by a plain reconnect: e.g. under load the server
+                        // processed an ActivateSession (rotating its nonce) but
+                        // the response was lost, so every subsequent reconnect
+                        // signs the now-stale nonce and is rejected with
+                        // BadApplicationSignatureInvalid forever. Fall back to a
+                        // fresh CreateSession/ActivateSession, which establishes
+                        // a new nonce and recovers the session instead of
+                        // looping on the unrecoverable reactivate.
+                        m_logger.ManagedSessionReconnectRejectedStatusRecreatingSession(
+                            sre,
+                            sre.StatusCode);
+                        await session.RecreateInPlaceAsync(
+                                endpoint: null,
+                                budget: budget,
+                                ct: ct)
+                            .ConfigureAwait(false);
+                    }
                 }
 
                 m_reconnectPolicy.Reset();
@@ -2086,10 +2076,6 @@ namespace Opc.Ua.Client
         public static partial void ManagedSessionDisposalAfterConnectionFailureFailed(
             this ILogger logger,
             Exception? exception);
-
-        [LoggerMessage(EventId = ClientEventIds.ManagedSession + 27, Level = LogLevel.Information,
-            Message = "ManagedSession: no session to reconnect; retrying the initial connect.")]
-        public static partial void ManagedSessionReconnectWithoutSessionConnecting(this ILogger logger);
     }
 
 }
