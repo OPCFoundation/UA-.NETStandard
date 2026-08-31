@@ -179,11 +179,10 @@ namespace Opc.Ua.Server
                 BrowseName = BrowseNames.DefaultApplicationGroup,
                 CertificateTypes = [],
                 ApplicationCertificates = [],
-                IssuerStore = new CertificateStoreIdentifier(
-                    configuration.SecurityConfiguration.TrustedIssuerCertificates.StorePath!
-                ),
-                TrustedStore = new CertificateStoreIdentifier(
-                    configuration.SecurityConfiguration.TrustedPeerCertificates.StorePath!)
+                IssuerStore = CreateGroupStoreIdentifier(
+                    configuration.SecurityConfiguration.TrustedIssuerCertificates),
+                TrustedStore = CreateGroupStoreIdentifier(
+                    configuration.SecurityConfiguration.TrustedPeerCertificates)
             };
             m_certificateGroups.Add(defaultApplicationGroup);
 
@@ -196,11 +195,10 @@ namespace Opc.Ua.Server
                     BrowseName = BrowseNames.DefaultUserTokenGroup,
                     CertificateTypes = [],
                     ApplicationCertificates = [],
-                    IssuerStore = new CertificateStoreIdentifier(
-                        configuration.SecurityConfiguration.UserIssuerCertificates.StorePath!
-                    ),
-                    TrustedStore = new CertificateStoreIdentifier(
-                        configuration.SecurityConfiguration.TrustedUserCertificates.StorePath!)
+                    IssuerStore = CreateGroupStoreIdentifier(
+                        configuration.SecurityConfiguration.UserIssuerCertificates),
+                    TrustedStore = CreateGroupStoreIdentifier(
+                        configuration.SecurityConfiguration.TrustedUserCertificates)
                 };
 
                 m_certificateGroups.Add(defaultUserGroup);
@@ -215,11 +213,10 @@ namespace Opc.Ua.Server
                     BrowseName = BrowseNames.DefaultHttpsGroup,
                     CertificateTypes = [],
                     ApplicationCertificates = [],
-                    IssuerStore = new CertificateStoreIdentifier(
-                        configuration.SecurityConfiguration.HttpsIssuerCertificates.StorePath!
-                    ),
-                    TrustedStore = new CertificateStoreIdentifier(
-                        configuration.SecurityConfiguration.TrustedHttpsCertificates.StorePath!)
+                    IssuerStore = CreateGroupStoreIdentifier(
+                        configuration.SecurityConfiguration.HttpsIssuerCertificates),
+                    TrustedStore = CreateGroupStoreIdentifier(
+                        configuration.SecurityConfiguration.TrustedHttpsCertificates)
                 };
 
                 m_certificateGroups.Add(defaultHttpsGroup);
@@ -362,6 +359,12 @@ namespace Opc.Ua.Server
         {
             if (disposing)
             {
+                // Stop reacting to trust-material changes before the
+                // listeners/session manager are torn down. An enforcement
+                // pass already in flight bails out on the shutdown token.
+                m_trustMaterialPump?.Dispose();
+                m_trustMaterialPump = null;
+
                 // Signal only: Dispose is synchronous. A deferred apply already
                 // running stops at its next await once the token trips.
                 m_backgroundWork.Dispose();
@@ -414,6 +417,16 @@ namespace Opc.Ua.Server
                 m_shutdownCts.Dispose();
 
                 StopAlarmMonitoring();
+
+                // Release the per-group store instances cached on the
+                // certificate-group identifiers. Their parsed-certificate
+                // caches are deliberately retained across Close() for reuse,
+                // so they must be disposed explicitly at shutdown.
+                foreach (ServerCertificateGroup certGroup in m_certificateGroups)
+                {
+                    certGroup.TrustedStore?.DisposeCachedStore();
+                    certGroup.IssuerStore?.DisposeCachedStore();
+                }
             }
 
             base.Dispose(disposing);
@@ -605,6 +618,15 @@ namespace Opc.Ua.Server
                     m_serverConfigurationOptions.MaxTrustListSizeSafetyCeiling);
                 certGroup.Node.ClearChangeMasks(systemContext, true);
             }
+
+            // Enforce trust-material changes on live channels/Sessions
+            // regardless of origin: any TrustListUpdated/CrlUpdated raised on
+            // the certificate manager (push ApplyChanges, WriteTrustListAsync,
+            // ITrustListTransaction commits, HA store sync, ...) triggers the
+            // same §7.10.9 effect fan-out that ApplyChanges runs, so a client
+            // whose certificate was revoked out-of-band is cut immediately
+            // instead of at its next security-token renewal.
+            SubscribeTrustMaterialEnforcement();
 
             // OPC 10000-12 §7.8.3: publish the current certificate and CRL
             // state onto the optional alarm inputs (ExpirationDate,
@@ -3701,6 +3723,18 @@ namespace Opc.Ua.Server
                     // and Sessions are left untouched.
                     if (trustListEffects.Count > 0)
                     {
+                        // The push TrustList writes certificates and CRLs
+                        // directly to the stores, so the certificate manager
+                        // must be told the trust material changed: dropping
+                        // its cached validation cores (including the
+                        // validated-certificate fast path) BEFORE the effect
+                        // re-validation below guarantees the sweep observes
+                        // the committed stores rather than a stale snapshot.
+                        // The staged operations do not record whether
+                        // certificates or CRLs changed, so both flags are
+                        // raised conservatively.
+                        NotifyTrustMaterialChanged(trustListEffects);
+
                         await ApplyTrustListEffectsAsync(trustListEffects, listeners)
                             .ConfigureAwait(false);
                     }
@@ -3733,6 +3767,24 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Builds the certificate group's private store identifier from the
+        /// configured trust list, preserving the configured
+        /// <see cref="CertificateStoreIdentifier.StoreType"/>. Re-inferring
+        /// the type from the path alone (the single-argument constructor)
+        /// would silently downgrade a custom store provider (e.g. a shared
+        /// key-value store in an HA set) to a directory store, making the
+        /// push path write through a different store implementation than the
+        /// validator reads.
+        /// </summary>
+        private static CertificateStoreIdentifier CreateGroupStoreIdentifier(
+            CertificateStoreIdentifier source)
+        {
+            return string.IsNullOrEmpty(source.StoreType)
+                ? new CertificateStoreIdentifier(source.StorePath!)
+                : new CertificateStoreIdentifier(source.StorePath!, source.StoreType!);
+        }
+
+        /// <summary>
         /// Disposes the captured old-certificate references of every pending
         /// rotation, tolerating a <see langword="null"/> reference.
         /// </summary>
@@ -3745,9 +3797,63 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Notifies the certificate manager that the stores behind the
+        /// committed TrustList scopes changed, deduplicating scopes so each
+        /// is notified once. Failures are logged and never block the
+        /// subsequent channel/session effects.
+        /// </summary>
+        private void NotifyTrustMaterialChanged(List<TrustListChangeEffect> trustListEffects)
+        {
+            ICertificateManager? certificateManager = m_configuration.CertificateManager;
+            if (certificateManager == null)
+            {
+                return;
+            }
+
+            // Observers are invoked synchronously by the change subject, so
+            // the depth counter reliably marks the events this manager
+            // raises about its own committed changes. The enforcement pump
+            // skips those: the deferred apply below already runs the precise
+            // committed-scope §7.10.9 sweep, and a second pump-driven sweep
+            // over the same scopes would be redundant work.
+            Interlocked.Increment(ref m_selfTrustNotificationDepth);
+            try
+            {
+                var notifiedScopes = new List<TrustListIdentifier>();
+                foreach (TrustListChangeEffect effect in trustListEffects)
+                {
+                    TrustListIdentifier scope = effect.ValidationScope;
+                    if (scope == null || notifiedScopes.Contains(scope))
+                    {
+                        continue;
+                    }
+
+                    notifiedScopes.Add(scope);
+                    try
+                    {
+                        certificateManager.NotifyTrustListChanged(
+                            scope,
+                            trustChanged: true,
+                            crlChanged: true);
+                    }
+                    catch (Exception ex)
+                    {
+                        m_logger.TrustListChangeNotificationFailed(ex, scope.ToString());
+                    }
+                }
+            }
+            finally
+            {
+                Interlocked.Decrement(ref m_selfTrustNotificationDepth);
+            }
+        }
+
+        /// <summary>
         /// Builds the effect context from the running server and applies the
         /// committed §7.10.9 TrustList effects through the injected
-        /// <see cref="IPushConfigurationTrustListEffectHandler"/>.
+        /// <see cref="IPushConfigurationTrustListEffectHandler"/>. Shared by
+        /// the <c>ApplyChanges</c> deferred apply and the origin-independent
+        /// trust-material enforcement pump.
         /// </summary>
         private ValueTask ApplyTrustListEffectsAsync(
             List<TrustListChangeEffect> trustListEffects,
@@ -3766,6 +3872,134 @@ namespace Opc.Ua.Server
             };
 
             return m_trustListEffectHandler.ApplyAsync(context, CancellationToken.None);
+        }
+
+        /// <summary>
+        /// Subscribes the trust-material enforcement pump to the certificate
+        /// manager's change stream. Every
+        /// <see cref="CertificateChangeKind.TrustListUpdated"/> or
+        /// <see cref="CertificateChangeKind.CrlUpdated"/> for a well-known
+        /// server scope — whatever wrote the stores — is coalesced into one
+        /// §7.10.9 effect fan-out over the affected scopes. Sweeping is
+        /// idempotent with the <c>ApplyChanges</c>-driven fan-out: a channel
+        /// already faulted by one sweep is skipped by the other.
+        /// </summary>
+        private void SubscribeTrustMaterialEnforcement()
+        {
+            ICertificateManager? certificateManager = m_configuration.CertificateManager;
+            if (certificateManager == null)
+            {
+                return;
+            }
+
+            m_trustMaterialPump ??= new CertificateChangePump<HashSet<TrustListIdentifier>>(
+                evt => (evt.Kind
+                    is CertificateChangeKind.TrustListUpdated
+                    or CertificateChangeKind.CrlUpdated) &&
+                    // Skip the notifications this manager raises about its
+                    // own ApplyChanges commits: the deferred apply already
+                    // runs the precise committed-scope sweep.
+                    Volatile.Read(ref m_selfTrustNotificationDepth) == 0,
+                static (scopes, evt) =>
+                {
+                    // Union fold: a Users change must never be dropped
+                    // because a Peers change arrived later in the burst.
+                    scopes ??= [];
+                    scopes.Add(evt.TrustList);
+                    return scopes;
+                },
+                EnforceTrustMaterialScopesAsync,
+                ex => m_logger.TrustMaterialEnforcementFailed(ex));
+
+            m_trustMaterialPump.Subscribe(certificateManager.CertificateChanges);
+        }
+
+        /// <summary>
+        /// The trust-material enforcement pump's processing pass: maps the
+        /// coalesced scopes to §7.10.9 effects on the server's certificate
+        /// groups and applies them to the running channels/Sessions. Scopes
+        /// that do not correspond to a server certificate group (e.g.
+        /// <see cref="TrustListIdentifier.Rejected"/> or custom trust lists)
+        /// map to no effect and are ignored.
+        /// </summary>
+        private async ValueTask EnforceTrustMaterialScopesAsync(
+            HashSet<TrustListIdentifier> scopes,
+            CancellationToken cancellationToken)
+        {
+            CancellationToken shutdownToken;
+            try
+            {
+                shutdownToken = m_shutdownCts.Token;
+            }
+            catch (ObjectDisposedException)
+            {
+                return;
+            }
+
+            if (shutdownToken.IsCancellationRequested)
+            {
+                // Server shutting down: never run effects against listeners
+                // and managers that are being torn down.
+                return;
+            }
+
+            List<TrustListChangeEffect> effects = BuildTrustListEffectsForScopes(scopes);
+            if (effects.Count == 0)
+            {
+                return;
+            }
+
+            IReadOnlyList<ITransportListener> listeners
+                = (Server as ITransportListenerRegistryProvider)?.TransportListeners
+                    ?? [];
+
+            await ApplyTrustListEffectsAsync(effects, listeners).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Maps trust-list scopes to the §7.10.9 effects on the server's
+        /// certificate groups, mirroring <see cref="BuildTrustListEffects"/>
+        /// (which maps committed TrustList NodeIds instead of scopes).
+        /// </summary>
+        internal List<TrustListChangeEffect> BuildTrustListEffectsForScopes(
+            IEnumerable<TrustListIdentifier> scopes)
+        {
+            var effects = new List<TrustListChangeEffect>();
+            foreach (TrustListIdentifier scope in scopes)
+            {
+                if (scope == null)
+                {
+                    continue;
+                }
+
+                foreach (ServerCertificateGroup certGroup in m_certificateGroups)
+                {
+                    TrustListIdentifier groupScope =
+                        certGroup.BrowseName == BrowseNames.DefaultUserTokenGroup
+                            ? TrustListIdentifier.Users
+                            : certGroup.BrowseName == BrowseNames.DefaultHttpsGroup
+                                ? TrustListIdentifier.Https
+                                : TrustListIdentifier.Peers;
+                    if (groupScope != scope)
+                    {
+                        continue;
+                    }
+
+                    effects.Add(new TrustListChangeEffect
+                    {
+                        TrustListId = certGroup.Node?.TrustList?.NodeId ?? NodeId.Null,
+                        CertificateGroupId = certGroup.NodeId,
+                        Kind = scope == TrustListIdentifier.Users
+                            ? TrustListEffectKind.UserIdentityTrust
+                            : TrustListEffectKind.SecureChannelTrust,
+                        ValidationScope = scope
+                    });
+
+                    break;
+                }
+            }
+
+            return effects;
         }
 
         /// <inheritdoc/>
@@ -4483,6 +4717,8 @@ namespace Opc.Ua.Server
         private Task m_pendingApplyChangesTask = Task.CompletedTask;
         private Task m_pendingResetTask = Task.CompletedTask;
         private readonly CancellationTokenSource m_shutdownCts = new();
+        private CertificateChangePump<HashSet<TrustListIdentifier>>? m_trustMaterialPump;
+        private int m_selfTrustNotificationDepth;
         private readonly BackgroundTaskScope m_backgroundWork =
             new(nameof(ConfigurationNodeManager), AmbientMessageContext.Telemetry);
         private readonly AsyncLocal<List<PendingCertificateRotation>?> m_activeRotationCollector = new();
@@ -4671,5 +4907,18 @@ namespace Opc.Ua.Server
             this ILogger logger,
             Exception ex,
             string group);
+
+        [LoggerMessage(EventId = ServerEventIds.ConfigurationNodeManager + 31, Level = LogLevel.Warning,
+            Message = "Failed to notify the certificate manager of the TrustList change for scope {Scope}.")]
+        public static partial void TrustListChangeNotificationFailed(
+            this ILogger logger,
+            Exception ex,
+            string scope);
+
+        [LoggerMessage(EventId = ServerEventIds.ConfigurationNodeManager + 32, Level = LogLevel.Warning,
+            Message = "Trust-material change enforcement pass failed.")]
+        public static partial void TrustMaterialEnforcementFailed(
+            this ILogger logger,
+            Exception ex);
     }
 }

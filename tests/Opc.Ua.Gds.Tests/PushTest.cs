@@ -41,6 +41,8 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using NUnit.Framework;
 using Opc.Ua.Client;
+using Opc.Ua.Configuration;
+using Opc.Ua.Gds.Client;
 using Opc.Ua.Gds.Server;
 using Opc.Ua.Security.Certificates;
 using Opc.Ua.Test;
@@ -1289,6 +1291,241 @@ namespace Opc.Ua.Gds.Tests
             // listener socket stays bound, only the channel is cut.
             await VerifyNewPushServerCertAsync(serverCert.RawData.ToByteString())
                 .ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// End-to-end enforcement of a pushed CRL against a connected client
+        /// (OPC UA Part 12 §7.10.9): a client whose CA-issued application
+        /// certificate is revoked by a CRL committed through
+        /// <c>CloseAndUpdate</c> + <c>ApplyChanges</c> must lose its
+        /// SecureChannel shortly after the response — without waiting for
+        /// its security-token renewal — and must not be able to reconnect.
+        /// </summary>
+        [Test]
+        [Order(702)]
+        public async Task PushedCrlDisconnectsRevokedClientAsync()
+        {
+            if (m_certificateType != OpcUa.ObjectTypeIds.RsaSha256ApplicationCertificateType)
+            {
+                Assert.Ignore("Test only supported for RSA");
+            }
+
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            const string victimAppUri = "urn:localhost:opcfoundation.org:CrlPushVictim";
+            const string victimSubject = "CN=CRL Push Victim, O=OPC Foundation";
+
+            using Certificate victimCa = CertificateBuilder
+                .Create("CN=CRL Push Victim CA, O=OPC Foundation")
+                .SetCAConstraint()
+                .SetRSAKeySize(2048)
+                .CreateForRSA();
+            X509CRL emptyCaCrl = DefaultCertificateIssuer.Instance.RevokeCertificates(
+                victimCa, null, null);
+            using Certificate victimCert = CertificateBuilder
+                .Create(victimSubject)
+                .AddExtension(new X509SubjectAltNameExtension(
+                    victimAppUri,
+                    new[] { Utils.GetHostName() }))
+                .SetIssuer(victimCa)
+                .SetRSAKeySize(2048)
+                .CreateForRSA();
+
+            // 1. Trust the CA (with its fresh, empty CRL) on the push server.
+            await ConnectPushClientAsync(true).ConfigureAwait(false);
+            TrustListDataType originalTrustList = await m_pushClient.PushClient
+                .ReadTrustListAsync().ConfigureAwait(false);
+            originalTrustList.SpecifiedLists = (uint)TrustListMasks.All;
+
+            ServerPushConfigurationClient victim = null;
+            ApplicationInstance victimApp = null;
+            try
+            {
+                TrustListDataType withCa = await m_pushClient.PushClient
+                    .ReadTrustListAsync().ConfigureAwait(false);
+                withCa.SpecifiedLists = (uint)TrustListMasks.All;
+                ArrayOf<ByteString> addedTrustedCerts = new ByteString[]
+                {
+                    victimCa.RawData.ToByteString()
+                };
+                ArrayOf<ByteString> addedTrustedCrls = new ByteString[]
+                {
+                    emptyCaCrl.RawData.ToByteString()
+                };
+                withCa.TrustedCertificates = withCa.TrustedCertificates.AddItems(addedTrustedCerts);
+                withCa.TrustedCrls = withCa.TrustedCrls.AddItems(addedTrustedCrls);
+                Assert.That(
+                    await m_pushClient.PushClient.UpdateTrustListAsync(withCa).ConfigureAwait(false),
+                    Is.True);
+                await m_pushClient.PushClient.ApplyChangesAsync().ConfigureAwait(false);
+                await Task.Delay(TimeSpan.FromMilliseconds(1500)).ConfigureAwait(false);
+
+                // 2. Build the victim client whose application certificate is
+                // issued by the now-trusted CA.
+                string victimPkiRoot = Path.Combine(
+                    Path.GetTempPath(),
+                    "OPC",
+                    "pki-victim-" + Guid.NewGuid().ToString("N")[..8]);
+                victimApp = new ApplicationInstance(telemetry)
+                {
+                    ApplicationName = "CRL Push Victim",
+                    ApplicationType = ApplicationType.Client,
+                    ConfigSectionName = "Opc.Ua.CrlPushVictim"
+                };
+                ArrayOf<CertificateIdentifier> victimCertIds =
+                    Configuration.ApplicationConfigurationBuilder.CreateDefaultApplicationCertificates(
+                        victimSubject,
+                        CertificateStoreType.Directory,
+                        victimPkiRoot);
+                ApplicationConfiguration victimConfig = await victimApp
+                    .Build(victimAppUri, "http://opcfoundation.org/UA/CrlPushVictim")
+                    .AsClient()
+                    .AddSecurityConfiguration(victimCertIds, victimPkiRoot, victimPkiRoot)
+                    .SetAutoAcceptUntrustedCertificates(true)
+                    .SetRejectSHA1SignedCertificates(false)
+                    .SetMinimumCertificateKeySize(1024)
+                    .CreateAsync()
+                    .ConfigureAwait(false);
+
+                // Seed the victim's own store with the CA-issued certificate
+                // (and its issuer chain) BEFORE the instance check, so the
+                // check adopts it instead of creating a self-signed one.
+                CertificateIdentifier victimId =
+                    victimConfig.SecurityConfiguration.ApplicationCertificate;
+                var ownStoreId = new CertificateStoreIdentifier(victimId.StorePath, noPrivateKeys: false);
+                using (ICertificateStore ownStore = ownStoreId.OpenStore(telemetry))
+                {
+                    await ownStore.AddAsync(victimCert).ConfigureAwait(false);
+                }
+                var victimIssuerStoreId = new CertificateStoreIdentifier(
+                    victimConfig.SecurityConfiguration.TrustedIssuerCertificates.StorePath);
+                using (ICertificateStore issuerStore = victimIssuerStoreId.OpenStore(telemetry))
+                {
+                    using Certificate victimCaPublic = Certificate.FromRawData(victimCa.RawData);
+                    await issuerStore.AddAsync(victimCaPublic).ConfigureAwait(false);
+                    await issuerStore.AddCRLAsync(emptyCaCrl).ConfigureAwait(false);
+                }
+                Assert.That(
+                    await victimApp.CheckApplicationInstanceCertificatesAsync(true).ConfigureAwait(false),
+                    Is.True);
+
+                victim = new ServerPushConfigurationClient(victimConfig)
+                {
+                    AdminCredentials = m_pushClient.SysAdminUser,
+                    Endpoint = new ConfiguredEndpoint(
+                        null,
+                        m_pushClient.PushClient.Endpoint.Description,
+                        EndpointConfiguration.Create(victimConfig))
+                };
+                await victim.ConnectAsync().ConfigureAwait(false);
+
+                // Sanity: the CA-issued victim is connected and can talk to
+                // the server before the revocation.
+                _ = await victim.GetSupportedKeyFormatsAsync().ConfigureAwait(false);
+
+                // 3. Push the CRL revoking the victim and apply it. The CRL
+                // set replaces the CA's empty CRL with the revoking one.
+                using var revoked = new CertificateCollection { victimCert };
+                X509CRL revokingCrl = DefaultCertificateIssuer.Instance.RevokeCertificates(
+                    victimCa,
+                    new X509CRLCollection { emptyCaCrl },
+                    revoked);
+
+                TrustListDataType withRevocation = await m_pushClient.PushClient
+                    .ReadTrustListAsync().ConfigureAwait(false);
+                withRevocation.SpecifiedLists = (uint)TrustListMasks.All;
+                ByteString emptyCaCrlBlob = emptyCaCrl.RawData.ToByteString();
+                var newCrls = new List<ByteString>();
+                foreach (ByteString crlBlob in withRevocation.TrustedCrls)
+                {
+                    if (crlBlob != emptyCaCrlBlob)
+                    {
+                        newCrls.Add(crlBlob);
+                    }
+                }
+                newCrls.Add(revokingCrl.RawData.ToByteString());
+                withRevocation.TrustedCrls = newCrls.ToArrayOf();
+
+                Assert.That(
+                    await m_pushClient.PushClient.UpdateTrustListAsync(withRevocation)
+                        .ConfigureAwait(false),
+                    Is.True);
+                await m_pushClient.PushClient.ApplyChangesAsync().ConfigureAwait(false);
+
+                // Wait for the server-side deferred apply (250 ms grace +
+                // generous safety margin for CI) to complete the channel cut.
+                await Task.Delay(TimeSpan.FromMilliseconds(1500)).ConfigureAwait(false);
+
+                // 4. The victim's channel must have been cut, and its
+                // reconnect attempts must fail because its certificate is
+                // revoked — so the next call cannot succeed.
+                Exception failure = null;
+                try
+                {
+                    _ = await victim.GetSupportedKeyFormatsAsync().ConfigureAwait(false);
+                }
+                catch (Exception ex)
+                {
+                    failure = ex;
+                }
+
+                Assert.That(failure, Is.Not.Null,
+                    "The revoked client was expected to lose its connection after the CRL push.");
+                TestContext.Out.WriteLine(
+                    $"Revoked victim client failed as expected: {failure.GetType().Name}: {failure.Message}");
+
+                // The unaffected admin client must still be able to connect.
+                await ConnectPushClientAsync(true).ConfigureAwait(false);
+            }
+            finally
+            {
+                // CA1508 misjudges these null checks: the try block can throw
+                // before either local is assigned.
+#pragma warning disable CA1508
+                if (victim != null)
+                {
+                    try
+                    {
+                        await victim.DisconnectAsync().ConfigureAwait(false);
+                    }
+                    catch
+                    {
+                        // The victim's channel is expected to be dead.
+                    }
+                    await victim.DisposeAsync().ConfigureAwait(false);
+                }
+                if (victimApp != null)
+                {
+                    // Let any in-flight reconnect attempt of the disposed
+                    // client wind down before its certificate manager (and
+                    // with it the cached validation stores) is disposed, so
+                    // a post-disposal validation cannot re-create validator
+                    // state that nothing would release.
+                    await Task.Delay(TimeSpan.FromSeconds(2)).ConfigureAwait(false);
+                    await victimApp.DisposeAsync().ConfigureAwait(false);
+                }
+#pragma warning restore CA1508
+
+                // Restore the original trust material for subsequent tests.
+                try
+                {
+                    await ConnectPushClientAsync(true).ConfigureAwait(false);
+                    if (await m_pushClient.PushClient.UpdateTrustListAsync(originalTrustList)
+                        .ConfigureAwait(false))
+                    {
+                        await m_pushClient.PushClient.ApplyChangesAsync().ConfigureAwait(false);
+
+                        // Let the server-side deferred apply (grace period +
+                        // §7.10.9 sweep) finish before the fixture may tear
+                        // the server down, so the sweep never races the
+                        // certificate manager's disposal.
+                        await Task.Delay(TimeSpan.FromMilliseconds(1500)).ConfigureAwait(false);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    TestContext.Out.WriteLine($"Trust list restore failed: {ex.Message}");
+                }
+            }
         }
 
         [Test]

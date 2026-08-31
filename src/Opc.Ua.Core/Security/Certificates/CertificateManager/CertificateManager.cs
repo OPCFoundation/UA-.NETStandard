@@ -1137,11 +1137,13 @@ namespace Opc.Ua
         /// Invalidates cached validation cores for the affected trust
         /// list and dispatches <see cref="CertificateChangeKind.TrustListUpdated"/>
         /// and/or <see cref="CertificateChangeKind.CrlUpdated"/> events.
-        /// Called by <see cref="WriteTrustListAsync"/> and by
+        /// Called by <see cref="WriteTrustListAsync"/>, by
         /// <see cref="TrustListTransaction.CommitAsync"/> after a
-        /// successful apply. No-op when no change kind is set.
+        /// successful apply, and by writers that modify the backing stores
+        /// directly (e.g. the server's GDS push TrustList after
+        /// <c>ApplyChanges</c> commits). No-op when no change kind is set.
         /// </summary>
-        internal void NotifyTrustListChanged(
+        public void NotifyTrustListChanged(
             TrustListIdentifier trustList,
             bool trustChanged,
             bool crlChanged)

@@ -731,16 +731,6 @@ namespace Opc.Ua
                 }
             }
 
-            // check for previously validated certificate.
-            if (UseValidatedCertificates &&
-                m_validatedCertificates.TryGetValue(
-                    certificate.Thumbprint,
-                    out byte[]? certificate2) &&
-                Utils.IsEqual(certificate2, certificate.RawData))
-            {
-                return;
-            }
-
             CertificateIssuerReference? trustedCertificate =
                 await GetTrustedCertificateAsync(certificate, ct).ConfigureAwait(false);
 
@@ -758,6 +748,24 @@ namespace Opc.Ua
                     .ConfigureAwait(false);
 
                 ServiceResult? sresult = PopulateSresultWithValidationErrors(validationErrors);
+
+                // Check for a previously validated certificate. Deliberately
+                // placed AFTER the issuer walk: GetIssuersAsync is what
+                // evaluates the revocation lists, so a cached certificate
+                // that has been revoked since it was first validated (e.g.
+                // by a freshly pushed CRL) is never waved through on the
+                // thumbprint alone. On a clean cache hit the expensive
+                // chain-policy build below is still skipped, which is the
+                // performance intent of UseValidatedCertificates.
+                if (UseValidatedCertificates &&
+                    sresult == null &&
+                    m_validatedCertificates.TryGetValue(
+                        certificate.Thumbprint,
+                        out byte[]? certificate2) &&
+                    Utils.IsEqual(certificate2, certificate.RawData))
+                {
+                    return;
+                }
 
                 // setup policy chain
                 var policy = new X509ChainPolicy

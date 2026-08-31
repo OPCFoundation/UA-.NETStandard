@@ -343,6 +343,22 @@ namespace Opc.Ua
             return store!;
         }
 
+        /// <summary>
+        /// Disposes the cached store instance held by this identifier, if
+        /// any, releasing its parsed-certificate and CRL caches. Owners of a
+        /// long-lived identifier should call this when they shut down: the
+        /// cached store deliberately retains its parsed certificates across
+        /// <see cref="ICertificateStore.Close"/> for reuse, so those
+        /// resources are only released here (or when a configuration change
+        /// replaces the store). A subsequent <see cref="OpenStore()"/>
+        /// re-creates the store.
+        /// </summary>
+        public void DisposeCachedStore()
+        {
+            ICertificateStore? store = Interlocked.Exchange(ref m_store, null);
+            store?.Dispose();
+        }
+
         private ICertificateStore? m_store;
         private readonly bool m_noPrivateKeys;
     }
