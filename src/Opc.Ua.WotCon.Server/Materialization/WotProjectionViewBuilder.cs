@@ -590,7 +590,12 @@ namespace Opc.Ua.WotCon.Server.Materialization
         {
             var members = new List<string>();
             CollectPortableMembers(root, members);
-            members.Sort(StringComparer.Ordinal);
+
+            // §12.6 sorts by Unicode code point, which is not UTF-16 code-unit
+            // order: an ordinal sort places every supplementary character below
+            // U+E000..U+FFFF and would make this Server compute a different
+            // ViewVersion from a conforming one for the same membership.
+            members.Sort(WotCodePointComparer.Instance);
 
             var builder = new StringBuilder();
             foreach (string member in members)
