@@ -108,7 +108,19 @@ namespace Opc.Ua.Types.Tests.Wot
                 ],
                 Aliases =
                 [
-                    new NodeIdAlias { Alias = "MachineTypeAlias", Value = "ns=1;i=1001" }
+                    // A NodeSet2 document may only use a name where a NodeId is
+                    // expected if it declares that name here, so a fixture that
+                    // exercises the round trip declares every name it uses; an
+                    // undeclared one cannot be imported at all.
+                    new NodeIdAlias { Alias = "MachineTypeAlias", Value = "ns=1;i=1001" },
+                    new NodeIdAlias { Alias = "Double", Value = "i=11" },
+                    new NodeIdAlias { Alias = "GeneratesEvent", Value = "i=41" },
+                    new NodeIdAlias { Alias = "HasComponent", Value = "i=47" },
+                    new NodeIdAlias { Alias = "HasModellingRule", Value = "i=37" },
+                    new NodeIdAlias { Alias = "HasProperty", Value = "i=46" },
+                    new NodeIdAlias { Alias = "HasSubtype", Value = "i=45" },
+                    new NodeIdAlias { Alias = "HasTypeDefinition", Value = "i=40" },
+                    new NodeIdAlias { Alias = "String", Value = "i=12" }
                 ],
                 Extensions = [modelExtension],
                 LastModified = new DateTime(2026, 7, 21, 12, 34, 56, DateTimeKind.Utc),
@@ -358,6 +370,17 @@ namespace Opc.Ua.Types.Tests.Wot
                         PublicationDate = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc),
                         PublicationDateSpecified = true
                     }
+                ],
+                Aliases =
+                [
+                    // Declared for the same reason as in CreateRichNodeSet: a
+                    // name used where a NodeId is expected has to be declared
+                    // or the document cannot be imported.
+                    new NodeIdAlias { Alias = "Double", Value = "i=11" },
+                    new NodeIdAlias { Alias = "HasComponent", Value = "i=47" },
+                    new NodeIdAlias { Alias = "HasModellingRule", Value = "i=37" },
+                    new NodeIdAlias { Alias = "HasSubtype", Value = "i=45" },
+                    new NodeIdAlias { Alias = "HasTypeDefinition", Value = "i=40" }
                 ],
                 Items =
                 [

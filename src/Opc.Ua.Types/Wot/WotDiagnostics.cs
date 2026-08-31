@@ -356,7 +356,22 @@ namespace Opc.Ua.Wot
         /// document, an existing AddressSpace Node, or the Thing Model
         /// projection root (WoT Connectivity Section 7.3).
         /// </summary>
-        UnresolvedParentPlacement = 6027
+        UnresolvedParentPlacement = 6027,
+
+        /// <summary>
+        /// A projection document annotates a declared affordance with a member
+        /// outside the closed set WoT Binding Section 12.5 admits. A projection
+        /// <em>declares</em> affordances and does not define them, so an
+        /// annotation may restate presentation and semantics - <c>title</c>,
+        /// <c>titles</c>, <c>description</c>, <c>descriptions</c>, additional
+        /// <c>@type</c> values, <c>uav:semanticId</c> and <c>uav:metadata</c>,
+        /// plus <c>forms</c> and <c>security</c> where the source is routed
+        /// through the projection - but never the source's schema. Merging a
+        /// restated <c>type</c>, <c>unit</c>, <c>minimum</c>, <c>maximum</c> or
+        /// <c>enum</c> would silently override what the source says about the
+        /// Node, which is the one thing the clause forbids.
+        /// </summary>
+        ProjectionAnnotationNotPermitted = 6028
     }
 
     /// <summary>

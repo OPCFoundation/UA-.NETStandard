@@ -451,10 +451,30 @@ namespace Opc.Ua.Export
                 string.Equals(localName, "ReferenceType", StringComparison.Ordinal);
         }
 
+        /// <summary>
+        /// Resolves an alias-able value to the identifier it stands for.
+        /// </summary>
+        /// <remarks>
+        /// The document's own table is consulted first, then the standard
+        /// base-namespace names. Declaring a standard name changes nothing
+        /// about what a document means - a <c>ReferenceType</c> of
+        /// <c>HasComponent</c> denotes <c>i=47</c> whether or not the table
+        /// spells that out - so a comparison that saw the difference would
+        /// report two equivalent documents as different purely because one
+        /// completed its table and the other did not.
+        /// </remarks>
         private static string Resolve(string value, Dictionary<string, string>? aliases)
         {
-            return aliases is not null && aliases.TryGetValue(value, out string? resolved)
-                ? resolved
+            if (aliases is null)
+            {
+                return value;
+            }
+            if (aliases.TryGetValue(value, out string? resolved))
+            {
+                return resolved;
+            }
+            return WotNodeSetAliases.TryResolveStandardName(value, out string standard)
+                ? standard
                 : value;
         }
 

@@ -581,6 +581,17 @@ namespace Opc.Ua.Wot
             }
         }
 
+        /// <summary>
+        /// Merges the members a projection annotated a declared affordance
+        /// with, honouring the closed set of WoT Binding Section 12.5.
+        /// </summary>
+        /// <remarks>
+        /// The set is checked again here, and not only where the projection is
+        /// parsed, because this is the step that would otherwise write a
+        /// restated schema member over the source's own. A member outside the
+        /// set is dropped rather than merged; the parse reported it, so the
+        /// caller already knows it was there.
+        /// </remarks>
         private static void MergeAnnotation(
             JsonObject target,
             JsonElement annotations,
@@ -592,7 +603,8 @@ namespace Opc.Ua.Wot
             }
             foreach (JsonProperty member in annotations.EnumerateObject())
             {
-                if (string.Equals(member.Name, "tm:ref", StringComparison.Ordinal))
+                if (string.Equals(member.Name, "tm:ref", StringComparison.Ordinal) ||
+                    !WotProjection.IsPermittedAnnotation(member.Name))
                 {
                     continue;
                 }
