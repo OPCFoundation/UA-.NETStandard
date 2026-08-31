@@ -389,17 +389,20 @@ namespace Opc.Ua.Schema.Model
             // With every upstream model loaded, re-link the payload-imported
             // declarations (their base types may live in a design file that
             // was not loaded when the payloads were applied) and link the
-            // data types of the dependency designs that were loaded without
-            // full dictionary validation. Without this, a target structure
-            // that subtypes a dependency structure inherits fields whose
-            // DataTypeNode is unresolved and whose parent classification is
-            // the BasicDataType enum default, crashing or corrupting the
-            // schema and code generators.
+            // data types and instances of the dependency designs that were
+            // loaded without full dictionary validation. Without this, a
+            // target structure that subtypes a dependency structure inherits
+            // fields whose DataTypeNode is unresolved and whose parent
+            // classification is the BasicDataType enum default, and a target
+            // instance of a dependency-declared type inherits children whose
+            // TypeDefinitionNode / DataTypeNode are unresolved, crashing or
+            // corrupting the schema and code generators.
             LinkDependencyChildren();
             LinkDependencyDataTypes(m_payloadDataTypes);
             foreach (ModelDesign dependency in dependencyModels)
             {
                 LinkDependencyDataTypes(dependency.Items);
+                LinkDependencyInstances(dependency.Items);
             }
 
             int upstreamDependencyCount = dependencyModels.Count;
@@ -417,6 +420,7 @@ namespace Opc.Ua.Schema.Model
             for (int ii = upstreamDependencyCount; ii < dependencyModels.Count; ii++)
             {
                 LinkDependencyDataTypes(dependencyModels[ii].Items);
+                LinkDependencyInstances(dependencyModels[ii].Items);
             }
 
             // set a default xml namespace.
@@ -6693,6 +6697,197 @@ namespace Opc.Ua.Schema.Model
                     m_nodes.TryGetValue(argument.DataType, out NodeDesign dataType))
                 {
                     argument.DataTypeNode = dataType as DataTypeDesign;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Links the instances of a dependency model that did not go
+        /// through <see cref="ValidateDictionary"/> (design files loaded
+        /// as dependencies): resolves the TypeDefinitionNode /
+        /// DataTypeNode of the types' children and standalone instances,
+        /// and the data types of variable types and method arguments, the
+        /// way <see cref="ValidateInstance"/> and <see cref="ValidateType"/>
+        /// do for the target model. A target instance whose TypeDefinition
+        /// is a dependency-declared type inherits these children into its
+        /// hierarchy, and the node state generator dereferences the links.
+        /// Resolution is best effort: references that cannot be resolved
+        /// are left null rather than failing the load.
+        /// </summary>
+        private void LinkDependencyInstances(IEnumerable<NodeDesign> nodes)
+        {
+            if (nodes == null)
+            {
+                return;
+            }
+
+            foreach (NodeDesign node in nodes)
+            {
+                if (node is VariableTypeDesign variableType &&
+                    variableType.DataTypeNode == null &&
+                    !IsNull(variableType.DataType) &&
+                    m_nodes.TryGetValue(variableType.DataType, out NodeDesign dataType))
+                {
+                    variableType.DataTypeNode = dataType as DataTypeDesign;
+                }
+
+                if (node is InstanceDesign instance)
+                {
+                    LinkDependencyInstance(instance);
+                }
+
+                if (node.Children?.Items != null)
+                {
+                    LinkDependencyInstances(node.Children.Items);
+                }
+            }
+        }
+
+        private void LinkDependencyInstance(InstanceDesign instance)
+        {
+            NodeDesign typeDefinition = null;
+
+            if (!IsNull(instance.TypeDefinition))
+            {
+                m_nodes.TryGetValue(instance.TypeDefinition, out typeDefinition);
+            }
+
+            if (instance is ObjectDesign objectDesign &&
+                objectDesign.TypeDefinitionNode == null)
+            {
+                objectDesign.TypeDefinitionNode = typeDefinition as ObjectTypeDesign;
+            }
+
+            if (instance is VariableDesign variable)
+            {
+                if (variable.TypeDefinitionNode == null)
+                {
+                    variable.TypeDefinitionNode = typeDefinition as VariableTypeDesign;
+                }
+
+                // Mirror ValidateInstance: a variable that does not restrict
+                // the data type inherits the restriction of its variable type.
+                if (variable.TypeDefinitionNode is VariableTypeDesign variableType &&
+                    (variable.DataType == null || variable.DataType == s_baseDataTypeQn))
+                {
+                    variable.DataType = variableType.DataType;
+
+                    if (!variable.ValueRankSpecified &&
+                        variableType.ValueRank != ValueRank.ScalarOrArray)
+                    {
+                        variable.ValueRank = variableType.ValueRank;
+                        variable.ValueRankSpecified = true;
+                    }
+                }
+
+                if (variable.DataTypeNode == null &&
+                    !IsNull(variable.DataType) &&
+                    m_nodes.TryGetValue(variable.DataType, out NodeDesign dataType))
+                {
+                    variable.DataTypeNode = dataType as DataTypeDesign;
+                }
+
+                if (variable.DefaultValue != null && variable.DecodedValue == null)
+                {
+                    try
+                    {
+                        using var decoder = new XmlDecoder(variable.DefaultValue, m_context);
+                        Variant variant = decoder.ReadVariantValue(null, default);
+                        if (!variant.TypeInfo.IsUnknown)
+                        {
+                            variable.ValueRank =
+                                variant.TypeInfo.ValueRank == ValueRanks.Scalar ?
+                                    ValueRank.Scalar : ValueRank.Array;
+                            variable.ValueRankSpecified = true;
+                            variable.DecodedValue =
+                                variant.AsBoxedObject(Variant.BoxingBehavior.Legacy);
+                        }
+                    }
+                    catch (Exception e)
+                    {
+                        if (m_logger.IsEnabled(LogLevel.Debug))
+                        {
+                            m_logger.LogDebug(e,
+                                "Could not decode the default value of dependency instance {Name}.",
+                                instance.SymbolicId.Name);
+                        }
+                    }
+                }
+            }
+
+            if (instance is MethodDesign method)
+            {
+                method.MethodType ??= typeDefinition as MethodDesign;
+
+                MethodDesign methodDefinition =
+                    MethodDesignArgumentResolver.ResolveMethodDefinition(method);
+                method.InputArguments = methodDefinition.InputArguments ?? [];
+                method.OutputArguments = methodDefinition.OutputArguments ?? [];
+                LinkDependencyMethodArguments(method.InputArguments);
+                LinkDependencyMethodArguments(method.OutputArguments);
+
+                if (!UseAllowSubtypes &&
+                    m_nodes.TryGetValue(s_structureQn, out NodeDesign structureNode) &&
+                    structureNode is DataTypeDesign structureDesign)
+                {
+                    foreach (Parameter argument in method.InputArguments)
+                    {
+                        if (argument?.DataTypeNode != null &&
+                            IsTypeOf(argument.DataTypeNode, s_structureQn) &&
+                            argument.AllowSubTypes)
+                        {
+                            argument.DataTypeNode = structureDesign;
+                        }
+                    }
+
+                    foreach (Parameter argument in method.OutputArguments)
+                    {
+                        if (argument?.DataTypeNode != null &&
+                            IsTypeOf(argument.DataTypeNode, s_structureQn) &&
+                            argument.AllowSubTypes)
+                        {
+                            argument.DataTypeNode = structureDesign;
+                        }
+                    }
+                }
+
+                method.HasArguments =
+                    MethodDesignArgumentResolver.HasMethodArguments(method);
+                // Mirror ValidateInstance: a child method carries the
+                // InputArguments / OutputArguments argument properties as
+                // children, so a target instance of the dependency type
+                // materialises them into its hierarchy. Guarded by the
+                // symbolic id so an already validated or linked method is
+                // not extended twice.
+                if (method.Parent != null &&
+                    !m_nodes.ContainsKey(new XmlQualifiedName(
+                        NodeDesign.CreateSymbolicId(
+                            method.SymbolicId.Name,
+                            "InputArguments"),
+                        method.SymbolicId.Namespace)))
+                {
+                    var children = new List<InstanceDesign>();
+
+                    if (method.Children != null && method.Children.Items != null)
+                    {
+                        children.AddRange(method.Children.Items);
+                    }
+                    if (method.InputArguments != null)
+                    {
+                        children.Add(CreateArgumentProperty(method, "InputArguments"));
+                    }
+                    if (method.OutputArguments != null)
+                    {
+                        children.Add(CreateArgumentProperty(method, "OutputArguments"));
+                    }
+                    if (children.Count > 0)
+                    {
+                        method.Children = new ListOfChildren
+                        {
+                            Items = [.. children]
+                        };
+                        method.HasChildren = true;
+                    }
                 }
             }
         }
