@@ -776,6 +776,13 @@ namespace Opc.Ua.Security.Certificates
         /// </summary>
         internal sealed class CertificateAllocationInfo
         {
+            /// <summary>
+            /// Creates allocation diagnostics for a certificate handle.
+            /// </summary>
+            /// <param name="allocationId">Unique allocation identifier.</param>
+            /// <param name="certificate">The allocated certificate handle.</param>
+            /// <param name="stackTrace">Allocation stack trace.</param>
+            /// <param name="fixtureName">Optional test fixture attribution.</param>
             public CertificateAllocationInfo(
                 long allocationId,
                 Certificate certificate,
@@ -789,14 +796,29 @@ namespace Opc.Ua.Security.Certificates
                 CreatedAt = DateTime.UtcNow;
             }
 
+            /// <summary>
+            /// Gets the unique allocation identifier.
+            /// </summary>
             public long AllocationId { get; }
 
+            /// <summary>
+            /// Gets a weak reference to the allocated certificate handle.
+            /// </summary>
             public WeakReference<Certificate> Reference { get; }
 
+            /// <summary>
+            /// Gets the allocation stack trace.
+            /// </summary>
             public string StackTrace { get; }
 
+            /// <summary>
+            /// Gets the optional test fixture attribution.
+            /// </summary>
             public string? FixtureName { get; }
 
+            /// <summary>
+            /// Gets the UTC allocation time.
+            /// </summary>
             public DateTime CreatedAt { get; }
         }
 

@@ -161,6 +161,7 @@ namespace Opc.Ua
                 if (entryClosed)
                 {
                     await CloseTransportBestEffortAsync(channel).ConfigureAwait(false);
+                    OwnerManager.OnEntryClosed(this, ChannelCloseReason.Faulted);
                     throw ServiceResultException.Create(
                         StatusCodes.BadSecureChannelClosed,
                         "Channel is {0}.",

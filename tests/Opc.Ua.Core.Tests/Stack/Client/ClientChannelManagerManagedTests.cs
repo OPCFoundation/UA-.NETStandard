@@ -1292,7 +1292,7 @@ namespace Opc.Ua.Core.Tests.Stack.Client
         /// Awaits <paramref name="task"/> and returns the exception it faulted
         /// with, failing the test if it succeeded or threw something else.
         /// </summary>
-        /// <typeparam name="TException"></typeparam>
+        /// <typeparam name="TException">The expected exception type.</typeparam>
         /// <remarks>
         /// Deliberately not <c>Assert.ThrowsAsync</c>. That blocks the calling
         /// thread until the task completes - sync over async - so on a
