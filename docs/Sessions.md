@@ -203,6 +203,23 @@ ManagedSession session = await ManagedSession.CreateAsync(
     telemetry: telemetry);
 ```
 
+### Failure of the initial connect
+
+`CreateAsync` returns only once the session is actually connected. When the
+first connect attempt fails, the state machine treats it like any other
+connection loss and retries it under the configured reconnect policy — a
+reconnect that finds no inner session runs a full connect rather than
+reactivating one. If the policy, the `MaxTotalReconnectTime` budget and the
+redundancy failover are all exhausted, `CreateAsync` disposes the half-built
+session and throws a `ServiceResultException` carrying the error of the last
+failed attempt (for example `BadCertificateUntrusted`), not a generic
+`BadNotConnected`. It never returns a `ManagedSession` without a live inner
+session.
+
+Callers that want to give up sooner than the policy does should cap the policy
+(`MaxRetries`, `MaxTotalReconnectTime`) or pass a cancellation token, which
+surfaces as an `OperationCanceledException`.
+
 ### `ManagedSessionFactory`
 
 `ManagedSessionFactory` (`src/Opc.Ua.Client/Session/ManagedSessionFactory.cs`)
