@@ -361,9 +361,12 @@ namespace Opc.Ua.Server
             {
                 // Stop reacting to trust-material changes before the
                 // listeners/session manager are torn down. An enforcement
-                // pass already in flight bails out on the shutdown token.
+                // pass already in flight bails out on the shutdown token;
+                // DeleteAddressSpaceAsync drains it deterministically during
+                // the async server shutdown.
                 m_trustMaterialPump?.Dispose();
                 m_trustMaterialPump = null;
+                m_selfTrustNotification.Dispose();
 
                 // Signal only: Dispose is synchronous. A deferred apply already
                 // running stops at its next await once the token trips.
@@ -477,9 +480,11 @@ namespace Opc.Ua.Server
             CancelPendingApplyChanges();
 
             Task pending;
+            Task pumpPending;
             lock (m_pendingApplyChangesLock)
             {
                 pending = m_pendingApplyChangesTask;
+                pumpPending = m_trustMaterialPumpTask;
             }
 
             try
@@ -490,6 +495,18 @@ namespace Opc.Ua.Server
             {
                 // A faulted deferred apply is already logged where it runs;
                 // never let it abort the shutdown drain.
+                m_logger.DeferredApplyChangesFaultedDuringShutdown(ex);
+            }
+
+            try
+            {
+                // Drain any in-flight trust-material enforcement pass so it
+                // never runs against listeners/sessions being torn down. The
+                // shutdown token cancelled above makes it bail out promptly.
+                await pumpPending.ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
                 m_logger.DeferredApplyChangesFaultedDuringShutdown(ex);
             }
 
@@ -3740,7 +3757,13 @@ namespace Opc.Ua.Server
                         // raised conservatively.
                         NotifyTrustMaterialChanged(trustListEffects);
 
-                        await ApplyTrustListEffectsAsync(trustListEffects, listeners)
+                        // Deliberately not cancellable: the committed change's
+                        // post-response effects must run to completion once
+                        // started (shutdown is handled by the checks above).
+                        await ApplyTrustListEffectsAsync(
+                                trustListEffects,
+                                listeners,
+                                CancellationToken.None)
                             .ConfigureAwait(false);
                     }
 
@@ -3815,13 +3838,15 @@ namespace Opc.Ua.Server
                 return;
             }
 
-            // Observers are invoked synchronously by the change subject, so
-            // the depth counter reliably marks the events this manager
-            // raises about its own committed changes. The enforcement pump
-            // skips those: the deferred apply below already runs the precise
-            // committed-scope §7.10.9 sweep, and a second pump-driven sweep
-            // over the same scopes would be redundant work.
-            Interlocked.Increment(ref m_selfTrustNotificationDepth);
+            // Observers are invoked synchronously on the notifying thread, so
+            // the thread-local flag marks exactly the events this call raises
+            // about its own committed changes - a concurrent out-of-band
+            // notification raised on another thread is never suppressed. The
+            // enforcement pump skips the self-raised events: the deferred
+            // apply below already runs the precise committed-scope §7.10.9
+            // sweep, and a second pump-driven sweep over the same scopes
+            // would be redundant work.
+            m_selfTrustNotification.Value = true;
             try
             {
                 var notifiedScopes = new List<TrustListIdentifier>();
@@ -3849,7 +3874,7 @@ namespace Opc.Ua.Server
             }
             finally
             {
-                Interlocked.Decrement(ref m_selfTrustNotificationDepth);
+                m_selfTrustNotification.Value = false;
             }
         }
 
@@ -3862,7 +3887,8 @@ namespace Opc.Ua.Server
         /// </summary>
         private ValueTask ApplyTrustListEffectsAsync(
             List<TrustListChangeEffect> trustListEffects,
-            IReadOnlyList<ITransportListener> listeners)
+            IReadOnlyList<ITransportListener> listeners,
+            CancellationToken cancellationToken = default)
         {
             var context = new PushConfigurationTrustListEffectContext
             {
@@ -3876,7 +3902,7 @@ namespace Opc.Ua.Server
                     Server.CloseSessionAsync(null!, sessionId, deleteSubscriptions, ct)
             };
 
-            return m_trustListEffectHandler.ApplyAsync(context, CancellationToken.None);
+            return m_trustListEffectHandler.ApplyAsync(context, cancellationToken);
         }
 
         /// <summary>
@@ -3902,9 +3928,10 @@ namespace Opc.Ua.Server
                     is CertificateChangeKind.TrustListUpdated
                     or CertificateChangeKind.CrlUpdated) &&
                     // Skip the notifications this manager raises about its
-                    // own ApplyChanges commits: the deferred apply already
-                    // runs the precise committed-scope sweep.
-                    Volatile.Read(ref m_selfTrustNotificationDepth) == 0,
+                    // own ApplyChanges commits (dispatched synchronously on
+                    // the raising thread): the deferred apply already runs
+                    // the precise committed-scope sweep.
+                    !m_selfTrustNotification.Value,
                 static (scopes, evt) =>
                 {
                     // Union fold: a Users change must never be dropped
@@ -3914,7 +3941,16 @@ namespace Opc.Ua.Server
                     return scopes;
                 },
                 EnforceTrustMaterialScopesAsync,
-                ex => m_logger.TrustMaterialEnforcementFailed(ex));
+                ex => m_logger.TrustMaterialEnforcementFailed(ex),
+                onPumpStateChanged: task =>
+                {
+                    // Track the drain task so DeleteAddressSpaceAsync can
+                    // await an in-flight enforcement pass during shutdown.
+                    lock (m_pendingApplyChangesLock)
+                    {
+                        m_trustMaterialPumpTask = task ?? Task.CompletedTask;
+                    }
+                });
 
             m_trustMaterialPump.Subscribe(certificateManager.CertificateChanges);
         }
@@ -3958,7 +3994,10 @@ namespace Opc.Ua.Server
                 = (Server as ITransportListenerRegistryProvider)?.TransportListeners
                     ?? [];
 
-            await ApplyTrustListEffectsAsync(effects, listeners).ConfigureAwait(false);
+            // Propagate the shutdown token: a pass overlapping shutdown must
+            // stop instead of sweeping listeners/sessions being torn down.
+            await ApplyTrustListEffectsAsync(effects, listeners, shutdownToken)
+                .ConfigureAwait(false);
         }
 
         /// <summary>
@@ -4720,10 +4759,11 @@ namespace Opc.Ua.Server
         private readonly Lock m_namespaceMetadataStatesLock = new();
         private readonly Lock m_pendingApplyChangesLock = new();
         private Task m_pendingApplyChangesTask = Task.CompletedTask;
+        private Task m_trustMaterialPumpTask = Task.CompletedTask;
         private Task m_pendingResetTask = Task.CompletedTask;
         private readonly CancellationTokenSource m_shutdownCts = new();
         private CertificateChangePump<HashSet<TrustListIdentifier>>? m_trustMaterialPump;
-        private int m_selfTrustNotificationDepth;
+        private readonly ThreadLocal<bool> m_selfTrustNotification = new();
         private readonly BackgroundTaskScope m_backgroundWork =
             new(nameof(ConfigurationNodeManager), AmbientMessageContext.Telemetry);
         private readonly AsyncLocal<List<PendingCertificateRotation>?> m_activeRotationCollector = new();

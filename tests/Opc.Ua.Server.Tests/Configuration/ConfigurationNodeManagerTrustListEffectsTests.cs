@@ -578,7 +578,7 @@ namespace Opc.Ua.Server.Tests
             }
 
             private readonly List<PushConfigurationTrustListEffectContext> m_contexts = [];
-            private readonly object m_sync = new();
+            private readonly Lock m_sync = new();
         }
 
         private async Task<IReadOnlyList<TrustListChangeEffect>> DriveApplyChangesForTrustListAsync(

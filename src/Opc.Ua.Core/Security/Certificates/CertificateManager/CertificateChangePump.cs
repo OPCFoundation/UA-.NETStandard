@@ -120,31 +120,46 @@ namespace Opc.Ua
                 throw new ArgumentNullException(nameof(source));
             }
 
+            // Subscribe outside the lock (the source runs arbitrary code),
+            // then install under the lock so a concurrent Dispose can never
+            // leave a live subscription behind: whichever of the two runs
+            // second sees the other's state and cleans up.
+            IDisposable subscription = source.Subscribe(new Observer(this));
+            IDisposable? previous;
             lock (m_lock)
             {
                 if (m_disposed)
                 {
-                    throw new ObjectDisposedException(
-                        nameof(CertificateChangePump<TState>));
+                    previous = subscription;
+                }
+                else
+                {
+                    previous = m_subscription;
+                    m_subscription = subscription;
                 }
             }
 
-            IDisposable subscription = source.Subscribe(new Observer(this));
-            IDisposable? previous = Interlocked.Exchange(ref m_subscription, subscription);
             previous?.Dispose();
+
+            if (ReferenceEquals(previous, subscription))
+            {
+                throw new ObjectDisposedException(nameof(CertificateChangePump<TState>));
+            }
         }
 
         /// <inheritdoc/>
         public void Dispose()
         {
-            IDisposable? subscription = Interlocked.Exchange(ref m_subscription, null);
-            subscription?.Dispose();
-
+            IDisposable? subscription;
             lock (m_lock)
             {
                 m_disposed = true;
                 m_pending = null;
+                subscription = m_subscription;
+                m_subscription = null;
             }
+
+            subscription?.Dispose();
         }
 
         private void OnEvent(CertificateChangeEvent evt)

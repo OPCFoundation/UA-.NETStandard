@@ -1511,6 +1511,33 @@ namespace Opc.Ua.Gds.Tests
                 TestContext.Out.WriteLine(
                     $"Revoked victim client failed as expected: {failure.GetType().Name}: {failure.Message}");
 
+                // A fresh reconnect must be rejected too: the next
+                // OpenSecureChannel handshake re-validates the (now revoked)
+                // client certificate against the pushed CRL.
+                try
+                {
+                    await victim.DisconnectAsync().ConfigureAwait(false);
+                }
+                catch
+                {
+                    // The dead session cannot be closed cleanly; only the
+                    // local state reset matters before the reconnect attempt.
+                }
+                Exception reconnectFailure = null;
+                try
+                {
+                    await victim.ConnectAsync().ConfigureAwait(false);
+                }
+                catch (Exception ex)
+                {
+                    reconnectFailure = ex;
+                }
+                Assert.That(reconnectFailure, Is.Not.Null,
+                    "A fresh connect of the revoked client was expected to be rejected.");
+                TestContext.Out.WriteLine(
+                    $"Revoked victim reconnect rejected as expected: " +
+                    $"{reconnectFailure.GetType().Name}: {reconnectFailure.Message}");
+
                 // The unaffected admin client must still be able to connect.
                 await ConnectPushClientAsync(true).ConfigureAwait(false);
             }

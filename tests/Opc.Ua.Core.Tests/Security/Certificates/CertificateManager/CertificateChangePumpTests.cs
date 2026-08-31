@@ -92,7 +92,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             var releaseFirstPass = new TaskCompletionSource<bool>(
                 TaskCreationOptions.RunContinuationsAsynchronously);
             var passes = new List<HashSet<TrustListIdentifier>>();
-            var passesLock = new object();
+            var passesLock = new Lock();
 
             using var pump = new CertificateChangePump<HashSet<TrustListIdentifier>>(
                 _ => true,
@@ -204,7 +204,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         {
             var subject = new CertificateChangeSubject();
             var states = new List<Task?>();
-            var statesLock = new object();
+            var statesLock = new Lock();
             using var pump = new CertificateChangePump<CertificateChangeEvent>(
                 _ => true,
                 (_, evt) => evt,

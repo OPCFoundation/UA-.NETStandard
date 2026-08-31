@@ -986,11 +986,17 @@ namespace Opc.Ua.Server
                 // Decode/validation failure, or legacy non-transactional
                 // hosting: apply immediately (or report the failure), as
                 // before.
-                int appliedMasks = (int)TrustListMasks.None;
+                int attemptedMasks = (int)TrustListMasks.None;
                 try
                 {
                     if (ServiceResult.IsGood(result))
                     {
+                        // A failed update helper does not mean the store was
+                        // left unchanged: it may have deleted/added several
+                        // entries before a later operation failed. Notify for
+                        // every ATTEMPTED mask - an extra cache invalidation
+                        // is harmless, a missed one is not.
+                        attemptedMasks = masks;
                         int updateMasks = (int)TrustListMasks.None;
                         if ((masks & (int)TrustListMasks.IssuerCertificates) != 0 &&
                             await UpdateStoreCertificatesAsync(m_issuerStore, issuerCertificates!, cancellationToken)
@@ -1017,7 +1023,6 @@ namespace Opc.Ua.Server
                             updateMasks |= (int)TrustListMasks.TrustedCrls;
                         }
 
-                        appliedMasks = updateMasks;
                         if (masks != updateMasks)
                         {
                             result = StatusCodes.BadCertificateInvalid;
@@ -1044,12 +1049,13 @@ namespace Opc.Ua.Server
                     m_coordinator?.SetTrustListWriteOpen(m_node.NodeId, false);
                 }
 
-                // Even a partial apply changed the stores; notify for what
-                // actually landed so cached validation state is dropped.
+                // Even a partial or failed apply may have changed the stores;
+                // notify for everything that was attempted so cached
+                // validation state is dropped.
                 NotifyTrustListChanged(
-                    trustChanged: (appliedMasks &
+                    trustChanged: (attemptedMasks &
                         (int)(TrustListMasks.IssuerCertificates | TrustListMasks.TrustedCertificates)) != 0,
-                    crlChanged: (appliedMasks &
+                    crlChanged: (attemptedMasks &
                         (int)(TrustListMasks.IssuerCrls | TrustListMasks.TrustedCrls)) != 0);
 
                 m_node.ReportTrustListUpdatedAuditEvent(
