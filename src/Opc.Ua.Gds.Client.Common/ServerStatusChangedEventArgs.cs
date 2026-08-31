@@ -32,41 +32,44 @@ using System;
 namespace Opc.Ua.Gds.Client
 {
     /// <summary>
-    /// Carries a data change notification for the <c>Server_ServerStatus</c>
-    /// variable of the connected server.
+    /// Carries the state of the connected server, as observed by the session
+    /// keep-alive.
     /// </summary>
-    /// <remarks>
-    /// Raised by <see cref="IGlobalDiscoveryServerClient.ServerStatusChanged"/>
-    /// and <see cref="IServerPushConfigurationClient.ServerStatusChanged"/> for
-    /// every notification the monitored item delivers, including the initial
-    /// value reported when the item is created on the server.
-    /// </remarks>
     public sealed class ServerStatusChangedEventArgs : EventArgs
     {
         /// <summary>
         /// Initializes a new instance of the
         /// <see cref="ServerStatusChangedEventArgs"/> class.
         /// </summary>
-        /// <param name="value">The notified value of the
-        /// <c>Server_ServerStatus</c> variable.</param>
-        public ServerStatusChangedEventArgs(DataValue value)
+        /// <param name="status">Status of the keep-alive that observed the
+        /// state.</param>
+        /// <param name="currentState">The state of the server.</param>
+        /// <param name="currentTime">The time reported by the server.</param>
+        public ServerStatusChangedEventArgs(
+            ServiceResult? status,
+            ServerState currentState,
+            DateTime currentTime)
         {
-            Value = value;
-            Status = value.GetValue<ServerStatusDataType?>(null);
+            Status = status;
+            CurrentState = currentState;
+            CurrentTime = currentTime;
         }
 
         /// <summary>
-        /// The raw notification, including status code and timestamps. Consult
-        /// <see cref="DataValue.StatusCode"/> before using
-        /// <see cref="Status"/>: a bad status leaves it <c>null</c>.
+        /// Status of the keep-alive that observed the state. A bad status means
+        /// the server could not be reached, in which case
+        /// <see cref="CurrentState"/> is the last state that was read.
         /// </summary>
-        public DataValue Value { get; }
+        public ServiceResult? Status { get; }
 
         /// <summary>
-        /// The decoded server status, or <c>null</c> when
-        /// <see cref="Value"/> reports a non-good status code or does not
-        /// carry a <see cref="ServerStatusDataType"/> body.
+        /// The state of the server.
         /// </summary>
-        public ServerStatusDataType? Status { get; }
+        public ServerState CurrentState { get; }
+
+        /// <summary>
+        /// The time reported by the server.
+        /// </summary>
+        public DateTime CurrentTime { get; }
     }
 }

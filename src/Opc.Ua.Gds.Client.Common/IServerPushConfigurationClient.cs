@@ -88,10 +88,8 @@ namespace Opc.Ua.Gds.Client
         event KeepAliveEventHandler? KeepAlive;
 
         /// <summary>
-        /// Raised for every data change of the <c>Server_ServerStatus</c>
-        /// variable of the connected server, including the initial value.
-        /// Requires <see cref="GdsClientOptions.MonitorServerStatus"/>, which
-        /// is enabled by default.
+        /// Raised when the state of the connected server changes, and once for
+        /// the state observed by the first keep-alive after a connect.
         /// </summary>
         event EventHandler<ServerStatusChangedEventArgs>? ServerStatusChanged;
 

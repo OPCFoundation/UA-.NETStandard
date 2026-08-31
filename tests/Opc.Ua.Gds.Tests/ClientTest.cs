@@ -217,9 +217,9 @@ namespace Opc.Ua.Gds.Tests
 
                 Client.ServerStatusChangedEventArgs status = await received.Task
                     .ConfigureAwait(false);
-                Assert.That(StatusCode.IsGood(status.Value.StatusCode), Is.True);
-                Assert.That(status.Status, Is.Not.Null);
-                Assert.That(status.Status.State, Is.EqualTo(ServerState.Running));
+                Assert.That(status.CurrentState, Is.EqualTo(ServerState.Running));
+                Assert.That(ServiceResult.IsGood(status.Status), Is.True);
+                Assert.That(status.CurrentTime, Is.Not.Default);
             }
             finally
             {

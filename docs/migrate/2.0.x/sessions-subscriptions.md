@@ -71,40 +71,26 @@ If you currently rely on a `[Obsolete]` member, switch to the `Async` equivalent
 ### `ServerStatusChanged` now works
 
 `GlobalDiscoveryServerClient.ServerStatusChanged` and
-`ServerPushConfigurationClient.ServerStatusChanged` never fired in 1.5.378 —
+`ServerPushConfigurationClient.ServerStatusChanged` never fired in 1.5.378 -
 the GDS client had an empty `if (ServerStatusChanged != null) { }` marked
 `// TODO: implement` and the push client had no raiser at all. Both clients now
-monitor `Server_ServerStatus` once connected and raise the event for every
-notification, including the initial value. There is nothing to migrate: no
-1.5.378 handler ever ran.
+raise it when the server state changes, and once for the state the first
+keep-alive reports after a connect. There is nothing to migrate: no 1.5.378
+handler ever ran.
 
-The handler type is `EventHandler<ServerStatusChangedEventArgs>`, which carries
-the raw `DataValue` and the decoded status:
+The handler type is `EventHandler<ServerStatusChangedEventArgs>`:
 
 ```csharp
 client.ServerStatusChanged += (sender, e) =>
 {
-    // e.Value is the raw DataValue; e.Status is null unless the status is good
-    ServerState? state = e.Status?.State;
+    ServerState state = e.CurrentState;
 };
 ```
 
-Monitoring is on by default and costs one subscription with one monitored item
-per connected session. Turn it off, or retune it, through `GdsClientOptions`:
-
-```csharp
-var options = new GdsClientOptions
-{
-    MonitorServerStatus = false,                              // default: true
-    ServerStatusPublishingInterval = TimeSpan.FromSeconds(5), // default: 1s
-    ServerStatusSamplingInterval = TimeSpan.FromSeconds(5)    // default: 1s
-};
-```
-
-The monitor works on both subscription engines: it uses `ISubscriptionManager`
-when the session exposes one (`ManagedSession`) and the classic `Subscription` /
-`MonitoredItem` API otherwise (`DefaultSessionFactory`). A failure to set up
-monitoring is logged and never fails the connect.
+The state comes from the session keep-alive, which already reads
+`Server_ServerStatus_State` from the server on every interval and sends the
+first one immediately after connect. No subscription is created and no extra
+requests are made, so this works the same on both subscription engines.
 
 ## ManagedSession and Automatic Reconnection
 

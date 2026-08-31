@@ -89,10 +89,6 @@ namespace Opc.Ua.Gds.Client
             m_logger = MessageContext.Telemetry.CreateLogger<GlobalDiscoveryServerClient>();
             m_backgroundWork = new BackgroundTaskScope(
                 nameof(GlobalDiscoveryServerClient), MessageContext.Telemetry);
-            m_serverStatusMonitor = new ServerStatusMonitor(
-                m_options,
-                m_logger,
-                e => ServerStatusChanged?.Invoke(this, e));
             m_sessionFactory = sessionFactory ??
                 new DefaultSessionFactory(MessageContext.Telemetry)
                 {
@@ -267,7 +263,6 @@ namespace Opc.Ua.Gds.Client
                 await m_lock.WaitAsync().ConfigureAwait(false);
                 try
                 {
-                    await m_serverStatusMonitor.StopAsync().ConfigureAwait(false);
                     Session?.Dispose();
                     Session = null;
                     m_directory = null;
@@ -543,7 +538,6 @@ namespace Opc.Ua.Gds.Client
             await m_lock.WaitAsync(ct).ConfigureAwait(false);
             try
             {
-                await m_serverStatusMonitor.StopAsync().ConfigureAwait(false);
 
                 ISession? session = Session;
                 Session = null;
@@ -588,6 +582,8 @@ namespace Opc.Ua.Gds.Client
                 m_logger.SubscriberThrewInKeepAliveHandler(exception);
             }
 
+            RaiseServerStatusChanged(e);
+
             if (!ServiceResult.IsBad(e.Status))
             {
                 return;
@@ -605,7 +601,6 @@ namespace Opc.Ua.Gds.Client
                     {
                         if (ReferenceEquals(session, Session))
                         {
-                            await m_serverStatusMonitor.StopAsync().ConfigureAwait(false);
                             Session?.Dispose();
                             Session = null;
                             m_directory = null;
@@ -627,6 +622,36 @@ namespace Opc.Ua.Gds.Client
         private void Session_SessionClosing(object? sender, EventArgs e)
         {
             m_logger.GdsClientSessionClosing();
+        }
+
+        /// <summary>
+        /// Raises <see cref="ServerStatusChanged"/> when the server state
+        /// changes, and once for the state the first keep-alive reports.
+        /// </summary>
+        /// <remarks>
+        /// The session keep-alive already reads <c>Server_ServerStatus_State</c>
+        /// from the server on every interval - on both subscription engines, and
+        /// the first one is sent immediately after connect - so the state is
+        /// available without this client creating a subscription of its own.
+        /// </remarks>
+        private void RaiseServerStatusChanged(KeepAliveEventArgs e)
+        {
+            if (e == null || m_lastServerState == e.CurrentState)
+            {
+                return;
+            }
+            m_lastServerState = e.CurrentState;
+
+            try
+            {
+                ServerStatusChanged?.Invoke(
+                    this,
+                    new ServerStatusChangedEventArgs(e.Status, e.CurrentState, e.CurrentTime));
+            }
+            catch (Exception exception)
+            {
+                m_logger.SubscriberThrewInServerStatusChangedHandler(exception);
+            }
         }
 
         /// <inheritdoc/>
@@ -935,7 +960,6 @@ namespace Opc.Ua.Gds.Client
             await m_lock.WaitAsync(ct).ConfigureAwait(false);
             try
             {
-                await m_serverStatusMonitor.StopAsync().ConfigureAwait(false);
                 Session?.Dispose();
                 Session = null;
                 m_directory = null;
@@ -954,6 +978,7 @@ namespace Opc.Ua.Gds.Client
                 .ConfigureAwait(false);
 
                 Session.SessionClosing += Session_SessionClosing;
+                m_lastServerState = null;
                 Session.KeepAlive += Session_KeepAlive;
 
                 if (!Session.Factory.ContainsEncodeableType(DataTypeIds.ApplicationRecordDataType))
@@ -980,7 +1005,6 @@ namespace Opc.Ua.Gds.Client
 
                 m_endpoint = Session.ConfiguredEndpoint;
 
-                await m_serverStatusMonitor.StartAsync(Session, ct).ConfigureAwait(false);
 
                 m_logger.ConnectedToEndpoint(EndpointUrl);
             }
@@ -1024,10 +1048,10 @@ namespace Opc.Ua.Gds.Client
         private readonly GdsClientOptions m_options;
         private readonly TimeProvider m_timeProvider;
         private readonly CancellationTokenSource m_disposeCts = new();
-        private readonly ServerStatusMonitor m_serverStatusMonitor;
         private DirectoryTypeClient? m_directory;
         private CertificateDirectoryTypeClient? m_certificateDirectory;
         private ConfiguredEndpoint? m_endpoint;
+        private ServerState? m_lastServerState;
         private bool m_disposed;
     }
 
@@ -1059,5 +1083,10 @@ namespace Opc.Ua.Gds.Client
         [LoggerMessage(EventId = GdsClientCommonEventIds.GdsClientConnection + 2, Level = LogLevel.Information,
             Message = "Connected to {EndpointUrl}.")]
         public static partial void ConnectedToEndpoint(this ILogger logger, string? endpointUrl);
+
+        [LoggerMessage(EventId = GdsClientCommonEventIds.GdsClientConnection + 3, Level = LogLevel.Error,
+            Message = "Subscriber threw in ServerStatusChanged handler.")]
+        public static partial void SubscriberThrewInServerStatusChangedHandler(
+            this ILogger logger, Exception exception);
     }
 }

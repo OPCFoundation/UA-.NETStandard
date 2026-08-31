@@ -78,10 +78,6 @@ namespace Opc.Ua.Gds.Client
             m_options = options ?? new GdsClientOptions();
             MessageContext = configuration.CreateMessageContext();
             m_logger = MessageContext.Telemetry.CreateLogger<ServerPushConfigurationClient>();
-            m_serverStatusMonitor = new ServerStatusMonitor(
-                m_options,
-                m_logger,
-                e => ServerStatusChanged?.Invoke(this, e));
             m_sessionFactory = sessionFactory ??
                 new DefaultSessionFactory(MessageContext.Telemetry)
                 {
@@ -340,7 +336,6 @@ namespace Opc.Ua.Gds.Client
                 await m_lock.WaitAsync().ConfigureAwait(false);
                 try
                 {
-                    await m_serverStatusMonitor.StopAsync().ConfigureAwait(false);
                     Session?.Dispose();
                     Session = null;
                     m_serverConfiguration = null;
@@ -463,7 +458,6 @@ namespace Opc.Ua.Gds.Client
             await m_lock.WaitAsync(ct).ConfigureAwait(false);
             try
             {
-                await m_serverStatusMonitor.StopAsync().ConfigureAwait(false);
 
                 ISession? session = Session;
                 Session = null;
@@ -1014,18 +1008,52 @@ namespace Opc.Ua.Gds.Client
                 return;
             }
 
+            if (!ReferenceEquals(session, Session))
+            {
+                return;
+            }
+
             // Re-raise the public KeepAlive event synchronously on the same callback
             // thread to preserve original ordering for subscribers.
             try
             {
-                if (ReferenceEquals(session, Session))
-                {
-                    KeepAlive?.Invoke(session, e);
-                }
+                KeepAlive?.Invoke(session, e);
             }
             catch (Exception exception)
             {
                 m_logger.SubscriberThrewInKeepAliveHandler(exception);
+            }
+
+            RaiseServerStatusChanged(e);
+        }
+
+        /// <summary>
+        /// Raises <see cref="ServerStatusChanged"/> when the server state
+        /// changes, and once for the state the first keep-alive reports.
+        /// </summary>
+        /// <remarks>
+        /// The session keep-alive already reads <c>Server_ServerStatus_State</c>
+        /// from the server on every interval - on both subscription engines, and
+        /// the first one is sent immediately after connect - so the state is
+        /// available without this client creating a subscription of its own.
+        /// </remarks>
+        private void RaiseServerStatusChanged(KeepAliveEventArgs e)
+        {
+            if (e == null || m_lastServerState == e.CurrentState)
+            {
+                return;
+            }
+            m_lastServerState = e.CurrentState;
+
+            try
+            {
+                ServerStatusChanged?.Invoke(
+                    this,
+                    new ServerStatusChangedEventArgs(e.Status, e.CurrentState, e.CurrentTime));
+            }
+            catch (Exception exception)
+            {
+                m_logger.SubscriberThrewInServerStatusChangedHandler(exception);
             }
         }
 
@@ -1057,7 +1085,6 @@ namespace Opc.Ua.Gds.Client
             await m_lock.WaitAsync(ct).ConfigureAwait(false);
             try
             {
-                await m_serverStatusMonitor.StopAsync().ConfigureAwait(false);
                 Session?.Dispose();
                 Session = null;
 
@@ -1073,6 +1100,7 @@ namespace Opc.Ua.Gds.Client
                     ct)
                 .ConfigureAwait(false);
 
+                m_lastServerState = null;
                 Session.KeepAlive += Session_KeepAlive;
 
                 if (!Session.Factory.ContainsEncodeableType(Ua.DataTypeIds.TrustListDataType))
@@ -1100,7 +1128,6 @@ namespace Opc.Ua.Gds.Client
                     ExpandedNodeId.ToNodeId(Ua.ObjectIds.ServerConfiguration, Session.NamespaceUris),
                     MessageContext.Telemetry);
 
-                await m_serverStatusMonitor.StartAsync(Session, ct).ConfigureAwait(false);
 
                 m_logger.ConnectedToEndpoint(EndpointUrl);
             }
@@ -1143,8 +1170,8 @@ namespace Opc.Ua.Gds.Client
         private readonly GdsClientOptions m_options;
         private readonly TimeProvider m_timeProvider;
         private readonly CancellationTokenSource m_disposeCts = new();
-        private readonly ServerStatusMonitor m_serverStatusMonitor;
         private ConfiguredEndpoint? m_endpoint;
+        private ServerState? m_lastServerState;
         private ServerConfigurationTypeClient? m_serverConfiguration;
         private bool m_disposed;
     }

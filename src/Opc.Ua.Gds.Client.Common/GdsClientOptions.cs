@@ -69,30 +69,5 @@ namespace Opc.Ua.Gds.Client
         /// than zero. Defaults to <c>256</c> bytes.
         /// </summary>
         public int FileTransferChunkSize { get; set; } = 256;
-
-        /// <summary>
-        /// Whether the clients monitor the <c>Server_ServerStatus</c> variable
-        /// of the connected server. When <c>true</c> (the default) a connect
-        /// creates a subscription with a single monitored item and every
-        /// notification raises
-        /// <see cref="IGlobalDiscoveryServerClient.ServerStatusChanged"/> or
-        /// <see cref="IServerPushConfigurationClient.ServerStatusChanged"/>.
-        /// Set to <c>false</c> to avoid the subscription when the event is not
-        /// consumed.
-        /// </summary>
-        public bool MonitorServerStatus { get; set; } = true;
-
-        /// <summary>
-        /// Publishing interval of the subscription created for
-        /// <see cref="MonitorServerStatus"/>. Defaults to one second.
-        /// </summary>
-        public TimeSpan ServerStatusPublishingInterval { get; set; } = TimeSpan.FromSeconds(1);
-
-        /// <summary>
-        /// Sampling interval of the <c>Server_ServerStatus</c> monitored item
-        /// created for <see cref="MonitorServerStatus"/>. Defaults to one
-        /// second.
-        /// </summary>
-        public TimeSpan ServerStatusSamplingInterval { get; set; } = TimeSpan.FromSeconds(1);
     }
 }

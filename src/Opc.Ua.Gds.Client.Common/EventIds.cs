@@ -46,6 +46,5 @@ namespace Opc.Ua
         public const int GdsClientConnection = 0;
         public const int GlobalDiscoveryServerClient = 10;
         public const int ServerPushConfigurationClient = 20;
-        public const int ServerStatusMonitor = 30;
     }
 }
