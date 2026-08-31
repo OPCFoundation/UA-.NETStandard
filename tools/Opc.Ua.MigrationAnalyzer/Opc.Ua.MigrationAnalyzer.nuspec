@@ -11,7 +11,7 @@
     <projectUrl>https://github.com/OPCFoundation/UA-.NETStandard</projectUrl>
     <icon>images/logo.jpg</icon>
     <readme>NugetREADME.md</readme>
-    <description>25 OPC UA analyzers (through UA0028, with gaps), code fixes, and a 1.5.378 API shim.</description>
+    <description>26 OPC UA analyzers (through UA0030, with gaps), code fixes, and a 1.5.378 API shim.</description>
     <copyright>Copyright (c) 2004-2025 OPC Foundation, Inc</copyright>
     <tags>OPCFoundation OPC UA analyzer codefix roslyn migration shim</tags>
     <developmentDependency>true</developmentDependency>

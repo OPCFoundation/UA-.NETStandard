@@ -24,7 +24,7 @@ Trigger this skill when a user asks for any of:
 - "migrate to v20" / "update from master378" / "fix v20 build errors"
 - "modernize Variant / ArrayOf / DateTimeUtc / ByteString APIs"
 - "fix CS0246 on `<Type>Collection` wrappers"
-- "address the 25 analyzer rules through `UA0028` or the `UA0029` shim marker"
+- "address the 26 analyzer rules through `UA0030` or the `UA0029` shim marker"
 - "resolve `MIG01` from the source generator"
 - "how do I install `OPCFoundation.NetStandard.Opc.Ua.MigrationAnalyzer`"
 

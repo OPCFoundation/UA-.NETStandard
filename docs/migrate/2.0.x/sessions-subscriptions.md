@@ -385,23 +385,44 @@ Custom implementations must add both. Returning `false` from `IsClosing` and doi
 `InvalidateContinuationPoints` preserves the previous behaviour; the built-in server `Session`
 already implements them.
 
-### `Opc.Ua.Server.ISubscription.SessionClosed(ISession)`
+### `Opc.Ua.Server.ISubscription`: the publish pipeline is server-internal
 
-**Source-breaking for custom implementations.** This is the **server-side**
+**Source-breaking for custom implementations and for callers.** This is the **server-side**
 `Opc.Ua.Server.ISubscription` — not the client-side `Opc.Ua.Client.Subscriptions.ISubscription`
-introduced by the V2 subscription shape above. It gains
-`bool SessionClosed(Opc.Ua.Server.ISession closingSession)`, and the parameterless `SessionClosed()`
-is `[Obsolete]`.
+introduced by the V2 subscription shape above. Twelve members leave the interface
+(analyzer `UA0030`; see [MigrationGuide.md](../../MigrationGuide.md#ua0030) for the
+caller-side migration):
 
-A subscription can be transferred to another session while the old one is closing, so clearing the
-owner unconditionally would strip a subscription that has already moved on. The new overload takes
-the closing session, releases the subscription only when that session still owns it, and reports
-whether it did. Deciding ownership inside the subscription also makes the check atomic with the
-release, which a caller comparing `Session` beforehand cannot be.
+- `ItemReadyToPublish` and `ItemNotificationsAvailable` are **deleted**. Their implementation
+  bodies had been commented out since 1.5.x, so every call was a no-op — delete the calls and
+  the implementations.
+- The parameterless obsolete `SessionClosed()` is **deleted**; session teardown goes through
+  `ISubscriptionManager.SessionClosingAsync`.
+- `TransferSessionAsync` is **deleted**; the server transfers subscriptions through its
+  internal claim/prepare/commit protocol, reached via the `TransferSubscriptions` service
+  (`ISubscriptionManager.TransferSubscriptionsAsync`).
+- `PublishTimerExpired`, `Acknowledge`, `PublishTimeout`, `SubscriptionTransferred`,
+  `AvailableSequenceNumbersForRetransmission`, `QueueOverflowHandler`, `SessionClosed(ISession)`
+  and `Publish` move to an **internal contract** implemented only by the built-in `Subscription`.
+  They mutate the publishing state machine and are called only by `SubscriptionManager` and the
+  (now likewise internal) `SessionPublishQueue`; on the public interface, any holder of an
+  `ISubscription` could call them and corrupt publishing.
 
-Custom implementations must add the overload; comparing the argument against the current owner and
-delegating to the existing `SessionClosed()` preserves the previous behaviour. The built-in server
-`Subscription` already implements it.
+**Custom subscription implementations must derive from `Subscription`.** A
+`SubscriptionManager.CreateSubscription` override that returns an `ISubscription` implementation
+not derived from `Subscription` previously worked partially (the pipeline drove it through the
+public members, but transfer already required the concrete type); it now fails at creation with
+`Bad_InternalError`. Derive from `Subscription` instead — the interface members that remain
+(`ResendData`, `GetMonitoredItems`, the monitored-item operations, `Modify`,
+`SetPublishingMode`, `Republish`, `IsTransferIdentityCompatible` and the durable members)
+keep their meaning, and the pipeline members are explicit implementations the runtime drives
+for you. Implementations that
+had added `SessionClosed(ISession)` per the earlier 2.0 guidance delete it together with the
+rest of the pipeline members.
+
+`SessionPublishQueue` is internal for the same reason (`SentMessageQueue` already was): the
+queue is the other half of the publish protocol. Code that constructed or drove one should use
+the `Publish` service path via `ISubscriptionManager.PublishAsync`.
 
 ### PubSub
 

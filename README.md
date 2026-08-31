@@ -152,9 +152,9 @@ routing across all supported migration topics.
 Most of the mechanical migration work is automated:
 
 - **`OPCFoundation.NetStandard.Opc.Ua.MigrationAnalyzer` NuGet** —
-  install it in your project to get 25 analyzer rules through `UA0028`
-  (excluding `UA0013`, `UA0016`, and `UA0017`) plus one-click code fixes for
-  the patterns in the guide. Setup steps
+  install it in your project to get 26 analyzer rules through `UA0030`
+  (excluding `UA0013`, `UA0016`, `UA0017`, and the shim-only `UA0029`) plus
+  one-click code fixes for the patterns in the guide. Setup steps
   are in the package's
   [NugetREADME.md](tools/Opc.Ua.MigrationAnalyzer/NugetREADME.md).
 - **Migration agent skill** — the

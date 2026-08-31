@@ -3,9 +3,9 @@ name: opcua-v20-migration
 description: |
   Migrate OPC UA .NET Standard applications from version 1.5.378 to
   version 2.0.x. Walks consumers through installing the
-  OPCFoundation.NetStandard.Opc.Ua.MigrationAnalyzer NuGet (25 analyzers through
-  UA0028, UA0029 runtime-shim guidance, source-generated <Type>Collection shims,
-  runtime compat shim), running
+  OPCFoundation.NetStandard.Opc.Ua.MigrationAnalyzer NuGet (26 analyzers through
+  UA0030, with UA0029 reserved for runtime-shim guidance, source-generated
+  <Type>Collection shims, runtime compat shim), running
   `dotnet format analyzers` to apply auto-fixes, and walking the residual manual
   patterns. Use when asked to "migrate to v20", "update from 1.5.378", "fix
   v20 build errors", "migrate OPC UA code to 2.0", "update to new Variant API",
@@ -99,13 +99,14 @@ automatically.
   `<Type>Collection` not found") into `[Obsolete]` warnings + `UA0002`
   diagnostics, and the runtime shim turns "method removed" errors into
   `[Obsolete]` warnings too. Edit a working build, not a broken one.
-- **Let tooling do the mechanical work.** 14 of the 25 `UA00xx` rules have
+- **Let tooling do the mechanical work.** 14 of the 26 `UA00xx` rules have
   auto-fixes — apply them via the IDE quick-fix or `dotnet format analyzers`
   before opening a single file by hand.
-- **Reserve human judgement for the 11 manual rules** — `UA0001` (telemetry
+- **Reserve human judgement for the 12 manual rules** — `UA0001` (telemetry
   plumbing), `UA0011` / `UA0015` (sync→async promotion), `UA0018` (cert load
   refactor), `UA0021` (`CertificateValidator` structural rewrite), and
-  `UA0023`–`UA0028` (PubSub and removed exposed-lock APIs).
+  `UA0023`–`UA0028` plus `UA0030` (PubSub, removed exposed-lock APIs, and the
+  internalized server subscription publish pipeline).
 - **Treat `UA0029`-tagged obsolete warnings as manual work too.** The runtime
   shim marks moved `SecurityPolicies` statics, but no analyzer currently emits
   `UA0029`; migrate the `CS0618` sites to `ISecurityPolicyRegistry`.
@@ -137,9 +138,10 @@ dotnet format analyzers <YourSolution>.sln \
                   UA0009 UA0010 UA0012 UA0014 UA0019 UA0020 UA0022 \
     --severity warn
 
-# 4. Walk UA0001 / UA0011 / UA0015 / UA0018 / UA0021 and UA0023-UA0028 by hand,
-#    plus CS0618 SecurityPolicies calls whose message references UA0029.
-#    See references/migration-patterns.md for the categorical playbook.
+# 4. Walk UA0001 / UA0011 / UA0015 / UA0018 / UA0021, UA0023-UA0028, and
+#    UA0030 by hand, plus CS0618 SecurityPolicies calls tagged UA0029.
+#    See references/migration-patterns.md and the bundled sessions/subscriptions
+#    guide for the categorical playbooks.
 
 # 5. Once the build is warning-free, drop the package reference. You're done.
 ```
@@ -150,7 +152,7 @@ dotnet format analyzers <YourSolution>.sln \
 - [ ] `OPCFoundation.NetStandard.Opc.Ua.MigrationAnalyzer` added as `PrivateAssets="all"` build-only dependency in every consumer project
 - [ ] `dotnet build` succeeds (warnings allowed, errors fixed)
 - [ ] `dotnet format analyzers --diagnostics UA0002 …` applied
-- [ ] `UA0001`/`UA0011`/`UA0015`/`UA0018`/`UA0021` and `UA0023`–`UA0028` manual residuals resolved
+- [ ] `UA0001`/`UA0011`/`UA0015`/`UA0018`/`UA0021`, `UA0023`–`UA0028`, and `UA0030` manual residuals resolved
 - [ ] `SecurityPolicies` obsolete warnings tagged `UA0029` migrated manually
 - [ ] `[Obsolete]` (CS0612/CS0618) warnings fixed, **not** suppressed
 - [ ] `MigrationAnalyzer` package reference removed before merging
@@ -181,12 +183,12 @@ The single `OPCFoundation.NetStandard.Opc.Ua.MigrationAnalyzer` NuGet contains
 
 | Component | Where | Loaded by | Purpose |
 |---|---|---|---|
-| `Opc.Ua.MigrationAnalyzer.dll` | `analyzers/dotnet/roslyn4.14/cs/` and `roslyn5.0/cs/` | csc.exe and IDE | 25 `DiagnosticAnalyzer`s through UA0028 (excluding UA0013, UA0016, and UA0017). No `Workspaces` reference, csc-safe. |
+| `Opc.Ua.MigrationAnalyzer.dll` | `analyzers/dotnet/roslyn4.14/cs/` and `roslyn5.0/cs/` | csc.exe and IDE | 26 `DiagnosticAnalyzer`s through UA0030 (excluding UA0013, UA0016, UA0017, and UA0029). No `Workspaces` reference, csc-safe. |
 | `Opc.Ua.MigrationAnalyzer.CodeFixer.dll` | `analyzers/dotnet/roslyn4.14/cs/` and `roslyn5.0/cs/` | Workspaces-aware hosts only (Visual Studio, Rider, `dotnet format analyzers`) | 14 `CodeFixProvider`s. |
 | `Opc.Ua.MigrationAnalyzer.Generator.dll` | `analyzers/dotnet/roslyn4.14/cs/` and `roslyn5.0/cs/` | csc.exe and IDE | `IIncrementalGenerator` that emits `public sealed [Obsolete] class <Name>Collection : List<TElement>` shims into the consumer compilation for every `<Type>Collection` reference that fails to bind. |
 | `Opc.Ua.MigrationAnalyzer.Core.dll` | `lib/<tfm>/` × 6 TFMs (`net472`, `net48`, `netstandard2.1`, `net8.0`, `net9.0`, `net10.0`) | Runtime | Re-supplies the obsolete extension surface 2.0 moved or removed so 1.5.378 call sites continue to compile with `[Obsolete]` warnings. |
 
-### The 25 analyzer rules at a glance
+### The 26 analyzer rules at a glance
 
 The full table with default severity, replaces, auto-fix status, and
 before/after examples lives in
@@ -220,6 +222,7 @@ of where each lands in the workflow:
 | **UA0026** | Warning | — | `BaseVariableValue.Lock` → caller-owned `System.Threading.Lock` |
 | **UA0027** | Warning | — | `NodeBrowser.DataLock` → single-consumer browser without external locking |
 | **UA0028** | Warning | — | `ApplicationConfiguration.PropertiesLock` → concurrent properties APIs |
+| **UA0030** | Warning | — | Server `ISubscription` publish-pipeline members / `SessionPublishQueue` → service and manager APIs |
 
 Runtime-shim-only migration marker:
 
@@ -299,7 +302,7 @@ from the failure set in your `Directory.Build.targets`:
 ```xml
 <PropertyGroup>
   <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
-  <NoWarn>$(NoWarn);CS0612;CS0618;MIG01;UA0001;UA0002;UA0003;UA0004;UA0005;UA0006;UA0007;UA0008;UA0009;UA0010;UA0011;UA0012;UA0014;UA0015;UA0018;UA0019;UA0020;UA0021;UA0022;UA0023;UA0024;UA0025;UA0026;UA0027;UA0028</NoWarn>
+  <NoWarn>$(NoWarn);CS0612;CS0618;MIG01;UA0001;UA0002;UA0003;UA0004;UA0005;UA0006;UA0007;UA0008;UA0009;UA0010;UA0011;UA0012;UA0014;UA0015;UA0018;UA0019;UA0020;UA0021;UA0022;UA0023;UA0024;UA0025;UA0026;UA0027;UA0028;UA0030</NoWarn>
 </PropertyGroup>
 ```
 

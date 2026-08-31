@@ -246,5 +246,11 @@ namespace Opc.Ua.MigrationAnalyzer.Diagnostics
             "'ApplicationConfiguration.PropertiesLock' was removed in 2.0 — Properties synchronizes itself, so drop the lock and use GetOrAddProperty(...) if a read and a write have to be atomic",
             DiagnosticSeverity.Warning,
             "ApplicationConfiguration.PropertiesLock returned the properties dictionary itself, so the lock was the data it guarded: every caller that took it shared one monitor with the dictionary and with every other caller, in an order none of them could see. Properties is now a concurrent dictionary, so each individual operation is atomic without a lock. The only combination that needs more than one operation is get-or-add, which GetOrAddProperty covers; it deliberately does not invoke the factory under a lock, so a caller cannot hold a critical section across a callback. This rule reports rather than fixes, because whether a lock body becomes a plain call or a GetOrAddProperty depends on what the body does.");
+        public static readonly DiagnosticDescriptor UA0030_SubscriptionPublishPipelineInternalized = Create(
+            DiagnosticIds.UA0030,
+            "The ISubscription publish pipeline is server-internal in 2.0",
+            "'{0}' was removed from the public API in 2.0 — {1}",
+            DiagnosticSeverity.Warning,
+            "The members that drive the publishing state machine (PublishTimerExpired, Acknowledge, PublishTimeout, SubscriptionTransferred, AvailableSequenceNumbersForRetransmission, QueueOverflowHandler, SessionClosed and Publish) moved onto an internal contract implemented only by Subscription, and SessionPublishQueue became internal: a caller outside the pipeline invoking them corrupted the publishing state machine (consumed notifications, advanced sequence numbers, released a subscription its session still owned). ItemReadyToPublish and ItemNotificationsAvailable were deleted outright - their bodies had been commented out since 1.5.x, so every call was already a no-op. TransferSessionAsync was deleted - the server transfers subscriptions through its internal claim/prepare/commit protocol, reached via the TransferSubscriptions service. Custom ISubscription implementations must derive from Subscription; subscription creation fails with Bad_InternalError otherwise. See docs/MigrationGuide.md#ua0030.");
     }
 }

@@ -17,8 +17,8 @@
       exact System.<Type> / Opc.Ua.<Type> metadata name. A `using` directive
       does not change that lookup; keep this enabled and migrate each site
       manually.
-    - 25 UA00xx rules through UA0028: UA0013, UA0016, and UA0017 are unused.
-      See references/analyzer-rules.md for the full table.
+    - 26 UA00xx rules through UA0030: UA0013, UA0016, UA0017, and UA0029 do
+      not identify active analyzers. See references/analyzer-rules.md.
 
     For per-rule suppression instead of NoWarn, use .editorconfig:
         [*.cs]
@@ -59,7 +59,8 @@
       UA0025;
       UA0026;
       UA0027;
-      UA0028
+      UA0028;
+      UA0030
     </NoWarn>
   </PropertyGroup>
 </Project>

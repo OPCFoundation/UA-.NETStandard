@@ -129,10 +129,12 @@ dotnet format analyzers <YourSolution>.sln \
 Or run the helper script in `scripts/apply-codefixes.ps1` which auto-discovers
 the solution file and reports before/after warning counts.
 
-The 14 rules listed above are the **auto-fixable** subset of UA00xx. The 11
+The 14 rules listed above are the **auto-fixable** subset of UA00xx. The 12
 remaining (`UA0001`, `UA0011`, `UA0015`, `UA0018`, `UA0021`, and
-`UA0023`–`UA0028`) are diagnostic-only because they require human judgement —
-see `references/migration-patterns.md` for the manual playbook.
+`UA0023`–`UA0028`, plus `UA0030`) are diagnostic-only because they require
+human judgement — see `references/migration-patterns.md` and
+`references/stack-migration/sessions-subscriptions.md` for the manual
+playbooks.
 
 ## Remove the package once warning-free
 
@@ -153,6 +155,6 @@ When the build is `0 Warnings 0 Errors` on the migration diagnostics:
 dotnet restore && dotnet build
 # 3. Apply auto-fixes
 dotnet format analyzers MySolution.sln --diagnostics UA0002 UA0003 UA0004 UA0005 UA0006 UA0007 UA0008 UA0009 UA0010 UA0012 UA0014 UA0019 UA0020 UA0022 --severity warn
-# 4. Walk UA0001/UA0011/UA0015/UA0018/UA0021 and UA0023-UA0028 manually
+# 4. Walk UA0001/UA0011/UA0015/UA0018/UA0021, UA0023-UA0028, and UA0030 manually
 # 5. Remove MigrationAnalyzer reference; rebuild; commit
 ```

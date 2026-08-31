@@ -333,6 +333,44 @@ namespace Opc.Ua.Gds.Tests
             await DisconnectPushClientAsync().ConfigureAwait(false);
         }
 
+        /// <summary>
+        /// The push client monitors Server_ServerStatus once connected and
+        /// raises ServerStatusChanged for the initial value of the item.
+        /// </summary>
+        [Test]
+        [Order(99)]
+        public async Task ServerStatusChangedIsRaisedAsync()
+        {
+            var received = new TaskCompletionSource<Gds.Client.ServerStatusChangedEventArgs>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            EventHandler<Gds.Client.ServerStatusChangedEventArgs> handler =
+                (_, e) => received.TrySetResult(e);
+
+            m_pushClient.PushClient.ServerStatusChanged += handler;
+            try
+            {
+                await ConnectPushClientAsync(true).ConfigureAwait(false);
+
+                Task completed = await Task.WhenAny(
+                    received.Task,
+                    Task.Delay(TimeSpan.FromSeconds(30))).ConfigureAwait(false);
+                Assert.That(
+                    completed,
+                    Is.SameAs(received.Task),
+                    "ServerStatusChanged was not raised within 30 seconds.");
+
+                Gds.Client.ServerStatusChangedEventArgs status = await received.Task
+                    .ConfigureAwait(false);
+                Assert.That(status.CurrentState, Is.EqualTo(ServerState.Running));
+                Assert.That(ServiceResult.IsGood(status.Status), Is.True);
+                Assert.That(status.CurrentTime, Is.Not.Default);
+            }
+            finally
+            {
+                m_pushClient.PushClient.ServerStatusChanged -= handler;
+            }
+        }
+
         [Test]
         [Order(100)]
         public async Task GetSupportedKeyFormatsAsync()

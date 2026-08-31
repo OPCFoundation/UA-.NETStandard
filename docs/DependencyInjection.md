@@ -942,6 +942,54 @@ both file and stream is rejected with a clear
 `InvalidOperationException` at registration. DI-registered
 `ICertificateManager` / `ICertificatePasswordProvider` are honored.
 
+### Client: loading the configuration eagerly
+
+Hosted applications whose user interface needs the
+`ApplicationConfiguration` before any session exists — a WinForms or WPF
+client whose main form takes the configuration in its constructor, for
+instance — can opt into an eager load with
+`OpcUaClientOptions.LoadConfigurationOnStart` (bindable from
+`OpcUa:Client:LoadConfigurationOnStart`). It registers an
+`IHostedService` that awaits the load while the host starts, the
+client-side twin of the reverse-connect hosted service:
+
+```csharp
+services
+    .AddOpcUa()
+    .AddClient("MyClient.Config.xml", opt => opt.LoadConfigurationOnStart = true);
+
+using IHost host = builder.Build();
+await host.StartAsync();
+
+// The document is loaded and validated and the application instance
+// certificate is ensured; a failure has already failed host.StartAsync().
+ApplicationConfiguration configuration = host.Services
+    .GetRequiredService<OpcUaClientOptions>()
+    .ConfigurationProvider!
+    .Configuration;
+```
+
+`OpcUaClientOptions.ConfigurationProvider` is the public
+`IOpcUaApplicationConfigurationProvider` resolved for the client — the
+supplied-document provider when `ConfigurationFile` / `ConfigurationStream`
+was set, and otherwise the shared `ConfigureApplication(...)` provider.
+It is available on the options instance resolved from the service
+provider, not on the instance passed to the `AddClient(...)` callback,
+and it exposes everything a hosted client needs: `GetAsync(ct)` as an
+explicit load trigger without connecting a session, `Configuration` to
+read the loaded document back, and `Application`
+(`IApplicationInstance`) for applications that manage their own instance
+certificate. Applications that do not use the Generic Host can call
+`GetAsync` directly instead of setting `LoadConfigurationOnStart`; both
+routes share the provider's single-flight load, so the configuration is
+never loaded twice.
+
+`LoadConfigurationOnStart` applies to every provider source and is a
+no-op when an explicit `Configuration` was supplied, which is already
+complete. Because it decides a service registration, set it within the
+`AddClient(...)` callback or bind it from the configuration section;
+setting it on the resolved options afterwards has no effect.
+
 ### Fluent shortcuts
 
 The returned `IOpcUaClientBuilder` can compose client features without

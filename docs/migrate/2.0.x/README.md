@@ -13,8 +13,8 @@ find the sub-doc that matches the symptom you are seeing.
 > [`OPCFoundation.NetStandard.Opc.Ua.MigrationAnalyzer`](https://www.nuget.org/packages/OPCFoundation.NetStandard.Opc.Ua.MigrationAnalyzer)
 > analyzer package to your projects to receive analyzer warnings and
 > one-click fixes for many of the patterns in these sub-docs. The package
-> implements 25 analyzer rules through `UA0028` (excluding `UA0013`, `UA0016`,
-> and `UA0017`) across the index below and the cross-cutting guidance in the
+> implements 26 analyzer rules through `UA0030` (excluding `UA0013`, `UA0016`,
+> `UA0017`, and the shim-only `UA0029`) across the index below and the cross-cutting guidance in the
 > [Migration Guide](../../MigrationGuide.md). `UA0029` is currently a
 > runtime-shim/manual marker surfaced through `CS0618`, not an analyzer. The type-safety
 > subset (`UA0002`–`UA0008`, `UA0014`, `UA0019`) maps to
@@ -42,7 +42,7 @@ table; loading a single sub-doc keeps the context window small.
 | `IUserIdentityTokenHandler`, `IClientIdentityProvider`, `IUserTokenAuthenticator`, `IAccessTokenProvider`, `ITokenIssuer`, `IIdentityClaims`, caller-supplied secrets, secret store | [`identity.md`](identity.md) |
 | `CertificateValidator`, ref-counted `Certificate` wrapper, `CertificateManager`, `ICertificateProvider`, obsoleted `X509Certificate2` direct-exposure APIs, PushManagement transactions (`ApplyChanges`-gated TrustList updates) | [`certificates.md`](certificates.md) |
 | `ApplicationConfiguration` changes, Data-Contract serializer removal, `MinMetadataSamplingInterval` → `MinSupportedSamplingInterval`, `ParseExtension` / `UpdateExtension` signature, session / browser state persistence | [`configuration.md`](configuration.md) |
-| `Session` → `ManagedSession`, V2 subscription engine, GDS-client `Task` → `ValueTask` modernisation, removed obsolete GDS APIs, durable subscriptions, removed `ReverseConnectClientCollection`, `IMessageSocket`, or `TransportBindings` APIs | [`sessions-subscriptions.md`](sessions-subscriptions.md) |
+| `Session` → `ManagedSession`, V2 subscription engine, GDS-client `Task` → `ValueTask` modernisation, removed obsolete GDS APIs, durable subscriptions, PubSub, reverse-connect, server `ISubscription` publish-pipeline members / `SessionPublishQueue` internalized (analyzer `UA0030`) | [`sessions-subscriptions.md`](sessions-subscriptions.md) |
 | `UaPubSubApplication.Create*`, `IUaPubSubConnection`, `UaPubSubConfigurator`, `IUaPublisher`, AMQP transport, `JsonEncodingMode.Reversible/NonReversible`, PubSub JSON encoder changes, `DataSetFieldContentMask` RawData / timestamp behaviour | [`pubsub.md`](pubsub.md) |
 | `AlarmConditionState` state-transition behaviour, auto-emitted `GeneralModelChangeEvent`, `ModelChangeAggregator`, `INodeCache.InvalidateNode` triggered by model change | [`alarms-model-change.md`](alarms-model-change.md) |
 | `DateTime.UtcNow`, `Timer`, deterministic time in tests; `System.TimeProvider` adoption | [`timeprovider.md`](timeprovider.md) |

@@ -1,11 +1,10 @@
 # UA00xx + MIG01 — full analyzer / generator rule reference
 
-The implemented `UA0001`–`UA0028` rules below ship as `DiagnosticAnalyzer`
+The 26 implemented rules through `UA0030` below ship as `DiagnosticAnalyzer`
 types in `Opc.Ua.MigrationAnalyzer.dll` (excluding the unused IDs `UA0013`,
-`UA0016`, and `UA0017`). `MIG01` comes from the `MigrationGenerator`. `UA0029`
-is currently a runtime-shim/manual-migration marker only; no analyzer reports
-that ID. The companion `CodeFixProvider` types, when available, live in
-`Opc.Ua.MigrationAnalyzer.CodeFixer.dll`.
+`UA0016`, and `UA0017`, plus the shim-only marker `UA0029`). `MIG01` comes from
+the `MigrationGenerator`. The companion `CodeFixProvider` types, when
+available, live in `Opc.Ua.MigrationAnalyzer.CodeFixer.dll`.
 
 Apply all auto-fixable rules in one shot via the
 [`scripts/apply-codefixes.ps1`](../scripts/apply-codefixes.ps1) wrapper or
@@ -579,6 +578,25 @@ string? uri = SecurityPolicies.Default.GetUri("Basic256Sha256");
 
 `SecurityPolicies` still owns the policy URI constants. For `Encrypt` and
 `Decrypt`, call the registry instance and remove the old `ILogger` argument.
+
+---
+
+## UA0030 — server subscription publish pipeline became internal
+
+| | |
+|---|---|
+| **Default severity** | Warning |
+| **Auto-fix** | No |
+| **Why** | The publishing state machine must be driven by `SubscriptionManager` and the server publish queue. Direct calls could consume unseen notifications, advance sequence numbers, or release a subscription its session still owned. |
+
+Remove calls to deleted no-op members such as `ItemReadyToPublish` and
+`ItemNotificationsAvailable`. Route acknowledgements, publishing, republishing,
+and transfers through the corresponding service or `ISubscriptionManager` API.
+Custom implementations must derive from `Subscription`; do not implement
+`ISubscription` directly to recreate the old pipeline.
+
+See the canonical
+[`UA0030` migration guidance](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/MigrationGuide.md#ua0030).
 
 ---
 

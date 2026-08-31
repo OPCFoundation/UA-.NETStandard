@@ -6,8 +6,9 @@ A single NuGet install (`OPCFoundation.NetStandard.Opc.Ua.MigrationAnalyzer`) th
 ships **three Roslyn components + a runtime shim** to help migrate from OPC UA
 .NET Standard 1.5.378 to 2.0:
 
-- a Roslyn **analyzer + code-fixer** set (25 implemented rules through
-  `UA0028`, excluding `UA0013`, `UA0016`, and `UA0017`) that flags the
+- a Roslyn **analyzer + code-fixer** set (26 implemented rules through
+  `UA0030`, excluding `UA0013`, `UA0016`, `UA0017`, and the shim-only
+  `UA0029`) that flags the
   automatable patterns covered by the
   [2.0 migration guide](../../docs/migrate/2.0.x/README.md)
   and, where safe, applies the fix automatically;
@@ -47,9 +48,10 @@ ships **three Roslyn components + a runtime shim** to help migrate from OPC UA
 3. Walk through the `UA00xx` analyzer warnings in the IDE and apply the
    offered auto-fixes. A handful (`UA0001`, `UA0011`, `UA0015`, `UA0018`,
    `UA0021`) are `Info`-level and need a manual review. The warning-level
-   `UA0023`–`UA0028` rules are also diagnostic-only. A single generator
+   `UA0023`–`UA0028` and `UA0030` are also diagnostic-only. A single generator
    diagnostic (`MIG01`) fires when the generator can't resolve a unique element
-   type from consumer source or standard `System.*` / `Opc.Ua.*` metadata.
+   type from consumer source or exact `System.<Type>` / `Opc.Ua.<Type>`
+   metadata names.
    Migrate the site manually or define the legacy wrapper explicitly. Calls to
    shimmed `SecurityPolicies` statics surface as `CS0618` messages tagged
    `UA0029`; no analyzer reports that marker, so migrate those calls manually.
@@ -87,6 +89,7 @@ ships **three Roslyn components + a runtime shim** to help migrate from OPC UA
 | UA0027 | Warning  | `NodeBrowser.DataLock`                                                               |
 | UA0028 | Warning  | `ApplicationConfiguration.PropertiesLock`                                           |
 | UA0029 | —        | Shim/manual marker only: `SecurityPolicies` lookup and cryptography statics moved to `ISecurityPolicyRegistry`; no analyzer currently reports this ID |
+| UA0030 | Warning  | Server `ISubscription` publish-pipeline members and `SessionPublishQueue` became internal |
 
 ## What the shim provides
 
@@ -142,7 +145,7 @@ diagnostics from the failure set:
 ```xml
 <PropertyGroup>
   <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
-  <NoWarn>$(NoWarn);CS0612;CS0618;MIG01;UA0001;UA0002;UA0003;UA0004;UA0005;UA0006;UA0007;UA0008;UA0009;UA0010;UA0011;UA0012;UA0014;UA0015;UA0018;UA0019;UA0020;UA0021;UA0022;UA0023;UA0024;UA0025;UA0026;UA0027;UA0028</NoWarn>
+  <NoWarn>$(NoWarn);CS0612;CS0618;MIG01;UA0001;UA0002;UA0003;UA0004;UA0005;UA0006;UA0007;UA0008;UA0009;UA0010;UA0011;UA0012;UA0014;UA0015;UA0018;UA0019;UA0020;UA0021;UA0022;UA0023;UA0024;UA0025;UA0026;UA0027;UA0028;UA0030</NoWarn>
 </PropertyGroup>
 ```
 

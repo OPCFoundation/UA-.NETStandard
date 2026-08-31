@@ -55,11 +55,11 @@
         UA0020 - EncodeableFactory.Create() -> Fork()
         UA0022 - .CertificateValidator -> .CertificateManager
 
-    The 11 manual residuals are left for human follow-up:
+    The 12 manual residuals are left for human follow-up:
         UA0001 (telemetry plumbing), UA0011 / UA0015 (sync->async promotion),
         UA0018 (cert load async refactor), UA0021 (CertificateValidator
-        structural rewrite), and UA0023-UA0028 (PubSub and removed exposed-lock
-        APIs).
+        structural rewrite), UA0023-UA0028 (PubSub and removed exposed-lock
+        APIs), and UA0030 (internalized server subscription publish pipeline).
 
     SecurityPolicies compatibility calls marked UA0029 surface as compiler
     CS0618 warnings rather than an analyzer diagnostic and also require manual
@@ -255,7 +255,9 @@ if ($after.UaWarnings -gt 0) {
     Write-Host "  UA0026 (BaseVariableValue.Lock -> caller-owned Lock)" -ForegroundColor DarkYellow
     Write-Host "  UA0027 (NodeBrowser.DataLock -> single-consumer access)" -ForegroundColor DarkYellow
     Write-Host "  UA0028 (PropertiesLock -> concurrent properties APIs)" -ForegroundColor DarkYellow
+    Write-Host "  UA0030 (server subscription publish pipeline -> service APIs)" -ForegroundColor DarkYellow
     Write-Host "  See references/migration-patterns.md for the categorical playbook." -ForegroundColor DarkYellow
+    Write-Host "  See the bundled sessions/subscriptions guide for UA0030." -ForegroundColor DarkYellow
 }
 
 if ($after.ObsoleteWarnings -gt 0) {
