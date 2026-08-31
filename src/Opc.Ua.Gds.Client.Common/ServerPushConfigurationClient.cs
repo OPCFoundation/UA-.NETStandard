@@ -307,12 +307,8 @@ namespace Opc.Ua.Gds.Client
         /// <inheritdoc/>
         public event KeepAliveEventHandler? KeepAlive;
 
-        /// <summary>
-        /// Occurs when the server status changes.
-        /// </summary>
-#pragma warning disable CS0067
-        public event MonitoredItemNotificationEventHandler? ServerStatusChanged;
-#pragma warning restore CS0067
+        /// <inheritdoc/>
+        public event EventHandler<ServerStatusChangedEventArgs>? ServerStatusChanged;
 
         /// <inheritdoc/>
         public void Dispose()
@@ -356,11 +352,13 @@ namespace Opc.Ua.Gds.Client
                 GC.SuppressFinalize(this);
             }
         }
+
         /// <inheritdoc/>
         public ValueTask ConnectAsync(CancellationToken ct = default)
         {
             return ConnectAsync(m_endpoint, ct);
         }
+
         /// <inheritdoc/>
         public async ValueTask ConnectAsync(string endpointUrl, CancellationToken ct = default)
         {
@@ -418,6 +416,7 @@ namespace Opc.Ua.Gds.Client
                     "Failed to connect after {0} attempts.",
                     maxAttempts);
         }
+
         /// <inheritdoc/>
         public async ValueTask ConnectAsync(ConfiguredEndpoint? endpoint, CancellationToken ct = default)
         {
@@ -452,12 +451,14 @@ namespace Opc.Ua.Gds.Client
                     "Failed to connect after {0} attempts.",
                     maxAttempts);
         }
+
         /// <inheritdoc/>
         public async ValueTask DisconnectAsync(CancellationToken ct = default)
         {
             await m_lock.WaitAsync(ct).ConfigureAwait(false);
             try
             {
+
                 ISession? session = Session;
                 Session = null;
                 m_serverConfiguration = null;
@@ -482,6 +483,7 @@ namespace Opc.Ua.Gds.Client
                 m_lock.Release();
             }
         }
+
         /// <inheritdoc/>
         public async ValueTask<ArrayOf<string>> GetSupportedKeyFormatsAsync(CancellationToken ct = default)
         {
@@ -710,6 +712,7 @@ namespace Opc.Ua.Gds.Client
                 await RevertPermissionsAsync(session, oldUser, ct).ConfigureAwait(false);
             }
         }
+
         /// <inheritdoc/>
         public async ValueTask<ByteString> CreateSigningRequestAsync(
             NodeId certificateGroupId,
@@ -737,6 +740,7 @@ namespace Opc.Ua.Gds.Client
                 await RevertPermissionsAsync(session, oldUser, ct).ConfigureAwait(false);
             }
         }
+
         /// <inheritdoc/>
         public async ValueTask<bool> UpdateCertificateAsync(
             NodeId certificateGroupId,
@@ -766,6 +770,7 @@ namespace Opc.Ua.Gds.Client
                 await RevertPermissionsAsync(session, oldUser, ct).ConfigureAwait(false);
             }
         }
+
         /// <inheritdoc/>
         public async ValueTask<CertificateCollection> GetRejectedListAsync(CancellationToken ct = default)
         {
@@ -787,6 +792,7 @@ namespace Opc.Ua.Gds.Client
                 await RevertPermissionsAsync(session, oldUser, ct).ConfigureAwait(false);
             }
         }
+
         /// <inheritdoc/>
         public async ValueTask ApplyChangesAsync(CancellationToken ct = default)
         {
@@ -1002,18 +1008,52 @@ namespace Opc.Ua.Gds.Client
                 return;
             }
 
+            if (!ReferenceEquals(session, Session))
+            {
+                return;
+            }
+
             // Re-raise the public KeepAlive event synchronously on the same callback
             // thread to preserve original ordering for subscribers.
             try
             {
-                if (ReferenceEquals(session, Session))
-                {
-                    KeepAlive?.Invoke(session, e);
-                }
+                KeepAlive?.Invoke(session, e);
             }
             catch (Exception exception)
             {
                 m_logger.SubscriberThrewInKeepAliveHandler(exception);
+            }
+
+            RaiseServerStatusChanged(e);
+        }
+
+        /// <summary>
+        /// Raises <see cref="ServerStatusChanged"/> when the server state
+        /// changes, and once for the state the first keep-alive reports.
+        /// </summary>
+        /// <remarks>
+        /// The session keep-alive already reads <c>Server_ServerStatus_State</c>
+        /// from the server on every interval - on both subscription engines, and
+        /// the first one is sent immediately after connect - so the state is
+        /// available without this client creating a subscription of its own.
+        /// </remarks>
+        private void RaiseServerStatusChanged(KeepAliveEventArgs e)
+        {
+            if (e == null || m_lastServerState == e.CurrentState)
+            {
+                return;
+            }
+            m_lastServerState = e.CurrentState;
+
+            try
+            {
+                ServerStatusChanged?.Invoke(
+                    this,
+                    new ServerStatusChangedEventArgs(e.Status, e.CurrentState, e.CurrentTime));
+            }
+            catch (Exception exception)
+            {
+                m_logger.SubscriberThrewInServerStatusChangedHandler(exception);
             }
         }
 
@@ -1060,6 +1100,7 @@ namespace Opc.Ua.Gds.Client
                     ct)
                 .ConfigureAwait(false);
 
+                m_lastServerState = null;
                 Session.KeepAlive += Session_KeepAlive;
 
                 if (!Session.Factory.ContainsEncodeableType(Ua.DataTypeIds.TrustListDataType))
@@ -1086,6 +1127,7 @@ namespace Opc.Ua.Gds.Client
                     Session,
                     ExpandedNodeId.ToNodeId(Ua.ObjectIds.ServerConfiguration, Session.NamespaceUris),
                     MessageContext.Telemetry);
+
 
                 m_logger.ConnectedToEndpoint(EndpointUrl);
             }
@@ -1129,6 +1171,7 @@ namespace Opc.Ua.Gds.Client
         private readonly TimeProvider m_timeProvider;
         private readonly CancellationTokenSource m_disposeCts = new();
         private ConfiguredEndpoint? m_endpoint;
+        private ServerState? m_lastServerState;
         private ServerConfigurationTypeClient? m_serverConfiguration;
         private bool m_disposed;
     }
