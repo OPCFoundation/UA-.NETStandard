@@ -189,11 +189,10 @@ namespace Opc.Ua.SourceGeneration
 
                 // Reduce referenced model attributes to a single dictionary by
                 // model URI (with tie-break on highest version+publication date)
-                // so the downstream generators can apply override resolution.
+                // so the downstream generators can apply override resolution
+                // and decode the carried dependency payloads.
                 IReadOnlyDictionary<string, ModelDependencyReference>
                     referencedModels = BuildReferencedModelMap();
-                IReadOnlyDictionary<string, ModelDependencyV1>
-                    referencedDependencies = BuildReferencedDependencyMap(referencedModels);
 
                 // The design files that are not NodeSet2 inputs form the
                 // ModelDesign pass. Compute them up front so the total model
@@ -241,7 +240,8 @@ namespace Opc.Ua.SourceGeneration
                     referencedModels,
                     bindings.Count > 0 ? bindings : null,
                     bindings.Count > 0 ? reportBinding : null,
-                    referencedDependencies,
+                    // Derived from referencedModels, which carries the payloads.
+                    null,
                     usedBindings,
                     totalModelCount,
                     reportFluentAccessorsOnly,
@@ -254,7 +254,10 @@ namespace Opc.Ua.SourceGeneration
                 // dependency so cross-model references resolve — both
                 // ModelDesign -> NodeSet2 (e.g. an instance whose
                 // TypeDefinition is a NodeSet2-defined ObjectType) and
-                // ModelDesign -> ModelDesign across directories.
+                // ModelDesign -> ModelDesign across directories. The
+                // referenced models carry the upstream dependency payloads,
+                // so a design file can also subtype a structure of a
+                // referenced model that is not present in AdditionalFiles.
                 new DesignFileCollection
                 {
                     Targets = designTargets,
@@ -434,35 +437,6 @@ namespace Opc.Ua.SourceGeneration
                             existing.AssemblyName,
                             candidate.AssemblyName));
                 }
-            }
-            return map;
-        }
-
-        /// <summary>
-        /// Build a per-URI dictionary of the deserialised model
-        /// dependency payloads scanned from referenced assemblies.
-        /// Payloads with unknown versions or malformed encodings are
-        /// silently dropped.
-        /// </summary>
-        private IReadOnlyDictionary<string, ModelDependencyV1>
-            BuildReferencedDependencyMap(
-                IReadOnlyDictionary<string, ModelDependencyReference> referencedModels)
-        {
-            if (referencedModels.Count == 0)
-            {
-                return ImmutableDictionary<string, ModelDependencyV1>.Empty;
-            }
-            var map = new Dictionary<string, ModelDependencyV1>(
-                StringComparer.Ordinal);
-            foreach (KeyValuePair<string, ModelDependencyReference> entry in referencedModels)
-            {
-                ModelDependencyV1 decoded = entry.Value.GetDependency();
-                if (decoded == null ||
-                    !string.Equals(decoded.ModelUri, entry.Key, StringComparison.Ordinal))
-                {
-                    continue;
-                }
-                map[entry.Key] = decoded;
             }
             return map;
         }
