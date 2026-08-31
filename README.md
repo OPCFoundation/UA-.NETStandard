@@ -199,9 +199,6 @@ vulnerabilities via the process documented in
   one-line description.
 - [What's New in 2.0](docs/WhatsNewIn2.0.md) — narrative tour of the
   1.5.378 → 2.0 changes grouped by theme and layer.
-- [OPC UA for Asset Administration Shell](docs/Aas.md) — OPC 30270 / AAS V2
-  ingestion-only metamodel support and the AAS V3 metamodel, registry,
-  document round-trip, packages, federation and conformance matrices.
 - [OPC UA Profiles and Facets](docs/Profiles.md) — facets / transports /
   security policies the stack implements.
 - [Migration Guide](docs/MigrationGuide.md) — prescriptive
