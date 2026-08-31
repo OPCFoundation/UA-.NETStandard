@@ -68,30 +68,6 @@ ServerCapabilityInfo? info = ServerCapabilities.Find(id);  // null if not regist
 
 If you currently rely on a `[Obsolete]` member, switch to the `Async` equivalent and apply the `ValueTask` migration notes above. If a particular API has no direct replacement, the migration is described inline in the XML doc comment of the replacement member.
 
-### `ServerStatusChanged` now works
-
-`GlobalDiscoveryServerClient.ServerStatusChanged` and
-`ServerPushConfigurationClient.ServerStatusChanged` never fired in 1.5.378 -
-the GDS client had an empty `if (ServerStatusChanged != null) { }` marked
-`// TODO: implement` and the push client had no raiser at all. Both clients now
-raise it when the server state changes, and once for the state the first
-keep-alive reports after a connect. There is nothing to migrate: no 1.5.378
-handler ever ran.
-
-The handler type is `EventHandler<ServerStatusChangedEventArgs>`:
-
-```csharp
-client.ServerStatusChanged += (sender, e) =>
-{
-    ServerState state = e.CurrentState;
-};
-```
-
-The state comes from the session keep-alive, which already reads
-`Server_ServerStatus_State` from the server on every interval and sends the
-first one immediately after connect. No subscription is created and no extra
-requests are made, so this works the same on both subscription engines.
-
 ## ManagedSession and Automatic Reconnection
 
 Version 2.0 introduces `ManagedSession`, a wrapper around `Session` that automatically handles connection lifecycle including reconnection and server redundancy failover.
