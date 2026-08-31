@@ -1,4 +1,33 @@
 #!/usr/bin/env pwsh
+# ========================================================================
+# Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
+#
+# OPC Foundation MIT License 1.00
+#
+# Permission is hereby granted, free of charge, to any person
+# obtaining a copy of this software and associated documentation
+# files (the "Software"), to deal in the Software without
+# restriction, including without limitation the rights to use,
+# copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the
+# Software is furnished to do so, subject to the following
+# conditions:
+#
+# The above copyright notice and this permission notice shall be
+# included in all copies or substantial portions of the Software.
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+# EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+# OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+# NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+# HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+# WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+# FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+# OTHER DEALINGS IN THE SOFTWARE.
+#
+# The complete license agreement can be found here:
+# http://opcfoundation.org/License/MIT/1.00/
+# ========================================================================
+
 <#
 .SYNOPSIS
     Apply all auto-fixable OPC UA migration analyzer rules in one pass.
@@ -11,7 +40,7 @@
     counts so you can see how much progress the pass made.
 
     The 14 auto-fixable rules covered:
-        UA0002 - <Type>Collection -> List<T> / ArrayOf<T>
+        UA0002 - <Type>Collection -> List<T>
         UA0003 - == null on now-struct types -> .IsNull
         UA0004 - ?. on now-struct types -> direct access
         UA0005 - byte[] -> ByteString
@@ -20,16 +49,21 @@
         UA0008 - Session.Call(..., params object[]) -> wrap with Variant.From
         UA0009 - [DataContract]/[DataMember] -> [DataType]/[DataTypeField]
         UA0010 - using/Dispose on cert/identity types -> drop disposable
-        UA0012 - CertificateFactory.* static -> instance
+        UA0012 - CertificateFactory.* static -> DefaultCertificateFactory.Instance
         UA0014 - DataValue.IsGood(dv) -> dv.IsGood
-        UA0019 - new DataValue(StatusCode, ts) -> object initializer
+        UA0019 - new DataValue(StatusCode, ts) -> DataValue.FromStatusCode
         UA0020 - EncodeableFactory.Create() -> Fork()
         UA0022 - .CertificateValidator -> .CertificateManager
 
-    The 5 manual residuals are left for human follow-up:
+    The 12 manual residuals are left for human follow-up:
         UA0001 (telemetry plumbing), UA0011 / UA0015 (sync->async promotion),
         UA0018 (cert load async refactor), UA0021 (CertificateValidator
-        structural rewrite).
+        structural rewrite), UA0023-UA0028 (PubSub and removed exposed-lock
+        APIs), and UA0030 (internalized server subscription publish pipeline).
+
+    SecurityPolicies compatibility calls marked UA0029 surface as compiler
+    CS0618 warnings rather than an analyzer diagnostic and also require manual
+    migration.
 
 .PARAMETER Solution
     Path to a .sln or .slnx file. If omitted, the script searches the current
@@ -49,7 +83,9 @@
 .PARAMETER DryRun
     Pass `--verify-no-changes` to `dotnet format analyzers`. The command then
     fails with a non-zero exit code if any fix would have been applied — useful
-    in CI to assert the source tree is fully migrated.
+    in CI to assert the source tree is fully migrated. The script propagates
+    that exit code immediately; it does not print a post-fix summary because a
+    dry run intentionally leaves the source unchanged.
 
 .EXAMPLE
     pwsh ./scripts/apply-codefixes.ps1
@@ -112,11 +148,12 @@ function Get-AnalyzerWarningCounts {
     [CmdletBinding()]
     param([string]$SolutionPath)
 
-    $buildOutput = & dotnet build $SolutionPath --nologo /p:WarningLevel=4 2>&1
-    $ua = ($buildOutput | Select-String -Pattern ': warning UA\d{4}' | Measure-Object).Count
-    $mig = ($buildOutput | Select-String -Pattern ': warning MIG\d{2}' | Measure-Object).Count
-    $obsolete = ($buildOutput | Select-String -Pattern ': warning CS061[28]' | Measure-Object).Count
-    $errors = ($buildOutput | Select-String -Pattern ': error ' | Measure-Object).Count
+    $buildOutput = & dotnet build $SolutionPath --nologo --no-incremental /p:WarningLevel=4 2>&1
+    $uniqueBuildLines = $buildOutput | ForEach-Object { "$_" } | Sort-Object -Unique
+    $ua = ($uniqueBuildLines | Select-String -Pattern ': warning UA\d{4}' | Measure-Object).Count
+    $mig = ($uniqueBuildLines | Select-String -Pattern ': warning MIG\d{2}' | Measure-Object).Count
+    $obsolete = ($uniqueBuildLines | Select-String -Pattern ': warning CS061[28]' | Measure-Object).Count
+    $errors = ($uniqueBuildLines | Select-String -Pattern ': error ' | Measure-Object).Count
     return [pscustomobject]@{
         UaWarnings       = $ua
         MigWarnings      = $mig
@@ -130,7 +167,10 @@ if (-not $Solution) {
     Write-Host "Auto-discovering solution file..." -ForegroundColor Cyan
     $Solution = Find-Solution -StartDir (Get-Location)
     if (-not $Solution) {
-        throw "Could not find a .sln or .slnx file in the current directory or up to 3 parents above. Pass -Solution explicitly."
+        throw (
+            "Could not find a .sln or .slnx file in the current directory or up to 3 parents above. " +
+            "Pass -Solution explicitly."
+        )
     }
     Write-Host "Found: $Solution" -ForegroundColor Cyan
 }
@@ -168,8 +208,15 @@ Write-Host "dotnet $($args -join ' ')" -ForegroundColor DarkGray
 & dotnet @args
 $formatExit = $LASTEXITCODE
 
-if ($formatExit -ne 0 -and -not $DryRun) {
-    Write-Host "dotnet format failed with exit code $formatExit" -ForegroundColor Red
+if ($formatExit -ne 0) {
+    if ($DryRun) {
+        Write-Host (
+            "Dry run found pending fixes or dotnet format failed (exit code $formatExit)."
+        ) -ForegroundColor Yellow
+    }
+    else {
+        Write-Host "dotnet format failed with exit code $formatExit" -ForegroundColor Red
+    }
     exit $formatExit
 }
 
@@ -198,15 +245,38 @@ if ($after.UaWarnings -gt 0) {
     Write-Host "  UA0001 (Utils.Trace -> ILogger)" -ForegroundColor DarkYellow
     Write-Host "  UA0011 (sync token-handler -> Async)" -ForegroundColor DarkYellow
     Write-Host "  UA0015 (sync GDS/LDS -> Async)" -ForegroundColor DarkYellow
-    Write-Host "  UA0018 (CertificateIdentifier.Certificate -> LoadCertificate2Async)" -ForegroundColor DarkYellow
+    Write-Host (
+        "  UA0018 (CertificateIdentifier.Certificate -> CertificateIdentifierResolver.ResolveAsync)"
+    ) -ForegroundColor DarkYellow
     Write-Host "  UA0021 (CertificateValidator -> CertificateManager structural rewrite)" -ForegroundColor DarkYellow
+    Write-Host "  UA0023 (legacy PubSub API -> builder / DI)" -ForegroundColor DarkYellow
+    Write-Host "  UA0024 (diagnostics locks -> update/read methods)" -ForegroundColor DarkYellow
+    Write-Host "  UA0025 (node DataLock -> node-owned synchronization)" -ForegroundColor DarkYellow
+    Write-Host "  UA0026 (BaseVariableValue.Lock -> caller-owned Lock)" -ForegroundColor DarkYellow
+    Write-Host "  UA0027 (NodeBrowser.DataLock -> single-consumer access)" -ForegroundColor DarkYellow
+    Write-Host "  UA0028 (PropertiesLock -> concurrent properties APIs)" -ForegroundColor DarkYellow
+    Write-Host "  UA0030 (server subscription publish pipeline -> service APIs)" -ForegroundColor DarkYellow
     Write-Host "  See references/migration-patterns.md for the categorical playbook." -ForegroundColor DarkYellow
+    Write-Host "  See the bundled sessions/subscriptions guide for UA0030." -ForegroundColor DarkYellow
+}
+
+if ($after.ObsoleteWarnings -gt 0) {
+    Write-Host ""
+    Write-Host (
+        "Remaining CS0612/CS0618 warnings - migrate shim calls before removing the package."
+    ) -ForegroundColor Yellow
+    Write-Host (
+        "SecurityPolicies shim messages tagged UA0029 require manual ISecurityPolicyRegistry migration."
+    ) -ForegroundColor DarkYellow
 }
 
 if ($after.MigWarnings -gt 0) {
     Write-Host ""
     Write-Host "MIG01 warnings - the source generator couldn't resolve an element type." -ForegroundColor Yellow
-    Write-Host "Most common cause: missing 'using' directive. See references/source-generator.md." -ForegroundColor DarkYellow
+    Write-Host (
+        "Migrate the site manually or define the wrapper explicitly. " +
+        "See references/source-generator.md."
+    ) -ForegroundColor DarkYellow
 }
 
 if ($after.Errors -gt 0) {

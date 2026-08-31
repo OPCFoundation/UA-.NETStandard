@@ -35,8 +35,6 @@
     <PackageReference Include="TUnit" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\..\src\Opc.Ua.Aas\Opc.Ua.Aas.csproj" />
-    <ProjectReference Include="..\..\src\Opc.Ua.Core\Opc.Ua.Core.csproj" />
     <ProjectReference Include="..\..\src\Opc.Ua.Core\Opc.Ua.Core.csproj" />
     <ProjectReference Include="..\..\src\Opc.Ua.Core.Schema\Opc.Ua.Core.Schema.csproj" />
     <ProjectReference Include="..\..\src\Opc.Ua.Bindings.Https\Opc.Ua.Bindings.Https.csproj" />
