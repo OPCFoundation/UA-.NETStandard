@@ -99,13 +99,46 @@ namespace Opc.Ua.Wot
         /// outside the mapping. A ConditionType outside this set is named by
         /// <c>uav:conditionTypeId</c>, which is definitive and needs no lookup.
         /// </remarks>
+        public const string ConditionType = "i=2782";
+
+        /// <inheritdoc cref="ConditionType"/>
+        public const string AcknowledgeableConditionType = "i=2881";
+
+        /// <inheritdoc cref="ConditionType"/>
+        public const string AlarmConditionType = "i=2915";
+
+        /// <inheritdoc cref="ConditionType"/>
+        public const string LimitAlarmType = "i=2955";
+
+        /// <summary>
+        /// The Condition Methods OPC 10000-9 declares, by the type that
+        /// declares each. A Method materialized for a
+        /// <c>uav:conditionAction</c> carries the declaration as its
+        /// <c>MethodDeclarationId</c>, which is what tells a Server the
+        /// instance Method is that standard Method rather than a same-named
+        /// Method of its own.
+        /// </summary>
+        public const string ConditionTypeEnableMethod = "i=9027";
+
+        /// <inheritdoc cref="ConditionTypeEnableMethod"/>
+        public const string ConditionTypeDisableMethod = "i=9028";
+
+        /// <inheritdoc cref="ConditionTypeEnableMethod"/>
+        public const string ConditionTypeAddCommentMethod = "i=9029";
+
+        /// <inheritdoc cref="ConditionTypeEnableMethod"/>
+        public const string AcknowledgeableConditionTypeAcknowledgeMethod = "i=9111";
+
+        /// <inheritdoc cref="ConditionTypeEnableMethod"/>
+        public const string AcknowledgeableConditionTypeConfirmMethod = "i=9113";
+
         private static readonly Dictionary<string, string> s_conditionTypeNameToNodeId =
             new(StringComparer.Ordinal)
             {
-                ["ConditionType"] = "i=2782",
-                ["AcknowledgeableConditionType"] = "i=2881",
-                ["AlarmConditionType"] = "i=2915",
-                ["LimitAlarmType"] = "i=2955"
+                ["ConditionType"] = ConditionType,
+                ["AcknowledgeableConditionType"] = AcknowledgeableConditionType,
+                ["AlarmConditionType"] = AlarmConditionType,
+                ["LimitAlarmType"] = LimitAlarmType
             };
 
         /// <summary>
@@ -126,6 +159,31 @@ namespace Opc.Ua.Wot
                 return true;
             }
             nodeId = string.Empty;
+            return false;
+        }
+
+        /// <summary>
+        /// Resolves the BrowseName of a ConditionType named by its
+        /// base-namespace NodeId, which is what lets the forward direction
+        /// state <c>uav:conditionType</c> as the compact model name Section
+        /// 13.2 requires.
+        /// </summary>
+        /// <param name="nodeId">The base-namespace NodeId.</param>
+        /// <param name="browseName">The BrowseName, when the id is one this maps.</param>
+        /// <returns><c>true</c> when the identifier resolved.</returns>
+        public static bool TryGetConditionTypeName(
+            string? nodeId,
+            out string browseName)
+        {
+            foreach (KeyValuePair<string, string> entry in s_conditionTypeNameToNodeId)
+            {
+                if (string.Equals(entry.Value, nodeId, StringComparison.Ordinal))
+                {
+                    browseName = entry.Key;
+                    return true;
+                }
+            }
+            browseName = string.Empty;
             return false;
         }
 

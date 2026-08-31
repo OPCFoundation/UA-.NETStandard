@@ -401,7 +401,49 @@ namespace Opc.Ua.Wot
         /// object, or its <c>uav:fieldOrder</c> and <c>properties</c> disagree.
         /// The member is carried unchanged by preservation rather than dropped.
         /// </summary>
-        MethodArgumentSchemaInvalid = 6031
+        MethodArgumentSchemaInvalid = 6031,
+
+        /// <summary>
+        /// An event affordance states <c>uav:conditionType</c> and
+        /// <c>uav:conditionTypeId</c> that name different ConditionTypes (WoT
+        /// Binding Section 13.2). The pin is the definitive identity of
+        /// <em>the same</em> type the compact name reads, so a disagreement is
+        /// a contradiction rather than a precedence question: honouring either
+        /// one would silently discard what the other says.
+        /// </summary>
+        ConditionTypeConflict = 6032,
+
+        /// <summary>
+        /// A <c>uav:conditionAction</c> names a Condition Method the
+        /// ConditionType of the event it acts on does not declare - an
+        /// <c>Acknowledge</c> or <c>Confirm</c> against a plain
+        /// <c>ua:ConditionType</c>, which OPC 10000-9 declares on
+        /// <c>AcknowledgeableConditionType</c> instead (WoT Binding Sections
+        /// 13.1 and 13.4). The pairing is rejected rather than materialized
+        /// against a Method the projected type does not have.
+        /// </summary>
+        ConditionActionNotDeclared = 6033,
+
+        /// <summary>
+        /// A member of an event affordance's <c>data</c> object is not a
+        /// DataSchema this Binding can materialize as an EventType field - it
+        /// is not a JSON object, or it collides with the BrowseName of a field
+        /// already declared. The member is carried unchanged by preservation
+        /// rather than dropped.
+        /// </summary>
+        EventFieldInvalid = 6034,
+
+        /// <summary>
+        /// A NodeSet declares a Condition Method - <c>Acknowledge</c>,
+        /// <c>Confirm</c>, <c>AddComment</c>, <c>Enable</c> or
+        /// <c>Disable</c> - but the document projects no single event
+        /// affordance carrying <c>uav:conditionType</c> for it to act on, so
+        /// <c>uav:actsOn</c> cannot be resolved (WoT Binding Section 13.4). The
+        /// Method is still projected as an action; only the Condition pairing
+        /// is left unstated, because naming an arbitrary one of several
+        /// candidate events would invent a relation the source does not have.
+        /// </summary>
+        ConditionActionTargetUnresolved = 6035
     }
 
     /// <summary>

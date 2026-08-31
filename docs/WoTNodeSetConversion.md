@@ -41,7 +41,9 @@ them.
 | Event affordance `uav:browseName` | **Default** | The affordance map key is used as the local name and BrowseName `1:<key>`. |
 | Event affordance `uav:id` | **Default** | Deterministic NodeId `ns=1;s=<rootLocal>/<eventLocal>`. |
 | Event `title` | **Default** | No `DisplayName` field is materialized for the event type. |
-| Event type abstraction/supertype | **Default** | Event affordances materialize as non-abstract `UAObjectType` nodes with inverse `HasSubtype` to `BaseEventType` (`i=2041`) and a root `GeneratesEvent` reference, unless the affordance carries `uav:conditionType` or `uav:conditionTypeId`. A Condition event derives from the named ConditionType instead (WoT Binding Section 13.2). |
+| Event type abstraction/supertype | **Default** | Event affordances materialize as non-abstract `UAObjectType` nodes with inverse `HasSubtype` to `BaseEventType` (`i=2041`) and a root `GeneratesEvent` reference, unless the affordance carries `uav:conditionType` or `uav:conditionTypeId`. A Condition event derives from the named ConditionType instead (WoT Binding Section 13.2). A `uav:conditionType` and a `uav:conditionTypeId` naming different types **fail** (`ConditionTypeConflict`). |
+| Event `data` (Section 13.3) | **Default** / **Fails** | Absent, or a member naming a field the projected type inherits: no Node is materialized, because `BaseEventType` and the ConditionTypes already declare those fields and `ConditionId` is the Condition's NodeId Attribute rather than a Variable. A member the type adds becomes a Property (`HasTypeDefinition` `PropertyType`, NodeId `ns=1;s=<rootLocal>/<eventLocal>/<fieldLocal>`) whose DataType resolves by the property rules above, with `uav:valueRank` defaulting to `-1`, `uav:arrayDimensions` and `description` carried across, and `HasModellingRule` `Mandatory` when the schema lists the member in `required` and `Optional` otherwise. A member that is not a DataSchema, or that reaches a BrowseName another member already reached, **fails** (`EventFieldInvalid`) and is carried verbatim through residue. |
+| `uav:conditionAction` / `uav:actsOn` (Section 13.4) | **Default** / **Fails** | Absent: the Method is a component of the Thing with no `MethodDeclarationId`. Present and admitted by the ConditionType the target event projects: the Method takes the base-namespace BrowseName of the named Condition Method, carries the OPC 10000-9 declaration as its `MethodDeclarationId` (`Acknowledge` `i=9111`, `Confirm` `i=9113`, `AddComment` `i=9029`, `Enable` `i=9027`, `Disable` `i=9028`) and becomes a component of the EventType instead of the Thing. A Method the projected ConditionType does not declare — `Acknowledge` or `Confirm` against a plain `ua:ConditionType` — **fails** (`ConditionActionNotDeclared`). |
 | `uav:severity` (Section 6.6) | **Default** / **Fails** | Absent: no `Severity` Property is materialized, so the EventType inherits the one `BaseEventType` declares and a server applies its own default. Present and in the OPC 10000-5 range `1..1000`: a `Severity` Property (`UInt16`, `HasTypeDefinition` `PropertyType`, `HasModellingRule` `Mandatory`) holding that value, with NodeId `ns=1;s=<rootLocal>/<eventLocal>/Severity`. Outside that range, non-integer, or on an affordance that is not an event: `InvalidEventSeverity` error. The value is **not** clamped — Section 7 forbids it — and the rejected value is carried through residue rather than dropped. |
 | `uav:modellingRule` on a property or action | **Default** | No `HasModellingRule` reference is materialized. |
 | `uav:hasComponent` / `uav:componentOf` entry has no matching typed ReferenceType link | **Default** | `HasComponent` is used for the component reference. |
@@ -107,6 +109,26 @@ This changes event-filter behaviour. A client filtering for `BaseEventType`
 subtypes still matches the projected Condition event, but a client that assumed
 the exact immediate supertype was `BaseEventType`, or that selects
 Condition-specific fields, observes a different type hierarchy and field set.
+
+### Event fields come from the type, not only from the document
+
+The fields a notification carries are declared by `BaseEventType` and, for a
+Condition, by the ConditionTypes of OPC 10000-9 — types a converted NodeSet
+almost never contains. Both directions therefore read one table of those
+declarations rather than the Nodes:
+
+- going **from** a NodeSet, an event affordance's `data` object states the
+  effective field list of the projected type — the inherited fields in
+  inheritance order, then the Variables the type declares itself in the order
+  its References state them — so a document describes the notification a
+  consumer actually receives rather than an empty schema;
+- going **to** a NodeSet, only the members the projected type *adds* become
+  Nodes, because re-declaring an inherited field would leave a Server holding
+  two declarations of one field.
+
+A NodeSet holding an Object and the EventType it raises is projected about the
+**Object**: an EventType something else generates is a declaration that Node
+uses, not the subject of the document.
 
 ## DataType definitions (Section 6.11)
 

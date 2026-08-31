@@ -845,6 +845,14 @@ namespace Opc.Ua.Wot
             var items = new List<UANode>();
             var rootReferences = new List<Reference>();
 
+            // Section 13.4 pairs a Condition Method with the event affordance
+            // whose Condition it acts on. That pairing is recorded structurally
+            // - the Method becomes a component of the projected EventType -
+            // and the actions are synthesized before the events, so the
+            // attachments are collected here and applied as each EventType is
+            // created.
+            var conditionMethods = new Dictionary<string, List<string>>(StringComparer.Ordinal);
+
             UANode rootNode;
             string? boundType = null;
             if (isThingModel)
@@ -953,7 +961,7 @@ namespace Opc.Ua.Wot
                 }
                 SynthesizeAction(
                     document, nodeSet, action.Key, action.Value, rootLocal,
-                    rootNodeId, items, rootReferences, diagnostics);
+                    rootNodeId, items, rootReferences, conditionMethods, diagnostics);
             }
 
             foreach (KeyValuePair<string, JsonElement> eventAffordance in document.Events)
@@ -964,7 +972,7 @@ namespace Opc.Ua.Wot
                 }
                 SynthesizeEvent(
                     document, nodeSet, eventAffordance.Key, eventAffordance.Value,
-                    rootLocal, items, rootReferences, diagnostics);
+                    rootLocal, items, rootReferences, conditionMethods, diagnostics);
             }
 
             // A ReferenceType relation whose target is also listed under
@@ -1245,9 +1253,39 @@ namespace Opc.Ua.Wot
             string rootNodeId,
             List<UANode> items,
             List<Reference> rootReferences,
+            Dictionary<string, List<string>> conditionMethods,
             List<WotDiagnostic> diagnostics)
         {
-            string local = LocalName(GetElementString(action, "uav:browseName")) ?? key;
+            // Section 13.4: a Condition Method is the standard Method OPC
+            // 10000-9 declares on a ConditionType, not a same-named Method of
+            // the projected type. Where the pairing holds, the Method takes the
+            // standard BrowseName it is declared with and becomes a component
+            // of the EventType the pairing names - which is what lets the
+            // forward direction read the pairing back instead of guessing at
+            // it. The declaration identifier is written only where the
+            // ConditionType the target event projects is one this Binding knows
+            // and actually declares the Method; a pairing it does not admit is
+            // reported instead of being materialized against a Method that is
+            // not there.
+            string? declaration = ResolveConditionMethodDeclaration(
+                document, action, key, nodeSet, diagnostics);
+            string conditionAction = string.Empty;
+            string actsOn = string.Empty;
+            bool isConditionMethod =
+                TryGetNonEmptyString(action, ConditionActionTerm, out conditionAction) &&
+                IsMappedConditionAction(conditionAction) &&
+                TryGetNonEmptyString(action, ActsOnTerm, out actsOn) &&
+                document.Events.ContainsKey(actsOn) &&
+                IsStandardConditionMethodName(action, conditionAction);
+            if (!isConditionMethod)
+            {
+                conditionAction = string.Empty;
+                actsOn = string.Empty;
+            }
+
+            string local = isConditionMethod
+                ? conditionAction
+                : LocalName(GetElementString(action, "uav:browseName")) ?? key;
             string? authoredNodeId = GetElementString(action, "uav:id");
             string nodeId = authoredNodeId is null
                 ? GenerateNodeId(rootLocal + "/" + local)
@@ -1256,13 +1294,20 @@ namespace Opc.Ua.Wot
             var method = new UAMethod
             {
                 NodeId = nodeId,
-                BrowseName = authoredBrowseName is null
-                    ? "1:" + local
-                    : ToNodeSetQualifiedName(
-                        document,
-                        authoredBrowseName,
-                        nodeSet,
-                        diagnostics),
+                BrowseName = isConditionMethod
+                    // The standard Condition Method's BrowseName is in the base
+                    // OPC UA namespace; writing the document's own namespace
+                    // there would name a different QualifiedName than the one
+                    // OPC 10000-9 declares.
+                    ? conditionAction
+                    : authoredBrowseName is null
+                        ? "1:" + local
+                        : ToNodeSetQualifiedName(
+                            document,
+                            authoredBrowseName,
+                            nodeSet,
+                            diagnostics),
+                MethodDeclarationId = declaration,
                 ParentNodeId = rootNodeId
             };
             string? title = GetElementString(action, "title");
@@ -1271,13 +1316,27 @@ namespace Opc.Ua.Wot
                 method.DisplayName = MakeText(title);
             }
 
+            string owner = rootNodeId;
+            if (isConditionMethod &&
+                document.Events.TryGetValue(actsOn, out JsonElement target))
+            {
+                owner = EventNodeId(target, actsOn, rootLocal, nodeSet);
+                method.ParentNodeId = owner;
+                if (!conditionMethods.TryGetValue(actsOn, out List<string>? attached))
+                {
+                    attached = [];
+                    conditionMethods[actsOn] = attached;
+                }
+                attached.Add(nodeId);
+            }
+
             var references = new List<Reference>
             {
                 new Reference
                 {
                     ReferenceType = "HasComponent",
                     IsForward = false,
-                    Value = rootNodeId
+                    Value = owner
                 }
             };
             AddModellingRule(action, references);
@@ -1292,12 +1351,15 @@ namespace Opc.Ua.Wot
                 items, references, diagnostics);
             method.References = [.. references];
 
-            rootReferences.Add(new Reference
+            if (string.Equals(owner, rootNodeId, StringComparison.Ordinal))
             {
-                ReferenceType = "HasComponent",
-                IsForward = true,
-                Value = nodeId
-            });
+                rootReferences.Add(new Reference
+                {
+                    ReferenceType = "HasComponent",
+                    IsForward = true,
+                    Value = nodeId
+                });
+            }
         }
 
         private static void SynthesizeEvent(
@@ -1308,6 +1370,7 @@ namespace Opc.Ua.Wot
             string rootLocal,
             List<UANode> items,
             List<Reference> rootReferences,
+            Dictionary<string, List<string>> conditionMethods,
             List<WotDiagnostic> diagnostics)
         {
             string local = LocalName(GetElementString(eventAffordance, "uav:browseName")) ?? key;
@@ -1358,6 +1421,31 @@ namespace Opc.Ua.Wot
             var eventReferences = new List<Reference>(eventType.References);
             SynthesizeEventSeverity(
                 eventAffordance, nodeId, local, rootLocal, items, eventReferences);
+
+            // Section 13.3: the members of the notification's data object that
+            // the projected type adds are fields of that type. The ones it
+            // inherits are already declared by the type they come from and are
+            // deliberately not created a second time here.
+            SynthesizeEventFields(
+                document, nodeSet, eventAffordance, key,
+                eventType.References[0].Value!, nodeId, local, rootLocal,
+                items, eventReferences, diagnostics);
+
+            // Section 13.4: the Condition Methods that act on this event are
+            // components of the type that declares the Condition, which is what
+            // records the pairing the two terms state.
+            if (conditionMethods.TryGetValue(key, out List<string>? attached))
+            {
+                foreach (string methodNodeId in attached)
+                {
+                    eventReferences.Add(new Reference
+                    {
+                        ReferenceType = "HasComponent",
+                        IsForward = true,
+                        Value = methodNodeId
+                    });
+                }
+            }
             eventType.References = [.. eventReferences];
 
             rootReferences.Add(new Reference
@@ -2488,69 +2576,6 @@ namespace Opc.Ua.Wot
                 }
             }
             return false;
-        }
-
-        /// <summary>
-        /// Resolves the EventType a projected event derives from.
-        /// </summary>
-        /// <remarks>
-        /// <para>
-        /// WoT Binding Section 13 projects a Condition notification as an event
-        /// affordance, and the type it derives from is the ConditionType the
-        /// affordance names rather than <c>BaseEventType</c>. Getting this
-        /// wrong would lose the Condition state model entirely: a Client
-        /// browsing the projected type would see none of the Condition fields
-        /// and could not tell an alarm from an ordinary event.
-        /// </para>
-        /// <para>
-        /// Section 13.2 uses the hint-plus-pin pattern of Section 5.3.
-        /// <c>uav:conditionTypeId</c> is definitive and wins; the compact name
-        /// in <c>uav:conditionType</c> is a hint, resolved here for the four
-        /// ConditionTypes Section 13.1 scopes. A name outside that set that
-        /// carries no pin is reported rather than guessed, because deriving
-        /// from the wrong supertype is worse than saying so.
-        /// </para>
-        /// </remarks>
-        private static string ResolveConditionSupertype(
-            WotDocument document,
-            JsonElement eventAffordance,
-            string key,
-            UANodeSet nodeSet,
-            List<WotDiagnostic> diagnostics)
-        {
-            string? pinned = GetElementString(eventAffordance, ConditionTypeIdTerm);
-            if (pinned is not null)
-            {
-                return ToNodeSetNodeId(pinned, nodeSet, diagnostics);
-            }
-
-            string? hint = GetElementString(eventAffordance, ConditionTypeTerm);
-            if (hint is null)
-            {
-                return WotVocabulary.BaseEventType;
-            }
-
-            // §13.2 names the ConditionType with a compact model name, which
-            // §5.1.2 resolves through the document's @context rather than by
-            // its literal prefix - an author may bind a second prefix to the
-            // OPC UA namespace. Only that namespace resolves without a local
-            // context; a companion ConditionType has to be pinned.
-            if (TrySplitCompactModelName(hint, out string prefix, out string local) &&
-                TryGetContextNamespace(document, prefix, out string namespaceUri) &&
-                string.Equals(
-                    namespaceUri, WotVocabulary.OpcUaNamespace, StringComparison.Ordinal) &&
-                WotVocabulary.TryGetConditionTypeNodeId(local, out string nodeId))
-            {
-                return nodeId;
-            }
-
-            diagnostics.Add(new WotDiagnostic(
-                WotDiagnosticSeverity.Error,
-                WotDiagnosticCode.UnresolvedConditionType,
-                $"'{hint}' is not a ConditionType this Binding resolves. Pin it with " +
-                $"'{ConditionTypeIdTerm}' (WoT Binding Section 13.2).",
-                WotLocation.FromPointer("/events/" + key + "/" + ConditionTypeTerm)));
-            return WotVocabulary.BaseEventType;
         }
 
         /// <summary>

@@ -404,6 +404,58 @@ namespace Opc.Ua.Wot
                                     property.Value);
                             }
                             break;
+                        case WotNodeSetConverter.DataMember:
+                            // Section 13.3 maps an event's data schema onto the
+                            // fields of the EventType, so carrying it here as
+                            // well would state the same fields twice - once as
+                            // the field Nodes the NodeSet gained and once as an
+                            // Extension re-applied over the document generated
+                            // from it. A data member that is not a schema at
+                            // all is not mapped and is kept.
+                            if (!isEvent ||
+                                !WotNodeSetConverter.MapsEventDataSchema(affordance.Value))
+                            {
+                                Add(
+                                    entries,
+                                    affordancePointer + "/" + Escape(property.Name),
+                                    property.Value);
+                            }
+                            break;
+                        case WotNodeSetConverter.ConditionTypeTerm:
+                        case WotNodeSetConverter.ConditionTypeIdTerm:
+                            // Section 13.2 maps the ConditionType onto the
+                            // supertype of the projected EventType, and the
+                            // forward direction restates both terms from it.
+                            // That only holds for the four ConditionTypes
+                            // Section 13.1 scopes; a companion type pinned by
+                            // ExpandedNodeId is not re-derivable, so it is kept.
+                            if (!isEvent ||
+                                !WotNodeSetConverter.MapsConditionType(affordance.Value))
+                            {
+                                Add(
+                                    entries,
+                                    affordancePointer + "/" + Escape(property.Name),
+                                    property.Value);
+                            }
+                            break;
+                        case WotNodeSetConverter.ConditionActionTerm:
+                        case WotNodeSetConverter.ActsOnTerm:
+                            // Section 13.4 maps the pairing onto the Method
+                            // declaration the instance carries and onto the
+                            // EventType that owns the Method, and the forward
+                            // direction reads both back from there. A value
+                            // outside the closed set of Section 13.2 is not
+                            // mapped and is kept, so an invalid document is
+                            // reported without losing what it said.
+                            if (!isAction ||
+                                !WotNodeSetConverter.MapsConditionAction(affordance.Value))
+                            {
+                                Add(
+                                    entries,
+                                    affordancePointer + "/" + Escape(property.Name),
+                                    property.Value);
+                            }
+                            break;
                         case "links":
                             // Section 5.2.1 puts the definitive type-binding
                             // link on an affordance as well as on the Thing, so

@@ -984,7 +984,10 @@ The two forms follow the hint-plus-pin pattern of Section 5.3.
 hint, resolved for the four ConditionTypes Section 13.1 scopes —
 `ConditionType`, `AcknowledgeableConditionType`, `AlarmConditionType` and
 `LimitAlarmType`. A name outside that set must be pinned; an unpinned one is
-reported rather than guessed.
+reported rather than guessed. Where a document states both and they name
+different types, that is a contradiction rather than a precedence question —
+the pin is the definitive identity of *the same* type the compact name reads —
+and it is reported as `ConditionTypeConflict`.
 
 The converter enforces the four Section 13.3/13.4 conformance rules, each
 because breaking it yields a document a consumer can read but cannot act on, and
@@ -997,6 +1000,59 @@ also rejects an unresolvable readable ConditionType name:
 | `uav:actsOn` names a Condition event in the same document | 13.4 | `InvalidConditionTarget` |
 | `Acknowledge` / `Confirm` / `AddComment` declare an `EventId` input | 13.4 | `ConditionActionInputMissing` |
 | `uav:conditionType` names a ConditionType this Binding resolves | 13.2 | `UnresolvedConditionType` |
+| `uav:conditionType` and `uav:conditionTypeId` name the same type | 13.2 | `ConditionTypeConflict` |
+| The ConditionType declares the Method `uav:conditionAction` names | 13.1, 13.4 | `ConditionActionNotDeclared` |
+| A `data` member is a DataSchema naming one field | 13.3 | `EventFieldInvalid` |
+
+#### Condition event data and Condition Methods
+
+The notification's `data` object carries the Condition state (Section 13.3).
+Both directions read one table of the fields OPC 10000-9 declares, so a NodeSet
+that does not itself contain `ConditionType` still projects the complete field
+list and a document that authors it still materializes only the fields its own
+type adds:
+
+- **NodeSet → WoT.** The `data` object is the fields the projected EventType
+  effectively has: the eight mandatory `BaseEventType` fields, then the
+  Condition identity and state fields, then the state each ConditionType
+  subtype adds, then the Variables the projected type declares itself, in the
+  order its References state them. The mandatory base fields and the Condition
+  identity and state fields are `required`; subtype state is present but not
+  required, which is the shape Section 13.5 states. A field the type declares
+  itself also carries `uav:mapToType`, `uav:valueRank`, `uav:arrayDimensions`,
+  `uav:browseName` and `uav:modellingRule`, because nothing outside the
+  document says what it is. `uav:severity` (Section 6.6) and the per-occurrence
+  `Severity` member are two different facts and both are stated.
+- **WoT → NodeSet.** Only the members the projected type *adds* become Nodes:
+  a member naming an inherited field is already declared by the type it comes
+  from, and re-declaring it would leave a Server holding two declarations of one
+  field. `ConditionId` is never materialized at all — it is the NodeId Attribute
+  of the Condition, which is why Section 6.1 selects it with the empty browse
+  path. A member the schema lists in `required` gets the `Mandatory` modelling
+  rule and every other one gets `Optional`.
+
+A Condition Method is the standard Method OPC 10000-9 declares, so an action
+carrying `uav:conditionAction` materializes with that declaration as its
+`MethodDeclarationId` (`Acknowledge` `i=9111`, `Confirm` `i=9113`, `AddComment`
+`i=9029`, `Enable` `i=9027`, `Disable` `i=9028`), takes the base-namespace
+BrowseName the declaration has, and becomes a **component of the EventType**
+the pairing names. That is what records the pairing structurally, so the
+forward direction reads `uav:conditionAction` and `uav:actsOn` back from the
+model rather than guessing at them. A pairing OPC 10000-9 does not admit — an
+`Acknowledge` acting on a plain `ua:ConditionType`, which declares no such
+Method — is reported as `ConditionActionNotDeclared` instead of being
+materialized against a Method that is not there.
+
+Going the other way, a Method whose base-namespace BrowseName is one of the
+five is annotated when the event it acts on can be named without guessing:
+either the EventType holds the Method, or the document projects exactly one
+Condition event. With several candidates and no owning type the annotation is
+left out and `ConditionActionTargetUnresolved` is reported — an `uav:actsOn`
+that names the wrong Condition is worse than one that is absent, because a
+consumer would acknowledge the wrong alarm. The same diagnostic covers an
+occurrence-level Method that neither holds its `EventId` argument nor states
+the standard `MethodDeclarationId`, because a pairing without an `EventId`
+input is one Section 13.4 rejects.
 
 The ConditionType name is a compact model name, so its prefix is resolved
 through the document's `@context` rather than matched literally: an author may

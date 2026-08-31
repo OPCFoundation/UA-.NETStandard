@@ -597,6 +597,59 @@ namespace Opc.Ua.Wot
             bool isThingModel = root is UAObjectType or UAVariableType;
             int affordanceCount = 0;
 
+            // The event affordance names have to be settled before the actions
+            // are written: Section 13.4 ties a Condition Method to the event
+            // affordance it acts on *by name*, and the actions come first in
+            // the object being written. Naming them here, once, is also what
+            // keeps the name an action states and the name the event is written
+            // under from ever drifting apart.
+            var eventKeys = new List<string>(events.Count);
+            var eventProjections = new List<WotConditionProjection>(events.Count);
+            var eventNames = new HashSet<string>(StringComparer.Ordinal);
+            for (int ii = 0; ii < events.Count; ii++)
+            {
+                eventKeys.Add(UniqueKey(LocalName(events[ii].BrowseName), eventNames));
+                eventProjections.Add(ResolveConditionProjection(events[ii], index));
+            }
+
+            // A Condition Method OPC 10000-9 declares is a component of the
+            // ConditionType, so it hangs off the EventType rather than off the
+            // Thing. Collecting it here is what surfaces it as an action at
+            // all, and the type that owns it is what names the event the action
+            // acts on - definitely, and for any number of Condition events.
+            var conditionActions = new Dictionary<string, string>(StringComparer.Ordinal);
+            for (int ii = 0; ii < events.Count; ii++)
+            {
+                foreach (Reference reference in events[ii].References ?? [])
+                {
+                    if (!reference.IsForward ||
+                        reference.Value is null ||
+                        !IsComponentReference(reference.ReferenceType) ||
+                        !index.TryGetValue(reference.Value, out UANode? owned) ||
+                        owned is not UAMethod ownedMethod ||
+                        ownedMethod.NodeId is null ||
+                        ConditionActionOf(ownedMethod) is null ||
+                        conditionActions.ContainsKey(ownedMethod.NodeId))
+                    {
+                        continue;
+                    }
+                    actions.Add(ownedMethod);
+                    conditionActions[ownedMethod.NodeId] = eventKeys[ii];
+                }
+            }
+
+            int eventBudget = Math.Max(
+                0,
+                options.MaxAffordanceCount - properties.Count - actions.Count);
+            var conditionEventKeys = new List<string>();
+            for (int ii = 0; ii < events.Count && ii < eventBudget; ii++)
+            {
+                if (eventProjections[ii].IsCondition)
+                {
+                    conditionEventKeys.Add(eventKeys[ii]);
+                }
+            }
+
             // §9.1 maps a Method's arguments to the action's input and output
             // DataSchemas, so an argument Variable the schemas fully represent
             // is not also emitted as a sibling property: the same Node would
@@ -653,7 +706,15 @@ namespace Opc.Ua.Wot
                     writer.WritePropertyName(UniqueKey(LocalName(method.BrowseName), used));
                     methodArguments.TryGetValue(
                         method.NodeId ?? string.Empty, out WotMethodArguments arguments);
-                    WriteMethodAffordance(writer, method, namespaceUris, nodeSet, arguments);
+                    conditionActions.TryGetValue(
+                        method.NodeId ?? string.Empty, out string? owningEventKey);
+                    (string, string)? condition = TryResolveConditionAffordance(
+                        method, owningEventKey, conditionEventKeys, ref arguments,
+                        diagnostics, out string conditionAction, out string actsOn)
+                        ? (conditionAction, actsOn)
+                        : null;
+                    WriteMethodAffordance(
+                        writer, method, namespaceUris, nodeSet, arguments, condition);
                 }
                 writer.WriteEndObject();
             }
@@ -662,15 +723,16 @@ namespace Opc.Ua.Wot
             {
                 writer.WritePropertyName("events");
                 writer.WriteStartObject();
-                var used = new HashSet<string>(StringComparer.Ordinal);
-                foreach (UANode eventType in events)
+                for (int ii = 0; ii < events.Count; ii++)
                 {
                     if (!CheckAffordanceBudget(ref affordanceCount, options, diagnostics))
                     {
                         break;
                     }
-                    writer.WritePropertyName(UniqueKey(LocalName(eventType.BrowseName), used));
-                    WriteEventAffordance(writer, eventType, namespaceUris, index);
+                    writer.WritePropertyName(eventKeys[ii]);
+                    WriteEventAffordance(
+                        writer, events[ii], namespaceUris, nodeSet, index,
+                        eventProjections[ii]);
                 }
                 writer.WriteEndObject();
             }
@@ -1093,7 +1155,8 @@ namespace Opc.Ua.Wot
             UAMethod method,
             string[]? namespaceUris,
             UANodeSet nodeSet,
-            WotMethodArguments arguments)
+            WotMethodArguments arguments,
+            (string Action, string ActsOn)? condition)
         {
             writer.WriteStartObject();
             writer.WriteString("@type", "uav:method");
@@ -1104,6 +1167,15 @@ namespace Opc.Ua.Wot
                 "uav:browseName",
                 ToPortableQualifiedName(method.BrowseName, namespaceUris));
             WriteOptional(writer, "uav:id", ToPortableNodeId(method.NodeId, namespaceUris));
+
+            // Section 13.4: a Method OPC 10000-9 declares on a ConditionType is
+            // invoked through the ordinary WoT action, and the two terms are
+            // what say which Method it is and which Condition it acts on.
+            if (condition is { } pairing)
+            {
+                writer.WriteString(ConditionActionTerm, pairing.Action);
+                writer.WriteString(ActsOnTerm, pairing.ActsOn);
+            }
 
             // §9.1: the Method's input and output arguments are the action's
             // input and output DataSchemas.
@@ -1117,7 +1189,9 @@ namespace Opc.Ua.Wot
             Utf8JsonWriter writer,
             UANode eventType,
             string[]? namespaceUris,
-            Dictionary<string, UANode> index)
+            UANodeSet nodeSet,
+            Dictionary<string, UANode> index,
+            WotConditionProjection projection)
         {
             writer.WriteStartObject();
             // uav:eventType is the @type annotation counterpart of the uav:isEvent
@@ -1137,6 +1211,11 @@ namespace Opc.Ua.Wot
             // none, so it is that Property - not free-standing metadata - that
             // the term states.
             WriteEventSeverity(writer, eventType, index);
+
+            // Sections 13.2 and 13.3: the ConditionType the event projects and
+            // the notification schema its fields fill.
+            WriteEventConditionAndData(
+                writer, eventType, projection, namespaceUris, nodeSet, index);
             WriteModellingRule(writer, eventType);
             writer.WriteEndObject();
         }
@@ -1166,24 +1245,59 @@ namespace Opc.Ua.Wot
             return index;
         }
 
+        /// <summary>
+        /// Chooses the Node a NodeSet's readable projection is written about.
+        /// </summary>
+        /// <remarks>
+        /// An EventType another Node in the same document generates is never
+        /// that Node: it is a declaration that Node <em>uses</em>, and Section
+        /// 9.1 projects it as an event affordance of the Node that generates
+        /// it. Without that exclusion a NodeSet holding one Object and the
+        /// EventType it raises would be written about the EventType, and the
+        /// Object - with its properties, its actions and the event itself -
+        /// would not appear at all.
+        /// </remarks>
         private static UANode? SelectRootNode(UANodeSet nodeSet)
         {
             if (nodeSet.Items is null || nodeSet.Items.Length == 0)
             {
                 return null;
             }
-            return FirstOf<UAObjectType>(nodeSet)
-                ?? FirstOf<UAObject>(nodeSet)
-                ?? FirstOf<UAVariableType>(nodeSet)
-                ?? FirstOf<UAType>(nodeSet)
+            HashSet<string> generated = CollectGeneratedEventTypes(nodeSet);
+            return FirstOf<UAObjectType>(nodeSet, generated)
+                ?? FirstOf<UAObject>(nodeSet, generated)
+                ?? FirstOf<UAVariableType>(nodeSet, generated)
+                ?? FirstOf<UAType>(nodeSet, generated)
                 ?? nodeSet.Items[0];
         }
 
-        private static UANode? FirstOf<T>(UANodeSet nodeSet) where T : UANode
+        /// <summary>
+        /// Collects the EventTypes some Node of the NodeSet generates.
+        /// </summary>
+        private static HashSet<string> CollectGeneratedEventTypes(UANodeSet nodeSet)
+        {
+            var generated = new HashSet<string>(StringComparer.Ordinal);
+            foreach (UANode node in nodeSet.Items!)
+            {
+                foreach (Reference reference in node.References ?? [])
+                {
+                    if (reference.IsForward &&
+                        reference.Value is { Length: > 0 } target &&
+                        IsGeneratesEventReference(reference.ReferenceType))
+                    {
+                        generated.Add(target);
+                    }
+                }
+            }
+            return generated;
+        }
+
+        private static UANode? FirstOf<T>(UANodeSet nodeSet, HashSet<string> generated)
+            where T : UANode
         {
             foreach (UANode node in nodeSet.Items!)
             {
-                if (node is T)
+                if (node is T && !generated.Contains(node.NodeId ?? string.Empty))
                 {
                     return node;
                 }
