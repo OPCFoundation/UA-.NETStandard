@@ -56,6 +56,7 @@ namespace Opc.Ua.Wot
         public const string HasProperty = "i=46";
         public const string HasComponent = "i=47";
         public const string HasOrderedComponent = "i=49";
+        public const string HasEncoding = "i=38";
         public const string Organizes = "i=35";
         public const string HasTypeDefinition = "i=40";
         public const string HasModellingRule = "i=37";
@@ -128,35 +129,114 @@ namespace Opc.Ua.Wot
             return false;
         }
 
+        /// <summary>
+        /// One standard ReferenceType: its base-namespace NodeId, its
+        /// BrowseName and its InverseName.
+        /// </summary>
+        /// <remarks>
+        /// A WoT Binding Section 5.3 link names a ReferenceType by its
+        /// <em>model name</em>, and OPC 10000-3 gives a ReferenceType two
+        /// names: the BrowseName reads the reference in the forward direction
+        /// and the InverseName reads the same reference backwards. A table of
+        /// forward names alone therefore cannot tell <c>ua:HasComponent</c>
+        /// from <c>ua:ComponentOf</c>, and silently emits both as forward.
+        /// A symmetric ReferenceType has no InverseName; its entry leaves the
+        /// inverse name empty.
+        /// </remarks>
+        private readonly record struct StandardReferenceType(
+            string NodeId,
+            string BrowseName,
+            string InverseName);
+
+        /// <summary>
+        /// The standard ReferenceTypes this library names, with the InverseName
+        /// OPC 10000-5 gives each. Both lookup tables below are built from this
+        /// one array so a name and its identifier can never disagree.
+        /// </summary>
+        private static readonly StandardReferenceType[] s_standardReferenceTypes =
+        [
+            new("i=31", "References", string.Empty),
+            new(NonHierarchicalReferences, "NonHierarchicalReferences", string.Empty),
+            new("i=33", "HierarchicalReferences", "InverseHierarchicalReferences"),
+            new("i=34", "HasChild", "ChildOf"),
+            new(Organizes, "Organizes", "OrganizedBy"),
+            new("i=36", "HasEventSource", "EventSourceOf"),
+            new(HasModellingRule, "HasModellingRule", "ModellingRuleOf"),
+            new(HasEncoding, "HasEncoding", "EncodingOf"),
+            new("i=39", "HasDescription", "DescriptionOf"),
+            new(HasTypeDefinition, "HasTypeDefinition", "TypeDefinitionOf"),
+            new(GeneratesEvent, "GeneratesEvent", "GeneratedBy"),
+            new("i=3065", "AlwaysGeneratesEvent", "AlwaysGeneratedBy"),
+            new("i=44", "Aggregates", "AggregatedBy"),
+            new(HasSubtype, "HasSubtype", "SubtypeOf"),
+            new(HasProperty, "HasProperty", "PropertyOf"),
+            new(HasComponent, "HasComponent", "ComponentOf"),
+            new("i=48", "HasNotifier", "NotifierOf"),
+            new(HasOrderedComponent, "HasOrderedComponent", "OrderedComponentOf"),
+            new("i=51", "FromState", "ToTransition"),
+            new("i=52", "ToState", "FromTransition"),
+            new("i=53", "HasCause", "MayBeCausedBy"),
+            new("i=54", "HasEffect", "MayBeEffectedBy"),
+            new("i=56", "HasHistoricalConfiguration", "HistoricalConfigurationOf"),
+            new("i=117", "HasSubStateMachine", "SubStateMachineOf"),
+            new("i=129", "HasArgumentDescription", "ArgumentDescriptionOf"),
+            new(
+                "i=131",
+                "HasOptionalInputArgumentDescription",
+                "OptionalInputArgumentDescriptionOf"),
+            new("i=9004", "HasTrueSubState", "IsTrueSubStateOf"),
+            new("i=9005", "HasFalseSubState", "IsFalseSubStateOf"),
+            new("i=9006", "HasCondition", "IsConditionOf"),
+            new("i=15112", "HasGuard", "GuardOf"),
+            new("i=16361", "HasAlarmSuppressionGroup", "IsAlarmSuppressionGroupOf"),
+            new("i=16362", "AlarmGroupMember", "MemberOfAlarmGroup"),
+            new("i=17597", "HasDictionaryEntry", "DictionaryEntryOf"),
+            new(HasInterface, "HasInterface", "InterfaceOf"),
+            new("i=17604", "HasAddIn", "AddInOf"),
+            new("i=32059", "AlarmSuppressionGroupMember", "MemberOfAlarmSuppressionGroup")
+        ];
+
         private static readonly Dictionary<string, string> s_referenceTypeNameToNodeId =
-            new(StringComparer.Ordinal)
-            {
-                ["Organizes"] = Organizes,
-                ["HasModellingRule"] = HasModellingRule,
-                ["HasTypeDefinition"] = HasTypeDefinition,
-                ["GeneratesEvent"] = GeneratesEvent,
-                ["HasSubtype"] = HasSubtype,
-                ["HasProperty"] = HasProperty,
-                ["HasComponent"] = HasComponent,
-                ["HasOrderedComponent"] = HasOrderedComponent,
-                ["NonHierarchicalReferences"] = NonHierarchicalReferences,
-                ["HasInterface"] = HasInterface
-            };
+            BuildForwardNameTable();
+
+        private static readonly Dictionary<string, string> s_referenceTypeInverseNameToNodeId =
+            BuildInverseNameTable();
 
         private static readonly Dictionary<string, string> s_referenceTypeNodeIdToName =
-            new(StringComparer.Ordinal)
+            BuildNodeIdTable();
+
+        private static Dictionary<string, string> BuildForwardNameTable()
+        {
+            var table = new Dictionary<string, string>(StringComparer.Ordinal);
+            foreach (StandardReferenceType entry in s_standardReferenceTypes)
             {
-                [Organizes] = "Organizes",
-                [HasModellingRule] = "HasModellingRule",
-                [HasTypeDefinition] = "HasTypeDefinition",
-                [GeneratesEvent] = "GeneratesEvent",
-                [HasSubtype] = "HasSubtype",
-                [HasProperty] = "HasProperty",
-                [HasComponent] = "HasComponent",
-                [HasOrderedComponent] = "HasOrderedComponent",
-                [NonHierarchicalReferences] = "NonHierarchicalReferences",
-                [HasInterface] = "HasInterface"
-            };
+                table[entry.BrowseName] = entry.NodeId;
+            }
+            return table;
+        }
+
+        private static Dictionary<string, string> BuildInverseNameTable()
+        {
+            var table = new Dictionary<string, string>(StringComparer.Ordinal);
+            foreach (StandardReferenceType entry in s_standardReferenceTypes)
+            {
+                if (entry.InverseName.Length != 0)
+                {
+                    table[entry.InverseName] = entry.NodeId;
+                }
+            }
+            return table;
+        }
+
+        private static Dictionary<string, string> BuildNodeIdTable()
+        {
+            var table = new Dictionary<string, string>(StringComparer.Ordinal);
+            foreach (StandardReferenceType entry in s_standardReferenceTypes)
+            {
+                table[entry.NodeId] = entry.BrowseName;
+            }
+            return table;
+        }
 
         // HasComponent subtypes (base namespace) that carry stronger semantics
         // than plain HasComponent and must be pinned by a link whose rel is
@@ -189,11 +269,15 @@ namespace Opc.Ua.Wot
         public const string Number = "i=26";
         public const string UriString = "i=23751";
 
-        // Modelling rules (base namespace).
+        // Modelling rules (base namespace). The two placeholder identifiers are
+        // not adjacent and are not in name order: OPC 10000-5 assigns
+        // OptionalPlaceholder 11508 and MandatoryPlaceholder 11510, and 11509
+        // is not a ModellingRule Object at all. Both lookup tables below derive
+        // from these constants, so every mapping path shares one definition.
         public const string ModellingRuleMandatory = "i=78";
         public const string ModellingRuleOptional = "i=80";
-        public const string ModellingRuleMandatoryPlaceholder = "i=11508";
-        public const string ModellingRuleOptionalPlaceholder = "i=11509";
+        public const string ModellingRuleMandatoryPlaceholder = "i=11510";
+        public const string ModellingRuleOptionalPlaceholder = "i=11508";
 
         private static readonly Dictionary<string, string> s_modellingRuleToNodeId =
             new(StringComparer.Ordinal)
@@ -314,6 +398,47 @@ namespace Opc.Ua.Wot
                 return true;
             }
             nodeId = string.Empty;
+            return false;
+        }
+
+        /// <summary>
+        /// Resolves a base-namespace ReferenceType named by either its
+        /// BrowseName or its InverseName, reporting which of the two matched.
+        /// </summary>
+        /// <remarks>
+        /// The BrowseName is tried first, so a name that is both a BrowseName
+        /// and some other type's InverseName reads forward. No standard name
+        /// is currently ambiguous in that way; the order fixes the outcome if
+        /// one ever is.
+        /// </remarks>
+        /// <param name="name">The unqualified BrowseName or InverseName.</param>
+        /// <param name="nodeId">The ReferenceType's base-namespace NodeId.</param>
+        /// <param name="isForward">
+        /// <c>true</c> when the BrowseName matched, <c>false</c> when the
+        /// InverseName did. A reference whose InverseName was used is emitted
+        /// with <c>IsForward = false</c>.
+        /// </param>
+        /// <returns><c>true</c> when the name resolved.</returns>
+        public static bool TryResolveReferenceTypeName(
+            string? name,
+            out string nodeId,
+            out bool isForward)
+        {
+            if (name is not null)
+            {
+                if (s_referenceTypeNameToNodeId.TryGetValue(name, out nodeId!))
+                {
+                    isForward = true;
+                    return true;
+                }
+                if (s_referenceTypeInverseNameToNodeId.TryGetValue(name, out nodeId!))
+                {
+                    isForward = false;
+                    return true;
+                }
+            }
+            nodeId = string.Empty;
+            isForward = true;
             return false;
         }
 

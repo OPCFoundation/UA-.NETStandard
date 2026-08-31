@@ -154,6 +154,65 @@ namespace Opc.Ua.Wot
     }
 
     /// <summary>
+    /// One ReferenceType a local context matched, and the direction the name
+    /// that matched it expressed.
+    /// </summary>
+    /// <param name="NodeId">
+    /// The ReferenceType's identity, as a portable ExpandedNodeId string.
+    /// </param>
+    /// <param name="IsForward">
+    /// <c>true</c> when the name matched the ReferenceType's BrowseName,
+    /// <c>false</c> when it matched its InverseName. A reference named by an
+    /// InverseName is the same reference read backwards, so it is emitted with
+    /// its <c>IsForward</c> flag cleared.
+    /// </param>
+    public readonly record struct WotResolvedReferenceType(string NodeId, bool IsForward);
+
+    /// <summary>
+    /// An optional capability an <see cref="IWotNodeResolver"/> may also
+    /// implement to resolve the ReferenceType a WoT Binding Section 5.3 link
+    /// relation names.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// A link relation names a ReferenceType by its <em>model name</em>, and
+    /// OPC 10000-3 gives every ReferenceType two names: the BrowseName reads
+    /// the reference forward and the InverseName reads the same reference
+    /// backwards. <see cref="IWotNodeResolver.ResolveByBrowseNameAsync"/>
+    /// resolves BrowseNames only, so it cannot report the direction and cannot
+    /// see an InverseName at all.
+    /// </para>
+    /// <para>
+    /// This is deliberately a separate interface rather than a member of
+    /// <see cref="IWotNodeResolver"/>: a local context that holds only
+    /// documents has no ReferenceType declarations to offer, and the library
+    /// targets frameworks without default interface implementations, so adding
+    /// the member would break every existing implementation for no gain. The
+    /// converter probes for the capability and falls back to the standard
+    /// base-namespace names when a resolver does not offer it.
+    /// </para>
+    /// </remarks>
+    public interface IWotReferenceTypeResolver
+    {
+        /// <summary>
+        /// Resolves a ReferenceType named by its BrowseName or its InverseName.
+        /// </summary>
+        /// <param name="namespaceUri">
+        /// The NamespaceUri the relation's prefix resolved to.
+        /// </param>
+        /// <param name="name">The unqualified BrowseName or InverseName.</param>
+        /// <param name="cancellationToken">A cancellation token.</param>
+        /// <returns>
+        /// The ReferenceType and the direction its matched name expressed, or
+        /// <c>null</c> when this part of the local context does not hold it.
+        /// </returns>
+        ValueTask<WotResolvedReferenceType?> ResolveReferenceTypeAsync(
+            string namespaceUri,
+            string name,
+            CancellationToken cancellationToken = default);
+    }
+
+    /// <summary>
     /// The resolver used when a caller supplies none: it holds nothing, so
     /// every name is unresolved.
     /// </summary>
@@ -212,7 +271,7 @@ namespace Opc.Ua.Wot
     /// and loading an unrelated companion model can never change what an
     /// existing document projects to.
     /// </remarks>
-    public sealed class WotCompositeNodeResolver : IWotNodeResolver
+    public sealed class WotCompositeNodeResolver : IWotNodeResolver, IWotReferenceTypeResolver
     {
         /// <summary>
         /// Initializes a composite over the supplied resolvers, in order.
@@ -273,6 +332,35 @@ namespace Opc.Ua.Wot
             {
                 WotResolvedNode? match = await resolver
                     .ResolveByNodeIdAsync(expandedNodeId, cancellationToken)
+                    .ConfigureAwait(false);
+                if (match is not null)
+                {
+                    return match;
+                }
+            }
+
+            return null;
+        }
+
+        /// <inheritdoc/>
+        /// <remarks>
+        /// A resolver that does not offer the capability contributes nothing
+        /// rather than ending the walk, so one part of the local context
+        /// holding no ReferenceType declarations never hides another that does.
+        /// </remarks>
+        public async ValueTask<WotResolvedReferenceType?> ResolveReferenceTypeAsync(
+            string namespaceUri,
+            string name,
+            CancellationToken cancellationToken = default)
+        {
+            foreach (IWotNodeResolver resolver in m_resolvers)
+            {
+                if (resolver is not IWotReferenceTypeResolver referenceTypes)
+                {
+                    continue;
+                }
+                WotResolvedReferenceType? match = await referenceTypes
+                    .ResolveReferenceTypeAsync(namespaceUri, name, cancellationToken)
                     .ConfigureAwait(false);
                 if (match is not null)
                 {

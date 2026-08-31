@@ -78,6 +78,31 @@ namespace Opc.Ua.WotCon.Tests.Samples
             }
         }
 
+        /// <summary>
+        /// Rewrites the checked-in single-document Thing Models.
+        /// </summary>
+        /// <remarks>
+        /// Explicit for the same reason <c>WriteCompanionModelSets</c> is: it
+        /// rewrites checked-in sample documents. Run it when the converter's
+        /// output changes, review the diff, then commit what it produced:
+        ///
+        ///   dotnet test tests\Opc.Ua.WotCon.Tests --filter "FullyQualifiedName~WriteThingModels"
+        /// </remarks>
+        [Test]
+        [Explicit("Rewrites the checked-in sample documents.")]
+        public void WriteThingModels()
+        {
+            foreach (ModelDocument document in s_modelDocuments)
+            {
+                byte[] regenerated = WotAggregationDocumentGenerator.GenerateThingModel(
+                    RepositoryPath(document.SourcePath),
+                    document.Title);
+                File.WriteAllBytes(DocumentPath(document.FileName), regenerated);
+                TestContext.Out.WriteLine(
+                    $"{document.FileName}: {regenerated.Length} bytes");
+            }
+        }
+
         [Test]
         public void PumpThingDescriptionMatchesCanonicalRegeneration()
         {

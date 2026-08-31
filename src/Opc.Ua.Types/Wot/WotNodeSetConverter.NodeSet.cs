@@ -1227,7 +1227,8 @@ namespace Opc.Ua.Wot
             JsonElement link,
             string rel)
         {
-            if (!TrySplitCompactModelName(
+            if (IsKnownBindingRelation(rel) ||
+                !TrySplitCompactModelName(
                     rel,
                     out string prefix,
                     out _) ||
@@ -1242,10 +1243,33 @@ namespace Opc.Ua.Wot
             return true;
         }
 
+        /// <summary>
+        /// Gets whether a link's <c>rel</c> is a Binding term rather than a
+        /// ReferenceType model name.
+        /// </summary>
+        /// <remarks>
+        /// WoT Binding Section 9.1 spells the parent-placement relation
+        /// <c>uav:componentOf</c> and declares <c>ua:ComponentOf</c> as an
+        /// alias of it, so both name the same term. The alias reads as a
+        /// compact model name whose local part is the InverseName of
+        /// <c>HasComponent</c>; intercepting it here keeps it a binding term
+        /// and stops it being realized a second time as a generic inverse
+        /// typed link.
+        /// </remarks>
         private static bool IsKnownBindingRelation(string rel)
         {
-            return rel is "uav:componentOf";
+            return rel is ComponentOfRel or ComponentOfAliasRel;
         }
+
+        /// <summary>
+        /// The WoT Binding Section 9.1 parent-placement relation.
+        /// </summary>
+        internal const string ComponentOfRel = "uav:componentOf";
+
+        /// <summary>
+        /// The declared alias of <see cref="ComponentOfRel"/>.
+        /// </summary>
+        internal const string ComponentOfAliasRel = "ua:ComponentOf";
 
         private static bool IsModelConceptCandidate(
             JsonElement link,
@@ -1544,6 +1568,7 @@ namespace Opc.Ua.Wot
         private readonly record struct ResolvableThingReference(
             string Reference,
             string? ReferenceType,
-            bool IsExtends);
+            bool IsExtends,
+            bool IsForward);
     }
 }
