@@ -32,11 +32,14 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Configuration.Memory;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using NUnit.Framework;
@@ -57,7 +60,9 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
     /// provider (including the application-instance certificate bootstrap
     /// and the <see cref="OpcUaClientOptions.ConfigureLoadedConfiguration"/>
     /// override callback), precedence over <c>ConfigureApplication(...)</c>,
-    /// ambiguous-combination validation, and load failures.
+    /// the <see cref="OpcUaClientOptions.LoadConfigurationOnStart"/> eager
+    /// load of a supplied document, ambiguous-combination validation, and
+    /// load failures.
     /// </summary>
     [TestFixture]
     [Category("Client")]
@@ -301,6 +306,95 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
 
             Assert.That(options.ConfigurationFile, Is.EqualTo("Legacy/Client.Config.xml"));
             Assert.That(options.ConfigurationProvider, Is.Not.Null);
+        }
+
+        [Test]
+        public async Task LoadConfigurationOnStartLoadsSuppliedDocumentOnHostStartAsync()
+        {
+            const string applicationName = "CfgXmlEagerClient";
+            string testRoot = CreateTestRoot();
+            string configurationFile = WriteConfigurationFile(testRoot, applicationName);
+
+            var services = new ServiceCollection();
+            services.AddLogging();
+            services.AddOpcUa().AddClient(
+                configurationFile,
+                options => options.LoadConfigurationOnStart = true);
+
+            await using ServiceProvider provider = services.BuildServiceProvider();
+            OpcUaClientOptions resolvedOptions =
+                provider.GetRequiredService<OpcUaClientOptions>();
+
+            // Still lazy before the host starts.
+            Assert.That(resolvedOptions.Configuration, Is.Null);
+
+            IHostedService loader = provider.GetServices<IHostedService>()
+                .Single(service => service is ClientConfigurationLoaderHostedService);
+            await loader.StartAsync(CancellationToken.None).ConfigureAwait(false);
+
+            // The document is loaded, validated and published on the options,
+            // so a user interface can consume it without a session.
+            Assert.That(resolvedOptions.Configuration, Is.Not.Null);
+            Assert.That(
+                resolvedOptions.Configuration!.ApplicationName,
+                Is.EqualTo(applicationName));
+            Assert.That(
+                resolvedOptions.ConfigurationProvider!.Configuration,
+                Is.SameAs(resolvedOptions.Configuration));
+            Assert.That(
+                resolvedOptions.ConfigurationProvider.Application.ApplicationName,
+                Is.EqualTo(applicationName));
+
+            // The application-instance certificate was ensured during start.
+            Assert.That(
+                Directory.Exists(Path.Combine(testRoot, "pki", "own")) &&
+                Directory.GetFiles(
+                    Path.Combine(testRoot, "pki", "own"),
+                    "*",
+                    SearchOption.AllDirectories).Length > 0,
+                Is.True,
+                "The application instance certificate was not created.");
+
+            await loader.StopAsync(CancellationToken.None).ConfigureAwait(false);
+        }
+
+        [Test]
+        public async Task LoadConfigurationOnStartSurfacesLoadFailureOnHostStartAsync()
+        {
+            string missingFile = Path.Combine(
+                CreateTestRoot(),
+                "DoesNotExist.Config.xml");
+
+            var services = new ServiceCollection();
+            services.AddLogging();
+            services.AddOpcUa().AddClient(
+                missingFile,
+                options => options.LoadConfigurationOnStart = true);
+
+            await using ServiceProvider provider = services.BuildServiceProvider();
+            IHostedService loader = provider.GetServices<IHostedService>()
+                .Single(service => service is ClientConfigurationLoaderHostedService);
+
+            // The failure fails the host start instead of surfacing on the
+            // first session connect.
+            Assert.That(
+                () => loader.StartAsync(CancellationToken.None),
+                Throws.InstanceOf<ServiceResultException>());
+        }
+
+        [Test]
+        public async Task WithoutLoadConfigurationOnStartNoLoaderIsRegisteredAsync()
+        {
+            var services = new ServiceCollection();
+            services.AddLogging();
+            services.AddOpcUa().AddClient("Client.Config.xml");
+
+            await using ServiceProvider provider = services.BuildServiceProvider();
+
+            Assert.That(
+                provider.GetServices<IHostedService>()
+                    .Any(service => service is ClientConfigurationLoaderHostedService),
+                Is.False);
         }
 
         [Test]

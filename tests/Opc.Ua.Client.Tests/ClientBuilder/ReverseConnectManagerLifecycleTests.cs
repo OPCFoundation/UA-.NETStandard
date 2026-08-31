@@ -2712,6 +2712,67 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
         }
 
         [Test]
+        public async Task HeldConnectionSurvivesRegistrationForAnotherServer()
+        {
+            ITelemetryContext telemetry = CreateTelemetry();
+            var harness = new FakeListenerHarness(Scheme);
+            Uri url = Url(20610);
+            await using var manager = new ReverseConnectManager(telemetry)
+            {
+                TransportBindings = harness.Registry
+            };
+
+            // A hold time far beyond the settle window below, so the assertion
+            // that the second connection is still held cannot pass by timing.
+            ReverseConnectClientConfiguration configuration = ConfigFor(url);
+            configuration.HoldTime = 120000;
+            configuration.WaitTimeout = 60000;
+            await manager.StartServiceAsync(configuration).ConfigureAwait(false);
+
+            const string serverUriA = "urn:server-a:UA:Server";
+            const string serverUriB = "urn:server-b:UA:Server";
+            var endpointUrlA = new Uri(Scheme + "://server-a:62541/Server");
+            var endpointUrlB = new Uri(Scheme + "://server-b:62541/Server");
+            var eventA = new FakeConnectionWaitingEventArgs(serverUriA, endpointUrlA);
+            var eventB = new FakeConnectionWaitingEventArgs(serverUriB, endpointUrlB);
+
+            // Both Servers connect before the application registered a waiting
+            // connection for either of them, so both callbacks park on their hold.
+            Task holdA = manager.InvokeConnectionWaitingForTest(eventA);
+            Task holdB = manager.InvokeConnectionWaitingForTest(eventB);
+            Assert.That(holdA.IsCompleted, Is.False, "the unmatched callback must hold");
+            Assert.That(holdB.IsCompleted, Is.False, "the unmatched callback must hold");
+
+            // Waiting for the first Server cancels the shared hold token, which
+            // wakes up both held callbacks.
+            ITransportWaitingConnection connectionA = await manager
+                .WaitForConnectionAsync(endpointUrlA, serverUriA)
+                .ConfigureAwait(false);
+
+            Assert.That(connectionA, Is.SameAs(eventA));
+            await holdA.ConfigureAwait(false);
+            Assert.That(eventA.Accepted, Is.True);
+
+            // The connection of the second Server did not match that registration
+            // and must keep waiting for the remainder of its own hold time.
+            Task settled = await Task.WhenAny(holdB, Task.Delay(1000)).ConfigureAwait(false);
+            Assert.That(
+                settled,
+                Is.Not.SameAs(holdB),
+                "the reverse connection of the second Server was released before its hold time expired");
+            Assert.That(eventB.Accepted, Is.False);
+
+            // The still held connection is available for the second Server.
+            ITransportWaitingConnection connectionB = await manager
+                .WaitForConnectionAsync(endpointUrlB, serverUriB)
+                .ConfigureAwait(false);
+
+            Assert.That(connectionB, Is.SameAs(eventB));
+            await holdB.ConfigureAwait(false);
+            Assert.That(eventB.Accepted, Is.True);
+        }
+
+        [Test]
         public async Task StopDrainsHeldConnectionCallbackBeforeListenerClose()
         {
             ITelemetryContext telemetry = CreateTelemetry();
