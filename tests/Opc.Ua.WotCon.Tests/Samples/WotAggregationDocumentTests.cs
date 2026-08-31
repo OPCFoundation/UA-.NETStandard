@@ -113,6 +113,26 @@ namespace Opc.Ua.WotCon.Tests.Samples
             Assert.That(regenerated, Is.EqualTo(checkedIn));
         }
 
+        /// <summary>
+        /// Rewrites the checked-in sample Thing Description.
+        /// </summary>
+        /// <remarks>
+        /// Explicit for the same reason <c>WriteThingModels</c> is: it rewrites
+        /// a checked-in sample document. Run it when the converter's output
+        /// changes, review the diff, then commit what it produced:
+        ///
+        ///   dotnet test tests\Opc.Ua.WotCon.Tests --filter "FullyQualifiedName~WritePumpThingDescription"
+        /// </remarks>
+        [Test]
+        [Explicit("Rewrites the checked-in sample documents.")]
+        public void WritePumpThingDescription()
+        {
+            byte[] regenerated = WotAggregationDocumentGenerator.GeneratePumpThingDescription(
+                DocumentPath("SamplePump.NodeSet2.xml"));
+            File.WriteAllBytes(DocumentPath("SamplePump.td.json"), regenerated);
+            TestContext.Out.WriteLine($"SamplePump.td.json: {regenerated.Length} bytes");
+        }
+
         [Test]
         public void PumpAssetProjectionDocumentsMatchCanonicalRegeneration()
         {
