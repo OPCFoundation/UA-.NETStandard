@@ -123,6 +123,11 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
                 Assert.That(code, Does.Contain("\"Hard\""),
                     "The InputArguments value must carry the argument " +
                     "declared on the dependency method.");
+                // The decoded default value of the dependency property must
+                // flow into the generated value code.
+                Assert.That(code, Does.Contain("Unlabeled"),
+                    "The property value must carry the DefaultValue " +
+                    "declared on the dependency type.");
             });
         }
 
@@ -217,6 +222,10 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
                 Assert.That(label.DataTypeNode, Is.Not.Null,
                     "Label's DataTypeNode must be linked.");
                 Assert.That(label.DataTypeNode?.SymbolicName.Name, Is.EqualTo("String"));
+                // The default value of the dependency property must be
+                // decoded like ValidateInstance does for a local property.
+                Assert.That(label.DecodedValue?.ToString(), Is.EqualTo("Unlabeled"),
+                    "Label's DefaultValue must be decoded.");
             });
 
             var level = widget.Hierarchy.Nodes["Level"].Instance as VariableDesign;
@@ -242,6 +251,8 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
                 .FirstOrDefault(a => a.Name == "Hard");
             Parameter config = reset.InputArguments
                 .FirstOrDefault(a => a.Name == "Config");
+            Parameter result = reset.OutputArguments
+                .FirstOrDefault(a => a.Name == "Result");
             Assert.Multiple(() =>
             {
                 Assert.That(hard?.DataTypeNode?.SymbolicName.Name, Is.EqualTo("Boolean"),
@@ -250,8 +261,11 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
                 // structure argument that allows subtypes degrades to the
                 // abstract Structure.
                 Assert.That(config?.DataTypeNode?.SymbolicName.Name, Is.EqualTo("Structure"),
-                    "The AllowSubTypes structure argument must degrade to " +
-                    "Structure like a locally validated method argument.");
+                    "The AllowSubTypes structure input argument must degrade " +
+                    "to Structure like a locally validated method argument.");
+                Assert.That(result?.DataTypeNode?.SymbolicName.Name, Is.EqualTo("Structure"),
+                    "The AllowSubTypes structure output argument must degrade " +
+                    "to Structure like a locally validated method argument.");
             });
         }
 
@@ -328,6 +342,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             <opc:ModelDesign
               xmlns:opc="http://opcfoundation.org/UA/ModelDesign.xsd"
               xmlns:ua="http://opcfoundation.org/UA/"
+              xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd"
               xmlns="http://test.org/UA/ModelA/"
               TargetNamespace="http://test.org/UA/ModelA/">
               <opc:Namespaces>
@@ -346,13 +361,20 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
               </opc:VariableType>
               <opc:ObjectType SymbolicName="WidgetType" BaseType="ua:BaseObjectType">
                 <opc:Children>
-                  <opc:Property SymbolicName="Label" DataType="ua:String" ValueRank="Scalar" />
+                  <opc:Property SymbolicName="Label" DataType="ua:String" ValueRank="Scalar">
+                    <opc:DefaultValue>
+                      <uax:String>Unlabeled</uax:String>
+                    </opc:DefaultValue>
+                  </opc:Property>
                   <opc:Variable SymbolicName="Level" TypeDefinition="WidgetLevelType" />
                   <opc:Method SymbolicName="Reset">
                     <opc:InputArguments>
                       <opc:Argument Name="Hard" DataType="ua:Boolean" ValueRank="Scalar" />
                       <opc:Argument Name="Config" DataType="WidgetConfigType" ValueRank="Scalar" AllowSubTypes="true" />
                     </opc:InputArguments>
+                    <opc:OutputArguments>
+                      <opc:Argument Name="Result" DataType="WidgetConfigType" ValueRank="Scalar" AllowSubTypes="true" />
+                    </opc:OutputArguments>
                   </opc:Method>
                 </opc:Children>
               </opc:ObjectType>
@@ -399,6 +421,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             <opc:ModelDesign
               xmlns:opc="http://opcfoundation.org/UA/ModelDesign.xsd"
               xmlns:ua="http://opcfoundation.org/UA/"
+              xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd"
               xmlns="http://test.org/UA/ModelL/"
               TargetNamespace="http://test.org/UA/ModelL/">
               <opc:Namespaces>
@@ -417,13 +440,20 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
               </opc:VariableType>
               <opc:ObjectType SymbolicName="WidgetType" BaseType="ua:BaseObjectType">
                 <opc:Children>
-                  <opc:Property SymbolicName="Label" DataType="ua:String" ValueRank="Scalar" />
+                  <opc:Property SymbolicName="Label" DataType="ua:String" ValueRank="Scalar">
+                    <opc:DefaultValue>
+                      <uax:String>Unlabeled</uax:String>
+                    </opc:DefaultValue>
+                  </opc:Property>
                   <opc:Variable SymbolicName="Level" TypeDefinition="WidgetLevelType" />
                   <opc:Method SymbolicName="Reset">
                     <opc:InputArguments>
                       <opc:Argument Name="Hard" DataType="ua:Boolean" ValueRank="Scalar" />
                       <opc:Argument Name="Config" DataType="WidgetConfigType" ValueRank="Scalar" AllowSubTypes="true" />
                     </opc:InputArguments>
+                    <opc:OutputArguments>
+                      <opc:Argument Name="Result" DataType="WidgetConfigType" ValueRank="Scalar" AllowSubTypes="true" />
+                    </opc:OutputArguments>
                   </opc:Method>
                 </opc:Children>
               </opc:ObjectType>
