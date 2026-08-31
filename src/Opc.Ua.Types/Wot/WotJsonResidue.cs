@@ -331,6 +331,7 @@ namespace Opc.Ua.Wot
                 Add(entries, pointer, map);
                 return;
             }
+            bool isAction = string.Equals(kind, "actions", StringComparison.Ordinal);
             bool isEvent = string.Equals(kind, "events", StringComparison.Ordinal);
             var used = new HashSet<string>(StringComparer.Ordinal);
             foreach (JsonProperty affordance in map.EnumerateObject())
@@ -379,6 +380,23 @@ namespace Opc.Ua.Wot
                             // it said.
                             if (!isEvent ||
                                 !WotNodeSetConverter.TryReadSeverity(affordance.Value, out _))
+                            {
+                                Add(
+                                    entries,
+                                    affordancePointer + "/" + Escape(property.Name),
+                                    property.Value);
+                            }
+                            break;
+                        case WotNodeSetConverter.InputMember:
+                        case WotNodeSetConverter.OutputMember:
+                            // §9.1 maps an action's argument schemas onto the
+                            // Method's InputArguments and OutputArguments
+                            // Properties. A schema the converter cannot map is
+                            // kept verbatim instead, which is what keeps a
+                            // reported failure from also being a silent loss.
+                            if (!isAction ||
+                                !WotNodeSetConverter.MapsArgumentSchema(
+                                    affordance.Value, property.Name))
                             {
                                 Add(
                                     entries,

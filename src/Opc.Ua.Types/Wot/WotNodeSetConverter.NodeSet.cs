@@ -597,14 +597,24 @@ namespace Opc.Ua.Wot
             bool isThingModel = root is UAObjectType or UAVariableType;
             int affordanceCount = 0;
 
+            // §9.1 maps a Method's arguments to the action's input and output
+            // DataSchemas, so an argument Variable the schemas fully represent
+            // is not also emitted as a sibling property: the same Node would
+            // then be stated twice, once as an argument and once as a property
+            // of the Thing.
+            var representedArguments = new HashSet<string>(StringComparer.Ordinal);
+            Dictionary<string, WotMethodArguments> methodArguments =
+                CollectMethodArguments(actions, index, representedArguments);
+
             // A Variable may itself hold Variables — EURange and
             // EngineeringUnits sit below an analog Variable, two levels under
-            // the Node that roots this document. A Method holds its
-            // InputArguments and OutputArguments the same way. Walking only the
-            // root's references leaves all of them unreachable, so they are
-            // collected here and stated as properties of the same Thing, each
-            // naming the Node it belongs to (§9.1's `uav:componentOf`).
-            CollectOwnedVariables(actions, properties, index, nestedParents, namespaceUris);
+            // the Node that roots this document. An argument Variable whose
+            // value this direction cannot decode is held the same way. Walking
+            // only the root's references leaves all of them unreachable, so they
+            // are collected here and stated as properties of the same Thing,
+            // each naming the Node it belongs to (§9.1's `uav:componentOf`).
+            CollectOwnedVariables(
+                actions, properties, index, nestedParents, namespaceUris, representedArguments);
             CollectNestedVariables(properties, index, nestedParents, namespaceUris);
 
             WriteComponentArray(writer, "uav:hasComponent", componentChildren);
@@ -641,7 +651,9 @@ namespace Opc.Ua.Wot
                         break;
                     }
                     writer.WritePropertyName(UniqueKey(LocalName(method.BrowseName), used));
-                    WriteMethodAffordance(writer, method, namespaceUris);
+                    methodArguments.TryGetValue(
+                        method.NodeId ?? string.Empty, out WotMethodArguments arguments);
+                    WriteMethodAffordance(writer, method, namespaceUris, nodeSet, arguments);
                 }
                 writer.WriteEndObject();
             }
@@ -900,25 +912,27 @@ namespace Opc.Ua.Wot
         }
 
         /// <summary>
-        /// Adds the Variables a Method holds — its InputArguments and
-        /// OutputArguments — as properties naming the Method.
+        /// Adds the Variables a Method holds that its action's schemas do not
+        /// already represent, as properties naming the Method.
         /// </summary>
         /// <remarks>
         /// §9.1 maps a Method to an action, and its arguments belong in that
-        /// action's input and output schemas. Deriving those schemas means
-        /// decoding the <c>Argument</c> structures the argument Variable holds,
-        /// which needs the value work that is still open. Until then the
-        /// argument Variables are carried readably in their own right, with the
-        /// Method they belong to stated, so no Node is lost and none is
-        /// re-parented; the richer schema shape can replace this without
-        /// changing what the address space contains.
+        /// action's input and output schemas, which
+        /// <see cref="CollectMethodArguments"/> derives from the
+        /// <c>Argument</c> structures the argument Variables hold. A Variable
+        /// those schemas represent is therefore skipped here. Anything else the
+        /// Method holds - an argument list whose value this direction cannot
+        /// decode, or a Property of its own - is still carried readably in its
+        /// own right, with the Method it belongs to stated, so no Node is lost
+        /// and none is re-parented.
         /// </remarks>
         private static void CollectOwnedVariables(
             List<UAMethod> actions,
             List<UAVariable> properties,
             Dictionary<string, UANode> index,
             Dictionary<string, string> nestedParents,
-            string[]? namespaceUris)
+            string[]? namespaceUris,
+            HashSet<string> representedArguments)
         {
             foreach (UAMethod method in actions)
             {
@@ -934,7 +948,8 @@ namespace Opc.Ua.Wot
                         !IsComponentReference(reference.ReferenceType) ||
                         !index.TryGetValue(reference.Value, out UANode? target) ||
                         target is not UAVariable argument ||
-                        argument.NodeId is null)
+                        argument.NodeId is null ||
+                        representedArguments.Contains(argument.NodeId))
                     {
                         continue;
                     }
@@ -1076,7 +1091,9 @@ namespace Opc.Ua.Wot
         private static void WriteMethodAffordance(
             Utf8JsonWriter writer,
             UAMethod method,
-            string[]? namespaceUris)
+            string[]? namespaceUris,
+            UANodeSet nodeSet,
+            WotMethodArguments arguments)
         {
             writer.WriteStartObject();
             writer.WriteString("@type", "uav:method");
@@ -1087,6 +1104,11 @@ namespace Opc.Ua.Wot
                 "uav:browseName",
                 ToPortableQualifiedName(method.BrowseName, namespaceUris));
             WriteOptional(writer, "uav:id", ToPortableNodeId(method.NodeId, namespaceUris));
+
+            // §9.1: the Method's input and output arguments are the action's
+            // input and output DataSchemas.
+            WriteArgumentSchema(writer, InputMember, arguments.Input, nodeSet);
+            WriteArgumentSchema(writer, OutputMember, arguments.Output, nodeSet);
             WriteModellingRule(writer, method);
             writer.WriteEndObject();
         }

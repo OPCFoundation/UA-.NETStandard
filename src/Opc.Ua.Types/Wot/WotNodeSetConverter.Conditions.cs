@@ -85,6 +85,60 @@ namespace Opc.Ua.Wot
             ["Acknowledge", "Confirm", "AddComment"];
 
         /// <summary>
+        /// The argument order OPC 10000-9 gives every occurrence-level
+        /// Condition Method: <c>EventId</c> then <c>Comment</c>.
+        /// </summary>
+        /// <remarks>
+        /// <c>Acknowledge</c>, <c>Confirm</c> and <c>AddComment</c> have the
+        /// same fixed signature, so an action that invokes one states which
+        /// arguments it declares but never has to restate the order OPC 10000-9
+        /// already fixes. That is what lets Section 13.4's own shape - an
+        /// <c>input</c> declaring <c>EventId</c> and an optional
+        /// <c>Comment</c> - materialize without a <c>uav:fieldOrder</c>, while
+        /// an ordinary Method with two arguments still has to state one.
+        /// </remarks>
+        private static readonly string[] s_conditionMethodArguments = [EventIdField, "Comment"];
+
+        /// <summary>
+        /// Resolves the argument order of a Condition Method from the Method
+        /// OPC 10000-9 defines, where the action invokes one.
+        /// </summary>
+        /// <param name="action">The action affordance.</param>
+        /// <param name="declared">The members its argument schema declares.</param>
+        /// <param name="order">The declared members in OPC 10000-9 order.</param>
+        /// <returns>
+        /// <c>true</c> when the action invokes an occurrence-level Condition
+        /// Method and declares only arguments that Method takes.
+        /// </returns>
+        private static bool TryGetConditionArgumentOrder(
+            JsonElement action,
+            List<string> declared,
+            out List<string> order)
+        {
+            order = [];
+            if (!TryGetNonEmptyString(action, ConditionActionTerm, out string conditionAction) ||
+                Array.IndexOf(s_occurrenceActions, conditionAction) < 0)
+            {
+                return false;
+            }
+            foreach (string name in s_conditionMethodArguments)
+            {
+                if (declared.Contains(name))
+                {
+                    order.Add(name);
+                }
+            }
+            if (order.Count != declared.Count)
+            {
+                // The action declares something the Condition Method does not
+                // take, so OPC 10000-9 says nothing about where it goes.
+                order = [];
+                return false;
+            }
+            return true;
+        }
+
+        /// <summary>
         /// Validates the Alarms and Conditions mapping of WoT Binding Section
         /// 13.
         /// </summary>

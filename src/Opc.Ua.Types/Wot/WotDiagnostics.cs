@@ -381,7 +381,27 @@ namespace Opc.Ua.Wot
         /// number the author never wrote, and no later reader could tell it
         /// from an authored one.
         /// </summary>
-        InvalidEventSeverity = 6029
+        InvalidEventSeverity = 6029,
+
+        /// <summary>
+        /// An action's <c>input</c> or <c>output</c> DataSchema declares more
+        /// than one member but states no order for them. OPC UA Method
+        /// arguments are positional, and RFC 8259 gives JSON object members no
+        /// order, so enumeration order would make the argument list depend on
+        /// how the document happens to be serialized. The schema states
+        /// <c>uav:fieldOrder</c> (WoT Binding Section 6.11.4) or the order has
+        /// to follow from the Condition Method the action invokes; otherwise
+        /// the arguments are left to preservation and reported here.
+        /// </summary>
+        MethodArgumentOrderAmbiguous = 6030,
+
+        /// <summary>
+        /// An action's <c>input</c> or <c>output</c> member is not a DataSchema
+        /// this Binding can map to an <c>Argument</c> list - it is not a JSON
+        /// object, or its <c>uav:fieldOrder</c> and <c>properties</c> disagree.
+        /// The member is carried unchanged by preservation rather than dropped.
+        /// </summary>
+        MethodArgumentSchemaInvalid = 6031
     }
 
     /// <summary>

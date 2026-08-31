@@ -37,6 +37,7 @@ them.
 | Action affordance `uav:browseName` | **Default** | The affordance map key is used as the local name and BrowseName `1:<key>`. |
 | Action affordance `uav:id` | **Default** | Deterministic NodeId `ns=1;s=<rootLocal>/<actionLocal>`. |
 | Action `title` | **Default** | No `DisplayName` field is materialized for the method. |
+| Action `input` / `output` (Section 9.1) | **Default** / **Fails** | Absent: the Method is materialized with no argument Property. Present: the schema becomes an `InputArguments` / `OutputArguments` Property (`Argument[]`, `DataType` `i=296`, `ValueRank` `1`) held by `HasProperty`, with NodeId `ns=1;s=<rootLocal>/<actionLocal>/<InputArguments\|OutputArguments>`. A schema that names one DataType — through `uav:mapToType`, `uav:dataTypeId`, `uav:dataTypeName` or an inline `uav:dataTypeDefinition` — is one argument, named from its `uav:browseName` or `title` and otherwise `Input` / `Output`; an object schema's members are the arguments. Each member's DataType resolves by the property rules above, `uav:valueRank` defaults to `-1` and `uav:arrayDimensions` and `description` are carried onto the `Argument`. Order comes from `uav:fieldOrder` (Section 6.11.4); a single member needs none, and an `Acknowledge`, `Confirm` or `AddComment` action takes the fixed OPC 10000-9 order `EventId`, `Comment`. A multi-member schema with no order **fails** (`MethodArgumentOrderAmbiguous`) rather than using JSON member order, and one whose `uav:fieldOrder` does not list every member exactly once, or that is not a JSON object, **fails** (`MethodArgumentSchemaInvalid`). A reported schema is still carried verbatim through residue, so a rejected document never loses the signature it authored. |
 | Event affordance `uav:browseName` | **Default** | The affordance map key is used as the local name and BrowseName `1:<key>`. |
 | Event affordance `uav:id` | **Default** | Deterministic NodeId `ns=1;s=<rootLocal>/<eventLocal>`. |
 | Event `title` | **Default** | No `DisplayName` field is materialized for the event type. |
@@ -219,4 +220,24 @@ directions map it rather than carrying it. A NodeSet whose EventType declares a
 authoring the term materializes that Property. Because the term is mapped it is
 **not** also captured as residue — an out-of-range value, which is not mapped,
 still is, so a rejected document keeps what its author wrote.
+
+## Method arguments (Section 9.1)
+
+A UA Method's `InputArguments` and `OutputArguments` are the WoT action's
+`input` and `output` DataSchemas, in both directions.
+
+**NodeSet to WoT.** The `Argument` structures the argument Properties hold are
+decoded into an object DataSchema whose members are the arguments, whose
+`uav:fieldOrder` states their declaration order — the order an OPC 10000-4
+`Call` is positional over — and whose `required` lists all of them, because a
+Call supplies all of them. Each member carries the WoT type members that stand
+for its DataType, the definitive `uav:mapToType`, `uav:valueRank`, any
+`uav:arrayDimensions` and its `Description`. An argument Property the schemas
+represent is no longer emitted a second time as a sibling property of the
+Thing; one whose value cannot be decoded still is, so no Node is lost. The
+readable schemas state what the arguments are and not which Nodes hold them, so
+the exact NodeId and attributes of the argument Properties travel in the
+`uav:nodes` preservation projection.
+
+**WoT to NodeSet.** See the `input` / `output` row of the defaults table above.
 

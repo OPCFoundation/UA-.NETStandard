@@ -1281,9 +1281,17 @@ namespace Opc.Ua.Wot
                 }
             };
             AddModellingRule(action, references);
+            items.Add(method);
+
+            // §9.1: the action's input and output DataSchemas are the Method's
+            // InputArguments and OutputArguments Properties. A schema that
+            // cannot be mapped is reported and left to preservation rather than
+            // dropped, so a Method never silently loses its signature.
+            SynthesizeMethodArguments(
+                document, nodeSet, action, key, nodeId, local, rootLocal,
+                items, references, diagnostics);
             method.References = [.. references];
 
-            items.Add(method);
             rootReferences.Add(new Reference
             {
                 ReferenceType = "HasComponent",
