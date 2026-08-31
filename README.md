@@ -69,7 +69,6 @@ pulls in everything, or reference individual packages directly, e.g.
 `OPCFoundation.NetStandard.Opc.Ua.Server` for servers. Preview builds from
 every successful `master` build are available from the
 [GitHub Packages NuGet feed](https://nuget.pkg.github.com/OPCFoundation/index.json).
-GitHub Packages requires a classic personal access token with `read:packages`.
 Official public 2.0 preview releases are also on nuget.org. Enable prerelease
 packages and use `2.0.0-preview.*` to float to the latest published
 `2.0.0-preview.N` release.
@@ -212,5 +211,5 @@ vulnerabilities via the process documented in
   the official OPC 10000 series specification index.
 - [OPC UA .NET Samples](https://github.com/OPCFoundation/UA-.NETStandard-Samples) —
   companion repository with more sample applications.
-- [NuGet package feed](https://nuget.pkg.github.com/OPCFoundation/index.json) —
+- [Preview Nuget package feed](https://nuget.pkg.github.com/OPCFoundation/index.json) —
   prerelease builds from every successful `master` build.
