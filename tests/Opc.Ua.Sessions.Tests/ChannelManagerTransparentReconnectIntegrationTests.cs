@@ -340,7 +340,8 @@ namespace Opc.Ua.Sessions.Tests
             {
                 if (serverStopped)
                 {
-                    ReferenceServer = await ServerFixture.StartAsync(PkiRoot, serverPort).ConfigureAwait(false);
+                    ReferenceServer = await ServerFixture.StartAsync(PkiRoot, serverPort)
+                        .ConfigureAwait(false);
                     ReferenceServer.TokenValidator = TokenValidator;
                 }
 

@@ -2219,7 +2219,7 @@ namespace Opc.Ua.Server
         /// </summary>
         private void QueueOverflowHandler()
         {
-            m_subscription?.QueueOverflowHandler();
+            (m_subscription as ISubscriptionPublishPipeline)?.QueueOverflowHandler();
         }
 
         /// <inheritdoc/>

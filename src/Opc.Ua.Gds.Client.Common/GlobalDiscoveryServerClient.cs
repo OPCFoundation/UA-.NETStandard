@@ -538,6 +538,7 @@ namespace Opc.Ua.Gds.Client
             await m_lock.WaitAsync(ct).ConfigureAwait(false);
             try
             {
+
                 ISession? session = Session;
                 Session = null;
                 m_directory = null;
@@ -581,6 +582,8 @@ namespace Opc.Ua.Gds.Client
                 m_logger.SubscriberThrewInKeepAliveHandler(exception);
             }
 
+            RaiseServerStatusChanged(e);
+
             if (!ServiceResult.IsBad(e.Status))
             {
                 return;
@@ -621,15 +624,42 @@ namespace Opc.Ua.Gds.Client
             m_logger.GdsClientSessionClosing();
         }
 
+        /// <summary>
+        /// Raises <see cref="ServerStatusChanged"/> when the server state
+        /// changes, and once for the state the first keep-alive reports.
+        /// </summary>
+        /// <remarks>
+        /// The session keep-alive already reads <c>Server_ServerStatus_State</c>
+        /// from the server on every interval - on both subscription engines, and
+        /// the first one is sent immediately after connect - so the state is
+        /// available without this client creating a subscription of its own.
+        /// </remarks>
+        private void RaiseServerStatusChanged(KeepAliveEventArgs e)
+        {
+            if (e == null || m_lastServerState == e.CurrentState)
+            {
+                return;
+            }
+            m_lastServerState = e.CurrentState;
+
+            try
+            {
+                ServerStatusChanged?.Invoke(
+                    this,
+                    new ServerStatusChangedEventArgs(e.Status, e.CurrentState, e.CurrentTime));
+            }
+            catch (Exception exception)
+            {
+                m_logger.SubscriberThrewInServerStatusChangedHandler(exception);
+            }
+        }
+
         /// <inheritdoc/>
         public event KeepAliveEventHandler? KeepAlive;
 
-        /// <summary>
-        /// Occurs when the server status changes.
-        /// </summary>
-#pragma warning disable CS0067
-        public event MonitoredItemNotificationEventHandler? ServerStatusChanged;
-#pragma warning restore CS0067
+        /// <inheritdoc/>
+        public event EventHandler<ServerStatusChangedEventArgs>? ServerStatusChanged;
+
         /// <inheritdoc/>
         public async ValueTask<ArrayOf<ApplicationRecordDataType>> FindApplicationAsync(
             string? applicationUri,
@@ -640,6 +670,7 @@ namespace Opc.Ua.Gds.Client
                 applicationUri ?? string.Empty,
                 ct).ConfigureAwait(false);
         }
+
         /// <inheritdoc/>
         public async ValueTask<ArrayOf<ServerOnNetwork>> QueryServersAsync(
             uint maxRecordsToReturn,
@@ -658,6 +689,7 @@ namespace Opc.Ua.Gds.Client
                 serverCapabilities,
                 ct).ConfigureAwait(false)).servers;
         }
+
         /// <inheritdoc/>
         public async ValueTask<(ArrayOf<ServerOnNetwork> servers, DateTimeUtc lastCounterResetTime)> QueryServersAsync(
             uint startingRecordId,
@@ -679,6 +711,7 @@ namespace Opc.Ua.Gds.Client
                 ct).ConfigureAwait(false);
             return (servers, lastCounterResetTime);
         }
+
         /// <summary>
         /// Queries the GDS for any servers matching the criteria.
         /// </summary>
@@ -719,6 +752,7 @@ namespace Opc.Ua.Gds.Client
                     ct).ConfigureAwait(false);
             return (applications, lastCounterResetTime, nextRecordId);
         }
+
         /// <inheritdoc/>
         public async ValueTask<ApplicationRecordDataType> GetApplicationAsync(
             NodeId applicationId,
@@ -727,6 +761,7 @@ namespace Opc.Ua.Gds.Client
             _ = await ConnectIfNeededAsync(ct).ConfigureAwait(false);
             return await m_directory!.GetApplicationAsync(applicationId, ct).ConfigureAwait(false);
         }
+
         /// <inheritdoc/>
         public async ValueTask<NodeId> RegisterApplicationAsync(
             ApplicationRecordDataType application,
@@ -735,6 +770,7 @@ namespace Opc.Ua.Gds.Client
             _ = await ConnectIfNeededAsync(ct).ConfigureAwait(false);
             return await m_directory!.RegisterApplicationAsync(application, ct).ConfigureAwait(false);
         }
+
         /// <summary>
         /// Returns the Certificates assigned to Application and associated with the CertificateGroup.
         /// </summary>
@@ -757,6 +793,7 @@ namespace Opc.Ua.Gds.Client
                 certificateGroupId,
                 ct).ConfigureAwait(false);
         }
+
         /// <inheritdoc/>
         public async ValueTask<(StatusCode certificateStatus, DateTimeUtc validityTime)> CheckRevocationStatusAsync(
             ByteString certificate,
@@ -765,24 +802,28 @@ namespace Opc.Ua.Gds.Client
             _ = await ConnectIfNeededAsync(ct).ConfigureAwait(false);
             return await m_certificateDirectory!.CheckRevocationStatusAsync(certificate, ct).ConfigureAwait(false);
         }
+
         /// <inheritdoc/>
         public async ValueTask UpdateApplicationAsync(ApplicationRecordDataType application, CancellationToken ct = default)
         {
             _ = await ConnectIfNeededAsync(ct).ConfigureAwait(false);
             await m_directory!.UpdateApplicationAsync(application, ct).ConfigureAwait(false);
         }
+
         /// <inheritdoc/>
         public async ValueTask UnregisterApplicationAsync(NodeId applicationId, CancellationToken ct = default)
         {
             _ = await ConnectIfNeededAsync(ct).ConfigureAwait(false);
             await m_directory!.UnregisterApplicationAsync(applicationId, ct).ConfigureAwait(false);
         }
+
         /// <inheritdoc/>
         public async ValueTask RevokeCertificateAsync(NodeId applicationId, ByteString certificate, CancellationToken ct = default)
         {
             _ = await ConnectIfNeededAsync(ct).ConfigureAwait(false);
             await m_certificateDirectory!.RevokeCertificateAsync(applicationId, certificate, ct).ConfigureAwait(false);
         }
+
         /// <inheritdoc/>
         public async ValueTask<NodeId> StartNewKeyPairRequestAsync(
             NodeId applicationId,
@@ -805,6 +846,7 @@ namespace Opc.Ua.Gds.Client
                 new string(privateKeyPassword),
                 ct).ConfigureAwait(false);
         }
+
         /// <inheritdoc/>
         public async ValueTask<NodeId> StartSigningRequestAsync(
             NodeId applicationId,
@@ -821,6 +863,7 @@ namespace Opc.Ua.Gds.Client
                 certificateRequest,
                 ct).ConfigureAwait(false);
         }
+
         /// <summary>
         /// Checks the request status.
         /// </summary>
@@ -838,12 +881,14 @@ namespace Opc.Ua.Gds.Client
                 await m_certificateDirectory!.FinishRequestAsync(applicationId, requestId, ct).ConfigureAwait(false);
             return (certificate, privateKey, issuerCertificates);
         }
+
         /// <inheritdoc/>
         public async ValueTask<ArrayOf<NodeId>> GetCertificateGroupsAsync(NodeId applicationId, CancellationToken ct = default)
         {
             _ = await ConnectIfNeededAsync(ct).ConfigureAwait(false);
             return await m_certificateDirectory!.GetCertificateGroupsAsync(applicationId, ct).ConfigureAwait(false);
         }
+
         /// <inheritdoc/>
         public async ValueTask<NodeId> GetTrustListAsync(NodeId applicationId, NodeId certificateGroupId, CancellationToken ct = default)
         {
@@ -853,6 +898,7 @@ namespace Opc.Ua.Gds.Client
                 certificateGroupId,
                 ct).ConfigureAwait(false);
         }
+
         /// <inheritdoc/>
         public async ValueTask<bool> GetCertificateStatusAsync(
             NodeId applicationId,
@@ -867,6 +913,7 @@ namespace Opc.Ua.Gds.Client
                 certificateTypeId,
                 ct).ConfigureAwait(false);
         }
+
         /// <inheritdoc/>
         public ValueTask<TrustListDataType> ReadTrustListAsync(NodeId trustListId, CancellationToken ct = default)
         {
@@ -931,6 +978,7 @@ namespace Opc.Ua.Gds.Client
                 .ConfigureAwait(false);
 
                 Session.SessionClosing += Session_SessionClosing;
+                m_lastServerState = null;
                 Session.KeepAlive += Session_KeepAlive;
 
                 if (!Session.Factory.ContainsEncodeableType(DataTypeIds.ApplicationRecordDataType))
@@ -956,6 +1004,8 @@ namespace Opc.Ua.Gds.Client
                     MessageContext.Telemetry);
 
                 m_endpoint = Session.ConfiguredEndpoint;
+
+
                 m_logger.ConnectedToEndpoint(EndpointUrl);
             }
             finally
@@ -1001,6 +1051,7 @@ namespace Opc.Ua.Gds.Client
         private DirectoryTypeClient? m_directory;
         private CertificateDirectoryTypeClient? m_certificateDirectory;
         private ConfiguredEndpoint? m_endpoint;
+        private ServerState? m_lastServerState;
         private bool m_disposed;
     }
 
@@ -1032,5 +1083,10 @@ namespace Opc.Ua.Gds.Client
         [LoggerMessage(EventId = GdsClientCommonEventIds.GdsClientConnection + 2, Level = LogLevel.Information,
             Message = "Connected to {EndpointUrl}.")]
         public static partial void ConnectedToEndpoint(this ILogger logger, string? endpointUrl);
+
+        [LoggerMessage(EventId = GdsClientCommonEventIds.GdsClientConnection + 3, Level = LogLevel.Error,
+            Message = "Subscriber threw in ServerStatusChanged handler.")]
+        public static partial void SubscriberThrewInServerStatusChangedHandler(
+            this ILogger logger, Exception exception);
     }
 }
