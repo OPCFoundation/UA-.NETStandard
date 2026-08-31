@@ -41,6 +41,7 @@ them.
 | Event affordance `uav:id` | **Default** | Deterministic NodeId `ns=1;s=<rootLocal>/<eventLocal>`. |
 | Event `title` | **Default** | No `DisplayName` field is materialized for the event type. |
 | Event type abstraction/supertype | **Default** | Event affordances materialize as non-abstract `UAObjectType` nodes with inverse `HasSubtype` to `BaseEventType` (`i=2041`) and a root `GeneratesEvent` reference, unless the affordance carries `uav:conditionType` or `uav:conditionTypeId`. A Condition event derives from the named ConditionType instead (WoT Binding Section 13.2). |
+| `uav:severity` (Section 6.6) | **Default** / **Fails** | Absent: no `Severity` Property is materialized, so the EventType inherits the one `BaseEventType` declares and a server applies its own default. Present and in the OPC 10000-5 range `1..1000`: a `Severity` Property (`UInt16`, `HasTypeDefinition` `PropertyType`, `HasModellingRule` `Mandatory`) holding that value, with NodeId `ns=1;s=<rootLocal>/<eventLocal>/Severity`. Outside that range, non-integer, or on an affordance that is not an event: `InvalidEventSeverity` error. The value is **not** clamped — Section 7 forbids it — and the rejected value is carried through residue rather than dropped. |
 | `uav:modellingRule` on a property or action | **Default** | No `HasModellingRule` reference is materialized. |
 | `uav:hasComponent` / `uav:componentOf` entry has no matching typed ReferenceType link | **Default** | `HasComponent` is used for the component reference. |
 | Binding link has no resolvable model-name relation and no `uav:refId` | **Default** | The link maps to `Organizes`. Spec PR #19 removed `uav:componentModel`, `uav:capability` and `uav:reference`; a link now names its ReferenceType directly in `rel` (`ua:HasComponent`, `ua:HasInterface`, `ua:NonHierarchicalReferences`). |
@@ -210,3 +211,12 @@ therefore handles them in one direction with full round-trip fidelity:
 The opaque terms `uav:metadata`, `uav:propertyConfiguration`,
 `uav:actionConfiguration` and `uav:eventConfiguration` are never
 validated and never cause rejection; they are carried verbatim.
+
+`uav:severity` is the exception to the "readable annotation" rule above: it
+names one OPC UA model fact, the EventType's own `Severity` Property, so both
+directions map it rather than carrying it. A NodeSet whose EventType declares a
+`Severity` Property with a value in `1..1000` emits the term; a document
+authoring the term materializes that Property. Because the term is mapped it is
+**not** also captured as residue — an out-of-range value, which is not mapped,
+still is, so a rejected document keeps what its author wrote.
+

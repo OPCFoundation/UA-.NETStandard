@@ -228,7 +228,8 @@ namespace Opc.Ua.Wot
                     case "properties":
                     case "actions":
                     case "events":
-                        CaptureAffordanceMap(property.Value, pointer, entries);
+                        CaptureAffordanceMap(
+                            property.Value, pointer, property.Name, entries);
                         break;
                     case "links":
                         CaptureLinks(property.Value, pointer, entries);
@@ -322,6 +323,7 @@ namespace Opc.Ua.Wot
         private static void CaptureAffordanceMap(
             JsonElement map,
             string pointer,
+            string kind,
             List<Entry> entries)
         {
             if (map.ValueKind != JsonValueKind.Object)
@@ -329,6 +331,7 @@ namespace Opc.Ua.Wot
                 Add(entries, pointer, map);
                 return;
             }
+            bool isEvent = string.Equals(kind, "events", StringComparison.Ordinal);
             var used = new HashSet<string>(StringComparer.Ordinal);
             foreach (JsonProperty affordance in map.EnumerateObject())
             {
@@ -366,6 +369,22 @@ namespace Opc.Ua.Wot
                         case "readOnly":
                         case "writeOnly":
                         case "observable":
+                            break;
+                        case WotNodeSetConverter.SeverityTerm:
+                            // Section 6.6 maps a severity in range onto the
+                            // EventType's own Severity Property, so carrying it
+                            // here as well would state the same default twice.
+                            // One out of range is not mapped and is kept, so an
+                            // invalid document is reported without losing what
+                            // it said.
+                            if (!isEvent ||
+                                !WotNodeSetConverter.TryReadSeverity(affordance.Value, out _))
+                            {
+                                Add(
+                                    entries,
+                                    affordancePointer + "/" + Escape(property.Name),
+                                    property.Value);
+                            }
                             break;
                         case "links":
                             // Section 5.2.1 puts the definitive type-binding

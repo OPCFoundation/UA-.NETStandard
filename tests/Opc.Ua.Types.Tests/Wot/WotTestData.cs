@@ -438,5 +438,29 @@ namespace Opc.Ua.Types.Tests.Wot
         {
             return Encoding.UTF8.GetBytes(text);
         }
+
+        /// <summary>
+        /// Parses a NodeSet value fragment without admitting a DTD.
+        /// </summary>
+        /// <remarks>
+        /// A value fixture is authored as text because that is how it reads,
+        /// but <c>LoadXml</c> resolves an external DTD, so the reader states
+        /// explicitly that there is none to resolve.
+        /// </remarks>
+        public static System.Xml.XmlElement ParseValue(string xml)
+        {
+            var document = new XmlDocument { XmlResolver = null };
+            using (var reader = XmlReader.Create(
+                new StringReader(xml),
+                new XmlReaderSettings
+                {
+                    DtdProcessing = DtdProcessing.Prohibit,
+                    XmlResolver = null
+                }))
+            {
+                document.Load(reader);
+            }
+            return document.DocumentElement;
+        }
     }
 }

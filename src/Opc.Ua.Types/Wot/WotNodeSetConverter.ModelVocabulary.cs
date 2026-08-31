@@ -45,11 +45,13 @@ namespace Opc.Ua.Wot
         /// Section 6 against the per-term domain and range table of Section 7.
         /// </summary>
         /// <remarks>
-        /// The terms validated here have no distinct readable NodeSet structure
+        /// Most terms validated here have no distinct readable NodeSet structure
         /// in this converter, so a well-formed value is carried verbatim through
         /// the <c>uav:nodes</c> / residue mechanism (Section 9) and survives a
-        /// WoT to NodeSet to WoT round-trip unchanged. Only malformed values are
-        /// reported; a violation is an error because Section 7 requires a
+        /// WoT to NodeSet to WoT round-trip unchanged. <c>uav:severity</c> is the
+        /// exception: it maps to the EventType's <c>Severity</c> Property, so a
+        /// valid value is materialized rather than carried. Only malformed values
+        /// are reported; a violation is an error because Section 7 requires a
         /// consumer to treat the document as invalid rather than repair it. The
         /// opaque terms <c>uav:metadata</c>, <c>uav:propertyConfiguration</c>,
         /// <c>uav:actionConfiguration</c> and <c>uav:eventConfiguration</c> are
@@ -76,19 +78,20 @@ namespace Opc.Ua.Wot
             ValidateContains(document, root, diagnostics);
             ValidateContainedIn(document, root, diagnostics);
 
-            // Property-level terms (WoT Binding Sections 6.5, 6.7).
+            // Property-level terms (WoT Binding Sections 6.5, 6.6, 6.7).
             ValidateAffordanceModelVocabulary(
-                document, document.Properties, "properties", diagnostics);
+                document, document.Properties, "properties", false, diagnostics);
             ValidateAffordanceModelVocabulary(
-                document, document.Actions, "actions", diagnostics);
+                document, document.Actions, "actions", false, diagnostics);
             ValidateAffordanceModelVocabulary(
-                document, document.Events, "events", diagnostics);
+                document, document.Events, "events", true, diagnostics);
         }
 
         private static void ValidateAffordanceModelVocabulary(
             WotDocument document,
             IReadOnlyDictionary<string, JsonElement> affordances,
             string section,
+            bool isEventAffordance,
             List<WotDiagnostic> diagnostics)
         {
             foreach (KeyValuePair<string, JsonElement> affordance in affordances)
@@ -103,6 +106,57 @@ namespace Opc.Ua.Wot
                 ValidateDecimalPlaces(node, parentPointer, diagnostics);
                 ValidateUnitProperty(document, node, parentPointer, diagnostics);
                 ValidateAbsoluteIriTerm(node, "uav:semanticId", parentPointer, diagnostics);
+                ValidateSeverity(node, parentPointer, isEventAffordance, diagnostics);
+            }
+        }
+
+        /// <summary>
+        /// Validates <c>uav:severity</c> against the OPC 10000-5 range and the
+        /// domain WoT Binding Section 7 gives it.
+        /// </summary>
+        /// <remarks>
+        /// The range is a hard bound rather than a hint: OPC 10000-5 defines
+        /// <c>BaseEventType.Severity</c> as 1..1000, so a value outside it
+        /// cannot be published at all. Section 7 states that a consumer
+        /// <em>shall not</em> silently clamp such a value, which is why this
+        /// reports an error rather than repairing it - a clamped severity is a
+        /// number the author never wrote, and no later reader could tell.
+        /// </remarks>
+        private static void ValidateSeverity(
+            JsonElement element,
+            string parentPointer,
+            bool isEventAffordance,
+            List<WotDiagnostic> diagnostics)
+        {
+            if (!element.TryGetProperty(SeverityTerm, out JsonElement value))
+            {
+                return;
+            }
+            string pointer = parentPointer + "/" + SeverityTerm;
+            if (!isEventAffordance)
+            {
+                diagnostics.Add(new WotDiagnostic(
+                    WotDiagnosticSeverity.Error,
+                    WotDiagnosticCode.InvalidEventSeverity,
+                    $"The {SeverityTerm} term belongs on an event affordance " +
+                    "and states the default Severity of that event " +
+                    "(WoT Binding Section 6.6).",
+                    WotLocation.FromPointer(pointer)));
+                return;
+            }
+            if (value.ValueKind != JsonValueKind.Number ||
+                !IsIntegerLiteral(value) ||
+                !value.TryGetInt32(out int severity) ||
+                !IsSeverityInRange(severity))
+            {
+                diagnostics.Add(new WotDiagnostic(
+                    WotDiagnosticSeverity.Error,
+                    WotDiagnosticCode.InvalidEventSeverity,
+                    $"The {SeverityTerm} term shall be an integer in the range " +
+                    $"{MinimumSeverity}..{MaximumSeverity}, the range OPC 10000-5 " +
+                    "defines for BaseEventType.Severity; a consumer shall not " +
+                    "clamp a value outside it (WoT Binding Section 7).",
+                    WotLocation.FromPointer(pointer)));
             }
         }
 

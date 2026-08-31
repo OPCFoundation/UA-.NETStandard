@@ -371,7 +371,17 @@ namespace Opc.Ua.Wot
         /// <c>enum</c> would silently override what the source says about the
         /// Node, which is the one thing the clause forbids.
         /// </summary>
-        ProjectionAnnotationNotPermitted = 6028
+        ProjectionAnnotationNotPermitted = 6028,
+
+        /// <summary>
+        /// An affordance carries <c>uav:severity</c> outside the range OPC
+        /// 10000-5 defines for <c>BaseEventType.Severity</c>, or on an
+        /// affordance that is not an event (WoT Binding Sections 6.6 and 7).
+        /// The value is rejected rather than clamped: a clamped severity is a
+        /// number the author never wrote, and no later reader could tell it
+        /// from an authored one.
+        /// </summary>
+        InvalidEventSeverity = 6029
     }
 
     /// <summary>

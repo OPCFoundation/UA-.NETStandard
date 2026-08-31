@@ -658,7 +658,7 @@ namespace Opc.Ua.Wot
                         break;
                     }
                     writer.WritePropertyName(UniqueKey(LocalName(eventType.BrowseName), used));
-                    WriteEventAffordance(writer, eventType, namespaceUris);
+                    WriteEventAffordance(writer, eventType, namespaceUris, index);
                 }
                 writer.WriteEndObject();
             }
@@ -1094,7 +1094,8 @@ namespace Opc.Ua.Wot
         private static void WriteEventAffordance(
             Utf8JsonWriter writer,
             UANode eventType,
-            string[]? namespaceUris)
+            string[]? namespaceUris,
+            Dictionary<string, UANode> index)
         {
             writer.WriteStartObject();
             // uav:eventType is the @type annotation counterpart of the uav:isEvent
@@ -1108,6 +1109,12 @@ namespace Opc.Ua.Wot
                 "uav:browseName",
                 ToPortableQualifiedName(eventType.BrowseName, namespaceUris));
             WriteOptional(writer, "uav:id", ToPortableNodeId(eventType.NodeId, namespaceUris));
+
+            // Section 6.6: the EventType's own Severity Property is the
+            // authored default a server publishes when an occurrence supplies
+            // none, so it is that Property - not free-standing metadata - that
+            // the term states.
+            WriteEventSeverity(writer, eventType, index);
             WriteModellingRule(writer, eventType);
             writer.WriteEndObject();
         }

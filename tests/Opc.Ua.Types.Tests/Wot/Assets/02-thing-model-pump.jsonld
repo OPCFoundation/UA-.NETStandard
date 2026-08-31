@@ -126,7 +126,7 @@
       "uav:isEvent": true,
       "uav:browseName": "pump:OverTemperatureEventType",
       "uav:semanticId": "http://example.com/ontology/OverTemperature",
-      "uav:eventConfiguration": { "severity": 500 },
+      "uav:severity": 500,
       "data": {
         "type": "object",
         "properties": {
@@ -140,7 +140,7 @@
       "uav:isEvent": true,
       "uav:browseName": "pump:SealLeakEventType",
       "uav:semanticId": "http://example.com/ontology/SealLeak",
-      "uav:eventConfiguration": { "severity": 700 },
+      "uav:severity": 700,
       "data": {
         "type": "object",
         "properties": {

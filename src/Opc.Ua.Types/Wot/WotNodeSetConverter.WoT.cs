@@ -1341,6 +1341,17 @@ namespace Opc.Ua.Wot
             ];
 
             items.Add(eventType);
+
+            // Section 6.6: an authored default severity is the value of the
+            // EventType's own Severity Property, so it materializes as that
+            // Property rather than being carried as opaque metadata. An
+            // out-of-range value is reported by ValidateSeverity and left to
+            // preservation; nothing is clamped here.
+            var eventReferences = new List<Reference>(eventType.References);
+            SynthesizeEventSeverity(
+                eventAffordance, nodeId, local, rootLocal, items, eventReferences);
+            eventType.References = [.. eventReferences];
+
             rootReferences.Add(new Reference
             {
                 ReferenceType = "GeneratesEvent",
