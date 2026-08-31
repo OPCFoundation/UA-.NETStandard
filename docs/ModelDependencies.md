@@ -145,4 +145,14 @@ payload-materialised data types (base types, field data types, structure /
 enumeration classification), so a local `ModelDesign` structure can subtype
 a structure published only through a referenced assembly's payload.
 
+Design files loaded as dependencies of the current target skip full
+dictionary validation, so the validator links them the same way after
+loading: their data types (as above) and their instances — the
+`TypeDefinition` / `DataType` node references of the types' children,
+variable-type data type restrictions, and method arguments including the
+`InputArguments` / `OutputArguments` argument properties. A target
+`ModelDesign` can therefore declare an `Object` or `Variable` whose
+`TypeDefinition` is a type from another design file and have its inherited
+children generate exactly as if the type were declared locally.
+
 
