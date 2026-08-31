@@ -28,17 +28,14 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Concurrent;
+using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
-using System.Globalization;
-using System.Threading;
-using System.Collections.Concurrent;
 using System.Text;
-
-#if DEBUG
-using System.Collections.Generic;
-#endif
+using System.Threading;
 
 namespace Opc.Ua.Security.Certificates
 {
@@ -64,9 +61,7 @@ namespace Opc.Ua.Security.Certificates
             m_core = new CertificateCore(
                 X509CertificateLoader.LoadCertificate(rawData));
             Interlocked.Increment(ref s_instancesCreated);
-#if DEBUG
-            Track();
-#endif
+            InitializeLeakTracking();
         }
 
 #if NET6_0_OR_GREATER
@@ -79,9 +74,7 @@ namespace Opc.Ua.Security.Certificates
             m_core = new CertificateCore(
                 X509CertificateLoader.LoadCertificate(rawData));
             Interlocked.Increment(ref s_instancesCreated);
-#if DEBUG
-            Track();
-#endif
+            InitializeLeakTracking();
         }
 #endif
 
@@ -104,9 +97,7 @@ namespace Opc.Ua.Security.Certificates
             m_core = new CertificateCore(
                 X509CertificateLoader.LoadCertificate(File.ReadAllBytes(fileName)));
             Interlocked.Increment(ref s_instancesCreated);
-#if DEBUG
-            Track();
-#endif
+            InitializeLeakTracking();
         }
 
         /// <summary>
@@ -125,9 +116,7 @@ namespace Opc.Ua.Security.Certificates
             m_core = new CertificateCore(X509CertificateLoader.LoadPkcs12(
                 rawData, password, keyStorageFlags));
             Interlocked.Increment(ref s_instancesCreated);
-#if DEBUG
-            Track();
-#endif
+            InitializeLeakTracking();
         }
 
         /// <summary>
@@ -151,9 +140,7 @@ namespace Opc.Ua.Security.Certificates
             m_core = new CertificateCore(X509CertificateLoader.LoadPkcs12(
                 File.ReadAllBytes(fileName), password, keyStorageFlags));
             Interlocked.Increment(ref s_instancesCreated);
-#if DEBUG
-            Track();
-#endif
+            InitializeLeakTracking();
         }
 
         /// <summary>
@@ -168,9 +155,7 @@ namespace Opc.Ua.Security.Certificates
             m_core = new CertificateCore(certificate ??
                 throw new ArgumentNullException(nameof(certificate)));
             Interlocked.Increment(ref s_instancesCreated);
-#if DEBUG
-            Track();
-#endif
+            InitializeLeakTracking();
         }
 
         /// <summary>
@@ -197,9 +182,7 @@ namespace Opc.Ua.Security.Certificates
                 detachedPrivateKey,
                 ownsDetachedPrivateKey);
             Interlocked.Increment(ref s_instancesCreated);
-#if DEBUG
-            Track();
-#endif
+            InitializeLeakTracking();
         }
 
         /// <summary>
@@ -212,9 +195,7 @@ namespace Opc.Ua.Security.Certificates
         private Certificate(CertificateCore core)
         {
             m_core = core;
-#if DEBUG
-            Track();
-#endif
+            InitializeLeakTracking();
         }
 
         /// <summary>
@@ -424,12 +405,11 @@ namespace Opc.Ua.Security.Certificates
 
             m_core.Release();
 
-            // Only this handle has been finalised; suppress its finalizer
-            // (the DEBUG leak reporter). Other handles over the same core
-            // remain finalizable until they too are disposed.
-#pragma warning disable CA1816 // Dispose methods should call SuppressFinalize
-            GC.SuppressFinalize(this);
-#pragma warning restore CA1816 // Dispose methods should call SuppressFinalize
+            if (m_allocationInfo != null)
+            {
+                s_allocationTracker.TryRemove(m_allocationInfo.AllocationId, out _);
+                m_allocationInfo = null;
+            }
         }
 
         /// <summary>
@@ -752,115 +732,211 @@ namespace Opc.Ua.Security.Certificates
             return new Certificate(m_core);
         }
 
-#if DEBUG
         /// <summary>
-        /// Track the allocation
+        /// Whether per-certificate allocation tracking is enabled for this process.
         /// </summary>
-        private void Track()
+        internal static bool LeakTrackingEnabled => s_leakTrackingEnabled;
+
+        /// <summary>
+        /// Gets or sets the diagnostic scope captured by newly allocated handles.
+        /// </summary>
+        internal static string? LeakTrackingScope
         {
-            // Cache the allocation info on the instance so the finalizer
-            // can report it even after the static tracker has lost the
-            // weak reference.
-            m_allocationInfo = new CertificateAllocationInfo(
-                this,
-                new System.Diagnostics.StackTrace(true).ToString(),
-                X509.Thumbprint);
-            s_allocationTracker.Add(m_allocationInfo);
+            get => s_leakTrackingScope.Value;
+            set => s_leakTrackingScope.Value = value;
         }
 
         /// <summary>
-        /// Detects leaked certificates: a handle that was finalized without
-        /// being disposed (its reference to the shared core was never
-        /// released). Only compiled in DEBUG builds.
+        /// Enables allocation tracking for this handle when requested.
         /// </summary>
-#pragma warning disable CA1063 // Implement IDisposable Correctly
-        ~Certificate()
-#pragma warning restore CA1063 // Implement IDisposable Correctly
+        private void InitializeLeakTracking()
         {
-            if (m_disposed == 0 && m_allocationInfo != null)
+            if (s_leakTrackingEnabled)
             {
-                s_finalizedWithLeakedRef.Add(m_allocationInfo);
+                Track();
             }
         }
 
-        private CertificateAllocationInfo? m_allocationInfo;
+        /// <summary>
+        /// Tracks the allocation until this handle is disposed.
+        /// </summary>
+        private void Track()
+        {
+            long allocationId = Interlocked.Increment(ref s_nextAllocationId);
+            m_allocationInfo = new CertificateAllocationInfo(
+                allocationId,
+                this,
+                new System.Diagnostics.StackTrace(fNeedFileInfo: false).ToString(),
+                s_leakTrackingScope.Value);
+            s_allocationTracker[allocationId] = m_allocationInfo;
+        }
 
         /// <summary>
         /// Captures allocation context for leak-detection diagnostics.
         /// </summary>
         internal sealed class CertificateAllocationInfo
         {
-            public WeakReference<Certificate> Reference { get; }
-            public string StackTrace { get; }
-            public string? Thumbprint { get; }
-            public DateTime CreatedAt { get; }
-
+            /// <summary>
+            /// Creates allocation diagnostics for a certificate handle.
+            /// </summary>
+            /// <param name="allocationId">Unique allocation identifier.</param>
+            /// <param name="certificate">The allocated certificate handle.</param>
+            /// <param name="stackTrace">Allocation stack trace.</param>
+            /// <param name="fixtureName">Optional test fixture attribution.</param>
             public CertificateAllocationInfo(
+                long allocationId,
                 Certificate certificate,
                 string stackTrace,
-                string? thumbprint)
+                string? fixtureName)
             {
+                AllocationId = allocationId;
                 Reference = new WeakReference<Certificate>(certificate);
                 StackTrace = stackTrace;
-                Thumbprint = thumbprint;
+                FixtureName = fixtureName;
                 CreatedAt = DateTime.UtcNow;
             }
+
+            /// <summary>
+            /// Gets the unique allocation identifier.
+            /// </summary>
+            public long AllocationId { get; }
+
+            /// <summary>
+            /// Gets a weak reference to the allocated certificate handle.
+            /// </summary>
+            public WeakReference<Certificate> Reference { get; }
+
+            /// <summary>
+            /// Gets the allocation stack trace.
+            /// </summary>
+            public string StackTrace { get; }
+
+            /// <summary>
+            /// Gets the optional test fixture attribution.
+            /// </summary>
+            public string? FixtureName { get; }
+
+            /// <summary>
+            /// Gets the UTC allocation time.
+            /// </summary>
+            public DateTime CreatedAt { get; }
         }
-
-        /// <summary>
-        /// Use a list of weak references for live-leak diagnostics.
-        /// ConditionalWeakTable doesn't expose enumeration on .NET
-        /// Framework, and we want the per-instance list anyway.
-        /// </summary>
-        private static readonly ConcurrentBag<CertificateAllocationInfo> s_allocationTracker = [];
-
-        /// <summary>
-        /// Set of allocation infos for Certificates that were finalised
-        /// while still holding a positive refcount (a real leak —
-        /// someone called AddRef without a matching Dispose). Cached so
-        /// the finalizer can record it before the instance dies.
-        /// </summary>
-        private static readonly ConcurrentBag<CertificateAllocationInfo> s_finalizedWithLeakedRef = [];
 
         /// <summary>
         /// Dumps allocation info for live <see cref="Certificate"/>
         /// instances that are still reachable. Useful in tests to
         /// surface the call site that created a leaking certificate.
         /// </summary>
-        public static IEnumerable<(string Thumbprint, int RefCount, DateTime CreatedAt, string StackTrace)> EnumerateLiveCertificates()
+        internal static IEnumerable<(
+            string Thumbprint,
+            int RefCount,
+            DateTime CreatedAt,
+            string StackTrace,
+            string? FixtureName)>
+            EnumerateLiveCertificates()
         {
-            foreach (CertificateAllocationInfo info in s_allocationTracker)
+            foreach (CertificateAllocationInfo info in s_allocationTracker.Values)
             {
-                if (info.Reference.TryGetTarget(out Certificate? cert))
+                if (info.Reference.TryGetTarget(out Certificate? cert) &&
+                    Volatile.Read(ref cert.m_disposed) == 0 &&
+                    cert.m_core.RefCount > 0)
                 {
                     yield return (
-                        info.Thumbprint ?? "(no thumbprint)",
+                        GetThumbprintForDiagnostics(cert),
                         cert.m_core.RefCount,
                         info.CreatedAt,
-                        info.StackTrace);
+                        info.StackTrace,
+                        info.FixtureName);
                 }
             }
         }
 
         /// <summary>
-        /// Dumps allocation info for <see cref="Certificate"/> instances
-        /// that were finalized while still holding a positive refcount
-        /// (i.e., AddRef without matching Dispose).
+        /// Reads the thumbprint without allowing a concurrent disposal to abort a leak dump.
         /// </summary>
-        public static IEnumerable<(string Thumbprint, DateTime CreatedAt, string StackTrace)> EnumerateFinalizedLeakedCertificates()
+        private static string GetThumbprintForDiagnostics(Certificate certificate)
         {
-            foreach (CertificateAllocationInfo info in s_finalizedWithLeakedRef)
+            try
             {
-                yield return (
-                    info.Thumbprint ?? "(no thumbprint)",
-                    info.CreatedAt,
-                    info.StackTrace);
+                return certificate.Thumbprint ?? "(no thumbprint)";
+            }
+            catch (CryptographicException)
+            {
+                return "(unavailable after disposal)";
             }
         }
-#endif
 
-        private static long s_instancesCreated;
-        private static long s_instancesDisposed;
+        /// <summary>
+        /// Dumps allocation info for undisposed <see cref="Certificate"/>
+        /// handles that are no longer reachable.
+        /// </summary>
+        internal static IEnumerable<(
+            DateTime CreatedAt,
+            string StackTrace,
+            string? FixtureName)>
+            EnumerateUnreachableUndisposedCertificates()
+        {
+            foreach (CertificateAllocationInfo info in s_allocationTracker.Values)
+            {
+                if (!info.Reference.TryGetTarget(out _))
+                {
+                    yield return (
+                        info.CreatedAt,
+                        info.StackTrace,
+                        info.FixtureName);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Resolves whether allocation tracking is enabled.
+        /// </summary>
+        private static bool ResolveLeakTrackingEnabled()
+        {
+            bool defaultValue;
+#if DEBUG
+            defaultValue = true;
+#else
+            defaultValue = false;
+#endif
+            bool switchFound = AppContext.TryGetSwitch(
+                c_leakTrackingSwitchName,
+                out bool switchValue);
+            return ResolveLeakTrackingEnabled(
+                switchFound,
+                switchValue,
+                Environment.GetEnvironmentVariable(c_leakTrackingEnvironmentVariable),
+                defaultValue);
+        }
+
+        /// <summary>
+        /// Resolves the allocation-tracking setting from its inputs.
+        /// </summary>
+        internal static bool ResolveLeakTrackingEnabled(
+            bool switchFound,
+            bool switchValue,
+            string? environmentValue,
+            bool defaultValue)
+        {
+            if (switchFound)
+            {
+                return switchValue;
+            }
+
+            if (string.Equals(environmentValue, "1", StringComparison.Ordinal) ||
+                string.Equals(environmentValue, bool.TrueString, StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+
+            if (string.Equals(environmentValue, "0", StringComparison.Ordinal) ||
+                string.Equals(environmentValue, bool.FalseString, StringComparison.OrdinalIgnoreCase))
+            {
+                return false;
+            }
+
+            return defaultValue;
+        }
 
         /// <summary>
         /// Total number of <see cref="Certificate"/> instances created
@@ -888,22 +964,37 @@ namespace Opc.Ua.Security.Certificates
         {
             Interlocked.Exchange(ref s_instancesCreated, 0);
             Interlocked.Exchange(ref s_instancesDisposed, 0);
+            s_allocationTracker.Clear();
         }
 
-#if DEBUG
         /// <summary>
         /// Test-only hook used by the leak-detector self-tests to account
         /// for a certificate that is deliberately abandoned (never disposed)
-        /// in order to exercise the finalizer-based leak tracking. Balances
+        /// in order to exercise unreachable-handle tracking. Balances
         /// the global leak counters so the intentional leak does not trip
-        /// the assembly-level leak assertion. DEBUG-only and visible to
-        /// friend test assemblies via <c>InternalsVisibleTo</c>.
+        /// the assembly-level leak assertion and removes unreachable test
+        /// allocations from the tracker. Visible to friend test assemblies
+        /// via <c>InternalsVisibleTo</c>.
         /// </summary>
-        internal static void AccountForDeliberatelyLeakedInstanceForTest()
+        /// <param name="allocationStackMarker">
+        /// Method name that uniquely identifies the deliberate test allocation.
+        /// </param>
+        internal static void AccountForDeliberatelyLeakedInstanceForTest(
+            string allocationStackMarker)
         {
             Interlocked.Increment(ref s_instancesDisposed);
+            foreach (KeyValuePair<long, CertificateAllocationInfo> entry in s_allocationTracker)
+            {
+                if (!entry.Value.Reference.TryGetTarget(out _) &&
+                    entry.Value.StackTrace.Contains(
+                        allocationStackMarker,
+                        StringComparison.Ordinal))
+                {
+                    s_allocationTracker.TryRemove(entry.Key, out _);
+                    return;
+                }
+            }
         }
-#endif
 
         /// <summary>
         /// The shared, reference-counted state for a logical certificate. One
@@ -985,10 +1076,28 @@ namespace Opc.Ua.Security.Certificates
         /// </summary>
         private readonly CertificateCore m_core;
 
+        private CertificateAllocationInfo? m_allocationInfo;
+
         /// <summary>
         /// 0 while this handle is live, 1 once this handle has been disposed.
         /// Makes Dispose idempotent per handle (SA-CERT-01).
         /// </summary>
         private int m_disposed;
+
+        private const string c_leakTrackingSwitchName =
+            "Opc.Ua.Security.Certificates.CertificateLeakTracking";
+        private const string c_leakTrackingEnvironmentVariable =
+            "OPCUA_CERTIFICATE_LEAK_TRACKING";
+
+        /// <summary>
+        /// Outstanding tracked allocations, removed when their owning handle is disposed.
+        /// </summary>
+        private static readonly ConcurrentDictionary<long, CertificateAllocationInfo>
+            s_allocationTracker = new();
+        private static readonly AsyncLocal<string?> s_leakTrackingScope = new();
+        private static readonly bool s_leakTrackingEnabled = ResolveLeakTrackingEnabled();
+        private static long s_instancesCreated;
+        private static long s_instancesDisposed;
+        private static long s_nextAllocationId;
     }
 }
