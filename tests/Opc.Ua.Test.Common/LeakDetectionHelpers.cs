@@ -201,11 +201,11 @@ namespace Opc.Ua.Tests
         /// hang). A genuine leak stays positive across the poll and still fails.
         /// </para>
         /// <para>
-        /// In <c>DEBUG</c> builds the failure message additionally includes
-        /// the allocation stack traces of every live (reachable) certificate
-        /// with a positive refcount and of every certificate whose finalizer
-        /// ran while still referenced, so the leak source is visible directly
-        /// in the CI test output.
+        /// When certificate allocation tracking is enabled, the failure message
+        /// additionally includes allocation stack traces for live certificates
+        /// with a positive refcount and unreachable handles that were not
+        /// disposed, so the leak source is visible directly in the CI test
+        /// output.
         /// </para>
         /// </remarks>
         /// <param name="detail">Optional caller-supplied breakdown (for
@@ -231,7 +231,14 @@ namespace Opc.Ua.Tests
                     .Append(detail);
             }
 
-            AppendDebugLeakDumps(message);
+            string fixtureSummary = CertificateLeakAttribution.BuildSummary();
+            if (!string.IsNullOrEmpty(fixtureSummary))
+            {
+                message.AppendLine()
+                    .Append(fixtureSummary);
+            }
+
+            AppendLeakDumps(message);
             Assert.Fail(message.ToString());
         }
 
@@ -295,32 +302,83 @@ namespace Opc.Ua.Tests
         }
 
         /// <summary>
-        /// Appends the DEBUG-only allocation stack traces of leaked
-        /// certificates to <paramref name="message"/>. No-op in release
-        /// builds (the per-instance tracking is compiled out).
+        /// Appends allocation stack traces of leaked certificates to
+        /// <paramref name="message"/> when allocation tracking is enabled.
         /// </summary>
-        private static void AppendDebugLeakDumps(StringBuilder message)
+        internal static void AppendLeakDumps(StringBuilder message)
         {
-#if DEBUG
-            message.AppendLine()
-                .AppendLine("LIVE LEAKED CERTIFICATES (DEBUG):");
-            foreach ((string thumbprint, int refCount, DateTime createdAt, string stackTrace) in
-                Certificate.EnumerateLiveCertificates())
+            if (!Certificate.LeakTrackingEnabled)
             {
-                message.AppendLine(FormattableString.Invariant(
-                    $"  Thumbprint={thumbprint}, RefCount={refCount}, CreatedAt={createdAt:O}"))
-                    .AppendLine(FormattableString.Invariant($"  StackTrace:\n{stackTrace}"));
+                message.AppendLine()
+                    .AppendLine(
+                        "Certificate allocation tracking was disabled. Set " +
+                        "OPCUA_CERTIFICATE_LEAK_TRACKING=1 before starting the test host " +
+                        "to include allocation stacks.");
+                return;
             }
 
-            message.AppendLine("FINALIZED-WITH-LEAKED-REF CERTIFICATES (DEBUG):");
-            foreach ((string thumbprint, DateTime createdAt, string stackTrace) in
-                Certificate.EnumerateFinalizedLeakedCertificates())
+            message.AppendLine()
+                .AppendLine("LIVE LEAKED CERTIFICATES:");
+            int liveCount = 0;
+            foreach ((
+                string thumbprint,
+                int refCount,
+                DateTime createdAt,
+                string stackTrace,
+                string fixtureName) in
+                Certificate.EnumerateLiveCertificates())
             {
-                message.AppendLine(FormattableString.Invariant(
-                    $"  Thumbprint={thumbprint}, CreatedAt={createdAt:O}"))
-                    .AppendLine(FormattableString.Invariant($"  StackTrace:\n{stackTrace}"));
+                liveCount++;
+                if (liveCount <= c_maxLeakDumpEntries)
+                {
+                    message.AppendFormat(
+                        CultureInfo.InvariantCulture,
+                        "  Thumbprint={0}, RefCount={1}, CreatedAt={2:O}, Fixture={3}",
+                        thumbprint,
+                        refCount,
+                        createdAt,
+                        fixtureName ?? "(unattributed)");
+                    message.AppendLine()
+                        .AppendLine(FormattableString.Invariant($"  StackTrace:\n{stackTrace}"));
+                }
             }
-#endif
+            AppendOmittedCount(message, liveCount);
+
+            message.AppendLine("UNREACHABLE UNDISPOSED CERTIFICATES:");
+            int unreachableCount = 0;
+            foreach ((DateTime createdAt, string stackTrace, string fixtureName) in
+                Certificate.EnumerateUnreachableUndisposedCertificates())
+            {
+                unreachableCount++;
+                if (unreachableCount <= c_maxLeakDumpEntries)
+                {
+                    message.AppendFormat(
+                        CultureInfo.InvariantCulture,
+                        "  CreatedAt={0:O}, Fixture={1}",
+                        createdAt,
+                        fixtureName ?? "(unattributed)");
+                    message.AppendLine()
+                        .AppendLine(FormattableString.Invariant($"  StackTrace:\n{stackTrace}"));
+                }
+            }
+            AppendOmittedCount(message, unreachableCount);
         }
+
+        /// <summary>
+        /// Appends the number of leak entries omitted by the diagnostic cap.
+        /// </summary>
+        private static void AppendOmittedCount(StringBuilder message, int count)
+        {
+            if (count > c_maxLeakDumpEntries)
+            {
+                message.AppendFormat(
+                    CultureInfo.InvariantCulture,
+                    "  ... {0} additional allocation(s) omitted.",
+                    count - c_maxLeakDumpEntries);
+                message.AppendLine();
+            }
+        }
+
+        private const int c_maxLeakDumpEntries = 50;
     }
 }

@@ -490,6 +490,103 @@ namespace Opc.Ua.Core.Tests.Stack.Client
         }
 
         [Test]
+        public async Task ConcurrentInitialOpenAndReconnectDisposesLosingTransportAsync()
+        {
+            var initialOpenStarted = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            var releaseInitialOpen = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            var reconnectOpenStarted = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            var initialChannel = new Mock<IChannel>();
+            var reconnectChannel = new Mock<IChannel>();
+
+            initialChannel
+                .Setup(channel => channel.OpenAsync(
+                    It.IsAny<Uri>(),
+                    It.IsAny<TransportChannelSettings>(),
+                    It.IsAny<CancellationToken>()))
+                .Callback(() => initialOpenStarted.TrySetResult(true))
+                .Returns(() => new ValueTask(releaseInitialOpen.Task));
+            reconnectChannel
+                .Setup(channel => channel.OpenAsync(
+                    It.IsAny<Uri>(),
+                    It.IsAny<TransportChannelSettings>(),
+                    It.IsAny<CancellationToken>()))
+                .Callback(() => reconnectOpenStarted.TrySetResult(true))
+                .Returns(new ValueTask());
+            initialChannel
+                .Setup(channel => channel.CloseAsync(It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask());
+            reconnectChannel
+                .Setup(channel => channel.CloseAsync(It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask());
+
+            int createCount = 0;
+            var bindings = new Mock<ITransportChannelBindings>();
+            bindings
+                .Setup(factory => factory.Create(
+                    It.IsAny<string>(),
+                    It.IsAny<ITelemetryContext>()))
+                .Returns(() => Interlocked.Increment(ref createCount) == 1
+                    ? initialChannel.Object
+                    : reconnectChannel.Object);
+
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            var configuration = new ApplicationConfiguration(telemetry);
+            await using var manager = new ClientChannelManager(
+                configuration,
+                telemetry,
+                bindings.Object);
+            ConfiguredEndpoint endpoint = GetNoneSecurityEndpoint(
+                new EndpointConfiguration { OperationTimeout = 6000 });
+            var entry = new ChannelEntry(
+                (IChannelEntryHost)manager,
+                ManagedChannelKey.FromEndpoint(endpoint),
+                endpoint,
+                reverseConnection: null);
+            ManagedTransportChannelLease? lease = null;
+
+            try
+            {
+                Task initialOpen = entry.OpenInitialAsync(
+                    clientCertificate: null,
+                    clientCertificateChain: null,
+                    clientCertificateVersion: 0,
+                    default);
+                await initialOpenStarted.Task.WaitAsync(s_completionTimeout)
+                    .ConfigureAwait(false);
+
+                lease = entry.AcquireLease(new TestParticipant("p1", endpoint));
+                Task<bool> reconnect = entry.RequestReconnectAsync(default);
+                await reconnectOpenStarted.Task.WaitAsync(s_completionTimeout)
+                    .ConfigureAwait(false);
+                Assert.That(
+                    await reconnect.WaitAsync(s_completionTimeout).ConfigureAwait(false),
+                    Is.True);
+
+                releaseInitialOpen.TrySetResult(true);
+                await initialOpen.WaitAsync(s_completionTimeout).ConfigureAwait(false);
+
+                Assert.That(entry.Underlying, Is.SameAs(reconnectChannel.Object));
+                initialChannel.Verify(
+                    channel => channel.CloseAsync(It.IsAny<CancellationToken>()),
+                    Times.Once);
+                initialChannel.Verify(channel => channel.Dispose(), Times.Once);
+                reconnectChannel.Verify(channel => channel.Dispose(), Times.Never);
+            }
+            finally
+            {
+                releaseInitialOpen.TrySetResult(true);
+                if (lease != null)
+                {
+                    await lease.CloseAsync(default).ConfigureAwait(false);
+                }
+                await entry.DisposeAsync().ConfigureAwait(false);
+            }
+        }
+
+        [Test]
         public async Task FatalForChannelTransitionsToFaultedStateAsync()
         {
             (ClientChannelManager sut, Certificate serverCert, Mock<IChannel> chMock) = CreateMockedSut();
@@ -1195,6 +1292,7 @@ namespace Opc.Ua.Core.Tests.Stack.Client
         /// Awaits <paramref name="task"/> and returns the exception it faulted
         /// with, failing the test if it succeeded or threw something else.
         /// </summary>
+        /// <typeparam name="TException">The expected exception type.</typeparam>
         /// <remarks>
         /// Deliberately not <c>Assert.ThrowsAsync</c>. That blocks the calling
         /// thread until the task completes - sync over async - so on a

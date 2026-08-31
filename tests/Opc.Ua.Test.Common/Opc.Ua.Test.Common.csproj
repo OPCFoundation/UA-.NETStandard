@@ -13,4 +13,7 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\Opc.Ua.Core\Opc.Ua.Core.csproj" />
   </ItemGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="Opc.Ua.Security.Certificates.Tests" />
+  </ItemGroup>
 </Project>
