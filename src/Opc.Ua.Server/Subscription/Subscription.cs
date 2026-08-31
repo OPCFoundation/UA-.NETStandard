@@ -42,6 +42,7 @@ namespace Opc.Ua.Server
     /// </summary>
     public class Subscription :
         ISubscription,
+        ISubscriptionPublishPipeline,
         ISubscriptionMonitoredItemLifecycle
     {
         /// <summary>
@@ -358,32 +359,6 @@ namespace Opc.Ua.Server
         /// </summary>
         public IUserIdentity EffectiveIdentity
             => Session != null ? Session.EffectiveIdentity : m_savedOwnerIdentity!;
-
-        /// <summary>
-        /// Queues an item that is ready to publish.
-        /// </summary>
-        public void ItemReadyToPublish(IMonitoredItem monitoredItem)
-        {
-            /*
-            lock (m_itemsReadyToPublish)
-            {
-                m_itemsReadyToPublish.Enqueue(monitoredItem);
-            }
-            */
-        }
-
-        /// <summary>
-        /// Tells the subscription that notifications are available but the item is not ready to publish.
-        /// </summary>
-        public void ItemNotificationsAvailable(IMonitoredItem monitoredItem)
-        {
-            /*
-            lock (m_itemsReadyToPublish)
-            {
-                m_itemsNotificationsAvailable.AddLast(monitoredItem);
-            }
-            */
-        }
 
         /// <summary>
         /// The identifier for the session that owns the subscription.
@@ -706,7 +681,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Checks if the subscription is ready to publish.
         /// </summary>
-        public PublishingState PublishTimerExpired()
+        PublishingState ISubscriptionPublishPipeline.PublishTimerExpired()
         {
             lock (m_lock)
             {
@@ -860,79 +835,6 @@ namespace Opc.Ua.Server
             }
         }
 
-        /// <summary>
-        /// Transfers the subscription to a new session.
-        /// </summary>
-        /// <param name="context">The session to which the subscription is transferred.</param>
-        /// <param name="sendInitialValues">Whether the first Publish response shall contain current values.</param>
-        /// <param name="cancellationToken">The cancellation token.</param>
-        public async ValueTask TransferSessionAsync(
-            OperationContext context,
-            bool sendInitialValues,
-            CancellationToken cancellationToken = default)
-        {
-            ThrowIfDeleted();
-
-            ISession destinationSession = context.Session;
-            ISession? sourceSession;
-            List<IMonitoredItem> monitoredItems;
-            lock (m_lock)
-            {
-                sourceSession = Session;
-                monitoredItems = m_monitoredItems.Select(v => v.Value.Value).ToList();
-            }
-            var errors = new List<ServiceResult>(monitoredItems.Count);
-            for (int ii = 0; ii < monitoredItems.Count; ii++)
-            {
-                errors.Add(null!);
-            }
-
-            await m_server.NodeManager
-                .TransferMonitoredItemsAsync(
-                    context,
-                    sendInitialValues,
-                    monitoredItems,
-                    errors,
-                    new MonitoredItemTransferOptions(),
-                    cancellationToken)
-                .ConfigureAwait(false);
-
-            int badTransfers = 0;
-            for (int ii = 0; ii < errors.Count; ii++)
-            {
-                if (ServiceResult.IsBad(errors[ii]))
-                {
-                    badTransfers++;
-                }
-            }
-
-            if (badTransfers > 0)
-            {
-                m_logger.FailedToTransferCountMonitoredItems(badTransfers, Id, SessionId);
-            }
-
-            lock (m_lock)
-            {
-                if (!ReferenceEquals(Session, sourceSession))
-                {
-                    throw new ServiceResultException(
-                        StatusCodes.BadSubscriptionIdInvalid,
-                        "Subscription ownership changed during transfer.");
-                }
-                Session = destinationSession;
-
-                // The recorded owner identity has to follow the owner, because the transfer
-                // compatibility checks in IsTransferIdentityCompatible are made against it.
-                UpdateOwnerIdentity(destinationSession);
-            }
-
-            lock (m_diagnosticsLock)
-            {
-                Diagnostics.SessionId = destinationSession.Id;
-                MarkDiagnosticsDirty();
-            }
-        }
-
         /// <inheritdoc/>
         public bool IsTransferIdentityCompatible(ISession targetSession)
         {
@@ -971,7 +873,7 @@ namespace Opc.Ua.Server
         /// </summary>
         /// <param name="sourceSession">The session that currently owns the subscription.</param>
         /// <returns><c>true</c> when the transfer reservation was acquired.</returns>
-        internal bool TryBeginTransfer(ISession? sourceSession)
+        bool ISubscriptionPublishPipeline.TryBeginTransfer(ISession? sourceSession)
         {
             lock (m_lock)
             {
@@ -998,7 +900,7 @@ namespace Opc.Ua.Server
         /// <exception cref="ServiceResultException">
         /// The subscription is no longer reserved by the source session.
         /// </exception>
-        internal async ValueTask<PreparedSessionTransfer> PrepareSessionTransferAsync(
+        async ValueTask<PreparedSessionTransfer> ISubscriptionPublishPipeline.PrepareSessionTransferAsync(
             OperationContext context,
             ISession? sourceSession,
             bool sendInitialValues,
@@ -1089,7 +991,7 @@ namespace Opc.Ua.Server
         /// </summary>
         /// <param name="destinationSession">The session that must currently own the subscription.</param>
         /// <exception cref="ServiceResultException">Ownership changed before transfer completion.</exception>
-        internal void CompleteTransfer(ISession destinationSession)
+        void ISubscriptionPublishPipeline.CompleteTransfer(ISession destinationSession)
         {
             lock (m_lock)
             {
@@ -1108,7 +1010,7 @@ namespace Opc.Ua.Server
         /// Releases a transfer reservation without changing ownership when preparation cannot continue.
         /// </summary>
         /// <param name="sourceSession">The source session that still owns the subscription.</param>
-        internal void AbortTransfer(ISession? sourceSession)
+        void ISubscriptionPublishPipeline.AbortTransfer(ISession? sourceSession)
         {
             lock (m_lock)
             {
@@ -1285,7 +1187,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Restores ownership if a transfer failed after assigning its destination.
         /// </summary>
-        internal bool TryRestoreSessionAfterFailedTransfer(
+        bool ISubscriptionPublishPipeline.TryRestoreSessionAfterFailedTransfer(
             ISession destinationSession,
             ISession? sourceSession)
         {
@@ -1337,23 +1239,7 @@ namespace Opc.Ua.Server
         }
 
         /// <inheritdoc/>
-        [Obsolete("Use SessionClosed(ISession) instead, which only releases the subscription when the closing session still owns it.")]
-        public void SessionClosed()
-        {
-            ISession session;
-            lock (m_lock)
-            {
-                session = Session;
-            }
-
-            if (session != null)
-            {
-                SessionClosed(session);
-            }
-        }
-
-        /// <inheritdoc/>
-        public bool SessionClosed(ISession closingSession)
+        bool ISubscriptionPublishPipeline.SessionClosed(ISession closingSession)
         {
             lock (m_lock)
             {
@@ -1415,7 +1301,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Update the monitoring queue overflow count.
         /// </summary>
-        public void QueueOverflowHandler()
+        void ISubscriptionPublishPipeline.QueueOverflowHandler()
         {
             lock (m_diagnosticsLock)
             {
@@ -1427,7 +1313,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Removes a message from the message queue.
         /// </summary>
-        public ServiceResult? Acknowledge(OperationContext context, uint sequenceNumber)
+        ServiceResult? ISubscriptionPublishPipeline.Acknowledge(OperationContext context, uint sequenceNumber)
         {
             ThrowIfDeleted();
 
@@ -1461,7 +1347,7 @@ namespace Opc.Ua.Server
         /// Returns all available notifications.
         /// </summary>
         /// <exception cref="ArgumentNullException"><paramref name="context"/> is <c>null</c>.</exception>
-        public NotificationMessage? Publish(
+        NotificationMessage? ISubscriptionPublishPipeline.Publish(
             OperationContext context,
             out ArrayOf<uint> availableSequenceNumbers,
             out bool moreNotifications)
@@ -1522,7 +1408,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Publishes a timeout status message.
         /// </summary>
-        public NotificationMessage PublishTimeout()
+        NotificationMessage ISubscriptionPublishPipeline.PublishTimeout()
         {
             NotificationMessage? message = null;
 
@@ -1552,7 +1438,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Publishes a SubscriptionTransferred status message.
         /// </summary>
-        public NotificationMessage SubscriptionTransferred()
+        NotificationMessage ISubscriptionPublishPipeline.SubscriptionTransferred()
         {
             NotificationMessage? message = null;
 
@@ -1798,7 +1684,7 @@ namespace Opc.Ua.Server
         /// Returns the available sequence numbers for retransmission
         /// For example used in Transfer Subscription
         /// </summary>
-        public ArrayOf<uint> AvailableSequenceNumbersForRetransmission()
+        ArrayOf<uint> ISubscriptionPublishPipeline.AvailableSequenceNumbersForRetransmission()
         {
             return m_messageQueue.AvailableSequenceNumbersForRetransmission();
         }

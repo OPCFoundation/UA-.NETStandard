@@ -222,6 +222,7 @@ namespace Opc.Ua.Bindings
                 throw BadNotConnected();
             }
             UaSCUaBinaryClientChannel? previousChannel = null;
+            UaSCUaBinaryClientChannel? newChannel = null;
             await m_connecting.WaitAsync(ct).ConfigureAwait(false);
             try
             {
@@ -235,7 +236,7 @@ namespace Opc.Ua.Bindings
                 // in the finally block after the new channel is connected.
                 previousChannel = m_channel;
                 m_channel = null;
-                UaSCUaBinaryClientChannel newChannel = CreateChannel(m_telemetry, connection);
+                newChannel = CreateChannel(m_telemetry, connection);
 
                 // Connect the new channel
                 await newChannel.ConnectAsync(
@@ -244,11 +245,17 @@ namespace Opc.Ua.Bindings
                     ct).ConfigureAwait(false);
 
                 m_channel = newChannel;
+                newChannel = null;
                 m_logger.UaSCTransportLog1(m_url);
             }
             finally
             {
                 m_connecting.Release(); // Give access again to the new channel
+
+                // A failed connect never transfers the candidate to m_channel.
+                // Dispose it here so the certificate AddRef handles created by
+                // CreateChannel are always released.
+                newChannel?.Dispose();
 
                 // close previous channel.
                 if (previousChannel != null)
@@ -436,7 +443,10 @@ namespace Opc.Ua.Bindings
             }
             catch
             {
-                await m_connecting.WaitAsync(ct).ConfigureAwait(false);
+                // Cleanup must not depend on the token that caused the connect
+                // attempt to fail; otherwise cancellation skips disposal of the
+                // channel's certificate handles and settings.
+                await m_connecting.WaitAsync(CancellationToken.None).ConfigureAwait(false);
                 try
                 {
                     Debug.Assert(m_channel == channel,

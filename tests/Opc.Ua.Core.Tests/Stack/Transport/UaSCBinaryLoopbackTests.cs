@@ -51,11 +51,11 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
     [NonParallelizable]
     public sealed class UaSCBinaryLoopbackTests
     {
-            private static readonly ICertificateFactory s_certificateFactory = DefaultCertificateFactory.Instance;
+        private static readonly ICertificateFactory s_certificateFactory = DefaultCertificateFactory.Instance;
 
-            [Test]
-            [CancelAfter(15000)]
-            public async Task ClientAndTcpListenerExchangeRequestAndCloseAsync()
+        [Test]
+        [CancelAfter(15000)]
+        public async Task ClientAndTcpListenerExchangeRequestAndCloseAsync()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             Uri endpointUrl = new($"opc.tcp://127.0.0.1:{GetFreeTcpPort()}");
@@ -338,6 +338,180 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
 
             await channel.CloseAsync(CancellationToken.None).ConfigureAwait(false);
             await listener.CloseAsync(CancellationToken.None).ConfigureAwait(false);
+        }
+
+        [Test]
+        [CancelAfter(15000)]
+        public async Task FailedReconnectDisposesCandidateCertificateHandlesAsync()
+        {
+            long createdBefore = Certificate.InstancesCreated;
+            long disposedBefore = Certificate.InstancesDisposed;
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            Certificate serverCertificate = s_certificateFactory
+                .CreateCertificate("CN=reconnect-server")
+                .CreateForRSA();
+            Uri endpointUrl = new($"opc.tcp://127.0.0.1:{GetFreeTcpPort()}");
+            EndpointDescription endpoint = CreateEndpoint(endpointUrl);
+            endpoint.ServerCertificate = serverCertificate.RawData.ToByteString();
+            EndpointConfiguration configuration = EndpointConfiguration.Create();
+            configuration.OperationTimeout = 5000;
+            var certificateRegistry = new Mock<ICertificateRegistry>();
+            certificateRegistry
+                .Setup(r => r.AcquireApplicationCertificateBySecurityPolicy(It.IsAny<string>()))
+                .Returns((CertificateEntry?)null);
+            await using var listener = new TcpTransportListener(telemetry);
+            var channel = new UaSCUaBinaryTransportChannel(
+                new TcpByteTransportFactory(telemetry),
+                telemetry)
+            {
+                OperationTimeout = 5000
+            };
+
+            try
+            {
+                await listener.OpenAsync(
+                    endpointUrl,
+                    new TransportListenerSettings
+                    {
+                        Descriptions = new List<EndpointDescription> { endpoint },
+                        Configuration = configuration,
+                        ServerCertificates = certificateRegistry.Object,
+                        NamespaceUris = new NamespaceTable(),
+                        Factory = EncodeableFactory.Create(),
+                        MaxChannelCount = 10
+                    },
+                    new EchoCallback(),
+                    CancellationToken.None).ConfigureAwait(false);
+                await channel.OpenAsync(
+                    endpointUrl,
+                    new TransportChannelSettings
+                    {
+                        Description = endpoint,
+                        Configuration = configuration,
+                        ServerCertificate = serverCertificate,
+                        NamespaceUris = new NamespaceTable(),
+                        Factory = EncodeableFactory.Create()
+                    },
+                    CancellationToken.None).ConfigureAwait(false);
+                await listener.CloseAsync(CancellationToken.None).ConfigureAwait(false);
+
+                Exception reconnectError = await CaptureExceptionAsync(
+                    () => channel.ReconnectAsync(null, CancellationToken.None).AsTask())
+                    .ConfigureAwait(false);
+
+                Assert.That(reconnectError, Is.InstanceOf<SocketException>());
+            }
+            finally
+            {
+                channel.Dispose();
+                serverCertificate.Dispose();
+            }
+
+            Assert.That(
+                Certificate.InstancesCreated - createdBefore,
+                Is.EqualTo(Certificate.InstancesDisposed - disposedBefore),
+                "A failed reconnect must release every AddRef handle on the server certificate.");
+        }
+
+        [Test]
+        [CancelAfter(15000)]
+        public async Task CancelledInitialOpenCanRetryWithFreshTransportAsync()
+        {
+            var connectStarted = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            var firstTransport = new Mock<IUaSCByteTransport>();
+            firstTransport.SetupGet(transport => transport.Implementation).Returns("Test");
+            firstTransport
+                .Setup(transport => transport.ConnectAsync(
+                    It.IsAny<Uri>(),
+                    It.IsAny<CancellationToken>()))
+                .Returns((Uri _, CancellationToken ct) => new ValueTask(
+                    WaitForCancellationAsync(connectStarted, ct)));
+
+            var expected = new InvalidOperationException("second transport reached");
+            var secondTransport = new Mock<IUaSCByteTransport>();
+            secondTransport.SetupGet(transport => transport.Implementation).Returns("Test");
+            secondTransport
+                .Setup(transport => transport.ConnectAsync(
+                    It.IsAny<Uri>(),
+                    It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask(Task.FromException(expected)));
+
+            var factory = new Mock<IUaSCByteTransportFactory>();
+            factory.SetupGet(value => value.Implementation).Returns("Test");
+            factory
+                .SetupSequence(value => value.Create(
+                    It.IsAny<BufferManager>(),
+                    It.IsAny<int>(),
+                    It.IsAny<ITelemetryContext>()))
+                .Returns(firstTransport.Object)
+                .Returns(secondTransport.Object);
+
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            Uri endpointUrl = new("opc.tcp://127.0.0.1:4840");
+            EndpointDescription endpoint = CreateEndpoint(endpointUrl);
+            EndpointConfiguration configuration = EndpointConfiguration.Create();
+            configuration.OperationTimeout = 5000;
+            using var channel = new UaSCUaBinaryTransportChannel(factory.Object, telemetry)
+            {
+                OperationTimeout = 5000
+            };
+            using var cts = new CancellationTokenSource();
+
+            Task firstOpen = channel.OpenAsync(
+                endpointUrl,
+                CreateChannelSettings(endpoint, configuration),
+                cts.Token).AsTask();
+            await connectStarted.Task.ConfigureAwait(false);
+            cts.Cancel();
+
+            Exception cancellation = await CaptureExceptionAsync(() => firstOpen)
+                .ConfigureAwait(false);
+            Exception retry = await CaptureExceptionAsync(
+                () => channel.OpenAsync(
+                    endpointUrl,
+                    CreateChannelSettings(endpoint, configuration),
+                    CancellationToken.None).AsTask()).ConfigureAwait(false);
+
+            Assert.That(cancellation, Is.InstanceOf<OperationCanceledException>());
+            Assert.That(retry, Is.SameAs(expected));
+            firstTransport.Verify(transport => transport.Close(), Times.AtLeastOnce);
+            secondTransport.Verify(transport => transport.Close(), Times.AtLeastOnce);
+        }
+
+        private static TransportChannelSettings CreateChannelSettings(
+            EndpointDescription endpoint,
+            EndpointConfiguration configuration)
+        {
+            return new TransportChannelSettings
+            {
+                Description = endpoint,
+                Configuration = configuration,
+                NamespaceUris = new NamespaceTable(),
+                Factory = EncodeableFactory.Create()
+            };
+        }
+
+        private static async Task<Exception> CaptureExceptionAsync(Func<Task> action)
+        {
+            try
+            {
+                await action().ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                return ex;
+            }
+
+            throw new AssertionException("Expected the operation to fail.");
+        }
+
+        private static async Task WaitForCancellationAsync(
+            TaskCompletionSource<bool> connectStarted,
+            CancellationToken ct)
+        {
+            connectStarted.TrySetResult(true);
+            await Task.Delay(Timeout.Infinite, ct).ConfigureAwait(false);
         }
 
         private static EndpointDescription CreateEndpoint(Uri endpointUrl)
