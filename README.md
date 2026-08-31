@@ -64,12 +64,15 @@ the [Developer Guide](docs/DeveloperGuide.md#packages-platform-support-and-versi
 are published to nuget.org under the `OPCFoundation.NetStandard`
 prefix — the meta package
 [OPCFoundation.NetStandard.Opc.Ua](https://www.nuget.org/packages/OPCFoundation.NetStandard.Opc.Ua/)
-pulls in everything, or pick the split
-`OPCFoundation.NetStandard.Opc.Ua.Core` / `.Client` / `.Server` /
-`.Bindings.Https` packages directly. Public 2.0 preview releases are also on
-nuget.org. Enable prerelease packages and use `2.0.0-preview.*` to float to the
-latest published `2.0.0-preview.N` release. No custom package source or
-credentials are required.
+pulls in everything, or reference individual packages directly, e.g.
+`OPCFoundation.NetStandard.Opc.Ua.Client` for clients or
+`OPCFoundation.NetStandard.Opc.Ua.Server` for servers. Preview builds from
+every successful `master` build are available from the
+[GitHub Packages NuGet feed](https://nuget.pkg.github.com/OPCFoundation/index.json).
+GitHub Packages requires a classic personal access token with `read:packages`.
+Official public 2.0 preview releases are also on nuget.org. Enable prerelease
+packages and use `2.0.0-preview.*` to float to the latest published
+`2.0.0-preview.N` release.
 
 ### Sample applications
 
@@ -146,8 +149,8 @@ repository.
 
 The 2.0 release introduces breaking API changes, and comes with a full
 [prescriptive migration guide](docs/MigrationGuide.md) that links to
-[per-area documentation](docs/migrate/2.0.x/README.md) with symptom-based
-routing across all supported migration topics.
+[per-area documentation](docs/migrate/2.0.x/README.md) for the migration
+sub-topics.
 
 Most of the mechanical migration work is automated:
 
@@ -209,6 +212,5 @@ vulnerabilities via the process documented in
   the official OPC 10000 series specification index.
 - [OPC UA .NET Samples](https://github.com/OPCFoundation/UA-.NETStandard-Samples) —
   companion repository with more sample applications.
-- [Preview NuGet packages](https://www.nuget.org/packages/OPCFoundation.NetStandard.Opc.Ua/) —
-  public 2.0 prereleases; use `2.0.0-preview.*` or select *Include prerelease*
-  in Visual Studio.
+- [NuGet package feed](https://nuget.pkg.github.com/OPCFoundation/index.json) —
+  prerelease builds from every successful `master` build.

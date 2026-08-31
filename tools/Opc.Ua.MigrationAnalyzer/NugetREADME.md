@@ -20,9 +20,9 @@ ships **three Roslyn components + a runtime shim** to help migrate from OPC UA
   1.5.378 → 2.0 boundary (`DateTime`→`DateTimeUtc`, `Guid`→`Uuid`,
   `byte[]`→`ByteString`) are pinned through a small override table; the legacy
   `XmlElementCollection` interpretation is pinned to `System.Xml.XmlElement`
-  to disambiguate it from `Opc.Ua.XmlElement`. Everything else (primitives, built-in
-  unrenamed types, model-compiled user types) falls back to semantic lookup
-  in the consumer's compilation; and
+  to disambiguate it from `Opc.Ua.XmlElement`. Everything else resolves from
+  consumer source declarations, then from exact `System.<Type>` or
+  `Opc.Ua.<Type>` metadata names; and
 - a **compatibility shim** assembly (`Opc.Ua.MigrationAnalyzer.Core.dll`) that
   re-supplies the obsolete extension surface 2.0 moved or removed, so most
   consumer projects still compile after the upgrade.
@@ -166,6 +166,10 @@ skips the analyzer rather than failing to load it:
 
 .NET SDK 9.0.100 and 9.0.200 carry Roslyn 4.12 and 4.13 respectively; neither
 can load the package's oldest analyzer payload.
+
+Always use the latest available .NET SDK servicing release in the supported
+9.x or 10.x band; servicing releases contain the security fixes needed for
+production.
 
 - `Opc.Ua.MigrationAnalyzer.dll` — the analyzer assembly. References **only**
   `Microsoft.CodeAnalysis.CSharp` so it loads cleanly in csc.exe's analyzer host

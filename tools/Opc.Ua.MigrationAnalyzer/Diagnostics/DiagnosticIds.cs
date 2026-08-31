@@ -73,12 +73,18 @@ namespace Opc.Ua.MigrationAnalyzer.Diagnostics
         public const string UA0028 = "UA0028";
 
         /// <summary>
+        /// The SecurityPolicies lookup and cryptography statics moved onto
+        /// ISecurityPolicyRegistry: they operate on the set of registered
+        /// policies rather than on constants.
+        /// </summary>
+        public const string UA0029 = "UA0029";
+
+        /// <summary>
         /// The ISubscription publish-pipeline members and SessionPublishQueue
         /// are server-internal in 2.0: only SubscriptionManager and the publish
         /// queue may drive the publishing state machine.
         /// </summary>
         public const string UA0030 = "UA0030";
-
 
         /// <summary>The diagnostic category every UA00xx rule belongs to.</summary>
         public const string Category = "Migration";

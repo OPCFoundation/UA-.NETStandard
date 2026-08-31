@@ -182,7 +182,8 @@ namespace Opc.Ua.MigrationAnalyzer.Generator
             // Foo.BarCollection sat next to Foo.Bar in the same source tree).
             ImmutableArray<INamedTypeSymbol> matches = [.. ctx.SemanticModel.Compilation
                 .GetSymbolsWithName(elementShortName, SymbolFilter.Type, ct)
-                .OfType<INamedTypeSymbol>()];
+                .OfType<INamedTypeSymbol>()
+                .Where(static symbol => symbol.Locations.Any(static location => location.IsInSource))];
             if (matches.Length == 1)
             {
                 INamedTypeSymbol elementType = matches[0];
