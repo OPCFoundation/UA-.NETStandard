@@ -419,14 +419,19 @@ namespace Opc.Ua.Server
                 StopAlarmMonitoring();
 
                 // Release the per-group store instances cached on the
-                // certificate-group identifiers. Their parsed-certificate
-                // caches are deliberately retained across Close() for reuse,
-                // so they must be disposed explicitly at shutdown.
+                // certificate-group identifiers (the TrustList handlers
+                // share the same identifier instances). Their
+                // parsed-certificate caches are deliberately retained across
+                // Close() for reuse, so they must be disposed explicitly at
+                // shutdown.
                 foreach (ServerCertificateGroup certGroup in m_certificateGroups)
                 {
+                    (certGroup.Node?.TrustList?.Handle as IDisposable)?.Dispose();
                     certGroup.TrustedStore?.DisposeCachedStore();
                     certGroup.IssuerStore?.DisposeCachedStore();
                 }
+
+                m_rejectedStore?.DisposeCachedStore();
             }
 
             base.Dispose(disposing);

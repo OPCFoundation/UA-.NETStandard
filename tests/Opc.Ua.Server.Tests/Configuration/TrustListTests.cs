@@ -1507,6 +1507,46 @@ namespace Opc.Ua.Server.Tests
             Assert.That(notifier.Notifications[0].CrlChanged, Is.False);
         }
 
+        [Test]
+        public async Task DisposeReleasesTheCachedStoreInstancesAsync()
+        {
+            TrustListState node = CreateNode();
+            TrustList trustList = CreateTrustList(node);
+            ISystemContext context = CreateContext(new NodeId(Guid.NewGuid(), 1));
+
+            // Populate the trusted store through the TrustList so its
+            // identifier caches a store holding parsed certificates.
+            using Certificate cert = CreateTestCertificate("CN=TrustList Dispose Cert");
+            ServiceResult addResult = node.AddCertificate.OnCall(
+                context,
+                node.AddCertificate,
+                node.NodeId,
+                cert.RawData.ToByteString(),
+                true);
+            Assert.That(ServiceResult.IsGood(addResult), Is.True);
+
+            ICertificateStore cached = m_trustedStore.OpenStore(m_telemetry);
+            cached.Close();
+
+            trustList.Dispose();
+
+            // The cached instance was released; a fresh, functional store is
+            // created on the next open and still sees the stored certificate.
+            ICertificateStore recreated = m_trustedStore.OpenStore(m_telemetry);
+            try
+            {
+                Assert.That(recreated, Is.Not.SameAs(cached));
+                using CertificateCollection found = await recreated
+                    .FindByThumbprintAsync(cert.Thumbprint)
+                    .ConfigureAwait(false);
+                Assert.That(found, Has.Count.EqualTo(1));
+            }
+            finally
+            {
+                m_trustedStore.DisposeCachedStore();
+            }
+        }
+
         private sealed class RecordingTrustListChangeNotifier : ICertificateTrustListManager
         {
             public List<(TrustListIdentifier Scope, bool TrustChanged, bool CrlChanged)> Notifications { get; }

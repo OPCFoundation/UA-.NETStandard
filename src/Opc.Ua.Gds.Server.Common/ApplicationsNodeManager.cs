@@ -2835,6 +2835,10 @@ namespace Opc.Ua.Gds.Server
             {
                 foreach (ICertificateGroup certificateGroup in m_certificateGroups.Values)
                 {
+                    // The TrustList handler owns private store identifiers
+                    // whose cached stores retain their parsed certificates
+                    // across Close(); dispose it before the group itself.
+                    (certificateGroup.DefaultTrustList?.Handle as IDisposable)?.Dispose();
                     (certificateGroup as IDisposable)?.Dispose();
                 }
 

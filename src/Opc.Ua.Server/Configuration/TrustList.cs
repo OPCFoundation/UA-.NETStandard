@@ -41,7 +41,7 @@ namespace Opc.Ua.Server
     /// <summary>
     /// The implementation of a server trustlist.
     /// </summary>
-    public class TrustList
+    public class TrustList : IDisposable
     {
         private const int kDefaultTrustListCapacity = 1 * 1024 * 1024;
 
@@ -197,6 +197,36 @@ namespace Opc.Ua.Server
         /// enforces on Read/Write/CloseAndUpdate/AddCertificate.
         /// </summary>
         internal int EffectiveMaxTrustListSize => m_effectiveMaxTrustListSize;
+
+        /// <summary>
+        /// Releases the store instances cached on this TrustList's trusted
+        /// and issuer store identifiers. Their parsed-certificate caches are
+        /// deliberately retained across <see cref="ICertificateStore.Close"/>
+        /// for reuse, so an owner whose identifiers are private to this
+        /// TrustList (e.g. the GDS <c>ApplicationsNodeManager</c>) must
+        /// dispose it at shutdown. Disposing identifiers that are shared
+        /// with (and also disposed by) the owner is harmless: a subsequent
+        /// <see cref="CertificateStoreIdentifier.OpenStore()"/> re-creates
+        /// the store.
+        /// </summary>
+        public void Dispose()
+        {
+            Dispose(disposing: true);
+            GC.SuppressFinalize(this);
+        }
+
+        /// <summary>
+        /// Releases the cached store instances.
+        /// </summary>
+        /// <param name="disposing"><c>true</c> to release managed resources.</param>
+        protected virtual void Dispose(bool disposing)
+        {
+            if (disposing)
+            {
+                m_trustedStore?.DisposeCachedStore();
+                m_issuerStore?.DisposeCachedStore();
+            }
+        }
 
         /// <summary>
         /// Wires an optional trust-material change notifier for the legacy
