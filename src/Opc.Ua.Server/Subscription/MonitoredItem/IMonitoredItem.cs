@@ -76,7 +76,7 @@ namespace Opc.Ua.Server
         uint ClientHandle { get; }
 
         /// <summary>
-        /// The object to call when item is ready to publish.
+        /// The subscription that owns the monitored item.
         /// </summary>
         ISubscription SubscriptionCallback { get; set; }
 
