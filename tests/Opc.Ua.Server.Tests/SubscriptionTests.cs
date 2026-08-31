@@ -950,6 +950,64 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
+        public void CreateSubscriptionRejectsAnImplementationNotDerivedFromSubscription()
+        {
+            var impostor = new Mock<ISubscription>();
+            using var manager = new NonPipelineSubscriptionManager(
+                m_serverMock.Object,
+                new ApplicationConfiguration
+                {
+                    ServerConfiguration = new ServerConfiguration()
+                },
+                impostor.Object);
+            var context = new OperationContext(m_sessionMock.Object, new DiagnosticsMasks());
+
+            ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(
+                async () => await manager.CreateSubscriptionAsync(
+                    context,
+                    requestedPublishingInterval: 1000,
+                    requestedLifetimeCount: 30,
+                    requestedMaxKeepAliveCount: 10,
+                    maxNotificationsPerPublish: 0,
+                    publishingEnabled: true,
+                    priority: 0).ConfigureAwait(false));
+
+            Assert.That(exception.StatusCode, Is.EqualTo(StatusCodes.BadInternalError));
+            impostor.Verify(subscription => subscription.Dispose(), Times.Once);
+        }
+
+        /// <summary>
+        /// Returns a fixed ISubscription that does not derive from Subscription, so the
+        /// manager's pipeline admission check has something to reject.
+        /// </summary>
+        private sealed class NonPipelineSubscriptionManager : SubscriptionManager
+        {
+            public NonPipelineSubscriptionManager(
+                IServerInternal server,
+                ApplicationConfiguration configuration,
+                ISubscription created)
+                : base(server, configuration)
+            {
+                m_created = created;
+            }
+
+            protected override ISubscription CreateSubscription(
+                OperationContext context,
+                uint subscriptionId,
+                double publishingInterval,
+                uint lifetimeCount,
+                uint keepAliveCount,
+                uint maxNotificationsPerPublish,
+                byte priority,
+                bool publishingEnabled)
+            {
+                return m_created;
+            }
+
+            private readonly ISubscription m_created;
+        }
+
+        [Test]
         public void RestoreTransferClaimRemovesCurrentClaimWhenRestoreEntryAlreadyExists()
         {
             using Subscription subscription = CreateSubscription();
@@ -967,7 +1025,7 @@ namespace Opc.Ua.Server.Tests
                 Is.True);
             Assert.That(claim, Is.Not.Null);
 
-            var collidingSubscription = new Mock<ISubscription>();
+            var collidingSubscription = new Mock<ISubscriptionPublishPipeline>();
             collidingSubscription.SetupGet(sub => sub.Id).Returns(subscription.Id);
             queue.Add(collidingSubscription.Object);
 
@@ -1134,7 +1192,7 @@ namespace Opc.Ua.Server.Tests
             TransferSubscriptionsResponse transferred = await transferTask.ConfigureAwait(false);
             await closeTask.ConfigureAwait(false);
             var abandonedSubscriptions =
-                GetPrivateField<ConcurrentDictionary<uint, ISubscription>>(
+                GetPrivateField<ConcurrentDictionary<uint, ISubscriptionPublishPipeline>>(
                     manager,
                     "m_abandonedSubscriptions");
 
@@ -1169,7 +1227,7 @@ namespace Opc.Ua.Server.Tests
             IReadOnlyList<SessionPublishQueue.QueuedSubscription> staleSnapshot =
                 sourceQueue.CapturePublishTimerSnapshot();
             using var publishCancellation = new CancellationTokenSource();
-            Task<ISubscription> sourcePublish = sourceQueue.PublishAsync(
+            Task<ISubscriptionPublishPipeline> sourcePublish = sourceQueue.PublishAsync(
                 "source-channel",
                 DateTime.MaxValue,
                 requeue: false,
@@ -1628,7 +1686,7 @@ namespace Opc.Ua.Server.Tests
             Task staleTimer = Task.Run(
                 async () =>
                 {
-                    IReadOnlyList<ISubscription> snapshot =
+                    IReadOnlyList<ISubscriptionPublishPipeline> snapshot =
                         manager.CaptureAbandonedPublishTimerSnapshot();
                     snapshotCaptured.TrySetResult(true);
                     await releaseSnapshot.Task.ConfigureAwait(false);
@@ -1657,8 +1715,8 @@ namespace Opc.Ua.Server.Tests
                 releaseSnapshot.TrySetResult(true);
             }
             await staleTimer.ConfigureAwait(false);
-            ConcurrentDictionary<uint, ISubscription> abandonedSubscriptions =
-                GetPrivateField<ConcurrentDictionary<uint, ISubscription>>(
+            ConcurrentDictionary<uint, ISubscriptionPublishPipeline> abandonedSubscriptions =
+                GetPrivateField<ConcurrentDictionary<uint, ISubscriptionPublishPipeline>>(
                     manager,
                     "m_abandonedSubscriptions");
 
@@ -1795,14 +1853,14 @@ namespace Opc.Ua.Server.Tests
                 if (abandonBeforeTransfer)
                 {
                     Assert.That(subscription.Session, Is.Null);
-                    ConcurrentDictionary<uint, ISubscription> abandonedSubscriptions =
-                        GetPrivateField<ConcurrentDictionary<uint, ISubscription>>(
+                    ConcurrentDictionary<uint, ISubscriptionPublishPipeline> abandonedSubscriptions =
+                        GetPrivateField<ConcurrentDictionary<uint, ISubscriptionPublishPipeline>>(
                             manager,
                             "m_abandonedSubscriptions");
                     Assert.That(
                         abandonedSubscriptions.TryGetValue(
                             subscription.Id,
-                            out ISubscription restoredSubscription),
+                            out ISubscriptionPublishPipeline restoredSubscription),
                         Is.True);
                     Assert.That(restoredSubscription, Is.SameAs(subscription));
                 }
@@ -1859,7 +1917,7 @@ namespace Opc.Ua.Server.Tests
             SessionPublishQueue destinationQueue = GetPublishQueue(
                 manager,
                 fixture.DestinationContext.SessionId);
-            Task<ISubscription> destinationPublish = destinationQueue.PublishAsync(
+            Task<ISubscriptionPublishPipeline> destinationPublish = destinationQueue.PublishAsync(
                 "destination-channel",
                 DateTime.MaxValue,
                 requeue: false,
@@ -1891,7 +1949,9 @@ namespace Opc.Ua.Server.Tests
                 Assert.That(destinationPublish.IsCompleted, Is.False);
             });
 
-            destinationQueue.PublishCompleted(destinationSubscription!, moreNotifications: true);
+            destinationQueue.PublishCompleted(
+                destinationSubscription!.AsPipeline(),
+                moreNotifications: true);
 
             ISubscription publishedSubscription = await destinationPublish.ConfigureAwait(false);
             Assert.That(publishedSubscription, Is.SameAs(destinationSubscription!));
@@ -1973,7 +2033,7 @@ namespace Opc.Ua.Server.Tests
                 m_sessionMock.Object,
                 maxPublishRequests: 10);
             queue.Add(subscription);
-            var impostor = new Mock<ISubscription>();
+            var impostor = new Mock<ISubscriptionPublishPipeline>();
             impostor.Setup(candidate => candidate.Id).Returns(subscription.Id);
 
             Assert.Multiple(() =>
@@ -2025,7 +2085,7 @@ namespace Opc.Ua.Server.Tests
             });
 
             Assert.That(queue.RestoreTransferClaim(claim!), Is.True);
-            Task<ISubscription> publish = queue.PublishAsync(
+            Task<ISubscriptionPublishPipeline> publish = queue.PublishAsync(
                 "channel1",
                 DateTime.MaxValue,
                 requeue: false,
@@ -2112,7 +2172,7 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
-        public async Task TransferSessionAsyncMovesOwnershipToTheDestinationAsync()
+        public async Task PreparedSessionTransferMovesOwnershipToTheDestinationAsync()
         {
             using Subscription subscription = CreateSubscription();
             var destinationSession = new Mock<ISession>();
@@ -2124,20 +2184,20 @@ namespace Opc.Ua.Server.Tests
                 destinationSession.Object,
                 DiagnosticsMasks.None);
 
-            await subscription
-                .TransferSessionAsync(context, sendInitialValues: true, CancellationToken.None)
+            Assert.That(subscription.TryBeginTransfer(m_sessionMock.Object), Is.True);
+            Subscription.PreparedSessionTransfer prepared = await subscription
+                .PrepareSessionTransferAsync(
+                    context,
+                    m_sessionMock.Object,
+                    sendInitialValues: true,
+                    CancellationToken.None)
                 .ConfigureAwait(false);
+            prepared.CommitOwnership();
+            prepared.CommitMonitoredItemEffects();
+            subscription.CompleteTransfer(destinationSession.Object);
+            prepared.Complete();
 
             Assert.That(subscription.Session, Is.SameAs(destinationSession.Object));
-            m_nodeManagerMock.Verify(
-                nodeManager => nodeManager.TransferMonitoredItemsAsync(
-                    context,
-                    true,
-                    It.IsAny<IList<IMonitoredItem>>(),
-                    It.IsAny<IList<ServiceResult>>(),
-                    It.IsAny<MonitoredItemTransferOptions>(),
-                    It.IsAny<CancellationToken>()),
-                Times.Once);
         }
 
         [Test]
@@ -2217,8 +2277,8 @@ namespace Opc.Ua.Server.Tests
                     sendInitialValues: false)
                 .ConfigureAwait(false);
 
-            ConcurrentDictionary<uint, ISubscription> abandonedSubscriptions =
-                GetPrivateField<ConcurrentDictionary<uint, ISubscription>>(
+            ConcurrentDictionary<uint, ISubscriptionPublishPipeline> abandonedSubscriptions =
+                GetPrivateField<ConcurrentDictionary<uint, ISubscriptionPublishPipeline>>(
                     manager,
                     "m_abandonedSubscriptions");
             Assert.Multiple(() =>
@@ -2231,7 +2291,7 @@ namespace Opc.Ua.Server.Tests
                 Assert.That(
                     abandonedSubscriptions.TryGetValue(
                         subscription.Id,
-                        out ISubscription retainedSubscription),
+                        out ISubscriptionPublishPipeline retainedSubscription),
                     Is.True,
                     "A refused reservation must leave the subscription abandoned, not lost.");
                 Assert.That(retainedSubscription, Is.SameAs(subscription));
@@ -2323,7 +2383,7 @@ namespace Opc.Ua.Server.Tests
             SessionPublishQueue sourceQueue = GetPublishQueue(
                 manager,
                 fixture.SourceContext.SessionId);
-            var collidingSubscription = new Mock<ISubscription>();
+            var collidingSubscription = new Mock<ISubscriptionPublishPipeline>();
             collidingSubscription.Setup(candidate => candidate.Id).Returns(subscription.Id);
             int transferCalls = 0;
             m_nodeManagerMock
