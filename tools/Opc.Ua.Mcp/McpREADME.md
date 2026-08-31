@@ -2,13 +2,32 @@
 
 A [Model Context Protocol (MCP)](https://modelcontextprotocol.io) server that exposes OPC UA Part 4 service calls as MCP tools, enabling AI assistants (Claude, GitHub Copilot, VS Code, etc.) to interact with OPC UA servers.
 
-## Install
+## Run without installing (.NET 10 SDK)
 
 ```bash
-dotnet tool install --global OPCFoundation.NetStandard.Opc.Ua.Mcp
+dotnet tool exec "OPCFoundation.NetStandard.Opc.Ua.Mcp@2.0.0-preview.*"
+
+# Short form
+dnx "OPCFoundation.NetStandard.Opc.Ua.Mcp@2.0.0-preview.*"
 ```
 
+## Install globally
+
+```bash
+dotnet tool install --global OPCFoundation.NetStandard.Opc.Ua.Mcp --prerelease
+```
+
+> **Profile availability in `2.0.0-preview.3`:** the public tool package
+> includes `core`, `services`, `administration`, `pubsub`, `diagnostics`,
+> `robotics`, and `full`, but not `vision`. Run the current source when you
+> need `vision` or a composed `vision,robotics` profile until a later preview
+> includes `Opc.Ua.Mcp.Vision`.
+
 ## Usage
+
+The examples below assume a global installation. For run-on-demand use,
+replace `opcua-mcp` with
+`dnx "OPCFoundation.NetStandard.Opc.Ua.Mcp@2.0.0-preview.*" --`.
 
 ```bash
 # stdio transport (default) — for Claude Desktop, VS Code, Copilot

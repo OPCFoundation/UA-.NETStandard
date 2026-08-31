@@ -165,12 +165,14 @@ namespace Opc.Ua.MigrationAnalyzer.Tests.Analyzers
                 .GetAnalyzerDiagnosticsAsync(new UA0030SubscriptionPublishPipelineAnalyzer(), source)
                 .ConfigureAwait(false);
 
+            Diagnostic? diagnostic = diagnostics.FirstOrDefault(d => d.Id == "UA0030");
             Assert.That(
-                diagnostics.Any(d =>
-                    d.Id == "UA0030" &&
-                    d.GetMessage(CultureInfo.InvariantCulture).Contains("SessionPublishQueue")),
-                Is.True,
+                diagnostic,
+                Is.Not.Null,
                 "a reference to the internalized queue type must fire the rule.");
+            Assert.That(
+                diagnostic!.GetMessage(CultureInfo.InvariantCulture),
+                Does.Contain("SessionPublishQueue"));
         }
 
         [Test]

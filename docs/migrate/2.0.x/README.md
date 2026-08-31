@@ -12,9 +12,13 @@ find the sub-doc that matches the symptom you are seeing.
 > **Automate the migration.** Add the
 > [`OPCFoundation.NetStandard.Opc.Ua.MigrationAnalyzer`](https://www.nuget.org/packages/OPCFoundation.NetStandard.Opc.Ua.MigrationAnalyzer)
 > analyzer package to your projects to receive analyzer warnings and
-> one-click fixes for many of the patterns in these sub-docs. Rule IDs
-> `UA0001` – `UA0020` map directly to the type-safety patterns
-> described in [`types.md`](types.md).
+> one-click fixes for many of the patterns in these sub-docs. The package
+> implements 26 analyzer rules through `UA0030` (excluding `UA0013`, `UA0016`,
+> `UA0017`, and the shim-only `UA0029`) across the index below and the cross-cutting guidance in the
+> [Migration Guide](../../MigrationGuide.md). `UA0029` is currently a
+> runtime-shim/manual marker surfaced through `CS0618`, not an analyzer. The type-safety
+> subset (`UA0002`–`UA0008`, `UA0014`, `UA0019`) maps to
+> [`types.md`](types.md).
 
 > **Pro TIP.** Point your favorite coding agent at the
 > [`opcua-v20-migration`](../../../.agents/skills/opcua-v20-migration/SKILL.md)
@@ -29,7 +33,7 @@ table; loading a single sub-doc keeps the context window small.
 
 | When you hit… | Read |
 | --- | --- |
-| `CS0029` / `CS1503` / `CS0266` on `NodeId`, `Variant`, `DataValue`, `ExtensionObject`, `QualifiedName`, `LocalizedText`, `ArrayOf<T>` / `MatrixOf<T>`, `ByteString`, `StatusCode`, `XmlElement`, `EnumValue`; `[Obsolete]` warnings on built-in type APIs (analyzer `UA0001`–`UA0020`) | [`types.md`](types.md) |
+| `CS0029` / `CS1503` / `CS0266` on `NodeId`, `Variant`, `DataValue`, `ExtensionObject`, `QualifiedName`, `LocalizedText`, `ArrayOf<T>` / `MatrixOf<T>`, `ByteString`, `StatusCode`, `XmlElement`, `EnumValue`; `[Obsolete]` warnings on built-in type APIs (analyzers `UA0002`–`UA0008`, `UA0014`, `UA0019`) | [`types.md`](types.md) |
 | Loggers (`Utils.LogX`, `Utils.Trace`), removed static logger helpers (`Utils.SetLogger` / `Utils.SetLogLevel`), telemetry context, constructor `ITelemetryContext` parameter changes, OLD-vs-NEW snippets, fluent DI registration (`AddOpcUa().AddLogging().AddMetrics()`), breaking-changes inventory, migration utilities | [`telemetry.md`](telemetry.md) |
 | `OPCFoundation.NetStandard.Opc.Ua.*` package upgrade, TFM changes, Newtonsoft removal | [`packages.md`](packages.md) |
 | Source-generated `*Collection` shims, NodeManager generator, default of boolean properties, project structure | [`source-generation.md`](source-generation.md) |

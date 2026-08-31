@@ -1,6 +1,10 @@
 # Sessions, GDS Client, and Subscriptions
 
-> **When to read this:** Read this for the move from caller-driven `Session` reconnect to `ManagedSession`, the V2 subscription engine, the GDS-client `Task` -> `ValueTask` API modernisation, removed obsolete GDS APIs, durable subscriptions, PubSub changes, and reverse-connect tweaks.
+> **When to read this:** Read this for the move from caller-driven `Session`
+> reconnect to `ManagedSession`, the V2 subscription engine, the GDS-client
+> `Task` -> `ValueTask` API modernisation, removed obsolete GDS APIs, durable
+> subscriptions, removed `ReverseConnectClientCollection`, and transport
+> abstraction changes.
 
 ## GDS Client API modernization
 

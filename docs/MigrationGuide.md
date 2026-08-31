@@ -3,8 +3,8 @@
 This document is the landing page for migrating your application between
 versions of the OPC UA .NET Standard Stack. The detailed per-version
 content lives in the [`migrate/`](migrate/) sub-folder; this page is the
-index that points you at the right version folder and keeps the small
-legacy migration notes inline.
+index that points you at the right version folder and keeps cross-cutting
+migration notes inline.
 
 ## General principles
 
@@ -31,11 +31,19 @@ legacy migration notes inline.
 > agent skill knows when to load which sub-doc and runs the
 > migration-analyzer codefixer end-to-end.
 
+Copilot CLI discovers the skill automatically inside a clone. To install it
+for use in any repository:
+
+```bash
+copilot plugin marketplace add OPCFoundation/UA-.NETStandard
+copilot plugin install opcua-v20-migration@opcua-dotnet
+```
+
 ## Per-version migration index
 
 | From | To | Where to read |
 | --- | --- | --- |
-| `1.5.378` | `2.0.x` | [`migrate/2.0.x/`](migrate/2.0.x/README.md) — landing page + 13 thematic sub-docs (telemetry, packages, source-generation, types, encoders, node-states, identity, certificates, configuration, sessions-subscriptions, [pubsub](migrate/2.0.x/pubsub.md), alarms-model-change, timeprovider). |
+| `1.5.378` | `2.0.x` | [`migrate/2.0.x/`](migrate/2.0.x/README.md) — landing page and symptom-based thematic sub-doc index. |
 | `1.05.377` | `1.05.378` | [§ inline below](#migrating-from-105377-to-105378) — small enough to keep on this page. |
 | `1.04` | `1.05` | [§ inline below](#migrating-from-104-to-105) — small enough to keep on this page. |
 
@@ -208,7 +216,7 @@ those.
 out the mutable structure that the lock protects. `UpdateServerDiagnostics` and
 the diagnostic node manager are the supported paths.
 
-Analyzer `UA0029` flags each removed member and names its replacement. It
+Analyzer `UA0024` flags each removed member and names its replacement. It
 reports rather than auto-fixes: turning a `lock` statement body into a lambda is
 not a transformation that can be applied safely without understanding what the
 body captures and returns.
@@ -961,8 +969,11 @@ For additional migration support:
 - Check unit tests for usage patterns.
 - Use the
   [`OPCFoundation.NetStandard.Opc.Ua.MigrationAnalyzer`](https://www.nuget.org/packages/OPCFoundation.NetStandard.Opc.Ua.MigrationAnalyzer)
-  package — analyzer rules `UA0001`-`UA0020` map to the patterns in
-  [`migrate/2.0.x/types.md`](migrate/2.0.x/types.md) and apply most
-  edits via a code-fixer.
+  package — 26 implemented analyzer rules through `UA0030` (excluding
+  `UA0013`, `UA0016`, `UA0017`, and the shim-only `UA0029`) map across the
+  [`migrate/2.0.x/`](migrate/2.0.x/README.md) guides and the cross-cutting
+  notes on this page; 14 rules apply safe edits via a code-fixer. `UA0029`
+  is currently a runtime-shim/manual marker surfaced through `CS0618`, not an
+  analyzer diagnostic.
 - Open an issue on
   [OPCFoundation/UA-.NETStandard](https://github.com/OPCFoundation/UA-.NETStandard/issues).

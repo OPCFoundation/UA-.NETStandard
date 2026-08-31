@@ -14,13 +14,13 @@
   </PropertyGroup>
   <ItemGroup>
     <PackageVersion Include="BenchmarkDotNet" Version="0.15.8" />
-    <PackageVersion Include="BitFaster.Caching" Version="2.6.0" />
+    <PackageVersion Include="BitFaster.Caching" Version="2.6.1" />
     <PackageVersion Include="BouncyCastle.Cryptography" Version="2.7.0" />
     <PackageVersion Include="Confluent.Kafka" Version="2.15.0" />
     <PackageVersion Include="coverlet.collector" Version="10.0.1" />
     <PackageVersion Include="Crdt" Version="1.1.2" />
     <PackageVersion Include="Crdt.Transport" Version="1.1.2" />
-    <PackageVersion Include="Dekaf" Version="1.11.2" />
+    <PackageVersion Include="Dekaf" Version="1.14.4" />
     <PackageVersion Include="RaftCs" Version="1.1.2" />
     <PackageVersion Include="RaftCs.Transport" Version="1.1.2" />
     <PackageVersion Include="RaftCs.Transport.NanoMsg" Version="1.1.2" />
@@ -28,55 +28,55 @@
     <PackageVersion Include="EmbedIO" Version="3.5.2" />
     <PackageVersion Include="JsonSchema.Net" Version="9.4.0" />
     <PackageVersion Include="Makaretu.Dns.Multicast" Version="0.27.0" />
-    <PackageVersion Include="Microsoft.AspNetCore.Connections.Abstractions" Version="2.3.11" />
-    <PackageVersion Include="Microsoft.AspNetCore.Hosting" Version="2.3.11" />
-    <PackageVersion Include="Microsoft.AspNetCore.Http" Version="2.3.11" />
-    <PackageVersion Include="Microsoft.AspNetCore.Server.Kestrel" Version="2.3.11" />
-    <PackageVersion Include="Microsoft.AspNetCore.Server.Kestrel.Core" Version="2.3.11" />
-    <PackageVersion Include="Microsoft.AspNetCore.Server.Kestrel.Https" Version="2.3.11" />
-    <PackageVersion Include="Microsoft.AspNetCore.Server.Kestrel.Transport.Sockets" Version="2.3.11" />
-    <PackageVersion Include="Microsoft.AspNetCore.WebSockets" Version="2.3.11" />
+    <PackageVersion Include="Microsoft.AspNetCore.Connections.Abstractions" Version="2.3.12" />
+    <PackageVersion Include="Microsoft.AspNetCore.Hosting" Version="2.3.12" />
+    <PackageVersion Include="Microsoft.AspNetCore.Http" Version="2.3.12" />
+    <PackageVersion Include="Microsoft.AspNetCore.Server.Kestrel" Version="2.3.12" />
+    <PackageVersion Include="Microsoft.AspNetCore.Server.Kestrel.Core" Version="2.3.12" />
+    <PackageVersion Include="Microsoft.AspNetCore.Server.Kestrel.Https" Version="2.3.12" />
+    <PackageVersion Include="Microsoft.AspNetCore.Server.Kestrel.Transport.Sockets" Version="2.3.12" />
+    <PackageVersion Include="Microsoft.AspNetCore.WebSockets" Version="2.3.12" />
     <PackageVersion Include="Microsoft.Bcl.HashCode" Version="6.0.0" />
-    <PackageVersion Include="Microsoft.Bcl.AsyncInterfaces" Version="10.0.10" />
-    <PackageVersion Include="Microsoft.Bcl.TimeProvider" Version="10.0.10" />
+    <PackageVersion Include="Microsoft.Bcl.AsyncInterfaces" Version="10.0.11" />
+    <PackageVersion Include="Microsoft.Bcl.TimeProvider" Version="10.0.11" />
     <PackageVersion Include="Microsoft.CodeAnalysis.Analyzers" Version="4.14.0" />
     <PackageVersion Include="Microsoft.CodeAnalysis.Common" Version="$(RoslynApiVersionVS2026)" />
     <PackageVersion Include="Microsoft.CodeAnalysis.CSharp" Version="$(RoslynApiVersionVS2026)" />
     <PackageVersion Include="Microsoft.CodeAnalysis.CSharp.Workspaces" Version="$(RoslynApiVersionVS2026)" />
     <PackageVersion Include="Microsoft.CodeAnalysis.Workspaces.Common" Version="$(RoslynApiVersionVS2026)" />
-    <PackageVersion Include="Microsoft.Extensions.Configuration" Version="10.0.10" />
-    <PackageVersion Include="Microsoft.Extensions.Configuration.Abstractions" Version="10.0.10" />
-    <PackageVersion Include="Microsoft.Extensions.Configuration.EnvironmentVariables" Version="10.0.10" />
-    <PackageVersion Include="Microsoft.Extensions.Logging" Version="10.0.10" />
-    <PackageVersion Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.10" />
-    <PackageVersion Include="Microsoft.Extensions.Logging.Console" Version="10.0.10" />
-    <PackageVersion Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.10" />
-    <PackageVersion Include="Microsoft.Extensions.DependencyInjection" Version="10.0.10" />
-    <PackageVersion Include="Microsoft.Extensions.Diagnostics" Version="10.0.10" />
-    <PackageVersion Include="Microsoft.Extensions.Http" Version="10.0.10" />
-    <PackageVersion Include="Microsoft.Extensions.Http.Resilience" Version="10.8.0" />
-    <PackageVersion Include="Microsoft.Extensions.Hosting" Version="10.0.10" />
-    <PackageVersion Include="Microsoft.Extensions.Hosting.Abstractions" Version="10.0.10" />
-    <PackageVersion Include="Microsoft.Extensions.Caching.Abstractions" Version="10.0.10" />
-    <PackageVersion Include="Microsoft.Extensions.Options" Version="10.0.10" />
-    <PackageVersion Include="Microsoft.Extensions.Options.ConfigurationExtensions" Version="10.0.10" />
-    <PackageVersion Include="Microsoft.Extensions.TimeProvider.Testing" Version="10.8.0" />
+    <PackageVersion Include="Microsoft.Extensions.Configuration" Version="10.0.11" />
+    <PackageVersion Include="Microsoft.Extensions.Configuration.Abstractions" Version="10.0.11" />
+    <PackageVersion Include="Microsoft.Extensions.Configuration.EnvironmentVariables" Version="10.0.11" />
+    <PackageVersion Include="Microsoft.Extensions.Logging" Version="10.0.11" />
+    <PackageVersion Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.11" />
+    <PackageVersion Include="Microsoft.Extensions.Logging.Console" Version="10.0.11" />
+    <PackageVersion Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.11" />
+    <PackageVersion Include="Microsoft.Extensions.DependencyInjection" Version="10.0.11" />
+    <PackageVersion Include="Microsoft.Extensions.Diagnostics" Version="10.0.11" />
+    <PackageVersion Include="Microsoft.Extensions.Http" Version="10.0.11" />
+    <PackageVersion Include="Microsoft.Extensions.Http.Resilience" Version="10.9.0" />
+    <PackageVersion Include="Microsoft.Extensions.Hosting" Version="10.0.11" />
+    <PackageVersion Include="Microsoft.Extensions.Hosting.Abstractions" Version="10.0.11" />
+    <PackageVersion Include="Microsoft.Extensions.Caching.Abstractions" Version="10.0.11" />
+    <PackageVersion Include="Microsoft.Extensions.Options" Version="10.0.11" />
+    <PackageVersion Include="Microsoft.Extensions.Options.ConfigurationExtensions" Version="10.0.11" />
+    <PackageVersion Include="Microsoft.Extensions.TimeProvider.Testing" Version="10.9.0" />
     <PackageVersion Include="ModelContextProtocol" Version="2.1.0" />
     <PackageVersion Include="ModelContextProtocol.AspNetCore" Version="2.1.0" />
     <PackageVersion Include="ModelContextProtocol.Core" Version="2.1.0" />
-    <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="18.8.1" />
-    <PackageVersion Include="Microsoft.SourceLink.AzureRepos.Git" Version="10.0.301" />
+    <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="18.9.0" />
+    <PackageVersion Include="Microsoft.SourceLink.AzureRepos.Git" Version="10.0.400" />
     <!-- AI Model Management. Microsoft.Extensions.AI is the inference
          abstraction: IChatClient is the contract that reaches a hosted service
          and an on-device runtime alike, which is the property the specification
-         asserts about where inference runs. It pins System.Text.Json 10.0.10,
+         asserts about where inference runs. It pins System.Text.Json 10.0.11,
          the version this repository already centralises on, so it costs nothing
          to take. No cloud-vendor SDK is referenced anywhere: workload identity
          is read from the token the platform projects, which is the mechanism
          every platform implements underneath its own SDK. -->
-    <PackageVersion Include="Microsoft.Extensions.AI" Version="10.8.3" />
-    <PackageVersion Include="Microsoft.SourceLink.GitHub" Version="10.0.301" />
-    <PackageVersion Include="System.CommandLine" Version="2.0.10" />
+    <PackageVersion Include="Microsoft.Extensions.AI" Version="10.9.0" />
+    <PackageVersion Include="Microsoft.SourceLink.GitHub" Version="10.0.400" />
+    <PackageVersion Include="System.CommandLine" Version="2.0.11" />
     <PackageVersion Include="Microsoft.VisualStudio.DiagnosticsHub.BenchmarkDotNetDiagnosers" Version="18.7.37220.1" />
     <PackageVersion Include="Moq" Version="4.20.72" />
     <!--
@@ -85,8 +85,8 @@
       2.x is Windows-only, so the sample writes a .wav on other platforms.
     -->
     <PackageVersion Include="NAudio" Version="2.3.0" />
-    <PackageVersion Include="TUnit" Version="1.64.6" />
-    <PackageVersion Include="Nerdbank.GitVersioning" Version="3.10.91" />
+    <PackageVersion Include="TUnit" Version="1.65.68" />
+    <PackageVersion Include="Nerdbank.GitVersioning" Version="3.10.94" />
     <PackageVersion Include="Newtonsoft.Json" Version="13.0.4" />
     <!--
       PacketDotNet and SharpPcap are native-code dependencies of
@@ -107,37 +107,30 @@
     <PackageVersion Include="NUnit" Version="4.6.1" />
     <PackageVersion Include="NUnit.Analyzers" Version="4.14.0" />
     <PackageVersion Include="NUnit.Console" Version="3.22.0" />
-    <PackageVersion Include="NUnit3TestAdapter" Version="6.2.0" />
+    <PackageVersion Include="NUnit3TestAdapter" Version="6.3.0" />
     <PackageVersion Include="ObjectLayoutInspector" Version="0.2.0" />
     <PackageVersion Include="PolySharp" Version="1.16.0" />
-    <PackageVersion Include="Roslynator.Analyzers" Version="4.16.0" />
-    <PackageVersion Include="Roslynator.Formatting.Analyzers" Version="4.16.0" />
+    <PackageVersion Include="Roslynator.Analyzers" Version="5.0.0" />
+    <PackageVersion Include="Roslynator.Formatting.Analyzers" Version="5.0.0" />
     <PackageVersion Include="SharpFuzz" Version="2.3.0" />
-    <PackageVersion Include="Serilog" Version="4.4.0" />
-    <!-- Transitive, via Testcontainers. Pinned only to move off the SSH.NET
-         2025.1.0 that Testcontainers 4.13.0 resolves to, which carries
-         GHSA-q939-rpr3-3284: ScpClient.Download trusts the remote server's
-         file names, so a malicious or MITM SCP server can traverse out of the
-         download directory and overwrite arbitrary files. NuGetAudit makes
-         that a build error. Testcontainers asks for [2025.1.0, ), so the
-         patched 2026.0.0 satisfies it and no consumer changes. Remove this
-         entry once Testcontainers itself requires a fixed version. -->
+    <!-- Transitive vulnerability pin (consumed via Testcontainers.*):
+         - SSH.NET 2026.0.0 fixes GHSA-q939-rpr3-3284 -->
     <PackageVersion Include="SSH.NET" Version="2026.0.0" />
-    <PackageVersion Include="Testcontainers" Version="4.13.0" />
-    <PackageVersion Include="Testcontainers.Kafka" Version="4.13.0" />
+    <PackageVersion Include="Serilog" Version="4.4.0" />
+    <PackageVersion Include="Testcontainers" Version="4.14.0" />
+    <PackageVersion Include="Testcontainers.Kafka" Version="4.14.0" />
     <PackageVersion Include="Serilog.Expressions" Version="5.0.0" />
     <PackageVersion Include="Serilog.Extensions.Logging" Version="10.0.0" />
     <PackageVersion Include="Serilog.Sinks.Console" Version="6.1.1" />
     <PackageVersion Include="Serilog.Sinks.Debug" Version="3.0.0" />
     <PackageVersion Include="Serilog.Sinks.File" Version="7.0.0" />
     <PackageVersion Include="System.Buffers" Version="4.6.1" />
-    <PackageVersion Include="System.Composition.AttributedModel" Version="10.0.10" />
+    <PackageVersion Include="System.Composition.AttributedModel" Version="10.0.11" />
     <PackageVersion Include="System.Runtime.CompilerServices.Unsafe" Version="6.1.2" />
-    <PackageVersion Include="System.Diagnostics.DiagnosticSource" Version="10.0.10" />
+    <PackageVersion Include="System.Diagnostics.DiagnosticSource" Version="10.0.11" />
     <PackageVersion Include="System.Memory" Version="4.6.3" />
-    <PackageVersion Include="System.Formats.Asn1" Version="10.0.10" />
+    <PackageVersion Include="System.Formats.Asn1" Version="10.0.11" />
     <PackageVersion Include="System.IO.Compression" Version="4.3.0" />
-    <PackageVersion Include="System.IO.Packaging" Version="10.0.0" />
     <!-- Transitive vulnerability pins (consumed via Microsoft.AspNetCore.* 2.3.x on
          net8.0/net9.0/netstandard2.1 - default transitives are 4.3.0 with NU1903):
          - System.Net.Http 4.3.4 fixes GHSA-7jgj-8wvc-jh57
@@ -146,12 +139,12 @@
     <PackageVersion Include="System.Text.RegularExpressions" Version="4.3.1" />
     <PackageVersion Include="System.Collections.Immutable" Version="$(RoslynRuntimeVersion)" />
     <PackageVersion Include="System.Reflection.Metadata" Version="$(RoslynRuntimeVersion)" />
-    <PackageVersion Include="System.Text.Json" Version="10.0.10" />
+    <PackageVersion Include="System.Text.Json" Version="10.0.11" />
     <PackageVersion Include="System.Private.Uri" Version="4.3.2" />
     <PackageVersion Include="System.Runtime.InteropServices.RuntimeInformation" Version="4.3.0" />
     <PackageVersion Include="System.Security.Cryptography.Cng" Version="5.0.0" />
-    <PackageVersion Include="System.Threading.Channels" Version="10.0.10" />
-    <PackageVersion Include="System.Threading.RateLimiting" Version="10.0.10" />
+    <PackageVersion Include="System.Threading.Channels" Version="10.0.11" />
+    <PackageVersion Include="System.Threading.RateLimiting" Version="10.0.11" />
     <PackageVersion Include="System.Threading.Tasks.Extensions" Version="4.6.3" />
   </ItemGroup>
   <!-- OpenUSD rendering stack, consumed by the optional
@@ -202,21 +195,21 @@
        - a future net11.0, or the net10.0 shell that the legacy netstandard2.0/2.1
        $(CustomTestTarget) builds fall back to - still resolves a version. -->
   <ItemGroup Condition="'$(TargetFramework)' == 'net8.0'">
-    <PackageVersion Include="Microsoft.AspNetCore.Authentication.Certificate" Version="8.0.29" />
-    <PackageVersion Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="8.0.29" />
-    <PackageVersion Include="Microsoft.AspNetCore.Mvc.Testing" Version="8.0.29" />
-    <PackageVersion Include="Microsoft.AspNetCore.TestHost" Version="8.0.29" />
+    <PackageVersion Include="Microsoft.AspNetCore.Authentication.Certificate" Version="8.0.30" />
+    <PackageVersion Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="8.0.30" />
+    <PackageVersion Include="Microsoft.AspNetCore.Mvc.Testing" Version="8.0.30" />
+    <PackageVersion Include="Microsoft.AspNetCore.TestHost" Version="8.0.30" />
   </ItemGroup>
   <ItemGroup Condition="'$(TargetFramework)' == 'net9.0'">
-    <PackageVersion Include="Microsoft.AspNetCore.Authentication.Certificate" Version="9.0.18" />
-    <PackageVersion Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="9.0.18" />
-    <PackageVersion Include="Microsoft.AspNetCore.Mvc.Testing" Version="9.0.18" />
-    <PackageVersion Include="Microsoft.AspNetCore.TestHost" Version="9.0.18" />
+    <PackageVersion Include="Microsoft.AspNetCore.Authentication.Certificate" Version="9.0.19" />
+    <PackageVersion Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="9.0.19" />
+    <PackageVersion Include="Microsoft.AspNetCore.Mvc.Testing" Version="9.0.19" />
+    <PackageVersion Include="Microsoft.AspNetCore.TestHost" Version="9.0.19" />
   </ItemGroup>
   <ItemGroup Condition="'$(TargetFramework)' != 'net8.0' AND '$(TargetFramework)' != 'net9.0'">
-    <PackageVersion Include="Microsoft.AspNetCore.Authentication.Certificate" Version="10.0.10" />
-    <PackageVersion Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.10" />
-    <PackageVersion Include="Microsoft.AspNetCore.Mvc.Testing" Version="10.0.10" />
-    <PackageVersion Include="Microsoft.AspNetCore.TestHost" Version="10.0.10" />
+    <PackageVersion Include="Microsoft.AspNetCore.Authentication.Certificate" Version="10.0.11" />
+    <PackageVersion Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.11" />
+    <PackageVersion Include="Microsoft.AspNetCore.Mvc.Testing" Version="10.0.11" />
+    <PackageVersion Include="Microsoft.AspNetCore.TestHost" Version="10.0.11" />
   </ItemGroup>
 </Project>

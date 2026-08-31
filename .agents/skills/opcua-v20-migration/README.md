@@ -5,6 +5,18 @@ OPC UA .NET Standard 1.5.378 → 2.0 migration knowledge so any Skill-compatible
 runtime (Microsoft Agent Framework `AgentSkillsProvider` / `SkillsProvider`,
 Anthropic Claude Code, Anthropic API, etc.) can load it on demand.
 
+## Install with GitHub Copilot CLI
+
+Register this repository as a marketplace, then install the plugin:
+
+```bash
+copilot plugin marketplace add OPCFoundation/UA-.NETStandard
+copilot plugin install opcua-v20-migration@opcua-dotnet
+```
+
+The skill is already discovered automatically when Copilot CLI runs inside a
+clone of this repository.
+
 ## When to use
 
 Trigger this skill when a user asks for any of:
@@ -12,15 +24,18 @@ Trigger this skill when a user asks for any of:
 - "migrate to v20" / "update from master378" / "fix v20 build errors"
 - "modernize Variant / ArrayOf / DateTimeUtc / ByteString APIs"
 - "fix CS0246 on `<Type>Collection` wrappers"
-- "address `UA0001`–`UA0022` analyzer warnings"
+- "address the 26 analyzer rules through `UA0030` or the `UA0029` shim marker"
 - "resolve `MIG01` from the source generator"
 - "how do I install `OPCFoundation.NetStandard.Opc.Ua.MigrationAnalyzer`"
 
 ## When NOT to use
 
 - The user is starting a new OPC UA project from scratch — point them at
-  `docs/README.md` and the `samples/Reference/ConsoleReferenceClient` /
-  `ConsoleReferenceServer` samples instead.
+  the [documentation](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/README.md)
+  and the
+  [Console Reference Client](https://github.com/OPCFoundation/UA-.NETStandard/tree/master/samples/Reference/ConsoleReferenceClient) /
+  [Console Reference Server](https://github.com/OPCFoundation/UA-.NETStandard/tree/master/samples/Reference/ConsoleReferenceServer)
+  samples instead.
 - The user is migrating **within** 1.5.x (point or service-release upgrades).
 - The user is debugging server-side OPC UA functional behaviour — try the
   `opcua-interop-tester` skill / agent instead.
@@ -35,12 +50,13 @@ opcua-v20-migration/
 ├── README.md                                     # This file.
 ├── references/
 │   ├── package-install.md                        # PackageReference + dotnet format
-│   ├── analyzer-rules.md                         # Full UA0001-UA0022 + MIG01 reference
+│   ├── analyzer-rules.md                         # Implemented UA rules, UA0029 marker + MIG01
 │   ├── source-generator.md                       # MigrationGenerator deep-dive + MIG01 playbook
 │   ├── runtime-shim.md                           # Opc.Ua.MigrationAnalyzer.Core coverage
 │   ├── migration-patterns.md                     # 14-section categorical playbook
-│   ├── known-gaps.md                             # Legacy WinForms, Quickstarts.Servers, CS0050
-│   └── compatibility-matrix.md                   # SDK / TFM / Roslyn API requirements
+│   ├── known-gaps.md                             # Legacy WinForms, shim lifetime, analyzer loading
+│   ├── compatibility-matrix.md                   # SDK / TFM / Roslyn API requirements
+│   └── stack-migration/                          # Bundled snapshot of all 15 thematic migration docs
 ├── scripts/
 │   └── apply-codefixes.ps1                       # dotnet format analyzers wrapper
 └── assets/
@@ -48,24 +64,31 @@ opcua-v20-migration/
     └── Directory.Build.targets.example.xml       # NoWarn recipe for TreatWarningsAsErrors
 ```
 
-## Canonical upstream docs
+## Bundled and upstream docs
 
-This skill **distils** the following authoritative repo files. When you update
-the skill, also update them (and vice versa) so the views stay in sync:
+The operational workflow uses the bundled
+[`references/stack-migration/`](references/stack-migration/README.md) snapshot,
+so an installed plugin works offline and does not depend on mutable `master`.
+When changing the repository's authoritative `docs/migrate/2.0.x/*.md` files,
+refresh the bundled copies in the same change with
+`./.azurepipelines/validate-migration-plugin.ps1 -Update`. CI runs the same
+script without `-Update` to reject drift and mismatched marketplace metadata.
 
-- [`docs/MigrationGuide.md`](../../../docs/MigrationGuide.md) — the migration
-  guide landing page (small; just an index across versions).
-- [`docs/migrate/2.0.x/README.md`](../../../docs/migrate/2.0.x/README.md) —
+The current upstream files remain useful for checking changes made after the
+installed plugin version:
+
+- [`docs/MigrationGuide.md`](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/MigrationGuide.md) —
+  the migration guide landing page and cross-cutting migration notes.
+- [`docs/migrate/2.0.x/README.md`](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/migrate/2.0.x/README.md) —
   the 2.0 version landing page + the same symptom → sub-doc table this skill
   uses to load only what's needed.
-- [`docs/migrate/2.0.x/`](../../../docs/migrate/2.0.x/) — the 12 thematic
-  sub-docs (telemetry, packages, source-generation, types, encoders,
-  node-states, identity, certificates, configuration, sessions-subscriptions,
-  alarms-model-change, timeprovider).
-- [`tools/Opc.Ua.MigrationAnalyzer/NugetREADME.md`](../../../tools/Opc.Ua.MigrationAnalyzer/NugetREADME.md)
+- [`docs/migrate/2.0.x/`](https://github.com/OPCFoundation/UA-.NETStandard/tree/master/docs/migrate/2.0.x) —
+  the thematic sub-doc collection. Its landing page is the source of truth for
+  the current inventory.
+- [`tools/Opc.Ua.MigrationAnalyzer/NugetREADME.md`](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/tools/Opc.Ua.MigrationAnalyzer/NugetREADME.md)
   — the package's own NuGet README.
 
 ## License
 
 MIT — same as the parent OPC UA .NET Standard repo
-([LICENSE.txt](../../../LICENSE.txt)).
+([LICENSE.txt](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/LICENSE.txt)).
