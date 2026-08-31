@@ -403,4 +403,4 @@ No changes are required, however there can be subtle bugs exposed, e.g.:
 
 - Related: [encoders.md](encoders.md), [source-generation.md](source-generation.md), [node-states.md](node-states.md).
 - [2.0 migration index](README.md) — analyzer quick-start + symptom → sub-doc table.
-- [Migration Guide](../../MigrationGuide.md) — landing page across versions.
+- [Migration Guide](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/MigrationGuide.md) — landing page across versions.

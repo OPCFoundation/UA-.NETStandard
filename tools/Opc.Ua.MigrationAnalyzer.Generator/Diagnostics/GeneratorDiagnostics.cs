@@ -47,26 +47,29 @@ namespace Opc.Ua.MigrationAnalyzer.Generator
         /// <summary>
         /// MIG01 — fires when the generator detects an unresolvable
         /// <c>&lt;Foo&gt;Collection</c> identifier and cannot find a unique element
-        /// type <c>Foo</c> in the consumer's compilation. The user is told to either
-        /// add a <c>using</c> for the namespace defining <c>Foo</c> or migrate the
-        /// site manually.
+        /// type <c>Foo</c> in the consumer's source declarations or the supported
+        /// standard metadata namespaces. The user is told to migrate the site
+        /// manually or define the wrapper explicitly.
         /// </summary>
         public static readonly DiagnosticDescriptor UnresolvableElementType = new(
             id: "MIG01",
             title: "Cannot resolve collection element type for migration shim",
-            messageFormat: "Cannot resolve element type '{0}' for legacy wrapper '{1}'. " +
-                "Add a 'using' for the namespace that defines '{0}' so the generator " +
-                "can synthesize the [Obsolete] shim, or migrate the reference manually " +
-                "to 'List<{0}>' / 'ArrayOf<{0}>'.",
+            messageFormat: "Cannot resolve a unique element type '{0}' for legacy wrapper '{1}'. " +
+                "The generator discovers consumer source declarations plus exact System.<Type> " +
+                "or Opc.Ua.<Type> metadata names only. Migrate the reference manually to the " +
+                "intended List<T> / ArrayOf<T>, or define the wrapper type explicitly.",
             category: Category,
             defaultSeverity: DiagnosticSeverity.Warning,
             isEnabledByDefault: true,
-            description: "The OPC UA migration source generator emits an internal " +
+            description: "The OPC UA migration source generator emits a public " +
                 "[Obsolete] shim subclass of List<T> for every legacy <Type>Collection " +
-                "wrapper the consumer references. When the element type can't be " +
-                "uniquely resolved in the consumer compilation, the shim cannot be " +
-                "synthesized.",
-            helpLinkUri: "https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/MigrationGuide.md#collection-type-migration",
+                "wrapper the consumer references. It resolves consumer source declarations " +
+                "by short name and metadata types named exactly System.<Type> or Opc.Ua.<Type>. " +
+                "When the element type can't be uniquely resolved, the shim cannot be synthesized.",
+            helpLinkUri:
+                "https://github.com/OPCFoundation/UA-.NETStandard/blob/master/" +
+                "docs/migrate/2.0.x/source-generation.md" +
+                "#mig01-resolution-playbook",
             customTags: WellKnownDiagnosticTags.Telemetry);
     }
 }

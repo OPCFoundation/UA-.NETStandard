@@ -119,4 +119,4 @@ New `Opc.Ua` project as an intermediate project. Impact:
 
 - Related: [types.md](types.md), [encoders.md](encoders.md), [node-states.md](node-states.md).
 - [2.0 migration index](README.md) — analyzer quick-start + symptom → sub-doc table.
-- [Migration Guide](../../MigrationGuide.md) — landing page across versions.
+- [Migration Guide](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/MigrationGuide.md) — landing page across versions.

@@ -6,7 +6,7 @@
 > behaviour-affecting changes in 2.0.
 
 For the full Part 14 feature reference, including additive 2.0 capabilities,
-see [`PubSub.md`](../../PubSub.md). This sub-doc focuses on migration work
+see [`PubSub.md`](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/PubSub.md). This sub-doc focuses on migration work
 required for existing consumers.
 
 ## Contents
@@ -84,7 +84,7 @@ await using IPubSubApplication app = await builder.BuildAndStartAsync();
 await app.StopAsync();
 ```
 
-See [`PubSub.md` §Fluent builder](../../PubSub.md#fluent-builder-walkthrough)
+See [`PubSub.md` §Fluent builder](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/PubSub.md#fluent-builder-walkthrough)
 for the in-code form. Cites [Part 14 §6.2](https://reference.opcfoundation.org/specs/OPC-10000-14/v1.05.06/6.2).
 
 ## 3. JSON encoder switched to System.Text.Json
@@ -149,8 +149,8 @@ time. Closes [#3566](https://github.com/OPCFoundation/UA-.NETStandard/issues/356
 
 ## See also
 
-- [Library reference (PubSub.md)](../../PubSub.md)
-- [Dependency injection](../../DependencyInjection.md)
-- [Profiles](../../Profiles.md) — Datagram-v2, SKS pull/push, AES-CTR
-- [Native AOT](../../NativeAoT.md)
-- [What's New in 2.0](../../WhatsNewIn2.0.md#part-14-pubsub-modernization)
+- [Library reference (PubSub.md)](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/PubSub.md)
+- [Dependency injection](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/DependencyInjection.md)
+- [Profiles](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/Profiles.md) — Datagram-v2, SKS pull/push, AES-CTR
+- [Native AOT](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/NativeAoT.md)
+- [What's New in 2.0](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/WhatsNewIn2.0.md#part-14-pubsub-modernization)

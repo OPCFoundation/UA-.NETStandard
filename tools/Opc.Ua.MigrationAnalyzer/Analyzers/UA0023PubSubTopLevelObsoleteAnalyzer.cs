@@ -39,10 +39,10 @@ using Opc.Ua.MigrationAnalyzer.Diagnostics;
 namespace Opc.Ua.MigrationAnalyzer.Analyzers
 {
     /// <summary>
-    /// UA0023: Detect references to the legacy 1.04 OPC UA PubSub
-    /// top-level types (now obsolete shims in 2.0) and recommend the
-    /// new <c>IPubSubApplication</c> / <c>PubSubApplicationBuilder</c>
-    /// surface — or the
+    /// UA0023: Detect references to the removed legacy 1.04 OPC UA PubSub
+    /// top-level types, plus the retained obsolete
+    /// <c>IUaPubSubDataStore</c> bridge, and recommend the new
+    /// <c>IPubSubApplication</c> / <c>PubSubApplicationBuilder</c> surface — or the
     /// <c>Microsoft.Extensions.DependencyInjection.AddPubSub()</c>
     /// entry point.
     /// </summary>
@@ -59,9 +59,9 @@ namespace Opc.Ua.MigrationAnalyzer.Analyzers
     ///   <item><c>Opc.Ua.PubSub.UaPubSubDataStore</c></item>
     ///   <item><c>Opc.Ua.PubSub.Configuration.UaPubSubConfigurator</c></item>
     /// </list>
-    /// Detection is dual-mode like UA0021 / UA0022 — semantic path
-    /// for the still-shipped types, plus a syntactic fallback for the
-    /// (rare) case where the legacy assembly is no longer referenced.
+    /// Detection is dual-mode like UA0021 / UA0022: the retained
+    /// <c>IUaPubSubDataStore</c> bridge is resolved semantically, while removed
+    /// types use the syntactic fallback when their symbols no longer bind.
     /// </remarks>
     [DiagnosticAnalyzer(LanguageNames.CSharp)]
     public sealed class UA0023PubSubTopLevelObsoleteAnalyzer : DiagnosticAnalyzer
