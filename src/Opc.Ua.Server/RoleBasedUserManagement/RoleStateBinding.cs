@@ -98,8 +98,17 @@ namespace Opc.Ua.Server
         /// creates nodes for roles the manager already knows about but the
         /// address space does not, and starts listening for
         /// <see cref="IRoleManager.RoleConfigurationChanged"/> events. Returns
-        /// the binding instance so the caller can dispose it on server shutdown.
+        /// the binding instance so the caller can dispose it on server shutdown,
+        /// or <c>null</c> when <paramref name="nodeManager"/> holds no
+        /// <c>RoleSet</c>.
         /// </summary>
+        /// <remarks>
+        /// Role configuration staged before start-up is applied to
+        /// <paramref name="roleManager"/> even when there is no <c>RoleSet</c>
+        /// to bind and this returns <c>null</c>: those roles still take part in
+        /// <see cref="IRoleManager.ResolveGrantedRoles"/>, so dropping them
+        /// would silently disable access the application asked for.
+        /// </remarks>
         /// <exception cref="ArgumentNullException">
         /// <paramref name="nodeManager"/> is null.
         /// </exception>
@@ -121,6 +130,9 @@ namespace Opc.Ua.Server
                 throw new ArgumentNullException(nameof(roleManager));
             }
 
+            RoleSetState? roleSet = nodeManager.FindPredefinedNode<RoleSetState>(
+                ObjectIds.Server_ServerCapabilities_RoleSet);
+
             RoleStateBinding? binding = new(nodeManager, roleManager, auditServer);
             try
             {
@@ -128,11 +140,10 @@ namespace Opc.Ua.Server
 
                 // Roles staged by ConfigureRoles are created here, where the
                 // server's namespace table finally exists, so their NodeIds land
-                // in a namespace this NodeManager actually owns.
+                // in a namespace this NodeManager actually owns. This runs even
+                // when there is no RoleSet to bind — see the remarks above.
                 binding.PrepareDefaultRoleManager(dynamicNamespaceIndex);
 
-                RoleSetState? roleSet = nodeManager.FindPredefinedNode<RoleSetState>(
-                    ObjectIds.Server_ServerCapabilities_RoleSet);
                 if (roleSet == null)
                 {
                     return null;
@@ -552,6 +563,17 @@ namespace Opc.Ua.Server
             }
         }
 
+        private bool IsBound()
+        {
+            return !m_disposed && m_roleSet != null;
+        }
+
+        private static ServiceResult NotBoundResult()
+        {
+            return new ServiceResult(StatusCodes.BadInvalidState,
+                new LocalizedText("The RoleSet binding is not available."));
+        }
+
         private void ScheduleMaterialize(NodeId roleId)
         {
             _ = Task.Run(async () =>
@@ -576,24 +598,39 @@ namespace Opc.Ua.Server
         /// <see cref="IRoleManager.RoleConfigurationChanged"/> subscription.
         /// </summary>
         /// <returns>
-        /// <c>Good</c> once the role is present in the address space;
+        /// <c>Good</c> only once the role is present in the address space;
         /// <c>Bad_NodeIdUnknown</c> if the manager no longer knows the role;
         /// <c>Bad_NodeIdExists</c> if another node already owns the NodeId;
-        /// <c>Bad_NodeIdInvalid</c> if the NodeId is in a namespace this
-        /// NodeManager does not own.
+        /// <c>Bad_NodeIdInvalid</c> if the NodeId is null or in a namespace this
+        /// NodeManager does not own;
+        /// <c>Bad_InvalidState</c> if the binding was torn down or never found a
+        /// <c>RoleSet</c> to attach to. Never reports success for work it did not
+        /// do, so <see cref="OnAddRoleAsync"/> can rely on it to decide whether
+        /// the manager has to be rolled back.
         /// </returns>
         private async ValueTask<ServiceResult> EnsureRoleMaterializedAsync(
             NodeId roleId,
             CancellationToken cancellationToken)
         {
-            if (m_disposed || m_roleSet == null || roleId.IsNull)
+            if (roleId.IsNull)
             {
-                return ServiceResult.Good;
+                return new ServiceResult(StatusCodes.BadNodeIdInvalid,
+                    new LocalizedText("The role manager did not allocate a NodeId."));
+            }
+            if (!IsBound())
+            {
+                return NotBoundResult();
             }
 
             await m_materializeLock.WaitAsync(cancellationToken).ConfigureAwait(false);
             try
             {
+                // Dispose may have won the race for the lock.
+                if (!IsBound())
+                {
+                    return NotBoundResult();
+                }
+
                 if (m_boundRoles.ContainsKey(roleId))
                 {
                     return ServiceResult.Good;
