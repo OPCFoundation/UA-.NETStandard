@@ -4122,13 +4122,16 @@ namespace Opc.Ua.Client
                 }
             }
 
-            // Cancel remaining outstanding publish requests
+            // Cancel the publish requests that are still in flight. A request
+            // whose task already completed needs no Cancel round trip.
             List<uint> requestsToCancel = [];
             lock (m_outstandingRequests)
             {
                 foreach (AsyncRequestState state in m_outstandingRequests)
                 {
-                    if (state.RequestTypeId == DataTypes.PublishRequest && !state.Defunct)
+                    if (state.RequestTypeId == DataTypes.PublishRequest &&
+                        !state.Defunct &&
+                        !state.Result.IsCompleted)
                     {
                         requestsToCancel.Add(state.RequestId);
                     }

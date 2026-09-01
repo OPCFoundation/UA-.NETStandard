@@ -300,6 +300,29 @@ Because all of this is driven internally, callers must **not** wrap a
 `ManagedSession` with `SessionReconnectHandler`; doing so throws
 `NotSupportedException`.
 
+### Closing a `ManagedSession`
+
+`CloseAsync` requests the close on the connection state machine, which
+cancels the connect, reconnect or failover attempt in flight before it
+closes the inner session. Without that cancellation a close issued while
+the session is reconnecting would have to wait out the current attempt,
+which runs to the endpoint's `OperationTimeout` against a peer that
+accepts the connection but never answers.
+
+```csharp
+// Bounded close: returns BadTimeout when the close does not settle in
+// time, and closes the transport channel as well.
+StatusCode status = await session.CloseAsync(
+    timeout: 10_000,
+    closeChannel: true,
+    ct);
+```
+
+Both overloads close through the state machine and report the status of
+the inner `CloseSession` call; `CloseAsync(ct)` is equivalent to
+`CloseAsync(0, closeChannel: true, ct)`, where a `timeout` of `0` leaves
+the wait unbounded (other than by `ct`).
+
 ### Server retry-after backpressure
 
 When a server sheds load it can tell the client how long to wait before
