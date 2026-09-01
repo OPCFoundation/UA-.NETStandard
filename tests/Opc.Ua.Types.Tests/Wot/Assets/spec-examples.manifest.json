@@ -3,7 +3,7 @@
   "source": {
     "repository": "https://github.com/OPCF-Members/spec-drafts.git",
     "branch": "copilot/wot-binding-alignment",
-    "commit": "8f92d178c07ee42d23732cff119b5ce47475f07c",
+    "commit": "598658e1bea1fda7b8ac3ec145bce1f6a10cf3f6",
     "path": "wot-specs/WoT-Binding/examples"
   },
   "bindingRevision": "1.1",
@@ -12,7 +12,7 @@
     "lineEnding": "lf",
     "transformation": "none"
   },
-  "exampleCount": 23,
+  "exampleCount": 26,
   "files": [
     {
       "name": "01-opcua-td-pump.jsonld",
@@ -128,6 +128,21 @@
       "name": "23-datatype-definitions.jsonld",
       "bytes": 17220,
       "sha256": "3a27c47453d7bc27c5de63f7b8eff4e4aa897d7e6b91b83ea7930fdc43ad01c4"
+    },
+    {
+      "name": "24-localized-text-fallback.jsonld",
+      "bytes": 3006,
+      "sha256": "5cff401c857eeebd7be7bae101c1d1a50176a5dcd864fc193adf77f3e2f27945"
+    },
+    {
+      "name": "25-reference-type-node.jsonld",
+      "bytes": 1196,
+      "sha256": "eb47425ac888e137051189866829624c1f39e4296f65fb10bf6df99ab40dcfe8"
+    },
+    {
+      "name": "26-data-type-node.jsonld",
+      "bytes": 2506,
+      "sha256": "af24f7ebb0204b7f8429c002c5c025d4c7531805bebed3edfd390dc60e8d55fa"
     }
   ]
 }

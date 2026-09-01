@@ -14,7 +14,6 @@
  *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
- *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
  * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
  * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
@@ -31,24 +30,26 @@
 using System;
 using System.Collections.Generic;
 
-namespace Opc.Ua.WotCon.Server.Materialization
+namespace Opc.Ua.Wot
 {
     /// <summary>
-    /// Orders strings by Unicode code point, which is what
-    /// <i>OPC UA — WoT Binding</i> §12.6 requires of the <c>ViewVersion</c>
-    /// canonicalization.
+    /// Orders strings by Unicode code point, which is the ordering WoT Binding
+    /// Annex G.3 requires wherever this Binding says "ascending Unicode code
+    /// point".
     /// </summary>
     /// <remarks>
     /// <para>
     /// <see cref="StringComparer.Ordinal"/> orders by UTF-16 code
     /// <em>unit</em>, and the two orders disagree. A supplementary character
     /// (U+10000 and above) is stored as a surrogate pair whose first unit lies
-    /// in U+D800–U+DBFF, so ordinal comparison sorts every supplementary
-    /// character <em>below</em> U+E000–U+FFFF even though its code point is far
-    /// above them. A .NET consumer sorting ordinally and a consumer sorting by
-    /// code point would then hash different orders and compute different
-    /// <c>ViewVersion</c> values for the same View membership, which is exactly
-    /// the interoperability the clause exists to provide.
+    /// in U+D800-U+DBFF, so ordinal comparison sorts every supplementary
+    /// character <em>below</em> U+E000-U+FFFF even though its code point is far
+    /// above them. Two consumers that disagree about the order compute
+    /// different <c>ViewVersion</c> values for one View membership
+    /// (Section 12.6), resolve one projection document into different views
+    /// (Section 12.4), and pick different endpoints from one
+    /// <c>GetEndpoints</c> response (Section 5.7.1) - which is exactly the
+    /// interoperability those clauses exist to provide.
     /// </para>
     /// <para>
     /// The comparison reweights each unit instead of decoding scalars or
@@ -60,8 +61,12 @@ namespace Opc.Ua.WotCon.Server.Materialization
     /// same total order as comparing the UTF-8 encodings byte by byte - and
     /// UTF-8 byte order <em>is</em> code point order.
     /// </para>
+    /// <para>
+    /// One implementation is shared by every clause that names the order, so a
+    /// second one cannot drift from the first.
+    /// </para>
     /// </remarks>
-    internal sealed class WotCodePointComparer : IComparer<string>
+    public sealed class WotCodePointComparer : IComparer<string>
     {
         /// <summary>
         /// Gets the shared instance.
@@ -72,7 +77,18 @@ namespace Opc.Ua.WotCon.Server.Materialization
         {
         }
 
-        /// <inheritdoc/>
+        /// <summary>
+        /// Compares two strings by ascending Unicode code point. A
+        /// <c>null</c> reference orders below every string, which no clause of
+        /// this Binding relies on and which keeps the comparison total.
+        /// </summary>
+        /// <param name="x">The left string.</param>
+        /// <param name="y">The right string.</param>
+        /// <returns>
+        /// A negative value when <paramref name="x"/> orders first, a positive
+        /// value when <paramref name="y"/> does, and zero when the two are
+        /// equal.
+        /// </returns>
         public int Compare(string? x, string? y)
         {
             if (ReferenceEquals(x, y))

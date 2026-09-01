@@ -142,6 +142,49 @@ namespace Opc.Ua.Wot
             return TryGetRootProperty("@context", out context);
         }
 
+        /// <summary>
+        /// Resolves a compact-IRI prefix to the namespace the document's
+        /// <c>@context</c> binds it to (WoT Binding Section 5.1.2).
+        /// </summary>
+        /// <param name="prefix">The prefix, without the colon.</param>
+        /// <param name="namespaceUri">The namespace it is bound to.</param>
+        /// <returns><c>true</c> when the document binds the prefix.</returns>
+        internal bool TryGetContextPrefix(string prefix, out string namespaceUri)
+        {
+            if (TryGetContext(out JsonElement context))
+            {
+                return TryGetContextPrefix(context, prefix, out namespaceUri);
+            }
+            namespaceUri = string.Empty;
+            return false;
+        }
+
+        private static bool TryGetContextPrefix(
+            JsonElement context,
+            string prefix,
+            out string namespaceUri)
+        {
+            if (context.ValueKind == JsonValueKind.Object &&
+                context.TryGetProperty(prefix, out JsonElement value) &&
+                value.ValueKind == JsonValueKind.String)
+            {
+                namespaceUri = value.GetString()!;
+                return true;
+            }
+            if (context.ValueKind == JsonValueKind.Array)
+            {
+                foreach (JsonElement entry in context.EnumerateArray())
+                {
+                    if (TryGetContextPrefix(entry, prefix, out namespaceUri))
+                    {
+                        return true;
+                    }
+                }
+            }
+            namespaceUri = string.Empty;
+            return false;
+        }
+
         /// <summary>Gets the <c>properties</c> affordance map (name to schema).</summary>
         public IReadOnlyDictionary<string, JsonElement> Properties
         {
@@ -404,26 +447,79 @@ namespace Opc.Ua.Wot
         }
 
         /// <summary>
-        /// Measures a JSON value in the canonical UTF-8 form of WoT Binding
-        /// Annex G.2, which is the form its size bounds are stated in.
+        /// Measures a JSON value in the compact received form of WoT Binding
+        /// Annex G.4, which is the form the opaque-object size bound of
+        /// Section 6.6 is stated in.
         /// </summary>
         /// <remarks>
-        /// The value is written to a counting buffer rather than materialized
-        /// as an array, so measuring an opaque member costs no copy of it.
+        /// <para>
+        /// The measured form is the received text of the value with every
+        /// <em>insignificant</em> whitespace character removed - one of
+        /// U+0009, U+000A, U+000D and U+0020 lying outside a JSON string
+        /// literal - and nothing else changed: member order is the received
+        /// order, numbers keep the lexical form they were written in, and
+        /// strings keep the escapes they were written with. Annex G.4 states it
+        /// that way on purpose. A canonical re-serialization would oblige a
+        /// consumer to produce the reordered, re-escaped, number-normalized
+        /// value that the preservation rule of Section 6.6 forbids it to
+        /// produce, and an "almost-JCS" measurement - compact separators but a
+        /// language's own <c>double</c> formatting - is what two
+        /// implementations disagree about in practice.
+        /// </para>
+        /// <para>
+        /// Whitespace removal outside string literals is decidable by a scanner
+        /// with one bit of state, so two implementations that received the same
+        /// bytes measure the same number.
+        /// </para>
         /// </remarks>
         /// <param name="element">The value to measure.</param>
-        /// <returns>The canonical size in octets.</returns>
-        internal static long MeasureCanonicalUtf8(JsonElement element)
+        /// <returns>The compact received size in octets.</returns>
+        internal static long MeasureCompactUtf8(JsonElement element)
         {
-            using var stream = new MemoryStream();
-            using (var writer = new Utf8JsonWriter(
-                stream,
-                new JsonWriterOptions { Indented = false, SkipValidation = false }))
+            string text = element.GetRawText();
+            long octets = 0;
+            bool inString = false;
+            bool escaped = false;
+            for (int ii = 0; ii < text.Length; ii++)
             {
-                WriteCanonical(writer, element);
-                writer.Flush();
+                char unit = text[ii];
+                if (inString)
+                {
+                    if (escaped)
+                    {
+                        escaped = false;
+                    }
+                    else if (unit == '\\')
+                    {
+                        escaped = true;
+                    }
+                    else if (unit == '"')
+                    {
+                        inString = false;
+                    }
+                }
+                else if (unit == '"')
+                {
+                    inString = true;
+                }
+                else if (unit is '\t' or '\n' or '\r' or ' ')
+                {
+                    continue;
+                }
+                if (char.IsHighSurrogate(unit) &&
+                    ii + 1 < text.Length &&
+                    char.IsLowSurrogate(text[ii + 1]))
+                {
+                    // One supplementary scalar is four UTF-8 octets, and its
+                    // low surrogate is part of the same scalar rather than a
+                    // character of its own.
+                    octets += 4;
+                    ii++;
+                    continue;
+                }
+                octets += unit < 0x80 ? 1 : unit < 0x800 ? 2 : 3;
             }
-            return stream.Length;
+            return octets;
         }
 
         /// <inheritdoc/>

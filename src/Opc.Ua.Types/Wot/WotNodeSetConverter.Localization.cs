@@ -47,13 +47,15 @@ namespace Opc.Ua.Wot
     /// plural member alongside it, and every locale of the source survives.
     /// <para>
     /// The two are only safe to state together while they agree, so the
-    /// singular member is always the plural member's default-locale entry.
-    /// Where the source states a set of locales that does not include the
-    /// document's default locale, the plural member is not written at all
-    /// rather than written without the entry the singular member claims: the
-    /// completeness check of Section 9.2 then reports the gap and the
-    /// preservation projection carries the remaining locales, which is a
-    /// reported loss rather than an invalid document.
+    /// singular member is the plural member's default-locale entry wherever the
+    /// source has one. Where it does not - a Node authored in the plant's
+    /// language and read against another default locale - the plural member is
+    /// still written in full and the singular member carries the
+    /// code-point-first entry as a display fallback that asserts no locale.
+    /// Section 9.1.1 states it that way on purpose: requiring the default
+    /// locale would make the commonest real NodeSet unrepresentable in the
+    /// readable mapping and push an ordinary document into the exceptional
+    /// native projection to say something the plural member already says.
     /// </para>
     /// </remarks>
     public static partial class WotNodeSetConverter
@@ -200,15 +202,7 @@ namespace Opc.Ua.Wot
                     break;
                 }
             }
-            if (preferred is null)
-            {
-                // Section 9.1.1 makes a plural member without an entry for the
-                // default locale invalid, and inventing one would state a
-                // translation the source never made. The singular member alone
-                // is written and the loss is reported by the completeness check.
-                writer.WriteString(singular, entries[0].Value);
-                return;
-            }
+            preferred ??= CodePointFirst(entries).Value;
             writer.WriteString(singular, preferred);
             writer.WritePropertyName(plural);
             writer.WriteStartObject();
@@ -220,6 +214,34 @@ namespace Opc.Ua.Wot
         }
 
         /// <summary>
+        /// Gets the entry whose BCP 47 language tag is first in ascending
+        /// Unicode code-point order, which is the display fallback WoT Binding
+        /// Section 9.1.1 names where a plural member has no entry for the
+        /// document's default locale.
+        /// </summary>
+        /// <remarks>
+        /// The value is a text a consumer can show and not a claim about the
+        /// default locale: a NodeSet authored in the plant's language is an
+        /// ordinary document, and inventing an <c>en</c> entry for it would
+        /// state a translation nobody wrote. Ordering by code point rather than
+        /// by source order is what makes two converters agree on which text the
+        /// singular member carries.
+        /// </remarks>
+        private static KeyValuePair<string, string> CodePointFirst(
+            List<KeyValuePair<string, string>> entries)
+        {
+            KeyValuePair<string, string> first = entries[0];
+            for (int ii = 1; ii < entries.Count; ii++)
+            {
+                if (WotCodePointComparer.Instance.Compare(entries[ii].Key, first.Key) < 0)
+                {
+                    first = entries[ii];
+                }
+            }
+            return first;
+        }
+
+        /// <summary>
         /// Reduces a <c>LocalizedText</c> array to the single value of the
         /// document's default locale, for a term whose readable form is one
         /// string rather than a singular/plural pair.
@@ -228,7 +250,9 @@ namespace Opc.Ua.Wot
         /// A ReferenceType's InverseName is such a term: it is a name a link
         /// <c>rel</c> uses, and a <c>rel</c> is not localized. The default
         /// locale's text is the one the document's own <c>@language</c> names,
-        /// and the first entry is used where the source states no text for it.
+        /// and the code-point-first entry of Section 9.1.1 is used where the
+        /// source states no text for it - the same entry the singular member of
+        /// a plural pair would carry, so the two never disagree.
         /// </remarks>
         private static string? SelectLocalizedValue(
             Opc.Ua.Export.LocalizedText[]? texts,
@@ -246,7 +270,7 @@ namespace Opc.Ua.Wot
                     return entry.Value;
                 }
             }
-            return entries[0].Value;
+            return CodePointFirst(entries).Value;
         }
 
         /// <summary>
@@ -285,11 +309,13 @@ namespace Opc.Ua.Wot
         /// a <c>LocalizedText</c> array.
         /// </summary>
         /// <remarks>
-        /// Section 9.1.1 makes the default locale's entry the one written to
-        /// the Node's own <c>DisplayName</c> or <c>Description</c>, so it comes
-        /// first. A document that states only the singular member round-trips
-        /// through it alone and the Node keeps the locale-free form a NodeSet
-        /// writes when it names one language.
+        /// Section 9.1.1 makes the entry written to the Node's own
+        /// <c>DisplayName</c> or <c>Description</c> the default locale's entry
+        /// where the map has one and the code-point-first entry otherwise - the
+        /// same entry the singular member carries - so it comes first. A
+        /// document that states only the singular member round-trips through it
+        /// alone and the Node keeps the locale-free form a NodeSet writes when
+        /// it names one language.
         /// </remarks>
         private static Opc.Ua.Export.LocalizedText[]? ReadLocalizedText(
             JsonElement element,
@@ -304,6 +330,7 @@ namespace Opc.Ua.Wot
                 declared.ValueKind == JsonValueKind.Object)
             {
                 var texts = new List<Opc.Ua.Export.LocalizedText>();
+                string? leading = null;
                 foreach (JsonProperty entry in declared.EnumerateObject())
                 {
                     if (entry.Value.ValueKind != JsonValueKind.String ||
@@ -311,22 +338,19 @@ namespace Opc.Ua.Wot
                     {
                         continue;
                     }
-                    var text = new Opc.Ua.Export.LocalizedText
+                    texts.Add(new Opc.Ua.Export.LocalizedText
                     {
                         Locale = entry.Name,
                         Value = entry.Value.GetString()
-                    };
+                    });
                     if (string.Equals(entry.Name, defaultLocale, StringComparison.Ordinal))
                     {
-                        texts.Insert(0, text);
-                    }
-                    else
-                    {
-                        texts.Add(text);
+                        leading = entry.Name;
                     }
                 }
                 if (texts.Count > 0)
                 {
+                    MoveLeadingLocale(texts, leading ?? CodePointFirstLocale(texts));
                     return [.. texts];
                 }
             }
@@ -348,6 +372,50 @@ namespace Opc.Ua.Wot
                     Value = singularValue
                 }
             ];
+        }
+
+        /// <summary>
+        /// Gets the language tag first in ascending Unicode code-point order
+        /// among a set of <c>LocalizedText</c> entries (WoT Binding
+        /// Section 9.1.1 and Annex G.3).
+        /// </summary>
+        private static string CodePointFirstLocale(List<Opc.Ua.Export.LocalizedText> texts)
+        {
+            string first = texts[0].Locale ?? string.Empty;
+            for (int ii = 1; ii < texts.Count; ii++)
+            {
+                string locale = texts[ii].Locale ?? string.Empty;
+                if (WotCodePointComparer.Instance.Compare(locale, first) < 0)
+                {
+                    first = locale;
+                }
+            }
+            return first;
+        }
+
+        /// <summary>
+        /// Moves the entry of one locale to the front, which is the entry
+        /// written to the Node's own <c>DisplayName</c> or <c>Description</c>
+        /// (WoT Binding Section 9.1.1).
+        /// </summary>
+        private static void MoveLeadingLocale(
+            List<Opc.Ua.Export.LocalizedText> texts,
+            string locale)
+        {
+            for (int ii = 0; ii < texts.Count; ii++)
+            {
+                if (!string.Equals(texts[ii].Locale, locale, StringComparison.Ordinal))
+                {
+                    continue;
+                }
+                if (ii > 0)
+                {
+                    Opc.Ua.Export.LocalizedText leading = texts[ii];
+                    texts.RemoveAt(ii);
+                    texts.Insert(0, leading);
+                }
+                return;
+            }
         }
 
         /// <summary>
@@ -461,6 +529,8 @@ namespace Opc.Ua.Wot
                 return;
             }
             string? defaultText = null;
+            string? codePointFirstLocale = null;
+            string? codePointFirstText = null;
             foreach (JsonProperty entry in declared.EnumerateObject())
             {
                 if (entry.Value.ValueKind != JsonValueKind.String || entry.Name.Length == 0)
@@ -476,6 +546,13 @@ namespace Opc.Ua.Wot
                 if (string.Equals(entry.Name, defaultLocale, StringComparison.Ordinal))
                 {
                     defaultText = entry.Value.GetString();
+                }
+                if (codePointFirstLocale is null ||
+                    WotCodePointComparer.Instance.Compare(
+                        entry.Name, codePointFirstLocale) < 0)
+                {
+                    codePointFirstLocale = entry.Name;
+                    codePointFirstText = entry.Value.GetString();
                 }
             }
             string? singularText = GetElementString(element, singular);
@@ -493,14 +570,26 @@ namespace Opc.Ua.Wot
             }
             if (defaultText is null)
             {
-                diagnostics.Add(new WotDiagnostic(
-                    WotDiagnosticSeverity.Error,
-                    WotDiagnosticCode.InvalidLocalizedText,
-                    $"The {plural} member carries no entry for the document's " +
-                    $"default locale '{defaultLocale}', which the {singular} " +
-                    "member then states in a locale the plural member denies " +
-                    "(WoT Binding Section 9.1.1).",
-                    WotLocation.FromPointer(pointer)));
+                // Section 9.1.1: a plural member with no entry for the default
+                // locale is not invalid. The singular member is then the
+                // code-point-first entry and is a display fallback that asserts
+                // no locale - which is what makes a NodeSet authored in the
+                // plant's language an ordinary document rather than one that
+                // has to fall back to the native projection to say something the
+                // plural member already says.
+                if (codePointFirstText is not null &&
+                    !string.Equals(codePointFirstText, singularText, StringComparison.Ordinal))
+                {
+                    diagnostics.Add(new WotDiagnostic(
+                        WotDiagnosticSeverity.Error,
+                        WotDiagnosticCode.InvalidLocalizedText,
+                        $"The {plural} member carries no entry for the document's default " +
+                        $"locale '{defaultLocale}', so the {singular} member shall equal the " +
+                        $"entry whose language tag is first in ascending Unicode code-point " +
+                        $"order ('{codePointFirstLocale}'). The value is a display fallback " +
+                        "and asserts no locale (WoT Binding Section 9.1.1).",
+                        WotLocation.FromPointer(parentPointer + "/" + singular)));
+                }
                 return;
             }
             if (!string.Equals(defaultText, singularText, StringComparison.Ordinal))

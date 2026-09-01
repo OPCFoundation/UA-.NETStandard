@@ -93,6 +93,12 @@ namespace Opc.Ua.Wot
         internal const string DataMember = "data";
 
         /// <summary>
+        /// The W3C DataSchema member holding an object schema's members, which
+        /// is what a select clause materializes into (WoT Binding Section 6.1).
+        /// </summary>
+        internal const string PropertiesMember = "properties";
+
+        /// <summary>
         /// How a standard event field is rendered as a WoT DataSchema.
         /// </summary>
         /// <remarks>
@@ -337,15 +343,22 @@ namespace Opc.Ua.Wot
         /// A member the converter materializes must not also be captured as
         /// residue, or the same fields would be stated twice - once as the
         /// Nodes the NodeSet gained and once as an Extension re-applied over
-        /// the document generated from it. A <c>data</c> member that is not a
-        /// DataSchema is the opposite case: it is kept verbatim, so nothing is
-        /// silently dropped.
+        /// the document generated from it. The predicate mirrors what
+        /// <c>SynthesizeEventFields</c> actually materializes and nothing
+        /// wider: that materializer reads <c>data.properties</c>, so a
+        /// <c>data</c> that is a scalar, that is an object without
+        /// <c>properties</c>, or whose <c>properties</c> is not an object,
+        /// produces no Node at all and is kept verbatim. A predicate that
+        /// answered for the shape rather than for the materializer would
+        /// silently drop exactly those documents.
         /// </remarks>
         internal static bool MapsEventDataSchema(JsonElement affordance)
         {
             return affordance.ValueKind == JsonValueKind.Object &&
                 affordance.TryGetProperty(DataMember, out JsonElement data) &&
-                data.ValueKind == JsonValueKind.Object;
+                data.ValueKind == JsonValueKind.Object &&
+                data.TryGetProperty(PropertiesMember, out JsonElement properties) &&
+                properties.ValueKind == JsonValueKind.Object;
         }
 
         /// <summary>
@@ -481,6 +494,9 @@ namespace Opc.Ua.Wot
                 // Section 13.3: a Condition notification a consumer cannot tie
                 // back to an occurrence cannot be acknowledged, confirmed or
                 // commented on, so EventId is what makes the event actionable.
+                // It is the one hard requirement: every other Condition field
+                // is present in 'data' where the affordance selects it and is
+                // not otherwise required.
                 if (!DeclaresDataField(affordance.Value, EventIdField))
                 {
                     diagnostics.Add(new WotDiagnostic(
@@ -489,6 +505,19 @@ namespace Opc.Ua.Wot
                         $"An event affordance carrying '{ConditionTypeTerm}' shall declare " +
                         $"'{EventIdField}' in its 'data' object (WoT Binding Section 13.3).",
                         WotLocation.FromPointer(pointer)));
+                }
+                else if (!SelectsConditionEventId(affordance.Value))
+                {
+                    diagnostics.Add(new WotDiagnostic(
+                        WotDiagnosticSeverity.Error,
+                        WotDiagnosticCode.ConditionEventIdMissing,
+                        $"An event affordance carrying '{ConditionTypeTerm}' shall select " +
+                        $"'{EventIdField}' as well as declare it: a complete select-clause " +
+                        "list replaces the documented default rather than extending it, so a " +
+                        "list that omits the field describes a notification that never " +
+                        "carries it (WoT Binding Section 13.3).",
+                        WotLocation.FromPointer(
+                            pointer + "/" + EscapeJsonPointerToken(WotEventSelectClauses.Term))));
                 }
             }
 
@@ -559,6 +588,39 @@ namespace Opc.Ua.Wot
         {
             return affordance.TryGetProperty("data", out JsonElement data) &&
                 DeclaresSchemaMember(data, field);
+        }
+
+        /// <summary>
+        /// Gets whether an event affordance's select-clause list materializes
+        /// the <c>EventId</c> member (WoT Binding Sections 6.1 and 13.3).
+        /// </summary>
+        /// <remarks>
+        /// An affordance that states no list uses the documented default, which
+        /// selects the eight mandatory <c>BaseEventType</c> fields and so always
+        /// carries <c>EventId</c>. A list that is present replaces that default
+        /// rather than extending it, so it has to name the field itself. A list
+        /// this library cannot parse is reported by the select-clause rules and
+        /// is not double-reported here.
+        /// </remarks>
+        private static bool SelectsConditionEventId(JsonElement affordance)
+        {
+            if (!affordance.TryGetProperty(WotEventSelectClauses.Term, out JsonElement value))
+            {
+                return true;
+            }
+            if (!WotEventSelectClauses.TryParse(
+                value, out ArrayOf<WotEventSelectClause> clauses, out _, out _))
+            {
+                return true;
+            }
+            for (int ii = 0; ii < clauses.Count; ii++)
+            {
+                if (string.Equals(clauses[ii].FieldName, EventIdField, StringComparison.Ordinal))
+                {
+                    return true;
+                }
+            }
+            return false;
         }
 
         /// <summary>

@@ -567,7 +567,52 @@ namespace Opc.Ua.Wot
         /// <c>uav:securityMode</c> and <c>uav:securityPolicy</c>, or states a
         /// mode or policy this Binding does not name.
         /// </summary>
-        InvalidSecurityFloor = 6047
+        InvalidSecurityFloor = 6047,
+
+        /// <summary>
+        /// A <c>uav:bindingVersion</c> is a well-formed
+        /// <c>&lt;major&gt;.&lt;minor&gt;</c> revision this Binding does not
+        /// publish (WoT Binding Section 4.1). A consumer reports it as
+        /// unsupported, processes the terms it knows and preserves the claim
+        /// unchanged; an authoring validator, which holds a document to a
+        /// published revision, reports it as an error.
+        /// </summary>
+        UnsupportedBindingRevision = 6048,
+
+        /// <summary>
+        /// A <c>uav:profile</c> entry is a well-formed claim naming a
+        /// conformance unit or profile WoT Binding Section 11 does not define
+        /// (Section 4.1). A consumer reports it as unrecognized and preserves
+        /// it, because a later revision defines further units; an authoring
+        /// validator reports it as an error.
+        /// </summary>
+        UnrecognizedConformanceClaim = 6049,
+
+        /// <summary>
+        /// A DataSchema <c>unit</c> member carries a quantity kind rather than
+        /// an engineering unit (WoT Binding Section 6.4). Revision 1.1 forbids
+        /// it, so authoring rejects it; revision 1.0 permitted it, so a
+        /// consumer reports the value as deprecated, preserves it, and never
+        /// invents an engineering unit in its place.
+        /// </summary>
+        QuantityKindInUnit = 6050,
+
+        /// <summary>
+        /// A Thing or affordance <c>@type</c> carries more than one of the
+        /// NodeClass annotations of WoT Binding Section 5.2, or carries
+        /// <c>uav:referenceType</c> or <c>uav:dataType</c> somewhere other than
+        /// the root of a Thing Model. A Node has exactly one NodeClass.
+        /// </summary>
+        NodeClassAnnotationConflict = 6051,
+
+        /// <summary>
+        /// A <c>uav:inverseName</c> or <c>uav:symmetric</c> term breaks
+        /// WoT Binding Section 6.2.1: it sits on a document that does not
+        /// project a ReferenceType Node, or the document states
+        /// <c>uav:symmetric: true</c> together with an inverse name, which
+        /// names a direction a symmetric Reference does not have.
+        /// </summary>
+        ReferenceTypeProjectionInvalid = 6052
     }
 
     /// <summary>

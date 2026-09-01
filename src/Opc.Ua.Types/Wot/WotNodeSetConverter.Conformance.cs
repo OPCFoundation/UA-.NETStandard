@@ -75,13 +75,18 @@ namespace Opc.Ua.Wot
                 return;
             }
             bool strict = options.ConformanceMode == WotConformanceMode.Strict;
+            bool authoring = options.AuthoringValidation;
             WotDiagnosticSeverity opaqueSeverity = strict
                 ? WotDiagnosticSeverity.Error
                 : WotDiagnosticSeverity.Warning;
-            ValidateRevisionClaim(root, strict, diagnostics);
-            ValidateConformanceClaim(root, options, strict, diagnostics);
+            ValidateRevisionClaim(root, authoring, diagnostics);
+            ValidateConformanceClaim(root, options, strict, authoring, diagnostics);
             ValidateEventSelectClauses(document, diagnostics);
             ValidateSecurityFloors(document, diagnostics);
+            ValidateReferenceTypeProjection(root, diagnostics);
+            WotDiagnosticSeverity deprecatedSeverity = authoring
+                ? WotDiagnosticSeverity.Error
+                : WotDiagnosticSeverity.Warning;
             WalkDocument(
                 root,
                 string.Empty,
@@ -90,6 +95,9 @@ namespace Opc.Ua.Wot
                     ValidateSelectClausePlacement(element, pointer, diagnostics);
                     ValidateSecurityFloorPlacement(element, pointer, diagnostics);
                     ValidateOpaqueObjects(document, element, pointer, opaqueSeverity, diagnostics);
+                    ValidateNodeClassAnnotation(element, pointer, diagnostics);
+                    ValidateUnitQuantityKind(
+                        document, element, pointer, deprecatedSeverity, diagnostics);
                     if (strict)
                     {
                         ValidateKnownVocabulary(element, pointer, diagnostics);
@@ -98,18 +106,237 @@ namespace Opc.Ua.Wot
         }
 
         /// <summary>
+        /// The NodeClass annotations of WoT Binding Section 5.2. A Node has
+        /// exactly one NodeClass, so a Thing or affordance <c>@type</c> carries
+        /// at most one of them.
+        /// </summary>
+        private static readonly string[] s_nodeClassAnnotations =
+        [
+            "uav:object",
+            "uav:objectType",
+            "uav:variable",
+            "uav:variableType",
+            "uav:method",
+            "uav:eventType",
+            "uav:referenceType",
+            "uav:dataType"
+        ];
+
+        /// <summary>
+        /// Reports an <c>@type</c> that carries more than one NodeClass
+        /// annotation (WoT Binding Sections 5.2 and 7).
+        /// </summary>
+        /// <remarks>
+        /// Two annotations state two NodeClasses for one Node, and a converter
+        /// reading the second would recreate a Node the first denies. The rule
+        /// grew teeth in revision 1.1, which completed the set with
+        /// <c>uav:referenceType</c> and <c>uav:dataType</c>: before them a
+        /// document that projected a ReferenceType had no annotation to use,
+        /// and after them it has exactly one.
+        /// </remarks>
+        private static void ValidateNodeClassAnnotation(
+            JsonElement element,
+            string pointer,
+            List<WotDiagnostic> diagnostics)
+        {
+            if (!element.TryGetProperty("@type", out JsonElement types))
+            {
+                return;
+            }
+            string? first = null;
+            foreach (string token in EnumerateTypeTokens(types))
+            {
+                if (Array.IndexOf(s_nodeClassAnnotations, token) < 0)
+                {
+                    continue;
+                }
+                if (first is null)
+                {
+                    first = token;
+                    continue;
+                }
+                diagnostics.Add(new WotDiagnostic(
+                    WotDiagnosticSeverity.Error,
+                    WotDiagnosticCode.NodeClassAnnotationConflict,
+                    $"The @type carries both '{first}' and '{token}'. A Node has exactly one " +
+                    "NodeClass, so a Thing or affordance carries at most one NodeClass " +
+                    "annotation (WoT Binding Sections 5.2 and 7).",
+                    WotLocation.FromPointer(
+                        (pointer.Length == 0 ? string.Empty : pointer) + "/@type")));
+                return;
+            }
+        }
+
+        /// <summary>
+        /// Validates <c>uav:inverseName</c> and <c>uav:symmetric</c>
+        /// (WoT Binding Sections 6.2.1 and 7).
+        /// </summary>
+        /// <remarks>
+        /// The two carry the ReferenceType Attributes no link <c>rel</c>
+        /// states, so they belong to a document that projects a ReferenceType
+        /// Node and to no other. A symmetric ReferenceType reads the same in
+        /// both directions, so a second name would state a direction that does
+        /// not exist.
+        /// </remarks>
+        private static void ValidateReferenceTypeProjection(
+            JsonElement root,
+            List<WotDiagnostic> diagnostics)
+        {
+            bool hasInverseName = root.TryGetProperty(InverseNameTerm, out JsonElement inverseName);
+            bool hasSymmetric = root.TryGetProperty(SymmetricTerm, out JsonElement symmetric);
+            if (!hasInverseName && !hasSymmetric)
+            {
+                return;
+            }
+            bool projectsReferenceType = false;
+            if (root.TryGetProperty("@type", out JsonElement types))
+            {
+                foreach (string token in EnumerateTypeTokens(types))
+                {
+                    if (string.Equals(token, "uav:referenceType", StringComparison.Ordinal))
+                    {
+                        projectsReferenceType = true;
+                        break;
+                    }
+                }
+            }
+            if (!projectsReferenceType)
+            {
+                diagnostics.Add(new WotDiagnostic(
+                    WotDiagnosticSeverity.Error,
+                    WotDiagnosticCode.ReferenceTypeProjectionInvalid,
+                    $"The {(hasInverseName ? InverseNameTerm : SymmetricTerm)} term appears on a " +
+                    "document whose @type does not carry 'uav:referenceType'. Both terms carry " +
+                    "ReferenceType Attributes, so they belong to a document that projects a " +
+                    "ReferenceType Node (WoT Binding Section 6.2.1).",
+                    WotLocation.FromPointer(
+                        "/" + (hasInverseName ? InverseNameTerm : SymmetricTerm))));
+                return;
+            }
+            if (hasInverseName &&
+                (inverseName.ValueKind != JsonValueKind.String ||
+                    string.IsNullOrEmpty(inverseName.GetString())))
+            {
+                diagnostics.Add(new WotDiagnostic(
+                    WotDiagnosticSeverity.Error,
+                    WotDiagnosticCode.ReferenceTypeProjectionInvalid,
+                    $"The {InverseNameTerm} term shall be a non-empty unqualified name in the " +
+                    "document's default locale (WoT Binding Section 6.2.1).",
+                    WotLocation.FromPointer("/" + InverseNameTerm)));
+            }
+            if (hasSymmetric && symmetric.ValueKind is not (JsonValueKind.True or JsonValueKind.False))
+            {
+                diagnostics.Add(new WotDiagnostic(
+                    WotDiagnosticSeverity.Error,
+                    WotDiagnosticCode.ReferenceTypeProjectionInvalid,
+                    $"The {SymmetricTerm} term shall be a boolean; it carries the OPC 10000-3 " +
+                    "Symmetric Attribute and defaults to false where it is absent " +
+                    "(WoT Binding Section 6.2.1).",
+                    WotLocation.FromPointer("/" + SymmetricTerm)));
+                return;
+            }
+            if (hasSymmetric && symmetric.ValueKind == JsonValueKind.True && hasInverseName)
+            {
+                diagnostics.Add(new WotDiagnostic(
+                    WotDiagnosticSeverity.Error,
+                    WotDiagnosticCode.ReferenceTypeProjectionInvalid,
+                    $"A document that sets {SymmetricTerm} to true shall not carry " +
+                    $"{InverseNameTerm}: a symmetric Reference reads the same in both " +
+                    "directions, so a second name states a direction that does not exist " +
+                    "(WoT Binding Section 6.2.1).",
+                    WotLocation.FromPointer("/" + InverseNameTerm)));
+            }
+        }
+
+        /// <summary>
+        /// Reports a DataSchema <c>unit</c> that carries a quantity kind rather
+        /// than an engineering unit (WoT Binding Sections 6.4 and 7).
+        /// </summary>
+        /// <remarks>
+        /// A quantity kind says what physical quantity is measured; a unit says
+        /// what the measurement is counted in, and neither is recoverable from
+        /// the other. Revision 1.0 drew no line, so a consumer reports the value
+        /// as deprecated and preserves it rather than rejecting the document,
+        /// and never invents an engineering unit in its place; strict authoring
+        /// against revision 1.1 rejects it.
+        /// <see cref="WotUnitMigration"/> is the helper that moves such a value
+        /// to <c>qudt:hasQuantityKind</c>, where the author meant it to be.
+        /// </remarks>
+        private static void ValidateUnitQuantityKind(
+            WotDocument document,
+            JsonElement element,
+            string pointer,
+            WotDiagnosticSeverity severity,
+            List<WotDiagnostic> diagnostics)
+        {
+            if (!element.TryGetProperty(UnitMember, out JsonElement value) ||
+                value.ValueKind != JsonValueKind.String ||
+                value.GetString() is not { Length: > 0 } unit ||
+                !WotUnitMigration.IsQuantityKind(
+                    unit,
+                    prefix => TryGetContextNamespace(document, prefix, out string ns) ? ns : null))
+            {
+                return;
+            }
+            diagnostics.Add(new WotDiagnostic(
+                severity,
+                WotDiagnosticCode.QuantityKindInUnit,
+                $"The unit member carries the quantity kind '{unit}'. A unit says what a " +
+                "measurement is counted in and a quantity kind says what is measured, so a " +
+                $"quantity kind belongs in '{WotUnitMigration.QuantityKindTerm}' " +
+                "(WoT Binding Section 6.4). Revision 1.0 permitted it, so the value is " +
+                "preserved and reported as deprecated rather than reinterpreted; no " +
+                "engineering unit is invented in its place.",
+                WotLocation.FromPointer(
+                    (pointer.Length == 0 ? string.Empty : pointer) + "/" + UnitMember)));
+        }
+
+        /// <summary>
+        /// Enumerates the tokens of a <c>@type</c> member, which W3C Thing
+        /// Description 1.1 writes as either one string or an array of them.
+        /// </summary>
+        private static IEnumerable<string> EnumerateTypeTokens(JsonElement types)
+        {
+            if (types.ValueKind == JsonValueKind.String)
+            {
+                if (types.GetString() is { Length: > 0 } single)
+                {
+                    yield return single;
+                }
+                yield break;
+            }
+            if (types.ValueKind != JsonValueKind.Array)
+            {
+                yield break;
+            }
+            foreach (JsonElement item in types.EnumerateArray())
+            {
+                if (item.ValueKind == JsonValueKind.String &&
+                    item.GetString() is { Length: > 0 } token)
+                {
+                    yield return token;
+                }
+            }
+        }
+
+        /// <summary>
         /// Validates <c>uav:bindingVersion</c> (WoT Binding Sections 4.1 and 7).
         /// </summary>
         /// <remarks>
-        /// A revision this library does not implement is reported only under
-        /// strict conformance. Section 4.1 states that a consumer
-        /// <em>shall not</em> reject a document for that reason alone: it
-        /// processes the terms it knows and preserves the rest, which is
-        /// exactly what the permissive mode does.
+        /// The syntactic rule is what a consumer enforces, and it enforces it
+        /// always: a value that is not <c>&lt;major&gt;.&lt;minor&gt;</c> is
+        /// malformed and is an error in every mode. A well-formed revision this
+        /// document does not publish is a different finding - it is
+        /// <em>unsupported</em>, reported as a warning and preserved unchanged,
+        /// because Section 4.1 states that a consumer <em>shall not</em> reject
+        /// a document for that reason alone. An authoring validator, which
+        /// checks a document written against a published revision, reports the
+        /// same finding as an error: an author either named a published
+        /// revision or made a mistake.
         /// </remarks>
         private static void ValidateRevisionClaim(
             JsonElement root,
-            bool strict,
+            bool authoring,
             List<WotDiagnostic> diagnostics)
         {
             if (!root.TryGetProperty(WotBindingConformance.BindingVersionTerm, out JsonElement value))
@@ -123,21 +350,21 @@ namespace Opc.Ua.Wot
                 diagnostics.Add(new WotDiagnostic(
                     WotDiagnosticSeverity.Error,
                     WotDiagnosticCode.InvalidBindingVersion,
-                    $"The {WotBindingConformance.BindingVersionTerm} term shall name a published " +
-                    "revision of this Binding in <major>.<minor> form " +
-                    "(WoT Binding Section 4.1).",
+                    $"The {WotBindingConformance.BindingVersionTerm} term shall be a " +
+                    "<major>.<minor> revision string (WoT Binding Section 4.1).",
                     WotLocation.FromPointer(pointer)));
                 return;
             }
-            if (strict && !WotBindingConformance.IsSupportedRevision(revision))
+            if (!WotBindingConformance.IsSupportedRevision(revision))
             {
                 diagnostics.Add(new WotDiagnostic(
-                    WotDiagnosticSeverity.Error,
-                    WotDiagnosticCode.InvalidBindingVersion,
-                    $"The document declares vocabulary revision '{revision}'; this library " +
-                    $"implements {WotBindingConformance.CurrentRevision}. Permissive " +
-                    "processing accepts and preserves it, which is what Section 4.1 requires " +
-                    "of a consumer; strict conformance reports it.",
+                    authoring ? WotDiagnosticSeverity.Error : WotDiagnosticSeverity.Warning,
+                    WotDiagnosticCode.UnsupportedBindingRevision,
+                    $"The document declares vocabulary revision '{revision}'; this Binding " +
+                    $"publishes {WotBindingConformance.PreviousRevision} and " +
+                    $"{WotBindingConformance.CurrentRevision}. A consumer reports the value as " +
+                    "unsupported, processes the terms it knows and preserves the claim " +
+                    "unchanged; an authoring validator rejects it (WoT Binding Section 4.1).",
                     WotLocation.FromPointer(pointer)));
             }
         }
@@ -149,6 +376,7 @@ namespace Opc.Ua.Wot
             JsonElement root,
             WotNodeSetConverterOptions options,
             bool strict,
+            bool authoring,
             List<WotDiagnostic> diagnostics)
         {
             string pointer = "/" + WotBindingConformance.ProfileTerm;
@@ -161,8 +389,8 @@ namespace Opc.Ua.Wot
                         WotDiagnosticSeverity.Error,
                         WotDiagnosticCode.InvalidConformanceClaim,
                         $"The {WotBindingConformance.ProfileTerm} term shall be a non-empty " +
-                        "array of the conformance unit and profile names WoT Binding " +
-                        "Section 11 defines.",
+                        "array of conformance unit and profile names " +
+                        "(WoT Binding Sections 4.1 and 11).",
                         WotLocation.FromPointer(pointer)));
                     return;
                 }
@@ -173,14 +401,13 @@ namespace Opc.Ua.Wot
                         index.ToString(CultureInfo.InvariantCulture);
                     index++;
                     string? name = entry.ValueKind == JsonValueKind.String ? entry.GetString() : null;
-                    if (!WotBindingConformance.IsConformanceName(name))
+                    if (!WotBindingConformance.IsWellFormedConformanceName(name))
                     {
                         diagnostics.Add(new WotDiagnostic(
                             WotDiagnosticSeverity.Error,
                             WotDiagnosticCode.InvalidConformanceClaim,
-                            $"'{name}' is not a conformance unit or profile of WoT Binding " +
-                            "Section 11. The set is closed: a claim a test suite cannot name " +
-                            "is not a claim.",
+                            $"'{name}' is not a well-formed conformance claim; a claim is a " +
+                            "non-empty 'WoT-<name>' string (WoT Binding Sections 4.1 and 11).",
                             WotLocation.FromPointer(entryPointer)));
                         continue;
                     }
@@ -194,6 +421,19 @@ namespace Opc.Ua.Wot
                         continue;
                     }
                     claimed.Add(name!);
+                    if (!WotBindingConformance.IsConformanceName(name))
+                    {
+                        diagnostics.Add(new WotDiagnostic(
+                            authoring
+                                ? WotDiagnosticSeverity.Error
+                                : WotDiagnosticSeverity.Warning,
+                            WotDiagnosticCode.UnrecognizedConformanceClaim,
+                            $"'{name}' is not a conformance unit or profile WoT Binding " +
+                            "Section 11 defines. A consumer reports it as unrecognized and " +
+                            "preserves it, because a later revision defines further units; an " +
+                            "authoring validator rejects it (WoT Binding Section 4.1).",
+                            WotLocation.FromPointer(entryPointer)));
+                    }
                 }
             }
 
@@ -237,6 +477,7 @@ namespace Opc.Ua.Wot
                     WotEventSelectClauses.Term;
                 if (!WotEventSelectClauses.TryParse(
                     value,
+                    prefix => TryGetContextNamespace(document, prefix, out string ns) ? ns : null,
                     out ArrayOf<WotEventSelectClause> clauses,
                     out string error,
                     out int errorIndex))
@@ -398,14 +639,15 @@ namespace Opc.Ua.Wot
                     WotLocation.FromPointer(pointer)));
             }
 
-            long octets = MeasureCanonicalOctets(value);
+            long octets = MeasureCompactOctets(value);
             if (octets > WotBindingConformance.OpaqueMaxOctets)
             {
                 diagnostics.Add(new WotDiagnostic(
                     severity,
                     WotDiagnosticCode.OpaqueObjectInvalid,
-                    $"The {member} object serializes to {octets} octets; the bound is " +
-                    $"{WotBindingConformance.OpaqueMaxOctets} (WoT Binding Section 6.6).",
+                    $"The {member} object measures {octets} octets in the compact received " +
+                    $"form of WoT Binding Annex G.4; the bound is " +
+                    $"{WotBindingConformance.OpaqueMaxOctets} (Section 6.6).",
                     WotLocation.FromPointer(pointer)));
             }
 
@@ -744,12 +986,13 @@ namespace Opc.Ua.Wot
         }
 
         /// <summary>
-        /// Measures a value in the canonical UTF-8 JSON form the size bound of
-        /// WoT Binding Section 6.6 is stated in (Annex G.2).
+        /// Measures a value in the compact received form of WoT Binding
+        /// Annex G.4, which is the form the size bound of Section 6.6 is
+        /// stated in.
         /// </summary>
-        private static long MeasureCanonicalOctets(JsonElement value)
+        private static long MeasureCompactOctets(JsonElement value)
         {
-            return WotDocument.MeasureCanonicalUtf8(value);
+            return WotDocument.MeasureCompactUtf8(value);
         }
 
         private static int MeasureJsonDepth(JsonElement value, int depth = 1)

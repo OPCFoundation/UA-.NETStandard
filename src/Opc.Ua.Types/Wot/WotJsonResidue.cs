@@ -246,6 +246,24 @@ namespace Opc.Ua.Wot
                     case "uav:nodes":
                     case "uav:dataTypeDefinitions":
                         break;
+                    case WotBindingConformance.BindingVersionTerm:
+                        // Section 4.1 makes a generator state the revision it
+                        // emitted, so this library stamps its own revision on
+                        // every generated document. A claim that agrees with
+                        // that stamp is re-derived rather than carried; one
+                        // that names another revision - an author's
+                        // forward-compatible claim, which a consumer preserves
+                        // rather than rejects - is kept verbatim so the round
+                        // trip restates what the author wrote.
+                        if (property.Value.ValueKind != JsonValueKind.String ||
+                            !string.Equals(
+                                property.Value.GetString(),
+                                WotBindingConformance.CurrentRevision,
+                                StringComparison.Ordinal))
+                        {
+                            Add(entries, pointer, property.Value);
+                        }
+                        break;
                     case WotNodeSetConverter.InverseNameTerm:
                     case WotNodeSetConverter.SymmetricTerm:
                         // OPC 10000-3 gives a ReferenceType an InverseName and
@@ -361,6 +379,7 @@ namespace Opc.Ua.Wot
             }
             bool isAction = string.Equals(kind, "actions", StringComparison.Ordinal);
             bool isEvent = string.Equals(kind, "events", StringComparison.Ordinal);
+            bool isProperty = !isAction && !isEvent;
             var used = new HashSet<string>(StringComparer.Ordinal);
             foreach (JsonProperty affordance in map.EnumerateObject())
             {
@@ -394,23 +413,51 @@ namespace Opc.Ua.Wot
                         case "uav:modellingRule":
                         case "uav:mapToType":
                         case "uav:dataTypeDefinition":
+                            break;
                         case "type":
                         case "readOnly":
                         case "writeOnly":
                         case "observable":
+                            // §9.1 reads a DataSchema's json type and its three
+                            // access flags off the Variable a property affordance
+                            // projects. A Method and an EventType have no Value
+                            // Attribute for them to describe, so on an action or
+                            // an event they name no OPC UA fact and are kept
+                            // verbatim rather than dropped.
+                            if (!isProperty)
+                            {
+                                Add(
+                                    entries,
+                                    affordancePointer + "/" + Escape(property.Name),
+                                    property.Value);
+                            }
                             break;
                         case WotNodeSetConverter.ValueRankTerm:
                         case WotNodeSetConverter.ArrayDimensionsTerm:
                             // §9.1 maps a Variable's ValueRank and
                             // ArrayDimensions onto the Attributes of the same
                             // name, so both come back from the Node itself.
+                            // Only a Variable has those Attributes: on an
+                            // action or an event the terms are outside the
+                            // mapped domain and are kept verbatim.
+                            if (!isProperty)
+                            {
+                                Add(
+                                    entries,
+                                    affordancePointer + "/" + Escape(property.Name),
+                                    property.Value);
+                            }
                             break;
                         case "uav:componentOf":
                             // §9.1 maps the term onto the inverse component
                             // Reference that says which Variable holds this
                             // one, and the forward direction restates it from
-                            // there.
-                            if (!WotNodeSetConverter.MapsComponentOf(affordance.Value))
+                            // there. An action's Method and an event's
+                            // EventType are placed by their own rules
+                            // (Sections 13.2 and 13.4) and never from this
+                            // term, so on those kinds it is kept verbatim.
+                            if (!isProperty ||
+                                !WotNodeSetConverter.MapsComponentOf(affordance.Value))
                             {
                                 Add(
                                     entries,
@@ -423,8 +470,11 @@ namespace Opc.Ua.Wot
                             // EUInformation of the Property the unit pointer
                             // names, so a unit that agrees with it is derived
                             // rather than carried. One that names no such
-                            // Property, or disagrees with it, is kept.
-                            if (!WotNodeSetConverter.MapsUnit(root, affordance.Value))
+                            // Property, or disagrees with it, is kept - and so
+                            // is one on an affordance kind that projects no
+                            // Variable to carry it.
+                            if (!isProperty ||
+                                !WotNodeSetConverter.MapsUnit(root, affordance.Value))
                             {
                                 Add(
                                     entries,
@@ -433,7 +483,8 @@ namespace Opc.Ua.Wot
                             }
                             break;
                         case WotNodeSetConverter.UnitPropertyTerm:
-                            if (!WotNodeSetConverter.MapsUnitProperty(root, affordance.Value))
+                            if (!isProperty ||
+                                !WotNodeSetConverter.MapsUnitProperty(root, affordance.Value))
                             {
                                 Add(
                                     entries,
@@ -462,8 +513,11 @@ namespace Opc.Ua.Wot
                             // Section 6.4.1 maps the pair onto the Variable's
                             // own EURange Property, so carrying them here as
                             // well would state one interval twice. A lone or
-                            // reversed bound is not mapped and is kept.
-                            if (!WotNodeSetConverter.MapsEuRange(affordance.Value))
+                            // reversed bound is not mapped and is kept, and
+                            // neither is a bound on an affordance kind that
+                            // projects no Variable.
+                            if (!isProperty ||
+                                !WotNodeSetConverter.MapsEuRange(affordance.Value))
                             {
                                 Add(
                                     entries,
@@ -472,7 +526,8 @@ namespace Opc.Ua.Wot
                             }
                             break;
                         case WotNodeSetConverter.InstrumentRangeTerm:
-                            if (!WotNodeSetConverter.MapsInstrumentRange(affordance.Value))
+                            if (!isProperty ||
+                                !WotNodeSetConverter.MapsInstrumentRange(affordance.Value))
                             {
                                 Add(
                                     entries,
@@ -485,7 +540,8 @@ namespace Opc.Ua.Wot
                             // EUInformation the EngineeringUnits Property
                             // holds, and the forward direction reads it back
                             // from that value.
-                            if (!WotNodeSetConverter.MapsEngineeringUnits(affordance.Value))
+                            if (!isProperty ||
+                                !WotNodeSetConverter.MapsEngineeringUnits(affordance.Value))
                             {
                                 Add(
                                     entries,
@@ -1114,6 +1170,16 @@ namespace Opc.Ua.Wot
                 JsonNode? existing = targetObject[leaf];
                 if (existing is not null)
                 {
+                    if (IsGeneratedDefaultPointer(pointer))
+                    {
+                        // The generated value is this library's own default and
+                        // not a fact read from the NodeSet, so the authored
+                        // claim the residue carries replaces it rather than
+                        // disagreeing with it (WoT Binding Sections 4.1 and
+                        // 10.2).
+                        targetObject[leaf] = value;
+                        return;
+                    }
                     if (!JsonEquals(existing, value))
                     {
                         diagnostics.Add(new WotDiagnostic(
@@ -1167,6 +1233,53 @@ namespace Opc.Ua.Wot
                 WotDiagnosticCode.ResidueInvalid,
                 $"Residue target '{pointer}' is invalid.",
                 WotLocation.FromPointer(pointer)));
+        }
+
+        /// <summary>
+        /// Gets whether a residue pointer targets a member whose generated
+        /// value is this library's own default rather than a fact read from the
+        /// NodeSet.
+        /// </summary>
+        /// <remarks>
+        /// Two members are of this kind. <c>uav:bindingVersion</c> is stamped
+        /// on every generated document by Section 4.1, so the author's own
+        /// claim - a revision this library preserves rather than rejects - has
+        /// to win over the stamp instead of being reported as a conflict with
+        /// it. An event affordance's <c>data</c> object is the other: the
+        /// generator always writes one, because Section 6.1 selects the eight
+        /// mandatory <c>BaseEventType</c> fields where a document states no
+        /// select clauses, and a residue entry exists for it only where the
+        /// authored schema materialized nothing at all. Restoring the authored
+        /// value is what keeps "preserved, not replaced" true of a <c>data</c>
+        /// member the converter could not map.
+        /// </remarks>
+        private static bool IsGeneratedDefaultPointer(string pointer)
+        {
+            return string.Equals(
+                pointer,
+                "/" + WotBindingConformance.BindingVersionTerm,
+                StringComparison.Ordinal) ||
+                IsEventDataPointer(pointer);
+        }
+
+        /// <summary>
+        /// Gets whether a pointer names the <c>data</c> member of an event
+        /// affordance, that is <c>/events/&lt;name&gt;/data</c> exactly.
+        /// </summary>
+        private static bool IsEventDataPointer(string pointer)
+        {
+            const string prefix = "/events/";
+            const string suffix = "/" + WotNodeSetConverter.DataMember;
+            if (!pointer.StartsWith(prefix, StringComparison.Ordinal) ||
+                !pointer.EndsWith(suffix, StringComparison.Ordinal) ||
+                pointer.Length <= prefix.Length + suffix.Length)
+            {
+                return false;
+            }
+            // A member name containing '/' is escaped as '~1' by the capture, so
+            // a further separator can only be a further pointer token.
+            return pointer.IndexOf(
+                '/', prefix.Length, pointer.Length - prefix.Length - suffix.Length) < 0;
         }
 
         private static void ApplyLinkEntry(

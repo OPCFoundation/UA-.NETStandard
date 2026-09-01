@@ -67,6 +67,35 @@ namespace Opc.Ua.Wot
         public const string CurrentRevision = "1.1";
 
         /// <summary>
+        /// The first published revision of this Binding, the vocabulary of
+        /// OPC 10101 v1.00 (WoT Binding Section 4.1). A document authored
+        /// against it is read here; the differences this library reports as
+        /// deprecated are the unnamespaced opaque keys of Section 6.6 and a
+        /// quantity kind written into <c>unit</c> (Section 6.4).
+        /// </summary>
+        public const string PreviousRevision = "1.0";
+
+        /// <summary>
+        /// The scoped record-grammar namespace the member names inside
+        /// <c>uav:nodes</c> expand in (WoT Binding Sections 7 and 10.1).
+        /// </summary>
+        /// <remarks>
+        /// The names of a node record - <c>nodeClass</c>, <c>nodeId</c>,
+        /// <c>browseName</c>, <c>references</c> and the rest - are the
+        /// lower-camel-case spellings of the UANodeSet XSD field names. They
+        /// are a versioned record grammar and not vocabulary of this Binding,
+        /// so the scoped <c>@context</c> expands them here rather than in
+        /// <see cref="VocabularyNamespace"/>. Keeping them apart is what stops
+        /// a grammar token from colliding with a class annotation of the same
+        /// spelling: a node record's <c>dataType</c> member holds the
+        /// ExpandedNodeId of a Variable's DataType and is not the NodeClass
+        /// annotation <c>uav:dataType</c>, and a reference record's
+        /// <c>referenceType</c> member is not <c>uav:referenceType</c>.
+        /// </remarks>
+        public const string NodesVocabularyNamespace =
+            VocabularyNamespace + "nodes/";
+
+        /// <summary>
         /// The immutable versioned base IRI the artifacts of
         /// <see cref="CurrentRevision"/> are published at
         /// (WoT Binding Section 4.1).
@@ -107,8 +136,9 @@ namespace Opc.Ua.Wot
         public const string AutoSecurityScheme = "auto";
 
         /// <summary>
-        /// The maximum size, in octets, of an opaque object serialized as
-        /// canonical UTF-8 JSON (WoT Binding Section 6.6).
+        /// The maximum size, in octets, of an opaque object measured in the
+        /// compact received form of WoT Binding Annex G.4 - the received text
+        /// with insignificant whitespace removed (Section 6.6).
         /// </summary>
         public const int OpaqueMaxOctets = 65536;
 
@@ -125,13 +155,21 @@ namespace Opc.Ua.Wot
         public const int OpaqueMaxTopLevelKeys = 256;
 
         /// <summary>
-        /// The revisions of the vocabulary this library implements. A document
-        /// declaring another revision is still processed - Section 4.1 forbids
-        /// rejecting it for that reason alone - but strict conformance reports
-        /// it, because a term added by a revision this library does not
-        /// implement is indistinguishable from a member the author invented.
+        /// The revisions of the vocabulary this document publishes, which are
+        /// the values an authored document names (WoT Binding Section 4.1).
         /// </summary>
-        public static ArrayOf<string> SupportedRevisions { get; } = new[] { CurrentRevision };
+        /// <remarks>
+        /// Authoring validation and consumer processing are deliberately not
+        /// the same check. An author writing against a published revision names
+        /// one of these, and strict conformance holds a document to that. A
+        /// consumer applies the syntactic rule only: it <em>shall not</em>
+        /// reject a document because it declares a revision the consumer does
+        /// not implement, so a well-formed value outside this set is reported
+        /// as unsupported, processed for the terms this library knows, and
+        /// preserved unchanged.
+        /// </remarks>
+        public static ArrayOf<string> SupportedRevisions { get; } =
+            new[] { PreviousRevision, CurrentRevision };
 
         /// <summary>
         /// The native projection grammars (<c>profileVersion</c> inside
@@ -143,9 +181,10 @@ namespace Opc.Ua.Wot
             new[] { WotVocabulary.ProfileVersion };
 
         /// <summary>
-        /// The closed conformance-unit and profile names of WoT Binding
-        /// Section 11. A claim a test suite cannot name is not a claim, so the
-        /// set is closed rather than open.
+        /// The conformance-unit and profile names of WoT Binding Section 11.
+        /// An authored document names only these; a consumer accepts any
+        /// syntactically well-formed name and reports one it does not know as
+        /// unrecognized (Section 4.1).
         /// </summary>
         public static ArrayOf<string> ConformanceNames { get; } =
         [
@@ -239,10 +278,16 @@ namespace Opc.Ua.Wot
         }
 
         /// <summary>
-        /// Determines whether a revision is one this library implements.
+        /// Determines whether a revision is one this document publishes, which
+        /// is what an authored document names (WoT Binding Section 4.1).
         /// </summary>
+        /// <remarks>
+        /// A consumer never rejects a document on this answer alone: a
+        /// well-formed revision outside the published set is
+        /// <em>unsupported</em>, not invalid.
+        /// </remarks>
         /// <param name="revision">The declared revision.</param>
-        /// <returns><c>true</c> when the revision is implemented here.</returns>
+        /// <returns><c>true</c> when the revision is published here.</returns>
         public static bool IsSupportedRevision(string? revision)
         {
             foreach (string supported in SupportedRevisions)
@@ -253,6 +298,41 @@ namespace Opc.Ua.Wot
                 }
             }
             return false;
+        }
+
+        /// <summary>
+        /// Determines whether a value is a syntactically well-formed
+        /// conformance claim, which is what a consumer enforces
+        /// (WoT Binding Section 4.1).
+        /// </summary>
+        /// <remarks>
+        /// The JSON Schema of this revision constrains an entry by the pattern
+        /// <c>^WoT-[A-Za-z][A-Za-z0-9-]*$</c> and lists the names Section 11
+        /// defines as examples rather than as a closed enumeration, so a
+        /// document from a later revision that claims a unit this one does not
+        /// define reports an unrecognized claim rather than a schema failure.
+        /// </remarks>
+        /// <param name="name">The claimed name.</param>
+        /// <returns><c>true</c> when the name has the required form.</returns>
+        public static bool IsWellFormedConformanceName(string? name)
+        {
+            const string prefix = "WoT-";
+            if (name is null ||
+                name.Length <= prefix.Length ||
+                !name.StartsWith(prefix, StringComparison.Ordinal) ||
+                !IsAsciiLetter(name[prefix.Length]))
+            {
+                return false;
+            }
+            for (int ii = prefix.Length + 1; ii < name.Length; ii++)
+            {
+                char c = name[ii];
+                if (!IsAsciiLetter(c) && (c is < '0' or > '9') && c != '-')
+                {
+                    return false;
+                }
+            }
+            return true;
         }
 
         /// <summary>
@@ -391,6 +471,73 @@ namespace Opc.Ua.Wot
             return term is not null && s_terms.Contains(term);
         }
 
+        /// <summary>
+        /// Determines whether an IRI is one a scoped <c>@context</c> of this
+        /// Binding mints under a short member name (WoT Binding Section 7).
+        /// </summary>
+        /// <remarks>
+        /// The <c>uav:engineeringUnits</c>, <c>uav:instrumentRange</c>,
+        /// <c>uav:nodes</c> and <c>uav:nodeSet</c> objects carry members
+        /// written unprefixed - <c>namespaceUri</c>, <c>minimum</c>,
+        /// <c>profileVersion</c>, <c>sha256</c> and so on - that expand to
+        /// vocabulary IRIs of their own. They are terms of this Binding exactly
+        /// as the prefixed ones are, and the ontology declares them, but a
+        /// document never spells them with the <c>uav:</c> prefix. They are
+        /// therefore kept out of <see cref="IsKnownTerm"/>, which answers for a
+        /// member name a document actually writes.
+        /// </remarks>
+        /// <param name="term">The minted IRI, in <c>uav:</c> compact form.</param>
+        /// <returns><c>true</c> when a scoped context mints the IRI.</returns>
+        public static bool IsScopedTerm(string? term)
+        {
+            return term is not null && s_scopedTerms.Contains(term);
+        }
+
+        /// <summary>
+        /// Every <c>uav:</c> IRI this revision's <c>@context</c> mints: the
+        /// terms a document spells with the prefix and the ones a scoped
+        /// context mints under a short member name (WoT Binding Section 7).
+        /// </summary>
+        public static ArrayOf<string> VocabularyTerms => s_vocabularyTerms;
+
+        /// <summary>
+        /// The <c>uav:</c> IRIs a scoped <c>@context</c> mints under a short
+        /// member name (WoT Binding Section 7).
+        /// </summary>
+        public static ArrayOf<string> ScopedTerms { get; } =
+        [
+            "uav:unitNamespaceUri",
+            "uav:unitId",
+            "uav:unitDisplayName",
+            "uav:unitDisplayNames",
+            "uav:unitDescription",
+            "uav:unitDescriptions",
+            "uav:rangeLow",
+            "uav:rangeHigh",
+            "uav:profileVersion",
+            "uav:contentType",
+            "uav:encoding",
+            "uav:sha256",
+            "uav:data"
+        ];
+
+        private static bool IsAsciiLetter(char value)
+        {
+            return value is (>= 'a' and <= 'z') or (>= 'A' and <= 'Z');
+        }
+
+        private static ArrayOf<string> BuildVocabularyTerms()
+        {
+            var all = new List<string>(s_terms.Count + ScopedTerms.Count);
+            all.AddRange(s_terms);
+            foreach (string scoped in ScopedTerms)
+            {
+                all.Add(scoped);
+            }
+            all.Sort(StringComparer.Ordinal);
+            return all.ToArray();
+        }
+
         private static bool TryGetRank(ArrayOf<string> order, string? value, out int rank)
         {
             if (value is not null)
@@ -511,13 +658,10 @@ namespace Opc.Ua.Wot
                 "uav:refId",
                 WotNodeSetConverter.InverseNameTerm,
                 WotNodeSetConverter.SymmetricTerm,
-                // Type annotations this implementation emits for a projected
-                // ReferenceType or DataType root. Section 5.2 names an
-                // annotation per NodeClass and the published context declares
-                // the five instance and type ones; these two complete the set
-                // for the two NodeClasses a NodeSet conversion also projects,
-                // and are recognized here so a document this library produces
-                // passes its own strict conformance.
+                // Section 5.2 - the two NodeClass annotations that complete the
+                // set. A ReferenceType and a DataType Node are projected by a
+                // Thing Model of their own, and Section 6.2.1 puts the two
+                // ReferenceType Attributes no link rel states on the same root.
                 "uav:referenceType",
                 "uav:dataType",
                 // Sections 6.4 and 6.4.1 - scaling, units and ranges.
@@ -592,5 +736,9 @@ namespace Opc.Ua.Wot
                 "uav:conditionAction",
                 "uav:actsOn"
             };
+
+        private static readonly HashSet<string> s_scopedTerms = BuildSet(ScopedTerms);
+
+        private static readonly ArrayOf<string> s_vocabularyTerms = BuildVocabularyTerms();
     }
 }

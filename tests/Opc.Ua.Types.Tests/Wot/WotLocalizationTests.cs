@@ -194,10 +194,10 @@ namespace Opc.Ua.Types.Tests.Wot
         }
 
         [Test]
-        public void ALocaleSetWithoutTheDefaultLocaleIsNotStatedInvalidly()
+        public void ALocaleSetWithoutTheDefaultLocaleIsStatedReadably()
         {
             UANodeSet source = CreateMultilingualNodeSet(
-                speedTitle: WotAnalogTestData.Text(("de", "Drehzahl"), ("fr", "Vitesse")));
+                speedTitle: WotAnalogTestData.Text(("fr", "Vitesse"), ("de", "Drehzahl")));
 
             using WotDocument document = WotNodeSetConverter.FromNodeSet(source);
 
@@ -205,16 +205,87 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.Multiple(() =>
             {
                 Assert.That(
-                    speed.TryGetProperty("titles", out _),
-                    Is.False,
-                    "Section 9.1.1 makes a plural member without the default " +
-                    "locale invalid, and no translation is invented in its place.");
-                Assert.That(speed.GetProperty("title").GetString(), Is.EqualTo("Drehzahl"));
-                Assert.That(
-                    document.RootElement.TryGetProperty("uav:nodes", out _),
+                    speed.TryGetProperty("titles", out JsonElement titles),
                     Is.True,
-                    "The remaining locale is reported through preservation.");
+                    "Section 9.1.1 makes the plural member authoritative, so every " +
+                    "locale the source carries is stated readably even where the " +
+                    "default locale is not among them.");
+                Assert.That(titles.GetProperty("de").GetString(), Is.EqualTo("Drehzahl"));
+                Assert.That(titles.GetProperty("fr").GetString(), Is.EqualTo("Vitesse"));
+                Assert.That(
+                    speed.GetProperty("title").GetString(),
+                    Is.EqualTo("Drehzahl"),
+                    "'de' sorts before 'fr' by Unicode code point, so the singular " +
+                    "member carries it as a display fallback that asserts no locale - " +
+                    "and not the entry that happened to come first in the source.");
             });
+        }
+
+        [Test]
+        public void ALocaleSetWithoutTheDefaultLocaleNeedsNoStructuredFallback()
+        {
+            UANodeSet source = CreateMultilingualNodeSet(
+                speedTitle: WotAnalogTestData.Text(("de", "Drehzahl"), ("fr", "Vitesse")));
+
+            using WotDocument document = WotNodeSetConverter.FromNodeSet(source);
+
+            Assert.That(
+                document.RootElement.TryGetProperty("uav:nodes", out _),
+                Is.False,
+                "Section 9.2: a LocalizedText whose locales do not include the " +
+                "document's default locale is carried in full by the plural member, " +
+                "so it is an ordinary document rather than an exceptional one.");
+            UANodeSet restored = WotNodeSetConverter.ToNodeSet(document);
+            Assert.That(
+                NodeSetComparer.CompareEquivalent(
+                    source, restored, new WotNodeSetConverterOptions()).AreEquivalent,
+                Is.True);
+        }
+
+        [Test]
+        public void ALocaleSetWithoutTheDefaultLocaleIsValidAgainstTheBinding()
+        {
+            using WotDocument document = WotUnitsAndRangesTests.ParseThingModel(
+                "\"title\":\"Pumpendrehzahl\"," +
+                "\"titles\":{\"de\":\"Pumpendrehzahl\",\"fr\":\"Vitesse de la pompe\"}");
+
+            WotConversionResult<UANodeSet> result = WotNodeSetConverter.ToNodeSetResult(
+                document,
+                new WotNodeSetConverterOptions
+                {
+                    ConformanceMode = WotConformanceMode.Strict
+                });
+
+            Assert.That(
+                result.Diagnostics.Any(
+                    d => d.Code == WotDiagnosticCode.InvalidLocalizedText),
+                Is.False,
+                "Requiring the default locale would make the commonest real NodeSet - " +
+                "one authored in the plant's language - unrepresentable readably " +
+                "(Section 9.1.1). " +
+                string.Join("; ", result.Diagnostics.Select(d => d.Message)));
+        }
+
+        [Test]
+        public void ASingularMemberThatIsNotTheCodePointFirstFallbackIsReported()
+        {
+            using WotDocument document = WotUnitsAndRangesTests.ParseThingModel(
+                "\"title\":\"Vitesse de la pompe\"," +
+                "\"titles\":{\"de\":\"Pumpendrehzahl\",\"fr\":\"Vitesse de la pompe\"}");
+
+            WotConversionResult<UANodeSet> result = WotNodeSetConverter.ToNodeSetResult(
+                document,
+                new WotNodeSetConverterOptions
+                {
+                    ConformanceMode = WotConformanceMode.Strict
+                });
+
+            Assert.That(
+                result.Diagnostics.Any(
+                    d => d.Code == WotDiagnosticCode.InvalidLocalizedText),
+                Is.True,
+                "The fallback is the code-point-first entry and not an arbitrary one, " +
+                "or two consumers would present different text from one document.");
         }
 
         [Test]

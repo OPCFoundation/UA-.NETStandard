@@ -266,24 +266,68 @@ namespace Opc.Ua.Types.Tests.Wot
         }
 
         [Test]
-        public void UnimplementedRevisionIsAcceptedPermissivelyAndReportedStrictly()
+        public void UnimplementedRevisionIsUnsupportedForAConsumerAndInvalidForAnAuthor()
         {
             WotConversionResult<UANodeSet> permissive = Convert("\"uav:bindingVersion\":\"9.9\"");
             WotConversionResult<UANodeSet> strict =
                 Convert("\"uav:bindingVersion\":\"9.9\"", Strict());
+            WotConversionResult<UANodeSet> authoring =
+                Convert("\"uav:bindingVersion\":\"9.9\"", Authoring());
 
             Assert.Multiple(() =>
             {
                 Assert.That(
                     permissive.Diagnostics.Any(d =>
-                        d.Code == WotDiagnosticCode.InvalidBindingVersion),
+                        d.Severity == WotDiagnosticSeverity.Error),
                     Is.False,
                     "Section 4.1 forbids rejecting a document for declaring an unimplemented " +
-                    "revision.");
+                    "revision. " + Describe(permissive));
                 Assert.That(
-                    strict.Diagnostics.Any(d => d.Code == WotDiagnosticCode.InvalidBindingVersion),
+                    permissive.Diagnostics.Any(d =>
+                        d.Code == WotDiagnosticCode.UnsupportedBindingRevision &&
+                        d.Severity == WotDiagnosticSeverity.Warning),
                     Is.True,
+                    "A consumer reports the value as unsupported rather than invalid. " +
+                    Describe(permissive));
+                Assert.That(
+                    strict.Diagnostics.Any(d => d.Severity == WotDiagnosticSeverity.Error),
+                    Is.False,
+                    "Strict conformance reports unknown terms; it is still a consumer, and a " +
+                    "syntactically valid future revision is not an error on its own. " +
                     Describe(strict));
+                Assert.That(
+                    authoring.Diagnostics.Any(d =>
+                        d.Code == WotDiagnosticCode.UnsupportedBindingRevision &&
+                        d.Severity == WotDiagnosticSeverity.Error),
+                    Is.True,
+                    "An authoring validator holds a document to a published revision. " +
+                    Describe(authoring));
+            });
+        }
+
+        [Test]
+        public void BothPublishedRevisionsAreAccepted()
+        {
+            WotConversionResult<UANodeSet> previous =
+                Convert("\"uav:bindingVersion\":\"1.0\"", Authoring());
+            WotConversionResult<UANodeSet> current =
+                Convert("\"uav:bindingVersion\":\"1.1\"", Authoring());
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    WotBindingConformance.SupportedRevisions.ToArray(),
+                    Is.EqualTo(new[] { "1.0", "1.1" }).AsCollection);
+                Assert.That(
+                    previous.Diagnostics.Any(d =>
+                        d.Code == WotDiagnosticCode.UnsupportedBindingRevision),
+                    Is.False,
+                    Describe(previous));
+                Assert.That(
+                    current.Diagnostics.Any(d =>
+                        d.Code == WotDiagnosticCode.UnsupportedBindingRevision),
+                    Is.False,
+                    Describe(current));
             });
         }
 
@@ -334,13 +378,45 @@ namespace Opc.Ua.Types.Tests.Wot
         }
 
         [Test]
-        public void UnknownProfileNameIsRejected()
+        public void UnknownProfileNameIsUnrecognizedForAConsumerAndInvalidForAnAuthor()
         {
-            WotConversionResult<UANodeSet> result = Convert("\"uav:profile\":[\"WoT-Wizard\"]");
+            WotConversionResult<UANodeSet> consumer = Convert("\"uav:profile\":[\"WoT-Wizard\"]");
+            WotConversionResult<UANodeSet> authoring =
+                Convert("\"uav:profile\":[\"WoT-Wizard\"]", Authoring());
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    consumer.Diagnostics.Any(d => d.Severity == WotDiagnosticSeverity.Error),
+                    Is.False,
+                    "A later revision defines further units, so a consumer that rejected the " +
+                    "claim would refuse a document it can otherwise read. " + Describe(consumer));
+                Assert.That(
+                    consumer.Diagnostics.Any(d =>
+                        d.Code == WotDiagnosticCode.UnrecognizedConformanceClaim &&
+                        d.Severity == WotDiagnosticSeverity.Warning),
+                    Is.True,
+                    Describe(consumer));
+                Assert.That(
+                    authoring.Diagnostics.Any(d =>
+                        d.Code == WotDiagnosticCode.UnrecognizedConformanceClaim &&
+                        d.Severity == WotDiagnosticSeverity.Error),
+                    Is.True,
+                    Describe(authoring));
+            });
+        }
+
+        [Test]
+        public void MalformedProfileNameIsRejectedInEveryMode()
+        {
+            WotConversionResult<UANodeSet> result = Convert("\"uav:profile\":[\"Wizard\"]");
 
             Assert.That(
-                result.Diagnostics.Any(d => d.Code == WotDiagnosticCode.InvalidConformanceClaim),
+                result.Diagnostics.Any(d =>
+                    d.Code == WotDiagnosticCode.InvalidConformanceClaim &&
+                    d.Severity == WotDiagnosticSeverity.Error),
                 Is.True,
+                "The syntactic rule is what a consumer enforces, and it enforces it always. " +
                 Describe(result));
         }
 
@@ -770,6 +846,20 @@ namespace Opc.Ua.Types.Tests.Wot
             return new WotNodeSetConverterOptions
             {
                 ConformanceMode = WotConformanceMode.Strict
+            };
+        }
+
+        /// <summary>
+        /// Strict conformance plus the authoring rule of WoT Binding
+        /// Section 4.1, which is what a tool that writes a document against a
+        /// published revision holds itself to.
+        /// </summary>
+        private static WotNodeSetConverterOptions Authoring()
+        {
+            return new WotNodeSetConverterOptions
+            {
+                ConformanceMode = WotConformanceMode.Strict,
+                AuthoringValidation = true
             };
         }
 

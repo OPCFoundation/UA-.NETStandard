@@ -135,6 +135,29 @@ namespace Opc.Ua.Wot
         public WotConformanceMode ConformanceMode { get; set; } = WotConformanceMode.Permissive;
 
         /// <summary>
+        /// Gets or sets whether the document is being validated as one
+        /// <em>authored</em> against a published revision of this Binding,
+        /// rather than read as one a consumer did not write
+        /// (WoT Binding Section 4.1). The default is <c>false</c>, the consumer
+        /// rule.
+        /// </summary>
+        /// <remarks>
+        /// Section 4.1 states the two checks side by side and makes them
+        /// deliberately different. An author names a revision this Binding
+        /// publishes and only conformance units Section 11 defines, so an
+        /// authoring validator reports anything else as an error. A consumer
+        /// applies the syntactic rule alone: a well-formed revision it does not
+        /// implement is <em>unsupported</em> and a claim it does not know is
+        /// <em>unrecognized</em>, neither is a reason to reject the document,
+        /// and both are preserved unchanged. A consumer that rejected such a
+        /// document would be refusing to read one that is syntactically valid,
+        /// whose known terms it understands and whose unknown terms it is
+        /// already required to carry - which is the failure that makes a
+        /// vocabulary unextendable.
+        /// </remarks>
+        public bool AuthoringValidation { get; set; }
+
+        /// <summary>
         /// Gets or sets the WoT Binding Section 11 conformance units and
         /// profiles a document is required to claim through <c>uav:profile</c>.
         /// Empty by default, which requires no claim at all. Only

@@ -285,6 +285,13 @@ namespace Opc.Ua.Wot
                     WriteContext(writer, nodeSet, documentLocale);
                     bool rootIsEventType = IsEventTypeRoot(root, nodeSet);
                     WriteRootType(writer, root, rootIsEventType);
+
+                    // Section 4.1: a tool that generates a document against
+                    // this revision shall state which revision it emitted. A
+                    // generator, unlike a hand author, always knows.
+                    writer.WriteString(
+                        WotBindingConformance.BindingVersionTerm,
+                        WotBindingConformance.CurrentRevision);
                     if (explicitTitle)
                     {
                         writer.WriteString("title", resolvedTitle);
@@ -1224,7 +1231,7 @@ namespace Opc.Ua.Wot
 
             // Sections 6.4 and 6.4.1: the engineering unit, its authority and
             // identity, and the two ranges that say what the value means.
-            WriteAnalogFacets(writer, analogFacets);
+            WriteAnalogFacets(writer, analogFacets, defaultLocale);
             WriteEngineeringUnits(writer, variable, defaultLocale);
 
             bool readable = (variable.AccessLevel & AccessLevelCurrentRead) != 0;

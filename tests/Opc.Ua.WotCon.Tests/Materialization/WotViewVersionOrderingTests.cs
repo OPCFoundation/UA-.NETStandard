@@ -32,6 +32,7 @@ using System;
 using System.Collections.Generic;
 using System.Text;
 using NUnit.Framework;
+using Opc.Ua.Wot;
 using Opc.Ua.WotCon.Server.Materialization;
 
 namespace Opc.Ua.WotCon.Tests.Materialization

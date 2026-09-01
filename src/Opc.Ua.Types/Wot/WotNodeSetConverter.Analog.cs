@@ -264,13 +264,18 @@ namespace Opc.Ua.Wot
         /// <c>unit</c> is the engineering unit the source states, taken from
         /// the <c>EUInformation</c> DisplayName and never from a quantity kind:
         /// Section 6.4 keeps quantity kinds in QUDT precisely so the two cannot
-        /// disagree. <c>minimum</c> and <c>maximum</c> carry the EURange, which
+        /// disagree. The locale it is taken in is the document's own default
+        /// locale, the same one the <c>displayName</c> of Section 6.4.1 is
+        /// written in, so a multi-locale unit states one text in both places
+        /// instead of falling back to preservation because they disagree.
+        /// <c>minimum</c> and <c>maximum</c> carry the EURange, which
         /// W3C Thing Description 1.1 already defines as both the expected
         /// interval and a validation constraint.
         /// </remarks>
         private static void WriteAnalogFacets(
             Utf8JsonWriter writer,
-            WotAnalogFacets? facets)
+            WotAnalogFacets? facets,
+            string defaultLocale)
         {
             if (facets is null)
             {
@@ -278,7 +283,7 @@ namespace Opc.Ua.Wot
             }
             if (facets.Units is { } units)
             {
-                string? display = FirstText(units.DisplayName);
+                string? display = SelectLocalizedValue(units.DisplayName, defaultLocale);
                 if (!string.IsNullOrEmpty(display))
                 {
                     writer.WriteString(UnitMember, display);
