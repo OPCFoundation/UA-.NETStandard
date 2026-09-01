@@ -72,17 +72,22 @@ namespace Opc.Ua.Server
         // Serializes every mutation of the RoleSet subtree — materializing a
         // role and dropping one both rewrite the RoleSet's children and
         // references, which are not thread-safe collections.
-        //
-        // CA2213: deliberately not disposed. A RoleAdded event can still have a
-        // materialization queued on this semaphore when the binding is torn
-        // down, and disposing it under a pending waiter throws on a background
-        // thread. SemaphoreSlim holds no unmanaged resource here because
-        // AvailableWaitHandle is never touched.
-#pragma warning disable CA2213
         private readonly SemaphoreSlim m_roleSetLock = new(1, 1);
-#pragma warning restore CA2213
+
+        // Cancelled by Dispose so waiters queued on m_roleSetLock leave the
+        // queue before the semaphore is released: SemaphoreSlim.Dispose does
+        // not wake its waiters, so a queued materialization would otherwise
+        // hang for the lifetime of the process.
+        private readonly CancellationTokenSource m_shutdown = new();
+
         private RoleSetState? m_roleSet;
-        private bool m_disposed;
+        private volatile bool m_disposed;
+
+        /// <summary>
+        /// How long <see cref="Dispose"/> waits for an address-space mutation
+        /// that is already in flight before it releases the gate anyway.
+        /// </summary>
+        private static readonly TimeSpan s_disposeDrainTimeout = TimeSpan.FromSeconds(5);
 
         private RoleStateBinding(
             AsyncCustomNodeManager nodeManager,
@@ -175,6 +180,63 @@ namespace Opc.Ua.Server
             }
             m_disposed = true;
             m_roleManager.RoleConfigurationChanged -= OnRoleConfigurationChanged;
+
+            // Turn away everything queued on the gate, then wait out whoever
+            // holds it so the address-space mutation in flight completes before
+            // the primitives go away. New callers are already refused by
+            // m_disposed and by the cancelled token.
+            m_shutdown.Cancel();
+            if (m_roleSetLock.Wait(s_disposeDrainTimeout))
+            {
+                m_roleSetLock.Release();
+            }
+            m_roleSetLock.Dispose();
+            m_shutdown.Dispose();
+        }
+
+        /// <summary>
+        /// Acquires the gate serializing RoleSet subtree mutations.
+        /// </summary>
+        /// <returns>
+        /// <c>false</c> when the binding is being torn down, in which case the
+        /// caller must leave the address space alone. The caller's own
+        /// cancellation still surfaces as <see cref="OperationCanceledException"/>.
+        /// </returns>
+        private async ValueTask<bool> TryEnterRoleSetAsync(CancellationToken cancellationToken)
+        {
+            if (m_disposed)
+            {
+                return false;
+            }
+
+            using var linked = CancellationTokenSource.CreateLinkedTokenSource(
+                cancellationToken, m_shutdown.Token);
+            try
+            {
+                await m_roleSetLock.WaitAsync(linked.Token).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException) when (m_shutdown.IsCancellationRequested)
+            {
+                // Torn down while this call sat in the queue.
+                return false;
+            }
+            catch (ObjectDisposedException)
+            {
+                return false;
+            }
+            return true;
+        }
+
+        private void ExitRoleSet()
+        {
+            try
+            {
+                m_roleSetLock.Release();
+            }
+            catch (ObjectDisposedException)
+            {
+                // Dispose drained the gate while this operation was running.
+            }
         }
 
         /// <summary>
@@ -572,11 +634,6 @@ namespace Opc.Ua.Server
             }
         }
 
-        private bool IsBound()
-        {
-            return !m_disposed && m_roleSet != null;
-        }
-
         private static ServiceResult NotBoundResult()
         {
             return new ServiceResult(StatusCodes.BadInvalidState,
@@ -626,15 +683,14 @@ namespace Opc.Ua.Server
                 return new ServiceResult(StatusCodes.BadNodeIdInvalid,
                     new LocalizedText("The role manager did not allocate a NodeId."));
             }
-            if (!IsBound())
+            if (!await TryEnterRoleSetAsync(cancellationToken).ConfigureAwait(false))
             {
                 return NotBoundResult();
             }
 
-            await m_roleSetLock.WaitAsync(cancellationToken).ConfigureAwait(false);
             try
             {
-                // Dispose may have won the race for the lock.
+                // Dispose may have won the race for the gate.
                 RoleSetState? roleSet = m_disposed ? null : m_roleSet;
                 if (roleSet == null)
                 {
@@ -689,7 +745,7 @@ namespace Opc.Ua.Server
             }
             finally
             {
-                m_roleSetLock.Release();
+                ExitRoleSet();
             }
         }
 
@@ -925,17 +981,22 @@ namespace Opc.Ua.Server
             NodeId roleNodeId,
             CancellationToken cancellationToken)
         {
+            // Drop the binding bookkeeping first so any concurrent
+            // RoleConfigurationChanged listener walks the new state.
+            m_boundRoles.TryRemove(roleNodeId, out _);
+
             // Deleting the node rewrites the RoleSet's children and references,
             // so it has to be serialized against materialization: otherwise a
             // concurrent AddRole and RemoveRole mutate those collections from
-            // two threads.
-            await m_roleSetLock.WaitAsync(cancellationToken).ConfigureAwait(false);
+            // two threads. If the binding is going away there is no address
+            // space left to tidy up.
+            if (!await TryEnterRoleSetAsync(cancellationToken).ConfigureAwait(false))
+            {
+                return;
+            }
+
             try
             {
-                // Drop the binding bookkeeping first so any concurrent
-                // RoleConfigurationChanged listener walks the new state.
-                m_boundRoles.TryRemove(roleNodeId, out _);
-
                 await m_nodeManager.DeleteNodeAsync(
                         m_nodeManager.SystemContext,
                         roleNodeId,
@@ -944,7 +1005,7 @@ namespace Opc.Ua.Server
             }
             finally
             {
-                m_roleSetLock.Release();
+                ExitRoleSet();
             }
         }
 

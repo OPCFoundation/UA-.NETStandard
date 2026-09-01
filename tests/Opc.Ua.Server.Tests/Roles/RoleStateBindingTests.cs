@@ -1107,7 +1107,7 @@ namespace Opc.Ua.Server.Tests.Roles
             {
                 newRoleId = m_fixedNodeId;
                 m_roles[m_fixedNodeId] = new RoleEntry(
-                    m_fixedNodeId, roleName, defaultNamespaceIndex, namespaceUri,
+                    m_fixedNodeId, roleName, namespaceUri,
                     isReserved: false, isWellKnown: false, [], [], true, [], true, false);
                 RoleConfigurationChanged?.Invoke(this,
                     new RoleConfigurationChangedEventArgs(

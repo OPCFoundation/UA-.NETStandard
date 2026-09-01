@@ -545,22 +545,22 @@ namespace Opc.Ua.Server
             // server-assigned, and counting up from i=1 in a namespace owned by
             // some other NodeManager would hand out identifiers that already
             // belong to that manager's model.
-            ushort browseNamespaceIndex;
+            //
+            // Only the URI is kept. An index is meaningless outside the table it
+            // came from, and this one need not be the server's — consumers
+            // resolve the URI against the table they are working with.
             string? browseNamespaceUri;
             if (!useOpcUaNamespace)
             {
-                int idx = namespaces.GetIndex(namespaceUri!);
-                if (idx is < 0 or > ushort.MaxValue)
+                if (namespaces.GetIndex(namespaceUri!) < 0)
                 {
                     return new ServiceResult(StatusCodes.BadInvalidArgument,
                         new LocalizedText($"Namespace URI '{namespaceUri}' is not registered."));
                 }
-                browseNamespaceIndex = (ushort)idx;
                 browseNamespaceUri = namespaceUri;
             }
             else if (wellKnownId != null)
             {
-                browseNamespaceIndex = 0;
                 browseNamespaceUri = Ua.Namespaces.OpcUa;
             }
             else
@@ -568,7 +568,6 @@ namespace Opc.Ua.Server
                 // "If empty the Server chooses a namespace" — use the one the
                 // NodeId is allocated in rather than ns=0, whose BrowseNames are
                 // reserved for names the OPC UA specification defines.
-                browseNamespaceIndex = defaultNamespaceIndex;
                 browseNamespaceUri = namespaces.GetString(defaultNamespaceIndex);
             }
 
@@ -599,7 +598,7 @@ namespace Opc.Ua.Server
                 // Per §4.2.2: initial values of ApplicationsExclude/EndpointsExclude
                 // shall be TRUE on newly created roles when the properties exist.
                 m_roles[allocated] = new MutableRole(allocated, roleName,
-                    browseNamespaceIndex, browseNamespaceUri,
+                    browseNamespaceUri,
                     isReserved: false, isWellKnown: wellKnownId != null)
                 {
                     ApplicationsExclude = true,
@@ -896,7 +895,7 @@ namespace Opc.Ua.Server
 
         private MutableRole AddBuiltInRole(NodeId roleId, string browseName, bool isReserved)
         {
-            var role = new MutableRole(roleId, browseName, roleId.NamespaceIndex,
+            var role = new MutableRole(roleId, browseName,
                 Ua.Namespaces.OpcUa, isReserved: isReserved, isWellKnown: true);
             m_roles[roleId] = role;
             m_browseNameIndex[browseName] = roleId;
@@ -1005,12 +1004,11 @@ namespace Opc.Ua.Server
         /// </summary>
         private sealed class MutableRole
         {
-            public MutableRole(NodeId roleId, string browseName, ushort namespaceIndex,
+            public MutableRole(NodeId roleId, string browseName,
                 string? namespaceUri, bool isReserved, bool isWellKnown)
             {
                 RoleId = roleId;
                 BrowseName = browseName;
-                NamespaceIndex = namespaceIndex;
                 NamespaceUri = namespaceUri;
                 IsReserved = isReserved;
                 IsWellKnown = isWellKnown;
@@ -1021,7 +1019,6 @@ namespace Opc.Ua.Server
 
             public NodeId RoleId { get; }
             public string BrowseName { get; }
-            public ushort NamespaceIndex { get; }
             public string? NamespaceUri { get; }
             public bool IsReserved { get; }
             public bool IsWellKnown { get; }
@@ -1037,7 +1034,6 @@ namespace Opc.Ua.Server
                 return new RoleEntry(
                     RoleId,
                     BrowseName,
-                    NamespaceIndex,
                     NamespaceUri,
                     IsReserved,
                     IsWellKnown,

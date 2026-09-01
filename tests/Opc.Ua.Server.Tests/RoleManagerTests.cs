@@ -452,9 +452,8 @@ namespace Opc.Ua.Server.Tests
 
             RoleEntry? entry = manager.GetRole(newId);
             Assert.That(entry, Is.Not.Null);
-            Assert.That(entry!.NamespaceIndex, Is.EqualTo(1),
+            Assert.That(entry!.NamespaceUri, Is.EqualTo("http://example.org/custom"),
                 "The BrowseName must stay qualified by the requested NamespaceUri.");
-            Assert.That(entry.NamespaceUri, Is.EqualTo("http://example.org/custom"));
         }
 
         [Test]

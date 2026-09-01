@@ -45,7 +45,6 @@ namespace Opc.Ua.Server
         internal RoleEntry(
             NodeId roleId,
             string? browseName,
-            ushort namespaceIndex,
             string? namespaceUri,
             bool isReserved,
             bool isWellKnown,
@@ -58,7 +57,6 @@ namespace Opc.Ua.Server
         {
             RoleId = roleId;
             BrowseName = browseName;
-            NamespaceIndex = namespaceIndex;
             NamespaceUri = namespaceUri;
             IsReserved = isReserved;
             IsWellKnown = isWellKnown;
@@ -82,23 +80,19 @@ namespace Opc.Ua.Server
         public string? BrowseName { get; }
 
         /// <summary>
-        /// Namespace index qualifying the role's <see cref="BrowseName"/>,
-        /// resolved against the namespace table passed to
-        /// <see cref="IRoleManager.AddRole"/>.
+        /// Namespace URI qualifying the role's <see cref="BrowseName"/>, or
+        /// <c>null</c> when the manager did not record one.
         /// </summary>
         /// <remarks>
-        /// This is not necessarily the namespace index of <see cref="RoleId"/>.
         /// Per Part 18 §4.2.2 the <c>NamespaceUri</c> argument of <c>AddRole</c>
         /// qualifies the BrowseName of the new role while its NodeId is
-        /// server-assigned. Use <see cref="NamespaceUri"/> when the index has to
-        /// be resolved against a different namespace table.
+        /// server-assigned, so this is not necessarily the namespace of
+        /// <see cref="RoleId"/>. The URI is kept rather than an index because
+        /// an index is only meaningful against the namespace table it was
+        /// resolved from: callers resolve it against the table they are working
+        /// with, which is the server's by the time a role reaches the address
+        /// space.
         /// </remarks>
-        public ushort NamespaceIndex { get; }
-
-        /// <summary>
-        /// Namespace URI qualifying the role's <see cref="BrowseName"/>, or
-        /// <c>null</c> when the manager only tracks the index.
-        /// </summary>
         public string? NamespaceUri { get; }
 
         /// <summary>
