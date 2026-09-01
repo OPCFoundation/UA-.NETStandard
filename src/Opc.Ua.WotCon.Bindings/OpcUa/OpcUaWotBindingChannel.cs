@@ -346,7 +346,7 @@ namespace Opc.Ua.WotCon.Bindings.OpcUa
                     AttributeId = clause.IsConditionIdSelection
                         ? Attributes.NodeId
                         : Attributes.Value,
-                    BrowsePath = ResolveBrowsePath(clause.BrowsePath)
+                    BrowsePath = ResolveBrowsePath(clause)
                 };
                 filter.SelectClauses = filter.SelectClauses.AddItem(operand);
             }
@@ -357,19 +357,24 @@ namespace Opc.Ua.WotCon.Bindings.OpcUa
         /// Resolves a select-clause browse path into qualified names against
         /// the connected session's namespace table.
         /// </summary>
+        /// <remarks>
+        /// The clause's parsed elements are resolved rather than the joined
+        /// string, so a NamespaceUri that contains '/' - which every http
+        /// NamespaceUri does - stays one element (WoT Binding Section 5.1.3).
+        /// </remarks>
         /// <exception cref="ServiceResultException">
         /// Thrown when a path element names a NamespaceUri the Server's
         /// namespace table does not hold.
         /// </exception>
-        private ArrayOf<QualifiedName> ResolveBrowsePath(string browsePath)
+        private ArrayOf<QualifiedName> ResolveBrowsePath(WotEventSelectClause clause)
         {
-            if (browsePath.Length == 0)
+            ArrayOf<string> elements = clause.PathElements;
+            if (elements.Count == 0)
             {
                 return ArrayOf<QualifiedName>.Empty;
             }
-            string[] elements = browsePath.Split('/');
-            var names = new QualifiedName[elements.Length];
-            for (int ii = 0; ii < elements.Length; ii++)
+            var names = new QualifiedName[elements.Count];
+            for (int ii = 0; ii < elements.Count; ii++)
             {
                 names[ii] = ResolveBrowseName(elements[ii]);
             }

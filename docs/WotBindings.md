@@ -243,6 +243,18 @@ What the runtime does with it:
   `nsu=<NamespaceUri>;Temperature` form using the prefixes the document's `@context`
   binds (`WotBindingPlanContext.NamespacePrefixes`). An unbound prefix fails the form
   with `UnboundNamespacePrefix` rather than guessing a namespace.
+* A browse path is parsed into **elements** once — `WotEventSelectClause.PathElements`,
+  produced by `WotEventSelectClauses.SplitBrowsePath` — and every rule below is stated
+  over those elements rather than over the joined string. A NamespaceUri routinely
+  contains `/`, which is also the path separator, so only the separators that follow
+  the delimiter ending a NamespaceUri (`;` for the OPC 10000-6 `nsu=` form, `}` for the
+  OPC 10000-4 `{...}` form) separate elements. `nsu=http://example.org/pump/;Temperature`
+  is therefore **one** element whose member is `data.Temperature`, and not five elements
+  nesting the field under `nsu=http:`, an empty member and `example.org`. Escaping does
+  not solve this — OPC 10000-6 §5.3.1.11 escapes only `;` and `%` — so the elements, and
+  never the joined string, are what the member path, the field name, the collision check,
+  the `SimpleAttributeOperand` browse path and the nested `data` object are all built
+  from. `WotEventSelectClauses.JoinBrowsePath` is the exact inverse.
 * `OpcUaWotBindingChannel` materializes each clause into a `SimpleAttributeOperand`
   against the connected session's namespace table. The **empty** browse path selects the
   `NodeId` Attribute — the OPC 10000-9 `ConditionId` idiom — and every other clause

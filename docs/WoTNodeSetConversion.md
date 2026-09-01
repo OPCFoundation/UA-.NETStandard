@@ -669,4 +669,3 @@ Two neighbouring subjects are documented elsewhere so they are stated once:
   `AssetRegistry` POCO reader) is a separate code path governed by that
   specification, not by the WoT Binding draft. Nothing on this page describes
   it. See [The 1.02 asset surface](WoTConnectivity.md#126-the-102-asset-surface).
-

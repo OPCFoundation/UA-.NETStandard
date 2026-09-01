@@ -78,10 +78,27 @@ namespace Opc.Ua.WotCon.Bindings.Tests
         private const string InvalidNodeId = "INVALID-NOT-A-NODE";
 
         /// <summary>
-        /// The ordinal-sorted member names that the authored select clauses of the
-        /// <c>selectclauses</c> affordance must yield, and nothing else.
+        /// The ordinal-sorted transport-index keys that the authored select
+        /// clauses of the <c>selectclauses</c> affordance must yield, and
+        /// nothing else. The key is the joined browse path the document
+        /// authored, so the NamespaceUri-qualified clause appears in full: its
+        /// URI carries '/' but the path has one element, not four.
         /// </summary>
         private static readonly string[] s_authoredSelectClauseFields =
+        [
+            "ConditionId",
+            "Message",
+            "SourceName",
+            "nsu=http://opcfoundation.org/UA/;Severity"
+        ];
+
+        /// <summary>
+        /// The ordinal-sorted <c>data</c> member names those same clauses
+        /// materialize into. A member name drops the namespace qualification,
+        /// so a URI slash never nests a field under a fragment of its own
+        /// NamespaceUri.
+        /// </summary>
+        private static readonly string[] s_authoredSelectClauseMembers =
         [
             "ConditionId", "Message", "Severity", "SourceName"
         ];
@@ -434,6 +451,16 @@ namespace Opc.Ua.WotCon.Bindings.Tests
                         Is.EqualTo(s_authoredSelectClauseFields),
                         "The authored list is complete: the documented default is replaced, " +
                         "not extended, and the empty path supplies the ConditionId member.");
+                    Assert.That(
+                        notification.Data.Members.Keys.OrderBy(k => k, StringComparer.Ordinal),
+                        Is.EqualTo(s_authoredSelectClauseMembers),
+                        "A NamespaceUri carrying '/' is one path element, so the field is " +
+                        "data.Severity and nothing is nested under 'nsu=http:', an empty " +
+                        "member and 'opcfoundation.org'.");
+                    Assert.That(
+                        notification.Data["Severity"]!.HasValue,
+                        Is.True,
+                        "The qualified clause fills a value member, not an object.");
                 }
             }
         }
@@ -498,7 +525,8 @@ namespace Opc.Ua.WotCon.Bindings.Tests
                 // ConditionId selection
                 "\"selectclauses\":{\"uav:isEvent\":true,\"uav:eventSelectClauses\":[" +
                 "{\"uav:typeDefinitionId\":\"i=2041\",\"uav:browsePath\":\"Message\"}," +
-                "{\"uav:typeDefinitionId\":\"i=2041\",\"uav:browsePath\":\"Severity\"}," +
+                "{\"uav:typeDefinitionId\":\"i=2041\"," +
+                "\"uav:browsePath\":\"nsu=http://opcfoundation.org/UA/;Severity\"}," +
                 "{\"uav:typeDefinitionId\":\"i=2041\",\"uav:browsePath\":\"SourceName\"}," +
                 "{\"uav:typeDefinitionId\":\"i=2041\",\"uav:browsePath\":\"\"}]," +
                 "\"forms\":[" +

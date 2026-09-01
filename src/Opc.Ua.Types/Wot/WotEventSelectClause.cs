@@ -69,7 +69,8 @@ namespace Opc.Ua.Wot
             TypeDefinitionId = typeDefinitionId ??
                 throw new ArgumentNullException(nameof(typeDefinitionId));
             BrowsePath = browsePath ?? throw new ArgumentNullException(nameof(browsePath));
-            MemberPath = BuildMemberPath(BrowsePath);
+            PathElements = WotEventSelectClauses.SplitBrowsePath(BrowsePath);
+            MemberPath = BuildMemberPath(PathElements);
         }
 
         /// <summary>
@@ -91,6 +92,29 @@ namespace Opc.Ua.Wot
         /// (WoT Binding Section 6.1).
         /// </summary>
         public bool IsConditionIdSelection => BrowsePath.Length == 0;
+
+        /// <summary>
+        /// Gets <see cref="BrowsePath"/> as the elements it is made of, in
+        /// path order (WoT Binding Sections 5.1.3 and 6.1).
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// This, and never the joined string, is what every rule of Section 6.1
+        /// is stated over. An element may carry a NamespaceUri - the
+        /// <c>nsu=&lt;NamespaceUri&gt;;&lt;Name&gt;</c> form of OPC 10000-6 or
+        /// the <c>{&lt;NamespaceUri&gt;}&lt;Name&gt;</c> form of OPC 10000-4 -
+        /// and a NamespaceUri routinely contains '/', which is also the path
+        /// separator. Splitting the joined string on every '/' would therefore
+        /// tear <c>nsu=http://example.org/pump/;Temperature</c> into five
+        /// nonsense elements. The elements are parsed once here, where the
+        /// NamespaceUri is delimited by the <c>;</c> or <c>}</c> that ends it,
+        /// so a URI slash is never mistaken for a separator.
+        /// </para>
+        /// <para>
+        /// The empty path - the <c>ConditionId</c> idiom - has no elements.
+        /// </para>
+        /// </remarks>
+        public ArrayOf<string> PathElements { get; }
 
         /// <summary>
         /// Gets the <c>data</c> member path the clause materializes into
@@ -178,9 +202,9 @@ namespace Opc.Ua.Wot
             {
                 return string.Empty;
             }
-            string[] elements = BrowsePath.Split('/');
+            ArrayOf<string> elements = PathElements;
             var normalized = new StringBuilder();
-            for (int ii = 0; ii < elements.Length; ii++)
+            for (int ii = 0; ii < elements.Count; ii++)
             {
                 if (ii > 0)
                 {
@@ -220,15 +244,14 @@ namespace Opc.Ua.Wot
             return TypeDefinitionId + "#" + BrowsePath;
         }
 
-        private static ArrayOf<string> BuildMemberPath(string browsePath)
+        private static ArrayOf<string> BuildMemberPath(ArrayOf<string> elements)
         {
-            if (browsePath.Length == 0)
+            if (elements.Count == 0)
             {
                 return new[] { WotEventSelectClauses.ConditionIdFieldName };
             }
-            string[] elements = browsePath.Split('/');
-            var members = new List<string>(elements.Length + 1);
-            for (int ii = 0; ii < elements.Length; ii++)
+            var members = new List<string>(elements.Count + 1);
+            for (int ii = 0; ii < elements.Count; ii++)
             {
                 members.Add(WotEventSelectClauses.MemberName(elements[ii]));
             }
@@ -375,7 +398,7 @@ namespace Opc.Ua.Wot
                 WotEventSelectClause clause = clauses[ii];
                 string[] names = clause.IsConditionIdSelection
                     ? [ConditionIdFieldName]
-                    : SplitMemberNames(clause.BrowsePath);
+                    : SplitMemberNames(clause.PathElements);
                 basePaths.Add(names);
                 for (int length = 1; length < names.Length; length++)
                 {
@@ -543,15 +566,122 @@ namespace Opc.Ua.Wot
         }
 
         /// <summary>
+        /// Splits a select-clause browse path into the elements it is made of
+        /// (WoT Binding Sections 5.1.3 and 6.1).
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// A path element is separated from the next by '/', but an element may
+        /// carry the NamespaceUri that says which namespace declares it, in
+        /// either the <c>nsu=&lt;NamespaceUri&gt;;&lt;Name&gt;</c> form of
+        /// OPC 10000-6 or the <c>{&lt;NamespaceUri&gt;}&lt;Name&gt;</c> form of
+        /// OPC 10000-4, and a NamespaceUri routinely contains '/'. Only the
+        /// separators that follow the delimiter ending the NamespaceUri - the
+        /// <c>;</c> or the <c>}</c> - separate elements, so
+        /// <c>nsu=http://example.org/pump/;Temperature</c> is one element and
+        /// not five. Escaping the URI does not help: OPC 10000-6 §5.3.1.11
+        /// escapes only <c>;</c> and <c>%</c>, and '/' is a legal, unescaped
+        /// character of every http NamespaceUri this Binding meets.
+        /// </para>
+        /// <para>
+        /// A name never carries the separator, so the split is exact and the
+        /// elements round-trip through <see cref="JoinBrowsePath"/>. An empty
+        /// path yields no elements; an empty element is preserved, because it
+        /// is what the parser reports as a malformed path rather than silently
+        /// discards.
+        /// </para>
+        /// </remarks>
+        /// <param name="browsePath">The joined browse path.</param>
+        /// <returns>The path elements, in path order.</returns>
+        /// <exception cref="ArgumentNullException">
+        /// Thrown when <paramref name="browsePath"/> is <c>null</c>.
+        /// </exception>
+        public static ArrayOf<string> SplitBrowsePath(string browsePath)
+        {
+            if (browsePath is null)
+            {
+                throw new ArgumentNullException(nameof(browsePath));
+            }
+            if (browsePath.Length == 0)
+            {
+                return ArrayOf<string>.Empty;
+            }
+            var elements = new List<string>();
+            int start = 0;
+            while (true)
+            {
+                int separator = browsePath.IndexOf('/', SkipQualifier(browsePath, start));
+                if (separator < 0)
+                {
+                    elements.Add(browsePath.Substring(start));
+                    break;
+                }
+                elements.Add(browsePath.Substring(start, separator - start));
+                start = separator + 1;
+            }
+            return elements.ToArray();
+        }
+
+        /// <summary>
+        /// Joins path elements back into the browse path they came from, which
+        /// is the inverse of <see cref="SplitBrowsePath"/>.
+        /// </summary>
+        /// <param name="elements">The path elements, in path order.</param>
+        /// <returns>The joined browse path, empty when there are no elements.</returns>
+        public static string JoinBrowsePath(ArrayOf<string> elements)
+        {
+            if (elements.IsNull || elements.Count == 0)
+            {
+                return string.Empty;
+            }
+            var path = new StringBuilder();
+            for (int ii = 0; ii < elements.Count; ii++)
+            {
+                if (ii > 0)
+                {
+                    path.Append('/');
+                }
+                path.Append(elements[ii]);
+            }
+            return path.ToString();
+        }
+
+        /// <summary>
+        /// Gets the index at which the separator search for the element
+        /// starting at <paramref name="start"/> begins: past the NamespaceUri
+        /// the element carries, whose own '/' characters are not separators.
+        /// </summary>
+        private static int SkipQualifier(string browsePath, int start)
+        {
+            if (start >= browsePath.Length)
+            {
+                return start;
+            }
+            if (string.CompareOrdinal(
+                    browsePath, start, NamespaceUriPrefix, 0, NamespaceUriPrefix.Length) == 0)
+            {
+                // ';' terminates the NamespaceUri and is percent-escaped inside
+                // it, so the first one is the delimiter (OPC 10000-6 §5.3.1.11).
+                int delimiter = browsePath.IndexOf(';', start + NamespaceUriPrefix.Length);
+                return delimiter < 0 ? start : delimiter + 1;
+            }
+            if (browsePath[start] == '{')
+            {
+                int delimiter = browsePath.IndexOf('}', start + 1);
+                return delimiter < 0 ? start : delimiter + 1;
+            }
+            return start;
+        }
+
+        /// <summary>
         /// Splits a browse path into the <c>data</c> member names its elements
         /// materialize, dropping the namespace qualification that says where a
         /// field is declared (WoT Binding Section 6.1).
         /// </summary>
-        private static string[] SplitMemberNames(string browsePath)
+        private static string[] SplitMemberNames(ArrayOf<string> elements)
         {
-            string[] elements = browsePath.Split('/');
-            var names = new string[elements.Length];
-            for (int ii = 0; ii < elements.Length; ii++)
+            var names = new string[elements.Count];
+            for (int ii = 0; ii < elements.Count; ii++)
             {
                 names[ii] = MemberName(elements[ii]);
             }
@@ -882,26 +1012,36 @@ namespace Opc.Ua.Wot
                     "written explicitly for the ConditionId selection.";
                 return false;
             }
-            if (browsePath.Length > 0 && browsePath[0] == '/')
+            if (browsePath.Length > 0)
             {
-                error = $"The select-clause browse path '{browsePath}' is absolute; a " +
-                    "clause path is relative to the clause's " +
-                    $"{TypeDefinitionIdTerm}, which anchors it (Section 6.1).";
-                return false;
-            }
-            if (browsePath.Length > 0 &&
-                browsePath.Contains("//", StringComparison.Ordinal))
-            {
-                error = $"The select-clause browse path '{browsePath}' carries an empty " +
-                    "element; only the whole path may be empty, which is the ConditionId " +
-                    "selection (Section 6.1).";
-                return false;
-            }
-            if (browsePath.Length > 0 && browsePath[browsePath.Length - 1] == '/')
-            {
-                error = $"The select-clause browse path '{browsePath}' ends with a separator, " +
-                    "so its last element is empty (Section 6.1).";
-                return false;
+                // The rule is stated over the elements, not over the joined
+                // string: a NamespaceUri-qualified element legally carries '/'
+                // inside its URI, so 'nsu=http://example.org/pump/;Temperature'
+                // is one well-formed element and not a path with empty ones.
+                ArrayOf<string> elements = SplitBrowsePath(browsePath);
+                if (elements[0].Length == 0)
+                {
+                    error = $"The select-clause browse path '{browsePath}' is absolute; a " +
+                        "clause path is relative to the clause's " +
+                        $"{TypeDefinitionIdTerm}, which anchors it (Section 6.1).";
+                    return false;
+                }
+                if (elements[elements.Count - 1].Length == 0)
+                {
+                    error = $"The select-clause browse path '{browsePath}' ends with a " +
+                        "separator, so its last element is empty (Section 6.1).";
+                    return false;
+                }
+                for (int ii = 1; ii < elements.Count - 1; ii++)
+                {
+                    if (elements[ii].Length == 0)
+                    {
+                        error = $"The select-clause browse path '{browsePath}' carries an " +
+                            "empty element; only the whole path may be empty, which is the " +
+                            "ConditionId selection (Section 6.1).";
+                        return false;
+                    }
+                }
             }
 
             parsed = new WotEventSelectClause(typeDefinitionId!, browsePath);

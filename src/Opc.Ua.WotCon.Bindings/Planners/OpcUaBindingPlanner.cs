@@ -343,19 +343,24 @@ namespace Opc.Ua.WotCon.Bindings.Planners
                 error = string.Empty;
                 return true;
             }
-            string[] elements = clause.BrowsePath.Split('/');
+            // The clause carries its parsed elements, so a NamespaceUri that
+            // contains '/' - which every http NamespaceUri does - is rewritten
+            // as one element rather than torn apart by the path separator.
+            ArrayOf<string> parsed = clause.PathElements;
+            var elements = new string[parsed.Count];
             bool rewritten = false;
             for (int ii = 0; ii < elements.Length; ii++)
             {
-                if (!TryResolvePathElement(elements[ii], context, out string element, out error))
+                if (!TryResolvePathElement(parsed[ii], context, out string element, out error))
                 {
                     return false;
                 }
-                rewritten |= !string.Equals(element, elements[ii], StringComparison.Ordinal);
+                rewritten |= !string.Equals(element, parsed[ii], StringComparison.Ordinal);
                 elements[ii] = element;
             }
             resolved = rewritten
-                ? new WotEventSelectClause(clause.TypeDefinitionId, string.Join("/", elements))
+                ? new WotEventSelectClause(
+                    clause.TypeDefinitionId, WotEventSelectClauses.JoinBrowsePath(elements))
                 : clause;
             error = string.Empty;
             return true;
@@ -369,6 +374,10 @@ namespace Opc.Ua.WotCon.Bindings.Planners
         {
             resolved = element;
             error = string.Empty;
+            if (element.Length == 0)
+            {
+                return true;
+            }
             if (element.StartsWith("nsu=", StringComparison.Ordinal) || element[0] == '{')
             {
                 // Already NamespaceUri-qualified, in either the OPC 10000-6 or

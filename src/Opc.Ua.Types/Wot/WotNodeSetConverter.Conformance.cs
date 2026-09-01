@@ -553,7 +553,7 @@ namespace Opc.Ua.Wot
             {
                 return;
             }
-            foreach (string element in clause.BrowsePath.Split('/'))
+            foreach (string element in clause.PathElements)
             {
                 if (StartsWithNumericPrefix(element))
                 {

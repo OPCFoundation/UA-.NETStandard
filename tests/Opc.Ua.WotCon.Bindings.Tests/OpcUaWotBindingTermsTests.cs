@@ -118,6 +118,132 @@ namespace Opc.Ua.WotCon.Bindings.Tests
             });
         }
 
+        /// <summary>
+        /// The regression: a compact prefix bound to a NamespaceUri that ends
+        /// in '/' rewrites to 'nsu=http://example.org/pump/;Temperature'. That
+        /// is one path element, and every rule that follows - the member path,
+        /// the field name, the collision check - is stated over the elements
+        /// rather than over the joined string, so the URI's slashes are never
+        /// mistaken for the path separator.
+        /// </summary>
+        [Test]
+        public void ANamespaceUriEndingInASlashStaysOnePathElement()
+        {
+            var context = new WotBindingPlanContext(
+                namespacePrefixes: ImmutableDictionary<string, string>.Empty
+                    .Add("pump", "http://example.org/pump/"));
+
+            WotBindingCompilation result = CompileEvent(
+                "{\"uav:eventSelectClauses\":[" +
+                "{\"uav:typeDefinitionId\":\"i=2041\"," +
+                "\"uav:browsePath\":\"pump:Temperature\"}]}",
+                context);
+
+            Assert.That(result.IsSupported, Is.True, Describe(result));
+            WotEventSelectClause clause = result.Entries[0].EventSelection!.Clauses[0];
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    clause.BrowsePath,
+                    Is.EqualTo("nsu=http://example.org/pump/;Temperature"));
+                Assert.That(
+                    clause.PathElements.Count,
+                    Is.EqualTo(1),
+                    "A NamespaceUri slash is not a path separator.");
+                Assert.That(
+                    clause.FieldName,
+                    Is.EqualTo("Temperature"),
+                    "The field is named by the QualifiedName's name, never by ';Temperature'.");
+                Assert.That(
+                    WotEventSelectClauses.FormatMemberPath(clause.MemberPath),
+                    Is.EqualTo("Temperature"),
+                    "Nothing nests the field under 'nsu=http:', an empty member and " +
+                    "'example.org'.");
+            });
+        }
+
+        [Test]
+        public void ANestedPathOfSlashCarryingNamespacesResolvesElementByElement()
+        {
+            var context = new WotBindingPlanContext(
+                namespacePrefixes: ImmutableDictionary<string, string>.Empty
+                    .Add("pump", "http://example.org/pump/")
+                    .Add("site", "http://example.org/site/a/")
+                    .Add("legacy", "urn:example:pump"));
+
+            WotBindingCompilation result = CompileEvent(
+                "{\"uav:eventSelectClauses\":[" +
+                "{\"uav:typeDefinitionId\":\"i=2041\"," +
+                "\"uav:browsePath\":\"pump:Detail/site:Inner/Value\"}," +
+                "{\"uav:typeDefinitionId\":\"i=2041\"," +
+                "\"uav:browsePath\":\"legacy:Severity\"}," +
+                "{\"uav:typeDefinitionId\":\"i=2782\",\"uav:browsePath\":\"\"}]}",
+                context);
+
+            Assert.That(result.IsSupported, Is.True, Describe(result));
+            WotEventSelection selection = result.Entries[0].EventSelection!;
+            ArrayOf<ArrayOf<string>> members =
+                WotEventSelectClauses.GetMaterializedMemberPaths(selection.Clauses);
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    selection.Clauses[0].BrowsePath,
+                    Is.EqualTo("nsu=http://example.org/pump/;Detail/" +
+                        "nsu=http://example.org/site/a/;Inner/Value"));
+                Assert.That(
+                    selection.Clauses[0].PathElements.Count,
+                    Is.EqualTo(3),
+                    "Three elements, whatever the two NamespaceUris contain.");
+                Assert.That(
+                    WotEventSelectClauses.FormatMemberPath(members[0]),
+                    Is.EqualTo("Detail.Inner.Value"));
+                Assert.That(
+                    selection.Clauses[1].BrowsePath,
+                    Is.EqualTo("nsu=urn:example:pump;Severity"),
+                    "An existing urn: namespace keeps rewriting exactly as before.");
+                Assert.That(
+                    WotEventSelectClauses.FormatMemberPath(members[1]),
+                    Is.EqualTo("Severity"));
+                Assert.That(selection.Clauses[2].IsConditionIdSelection, Is.True);
+                Assert.That(
+                    selection.Clauses[2].PathElements.Count,
+                    Is.Zero,
+                    "The empty ConditionId path has no elements.");
+                Assert.That(
+                    WotEventSelectClauses.FormatMemberPath(members[2]),
+                    Is.EqualTo("ConditionId"));
+            });
+        }
+
+        [Test]
+        public void ASlashCarryingNamespaceAndABareNameStillMaterializeOneMember()
+        {
+            var context = new WotBindingPlanContext(
+                namespacePrefixes: ImmutableDictionary<string, string>.Empty
+                    .Add("pump", "http://example.org/pump/"));
+
+            WotBindingCompilation result = CompileEvent(
+                "{\"uav:eventSelectClauses\":[" +
+                "{\"uav:typeDefinitionId\":\"i=2041\",\"uav:browsePath\":\"Temperature\"}," +
+                "{\"uav:typeDefinitionId\":\"i=2041\"," +
+                "\"uav:browsePath\":\"pump:Temperature\"}]}",
+                context);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    result.Diagnostics.Any(d =>
+                        d.Code == WotBindingDiagnosticCode.EventSelectClauseInvalid),
+                    Is.True,
+                    "A member name drops the namespace qualification, so both clauses fill " +
+                    "data.Temperature however the namespace is spelled. " + Describe(result));
+                Assert.That(
+                    result.Entries.All(e => e.EventSelection is null),
+                    Is.True,
+                    "An invalid selection compiles to none.");
+            });
+        }
+
         [Test]
         public void APathElementNamespaceIsEscapedSoItSurvivesTheSeparator()
         {

@@ -55,6 +55,12 @@ namespace Opc.Ua.Types.Tests.Wot
         [TestCase("EnabledState/Id", "EnabledState.Id")]
         [TestCase("EnabledState/Name", "EnabledState.Name")]
         [TestCase("pump:Detail/pump:Inner/Value", "Detail.Inner.Value")]
+        [TestCase("nsu=http://example.org/pump/;Temperature", "Temperature")]
+        [TestCase("{http://example.org/pump/}Temperature", "Temperature")]
+        [TestCase("nsu=http://example.org/pump/;EnabledState", "EnabledState.Name")]
+        [TestCase(
+            "nsu=http://example.org/pump/;Detail/nsu=http://example.org/site/a/;Inner/Value",
+            "Detail.Inner.Value")]
         public void AClauseMaterializesIntoOneDataMember(string browsePath, string expected)
         {
             var clause = new WotEventSelectClause("i=2041", browsePath);
@@ -216,6 +222,171 @@ namespace Opc.Ua.Types.Tests.Wot
                 Assert.That(observed[ii], Is.EqualTo(observed[0]).AsCollection);
             }
             Assert.That(observed[0], Is.EqualTo(FieldNames()).AsCollection);
+        }
+
+        /// <summary>
+        /// A NamespaceUri routinely contains '/', which is also the browse-path
+        /// separator, so the path is split at the separators that follow the
+        /// delimiter ending a NamespaceUri and nowhere else.
+        /// </summary>
+        [TestCase("", new string[0])]
+        [TestCase("Severity", new[] { "Severity" })]
+        [TestCase("EnabledState/Id", new[] { "EnabledState", "Id" })]
+        [TestCase(
+            "nsu=http://example.org/pump/;Temperature",
+            new[] { "nsu=http://example.org/pump/;Temperature" })]
+        [TestCase(
+            "nsu=http://example.org/pump/;EnabledState/Id",
+            new[] { "nsu=http://example.org/pump/;EnabledState", "Id" })]
+        [TestCase(
+            "{http://example.org/pump/}Detail/{http://example.org/site/a/}Inner/Value",
+            new[]
+            {
+                "{http://example.org/pump/}Detail",
+                "{http://example.org/site/a/}Inner",
+                "Value"
+            })]
+        [TestCase(
+            "nsu=urn:example:pump;Detail/nsu=http://example.org/site/a/;Inner",
+            new[] { "nsu=urn:example:pump;Detail", "nsu=http://example.org/site/a/;Inner" })]
+        [TestCase("nsu=urn:example:a%3Bb;Temperature", new[] { "nsu=urn:example:a%3Bb;Temperature" })]
+        public void ABrowsePathSplitsAtSeparatorsAndNeverInsideANamespaceUri(
+            string browsePath, string[] expected)
+        {
+            ArrayOf<string> elements = WotEventSelectClauses.SplitBrowsePath(browsePath);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(elements.ToList(), Is.EqualTo(expected).AsCollection);
+                Assert.That(
+                    WotEventSelectClauses.JoinBrowsePath(elements),
+                    Is.EqualTo(browsePath),
+                    "The elements round-trip through the joined form the document authored.");
+                Assert.That(
+                    new WotEventSelectClause("i=2041", browsePath).PathElements.ToList(),
+                    Is.EqualTo(expected).AsCollection,
+                    "A clause carries the same elements every rule is stated over.");
+            });
+        }
+
+        /// <summary>
+        /// The regression: an authored NamespaceUri-qualified element whose URI
+        /// contains '/' is one element, so nothing nests the field under
+        /// 'nsu=http:', an empty member and 'example.org', and the field name is
+        /// the QualifiedName's name rather than ';Temperature'.
+        /// </summary>
+        [Test]
+        public void ANamespaceUriCarryingTheSeparatorIsOneElementRatherThanFive()
+        {
+            var clause = new WotEventSelectClause(
+                "i=2041", "nsu=http://example.org/pump/;Temperature");
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(clause.PathElements.Count, Is.EqualTo(1));
+                Assert.That(clause.FieldName, Is.EqualTo("Temperature"));
+                Assert.That(clause.MemberPath.Count, Is.EqualTo(1));
+                Assert.That(
+                    WotEventSelectClauses.FormatMemberPath(clause.MemberPath),
+                    Is.EqualTo("Temperature"));
+                Assert.That(
+                    clause.GetNormalizedBrowsePath(),
+                    Is.EqualTo("{http://example.org/pump/}Temperature"));
+            });
+        }
+
+        [Test]
+        public void AnAuthoredNamespaceUriCarryingTheSeparatorParses()
+        {
+            Assert.That(
+                TryParse(
+                    "[{\"uav:typeDefinitionId\":\"i=2041\"," +
+                    "\"uav:browsePath\":\"nsu=http://example.org/pump/;Temperature\"}]",
+                    out ArrayOf<WotEventSelectClause> clauses,
+                    out string error),
+                Is.True,
+                "A URI slash is not an empty path element: " + error);
+            Assert.That(clauses[0].FieldName, Is.EqualTo("Temperature"));
+        }
+
+        [Test]
+        public void ANestedPathWhoseNamespaceUrisCarryTheSeparatorParses()
+        {
+            Assert.That(
+                TryParse(
+                    "[{\"uav:typeDefinitionId\":\"i=2041\",\"uav:browsePath\":" +
+                    "\"nsu=http://example.org/pump/;Detail/" +
+                    "nsu=http://example.org/site/a/;Inner/Value\"}," +
+                    "{\"uav:typeDefinitionId\":\"i=2782\",\"uav:browsePath\":\"\"}," +
+                    "{\"uav:typeDefinitionId\":\"i=2041\",\"uav:browsePath\":" +
+                    "\"nsu=urn:example:pump;Severity\"}]",
+                    out ArrayOf<WotEventSelectClause> clauses,
+                    out string error),
+                Is.True,
+                error);
+
+            ArrayOf<ArrayOf<string>> members =
+                WotEventSelectClauses.GetMaterializedMemberPaths(clauses);
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    WotEventSelectClauses.FormatMemberPath(members[0]),
+                    Is.EqualTo("Detail.Inner.Value"),
+                    "Three elements materialize three nested members, none of them named " +
+                    "after a fragment of a NamespaceUri.");
+                Assert.That(
+                    WotEventSelectClauses.FormatMemberPath(members[1]),
+                    Is.EqualTo("ConditionId"),
+                    "The empty path stays the ConditionId selection.");
+                Assert.That(
+                    WotEventSelectClauses.FormatMemberPath(members[2]),
+                    Is.EqualTo("Severity"),
+                    "A urn: NamespaceUri keeps materializing the name alone.");
+                Assert.That(clauses[1].PathElements.Count, Is.Zero);
+            });
+        }
+
+        [TestCase(
+            "[{\"uav:typeDefinitionId\":\"i=2041\",\"uav:browsePath\":\"Temperature\"}," +
+            "{\"uav:typeDefinitionId\":\"i=2041\",\"uav:browsePath\":" +
+            "\"nsu=http://example.org/pump/;Temperature\"}]",
+            "Temperature",
+            TestName = "ASlashCarryingNamespaceAndABareNameCollide")]
+        [TestCase(
+            "[{\"uav:typeDefinitionId\":\"i=2041\",\"uav:browsePath\":" +
+            "\"nsu=http://example.org/pump/;Detail/Value\"}," +
+            "{\"uav:typeDefinitionId\":\"i=2041\",\"uav:browsePath\":" +
+            "\"{http://example.org/other/}Detail/Value\"}]",
+            "Detail.Value",
+            TestName = "TwoSlashCarryingNamespacesCollideOnTheNestedMember")]
+        public void ClausesQualifiedByASlashCarryingNamespaceStillCollide(
+            string json, string member)
+        {
+            Assert.That(
+                TryParse(json, out _, out string error),
+                Is.False,
+                "A member name drops the namespace qualification, so the two clauses " +
+                "compete for one member.");
+            Assert.That(error, Does.Contain(member));
+            Assert.That(error, Does.Contain("materialized member path"));
+        }
+
+        [TestCase("/Severity", "absolute")]
+        [TestCase("Severity/", "ends with a separator")]
+        [TestCase("Detail//Value", "empty element")]
+        [TestCase("nsu=http://example.org/pump/;Detail//Value", "empty element")]
+        [TestCase("nsu=http://example.org/pump/;Detail/", "ends with a separator")]
+        public void AMalformedPathIsStillReportedElementByElement(
+            string browsePath, string expected)
+        {
+            Assert.That(
+                TryParse(
+                    "[{\"uav:typeDefinitionId\":\"i=2041\",\"uav:browsePath\":\"" +
+                    browsePath + "\"}]",
+                    out _,
+                    out string error),
+                Is.False);
+            Assert.That(error, Does.Contain(expected));
         }
 
         private static string[] FieldNames()
