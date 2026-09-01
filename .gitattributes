@@ -14,6 +14,12 @@
 *.sh text eol=lf
 *.json text eol=lf
 
+# The WoT Binding specification examples are vendored byte-for-byte from the
+# specification repository and their SHA-256 hashes are pinned in
+# tests/Opc.Ua.Types.Tests/Wot/Assets/spec-examples.manifest.json. Keep them at
+# LF on every platform so the checked-out bytes are the upstream bytes.
+*.jsonld text eol=lf
+
 # Denote all files that should not have line endings normalized, should not be
 # merged, and should not show in a textual diff.
 *.docm binary

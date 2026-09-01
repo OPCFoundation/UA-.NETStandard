@@ -286,6 +286,52 @@ namespace Opc.Ua.Types.Tests.Wot
             });
         }
 
+        /// <summary>
+        /// A document that binds the <c>uav</c> prefix to the superseded
+        /// <c>http://opcfoundation.org/UA/WoT/v1#</c> IRI still reads exactly
+        /// like a current one.
+        /// </summary>
+        /// <remarks>
+        /// The Binding places the binding obligation on the author and defines
+        /// no consumer-rejection rule, so the reader matches the compact
+        /// <c>uav:</c> spelling and never consults the prefix IRI. That is
+        /// deliberate, and it is what keeps documents written against the
+        /// earlier draft readable. Strict conformance does not change it:
+        /// strictness is about the vocabulary a document uses, not about the
+        /// IRI it declares the vocabulary under. New documents should
+        /// nevertheless bind <c>uav</c> to
+        /// <see cref="WotBindingConformance.VocabularyNamespace"/>.
+        /// </remarks>
+        [Test]
+        public void SupersededVocabularyIriStillReadsInEveryMode()
+        {
+            const string members =
+                "\"uav:bindingVersion\":\"1.1\"," +
+                "\"properties\":{\"speed\":{\"type\":\"number\"," +
+                "\"uav:browseName\":\"pump:Speed\"}}";
+
+            WotConversionResult<UANodeSet> current = Convert(members);
+            WotConversionResult<UANodeSet> legacy = ConvertWithLegacyVocabularyIri(members);
+            WotConversionResult<UANodeSet> legacyStrict =
+                ConvertWithLegacyVocabularyIri(members, Strict());
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(legacy.Value, Is.Not.Null, Describe(legacy));
+                Assert.That(legacyStrict.Value, Is.Not.Null, Describe(legacyStrict));
+                Assert.That(
+                    legacyStrict.Diagnostics.Any(d =>
+                        d.Severity == WotDiagnosticSeverity.Error),
+                    Is.False,
+                    "The prefix IRI is not part of the vocabulary strictness rule. " +
+                    Describe(legacyStrict));
+                Assert.That(
+                    legacy.Value!.Items!.Select(i => i.BrowseName),
+                    Is.EqualTo(current.Value!.Items!.Select(i => i.BrowseName)).AsCollection,
+                    "The superseded IRI changes nothing about how the document reads.");
+            });
+        }
+
         [Test]
         public void UnknownProfileNameIsRejected()
         {
@@ -774,6 +820,29 @@ namespace Opc.Ua.Types.Tests.Wot
                 members +
                 "}");
             return WotDocument.Parse(json);
+        }
+
+        private static WotConversionResult<UANodeSet> ConvertWithLegacyVocabularyIri(
+            string members)
+        {
+            return ConvertWithLegacyVocabularyIri(members, new WotNodeSetConverterOptions());
+        }
+
+        private static WotConversionResult<UANodeSet> ConvertWithLegacyVocabularyIri(
+            string members, WotNodeSetConverterOptions options)
+        {
+            byte[] json = WotTestData.Utf8(
+                "{\"@context\":[\"https://www.w3.org/2022/wot/td/v1.1\"," +
+                "{\"uav\":\"http://opcfoundation.org/UA/WoT/v1#\"," +
+                "\"ua\":\"http://opcfoundation.org/UA/\"," +
+                "\"pump\":\"urn:test:pump\"}]," +
+                "\"@type\":[\"tm:ThingModel\",\"uav:objectType\"]," +
+                "\"title\":\"Pump\",\"uav:browseName\":\"pump:PumpType\"," +
+                "\"uav:id\":\"nsu=urn:test:pump;i=1001\"," +
+                members +
+                "}");
+            using WotDocument document = WotDocument.Parse(json);
+            return WotNodeSetConverter.ToNodeSetResult(document, options);
         }
     }
 }
