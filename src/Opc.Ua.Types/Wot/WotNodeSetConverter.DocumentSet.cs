@@ -201,6 +201,16 @@ namespace Opc.Ua.Wot
             var entries = new List<WotDocumentSetEntry>();
             var hrefs = new HashSet<string>(StringComparer.Ordinal);
             var emitted = new HashSet<string>(StringComparer.Ordinal);
+
+            // Section 6.1 lets an event affordance name its EventType
+            // definition with tm:ref, and the definition is the Thing Model of
+            // the EventType Node itself. The hrefs are therefore allocated
+            // before anything is written, so a document that selects from an
+            // EventType can name the sibling document that defines it. The
+            // allocation walks exactly the traversal the write pass walks, so
+            // the two agree by construction.
+            Dictionary<string, string> eventTypeHrefs = AllocateEventTypeHrefs(
+                nodeSet, index, roots, rootHref, declaredChildren);
             try
             {
                 // The first root keeps the caller's href so an existing single
@@ -218,7 +228,8 @@ namespace Opc.Ua.Wot
                     WriteObjectDocuments(
                         nodeSet, index, root, href, null,
                         documentTitle,
-                        nodeSetBytes, resolved, diagnostics, entries, hrefs, emitted, declaredChildren);
+                        nodeSetBytes, resolved, diagnostics, entries, hrefs, emitted,
+                        declaredChildren, eventTypeHrefs);
                     first = false;
                 }
             }
@@ -235,6 +246,78 @@ namespace Opc.Ua.Wot
             var set = new WotDocumentSet(rootHref, entries.ToArrayOf());
 #pragma warning restore CA2000
             return new WotConversionResult<WotDocumentSet>(set, diagnostics);
+        }
+
+        /// <summary>
+        /// Allocates the href of every document the set will hold and keeps
+        /// the ones that project an EventType Node, keyed by NodeId.
+        /// </summary>
+        /// <remarks>
+        /// The walk is the one <see cref="WriteObjectDocuments"/> performs, run
+        /// ahead of it and writing nothing, so both allocate the same href for
+        /// the same Node. It exists because a document that selects an event's
+        /// fields names the EventType definition it selects from
+        /// (WoT Binding Section 6.1), and that definition is a sibling document
+        /// whose href is not known until the whole set has been laid out.
+        /// </remarks>
+        private static Dictionary<string, string> AllocateEventTypeHrefs(
+            UANodeSet nodeSet,
+            Dictionary<string, UANode> index,
+            List<UANode> roots,
+            string rootHref,
+            Dictionary<string, List<UANode>> declaredChildren)
+        {
+            var eventTypeHrefs = new Dictionary<string, string>(StringComparer.Ordinal);
+            var hrefs = new HashSet<string>(StringComparer.Ordinal);
+            var emitted = new HashSet<string>(StringComparer.Ordinal);
+            bool first = true;
+            foreach (UANode root in roots)
+            {
+                string href = first
+                    ? rootHref
+                    : ChildHref(rootHref, LocalName(root.BrowseName) ?? root.NodeId ?? "node", hrefs);
+                AllocateDocumentHrefs(
+                    nodeSet, index, root, href, hrefs, emitted, declaredChildren, eventTypeHrefs);
+                first = false;
+            }
+            return eventTypeHrefs;
+        }
+
+        /// <inheritdoc cref="AllocateEventTypeHrefs"/>
+        private static void AllocateDocumentHrefs(
+            UANodeSet nodeSet,
+            Dictionary<string, UANode> index,
+            UANode node,
+            string href,
+            HashSet<string> hrefs,
+            HashSet<string> emitted,
+            Dictionary<string, List<UANode>> declaredChildren,
+            Dictionary<string, string> eventTypeHrefs)
+        {
+            if (!hrefs.Add(href) ||
+                (node.NodeId is not null && !emitted.Add(node.NodeId)))
+            {
+                return;
+            }
+            if (node.NodeId is { Length: > 0 } nodeId && IsEventTypeRoot(node, nodeSet))
+            {
+                eventTypeHrefs[nodeId] = href;
+            }
+            if (node.References is null)
+            {
+                return;
+            }
+            foreach (UANode child in ChildrenOf(node, index, declaredChildren))
+            {
+                if (child is not UAObject)
+                {
+                    continue;
+                }
+                string local = LocalName(child.BrowseName) ?? child.NodeId ?? href;
+                AllocateDocumentHrefs(
+                    nodeSet, index, child, ChildHref(href, local, hrefs), hrefs, emitted,
+                    declaredChildren, eventTypeHrefs);
+            }
         }
 
         /// <summary>
@@ -255,7 +338,8 @@ namespace Opc.Ua.Wot
             List<WotDocumentSetEntry> entries,
             HashSet<string> hrefs,
             HashSet<string> emitted,
-            Dictionary<string, List<UANode>> declaredChildren)
+            Dictionary<string, List<UANode>> declaredChildren,
+            IReadOnlyDictionary<string, string>? eventTypeHrefs = null)
         {
             if (!hrefs.Add(href) ||
                 (node.NodeId is not null && !emitted.Add(node.NodeId)))
@@ -265,7 +349,7 @@ namespace Opc.Ua.Wot
             byte[] json = WriteReadableDocument(
                 nodeSet, node, title, explicitTitle: true, nodeSetBytes,
                 nativeProjection: null, emitEnvelope: false,
-                options, diagnostics, parentHref);
+                options, diagnostics, parentHref, eventTypeHrefs, href);
 #pragma warning disable CA2000 // Ownership transfers to the entry, disposed with the set.
             entries.Add(new WotDocumentSetEntry(href, WotDocument.FromOwnedBytes(json, options)));
 #pragma warning restore CA2000
@@ -287,7 +371,7 @@ namespace Opc.Ua.Wot
                 WriteObjectDocuments(
                     nodeSet, index, child, ChildHref(href, local, hrefs), href,
                     local, nodeSetBytes, options, diagnostics, entries, hrefs, emitted,
-                    declaredChildren);
+                    declaredChildren, eventTypeHrefs);
             }
         }
 

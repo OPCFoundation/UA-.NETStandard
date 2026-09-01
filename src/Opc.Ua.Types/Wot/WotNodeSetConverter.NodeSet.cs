@@ -270,7 +270,9 @@ namespace Opc.Ua.Wot
             bool emitEnvelope,
             WotNodeSetConverterOptions options,
             List<WotDiagnostic> diagnostics,
-            string? parentHref = null)
+            string? parentHref = null,
+            IReadOnlyDictionary<string, string>? eventTypeHrefs = null,
+            string? documentHref = null)
         {
             byte[]? digest = emitEnvelope ? ComputeSha256(nodeSetBytes) : null;
             using (var output = new MemoryStream())
@@ -323,10 +325,26 @@ namespace Opc.Ua.Wot
                     }
                     WriteReferenceTypeNames(writer, root, defaultLocale);
                     WriteLocalizedDescription(writer, root?.Description, defaultLocale);
+                    if (rootIsEventType && root is not null)
+                    {
+                        // The root projects an EventType Node, so this document
+                        // is the EventType definition an event affordance links
+                        // to with tm:ref: it states the complete effective field
+                        // set, in the order uav:fieldOrder gives, and a consumer
+                        // derives one select clause per leaf of it
+                        // (WoT Binding Section 6.1).
+                        WriteEventTypeDefinitionData(
+                            writer,
+                            root,
+                            nodeSet.NamespaceUris,
+                            nodeSet,
+                            BuildIndex(nodeSet),
+                            defaultLocale);
+                    }
                     WriteDataTypeDefinitions(writer, nodeSet, defaultLocale);
                     WriteAffordances(
                         writer, nodeSet, root, diagnostics, options, defaultLocale, parentHref,
-                        TypeDefinitionHref(root, nodeSet));
+                        TypeDefinitionHref(root, nodeSet), eventTypeHrefs, documentHref);
 
                     if (emitEnvelope)
                     {
@@ -559,7 +577,9 @@ namespace Opc.Ua.Wot
             WotNodeSetConverterOptions options,
             string defaultLocale,
             string? parentHref = null,
-            string? typeDefinitionHref = null)
+            string? typeDefinitionHref = null,
+            IReadOnlyDictionary<string, string>? eventTypeHrefs = null,
+            string? documentHref = null)
         {
             if (root?.References is null)
             {
@@ -805,7 +825,8 @@ namespace Opc.Ua.Wot
                     writer.WritePropertyName(eventKeys[ii]);
                     WriteEventAffordance(
                         writer, events[ii], namespaceUris, nodeSet, index, defaultLocale,
-                        eventProjections[ii]);
+                        eventProjections[ii],
+                        ResolveEventTypeHref(events[ii], eventTypeHrefs, documentHref));
                 }
                 writer.WriteEndObject();
             }
@@ -1299,7 +1320,8 @@ namespace Opc.Ua.Wot
             UANodeSet nodeSet,
             Dictionary<string, UANode> index,
             string defaultLocale,
-            WotConditionProjection projection)
+            WotConditionProjection projection,
+            string? eventTypeHref = null)
         {
             writer.WriteStartObject();
             // uav:eventType is the @type annotation counterpart of the uav:isEvent
@@ -1314,6 +1336,18 @@ namespace Opc.Ua.Wot
                 ToPortableQualifiedName(eventType.BrowseName, namespaceUris));
             WriteOptional(writer, "uav:id", ToPortableNodeId(eventType.NodeId, namespaceUris));
 
+            // Section 6.1: where the set carries a Thing Model of the EventType
+            // Node itself, the affordance names it and a consumer derives every
+            // select clause from that definition's data. The link is written
+            // only where the definition is a document a consumer can reach: a
+            // reference to a document the set does not hold would state a fast
+            // path nothing can follow.
+            if (!string.IsNullOrEmpty(eventTypeHref))
+            {
+                writer.WriteString(
+                    WotEventSelectClauses.TypeDefinitionReferenceTerm, eventTypeHref!);
+            }
+
             // Section 6.6: the EventType's own Severity Property is the
             // authored default a server publishes when an occurrence supplies
             // none, so it is that Property - not free-standing metadata - that
@@ -1326,6 +1360,34 @@ namespace Opc.Ua.Wot
                 writer, eventType, projection, namespaceUris, nodeSet, index, defaultLocale);
             WriteModellingRule(writer, eventType);
             writer.WriteEndObject();
+        }
+
+        /// <summary>
+        /// Names the document that carries the EventType definition of one
+        /// event affordance, relative to the document being written
+        /// (WoT Binding Section 6.1).
+        /// </summary>
+        /// <remarks>
+        /// A document that projects the EventType itself does not reference
+        /// itself: its own root <em>is</em> the definition, and a self-reference
+        /// would be a cycle a consumer has to reject. The hrefs of a document
+        /// set are its keys and carry no path structure, so the reference is
+        /// the target href as the set states it.
+        /// </remarks>
+        private static string? ResolveEventTypeHref(
+            UANode eventType,
+            IReadOnlyDictionary<string, string>? eventTypeHrefs,
+            string? documentHref)
+        {
+            if (eventTypeHrefs is null ||
+                eventType.NodeId is not { Length: > 0 } nodeId ||
+                !eventTypeHrefs.TryGetValue(nodeId, out string? href) ||
+                string.IsNullOrEmpty(href) ||
+                string.Equals(href, documentHref, StringComparison.Ordinal))
+            {
+                return null;
+            }
+            return href;
         }
 
         private static void WriteModellingRule(Utf8JsonWriter writer, UANode node)
