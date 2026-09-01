@@ -250,7 +250,9 @@ namespace Opc.Ua.Client.FileSystem
             for (int i = 0; i < segments.Length; i++)
             {
                 bool isLast = i == segments.Length - 1;
-                QualifiedName segment = segments[i];
+                QualifiedName inputSegment = segments[i];
+                QualifiedName segment = Qualify(inputSegment, current.NodeId);
+                segments[i] = segment;
                 NodeId? childId = await TryResolveSingleAsync(current.NodeId, segment, ct)
                     .ConfigureAwait(false);
                 if (childId != null)
@@ -273,13 +275,13 @@ namespace Opc.Ua.Client.FileSystem
                         UaPath.Format([.. segments.Take(i + 1)]),
                         targetIsDirectory: true);
                 }
-                if (segment.NamespaceIndex != 0)
+                if (inputSegment.NamespaceIndex != 0)
                 {
                     throw new ArgumentException(
-                        $"Cannot create '{UaPath.FormatSegment(segment)}': leaf segments must not include a namespace prefix; the server picks the BrowseName namespace.",
+                        $"Cannot create '{UaPath.FormatSegment(inputSegment)}': leaf segments must not include a namespace prefix; the server picks the BrowseName namespace.",
                         nameof(path));
                 }
-                current = await CreateDirectoryInAsync(current, segment.Name!, ct)
+                current = await CreateDirectoryInAsync(current, inputSegment.Name!, ct)
                     .ConfigureAwait(false);
             }
             return current;

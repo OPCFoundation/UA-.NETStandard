@@ -115,6 +115,31 @@ namespace Opc.Ua.Client.Tests.FileSystem
             Assert.That(dir.FullPath, Is.EqualTo("/a/b/c"));
         }
 
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task CreateDirectoryAsyncQualifiesSegmentsWithParentNamespaceAsync(
+            bool createIntermediate)
+        {
+            var harness = FileSystemSessionHarness.Create();
+            NodeId mount = harness.RegisterDirectory(
+                harness.Root,
+                new QualifiedName("SampleFiles", 2),
+                new NodeId(7001, 2));
+            harness.RegisterDirectory(
+                mount,
+                new QualifiedName("Uploads", 2),
+                new NodeId(7002, 2));
+            ScriptCreateDirectory(harness, new NodeId(7003, 2));
+            var client = new FileSystemClient(harness.Session, harness.Root);
+
+            UaDirectoryInfo dir = await client.CreateDirectoryAsync(
+                "/2:SampleFiles/Uploads/New",
+                createIntermediate).ConfigureAwait(false);
+
+            Assert.That(harness.CallRequests, Has.Count.EqualTo(1));
+            Assert.That(dir.FullPath, Is.EqualTo("/2:SampleFiles/2:Uploads/2:New"));
+        }
+
         [Test]
         public Task CreateDirectoryAsyncThrowsWhenIntermediateMissingAndFlagFalseAsync()
         {
@@ -282,8 +307,6 @@ namespace Opc.Ua.Client.Tests.FileSystem
             return Task.CompletedTask;
         }
 
-        // -------- helpers ------------------------------------------------
-
         private static void ScriptCreateDirectory(
             FileSystemSessionHarness harness, NodeId newId)
         {
@@ -294,7 +317,9 @@ namespace Opc.Ua.Client.Tests.FileSystem
                 {
                     req.InputArguments[0].TryGetValue(out string newName);
                     harness.RegisterDirectory(
-                        req.ObjectId, new QualifiedName(newName), newId);
+                        req.ObjectId,
+                        new QualifiedName(newName, req.ObjectId.NamespaceIndex),
+                        newId);
                     return new CallMethodResult
                     {
                         StatusCode = StatusCodes.Good,
