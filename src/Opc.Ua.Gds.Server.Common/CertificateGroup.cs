@@ -43,7 +43,7 @@ using X509AuthorityKeyIdentifierExtension = Opc.Ua.Security.Certificates.X509Aut
 
 namespace Opc.Ua.Gds.Server
 {
-    public class CertificateGroup : ICertificateGroup, IDisposable
+    public class CertificateGroup : ICertificateGroup
     {
         /// <inheritdoc/>
         public NodeId Id { get; set; }
@@ -545,6 +545,12 @@ namespace Opc.Ua.Gds.Server
             }
 
             Certificates.Clear();
+
+            // The TrustList handler attached to the group's DefaultTrustList
+            // owns private store identifiers whose cached stores retain
+            // their parsed certificates across Close(); the group owns the
+            // node and therefore its handler's lifetime.
+            (DefaultTrustList?.Handle as IDisposable)?.Dispose();
 
             // Release the store instances cached on the group-lifetime store
             // identifiers; their parsed-certificate caches are retained

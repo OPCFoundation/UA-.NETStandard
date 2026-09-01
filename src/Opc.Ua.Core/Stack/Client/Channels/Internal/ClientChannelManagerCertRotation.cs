@@ -29,7 +29,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -341,10 +340,6 @@ namespace Opc.Ua
             return configuredType == effectiveChangedType;
         }
 
-        [SuppressMessage(
-            "Usage",
-            "CA2213:Disposable fields should be disposed",
-            Justification = "Disposed by Dispose.")]
         private readonly CertificateChangePump<CertificateChangeEvent> m_pump;
 
         private readonly IChannelCertRotationHost m_host;

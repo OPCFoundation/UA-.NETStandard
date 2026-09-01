@@ -27,6 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
 using System.Collections.Concurrent;
 using System.Runtime.InteropServices;
 using System.Threading;
@@ -59,7 +60,7 @@ namespace Opc.Ua.Gds.Server
     /// <summary>
     /// An abstract interface to the certificate provider
     /// </summary>
-    public interface ICertificateGroup
+    public interface ICertificateGroup : IDisposable
     {
         NodeId Id { get; set; }
         ArrayOf<NodeId> CertificateTypes { get; set; }
