@@ -142,6 +142,38 @@ Two WoT-to-NodeSet behaviours are intentionally silent because they follow the
 current WoT Binding vocabulary, but both can change what a consumer observes in
 the materialized NodeSet.
 
+### Preservation digests and the two things that can be measured
+
+Annex G distinguishes two digests and this implementation keeps them apart.
+
+* **Over retained bytes.** The `Sha256` of a `WoTJsonResidue` member is the
+  SHA-256 of the **decoded residue bytes exactly** — the bytes the producer
+  encoded, and the bytes a verifier decoded. Nothing is canonicalized, reordered,
+  re-escaped or re-formatted before digesting, in either direction, and a
+  mismatch is a mismatch: the entry is corrupt, not merely differently spelled.
+  A residue member exists to carry a value Section 6.6 forbids a consumer to
+  reformat, so a digest over a re-serialization would pin a value no party is
+  allowed to produce. The `sha256` of a `uav:nodeSet` envelope and the
+  `uav:sourceDigest` of a projection source are of the same kind.
+* **Over a JSON value.** RFC 8785 (JCS) is used where two JSON *values* are
+  compared for equality by digest — the Section 9.4 conflict test that asks
+  whether a residue entry holds the same value as a member the readable mapping
+  already produced. `WotDocument.ToCanonicalUtf8` is that form.
+
+The opaque-object size bound of Section 6.6 is measured over the **compact
+received form** of Annex G.4: the received text of the value with insignificant
+whitespace removed — the four RFC 8259 whitespace characters outside a string
+literal — and nothing else changed. Member order is the received order, numbers
+keep the lexical form they were written in, and strings keep the escapes they
+were written with. Deliberately *not* a canonical re-serialization: measuring one
+would oblige a consumer to produce exactly the reordered, renumbered value the
+preservation rule forbids, and an "almost-JCS" measurement — compact separators
+but a language's own `double` formatting — is what two implementations disagree
+about in practice. Whitespace removal outside string literals is decidable by a
+scanner with one bit of state, so two implementations that received the same
+bytes measure the same number. The depth and key-count bounds are measured over
+the parsed value, where formatting cannot matter.
+
 ### Pre-PR #19 reference vocabulary is residue
 
 Spec PR #19 removed six `uav:` terms from the Binding vocabulary:
@@ -332,35 +364,112 @@ round trip verbatim through the residue mechanism:
 | Term | Where | What is checked |
 |---|---|---|
 | `uav:bindingVersion` | TD/TM root | a `<major>.<minor>` revision string (Section 4.1) |
-| `uav:profile` | TD/TM root | a non-empty array of the Section 11 unit and profile names |
-| `uav:eventSelectClauses` | event affordance | a non-empty ordered list of two-member clauses with relative paths and no repeats (Section 6.1) |
+| `uav:profile` | TD/TM root | a non-empty array of `WoT-<name>` conformance claims |
+| `uav:eventSelectClauses` | event affordance | a non-empty ordered list of two-member clauses with relative paths and no two clauses sharing a normalized browse path (Section 6.1) |
 | `uav:minimumSecurity` | `auto` security scheme | `uav:securityMode`, `uav:securityPolicy`, or both, and no other member (Section 5.7.1) |
+
+### Authoring a claim and processing one are different acts
+
+Section 4.1 states the two checks side by side and makes them deliberately
+different, and `WotNodeSetConverterOptions.AuthoringValidation` selects
+between them:
+
+| | Consumer (the default) | `AuthoringValidation = true` |
+|---|---|---|
+| `uav:bindingVersion` | **shall** be `<major>.<minor>`; a well-formed value this library does not implement is a `UnsupportedBindingRevision` **warning** and is preserved | **shall** name a revision this Binding publishes (`1.0` or `1.1`); anything else is an **error** |
+| `uav:profile` | **shall** be a non-empty array of `WoT-<name>` strings; an entry Section 11 does not define is an `UnrecognizedConformanceClaim` **warning** and is preserved | **shall** name only units and profiles Section 11 defines |
+| `unit` carrying a quantity kind | a `QuantityKindInUnit` **warning**; the authored value is preserved and never reinterpreted | an **error** (Section 6.4) |
+
+A consumer that rejected a document for naming a revision or a unit it
+does not know would be refusing to read a document that is syntactically
+valid, whose known terms it understands, and whose unknown terms it is
+already required to carry — which is the failure that makes a vocabulary
+unextendable. A malformed claim stays an error in every mode: the
+syntactic rule is what a consumer enforces, and it enforces it always.
+
+Both published revisions are read here. `WotBindingConformance.SupportedRevisions`
+names `1.0` and `1.1`, and the two places revision 1.0 differs — unnamespaced
+opaque keys (Section 6.6) and a quantity kind in `unit` (Section 6.4) — are
+reported as deprecated and preserved rather than rejected.
+`Opc.Ua.Wot.WotUnitMigration.MoveQuantityKinds` is the opt-in helper that moves
+such a value to `qudt:hasQuantityKind`; it never invents an engineering unit in
+the vacated member, because none is recoverable from a quantity kind, and it
+leaves a value alone where the affordance already states a *different* quantity
+kind.
 
 `WotNodeSetConverterOptions.ConformanceMode` chooses how strictly the rest
 is held:
 
 - **`Permissive`** (the default) processes what it understands and
   preserves the rest. An unknown `uav:` term is carried unchanged as
-  residue rather than reported, a revision this library does not
-  implement is accepted, and an unnamespaced opaque key is a warning.
-  This is what Sections 4.1, 6.6, 9.4 and 10.2 require of a consumer.
+  residue rather than reported, and an unnamespaced opaque key is a
+  warning. This is what Sections 4.1, 6.6, 9.4 and 10.2 require of a
+  consumer.
 - **`Strict`** additionally reports a `uav:` term this revision does not
-  define, a declared revision this library does not implement, an opaque
-  object that breaks the key or bound rules, and — where
-  `RequiredConformance` names units or profiles — a claim the document
-  does not make. Claiming a profile claims every unit it names, so
-  `WoT-Modeller` satisfies a requirement of `WoT-EventMapping`.
+  define, an opaque object that breaks the key or bound rules, and —
+  where `RequiredConformance` names units or profiles — a claim the
+  document does not make. Claiming a profile claims every unit it names,
+  so `WoT-Modeller` satisfies a requirement of `WoT-EventMapping`.
 
 Strict mode is for authoring and conformance testing: a misspelled term
 should fail there rather than travel silently. It is never the default,
 because a consumer is not allowed to reject a document for carrying a
 term it does not know.
 
-The revision this library implements, the closed Section 11 name set, the
+The revision this library implements, the Section 11 name set, the
 opaque bounds and the security strength orders are stated once, in
-`Opc.Ua.Wot.WotBindingConformance`; the select-clause term, its shape rules
-and its documented `BaseEventType` default are stated once, in
-`Opc.Ua.Wot.WotEventSelectClauses`.
+`Opc.Ua.Wot.WotBindingConformance`; the select-clause term, its shape rules,
+its member-naming rule and its documented `BaseEventType` default are stated
+once, in `Opc.Ua.Wot.WotEventSelectClauses`. `WotBindingConformance.VocabularyTerms`
+is the complete set of 115 `uav:` IRIs the published `@context` mints:
+`IsKnownTerm` answers for the 102 a document spells with the prefix, and
+`ScopedTerms` / `IsScopedTerm` for the 13 a scoped context mints under a short
+member name (`namespaceUri`, `unitId`, `minimum`, `sha256` and the rest).
+
+### The `uav:nodes` record grammar is not vocabulary
+
+The member names inside `uav:nodes` — `nodeClass`, `nodeId`, `browseName`,
+`references` and the rest — are the lower-camel-case spellings of the UANodeSet
+XSD field names. They expand in the record-grammar namespace
+`WotBindingConformance.NodesVocabularyNamespace`
+(`http://opcfoundation.org/UA/WoT-Binding/nodes/`) rather than in the term
+namespace, because they are a versioned record format and not vocabulary that
+outlives it. Keeping them apart is also what stops a grammar token from
+colliding with a class annotation of the same spelling: a node record's
+`dataType` member holds the ExpandedNodeId of a Variable's DataType and is not
+the NodeClass annotation `uav:dataType`, and a reference record's
+`referenceType` member is not `uav:referenceType`. Strict conformance skips both
+structured projections whole, so a record member name is never reported as an
+unknown term.
+
+### Generated documents state the revision they were generated against
+
+Section 4.1 requires a *generator* to state `uav:bindingVersion`, because a
+generator — unlike a hand author — always knows which revision it emitted. Every
+document `FromNodeSet` produces therefore carries
+`uav:bindingVersion: "1.1"`. An authored claim wins over that stamp: a document
+that declared `1.9` round-trips as `1.9`, because a claim a consumer shall
+preserve is not one it may overwrite. A claim that agrees with the stamp is
+re-derived rather than also carried as residue.
+
+### The four standardized terms of revision 1.1
+
+Revision 1.1 completes the NodeClass annotation set and adds the two
+ReferenceType Attributes no link `rel` states:
+
+| Term | Where | What it says |
+|---|---|---|
+| `uav:referenceType` | `@type` at TM root | the document projects a ReferenceType Node (Sections 5.2 and 6.2.1) |
+| `uav:dataType` | `@type` at TM root | the document projects a DataType Node, whose definition travels in `uav:dataTypeDefinitions` |
+| `uav:inverseName` | TM root with `uav:referenceType` | the OPC 10000-3 `InverseName`, in the document's default locale |
+| `uav:symmetric` | TM root with `uav:referenceType` | the OPC 10000-3 `Symmetric` flag, `false` where absent |
+
+A `@type` carries **at most one** NodeClass annotation — a Node has exactly one
+NodeClass — and a second is a `NodeClassAnnotationConflict` error. A document
+that sets `uav:symmetric: true` **shall not** carry `uav:inverseName`, because a
+symmetric Reference reads the same in both directions; that, and either term on
+a document that projects no ReferenceType, is a
+`ReferenceTypeProjectionInvalid` error.
 
 `uav:severity` is the exception to the "readable annotation" rule above: it
 names one OPC UA model fact, the EventType's own `Severity` Property, so both
@@ -423,17 +532,32 @@ own `DisplayName` (or `Description`) states, declared as the `@language` of the
 generated `@context`; a source that names none declares none, and Section
 9.1.1's `en` then applies. A Node with one locale writes `title` and
 `description` alone. A Node with several writes the plural `titles` and
-`descriptions` maps as well, and the singular member is always the
-default-locale entry, so the two never disagree. Where a Node's locales do not
-include the document's default locale, the plural member is **not** written —
-inventing an entry would state a translation the source never made — and the
-completeness check reports the gap so preservation carries the rest.
+`descriptions` maps as well. The plural member is **authoritative**: it carries
+every locale the source had, and the singular member is the default projection a
+consumer that knows nothing of the plural members reads. Where the plural member
+has an entry for the document's default locale the singular member is that
+entry, so the two never disagree. Where it has **no** such entry — a Node
+authored in the plant's language and read against another default locale — the
+plural member is still written in full and the singular member carries the entry
+whose BCP 47 tag is first in ascending Unicode code-point order (Annex G.3), as
+a display fallback that asserts no locale. The document does not claim that text
+is written in the default locale, and nothing is pushed into the exceptional
+`uav:nodes` projection to say something the plural member already says.
 
-**WoT to NodeSet.** A plural member becomes one `LocalizedText` per entry with
-the default locale's entry first, which is the one the Node's own attribute
-carries. A singular member alone becomes one `LocalizedText` tagged with the
-document's declared `@language`, or untagged where the context declares none —
-the form a UANodeSet writes when it names one language without saying which.
+**WoT to NodeSet.** A plural member becomes one `LocalizedText` per entry. The
+entry written first — the one the Node's own attribute carries — is the
+default-locale entry where the map has one and the code-point-first entry
+otherwise, which is the same entry the singular member carries, so the round
+trip is stable. A singular member alone becomes one `LocalizedText` tagged with
+the document's declared `@language`, or untagged where the context declares none
+— the form a UANodeSet writes when it names one language without saying which.
+
+The same selection is used wherever a term reduces a `LocalizedText` to one
+string: a ReferenceType's `uav:inverseName`, and the `displayName` and
+`description` of `uav:engineeringUnits`. The `unit` member of the annotated
+Variable is taken in that same locale, so a multi-locale `EUInformation` states
+one text in both places instead of falling back to preservation because the two
+disagree.
 
 The mapping applies to the root, to property, action and event affordances, to
 event fields, to `Method` argument descriptions, and to DataType definitions and

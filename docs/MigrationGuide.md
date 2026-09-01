@@ -980,27 +980,68 @@ A document generated from the same NodeSet now additionally carries event
 severity, `Method` argument schemas, event `data` and the Section 13
 Condition terms, engineering units and ranges, `titles` / `descriptions`
 for every locale a `LocalizedText` holds, `uav:valueRank` /
-`uav:arrayDimensions`, and typed links for companion ReferenceTypes
-including the inverse direction.
+`uav:arrayDimensions`, typed links for companion ReferenceTypes
+including the inverse direction, and — new in revision 1.1 —
+`uav:bindingVersion: "1.1"` at Thing level, because Section 4.1 requires a
+*generator* to state the revision it emitted.
 
 **What to do:** re-generate and review, rather than diff against a stored
 expectation. Where the readable mapping previously fell short the
 converter emitted a `uav:nodes` projection to compensate, so some
 documents also *lose* projection content they no longer need. Nothing
-that was readable before became unreadable.
+that was readable before became unreadable. An authored
+`uav:bindingVersion` still wins over the generator's stamp on a round
+trip, so a document that declared a later revision keeps it.
 
-### Strict conformance is opt-in
+### A plural `titles` / `descriptions` no longer needs the default locale
+
+Revision 1.0 made a document whose `titles` lacked the document's default
+locale invalid, which made a NodeSet authored in the plant's language
+unrepresentable in the readable mapping and pushed it into `uav:nodes`.
+The plural member is now authoritative: it carries every locale the source
+had, and where it has no entry for the default locale the singular member
+is the entry whose BCP 47 tag is first in ascending Unicode code-point
+order — a display fallback that asserts no locale.
+
+**What to do:** nothing to keep working; documents that always carried the
+default locale read exactly as before. A converted NodeSet authored in one
+language now keeps its `titles` and `descriptions` readably and drops the
+`uav:nodes` projection it used to need for them, so re-generate rather
+than diff.
+
+### A quantity kind in `unit` is deprecated, not reinterpreted
+
+Revision 1.0 drew no line between an engineering unit and a quantity kind,
+and documents exist whose `unit` carries a `qudt-quantitykind:` IRI.
+Reading one now reports `QuantityKindInUnit` as a **warning** and
+preserves the authored value; strict *authoring* validation
+(`WotNodeSetConverterOptions.AuthoringValidation`) rejects it.
+
+**What to do:** move the value to `qudt:hasQuantityKind` and state a real
+engineering unit in `unit`. `Opc.Ua.Wot.WotUnitMigration.MoveQuantityKinds`
+does the first half for a document; it never invents a unit for the vacated
+member, because none is recoverable from a quantity kind.
+
+### Strict conformance is opt-in, and authoring validation is separate
 
 `WotNodeSetConverterOptions.ConformanceMode` defaults to `Permissive`,
-which preserves an unknown `uav:` term as residue and accepts a revision
-this library does not implement — what Section 4.1 requires of a consumer.
-`WotConformanceMode.Strict` reports both, plus opaque-object violations
-and, with `RequiredConformance`, a Section 11 claim the document does not
-make.
+which preserves an unknown `uav:` term as residue — what Section 4.1
+requires of a consumer. `WotConformanceMode.Strict` reports it, plus
+opaque-object violations and, with `RequiredConformance`, a Section 11
+claim the document does not make.
 
-**What to do:** nothing to keep working. Opt into `Strict` for authoring
-and conformance testing, where a misspelled term should fail rather than
-travel silently. Do not enable it on an ingestion path.
+`WotNodeSetConverterOptions.AuthoringValidation` is the separate switch
+Section 4.1 asks for. A *consumer* applies the syntactic rule alone: a
+well-formed `uav:bindingVersion` this library does not implement is
+reported as unsupported and preserved, and a well-formed `uav:profile`
+entry Section 11 does not define is reported as unrecognized and
+preserved. An *authoring* validator, which holds a document to a published
+revision, reports both as errors. Both revisions this Binding publishes —
+`1.0` and `1.1` — are accepted by either.
+
+**What to do:** nothing to keep working. Opt into `Strict` for
+conformance testing and into `AuthoringValidation` for a tool that writes
+documents. Do not enable either on an ingestion path.
 
 ### `uav:eventFields` is still read but should not be authored
 
@@ -1016,8 +1057,41 @@ standardized term wins and the contradiction is reported
 **What to do:** move authored selections to `uav:eventSelectClauses` and
 re-check them, because the two terms compose differently: a list that
 relied on being added to the eight mandatory `BaseEventType` fields has to
-name those fields itself. See
+name those fields itself. Two clauses may no longer share a normalized
+browse path even under different `uav:typeDefinitionId` values, because the
+path alone decides which `data` member the clause materializes. See
 [Event field selection](WotBindings.md#event-field-selection-uaveventselectclauses).
+
+### A notification carries a nested `data` object beside the flat index
+
+`WotNotification` gains `Data`, the nested `WotEventData` object of
+WoT Binding Sections 6.1 and 13.3: `EnabledState/Id` is
+`data.EnabledState.Id`, selecting `EnabledState` supplies
+`data.EnabledState.Name`, and a member name never contains the path
+separator. `WotNotification.EventFields` is unchanged and still keyed by
+the joined browse path the document authored; Section 6.1 names that index
+what it is — a transport-side artifact of one runtime, not the shape the
+Binding describes.
+
+**What to do:** nothing to keep working. Read `Data` where the shape
+matters; both are built together from one selection so they cannot
+disagree.
+
+### A security floor needs a factory that can honour it
+
+`uav:minimumSecurity` constrains a *choice* among endpoints, so it has to be
+applied where the choice is made. `OpcUaWotBindingOptions` gains
+`EndpointDiscovery` and `SelectedEndpointSessionFactory`: configured
+together, they make `OpcUaWotEndpointSelector` the built-in deterministic
+selection. A form that states a floor while only the endpoint-blind
+`SessionFactory` is configured now fails with `BadConfigurationError`
+naming what to configure, instead of opening a session through a factory
+that could not honour the floor and rejecting whatever endpoint it happened
+to pick.
+
+**What to do:** where documents state `uav:minimumSecurity`, configure
+either `ConstrainedSessionFactory` or the discovery pair. Forms without a
+floor keep using `SessionFactory` exactly as before.
 
 ### The `WoT/v1#` vocabulary IRI is superseded
 

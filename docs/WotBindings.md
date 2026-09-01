@@ -247,9 +247,56 @@ What the runtime does with it:
   against the connected session's namespace table. The **empty** browse path selects the
   `NodeId` Attribute — the OPC 10000-9 `ConditionId` idiom — and every other clause
   selects `Value`.
+* Two clauses **shall not** share a normalized browse path, even under different
+  `uav:typeDefinitionId` values: the path alone decides which `data` member the clause
+  materializes, so two clauses that reach it would compete for it and nothing in the
+  document would say which of them filled it. Normalization resolves each element's
+  prefix to the NamespaceUri the document binds it to, so two prefixes for one namespace
+  name one path. A collision is an `EventSelectClauseInvalid` error in both the converter
+  and the planner.
 * An `EventFilter` `WhereClause` / `ContentFilter` is out of scope of the Binding; a
   clause carrying one is rejected with `EventSelectClauseInvalid` instead of being
   reinterpreted.
+
+#### What a notification carries: the nested `data` object and the transport index
+
+A clause materializes into exactly one member of the event affordance's `data`
+object, by a rule that is a function of its normalized browse path alone:
+
+| Clause path | `data` member |
+|---|---|
+| `""` (empty) | `data.ConditionId` |
+| `Severity` | `data.Severity` |
+| `EnabledState/Id` | `data.EnabledState.Id` |
+| `EnabledState` | `data.EnabledState.Name` |
+
+A `data` member name therefore **never** contains the path separator:
+`EnabledState/Id` is two nested members and not one member called
+`EnabledState/Id`. Where the selected Node is an OPC UA state Variable — whose
+own value is the state's localized display text and whose `Id` sub-Variable
+carries the Boolean — the clause naming the field supplies that object's `Name`
+member. `Opc.Ua.Wot.WotEventSelectClauses.StateVariableFieldNames` names the
+states this Binding declares (`EnabledState`, `AckedState`, `ConfirmedState`,
+`ActiveState`), which is exactly the set the Condition `data` schema of
+Section 13.3 writes as an `{ Id, Name }` object; a companion state is recognized
+from the selection itself, because a field another clause of the same list nests
+through is an object whose `Name` member carries the field's own value.
+
+`WotNotification` carries both representations, built together from one
+selection so they cannot disagree:
+
+* **`WotNotification.Data`** is the nested `WotEventData` object above — the
+  shape the Binding describes, and the one to read.
+* **`WotNotification.EventFields`** is the flat index keyed by the *joined*
+  browse path the document authored (`EnabledState/Id`, and `ConditionId` for
+  the empty path). Section 6.1 names this what it is: a transport-side artifact
+  of one implementation, because a `MonitoredItem` returns field values
+  positionally and a runtime naturally keys them by the clause that asked for
+  them. It is kept for compatibility; a document never names a `data` member
+  with a joined browse path.
+
+Where two clauses would fill one `data` member the first stated clause wins and
+the collision is reported, rather than the last quietly replacing it.
 
 The superseded `uav:eventFields` spelling this implementation minted before the term was
 standardized is still **read** — it is authored on a form, carries bare browse names and
@@ -279,17 +326,32 @@ read — one carried by a scheme other than `auto`, or naming a mode or policy S
 does not — fails the form (`InvalidSecurityFloor`) instead of compiling without the
 constraint.
 
-Because the session factory owns endpoint selection, the runtime enforces the floor at
-both ends:
+Because endpoint selection needs an application configuration, a certificate store and a
+transport this library is deliberately not given, the choice is made by a delegate — but
+the *rules* are made here, and the executor never opens a session it could not have
+chosen:
 
 * `OpcUaWotBindingOptions.ConstrainedSessionFactory` receives an
-  `OpcUaWotSessionRequest` carrying the floor, so a factory can discard endpoints before
-  opening a channel. `OpcUaWotEndpointSelector.Select` applies the clause's rules to a
-  `GetEndpoints` response — discard everything below the floor, then take the strongest
-  mode, then the strongest policy (ranking a policy the Binding does not name below every
-  policy it does), then the highest `securityLevel`, then the smallest `endpointUrl` in
-  code-point order, then the earliest position.
-* Whichever factory is used, `OpcUaWotBindingExecutor` verifies the endpoint the returned
+  `OpcUaWotSessionRequest` carrying the floor, so a caller's own factory can discard
+  endpoints before opening a channel.
+* `OpcUaWotBindingOptions.EndpointDiscovery` together with
+  `SelectedEndpointSessionFactory` is the **built-in** path: the executor calls
+  discovery, applies `OpcUaWotEndpointSelector.Select`, and hands the chosen
+  `EndpointDescription` to the factory. The selection is the clause's own — discard
+  everything below the floor, then take the strongest mode, then the strongest policy
+  (ranking a policy the Binding does not name below every policy it does), then the
+  highest `securityLevel`, then the smallest `endpointUrl` in ascending Unicode
+  code-point order (the shared `WotCodePointComparer` of Annex G.3), then the earliest
+  position in the response. Where no endpoint is eligible the activation fails with
+  `BadSecurityModeRejected` and no session is opened: a client **shall** fail and report
+  rather than fall back below a stated floor.
+* The endpoint-blind `SessionFactory` stays exactly as it was where the form states **no**
+  floor. A form that states one and finds only that factory configured fails with
+  `BadConfigurationError` naming what to configure, rather than opening a session through
+  a factory that could not honour the floor and rejecting whatever endpoint it happened
+  to pick — a false negative that reads as "no endpoint is strong enough" even when the
+  Server offers one.
+* Whichever path is used, `OpcUaWotBindingExecutor` verifies the endpoint the returned
   session reports and **fails closed** (`BadSecurityModeRejected`, session disposed) when
   it is below the floor, or when the session cannot state its endpoint at all. A floor
   whose enforcement was merely assumed would be a claim rather than a guarantee.
@@ -963,18 +1025,24 @@ for callers that need to know a document was reproduced as written.
 
 ### How this is checked
 
-The specification publishes twenty-three worked examples, and two of them are a
+The specification publishes twenty-six worked examples, and two of them are a
 golden pair: a projection document and the resolved view it is defined to
-resolve to. `WotSpecExampleTests` embeds all twenty-three and runs the pair
+resolve to. `WotSpecExampleTests` embeds all twenty-six and runs the pair
 through the resolver, asserting against the specification's own expected output
 rather than against our reading of the prose. That covers, in one document, all
 three selection forms, the bulk naming rule, the security closure naming and the
 provenance term. Example 22 is additionally converted to check that a document
 binds the node it projects to an existing type (Section 5.2.1) and constrains
-its `auto` endpoint selection with a Section 5.7.1 floor.
+its `auto` endpoint selection with a Section 5.7.1 floor. Three examples were
+added by revision 1.1 and pin the corrections it made: a document whose texts
+are authored in German and French while the default locale is `en`
+(example 24, the code-point-first display fallback of Section 9.1.1), a Thing
+Model that projects a ReferenceType Node with `uav:inverseName` and
+`uav:symmetric` (example 25, Section 6.2.1), and one that projects a DataType
+Node (example 26, Sections 5.2 and 6.11).
 
 `WotSpecExampleTests.EveryPublishedExamplePassesStrictConformanceAndImports`
-runs every one of the twenty-three through the whole reading pipeline — parse,
+runs every one of the twenty-six through the whole reading pipeline — parse,
 **strict** conformance validation, conversion, then serialize, re-read and
 `Import`. A document that claims a profile covering `WoT-Modeller` has to
 convert: the claim is what makes the conversion mandatory rather than optional.
@@ -1262,8 +1330,15 @@ resolves.
 
 `EventId` names the Event occurrence, so without it a consumer can receive a
 notification but can never identify the occurrence to acknowledge, confirm or
-comment on. `Enable` and `Disable` act on the Condition instance rather than one
-occurrence and are deliberately exempt from the input rule.
+comment on. It is the **one** hard requirement of Section 13.3: an affordance
+carrying `uav:conditionType` shall declare `EventId` in its `data` object and,
+where it states a select-clause list, shall select it — a complete list replaces
+the documented default rather than extending it, so one that omits the field
+describes a notification that never carries it. Every other Condition field is
+present in `data` *where the affordance selects it* and is not otherwise
+required; both are `ConditionEventIdMissing`. `Enable` and `Disable` act on the
+Condition instance rather than one occurrence and are deliberately exempt from
+the input rule.
 
 Shelving, suppression, dialog conditions and `ConditionRefresh` are outside the
 mapping, as Section 13.1 scopes it.
