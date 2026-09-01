@@ -62,10 +62,10 @@ namespace Opc.Ua.WotCon.Bindings.Planners
         /// </summary>
         /// <remarks>
         /// It is authored on a form, carries bare browse paths and adds to the
-        /// documented default selection. It is still read so a document already
+        /// implicit BaseEventType default. It is still read so a document already
         /// authored against this implementation keeps working, and it is never
         /// written: a document this stack produces states the standardized
-        /// term.
+        /// terms.
         /// </remarks>
         public const string LegacyEventFieldsTerm = "uav:eventFields";
 

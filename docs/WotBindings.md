@@ -1035,7 +1035,7 @@ The specification defines twelve conformance units and four recommended profiles
 | **WoT-JsonResidue** | covered | `WotJsonResidue`, pointer-addressed preservation through the NodeSet Extension |
 | **WoT-NodeSetPreservation** | covered | the byte-exact `uav:nodeSet` envelope with digest verification |
 | **WoT-ExactRoundtrip** | covered | the envelope-free roundtrip invariants, including residue |
-| **WoT-EventMapping** | covered | `subscribeevent` / `unsubscribeevent` mapped to event MonitoredItems, including the `uav:eventSelectClauses` list and its documented default (Section 6.1) |
+| **WoT-EventMapping** | covered | `subscribeevent` / `unsubscribeevent` mapped to event MonitoredItems, including the EventType `tm:ref` fast path, the `uav:eventSelectClauses` overlay and the implicit `BaseEventType` default (Section 6.1) |
 | **WoT-ConditionMapping** | covered | Section 13 (`uav:conditionType`, `uav:conditionTypeId`, `uav:conditionAction`, `uav:actsOn`) in `WotNodeSetConverter.Conditions`, with the Condition supertype resolution and the Section 13.3/13.4 conformance rules |
 | **WoT-ModelVocabulary** | covered | `WotNodeSetConverter.ModelVocabulary` and `WotNodeSetConverter.Conformance`, all Section 6 terms with their validation rules |
 | **WoT-DataTypeDefinition** | covered | `WotNodeSetConverter.DataTypes`, the explicit and inferred DataType definitions of Section 6.11 |
@@ -1385,8 +1385,8 @@ resolves.
 notification but can never identify the occurrence to acknowledge, confirm or
 comment on. It is the **one** hard requirement of Section 13.3: an affordance
 carrying `uav:conditionType` shall declare `EventId` in its `data` object and,
-where it states a select-clause list, shall select it — a complete list replaces
-the documented default rather than extending it, so one that omits the field
+where it states a selection, shall select it — the resolved selection is what a
+MonitoredItem is created with, so one that omits the field
 describes a notification that never carries it. Every other Condition field is
 present in `data` *where the affordance selects it* and is not otherwise
 required; both are `ConditionEventIdMissing`. `Enable` and `Disable` act on the

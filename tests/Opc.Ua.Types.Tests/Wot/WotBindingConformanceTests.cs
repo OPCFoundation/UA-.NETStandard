@@ -50,7 +50,7 @@ namespace Opc.Ua.Types.Tests.Wot
     public class WotBindingConformanceTests
     {
         [Test]
-        public void DocumentedDefaultSelectsTheEightMandatoryBaseEventTypeFields()
+        public void TheImplicitDefaultSelectsTheEightMandatoryBaseEventTypeFields()
         {
             Assert.That(
                 WotEventSelectClauses.Default.ToList().Select(c => c.BrowsePath),

@@ -277,8 +277,9 @@ namespace Opc.Ua.WotCon.Bindings
         /// Gets the compiled OPC UA event field selection of WoT Binding
         /// Section 6.1, or <c>null</c> for a form that is not an event
         /// subscription. It is always the <em>effective</em> selection: the
-        /// documented default when the affordance states none, the complete
-        /// standardized list when it states one.
+        /// implicit <c>BaseEventType</c> default when the affordance states
+        /// none, and otherwise the selection resolved from the EventType
+        /// definition it links to, overlaid by the clauses it states.
         /// </summary>
         public WotEventSelection? EventSelection { get; }
 

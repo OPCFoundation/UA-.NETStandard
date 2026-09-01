@@ -45,16 +45,16 @@ namespace Opc.Ua.WotCon.Bindings.Tests
 {
     /// <summary>
     /// Covers the WoT Binding 1.1 runtime terms the OPC UA binding compiles:
-    /// the event select-clause list of Section 6.1, its documented default and
-    /// the superseded <c>uav:eventFields</c> spelling, and the <c>auto</c>
-    /// endpoint security floor of Section 5.7.1 together with its deterministic
-    /// tie-break and fail-closed enforcement.
+    /// the event field selection of Section 6.1, its implicit
+    /// <c>BaseEventType</c> default and the superseded <c>uav:eventFields</c>
+    /// spelling, and the <c>auto</c> endpoint security floor of Section 5.7.1
+    /// together with its deterministic tie-break and fail-closed enforcement.
     /// </summary>
     [TestFixture]
     public sealed class OpcUaWotBindingTermsTests
     {
         [Test]
-        public void AnEventWithoutASelectionCompilesTheDocumentedDefault()
+        public void AnEventWithoutASelectionCompilesTheImplicitDefault()
         {
             WotBindingCompilation result = CompileEvent("{}");
 
@@ -70,8 +70,13 @@ namespace Opc.Ua.WotCon.Bindings.Tests
             });
         }
 
+        /// <summary>
+        /// The planner compiles the resolved selection it is handed, in order
+        /// and unchanged apart from the portable rewriting below: the overlay
+        /// of Section 6.1 has already been applied by the resolver.
+        /// </summary>
         [Test]
-        public void StandardSelectClausesReplaceTheDefaultInOrder()
+        public void TheResolvedSelectionIsCompiledInOrder()
         {
             WotBindingCompilation result = CompileEvent(
                 "{\"uav:eventSelectClauses\":[" +

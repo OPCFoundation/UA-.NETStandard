@@ -44,7 +44,7 @@ namespace Opc.Ua.WotCon.Bindings.Tests
     public sealed class BindingPlannerTests
     {
         /// <summary>
-        /// The documented default select clauses followed by the two clauses that the
+        /// The implicit BaseEventType default clauses followed by the two clauses that the
         /// superseded <c>uav:eventFields</c> spelling adds to them.
         /// </summary>
         private static readonly string[] s_legacyEventFieldsOnDefault =
@@ -815,7 +815,7 @@ namespace Opc.Ua.WotCon.Bindings.Tests
             Assert.That(
                 selection.Clauses.ToList().Select(c => c.BrowsePath),
                 Is.EqualTo(s_legacyEventFieldsOnDefault),
-                "The superseded spelling adds to the documented default and never repeats it.");
+                "The superseded spelling adds to the implicit BaseEventType default and never repeats it.");
         }
 
         [Test]

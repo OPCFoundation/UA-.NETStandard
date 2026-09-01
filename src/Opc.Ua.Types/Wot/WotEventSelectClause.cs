@@ -203,7 +203,7 @@ namespace Opc.Ua.Wot
         /// </para>
         /// <para>
         /// The value is computed once, when the clause is constructed, and the
-        /// clause is immutable thereafter: the documented default list is a
+        /// clause is immutable thereafter: the implicit default list is a
         /// process-wide shared value, and a member computed lazily would be
         /// written by whichever thread reached it first.
         /// </para>

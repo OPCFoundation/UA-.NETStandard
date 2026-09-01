@@ -520,8 +520,8 @@ namespace Opc.Ua.WotCon.Bindings.OpcUa
                     havePrimary = true;
                 }
             }
-            // Defensive: the documented default selection always carries the
-            // Message field, but an authored selection replaces that default and
+            // Defensive: the implicit BaseEventType default always carries the
+            // Message field, but a selection derived from a linked EventType
             // need not select it. The fallback keeps the notification meaningful
             // when it does not.
             if (!havePrimary && count > 0)

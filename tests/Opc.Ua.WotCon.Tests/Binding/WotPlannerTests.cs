@@ -701,7 +701,7 @@ namespace Opc.Ua.WotCon.Tests.Binding
                 Assert.That(
                     selection.Clauses.ToList().Select(c => c.BrowsePath),
                     Does.Contain("ActiveState/Id"),
-                    "The superseded spelling adds to the documented default selection.");
+                    "The superseded spelling adds to the implicit BaseEventType default.");
                 Assert.That(
                     selection.Clauses.ToList().Count(c => c.BrowsePath == "Severity"),
                     Is.EqualTo(1),

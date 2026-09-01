@@ -511,13 +511,17 @@ namespace Opc.Ua.Wot
         ReferenceTypeNodeClassInvalid = 6041,
 
         /// <summary>
-        /// A <c>uav:eventSelectClauses</c> list violates WoT Binding Sections
-        /// 6.1 and 7: it is empty, sits somewhere other than directly on an
-        /// event affordance, repeats a clause, carries a member beyond
-        /// <c>uav:typeDefinitionId</c> and <c>uav:browsePath</c> — an
+        /// An event field selection violates WoT Binding Sections 6.1 and 7:
+        /// a <c>uav:eventSelectClauses</c> list is empty, sits somewhere other
+        /// than directly on an event affordance, repeats a clause, carries a
+        /// member beyond <c>tm:ref</c> and <c>uav:browsePath</c> — an
         /// <c>EventFilter</c> <c>WhereClause</c> among them, which this
         /// Binding deliberately does not express — or anchors a clause with an
-        /// absolute path.
+        /// absolute path; or an EventType reference does not resolve, names a
+        /// target that is not an EventType definition, names one that declares
+        /// no portable identity, no object <c>data</c> or no field order, or
+        /// the overlaid selection materializes two clauses into one
+        /// <c>data</c> member.
         /// </summary>
         EventSelectClauseInvalid = 6042,
 

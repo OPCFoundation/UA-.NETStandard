@@ -536,13 +536,13 @@ namespace Opc.Ua.WotCon.Bindings.Tests
                 "\"op\":[\"subscribeevent\"]}" +
                 "]}," +
                 // extrafields: real event notifier with uav:eventFields → exercises the
-                // superseded spelling, which adds to the documented default selection
+                // superseded spelling, which adds to the implicit BaseEventType default
                 "\"extrafields\":{\"forms\":[" +
                 "{\"href\":\"" + endpoint + "\",\"uav:id\":\"" + ServerObjectNodeId + "\"," +
                 "\"op\":[\"subscribeevent\"],\"uav:eventFields\":[\"LocalTime\"]}" +
                 "]}," +
                 // selectclauses: the standardized uav:eventSelectClauses list, which
-                // replaces the documented default and includes the empty-path
+                // overlays the implicit BaseEventType default and includes the empty-path
                 // ConditionId selection
                 "\"selectclauses\":{\"uav:isEvent\":true,\"uav:eventSelectClauses\":[" +
                 "{\"tm:ref\":\"./base-event.tm.jsonld\",\"uav:browsePath\":\"Message\"}," +
