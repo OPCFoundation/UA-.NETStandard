@@ -46,6 +46,7 @@ namespace Opc.Ua.Server
             NodeId roleId,
             string? browseName,
             ushort namespaceIndex,
+            string? namespaceUri,
             bool isReserved,
             bool isWellKnown,
             IReadOnlyList<IdentityMappingRuleType> identities,
@@ -58,6 +59,7 @@ namespace Opc.Ua.Server
             RoleId = roleId;
             BrowseName = browseName;
             NamespaceIndex = namespaceIndex;
+            NamespaceUri = namespaceUri;
             IsReserved = isReserved;
             IsWellKnown = isWellKnown;
             Identities = identities;
@@ -80,9 +82,24 @@ namespace Opc.Ua.Server
         public string? BrowseName { get; }
 
         /// <summary>
-        /// Namespace index for the role's NodeId.
+        /// Namespace index qualifying the role's <see cref="BrowseName"/>,
+        /// resolved against the namespace table passed to
+        /// <see cref="IRoleManager.AddRole"/>.
         /// </summary>
+        /// <remarks>
+        /// This is not necessarily the namespace index of <see cref="RoleId"/>.
+        /// Per Part 18 §4.2.2 the <c>NamespaceUri</c> argument of <c>AddRole</c>
+        /// qualifies the BrowseName of the new role while its NodeId is
+        /// server-assigned. Use <see cref="NamespaceUri"/> when the index has to
+        /// be resolved against a different namespace table.
+        /// </remarks>
         public ushort NamespaceIndex { get; }
+
+        /// <summary>
+        /// Namespace URI qualifying the role's <see cref="BrowseName"/>, or
+        /// <c>null</c> when the manager only tracks the index.
+        /// </summary>
+        public string? NamespaceUri { get; }
 
         /// <summary>
         /// True if the role is one of the three reserved well-known roles

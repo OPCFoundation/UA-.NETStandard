@@ -1340,7 +1340,9 @@ namespace Opc.Ua.Server
             // on every successful mutation.
             if (DiagnosticsNodeManager is AsyncCustomNodeManager diagnosticsCustom)
             {
-                m_roleStateBinding = RoleStateBinding.Bind(diagnosticsCustom, RoleManager, this);
+                m_roleStateBinding = await RoleStateBinding
+                    .BindAsync(diagnosticsCustom, RoleManager, this, cancellationToken)
+                    .ConfigureAwait(false);
             }
         }
 

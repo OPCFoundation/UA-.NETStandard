@@ -1504,79 +1504,21 @@ namespace Microsoft.Extensions.DependencyInjection
 
         private static IRoleManager CreateConfiguredRoleManager(IServiceProvider services)
         {
-            var roleManager = new RoleManager();
-            RoleConfigurationOptions options = services.GetRequiredService<IOptions<RoleConfigurationOptions>>().Value;
-            ApplyRoleConfiguration(roleManager, options);
+            // The configured roles are staged rather than applied here: a role
+            // gets a server-assigned NodeId, and the server's namespace table
+            // does not exist yet while the container is being built. The
+            // RoleStateBinding applies them once the address space is up, which
+            // is also what makes them appear under the RoleSet (Part 18 §4.2).
+            var roleManager = new RoleManager
+            {
+                PendingConfiguration = services
+                    .GetRequiredService<IOptions<RoleConfigurationOptions>>().Value
+            };
+
+            // Settings on roles that already exist — the nine well-known ones —
+            // take effect immediately; the rest wait for the address space.
+            roleManager.ApplyPendingConfigurationToExistingRoles();
             return roleManager;
-        }
-
-        private static void ApplyRoleConfiguration(RoleManager roleManager, RoleConfigurationOptions options)
-        {
-            var namespaces = new NamespaceTable();
-            namespaces.Append(Opc.Ua.Namespaces.OpcUa);
-            foreach (RoleDefinitionOptions role in options.Roles)
-            {
-                if (string.IsNullOrWhiteSpace(role.Name))
-                {
-                    continue;
-                }
-
-                NodeId roleId = ResolveOrCreateRole(roleManager, namespaces, role);
-                foreach (RoleIdentityMappingOptions identity in role.Identities)
-                {
-                    roleManager.AddIdentity(roleId, new IdentityMappingRuleType
-                    {
-                        CriteriaType = identity.CriteriaType,
-                        Criteria = identity.Criteria
-                    });
-                }
-                foreach (string application in role.Applications)
-                {
-                    roleManager.AddApplication(roleId, application);
-                }
-                foreach (EndpointType endpoint in role.Endpoints)
-                {
-                    roleManager.AddEndpoint(roleId, endpoint);
-                }
-                roleManager.SetApplicationsExclude(roleId, role.ApplicationsExclude);
-                roleManager.SetEndpointsExclude(roleId, role.EndpointsExclude);
-                roleManager.SetCustomConfiguration(roleId, role.CustomConfiguration);
-            }
-        }
-
-        private static NodeId ResolveOrCreateRole(
-            RoleManager roleManager,
-            NamespaceTable namespaces,
-            RoleDefinitionOptions role)
-        {
-            foreach (NodeId roleId in roleManager.RoleIds)
-            {
-                RoleEntry? entry = roleManager.GetRole(roleId);
-                if (string.Equals(entry?.BrowseName, role.Name, StringComparison.Ordinal))
-                {
-                    return roleId;
-                }
-            }
-
-            string? namespaceUri = role.NamespaceUri;
-            ushort namespaceIndex = 1;
-            if (!string.IsNullOrEmpty(namespaceUri))
-            {
-                namespaceIndex = namespaces.GetIndexOrAppend(namespaceUri);
-            }
-
-            ServiceResult result = roleManager.AddRole(
-                role.Name,
-                namespaceUri,
-                namespaces,
-                namespaceIndex,
-                out NodeId newRoleId);
-            if (ServiceResult.IsBad(result))
-            {
-                throw new InvalidOperationException(
-                    $"Role '{role.Name}' could not be configured: {result}.");
-            }
-            return newRoleId;
         }
 
         private static void RegisterFallbackAnonymousAuthenticator(IServiceCollection services)
