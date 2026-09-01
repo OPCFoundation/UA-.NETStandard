@@ -247,13 +247,18 @@ What the runtime does with it:
   against the connected session's namespace table. The **empty** browse path selects the
   `NodeId` Attribute — the OPC 10000-9 `ConditionId` idiom — and every other clause
   selects `Value`.
-* Two clauses **shall not** share a normalized browse path, even under different
-  `uav:typeDefinitionId` values: the path alone decides which `data` member the clause
-  materializes, so two clauses that reach it would compete for it and nothing in the
-  document would say which of them filled it. Normalization resolves each element's
-  prefix to the NamespaceUri the document binds it to, so two prefixes for one namespace
-  name one path. A collision is an `EventSelectClauseInvalid` error in both the converter
-  and the planner.
+* Two clauses **shall not** materialize the same `data` member, even under different
+  `uav:typeDefinitionId` values and even where their normalized browse paths differ: the
+  **materialized member path** — the sequence of `data` member names the clause fills —
+  is what decides the output, so two clauses that reach it would compete for it and
+  nothing in the document would say which of them filled it. Normalization resolves each
+  element's prefix to the NamespaceUri the document binds it to, so two prefixes for one
+  namespace name one path; but the member name drops the qualification altogether and a
+  state Variable appends `Name`, so an unqualified `Severity` beside a
+  namespace-qualified `Severity`, and `EnabledState` beside `EnabledState/Name`, are each
+  two paths and one member. A collision is an `EventSelectClauseInvalid` error in the
+  converter, in `WotEventSelectClauses.TryParse` and again in the planner, which re-checks
+  the list it rewrote into portable form.
 * An `EventFilter` `WhereClause` / `ContentFilter` is out of scope of the Binding; a
   clause carrying one is rejected with `EventSelectClauseInvalid` instead of being
   reinterpreted.
@@ -261,7 +266,8 @@ What the runtime does with it:
 #### What a notification carries: the nested `data` object and the transport index
 
 A clause materializes into exactly one member of the event affordance's `data`
-object, by a rule that is a function of its normalized browse path alone:
+object, by a rule that is a function of its browse path and the list the clause
+sits in:
 
 | Clause path | `data` member |
 |---|---|
@@ -295,8 +301,11 @@ selection so they cannot disagree:
   them. It is kept for compatibility; a document never names a `data` member
   with a joined browse path.
 
-Where two clauses would fill one `data` member the first stated clause wins and
-the collision is reported, rather than the last quietly replacing it.
+Where two clauses would fill one `data` member the plan is rejected before a
+subscription exists, so the runtime never has to choose. If a collision still
+reaches `WotEventDataBuilder` — a plan assembled around the planner, or a Server
+field list the selection does not describe — the first stated clause keeps the
+member and the collision is logged as an error rather than silently dropped.
 
 The superseded `uav:eventFields` spelling this implementation minted before the term was
 standardized is still **read** — it is authored on a form, carries bare browse names and

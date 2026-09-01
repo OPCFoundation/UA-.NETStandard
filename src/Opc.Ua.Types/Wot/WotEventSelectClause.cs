@@ -69,6 +69,7 @@ namespace Opc.Ua.Wot
             TypeDefinitionId = typeDefinitionId ??
                 throw new ArgumentNullException(nameof(typeDefinitionId));
             BrowsePath = browsePath ?? throw new ArgumentNullException(nameof(browsePath));
+            MemberPath = BuildMemberPath(BrowsePath);
         }
 
         /// <summary>
@@ -116,10 +117,20 @@ namespace Opc.Ua.Wot
         /// <see cref="WotEventSelectClauses.StateVariableFieldNames"/>, which is
         /// the same set the Condition <c>data</c> schema of Section 13.3 writes
         /// as an <c>{ Id, Name }</c> object, so the document and a runtime
-        /// agree about the shape without either having to guess.
+        /// agree about the shape without either having to guess. A companion
+        /// state this Binding does not name is decided by the clause list
+        /// rather than by one clause, so it is resolved by
+        /// <see cref="WotEventSelectClauses.GetMaterializedMemberPaths"/> and
+        /// not here.
+        /// </para>
+        /// <para>
+        /// The value is computed once, when the clause is constructed, and the
+        /// clause is immutable thereafter: the documented default list is a
+        /// process-wide shared value, and a member computed lazily would be
+        /// written by whichever thread reached it first.
         /// </para>
         /// </remarks>
-        public ArrayOf<string> MemberPath => m_memberPath ??= BuildMemberPath();
+        public ArrayOf<string> MemberPath { get; }
 
         /// <summary>
         /// Gets the name the selected field carries in the event <c>data</c>
@@ -142,19 +153,19 @@ namespace Opc.Ua.Wot
 
         /// <summary>
         /// Gets the clause's browse path with every element normalized to the
-        /// portable form of WoT Binding Section 5.1.3, which is what decides
-        /// whether two clauses select the same field (Section 6.1).
+        /// portable form of WoT Binding Section 5.1.3, which is the first step
+        /// of the materialization rule of Section 6.1.
         /// </summary>
         /// <remarks>
-        /// Uniqueness is stated over the normalized path and not over the
-        /// <c>uav:typeDefinitionId</c>-and-path pair, because the path alone
-        /// decides the output member: two clauses naming <c>Severity</c> on two
-        /// different EventTypes would compete for the single
-        /// <c>data.Severity</c> member and nothing in the document would say
-        /// which of them filled it. Where a prefix cannot be resolved to a
-        /// NamespaceUri the element is compared as written, which is exact for
-        /// the documents this library reads and never reports two distinct
-        /// paths as one.
+        /// Normalizing is what makes two paths that name the same elements the
+        /// same path even when their prefixes differ. It is not by itself the
+        /// uniqueness key: that is the <em>materialized member path</em> the
+        /// clause fills, because the namespace qualification is dropped when a
+        /// member is named and a state Variable appends <c>Name</c>, so two
+        /// distinct normalized paths can still reach one member. Where a prefix
+        /// cannot be resolved to a NamespaceUri the element is normalized as
+        /// written, which is exact for the documents this library reads and
+        /// never reports two distinct paths as one.
         /// </remarks>
         /// <param name="resolvePrefix">
         /// Resolves a path element's prefix to the NamespaceUri the document's
@@ -209,13 +220,13 @@ namespace Opc.Ua.Wot
             return TypeDefinitionId + "#" + BrowsePath;
         }
 
-        private ArrayOf<string> BuildMemberPath()
+        private static ArrayOf<string> BuildMemberPath(string browsePath)
         {
-            if (IsConditionIdSelection)
+            if (browsePath.Length == 0)
             {
                 return new[] { WotEventSelectClauses.ConditionIdFieldName };
             }
-            string[] elements = BrowsePath.Split('/');
+            string[] elements = browsePath.Split('/');
             var members = new List<string>(elements.Length + 1);
             for (int ii = 0; ii < elements.Length; ii++)
             {
@@ -227,8 +238,6 @@ namespace Opc.Ua.Wot
             }
             return members.ToArray();
         }
-
-        private ArrayOf<string>? m_memberPath;
     }
 
     /// <summary>
@@ -325,6 +334,97 @@ namespace Opc.Ua.Wot
                 }
             }
             return false;
+        }
+
+        /// <summary>
+        /// Gets the <c>data</c> member path each clause of a list materializes
+        /// into, in list order (WoT Binding Sections 6.1 and 13.3).
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// A clause's own <see cref="WotEventSelectClause.MemberPath"/> decides
+        /// the member from the clause alone, which is exact for the state
+        /// Variables <see cref="StateVariableFieldNames"/> declares. A
+        /// companion state this Binding does not name is decided by the
+        /// <em>list</em>: where another clause reaches <em>through</em> a field
+        /// - its member path strictly extends this one - the field is an object
+        /// and this clause supplies that object's <c>Name</c> member. Stating
+        /// it over the list is what makes the rule decidable from the document
+        /// alone, without consulting a model.
+        /// </para>
+        /// <para>
+        /// This is the uniqueness key of Section 6.1: two clauses that
+        /// materialize the same member compete for it, whatever EventType each
+        /// names as the declaring type and however differently their browse
+        /// paths are spelled.
+        /// </para>
+        /// </remarks>
+        /// <param name="clauses">The clause list, in document order.</param>
+        /// <returns>The materialized member path of each clause.</returns>
+        public static ArrayOf<ArrayOf<string>> GetMaterializedMemberPaths(
+            ArrayOf<WotEventSelectClause> clauses)
+        {
+            if (clauses.IsNull || clauses.Count == 0)
+            {
+                return ArrayOf<ArrayOf<string>>.Empty;
+            }
+            var basePaths = new List<string[]>(clauses.Count);
+            var reachedThrough = new HashSet<string>(StringComparer.Ordinal);
+            for (int ii = 0; ii < clauses.Count; ii++)
+            {
+                WotEventSelectClause clause = clauses[ii];
+                string[] names = clause.IsConditionIdSelection
+                    ? [ConditionIdFieldName]
+                    : SplitMemberNames(clause.BrowsePath);
+                basePaths.Add(names);
+                for (int length = 1; length < names.Length; length++)
+                {
+                    reachedThrough.Add(JoinMemberPath(names, length));
+                }
+            }
+
+            var paths = new ArrayOf<string>[clauses.Count];
+            for (int ii = 0; ii < clauses.Count; ii++)
+            {
+                string[] names = basePaths[ii];
+                bool isState = !clauses[ii].IsConditionIdSelection &&
+                    (IsStateVariableFieldName(names[names.Length - 1]) ||
+                        reachedThrough.Contains(JoinMemberPath(names, names.Length)));
+                if (!isState)
+                {
+                    paths[ii] = names;
+                    continue;
+                }
+                var members = new string[names.Length + 1];
+                Array.Copy(names, members, names.Length);
+                members[names.Length] = StateNameMember;
+                paths[ii] = members;
+            }
+            return paths;
+        }
+
+        /// <summary>
+        /// Joins a materialized member path into the dotted form the Binding
+        /// writes it in - <c>EnabledState.Name</c> - for a diagnostic message.
+        /// </summary>
+        /// <param name="memberPath">The member names, outermost first.</param>
+        /// <returns>The dotted member path.</returns>
+        public static string FormatMemberPath(ArrayOf<string> memberPath)
+        {
+            if (memberPath.IsNull || memberPath.Count == 0)
+            {
+                return string.Empty;
+            }
+            var text = new StringBuilder();
+            for (int ii = 0; ii < memberPath.Count; ii++)
+            {
+                if (ii > 0)
+                {
+                    text.Append('.');
+                }
+                text.Append(memberPath[ii]);
+            }
+            return text.ToString();
         }
 
         /// <summary>
@@ -442,6 +542,49 @@ namespace Opc.Ua.Wot
                 (element.Length > 0 && element[0] == '{');
         }
 
+        /// <summary>
+        /// Splits a browse path into the <c>data</c> member names its elements
+        /// materialize, dropping the namespace qualification that says where a
+        /// field is declared (WoT Binding Section 6.1).
+        /// </summary>
+        private static string[] SplitMemberNames(string browsePath)
+        {
+            string[] elements = browsePath.Split('/');
+            var names = new string[elements.Length];
+            for (int ii = 0; ii < elements.Length; ii++)
+            {
+                names[ii] = MemberName(elements[ii]);
+            }
+            return names;
+        }
+
+        /// <summary>
+        /// Joins the first <paramref name="length"/> member names into a key.
+        /// A member name never carries the path separator - the path was split
+        /// on it - so the joined form identifies exactly one member path.
+        /// </summary>
+        private static string JoinMemberPath(string[] names, int length)
+        {
+            return string.Join("/", names, 0, length);
+        }
+
+        /// <summary>
+        /// Joins a materialized member path into the same key form.
+        /// </summary>
+        private static string JoinMemberPath(ArrayOf<string> memberPath)
+        {
+            var key = new StringBuilder();
+            for (int ii = 0; ii < memberPath.Count; ii++)
+            {
+                if (ii > 0)
+                {
+                    key.Append('/');
+                }
+                key.Append(memberPath[ii]);
+            }
+            return key.ToString();
+        }
+
         private static string Qualify(string namespaceUri, string name)
         {
             return "{" + namespaceUri + "}" + name;
@@ -509,12 +652,18 @@ namespace Opc.Ua.Wot
         /// path-element prefixes through the document that carries them.
         /// </summary>
         /// <remarks>
-        /// Clause uniqueness is stated over the <em>normalized</em> browse path
-        /// alone (Section 6.1): the path decides which <c>data</c> member the
-        /// clause materializes, so two clauses that reach the same member
-        /// compete for it whatever EventType each names as the declaring type.
-        /// Resolving prefixes is what makes two paths that name the same
-        /// elements under different prefixes the same path.
+        /// Clause uniqueness is stated over the <em>materialized member path</em>
+        /// (Section 6.1): that member, and not the browse path it was derived
+        /// from, decides the output, so two clauses that reach the same member
+        /// compete for it whatever EventType each names as the declaring type
+        /// and however differently their paths are spelled. Namespace
+        /// qualification is dropped when a member is named and a state Variable
+        /// appends <c>Name</c>, so <c>Severity</c> beside a
+        /// namespace-qualified <c>Severity</c>, and <c>EnabledState</c> beside
+        /// <c>EnabledState/Name</c>, are each two paths and one member.
+        /// Resolving prefixes still matters for the repeated-clause message,
+        /// which distinguishes the same clause written twice from two clauses
+        /// that merely collide.
         /// </remarks>
         /// <param name="selectClauses">The array member's value.</param>
         /// <param name="resolvePrefix">
@@ -552,7 +701,6 @@ namespace Opc.Ua.Wot
             }
 
             var parsed = new List<WotEventSelectClause>(count);
-            var seen = new Dictionary<string, WotEventSelectClause>(StringComparer.Ordinal);
             int index = 0;
             foreach (JsonElement clause in selectClauses.EnumerateArray())
             {
@@ -568,28 +716,94 @@ namespace Opc.Ua.Wot
                 {
                     return false;
                 }
-                string normalized = entry!.GetNormalizedBrowsePath(resolvePrefix);
-                if (seen.TryGetValue(normalized, out WotEventSelectClause? first))
-                {
-                    error = string.Equals(
-                        first.TypeDefinitionId, entry.TypeDefinitionId, StringComparison.Ordinal)
-                        ? $"The clause ({entry.TypeDefinitionId}, '{entry.BrowsePath}') " +
-                            "appears twice; the same clause shall not be selected twice."
-                        : $"The clause ({entry.TypeDefinitionId}, '{entry.BrowsePath}') " +
-                            $"normalizes to the same browse path as " +
-                            $"({first.TypeDefinitionId}, '{first.BrowsePath}'). The path alone " +
-                            "decides which data member a clause materializes, so two clauses " +
-                            "that reach the same member would compete for it and nothing in " +
-                            "the document would say which of them filled it (Section 6.1).";
-                    return false;
-                }
-                seen.Add(normalized, entry);
-                parsed.Add(entry);
+                parsed.Add(entry!);
             }
 
-            clauses = parsed.ToArray();
+            // The materialized member path depends on the list a clause sits in
+            // - a field another clause reaches through is an object whose Name
+            // member this clause supplies - so the list is complete before any
+            // member is named (Section 6.1).
+            ArrayOf<WotEventSelectClause> candidates = parsed.ToArray();
+            if (!TryFindMaterializedCollision(
+                candidates, resolvePrefix, out error, out errorIndex))
+            {
+                return false;
+            }
+
+            clauses = candidates;
             error = string.Empty;
             errorIndex = -1;
+            return true;
+        }
+
+        /// <summary>
+        /// Reports the first pair of clauses that materialize into one
+        /// <c>data</c> member (WoT Binding Section 6.1).
+        /// </summary>
+        /// <remarks>
+        /// Stated here once because the document converter, the parser and the
+        /// OPC UA binding planner all enforce it, and the planner enforces it
+        /// again on the clauses it rewrote into portable form.
+        /// </remarks>
+        /// <param name="clauses">The clause list, in document order.</param>
+        /// <param name="resolvePrefix">
+        /// Resolves a path-element prefix to the NamespaceUri the document's
+        /// <c>@context</c> binds it to, or <c>null</c> to compare paths as
+        /// written.
+        /// </param>
+        /// <param name="error">The collision, when one was found.</param>
+        /// <param name="errorIndex">
+        /// The index of the second clause of the colliding pair, or <c>-1</c>
+        /// when there is none.
+        /// </param>
+        /// <returns><c>true</c> when no two clauses collide.</returns>
+        public static bool TryFindMaterializedCollision(
+            ArrayOf<WotEventSelectClause> clauses,
+            Func<string, string?>? resolvePrefix,
+            out string error,
+            out int errorIndex)
+        {
+            error = string.Empty;
+            errorIndex = -1;
+            if (clauses.IsNull || clauses.Count == 0)
+            {
+                return true;
+            }
+            ArrayOf<ArrayOf<string>> members = GetMaterializedMemberPaths(clauses);
+            var seen = new Dictionary<string, int>(StringComparer.Ordinal);
+            for (int ii = 0; ii < clauses.Count; ii++)
+            {
+                ArrayOf<string> memberPath = members[ii];
+                string key = JoinMemberPath(memberPath);
+                if (!seen.TryGetValue(key, out int firstIndex))
+                {
+                    seen.Add(key, ii);
+                    continue;
+                }
+                WotEventSelectClause entry = clauses[ii];
+                WotEventSelectClause first = clauses[firstIndex];
+                errorIndex = ii;
+                if (string.Equals(
+                        first.TypeDefinitionId, entry.TypeDefinitionId, StringComparison.Ordinal) &&
+                    string.Equals(
+                        first.GetNormalizedBrowsePath(resolvePrefix),
+                        entry.GetNormalizedBrowsePath(resolvePrefix),
+                        StringComparison.Ordinal))
+                {
+                    error = $"The clause ({entry.TypeDefinitionId}, '{entry.BrowsePath}') " +
+                        "appears twice; the same clause shall not be selected twice.";
+                    return false;
+                }
+                error = $"The clause ({entry.TypeDefinitionId}, '{entry.BrowsePath}') " +
+                    $"materializes the data member '{FormatMemberPath(memberPath)}', which " +
+                    $"({first.TypeDefinitionId}, '{first.BrowsePath}') already materializes. " +
+                    "The materialized member path of a clause shall be unique within the " +
+                    "array, because that member and not the browse path it came from decides " +
+                    "the output, so two clauses that reach it would compete for it and " +
+                    "nothing in the document would say which of them filled it " +
+                    "(Section 6.1).";
+                return false;
+            }
             return true;
         }
 

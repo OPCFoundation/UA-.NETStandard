@@ -152,13 +152,140 @@ namespace Opc.Ua.WotCon.Bindings.Tests
                     result.Diagnostics.Any(d =>
                         d.Code == WotBindingDiagnosticCode.EventSelectClauseInvalid),
                     Is.True,
-                    "Section 6.1 states clause uniqueness over the normalized path alone: " +
-                    "the path decides the data member, so two clauses that reach it compete " +
+                    "Section 6.1 states clause uniqueness over the materialized member path: " +
+                    "the member decides the output, so two clauses that reach it compete " +
                     "for it whatever EventType each names. " + Describe(result));
                 Assert.That(
                     result.Entries.All(e => e.EventSelection is null),
                     Is.True,
                     "An invalid selection compiles to none.");
+            });
+        }
+
+        [Test]
+        public void AQualifiedAndABareNameMaterializeOneMemberAndAreRejected()
+        {
+            var context = new WotBindingPlanContext(
+                namespacePrefixes: ImmutableDictionary<string, string>.Empty
+                    .Add("pump", "urn:example:pump"));
+
+            WotBindingCompilation result = CompileEvent(
+                "{\"uav:eventSelectClauses\":[" +
+                "{\"uav:typeDefinitionId\":\"i=2041\",\"uav:browsePath\":\"Severity\"}," +
+                "{\"uav:typeDefinitionId\":\"i=2041\",\"uav:browsePath\":\"pump:Severity\"}]}",
+                context);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    result.Diagnostics.Any(d =>
+                        d.Code == WotBindingDiagnosticCode.EventSelectClauseInvalid),
+                    Is.True,
+                    "The two paths normalize differently - one names namespace 0 and the " +
+                    "other names the pump namespace - but a member name drops the " +
+                    "qualification, so both fill data.Severity. " + Describe(result));
+                Assert.That(
+                    result.Diagnostics.Any(d => d.Message.Contains(
+                        "Severity", StringComparison.Ordinal)),
+                    Is.True,
+                    "The diagnostic names the member the two clauses compete for. " +
+                    Describe(result));
+            });
+        }
+
+        [Test]
+        public void AStateVariableAndItsNameMemberMaterializeOneMemberAndAreRejected()
+        {
+            WotBindingCompilation result = CompileEvent(
+                "{\"uav:eventSelectClauses\":[" +
+                "{\"uav:typeDefinitionId\":\"i=2782\",\"uav:browsePath\":\"EnabledState\"}," +
+                "{\"uav:typeDefinitionId\":\"i=2782\"," +
+                "\"uav:browsePath\":\"EnabledState/Name\"}]}");
+
+            Assert.That(
+                result.Diagnostics.Any(d =>
+                    d.Code == WotBindingDiagnosticCode.EventSelectClauseInvalid),
+                Is.True,
+                "A state Variable's own clause supplies that object's Name member, so " +
+                "'EnabledState' and 'EnabledState/Name' are two paths and one " +
+                "data.EnabledState.Name. " + Describe(result));
+        }
+
+        [Test]
+        public void ACompanionStateAndItsNameMemberAreRejectedToo()
+        {
+            var context = new WotBindingPlanContext(
+                namespacePrefixes: ImmutableDictionary<string, string>.Empty
+                    .Add("pump", "urn:example:pump"));
+
+            WotBindingCompilation result = CompileEvent(
+                "{\"uav:eventSelectClauses\":[" +
+                "{\"uav:typeDefinitionId\":\"i=2041\"," +
+                "\"uav:browsePath\":\"pump:LatchState\"}," +
+                "{\"uav:typeDefinitionId\":\"i=2041\"," +
+                "\"uav:browsePath\":\"pump:LatchState/Id\"}," +
+                "{\"uav:typeDefinitionId\":\"i=2041\"," +
+                "\"uav:browsePath\":\"pump:LatchState/Name\"}]}",
+                context);
+
+            Assert.That(
+                result.Diagnostics.Any(d =>
+                    d.Code == WotBindingDiagnosticCode.EventSelectClauseInvalid),
+                Is.True,
+                "A state this Binding does not name is recognized from the list: the clause " +
+                "reaching through 'LatchState' makes it an object, so its own clause fills " +
+                "LatchState.Name. " + Describe(result));
+        }
+
+        [Test]
+        public void NestedPathsThatReachDistinctMembersCompile()
+        {
+            var context = new WotBindingPlanContext(
+                namespacePrefixes: ImmutableDictionary<string, string>.Empty
+                    .Add("pump", "urn:example:pump"));
+
+            WotBindingCompilation result = CompileEvent(
+                "{\"uav:eventSelectClauses\":[" +
+                "{\"uav:typeDefinitionId\":\"i=2782\",\"uav:browsePath\":\"EnabledState\"}," +
+                "{\"uav:typeDefinitionId\":\"i=2782\"," +
+                "\"uav:browsePath\":\"EnabledState/Id\"}," +
+                "{\"uav:typeDefinitionId\":\"i=2041\"," +
+                "\"uav:browsePath\":\"pump:LatchState\"}," +
+                "{\"uav:typeDefinitionId\":\"i=2041\"," +
+                "\"uav:browsePath\":\"pump:LatchState/Id\"}," +
+                "{\"uav:typeDefinitionId\":\"i=2041\"," +
+                "\"uav:browsePath\":\"pump:Detail/pump:Inner/Value\"}," +
+                "{\"uav:typeDefinitionId\":\"i=2782\",\"uav:browsePath\":\"\"}]}",
+                context);
+
+            Assert.That(result.IsSupported, Is.True, Describe(result));
+            WotEventSelection selection = result.Entries[0].EventSelection!;
+            ArrayOf<ArrayOf<string>> members =
+                WotEventSelectClauses.GetMaterializedMemberPaths(selection.Clauses);
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    WotEventSelectClauses.FormatMemberPath(members[0]),
+                    Is.EqualTo("EnabledState.Name"));
+                Assert.That(
+                    WotEventSelectClauses.FormatMemberPath(members[1]),
+                    Is.EqualTo("EnabledState.Id"));
+                Assert.That(
+                    WotEventSelectClauses.FormatMemberPath(members[2]),
+                    Is.EqualTo("LatchState.Name"),
+                    "A companion state another clause reaches through supplies that " +
+                    "object's Name member.");
+                Assert.That(
+                    WotEventSelectClauses.FormatMemberPath(members[3]),
+                    Is.EqualTo("LatchState.Id"));
+                Assert.That(
+                    WotEventSelectClauses.FormatMemberPath(members[4]),
+                    Is.EqualTo("Detail.Inner.Value"),
+                    "A three-element path materializes three nested members, none of them " +
+                    "carrying a namespace qualification.");
+                Assert.That(
+                    WotEventSelectClauses.FormatMemberPath(members[5]),
+                    Is.EqualTo("ConditionId"));
             });
         }
 

@@ -1446,8 +1446,28 @@ namespace Opc.Ua.Wot
             return value?.DeepClone();
         }
 
+        /// <summary>
+        /// Determines whether a residue entry holds the same JSON value as the
+        /// member the readable mapping already produced (WoT Binding Section
+        /// 9.4).
+        /// </summary>
+        /// <remarks>
+        /// Equality is the RFC 8785 one, so a reordered object, an equivalent
+        /// string escape and <c>1.0</c> beside <c>1</c> are the same value
+        /// rather than a conflict. Where a value cannot be canonicalized - a
+        /// number outside the interoperable domain of RFC 8259 Section 6 - the
+        /// two are compared as written instead, which can report a conflict
+        /// that JCS would not, but never reports two different values as one.
+        /// The retained-bytes digest of a residue member is untouched by this:
+        /// it is taken over the bytes the producer encoded, and nothing here
+        /// reformats them.
+        /// </remarks>
         private static bool JsonEquals(JsonNode? left, JsonNode? right)
         {
+            if (WotJsonCanonicalizer.TryEquals(left, right, out bool equal, out _))
+            {
+                return equal;
+            }
             return string.Equals(
                 left?.ToJsonString() ?? "null",
                 right?.ToJsonString() ?? "null",

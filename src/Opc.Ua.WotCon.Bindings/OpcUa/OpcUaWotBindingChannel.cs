@@ -31,6 +31,7 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using Opc.Ua.Client;
 using Opc.Ua.Wot;
 
@@ -58,6 +59,7 @@ namespace Opc.Ua.WotCon.Bindings.OpcUa
             Form = form;
             m_options = options;
             m_nodeId = form.Addressing.Target;
+            m_logger = context.Telemetry.CreateLogger<OpcUaWotBindingChannel>();
         }
 
         public WotCompiledForm Form { get; }
@@ -449,7 +451,7 @@ namespace Opc.Ua.WotCon.Bindings.OpcUa
         /// clause by clause.
         /// </para>
         /// </remarks>
-        private static WotNotification BuildEventNotification(
+        private WotNotification BuildEventNotification(
             WotEventSelection selection, EventFieldList eventFields)
         {
             ArrayOf<Variant> values = eventFields.EventFields;
@@ -491,7 +493,20 @@ namespace Opc.Ua.WotCon.Bindings.OpcUa
                 {
                     fields[key] = value;
                 }
-                data.Add(clause.MemberPath, value);
+                if (!data.Add(clause.MemberPath, value))
+                {
+                    // The planner rejects a selection whose clauses materialize
+                    // into one member, so reaching this is a defect rather than
+                    // an authored condition - a plan built around the planner,
+                    // or a Server field list the selection does not describe. It
+                    // is reported rather than dropped silently: a member that
+                    // quietly kept the first value would make the notification
+                    // disagree with the document that described it.
+                    m_logger.EventFieldCollidesInDataObject(
+                        WotEventSelectClauses.FormatMemberPath(clause.MemberPath),
+                        clause.TypeDefinitionId,
+                        clause.BrowsePath);
+                }
                 if (!havePrimary &&
                     string.Equals(
                         clause.FieldName, EventBrowseNames.Message, StringComparison.Ordinal))
@@ -658,5 +673,19 @@ namespace Opc.Ua.WotCon.Bindings.OpcUa
         private readonly bool m_disposeSession;
         private readonly OpcUaWotBindingOptions m_options;
         private readonly string m_nodeId;
+        private readonly ILogger m_logger;
+    }
+
+    internal static partial class OpcUaWotBindingChannelLog
+    {
+        [LoggerMessage(
+            EventId = WotConBindingsEventIds.OpcUaWotBindingChannel + 0,
+            Level = LogLevel.Error,
+            Message = "The event data member '{MemberPath}' was already filled when the " +
+                "select clause ({TypeDefinitionId}, '{BrowsePath}') materialized into it. " +
+                "WoT Binding Section 6.1 gives a member exactly one clause, so the " +
+                "notification does not carry the shape the document describes.")]
+        public static partial void EventFieldCollidesInDataObject(
+            this ILogger logger, string memberPath, string typeDefinitionId, string browsePath);
     }
 }

@@ -457,12 +457,153 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.Multiple(() =>
             {
                 Assert.That(migration.Changed, Is.False);
+                Assert.That(migration.Failed, Is.False);
                 Assert.That(
                     migration.ConflictPointers.ToArray(),
                     Does.Contain("/properties/speed/unit"),
                     "Two quantity kinds are two facts, and choosing between them is the " +
                     "author's decision.");
             });
+        }
+
+        [Test]
+        public void TheMigrationHelperTreatsACompactAndAnAbsoluteIriAsOneQuantityKind()
+        {
+            using WotDocument document = ParseThingModel(
+                "\"properties\":{\"speed\":{\"type\":\"number\"," +
+                "\"unit\":\"qudt-quantitykind:AngularVelocity\"," +
+                "\"qudt:hasQuantityKind\":" +
+                "\"http://qudt.org/vocab/quantitykind/AngularVelocity\"}}");
+
+            WotUnitMigrationResult migration = WotUnitMigration.MoveQuantityKinds(document);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    migration.ConflictPointers.ToArray(),
+                    Is.Empty,
+                    "A compact IRI and the absolute IRI it expands to are one IRI, so the " +
+                    "document states one fact twice rather than two facts.");
+                Assert.That(migration.Changed, Is.True);
+                Assert.That(
+                    migration.MovedPointers.ToArray(),
+                    Does.Contain("/properties/speed/unit"));
+            });
+        }
+
+        [Test]
+        public void TheMigrationHelperTreatsTheHttpsSpellingAsTheSameIri()
+        {
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    WotUnitMigration.IsSameQuantityKind(
+                        "https://qudt.org/vocab/quantitykind/AngularVelocity",
+                        "qudt-quantitykind:AngularVelocity"),
+                    Is.True);
+                Assert.That(
+                    WotUnitMigration.IsSameQuantityKind(
+                        "qudt-quantitykind:AngularVelocity",
+                        "qudt-quantitykind:Frequency"),
+                    Is.False,
+                    "Two quantity kinds stay two facts.");
+            });
+        }
+
+        [Test]
+        public void TheMigrationHelperResolvesADocumentBoundPrefixToTheSameIri()
+        {
+            using WotDocument document = WotDocument.Parse(
+                Encoding.UTF8.GetBytes(
+                    "{\"@context\":[\"https://www.w3.org/2022/wot/td/v1.1\",{" +
+                    "\"uav\":\"http://opcfoundation.org/UA/WoT-Binding/\"," +
+                    "\"qk\":\"http://qudt.org/vocab/quantitykind/\"}]," +
+                    "\"@type\":\"tm:ThingModel\",\"title\":\"t\"," +
+                    "\"properties\":{\"speed\":{\"type\":\"number\"," +
+                    "\"unit\":\"qk:AngularVelocity\"," +
+                    "\"qudt:hasQuantityKind\":\"qudt-quantitykind:AngularVelocity\"}}}"));
+
+            WotUnitMigrationResult migration = WotUnitMigration.MoveQuantityKinds(document);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    migration.ConflictPointers.ToArray(),
+                    Is.Empty,
+                    "A prefix the document binds expands to the same IRI as the " +
+                    "conventional one.");
+                Assert.That(migration.Changed, Is.True);
+            });
+        }
+
+        [TestCase(65)]
+        [TestCase(100)]
+        [TestCase(128)]
+        public void TheMigrationHelperReadsEveryDocumentTheLibraryAccepts(int depth)
+        {
+            using WotDocument document = WotDocument.Parse(
+                Encoding.UTF8.GetBytes(NestedThingModel(depth)));
+
+            WotUnitMigrationResult migration = WotUnitMigration.MoveQuantityKinds(document);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    migration.Failed,
+                    Is.False,
+                    "WotDocument.Parse accepts 128 levels by default, so a migration that " +
+                    "re-read the document at 64 would refuse a document the library had no " +
+                    "trouble with: " + migration.Error);
+                Assert.That(
+                    migration.Changed,
+                    Is.True,
+                    "The quantity kind at the bottom of the nesting still moves.");
+            });
+        }
+
+        [Test]
+        public void TheMigrationHelperHonoursAConfiguredDepthAndReportsInsteadOfThrowing()
+        {
+            var shallow = new WotNodeSetConverterOptions { MaxJsonDepth = 8 };
+            using WotDocument document = WotDocument.Parse(
+                Encoding.UTF8.GetBytes(NestedThingModel(40)));
+
+            WotUnitMigrationResult migration =
+                WotUnitMigration.MoveQuantityKinds(document, shallow);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    migration.Failed,
+                    Is.True,
+                    "A limit the caller configured is reported rather than thrown at them.");
+                Assert.That(migration.Changed, Is.False);
+                Assert.That(migration.Error, Does.Contain("depth of 8"));
+            });
+        }
+
+        private static string NestedThingModel(int depth)
+        {
+            var json = new StringBuilder(
+                "{\"@context\":[\"https://www.w3.org/2022/wot/td/v1.1\",{" +
+                "\"uav\":\"http://opcfoundation.org/UA/WoT-Binding/\"}]," +
+                "\"@type\":\"tm:ThingModel\",\"title\":\"t\"," +
+                "\"properties\":{\"speed\":{\"type\":\"object\"");
+            // The root, 'properties' and 'speed' are three levels and each
+            // repetition below adds two more, so the document nests as deeply
+            // as the caller asked for without exceeding it.
+            int levels = Math.Max(1, (depth - 3) / 2);
+            for (int ii = 0; ii < levels; ii++)
+            {
+                json.Append(",\"properties\":{\"n\":{\"type\":\"object\"");
+            }
+            json.Append(",\"unit\":\"qudt-quantitykind:AngularVelocity\"");
+            for (int ii = 0; ii < levels; ii++)
+            {
+                json.Append("}}");
+            }
+            json.Append("}}}");
+            return json.ToString();
         }
 
         [Test]

@@ -144,10 +144,11 @@ the materialized NodeSet.
 
 ### Preservation digests and the two things that can be measured
 
-Annex G distinguishes two digests and this implementation keeps them apart.
+Annex G distinguishes three measurements over a JSON value, and this
+implementation keeps them apart. Two of them are digests; the third is a size.
 
-* **Over retained bytes.** The `Sha256` of a `WoTJsonResidue` member is the
-  SHA-256 of the **decoded residue bytes exactly** — the bytes the producer
+* **A digest over retained bytes.** The `Sha256` of a `WoTJsonResidue` member is
+  the SHA-256 of the **decoded residue bytes exactly** — the bytes the producer
   encoded, and the bytes a verifier decoded. Nothing is canonicalized, reordered,
   re-escaped or re-formatted before digesting, in either direction, and a
   mismatch is a mismatch: the entry is corrupt, not merely differently spelled.
@@ -155,24 +156,33 @@ Annex G distinguishes two digests and this implementation keeps them apart.
   reformat, so a digest over a re-serialization would pin a value no party is
   allowed to produce. The `sha256` of a `uav:nodeSet` envelope and the
   `uav:sourceDigest` of a projection source are of the same kind.
-* **Over a JSON value.** RFC 8785 (JCS) is used where two JSON *values* are
-  compared for equality by digest — the Section 9.4 conflict test that asks
-  whether a residue entry holds the same value as a member the readable mapping
-  already produced. `WotDocument.ToCanonicalUtf8` is that form.
-
-The opaque-object size bound of Section 6.6 is measured over the **compact
-received form** of Annex G.4: the received text of the value with insignificant
-whitespace removed — the four RFC 8259 whitespace characters outside a string
-literal — and nothing else changed. Member order is the received order, numbers
-keep the lexical form they were written in, and strings keep the escapes they
-were written with. Deliberately *not* a canonical re-serialization: measuring one
-would oblige a consumer to produce exactly the reordered, renumbered value the
-preservation rule forbids, and an "almost-JCS" measurement — compact separators
-but a language's own `double` formatting — is what two implementations disagree
-about in practice. Whitespace removal outside string literals is decidable by a
-scanner with one bit of state, so two implementations that received the same
-bytes measure the same number. The depth and key-count bounds are measured over
-the parsed value, where formatting cannot matter.
+* **Equality over a JSON value.** RFC 8785 (JCS) is used where two JSON *values*
+  are compared for equality — the Section 9.4 conflict test that asks whether a
+  residue entry holds the same value as a member the readable mapping already
+  produced. `WotJsonCanonicalizer` is that form, and `WotDocument.ToCanonicalUtf8`
+  writes it: object members sorted by the UTF-16 code units of their names,
+  the minimal string escaping of ECMAScript `JSON.stringify`, and numbers in the
+  ECMAScript form of their IEEE-754 double value. A reordered object, an
+  equivalent escape and `1.0` beside `1` are therefore one value and not a
+  conflict. A number outside the interoperable domain of RFC 8259 §6 — a literal
+  carrying more precision than a double holds, such as `9007199254740993` — is
+  **diagnosed** rather than canonicalized, and the conflict test falls back to
+  comparing the two as written: that can report a conflict JCS would not, but it
+  never reports two different values as one. No digest is taken over this form.
+* **A size over the compact received form.** The opaque-object size bound of
+  Section 6.6 is measured over the **compact received form** of Annex G.4: the
+  received text of the value with insignificant whitespace removed — the four
+  RFC 8259 whitespace characters outside a string literal — and nothing else
+  changed. Member order is the received order, numbers keep the lexical form
+  they were written in, and strings keep the escapes they were written with.
+  Deliberately *not* a canonical re-serialization: measuring one would oblige a
+  consumer to produce exactly the reordered, renumbered value the preservation
+  rule forbids, and an "almost-JCS" measurement — compact separators but a
+  language's own `double` formatting — is what two implementations disagree
+  about in practice. Whitespace removal outside string literals is decidable by
+  a scanner with one bit of state, so two implementations that received the same
+  bytes measure the same number. The depth and key-count bounds are measured
+  over the parsed value, where formatting cannot matter.
 
 ### Pre-PR #19 reference vocabulary is residue
 
@@ -349,11 +359,12 @@ checked, because a consumer that must carry a value unchanged and must
 not reject it is otherwise obliged to carry an unbounded, unattributable
 value (Section 6.6): every top-level key is an absolute IRI or a compact
 IRI whose prefix the document's `@context` binds, and the object stays
-within 65 536 canonical octets, 32 levels of nesting and 256 top-level
-keys. Revision 1.0 stated no key rule, so a document whose keys are not
-namespaced is **preserved** and reported as deprecated rather than
-rejected; strict conformance (below) turns the same finding into an
-error.
+within 65 536 octets in the **compact received form** of Annex G.4 (see
+[Preservation digests and the two things that can be measured](#preservation-digests-and-the-two-things-that-can-be-measured)),
+32 levels of nesting and 256 top-level keys. Revision 1.0 stated no key
+rule, so a document whose keys are not namespaced is **preserved** and
+reported as deprecated rather than rejected; strict conformance (below)
+turns the same finding into an error.
 
 ## Conformance claims and strict mode (Sections 4.1, 6.1, 6.6 and 11)
 
@@ -365,7 +376,7 @@ round trip verbatim through the residue mechanism:
 |---|---|---|
 | `uav:bindingVersion` | TD/TM root | a `<major>.<minor>` revision string (Section 4.1) |
 | `uav:profile` | TD/TM root | a non-empty array of `WoT-<name>` conformance claims |
-| `uav:eventSelectClauses` | event affordance | a non-empty ordered list of two-member clauses with relative paths and no two clauses sharing a normalized browse path (Section 6.1) |
+| `uav:eventSelectClauses` | event affordance | a non-empty ordered list of two-member clauses with relative paths and no two clauses materializing the same `data` member path (Section 6.1) |
 | `uav:minimumSecurity` | `auto` security scheme | `uav:securityMode`, `uav:securityPolicy`, or both, and no other member (Section 5.7.1) |
 
 ### Authoring a claim and processing one are different acts

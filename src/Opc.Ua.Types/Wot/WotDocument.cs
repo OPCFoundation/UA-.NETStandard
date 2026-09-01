@@ -415,35 +415,49 @@ namespace Opc.Ua.Wot
         }
 
         /// <summary>
-        /// Writes a deterministic canonical serialization of the document to
-        /// <paramref name="stream"/>. Object members are ordered by name and
-        /// insignificant whitespace is removed so equivalent documents produce
-        /// byte-identical output. Unlike <see cref="Write(Stream)"/> this does
-        /// not preserve the original byte layout.
+        /// Writes the RFC 8785 (JCS) canonical serialization of the document to
+        /// <paramref name="stream"/>: object members ordered by the UTF-16 code
+        /// units of their names, minimal string escaping, and numbers in the
+        /// ECMAScript form of their IEEE-754 double value. Two documents that
+        /// are the same JSON <em>value</em> produce byte-identical output.
+        /// Unlike <see cref="Write(Stream)"/> this does not preserve the
+        /// original byte layout, and it is not the form anything is digested
+        /// in: the residue digest of WoT Binding Section 10.2 is taken over the
+        /// retained bytes exactly, and the opaque-object bound of Section 6.6
+        /// is measured over the compact received form of Annex G.4.
         /// </summary>
         /// <param name="stream">The destination stream.</param>
+        /// <exception cref="FormatException">
+        /// Thrown when the document holds a number outside the interoperable
+        /// domain of RFC 8259 Section 6, which RFC 8785 cannot canonicalize
+        /// without changing the value.
+        /// </exception>
         public void WriteCanonical(Stream stream)
         {
             if (stream is null)
             {
                 throw new ArgumentNullException(nameof(stream));
             }
-            using var writer = new Utf8JsonWriter(
-                stream,
-                new JsonWriterOptions { Indented = false, SkipValidation = false });
-            WriteCanonical(writer, RootElement);
-            writer.Flush();
+            byte[] canonical = ToCanonicalUtf8();
+            stream.Write(canonical, 0, canonical.Length);
         }
 
         /// <summary>
-        /// Returns the deterministic canonical serialization of the document.
+        /// Returns the RFC 8785 (JCS) canonical serialization of the document.
         /// </summary>
         /// <returns>The canonical UTF-8 bytes.</returns>
+        /// <exception cref="FormatException">
+        /// Thrown when the document holds a number outside the interoperable
+        /// domain of RFC 8259 Section 6.
+        /// </exception>
         public byte[] ToCanonicalUtf8()
         {
-            using var stream = new MemoryStream();
-            WriteCanonical(stream);
-            return stream.ToArray();
+            if (!WotJsonCanonicalizer.TryGetUtf8(
+                RootElement, out byte[] canonical, out string error))
+            {
+                throw new FormatException(error);
+            }
+            return canonical;
         }
 
         /// <summary>
@@ -541,53 +555,6 @@ namespace Opc.Ua.Wot
                     MaxDepth = options.MaxJsonDepth
                 });
             return new WotDocument(utf8Json, document);
-        }
-
-        private static void WriteCanonical(Utf8JsonWriter writer, JsonElement element)
-        {
-            switch (element.ValueKind)
-            {
-                case JsonValueKind.Object:
-                    writer.WriteStartObject();
-                    var members = new List<KeyValuePair<string, JsonElement>>();
-                    foreach (JsonProperty property in element.EnumerateObject())
-                    {
-                        members.Add(new KeyValuePair<string, JsonElement>(property.Name, property.Value));
-                    }
-                    members.Sort(static (left, right) =>
-                        string.CompareOrdinal(left.Key, right.Key));
-                    foreach (KeyValuePair<string, JsonElement> member in members)
-                    {
-                        writer.WritePropertyName(member.Key);
-                        WriteCanonical(writer, member.Value);
-                    }
-                    writer.WriteEndObject();
-                    break;
-                case JsonValueKind.Array:
-                    writer.WriteStartArray();
-                    foreach (JsonElement item in element.EnumerateArray())
-                    {
-                        WriteCanonical(writer, item);
-                    }
-                    writer.WriteEndArray();
-                    break;
-                case JsonValueKind.String:
-                    writer.WriteStringValue(element.GetString());
-                    break;
-                case JsonValueKind.Number:
-                    writer.WriteRawValue(element.GetRawText(), skipInputValidation: true);
-                    break;
-                case JsonValueKind.True:
-                case JsonValueKind.False:
-                    writer.WriteBooleanValue(element.GetBoolean());
-                    break;
-                case JsonValueKind.Null:
-                    writer.WriteNullValue();
-                    break;
-                default:
-                    writer.WriteNullValue();
-                    break;
-            }
         }
 
         private static bool TryGetArrayElement(JsonElement array, string token, out JsonElement value)

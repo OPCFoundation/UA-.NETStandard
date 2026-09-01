@@ -286,7 +286,6 @@ namespace Opc.Ua.WotCon.Bindings.Planners
             }
 
             var resolved = new WotEventSelectClause[clauses.Count];
-            var paths = new HashSet<string>(StringComparer.Ordinal);
             for (int ii = 0; ii < clauses.Count; ii++)
             {
                 if (!TryResolveClause(clauses[ii], context, out WotEventSelectClause? clause, out error))
@@ -299,24 +298,28 @@ namespace Opc.Ua.WotCon.Bindings.Planners
                     return null;
                 }
                 resolved[ii] = clause!;
-                if (!paths.Add(clause!.BrowsePath))
-                {
-                    // Section 6.1 states clause uniqueness over the normalized
-                    // browse path alone, because the path decides which data
-                    // member a clause materializes: two clauses that reach the
-                    // same member compete for it whatever EventType each names
-                    // as the declaring type, and nothing in the document says
-                    // which of them filled it.
-                    diagnostics.Add(WotBindingDiagnostic.Error(
-                        WotBindingDiagnosticCode.EventSelectClauseInvalid,
-                        $"Two select clauses normalize to the browse path " +
-                        $"'{clause.BrowsePath}'. The normalized path of a clause shall be " +
-                        "unique within the array, because the path alone decides which data " +
-                        "member the clause materializes (WoT Binding Section 6.1).",
-                        pointer + "/" + ii.ToString(System.Globalization.CultureInfo.InvariantCulture),
-                        WotEventSelectClauses.Term));
-                    return null;
-                }
+            }
+
+            // Section 6.1 states clause uniqueness over the materialized member
+            // path, because that member and not the browse path it came from
+            // decides the output: two clauses that reach the same member compete
+            // for it whatever EventType each names as the declaring type, and
+            // nothing in the document says which of them filled it. The parser
+            // has already checked the authored list; this checks the list the
+            // planner rewrote into portable form, so a rewrite can never
+            // introduce a collision the plan would carry into a subscription.
+            if (!WotEventSelectClauses.TryFindMaterializedCollision(
+                resolved, null, out error, out int collisionIndex))
+            {
+                diagnostics.Add(WotBindingDiagnostic.Error(
+                    WotBindingDiagnosticCode.EventSelectClauseInvalid,
+                    error,
+                    collisionIndex < 0
+                        ? pointer
+                        : pointer + "/" + collisionIndex.ToString(
+                            System.Globalization.CultureInfo.InvariantCulture),
+                    WotEventSelectClauses.Term));
+                return null;
             }
             return new WotEventSelection(resolved, WotEventSelectionOrigin.Standard);
         }
@@ -406,17 +409,22 @@ namespace Opc.Ua.WotCon.Bindings.Planners
         {
             var clauses = new List<WotEventSelectClause>(
                 WotEventSelectClauses.Default.Count + fields.Length);
-            var seen = new HashSet<string>(StringComparer.Ordinal);
             foreach (WotEventSelectClause clause in WotEventSelectClauses.Default)
             {
                 clauses.Add(clause);
-                seen.Add(clause.BrowsePath);
             }
             foreach (string field in fields)
             {
-                if (seen.Add(field))
+                // A superseded field that reaches a data member the default
+                // already fills is not added twice: Section 6.1 lets exactly one
+                // clause materialize a member, and the documented default is the
+                // list this spelling extends rather than competes with.
+                clauses.Add(new WotEventSelectClause(
+                    WotEventSelectClauses.BaseEventTypeId, field));
+                if (!WotEventSelectClauses.TryFindMaterializedCollision(
+                    clauses.ToArray(), null, out _, out _))
                 {
-                    clauses.Add(new WotEventSelectClause(WotEventSelectClauses.BaseEventTypeId, field));
+                    clauses.RemoveAt(clauses.Count - 1);
                 }
             }
             return new WotEventSelection(clauses.ToArray(), WotEventSelectionOrigin.Legacy);

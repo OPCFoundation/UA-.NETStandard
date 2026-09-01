@@ -154,14 +154,7 @@ namespace Opc.Ua.WotCon.Tests.Samples
         [Test]
         public void CheckedInJsonDocumentsUseCanonicalSerialization()
         {
-            IEnumerable<string> paths = s_modelDocuments
-                .Select(document => DocumentPath(document.FileName))
-                .Append(DocumentPath("SamplePump.td.json"))
-                .Concat(s_assetProjectionDocuments.Select(DocumentPath))
-                .Append(DocumentPath("documents.json"))
-                .Append(StructuredExamplePath);
-
-            foreach (string path in paths)
+            foreach (string path in CanonicalJsonDocuments())
             {
                 byte[] bytes = File.ReadAllBytes(path);
                 using var document = WotDocument.Parse(
@@ -172,6 +165,50 @@ namespace Opc.Ua.WotCon.Tests.Samples
                     Is.EqualTo(bytes),
                     $"{path} is not canonical JSON.");
             }
+        }
+
+        /// <summary>
+        /// Rewrites every checked-in document in its canonical form.
+        /// </summary>
+        /// <remarks>
+        /// Explicit for the same reason <c>WriteThingModels</c> is: it rewrites
+        /// checked-in sample documents. The canonical form is a function of the
+        /// JSON value, so this changes what a document is <em>spelled</em> like
+        /// and never what it says - which is what makes it the right tool when
+        /// the canonicalizer itself is corrected. Run it, review the diff, then
+        /// commit what it produced:
+        /// <para>
+        ///   dotnet test tests\Opc.Ua.WotCon.Tests --filter "FullyQualifiedName~RewriteCheckedInJsonDocuments"
+        /// </para>
+        /// </remarks>
+        [Test]
+        [Explicit("Rewrites the checked-in sample documents.")]
+        public void RewriteCheckedInJsonDocuments()
+        {
+            foreach (string path in CanonicalJsonDocuments())
+            {
+                byte[] bytes = File.ReadAllBytes(path);
+                using var document = WotDocument.Parse(
+                    bytes,
+                    WotAggregationDocumentGenerator.CreateLargeDocumentOptions());
+                byte[] canonical = document.ToCanonicalUtf8();
+                if (canonical.SequenceEqual(bytes))
+                {
+                    continue;
+                }
+                File.WriteAllBytes(path, canonical);
+                TestContext.Out.WriteLine($"{path}: {canonical.Length} bytes");
+            }
+        }
+
+        private static IEnumerable<string> CanonicalJsonDocuments()
+        {
+            return s_modelDocuments
+                .Select(document => DocumentPath(document.FileName))
+                .Append(DocumentPath("SamplePump.td.json"))
+                .Concat(s_assetProjectionDocuments.Select(DocumentPath))
+                .Append(DocumentPath("documents.json"))
+                .Append(StructuredExamplePath);
         }
 
         [Test]
