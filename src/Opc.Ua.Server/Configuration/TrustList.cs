@@ -1542,19 +1542,28 @@ namespace Opc.Ua.Server
                             }
                             else
                             {
-                                foreach (X509CRL crl in crlsToDelete)
+                                try
                                 {
-                                    if (!await store.DeleteCRLAsync(crl, cancellationToken)
-                                        .ConfigureAwait(false))
+                                    foreach (X509CRL crl in crlsToDelete)
                                     {
-                                        // intentionally ignore errors, try best effort
-                                        m_logger.RemoveCertificateFailedToDeleteCRLCrl(crl);
+                                        if (!await store.DeleteCRLAsync(crl, cancellationToken)
+                                            .ConfigureAwait(false))
+                                        {
+                                            // intentionally ignore errors, try best effort
+                                            m_logger.RemoveCertificateFailedToDeleteCRLCrl(crl);
+                                        }
                                     }
                                 }
-
-                                NotifyTrustListChanged(
-                                    trustChanged: true,
-                                    crlChanged: crlsToDelete.Count > 0);
+                                finally
+                                {
+                                    // The certificate is already deleted at this
+                                    // point, so notify even when a CRL delete
+                                    // throws mid-way - cached validation state
+                                    // must never survive a partial update.
+                                    NotifyTrustListChanged(
+                                        trustChanged: true,
+                                        crlChanged: crlsToDelete.Count > 0);
+                                }
                             }
                         }
                     }

@@ -3799,10 +3799,15 @@ namespace Opc.Ua.Server
         /// configured trust list, preserving the configured
         /// <see cref="CertificateStoreIdentifier.StoreType"/>. Re-inferring
         /// the type from the path alone (the single-argument constructor)
-        /// would silently downgrade a custom store provider (e.g. a shared
-        /// key-value store in an HA set) to a directory store, making the
-        /// push path write through a different store implementation than the
-        /// validator reads.
+        /// would silently downgrade a configured custom store type to a
+        /// directory store, making the push path write through a different
+        /// store implementation than the validator reads. The preserved type
+        /// resolves through <see cref="CertificateStoreIdentifier.OpenStore()"/>,
+        /// i.e. the built-in types plus any type registered via
+        /// <see cref="CertificateStoreType.RegisterCertificateStoreType"/>;
+        /// DI-registered <see cref="ICertificateStoreProvider"/>s are not
+        /// reachable through identifier-based store access (a pre-existing
+        /// limitation of the TrustList store plumbing).
         /// </summary>
         private static CertificateStoreIdentifier CreateGroupStoreIdentifier(
             CertificateStoreIdentifier source)

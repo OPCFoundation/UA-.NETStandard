@@ -509,24 +509,76 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
-        public void CreateGroupStoreIdentifierPreservesConfiguredStoreType()
+        public async Task CreateGroupStoreIdentifierOpensTheConfiguredCustomStoreTypeAsync()
         {
             MethodInfo method = typeof(ConfigurationNodeManager).GetMethod(
                 "CreateGroupStoreIdentifier", BindingFlags.NonPublic | BindingFlags.Static)
                 ?? throw new InvalidOperationException("CreateGroupStoreIdentifier not found.");
 
             // A custom store type is not inferable from the path; the group
-            // identifier must carry the configured type instead of silently
-            // re-inferring (and downgrading) it from the path alone.
+            // identifier must carry the configured type so the push path
+            // actually opens (and writes through) the registered custom
+            // store implementation instead of silently downgrading to a
+            // directory store. The registration below uses the legacy static
+            // registry - the resolution path identifier-based store access
+            // supports; there is no unregister API, so the name is unique
+            // and the registration is process-lifetime.
+            const string storeTypeName = "TrustListEffectsTestStore";
+            if (CertificateStoreType.GetCertificateStoreTypeByName(storeTypeName) == null)
+            {
+#pragma warning disable CS0618 // The static registry is the identifier-resolvable extension point.
+                CertificateStoreType.RegisterCertificateStoreType(
+                    storeTypeName,
+                    new InMemoryCertificateStoreType());
+#pragma warning restore CS0618
+            }
+
             var source = new CertificateTrustList
             {
-                StoreType = "MyCustomStore",
+                StoreType = storeTypeName,
                 StorePath = "custom://trust/peers"
             };
 
             var identifier = (CertificateStoreIdentifier)method.Invoke(null, [source])!;
-            Assert.That(identifier.StoreType, Is.EqualTo("MyCustomStore"));
+            Assert.That(identifier.StoreType, Is.EqualTo(storeTypeName));
             Assert.That(identifier.StorePath, Is.EqualTo("custom://trust/peers"));
+
+            // The identifier must resolve to the registered implementation
+            // and be usable for a real write/read round trip.
+            try
+            {
+                using Certificate certificate = CertificateBuilder
+                    .Create("CN=Custom Store Type Cert")
+                    .SetRSAKeySize(2048)
+                    .CreateForRSA();
+                using (ICertificateStore store = identifier.OpenStore(NUnitTelemetryContext.Create()))
+                {
+                    Assert.That(store, Is.InstanceOf<CertificateIdentifierCollectionStore>());
+                    await store.AddAsync(certificate).ConfigureAwait(false);
+                    using CertificateCollection found = await store
+                        .FindByThumbprintAsync(certificate.Thumbprint)
+                        .ConfigureAwait(false);
+                    Assert.That(found, Has.Count.EqualTo(1));
+                }
+            }
+            finally
+            {
+                identifier.DisposeCachedStore();
+            }
+        }
+
+        private sealed class InMemoryCertificateStoreType : ICertificateStoreType
+        {
+            public bool SupportsStorePath(string storePath)
+            {
+                return storePath != null &&
+                    storePath.StartsWith("custom://", StringComparison.OrdinalIgnoreCase);
+            }
+
+            public ICertificateStore CreateStore(ITelemetryContext telemetry)
+            {
+                return new CertificateIdentifierCollectionStore(telemetry);
+            }
         }
 
         private static async Task WaitUntilAsync(Func<bool> condition)
