@@ -8,10 +8,9 @@ hosted by another registry.
 
 The libraries are deliberately domain-neutral: they know nothing about what a *resource* contains.
 A concrete registry supplies its own companion namespace and a fingerprinting strategy, and reuses
-everything else. The PubSub Schema Registry, WoT Connectivity registry and AAS V3 registry are concrete
-specializations: PubSub resources are schema documents, WoT resources are Thing Description /
-Thing Model documents, and AAS resources are shell, submodel, concept-description, package and
-environment documents.
+everything else. The PubSub Schema Registry and WoT Connectivity registry are concrete
+specializations: PubSub resources are schema documents, while WoT resources are Thing Description /
+Thing Model documents.
 
 ## Packages
 
@@ -221,9 +220,7 @@ quickest way to validate a new implementation.
 
 `Opc.Ua.WotCon.Server` is a worked example: `WotBlobResourceStore` implements this interface over
 the `{root}/{digest}.bin` layout the WoT registry has always written, so a domain registry can adopt
-the shared byte layer without an on-disk migration. The AAS registry follows the same projection
-model through `AasRegistryProjection`, while adding the AAS-specific source identities and discovery
-methods described in [OPC UA for Asset Administration Shell V3](Aas.md#6-aas-registry). See
+the shared byte layer without an on-disk migration. See
 [WoT Connectivity — keeping the document bytes in a shared store](WoTConnectivity.md#keeping-the-document-bytes-in-a-shared-store).
 
 ### Transport security
@@ -451,10 +448,7 @@ var registry = new GenericXRegistryClient(
 `Opc.Ua.WotCon.Client` is the worked example: `WotRegistryClient` derives from `XRegistryClient`,
 inherits `Session`, `RegistryNodeId` and the group/resource lifecycle, and adds only WoT-specific
 surface — the `ForServerAsync` Browse resolution, the reserved Thing Description / Thing Model
-groups, a typed `Refresh` result and a dependency-ordered bulk load. `Opc.Ua.Aas.Client` follows
-the same pattern: `AasRegistryClient` derives from `XRegistryClient`, resolves the well-known
-`AASRegistry` object and adds `LookupShellsByAssetLink`, `GetSubmodel` and typed AAS group/resource
-clients.
+groups, a typed `Refresh` result and a dependency-ordered bulk load.
 
 ## Well-known identifiers
 
@@ -480,4 +474,3 @@ via the generated `ObjectTypeIds`, `MethodIds` and `VariableIds` classes. The mo
 * [Source generation](../tools/Opc.Ua.SourceGeneration/readme.md) — how the companion model and its typed proxies are compiled into the assembly.
 * [Node management](NodeManagement.md) — the node manager model the three managers build on.
 * [PubSub (Part 14)](PubSub.md) — the PubSub Schema Registry specialization of this model.
-

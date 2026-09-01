@@ -9,10 +9,10 @@ Two changes require attention.
 ### `AlarmConditionState` state-transition behavior
 
 The state-machine setters on `AlarmConditionState` previously did not
-implement several cross-state spec requirements. 1.6 makes them
+implement several cross-state spec requirements. 2.0 makes them
 compliant:
 
-| Behavior | Spec | Was (≤ 1.5.378) | Is (1.6) |
+| Behavior | Spec | Was (≤ 1.5.378) | Is (2.0) |
 |---|---|---|---|
 | Activating an alarm with `LatchedState` populated | §4.8 | `LatchedState` untouched | `LatchedState.Id = true` automatically |
 | Activating an alarm with `SilenceState` populated and silenced | §4.8 | `SilenceState` stayed silenced | `SilenceState.Id = false` (audible again) |
@@ -83,7 +83,7 @@ ReferenceAdded/ReferenceDeleted/DataTypeChanged`, `Drain`,
 
 ### New `INodeCache.InvalidateNode` member
 
-`INodeCache` gains a new abstract member in 1.6:
+`INodeCache` gains a new abstract member in 2.0:
 
 ```csharp
 void InvalidateNode(NodeId nodeId);
@@ -120,4 +120,3 @@ available.
 - Related: [node-states.md](node-states.md), [sessions-subscriptions.md](sessions-subscriptions.md).
 - [2.0 migration index](README.md) — analyzer quick-start + symptom → sub-doc table.
 - [Migration Guide](../../MigrationGuide.md) — landing page across versions.
-

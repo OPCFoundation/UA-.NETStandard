@@ -1,0 +1,21 @@
+{
+  "name": "opcua-v20-migration",
+  "description": "Migrate OPC UA .NET Standard applications from 1.5.378 to 2.0.x with analyzers and guided fixes.",
+  "version": "1.0.0",
+  "author": {
+    "name": "OPC Foundation",
+    "url": "https://opcfoundation.org/"
+  },
+  "homepage": "https://github.com/OPCFoundation/UA-.NETStandard/tree/master/.agents/skills/opcua-v20-migration",
+  "repository": "https://github.com/OPCFoundation/UA-.NETStandard",
+  "license": "MIT",
+  "keywords": [
+    "opc-ua",
+    "dotnet",
+    "migration",
+    "analyzers"
+  ],
+  "skills": [
+    "./skills/"
+  ]
+}

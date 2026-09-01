@@ -14,7 +14,7 @@
     <!-- JsonSchema.Net transitively requires System.Collections.Immutable >= 10.0.5, while the
          central pin tracks the Roslyn band's runtime version for the analyzer closure
          (see roslyn.props). Test projects are not part of that closure, so override here. -->
-    <PackageReference Include="System.Collections.Immutable" VersionOverride="10.0.10" />
+    <PackageReference Include="System.Collections.Immutable" VersionOverride="10.0.11" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" />
     <PackageReference Include="Moq" />
     <PackageReference Include="NUnit" />

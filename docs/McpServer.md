@@ -138,29 +138,78 @@ Sessions are listed via `resources/list` and detailed via `resources/read`.
 
 ## Installation
 
-### Option 1: Install as a .NET global tool (recommended)
+### Option 1: Run without installing (.NET 10 SDK)
+
+Run the public preview directly from nuget.org. `dotnet tool exec` downloads
+and caches the tool without adding a global tool installation:
 
 ```bash
-dotnet tool install --global OPCFoundation.NetStandard.Opc.Ua.Mcp
+# Stay on the latest published 2.0.0-preview.N release
+dotnet tool exec "OPCFoundation.NetStandard.Opc.Ua.Mcp@2.0.0-preview.*"
+
+# Or resolve the latest prerelease, regardless of preview line
+dotnet tool exec --prerelease OPCFoundation.NetStandard.Opc.Ua.Mcp
+
+# Short form of dotnet tool exec
+dnx "OPCFoundation.NetStandard.Opc.Ua.Mcp@2.0.0-preview.*"
+```
+
+### Option 2: Install as a .NET global tool
+
+```bash
+dotnet tool install --global OPCFoundation.NetStandard.Opc.Ua.Mcp --prerelease
 ```
 
 After installation, the `opcua-mcp` command is available globally.
 
-### Option 2: Run from source
+> **Public preview profile availability.** `2.0.0-preview.3` includes
+> `core`, `services`, `administration`, `pubsub`, `diagnostics`, `robotics`,
+> and `full`. It does not include `Opc.Ua.Mcp.Vision`, so `vision` and
+> composed `vision,robotics` profiles require running the current source
+> until a later preview contains that package.
+
+### Option 3: Run from source
 
 ```bash
 cd tools/Opc.Ua.Mcp
 dotnet run -c Release
 ```
 
-### Option 3: Install from local build
+### Option 4: Install from local build
 
 ```bash
 dotnet pack tools/Opc.Ua.Mcp/Opc.Ua.Mcp.csproj -c Release
-dotnet tool install --global --add-source tools/Opc.Ua.Mcp/bin/Release OPCFoundation.NetStandard.Opc.Ua.Mcp
+dotnet tool install --global --prerelease --add-source tools/Opc.Ua.Mcp/bin/Release OPCFoundation.NetStandard.Opc.Ua.Mcp
 ```
 
+If multiple prerelease versions are visible from configured sources, add
+`--version <the-version-produced-by-dotnet-pack>` to select the local package
+explicitly.
+
 ## Configuration
+
+### Run on demand without a global installation
+
+MCP clients that accept an executable and argument array can launch the tool
+through `dotnet tool exec`. Put MCP tool arguments after `--`:
+
+```json
+{
+  "mcpServers": {
+    "opcua": {
+      "command": "dotnet",
+      "args": [
+        "tool",
+        "exec",
+        "OPCFoundation.NetStandard.Opc.Ua.Mcp@2.0.0-preview.*",
+        "--",
+        "--profile",
+        "core"
+      ]
+    }
+  }
+}
+```
 
 ### Claude Desktop
 
