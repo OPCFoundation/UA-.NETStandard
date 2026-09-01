@@ -42,22 +42,31 @@ name it cannot find. Both halves of the conversion produce such names —
 synthesis writes the readable names directly, and a restore reproduces
 whatever spelling the document it restores from used — so every converted
 NodeSet is passed through an alias-completion pass before it is returned.
-That pass is not a WoT concept: `NodeSetAliasCompleter` and the table of
-standard names it resolves through (`NodeSetStandardAliases`) sit beside
-`UANodeSet` itself, and the converter is one of its callers.
+That pass is not a WoT concept: `NodeSetAliasCompleter` sits beside
+`UANodeSet` itself and declares whatever the `INodeSetAliasResolver` it is
+handed knows. The WoT Binding's own policy is one object,
+`WotNodeSetAliases`, which states that a converted document writes the
+standard base-namespace names and delegates to the single table of them
+(`NodeSetStandardAliases`) rather than repeating any.
 
-The pass declares only names it can resolve to a standard base-namespace
-Node, appended after the declarations the document already carried in
-ascending ordinal order of the alias. It is idempotent, so a byte-exact
-`uav:nodeSet` restore stays byte-exact, and it never rewrites a name: a
-vendor alias the document uses but does not declare still fails the import
-with the message that names it, rather than being quietly discarded.
+The pass declares only names that policy resolves, appended after the
+declarations the document already carried in ascending ordinal order of
+the alias. It is idempotent, so a byte-exact `uav:nodeSet` restore stays
+byte-exact, and it never rewrites a name: a vendor alias the document uses
+but does not declare still fails the import with the message that names
+it, rather than being quietly discarded.
 
 Completion is a decision a *producer* makes about a document it writes.
-Comparison never makes it: `NodeSetComparer.CompareEquivalent` resolves
-only the aliases each document declares for itself, so a document that
-writes `HasComponent` without declaring it — which no Server could load —
-is not reported as equivalent to one that writes `i=47`.
+Comparison makes none of its own: `NodeSetComparer.CompareEquivalent`
+resolves each document through its own declarations first and asks
+`NodeSetComparisonOptions.AliasResolver` about the rest. That property
+defaults to nothing at all, so a comparison of two arbitrary NodeSets does
+not report a document that writes `HasComponent` without declaring it —
+which no Server could load — as equivalent to one that writes `i=47`. The
+WoT conversion injects `WotNodeSetAliases` through
+`WotNodeSetConverterOptions.ToComparisonOptions`, so its Section 9.2
+completeness check reads the names the Binding writes, and the comparison
+itself stays free of any knowledge of WoT.
 
 That matters beyond tidiness, because the runtime registry materialization
 path is `ConvertAsync` → serialize → `UANodeSet.Read` → `Import`. Every

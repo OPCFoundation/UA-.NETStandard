@@ -390,7 +390,9 @@ namespace Opc.Ua.Wot
                 ToNodeSetResult(document, options);
             // §9.2 asks whether the readable document reproduces an equivalent
             // NodeSet, not an identically spelled one, so the comparison
-            // resolves each side's own aliases first.
+            // resolves each side's own aliases first and reads what neither
+            // declared through the WoT Binding's alias policy, which the
+            // options carry.
             return result.Success &&
                 NodeSetComparer.CompareEquivalent(
                     source, result.Value!, options.ToComparisonOptions()).AreEquivalent;
@@ -898,15 +900,10 @@ namespace Opc.Ua.Wot
             {
                 return null;
             }
-            string resolved = dataType!;
-            foreach (NodeIdAlias alias in nodeSet.Aliases ?? [])
+            if (!NodeSetDeclaredAliases.FromNodeSet(nodeSet).TryResolve(
+                dataType!, out string resolved))
             {
-                if (string.Equals(alias.Alias, dataType, StringComparison.Ordinal) &&
-                    alias.Value is { Length: > 0 })
-                {
-                    resolved = alias.Value;
-                    break;
-                }
+                resolved = dataType!;
             }
             if (!LooksLikeNodeId(resolved))
             {

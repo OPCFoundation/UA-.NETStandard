@@ -1074,8 +1074,11 @@ back. Nothing has to infer a unit's identifier from its symbol.
 One convention is worth knowing when reading a generated document: completeness is
 tested with `NodeSetComparer.CompareEquivalent`, which reads each side through its own
 `Aliases` table, because Section 9.2 asks for an equivalent NodeSet and not an
-identically spelled one. `NodeSetComparer.Compare` keeps the stricter text comparison
-for callers that need to know a document was reproduced as written.
+identically spelled one. A name neither side declares is read through the
+`INodeSetAliasResolver` the caller injects — here `WotNodeSetAliases`, which states
+that the Binding writes the standard base-namespace names — so the comparison itself
+states no policy of its own. `NodeSetComparer.Compare` keeps the stricter text
+comparison for callers that need to know a document was reproduced as written.
 
 ### How this is checked
 

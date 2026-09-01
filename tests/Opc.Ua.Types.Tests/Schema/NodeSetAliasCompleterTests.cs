@@ -28,6 +28,8 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using NUnit.Framework;
@@ -39,11 +41,68 @@ namespace Opc.Ua.Types.Tests.Schema
     /// Completing a NodeSet2 document's <c>&lt;Aliases&gt;</c> table is what
     /// makes a document that writes readable names importable, and it is a
     /// property of NodeSet2 rather than of any producer that writes one.
+    /// Which names may be written is the caller's policy, handed in as an
+    /// <see cref="INodeSetAliasResolver"/>, so these tests state one of their
+    /// own rather than depending on any particular profile's.
     /// </summary>
     [TestFixture]
     [Parallelizable]
     public class NodeSetAliasCompleterTests
     {
+        /// <summary>
+        /// A policy that knows the standard names this fixture's documents
+        /// write, which is all a completion pass needs to be told.
+        /// </summary>
+        private sealed class TableAliasResolver : INodeSetAliasResolver
+        {
+            public TableAliasResolver(params (string Name, string NodeId)[] entries)
+            {
+                m_entries = new Dictionary<string, string>(StringComparer.Ordinal);
+                foreach ((string name, string nodeId) in entries)
+                {
+                    m_entries.Add(name, nodeId);
+                }
+            }
+
+            public bool TryResolve(string alias, out string nodeId)
+            {
+                if (alias is not null && m_entries.TryGetValue(alias, out nodeId!))
+                {
+                    return true;
+                }
+                nodeId = string.Empty;
+                return false;
+            }
+
+            private readonly Dictionary<string, string> m_entries;
+        }
+
+        /// <summary>
+        /// A second policy, written differently, that says only ReferenceType
+        /// names may be left undeclared. It proves the pass declares what the
+        /// injected policy states and not what the library happens to know.
+        /// </summary>
+        private sealed class ReferenceTypeOnlyAliasResolver : INodeSetAliasResolver
+        {
+            public bool TryResolve(string alias, out string nodeId)
+            {
+                if (alias is not null &&
+                    alias.StartsWith("Has", StringComparison.Ordinal) &&
+                    NodeSetStandardAliases.TryResolve(alias, out nodeId))
+                {
+                    return true;
+                }
+                nodeId = string.Empty;
+                return false;
+            }
+        }
+
+        private static readonly INodeSetAliasResolver StandardNames = new TableAliasResolver(
+            ("Double", "i=11"),
+            ("HasComponent", "i=47"),
+            ("HasSubtype", "i=45"),
+            ("HasTypeDefinition", "i=40"));
+
         /// <summary>
         /// Every standard ReferenceType and DataType name the document uses is
         /// declared, and nothing else is.
@@ -53,7 +112,7 @@ namespace Opc.Ua.Types.Tests.Schema
         {
             UANodeSet nodeSet = CreateNodeSetUsingStandardNames();
 
-            NodeSetAliasCompleter.Complete(nodeSet);
+            NodeSetAliasCompleter.Complete(nodeSet, StandardNames);
 
             Assert.That(
                 nodeSet.Aliases!.Select(alias => alias.Alias),
@@ -73,9 +132,9 @@ namespace Opc.Ua.Types.Tests.Schema
         {
             UANodeSet nodeSet = CreateNodeSetUsingStandardNames();
 
-            NodeSetAliasCompleter.Complete(nodeSet);
+            NodeSetAliasCompleter.Complete(nodeSet, StandardNames);
             NodeIdAlias[] afterFirstPass = nodeSet.Aliases!;
-            NodeSetAliasCompleter.Complete(nodeSet);
+            NodeSetAliasCompleter.Complete(nodeSet, StandardNames);
 
             Assert.That(nodeSet.Aliases, Is.SameAs(afterFirstPass));
             Assert.That(nodeSet.Aliases!, Has.Length.EqualTo(4));
@@ -91,8 +150,8 @@ namespace Opc.Ua.Types.Tests.Schema
             UANodeSet first = CreateNodeSetUsingStandardNames();
             UANodeSet second = CreateNodeSetUsingStandardNames();
 
-            NodeSetAliasCompleter.Complete(first);
-            NodeSetAliasCompleter.Complete(second);
+            NodeSetAliasCompleter.Complete(first, StandardNames);
+            NodeSetAliasCompleter.Complete(second, StandardNames);
 
             Assert.That(
                 second.Aliases!.Select(alias => $"{alias.Alias}={alias.Value}"),
@@ -113,7 +172,7 @@ namespace Opc.Ua.Types.Tests.Schema
                 new NodeIdAlias { Alias = "HasComponent", Value = "i=47" }
             ];
 
-            NodeSetAliasCompleter.Complete(nodeSet);
+            NodeSetAliasCompleter.Complete(nodeSet, StandardNames);
 
             Assert.That(
                 nodeSet.Aliases!.Select(alias => alias.Alias),
@@ -136,7 +195,7 @@ namespace Opc.Ua.Types.Tests.Schema
         {
             UANodeSet nodeSet = CreateNodeSetUsingStandardNames();
 
-            NodeSetAliasCompleter.Complete(nodeSet);
+            NodeSetAliasCompleter.Complete(nodeSet, StandardNames);
 
             Assert.DoesNotThrow(() => Import(Reread(nodeSet)));
         }
@@ -161,7 +220,7 @@ namespace Opc.Ua.Types.Tests.Schema
                 }
             ];
 
-            NodeSetAliasCompleter.Complete(nodeSet);
+            NodeSetAliasCompleter.Complete(nodeSet, StandardNames);
 
             Assert.That(
                 nodeSet.Aliases!.Select(alias => alias.Alias),
@@ -181,9 +240,62 @@ namespace Opc.Ua.Types.Tests.Schema
         {
             var nodeSet = new UANodeSet();
 
-            Assert.That(NodeSetAliasCompleter.Complete(nodeSet), Is.SameAs(nodeSet));
+            Assert.That(NodeSetAliasCompleter.Complete(nodeSet, StandardNames), Is.SameAs(nodeSet));
             Assert.That(nodeSet.Aliases, Is.Null);
-            Assert.That(NodeSetAliasCompleter.Complete(null), Is.Null);
+            Assert.That(NodeSetAliasCompleter.Complete(null, StandardNames), Is.Null);
+        }
+
+        /// <summary>
+        /// The pass declares what the injected policy states, so a second
+        /// policy over the same document declares a different table. Nothing
+        /// about which names are declarable is the pass's own.
+        /// </summary>
+        [Test]
+        public void CompletionDeclaresWhatTheInjectedPolicyStates()
+        {
+            UANodeSet nodeSet = CreateNodeSetUsingStandardNames();
+
+            NodeSetAliasCompleter.Complete(nodeSet, new ReferenceTypeOnlyAliasResolver());
+
+            string[] referenceTypeNames = ["HasComponent", "HasSubtype", "HasTypeDefinition"];
+            Assert.That(
+                nodeSet.Aliases!.Select(alias => alias.Alias),
+                Is.EqualTo(referenceTypeNames),
+                "This policy states no DataType name, so 'Double' stays undeclared.");
+        }
+
+        /// <summary>
+        /// One document and one policy give one table however often the pass
+        /// runs and whichever instance runs it, which is what a byte-exact
+        /// restore and a repeatable build both depend on.
+        /// </summary>
+        [Test]
+        public void CompletionIsDeterministicAndIdempotentUnderAnInjectedPolicy()
+        {
+            var policy = new ReferenceTypeOnlyAliasResolver();
+            UANodeSet first = CreateNodeSetUsingStandardNames();
+            UANodeSet second = CreateNodeSetUsingStandardNames();
+
+            NodeSetAliasCompleter.Complete(first, policy);
+            NodeSetAliasCompleter.Complete(second, new ReferenceTypeOnlyAliasResolver());
+            NodeIdAlias[] afterFirstPass = first.Aliases!;
+            NodeSetAliasCompleter.Complete(first, policy);
+
+            Assert.That(first.Aliases, Is.SameAs(afterFirstPass));
+            Assert.That(
+                second.Aliases!.Select(alias => $"{alias.Alias}={alias.Value}"),
+                Is.EqualTo(first.Aliases!.Select(alias => $"{alias.Alias}={alias.Value}")));
+        }
+
+        /// <summary>
+        /// There is no policy to fall back on, so a caller that states none is
+        /// told rather than served a default reading of its document.
+        /// </summary>
+        [Test]
+        public void CompletionRequiresAPolicy()
+        {
+            Assert.Throws<ArgumentNullException>(
+                () => NodeSetAliasCompleter.Complete(CreateNodeSetUsingStandardNames(), null!));
         }
 
         private static UANodeSet CreateNodeSetUsingStandardNames()

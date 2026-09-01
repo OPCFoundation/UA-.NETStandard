@@ -69,7 +69,11 @@ namespace Opc.Ua.Export
         /// </summary>
         /// <param name="left">The first document.</param>
         /// <param name="right">The second document.</param>
-        /// <param name="options">Optional resource limits used during comparison.</param>
+        /// <param name="options">
+        /// Optional resource limits used during comparison. The alias policy
+        /// is not read: this comparison answers whether a document was
+        /// reproduced as written, and a name is part of how it is written.
+        /// </param>
         /// <returns>The comparison result.</returns>
         public static NodeSetComparisonResult Compare(
             UANodeSet left,
@@ -92,7 +96,10 @@ namespace Opc.Ua.Export
         /// </summary>
         /// <param name="left">The first serialized document.</param>
         /// <param name="right">The second serialized document.</param>
-        /// <param name="options">Optional resource limits used during comparison.</param>
+        /// <param name="options">
+        /// Optional resource limits used during comparison. The alias policy
+        /// is not read, for the reason given on <see cref="Compare"/>.
+        /// </param>
         /// <returns>The comparison result.</returns>
         public static NodeSetComparisonResult CompareXml(
             ReadOnlySpan<byte> left,
@@ -137,16 +144,20 @@ namespace Opc.Ua.Export
         /// <para>
         /// This resolves each side through its own table and drops the table
         /// itself, which is only the definition of the shorthand. A name a
-        /// document does not declare is left exactly as written: it is not an
-        /// alias, and a document that uses one cannot be imported at all. It
-        /// is separate from <see cref="Compare"/> because that comparison is
-        /// used where exact reproduction is the question, and loosening it
-        /// there would stop it answering that question.
+        /// document does not declare is answered by
+        /// <see cref="NodeSetComparisonOptions.AliasResolver"/>, and left
+        /// exactly as written when no policy was supplied: it is not an alias
+        /// then, and a document that uses one cannot be imported at all. It is
+        /// separate from <see cref="Compare"/> because that comparison is used
+        /// where exact reproduction is the question, and loosening it there
+        /// would stop it answering that question.
         /// </para>
         /// </remarks>
         /// <param name="left">The first document.</param>
         /// <param name="right">The second document.</param>
-        /// <param name="options">Optional resource limits used during comparison.</param>
+        /// <param name="options">
+        /// Optional resource limits and alias policy used during comparison.
+        /// </param>
         /// <returns>The comparison result.</returns>
         /// <exception cref="ArgumentNullException">
         /// <paramref name="left"/> or <paramref name="right"/> is <c>null</c>.
@@ -174,10 +185,12 @@ namespace Opc.Ua.Export
                 canonicalLeft = Canonicalize(
                     Encoding.UTF8.GetString(StripPreamble(Serialize(left)).ToArray()),
                     options.MaxXmlDepth,
+                    options.AliasResolver,
                     resolveAliases: true);
                 canonicalRight = Canonicalize(
                     Encoding.UTF8.GetString(StripPreamble(Serialize(right)).ToArray()),
                     options.MaxXmlDepth,
+                    options.AliasResolver,
                     resolveAliases: true);
             }
             catch (FormatException ex)
@@ -222,7 +235,10 @@ namespace Opc.Ua.Export
         }
 
         private static string Canonicalize(
-            string xml, int maxXmlDepth, bool resolveAliases = false)
+            string xml,
+            int maxXmlDepth,
+            INodeSetAliasResolver? fallback = null,
+            bool resolveAliases = false)
         {
             var settings = new XmlReaderSettings
             {
@@ -241,36 +257,16 @@ namespace Opc.Ua.Export
             var builder = new StringBuilder();
             if (document.Root is not null)
             {
-                Dictionary<string, string>? aliases = resolveAliases
-                    ? ReadAliases(document.Root)
+                // The document's own declarations answer first and the caller's
+                // policy answers for the rest, which is the only order in which
+                // a document may be read: a name it declares means what it says
+                // it means.
+                INodeSetAliasResolver? aliases = resolveAliases
+                    ? NodeSetDeclaredAliases.FromDocument(document.Root, fallback)
                     : null;
                 WriteElement(builder, document.Root, 1, maxXmlDepth, aliases);
             }
             return builder.ToString();
-        }
-
-        /// <summary>
-        /// Reads a NodeSet's own <c>Aliases</c> table.
-        /// </summary>
-        private static Dictionary<string, string> ReadAliases(XElement root)
-        {
-            var aliases = new Dictionary<string, string>(StringComparer.Ordinal);
-            foreach (XElement table in root.Elements())
-            {
-                if (!string.Equals(table.Name.LocalName, AliasesElement, StringComparison.Ordinal))
-                {
-                    continue;
-                }
-                foreach (XElement alias in table.Elements())
-                {
-                    string? name = alias.Attribute("Alias")?.Value;
-                    if (!string.IsNullOrEmpty(name))
-                    {
-                        aliases[name!] = alias.Value;
-                    }
-                }
-            }
-            return aliases;
         }
 
         private static void WriteElement(
@@ -278,7 +274,7 @@ namespace Opc.Ua.Export
             XElement element,
             int depth,
             int maxXmlDepth,
-            Dictionary<string, string>? aliases)
+            INodeSetAliasResolver? aliases)
         {
             if (depth > maxXmlDepth)
             {
@@ -349,15 +345,17 @@ namespace Opc.Ua.Export
         /// Resolves an alias-able value to the identifier it stands for.
         /// </summary>
         /// <remarks>
-        /// Only the document's own table is consulted. A name it does not
-        /// declare is not an alias: a NodeSet2 document that writes
+        /// The resolver reads the document's own table first, so a name it
+        /// declares means what the document says it means. A name it does not
+        /// declare is answered by the policy the caller injected, and is left
+        /// as written when there is none: a NodeSet2 document that writes
         /// <c>HasComponent</c> without declaring it cannot be imported at all,
         /// and reading it here as <c>i=47</c> would let a comparison call an
         /// unloadable document equivalent to a loadable one.
         /// </remarks>
-        private static string Resolve(string value, Dictionary<string, string>? aliases)
+        private static string Resolve(string value, INodeSetAliasResolver? aliases)
         {
-            if (aliases is not null && aliases.TryGetValue(value, out string? resolved))
+            if (aliases is not null && aliases.TryResolve(value, out string resolved))
             {
                 return resolved;
             }

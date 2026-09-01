@@ -29,6 +29,8 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Text;
 using System.Xml;
@@ -171,6 +173,152 @@ namespace Opc.Ua.Types.Tests.Schema
                 "Comparison states what the documents say, not what they could have declared.");
         }
 
+        /// <summary>
+        /// A caller whose profile says which names may be written without
+        /// being declared supplies that policy, and the comparison then reads
+        /// an undeclared name through it.
+        /// </summary>
+        [Test]
+        public void CompareEquivalentResolvesAnUndeclaredNameThroughTheInjectedPolicy()
+        {
+            UANodeSet undeclared = WotTestData.CreateReconstructableNodeSet();
+            undeclared.Aliases = null;
+            undeclared.Items!.OfType<UAVariable>().Single().DataType = "Double";
+            UANodeSet expanded = WotTestData.CreateReconstructableNodeSet();
+            expanded.Aliases = null;
+            expanded.Items!.OfType<UAVariable>().Single().DataType = "i=11";
+            var options = new NodeSetComparisonOptions
+            {
+                AliasResolver = new TableAliasResolver(("Double", "i=11"))
+            };
+
+            Assert.That(
+                NodeSetComparer.CompareEquivalent(undeclared, expanded).AreEquivalent,
+                Is.False,
+                "Without a policy an undeclared name stays exactly as written.");
+            Assert.That(
+                NodeSetComparer.CompareEquivalent(undeclared, expanded, options).AreEquivalent,
+                Is.True,
+                "The injected policy says what an undeclared name stands for.");
+        }
+
+        /// <summary>
+        /// What a document declares for itself is the final word on that name,
+        /// whatever the injected policy would have said.
+        /// </summary>
+        [Test]
+        public void ADocumentDeclarationWinsOverTheInjectedPolicy()
+        {
+            UANodeSet declaring = WotTestData.CreateReconstructableNodeSet();
+            declaring.Aliases = [new NodeIdAlias { Alias = "Double", Value = "i=12" }];
+            declaring.Items!.OfType<UAVariable>().Single().DataType = "Double";
+            UANodeSet asDeclared = WotTestData.CreateReconstructableNodeSet();
+            asDeclared.Aliases = null;
+            asDeclared.Items!.OfType<UAVariable>().Single().DataType = "i=12";
+            UANodeSet asPolicyWouldRead = WotTestData.CreateReconstructableNodeSet();
+            asPolicyWouldRead.Aliases = null;
+            asPolicyWouldRead.Items!.OfType<UAVariable>().Single().DataType = "i=11";
+            var options = new NodeSetComparisonOptions
+            {
+                AliasResolver = new TableAliasResolver(("Double", "i=11"))
+            };
+
+            Assert.That(
+                NodeSetComparer.CompareEquivalent(declaring, asDeclared, options).AreEquivalent,
+                Is.True,
+                "The document declared Double as i=12, so that is what it means.");
+            Assert.That(
+                NodeSetComparer.CompareEquivalent(declaring, asPolicyWouldRead, options)
+                    .AreEquivalent,
+                Is.False,
+                "The policy may not overrule a declaration the document made.");
+        }
+
+        /// <summary>
+        /// The policy is the caller's, not the comparison's: two resolvers
+        /// written differently make the same pair of documents equivalent or
+        /// not, and the comparison itself decides nothing about names.
+        /// </summary>
+        [Test]
+        public void TwoInjectedPoliciesStateTwoReadingsOfOneDocumentPair()
+        {
+            UANodeSet undeclared = WotTestData.CreateReconstructableNodeSet();
+            undeclared.Aliases = null;
+            undeclared.Items!.OfType<UAVariable>().Single().DataType = "Double";
+            UANodeSet expanded = WotTestData.CreateReconstructableNodeSet();
+            expanded.Aliases = null;
+            expanded.Items!.OfType<UAVariable>().Single().DataType = "i=11";
+
+            var knowsTheName = new NodeSetComparisonOptions
+            {
+                AliasResolver = new TableAliasResolver(("Double", "i=11"))
+            };
+            var knowsNoDataTypeName = new NodeSetComparisonOptions
+            {
+                AliasResolver = new ReferenceTypeOnlyAliasResolver()
+            };
+
+            Assert.That(
+                NodeSetComparer.CompareEquivalent(undeclared, expanded, knowsTheName)
+                    .AreEquivalent,
+                Is.True);
+            Assert.That(
+                NodeSetComparer.CompareEquivalent(undeclared, expanded, knowsNoDataTypeName)
+                    .AreEquivalent,
+                Is.False,
+                "This policy states no DataType name, so 'Double' is not an alias to it.");
+        }
+
+        /// <summary>
+        /// A policy states what a name means, not whether a document was
+        /// reproduced as written, so the exact comparison never reads it.
+        /// </summary>
+        [Test]
+        public void CompareDoesNotReadTheInjectedPolicy()
+        {
+            UANodeSet undeclared = WotTestData.CreateReconstructableNodeSet();
+            undeclared.Aliases = null;
+            undeclared.Items!.OfType<UAVariable>().Single().DataType = "Double";
+            UANodeSet expanded = WotTestData.CreateReconstructableNodeSet();
+            expanded.Aliases = null;
+            expanded.Items!.OfType<UAVariable>().Single().DataType = "i=11";
+            var options = new NodeSetComparisonOptions
+            {
+                AliasResolver = new TableAliasResolver(("Double", "i=11"))
+            };
+
+            Assert.That(
+                NodeSetComparer.Compare(undeclared, expanded, options).AreEquivalent,
+                Is.False,
+                "A name is part of how a document is written.");
+            Assert.That(
+                NodeSetComparer.Compare(undeclared, undeclared, options).AreEquivalent,
+                Is.True);
+        }
+
+        /// <summary>
+        /// Comparing two NodeSet2 documents is general NodeSet2 machinery. It
+        /// takes its alias policy from the caller precisely so that it need
+        /// know nothing of any profile that has one, and this states that in
+        /// the only place the compiler cannot: the source itself.
+        /// </summary>
+        [Test]
+        public void TheComparerSourceNamesNoProfile()
+        {
+            string source = FindRepositoryFile(
+                Path.Combine("src", "Opc.Ua.Types", "Schema", "NodeSetComparer.cs"));
+            if (source.Length == 0)
+            {
+                Assert.Ignore("The comparer's source is not available beside the test assembly.");
+                return;
+            }
+
+            Assert.That(
+                File.ReadAllText(source),
+                Does.Not.Contain("Opc.Ua.Wot"),
+                "The comparison must not name the WoT Binding, which injects its policy.");
+        }
+
         [Test]
         public void SemanticChangeIsDetected()
         {
@@ -281,6 +429,71 @@ namespace Opc.Ua.Types.Tests.Schema
                 builder.Append("</n").Append(ii).Append('>');
             }
             return Encoding.UTF8.GetBytes(builder.ToString());
+        }
+
+        /// <summary>
+        /// Finds a file of this repository by walking up from the test
+        /// assembly, or an empty string where the sources are not beside it.
+        /// </summary>
+        private static string FindRepositoryFile(string relativePath)
+        {
+            DirectoryInfo directory = new(TestContext.CurrentContext.TestDirectory);
+            while (directory != null)
+            {
+                string candidate = Path.Combine(directory.FullName, relativePath);
+                if (File.Exists(candidate))
+                {
+                    return candidate;
+                }
+                directory = directory.Parent;
+            }
+            return string.Empty;
+        }
+
+        /// <summary>
+        /// A policy stated as a table of names, which is the simplest thing a
+        /// caller can hand to a comparison.
+        /// </summary>
+        private sealed class TableAliasResolver : INodeSetAliasResolver
+        {
+            public TableAliasResolver(params (string Name, string NodeId)[] entries)
+            {
+                m_entries = new Dictionary<string, string>(StringComparer.Ordinal);
+                foreach ((string name, string nodeId) in entries)
+                {
+                    m_entries.Add(name, nodeId);
+                }
+            }
+
+            public bool TryResolve(string alias, out string nodeId)
+            {
+                if (alias is not null && m_entries.TryGetValue(alias, out nodeId!))
+                {
+                    return true;
+                }
+                nodeId = string.Empty;
+                return false;
+            }
+
+            private readonly Dictionary<string, string> m_entries;
+        }
+
+        /// <summary>
+        /// A second policy, computed rather than tabulated, that admits only
+        /// the standard ReferenceType names.
+        /// </summary>
+        private sealed class ReferenceTypeOnlyAliasResolver : INodeSetAliasResolver
+        {
+            public bool TryResolve(string alias, out string nodeId)
+            {
+                if (alias is not null &&
+                    NodeSetStandardAliases.TryGetReferenceTypeNodeId(alias, out nodeId))
+                {
+                    return true;
+                }
+                nodeId = string.Empty;
+                return false;
+            }
         }
     }
 }

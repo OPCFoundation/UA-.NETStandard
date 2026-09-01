@@ -463,7 +463,7 @@ namespace Opc.Ua.Types.Tests.Wot
                         ]
                     }
                 ]
-            })!;
+            }, WotNodeSetAliases.Instance)!;
         }
 
         private static WotConversionResult<UANodeSet> Convert(string members)

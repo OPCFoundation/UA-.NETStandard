@@ -613,7 +613,7 @@ namespace Opc.Ua.Wot
                     }
                 }
                 WotJsonResidue.Replace(restored, document, options, diagnostics);
-                return NodeSetAliasCompleter.Complete(restored);
+                return NodeSetAliasCompleter.Complete(restored, WotNodeSetAliases.Instance);
             }
 
             if (document.TryGetNativeProjection(out JsonElement nativeProjection))
@@ -627,7 +627,7 @@ namespace Opc.Ua.Wot
                     ValidateNativeAffordanceCoverage(document, restored, diagnostics);
                     WotJsonResidue.Replace(restored, document, options, diagnostics);
                 }
-                return NodeSetAliasCompleter.Complete(restored);
+                return NodeSetAliasCompleter.Complete(restored, WotNodeSetAliases.Instance);
             }
 
             UANodeSet? synthesized =
@@ -646,7 +646,7 @@ namespace Opc.Ua.Wot
             {
                 WotJsonResidue.Replace(synthesized, document, options, diagnostics);
             }
-            return NodeSetAliasCompleter.Complete(synthesized);
+            return NodeSetAliasCompleter.Complete(synthesized, WotNodeSetAliases.Instance);
         }
 
         private static UANodeSet? RestoreFromEnvelope(

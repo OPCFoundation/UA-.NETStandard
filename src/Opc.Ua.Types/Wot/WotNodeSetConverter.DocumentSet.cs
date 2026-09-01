@@ -688,7 +688,8 @@ namespace Opc.Ua.Wot
             // <Aliases>, and an undeclared one fails the import - which is
             // exactly what a document set is converted to be able to survive.
             return new WotConversionResult<UANodeSet>(
-                NodeSetAliasCompleter.Complete(result), diagnostics);
+                NodeSetAliasCompleter.Complete(result, WotNodeSetAliases.Instance),
+                diagnostics);
         }
 
         /// <summary>

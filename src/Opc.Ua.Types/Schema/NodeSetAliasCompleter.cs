@@ -35,7 +35,8 @@ namespace Opc.Ua.Export
 {
     /// <summary>
     /// Completes a NodeSet2 document's <c>&lt;Aliases&gt;</c> table with the
-    /// standard names the document uses but does not declare.
+    /// names the document uses but does not declare, as far as a caller's
+    /// alias policy knows them.
     /// </summary>
     /// <remarks>
     /// <para>
@@ -54,31 +55,43 @@ namespace Opc.Ua.Export
     /// kept and the missing declarations are added.
     /// </para>
     /// <para>
-    /// Only a name this library can resolve to a standard base-namespace Node
-    /// is declared. A name that resolves to nothing is left exactly as it was,
-    /// so an undeclared vendor alias in a source document still fails the
-    /// import with the message that names it, rather than being quietly
-    /// discarded. Completing a table is a producer's decision about a document
-    /// it writes; it never states what an existing document already meant.
+    /// Which names those are is the producer's policy rather than this pass's,
+    /// so it is stated by the <see cref="INodeSetAliasResolver"/> the caller
+    /// hands in - the same abstraction a comparison reads a document through,
+    /// so that completing a document and comparing it apply one policy. A name
+    /// the resolver does not know is left exactly as it was, so an undeclared
+    /// vendor alias in a source document still fails the import with the
+    /// message that names it, rather than being quietly discarded. Completing
+    /// a table is a producer's decision about a document it writes; it never
+    /// states what an existing document already meant.
     /// </para>
     /// </remarks>
     internal static class NodeSetAliasCompleter
     {
         /// <summary>
-        /// Declares every standard name a node set uses but does not yet
-        /// declare, and returns the same instance.
+        /// Declares every name a node set uses but does not yet declare and
+        /// the resolver knows, and returns the same instance.
         /// </summary>
         /// <remarks>
         /// The pass is idempotent and adds nothing to a node set that already
         /// declares what it uses, which is what keeps a byte-exact restore
         /// byte-exact. New declarations are appended after the ones the
         /// document brought, in ascending ordinal order of the alias, so the
-        /// result depends only on the content and never on enumeration order.
+        /// result depends only on the content and the policy and never on
+        /// enumeration order.
         /// </remarks>
         /// <param name="nodeSet">The node set to complete, or <c>null</c>.</param>
+        /// <param name="resolver">The policy that says what a name stands for.</param>
         /// <returns><paramref name="nodeSet"/>.</returns>
-        public static UANodeSet? Complete(UANodeSet? nodeSet)
+        /// <exception cref="ArgumentNullException">
+        /// <paramref name="resolver"/> is <c>null</c>.
+        /// </exception>
+        public static UANodeSet? Complete(UANodeSet? nodeSet, INodeSetAliasResolver resolver)
         {
+            if (resolver is null)
+            {
+                throw new ArgumentNullException(nameof(resolver));
+            }
             if (nodeSet?.Items is not { Length: > 0 } items)
             {
                 return nodeSet;
@@ -99,7 +112,7 @@ namespace Opc.Ua.Export
             var missing = new SortedDictionary<string, string>(StringComparer.Ordinal);
             foreach (UANode node in items)
             {
-                CollectFromNode(node, declared, missing);
+                CollectFromNode(node, declared, missing, resolver);
             }
 
             if (missing.Count == 0)
@@ -129,7 +142,8 @@ namespace Opc.Ua.Export
         private static void CollectFromNode(
             UANode? node,
             HashSet<string> declared,
-            SortedDictionary<string, string> missing)
+            SortedDictionary<string, string> missing,
+            INodeSetAliasResolver resolver)
         {
             if (node is null)
             {
@@ -144,8 +158,8 @@ namespace Opc.Ua.Export
                     {
                         continue;
                     }
-                    Collect(reference.ReferenceType, declared, missing);
-                    Collect(reference.Value, declared, missing);
+                    Collect(reference.ReferenceType, declared, missing, resolver);
+                    Collect(reference.Value, declared, missing, resolver);
                 }
             }
 
@@ -153,28 +167,28 @@ namespace Opc.Ua.Export
             {
                 foreach (RolePermission permission in permissions)
                 {
-                    Collect(permission?.Value, declared, missing);
+                    Collect(permission?.Value, declared, missing, resolver);
                 }
             }
 
             if (node is UAInstance instance)
             {
-                Collect(instance.ParentNodeId, declared, missing);
+                Collect(instance.ParentNodeId, declared, missing, resolver);
             }
 
             switch (node)
             {
                 case UAVariable variable:
-                    Collect(variable.DataType, declared, missing);
+                    Collect(variable.DataType, declared, missing, resolver);
                     break;
                 case UAMethod method:
-                    Collect(method.MethodDeclarationId, declared, missing);
+                    Collect(method.MethodDeclarationId, declared, missing, resolver);
                     break;
                 case UAVariableType variableType:
-                    Collect(variableType.DataType, declared, missing);
+                    Collect(variableType.DataType, declared, missing, resolver);
                     break;
                 case UADataType dataType:
-                    CollectFromDefinition(dataType.Definition, declared, missing);
+                    CollectFromDefinition(dataType.Definition, declared, missing, resolver);
                     break;
             }
         }
@@ -182,37 +196,39 @@ namespace Opc.Ua.Export
         private static void CollectFromDefinition(
             DataTypeDefinition? definition,
             HashSet<string> declared,
-            SortedDictionary<string, string> missing)
+            SortedDictionary<string, string> missing,
+            INodeSetAliasResolver resolver)
         {
             if (definition is null)
             {
                 return;
             }
-            Collect(definition.BaseType, declared, missing);
+            Collect(definition.BaseType, declared, missing, resolver);
             if (definition.Field is not { Length: > 0 } fields)
             {
                 return;
             }
             foreach (DataTypeField field in fields)
             {
-                Collect(field?.DataType, declared, missing);
+                Collect(field?.DataType, declared, missing, resolver);
             }
         }
 
         /// <summary>
         /// Records one name that has to be declared, when it is a name at all
-        /// and this library knows what it stands for.
+        /// and the caller's policy knows what it stands for.
         /// </summary>
         private static void Collect(
             string? value,
             HashSet<string> declared,
-            SortedDictionary<string, string> missing)
+            SortedDictionary<string, string> missing,
+            INodeSetAliasResolver resolver)
         {
             if (string.IsNullOrEmpty(value) ||
                 declared.Contains(value!) ||
                 missing.ContainsKey(value!) ||
                 IsIdentifier(value!) ||
-                !NodeSetStandardAliases.TryResolve(value!, out string nodeId))
+                !resolver.TryResolve(value!, out string nodeId))
             {
                 return;
             }

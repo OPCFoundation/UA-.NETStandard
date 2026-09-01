@@ -299,20 +299,27 @@ namespace Opc.Ua.Wot
         }
 
         /// <summary>
-        /// Projects the limits a NodeSet2 comparison is bounded by onto a
-        /// <see cref="NodeSetComparisonOptions"/>.
+        /// Projects what a NodeSet2 comparison needs from these options onto a
+        /// <see cref="NodeSetComparisonOptions"/>: the one limit that bounds
+        /// it, and the alias policy the WoT Binding conversion writes in.
         /// </summary>
         /// <remarks>
         /// Comparing two NodeSets is not a WoT operation and does not depend
         /// on any conversion setting, so the comparison is given the one limit
-        /// that applies to it rather than these options.
+        /// that applies to it rather than these options. What an undeclared
+        /// standard name means is a WoT question, though - a converted
+        /// document writes <c>HasComponent</c> because the WoT Binding's
+        /// mappings are written that way - so
+        /// <see cref="WotNodeSetAliases"/> is handed in to answer it, and the
+        /// comparison stays free of any knowledge of WoT.
         /// </remarks>
         /// <returns>The equivalent bounded comparison options.</returns>
         public NodeSetComparisonOptions ToComparisonOptions()
         {
             return new NodeSetComparisonOptions
             {
-                MaxXmlDepth = MaxXmlDepth
+                MaxXmlDepth = MaxXmlDepth,
+                AliasResolver = WotNodeSetAliases.Instance
             };
         }
 

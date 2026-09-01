@@ -1753,15 +1753,9 @@ namespace Opc.Ua.Wot
             {
                 return value;
             }
-            if (nodeSet.Aliases is not null)
+            if (NodeSetDeclaredAliases.FromNodeSet(nodeSet).TryResolve(value!, out string declared))
             {
-                foreach (NodeIdAlias alias in nodeSet.Aliases)
-                {
-                    if (string.Equals(alias.Alias, value, StringComparison.Ordinal))
-                    {
-                        return ToPortableNodeId(alias.Value, nodeSet.NamespaceUris);
-                    }
-                }
+                return ToPortableNodeId(declared, nodeSet.NamespaceUris);
             }
             return ToPortableNodeId(value, nodeSet.NamespaceUris);
         }

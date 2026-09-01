@@ -33,6 +33,7 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using Opc.Ua.Export;
+using Opc.Ua.Wot;
 
 namespace Opc.Ua.Types.Tests.Wot
 {
@@ -164,7 +165,7 @@ namespace Opc.Ua.Types.Tests.Wot
                 NamespaceUris = ["urn:test:analog"],
                 Models = [new ModelTableEntry { ModelUri = "urn:test:analog" }],
                 Items = [.. items]
-            })!;
+            }, WotNodeSetAliases.Instance)!;
         }
 
         internal static UAVariable CreateRangeProperty(
