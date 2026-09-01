@@ -574,7 +574,7 @@
   </UAVariable>
   <UAObjectType NodeId="ns=2;i=1002" BrowseName="2:ModelType">
     <DisplayName>ModelType</DisplayName>
-    <Description>Nameplate of a trained model. The member set is deliberately aligned with the IDTA 02060 AI Model Nameplate submodel template, which is currently the only standardised description of an industrial AI model, so an Asset Administration Shell can be populated from this node without loss.</Description>
+    <Description>Nameplate of a trained model. The member set is deliberately aligned with the IDTA 02060 AI Model Nameplate submodel template, which is currently the only standardised description of an industrial AI model, to support lossless interchange.</Description>
     <Category>AiModelManagement</Category>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=58</Reference>

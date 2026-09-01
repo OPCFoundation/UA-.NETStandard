@@ -3,8 +3,9 @@ name: opcua-v20-migration
 description: |
   Migrate OPC UA .NET Standard applications from version 1.5.378 to
   version 2.0.x. Walks consumers through installing the
-  OPCFoundation.NetStandard.Opc.Ua.MigrationAnalyzer NuGet (analyzers UA0001-UA0022,
-  source-generated <Type>Collection shims, runtime compat shim), running
+  OPCFoundation.NetStandard.Opc.Ua.MigrationAnalyzer NuGet (26 analyzers through
+  UA0030, with UA0029 reserved for runtime-shim guidance, source-generated
+  <Type>Collection shims, runtime compat shim), running
   `dotnet format analyzers` to apply auto-fixes, and walking the residual manual
   patterns. Use when asked to "migrate to v20", "update from 1.5.378", "fix
   v20 build errors", "migrate OPC UA code to 2.0", "update to new Variant API",
@@ -17,20 +18,21 @@ description: |
   errors after upgrading to v20".
 license: MIT
 compatibility: |
-  Requires .NET SDK 9.0.100+ (10.0.300+ for the `dotnet format analyzers`
+  Requires .NET SDK 9.0.300+ (10.0.300+ for the `dotnet format analyzers`
   auto-fix pass), a C# project, and resolvable access to the
-  OPCFoundation.NetStandard.Opc.Ua.MigrationAnalyzer NuGet package (v2.0.*-*).
+  OPCFoundation.NetStandard.Opc.Ua.MigrationAnalyzer NuGet package
+  (v2.0.0-preview.*).
   IDE auto-fixes need a Workspaces-aware host (Visual Studio, Rider, or
   `dotnet format`). Generator + analyzers load in csc.exe too.
 metadata:
   author: OPC Foundation
   version: "1.0.0"
   upstream: https://github.com/OPCFoundation/UA-.NETStandard
-  canonical-docs:
-    - docs/MigrationGuide.md                      # landing page (small)
-    - docs/migrate/2.0.x/README.md                # 2.0 version landing + sub-doc index
-    - docs/migrate/2.0.x/                         # 12 thematic sub-docs (load only what you need)
-    - tools/Opc.Ua.MigrationAnalyzer/NugetREADME.md
+  canonical-docs: >-
+    https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/MigrationGuide.md;
+    https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/migrate/2.0.x/README.md;
+    https://github.com/OPCFoundation/UA-.NETStandard/tree/master/docs/migrate/2.0.x;
+    https://github.com/OPCFoundation/UA-.NETStandard/blob/master/tools/Opc.Ua.MigrationAnalyzer/NugetREADME.md
 ---
 
 # OPC UA .NET Standard 1.5.378 → 2.0 Migration
@@ -41,30 +43,40 @@ Upgrade existing OPC UA .NET Standard consumer projects from 1.5.378
 
 ## Migration sub-doc index — load only what you need
 
+The plugin bundles a snapshot of every thematic migration sub-doc under
+[`references/stack-migration/`](references/stack-migration/README.md). Use
+those local resources for the migration workflow; they remain available
+offline and do not change underneath an installed plugin. The upstream links
+at the end are optional references for checking newer repository changes.
+
 **Context-efficiency rule.** The full migration content is no longer in
-a single ~150 KB document; it is split across 12 thematic sub-docs under
-[`docs/migrate/2.0.x/`](../../../docs/migrate/2.0.x/README.md).
-**Do not load `docs/MigrationGuide.md` into context** — it is now a thin
-landing page. Instead, match the user's symptom to a row below and load
-the **single** sub-doc named in that row.
+a single document; it is split across thematic sub-docs in
+[`references/stack-migration/`](references/stack-migration/README.md).
+Match the user's symptom to a row below and load the **single** sub-doc named
+in that row. For `UA0024`–`UA0026` or `UA0028`, load only the matching section
+of [`references/analyzer-rules.md`](references/analyzer-rules.md); it contains
+the cross-cutting exposed-lock guidance without loading the entire Migration
+Guide.
 
 | When the user hits… | Load only |
 | --- | --- |
-| `CS0029` / `CS1503` / `CS0266` on `NodeId`, `Variant`, `DataValue`, `ExtensionObject`, `QualifiedName`, `LocalizedText`, `ArrayOf<T>` / `MatrixOf<T>`, `ByteString`, `StatusCode`, `XmlElement`, `EnumValue`, or `[Obsolete]` on built-in type APIs (analyzer `UA0001`–`UA0020`) | [`docs/migrate/2.0.x/types.md`](../../../docs/migrate/2.0.x/types.md) |
-| `Utils.LogX`, `Utils.Trace`, static logger helpers (`Utils.SetLogger` / `Utils.SetLogLevel` removed), `ITelemetryContext` constructor parameter shape per type, OLD-vs-NEW logger snippets, fluent `AddOpcUa().AddLogging().AddMetrics()` registration, breaking-changes inventory across Core / Configuration / Client / Server / PubSub / Certificate / Transport, migration utilities (`DefaultTelemetry`, `Telemetry.NullLogger`, `Utils.Fallback.Logger`) | [`docs/migrate/2.0.x/telemetry.md`](../../../docs/migrate/2.0.x/telemetry.md) |
-| Package upgrades, TFM changes, `Newtonsoft.Json` removal from `Opc.Ua.Core`, new published packages | [`docs/migrate/2.0.x/packages.md`](../../../docs/migrate/2.0.x/packages.md) |
-| Source-generated `*Collection` shims, NodeManager generator, default of `bool` properties, project structure | [`docs/migrate/2.0.x/source-generation.md`](../../../docs/migrate/2.0.x/source-generation.md) |
-| `IEncodeableFactoryBuilder`, `IType`, JSON / XML / binary encoders, `EncodeableFactory.GlobalFactory`, `IJsonEncodeable`, `ComplexTypes` namespace move | [`docs/migrate/2.0.x/encoders.md`](../../../docs/migrate/2.0.x/encoders.md) |
-| Custom NodeManagers, `NodeState` clone / read / write helpers, `Clone` → `CreateCopy`, `OnAfterCreate(CancellationToken)`, `INodeManager3`, `INodeCache.InvalidateNode`, generics on `BaseVariableState` / `BaseVariableTypeState` | [`docs/migrate/2.0.x/node-states.md`](../../../docs/migrate/2.0.x/node-states.md) |
-| `IUserIdentityTokenHandler`, `IClientIdentityProvider`, `IUserTokenAuthenticator`, `IAccessTokenProvider`, `ITokenIssuer`, caller-supplied secrets, secret store | [`docs/migrate/2.0.x/identity.md`](../../../docs/migrate/2.0.x/identity.md) |
-| `CertificateValidator` rename (`UA0021`), ref-counted `Certificate` wrapper, `CertificateManager`, `ICertificateProvider`, obsoleted `X509Certificate2` direct-exposure APIs | [`docs/migrate/2.0.x/certificates.md`](../../../docs/migrate/2.0.x/certificates.md) |
-| `ApplicationConfiguration` changes, Data-Contract serializer removal, `ParseExtension` / `UpdateExtension` signature, session / browser state persistence | [`docs/migrate/2.0.x/configuration.md`](../../../docs/migrate/2.0.x/configuration.md) |
-| `Session` → `ManagedSession`, V2 subscription engine, GDS-client `Task` → `ValueTask` modernisation, removed obsolete GDS APIs, durable subscriptions, PubSub, reverse-connect | [`docs/migrate/2.0.x/sessions-subscriptions.md`](../../../docs/migrate/2.0.x/sessions-subscriptions.md) |
-| `AlarmConditionState` state-transition behaviour, auto-emitted `GeneralModelChangeEvent`, `ModelChangeAggregator` | [`docs/migrate/2.0.x/alarms-model-change.md`](../../../docs/migrate/2.0.x/alarms-model-change.md) |
-| `DateTime.UtcNow`, `Timer`, deterministic-time tests, `System.TimeProvider` adoption | [`docs/migrate/2.0.x/timeprovider.md`](../../../docs/migrate/2.0.x/timeprovider.md) |
+| `CS0029` / `CS1503` / `CS0266` on `NodeId`, `Variant`, `DataValue`, `ExtensionObject`, `QualifiedName`, `LocalizedText`, `ArrayOf<T>` / `MatrixOf<T>`, `ByteString`, `StatusCode`, `XmlElement`, `EnumValue`, or `[Obsolete]` on built-in type APIs (analyzers `UA0002`–`UA0008`, `UA0014`, `UA0019`) | [`types.md`](references/stack-migration/types.md) |
+| `Utils.LogX`, `Utils.Trace`, static logger helpers (`Utils.SetLogger` / `Utils.SetLogLevel` removed), `ITelemetryContext` constructor parameter shape per type, OLD-vs-NEW logger snippets, fluent `AddOpcUa().AddLogging().AddMetrics()` registration, breaking-changes inventory across Core / Configuration / Client / Server / PubSub / Certificate / Transport, migration utilities (`DefaultTelemetry`, `Telemetry.NullLogger`, `Utils.Fallback.Logger`) | [`telemetry.md`](references/stack-migration/telemetry.md) |
+| Package upgrades, TFM changes, `Newtonsoft.Json` removal from `Opc.Ua.Core`, new published packages | [`packages.md`](references/stack-migration/packages.md) |
+| Source-generated `*Collection` shims, NodeManager generator, default of `bool` properties, project structure | [`source-generation.md`](references/stack-migration/source-generation.md) |
+| `IEncodeableFactoryBuilder`, `IType`, JSON / XML / binary encoders, `EncodeableFactory.GlobalFactory`, `IJsonEncodeable`, `ComplexTypes` namespace move | [`encoders.md`](references/stack-migration/encoders.md) |
+| Custom NodeManagers, `NodeState` clone / read / write helpers, `Clone` → `CreateCopy`, `OnAfterCreate(CancellationToken)`, `FindChild` / `CreateChild` NodeId assignment, `INodeManager3`, `INodeCache.InvalidateNode`, generics on `BaseVariableState` / `BaseVariableTypeState`, predefined-node processing, `lock (node)` on a `NodeState`, `NodeBrowser.DataLock` (`UA0027`) | [`node-states.md`](references/stack-migration/node-states.md) |
+| `IUserIdentityTokenHandler`, `IClientIdentityProvider`, `IUserTokenAuthenticator`, `IAccessTokenProvider`, `ITokenIssuer`, `IIdentityClaims`, caller-supplied secrets, secret store | [`identity.md`](references/stack-migration/identity.md) |
+| `CertificateValidator` rename (`UA0021`), ref-counted `Certificate` wrapper, `CertificateManager`, `ICertificateProvider`, obsoleted `X509Certificate2` direct-exposure APIs, PushManagement transactions (`ApplyChanges`-gated TrustList updates) | [`certificates.md`](references/stack-migration/certificates.md) |
+| `ApplicationConfiguration` changes, Data-Contract serializer removal, `MinMetadataSamplingInterval` → `MinSupportedSamplingInterval`, `ParseExtension` / `UpdateExtension` signature, session / browser state persistence | [`configuration.md`](references/stack-migration/configuration.md) |
+| `Session` → `ManagedSession`, V2 subscription engine, GDS-client `Task` → `ValueTask` modernisation, removed obsolete GDS APIs, durable subscriptions, removed `ReverseConnectClientCollection`, `IMessageSocket`, or `TransportBindings` APIs | [`sessions-subscriptions.md`](references/stack-migration/sessions-subscriptions.md) |
+| `UaPubSubApplication.Create*`, `IUaPubSubConnection`, `UaPubSubConfigurator`, `IUaPublisher`, AMQP transport, `JsonEncodingMode.Reversible` / `NonReversible`, PubSub JSON encoder changes, `DataSetFieldContentMask` RawData / timestamp behaviour | [`pubsub.md`](references/stack-migration/pubsub.md) |
+| `AlarmConditionState` state-transition behaviour, auto-emitted `GeneralModelChangeEvent`, `ModelChangeAggregator`, `INodeCache.InvalidateNode` triggered by model change | [`alarms-model-change.md`](references/stack-migration/alarms-model-change.md) |
+| `DateTime.UtcNow`, `Timer`, deterministic-time tests, `System.TimeProvider` adoption | [`timeprovider.md`](references/stack-migration/timeprovider.md) |
+| `ITransportListener.Open` / `Close` removed, `ReverseConnectManager.StartService` / `Dispose` obsolete, reverse-connect DI/provider migration, custom `ITransportListenerFactory` / `ITransportListenerCertificateRotation` implementers need the new async method names | [`transport-listener-async.md`](references/stack-migration/transport-listener-async.md) |
 
 If the user's symptom does not obviously map to one row, read
-[`docs/migrate/2.0.x/README.md`](../../../docs/migrate/2.0.x/README.md) (small —
+[`references/stack-migration/README.md`](references/stack-migration/README.md) (small —
 the same table plus a short intro) and pick from there. Avoid loading
 multiple sub-docs unless the symptom genuinely spans two areas (for
 example, `node-states.md` *and* `types.md` when a NodeManager runs into
@@ -87,12 +99,17 @@ automatically.
   `<Type>Collection` not found") into `[Obsolete]` warnings + `UA0002`
   diagnostics, and the runtime shim turns "method removed" errors into
   `[Obsolete]` warnings too. Edit a working build, not a broken one.
-- **Let tooling do the mechanical work.** 14 of the 19 `UA00xx` rules have
+- **Let tooling do the mechanical work.** 14 of the 26 `UA00xx` rules have
   auto-fixes — apply them via the IDE quick-fix or `dotnet format analyzers`
   before opening a single file by hand.
-- **Reserve human judgement for the 5 manual rules** — `UA0001` (telemetry
+- **Reserve human judgement for the 12 manual rules** — `UA0001` (telemetry
   plumbing), `UA0011` / `UA0015` (sync→async promotion), `UA0018` (cert load
-  refactor), `UA0021` (`CertificateValidator` structural rewrite).
+  refactor), `UA0021` (`CertificateValidator` structural rewrite), and
+  `UA0023`–`UA0028` plus `UA0030` (PubSub, removed exposed-lock APIs, and the
+  internalized server subscription publish pipeline).
+- **Treat `UA0029`-tagged obsolete warnings as manual work too.** The runtime
+  shim marks moved `SecurityPolicies` statics, but no analyzer currently emits
+  `UA0029`; migrate the `CS0618` sites to `ISecurityPolicyRegistry`.
 - **Remove the migration NuGet at the end.** It is a `PrivateAssets="all"`
   build-only dependency; once warning-free, drop the reference and you're on
   clean 2.0 with zero shim dependency.
@@ -104,7 +121,7 @@ automatically.
         the OPC UA package version and add this one extra reference: -->
 <ItemGroup>
   <PackageReference Include="OPCFoundation.NetStandard.Opc.Ua.MigrationAnalyzer"
-                    Version="2.0.*-*"
+                    Version="2.0.0-preview.*"
                     PrivateAssets="all" />
 </ItemGroup>
 ```
@@ -121,19 +138,22 @@ dotnet format analyzers <YourSolution>.sln \
                   UA0009 UA0010 UA0012 UA0014 UA0019 UA0020 UA0022 \
     --severity warn
 
-# 4. Walk the residual UA0001 / UA0011 / UA0015 / UA0018 / UA0021 by hand.
-#    See references/migration-patterns.md for the categorical playbook.
+# 4. Walk UA0001 / UA0011 / UA0015 / UA0018 / UA0021, UA0023-UA0028, and
+#    UA0030 by hand, plus CS0618 SecurityPolicies calls tagged UA0029.
+#    See references/migration-patterns.md and the bundled sessions/subscriptions
+#    guide for the categorical playbooks.
 
 # 5. Once the build is warning-free, drop the package reference. You're done.
 ```
 
 ### Essential checklist
 
-- [ ] Every `<PackageReference Include="OPCFoundation.NetStandard.Opc.Ua.*">` bumped to `2.0.*-*`
+- [ ] Every `<PackageReference Include="OPCFoundation.NetStandard.Opc.Ua.*">` bumped to `2.0.0-preview.*`
 - [ ] `OPCFoundation.NetStandard.Opc.Ua.MigrationAnalyzer` added as `PrivateAssets="all"` build-only dependency in every consumer project
 - [ ] `dotnet build` succeeds (warnings allowed, errors fixed)
 - [ ] `dotnet format analyzers --diagnostics UA0002 …` applied
-- [ ] `UA0001`/`UA0011`/`UA0015`/`UA0018`/`UA0021` manual residuals resolved
+- [ ] `UA0001`/`UA0011`/`UA0015`/`UA0018`/`UA0021`, `UA0023`–`UA0028`, and `UA0030` manual residuals resolved
+- [ ] `SecurityPolicies` obsolete warnings tagged `UA0029` migrated manually
 - [ ] `[Obsolete]` (CS0612/CS0618) warnings fixed, **not** suppressed
 - [ ] `MigrationAnalyzer` package reference removed before merging
 
@@ -142,20 +162,16 @@ dotnet format analyzers <YourSolution>.sln \
 - **Do not suppress `[Obsolete]` or `UA00xx` warnings.** Obsolete API will be
   removed in the next minor 2.0 release; if you `<NoWarn>` it now, your build
   will break on upgrade.
-- **Public APIs returning a generated `<Type>Collection` shim trip `CS0050`
-  ("inconsistent accessibility").** The generator emits `internal` types by
-  design. The fix is to migrate the public-API signature to `List<T>` /
-  `ArrayOf<T>` first; internal call sites can keep the shim while you iterate.
+- **Generated `<Type>Collection` shims are temporary public types.** They keep
+  legacy public signatures compiling during migration, but disappear when the
+  analyzer package is removed. Migrate every public signature and call site to
+  `List<T>` / `ArrayOf<T>` before removing the package.
 - **Legacy `.NET Framework` `xmlns="http://schemas.microsoft.com/developer/msbuild/2003"`
   projects ignore `Directory.Build.targets` `<PackageReference>` injection.** Add
   the migration package directly into the legacy csproj's existing `<ItemGroup>`.
 - **`TreatWarningsAsErrors=true` blocks the warning-driven workflow.** Use the
   `NoWarn` recipe in `assets/Directory.Build.targets.example.xml` for the
   migration window, then peel each entry back as you fix the rule.
-- **The legacy `Quickstarts.Servers` meta-package does not exist on 2.0.** If
-  your project depends on it, switch to a `<ProjectReference>` to
-  `samples/Quickstarts.Servers` or to an equivalent project of your own.
-
 ---
 
 ## Level 2: Implementation (30 minutes)
@@ -167,12 +183,12 @@ The single `OPCFoundation.NetStandard.Opc.Ua.MigrationAnalyzer` NuGet contains
 
 | Component | Where | Loaded by | Purpose |
 |---|---|---|---|
-| `Opc.Ua.MigrationAnalyzer.dll` | `analyzers/dotnet/roslyn4.14/cs/` and `roslyn5.0/cs/` | csc.exe and IDE | 19 `DiagnosticAnalyzer`s (UA0001–UA0022). No `Workspaces` reference, csc-safe. |
+| `Opc.Ua.MigrationAnalyzer.dll` | `analyzers/dotnet/roslyn4.14/cs/` and `roslyn5.0/cs/` | csc.exe and IDE | 26 `DiagnosticAnalyzer`s through UA0030 (excluding UA0013, UA0016, UA0017, and UA0029). No `Workspaces` reference, csc-safe. |
 | `Opc.Ua.MigrationAnalyzer.CodeFixer.dll` | `analyzers/dotnet/roslyn4.14/cs/` and `roslyn5.0/cs/` | Workspaces-aware hosts only (Visual Studio, Rider, `dotnet format analyzers`) | 14 `CodeFixProvider`s. |
-| `Opc.Ua.MigrationAnalyzer.Generator.dll` | `analyzers/dotnet/roslyn4.14/cs/` and `roslyn5.0/cs/` | csc.exe and IDE | `IIncrementalGenerator` that emits `internal sealed [Obsolete] class <Name>Collection : List<TElement>` shims into the consumer compilation for every `<Type>Collection` reference that fails to bind. |
+| `Opc.Ua.MigrationAnalyzer.Generator.dll` | `analyzers/dotnet/roslyn4.14/cs/` and `roslyn5.0/cs/` | csc.exe and IDE | `IIncrementalGenerator` that emits `public sealed [Obsolete] class <Name>Collection : List<TElement>` shims into the consumer compilation for every `<Type>Collection` reference that fails to bind. |
 | `Opc.Ua.MigrationAnalyzer.Core.dll` | `lib/<tfm>/` × 6 TFMs (`net472`, `net48`, `netstandard2.1`, `net8.0`, `net9.0`, `net10.0`) | Runtime | Re-supplies the obsolete extension surface 2.0 moved or removed so 1.5.378 call sites continue to compile with `[Obsolete]` warnings. |
 
-### The 19 analyzer rules at a glance
+### The 26 analyzer rules at a glance
 
 The full table with default severity, replaces, auto-fix status, and
 before/after examples lives in
@@ -182,7 +198,7 @@ of where each lands in the workflow:
 | Rule | Default | Auto-fix | One-liner |
 |---|---|---|---|
 | **UA0001** | Info | — | `Utils.Trace` → `ILogger` via `ITelemetryContext` (manual: pick log level + category) |
-| **UA0002** | Warning | ✅ | `<Type>Collection` → `List<T>` / `ArrayOf<T>` |
+| **UA0002** | Warning | ✅ | `<Type>Collection` → `List<T>`; manually use `ArrayOf<T>` at applicable API boundaries |
 | **UA0003** | Warning | ✅ | `x == null` on now-struct built-ins → `x.IsNull` |
 | **UA0004** | Warning | ✅ | `x?.M()` on now-struct built-ins → drop the `?` |
 | **UA0005** | Warning | ✅ | `byte[]` where `ByteString` expected → `.ToByteString()` |
@@ -192,20 +208,33 @@ of where each lands in the workflow:
 | **UA0009** | Warning | ✅ | `[DataContract]`/`[DataMember]` → `[DataType]`/`[DataTypeField]` on config |
 | **UA0010** | Warning | ✅ | `using`/`Dispose` on `CertificateIdentifier`/`UserIdentity`/`IUserIdentityTokenHandler` → drop disposable |
 | **UA0011** | Info | — | Sync `IUserIdentityTokenHandler.{Encrypt,Decrypt,Sign,Verify}` → `*Async` (manual: async promotion) |
-| **UA0012** | Warning | ✅ | `CertificateFactory.*` static → instance methods |
+| **UA0012** | Warning | ✅ | `CertificateFactory.*` static → `DefaultCertificateFactory.Instance.*` |
 | **UA0014** | Warning | ✅ | `DataValue.IsGood(dv)` static → `dv.IsGood` property |
 | **UA0015** | Info | — | Sync / APM members on GDS / LDS clients → `*Async` (manual: async promotion) |
-| **UA0018** | Info | — | `CertificateIdentifier.Certificate` getter → `LoadCertificate2Async` (manual: async + caller reshape) |
-| **UA0019** | Warning | ✅ | `new DataValue(StatusCode[, ts])` → object-initializer form |
+| **UA0018** | Info | — | `CertificateIdentifier.Certificate` getter → `CertificateIdentifierResolver.ResolveAsync` |
+| **UA0019** | Warning | ✅ | `new DataValue(StatusCode[, ts])` → `DataValue.FromStatusCode(...)` |
 | **UA0020** | Warning | ✅ | `EncodeableFactory.GlobalFactory` / `.Create()` → `ServiceMessageContext.Factory` / `.Fork()` |
 | **UA0021** | Info | — | `CertificateValidator` / `CertificateValidationEventArgs` (structural rename — see manual playbook) |
 | **UA0022** | Warning | ✅ | `ApplicationConfiguration.CertificateValidator` / `ServerBase.CertificateValidator` → `.CertificateManager` |
+| **UA0023** | Warning | — | Legacy PubSub top-level types → `IPubSubApplication` / builder and DI APIs |
+| **UA0024** | Warning | — | Exposed diagnostics locks → owner-side update/read methods |
+| **UA0025** | Warning | — | `ILocalNode.DataLock` / `Node.DataLock` → node-owned synchronization |
+| **UA0026** | Warning | — | `BaseVariableValue.Lock` → caller-owned `System.Threading.Lock` |
+| **UA0027** | Warning | — | `NodeBrowser.DataLock` → single-consumer browser without external locking |
+| **UA0028** | Warning | — | `ApplicationConfiguration.PropertiesLock` → concurrent properties APIs |
+| **UA0030** | Warning | — | Server `ISubscription` publish-pipeline members / `SessionPublishQueue` → service and manager APIs |
+
+Runtime-shim-only migration marker:
+
+| Marker | Signal | Auto-fix | One-liner |
+|---|---|---|---|
+| **UA0029** | `CS0618` from shim | — | `SecurityPolicies` lookup/crypto statics → `ISecurityPolicyRegistry` or `SecurityPolicies.Default`; no analyzer currently reports `UA0029` |
 
 Plus one generator-only diagnostic:
 
 | ID | Source | Default | Triggers |
 |---|---|---|---|
-| **MIG01** | `Opc.Ua.MigrationAnalyzer.Generator` | Warning | The generator can't uniquely resolve the element type for a `<Foo>Collection` reference (0 or > 1 candidates in the compilation). Add a `using` for the namespace defining `Foo`, or migrate the call site manually. See [`references/source-generator.md`](references/source-generator.md). |
+| **MIG01** | `Opc.Ua.MigrationAnalyzer.Generator` | Warning | The generator can't uniquely resolve the element type for a `<Foo>Collection` reference. It discovers consumer source declarations plus exact `System.<Type>` / `Opc.Ua.<Type>` metadata names; other zero/ambiguous cases require a manual `List<T>` / `ArrayOf<T>` migration or an explicitly defined wrapper. See [`references/source-generator.md`](references/source-generator.md). |
 
 ### Source-generated `<Type>Collection` shims
 
@@ -213,7 +242,7 @@ When 2.0 deleted the `<Type>Collection` wrapper types, every consumer call site
 like `new Int32Collection { 1, 2, 3 }` and `IList<NodeIdCollection> nodes`
 became a hard `CS0246` ("type or namespace not found"). The package's source
 generator (`MigrationGenerator`) closes this gap: for every short name ending in
-`Collection` that doesn't bind, it emits an `internal sealed [Obsolete] class
+`Collection` that doesn't bind, it emits a `public sealed [Obsolete] class
 <Name>Collection : List<TElement>` into the consumer's compilation.
 
 - **Built-in catalog (rename overrides)** pins element types that **renamed**
@@ -222,16 +251,17 @@ generator (`MigrationGenerator`) closes this gap: for every short name ending in
   `byte[]→ByteString`, `XmlElement→System.Xml.XmlElement` (the latter
   disambiguates against the new `Opc.Ua.XmlElement`). The generator uses these
   *over* whatever the consumer's compilation resolves.
-- **Arbitrary `<UserType>Collection`** patterns (model-compiler output, vendor
-  structures, etc.) are resolved by stripping the `Collection` suffix and
-  looking up the resulting short name in the consumer's compilation via
-  `Compilation.GetSymbolsWithName`. Exactly one match → emit; zero or many →
-  `MIG01`.
+- **Consumer-source `<UserType>Collection`** patterns (model-compiler output,
+  application-defined structures, etc.) are resolved by stripping the
+  `Collection` suffix and looking up the short name across source declarations
+  via `Compilation.GetSymbolsWithName`. Standard metadata then falls back to
+  exact `System.<Type>` and `Opc.Ua.<Type>` names. Other metadata, zero
+  matches, or multiple source matches produce `MIG01`.
 - **Implicit conversion** to `ArrayOf<TElement>` on every generated type so
   2.0 APIs that took `ArrayOf<T>` keep accepting the shim instance.
-- **`internal sealed`** — the shim never leaks through the consumer's public
-  API surface (intentional; see "Common pitfalls" above for the CS0050
-  consequence).
+- **`public sealed`** — legacy public signatures continue compiling while the
+  package is installed. The type remains `[Obsolete]` and must not become a
+  permanent public dependency.
 
 Deep-dive: [`references/source-generator.md`](references/source-generator.md).
 
@@ -244,7 +274,7 @@ compile. Coverage and the sync-over-async caveat are documented in
 
 ### Manual residuals — priority order
 
-For the 5 rules without auto-fixes and the patterns the analyzer doesn't catch
+For the 11 rules without auto-fixes and the patterns the analyzer doesn't catch
 at all (e.g. `Variant.Value` setter type changes, `BaseVariableState.Value`
 becoming `Variant`, `INodeManager` covariant return changes), apply fixes in
 this order to minimize cascading errors:
@@ -272,7 +302,7 @@ from the failure set in your `Directory.Build.targets`:
 ```xml
 <PropertyGroup>
   <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
-  <NoWarn>$(NoWarn);CS0612;CS0618;MIG01;UA0001;UA0002;UA0003;UA0004;UA0005;UA0006;UA0007;UA0008;UA0009;UA0010;UA0011;UA0012;UA0014;UA0015;UA0018;UA0019;UA0020;UA0021;UA0022</NoWarn>
+  <NoWarn>$(NoWarn);CS0612;CS0618;MIG01;UA0001;UA0002;UA0003;UA0004;UA0005;UA0006;UA0007;UA0008;UA0009;UA0010;UA0011;UA0012;UA0014;UA0015;UA0018;UA0019;UA0020;UA0021;UA0022;UA0023;UA0024;UA0025;UA0026;UA0027;UA0028;UA0030</NoWarn>
 </PropertyGroup>
 ```
 
@@ -286,12 +316,9 @@ MigrationAnalyzer package is removed.
   (`xmlns="…/2003"`) — `<PackageReference>` injection via
   `Directory.Build.targets` is silently ignored; the migration package must be
   added inline to each csproj.
-- The `OPCFoundation.NetStandard.Opc.Ua.Quickstarts.Servers` meta-package is
-  not published on 2.0 — consumers must switch to a `<ProjectReference>` to
-  `samples/Quickstarts.Servers` or an equivalent first-party project.
-- Public APIs returning a `<Type>Collection` will hit `CS0050` because the
-  generator's shim is `internal` by design — migrate the public surface to
-  `List<T>` / `ArrayOf<T>` first.
+- Public APIs can continue returning a generated `<Type>Collection` while the
+  package is installed, but those temporary types disappear with the package.
+  Migrate the public surface to `List<T>` / `ArrayOf<T>` before removal.
 
 Full list of dogfood-discovered gaps in
 [`references/known-gaps.md`](references/known-gaps.md).
@@ -319,8 +346,9 @@ material. Load them on demand via your agent runtime's
 | [`references/source-generator.md`](references/source-generator.md) | ~2K | When `MIG01` fires or the user asks how the `<Type>Collection` shims work |
 | [`references/runtime-shim.md`](references/runtime-shim.md) | ~2K | When a 1.5.378 extension call still compiles but is flagged `[Obsolete]`, or when async-promotion guidance is needed |
 | [`references/migration-patterns.md`](references/migration-patterns.md) | ~5K | The categorical playbook for the 14 manual layers — primary fallback for residuals |
-| [`references/known-gaps.md`](references/known-gaps.md) | ~1.5K | When `CS0050` (internal/public accessibility), legacy WinForms, or `Quickstarts.Servers` resolution surfaces |
+| [`references/known-gaps.md`](references/known-gaps.md) | ~1.5K | When legacy WinForms, generated-shim lifetime, or analyzer-loading issues surface |
 | [`references/compatibility-matrix.md`](references/compatibility-matrix.md) | ~1K | When verifying the analyzer actually loaded under csc.exe vs IDE, or when picking a TFM |
+| [`references/stack-migration/README.md`](references/stack-migration/README.md) | index | Bundled offline snapshot of all 15 thematic migration docs; load only the symptom-matched file |
 
 ### Scripts (invoke via `run_skill_script`)
 
@@ -335,9 +363,9 @@ material. Load them on demand via your agent runtime's
 | [`assets/PackageReference.example.xml`](assets/PackageReference.example.xml) | Single `<PackageReference>` snippet for a consumer csproj. |
 | [`assets/Directory.Build.targets.example.xml`](assets/Directory.Build.targets.example.xml) | Multi-project `<NoWarn>` recipe for `TreatWarningsAsErrors=true`. |
 
-### Canonical upstream docs
+### Optional current upstream docs
 
-- [`docs/MigrationGuide.md`](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/MigrationGuide.md) — the human-facing migration guide landing page (~3 KB; intentionally small, just an index across versions).
-- [`docs/migrate/2.0.x/README.md`](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/migrate/2.0.x/README.md) — the 2.0 migration index + the same symptom → sub-doc table this skill uses.
-- [`docs/migrate/2.0.x/`](https://github.com/OPCFoundation/UA-.NETStandard/tree/master/docs/migrate/2.0.x) — the 12 thematic sub-docs (telemetry, packages, source-generation, types, encoders, node-states, identity, certificates, configuration, sessions-subscriptions, alarms-model-change, timeprovider).
+- [`docs/MigrationGuide.md`](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/MigrationGuide.md) — current human-facing landing page and cross-cutting notes.
+- [`docs/migrate/2.0.x/README.md`](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/migrate/2.0.x/README.md) — current upstream migration index.
+- [`docs/migrate/2.0.x/`](https://github.com/OPCFoundation/UA-.NETStandard/tree/master/docs/migrate/2.0.x) — current versions of the thematic docs bundled under `references/stack-migration/`.
 - [`tools/Opc.Ua.MigrationAnalyzer/NugetREADME.md`](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/tools/Opc.Ua.MigrationAnalyzer/NugetREADME.md) — the package's own README, shipped inside the NuGet.

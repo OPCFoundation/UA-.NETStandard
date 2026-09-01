@@ -29,7 +29,10 @@ and neither is provided here.
 
 ### Tool Inventory (`full` profile)
 
-The tables below list every tool available in the default `full` profile. Running with `--profile core|services|administration|pubsub|diagnostics` exposes only the tool classes relevant to that profile — see [Tool Profiles](../../docs/McpServer.md#tool-profiles) for the mapping.
+The tables below list every tool available in the default `full` profile. Running with
+`--profile core|services|administration|pubsub|diagnostics|robotics|vision`
+exposes only the tool classes relevant to that profile — see
+[Tool Profiles](../../docs/McpServer.md#tool-profiles) for the mapping.
 
 | Service Set | Tools | Description |
 |---|---|---|

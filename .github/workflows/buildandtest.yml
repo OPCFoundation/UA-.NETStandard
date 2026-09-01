@@ -76,6 +76,9 @@ jobs:
         # Full history so the path-relevance check below can diff a pull request
         # against its base commit.
         fetch-depth: 0
+    - name: Validate migration plugin
+      shell: pwsh
+      run: ./.azurepipelines/validate-migration-plugin.ps1
     - name: Enumerate tests/Opc.Ua.*.Tests projects
       id: list
       shell: pwsh

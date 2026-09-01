@@ -39,10 +39,9 @@ namespace Opc.Ua.XRegistry.Server
     /// One outgoing reference a stored document makes to another document.
     /// </summary>
     /// <remarks>
-    /// A domain extracts these from its own document format - a WoT Thing Model
-    /// states them as <c>tm:extends</c> and <c>links</c>, an AAS environment as
-    /// required document identities - and the graph resolves and groups them
-    /// without knowing either format.
+    /// A domain extracts these from its own document format. A WoT Thing Model
+    /// states them as <c>tm:extends</c> and <c>links</c>; the graph resolves and
+    /// groups the references without knowing the format.
     /// </remarks>
     public sealed class XRegistryDependencyReference
     {
