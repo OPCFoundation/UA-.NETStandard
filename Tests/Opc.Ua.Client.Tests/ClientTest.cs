@@ -187,6 +187,46 @@ namespace Opc.Ua.Client.Tests
         }
 
         [Test]
+        [Order(101)]
+        public async Task PublishWithUInt32MaxTimeoutHintAsync()
+        {
+            CreateSubscriptionResponse createResponse = await Session.CreateSubscriptionAsync(
+                null,
+                100,
+                100,
+                1,
+                0,
+                true,
+                0,
+                CancellationToken.None).ConfigureAwait(false);
+
+            try
+            {
+                var requestHeader = new RequestHeader
+                {
+                    Timestamp = DateTime.UtcNow,
+                    TimeoutHint = uint.MaxValue
+                };
+
+                PublishResponse response = await Session.PublishAsync(
+                    requestHeader,
+                    new SubscriptionAcknowledgementCollection(),
+                    CancellationToken.None).ConfigureAwait(false);
+
+                Assert.NotNull(response);
+                Assert.AreEqual((StatusCode)StatusCodes.Good, response.ResponseHeader.ServiceResult);
+                Assert.AreEqual(createResponse.SubscriptionId, response.SubscriptionId);
+            }
+            finally
+            {
+                await Session.DeleteSubscriptionsAsync(
+                    null,
+                    new UInt32Collection { createResponse.SubscriptionId },
+                    CancellationToken.None).ConfigureAwait(false);
+            }
+        }
+
+        [Test]
         [Order(100)]
         public async Task FindServersAsync()
         {

@@ -571,6 +571,12 @@ namespace Opc.Ua.Server
                     () => Tcs.TrySetCanceled());
                 // Cancel publish request if it times out
                 TimeSpan timeOut = operationTimeout < DateTime.MaxValue ? operationTimeout.AddMilliseconds(500) - DateTime.UtcNow : TimeSpan.Zero;
+                // uint.MaxValue is reserved by the underlying timer for an infinite delay.
+                TimeSpan maximumTimerDelay = TimeSpan.FromMilliseconds(uint.MaxValue - 1);
+                if (timeOut > maximumTimerDelay)
+                {
+                    timeOut = maximumTimerDelay;
+                }
                 if (operationTimeout < DateTime.MaxValue && timeOut.TotalMilliseconds > 0)
                 {
                     m_cancellationTokenSource = new CancellationTokenSource(timeOut);
