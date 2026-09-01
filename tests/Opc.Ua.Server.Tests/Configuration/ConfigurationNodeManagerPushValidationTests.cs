@@ -43,7 +43,7 @@ namespace Opc.Ua.Server.Tests
     /// Direct, fast unit tests of the small argument-validation helpers
     /// <see cref="ConfigurationNodeManager"/> extracts for
     /// <c>CreateSelfSignedCertificate</c> (OPC 10000-12 §7.10.6),
-    /// <c>GetCertificates</c> (§7.8.3.4) and <c>UpdateCertificate</c>
+    /// <c>GetCertificates</c> (§7.10.8) and <c>UpdateCertificate</c>
     /// (§7.10.5), independent of the address-space / method-call plumbing
     /// exercised by <see cref="ConfigurationNodeManagerPushTests"/>.
     /// </summary>
