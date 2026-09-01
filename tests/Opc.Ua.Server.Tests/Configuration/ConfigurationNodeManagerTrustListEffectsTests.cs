@@ -544,27 +544,20 @@ namespace Opc.Ua.Server.Tests
             Assert.That(identifier.StorePath, Is.EqualTo("custom://trust/peers"));
 
             // The identifier must resolve to the registered implementation
-            // and be usable for a real write/read round trip.
-            try
-            {
-                using Certificate certificate = CertificateBuilder
-                    .Create("CN=Custom Store Type Cert")
-                    .SetRSAKeySize(2048)
-                    .CreateForRSA();
-                using (ICertificateStore store = identifier.OpenStore(NUnitTelemetryContext.Create()))
-                {
-                    Assert.That(store, Is.InstanceOf<CertificateIdentifierCollectionStore>());
-                    await store.AddAsync(certificate).ConfigureAwait(false);
-                    using CertificateCollection found = await store
-                        .FindByThumbprintAsync(certificate.Thumbprint)
-                        .ConfigureAwait(false);
-                    Assert.That(found, Has.Count.EqualTo(1));
-                }
-            }
-            finally
-            {
-                identifier.DisposeCachedStore();
-            }
+            // and be usable for a real write/read round trip. The using
+            // disposes the cached store instance, so nothing is retained on
+            // the identifier afterwards.
+            using Certificate certificate = CertificateBuilder
+                .Create("CN=Custom Store Type Cert")
+                .SetRSAKeySize(2048)
+                .CreateForRSA();
+            using ICertificateStore store = identifier.OpenStore(NUnitTelemetryContext.Create());
+            Assert.That(store, Is.InstanceOf<CertificateIdentifierCollectionStore>());
+            await store.AddAsync(certificate).ConfigureAwait(false);
+            using CertificateCollection found = await store
+                .FindByThumbprintAsync(certificate.Thumbprint)
+                .ConfigureAwait(false);
+            Assert.That(found, Has.Count.EqualTo(1));
         }
 
         private sealed class InMemoryCertificateStoreType : ICertificateStoreType

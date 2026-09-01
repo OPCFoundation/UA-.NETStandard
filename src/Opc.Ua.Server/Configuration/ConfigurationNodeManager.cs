@@ -426,20 +426,22 @@ namespace Opc.Ua.Server
 
                 StopAlarmMonitoring();
 
-                // Release the per-group store instances cached on the
-                // certificate-group identifiers (the TrustList handlers
-                // share the same identifier instances). Their
-                // parsed-certificate caches are deliberately retained across
-                // Close() for reuse, so they must be disposed explicitly at
-                // shutdown.
+                // INTERIM until the CertificateStoreIdentifier.OpenStore
+                // ownership redesign lands (see the PR #4357 review
+                // discussion): release the store instances cached on the
+                // group identifiers through the EXISTING contract -
+                // disposing the store OpenStore returns disposes the cached
+                // instance, freeing the parsed certificates it deliberately
+                // retains across Close(). Without this the assembly-level
+                // leak gates trip at server shutdown. The TrustList handlers
+                // share the same identifier instances.
                 foreach (ServerCertificateGroup certGroup in m_certificateGroups)
                 {
-                    (certGroup.Node?.TrustList?.Handle as IDisposable)?.Dispose();
-                    certGroup.TrustedStore?.DisposeCachedStore();
-                    certGroup.IssuerStore?.DisposeCachedStore();
+                    DisposeCachedStoreInterim(certGroup.TrustedStore);
+                    DisposeCachedStoreInterim(certGroup.IssuerStore);
                 }
 
-                m_rejectedStore?.DisposeCachedStore();
+                DisposeCachedStoreInterim(m_rejectedStore);
 
                 // Disposed LAST: a deferred apply that raced past the
                 // cancellation above may still write the self-notification
@@ -3824,6 +3826,33 @@ namespace Opc.Ua.Server
                     DisposeRotations(rotations);
                 }
             });
+        }
+
+        /// <summary>
+        /// Releases the store instance cached on the identifier by opening
+        /// and disposing it - the existing
+        /// <see cref="CertificateStoreIdentifier.OpenStore()"/> contract
+        /// returns the cached instance, so its disposal frees the
+        /// parsed-certificate cache retained across
+        /// <see cref="ICertificateStore.Close"/>. Interim shutdown cleanup
+        /// until the store-ownership redesign replaces it; failures are
+        /// swallowed because nothing can act on them during dispose.
+        /// </summary>
+        private void DisposeCachedStoreInterim(CertificateStoreIdentifier? storeIdentifier)
+        {
+            if (storeIdentifier == null)
+            {
+                return;
+            }
+
+            try
+            {
+                storeIdentifier.OpenStore(Server.Telemetry)?.Dispose();
+            }
+            catch (Exception)
+            {
+                // Best-effort release during shutdown.
+            }
         }
 
         /// <summary>

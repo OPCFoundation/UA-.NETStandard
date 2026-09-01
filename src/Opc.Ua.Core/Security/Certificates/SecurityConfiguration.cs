@@ -64,30 +64,6 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Disposes the store instances cached on the configured trust-list
-        /// and rejected-store identifiers. A store opened through a
-        /// <see cref="CertificateStoreIdentifier"/> deliberately retains its
-        /// parsed certificates across <see cref="ICertificateStore.Close"/>
-        /// for reuse, so the application-lifetime identifiers held by this
-        /// configuration keep those resources alive until they are released
-        /// here. Called by <c>ApplicationInstance.DisposeAsync</c>; hosts
-        /// that own an <see cref="ApplicationConfiguration"/> without an
-        /// application instance should call it at shutdown themselves. Any
-        /// later <see cref="CertificateStoreIdentifier.OpenStore()"/>
-        /// re-creates the store.
-        /// </summary>
-        public void DisposeCachedStores()
-        {
-            TrustedIssuerCertificates?.DisposeCachedStore();
-            TrustedPeerCertificates?.DisposeCachedStore();
-            HttpsIssuerCertificates?.DisposeCachedStore();
-            TrustedHttpsCertificates?.DisposeCachedStore();
-            UserIssuerCertificates?.DisposeCachedStore();
-            TrustedUserCertificates?.DisposeCachedStore();
-            RejectedCertificateStore?.DisposeCachedStore();
-        }
-
-        /// <summary>
         /// Validates the security configuration.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>

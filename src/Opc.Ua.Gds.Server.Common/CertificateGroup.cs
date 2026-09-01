@@ -545,19 +545,6 @@ namespace Opc.Ua.Gds.Server
             }
 
             Certificates.Clear();
-
-            // The TrustList handler attached to the group's DefaultTrustList
-            // owns private store identifiers whose cached stores retain
-            // their parsed certificates across Close(); the group owns the
-            // node and therefore its handler's lifetime.
-            (DefaultTrustList?.Handle as IDisposable)?.Dispose();
-
-            // Release the store instances cached on the group-lifetime store
-            // identifiers; their parsed-certificate caches are retained
-            // across Close() for reuse and are only freed by an explicit
-            // dispose.
-            AuthoritiesStore?.DisposeCachedStore();
-            IssuerCertificatesStore?.DisposeCachedStore();
         }
 
         private void SetCertificate(NodeId certificateType, Certificate certificate)

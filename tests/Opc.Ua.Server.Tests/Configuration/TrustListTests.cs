@@ -77,12 +77,14 @@ namespace Opc.Ua.Server.Tests
         [TearDown]
         public void TearDown()
         {
-            // Release the store instances cached on the per-test identifiers;
-            // operations like AddCRL enumerate the store and would otherwise
-            // retain the parsed certificates past the test (flagged by the
-            // assembly-level leak detector).
-            m_trustedStore?.DisposeCachedStore();
-            m_issuerStore?.DisposeCachedStore();
+            // Release the store instances cached on the per-test identifiers
+            // through the existing OpenStore contract (disposing the
+            // returned store disposes the cached instance): operations like
+            // AddCRL enumerate the store and would otherwise retain the
+            // parsed certificates past the test, tripping the assembly-level
+            // leak detector. Interim until the store-ownership redesign.
+            m_trustedStore?.OpenStore(m_telemetry)?.Dispose();
+            m_issuerStore?.OpenStore(m_telemetry)?.Dispose();
 
             if (Directory.Exists(m_basePath))
             {
@@ -1512,46 +1514,6 @@ namespace Opc.Ua.Server.Tests
             Assert.That(notifier.Notifications, Has.Count.EqualTo(1));
             Assert.That(notifier.Notifications[0].TrustChanged, Is.True);
             Assert.That(notifier.Notifications[0].CrlChanged, Is.False);
-        }
-
-        [Test]
-        public async Task DisposeReleasesTheCachedStoreInstancesAsync()
-        {
-            TrustListState node = CreateNode();
-            TrustList trustList = CreateTrustList(node);
-            ISystemContext context = CreateContext(new NodeId(Guid.NewGuid(), 1));
-
-            // Populate the trusted store through the TrustList so its
-            // identifier caches a store holding parsed certificates.
-            using Certificate cert = CreateTestCertificate("CN=TrustList Dispose Cert");
-            ServiceResult addResult = node.AddCertificate.OnCall(
-                context,
-                node.AddCertificate,
-                node.NodeId,
-                cert.RawData.ToByteString(),
-                true);
-            Assert.That(ServiceResult.IsGood(addResult), Is.True);
-
-            ICertificateStore cached = m_trustedStore.OpenStore(m_telemetry);
-            cached.Close();
-
-            trustList.Dispose();
-
-            // The cached instance was released; a fresh, functional store is
-            // created on the next open and still sees the stored certificate.
-            ICertificateStore recreated = m_trustedStore.OpenStore(m_telemetry);
-            try
-            {
-                Assert.That(recreated, Is.Not.SameAs(cached));
-                using CertificateCollection found = await recreated
-                    .FindByThumbprintAsync(cert.Thumbprint)
-                    .ConfigureAwait(false);
-                Assert.That(found, Has.Count.EqualTo(1));
-            }
-            finally
-            {
-                m_trustedStore.DisposeCachedStore();
-            }
         }
 
         private sealed class RecordingTrustListChangeNotifier : ICertificateTrustListManager

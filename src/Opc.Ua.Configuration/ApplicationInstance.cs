@@ -70,13 +70,6 @@ namespace Opc.Ua.Configuration
                 configManager.Dispose();
             }
 
-            // Release the store instances cached on the configuration's
-            // trust-list identifiers (opened e.g. by config validation or
-            // CertificateTrustList.GetCertificatesAsync); their parsed
-            // certificates are deliberately retained across Close() and are
-            // only released by an explicit dispose.
-            ApplicationConfiguration?.SecurityConfiguration?.DisposeCachedStores();
-
             GC.SuppressFinalize(this);
         }
 

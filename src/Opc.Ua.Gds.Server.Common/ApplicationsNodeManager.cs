@@ -2835,8 +2835,6 @@ namespace Opc.Ua.Gds.Server
             {
                 foreach (ICertificateGroup certificateGroup in m_certificateGroups.Values)
                 {
-                    // Disposes the group's certificates, its TrustList
-                    // handler and the cached store instances.
                     certificateGroup.Dispose();
                 }
 
