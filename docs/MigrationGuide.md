@@ -1047,20 +1047,20 @@ documents. Do not enable either on an ingestion path.
 
 The pre-standardization `uav:eventFields` spelling — authored on a form,
 carrying bare browse names and *adding* to the default selection — is
-still read and is never written. The standardized
-`uav:eventSelectClauses` is authored on the event affordance, carries
-`uav:typeDefinitionId` and `uav:browsePath`, and **replaces** the default
-selection rather than extending it. Where a form carries both, the
-standardized term wins and the contradiction is reported
-(`ConflictingFields`).
+still read and is never written. The standardized selection is authored on
+the event affordance: a `tm:ref` names the EventType definition whose
+fields are selected, and `uav:eventSelectClauses` — each entry carrying
+exactly `tm:ref` and `uav:browsePath` — refines that baseline. Where a form
+carries both spellings, the standardized terms win and the contradiction is
+reported (`ConflictingFields`).
 
-**What to do:** move authored selections to `uav:eventSelectClauses` and
-re-check them, because the two terms compose differently: a list that
-relied on being added to the eight mandatory `BaseEventType` fields has to
-name those fields itself. Two clauses may no longer share a normalized
-browse path even under different `uav:typeDefinitionId` values, because the
-path alone decides which `data` member the clause materializes. See
-[Event field selection](WotBindings.md#event-field-selection-uaveventselectclauses).
+**What to do:** move authored selections to the standardized terms. Link
+the EventType definition with `tm:ref` and state only the clauses that
+refine it; a document that states clauses but no link refines the eight
+mandatory `BaseEventType` fields. Two clauses may no longer materialize the
+same `data` member, even where they reference different EventTypes, because
+the member path alone decides which member the clause fills. See
+[Event field selection](WotBindings.md#event-field-selection-tmref-and-uaveventselectclauses).
 
 ### A notification carries a nested `data` object beside the flat index
 

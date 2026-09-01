@@ -242,15 +242,29 @@ A NodeSet holding an Object and the EventType it raises is projected about the
 **Object**: an EventType something else generates is a declaration that Node
 uses, not the subject of the document.
 
-The `data` object states what a notification *carries*; `uav:eventSelectClauses`
-states what a MonitoredItem *asks for* (Section 6.1). The two are independent:
-the schema is derived from the type, the request is authored on the affordance,
-and where no request is authored a consumer selects the eight mandatory
-`BaseEventType` fields. The converter validates the list and carries it
-unchanged — it is a client-side request rather than a model fact, so it projects
-to no Node — and the OPC UA binding runtime compiles it into the
-`EventFilter.SelectClauses` of the MonitoredItem (see
-[WotBindings.md](WotBindings.md#event-field-selection-uaveventselectclauses)).
+The `data` object states what a notification *carries*; the affordance's `tm:ref`
+and `uav:eventSelectClauses` state what a MonitoredItem *asks for* (Section 6.1).
+The schema is derived from the type; the request is a link to the EventType
+definition the fields come from, refined by the clauses the affordance writes,
+and where the affordance states neither a consumer selects the eight mandatory
+`BaseEventType` fields.
+
+Going **from** a NodeSet, an EventType Node becomes a Thing Model of its own
+whose root carries `uav:eventType`, the portable `uav:id`, and the effective
+`data` schema with a `uav:fieldOrder` on every walked object of more than one
+property — which is exactly the EventType definition a fast path derives its
+baseline from. Where a document set carries that sibling document, the Object
+or ObjectType that raises the event names it with `tm:ref`; a document that
+projects the EventType itself keeps its inline definition and does not reference
+itself.
+
+Going **to** a NodeSet, the link is resolved before the EventType's fields and
+Condition Methods are synthesized, so an affordance that declares no `data` of
+its own materializes the field set the linked definition declares. The clause
+list itself projects to no Node — it is a client-side request rather than a
+model fact — and the OPC UA binding runtime compiles the resolved selection into
+the `EventFilter.SelectClauses` of the MonitoredItem (see
+[WotBindings.md](WotBindings.md#event-field-selection-tmref-and-uaveventselectclauses)).
 
 ## DataType definitions (Section 6.11)
 
@@ -376,7 +390,8 @@ round trip verbatim through the residue mechanism:
 |---|---|---|
 | `uav:bindingVersion` | TD/TM root | a `<major>.<minor>` revision string (Section 4.1) |
 | `uav:profile` | TD/TM root | a non-empty array of `WoT-<name>` conformance claims |
-| `uav:eventSelectClauses` | event affordance | a non-empty ordered list of two-member clauses with relative paths and no two clauses materializing the same `data` member path (Section 6.1) |
+| `uav:eventSelectClauses` | event affordance | a non-empty ordered list of clauses carrying exactly `tm:ref` and a relative `uav:browsePath`, with no two clauses of the final selection materializing the same `data` member path (Section 6.1) |
+| `tm:ref` | event affordance and select clause | a document URI with an optional RFC 6901 JSON Pointer resolving, in the local document set, to an EventType definition that carries `uav:eventType`, a portable `uav:id`, an object `data` schema and no selection of its own (Section 6.1) |
 | `uav:minimumSecurity` | `auto` security scheme | `uav:securityMode`, `uav:securityPolicy`, or both, and no other member (Section 5.7.1) |
 
 ### Authoring a claim and processing one are different acts

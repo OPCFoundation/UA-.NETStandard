@@ -18,7 +18,7 @@ This document starts with the bindings that ship today and how to register them,
   - [Intentionally unsupported operations](#intentionally-unsupported-operations)
   - [Transport security](#transport-security)
   - [Operation coverage (OPC UA executor)](#operation-coverage-opc-ua-executor)
-  - [Event field selection (`uav:eventSelectClauses`)](#event-field-selection-uaveventselectclauses)
+  - [Event field selection (`tm:ref` and `uav:eventSelectClauses`)](#event-field-selection-tmref-and-uaveventselectclauses)
   - [Constraining an `auto` endpoint selection (`uav:minimumSecurity`)](#constraining-an-auto-endpoint-selection-uavminimumsecurity)
 - [Adding your own binding](#adding-your-own-binding)
   - [Architecture and lifecycle](#architecture-and-lifecycle)
@@ -203,29 +203,33 @@ The executable bindings fail closed and never downgrade a secure form to an inse
 | `writeproperty` | `Write` service; the mapped `StatusCode` is preserved. |
 | `observeproperty` | A native data-change `MonitoredItem` (`AttributeId = Value`, queue size 1) on a dedicated `Subscription`; no client-side polling. |
 | `invokeaction` | `Call` service; the method NodeId is `uav:id` and its owner object is resolved from `uav:componentOf`. |
-| `subscribeevent` | A native event `MonitoredItem` (`AttributeId = EventNotifier`) whose `EventFilter` select clauses are the compiled `WotEventSelection` of WoT Binding Section 6.1: the eight mandatory `BaseEventType` fields (`EventId`, `EventType`, `SourceNode`, `SourceName`, `Time`, `ReceiveTime`, `Message`, `Severity`) when the affordance states no selection, or exactly the `uav:eventSelectClauses` list it does state. Every selected field is delivered in `WotNotification.EventFields`, keyed by its browse path — an empty path supplies `ConditionId` — with the event's own `Time` / `ReceiveTime` as the source / server timestamp. |
+| `subscribeevent` | A native event `MonitoredItem` (`AttributeId = EventNotifier`) whose `EventFilter` select clauses are the compiled `WotEventSelection` of WoT Binding Section 6.1: the eight mandatory `BaseEventType` fields (`EventId`, `EventType`, `SourceNode`, `SourceName`, `Time`, `ReceiveTime`, `Message`, `Severity`) when the affordance states no selection, and otherwise the selection resolved from the EventType definition it links to with `tm:ref`, overlaid by the `uav:eventSelectClauses` it states. Every selected field is delivered in `WotNotification.EventFields`, keyed by its browse path — an empty path supplies `ConditionId` — with the event's own `Time` / `ReceiveTime` as the source / server timestamp. |
 
 Both subscription kinds share one code path: a dedicated `Subscription` is created per channel subscription, its `MonitoredItem` is disposed and the subscription removed from the session (`ISession.RemoveSubscriptionAsync`) when the returned `IWotSubscription` is disposed, so no session or subscription is leaked — including when creation fails partway through.
 
 A compiled form's NodeId (`uav:id`, and `uav:componentOf` for actions) is resolved with `NodeId.Parse` for the plain `ns=` / `i=` / `s=` / `g=` / `b=` forms; a portable NodeId carrying an `nsu=` namespace URI is parsed as an `ExpandedNodeId` and resolved against the connected session's namespace table, since `NodeId.Parse` alone cannot resolve a namespace URI without one.
 
-### Event field selection (`uav:eventSelectClauses`)
+### Event field selection (`tm:ref` and `uav:eventSelectClauses`)
 
-WoT Binding Section 6.1 states an event's `EventFilter` select clauses as an ordered
-array on the **event affordance** — never on a form. Each clause carries exactly
-`uav:typeDefinitionId` (the portable ExpandedNodeId of the EventType that declares the
-field) and `uav:browsePath` (the path from that type to the field, relative because the
-type definition anchors it).
+WoT Binding Section 6.1 states an event's `EventFilter` select clauses on the **event
+affordance** — never on a form — and states them by **linking the EventType definition**
+the fields are selected from. The link is a `tm:ref`: a document URI, optionally
+followed by an RFC 6901 JSON Pointer. It resolves to an *EventType definition* — an
+event affordance, or a Thing Model root, that carries `@type: uav:eventType`, the
+portable `uav:id` of the OPC UA EventType, and the object-valued `data` schema of its
+fields. `uav:eventSelectClauses` is the **refinement** of that baseline: each clause
+carries exactly `tm:ref` and `uav:browsePath` (relative, because the definition the
+clause names anchors it).
 
 ```jsonc
 "events": { "highTemperature": {
   "@type": "uav:eventType", "uav:isEvent": true,
+  "tm:ref": "./event-types.tm.jsonld#/events/highTemperatureAlarm",
   "uav:eventSelectClauses": [
-    { "uav:typeDefinitionId": "i=2041", "uav:browsePath": "EventId" },
-    { "uav:typeDefinitionId": "i=2782", "uav:browsePath": "EnabledState/Id" },
-    { "uav:typeDefinitionId": "i=2782", "uav:browsePath": "" },
-    { "uav:typeDefinitionId": "nsu=http://example.com/demo/pump;i=6001",
-      "uav:browsePath": "pump:Temperature" }
+    { "tm:ref": "./event-types.tm.jsonld#/events/limitAlarm",
+      "uav:browsePath": "HighHighLimit" },
+    { "tm:ref": "./event-types.tm.jsonld#/events/highTemperatureAlarm",
+      "uav:browsePath": "Severity" }
   ],
   "forms": [{ "href": "opc.tcp://server:4840", "uav:id": "i=2253",
               "op": ["subscribeevent"] }] } }
@@ -233,18 +237,45 @@ type definition anchors it).
 
 What the runtime does with it:
 
+* **Resolution happens before planning.** `Opc.Ua.Wot.WotEventSelectionResolver` resolves
+  each `tm:ref` through an `IWotThingResolver` — the sibling documents a caller already
+  holds — and never dereferences a URI over the network. It walks the linked definition's
+  `data` once and turns each **leaf** into one clause: the members of an object are walked
+  in the order its `uav:fieldOrder` states, a member's `uav:browseName` supplies the exact
+  QualifiedName (a bare member name stands for it only where that name is a legal
+  unqualified BrowseName), the `ConditionId` member yields the empty path, and a state
+  Variable's trailing `Name` is dropped because the clause naming the Variable supplies
+  that object's `Name`. Every derived clause carries the definition's `uav:id` as its
+  `TypeDefinitionId`. Derivation is total: a definition the resolver cannot walk — a
+  `data` that is not an object, a walked object with no field order, a member name that is
+  neither legal nor annotated — is reported, and no partial selection is produced.
+* **The explicit clauses overlay that baseline.** The materialized member paths are
+  computed over the baseline and the explicit clauses together, every baseline clause an
+  explicit clause names is removed, and the explicit clauses are appended in the order
+  they are written. There is no *remove* operation: an author who needs a narrower
+  selection links to a definition that declares the narrower field set. Where the
+  affordance carries no `tm:ref`, the baseline is the eight mandatory `BaseEventType`
+  fields (`EventId`, `EventType`, `SourceNode`, `SourceName`, `Time`, `ReceiveTime`,
+  `Message`, `Severity`), stated once in `Opc.Ua.Wot.WotEventSelectClauses.Default`.
+* **Planning stays synchronous.** `IWotBinderRegistry.Prepare` is side-effect free, so the
+  resolved selections are carried into it: build the request with
+  `WotBindingPlanRequest.FromDocumentAsync(..., IWotThingResolver, ...)`, or resolve once
+  with `WotBindingPlanRequest.ResolveEventSelectionsAsync` and pass the resulting
+  `WotEventSelectionCatalog` to `WotBindingPlanRequest.FromDocument`. Inside a server the
+  materialization coordinator does this for every closure member, using the same snapshot
+  resolver the conversion uses. An affordance that states a selection and reaches a
+  planner with no resolved selection fails the form with `EventSelectClauseInvalid`
+  rather than performing I/O during planning.
 * `OpcUaBindingPlanner` compiles the **effective** selection onto
-  `WotCompiledForm.EventSelection`. Where the term is absent that is
-  `WotEventSelection.Default` — the eight mandatory `BaseEventType` fields, stated once
-  in `Opc.Ua.Wot.WotEventSelectClauses.Default` and shared by planner and channel.
-  Where it is present the authored list is **complete**: it replaces the default rather
-  than extending it.
+  `WotCompiledForm.EventSelection` as an ordered list of
+  `Opc.Ua.Wot.WotResolvedEventSelectClause`, each carrying the portable
+  `TypeDefinitionId` its definition declared.
 * A compact path element such as `pump:Temperature` is rewritten to the portable
   `nsu=<NamespaceUri>;Temperature` form using the prefixes the document's `@context`
   binds (`WotBindingPlanContext.NamespacePrefixes`). An unbound prefix fails the form
   with `UnboundNamespacePrefix` rather than guessing a namespace.
-* A browse path is parsed into **elements** once — `WotEventSelectClause.PathElements`,
-  produced by `WotEventSelectClauses.SplitBrowsePath` — and every rule below is stated
+* A browse path is parsed into **elements** once — `PathElements`, produced by
+  `WotEventSelectClauses.SplitBrowsePath` — and every rule below is stated
   over those elements rather than over the joined string. A NamespaceUri routinely
   contains `/`, which is also the path separator, so only the separators that follow
   the delimiter ending a NamespaceUri (`;` for the OPC 10000-6 `nsu=` form, `}` for the
@@ -256,11 +287,11 @@ What the runtime does with it:
   the `SimpleAttributeOperand` browse path and the nested `data` object are all built
   from. `WotEventSelectClauses.JoinBrowsePath` is the exact inverse.
 * `OpcUaWotBindingChannel` materializes each clause into a `SimpleAttributeOperand`
-  against the connected session's namespace table. The **empty** browse path selects the
-  `NodeId` Attribute — the OPC 10000-9 `ConditionId` idiom — and every other clause
-  selects `Value`.
-* Two clauses **shall not** materialize the same `data` member, even under different
-  `uav:typeDefinitionId` values and even where their normalized browse paths differ: the
+  against the connected session's namespace table, using the resolved portable
+  `TypeDefinitionId`. The **empty** browse path selects the `NodeId` Attribute — the
+  OPC 10000-9 `ConditionId` idiom — and every other clause selects `Value`.
+* Two clauses **shall not** materialize the same `data` member, even where they reference
+  different EventTypes and even where their normalized browse paths differ: the
   **materialized member path** — the sequence of `data` member names the clause fills —
   is what decides the output, so two clauses that reach it would compete for it and
   nothing in the document would say which of them filled it. Normalization resolves each
@@ -268,12 +299,13 @@ What the runtime does with it:
   namespace name one path; but the member name drops the qualification altogether and a
   state Variable appends `Name`, so an unqualified `Severity` beside a
   namespace-qualified `Severity`, and `EnabledState` beside `EnabledState/Name`, are each
-  two paths and one member. A collision is an `EventSelectClauseInvalid` error in the
-  converter, in `WotEventSelectClauses.TryParse` and again in the planner, which re-checks
-  the list it rewrote into portable form.
+  two paths and one member. A collision is an `EventSelectClauseInvalid` error in
+  `WotEventSelectClauses.TryParse`, in the resolver's overlay, and again in the planner,
+  which re-checks the list it rewrote into portable form.
 * An `EventFilter` `WhereClause` / `ContentFilter` is out of scope of the Binding; a
   clause carrying one is rejected with `EventSelectClauseInvalid` instead of being
-  reinterpreted.
+  reinterpreted. The same holds for the NodeId clause form: a clause names its EventType
+  by reference, so `uav:typeDefinitionId` is rejected as an unexpected member.
 
 #### What a notification carries: the nested `data` object and the transport index
 
