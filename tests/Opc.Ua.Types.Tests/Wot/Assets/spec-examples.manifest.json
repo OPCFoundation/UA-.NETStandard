@@ -3,7 +3,7 @@
   "source": {
     "repository": "https://github.com/OPCF-Members/spec-drafts.git",
     "branch": "copilot/wot-binding-alignment",
-    "commit": "598658e1bea1fda7b8ac3ec145bce1f6a10cf3f6",
+    "commit": "70edc6a9d6aafb1f373a74d9680f884582bc74ae",
     "path": "wot-specs/WoT-Binding/examples"
   },
   "bindingRevision": "1.1",
@@ -131,18 +131,18 @@
     },
     {
       "name": "24-localized-text-fallback.jsonld",
-      "bytes": 3006,
-      "sha256": "5cff401c857eeebd7be7bae101c1d1a50176a5dcd864fc193adf77f3e2f27945"
+      "bytes": 2909,
+      "sha256": "e01b9fd5d19a9f10723da758782a15e4fb5b0920b8d8b520137e327346b149c3"
     },
     {
       "name": "25-reference-type-node.jsonld",
-      "bytes": 1196,
-      "sha256": "eb47425ac888e137051189866829624c1f39e4296f65fb10bf6df99ab40dcfe8"
+      "bytes": 1167,
+      "sha256": "d9d0bfa4b6c748aa0639265bce0cd0a0f0d762eaa987ce551b92caa29686c02f"
     },
     {
       "name": "26-data-type-node.jsonld",
-      "bytes": 2506,
-      "sha256": "af24f7ebb0204b7f8429c002c5c025d4c7531805bebed3edfd390dc60e8d55fa"
+      "bytes": 2441,
+      "sha256": "fa32c08f969ba55d67d0e200b07acab561c0378ee4a62ffbde83f399e87fbeb2"
     }
   ]
 }
