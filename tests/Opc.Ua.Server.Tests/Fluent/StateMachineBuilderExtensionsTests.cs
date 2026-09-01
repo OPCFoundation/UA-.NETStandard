@@ -407,6 +407,75 @@ namespace Opc.Ua.Server.Tests.Fluent
         }
 
         [Test]
+        public void WithCauseReportsExecutableOnlyWhereTheCauseApplies()
+        {
+            (NodeManagerBuilder b, ProgramStateMachineState m, MethodState start) = CreateBuilder();
+
+            ResolveMachine(b)
+                .WithInitialState(Objects.ProgramStateMachineType_Ready)
+                .WithCause(start.NodeId, Methods.ProgramStateMachineType_Start);
+
+            // Start is a cause of Ready, so Part 3 §5.7 says the method
+            // is executable there ...
+            Assert.Multiple(() =>
+            {
+                Assert.That(ReadAttribute(start, Attributes.Executable), Is.True);
+                Assert.That(ReadAttribute(start, Attributes.UserExecutable), Is.True);
+            });
+
+            m.SetState(CreateContext(), Objects.ProgramStateMachineType_Halted);
+
+            // ... and not once the machine has halted, so a client can
+            // see which causes apply instead of calling to find out.
+            Assert.Multiple(() =>
+            {
+                Assert.That(ReadAttribute(start, Attributes.Executable), Is.False);
+                Assert.That(ReadAttribute(start, Attributes.UserExecutable), Is.False);
+            });
+        }
+
+        [Test]
+        public void WithCauseLeavesTheAttributesAloneWhenOptedOut()
+        {
+            (NodeManagerBuilder b, ProgramStateMachineState m, MethodState start) = CreateBuilder();
+            start.Executable = true;
+            start.UserExecutable = true;
+
+            ResolveMachine(b)
+                .WithInitialState(Objects.ProgramStateMachineType_Ready)
+                .WithCause(
+                    start.NodeId,
+                    Methods.ProgramStateMachineType_Start,
+                    reportExecutable: false);
+
+            m.SetState(CreateContext(), Objects.ProgramStateMachineType_Halted);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(start.OnReadExecutable, Is.Null);
+                Assert.That(start.OnReadUserExecutable, Is.Null);
+
+                // The node keeps the value it was constructed with and
+                // the refusal happens at call time instead.
+                Assert.That(ReadAttribute(start, Attributes.Executable), Is.True);
+                Assert.That(ReadAttribute(start, Attributes.UserExecutable), Is.True);
+            });
+        }
+
+        private static bool ReadAttribute(MethodState method, uint attributeId)
+        {
+            var value = new DataValue();
+            ServiceResult result = method.ReadAttribute(
+                CreateContext(), attributeId, default, default, ref value);
+
+            Assert.That(ServiceResult.IsGood(result), Is.True,
+                $"read of {Attributes.GetBrowseName(attributeId)} failed: {result}");
+            Assert.That(value.WrappedValue.TryGetValue(out bool flag), Is.True,
+                $"{Attributes.GetBrowseName(attributeId)} must read as a Boolean.");
+            return flag;
+        }
+
+        [Test]
         public void WithCauseRejectsAlreadyWiredMethod()
         {
             (NodeManagerBuilder b, _, MethodState start) = CreateBuilder();

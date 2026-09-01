@@ -93,6 +93,12 @@ namespace Opc.Ua.Sessions.Tests
             ClientFixture = new ClientFixture(telemetry: Telemetry);
 
             await ClientFixture.LoadClientConfigurationAsync(PkiRoot).ConfigureAwait(false);
+            var clientConfiguration = ClientFixture.Config.ClientConfiguration ??
+                throw new InvalidOperationException("Client configuration is missing.");
+            ReverseConnectClientConfiguration reverseConnect =
+                clientConfiguration.ReverseConnect ??= new ReverseConnectClientConfiguration();
+            // Release unmatched sockets before the server's reverse-connect timeout can close them.
+            reverseConnect.HoldTime = MaxTimeout / 2;
             await ClientFixture.StartReverseConnectHostAsync().ConfigureAwait(false);
             m_endpointUrl = new Uri(
                 Utils.ReplaceLocalhost(
@@ -277,15 +283,7 @@ namespace Opc.Ua.Sessions.Tests
         /// <summary>
         /// Creates a reverse-connect session with each endpoint-refresh and domain-check combination.
         /// </summary>
-        /// <remarks>
-        /// [Retry(2)]: a reverse connection held before the client registers its wait can reach
-        /// the server's hold-time boundary between being matched and starting the secure-channel
-        /// handshake. Azure build 17554 observed that transient as <c>BadConnectionClosed</c>.
-        /// Retrying the complete case obtains a fresh reverse connection; two consecutive failures
-        /// still fail and preserve detection of persistent regressions.
-        /// </remarks>
         [Theory]
-        [Retry(2)]
         [Order(301)]
         public async Task ReverseConnect2Async(
             bool updateBeforeConnect,
