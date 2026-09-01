@@ -635,6 +635,93 @@ namespace Opc.Ua.Client.Tests.ManagedSession
         }
 
         [Test]
+        public async Task CloseAsyncCompletesWhileConnectAttemptIsInFlightAsync()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            ApplicationConfiguration configuration = CreateClientConfiguration(telemetry);
+            ConfiguredEndpoint endpoint = CreateEndpoint();
+            IServiceMessageContext messageContext = configuration.CreateMessageContext();
+
+            var channel = new Mock<IManagedTransportChannel>();
+            channel.SetupGet(c => c.MessageContext).Returns(messageContext);
+            var innerSession = new Session(
+                channel.Object,
+                configuration,
+                endpoint,
+                engineFactory: DefaultSubscriptionEngineFactory.Instance);
+
+            var sessionFactory = new Mock<ISessionFactory>();
+            sessionFactory.SetupGet(f => f.Telemetry).Returns(telemetry);
+            sessionFactory.Setup(f => f.CreateAsync(
+                    It.IsAny<ApplicationConfiguration>(),
+                    It.IsAny<ConfiguredEndpoint>(),
+                    It.IsAny<bool>(),
+                    It.IsAny<bool>(),
+                    It.IsAny<string>(),
+                    It.IsAny<uint>(),
+                    It.IsAny<IUserIdentity?>(),
+                    It.IsAny<ArrayOf<string>>(),
+                    It.IsAny<CancellationToken>()))
+                .ReturnsAsync((ISession)innerSession);
+
+            Client.ManagedSession? managedSession = null;
+            var fetchStarted = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            var fetchCompletion = new TaskCompletionSource<ServerRedundancyInfo>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+
+            // Models a peer that never answers: the connect attempt in flight
+            // only ends when its token is cancelled.
+            var redundancyHandler = new Mock<IServerRedundancyHandler>();
+            redundancyHandler.Setup(h => h.FetchRedundancyInfoAsync(
+                    It.IsAny<ISession>(),
+                    It.IsAny<CancellationToken>()))
+                .Returns((ISession session, CancellationToken ct) =>
+                {
+                    managedSession = (Client.ManagedSession)session;
+                    fetchStarted.TrySetResult(true);
+                    ct.Register(() => fetchCompletion.TrySetCanceled());
+                    return new ValueTask<ServerRedundancyInfo>(fetchCompletion.Task);
+                });
+
+            Task<Client.ManagedSession> createTask = Client.ManagedSession.CreateAsync(
+                configuration,
+                endpoint,
+                sessionFactory.Object,
+                redundancyHandler: redundancyHandler.Object);
+
+            Task startedTask = await Task.WhenAny(
+                    fetchStarted.Task,
+                    Task.Delay(TimeSpan.FromSeconds(5)))
+                .ConfigureAwait(false);
+            Assert.That(startedTask, Is.SameAs(fetchStarted.Task));
+            Assert.That(managedSession, Is.Not.Null);
+
+            Task<StatusCode> closeTask = managedSession!.CloseAsync(
+                10_000,
+                closeChannel: true);
+
+            Task completedClose = await Task.WhenAny(
+                    closeTask,
+                    Task.Delay(TimeSpan.FromSeconds(5)))
+                .ConfigureAwait(false);
+
+            Assert.That(
+                completedClose,
+                Is.SameAs(closeTask),
+                "CloseAsync must not wait for the attempt in flight.");
+
+            Assert.That(
+                (StatusCode)await closeTask.ConfigureAwait(false),
+                Is.EqualTo((StatusCode)StatusCodes.Good));
+            Assert.That(
+                managedSession.StateMachine.State,
+                Is.EqualTo(ConnectionState.Closed));
+
+            Assert.CatchAsync<ServiceResultException>(() => createTask);
+        }
+
+        [Test]
         public async Task CreateAsyncLogsDisposeFailureAndPreservesCancellationAsync()
         {
             var logger = new Mock<ILogger>();

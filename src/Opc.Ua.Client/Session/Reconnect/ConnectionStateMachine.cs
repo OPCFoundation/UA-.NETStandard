@@ -336,6 +336,12 @@ namespace Opc.Ua.Client
 
             m_cts.Dispose();
             m_closeRequested.Dispose();
+
+            // Nothing can drive the machine any more: release the waiters so a
+            // close or connect wait does not outlive the machine.
+            m_settled.Set();
+            m_closed.Set();
+
             GC.SuppressFinalize(this);
         }
 
@@ -417,8 +423,12 @@ namespace Opc.Ua.Client
                             ConnectionState.Closed,
                             error: null,
                             reconnectAttempt: 0);
-                        m_settled.Set();
                     }
+
+                    // The worker is gone, so no other code can release the
+                    // waiters: a close or connect wait must not outlive it.
+                    m_settled.Set();
+                    m_closed.Set();
                 }
 
                 m_logger.ConnectionStateMachineWorkerExiting();
