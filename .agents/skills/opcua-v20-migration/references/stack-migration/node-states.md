@@ -154,6 +154,18 @@ before the parent's first completion, or wire those late children explicitly.
 This prevents duplicate callback execution when an explicitly completed
 subtree is later registered.
 
+Use the overload accepting a `CancellationToken` when completing a large
+subtree outside registration. Cancellation is checked between nodes and the
+same token is passed to each `OnAfterCreate` override. A later call resumes
+completion for nodes whose callback did not finish.
+
+Removing a node from a node manager is not the same as deleting the
+`NodeState` object. `DeleteNodeAsync` removes the node from the address-space
+index and disconnects monitoring and references, but does not invoke
+`OnBeforeDelete`/`OnAfterDelete` and does not reset `IsCreated`.
+`NodeState.Delete` performs that object lifecycle recursively. Full
+address-space teardown invokes `Delete` for each root.
+
 #### NodeState FindChild and CreateChild state NodeId assignment
 
 `NodeState.FindChild` and `NodeState.CreateChild` now take

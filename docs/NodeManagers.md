@@ -32,6 +32,9 @@
     - [Change notifications](#change-notifications)
   - [How to make a node manager reloadable](#how-to-make-a-node-manager-reloadable)
   - [Related documentation](#related-documentation)
+- [Compositional node sources](#compositional-node-sources)
+  - [Authoring a source](#authoring-a-source)
+  - [Hosting and runtime lifecycle](#hosting-and-runtime-lifecycle)
 - [Server address-space metadata](#server-address-space-metadata)
   - [NamespaceMetadata for every namespace](#namespacemetadata-for-every-namespace)
     - [Node-manager authoring note](#node-manager-authoring-note)
@@ -81,7 +84,12 @@ A node manager is the server-side component that owns a portion of the server ad
 
 Developers need to care about node managers when they expose application data, methods, events, alarms, file-system objects, alias names, runtime NodeSets, or companion-spec models from a server. A node manager is also where model-specific behavior is attached: read and write callbacks, method callbacks, historian providers, event notifiers, permissions, model-change notifications, and cross-manager references to nodes owned elsewhere. For simple generated models, the source generator and fluent builder hide much of the plumbing; for dynamic or backed-by-service models, a custom manager is the boundary between the OPC UA services and the application's data source.
 
-The server builds the initial set of node managers before accepting connections. Additional managers can be registered by hosting extensions such as `AddNodeManager` and `AddRuntimeNodeSet`, and the lifecycle API can add, reload, or remove lifecycle-managed managers while the server is running. Regardless of how a manager is supplied, it must cooperate with the master node manager's routing and reference-merging rules so clients can browse, monitor, and call nodes consistently across namespace and manager boundaries.
+The server builds the initial set of node managers before accepting connections. Additional
+managers can be registered by hosting extensions such as `AddNodeManager`, `AddNodeSource`, and
+`AddRuntimeNodeSet`, and the lifecycle API can add, reload, or remove lifecycle-managed managers
+while the server is running. Regardless of how a manager is supplied, it must cooperate with the
+master node manager's routing and reference-merging rules so clients can browse, monitor, and call
+nodes consistently across namespace and manager boundaries.
 
 ## Built-in node managers
 
@@ -353,8 +361,8 @@ A NodeManager owns a part of the server address space. This section explains the
 which a NodeManager can be registered with a server, and what the server guarantees when
 registrations change while the server is running.
 
-For how to author a NodeManager, see [source-generated NodeManagers](#source-generated-node-managers),
-[runtime NodeSets](RuntimeNodeSets.md), and
+For how to author an address space, see [compositional node sources](#compositional-node-sources),
+[source-generated NodeManagers](#source-generated-node-managers), [runtime NodeSets](RuntimeNodeSets.md), and
 [CoreNodeManager vs CustomNodeManager2](#core-vs-custom-node-managers).
 
 There are several ways a NodeManager originates and is added to a server, shown in the following
@@ -363,7 +371,7 @@ table.
 | Registration point | API | When the address space is built |
 | --- | --- | --- |
 | Compile time | A source-generated or hand-written `AsyncCustomNodeManager` / `CustomNodeManager2` type | When the server creates its address space |
-| Startup | `IOpcUaServerBuilder.AddNodeManager(...)`, `IOpcUaServerBuilder.AddRuntimeNodeSet(...)` | During `CreateAddressSpaceAsync`, before the server accepts connections |
+| Startup | `IOpcUaServerBuilder.AddNodeManager(...)`, `AddNodeSource<TSource>()`, `AddRuntimeNodeSet(...)` | During `CreateAddressSpaceAsync`, before the server accepts connections |
 | Runtime | `INodeManagerLifecycle.AddAsync` / `ReloadAsync` / `RemoveAsync` | While the server is running and serving Clients |
 
 Compile-time and startup registration are the normal path. Use runtime registration only when the
@@ -371,9 +379,9 @@ set of models genuinely has to change without restarting the server.
 
 ### Startup registration
 
-`AddNodeManager` and `AddRuntimeNodeSet` register a factory on `IOpcUaServerBuilder`. The factory is
-created before the server starts, and the server builds its address space from all registered
-factories while it starts.
+`AddNodeManager`, `AddNodeSource<TSource>`, and `AddRuntimeNodeSet` register a factory on
+`IOpcUaServerBuilder`. The factory is created before the server starts, and the server builds its
+address space from all registered factories while it starts.
 
 ```csharp
 services.AddOpcUa()
@@ -636,10 +644,10 @@ Practical guidance:
 * **Reload is transactional.** If your implementation throws, the whole operation is rolled back and
   Clients never see a partially applied model, so it is safe to fail fast.
 
-`RuntimeNodeSetNodeManager` is the only built-in NodeManager that implements the contract, so runtime
-NodeSets are reloadable out of the box — see
-`src/Opc.Ua.Server/RuntimeNodeSet/RuntimeNodeSetNodeManager.cs` for the reference implementation. A
-NodeManager derived from `CustomNodeManager2` or `AsyncCustomNodeManager` can be added and removed
+`RuntimeNodeSetNodeManager` and the internal compositional-node-source adapter implement the
+contract, so runtime NodeSets and `INodeSource` registrations are reloadable out of the box. See
+`src/Opc.Ua.Server/RuntimeNodeSet/RuntimeNodeSetNodeManager.cs` for the reference implementation.
+A NodeManager derived from `CustomNodeManager2` or `AsyncCustomNodeManager` can be added and removed
 live without any of this, and becomes reloadable once it implements the interface.
 
 ### Related documentation
@@ -648,6 +656,128 @@ live without any of this, and becomes reloadable once it implements the interfac
 * [Source-generated NodeManagers](#source-generated-node-managers) — compile-time models.
 * [Dependency Injection](DependencyInjection.md) — the `services.AddOpcUa()` hosting surface.
 * [Model Change Tracking](ModelChangeTracking.md) — how Clients observe address-space changes.
+
+## Compositional node sources
+
+Use `INodeSource` when an application wants to author a materialized address-space graph without
+subclassing a NodeManager. The public seam lives in `Opc.Ua.Server.Nodes` and has two members:
+the namespace URIs owned by the source and one asynchronous build method. Internally, a sealed
+adapter drives the existing `FluentNodeManagerBase` / `AsyncCustomNodeManager` engine, so reads,
+browsing, calls, monitoring, type indexing, root notifiers, external references, and address-space
+cleanup keep the same implementation as existing NodeManagers.
+
+### Authoring a source
+
+`INodeGraphBuilder` extends the existing `INodeManagerBuilder`. All fluent wiring extensions
+therefore remain available, while `Add<TState>`, `Folder`, `Object`, `Variable<T>`, and `Method`
+add the missing creation operations.
+
+```csharp
+using Opc.Ua.Server.Fluent;
+using Opc.Ua.Server.Nodes;
+
+public sealed class PlantSource(IPlantGateway gateway) : INodeSource
+{
+    public ArrayOf<string> NamespaceUris => ["urn:example:plant"];
+
+    public ValueTask BuildAsync(
+        INodeGraphBuilder builder,
+        CancellationToken cancellationToken = default)
+    {
+        INodeBuilder<FolderState> plant =
+            builder.AddFolder(new QualifiedName("Plant"));
+        INodeBuilder<BaseObjectState> pump =
+            builder.AddObject(new QualifiedName("Pump1"), plant.Node.NodeId);
+
+        IVariableBuilder<double> speed =
+            builder.AddVariable<double>(
+                new QualifiedName("Speed"),
+                pump.Node.NodeId);
+        speed.Node.WrappedValue = new Variant(0.0);
+        speed.OnRead(token => gateway.ReadSpeedAsync(token));
+
+        builder.AddMethod(new QualifiedName("Reset"), pump.Node.NodeId)
+            .OnCall(async (context, method, objectId, input, output, token) =>
+            {
+                await gateway.ResetAsync(token).ConfigureAwait(false);
+                return ServiceResult.Good;
+            });
+
+        return default;
+    }
+}
+```
+
+An unqualified `QualifiedName` is placed in the source's first namespace. Supply an explicit
+namespace index for a secondary namespace declared by the same source. The default parent for an
+instance is `Objects`; roots and folders default to `Organizes`, while other children use the
+node's assigned `ReferenceTypeId` or `HasComponent`. `Add<TState>` preserves caller-assigned NodeIds
+and returns an `INodeBuilder<TState>`, so custom state types remain strongly typed.
+
+The adapter's `INodeIdFactory` assigns missing NodeIds before a returned builder can register
+callbacks keyed by that id. Its default scheme is deterministic by parent and browse name, which
+also gives replacement generations stable ids. The source does not configure or depend on the
+factory directly.
+
+`BuildAsync` runs exactly once for each manager generation, inside the lifecycle prepare stage
+while the manager is invisible to Clients. When it succeeds, the adapter registers the completed
+graph through the existing predefined-node path, collects cross-manager references, seals the
+builder, and replays `OnNodeAdded`. Calls through a retained builder after sealing fail with
+`BadInvalidState`. If building, cancellation, registration, or callback replay fails, the existing
+lifecycle transaction tears down the prepared generation without publishing a registration.
+
+NodeSet import is deliberately not part of this authoring surface. Use
+[runtime NodeSets](RuntimeNodeSets.md) when the source of the graph is NodeSet2 XML.
+
+### Hosting and runtime lifecycle
+
+`AddNodeSource<TSource>()` constructs the source through dependency injection and follows the same
+NativeAOT-safe `DynamicallyAccessedMembers(PublicConstructors)` convention as
+`AddNodeManager<TFactory>()`:
+
+```csharp
+services.AddSingleton<IPlantGateway, PlantGateway>();
+
+services.AddOpcUa()
+    .AddServer(options => { /* application and endpoint options */ })
+    .AddNodeSource<PlantSource>();
+```
+
+A running server uses source-specific wrappers over `INodeManagerLifecycle`; the returned value is
+the normal `NodeManagerRegistration`, and removal uses the existing lifecycle method:
+
+```csharp
+NodeManagerRegistration registration =
+    await lifecycle.AddNodeSourceAsync(
+        source,
+        callerContext: null,
+        cancellationToken);
+
+registration = await lifecycle.ReloadNodeSourceAsync(
+    registration,
+    replacement,
+    callerContext: null,
+    cancellationToken);
+
+registration = await lifecycle.ShadowReloadNodeSourceAsync(
+    registration,
+    shadowReplacement,
+    cancellationToken);
+
+registration = await lifecycle.ImmediateReloadNodeSourceAsync(
+    registration,
+    immediateReplacement,
+    cancellationToken);
+
+await lifecycle.RemoveAsync(
+    registration,
+    callerContext: null,
+    cancellationToken);
+```
+
+Ordinary reload migrates compatible monitored items, shadow reload lets existing monitored items
+drain on the retired generation, and immediate reload invalidates them. Inbound references added
+by other managers are transferred to the replacement generation before the routing swap.
 
 ## Server address-space metadata
 
@@ -1844,6 +1974,16 @@ ordering-sensitive code. The call is idempotent per node and still completes
 children added since an earlier call. It does not re-run `OnAfterCreate` on
 ancestors which were already created; assemble parent-wired children before
 the parent's first completion, or wire those late children explicitly.
+The overload accepting a `CancellationToken` checks cancellation between
+nodes and passes the token to `OnAfterCreate`.
+
+Removing a node from a manager and deleting the `NodeState` object are
+different operations. `DeleteNodeAsync` de-indexes the node, detaches
+monitoring and references, and deliberately leaves `NodeState.IsCreated`
+unchanged so the same object can be re-indexed without repeating create-side
+effects. `NodeState.Delete` runs `OnBeforeDelete`/`OnAfterDelete` recursively
+and resets `IsCreated`; `DeleteAddressSpaceAsync` uses that object-lifecycle
+path for each root.
 
 Notes:
 

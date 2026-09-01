@@ -228,6 +228,31 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
+        public void AddPredefinedNodeHonorsLifecycleCancellation()
+        {
+            using ITestNodeManager manager = CreateManager();
+            Assume.That(manager is TestableAsyncCustomNodeManager,
+                "Requires cancellation-aware async registration");
+            using var cts = new CancellationTokenSource();
+            cts.Cancel();
+            ushort namespaceIndex = manager.NamespaceIndexes[0];
+            var node = new LifecycleProbeState(null)
+            {
+                NodeId = new NodeId("CanceledLifecycle", namespaceIndex),
+                BrowseName = new QualifiedName("CanceledLifecycle", namespaceIndex),
+                DisplayName = new LocalizedText("CanceledLifecycle")
+            };
+
+            Assert.That(
+                async () => await manager
+                    .AddPredefinedNodeAsync(manager.SystemContext, node, cts.Token)
+                    .ConfigureAwait(false),
+                Throws.InstanceOf<OperationCanceledException>());
+            Assert.That(node.IsCreated, Is.False);
+            Assert.That(manager.Find(node.NodeId), Is.Null);
+        }
+
+        [Test]
         public async Task PredefinedNodeIdIsAssignedBeforeCreateLifecycleAsync()
         {
             using ITestNodeManager manager = CreateManager();
@@ -388,6 +413,38 @@ namespace Opc.Ua.Server.Tests
             asyncManager.AddPredefinedNodeSynchronouslyPublic(node);
 
             Assert.That(node.IsCreated, Is.True);
+            Assert.That(node.BeforeCreateCount, Is.EqualTo(1));
+            Assert.That(node.AfterCreateCount, Is.EqualTo(1));
+        }
+
+        [Test]
+        public async Task RemovingNodeDoesNotDeleteOrRepeatCreateLifecycleAsync()
+        {
+            using ITestNodeManager manager = CreateManager();
+            ushort namespaceIndex = manager.NamespaceIndexes[0];
+            var node = new LifecycleProbeState(null)
+            {
+                NodeId = new NodeId("RemoveWithoutDelete", namespaceIndex),
+                BrowseName = new QualifiedName("RemoveWithoutDelete", namespaceIndex),
+                DisplayName = new LocalizedText("RemoveWithoutDelete")
+            };
+
+            await manager
+                .AddPredefinedNodeAsync(manager.SystemContext, node)
+                .ConfigureAwait(false);
+            bool removed = await manager
+                .DeleteNodeAsync(manager.SystemContext, node.NodeId)
+                .ConfigureAwait(false);
+
+            Assert.That(removed, Is.True);
+            Assert.That(node.IsCreated, Is.True);
+            Assert.That(node.BeforeDeleteCount, Is.Zero);
+            Assert.That(node.AfterDeleteCount, Is.Zero);
+
+            await manager
+                .AddPredefinedNodeAsync(manager.SystemContext, node)
+                .ConfigureAwait(false);
+
             Assert.That(node.BeforeCreateCount, Is.EqualTo(1));
             Assert.That(node.AfterCreateCount, Is.EqualTo(1));
         }
@@ -5106,6 +5163,10 @@ namespace Opc.Ua.Server.Tests
 
             public NodeId NodeIdAtAfterCreate { get; private set; }
 
+            public int BeforeDeleteCount { get; private set; }
+
+            public int AfterDeleteCount { get; private set; }
+
             protected override void OnBeforeCreate(ISystemContext context, NodeState node)
             {
                 BeforeCreateCount++;
@@ -5120,6 +5181,18 @@ namespace Opc.Ua.Server.Tests
                 AfterCreateCount++;
                 NodeIdAtAfterCreate = NodeId;
                 base.OnAfterCreate(context, node, ct);
+            }
+
+            protected override void OnBeforeDelete(ISystemContext context)
+            {
+                BeforeDeleteCount++;
+                base.OnBeforeDelete(context);
+            }
+
+            protected override void OnAfterDelete(ISystemContext context)
+            {
+                AfterDeleteCount++;
+                base.OnAfterDelete(context);
             }
         }
 

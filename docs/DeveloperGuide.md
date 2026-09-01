@@ -212,6 +212,9 @@ logger.ReadArrayZeroDimension(index, dimensions);
 - **Add a document** — put it in `docs/` and link it from [docs/README.md](README.md).
 - **Add a dependency** — declare the version in `Directory.Packages.props` (Central Package Management), prefer AOT/trimmable and permissively licensed packages, and get maintainer approval first.
 - **Certificates and secrets** — see [Certificates.md](Certificates.md) and [CertificateManager.md](CertificateManager.md).
+- **Compositional node authoring** — implement `INodeSource`, create nodes through
+  `INodeGraphBuilder`, and register it with `AddNodeSource<TSource>()`; see
+  [NodeManagers.md](NodeManagers.md#compositional-node-sources).
 - **Source-generated node managers / data types** — see [NodeManagers.md](NodeManagers.md#source-generated-node-managers) and [SourceGeneratedDataTypes.md](SourceGeneratedDataTypes.md).
 - **Server namespace metadata / history advertisement** — see [NodeManagers.md](NodeManagers.md#server-address-space-metadata).
 - **Dependency injection** — see [DependencyInjection.md](DependencyInjection.md).

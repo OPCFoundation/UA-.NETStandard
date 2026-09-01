@@ -29,14 +29,17 @@
 
 using System;
 using System.Collections.Generic;
+using System.Threading;
+using System.Threading.Tasks;
+using Opc.Ua.Server.Nodes;
 
 namespace Opc.Ua.Server.Fluent
 {
     /// <summary>
-    /// Default implementation of <see cref="INodeManagerBuilder"/> and
-    /// <see cref="IFluentDispatcher"/>. Built and owned by the source-generated
-    /// <c>NodeManagerBase</c> (or by a hand-written manager that wants to opt
-    /// in to the fluent surface).
+    /// Default implementation of <see cref="INodeManagerBuilder"/>,
+    /// <see cref="INodeGraphBuilder"/>, and <see cref="IFluentDispatcher"/>.
+    /// Built and owned by the source-generated <c>NodeManagerBase</c> (or by a
+    /// hand-written manager that wants to opt in to the fluent surface).
     /// </summary>
     /// <remarks>
     /// <para>
@@ -54,7 +57,9 @@ namespace Opc.Ua.Server.Fluent
     /// dispatch time.
     /// </para>
     /// </remarks>
-    public sealed class NodeManagerBuilder : INodeManagerBuilder, IFluentDispatcher
+    public sealed class NodeManagerBuilder :
+        INodeGraphBuilder,
+        IFluentDispatcher
     {
         /// <summary>
         /// Creates a new builder for the supplied <paramref name="nodeManager"/>.
@@ -123,6 +128,112 @@ namespace Opc.Ua.Server.Fluent
         /// <inheritdoc/>
         public IFluentDispatcher Dispatcher => this;
 
+        INodeBuilder<TState> INodeGraphBuilder.Add<TState>(
+            TState node,
+            NodeId parentId)
+        {
+            return AddNode(node, parentId);
+        }
+
+        private NodeBuilder<TState> AddNode<TState>(
+            TState node,
+            NodeId parentId)
+            where TState : NodeState
+        {
+            ThrowIfGraphAuthoringUnavailable();
+            ThrowIfSealed();
+            if (node is null)
+            {
+                throw new ArgumentNullException(nameof(node));
+            }
+
+            AttachToParent(node, parentId);
+            PrepareNodeIds(node);
+            IndexAuthoredSubtree(node);
+
+            if (!HasAuthoredAncestor(node))
+            {
+                AddAuthoredRoot(node);
+            }
+
+            return new NodeBuilder<TState>(this, node);
+        }
+
+        INodeBuilder<FolderState> INodeGraphBuilder.AddFolder(
+            QualifiedName browseName,
+            NodeId parentId)
+        {
+            QualifiedName normalizedBrowseName = NormalizeBrowseName(browseName);
+            string symbolicName = normalizedBrowseName.Name!;
+            var folder = new FolderState(null)
+            {
+                SymbolicName = symbolicName,
+                BrowseName = normalizedBrowseName,
+                DisplayName = new LocalizedText(symbolicName),
+                ReferenceTypeId = ReferenceTypeIds.Organizes,
+                TypeDefinitionId = ObjectTypeIds.FolderType
+            };
+            return AddNode(folder, parentId);
+        }
+
+        INodeBuilder<BaseObjectState> INodeGraphBuilder.AddObject(
+            QualifiedName browseName,
+            NodeId parentId,
+            NodeId typeDefinitionId)
+        {
+            QualifiedName normalizedBrowseName = NormalizeBrowseName(browseName);
+            string symbolicName = normalizedBrowseName.Name!;
+            var instance = new BaseObjectState(null)
+            {
+                SymbolicName = symbolicName,
+                BrowseName = normalizedBrowseName,
+                DisplayName = new LocalizedText(symbolicName),
+                TypeDefinitionId = typeDefinitionId.IsNull
+                    ? ObjectTypeIds.BaseObjectType
+                    : typeDefinitionId
+            };
+            return AddNode(instance, parentId);
+        }
+
+        IVariableBuilder<TValue> INodeGraphBuilder.AddVariable<TValue>(
+            QualifiedName browseName,
+            NodeId parentId)
+        {
+            QualifiedName normalizedBrowseName = NormalizeBrowseName(browseName);
+            string symbolicName = normalizedBrowseName.Name!;
+            var variable = new BaseDataVariableState(null)
+            {
+                SymbolicName = symbolicName,
+                BrowseName = normalizedBrowseName,
+                DisplayName = new LocalizedText(symbolicName),
+                TypeDefinitionId = VariableTypeIds.BaseDataVariableType,
+                DataType = TypeInfo.GetDataTypeId(typeof(TValue), Context.NamespaceUris),
+                ValueRank = TypeInfo.GetValueRank(typeof(TValue)),
+                AccessLevel = AccessLevels.CurrentRead,
+                UserAccessLevel = AccessLevels.CurrentRead
+            };
+            NodeBuilder<BaseDataVariableState> nodeBuilder =
+                AddNode(variable, parentId);
+            return ToVariableBuilder<TValue>(nodeBuilder.Node, normalizedBrowseName.ToString());
+        }
+
+        INodeBuilder<MethodState> INodeGraphBuilder.AddMethod(
+            QualifiedName browseName,
+            NodeId parentId)
+        {
+            QualifiedName normalizedBrowseName = NormalizeBrowseName(browseName);
+            string symbolicName = normalizedBrowseName.Name!;
+            var method = new MethodState(null)
+            {
+                SymbolicName = symbolicName,
+                BrowseName = normalizedBrowseName,
+                DisplayName = new LocalizedText(symbolicName),
+                Executable = true,
+                UserExecutable = true
+            };
+            return AddNode(method, parentId);
+        }
+
         /// <summary>
         /// Marks the builder as no longer accepting new <c>Node(...)</c>
         /// lookups. Existing per-node builders remain functional but the
@@ -131,7 +242,17 @@ namespace Opc.Ua.Server.Fluent
         /// </summary>
         public void Seal()
         {
+            SealGraphAuthoring();
+            StartSimulations();
+        }
+
+        internal void SealGraphAuthoring()
+        {
             m_sealed = true;
+        }
+
+        internal void StartSimulations()
+        {
             Simulations?.Start();
         }
 
@@ -143,7 +264,7 @@ namespace Opc.Ua.Server.Fluent
                 Context,
                 browsePath,
                 m_defaultNamespaceIndex,
-                m_rootResolver);
+                ResolveRoot);
 
             return new NodeBuilder(this, node);
         }
@@ -157,7 +278,7 @@ namespace Opc.Ua.Server.Fluent
                 Context,
                 browsePath,
                 m_defaultNamespaceIndex,
-                m_rootResolver);
+                ResolveRoot);
 
             if (node is not TState typed)
             {
@@ -260,7 +381,7 @@ namespace Opc.Ua.Server.Fluent
                 Context,
                 browsePath,
                 m_defaultNamespaceIndex,
-                m_rootResolver);
+                ResolveRoot);
             return ToVariableBuilder<TValue>(node, browsePath);
         }
 
@@ -325,6 +446,39 @@ namespace Opc.Ua.Server.Fluent
                     node.GetType().Name);
             }
             return new VariableBuilder<TValue>(this, variable);
+        }
+
+        internal async ValueTask RegisterAuthoredNodesAsync(
+            Func<NodeState, CancellationToken, ValueTask> register,
+            CancellationToken cancellationToken = default)
+        {
+            ThrowIfGraphAuthoringUnavailable();
+            ThrowIfSealed();
+            if (register is null)
+            {
+                throw new ArgumentNullException(nameof(register));
+            }
+            if (m_authoredNodesRegistered)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadInvalidState,
+                    "The authored node graph has already been registered.");
+            }
+
+            m_authoredNodesRegistered = true;
+            foreach (NodeState root in m_authoredRoots)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                await register(
+                    root,
+                    cancellationToken).ConfigureAwait(false);
+            }
+        }
+
+        internal void EnableGraphAuthoring()
+        {
+            ThrowIfSealed();
+            m_graphAuthoringEnabled = true;
         }
 
         /// <summary>
@@ -550,6 +704,11 @@ namespace Opc.Ua.Server.Fluent
                     "NodeId is null or empty.");
             }
 
+            if (m_authoredNodes.TryGetValue(nodeId, out NodeState? authored))
+            {
+                return authored;
+            }
+
             return m_nodeIdResolver(nodeId) ??
                 throw ServiceResultException.Create(
                     StatusCodes.BadNodeIdUnknown,
@@ -566,8 +725,17 @@ namespace Opc.Ua.Server.Fluent
                     "TypeDefinitionId is null or empty.");
             }
 
-            IReadOnlyList<NodeState> candidates = m_typeIdResolver(typeDefinitionId)
-                ?? [];
+            var candidates = new List<NodeState>(
+                m_typeIdResolver(typeDefinitionId) ?? []);
+            foreach (NodeState authored in m_authoredNodes.Values)
+            {
+                if (authored is BaseInstanceState instance &&
+                    instance.TypeDefinitionId == typeDefinitionId &&
+                    !candidates.Contains(authored))
+                {
+                    candidates.Add(authored);
+                }
+            }
 
             if (candidates.Count == 0)
             {
@@ -629,7 +797,21 @@ namespace Opc.Ua.Server.Fluent
                     "DataTypeId is null or empty.");
             }
 
-            ArrayOf<NodeState> candidates = m_dataTypeIdResolver(dataTypeId);
+            ArrayOf<NodeState> resolved = m_dataTypeIdResolver(dataTypeId);
+            var candidates = new List<NodeState>(resolved.Count);
+            for (int i = 0; i < resolved.Count; i++)
+            {
+                candidates.Add(resolved[i]);
+            }
+            foreach (NodeState authored in m_authoredNodes.Values)
+            {
+                if (authored is BaseVariableState variable &&
+                    variable.DataType == dataTypeId &&
+                    !candidates.Contains(authored))
+                {
+                    candidates.Add(authored);
+                }
+            }
 
             if (candidates.Count == 0)
             {
@@ -682,14 +864,335 @@ namespace Opc.Ua.Server.Fluent
             return match;
         }
 
+        private NodeState ResolveRoot(QualifiedName browseName)
+        {
+            foreach (NodeState root in m_authoredRoots)
+            {
+                if (root.BrowseName == browseName)
+                {
+                    return root;
+                }
+            }
+            return m_rootResolver(browseName);
+        }
+
+        private void AttachToParent(NodeState node, NodeId parentId)
+        {
+            if (node is not BaseInstanceState instance)
+            {
+                if (!parentId.IsNull)
+                {
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadNodeClassInvalid,
+                        "Node '{0}' is not an instance and cannot be attached to parent '{1}'.",
+                        node.BrowseName,
+                        parentId);
+                }
+                return;
+            }
+
+            bool useDefaultReferenceType = instance.ReferenceTypeId.IsNull;
+            NodeState? parent = instance.Parent;
+            NodeId effectiveParentId = parentId;
+            if (parent != null)
+            {
+                if (!parentId.IsNull && parent.NodeId != parentId)
+                {
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadInvalidArgument,
+                        "Node '{0}' is already attached to parent '{1}', not '{2}'.",
+                        node.BrowseName,
+                        parent.NodeId,
+                        parentId);
+                }
+                effectiveParentId = parent.NodeId;
+                if (effectiveParentId.IsNull)
+                {
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadNodeIdInvalid,
+                        "The existing parent of node '{0}' has no NodeId.",
+                        node.BrowseName);
+                }
+
+                bool knownParent =
+                    m_authoredNodes.TryGetValue(
+                        effectiveParentId,
+                        out NodeState? authored) &&
+                    ReferenceEquals(authored, parent);
+                knownParent = knownParent ||
+                    ReferenceEquals(m_nodeIdResolver(effectiveParentId), parent);
+                if (!knownParent)
+                {
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadNodeIdUnknown,
+                        "The existing parent '{0}' of node '{1}' is not part of this graph or address space.",
+                        effectiveParentId,
+                        node.BrowseName);
+                }
+
+            }
+            else
+            {
+                if (effectiveParentId.IsNull)
+                {
+                    effectiveParentId = ObjectIds.ObjectsFolder;
+                }
+
+                if (!m_authoredNodes.TryGetValue(effectiveParentId, out parent))
+                {
+                    parent = m_nodeIdResolver(effectiveParentId);
+                }
+
+                if (parent == null &&
+                    IsOwnedNamespace(effectiveParentId.NamespaceIndex))
+                {
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadNodeIdUnknown,
+                        "Parent '{0}' belongs to this source but has not been authored.",
+                        effectiveParentId);
+                }
+            }
+
+            if (useDefaultReferenceType)
+            {
+                instance.ReferenceTypeId =
+                    effectiveParentId == ObjectIds.ObjectsFolder ||
+                    instance is FolderState
+                        ? ReferenceTypeIds.Organizes
+                        : ReferenceTypeIds.HasComponent;
+            }
+
+            if (parent != null)
+            {
+                AddChildIfMissing(parent, instance);
+                return;
+            }
+
+            instance.AddReferenceIfMissing(
+                instance.ReferenceTypeId,
+                true,
+                effectiveParentId);
+        }
+
+        private void PrepareNodeIds(NodeState node)
+        {
+            if (node.BrowseName.IsNull)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadBrowseNameInvalid,
+                    "A node added to the graph must have a browse name.");
+            }
+            if (NodeManager is not AsyncCustomNodeManager manager)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadConfigurationError,
+                    "Node graph creation requires an AsyncCustomNodeManager-backed builder.");
+            }
+
+            manager.PrepareAuthoredNodeIdsForRegistration(node);
+            if (node.NodeId.IsNull)
+            {
+                node.NodeId = Context.RequireNodeIdFactory().New(Context, node);
+            }
+            if (node.NodeId.IsNull)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadConfigurationError,
+                    "The NodeId factory did not assign an id to node '{0}'.",
+                    node.BrowseName);
+            }
+            ValidateAuthoredNodeId(manager, node);
+
+            var descendants = new List<BaseInstanceState>();
+            var children = new List<BaseInstanceState>();
+            node.GetChildren(Context, descendants);
+            for (int i = 0; i < descendants.Count; i++)
+            {
+                BaseInstanceState child = descendants[i];
+                manager.PrepareAuthoredNodeIdsForRegistration(child);
+                ValidateAuthoredNodeId(manager, child);
+                children.Clear();
+                child.GetChildren(Context, children);
+                descendants.AddRange(children);
+            }
+        }
+
+        private void IndexAuthoredSubtree(NodeState root)
+        {
+            var nodes = new List<NodeState> { root };
+            var children = new List<BaseInstanceState>();
+            for (int i = 0; i < nodes.Count; i++)
+            {
+                NodeState node = nodes[i];
+                if (node.NodeId.IsNull)
+                {
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadConfigurationError,
+                        "The NodeId factory did not assign an id to node '{0}'.",
+                        node.BrowseName);
+                }
+
+                if (m_authoredNodes.TryGetValue(
+                    node.NodeId,
+                    out NodeState? existing))
+                {
+                    if (!ReferenceEquals(existing, node))
+                    {
+                        throw ServiceResultException.Create(
+                            StatusCodes.BadNodeIdExists,
+                            "NodeId '{0}' is already used by node '{1}'.",
+                            node.NodeId,
+                            existing.BrowseName);
+                    }
+                }
+                else
+                {
+                    NodeState? predefined = m_nodeIdResolver(node.NodeId);
+                    if (predefined != null && !ReferenceEquals(predefined, node))
+                    {
+                        throw ServiceResultException.Create(
+                            StatusCodes.BadNodeIdExists,
+                            "NodeId '{0}' is already used by a predefined node.",
+                            node.NodeId);
+                    }
+                    m_authoredNodes.Add(node.NodeId, node);
+                }
+
+                children.Clear();
+                node.GetChildren(Context, children);
+                nodes.AddRange(children);
+            }
+        }
+
+        private bool HasAuthoredAncestor(NodeState node)
+        {
+            for (NodeState? current = node is BaseInstanceState instance
+                    ? instance.Parent
+                    : null;
+                current != null;
+                current = current is BaseInstanceState parentInstance
+                    ? parentInstance.Parent
+                    : null)
+            {
+                if (!current.NodeId.IsNull &&
+                    m_authoredNodes.TryGetValue(
+                        current.NodeId,
+                        out NodeState? authored) &&
+                    ReferenceEquals(authored, current))
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        private void AddAuthoredRoot(NodeState node)
+        {
+            for (int i = 0; i < m_authoredRoots.Count; i++)
+            {
+                if (ReferenceEquals(m_authoredRoots[i], node))
+                {
+                    return;
+                }
+            }
+            m_authoredRoots.Add(node);
+        }
+
+        private void AddChildIfMissing(
+            NodeState parent,
+            BaseInstanceState child)
+        {
+            var children = new List<BaseInstanceState>();
+            parent.GetChildren(Context, children);
+            for (int i = 0; i < children.Count; i++)
+            {
+                if (ReferenceEquals(children[i], child))
+                {
+                    return;
+                }
+            }
+            parent.AddChild(child);
+        }
+
+        private bool IsOwnedNamespace(ushort namespaceIndex)
+        {
+            if (NodeManager is not AsyncCustomNodeManager manager)
+            {
+                return namespaceIndex == m_defaultNamespaceIndex;
+            }
+
+            for (int i = 0; i < manager.NamespaceIndexes.Count; i++)
+            {
+                if (manager.NamespaceIndexes[i] == namespaceIndex)
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        private static void ValidateAuthoredNodeId(
+            AsyncCustomNodeManager manager,
+            NodeState node)
+        {
+            if (node.NodeId.NamespaceIndex == 0)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadNodeIdInvalid,
+                    "Authored node '{0}' cannot use namespace index 0.",
+                    node.BrowseName);
+            }
+
+            for (int i = 0; i < manager.NamespaceIndexes.Count; i++)
+            {
+                if (manager.NamespaceIndexes[i] == node.NodeId.NamespaceIndex)
+                {
+                    return;
+                }
+            }
+
+            throw ServiceResultException.Create(
+                StatusCodes.BadNodeIdInvalid,
+                "Authored node '{0}' uses namespace index {1}, which is not owned by this source.",
+                node.BrowseName,
+                node.NodeId.NamespaceIndex);
+        }
+
+        private QualifiedName NormalizeBrowseName(QualifiedName browseName)
+        {
+            if (browseName.IsNull)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadBrowseNameInvalid,
+                    "Browse name is null or empty.");
+            }
+            if (browseName.NamespaceIndex == 0)
+            {
+                return new QualifiedName(
+                    browseName.Name,
+                    m_defaultNamespaceIndex);
+            }
+            return browseName;
+        }
+
         private void ThrowIfSealed()
         {
-            if (m_sealed)
+            if (m_sealed || m_authoredNodesRegistered)
             {
                 throw ServiceResultException.Create(
                     StatusCodes.BadInvalidState,
-                    "Cannot wire additional nodes after the builder has been sealed. " +
-                    "All Node(...) calls must occur inside the Configure delegate.");
+                    "Cannot wire or add nodes after graph finalization has begun. " +
+                    "All calls must occur inside the Configure or BuildAsync delegate.");
+            }
+        }
+
+        private void ThrowIfGraphAuthoringUnavailable()
+        {
+            if (!m_graphAuthoringEnabled)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadInvalidState,
+                    "Node creation is only available while an INodeSource is building its graph.");
             }
         }
 
@@ -714,11 +1217,16 @@ namespace Opc.Ua.Server.Fluent
         private readonly Func<NodeId, NodeState> m_nodeIdResolver;
         private readonly Func<NodeId, IReadOnlyList<NodeState>> m_typeIdResolver;
         private readonly Func<NodeId, ArrayOf<NodeState>> m_dataTypeIdResolver;
+        private readonly Dictionary<NodeId, NodeState> m_authoredNodes = [];
+        private readonly List<NodeState> m_authoredRoots = [];
         private bool m_sealed;
+        private bool m_graphAuthoringEnabled;
+        private bool m_authoredNodesRegistered;
         private readonly Dictionary<NodeId, HistoryReadHandler> m_historyRead = [];
         private readonly Dictionary<NodeId, HistoryUpdateHandler> m_historyUpdate = [];
         private readonly Dictionary<NodeId, MonitoredItemCreatedHandler> m_monitoredItemCreated = [];
         private readonly Dictionary<NodeId, NodeLifecycleHandler> m_nodeAdded = [];
         private readonly Dictionary<NodeId, NodeLifecycleHandler> m_nodeRemoved = [];
+
     }
 }

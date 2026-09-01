@@ -60,7 +60,7 @@ namespace Opc.Ua.Server.StateMachines
     /// at the real node. That requires the machine to have completed its create lifecycle —
     /// <c>ElementNamespaceUri</c> is resolved in <c>OnAfterCreate</c> — so a node assembled by a
     /// <c>CreateInstanceOf</c> factory must be passed through
-    /// <see cref="NodeState.CreateAsPredefinedNode"/> first. <c>namespaceIndex</c> now only
+    /// <see cref="NodeState.CreateAsPredefinedNode(ISystemContext)"/> first. <c>namespaceIndex</c> now only
     /// backstops reading a state variable some other component wrote.
     /// </para>
     /// </remarks>

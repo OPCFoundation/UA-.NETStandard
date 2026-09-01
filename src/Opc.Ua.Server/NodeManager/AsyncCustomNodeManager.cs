@@ -1046,7 +1046,7 @@ namespace Opc.Ua.Server
         /// <para>
         /// Registration completes the create lifecycle for nodes which have
         /// not already passed through
-        /// <see cref="NodeState.CreateAsPredefinedNode"/>.
+        /// <see cref="NodeState.CreateAsPredefinedNode(ISystemContext)"/>.
         /// </para>
         /// <para>
         /// The supplied <paramref name="node"/> should already be attached to
@@ -1069,6 +1069,42 @@ namespace Opc.Ua.Server
             }
 
             return AddPredefinedNodeAsync(SystemContext, node, cancellationToken);
+        }
+
+        /// <summary>
+        /// Assigns final instance NodeIds before a compositional builder exposes
+        /// the node for fluent callback wiring.
+        /// </summary>
+        internal void PrepareAuthoredNodeIdsForRegistration(NodeState node)
+        {
+            if (node == null)
+            {
+                throw new ArgumentNullException(nameof(node));
+            }
+
+            if (SystemContext.NodeIdFactory == null)
+            {
+                throw new InvalidOperationException(
+                    "The system context does not provide a NodeId factory.");
+            }
+
+            var nodes = new List<NodeState> { node };
+            var children = new List<BaseInstanceState>();
+            for (int i = 0; i < nodes.Count; i++)
+            {
+                NodeState candidate = nodes[i];
+                if (candidate.NodeId.IsNull ||
+                    (i > 0 &&
+                        node.NodeId.NamespaceIndex != 0 &&
+                        candidate.NodeId.NamespaceIndex == 0))
+                {
+                    SystemContext.AssignInstanceNodeId(candidate);
+                }
+
+                children.Clear();
+                candidate.GetChildren(SystemContext, children);
+                nodes.AddRange(children);
+            }
         }
 
         /// <summary>
@@ -2052,12 +2088,20 @@ namespace Opc.Ua.Server
         protected virtual async ValueTask AddPredefinedNodeAsync(ISystemContext context, NodeState node, CancellationToken cancellationToken = default)
         {
             PrepareInstanceNodeIdsForRegistration(context, node);
-            CompleteCreateLifecycleForRegistration(context, node);
+            NodeStateLifecycle.CompleteForRegistration(
+                context,
+                node,
+                m_logger,
+                cancellationToken);
             NodeState activeNode = await AddBehaviourToPredefinedNodeAsync(context, node, cancellationToken).ConfigureAwait(false);
             if (!ReferenceEquals(activeNode, node))
             {
                 PrepareInstanceNodeIdsForRegistration(context, activeNode);
-                CompleteCreateLifecycleForRegistration(context, activeNode);
+                NodeStateLifecycle.CompleteForRegistration(
+                    context,
+                    activeNode,
+                    m_logger,
+                    cancellationToken);
             }
             IndexPredefinedNode(activeNode);
 
@@ -2239,7 +2283,7 @@ namespace Opc.Ua.Server
 
         private void AddPredefinedNodeSynchronously(ISystemContext context, NodeState node)
         {
-            CompleteCreateLifecycleForRegistration(context, node);
+            NodeStateLifecycle.CompleteForRegistration(context, node, m_logger);
             IndexPredefinedNode(node);
 
             var children = new List<BaseInstanceState>();
@@ -2254,24 +2298,6 @@ namespace Opc.Ua.Server
                 }
 
                 AddPredefinedNodeSynchronously(context, children[ii]);
-            }
-        }
-
-        private void CompleteCreateLifecycleForRegistration(
-            ISystemContext context,
-            NodeState node)
-        {
-            if (node.IsCreated)
-            {
-                return;
-            }
-
-            node.CreateAsPredefinedNode(context);
-            if (m_logger != null)
-            {
-                m_logger.PredefinedNodeLifecycleCompletedAtRegistration(
-                    node.NodeId,
-                    node.BrowseName);
             }
         }
 
