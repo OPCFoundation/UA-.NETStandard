@@ -29,7 +29,9 @@
 
 #nullable enable
 
+using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -65,7 +67,7 @@ namespace Opc.Ua.Server.Tests.Roles
         private RoleStateBinding? m_binding;
 
         [SetUp]
-        public void SetUp()
+        public async Task SetUp()
         {
             m_telemetry = NUnitTelemetryContext.Create();
             m_mockServer = new Mock<IServerInternal>();
@@ -174,8 +176,10 @@ namespace Opc.Ua.Server.Tests.Roles
             m_auditServer = new Mock<IAuditEventServer>();
             m_auditServer.Setup(a => a.Auditing).Returns(true);
 
-            m_binding = RoleStateBinding.Bind(m_nodeManager, m_roleManager, m_auditServer.Object);
-            Assume.That(m_binding, Is.Not.Null, "RoleStateBinding.Bind should locate the RoleSet.");
+            m_binding = await RoleStateBinding
+                .BindAsync(m_nodeManager, m_roleManager, m_auditServer.Object)
+                .ConfigureAwait(false);
+            Assume.That(m_binding, Is.Not.Null, "RoleStateBinding.BindAsync should locate the RoleSet.");
         }
 
         [TearDown]
@@ -742,8 +746,10 @@ namespace Opc.Ua.Server.Tests.Roles
         public async Task AddRoleHandler_TypedRoleStateUpgradedByBinding_CanCallAddIdentity()
         {
             ISystemContext ctx = BuildAdminContext(MessageSecurityMode.SignAndEncrypt);
+            // Not one of the nine well-known names — those are already in the
+            // manager's browse-name index, so AddRole would reject them.
             AddRoleMethodStateResult addResult = await InvokeAddRoleAsync(
-                ctx, "Engineer", "http://test.org/role-binding/").ConfigureAwait(false);
+                ctx, "SiteEngineer", "http://test.org/role-binding/").ConfigureAwait(false);
             Assume.That(ServiceResult.IsGood(addResult.ServiceResult), Is.True);
 
             // Invoke AddIdentity on the freshly materialized role to prove the
@@ -765,6 +771,243 @@ namespace Opc.Ua.Server.Tests.Roles
             Assert.That(entry, Is.Not.Null);
             Assert.That(entry!.Identities, Has.Count.EqualTo(1));
             Assert.That(entry.Identities[0].Criteria, Is.EqualTo("carol"));
+        }
+
+        // ----------------------------------------------------------------
+        // Issue #4361 (1): AddRole must not allocate a NodeId that is in use
+        // ----------------------------------------------------------------
+
+        [Test]
+        public async Task AddRoleHandler_ForeignNamespaceUri_DoesNotReplaceAnExistingNode()
+        {
+            // A model owned by another NodeManager, numbered from i=1 as every
+            // model compiler does.
+            m_namespaceTable.Append("http://example.org/MyModel");
+            ushort modelNamespace = (ushort)m_namespaceTable.GetIndex("http://example.org/MyModel");
+            var machineId = new NodeId(1u, modelNamespace);
+            var machine = new BaseObjectState(null)
+            {
+                NodeId = machineId,
+                BrowseName = new QualifiedName("Machine", modelNamespace),
+                DisplayName = new LocalizedText("Machine")
+            };
+            m_nodeManager.PredefinedNodes[machineId] = machine;
+
+            ISystemContext ctx = BuildAdminContext(MessageSecurityMode.SignAndEncrypt);
+            AddRoleMethodStateResult result = await InvokeAddRoleAsync(
+                ctx, "Maintenance", "http://example.org/MyModel").ConfigureAwait(false);
+
+            Assert.That(ServiceResult.IsGood(result.ServiceResult), Is.True);
+            Assert.That(result.RoleNodeId, Is.Not.EqualTo(machineId),
+                "AddRole must never hand out a NodeId that already names a node.");
+            Assert.That(m_nodeManager.PredefinedNodes[machineId], Is.SameAs(machine),
+                "The model's own node must survive AddRole untouched.");
+
+            var role = (RoleState)m_nodeManager.PredefinedNodes[result.RoleNodeId];
+            Assert.That(role.BrowseName.Name, Is.EqualTo("Maintenance"));
+            Assert.That(role.BrowseName.NamespaceIndex, Is.EqualTo(modelNamespace),
+                "Part 18 §4.2.2: NamespaceUri qualifies the BrowseName of the new role.");
+            Assert.That(role.NodeId.NamespaceIndex, Is.EqualTo(m_nodeManager.NamespaceIndex),
+                "The role NodeId belongs to the namespace the server picked.");
+        }
+
+        [Test]
+        public async Task AddRoleHandler_ManagerReturnsOccupiedNodeId_RefusesAndRollsBack()
+        {
+            // A custom IRoleManager that hands out a NodeId already in use. The
+            // binding must refuse rather than silently replace the node, and it
+            // must not leave the role behind in the manager.
+            var occupied = new NodeId(4242u, m_nodeManager.NamespaceIndex);
+            m_nodeManager.PredefinedNodes[occupied] = new BaseObjectState(null)
+            {
+                NodeId = occupied,
+                BrowseName = new QualifiedName("Existing", m_nodeManager.NamespaceIndex)
+            };
+
+            using var stub = new FixedNodeIdRoleManager(occupied);
+            using var binding = await RoleStateBinding
+                .BindAsync(m_nodeManager, stub, m_auditServer.Object)
+                .ConfigureAwait(false);
+            Assume.That(binding, Is.Not.Null);
+
+            AddRoleMethodState method = m_roleSet.AddRole!;
+            AddRoleMethodStateResult result = await method.OnCallAsync!(
+                BuildAdminContext(MessageSecurityMode.SignAndEncrypt),
+                method, m_roleSet.NodeId, "Colliding", string.Empty,
+                CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(result.ServiceResult.StatusCode,
+                Is.EqualTo(StatusCodes.BadNodeIdExists));
+            Assert.That(result.RoleNodeId.IsNull, Is.True);
+            Assert.That(m_nodeManager.PredefinedNodes[occupied], Is.Not.InstanceOf<RoleState>(),
+                "The existing node must not be replaced by the new role.");
+            Assert.That(stub.Roles, Is.Empty,
+                "A role the client cannot browse must be rolled back out of the manager.");
+        }
+
+        // ----------------------------------------------------------------
+        // Issue #4361 (2): roles configured before start-up need a node
+        // ----------------------------------------------------------------
+
+        [Test]
+        public async Task Bind_MaterializesRolesConfiguredBeforeTheAddressSpaceExisted()
+        {
+            // A role created straight on the manager - what
+            // StandardServer.CreateRoleManager, ConfigureRoles and a
+            // pre-populated custom IRoleManager all end up doing.
+            using var roleManager = new RoleManager();
+            Assume.That(ServiceResult.IsGood(roleManager.AddRole(
+                "Maintenance", "http://test.org/role-binding/", m_namespaceTable,
+                m_nodeManager.NamespaceIndex, out NodeId configuredRoleId)), Is.True);
+            Assume.That(m_nodeManager.PredefinedNodes.ContainsKey(configuredRoleId), Is.False);
+
+            using RoleStateBinding? binding = await RoleStateBinding
+                .BindAsync(m_nodeManager, roleManager, m_auditServer.Object)
+                .ConfigureAwait(false);
+            Assume.That(binding, Is.Not.Null);
+
+            Assert.That(m_nodeManager.PredefinedNodes.ContainsKey(configuredRoleId), Is.True,
+                "A role configured before start-up must get a node under the RoleSet.");
+            var role = (RoleState)m_nodeManager.PredefinedNodes[configuredRoleId];
+            Assert.That(role.BrowseName.Name, Is.EqualTo("Maintenance"));
+            Assert.That(role.AddIdentity, Is.Not.Null);
+            Assert.That(role.AddIdentity!.OnCallAsync, Is.Not.Null,
+                "The materialized role must be wired to the manager like any other.");
+
+            // And the RoleSet must actually reference it, so a client browsing
+            // Server/ServerCapabilities/RoleSet sees the role.
+            var references = new List<IReference>();
+            m_roleSet.GetReferences(m_nodeManager.SystemContext, references);
+            Assert.That(
+                references.Any(r => !r.IsInverse &&
+                    r.ReferenceTypeId == ReferenceTypeIds.HasComponent &&
+                    ExpandedNodeId.ToNodeId(r.TargetId, m_namespaceTable) == configuredRoleId),
+                Is.True,
+                "The RoleSet must expose the configured role as a component.");
+        }
+
+        [Test]
+        public async Task Bind_AppliesRoleConfigurationStagedByConfigureRoles()
+        {
+            var options = new RoleConfigurationOptions();
+            var definition = new RoleDefinitionOptions
+            {
+                Name = "Maintenance",
+                NamespaceUri = "http://test.org/role-binding/"
+            };
+            definition.Identities.Add(new RoleIdentityMappingOptions
+            {
+                CriteriaType = IdentityCriteriaType.UserName,
+                Criteria = "dave"
+            });
+            options.Roles.Add(definition);
+
+            using var roleManager = new RoleManager { PendingConfiguration = options };
+            Assume.That(roleManager.RoleIds.Any(
+                id => roleManager.GetRole(id)?.BrowseName == "Maintenance"), Is.False,
+                "Configured roles are staged, not applied, before the address space exists.");
+
+            using RoleStateBinding? binding = await RoleStateBinding
+                .BindAsync(m_nodeManager, roleManager, m_auditServer.Object)
+                .ConfigureAwait(false);
+            Assume.That(binding, Is.Not.Null);
+
+            NodeId configuredRoleId = roleManager.RoleIds.Single(
+                id => roleManager.GetRole(id)?.BrowseName == "Maintenance");
+            Assert.That(configuredRoleId.NamespaceIndex,
+                Is.EqualTo(m_nodeManager.NamespaceIndex),
+                "The role NodeId must land in a namespace the RoleSet's NodeManager owns.");
+            Assert.That(m_nodeManager.PredefinedNodes.ContainsKey(configuredRoleId), Is.True,
+                "A role from ConfigureRoles must be browsable under the RoleSet.");
+
+            RoleEntry? entry = roleManager.GetRole(configuredRoleId);
+            Assert.That(entry!.Identities, Has.Count.EqualTo(1));
+            Assert.That(entry.Identities[0].Criteria, Is.EqualTo("dave"));
+        }
+
+        [Test]
+        public async Task RoleAddedOnTheManagerAfterBind_MaterializesTheRole()
+        {
+            // A custom IRoleManager can add roles at runtime without going
+            // through the AddRole Method; the RoleAdded event has to bring them
+            // into the address space.
+            Assert.That(ServiceResult.IsGood(m_roleManager.AddRole(
+                "LateRole", "http://test.org/role-binding/", m_namespaceTable,
+                m_nodeManager.NamespaceIndex, out NodeId lateRoleId)), Is.True);
+
+            await WaitForNodeAsync(lateRoleId).ConfigureAwait(false);
+
+            Assert.That(m_nodeManager.PredefinedNodes[lateRoleId], Is.InstanceOf<RoleState>(),
+                "A role added directly on the manager must appear under the RoleSet.");
+        }
+
+        // ----------------------------------------------------------------
+        // Teardown and failure handling
+        // ----------------------------------------------------------------
+
+        [Test]
+        public async Task Bind_MaterializationThrows_StillCompletesTheBindingAsync()
+        {
+            // One role the server cannot represent must not stop the server from
+            // starting: the sweep logs it and carries on.
+            using var roleManager = new RoleManager();
+            Assume.That(ServiceResult.IsGood(roleManager.AddRole(
+                "Unmaterializable", "http://test.org/role-binding/", m_namespaceTable,
+                m_nodeManager.NamespaceIndex, out NodeId roleId)), Is.True);
+
+            m_nodeManager.SystemContext.NodeIdFactory = new ThrowingNodeIdFactory();
+
+            using RoleStateBinding? binding = await RoleStateBinding
+                .BindAsync(m_nodeManager, roleManager, m_auditServer.Object)
+                .ConfigureAwait(false);
+
+            Assert.That(binding, Is.Not.Null,
+                "A role that cannot be materialized must not abort the binding.");
+            Assert.That(m_nodeManager.PredefinedNodes.ContainsKey(roleId), Is.False,
+                "The failed role must not leave a half-built node behind.");
+            Assert.That(m_roleSet.AddRole!.OnCallAsync, Is.Not.Null,
+                "The RoleSet methods must still be wired up.");
+        }
+
+        [Test]
+        public async Task AddRoleHandler_AfterDispose_ReturnsBadInvalidStateAndRollsBackAsync()
+        {
+            m_binding!.Dispose();
+
+            ISystemContext ctx = BuildAdminContext(MessageSecurityMode.SignAndEncrypt);
+            AddRoleMethodStateResult result = await InvokeAddRoleAsync(
+                ctx, "AfterShutdown", "http://test.org/role-binding/").ConfigureAwait(false);
+
+            Assert.That(result.ServiceResult.StatusCode,
+                Is.EqualTo(StatusCodes.BadInvalidState),
+                "A torn-down binding must not report success for a role it never created.");
+            Assert.That(result.RoleNodeId.IsNull, Is.True);
+            Assert.That(
+                m_roleManager.RoleIds.Any(id =>
+                    string.Equals(m_roleManager.GetRole(id)?.BrowseName, "AfterShutdown",
+                        System.StringComparison.Ordinal)),
+                Is.False,
+                "A role that could not be materialized must not linger in the manager.");
+        }
+
+        [Test]
+        public void Dispose_IsIdempotent()
+        {
+            Assert.DoesNotThrow(() =>
+            {
+                m_binding!.Dispose();
+                m_binding.Dispose();
+            });
+        }
+
+        private async Task WaitForNodeAsync(NodeId nodeId)
+        {
+            for (int ii = 0; ii < 200 && !m_nodeManager.PredefinedNodes.ContainsKey(nodeId); ii++)
+            {
+                await Task.Delay(25).ConfigureAwait(false);
+            }
+            Assume.That(m_nodeManager.PredefinedNodes.ContainsKey(nodeId), Is.True,
+                $"Timed out waiting for {nodeId} to be materialized.");
         }
 
         private static void AssertGeneratedRoleProperty(PropertyState<bool> property)
@@ -889,6 +1132,132 @@ namespace Opc.Ua.Server.Tests.Roles
             return handler!(
                 context, property, NumericRange.Null, QualifiedName.Null,
                 ref working, ref statusCode, ref timestamp);
+        }
+
+        /// <summary>
+        /// Minimal <see cref="IRoleManager"/> whose <c>AddRole</c> always hands
+        /// back the same NodeId — the shape of a manager that does not check
+        /// whether the identifier it allocates is free.
+        /// </summary>
+        private sealed class FixedNodeIdRoleManager : IRoleManager, IDisposable
+        {
+            public FixedNodeIdRoleManager(NodeId fixedNodeId)
+            {
+                m_fixedNodeId = fixedNodeId;
+            }
+
+            public event EventHandler<RoleConfigurationChangedEventArgs>? RoleConfigurationChanged;
+
+            public IReadOnlyList<NodeId> Roles => [.. m_roles.Keys];
+
+            public IReadOnlyList<NodeId> RoleIds => Roles;
+
+            public RoleEntry? GetRole(NodeId roleId)
+            {
+                return m_roles.TryGetValue(roleId, out RoleEntry? entry) ? entry : null;
+            }
+
+            public ServiceResult AddRole(
+                string roleName,
+                string? namespaceUri,
+                NamespaceTable namespaces,
+                ushort defaultNamespaceIndex,
+                out NodeId newRoleId)
+            {
+                newRoleId = m_fixedNodeId;
+                m_roles[m_fixedNodeId] = new RoleEntry(
+                    m_fixedNodeId, roleName, namespaceUri,
+                    isReserved: false, isWellKnown: false, [], [], true, [], true, false);
+                RoleConfigurationChanged?.Invoke(this,
+                    new RoleConfigurationChangedEventArgs(
+                        m_fixedNodeId, RoleConfigurationChangeKind.RoleAdded));
+                return ServiceResult.Good;
+            }
+
+            public ServiceResult RemoveRole(NodeId roleId)
+            {
+                if (!m_roles.Remove(roleId))
+                {
+                    return new ServiceResult(StatusCodes.BadNodeIdUnknown);
+                }
+                RoleConfigurationChanged?.Invoke(this,
+                    new RoleConfigurationChangedEventArgs(
+                        roleId, RoleConfigurationChangeKind.RoleRemoved));
+                return ServiceResult.Good;
+            }
+
+            public ServiceResult AddIdentity(NodeId roleId, IdentityMappingRuleType rule)
+            {
+                return ServiceResult.Good;
+            }
+
+            public ServiceResult RemoveIdentity(NodeId roleId, IdentityMappingRuleType rule)
+            {
+                return ServiceResult.Good;
+            }
+
+            public ServiceResult AddApplication(NodeId roleId, string applicationUri)
+            {
+                return ServiceResult.Good;
+            }
+
+            public ServiceResult RemoveApplication(NodeId roleId, string applicationUri)
+            {
+                return ServiceResult.Good;
+            }
+
+            public ServiceResult AddEndpoint(NodeId roleId, EndpointType endpoint)
+            {
+                return ServiceResult.Good;
+            }
+
+            public ServiceResult RemoveEndpoint(NodeId roleId, EndpointType endpoint)
+            {
+                return ServiceResult.Good;
+            }
+
+            public ServiceResult SetApplicationsExclude(NodeId roleId, bool value)
+            {
+                return ServiceResult.Good;
+            }
+
+            public ServiceResult SetEndpointsExclude(NodeId roleId, bool value)
+            {
+                return ServiceResult.Good;
+            }
+
+            public ServiceResult SetCustomConfiguration(NodeId roleId, bool value)
+            {
+                return ServiceResult.Good;
+            }
+
+            public IList<NodeId> ResolveGrantedRoles(
+                IUserIdentity identity,
+                Opc.Ua.Security.Certificates.Certificate? clientCertificate,
+                EndpointDescription? endpoint)
+            {
+                return [];
+            }
+
+            public void Dispose()
+            {
+                RoleConfigurationChanged = null;
+            }
+
+            private readonly NodeId m_fixedNodeId;
+            private readonly Dictionary<NodeId, RoleEntry> m_roles = [];
+        }
+
+        /// <summary>
+        /// Fails every allocation, so materializing a role throws part-way
+        /// through building its subtree.
+        /// </summary>
+        private sealed class ThrowingNodeIdFactory : INodeIdFactory
+        {
+            public NodeId New(ISystemContext context, NodeState node)
+            {
+                throw new InvalidOperationException("NodeId allocation failed.");
+            }
         }
 
         private sealed class SequentialNodeIdFactory : INodeIdFactory

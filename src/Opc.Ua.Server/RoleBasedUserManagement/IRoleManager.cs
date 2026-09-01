@@ -182,10 +182,15 @@ namespace Opc.Ua.Server
         /// <param name="roleName">The browse name for the new role.</param>
         /// <param name="namespaceUri">
         /// The namespace URI qualifying the browse name; if null or empty the
-        /// server's default namespace is used.
+        /// server's default namespace is used. Per Part 18 §4.2.2 this argument
+        /// qualifies the BrowseName only — it never selects the namespace the
+        /// new role's NodeId is allocated in, which stays server-assigned.
         /// </param>
         /// <param name="namespaces">Namespace table used to resolve the URI.</param>
-        /// <param name="defaultNamespaceIndex">Namespace index used when a fresh NodeId is allocated.</param>
+        /// <param name="defaultNamespaceIndex">
+        /// Namespace index a fresh NodeId is allocated in. Implementations must
+        /// allocate an identifier that is not already in use.
+        /// </param>
         /// <param name="newRoleId">On success, the new role's NodeId.</param>
         /// <returns>
         /// <c>Good</c> on success;

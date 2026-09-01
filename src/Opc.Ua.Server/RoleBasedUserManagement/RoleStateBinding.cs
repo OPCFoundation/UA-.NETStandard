@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
@@ -56,7 +57,7 @@ namespace Opc.Ua.Server
     /// The binding relies on <see cref="DiagnosticsNodeManager"/>'s
     /// <c>AddBehaviourToPredefinedNodeAsync</c> override having upgraded the
     /// passive <c>BaseObjectState</c> nodes representing <c>RoleSet</c> and
-    /// each well-known role to the typed proxies before <see cref="Bind"/>
+    /// each well-known role to the typed proxies before <see cref="BindAsync"/>
     /// is invoked.
     /// </para>
     /// </remarks>
@@ -66,9 +67,27 @@ namespace Opc.Ua.Server
         private readonly IRoleManager m_roleManager;
         private readonly IAuditEventServer? m_auditServer;
         private readonly ILogger m_logger;
-        private readonly Dictionary<NodeId, RoleState> m_boundRoles = [];
+        private readonly ConcurrentDictionary<NodeId, RoleState> m_boundRoles = new();
+
+        // Serializes every mutation of the RoleSet subtree — materializing a
+        // role and dropping one both rewrite the RoleSet's children and
+        // references, which are not thread-safe collections.
+        private readonly SemaphoreSlim m_roleSetLock = new(1, 1);
+
+        // Cancelled by Dispose so waiters queued on m_roleSetLock leave the
+        // queue before the semaphore is released: SemaphoreSlim.Dispose does
+        // not wake its waiters, so a queued materialization would otherwise
+        // hang for the lifetime of the process.
+        private readonly CancellationTokenSource m_shutdown = new();
+
         private RoleSetState? m_roleSet;
-        private bool m_disposed;
+        private volatile bool m_disposed;
+
+        /// <summary>
+        /// How long <see cref="Dispose"/> waits for an address-space mutation
+        /// that is already in flight before it releases the gate anyway.
+        /// </summary>
+        private static readonly TimeSpan s_disposeDrainTimeout = TimeSpan.FromSeconds(5);
 
         private RoleStateBinding(
             AsyncCustomNodeManager nodeManager,
@@ -84,21 +103,32 @@ namespace Opc.Ua.Server
 
         /// <summary>
         /// Resolves the <see cref="RoleSetState"/> in <paramref name="nodeManager"/>'s
-        /// predefined nodes, wires every child role to <paramref name="roleManager"/>
-        /// and starts listening for <see cref="IRoleManager.RoleConfigurationChanged"/>
-        /// events. Returns the binding instance so the caller can dispose it
-        /// on server shutdown.
+        /// predefined nodes, wires every child role to <paramref name="roleManager"/>,
+        /// creates nodes for roles the manager already knows about but the
+        /// address space does not, and starts listening for
+        /// <see cref="IRoleManager.RoleConfigurationChanged"/> events. Returns
+        /// the binding instance so the caller can dispose it on server shutdown,
+        /// or <c>null</c> when <paramref name="nodeManager"/> holds no
+        /// <c>RoleSet</c>.
         /// </summary>
+        /// <remarks>
+        /// Role configuration staged before start-up is applied to
+        /// <paramref name="roleManager"/> even when there is no <c>RoleSet</c>
+        /// to bind and this returns <c>null</c>: those roles still take part in
+        /// <see cref="IRoleManager.ResolveGrantedRoles"/>, so dropping them
+        /// would silently disable access the application asked for.
+        /// </remarks>
         /// <exception cref="ArgumentNullException">
         /// <paramref name="nodeManager"/> is null.
         /// </exception>
         /// <exception cref="ArgumentNullException">
         /// <paramref name="roleManager"/> is null.
         /// </exception>
-        public static RoleStateBinding? Bind(
+        public static async ValueTask<RoleStateBinding?> BindAsync(
             AsyncCustomNodeManager nodeManager,
             IRoleManager roleManager,
-            IAuditEventServer? auditServer)
+            IAuditEventServer? auditServer,
+            CancellationToken cancellationToken = default)
         {
             if (nodeManager == null)
             {
@@ -111,14 +141,34 @@ namespace Opc.Ua.Server
 
             RoleSetState? roleSet = nodeManager.FindPredefinedNode<RoleSetState>(
                 ObjectIds.Server_ServerCapabilities_RoleSet);
-            if (roleSet == null)
-            {
-                return null;
-            }
 
-            var binding = new RoleStateBinding(nodeManager, roleManager, auditServer);
-            binding.Initialize(roleSet);
-            return binding;
+            RoleStateBinding? binding = new(nodeManager, roleManager, auditServer);
+            try
+            {
+                ushort dynamicNamespaceIndex = binding.ResolveDynamicNamespaceIndex();
+
+                // Roles staged by ConfigureRoles are created here, where the
+                // server's namespace table finally exists, so their NodeIds land
+                // in a namespace this NodeManager actually owns. This runs even
+                // when there is no RoleSet to bind — see the remarks above.
+                binding.PrepareDefaultRoleManager(dynamicNamespaceIndex);
+
+                if (roleSet == null)
+                {
+                    return null;
+                }
+
+                await binding.InitializeAsync(roleSet, dynamicNamespaceIndex, cancellationToken)
+                    .ConfigureAwait(false);
+
+                RoleStateBinding bound = binding;
+                binding = null;
+                return bound;
+            }
+            finally
+            {
+                binding?.Dispose();
+            }
         }
 
         /// <inheritdoc/>
@@ -130,13 +180,89 @@ namespace Opc.Ua.Server
             }
             m_disposed = true;
             m_roleManager.RoleConfigurationChanged -= OnRoleConfigurationChanged;
+
+            // Turn away everything queued on the gate, then wait out whoever
+            // holds it so the address-space mutation in flight completes before
+            // the primitives go away. New callers are already refused by
+            // m_disposed and by the cancelled token.
+            m_shutdown.Cancel();
+            if (m_roleSetLock.Wait(s_disposeDrainTimeout))
+            {
+                m_roleSetLock.Release();
+            }
+            m_roleSetLock.Dispose();
+            m_shutdown.Dispose();
         }
 
-        private void Initialize(RoleSetState roleSet)
+        /// <summary>
+        /// Acquires the gate serializing RoleSet subtree mutations.
+        /// </summary>
+        /// <returns>
+        /// <c>false</c> when the binding is being torn down, in which case the
+        /// caller must leave the address space alone. The caller's own
+        /// cancellation still surfaces as <see cref="OperationCanceledException"/>.
+        /// </returns>
+        private async ValueTask<bool> TryEnterRoleSetAsync(CancellationToken cancellationToken)
+        {
+            if (m_disposed)
+            {
+                return false;
+            }
+
+            using var linked = CancellationTokenSource.CreateLinkedTokenSource(
+                cancellationToken, m_shutdown.Token);
+            try
+            {
+                await m_roleSetLock.WaitAsync(linked.Token).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException) when (m_shutdown.IsCancellationRequested)
+            {
+                // Torn down while this call sat in the queue.
+                return false;
+            }
+            catch (ObjectDisposedException)
+            {
+                return false;
+            }
+            return true;
+        }
+
+        private void ExitRoleSet()
+        {
+            try
+            {
+                m_roleSetLock.Release();
+            }
+            catch (ObjectDisposedException)
+            {
+                // Dispose drained the gate while this operation was running.
+            }
+        }
+
+        /// <summary>
+        /// Points the default <see cref="RoleManager"/> at the address space so
+        /// it never allocates a role NodeId that is already taken, and applies
+        /// any role configuration staged before the server started.
+        /// </summary>
+        private void PrepareDefaultRoleManager(ushort dynamicNamespaceIndex)
+        {
+            if (m_roleManager is not RoleManager defaultManager)
+            {
+                return;
+            }
+            defaultManager.NodeIdInUseProbe ??=
+                nodeId => m_nodeManager.FindPredefinedNode<NodeState>(nodeId) != null;
+            defaultManager.ApplyPendingConfiguration(
+                m_nodeManager.SystemContext.NamespaceUris,
+                dynamicNamespaceIndex);
+        }
+
+        private async ValueTask InitializeAsync(
+            RoleSetState roleSet,
+            ushort dynamicNamespaceIndex,
+            CancellationToken cancellationToken)
         {
             m_roleSet = roleSet;
-
-            ushort dynamicNamespaceIndex = ResolveDynamicNamespaceIndex();
 
             if (roleSet.AddRole != null)
             {
@@ -189,6 +315,28 @@ namespace Opc.Ua.Server
             }
 
             m_roleManager.RoleConfigurationChanged += OnRoleConfigurationChanged;
+
+            // Part 18 §4.2 expects the RoleSet to describe every role the server
+            // supports. Roles configured before start-up — through
+            // StandardServer.CreateRoleManager, ConfigureRoles, or a custom
+            // IRoleManager that pre-populates itself — never went through the
+            // AddRole Method, so nothing has created their nodes yet. Do it now,
+            // otherwise those roles grant access but cannot be browsed, read or
+            // reconfigured by a client.
+            foreach (NodeId roleId in m_roleManager.RoleIds)
+            {
+                // One role the server cannot represent must not stop the server
+                // from starting: log it and carry on with the rest.
+                try
+                {
+                    await EnsureRoleMaterializedAsync(roleId, cancellationToken)
+                        .ConfigureAwait(false);
+                }
+                catch (Exception ex) when (ex is not OperationCanceledException)
+                {
+                    m_logger.MaterializingRoleRoleIdFailed(ex, roleId);
+                }
+            }
         }
 
         private ushort ResolveDynamicNamespaceIndex()
@@ -468,12 +616,136 @@ namespace Opc.Ua.Server
             }
             if (e.Kind == RoleConfigurationChangeKind.RoleRemoved)
             {
-                m_boundRoles.Remove(e.RoleId);
+                m_boundRoles.TryRemove(e.RoleId, out _);
                 return;
             }
             if (m_boundRoles.TryGetValue(e.RoleId, out RoleState? roleState))
             {
                 SyncPropertiesFromManager(e.RoleId, roleState);
+                return;
+            }
+            if (e.Kind == RoleConfigurationChangeKind.RoleAdded)
+            {
+                // A role created straight on the IRoleManager rather than
+                // through the AddRole Method still has to show up under the
+                // RoleSet. The event is raised synchronously from inside the
+                // manager, so the address-space work has to be queued.
+                ScheduleMaterialize(e.RoleId);
+            }
+        }
+
+        private static ServiceResult NotBoundResult()
+        {
+            return new ServiceResult(StatusCodes.BadInvalidState,
+                new LocalizedText("The RoleSet binding is not available."));
+        }
+
+        private void ScheduleMaterialize(NodeId roleId)
+        {
+            _ = Task.Run(async () =>
+            {
+                try
+                {
+                    await EnsureRoleMaterializedAsync(roleId, CancellationToken.None)
+                        .ConfigureAwait(false);
+                }
+                catch (Exception ex)
+                {
+                    m_logger.MaterializingRoleRoleIdFailed(ex, roleId);
+                }
+            });
+        }
+
+        /// <summary>
+        /// Makes sure the role identified by <paramref name="roleId"/> has a
+        /// <c>RoleType</c> node under the bound <c>RoleSet</c> and that its
+        /// methods and properties are wired to the manager. Idempotent: it is
+        /// reached both from the <c>AddRole</c> Method and from the
+        /// <see cref="IRoleManager.RoleConfigurationChanged"/> subscription.
+        /// </summary>
+        /// <returns>
+        /// <c>Good</c> only once the role is present in the address space;
+        /// <c>Bad_NodeIdUnknown</c> if the manager no longer knows the role;
+        /// <c>Bad_NodeIdExists</c> if another node already owns the NodeId;
+        /// <c>Bad_NodeIdInvalid</c> if the NodeId is null or in a namespace this
+        /// NodeManager does not own;
+        /// <c>Bad_InvalidState</c> if the binding was torn down or never found a
+        /// <c>RoleSet</c> to attach to. Never reports success for work it did not
+        /// do, so <see cref="OnAddRoleAsync"/> can rely on it to decide whether
+        /// the manager has to be rolled back.
+        /// </returns>
+        private async ValueTask<ServiceResult> EnsureRoleMaterializedAsync(
+            NodeId roleId,
+            CancellationToken cancellationToken)
+        {
+            if (roleId.IsNull)
+            {
+                return new ServiceResult(StatusCodes.BadNodeIdInvalid,
+                    new LocalizedText("The role manager did not allocate a NodeId."));
+            }
+            if (!await TryEnterRoleSetAsync(cancellationToken).ConfigureAwait(false))
+            {
+                return NotBoundResult();
+            }
+
+            try
+            {
+                // Dispose may have won the race for the gate.
+                RoleSetState? roleSet = m_disposed ? null : m_roleSet;
+                if (roleSet == null)
+                {
+                    return NotBoundResult();
+                }
+
+                if (m_boundRoles.ContainsKey(roleId))
+                {
+                    return ServiceResult.Good;
+                }
+
+                RoleEntry? entry = m_roleManager.GetRole(roleId);
+                if (entry == null)
+                {
+                    // The role was removed again while we were queued.
+                    return new ServiceResult(StatusCodes.BadNodeIdUnknown);
+                }
+
+                // Never replace a node that is already there. Doing so would
+                // corrupt the address space of a running server — the caller of
+                // AddRole is a remote SecurityAdmin, so this has to be a
+                // diagnosable error rather than a silent overwrite.
+                NodeState? existing = m_nodeManager.FindPredefinedNode<NodeState>(roleId);
+                if (existing != null)
+                {
+                    if (existing is RoleState existingRole)
+                    {
+                        BindRoleState(existingRole);
+                        return ServiceResult.Good;
+                    }
+                    m_logger.RoleRoleNameRoleIdIsAlreadyInUseByANonRoleNode(
+                        entry.BrowseName, roleId);
+                    return new ServiceResult(StatusCodes.BadNodeIdExists,
+                        new LocalizedText(
+                            $"NodeId '{roleId}' is already used by another node."));
+                }
+
+                if (!m_nodeManager.NamespaceIndexes.Contains(roleId.NamespaceIndex))
+                {
+                    // The node would be indexed here but routed elsewhere by the
+                    // MasterNodeManager, so it could never be resolved.
+                    m_logger.RoleRoleNameRoleIdIsNotInANamespaceOwnedBy(
+                        entry.BrowseName, roleId);
+                    return new ServiceResult(StatusCodes.BadNodeIdInvalid,
+                        new LocalizedText(
+                            $"NodeId '{roleId}' is not in a namespace owned by the RoleSet's NodeManager."));
+                }
+
+                await MaterializeDynamicRoleAsync(roleSet, entry, cancellationToken)
+                    .ConfigureAwait(false);
+                return ServiceResult.Good;
+            }
+            finally
+            {
+                ExitRoleSet();
             }
         }
 
@@ -503,27 +775,37 @@ namespace Opc.Ua.Server
                 dynamicNamespaceIndex,
                 out NodeId newRoleId);
 
-            if (ServiceResult.IsGood(add))
+            if (ServiceResult.IsBad(add))
             {
-                result.RoleNodeId = newRoleId;
-
-                // Materialize the RoleType subtree into the address space so
-                // browsers and method callers see the dynamic role straight
-                // away. Failures here are logged but not surfaced as a status
-                // code so the RoleManager state stays consistent with what
-                // AddRole reported.
-                try
-                {
-                    await MaterializeDynamicRoleAsync(
-                        newRoleId,
-                        roleName,
-                        cancellationToken).ConfigureAwait(false);
-                }
-                catch (Exception ex)
-                {
-                    m_logger.AddRoleRoleNameSucceededInTheRoleManagerBut(ex, roleName);
-                }
+                result.ServiceResult = add;
+                return result;
             }
+
+            // Materialize the RoleType subtree into the address space so
+            // browsers and method callers see the dynamic role straight away.
+            ServiceResult materialize;
+            try
+            {
+                materialize = await EnsureRoleMaterializedAsync(newRoleId, cancellationToken)
+                    .ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                m_logger.AddRoleRoleNameSucceededInTheRoleManagerBut(ex, roleName);
+                materialize = new ServiceResult(ex, StatusCodes.BadInternalError);
+            }
+
+            if (ServiceResult.IsBad(materialize))
+            {
+                // AddRole is all-or-nothing: a role the client cannot browse or
+                // reconfigure is worse than a failed call, so roll the manager
+                // back and hand the caller the reason.
+                m_roleManager.RemoveRole(newRoleId);
+                result.ServiceResult = materialize;
+                return result;
+            }
+
+            result.RoleNodeId = newRoleId;
             result.ServiceResult = add;
             return result;
         }
@@ -571,33 +853,39 @@ namespace Opc.Ua.Server
         /// </summary>
         /// <remarks>
         /// The well-known roles ship pre-built in the standard nodeset; this
-        /// method only fires for roles created at runtime via
-        /// <see cref="IRoleManager.AddRole"/>. The factory
+        /// method only fires for roles the address-space walk did not find —
+        /// created at runtime via <see cref="IRoleManager.AddRole"/> or
+        /// configured before the server started. The factory
         /// <c>CreateInstanceOfRoleType</c> sets the well-known RoleType NodeId
         /// (15620) as the default — we overwrite it with the dynamic role's
         /// allocated NodeId and rebase its mandatory and optional descendants
         /// through the owning NodeManager's <see cref="ISystemContext.NodeIdFactory"/>.
+        /// Callers must go through <see cref="EnsureRoleMaterializedAsync"/>,
+        /// which holds <c>m_roleSetLock</c> and checks that the NodeId is free
+        /// first — hence the <paramref name="roleSet"/> parameter rather than a
+        /// re-read of the field, so this can never silently do nothing.
         /// </remarks>
         private async ValueTask MaterializeDynamicRoleAsync(
-            NodeId roleNodeId,
-            string roleName,
+            RoleSetState roleSet,
+            RoleEntry entry,
             CancellationToken cancellationToken)
         {
-            if (m_roleSet == null)
-            {
-                return;
-            }
+            NodeId roleNodeId = entry.RoleId;
+            string roleName = entry.BrowseName ?? roleNodeId.IdentifierAsString ?? "Role";
 
-            ushort browseNs = roleNodeId.NamespaceIndex;
+            // Per Part 18 §4.2.2 the NamespaceUri passed to AddRole qualifies
+            // the BrowseName, not the NodeId, so resolve it against the server
+            // namespace table rather than reusing the NodeId's index.
+            ushort browseNs = ResolveBrowseNamespaceIndex(entry);
             // The request context is not guaranteed to carry a NodeIdFactory.
             ServerSystemContext nodeContext = m_nodeManager.SystemContext.Copy();
             nodeContext.NodeIdFactory = new DynamicRoleNodeIdFactory(
                 nodeContext.NodeIdFactory,
-                m_roleSet,
+                roleSet,
                 roleNodeId);
 
             RoleState roleState = nodeContext.CreateInstanceOfRoleType(
-                parent: m_roleSet,
+                parent: roleSet,
                 browseName: new QualifiedName(roleName, browseNs));
             roleState.NodeId = roleNodeId;
             roleState.SymbolicName = roleName;
@@ -654,9 +942,9 @@ namespace Opc.Ua.Server
             // typed children collection; the actual HasComponent reference
             // pair that Browse traverses is added explicitly so the new
             // role shows up when clients walk the RoleSet's children.
-            m_roleSet.AddChild(roleState);
-            m_roleSet.AddReference(ReferenceTypeIds.HasComponent, isInverse: false, roleState.NodeId);
-            roleState.AddReference(ReferenceTypeIds.HasComponent, isInverse: true, m_roleSet.NodeId);
+            roleSet.AddChild(roleState);
+            roleSet.AddReference(ReferenceTypeIds.HasComponent, isInverse: false, roleState.NodeId);
+            roleState.AddReference(ReferenceTypeIds.HasComponent, isInverse: true, roleSet.NodeId);
 
             await m_nodeManager.AddPredefinedNodeAsync(roleState, cancellationToken)
                 .ConfigureAwait(false);
@@ -670,19 +958,55 @@ namespace Opc.Ua.Server
             m_logger.MaterializedDynamicRoleRoleNameRoleIdUnderRoleSet(roleName, roleNodeId);
         }
 
+        /// <summary>
+        /// Resolves the namespace index qualifying a role's BrowseName against
+        /// the server namespace table, falling back to the NodeId's namespace
+        /// when the manager did not record a URI or the URI is unknown here.
+        /// </summary>
+        private ushort ResolveBrowseNamespaceIndex(RoleEntry entry)
+        {
+            if (!string.IsNullOrEmpty(entry.NamespaceUri))
+            {
+                int index = m_nodeManager.SystemContext.NamespaceUris
+                    .GetIndex(entry.NamespaceUri);
+                if (index is >= 0 and <= ushort.MaxValue)
+                {
+                    return (ushort)index;
+                }
+            }
+            return entry.RoleId.NamespaceIndex;
+        }
+
         private async ValueTask DematerializeDynamicRoleAsync(
             NodeId roleNodeId,
             CancellationToken cancellationToken)
         {
             // Drop the binding bookkeeping first so any concurrent
             // RoleConfigurationChanged listener walks the new state.
-            m_boundRoles.Remove(roleNodeId);
+            m_boundRoles.TryRemove(roleNodeId, out _);
 
-            await m_nodeManager.DeleteNodeAsync(
-                    m_nodeManager.SystemContext,
-                    roleNodeId,
-                    cancellationToken)
-                .ConfigureAwait(false);
+            // Deleting the node rewrites the RoleSet's children and references,
+            // so it has to be serialized against materialization: otherwise a
+            // concurrent AddRole and RemoveRole mutate those collections from
+            // two threads. If the binding is going away there is no address
+            // space left to tidy up.
+            if (!await TryEnterRoleSetAsync(cancellationToken).ConfigureAwait(false))
+            {
+                return;
+            }
+
+            try
+            {
+                await m_nodeManager.DeleteNodeAsync(
+                        m_nodeManager.SystemContext,
+                        roleNodeId,
+                        cancellationToken)
+                    .ConfigureAwait(false);
+            }
+            finally
+            {
+                ExitRoleSet();
+            }
         }
 
         /// <summary>
@@ -988,6 +1312,29 @@ namespace Opc.Ua.Server
         public static partial void MaterializedDynamicRoleRoleNameRoleIdUnderRoleSet(
             this ILogger logger,
             string roleName,
+            NodeId roleId);
+
+        [LoggerMessage(EventId = ServerEventIds.RoleStateBinding + 3, Level = LogLevel.Error,
+            Message = "Role {RoleName} ({RoleId}) is already in use by a non-role node; " +
+                "it will not be added to the RoleSet.")]
+        public static partial void RoleRoleNameRoleIdIsAlreadyInUseByANonRoleNode(
+            this ILogger logger,
+            string? roleName,
+            NodeId roleId);
+
+        [LoggerMessage(EventId = ServerEventIds.RoleStateBinding + 4, Level = LogLevel.Error,
+            Message = "Role {RoleName} ({RoleId}) is not in a namespace owned by the RoleSet's " +
+                "NodeManager; it will not be added to the RoleSet.")]
+        public static partial void RoleRoleNameRoleIdIsNotInANamespaceOwnedBy(
+            this ILogger logger,
+            string? roleName,
+            NodeId roleId);
+
+        [LoggerMessage(EventId = ServerEventIds.RoleStateBinding + 5, Level = LogLevel.Warning,
+            Message = "Materializing role {RoleId} under the RoleSet failed.")]
+        public static partial void MaterializingRoleRoleIdFailed(
+            this ILogger logger,
+            Exception ex,
             NodeId roleId);
     }
 
