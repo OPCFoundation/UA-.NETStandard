@@ -464,17 +464,43 @@ namespace Opc.Ua.Types.Tests.Wot
         /// The specification's own Condition example must remain an accepted
         /// shape as validation of the actionable-event rules evolves.
         /// </summary>
+        /// <remarks>
+        /// The example's event affordance links to the EventType definitions of
+        /// example 27, so it converts against the local document context of
+        /// WoT Binding Section 5.1.5 that holds them.
+        /// </remarks>
         [Test]
-        public void ConditionExampleConvertsWithoutSection13Diagnostics()
+        public async Task ConditionExampleConvertsWithoutSection13DiagnosticsAsync()
+        {
+            using WotDocument document = WotDocument.Parse(ReadExample(ConditionExample));
+
+            WotConversionResult<UANodeSet> result = await WotNodeSetConverter
+                .ToNodeSetResultAsync(document, null, new EmbeddedExampleResolver())
+                .ConfigureAwait(false);
+
+            Assert.That(
+                result.Diagnostics.Where(d => d.Severity == WotDiagnosticSeverity.Error)
+                    .Select(d => d.Message),
+                Is.Empty);
+            Assert.That(result.Diagnostics.Count(IsSection13Diagnostic), Is.Zero);
+        }
+
+        /// <summary>
+        /// The same example converted without a resolver states a selection
+        /// nothing derived, which the synchronous path reports rather than
+        /// materializing an EventType that quietly lost the linked fields.
+        /// </summary>
+        [Test]
+        public void ConditionExampleWithoutAResolverReportsTheUnresolvedSelection()
         {
             using WotDocument document = WotDocument.Parse(ReadExample(ConditionExample));
 
             WotConversionResult<UANodeSet> result = WotNodeSetConverter.ToNodeSetResult(document);
 
             Assert.That(
-                result.Diagnostics.Count(d => d.Severity == WotDiagnosticSeverity.Error),
-                Is.Zero);
-            Assert.That(result.Diagnostics.Count(IsSection13Diagnostic), Is.Zero);
+                result.Diagnostics.Where(d => d.Severity == WotDiagnosticSeverity.Error)
+                    .Select(d => d.Code),
+                Is.EqualTo(new[] { WotDiagnosticCode.EventSelectionUnresolved }));
         }
 
         /// <summary>

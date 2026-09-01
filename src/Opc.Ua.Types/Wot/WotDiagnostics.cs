@@ -616,7 +616,20 @@ namespace Opc.Ua.Wot
         /// <c>uav:symmetric: true</c> together with an inverse name, which
         /// names a direction a symmetric Reference does not have.
         /// </summary>
-        ReferenceTypeProjectionInvalid = 6052
+        ReferenceTypeProjectionInvalid = 6052,
+
+        /// <summary>
+        /// An event affordance states its field selection with <c>tm:ref</c> or
+        /// <c>uav:eventSelectClauses</c> (WoT Binding Section 6.1), and the
+        /// conversion holds no resolved selection for it. An EventType
+        /// definition is a document, so deriving the selection means following
+        /// a document link, which only the asynchronous conversion does. The
+        /// synchronous conversion reports this rather than materializing an
+        /// EventType without the fields the linked definition declares: a type
+        /// that silently lost its fields is indistinguishable from one that
+        /// never had any.
+        /// </summary>
+        EventSelectionUnresolved = 6053
     }
 
     /// <summary>

@@ -338,6 +338,220 @@ namespace Opc.Ua.Types.Tests.Wot
             AssertReports(diagnostics, "uav:typeDefinitionId");
         }
 
+        /// <summary>
+        /// One instance resolves document after document: everything a call
+        /// accumulates — the documents it opened above all — belongs to that
+        /// call, so the second caller derives its own selection instead of
+        /// reading a document the first call closed.
+        /// </summary>
+        [Test]
+        public async Task OneResolverResolvesTwoDocumentsThatShareADefinitionAsync()
+        {
+            var resolver = new WotEventSelectionResolver(
+                new StubResolver(("./types.tm.jsonld", AlarmTypeDocument())));
+            string documentJson = Affordance("\"tm:ref\":\"./types.tm.jsonld#/events/alarm\"");
+
+            ArrayOf<WotResolvedEventSelectClause> first =
+                await ResolveOnceAsync(resolver, documentJson).ConfigureAwait(false);
+            ArrayOf<WotResolvedEventSelectClause> second =
+                await ResolveOnceAsync(resolver, documentJson).ConfigureAwait(false);
+
+            Assert.That(
+                second.ToList().Select(c => c.BrowsePath),
+                Is.EqualTo(first.ToList().Select(c => c.BrowsePath)).AsCollection);
+        }
+
+        /// <summary>
+        /// The same instance resolving two documents at once: each call gets
+        /// its own resolution context, so nothing one call opened, cached or
+        /// reported reaches the other.
+        /// </summary>
+        [Test]
+        public async Task OneResolverResolvesTwoDocumentsConcurrentlyAsync()
+        {
+            var resolver = new WotEventSelectionResolver(
+                new StubResolver(("./types.tm.jsonld", AlarmTypeDocument())));
+            string documentJson = Affordance("\"tm:ref\":\"./types.tm.jsonld#/events/alarm\"");
+
+            ArrayOf<WotResolvedEventSelectClause>[] resolved = await Task.WhenAll(
+                ResolveOnceAsync(resolver, documentJson),
+                ResolveOnceAsync(resolver, documentJson)).ConfigureAwait(false);
+
+            Assert.That(
+                resolved[1].ToList().Select(c => c.BrowsePath),
+                Is.EqualTo(resolved[0].ToList().Select(c => c.BrowsePath)).AsCollection);
+        }
+
+        /// <summary>
+        /// Within one call a document two affordances reference is read once,
+        /// which is what the cache is for; across calls it is read again,
+        /// because the first call closed what it read.
+        /// </summary>
+        [Test]
+        public async Task ADocumentIsReadOncePerCallAsync()
+        {
+            var stub = new StubResolver(("./types.tm.jsonld", AlarmTypeDocument()));
+            var resolver = new WotEventSelectionResolver(stub);
+            string documentJson =
+                "{\"@context\":[\"https://www.w3.org/2022/wot/td/v1.1\"," +
+                "{\"uav\":\"http://opcfoundation.org/UA/WoT-Binding/\"," +
+                "\"pump\":\"urn:test:pump\"}]," +
+                "\"@type\":\"tm:ThingModel\",\"title\":\"Pump\"," +
+                "\"events\":{" +
+                "\"alarm\":{\"@type\":\"uav:eventType\"," +
+                "\"tm:ref\":\"./types.tm.jsonld#/events/alarm\"}," +
+                "\"second\":{\"@type\":\"uav:eventType\"," +
+                "\"tm:ref\":\"./types.tm.jsonld#/events/alarm\"}}}";
+
+            using (WotDocument document = Parse(documentJson))
+            {
+                WotConversionResult<WotEventSelectionCatalog> result = await resolver
+                    .ResolveAsync(document)
+                    .ConfigureAwait(false);
+                Assert.That(result.Value, Is.Not.Null, Describe(result.Diagnostics));
+                Assert.That(result.Value!.AffordanceNames.Count, Is.EqualTo(2));
+            }
+            Assert.That(stub.Requests, Is.EqualTo(1), "One call reads one document once.");
+
+            using (WotDocument document = Parse(documentJson))
+            {
+                WotConversionResult<WotEventSelectionCatalog> result = await resolver
+                    .ResolveAsync(document)
+                    .ConfigureAwait(false);
+                Assert.That(result.Value, Is.Not.Null, Describe(result.Diagnostics));
+            }
+            Assert.That(
+                stub.Requests,
+                Is.EqualTo(2),
+                "The next call reads it again rather than reusing a closed document.");
+        }
+
+        /// <summary>
+        /// A reference that does not resolve is reported once per call, however
+        /// many affordances name it, and is reported again by the next call
+        /// rather than being silently remembered as unresolvable.
+        /// </summary>
+        [Test]
+        public async Task AnUnresolvableReferenceIsReportedOncePerCallAsync()
+        {
+            var resolver = new WotEventSelectionResolver(new StubResolver());
+            string documentJson =
+                "{\"@context\":[\"https://www.w3.org/2022/wot/td/v1.1\"," +
+                "{\"uav\":\"http://opcfoundation.org/UA/WoT-Binding/\"}]," +
+                "\"@type\":\"tm:ThingModel\",\"title\":\"Pump\"," +
+                "\"events\":{" +
+                "\"alarm\":{\"@type\":\"uav:eventType\"," +
+                "\"tm:ref\":\"./missing.tm.jsonld\"}," +
+                "\"second\":{\"@type\":\"uav:eventType\"," +
+                "\"tm:ref\":\"./missing.tm.jsonld\"}}}";
+
+            for (int call = 0; call < 2; call++)
+            {
+                using WotDocument document = Parse(documentJson);
+                WotConversionResult<WotEventSelectionCatalog> result = await resolver
+                    .ResolveAsync(document)
+                    .ConfigureAwait(false);
+
+                Assert.That(result.Value, Is.Null);
+                Assert.That(
+                    result.Diagnostics.Count(d =>
+                        d.Message.Contains("does not resolve", StringComparison.Ordinal)),
+                    Is.EqualTo(1),
+                    Describe(result.Diagnostics));
+            }
+        }
+
+        /// <summary>
+        /// A resolution context is shared with every other phase of a
+        /// conversion, so what those phases reported is theirs: it neither
+        /// fails an otherwise clean selection nor is emitted a second time
+        /// here, and the caller's own diagnostics are left as they were.
+        /// </summary>
+        [Test]
+        public async Task AnUnrelatedContextErrorNeitherFailsNorRepeatsAsync()
+        {
+            var context = new WotResolutionContext(
+                new WotNodeSetConverterOptions().ToResolverOptions());
+            Assert.That(
+                context.TryAddBytes("urn:unrelated", int.MaxValue, out _),
+                Is.False,
+                "The seeded error stands in for one an earlier phase reported.");
+
+            using WotDocument document = Parse(
+                Affordance("\"tm:ref\":\"./types.tm.jsonld#/events/alarm\""));
+            var resolver = new WotEventSelectionResolver(
+                new StubResolver(("./types.tm.jsonld", AlarmTypeDocument())));
+
+            WotConversionResult<WotEventSelectionCatalog> result = await resolver
+                .ResolveAsync(document, context)
+                .ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(result.Value, Is.Not.Null, Describe(result.Diagnostics));
+                Assert.That(result.Diagnostics, Is.Empty);
+                Assert.That(
+                    context.Diagnostics,
+                    Has.Count.EqualTo(1),
+                    "The caller's diagnostics are neither cleared nor added to.");
+            });
+        }
+
+        /// <summary>
+        /// A local error still fails the call, and is reported exactly once
+        /// even though the shared context already carries one of its own.
+        /// </summary>
+        [Test]
+        public async Task ALocalErrorStillFailsTheCallExactlyOnceAsync()
+        {
+            var context = new WotResolutionContext(
+                new WotNodeSetConverterOptions().ToResolverOptions());
+            Assert.That(context.TryAddBytes("urn:unrelated", int.MaxValue, out _), Is.False);
+
+            using WotDocument document = Parse(
+                Affordance("\"tm:ref\":\"./missing.tm.jsonld\""));
+            var resolver = new WotEventSelectionResolver(new StubResolver());
+
+            WotConversionResult<WotEventSelectionCatalog> result = await resolver
+                .ResolveAsync(document, context)
+                .ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(result.Value, Is.Null);
+                Assert.That(result.Diagnostics, Has.Count.EqualTo(1));
+                Assert.That(
+                    result.Diagnostics[0].Message,
+                    Does.Contain("does not resolve"));
+            });
+        }
+
+        /// <summary>
+        /// A bound the context blocks on is recorded where it happens and is
+        /// not restated by copying the context out afterwards.
+        /// </summary>
+        [Test]
+        public async Task ABlockedLimitIsReportedOnceAsync()
+        {
+            var options = new WotNodeSetConverterOptions();
+            options.MaxResolverDocumentBytes = 64;
+
+            IReadOnlyList<WotDiagnostic> diagnostics = await ResolveWithErrorsAsync(
+                Affordance("\"tm:ref\":\"./types.tm.jsonld#/events/alarm\""),
+                options,
+                ("./types.tm.jsonld", AlarmTypeDocument())).ConfigureAwait(false);
+
+            Assert.That(
+                diagnostics.Count(d => d.Code == WotDiagnosticCode.ResolverLimitExceeded),
+                Is.EqualTo(1),
+                Describe(diagnostics));
+        }
+
+        private static string Describe(IReadOnlyList<WotDiagnostic> diagnostics)
+        {
+            return string.Join("; ", diagnostics.Select(d => d.Message));
+        }
+
         private static void AssertReports(
             IReadOnlyList<WotDiagnostic> diagnostics, string fragment)
         {
@@ -347,6 +561,33 @@ namespace Opc.Ua.Types.Tests.Wot
                     d.Message.Contains(fragment, StringComparison.Ordinal)),
                 Is.True,
                 string.Join("; ", diagnostics.Select(d => d.Message)));
+        }
+
+        /// <summary>
+        /// Resolves one document with a caller-supplied resolver instance, so a
+        /// test can hand the same instance more than one document.
+        /// </summary>
+        private static async Task<ArrayOf<WotResolvedEventSelectClause>> ResolveOnceAsync(
+            WotEventSelectionResolver resolver,
+            string documentJson)
+        {
+            using WotDocument document = Parse(documentJson);
+            WotConversionResult<WotEventSelectionCatalog> result = await resolver
+                .ResolveAsync(document)
+                .ConfigureAwait(false);
+
+            Assert.That(result.Value, Is.Not.Null, Describe(result.Diagnostics));
+            Assert.That(
+                result.Value!.TryGetSelection(
+                    "alarm", out ArrayOf<WotResolvedEventSelectClause> clauses),
+                Is.True);
+            Assert.That(
+                result.Value.TryGetLinkedData("alarm", out ReadOnlyMemory<byte> linked),
+                Is.True,
+                "The linked definition's schema is carried out of the document it came from, " +
+                "which is closed when the call ends.");
+            Assert.That(linked.Length, Is.GreaterThan(0));
+            return clauses;
         }
 
         private static async Task<ArrayOf<WotResolvedEventSelectClause>> ResolveAsync(
@@ -484,7 +725,7 @@ namespace Opc.Ua.Types.Tests.Wot
         /// </summary>
         private sealed class StubResolver : IWotThingResolver
         {
-            public StubResolver((string Href, string Json)[] documents)
+            public StubResolver(params (string Href, string Json)[] documents)
             {
                 foreach ((string href, string json) in documents)
                 {
@@ -492,12 +733,19 @@ namespace Opc.Ua.Types.Tests.Wot
                 }
             }
 
+            /// <summary>
+            /// Gets how many times a document was asked for, which is what
+            /// tells a per-call cache from a per-instance one.
+            /// </summary>
+            public int Requests => Volatile.Read(ref m_requests);
+
             public ValueTask<WotResolverResult> ResolveThingAsync(
                 string reference,
                 WotResolutionContext context,
                 CancellationToken cancellationToken)
             {
                 cancellationToken.ThrowIfCancellationRequested();
+                Interlocked.Increment(ref m_requests);
                 return new ValueTask<WotResolverResult>(
                     m_documents.TryGetValue(reference, out string json)
                         ? WotResolverResult.FromBytes(Encoding.UTF8.GetBytes(json))
@@ -505,6 +753,7 @@ namespace Opc.Ua.Types.Tests.Wot
             }
 
             private readonly Dictionary<string, string> m_documents = new(StringComparer.Ordinal);
+            private int m_requests;
         }
     }
 }

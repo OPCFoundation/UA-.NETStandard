@@ -283,6 +283,30 @@ model fact — and the OPC UA binding runtime compiles the resolved selection in
 the `EventFilter.SelectClauses` of the MonitoredItem (see
 [WotBindings.md](WotBindings.md#event-field-selection-tmref-and-uaveventselectclauses)).
 
+### Resolving a stated selection needs the asynchronous conversion
+
+An EventType definition is a *document*, so deriving a selection means following
+a document link. Only `WotNodeSetConverter.ToNodeSetResultAsync` does that, and
+only when it is given an `IWotThingResolver` holding the local document context
+of Section 5.1.5:
+
+```csharp
+WotConversionResult<UANodeSet> result = await WotNodeSetConverter
+    .ToNodeSetResultAsync(document, options, thingResolver, cancellationToken: ct)
+    .ConfigureAwait(false);
+```
+
+The synchronous `ToNodeSetResult` and `ToNodeSet` follow no link. An affordance
+that states a selection — a `tm:ref`, `uav:eventSelectClauses`, or both — is
+therefore reported with `WotDiagnosticCode.EventSelectionUnresolved` rather than
+converted, because an EventType materialized without the fields its linked
+definition declares is indistinguishable from one that never had any. Where
+every reference a document writes is local to that document,
+`NullWotResolver.Instance` is the explicit "no external resolution" policy that
+still takes the asynchronous path. An affordance that states no selection needs
+no resolution: it takes the implicit `BaseEventType` default and converts
+synchronously as before.
+
 ## DataType definitions (Section 6.11)
 
 WoT Binding §6.11 gives Structures, Unions, Enumerations, OptionSets and

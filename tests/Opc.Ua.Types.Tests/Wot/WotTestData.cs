@@ -29,10 +29,14 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Text;
+using System.Threading;
+using System.Threading.Tasks;
 using System.Xml;
 using Opc.Ua.Export;
+using Opc.Ua.Wot;
 
 namespace Opc.Ua.Types.Tests.Wot
 {
@@ -434,6 +438,18 @@ namespace Opc.Ua.Types.Tests.Wot
             return stream.ToArray();
         }
 
+        /// <summary>
+        /// Serves the sibling EventType definitions the event-selection
+        /// fixtures name, so a document that states a selection of WoT Binding
+        /// Section 6.1 converts through the asynchronous path that resolves it.
+        /// </summary>
+        public static IWotThingResolver EventTypeDocuments()
+        {
+            return new SiblingDocumentResolver(
+                ("./base-event.tm.jsonld", BaseEventTypeDocument),
+                ("./condition.tm.jsonld", ConditionTypeDocument));
+        }
+
         public static byte[] Utf8(string text)
         {
             return Encoding.UTF8.GetBytes(text);
@@ -461,6 +477,67 @@ namespace Opc.Ua.Types.Tests.Wot
                 document.Load(reader);
             }
             return document.DocumentElement;
+        }
+
+        /// <summary>
+        /// The <c>BaseEventType</c> definition the fixtures link to: the fields
+        /// a clause names plus the identity every clause taken from it carries
+        /// (WoT Binding Section 6.1).
+        /// </summary>
+        private const string BaseEventTypeDocument =
+            "{\"@context\":[\"https://www.w3.org/2022/wot/td/v1.1\"," +
+            "{\"uav\":\"http://opcfoundation.org/UA/WoT-Binding/\"," +
+            "\"pump\":\"urn:test:pump\"}]," +
+            "\"@type\":[\"tm:ThingModel\",\"uav:eventType\"]," +
+            "\"title\":\"BaseEventType\",\"uav:id\":\"i=2041\"," +
+            "\"data\":{\"type\":\"object\"," +
+            "\"uav:fieldOrder\":[\"EventId\",\"Severity\",\"Trace\"]," +
+            "\"properties\":{\"EventId\":{\"type\":\"string\"}," +
+            "\"Severity\":{\"type\":\"integer\"}," +
+            "\"Trace\":{\"uav:browseName\":\"pump:Trace\",\"type\":\"string\"}}}}";
+
+        /// <summary>
+        /// The <c>ConditionType</c> definition the fixtures link to.
+        /// </summary>
+        private const string ConditionTypeDocument =
+            "{\"@context\":[\"https://www.w3.org/2022/wot/td/v1.1\"," +
+            "{\"uav\":\"http://opcfoundation.org/UA/WoT-Binding/\"}]," +
+            "\"@type\":[\"tm:ThingModel\",\"uav:eventType\"]," +
+            "\"title\":\"ConditionType\",\"uav:id\":\"i=2782\"," +
+            "\"data\":{\"type\":\"object\"," +
+            "\"uav:fieldOrder\":[\"ConditionId\",\"Severity\",\"LastSeverity\"]," +
+            "\"properties\":{\"ConditionId\":{\"type\":\"string\"}," +
+            "\"Severity\":{\"type\":\"integer\"}," +
+            "\"LastSeverity\":{\"type\":\"integer\"}}}}";
+
+        /// <summary>
+        /// Serves a fixed set of sibling documents by href, and nothing else:
+        /// a reference resolves through the local document context of WoT
+        /// Binding Section 5.1.5 and is never dereferenced over the network.
+        /// </summary>
+        private sealed class SiblingDocumentResolver : IWotThingResolver
+        {
+            public SiblingDocumentResolver(params (string Href, string Json)[] documents)
+            {
+                foreach ((string href, string json) in documents)
+                {
+                    m_documents[href] = json;
+                }
+            }
+
+            public ValueTask<WotResolverResult> ResolveThingAsync(
+                string reference,
+                WotResolutionContext context,
+                CancellationToken cancellationToken)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                return new ValueTask<WotResolverResult>(
+                    m_documents.TryGetValue(reference, out string json)
+                        ? WotResolverResult.FromBytes(Utf8(json))
+                        : WotResolverResult.NotFound);
+            }
+
+            private readonly Dictionary<string, string> m_documents = new(StringComparer.Ordinal);
         }
     }
 }

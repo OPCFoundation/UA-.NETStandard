@@ -27,6 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.Json;
@@ -207,6 +208,174 @@ namespace Opc.Ua.Types.Tests.Wot
             });
         }
 
+        /// <summary>
+        /// A fast-path affordance declares no <c>data</c> of its own, so its
+        /// fields are the linked definition's. The synchronous conversion
+        /// resolves nothing, and reports that instead of materializing an
+        /// EventType with no field at all.
+        /// </summary>
+        [Test]
+        public void AFastPathAffordanceWithoutAResolverIsReported()
+        {
+            using WotDocument document = Parse(FastPathDocument());
+
+            WotConversionResult<UANodeSet> result = WotNodeSetConverter.ToNodeSetResult(document);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    result.Diagnostics.Where(d => d.Severity == WotDiagnosticSeverity.Error)
+                        .Select(d => d.Code),
+                    Is.EqualTo(new[] { WotDiagnosticCode.EventSelectionUnresolved }),
+                    Describe(result));
+                Assert.That(
+                    result.Diagnostics
+                        .First(d => d.Code == WotDiagnosticCode.EventSelectionUnresolved)
+                        .Message,
+                    Does.Contain("ToNodeSetResultAsync").And.Contain("IWotThingResolver"),
+                    "The report names the way to convert the document.");
+            });
+        }
+
+        /// <summary>
+        /// The throwing synchronous entry point fails rather than returning a
+        /// NodeSet whose EventType quietly lost the linked fields.
+        /// </summary>
+        [Test]
+        public void AFastPathAffordanceWithoutAResolverThrows()
+        {
+            using WotDocument document = Parse(FastPathDocument());
+
+            Assert.That(
+                () => WotNodeSetConverter.ToNodeSet(document),
+                Throws.TypeOf<FormatException>());
+        }
+
+        /// <summary>
+        /// An affordance that writes explicit clauses names the EventType each
+        /// one is taken from, so it is resolved the same way and reported the
+        /// same way where it is not.
+        /// </summary>
+        [Test]
+        public void ExplicitClausesWithoutAResolverAreReported()
+        {
+            using WotDocument document = Parse(ExplicitClauseDocument());
+
+            WotConversionResult<UANodeSet> result = WotNodeSetConverter.ToNodeSetResult(document);
+
+            Assert.That(
+                result.Diagnostics.Where(d => d.Severity == WotDiagnosticSeverity.Error)
+                    .Select(d => d.Code),
+                Is.EqualTo(new[] { WotDiagnosticCode.EventSelectionUnresolved }),
+                Describe(result));
+        }
+
+        /// <summary>
+        /// Given the document the link names, the same conversion materializes
+        /// the EventType's fields from the definition's effective schema
+        /// (WoT Binding Section 6.1).
+        /// </summary>
+        [Test]
+        public async Task AFastPathAffordanceMaterializesTheLinkedFieldsAsync()
+        {
+            using WotDocument document = Parse(FastPathDocument());
+
+            WotConversionResult<UANodeSet> result = await WotNodeSetConverter
+                .ToNodeSetResultAsync(document, null, LinkedDefinition())
+                .ConfigureAwait(false);
+
+            Assert.That(
+                result.Diagnostics.Where(d => d.Severity == WotDiagnosticSeverity.Error)
+                    .Select(d => d.Message),
+                Is.Empty);
+            Assert.That(
+                result.Value!.Items.OfType<UAVariable>()
+                    .Select(v => v.BrowseName),
+                Does.Contain("1:Temperature"),
+                "The field the linked definition declares and BaseEventType does not is the " +
+                "one the projected type adds.");
+        }
+
+        /// <summary>
+        /// An affordance that states no selection takes the implicit
+        /// <c>BaseEventType</c> default, which needs no resolution: the
+        /// synchronous conversion keeps converting it unchanged.
+        /// </summary>
+        [Test]
+        public void AnAffordanceStatingNoSelectionStillConvertsSynchronously()
+        {
+            using WotDocument document = Parse(
+                ThingModel(
+                    "\"events\":{\"alarm\":{\"@type\":\"uav:eventType\",\"uav:isEvent\":true," +
+                    "\"uav:browseName\":\"pump:AlarmType\"," +
+                    "\"data\":{\"type\":\"object\",\"properties\":{" +
+                    "\"Temperature\":{\"type\":\"number\"}}}}}"));
+
+            WotConversionResult<UANodeSet> result = WotNodeSetConverter.ToNodeSetResult(document);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    result.Diagnostics.Where(d => d.Severity == WotDiagnosticSeverity.Error)
+                        .Select(d => d.Message),
+                    Is.Empty);
+                Assert.That(
+                    result.Value!.Items.OfType<UAVariable>().Select(v => v.BrowseName),
+                    Does.Contain("1:Temperature"));
+            });
+        }
+
+        private static WotDocument Parse(string json)
+        {
+            return WotDocument.Parse(System.Text.Encoding.UTF8.GetBytes(json));
+        }
+
+        private static string ThingModel(string members)
+        {
+            return "{\"@context\":[\"https://www.w3.org/2022/wot/td/v1.1\"," +
+                "{\"uav\":\"http://opcfoundation.org/UA/WoT-Binding/\"," +
+                "\"pump\":\"urn:test:pump\"}]," +
+                "\"@type\":[\"tm:ThingModel\",\"uav:objectType\"]," +
+                "\"title\":\"Pump\",\"uav:browseName\":\"pump:PumpType\"," +
+                "\"uav:id\":\"nsu=urn:test:pump;i=1001\"," + members + "}";
+        }
+
+        /// <summary>
+        /// An affordance that names its EventType definition and declares no
+        /// <c>data</c> of its own: without the definition it has no fields at
+        /// all.
+        /// </summary>
+        private static string FastPathDocument()
+        {
+            return ThingModel(
+                "\"events\":{\"alarm\":{\"@type\":\"uav:eventType\",\"uav:isEvent\":true," +
+                "\"uav:browseName\":\"pump:AlarmType\"," +
+                "\"tm:ref\":\"./alarm.tm.jsonld\"}}");
+        }
+
+        private static string ExplicitClauseDocument()
+        {
+            return ThingModel(
+                "\"events\":{\"alarm\":{\"@type\":\"uav:eventType\",\"uav:isEvent\":true," +
+                "\"uav:browseName\":\"pump:AlarmType\"," +
+                "\"uav:eventSelectClauses\":[{\"tm:ref\":\"./alarm.tm.jsonld\"," +
+                "\"uav:browsePath\":\"Temperature\"}]}}");
+        }
+
+        private static HrefResolver LinkedDefinition()
+        {
+            return new HrefResolver(
+                "./alarm.tm.jsonld",
+                "{\"@context\":[\"https://www.w3.org/2022/wot/td/v1.1\"," +
+                "{\"uav\":\"http://opcfoundation.org/UA/WoT-Binding/\"}]," +
+                "\"@type\":[\"tm:ThingModel\",\"uav:eventType\"]," +
+                "\"title\":\"AlarmType\",\"uav:id\":\"nsu=urn:test:pump;i=1002\"," +
+                "\"data\":{\"type\":\"object\"," +
+                "\"uav:fieldOrder\":[\"EventId\",\"Temperature\"]," +
+                "\"properties\":{\"EventId\":{\"type\":\"string\"}," +
+                "\"Temperature\":{\"type\":\"number\"}}}}");
+        }
+
         private static WotDocument FindEventTypeDocument(WotDocumentSet set)
         {
             return set.Entries.ToList()
@@ -340,6 +509,34 @@ namespace Opc.Ua.Types.Tests.Wot
             }
 
             private readonly WotDocumentSet m_set;
+        }
+
+        /// <summary>
+        /// Serves one document under one href, and nothing else.
+        /// </summary>
+        private sealed class HrefResolver : IWotThingResolver
+        {
+            public HrefResolver(string href, string json)
+            {
+                m_href = href;
+                m_json = json;
+            }
+
+            public ValueTask<WotResolverResult> ResolveThingAsync(
+                string reference,
+                WotResolutionContext context,
+                CancellationToken cancellationToken)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                return new ValueTask<WotResolverResult>(
+                    string.Equals(reference, m_href, System.StringComparison.Ordinal)
+                        ? WotResolverResult.FromBytes(
+                            System.Text.Encoding.UTF8.GetBytes(m_json))
+                        : WotResolverResult.NotFound);
+            }
+
+            private readonly string m_href;
+            private readonly string m_json;
         }
     }
 }

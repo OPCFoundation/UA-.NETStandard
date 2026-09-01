@@ -207,6 +207,15 @@ namespace Opc.Ua.Wot
     /// selection is produced for that affordance, because a partial selection
     /// is a subscription that silently omits fields.
     /// </para>
+    /// <para>
+    /// An instance holds nothing a call leaves behind: the documents a
+    /// reference opens, the references that failed to open and the linked
+    /// schemas carried out of them all live for exactly one
+    /// <see cref="ResolveAsync"/>, which is what lets one instance resolve
+    /// document after document — and resolve several at once, each with its own
+    /// <see cref="WotResolutionContext"/> — instead of handing the second
+    /// caller a document the first one closed.
+    /// </para>
     /// </remarks>
     public sealed class WotEventSelectionResolver
     {
@@ -258,6 +267,13 @@ namespace Opc.Ua.Wot
         /// <summary>
         /// Resolves every event affordance selection a document states.
         /// </summary>
+        /// <remarks>
+        /// Every document opened, every reference that failed to open and every
+        /// linked schema carried out belongs to this call alone, so the same
+        /// instance may resolve one document after another, and may resolve
+        /// several concurrently where each call is given its own
+        /// <paramref name="resolutionContext"/>.
+        /// </remarks>
         /// <param name="document">The document.</param>
         /// <param name="resolutionContext">
         /// The resolution context that bounds the work, or <c>null</c> to
@@ -265,8 +281,9 @@ namespace Opc.Ua.Wot
         /// </param>
         /// <param name="cancellationToken">A cancellation token.</param>
         /// <returns>
-        /// A result carrying the catalog together with the diagnostics
-        /// produced. The value is <c>null</c> when any error was reported.
+        /// A result carrying the catalog together with the diagnostics this
+        /// call produced. The value is <c>null</c> when this call reported an
+        /// error.
         /// </returns>
         /// <exception cref="ArgumentNullException">
         /// <paramref name="document"/> is <c>null</c>.
@@ -281,50 +298,40 @@ namespace Opc.Ua.Wot
             {
                 throw new ArgumentNullException(nameof(document));
             }
-            var diagnostics = new List<WotDiagnostic>();
-            WotResolutionContext context = resolutionContext ??
-                new WotResolutionContext(m_options.ToResolverOptions());
             var selections = new Dictionary<string, WotEventSelectionCatalog.Entry>(
                 StringComparer.Ordinal);
-            var open = new List<WotDocument>();
-            try
+            using var scope = new ResolutionScope(
+                resolutionContext ??
+                    new WotResolutionContext(m_options.ToResolverOptions()));
+            foreach (KeyValuePair<string, JsonElement> affordance in document.Events)
             {
-                foreach (KeyValuePair<string, JsonElement> affordance in document.Events)
+                if (!StatesSelection(affordance.Value))
                 {
-                    if (!StatesSelection(affordance.Value))
-                    {
-                        continue;
-                    }
-                    ArrayOf<WotResolvedEventSelectClause> resolved = await ResolveAffordanceAsync(
-                            document,
-                            affordance.Key,
-                            affordance.Value,
-                            context,
-                            open,
-                            diagnostics,
-                            cancellationToken)
-                        .ConfigureAwait(false);
-                    if (!resolved.IsNull && resolved.Count > 0)
-                    {
-                        selections[affordance.Key] = new WotEventSelectionCatalog.Entry(
-                            resolved, TakeLinkedData(affordance.Key));
-                    }
+                    continue;
                 }
-            }
-            finally
-            {
-                foreach (WotDocument opened in open)
+                ArrayOf<WotResolvedEventSelectClause> resolved = await ResolveAffordanceAsync(
+                        document,
+                        affordance.Key,
+                        affordance.Value,
+                        scope,
+                        cancellationToken)
+                    .ConfigureAwait(false);
+                if (!resolved.IsNull && resolved.Count > 0)
                 {
-                    opened.Dispose();
+                    selections[affordance.Key] = new WotEventSelectionCatalog.Entry(
+                        resolved, scope.TakeLinkedData(affordance.Key));
                 }
-                m_linkedData.Clear();
             }
 
-            foreach (WotDiagnostic diagnostic in context.Diagnostics)
-            {
-                diagnostics.Add(diagnostic);
-            }
+            // Only what this call reported decides this call's outcome. The
+            // context accumulates the diagnostics of every phase that shares
+            // it, so reading it here would both re-emit what another phase has
+            // already surfaced and fail an otherwise clean selection over an
+            // error that has nothing to do with it. Every limit the context
+            // blocks on is returned by TryEnter and TryAddBytes and is recorded
+            // locally where it happens.
             bool failed = false;
+            List<WotDiagnostic> diagnostics = scope.Diagnostics;
             for (int ii = 0; ii < diagnostics.Count; ii++)
             {
                 if (diagnostics[ii].Severity == WotDiagnosticSeverity.Error)
@@ -337,23 +344,15 @@ namespace Opc.Ua.Wot
                 failed ? null : WotEventSelectionCatalog.Create(selections), diagnostics);
         }
 
-        private ReadOnlyMemory<byte> TakeLinkedData(string affordanceName)
-        {
-            return m_linkedData.TryGetValue(affordanceName, out byte[]? data)
-                ? data
-                : default;
-        }
-
         private async System.Threading.Tasks.ValueTask<ArrayOf<WotResolvedEventSelectClause>>
             ResolveAffordanceAsync(
                 WotDocument document,
                 string affordanceName,
                 JsonElement affordance,
-                WotResolutionContext context,
-                List<WotDocument> open,
-                List<WotDiagnostic> diagnostics,
+                ResolutionScope scope,
                 System.Threading.CancellationToken cancellationToken)
         {
+            List<WotDiagnostic> diagnostics = scope.Diagnostics;
             string where = "/events/" + EscapePointerToken(affordanceName);
             int errorsBefore = CountErrors(diagnostics);
 
@@ -377,7 +376,7 @@ namespace Opc.Ua.Wot
                 }
                 string link = reference.GetString() ?? string.Empty;
                 EventTypeDefinition? definition = await ResolveDefinitionAsync(
-                        document, link, where, context, open, diagnostics, cancellationToken)
+                        document, link, where, scope, cancellationToken)
                     .ConfigureAwait(false);
                 if (definition is null)
                 {
@@ -387,8 +386,9 @@ namespace Opc.Ua.Wot
                 {
                     effectiveData = definition.Data;
                     hasEffectiveData = true;
-                    m_linkedData[affordanceName] =
-                        System.Text.Encoding.UTF8.GetBytes(definition.Data.GetRawText());
+                    scope.SetLinkedData(
+                        affordanceName,
+                        System.Text.Encoding.UTF8.GetBytes(definition.Data.GetRawText()));
                 }
                 if (!TryDeriveBaseline(document, definition, where, diagnostics, baseline))
                 {
@@ -429,9 +429,7 @@ namespace Opc.Ua.Wot
                             document,
                             clause.TypeDefinitionReference,
                             at,
-                            context,
-                            open,
-                            diagnostics,
+                            scope,
                             cancellationToken)
                         .ConfigureAwait(false);
                     if (target is null)
@@ -725,11 +723,10 @@ namespace Opc.Ua.Wot
             WotDocument document,
             string reference,
             string where,
-            WotResolutionContext context,
-            List<WotDocument> open,
-            List<WotDiagnostic> diagnostics,
+            ResolutionScope scope,
             System.Threading.CancellationToken cancellationToken)
         {
+            List<WotDiagnostic> diagnostics = scope.Diagnostics;
             var seen = new HashSet<string>(StringComparer.Ordinal);
             string current = reference;
             bool carriesAnnotation = false;
@@ -737,7 +734,7 @@ namespace Opc.Ua.Wot
             string? typeDefinitionId = null;
             JsonElement data = default;
             bool hasData = false;
-            int maxDepth = Math.Max(1, context.Options.MaxDepth);
+            int maxDepth = Math.Max(1, scope.Context.Options.MaxDepth);
 
             for (int depth = 0; depth < maxDepth; depth++)
             {
@@ -760,7 +757,7 @@ namespace Opc.Ua.Wot
                 else
                 {
                     WotDocument? resolved = await LoadAsync(
-                            documentUri, where, context, open, diagnostics, cancellationToken)
+                            documentUri, where, scope, cancellationToken)
                         .ConfigureAwait(false);
                     if (resolved is null)
                     {
@@ -893,24 +890,24 @@ namespace Opc.Ua.Wot
         private async System.Threading.Tasks.ValueTask<WotDocument?> LoadAsync(
             string documentUri,
             string where,
-            WotResolutionContext context,
-            List<WotDocument> open,
-            List<WotDiagnostic> diagnostics,
+            ResolutionScope scope,
             System.Threading.CancellationToken cancellationToken)
         {
-            if (m_loaded.TryGetValue(documentUri, out WotDocument? cached))
+            List<WotDiagnostic> diagnostics = scope.Diagnostics;
+            if (scope.TryGetLoaded(documentUri, out WotDocument? cached))
             {
                 return cached;
             }
-            if (m_unresolvable.Contains(documentUri))
+            if (scope.IsUnresolvable(documentUri))
             {
                 return null;
             }
+            WotResolutionContext context = scope.Context;
             if (!context.TryEnter(
                 WotResolutionKind.Thing, documentUri, out WotDiagnostic? blocked))
             {
                 diagnostics.Add(blocked!);
-                m_unresolvable.Add(documentUri);
+                scope.MarkUnresolvable(documentUri);
                 return null;
             }
             try
@@ -927,20 +924,20 @@ namespace Opc.Ua.Wot
                         "documents held together with this one and is never dereferenced over " +
                         "the network (WoT Binding Sections 5.1.5 and 6.1).",
                         where);
-                    m_unresolvable.Add(documentUri);
+                    scope.MarkUnresolvable(documentUri);
                     return null;
                 }
                 if (!context.TryAddBytes(
                     documentUri, result.Content.Length, out WotDiagnostic? limit))
                 {
                     diagnostics.Add(limit!);
-                    m_unresolvable.Add(documentUri);
+                    scope.MarkUnresolvable(documentUri);
                     return null;
                 }
                 WotDocument parsed;
                 try
                 {
-#pragma warning disable CA2000 // Ownership transfers to 'open', which the caller disposes.
+#pragma warning disable CA2000 // Ownership transfers to the scope, which disposes it.
                     parsed = WotDocument.Parse(result.Content, m_options);
 #pragma warning restore CA2000
                 }
@@ -952,11 +949,10 @@ namespace Opc.Ua.Wot
                         $"The EventType reference target '{documentUri}' is not a well-formed " +
                         "document: " + exception.Message,
                         where);
-                    m_unresolvable.Add(documentUri);
+                    scope.MarkUnresolvable(documentUri);
                     return null;
                 }
-                open.Add(parsed);
-                m_loaded.Add(documentUri, parsed);
+                scope.AddLoaded(documentUri, parsed);
                 return parsed;
             }
             finally
@@ -1193,10 +1189,80 @@ namespace Opc.Ua.Wot
             public JsonElement Data { get; }
         }
 
+        /// <summary>
+        /// Everything one <see cref="ResolveAsync"/> accumulates: the bounds it
+        /// resolves under, the diagnostics it reports, the documents it opened,
+        /// the references it already found unresolvable and the linked schemas
+        /// it carries out.
+        /// </summary>
+        /// <remarks>
+        /// The two caches are what keeps a document that several affordances
+        /// reference read once, and what keeps one unresolvable reference from
+        /// being reported once per affordance that names it. They are scoped to
+        /// the call rather than to the instance because the documents they hold
+        /// are closed when the call ends: an instance-wide cache would hand the
+        /// next caller a <see cref="WotDocument"/> that this one disposed.
+        /// </remarks>
+        private sealed class ResolutionScope : IDisposable
+        {
+            public ResolutionScope(WotResolutionContext context)
+            {
+                Context = context;
+            }
+
+            public WotResolutionContext Context { get; }
+
+            public List<WotDiagnostic> Diagnostics { get; } = [];
+
+            public bool TryGetLoaded(string documentUri, out WotDocument? document)
+            {
+                return m_loaded.TryGetValue(documentUri, out document);
+            }
+
+            public void AddLoaded(string documentUri, WotDocument document)
+            {
+                m_loaded.Add(documentUri, document);
+            }
+
+            public bool IsUnresolvable(string documentUri)
+            {
+                return m_unresolvable.Contains(documentUri);
+            }
+
+            public void MarkUnresolvable(string documentUri)
+            {
+                m_unresolvable.Add(documentUri);
+            }
+
+            public void SetLinkedData(string affordanceName, byte[] utf8Json)
+            {
+                m_linkedData[affordanceName] = utf8Json;
+            }
+
+            public ReadOnlyMemory<byte> TakeLinkedData(string affordanceName)
+            {
+                return m_linkedData.TryGetValue(affordanceName, out byte[]? data)
+                    ? data
+                    : default;
+            }
+
+            public void Dispose()
+            {
+                foreach (WotDocument opened in m_loaded.Values)
+                {
+                    opened.Dispose();
+                }
+                m_loaded.Clear();
+                m_unresolvable.Clear();
+                m_linkedData.Clear();
+            }
+
+            private readonly Dictionary<string, WotDocument> m_loaded = new(StringComparer.Ordinal);
+            private readonly HashSet<string> m_unresolvable = new(StringComparer.Ordinal);
+            private readonly Dictionary<string, byte[]> m_linkedData = new(StringComparer.Ordinal);
+        }
+
         private readonly IWotThingResolver m_thingResolver;
         private readonly WotNodeSetConverterOptions m_options;
-        private readonly Dictionary<string, WotDocument> m_loaded = new(StringComparer.Ordinal);
-        private readonly HashSet<string> m_unresolvable = new(StringComparer.Ordinal);
-        private readonly Dictionary<string, byte[]> m_linkedData = new(StringComparer.Ordinal);
     }
 }

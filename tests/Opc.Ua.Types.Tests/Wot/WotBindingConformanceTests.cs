@@ -31,6 +31,7 @@ using System;
 using System.Linq;
 using System.Text;
 using System.Text.Json;
+using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Export;
 using Opc.Ua.Wot;
@@ -199,13 +200,13 @@ namespace Opc.Ua.Types.Tests.Wot
         }
 
         [Test]
-        public void SelectClausesSurviveWotToNodeSetToWot()
+        public async Task SelectClausesSurviveWotToNodeSetToWotAsync()
         {
             using WotDocument original = ParseThingModel(EventWithClauses(
                 "{\"tm:ref\":\"./base-event.tm.jsonld\",\"uav:browsePath\":\"EventId\"}," +
                 "{\"tm:ref\":\"./condition.tm.jsonld\",\"uav:browsePath\":\"\"}"));
 
-            UANodeSet nodeSet = WotNodeSetConverter.ToNodeSet(original);
+            UANodeSet nodeSet = await ConvertResolvedAsync(original).ConfigureAwait(false);
             using WotDocument restored = WotNodeSetConverter.FromNodeSet(nodeSet);
 
             JsonElement affordance = restored.Events.Values.Single();
@@ -221,7 +222,7 @@ namespace Opc.Ua.Types.Tests.Wot
         }
 
         [Test]
-        public void ADocumentCarryingTheNewTermsImportsAsANodeSet()
+        public async Task ADocumentCarryingTheNewTermsImportsAsANodeSetAsync()
         {
             using WotDocument original = ParseThingModel(
                 "\"uav:bindingVersion\":\"1.1\",\"uav:profile\":[\"WoT-Modeller\"]," +
@@ -232,13 +233,33 @@ namespace Opc.Ua.Types.Tests.Wot
                 EventWithClauses(
                     "{\"tm:ref\":\"./base-event.tm.jsonld\",\"uav:browsePath\":\"EventId\"}"));
 
-            UANodeSet nodeSet = WotNodeSetConverter.ToNodeSet(original);
+            UANodeSet nodeSet = await ConvertResolvedAsync(original).ConfigureAwait(false);
             byte[] serialized = WotTestData.Serialize(nodeSet);
             using var stream = new System.IO.MemoryStream(serialized);
             UANodeSet reread = UANodeSet.Read(stream);
 
             Assert.That(reread.Items, Is.Not.Null);
             Assert.DoesNotThrow(() => WotNodeSetConverter.FromNodeSet(reread).Dispose());
+        }
+
+        /// <summary>
+        /// An affordance that states a selection of WoT Binding Section 6.1
+        /// names EventType definitions that live in other documents, so it
+        /// converts through the asynchronous path that holds them and is
+        /// reported by the synchronous one that does not.
+        /// </summary>
+        [Test]
+        public void SelectClausesWithoutAResolverAreReported()
+        {
+            WotConversionResult<UANodeSet> result = Convert(EventWithClauses(
+                "{\"tm:ref\":\"./base-event.tm.jsonld\",\"uav:browsePath\":\"EventId\"}"));
+
+            Assert.That(
+                result.Diagnostics.Any(d =>
+                    d.Code == WotDiagnosticCode.EventSelectionUnresolved &&
+                    d.Severity == WotDiagnosticSeverity.Error),
+                Is.True,
+                Describe(result));
         }
 
         [Test]
@@ -898,6 +919,25 @@ namespace Opc.Ua.Types.Tests.Wot
         private static WotConversionResult<UANodeSet> Convert(string members)
         {
             return Convert(members, new WotNodeSetConverterOptions());
+        }
+
+        /// <summary>
+        /// Converts a document whose event affordance states a selection,
+        /// resolving that selection against the sibling EventType definitions
+        /// the fixtures name (WoT Binding Sections 5.1.5 and 6.1).
+        /// </summary>
+        private static async Task<UANodeSet> ConvertResolvedAsync(WotDocument document)
+        {
+            WotConversionResult<UANodeSet> result = await WotNodeSetConverter
+                .ToNodeSetResultAsync(document, null, WotTestData.EventTypeDocuments())
+                .ConfigureAwait(false);
+
+            Assert.That(
+                result.Diagnostics.Where(d => d.Severity == WotDiagnosticSeverity.Error),
+                Is.Empty,
+                Describe(result));
+            Assert.That(result.Value, Is.Not.Null);
+            return result.Value!;
         }
 
         private static WotConversionResult<UANodeSet> Convert(

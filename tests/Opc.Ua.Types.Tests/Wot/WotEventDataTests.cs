@@ -32,6 +32,8 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text.Json;
+using System.Threading;
+using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Export;
 using Opc.Ua.Wot;
@@ -729,14 +731,20 @@ namespace Opc.Ua.Types.Tests.Wot
         /// so it must convert, import and come back naming the same Condition
         /// and the same pairing.
         /// </summary>
+        /// <remarks>
+        /// The example's event affordance links to the EventType definitions of
+        /// example 27, so it converts through the asynchronous path that
+        /// resolves the link rather than the synchronous one, which reports it.
+        /// </remarks>
         [Test]
-        public void TheConditionExampleRoundTripsAndImports()
+        public async Task TheConditionExampleRoundTripsAndImportsAsync()
         {
             using WotDocument authored = WotDocument.Parse(
                 ReadExample("21-condition-limit-alarm.jsonld"));
 
-            WotConversionResult<UANodeSet> result =
-                WotNodeSetConverter.ToNodeSetResult(authored);
+            WotConversionResult<UANodeSet> result = await WotNodeSetConverter
+                .ToNodeSetResultAsync(authored, null, new ExampleResolver())
+                .ConfigureAwait(false);
             Assert.That(
                 result.Diagnostics.Where(d => d.Severity == WotDiagnosticSeverity.Error)
                     .Select(d => d.Message),
@@ -1203,6 +1211,34 @@ namespace Opc.Ua.Types.Tests.Wot
             using var buffer = new MemoryStream();
             stream.CopyTo(buffer);
             return buffer.ToArray();
+        }
+
+        /// <summary>
+        /// Serves the embedded specification examples by their relative
+        /// reference, so an example that links to a sibling example resolves
+        /// without any I/O (WoT Binding Section 5.1.5).
+        /// </summary>
+        private sealed class ExampleResolver : IWotThingResolver
+        {
+            public ValueTask<WotResolverResult> ResolveThingAsync(
+                string reference,
+                WotResolutionContext context,
+                CancellationToken cancellationToken)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                string name = reference;
+                int slash = name.LastIndexOf('/');
+                if (slash >= 0)
+                {
+                    name = name.Substring(slash + 1);
+                }
+                if (!name.EndsWith(".jsonld", StringComparison.Ordinal))
+                {
+                    return new ValueTask<WotResolverResult>(WotResolverResult.NotFound);
+                }
+                return new ValueTask<WotResolverResult>(
+                    WotResolverResult.FromBytes(ReadExample(name), "application/td+json"));
+            }
         }
 
         /// <summary>

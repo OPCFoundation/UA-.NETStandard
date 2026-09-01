@@ -48,6 +48,14 @@ namespace Opc.Ua.Wot
         /// Restores or synthesizes the NodeSet2 document described by a WoT
         /// document, throwing on any error diagnostic.
         /// </summary>
+        /// <remarks>
+        /// This conversion follows no document link, so an event affordance
+        /// that states its field selection with <c>tm:ref</c> or
+        /// <c>uav:eventSelectClauses</c> (WoT Binding Section 6.1) is reported
+        /// rather than converted without the fields the linked definition
+        /// declares. Use <c>ToNodeSetResultAsync</c> with an
+        /// <see cref="IWotThingResolver"/> to convert such a document.
+        /// </remarks>
         /// <param name="document">The WoT document.</param>
         /// <param name="options">Resource limits; defaults are used when omitted.</param>
         /// <returns>The restored or synthesized NodeSet2 document.</returns>
@@ -144,6 +152,7 @@ namespace Opc.Ua.Wot
             WotThingCatalog? parentCatalog = null;
             WotReferenceTypeCatalog? referenceTypeCatalog = null;
             WotEventSelectionCatalog? eventSelections = null;
+            bool eventSelectionsResolved = false;
             if (!TakesRestorePath(document))
             {
                 referenceTypeCatalog = await PreresolveReferenceTypesAsync(
@@ -194,6 +203,7 @@ namespace Opc.Ua.Wot
                         diagnostics.Add(diagnostic);
                     }
                     eventSelections = selectionResult.Value;
+                    eventSelectionsResolved = true;
                 }
             }
 
@@ -224,7 +234,8 @@ namespace Opc.Ua.Wot
                 diagnostics,
                 typeBinding,
                 parentPlacement,
-                eventSelections);
+                eventSelections,
+                eventSelectionsResolved);
             ApplyIdentifierLeniency(diagnostics, options);
             return new WotConversionResult<UANodeSet>(nodeSet, diagnostics);
         }
@@ -336,6 +347,15 @@ namespace Opc.Ua.Wot
         /// Restores or synthesizes the NodeSet2 document described by a WoT
         /// document, returning structured diagnostics together with the result.
         /// </summary>
+        /// <remarks>
+        /// This conversion follows no document link, so an event affordance
+        /// that states its field selection with <c>tm:ref</c> or
+        /// <c>uav:eventSelectClauses</c> (WoT Binding Section 6.1) is reported
+        /// with <see cref="WotDiagnosticCode.EventSelectionUnresolved"/> rather
+        /// than converted without the fields the linked definition declares.
+        /// Use <c>ToNodeSetResultAsync</c> with an
+        /// <see cref="IWotThingResolver"/> to convert such a document.
+        /// </remarks>
         /// <param name="document">The WoT document.</param>
         /// <param name="options">Resource limits; defaults are used when omitted.</param>
         /// <returns>The conversion result and its diagnostics.</returns>
@@ -563,7 +583,8 @@ namespace Opc.Ua.Wot
             List<WotDiagnostic> diagnostics,
             WotTypeBinding? typeBinding = null,
             WotParentPlacement? parentPlacement = null,
-            WotEventSelectionCatalog? eventSelections = null)
+            WotEventSelectionCatalog? eventSelections = null,
+            bool eventSelectionsResolved = false)
         {
             options ??= new WotNodeSetConverterOptions();
             options.Validate();
@@ -619,7 +640,8 @@ namespace Opc.Ua.Wot
                     diagnostics,
                     typeBinding,
                     parentPlacement,
-                    eventSelections);
+                    eventSelections,
+                    eventSelectionsResolved);
             if (synthesized is not null)
             {
                 WotJsonResidue.Replace(synthesized, document, options, diagnostics);
@@ -949,7 +971,8 @@ namespace Opc.Ua.Wot
             List<WotDiagnostic> diagnostics,
             WotTypeBinding? typeBinding,
             WotParentPlacement? parentPlacement,
-            WotEventSelectionCatalog? eventSelections = null)
+            WotEventSelectionCatalog? eventSelections = null,
+            bool eventSelectionsResolved = false)
         {
             WotDocumentKind kind = document.Kind;
             if (kind == WotDocumentKind.Unknown)
@@ -974,6 +997,7 @@ namespace Opc.Ua.Wot
             ValidateModelConceptNames(document, diagnostics);
             ValidateModelVocabulary(document, diagnostics);
             ValidateBindingConformance(document, options, diagnostics);
+            ValidateEventSelectionsResolved(document, eventSelectionsResolved, diagnostics);
             ValidateConditions(document, eventSelections, diagnostics);
 
             string modelUri = DeriveModelUri(document);

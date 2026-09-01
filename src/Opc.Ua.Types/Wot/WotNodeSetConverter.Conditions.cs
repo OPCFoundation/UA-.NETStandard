@@ -461,6 +461,62 @@ namespace Opc.Ua.Wot
         }
 
         /// <summary>
+        /// Reports every event affordance whose field selection this conversion
+        /// could not resolve (WoT Binding Section 6.1).
+        /// </summary>
+        /// <remarks>
+        /// An affordance that names an EventType definition with <c>tm:ref</c>,
+        /// or that writes explicit <c>uav:eventSelectClauses</c>, states a
+        /// selection that is derived by reading the definition it names — a
+        /// document, reached through a link. The synchronous conversion never
+        /// dereferences one, so it holds no selection to read and would
+        /// otherwise materialize an EventType with none of the fields the
+        /// definition declares and say nothing about it. It says so here
+        /// instead, once per affordance, and names the two ways to convert the
+        /// document. Where resolution did run, this reports nothing: a link
+        /// that failed to resolve is reported by the resolver, with the reason
+        /// it failed, and is not restated here as a missing capability.
+        /// </remarks>
+        /// <param name="document">The document being converted.</param>
+        /// <param name="eventSelectionsResolved">
+        /// Whether the caller resolved the document's event selections before
+        /// the synthesis.
+        /// </param>
+        /// <param name="diagnostics">The diagnostics sink.</param>
+        private static void ValidateEventSelectionsResolved(
+            WotDocument document,
+            bool eventSelectionsResolved,
+            List<WotDiagnostic> diagnostics)
+        {
+            if (eventSelectionsResolved)
+            {
+                return;
+            }
+            foreach (KeyValuePair<string, JsonElement> affordance in document.Events)
+            {
+                if (!WotEventSelectionResolver.StatesSelection(affordance.Value))
+                {
+                    continue;
+                }
+                diagnostics.Add(new WotDiagnostic(
+                    WotDiagnosticSeverity.Error,
+                    WotDiagnosticCode.EventSelectionUnresolved,
+                    $"The event affordance '{affordance.Key}' states its field selection with " +
+                    $"'{WotEventSelectClauses.TypeDefinitionReferenceTerm}' or " +
+                    $"'{WotEventSelectClauses.Term}', and this conversion holds no resolved " +
+                    "selection for it. Convert with " +
+                    $"{nameof(ToNodeSetResultAsync)} passing an " +
+                    $"{nameof(IWotThingResolver)} - " +
+                    $"{nameof(NullWotResolver)}.{nameof(NullWotResolver.Instance)} where every " +
+                    "reference is local to this document - or declare the affordance's fields " +
+                    "in its own 'data' object and state no selection, which takes the implicit " +
+                    "BaseEventType default (WoT Binding Sections 5.1.5 and 6.1).",
+                    WotLocation.FromPointer(
+                        "/events/" + EscapeJsonPointerToken(affordance.Key))));
+            }
+        }
+
+        /// <summary>
         /// Validates the Alarms and Conditions mapping of WoT Binding Section
         /// 13.
         /// </summary>
@@ -512,8 +568,9 @@ namespace Opc.Ua.Wot
                         $"'{EventIdField}' in its 'data' object (WoT Binding Section 13.3).",
                         WotLocation.FromPointer(pointer)));
                 }
-                else if (!SelectsConditionEventId(
-                    affordance.Key, affordance.Value, eventSelections))
+                else if (eventSelections is not null &&
+                    !SelectsConditionEventId(
+                        affordance.Key, affordance.Value, eventSelections))
                 {
                     diagnostics.Add(new WotDiagnostic(
                         WotDiagnosticSeverity.Error,
@@ -607,22 +664,25 @@ namespace Opc.Ua.Wot
         /// An affordance that states one is decided by the resolved selection,
         /// because the overlay of Section 6.1 — a linked EventType's baseline
         /// refined by the explicit clauses — is what a MonitoredItem is
-        /// actually created with. Where the caller resolved no selection the
-        /// link is unresolved, which the resolver reports on its own; it is not
-        /// double-reported here as a missing field.
+        /// actually created with. A resolved catalog that holds no entry for
+        /// the affordance means its link did not resolve, which the resolver
+        /// reports on its own; it is not double-reported here as a missing
+        /// field. Where no catalog was resolved at all the question is not
+        /// asked: nothing is known about the selection, so nothing is claimed
+        /// about it, and <see cref="ValidateEventSelectionsResolved"/> reports
+        /// the unresolved selection itself.
         /// </remarks>
         private static bool SelectsConditionEventId(
             string affordanceName,
             JsonElement affordance,
-            WotEventSelectionCatalog? eventSelections)
+            WotEventSelectionCatalog eventSelections)
         {
             if (!WotEventSelectionResolver.StatesSelection(affordance))
             {
                 return true;
             }
-            if (eventSelections is null ||
-                !eventSelections.TryGetSelection(
-                    affordanceName, out ArrayOf<WotResolvedEventSelectClause> clauses))
+            if (!eventSelections.TryGetSelection(
+                affordanceName, out ArrayOf<WotResolvedEventSelectClause> clauses))
             {
                 return true;
             }

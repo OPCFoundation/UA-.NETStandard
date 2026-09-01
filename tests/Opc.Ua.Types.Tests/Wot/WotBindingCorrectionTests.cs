@@ -33,6 +33,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Text.Json;
+using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Export;
 using Opc.Ua.Wot;
@@ -877,12 +878,12 @@ namespace Opc.Ua.Types.Tests.Wot
         /// clauses it writes.
         /// </summary>
         [Test]
-        public void AConditionAffordanceKeepsTheMandatoryEventIdWhenItOnlyRefines()
+        public async Task AConditionAffordanceKeepsTheMandatoryEventIdWhenItOnlyRefinesAsync()
         {
-            WotConversionResult<UANodeSet> result = Convert(ConditionEvent(
+            WotConversionResult<UANodeSet> result = await ConvertResolvedAsync(ConditionEvent(
                 "\"uav:eventSelectClauses\":[" +
-                "{\"tm:ref\":\"./base-event.tm.jsonld\",\"uav:browsePath\":\"Severity\"}]"),
-                new WotNodeSetConverterOptions());
+                "{\"tm:ref\":\"./base-event.tm.jsonld\",\"uav:browsePath\":\"Severity\"}]"))
+                .ConfigureAwait(false);
 
             Assert.That(
                 result.Diagnostics.Any(d =>
@@ -894,13 +895,13 @@ namespace Opc.Ua.Types.Tests.Wot
         }
 
         [Test]
-        public void AConditionAffordanceThatSelectsEventIdIsValid()
+        public async Task AConditionAffordanceThatSelectsEventIdIsValidAsync()
         {
-            WotConversionResult<UANodeSet> result = Convert(ConditionEvent(
+            WotConversionResult<UANodeSet> result = await ConvertResolvedAsync(ConditionEvent(
                 "\"uav:eventSelectClauses\":[" +
                 "{\"tm:ref\":\"./base-event.tm.jsonld\",\"uav:browsePath\":\"EventId\"}," +
-                "{\"tm:ref\":\"./condition.tm.jsonld\",\"uav:browsePath\":\"\"}]"),
-                new WotNodeSetConverterOptions());
+                "{\"tm:ref\":\"./condition.tm.jsonld\",\"uav:browsePath\":\"\"}]"))
+                .ConfigureAwait(false);
 
             Assert.That(
                 result.Diagnostics.Any(d =>
@@ -910,12 +911,12 @@ namespace Opc.Ua.Types.Tests.Wot
         }
 
         [Test]
-        public void AConditionAffordanceNeedsNoOtherConditionFieldSelected()
+        public async Task AConditionAffordanceNeedsNoOtherConditionFieldSelectedAsync()
         {
-            WotConversionResult<UANodeSet> result = Convert(ConditionEvent(
+            WotConversionResult<UANodeSet> result = await ConvertResolvedAsync(ConditionEvent(
                 "\"uav:eventSelectClauses\":[" +
-                "{\"tm:ref\":\"./base-event.tm.jsonld\",\"uav:browsePath\":\"EventId\"}]"),
-                new WotNodeSetConverterOptions());
+                "{\"tm:ref\":\"./base-event.tm.jsonld\",\"uav:browsePath\":\"EventId\"}]"))
+                .ConfigureAwait(false);
 
             Assert.That(
                 result.Diagnostics.Any(d => d.Severity == WotDiagnosticSeverity.Error),
@@ -923,6 +924,37 @@ namespace Opc.Ua.Types.Tests.Wot
                 "EventId is the one hard requirement; every other Condition field is present " +
                 "where the affordance selects it. " +
                 string.Join("; ", result.Diagnostics.Select(d => d.Message)));
+        }
+
+        /// <summary>
+        /// Section 13.3 is decided by the resolved selection, so a conversion
+        /// that resolved none does not answer it either way: it reports the
+        /// unresolved selection instead of claiming that <c>EventId</c> is
+        /// selected.
+        /// </summary>
+        [Test]
+        public void AConditionAffordanceWithoutAResolvedSelectionIsReported()
+        {
+            WotConversionResult<UANodeSet> result = Convert(ConditionEvent(
+                "\"uav:eventSelectClauses\":[" +
+                "{\"tm:ref\":\"./condition.tm.jsonld\",\"uav:browsePath\":\"LastSeverity\"}]"),
+                new WotNodeSetConverterOptions());
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    result.Diagnostics.Any(d =>
+                        d.Code == WotDiagnosticCode.EventSelectionUnresolved &&
+                        d.Severity == WotDiagnosticSeverity.Error),
+                    Is.True,
+                    string.Join("; ", result.Diagnostics.Select(d => d.Message)));
+                Assert.That(
+                    result.Diagnostics.Any(d =>
+                        d.Code == WotDiagnosticCode.ConditionEventIdMissing),
+                    Is.False,
+                    "The unresolved selection is reported once and is not restated as a " +
+                    "missing field.");
+            });
         }
 
         [Test]
@@ -948,9 +980,21 @@ namespace Opc.Ua.Types.Tests.Wot
             return "\"events\":{\"alarm\":{\"@type\":\"uav:eventType\",\"uav:isEvent\":true," +
                 "\"uav:browseName\":\"pump:AlarmEventType\"," +
                 "\"uav:conditionType\":\"ua:ConditionType\"," +
-                "\"data\":{\"type\":\"object\",\"properties\":{" +
+                "\"data\":{\"type\":\"object\",\"uav:fieldOrder\":[" +
+                "\"EventId\",\"EventType\",\"SourceNode\",\"SourceName\",\"Time\"," +
+                "\"ReceiveTime\",\"Message\",\"Severity\",\"ConditionId\",\"LastSeverity\"]," +
+                "\"properties\":{" +
                 "\"EventId\":{\"type\":\"string\"," +
-                "\"contentEncoding\":\"base64\"}}}," +
+                "\"contentEncoding\":\"base64\"}," +
+                "\"EventType\":{\"type\":\"string\"}," +
+                "\"SourceNode\":{\"type\":\"string\"}," +
+                "\"SourceName\":{\"type\":\"string\"}," +
+                "\"Time\":{\"type\":\"string\",\"format\":\"date-time\"}," +
+                "\"ReceiveTime\":{\"type\":\"string\",\"format\":\"date-time\"}," +
+                "\"Message\":{\"type\":\"string\"}," +
+                "\"Severity\":{\"type\":\"integer\"}," +
+                "\"ConditionId\":{\"type\":\"string\"}," +
+                "\"LastSeverity\":{\"type\":\"integer\"}}}," +
                 clauses + "}}";
         }
 
@@ -1046,6 +1090,20 @@ namespace Opc.Ua.Types.Tests.Wot
         {
             using WotDocument document = ParseThingModel(members);
             return WotNodeSetConverter.ToNodeSetResult(document, options);
+        }
+
+        /// <summary>
+        /// Converts a document whose event affordance states a selection,
+        /// resolving that selection against the sibling EventType definitions
+        /// the fixtures name (WoT Binding Sections 5.1.5 and 6.1).
+        /// </summary>
+        private static async Task<WotConversionResult<UANodeSet>> ConvertResolvedAsync(
+            string members)
+        {
+            using WotDocument document = ParseThingModel(members);
+            return await WotNodeSetConverter
+                .ToNodeSetResultAsync(document, null, WotTestData.EventTypeDocuments())
+                .ConfigureAwait(false);
         }
 
         internal static WotDocument ParseThingModel(string members)
