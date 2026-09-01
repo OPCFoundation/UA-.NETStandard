@@ -206,51 +206,105 @@ namespace Opc.Ua.Wot
 
         /// <summary>
         /// Resolves every ReferenceType a link relation names against the
-        /// WoT Binding Section 5.1.5 local context, before the synchronous
-        /// synthesis needs the answers.
+        /// WoT Binding Section 5.1.5 local context, and the NodeClass the
+        /// context reports for every definitive <c>uav:refId</c> a link
+        /// carries, before the synchronous synthesis needs the answers.
         /// </summary>
         /// <remarks>
         /// Only a resolver that offers <see cref="IWotReferenceTypeResolver"/>
-        /// contributes: a local context of sibling documents declares no
-        /// ReferenceTypes, so nothing is gained by asking it. The standard
+        /// contributes names: a local context describing no ReferenceType has
+        /// none to offer, so nothing is gained by asking it. The standard
         /// base-namespace names stay available in either case, so a companion
-        /// model's own ReferenceType resolves where the caller supplied an
-        /// address space and the built-in names resolve where it did not.
+        /// model's own ReferenceType resolves where the caller supplied a local
+        /// context and the built-in names resolve where it did not. The
+        /// identifier probe uses the ordinary
+        /// <see cref="IWotNodeResolver.ResolveByNodeIdAsync"/>, because
+        /// "this identifier names an ObjectType" is a fact about a Node and not
+        /// about a ReferenceType name.
         /// </remarks>
         private static async ValueTask<WotReferenceTypeCatalog?> PreresolveReferenceTypesAsync(
             WotDocument document,
             IWotNodeResolver? nodeResolver,
             CancellationToken cancellationToken)
         {
-            if (nodeResolver is not IWotReferenceTypeResolver referenceTypes)
+            if (nodeResolver is null)
             {
                 return null;
             }
 
+            var referenceTypes = nodeResolver as IWotReferenceTypeResolver;
             WotReferenceTypeCatalog? catalog = null;
             foreach (JsonElement link in document.Links)
             {
                 cancellationToken.ThrowIfCancellationRequested();
                 string? rel = GetElementString(link, "rel");
-                if (rel is null ||
-                    !IsModelConceptRelation(document, link, rel))
+                if (rel is not null && IsModelConceptRelation(document, link, rel))
+                {
+                    catalog ??= new WotReferenceTypeCatalog();
+                    if (!catalog.Contains(rel) &&
+                        TrySplitCompactModelName(rel, out string prefix, out string name) &&
+                        TryGetContextNamespace(document, prefix, out string namespaceUri))
+                    {
+                        catalog.Add(
+                            rel,
+                            await ResolveReferenceTypeAnswerAsync(
+                                nodeResolver,
+                                referenceTypes,
+                                namespaceUri,
+                                name,
+                                cancellationToken).ConfigureAwait(false));
+                    }
+                }
+
+                string? definitive = GetElementString(link, "uav:refId");
+                if (definitive is null)
                 {
                     continue;
                 }
                 catalog ??= new WotReferenceTypeCatalog();
-                if (catalog.Contains(rel) ||
-                    !TrySplitCompactModelName(rel, out string prefix, out string name) ||
-                    !TryGetContextNamespace(document, prefix, out string namespaceUri))
+                if (!catalog.ContainsIdentity(definitive))
                 {
-                    continue;
+                    WotResolvedNode? node = await nodeResolver
+                        .ResolveByNodeIdAsync(definitive, cancellationToken)
+                        .ConfigureAwait(false);
+                    catalog.AddIdentity(definitive, node?.NodeClass);
                 }
-                catalog.Add(
-                    rel,
-                    await referenceTypes
-                        .ResolveReferenceTypeAsync(namespaceUri, name, cancellationToken)
-                        .ConfigureAwait(false));
             }
             return catalog;
+        }
+
+        /// <summary>
+        /// Asks the local context for one name, and tells "the model does not
+        /// define this" apart from "the model defines it as something that is
+        /// not a ReferenceType".
+        /// </summary>
+        private static async ValueTask<WotReferenceTypeAnswer> ResolveReferenceTypeAnswerAsync(
+            IWotNodeResolver nodeResolver,
+            IWotReferenceTypeResolver? referenceTypes,
+            string namespaceUri,
+            string name,
+            CancellationToken cancellationToken)
+        {
+            ArrayOf<WotResolvedReferenceType> matches = referenceTypes is null
+                ? ArrayOf<WotResolvedReferenceType>.Empty
+                : await referenceTypes
+                    .ResolveReferenceTypesAsync(namespaceUri, name, cancellationToken)
+                    .ConfigureAwait(false);
+            if (matches.Count > 0)
+            {
+                return WotReferenceTypeAnswer.FromMatches(matches);
+            }
+
+            // The name is not a ReferenceType here. If the same namespace
+            // exposes it as some other Node, the document named a real thing of
+            // the wrong kind, which is a different report from "unknown".
+            ArrayOf<WotResolvedNode> others = await nodeResolver
+                .ResolveByBrowseNameAsync(
+                    namespaceUri, name, WotExpectedNodeClass.Any, cancellationToken)
+                .ConfigureAwait(false);
+            return others.Count > 0
+                ? WotReferenceTypeAnswer.NotAReferenceType
+                : WotReferenceTypeAnswer.Unresolved;
         }
 
         /// <summary>
@@ -380,6 +434,80 @@ namespace Opc.Ua.Wot
             // whose index 1 is the model URI.
             nodeId = GetUavString(document, "id") ??
                 "nsu=" + namespaceUri + ";s=" + browseName;
+            return true;
+        }
+
+        /// <summary>
+        /// Describes the ReferenceType a Thing Model projects: the two names it
+        /// answers to and its identity.
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// OPC 10000-3 gives a ReferenceType a BrowseName that reads a
+        /// reference forward and an InverseName that reads the same reference
+        /// backwards, and WoT Binding Section 5.1.2 lets a link <c>rel</c> use
+        /// either. A local context therefore has to offer both names, which
+        /// <see cref="TryDescribeProjectedType"/> cannot: it describes a Node
+        /// and a Node has one BrowseName.
+        /// </para>
+        /// <para>
+        /// This exists so an <see cref="IWotReferenceTypeResolver"/> over a set
+        /// of documents can index them without paying for a full conversion,
+        /// and so the names are derived by exactly the rules the conversion
+        /// uses.
+        /// </para>
+        /// </remarks>
+        /// <param name="document">The document to describe.</param>
+        /// <param name="namespaceUri">The NamespaceUri the ReferenceType is in.</param>
+        /// <param name="browseName">The unqualified BrowseName.</param>
+        /// <param name="inverseName">
+        /// The unqualified InverseName, or an empty string where the document
+        /// states none.
+        /// </param>
+        /// <param name="isSymmetric">
+        /// Whether the ReferenceType is symmetric, in which case one name reads
+        /// both directions.
+        /// </param>
+        /// <param name="nodeId">
+        /// The ReferenceType's identity, as a portable ExpandedNodeId string.
+        /// </param>
+        /// <returns>
+        /// <c>true</c> when <paramref name="document"/> is a Thing Model
+        /// describing a ReferenceType.
+        /// </returns>
+        /// <exception cref="ArgumentNullException">
+        /// <paramref name="document"/> is <c>null</c>.
+        /// </exception>
+        public static bool TryDescribeProjectedReferenceType(
+            WotDocument document,
+            out string namespaceUri,
+            out string browseName,
+            out string inverseName,
+            out bool isSymmetric,
+            out string nodeId)
+        {
+            inverseName = string.Empty;
+            isSymmetric = false;
+            if (!TryDescribeProjectedType(document, out namespaceUri, out browseName, out nodeId))
+            {
+                return false;
+            }
+            if (!HasTypeAnnotation(document, "uav:referenceType"))
+            {
+                namespaceUri = string.Empty;
+                browseName = string.Empty;
+                nodeId = string.Empty;
+                return false;
+            }
+            if (document.RootElement.TryGetProperty(
+                    InverseNameTerm, out JsonElement inverse) &&
+                inverse.ValueKind == JsonValueKind.String)
+            {
+                inverseName = inverse.GetString() ?? string.Empty;
+            }
+            isSymmetric =
+                document.RootElement.TryGetProperty(SymmetricTerm, out JsonElement symmetric) &&
+                symmetric.ValueKind == JsonValueKind.True;
             return true;
         }
 
@@ -943,6 +1071,7 @@ namespace Opc.Ua.Wot
                 document.RootElement, declaredLocale, document.Title ?? rootLocal) ??
                 MakeText(rootLocal);
             rootNode.Description = ReadDescription(document.RootElement, declaredLocale);
+            ApplyReferenceTypeNames(rootNode, document, declaredLocale);
 
             int affordanceCount = 0;
             var propertyNodeIds = new Dictionary<string, string>(StringComparer.Ordinal);
@@ -997,8 +1126,10 @@ namespace Opc.Ua.Wot
                 CollectComponentTypedRefs(document, referenceTypeCatalog, diagnostics);
             SynthesizeLinks(
                 document, rootReferences, componentTypedRefs, thingCatalog,
-                referenceTypeCatalog, resolutionContext, options, boundType, diagnostics);
-            SynthesizeComponentArrays(document, rootReferences, componentTypedRefs);
+                referenceTypeCatalog, resolutionContext, options, boundType, nodeSet,
+                diagnostics);
+            SynthesizeComponentArrays(
+                document, rootReferences, componentTypedRefs, nodeSet, diagnostics);
             if (parentPlacement is { } placement)
             {
                 rootReferences.Add(new Reference
@@ -1520,6 +1651,7 @@ namespace Opc.Ua.Wot
             WotResolutionContext resolutionContext,
             WotNodeSetConverterOptions options,
             string? boundType,
+            UANodeSet nodeSet,
             List<WotDiagnostic> diagnostics)
         {
             foreach (ResolvableThingReference thingReference in EnumerateResolvableThingReferences(
@@ -1554,7 +1686,8 @@ namespace Opc.Ua.Wot
                 {
                     rootReferences.Add(new Reference
                     {
-                        ReferenceType = thingReference.ReferenceType!,
+                        ReferenceType = ToNodeSetReferenceType(
+                            thingReference.ReferenceType!, nodeSet, diagnostics),
                         IsForward = thingReference.IsForward,
                         Value = linkTarget
                     });
@@ -1715,32 +1848,69 @@ namespace Opc.Ua.Wot
                 return false;
             }
 
-            if (modelName is not null &&
-                TryResolveReferenceTypeName(
-                document,
-                modelName,
-                referenceTypeCatalog,
-                out string resolvedName,
-                out bool resolvedForward))
+            // A definitive identifier the local context holds as something
+            // other than a ReferenceType types nothing, so it is reported
+            // before it can be used as if it did (WoT Binding Section 6.2).
+            if (canonicalDefinitive is not null &&
+                referenceTypeCatalog is not null &&
+                referenceTypeCatalog.NamesNonReferenceType(canonicalDefinitive))
             {
+                diagnostics.Add(new WotDiagnostic(
+                    WotDiagnosticSeverity.Error,
+                    WotDiagnosticCode.ReferenceTypeNodeClassInvalid,
+                    $"The uav:refId value '{canonicalDefinitive}' names a Node " +
+                    "that is not a ReferenceType, so it cannot type a relation.",
+                    new WotLocation(reference: canonicalDefinitive)));
+                referenceType = string.Empty;
+                return false;
+            }
+
+            WotReferenceTypeAnswer answer = modelName is null
+                ? WotReferenceTypeAnswer.Unresolved
+                : ResolveReferenceTypeName(document, modelName, referenceTypeCatalog);
+
+            if (answer.Outcome == WotReferenceTypeOutcome.Resolved)
+            {
+                WotResolvedReferenceType resolved = answer.Single;
                 if (canonicalDefinitive is not null &&
-                    !string.Equals(
-                        resolvedName,
-                        canonicalDefinitive,
-                        StringComparison.Ordinal))
+                    !AreSameExpandedNodeId(resolved.NodeId, canonicalDefinitive))
                 {
                     diagnostics.Add(new WotDiagnostic(
                         WotDiagnosticSeverity.Error,
                         WotDiagnosticCode.ModelConceptConflict,
                         $"The ReferenceType model name '{modelName}' resolves to " +
-                        $"'{resolvedName}' but uav:refId is '{definitive}'.",
+                        $"'{resolved.NodeId}' but uav:refId is '{definitive}'.",
                         new WotLocation(reference: modelName)));
                     referenceType = string.Empty;
                     return false;
                 }
-                referenceType = resolvedName;
-                isForward = resolvedForward;
+                referenceType = resolved.NodeId;
+                isForward = resolved.IsForward;
                 return true;
+            }
+
+            if (answer.Outcome == WotReferenceTypeOutcome.Ambiguous)
+            {
+                return TrySettleAmbiguousReferenceType(
+                    answer,
+                    modelName!,
+                    definitive,
+                    canonicalDefinitive,
+                    diagnostics,
+                    out referenceType,
+                    out isForward);
+            }
+
+            if (answer.Outcome == WotReferenceTypeOutcome.NotAReferenceType)
+            {
+                diagnostics.Add(new WotDiagnostic(
+                    WotDiagnosticSeverity.Error,
+                    WotDiagnosticCode.ReferenceTypeNodeClassInvalid,
+                    $"The relation '{modelName}' names a Node that is not a " +
+                    "ReferenceType, so it cannot type a relation.",
+                    new WotLocation(reference: modelName)));
+                referenceType = string.Empty;
+                return false;
             }
 
             if (canonicalDefinitive is not null)
@@ -1783,49 +1953,145 @@ namespace Opc.Ua.Wot
         }
 
         /// <summary>
-        /// Resolves the ReferenceType a compact model name denotes, and the
-        /// direction the name expressed.
+        /// Settles a relation whose name the local context matched more than
+        /// once.
         /// </summary>
         /// <remarks>
-        /// The local context of WoT Binding Section 5.1.5 is consulted first,
-        /// so a companion model's own ReferenceType resolves by name wherever
-        /// the caller supplied one, and the standard base-namespace names are
-        /// the fallback. Both halves resolve a BrowseName <em>and</em> an
-        /// InverseName: OPC 10000-3 gives a ReferenceType two names, and the
-        /// one an author used is what says which way the reference runs.
+        /// WoT Binding Section 6.2 makes <c>uav:refId</c> required exactly
+        /// here, and it settles the name by identifying which of the candidates
+        /// was meant - which also fixes the direction, because each candidate
+        /// carries the name that matched it. An identifier naming none of them
+        /// is a conflict, and no identifier at all leaves the relation
+        /// ambiguous; neither is repaired by choosing one.
         /// </remarks>
-        private static bool TryResolveReferenceTypeName(
-            WotDocument document,
+        private static bool TrySettleAmbiguousReferenceType(
+            WotReferenceTypeAnswer answer,
             string modelName,
-            WotReferenceTypeCatalog? referenceTypeCatalog,
+            string? definitive,
+            string? canonicalDefinitive,
+            List<WotDiagnostic> diagnostics,
             out string referenceType,
             out bool isForward)
         {
             referenceType = string.Empty;
             isForward = true;
+            if (canonicalDefinitive is null)
+            {
+                diagnostics.Add(new WotDiagnostic(
+                    WotDiagnosticSeverity.Error,
+                    WotDiagnosticCode.ReferenceTypeAmbiguous,
+                    $"The ReferenceType relation '{modelName}' resolves to " +
+                    $"{answer.Matches.Count} ReferenceTypes and carries no " +
+                    "uav:refId to settle it (WoT Binding Section 6.2).",
+                    new WotLocation(reference: modelName)));
+                return false;
+            }
+            foreach (WotResolvedReferenceType candidate in answer.Matches)
+            {
+                if (AreSameExpandedNodeId(candidate.NodeId, canonicalDefinitive))
+                {
+                    referenceType = candidate.NodeId;
+                    isForward = candidate.IsForward;
+                    return true;
+                }
+            }
+            diagnostics.Add(new WotDiagnostic(
+                WotDiagnosticSeverity.Error,
+                WotDiagnosticCode.ModelConceptConflict,
+                $"The ReferenceType model name '{modelName}' resolves to " +
+                $"{answer.Matches.Count} ReferenceTypes, none of which is " +
+                $"the uav:refId '{definitive}'.",
+                new WotLocation(reference: modelName)));
+            return false;
+        }
+
+        /// <summary>
+        /// Restores the second name a projected ReferenceType answers to.
+        /// </summary>
+        /// <remarks>
+        /// OPC 10000-3 gives a ReferenceType an InverseName and a Symmetric
+        /// flag, and WoT Binding Section 5.1.2 makes the InverseName the name a
+        /// link <c>rel</c> uses for the reverse direction. Restoring them is
+        /// what makes a ReferenceType document a complete description of the
+        /// Node - and what lets a local context built from a set of documents
+        /// answer an inverse relation of a companion model.
+        /// </remarks>
+        private static void ApplyReferenceTypeNames(
+            UANode rootNode,
+            WotDocument document,
+            string? declaredLocale)
+        {
+            if (rootNode is not UAReferenceType referenceType)
+            {
+                return;
+            }
+            if (document.RootElement.TryGetProperty(
+                    InverseNameTerm, out JsonElement inverseName) &&
+                inverseName.ValueKind == JsonValueKind.String &&
+                inverseName.GetString() is { Length: > 0 } value)
+            {
+                referenceType.InverseName =
+                [
+                    new Export.LocalizedText
+                    {
+                        Locale = declaredLocale ?? string.Empty,
+                        Value = value
+                    }
+                ];
+            }
+            referenceType.Symmetric =
+                document.RootElement.TryGetProperty(SymmetricTerm, out JsonElement symmetric) &&
+                symmetric.ValueKind == JsonValueKind.True;
+        }
+
+        /// <summary>
+        /// Resolves the ReferenceType a compact model name denotes, the
+        /// direction the name expressed, and how definite the answer is.
+        /// </summary>
+        /// <remarks>
+        /// The local context of WoT Binding Section 5.1.5 is consulted first,
+        /// so a companion model's own ReferenceType resolves by name wherever
+        /// the caller supplied one, and the standard base-namespace names are
+        /// the fallback for the reserved <c>ua</c> namespace. Both halves
+        /// resolve a BrowseName <em>and</em> an InverseName: OPC 10000-3 gives
+        /// a ReferenceType two names, and the one an author used is what says
+        /// which way the reference runs. Nothing here is limited to a fixed
+        /// table: any ReferenceType the local context holds resolves by the
+        /// same rules the base-namespace ones do.
+        /// </remarks>
+        private static WotReferenceTypeAnswer ResolveReferenceTypeName(
+            WotDocument document,
+            string modelName,
+            WotReferenceTypeCatalog? referenceTypeCatalog)
+        {
             if (!TrySplitCompactModelName(
                 modelName,
                 out string prefix,
                 out string browseName) ||
                 !TryGetContextNamespace(document, prefix, out string namespaceUri))
             {
-                return false;
+                return WotReferenceTypeAnswer.Unresolved;
             }
             if (referenceTypeCatalog is not null &&
-                referenceTypeCatalog.TryGet(modelName, out WotResolvedReferenceType resolved))
+                referenceTypeCatalog.TryGet(modelName, out WotReferenceTypeAnswer answer) &&
+                answer.Outcome != WotReferenceTypeOutcome.Unresolved)
             {
-                referenceType = resolved.NodeId;
-                isForward = resolved.IsForward;
-                return true;
+                return answer;
             }
-            return string.Equals(
-                namespaceUri,
-                WotVocabulary.OpcUaNamespace,
-                StringComparison.Ordinal) &&
+            if (string.Equals(
+                    namespaceUri,
+                    WotVocabulary.OpcUaNamespace,
+                    StringComparison.Ordinal) &&
                 WotVocabulary.TryResolveReferenceTypeName(
-                browseName,
-                out referenceType,
-                out isForward);
+                    browseName,
+                    out string standard,
+                    out bool isForward))
+            {
+                return WotReferenceTypeAnswer.FromMatches(
+                    new ArrayOf<WotResolvedReferenceType>(
+                        [new WotResolvedReferenceType(standard, browseName, isForward)]));
+            }
+            return WotReferenceTypeAnswer.Unresolved;
         }
 
         private static bool TrySplitCompactModelName(
@@ -2034,7 +2300,9 @@ namespace Opc.Ua.Wot
         private static void SynthesizeComponentArrays(
             WotDocument document,
             List<Reference> rootReferences,
-            Dictionary<string, string> componentTypedRefs)
+            Dictionary<string, string> componentTypedRefs,
+            UANodeSet nodeSet,
+            List<WotDiagnostic> diagnostics)
         {
             if (document.TryGetUav("hasComponent", out JsonElement hasComponent) &&
                 hasComponent.ValueKind == JsonValueKind.Array)
@@ -2045,7 +2313,10 @@ namespace Opc.Ua.Wot
                     {
                         rootReferences.Add(new Reference
                         {
-                            ReferenceType = ComponentReferenceType(target.GetString(), componentTypedRefs),
+                            ReferenceType = ToNodeSetReferenceType(
+                                ComponentReferenceType(target.GetString(), componentTypedRefs),
+                                nodeSet,
+                                diagnostics),
                             IsForward = true,
                             Value = target.GetString()
                         });
@@ -2061,13 +2332,40 @@ namespace Opc.Ua.Wot
                     {
                         rootReferences.Add(new Reference
                         {
-                            ReferenceType = ComponentReferenceType(target.GetString(), componentTypedRefs),
+                            ReferenceType = ToNodeSetReferenceType(
+                                ComponentReferenceType(target.GetString(), componentTypedRefs),
+                                nodeSet,
+                                diagnostics),
                             IsForward = false,
                             Value = target.GetString()
                         });
                     }
                 }
             }
+        }
+
+        /// <summary>
+        /// Rewrites a resolved ReferenceType into the form a NodeSet may state
+        /// it in.
+        /// </summary>
+        /// <remarks>
+        /// A relation resolves to the portable ExpandedNodeId of WoT Binding
+        /// Section 5.1.1, but a NodeSet2 document states a ReferenceType as a
+        /// NodeSet-local NodeId or as a name it declares in
+        /// <c>&lt;Aliases&gt;</c>, and the importer rejects anything else. A
+        /// standard name such as <c>HasComponent</c> is left alone - the alias
+        /// completion pass declares it - and a portable identifier is resolved
+        /// through the NodeSet's own namespace table, appending the namespace
+        /// when the companion model it names is not yet in it.
+        /// </remarks>
+        private static string ToNodeSetReferenceType(
+            string referenceType,
+            UANodeSet nodeSet,
+            List<WotDiagnostic> diagnostics)
+        {
+            return referenceType.StartsWith("nsu=", StringComparison.Ordinal)
+                ? ToNodeSetNodeId(referenceType, nodeSet, diagnostics)
+                : referenceType;
         }
 
         private static string ComponentReferenceType(

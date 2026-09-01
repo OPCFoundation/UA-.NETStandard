@@ -954,6 +954,68 @@ matches more than one node with nothing to settle it, and `InvalidTypeBinding`
 for the rest — a resolved type of the wrong NodeClass, or a name and a link that
 disagree.
 
+### Resolving a relation: companion ReferenceTypes
+
+A link `rel` names the ReferenceType of the relation it states (§5.1.2), and
+`uav:refId` carries that ReferenceType's definitive `ExpandedNodeId` (§6.2).
+Neither is limited to the handful of base-namespace names the library knows:
+any ReferenceType the §5.1.5 local context holds resolves by the same rules.
+
+`IWotReferenceTypeResolver` (in `Opc.Ua.Types`) is the capability that supplies
+them. It is a separate interface rather than a member of `IWotNodeResolver`
+because a local context describing no ReferenceType has none to offer, and the
+library targets frameworks without default interface implementations. The
+converter probes for it, and a part that does not offer it contributes nothing
+rather than ending the walk.
+
+| Implementation | Where the names come from | Assembly |
+| --- | --- | --- |
+| `WotDocumentNodeResolver` | the sibling documents being converted | `Opc.Ua.Types` |
+| `SnapshotWotNodeResolver` | the registry snapshot's ReferenceType documents | `Opc.Ua.WotCon.Server` |
+| `AddressSpaceWotNodeResolver` | the ReferenceTypes the Server has loaded | `Opc.Ua.WotCon.Server` |
+
+`WotCompositeNodeResolver` keeps the §5.1.5 order here too: the first part that
+matches a name settles it, so a set of documents authored together resolves to
+itself and loading an unrelated companion model can never change what an
+existing document projects to.
+
+OPC 10000-3 gives a ReferenceType two names, so the lookup resolves both:
+
+* a match on the **BrowseName** reads the reference forward;
+* a match on the **InverseName** reads the same reference backwards, and the
+  emitted `Reference` has its `IsForward` flag cleared;
+* a **symmetric** ReferenceType has one name for both directions and is
+  therefore offered once, forward. Indexing it under both names would make
+  every use of the name ambiguous.
+
+`ResolveReferenceTypesAsync` returns *every* match rather than one, because one
+namespace may hold a ReferenceType whose BrowseName is the name and another
+whose InverseName is. Each match carries the ReferenceType's canonical NodeId,
+the name that matched it and the direction that name expressed.
+
+Four outcomes are diagnosed rather than guessed at:
+
+| Outcome | Diagnostic |
+| --- | --- |
+| The name resolves to nothing and the link carries no `uav:refId` | `ModelConceptUnresolved` |
+| The name matches more than one ReferenceType and the link carries no `uav:refId` to settle it (§6.2 requires one exactly here) | `ReferenceTypeAmbiguous` |
+| The name, or the `uav:refId`, names a Node the local context holds that is not a ReferenceType | `ReferenceTypeNodeClassInvalid` |
+| The name and the `uav:refId` name different ReferenceTypes, or the `uav:refId` names none of the candidates | `ModelConceptConflict` |
+
+Where the name and the identifier agree, the identifier settles which candidate
+was meant and the candidate carries the direction — so `uav:refId` fixes an
+ambiguous relation without the author having to restate the direction.
+
+A document describing a ReferenceType carries both names, so a local context
+built from documents alone can answer an inverse relation: `uav:inverseName`
+holds the InverseName and `uav:symmetric` the Symmetric flag. Both map onto the
+projected Node's own Attributes and are restored on the reverse conversion.
+
+A resolved relation is written into the NodeSet as a NodeSet-local NodeId, never
+as the portable `ExpandedNodeId` it resolved to: a NodeSet2 document may only
+state a ReferenceType as a local NodeId or as a name it declares in
+`<Aliases>`, and the importer rejects anything else.
+
 ### Alarms and Conditions
 
 Section 13 maps an OPC 10000-9 Condition to a WoT event affordance for the

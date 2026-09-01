@@ -488,7 +488,27 @@ namespace Opc.Ua.Wot
         /// 9.1.1). Restating one value in two places is only safe while the two
         /// agree.
         /// </summary>
-        InvalidLocalizedText = 6039
+        InvalidLocalizedText = 6039,
+
+        /// <summary>
+        /// A link <c>rel</c> names a ReferenceType the WoT Binding Section
+        /// 5.1.5 local context holds more than once — the same spelling is one
+        /// ReferenceType's BrowseName and another's InverseName, say — and the
+        /// link carries no <c>uav:refId</c> to settle it. Section 6.2 makes
+        /// <c>uav:refId</c> required exactly when lookup is ambiguous, so
+        /// picking one of the candidates would assert a relation the document
+        /// never chose.
+        /// </summary>
+        ReferenceTypeAmbiguous = 6040,
+
+        /// <summary>
+        /// A link <c>rel</c> or <c>uav:refId</c> names a Node the local
+        /// context holds, but that Node is not a ReferenceType (WoT Binding
+        /// Sections 5.1.2 and 6.2). A relation may only be typed by a
+        /// ReferenceType, so the reference is reported rather than created
+        /// with some other type in its place.
+        /// </summary>
+        ReferenceTypeNodeClassInvalid = 6041
     }
 
     /// <summary>

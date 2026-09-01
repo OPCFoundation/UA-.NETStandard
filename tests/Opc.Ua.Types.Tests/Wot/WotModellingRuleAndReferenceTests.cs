@@ -31,6 +31,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Text.Json;
 using System.Threading;
@@ -272,21 +273,37 @@ namespace Opc.Ua.Types.Tests.Wot
                 .OfType<UAObjectType>().Single()
                 .References!.Single(r => r.Value == LinkTarget);
 
+            // A NodeSet2 document states a ReferenceType as a NodeSet-local
+            // NodeId, so the portable identity the relation resolved to is
+            // read back through the NodeSet's own namespace table.
+            string forwardType = LocalReferenceType(
+                forwardResult.Value!, "nsu=http://example.com/demo/pump;i=5001");
+            string inverseType = LocalReferenceType(
+                inverseResult.Value!, "nsu=http://example.com/demo/pump;i=5001");
+
             Assert.Multiple(() =>
             {
-                Assert.That(
-                    forwardReference.ReferenceType,
-                    Is.EqualTo("nsu=http://example.com/demo/pump;i=5001"));
+                Assert.That(forwardReference.ReferenceType, Is.EqualTo(forwardType));
                 Assert.That(forwardReference.IsForward, Is.True);
-                Assert.That(
-                    inverseReference.ReferenceType,
-                    Is.EqualTo("nsu=http://example.com/demo/pump;i=5001"));
+                Assert.That(inverseReference.ReferenceType, Is.EqualTo(inverseType));
                 Assert.That(
                     inverseReference.IsForward,
                     Is.False,
                     "A relation named by the companion type's InverseName runs " +
                     "the other way.");
             });
+        }
+
+        /// <summary>
+        /// Maps a portable ExpandedNodeId onto the NodeSet-local NodeId a
+        /// converted NodeSet states a ReferenceType as.
+        /// </summary>
+        private static string LocalReferenceType(UANodeSet nodeSet, string portable)
+        {
+            int separator = portable.IndexOf(';', StringComparison.Ordinal);
+            int index = Array.IndexOf(nodeSet.NamespaceUris!, portable[4..separator]) + 1;
+            Assert.That(index, Is.GreaterThan(0));
+            return "ns=" + index.ToString(CultureInfo.InvariantCulture) + portable[separator..];
         }
 
         private static async Task<UANodeSet> ConvertWithParentAsync(string rel)
@@ -472,22 +489,25 @@ namespace Opc.Ua.Types.Tests.Wot
                 return new ValueTask<WotResolvedNode?>((WotResolvedNode?)null);
             }
 
-            public ValueTask<WotResolvedReferenceType?> ResolveReferenceTypeAsync(
+            public ValueTask<ArrayOf<WotResolvedReferenceType>> ResolveReferenceTypesAsync(
                 string namespaceUri,
                 string name,
                 CancellationToken cancellationToken = default)
             {
                 if (Forward.TryGetValue(name, out string? forward))
                 {
-                    return new ValueTask<WotResolvedReferenceType?>(
-                        new WotResolvedReferenceType(forward, true));
+                    return new ValueTask<ArrayOf<WotResolvedReferenceType>>(
+                        new ArrayOf<WotResolvedReferenceType>(
+                            [new WotResolvedReferenceType(forward, name, true)]));
                 }
                 if (Inverse.TryGetValue(name, out string? inverse))
                 {
-                    return new ValueTask<WotResolvedReferenceType?>(
-                        new WotResolvedReferenceType(inverse, false));
+                    return new ValueTask<ArrayOf<WotResolvedReferenceType>>(
+                        new ArrayOf<WotResolvedReferenceType>(
+                            [new WotResolvedReferenceType(inverse, name, false)]));
                 }
-                return new ValueTask<WotResolvedReferenceType?>((WotResolvedReferenceType?)null);
+                return new ValueTask<ArrayOf<WotResolvedReferenceType>>(
+                    ArrayOf<WotResolvedReferenceType>.Empty);
             }
         }
 

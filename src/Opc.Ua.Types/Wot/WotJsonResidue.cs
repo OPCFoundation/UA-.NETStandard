@@ -246,6 +246,12 @@ namespace Opc.Ua.Wot
                     case "uav:nodes":
                     case "uav:dataTypeDefinitions":
                         break;
+                    case WotNodeSetConverter.InverseNameTerm:
+                    case WotNodeSetConverter.SymmetricTerm:
+                        // OPC 10000-3 gives a ReferenceType an InverseName and
+                        // a Symmetric flag, and both map onto the projected
+                        // Node's own Attributes, so both come back from it.
+                        break;
                     case WotNodeSetConverter.TitlesMember:
                     case WotNodeSetConverter.DescriptionsMember:
                         // Section 9.1.1 maps every locale of the root's

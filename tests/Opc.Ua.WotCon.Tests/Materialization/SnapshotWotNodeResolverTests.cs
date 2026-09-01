@@ -292,6 +292,127 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         }
 
         /// <summary>
+        /// A registry holds a companion model's ReferenceTypes as documents of
+        /// their own, so a sibling naming one resolves against the snapshot
+        /// before any AddressSpace is consulted (Section 5.1.5).
+        /// </summary>
+        [Test]
+        public async Task ResolvesReferenceTypeProjectedBySiblingAsync()
+        {
+            SnapshotWotNodeResolver resolver = await ResolverAsync(
+                (WoTDocumentKindEnum.ThingModel, "flows", ReferenceTypeTm(
+                    "FlowsInto", "i=5001", "FedFrom", symmetric: false)))
+                .ConfigureAwait(false);
+
+            ArrayOf<WotResolvedReferenceType> forward = await resolver
+                .ResolveReferenceTypesAsync(PumpNamespace, "FlowsInto")
+                .ConfigureAwait(false);
+            ArrayOf<WotResolvedReferenceType> inverse = await resolver
+                .ResolveReferenceTypesAsync(PumpNamespace, "FedFrom")
+                .ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(forward, Has.Count.EqualTo(1));
+                Assert.That(forward[0].NodeId, Is.EqualTo("nsu=urn:test:pump;i=5001"));
+                Assert.That(forward[0].IsForward, Is.True);
+                Assert.That(inverse, Has.Count.EqualTo(1));
+                Assert.That(inverse[0].NodeId, Is.EqualTo("nsu=urn:test:pump;i=5001"));
+                Assert.That(
+                    inverse[0].IsForward,
+                    Is.False,
+                    "The InverseName reads the same reference backwards.");
+            });
+        }
+
+        /// <summary>
+        /// A symmetric ReferenceType has one name for both directions, so it is
+        /// offered once. A second entry would make every use of the name
+        /// ambiguous.
+        /// </summary>
+        [Test]
+        public async Task OffersASymmetricSiblingReferenceTypeOnceAsync()
+        {
+            SnapshotWotNodeResolver resolver = await ResolverAsync(
+                (WoTDocumentKindEnum.ThingModel, "connected", ReferenceTypeTm(
+                    "ConnectedTo", "i=5002", inverseName: null, symmetric: true)))
+                .ConfigureAwait(false);
+
+            ArrayOf<WotResolvedReferenceType> matches = await resolver
+                .ResolveReferenceTypesAsync(PumpNamespace, "ConnectedTo")
+                .ConfigureAwait(false);
+
+            Assert.That(matches, Has.Count.EqualTo(1));
+            Assert.That(matches[0].IsForward, Is.True);
+        }
+
+        /// <summary>
+        /// An ObjectType sibling is not a relation, so its name resolves to no
+        /// ReferenceType.
+        /// </summary>
+        [Test]
+        public async Task DoesNotOfferAnObjectTypeSiblingAsARelationAsync()
+        {
+            SnapshotWotNodeResolver resolver = await ResolverAsync(
+                (WoTDocumentKindEnum.ThingModel, "tank", Tm("Tank", "i=1042")))
+                .ConfigureAwait(false);
+
+            ArrayOf<WotResolvedReferenceType> matches = await resolver
+                .ResolveReferenceTypesAsync(PumpNamespace, "Tank")
+                .ConfigureAwait(false);
+
+            Assert.That(matches, Is.Empty);
+        }
+
+        /// <summary>
+        /// A sibling ReferenceType is a ReferenceType, not a type-binding
+        /// target, so Section 5.2.1 must not resolve an ObjectType binding to
+        /// it.
+        /// </summary>
+        [Test]
+        public async Task DoesNotOfferAReferenceTypeSiblingAsATypeBindingTargetAsync()
+        {
+            SnapshotWotNodeResolver resolver = await ResolverAsync(
+                (WoTDocumentKindEnum.ThingModel, "flows", ReferenceTypeTm(
+                    "FlowsInto", "i=5001", "FedFrom", symmetric: false)))
+                .ConfigureAwait(false);
+
+            ArrayOf<WotResolvedNode> matches = await resolver
+                .ResolveByBrowseNameAsync(
+                    PumpNamespace, "FlowsInto", WotExpectedNodeClass.ObjectType)
+                .ConfigureAwait(false);
+
+            Assert.That(matches, Is.Empty);
+        }
+
+        /// <summary>
+        /// Section 5.1.5 consults the siblings of a conversion before a loaded
+        /// AddressSpace, so a name both hold resolves to the sibling's
+        /// ReferenceType.
+        /// </summary>
+        [Test]
+        public async Task SiblingsSettleARelationBeforeTheAddressSpaceAsync()
+        {
+            SnapshotWotNodeResolver siblings = await ResolverAsync(
+                (WoTDocumentKindEnum.ThingModel, "flows", ReferenceTypeTm(
+                    "FlowsInto", "i=5001", "FedFrom", symmetric: false)))
+                .ConfigureAwait(false);
+            SnapshotWotNodeResolver addressSpace = await ResolverAsync(
+                (WoTDocumentKindEnum.ThingModel, "flows", ReferenceTypeTm(
+                    "FlowsInto", "i=9999", "FedFrom", symmetric: false)))
+                .ConfigureAwait(false);
+
+            var composite = new WotCompositeNodeResolver(siblings, addressSpace);
+
+            ArrayOf<WotResolvedReferenceType> matches = await composite
+                .ResolveReferenceTypesAsync(PumpNamespace, "FlowsInto")
+                .ConfigureAwait(false);
+
+            Assert.That(matches, Has.Count.EqualTo(1));
+            Assert.That(matches[0].NodeId, Is.EqualTo("nsu=urn:test:pump;i=5001"));
+        }
+
+        /// <summary>
         /// Builds a resolver over a snapshot holding the supplied documents.
         /// </summary>
         private static async Task<SnapshotWotNodeResolver> ResolverAsync(
@@ -321,6 +442,34 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             return Document("tm:ThingModel", browseName, identifier);
         }
 
+        /// <summary>
+        /// A Thing Model projecting a ReferenceType, with the second name and
+        /// the Symmetric flag OPC 10000-3 gives one.
+        /// </summary>
+        private static byte[] ReferenceTypeTm(
+            string browseName,
+            string identifier,
+            string? inverseName,
+            bool symmetric)
+        {
+            var extra = new StringBuilder();
+            if (inverseName is not null && !symmetric)
+            {
+                extra.Append("\"uav:inverseName\":\"").Append(inverseName).Append("\",");
+            }
+            if (symmetric)
+            {
+                extra.Append("\"uav:symmetric\":true,");
+            }
+            return Document(
+                "tm:ThingModel",
+                browseName,
+                identifier,
+                includeUavId: true,
+                extraTypeToken: "uav:referenceType",
+                extraMembers: extra.ToString());
+        }
+
         private static byte[] TmWithoutUavId(string browseName)
         {
             return Document("tm:ThingModel", browseName, string.Empty, includeUavId: false);
@@ -335,14 +484,21 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             string typeToken,
             string browseName,
             string identifier,
-            bool includeUavId = true)
+            bool includeUavId = true,
+            string? extraTypeToken = null,
+            string? extraMembers = null)
         {
             var builder = new StringBuilder();
             builder.Append("{\"@context\":[\"https://www.w3.org/2022/wot/td/v1.1\",")
                 .Append("{\"uav\":\"http://opcfoundation.org/UA/WoT-Binding/\",")
                 .Append("\"ua\":\"http://opcfoundation.org/UA/\",")
                 .Append("\"pump\":\"").Append(PumpNamespace).Append("\"}],")
-                .Append("\"@type\":[\"Thing\",\"").Append(typeToken).Append("\"],")
+                .Append("\"@type\":[\"Thing\",\"").Append(typeToken).Append('"');
+            if (extraTypeToken is not null)
+            {
+                builder.Append(",\"").Append(extraTypeToken).Append('"');
+            }
+            builder.Append("],")
                 .Append("\"id\":\"").Append(PumpNamespace).Append("\",")
                 .Append("\"title\":\"").Append(browseName).Append("\",")
                 .Append("\"uav:browseName\":\"pump:").Append(browseName).Append("\",");
@@ -350,6 +506,10 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             {
                 builder.Append("\"uav:id\":\"nsu=").Append(PumpNamespace).Append(';')
                     .Append(identifier).Append("\",");
+            }
+            if (!string.IsNullOrEmpty(extraMembers))
+            {
+                builder.Append(extraMembers);
             }
             builder
                 .Append("\"security\":\"nosec_sc\",")

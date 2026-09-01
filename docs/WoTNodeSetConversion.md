@@ -49,6 +49,8 @@ them.
 | `uav:severity` (Section 6.6) | **Default** / **Fails** | Absent: no `Severity` Property is materialized, so the EventType inherits the one `BaseEventType` declares and a server applies its own default. Present and in the OPC 10000-5 range `1..1000`: a `Severity` Property (`UInt16`, `HasTypeDefinition` `PropertyType`, `HasModellingRule` `Mandatory`) holding that value, with NodeId `ns=1;s=<rootLocal>/<eventLocal>/Severity`. Outside that range, non-integer, or on an affordance that is not an event: `InvalidEventSeverity` error. The value is **not** clamped — Section 7 forbids it — and the rejected value is carried through residue rather than dropped. |
 | `uav:modellingRule` on a property or action | **Default** | No `HasModellingRule` reference is materialized. |
 | `uav:hasComponent` / `uav:componentOf` entry has no matching typed ReferenceType link | **Default** | `HasComponent` is used for the component reference. |
+| Link `rel` names a ReferenceType the local context holds (Sections 5.1.2, 5.1.5 and 6.2) | **Default** / **Fails** | The relation is created with that exact ReferenceType, stated as a NodeSet-local NodeId. A `rel` matching the ReferenceType's **InverseName** clears `IsForward`; a symmetric ReferenceType reads forward under its BrowseName in both directions. A `rel` matching more than one ReferenceType with no `uav:refId` to settle it: `ReferenceTypeAmbiguous` error. A `rel` or `uav:refId` naming a Node of another NodeClass: `ReferenceTypeNodeClassInvalid` error. A `rel` and a `uav:refId` naming different ReferenceTypes, or a `uav:refId` naming none of an ambiguous name's candidates: `ModelConceptConflict` error. Nothing falls back to `HasComponent` or to a standard alias. |
+| `uav:inverseName` / `uav:symmetric` on a document that projects a ReferenceType | **Default** | Absent: the ReferenceType is materialized with no `InverseName` and `Symmetric` `false`. Present: they become the projected Node's `InverseName` (tagged with the document's default locale) and `Symmetric` Attributes, which is what lets a local context built from documents alone resolve an inverse relation. |
 | Binding link has no resolvable model-name relation and no `uav:refId` | **Default** | The link maps to `Organizes`. Spec PR #19 removed `uav:componentModel`, `uav:capability` and `uav:reference`; a link now names its ReferenceType directly in `rel` (`ua:HasComponent`, `ua:HasInterface`, `ua:NonHierarchicalReferences`). |
 | Reference link points to another Thing by URI and no resolver is supplied or the resolver cannot find `uav:id` | **Default** | The reference is omitted and a warning diagnostic is emitted; no placeholder NodeId is generated. |
 | Invalid namespace-qualified `uav:id` / `uav:browseName` syntax or unbound compact-name prefix | **Fails** | An error diagnostic is emitted; `ToNodeSet` throws even though synthesis continues far enough to collect diagnostics. |
@@ -353,4 +355,38 @@ the exact NodeId and attributes of the argument Properties travel in the
 `uav:nodes` preservation projection.
 
 **WoT to NodeSet.** See the `input` / `output` row of the defaults table above.
+
+## ReferenceTypes and relations (Sections 5.1.2, 5.3 and 6.2)
+
+The readable mapping carries some References structurally — containment as
+affordances and `uav:hasComponent` / `uav:componentOf`, the type hierarchy as
+`tm:extends`, the type definition as a `ua:HasTypeDefinition` link, the
+modelling rule as `uav:modellingRule`, the event source as an event affordance
+and a DataType's encodings as `uav:defaultEncodingId`. Section 6.2 says a
+Reference is a single relation and a document shall not be read as declaring
+two, so none of those is written a second time.
+
+**NodeSet to WoT.** Every *other* Reference — a companion model's own
+ReferenceType, `ua:HasInterface`, `ua:Organizes` — is written as a typed link:
+the ReferenceType's compact model name in `rel`, its portable
+`ExpandedNodeId` in `uav:refId`, and the target's own BrowseName in
+`uav:refName` where the NodeSet holds the target. A reference that runs inverse
+is written under the ReferenceType's **InverseName**, which is what states the
+direction. The compact name comes from the NodeSet itself, in order of
+specificity: its own `UAReferenceType` declarations (the only place an
+InverseName and the Symmetric flag are stated), its `<Aliases>` table, then the
+standard base-namespace names. A ReferenceType none of the three names, and the
+inverse direction of one that declares no InverseName, are reported
+(`ModelConceptUnresolved`) rather than written under a substitute relation: a
+link whose `rel` named a different ReferenceType, or whose direction was
+silently reversed, would read as a fact the source never stated.
+
+A document that projects a ReferenceType Node itself additionally carries
+`uav:inverseName` and `uav:symmetric`, so a set of documents describes a
+companion model's relations completely enough to convert back.
+
+**WoT to NodeSet.** See the ReferenceType rows of the defaults table above, and
+[Resolving a relation: companion ReferenceTypes](WotBindings.md#resolving-a-relation-companion-referencetypes)
+for how a `rel` and a `uav:refId` are resolved against the Section 5.1.5 local
+context.
 

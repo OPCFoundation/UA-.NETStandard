@@ -529,7 +529,9 @@ namespace Opc.Ua.Wot
         /// The local context §5.2.1 resolves a type binding against, or
         /// <c>null</c>. An instance of a companion model states
         /// <c>HasTypeDefinition</c> to a type its own NodeSet does not define,
-        /// so without one every such binding is unresolved.
+        /// so without one every such binding is unresolved. The documents of
+        /// the set itself are always the first part of that context, ahead of
+        /// this one, which is the order §5.1.5 fixes.
         /// </param>
         /// <param name="cancellationToken">A token that cancels the operation.</param>
         /// <returns>The merged NodeSet2 and any diagnostics.</returns>
@@ -551,6 +553,14 @@ namespace Opc.Ua.Wot
 
             var diagnostics = new List<WotDiagnostic>();
             var resolver = new DocumentSetThingResolver(documents);
+
+            // §5.1.5 names the documents being converted alongside this one as
+            // the first part of the local context, and a set is exactly that
+            // closure. Without it a companion model's own ReferenceType has no
+            // name here, so a relation stated by the model's InverseName would
+            // fall back to the identifier alone and lose its direction.
+            IWotNodeResolver localContext = ComposeSetLocalContext(
+                documents, nodeResolver);
             var merged = new List<UANode>();
             var seen = new HashSet<string>(StringComparer.Ordinal);
             string[]? namespaceUris = null;
@@ -560,7 +570,7 @@ namespace Opc.Ua.Wot
             {
                 WotConversionResult<UANodeSet> part = await ToNodeSetResultAsync(
                     documents.Entries[i].Document, resolved, resolver,
-                    resolutionContext: null, nodeResolver, cancellationToken)
+                    resolutionContext: null, localContext, cancellationToken)
                     .ConfigureAwait(false);
                 for (int j = 0; j < part.Diagnostics.Count; j++)
                 {
@@ -587,7 +597,39 @@ namespace Opc.Ua.Wot
                 Models = models,
                 Items = merged.ToArray()
             };
-            return new WotConversionResult<UANodeSet>(result, diagnostics);
+
+            // Each part declared the aliases its own nodes use, but the merge
+            // keeps only the nodes, so the merged NodeSet has to declare them
+            // again. A NodeSet may only use a name it declares in
+            // <Aliases>, and an undeclared one fails the import - which is
+            // exactly what a document set is converted to be able to survive.
+            return new WotConversionResult<UANodeSet>(
+                WotNodeSetAliases.Declare(result), diagnostics);
+        }
+
+        /// <summary>
+        /// Builds the WoT Binding §5.1.5 local context for a document set: the
+        /// documents of the set first, then whatever the caller supplied.
+        /// </summary>
+        /// <remarks>
+        /// Only the ReferenceTypes the set describes are contributed, through
+        /// <see cref="WotDocumentNodeResolver"/>'s
+        /// <see cref="IWotReferenceTypeResolver"/> capability, so a set that
+        /// describes none costs nothing and never hides the caller's context.
+        /// </remarks>
+        private static IWotNodeResolver ComposeSetLocalContext(
+            WotDocumentSet documents,
+            IWotNodeResolver? nodeResolver)
+        {
+            var siblings = new List<WotDocument>(documents.Entries.Count);
+            for (int i = 0; i < documents.Entries.Count; i++)
+            {
+                siblings.Add(documents.Entries[i].Document);
+            }
+            var own = new WotDocumentNodeResolver(siblings);
+            return nodeResolver is null
+                ? own
+                : new WotCompositeNodeResolver(own, nodeResolver);
         }
 
         /// <summary>

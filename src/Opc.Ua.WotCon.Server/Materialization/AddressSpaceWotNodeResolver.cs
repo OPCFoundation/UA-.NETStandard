@@ -57,10 +57,13 @@ namespace Opc.Ua.WotCon.Server.Materialization
     /// <para>
     /// The BrowseName index is built once, on first use. Types are loaded when
     /// a node manager starts, so the type hierarchy is settled by the time any
-    /// document is converted.
+    /// document is converted. The ReferenceType index of Section 5.3, which
+    /// carries both of the names OPC 10000-3 gives a ReferenceType, is built
+    /// the same way and independently, so a conversion that names no relation
+    /// never pays for it.
     /// </para>
     /// </remarks>
-    public sealed class AddressSpaceWotNodeResolver : IWotNodeResolver
+    public sealed class AddressSpaceWotNodeResolver : IWotNodeResolver, IWotReferenceTypeResolver
     {
         /// <summary>
         /// Initializes a resolver over a Server's AddressSpace.
@@ -143,6 +146,205 @@ namespace Opc.Ua.WotCon.Server.Materialization
             return nodeClass is null
                 ? null
                 : new WotResolvedNode(expandedNodeId, ToExpectedNodeClass(nodeClass.Value));
+        }
+
+        /// <inheritdoc/>
+        /// <remarks>
+        /// <para>
+        /// The Server's own ReferenceTypes are the definitive answer for a
+        /// relation a companion model states: a Server that has loaded the
+        /// model holds every ReferenceType it defines, with the BrowseName and
+        /// the InverseName OPC 10000-3 gives each. Nothing here is restricted
+        /// to a fixed table - any ReferenceType the AddressSpace holds resolves
+        /// by the same rules the base-namespace ones do.
+        /// </para>
+        /// <para>
+        /// A name that is one ReferenceType's BrowseName and another's
+        /// InverseName matches both; the caller settles that with
+        /// <c>uav:refId</c> or reports it, because choosing here would assert a
+        /// relation the document never chose.
+        /// </para>
+        /// </remarks>
+        public async ValueTask<ArrayOf<WotResolvedReferenceType>> ResolveReferenceTypesAsync(
+            string namespaceUri,
+            string name,
+            CancellationToken cancellationToken = default)
+        {
+            if (string.IsNullOrEmpty(namespaceUri) || string.IsNullOrEmpty(name))
+            {
+                return ArrayOf<WotResolvedReferenceType>.Empty;
+            }
+
+            IReadOnlyDictionary<string, List<WotResolvedReferenceType>> index =
+                await ReferenceTypeIndexAsync(cancellationToken).ConfigureAwait(false);
+            return index.TryGetValue(
+                Key(namespaceUri, name), out List<WotResolvedReferenceType>? found)
+                ? new ArrayOf<WotResolvedReferenceType>(found.ToArray())
+                : ArrayOf<WotResolvedReferenceType>.Empty;
+        }
+
+        /// <summary>
+        /// Builds the ReferenceType index on first use, keyed by each of the
+        /// two names a ReferenceType answers to.
+        /// </summary>
+        /// <remarks>
+        /// Two concurrent first callers may both build it, which is harmless
+        /// for the same reason the type index is built this way: the hierarchy
+        /// is settled before any document is converted, so both produce the
+        /// same content, and no lock is held across the awaits the walk needs.
+        /// </remarks>
+        private async ValueTask<IReadOnlyDictionary<string, List<WotResolvedReferenceType>>>
+            ReferenceTypeIndexAsync(CancellationToken cancellationToken)
+        {
+            Dictionary<string, List<WotResolvedReferenceType>>? index = m_referenceTypes;
+            if (index is not null)
+            {
+                return index;
+            }
+
+            var built = new Dictionary<string, List<WotResolvedReferenceType>>(
+                StringComparer.Ordinal);
+            var pending = new Queue<NodeId>();
+            var seen = new HashSet<NodeId>();
+            pending.Enqueue(Opc.Ua.ReferenceTypeIds.References);
+            seen.Add(Opc.Ua.ReferenceTypeIds.References);
+            while (pending.Count > 0)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                NodeId current = pending.Dequeue();
+
+                // Materialised before the await: ArrayOf<T> enumerates as a
+                // span, which cannot be preserved across an await boundary.
+                var subTypes = new List<NodeId>();
+                foreach (NodeId subType in m_server.TypeTree.FindSubTypes(current))
+                {
+                    subTypes.Add(subType);
+                }
+                foreach (NodeId subType in subTypes)
+                {
+                    if (subType.IsNull || !seen.Add(subType))
+                    {
+                        continue;
+                    }
+                    pending.Enqueue(subType);
+                    await IndexReferenceTypeAsync(subType, built, cancellationToken)
+                        .ConfigureAwait(false);
+                }
+            }
+            m_referenceTypes = built;
+            return built;
+        }
+
+        /// <summary>
+        /// Adds one ReferenceType to the index under its BrowseName and, unless
+        /// it is symmetric, under its InverseName.
+        /// </summary>
+        private async ValueTask IndexReferenceTypeAsync(
+            NodeId referenceTypeId,
+            Dictionary<string, List<WotResolvedReferenceType>> index,
+            CancellationToken cancellationToken)
+        {
+            ArrayOf<DataValue> values = await ReadAttributesAsync(
+                referenceTypeId,
+                [
+                    Opc.Ua.Attributes.NodeClass,
+                    Opc.Ua.Attributes.BrowseName,
+                    Opc.Ua.Attributes.InverseName,
+                    Opc.Ua.Attributes.Symmetric
+                ],
+                cancellationToken).ConfigureAwait(false);
+            if (values.Count != 4 ||
+                !values[0].WrappedValue.TryGetValue(out int nodeClass) ||
+                (NodeClass)nodeClass != NodeClass.ReferenceType ||
+                !values[1].WrappedValue.TryGetValue(out QualifiedName browseName) ||
+                browseName.IsNull ||
+                string.IsNullOrEmpty(browseName.Name))
+            {
+                return;
+            }
+            string? namespaceUri = m_server.NamespaceUris.GetString(browseName.NamespaceIndex);
+            if (string.IsNullOrEmpty(namespaceUri))
+            {
+                return;
+            }
+
+            string portable = ToPortable(referenceTypeId);
+            AddReferenceTypeName(
+                index, namespaceUri!, browseName.Name!, portable, browseName.Name!, true);
+
+            bool isSymmetric =
+                values[3].WrappedValue.TryGetValue(out bool symmetric) && symmetric;
+            string? inverseName =
+                values[2].WrappedValue.TryGetValue(out LocalizedText inverse)
+                    ? inverse.Text
+                    : null;
+            if (!isSymmetric &&
+                !string.IsNullOrEmpty(inverseName) &&
+                !string.Equals(inverseName, browseName.Name, StringComparison.Ordinal))
+            {
+                AddReferenceTypeName(
+                    index, namespaceUri!, inverseName!, portable, inverseName!, false);
+            }
+        }
+
+        private static void AddReferenceTypeName(
+            Dictionary<string, List<WotResolvedReferenceType>> index,
+            string namespaceUri,
+            string name,
+            string nodeId,
+            string matchedName,
+            bool isForward)
+        {
+            string key = Key(namespaceUri, name);
+            if (!index.TryGetValue(key, out List<WotResolvedReferenceType>? matches))
+            {
+                matches = [];
+                index[key] = matches;
+            }
+            matches.Add(new WotResolvedReferenceType(nodeId, matchedName, isForward));
+        }
+
+        /// <summary>
+        /// Reads a Node's attributes through the Server's own read path.
+        /// </summary>
+        /// <remarks>
+        /// The InverseName and Symmetric Attributes are not part of the browse
+        /// metadata, so they are read as Attributes. The Server's asynchronous
+        /// read is used rather than a node manager's state objects, so the
+        /// resolver holds no lock, never blocks on an asynchronous call, and
+        /// works for any node manager implementation.
+        /// </remarks>
+        private async ValueTask<ArrayOf<DataValue>> ReadAttributesAsync(
+            NodeId nodeId,
+            uint[] attributes,
+            CancellationToken cancellationToken)
+        {
+            var nodesToRead = new ReadValueId[attributes.Length];
+            for (int ii = 0; ii < attributes.Length; ii++)
+            {
+                nodesToRead[ii] = new ReadValueId
+                {
+                    NodeId = nodeId,
+                    AttributeId = attributes[ii]
+                };
+            }
+            try
+            {
+                using OperationContext context = CreateContext();
+                (ArrayOf<DataValue> values, _) = await m_server.NodeManager.ReadAsync(
+                    context,
+                    0,
+                    TimestampsToReturn.Neither,
+                    new ArrayOf<ReadValueId>(nodesToRead),
+                    cancellationToken).ConfigureAwait(false);
+                return values;
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                // A node manager that refuses the read contributes no name
+                // rather than failing every other resolution.
+                return ArrayOf<DataValue>.Empty;
+            }
         }
 
         /// <summary>
@@ -340,6 +542,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
             {
                 NodeClass.ObjectType => WotExpectedNodeClass.ObjectType,
                 NodeClass.VariableType => WotExpectedNodeClass.VariableType,
+                NodeClass.ReferenceType => WotExpectedNodeClass.ReferenceType,
                 _ => WotExpectedNodeClass.Any
             };
         }
@@ -357,5 +560,6 @@ namespace Opc.Ua.WotCon.Server.Materialization
 
         private readonly IServerInternal m_server;
         private volatile Dictionary<string, List<WotResolvedNode>>? m_index;
+        private volatile Dictionary<string, List<WotResolvedReferenceType>>? m_referenceTypes;
     }
 }

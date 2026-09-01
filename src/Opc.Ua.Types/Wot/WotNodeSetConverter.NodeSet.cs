@@ -310,6 +310,7 @@ namespace Opc.Ua.Wot
                     {
                         writer.WriteBoolean("uav:isEvent", true);
                     }
+                    WriteReferenceTypeNames(writer, root, defaultLocale);
                     WriteLocalizedDescription(writer, root?.Description, defaultLocale);
                     WriteDataTypeDefinitions(writer, nodeSet, defaultLocale);
                     WriteAffordances(
@@ -566,10 +567,15 @@ namespace Opc.Ua.Wot
             // surfaced for discovery under uav:hasComponent / uav:componentOf and
             // additionally pinned by a link whose rel is the semantic
             // ReferenceType model name and whose uav:refId is the definitive
-            // ExpandedNodeId (WoT Binding Sections 5.1.2 and 5.3).
+            // ExpandedNodeId (WoT Binding Sections 5.1.2 and 5.3). Every other
+            // reference the readable mapping does not carry structurally - a
+            // companion model's own ReferenceType, ua:HasInterface, ua:Organizes
+            // - is written as the same kind of typed link, in the direction the
+            // source states it.
             var componentChildren = new List<string>();
             var componentParents = new List<string>();
             var typedComponentLinks = new List<TypedComponentLink>();
+            WotReferenceTypeNames referenceTypeNames = WotReferenceTypeNames.Build(nodeSet);
 
             foreach (Reference reference in root.References)
             {
@@ -613,6 +619,17 @@ namespace Opc.Ua.Wot
                         ?? "ua:HasOrderedComponent",
                         subtypeNodeId,
                         ComponentRefName(reference.Value, index)));
+                }
+                else if (!IsStructuralReference(reference))
+                {
+                    WriteArbitraryTypedLink(
+                        reference,
+                        root,
+                        index,
+                        namespaceUris,
+                        referenceTypeNames,
+                        typedComponentLinks,
+                        diagnostics);
                 }
             }
 
@@ -983,7 +1000,18 @@ namespace Opc.Ua.Wot
                 writer.WriteString("rel", link.Rel);
                 writer.WriteString("href", link.Target);
                 writer.WriteString("uav:refId", link.RefType);
-                writer.WriteString("uav:refName", link.RefName);
+
+                // Section 6.2 makes uav:refName the name the target is exposed
+                // under where that differs from the BrowseName the target
+                // declares for itself, and explicitly optional: a converter
+                // uses the target's own BrowseName when it is absent. A target
+                // this NodeSet does not hold has no name to state here, and
+                // restating its NodeId as a name would state a BrowseName it
+                // never had.
+                if (link.RefName.Length != 0)
+                {
+                    writer.WriteString("uav:refName", link.RefName);
+                }
                 writer.WriteEndObject();
             }
             writer.WriteEndArray();
@@ -1409,6 +1437,149 @@ namespace Opc.Ua.Wot
                 string.Equals(referenceType, WotVocabulary.GeneratesEvent, StringComparison.Ordinal);
         }
 
+        /// <summary>
+        /// The InverseName of the ReferenceType a document projects.
+        /// </summary>
+        /// <remarks>
+        /// OPC 10000-3 gives a ReferenceType a second name, and WoT Binding
+        /// Section 5.1.2 makes that name the one a link <c>rel</c> uses to state
+        /// the relation backwards. A document describing a ReferenceType must
+        /// therefore carry it, or the local context built from that document
+        /// could resolve only half of what the ReferenceType answers to and
+        /// every inverse relation of a companion model would lose its
+        /// direction.
+        /// </remarks>
+        internal const string InverseNameTerm = "uav:inverseName";
+
+        /// <summary>
+        /// Whether the ReferenceType a document projects is symmetric, in which
+        /// case its two directions are the same relation.
+        /// </summary>
+        internal const string SymmetricTerm = "uav:symmetric";
+
+        /// <summary>
+        /// Writes the names a projected ReferenceType answers to, beyond the
+        /// BrowseName every Node carries.
+        /// </summary>
+        private static void WriteReferenceTypeNames(
+            Utf8JsonWriter writer,
+            UANode? root,
+            string defaultLocale)
+        {
+            if (root is not UAReferenceType referenceType)
+            {
+                return;
+            }
+            string? inverseName = SelectLocalizedValue(referenceType.InverseName, defaultLocale);
+            if (!string.IsNullOrEmpty(inverseName))
+            {
+                writer.WriteString(InverseNameTerm, inverseName);
+            }
+            if (referenceType.Symmetric)
+            {
+                writer.WriteBoolean(SymmetricTerm, true);
+            }
+        }
+
+        /// <summary>
+        /// Gets whether a reference is already carried by a readable term, so
+        /// restating it as a typed link would state the same fact twice.
+        /// </summary>
+        /// <remarks>
+        /// WoT Binding Section 6.2 says a Reference is a single relation and a
+        /// document shall not be treated as declaring two, so the references the
+        /// mapping already carries structurally - containment as affordances and
+        /// <c>uav:hasComponent</c>/<c>uav:componentOf</c>, the type hierarchy as
+        /// <c>tm:extends</c>, the type definition as
+        /// <c>ua:HasTypeDefinition</c>, the modelling rule as
+        /// <c>uav:modellingRule</c>, the event source as an event affordance,
+        /// and a DataType's encodings as <c>uav:defaultEncodingId</c> - are not
+        /// written again. Everything else is, because nothing else carries it.
+        /// </remarks>
+        private static bool IsStructuralReference(Reference reference)
+        {
+            return IsComponentReference(reference.ReferenceType) ||
+                IsGeneratesEventReference(reference.ReferenceType) ||
+                IsReferenceTypeNamed(reference.ReferenceType, "HasSubtype", WotVocabulary.HasSubtype) ||
+                IsReferenceTypeNamed(
+                    reference.ReferenceType, "HasTypeDefinition", WotVocabulary.HasTypeDefinition) ||
+                IsReferenceTypeNamed(
+                    reference.ReferenceType, "HasModellingRule", WotVocabulary.HasModellingRule) ||
+                IsReferenceTypeNamed(
+                    reference.ReferenceType, "HasEncoding", WotVocabulary.HasEncoding) ||
+                IsReferenceTypeNamed(reference.ReferenceType, "HasDescription", "i=39") ||
+                IsReferenceTypeNamed(
+                    reference.ReferenceType, "AlwaysGeneratesEvent", "i=3065");
+        }
+
+        private static bool IsReferenceTypeNamed(
+            string? referenceType,
+            string browseName,
+            string nodeId)
+        {
+            return string.Equals(referenceType, browseName, StringComparison.Ordinal) ||
+                string.Equals(referenceType, nodeId, StringComparison.Ordinal);
+        }
+
+        /// <summary>
+        /// Writes one reference of an arbitrary ReferenceType as the WoT
+        /// Binding Section 6.2 typed link: the ReferenceType's compact model
+        /// name in <c>rel</c>, its definitive ExpandedNodeId in
+        /// <c>uav:refId</c>, and - where the reference runs inverse - the
+        /// ReferenceType's InverseName, which is what states the direction.
+        /// </summary>
+        /// <remarks>
+        /// A ReferenceType the NodeSet neither declares, aliases nor inherits
+        /// from the base namespace has no name that a <c>rel</c> could carry,
+        /// and neither has the inverse direction of one that states no
+        /// InverseName. Both are reported rather than written under a
+        /// substitute relation: a link whose <c>rel</c> named a different
+        /// ReferenceType, or whose direction was silently reversed, would read
+        /// as a fact the source never stated.
+        /// </remarks>
+        private static void WriteArbitraryTypedLink(
+            Reference reference,
+            UANode root,
+            Dictionary<string, UANode> index,
+            string[]? namespaceUris,
+            WotReferenceTypeNames referenceTypeNames,
+            List<TypedComponentLink> links,
+            List<WotDiagnostic> diagnostics)
+        {
+            string? portableTarget = ToPortableNodeId(reference.Value, namespaceUris);
+            if (string.IsNullOrEmpty(portableTarget))
+            {
+                return;
+            }
+            if (!referenceTypeNames.TryGetRelation(
+                reference.ReferenceType,
+                reference.IsForward,
+                out string modelName,
+                out string refId))
+            {
+                diagnostics.Add(new WotDiagnostic(
+                    WotDiagnosticSeverity.Warning,
+                    WotDiagnosticCode.ModelConceptUnresolved,
+                    $"The {(reference.IsForward ? "forward" : "inverse")} reference of " +
+                    $"type '{reference.ReferenceType}' from '{root.NodeId}' to " +
+                    $"'{portableTarget}' has no compact model name here" +
+                    (reference.IsForward
+                        ? ", so it is not written as a readable link."
+                        : " for its inverse direction, so it is not written as a " +
+                        "readable link."),
+                    new WotLocation(nodeId: root.NodeId, reference: reference.ReferenceType)));
+                return;
+            }
+            links.Add(new TypedComponentLink(
+                portableTarget!,
+                modelName,
+                refId,
+                index.TryGetValue(reference.Value!, out UANode? target) &&
+                    LocalName(target.BrowseName) is { Length: > 0 } local
+                    ? local
+                    : string.Empty));
+        }
+
         private static bool IsReferenceRel(
             WotDocument document,
             JsonElement link,
@@ -1541,7 +1712,7 @@ namespace Opc.Ua.Wot
         /// form is never emitted. An unparseable or unresolvable value is left
         /// untouched.
         /// </summary>
-        private static string? ToPortableNodeId(string? rawNodeId, string[]? namespaceUris)
+        internal static string? ToPortableNodeId(string? rawNodeId, string[]? namespaceUris)
         {
             if (string.IsNullOrEmpty(rawNodeId))
             {
@@ -1664,7 +1835,7 @@ namespace Opc.Ua.Wot
             return unique;
         }
 
-        private static string? LocalName(string? browseName)
+        internal static string? LocalName(string? browseName)
         {
             if (string.IsNullOrEmpty(browseName))
             {

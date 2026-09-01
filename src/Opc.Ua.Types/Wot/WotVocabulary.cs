@@ -263,6 +263,9 @@ namespace Opc.Ua.Wot
         private static readonly Dictionary<string, string> s_referenceTypeNodeIdToName =
             BuildNodeIdTable();
 
+        private static readonly Dictionary<string, string> s_referenceTypeNodeIdToInverseName =
+            BuildNodeIdInverseNameTable();
+
         private static Dictionary<string, string> BuildForwardNameTable()
         {
             var table = new Dictionary<string, string>(StringComparer.Ordinal);
@@ -292,6 +295,19 @@ namespace Opc.Ua.Wot
             foreach (StandardReferenceType entry in s_standardReferenceTypes)
             {
                 table[entry.NodeId] = entry.BrowseName;
+            }
+            return table;
+        }
+
+        private static Dictionary<string, string> BuildNodeIdInverseNameTable()
+        {
+            var table = new Dictionary<string, string>(StringComparer.Ordinal);
+            foreach (StandardReferenceType entry in s_standardReferenceTypes)
+            {
+                if (entry.InverseName.Length != 0)
+                {
+                    table[entry.NodeId] = entry.InverseName;
+                }
             }
             return table;
         }
@@ -497,6 +513,30 @@ namespace Opc.Ua.Wot
             }
             nodeId = string.Empty;
             isForward = true;
+            return false;
+        }
+
+        /// <summary>
+        /// Gets the InverseName OPC 10000-5 gives a base-namespace
+        /// ReferenceType, which is the name a link <c>rel</c> uses to state the
+        /// same reference backwards.
+        /// </summary>
+        /// <param name="nodeId">The ReferenceType's base-namespace NodeId.</param>
+        /// <param name="inverseName">
+        /// The InverseName, or an empty string when the ReferenceType is
+        /// abstract enough to have none.
+        /// </param>
+        /// <returns><c>true</c> when an InverseName is known.</returns>
+        public static bool TryGetReferenceTypeInverseName(
+            string? nodeId,
+            out string inverseName)
+        {
+            if (nodeId is not null &&
+                s_referenceTypeNodeIdToInverseName.TryGetValue(nodeId, out inverseName!))
+            {
+                return true;
+            }
+            inverseName = string.Empty;
             return false;
         }
 

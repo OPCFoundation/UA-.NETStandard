@@ -220,6 +220,36 @@ namespace Opc.Ua.Wot
         }
 
         /// <summary>
+        /// Reduces a <c>LocalizedText</c> array to the single value of the
+        /// document's default locale, for a term whose readable form is one
+        /// string rather than a singular/plural pair.
+        /// </summary>
+        /// <remarks>
+        /// A ReferenceType's InverseName is such a term: it is a name a link
+        /// <c>rel</c> uses, and a <c>rel</c> is not localized. The default
+        /// locale's text is the one the document's own <c>@language</c> names,
+        /// and the first entry is used where the source states no text for it.
+        /// </remarks>
+        private static string? SelectLocalizedValue(
+            Opc.Ua.Export.LocalizedText[]? texts,
+            string defaultLocale)
+        {
+            List<KeyValuePair<string, string>> entries = CollectLocales(texts, defaultLocale);
+            if (entries.Count == 0)
+            {
+                return null;
+            }
+            foreach (KeyValuePair<string, string> entry in entries)
+            {
+                if (string.Equals(entry.Key, defaultLocale, StringComparison.Ordinal))
+                {
+                    return entry.Value;
+                }
+            }
+            return entries[0].Value;
+        }
+
+        /// <summary>
         /// Reduces a <c>LocalizedText</c> array to one entry per locale, in
         /// source order.
         /// </summary>
