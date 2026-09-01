@@ -302,7 +302,7 @@ namespace Opc.Ua.Wot
                 diagnostics.Add(new WotDiagnostic(
                     WotDiagnosticSeverity.Error,
                     WotDiagnosticCode.NonPortableIdentity,
-                    $"The select clause names the EventType " +
+                    "The select clause names the EventType " +
                     $"'{clause.TypeDefinitionId}' with the session-local ns=<index> form; " +
                     "use nsu=<NamespaceUri>;<idtype>=<id> (WoT Binding Section 5.1.1).",
                     WotLocation.FromPointer(pointer + "/" +
@@ -398,7 +398,8 @@ namespace Opc.Ua.Wot
                     WotLocation.FromPointer(pointer)));
             }
 
-            long octets = MeasureCanonicalOctets(value);            if (octets > WotBindingConformance.OpaqueMaxOctets)
+            long octets = MeasureCanonicalOctets(value);
+            if (octets > WotBindingConformance.OpaqueMaxOctets)
             {
                 diagnostics.Add(new WotDiagnostic(
                     severity,

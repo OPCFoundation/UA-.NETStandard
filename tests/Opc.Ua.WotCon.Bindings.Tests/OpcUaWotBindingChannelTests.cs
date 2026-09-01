@@ -77,6 +77,15 @@ namespace Opc.Ua.WotCon.Bindings.Tests
         /// </summary>
         private const string InvalidNodeId = "INVALID-NOT-A-NODE";
 
+        /// <summary>
+        /// The ordinal-sorted member names that the authored select clauses of the
+        /// <c>selectclauses</c> affordance must yield, and nothing else.
+        /// </summary>
+        private static readonly string[] s_authoredSelectClauseFields =
+        [
+            "ConditionId", "Message", "Severity", "SourceName"
+        ];
+
         private ServerFixture<ReferenceServer> m_serverFixture = null!;
         private ISession m_session = null!;
         private WotProtocolBinderRegistry m_registry = null!;
@@ -422,7 +431,7 @@ namespace Opc.Ua.WotCon.Bindings.Tests
                         "The select-clause subscription must deliver the triggered event.");
                     Assert.That(
                         notification!.EventFields.Keys.OrderBy(k => k, StringComparer.Ordinal),
-                        Is.EqualTo(new[] { "ConditionId", "Message", "Severity", "SourceName" }),
+                        Is.EqualTo(s_authoredSelectClauseFields),
                         "The authored list is complete: the documented default is replaced, " +
                         "not extended, and the empty path supplies the ConditionId member.");
                 }

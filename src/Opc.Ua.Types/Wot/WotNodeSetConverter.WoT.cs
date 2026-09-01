@@ -43,15 +43,18 @@ namespace Opc.Ua.Wot
     /// <see cref="WotNodeSetConverter"/>.
     /// </summary>
     public static partial class WotNodeSetConverter
-    {        /// <summary>
-             /// Restores or synthesizes the NodeSet2 document described by a WoT
-             /// document, throwing on any error diagnostic.
-             /// </summary>
-             /// <param name="document">The WoT document.</param>
-             /// <param name="options">Resource limits; defaults are used when omitted.</param>
-             /// <returns>The restored or synthesized NodeSet2 document.</returns>
-             /// <exception cref="FormatException">Thrown when the conversion fails.</exception>
-        /// <exception cref="ArgumentNullException"></exception>
+    {
+        /// <summary>
+        /// Restores or synthesizes the NodeSet2 document described by a WoT
+        /// document, throwing on any error diagnostic.
+        /// </summary>
+        /// <param name="document">The WoT document.</param>
+        /// <param name="options">Resource limits; defaults are used when omitted.</param>
+        /// <returns>The restored or synthesized NodeSet2 document.</returns>
+        /// <exception cref="FormatException">Thrown when the conversion fails.</exception>
+        /// <exception cref="ArgumentNullException">
+        /// Thrown when <paramref name="document"/> is <c>null</c>.
+        /// </exception>
         public static UANodeSet ToNodeSet(
             WotDocument document,
             WotNodeSetConverterOptions? options = null)
@@ -314,7 +317,9 @@ namespace Opc.Ua.Wot
         /// <param name="document">The WoT document.</param>
         /// <param name="options">Resource limits; defaults are used when omitted.</param>
         /// <returns>The conversion result and its diagnostics.</returns>
-        /// <exception cref="ArgumentNullException"></exception>
+        /// <exception cref="ArgumentNullException">
+        /// Thrown when <paramref name="document"/> is <c>null</c>.
+        /// </exception>
         public static WotConversionResult<UANodeSet> ToNodeSetResult(
             WotDocument document,
             WotNodeSetConverterOptions? options = null)
@@ -1460,7 +1465,7 @@ namespace Opc.Ua.Wot
             // not there.
             string? declaration = ResolveConditionMethodDeclaration(
                 document, action, key, nodeSet, diagnostics);
-            string conditionAction = string.Empty;
+            string conditionAction;
             string actsOn = string.Empty;
             bool isConditionMethod =
                 TryGetNonEmptyString(action, ConditionActionTerm, out conditionAction) &&

@@ -85,8 +85,9 @@ namespace Opc.Ua.WotCon.Tests.Samples
         /// Explicit for the same reason <c>WriteCompanionModelSets</c> is: it
         /// rewrites checked-in sample documents. Run it when the converter's
         /// output changes, review the diff, then commit what it produced:
-        ///
+        /// <para>
         ///   dotnet test tests\Opc.Ua.WotCon.Tests --filter "FullyQualifiedName~WriteThingModels"
+        /// </para>
         /// </remarks>
         [Test]
         [Explicit("Rewrites the checked-in sample documents.")]
@@ -120,8 +121,9 @@ namespace Opc.Ua.WotCon.Tests.Samples
         /// Explicit for the same reason <c>WriteThingModels</c> is: it rewrites
         /// a checked-in sample document. Run it when the converter's output
         /// changes, review the diff, then commit what it produced:
-        ///
+        /// <para>
         ///   dotnet test tests\Opc.Ua.WotCon.Tests --filter "FullyQualifiedName~WritePumpThingDescription"
+        /// </para>
         /// </remarks>
         [Test]
         [Explicit("Rewrites the checked-in sample documents.")]

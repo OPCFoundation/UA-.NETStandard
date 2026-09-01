@@ -291,7 +291,10 @@ namespace Opc.Ua.WotCon.Bindings
         /// <summary>
         /// Returns a copy of this entry with the supplied target-mapping descriptor.
         /// </summary>
-        /// <exception cref="ArgumentNullException"></exception>
+        /// <param name="targetMapping">The target-mapping descriptor to attach.</param>
+        /// <exception cref="ArgumentNullException">
+        /// Thrown when <paramref name="targetMapping"/> is <c>null</c>.
+        /// </exception>
         public WotCompiledForm WithTargetMapping(WotTargetMappingDescriptor targetMapping)
         {
             if (targetMapping is null)

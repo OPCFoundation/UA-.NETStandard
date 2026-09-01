@@ -31,7 +31,6 @@ using System;
 using System.IO;
 using System.Threading.Tasks;
 using NUnit.Framework;
-using Opc.Ua.Server;
 using Opc.Ua.Server.TestFramework;
 using Opc.Ua.Wot;
 using Opc.Ua.WotCon.Server.Materialization;

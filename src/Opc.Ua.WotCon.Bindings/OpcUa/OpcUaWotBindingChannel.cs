@@ -335,7 +335,7 @@ namespace Opc.Ua.WotCon.Bindings.OpcUa
                 {
                     throw new ServiceResultException(
                         StatusCodes.BadTypeDefinitionInvalid,
-                        $"The event select clause names the EventType " +
+                        "The event select clause names the EventType " +
                         $"'{clause.TypeDefinitionId}', which this session cannot resolve.");
                 }
                 var operand = new SimpleAttributeOperand

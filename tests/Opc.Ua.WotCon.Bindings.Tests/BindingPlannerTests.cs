@@ -43,6 +43,16 @@ namespace Opc.Ua.WotCon.Bindings.Tests
     [TestFixture]
     public sealed class BindingPlannerTests
     {
+        /// <summary>
+        /// The documented default select clauses followed by the two clauses that the
+        /// superseded <c>uav:eventFields</c> spelling adds to them.
+        /// </summary>
+        private static readonly string[] s_legacyEventFieldsOnDefault =
+        [
+            "EventId", "EventType", "SourceNode", "SourceName",
+            "Time", "ReceiveTime", "Message", "Severity", "LocalTime"
+        ];
+
         private static WotBindingPlanContext DefaultContext()
         {
             return new WotBindingPlanContext();
@@ -804,11 +814,7 @@ namespace Opc.Ua.WotCon.Bindings.Tests
             Assert.That(selection!.Origin, Is.EqualTo(WotEventSelectionOrigin.Legacy));
             Assert.That(
                 selection.Clauses.ToList().Select(c => c.BrowsePath),
-                Is.EqualTo(new[]
-                {
-                    "EventId", "EventType", "SourceNode", "SourceName",
-                    "Time", "ReceiveTime", "Message", "Severity", "LocalTime"
-                }),
+                Is.EqualTo(s_legacyEventFieldsOnDefault),
                 "The superseded spelling adds to the documented default and never repeats it.");
         }
 

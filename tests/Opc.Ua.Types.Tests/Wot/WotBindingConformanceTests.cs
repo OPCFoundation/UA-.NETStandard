@@ -27,6 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
 using System.Linq;
 using System.Text;
 using System.Text.Json;
@@ -427,8 +428,8 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(
                 nodeSet.Items?.Any(node =>
                     node.BrowseName is not null &&
-                    (node.BrowseName.IndexOf("bindingVersion", System.StringComparison.Ordinal) >= 0 ||
-                        node.BrowseName.IndexOf("profile", System.StringComparison.Ordinal) >= 0)),
+                    (node.BrowseName.Contains("bindingVersion", StringComparison.Ordinal) ||
+                        node.BrowseName.Contains("profile", StringComparison.Ordinal))),
                 Is.False,
                 "A document-level claim describes the document, not the AddressSpace.");
         }
@@ -572,7 +573,7 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(
                 result.Diagnostics.Any(d =>
                     d.Code == WotDiagnosticCode.OpaqueObjectInvalid &&
-                    d.Message.IndexOf("top-level keys", System.StringComparison.Ordinal) >= 0),
+                    d.Message.Contains("top-level keys", StringComparison.Ordinal)),
                 Is.True,
                 Describe(result));
         }
@@ -597,7 +598,7 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(
                 result.Diagnostics.Any(d =>
                     d.Code == WotDiagnosticCode.OpaqueObjectInvalid &&
-                    d.Message.IndexOf("levels deep", System.StringComparison.Ordinal) >= 0),
+                    d.Message.Contains("levels deep", StringComparison.Ordinal)),
                 Is.True,
                 Describe(result));
         }
@@ -613,7 +614,7 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(
                 result.Diagnostics.Any(d =>
                     d.Code == WotDiagnosticCode.OpaqueObjectInvalid &&
-                    d.Message.IndexOf("octets", System.StringComparison.Ordinal) >= 0),
+                    d.Message.Contains("octets", StringComparison.Ordinal)),
                 Is.True,
                 Describe(result));
         }
@@ -790,7 +791,7 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(
                 result.Diagnostics.Any(d =>
                     d.Code == WotDiagnosticCode.EventSelectClauseInvalid &&
-                    d.Message.IndexOf(fragment, System.StringComparison.Ordinal) >= 0),
+                    d.Message.Contains(fragment, StringComparison.Ordinal)),
                 Is.True,
                 Describe(result));
         }

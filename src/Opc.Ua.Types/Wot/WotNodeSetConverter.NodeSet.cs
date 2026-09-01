@@ -86,7 +86,9 @@ namespace Opc.Ua.Wot
         /// <param name="title">An optional document title.</param>
         /// <param name="options">Resource limits; defaults are used when omitted.</param>
         /// <returns>The generated, byte-preserving WoT document.</returns>
-        /// <exception cref="FormatException"></exception>
+        /// <exception cref="FormatException">
+        /// Thrown when the NodeSet could not be converted.
+        /// </exception>
         public static WotDocument FromNodeSet(
             UANodeSet nodeSet,
             string? title = null,
@@ -106,7 +108,9 @@ namespace Opc.Ua.Wot
         /// <param name="title">An optional document title.</param>
         /// <param name="options">Resource limits; defaults are used when omitted.</param>
         /// <returns>The conversion result and its diagnostics.</returns>
-        /// <exception cref="ArgumentNullException"></exception>
+        /// <exception cref="ArgumentNullException">
+        /// Thrown when <paramref name="nodeSet"/> is <c>null</c>.
+        /// </exception>
         public static WotConversionResult<WotDocument> FromNodeSetResult(
             UANodeSet nodeSet,
             string? title = null,

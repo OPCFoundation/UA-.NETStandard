@@ -386,11 +386,11 @@ namespace Opc.Ua.Types.Tests.Wot
                 typeof(WotSpecFixtureManifestTests).Assembly.Location);
             while (!string.IsNullOrEmpty(directory))
             {
-                if (File.Exists(Path.Combine(directory!, "UA.slnx")))
+                if (File.Exists(Path.Combine(directory, "UA.slnx")))
                 {
                     return directory;
                 }
-                directory = Path.GetDirectoryName(directory!);
+                directory = Path.GetDirectoryName(directory);
             }
             return null;
         }

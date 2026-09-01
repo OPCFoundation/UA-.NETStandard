@@ -269,7 +269,7 @@ namespace Opc.Ua.Types.Tests.Wot
         }
 
         [Test]
-        public void TheFirstPartOfTheLocalContextSettlesTheRelation()
+        public async Task TheFirstPartOfTheLocalContextSettlesTheRelationAsync()
         {
             // Section 5.1.5 consults the siblings of the conversion before a
             // loaded AddressSpace, so a name both hold resolves to the
@@ -281,9 +281,9 @@ namespace Opc.Ua.Types.Tests.Wot
 
             var composite = new WotCompositeNodeResolver(siblings, addressSpace);
 
-            ArrayOf<WotResolvedReferenceType> matches = composite
+            ArrayOf<WotResolvedReferenceType> matches = await composite
                 .ResolveReferenceTypesAsync(PumpNamespace, "MaterialReference")
-                .AsTask().GetAwaiter().GetResult();
+                .ConfigureAwait(false);
 
             Assert.Multiple(() =>
             {
@@ -293,7 +293,7 @@ namespace Opc.Ua.Types.Tests.Wot
         }
 
         [Test]
-        public void APartWithoutTheCapabilityDoesNotEndTheWalk()
+        public async Task APartWithoutTheCapabilityDoesNotEndTheWalkAsync()
         {
             var addressSpace = new StubReferenceTypeResolver();
             addressSpace.Add(PumpNamespace, "MaterialReference", PumpMaterialReference, true);
@@ -301,9 +301,9 @@ namespace Opc.Ua.Types.Tests.Wot
             var composite = new WotCompositeNodeResolver(
                 new PlainResolver(), addressSpace);
 
-            ArrayOf<WotResolvedReferenceType> matches = composite
+            ArrayOf<WotResolvedReferenceType> matches = await composite
                 .ResolveReferenceTypesAsync(PumpNamespace, "MaterialReference")
-                .AsTask().GetAwaiter().GetResult();
+                .ConfigureAwait(false);
 
             Assert.That(matches.Count, Is.EqualTo(1));
         }
