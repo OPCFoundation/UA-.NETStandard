@@ -186,10 +186,12 @@ namespace Opc.Ua.Types.Tests.Wot
         }
 
         [Test]
-        public async Task UnderSourceRoutingAnAnnotatedFormIsNotCarriedAsync()
+        public async Task UnderSourceRoutingAnAnnotatedFormMakesTheDocumentInvalidAsync()
         {
             // Section 12.5: a member routed to its source carries the source's
-            // own form, so an annotated form is dropped rather than merged.
+            // own form, so a member that restates one makes the document
+            // invalid. Dropping it would leave a form the author wrote and the
+            // consumer silently did not use.
             var resolver = new WotProjectionResolver(new MapResolver(
                 new Dictionary<string, string>(StringComparer.Ordinal)
                 {
@@ -203,13 +205,84 @@ namespace Opc.Ua.Types.Tests.Wot
             WotConversionResult<WotDocument> result =
                 await resolver.ResolveAsync(document).ConfigureAwait(false);
 
-            using WotDocument view = result.Value!;
-            JsonElement speed = view.RootElement
-                .GetProperty("properties")
-                .GetProperty("pumpSpeed");
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    result.Diagnostics.Any(d =>
+                        d.Severity == WotDiagnosticSeverity.Error &&
+                        d.Code == WotDiagnosticCode.ProjectionAnnotationNotPermitted),
+                    Is.True,
+                    string.Join("; ", result.Diagnostics.Select(d => d.Message)));
+                Assert.That(result.Value, Is.Null, "An invalid document resolves to no view.");
+            });
+        }
+
+        [Test]
+        public async Task UnderSourceRoutingAnAnnotatedSecurityMakesTheDocumentInvalidAsync()
+        {
+            var resolver = new WotProjectionResolver(new MapResolver(
+                new Dictionary<string, string>(StringComparer.Ordinal)
+                {
+                    ["./source.jsonld"] = SourceJson
+                }));
+            using WotDocument document = WotDocument.Parse(
+                Encoding.UTF8.GetBytes(Projection(
+                    "\"security\":[\"nosec_sc\"]",
+                    routing: "source")));
+
+            WotConversionResult<WotDocument> result =
+                await resolver.ResolveAsync(document).ConfigureAwait(false);
+
             Assert.That(
-                speed.GetProperty("forms")[0].GetProperty("href").GetString(),
-                Does.Not.Contain("injected"));
+                result.Diagnostics.Any(d =>
+                    d.Severity == WotDiagnosticSeverity.Error &&
+                    d.Code == WotDiagnosticCode.ProjectionAnnotationNotPermitted),
+                Is.True,
+                string.Join("; ", result.Diagnostics.Select(d => d.Message)));
+        }
+
+        /// <summary>
+        /// A <c>uav:namePrefix</c> upper-cases the first character of the
+        /// source name (Section 12.3), so <c>serialNumber</c> and
+        /// <c>SerialNumber</c> in one source both become
+        /// <c>deviceSerialNumber</c> in the view. Two bulk selections of the
+        /// same kind from the same source can therefore take the same view name
+        /// from different definitions, and nothing before the final tie-break
+        /// separates them. With it, whichever of the two sorts first by the
+        /// affordance's own name in the source is the one the view keeps - in
+        /// every implementation.
+        /// </summary>
+        [Test]
+        public async Task ATiedViewNameIsBrokenByTheSourceAffordanceNameAsync()
+        {
+            var resolver = new WotProjectionResolver(new MapResolver(
+                new Dictionary<string, string>(StringComparer.Ordinal)
+                {
+                    ["./collide.jsonld"] = CollidingSourceJson
+                }));
+            using WotDocument document = WotDocument.Parse(
+                Encoding.UTF8.GetBytes(PrefixedProjection));
+
+            WotConversionResult<WotDocument> result =
+                await resolver.ResolveAsync(document).ConfigureAwait(false);
+
+            using WotDocument view = result.Value!;
+            JsonElement selected = view.RootElement
+                .GetProperty("properties")
+                .GetProperty("deviceSerialNumber");
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    selected.GetProperty("uav:resolvedFrom").GetString(),
+                    Does.Contain("/properties/SerialNumber"),
+                    "'SerialNumber' sorts before 'serialNumber' by Unicode code point, so " +
+                    "the order is total and both implementations keep the same definition.");
+                Assert.That(
+                    result.Diagnostics.Any(d =>
+                        d.Code == WotDiagnosticCode.ProjectionSelectionDropped),
+                    Is.True,
+                    "The later selection of the same name is dropped and reported.");
+            });
         }
 
         private static string Projection(string annotation, string routing = "projection")
@@ -230,6 +303,46 @@ namespace Opc.Ua.Types.Tests.Wot
                 "\"tm:ref\":\"./source.jsonld#/properties/pumpSpeed\"," +
                 annotation + "}}}";
         }
+
+        /// <summary>
+        /// A source whose two property affordances differ only in the case of
+        /// their first character, so a <c>uav:namePrefix</c> gives both the
+        /// same name in the view.
+        /// </summary>
+        private const string CollidingSourceJson =
+            "{\"@context\":[\"https://www.w3.org/2022/wot/td/v1.1\"," +
+            "{\"uav\":\"http://opcfoundation.org/UA/WoT-Binding/\"}]," +
+            "\"@type\":\"uav:object\",\"title\":\"Device\"," +
+            "\"id\":\"urn:dev:opcua:device\"," +
+            "\"uav:browseName\":\"nsu=urn:opcua:wot:synthesized;Device\"," +
+            "\"securityDefinitions\":{\"nosec_sc\":{\"scheme\":\"nosec\"}}," +
+            "\"security\":\"nosec_sc\"," +
+            "\"properties\":{" +
+            "\"serialNumber\":{\"@type\":\"uav:variable\"," +
+            "\"uav:browseName\":\"nsu=urn:opcua:wot:synthesized;serialNumber\"," +
+            "\"type\":\"string\"," +
+            "\"forms\":[{\"href\":\"opc.tcp://example.test:4840\"," +
+            "\"op\":[\"readproperty\"]}]}," +
+            "\"SerialNumber\":{\"@type\":\"uav:variable\"," +
+            "\"uav:browseName\":\"nsu=urn:opcua:wot:synthesized;SerialNumber\"," +
+            "\"type\":\"string\"," +
+            "\"forms\":[{\"href\":\"opc.tcp://example.test:4840\"," +
+            "\"op\":[\"readproperty\"]}]}}}";
+
+        private const string PrefixedProjection =
+            "{\"@context\":[\"https://www.w3.org/2022/wot/td/v1.1\"," +
+            "{\"uav\":\"http://opcfoundation.org/UA/WoT-Binding/\"," +
+            "\"tm\":\"https://www.w3.org/2019/wot/tm#\"}]," +
+            "\"@type\":[\"Thing\",\"uav:projection\"]," +
+            "\"id\":\"urn:dev:opcua:view:prefixed\"," +
+            "\"title\":\"Prefixed view\"," +
+            "\"uav:scenario\":\"http://example.com/scenario/Prefixed\"," +
+            "\"securityDefinitions\":{\"nosec_sc\":{\"scheme\":\"nosec\"}}," +
+            "\"security\":\"nosec_sc\"," +
+            "\"uav:projects\":[{\"uav:sourceName\":\"device\"," +
+            "\"href\":\"./collide.jsonld\",\"type\":\"application/td+json\"," +
+            "\"uav:routing\":\"source\",\"uav:namePrefix\":\"device\"," +
+            "\"uav:selectAll\":true}]}";
 
         private const string SourceJson =
             "{\"@context\":[\"https://www.w3.org/2022/wot/td/v1.1\"," +

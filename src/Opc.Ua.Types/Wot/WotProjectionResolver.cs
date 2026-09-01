@@ -221,13 +221,10 @@ namespace Opc.Ua.Wot
                     {
                         continue;
                     }
-                    for (int jj = 0; jj < references.Count; jj++)
+                    foreach (WotProjectionReference reference in
+                        OrderEnumerated(references, referenceOwner, ii))
                     {
-                        if (referenceOwner[jj] == ii)
-                        {
-                            SelectEnumerated(
-                                source, references[jj], selection, diagnostics);
-                        }
+                        SelectEnumerated(source, reference, selection, diagnostics);
                     }
                     if (source.Source.SelectAll || HasFilters(source.Source))
                     {
@@ -490,6 +487,80 @@ namespace Opc.Ua.Wot
             completed.Add(href);
         }
 
+        /// <summary>
+        /// Orders the enumerated selections of one source by the total order of
+        /// WoT Binding Section 12.4: affordance kind in the fixed order
+        /// <c>properties</c>, <c>actions</c>, <c>events</c>; then ascending
+        /// Unicode code point of the name the selection takes <em>in the
+        /// view</em>; then ascending Unicode code point of the affordance's
+        /// name <em>in the source</em>.
+        /// </summary>
+        /// <remarks>
+        /// The order is stated over names rather than over document order
+        /// because <c>properties</c>, <c>actions</c> and <c>events</c> are JSON
+        /// objects, which RFC 8259 defines as unordered: a rule that ranked
+        /// selections by member position would let two conforming consumers
+        /// resolve identical bytes into different views, and because the first
+        /// selection of a name wins, the difference is observable.
+        /// </remarks>
+        private static List<WotProjectionReference> OrderEnumerated(
+            ArrayOf<WotProjectionReference> references,
+            int[] referenceOwner,
+            int sourceIndex)
+        {
+            var owned = new List<WotProjectionReference>();
+            for (int jj = 0; jj < references.Count; jj++)
+            {
+                if (referenceOwner[jj] == sourceIndex)
+                {
+                    owned.Add(references[jj]);
+                }
+            }
+            owned.Sort(static (left, right) =>
+            {
+                int comparison = KindRank(left.AffordanceKind)
+                    .CompareTo(KindRank(right.AffordanceKind));
+                if (comparison != 0)
+                {
+                    return comparison;
+                }
+                comparison = WotCodePointComparer.Instance.Compare(left.Name, right.Name);
+                return comparison != 0
+                    ? comparison
+                    : WotCodePointComparer.Instance.Compare(
+                        SourceAffordanceName(left.Reference),
+                        SourceAffordanceName(right.Reference));
+            });
+            return owned;
+        }
+
+        /// <summary>
+        /// The position of an affordance kind in the fixed order of
+        /// WoT Binding Section 12.4.
+        /// </summary>
+        private static int KindRank(WotAffordanceKind kind)
+        {
+            return kind switch
+            {
+                WotAffordanceKind.Action => 1,
+                WotAffordanceKind.Event => 2,
+                _ => 0
+            };
+        }
+
+        /// <summary>
+        /// Gets the affordance's own name in the source, which is the last
+        /// token of the <c>tm:ref</c> JSON Pointer and the final tie-break of
+        /// WoT Binding Section 12.4.
+        /// </summary>
+        private static string SourceAffordanceName(string reference)
+        {
+            int separator = reference.LastIndexOf('/');
+            return separator >= 0 && separator + 1 < reference.Length
+                ? reference.Substring(separator + 1)
+                : reference;
+        }
+
         private static void SelectEnumerated(
             ResolvedSource source,
             WotProjectionReference reference,
@@ -522,6 +593,26 @@ namespace Opc.Ua.Wot
 
             bool sourceRouting =
                 source.Source.Routing == WotProjectionRouting.Source;
+            if (sourceRouting && CarriesTransportAnnotation(reference.Annotations, out string member))
+            {
+                // Section 12.5: under source routing the consumer talks to the
+                // source's own endpoint, so a member that restates forms or
+                // security makes the document invalid. Dropping it would be
+                // worse than reporting it: a dropped form is one the author
+                // wrote and the consumer silently did not use, which reads at
+                // run time as the source endpoint answering a request the
+                // document appeared to address elsewhere.
+                AddError(
+                    diagnostics,
+                    WotDiagnosticCode.ProjectionAnnotationNotPermitted,
+                    $"The projected affordance '{reference.Name}' carries '{member}' and is " +
+                    $"selected from the source-routed source '{source.Source.Href}'. A member " +
+                    "selected from a source-routed source shall not carry forms or security of " +
+                    "its own; the source's own form is carried and absolutized instead " +
+                    "(WoT Binding Sections 12.4 and 12.5).",
+                    reference.Reference);
+                return;
+            }
             JsonObject target = CloneObject(definition);
             if (!sourceRouting)
             {
@@ -543,13 +634,39 @@ namespace Opc.Ua.Wot
             Selection selection,
             List<WotDiagnostic> diagnostics)
         {
+            var candidates = new List<(WotAffordanceKind Kind, string Name, JsonElement Definition)>();
             foreach ((WotAffordanceKind kind, string name, JsonElement definition)
                 in EnumerateAffordances(source.Document))
             {
-                if (!MatchesSource(source.Source, kind, name, definition))
+                if (MatchesSource(source.Source, kind, name, definition))
                 {
-                    continue;
+                    candidates.Add((kind, name, definition));
                 }
+            }
+
+            // Section 12.4: within one source and group, by affordance kind,
+            // then by the name the selection takes in the view, then by the
+            // affordance's own name in the source. The last key is what makes
+            // the order total, because uav:namePrefix upper-cases the first
+            // character of the source name and so gives 'serialNumber' and
+            // 'SerialNumber' the same name in the view.
+            candidates.Sort((left, right) =>
+            {
+                int comparison = KindRank(left.Kind).CompareTo(KindRank(right.Kind));
+                if (comparison != 0)
+                {
+                    return comparison;
+                }
+                comparison = WotCodePointComparer.Instance.Compare(
+                    ApplyPrefix(source.Source, left.Name),
+                    ApplyPrefix(source.Source, right.Name));
+                return comparison != 0
+                    ? comparison
+                    : WotCodePointComparer.Instance.Compare(left.Name, right.Name);
+            });
+
+            foreach ((WotAffordanceKind kind, string name, JsonElement definition) in candidates)
+            {
                 string viewName = ApplyPrefix(source.Source, name);
                 if (!selection.Claim(kind, viewName))
                 {
@@ -579,6 +696,31 @@ namespace Opc.Ua.Wot
                     BuildBulkProvenance(source.Source.Href, kind, name);
                 selection.Add(kind, viewName, target);
             }
+        }
+
+        /// <summary>
+        /// Gets whether a projection's annotation on a declared affordance
+        /// carries a transport member - <c>forms</c> or <c>security</c> - which
+        /// only a <c>projection</c>-routed source may state
+        /// (WoT Binding Sections 12.4 and 12.5).
+        /// </summary>
+        private static bool CarriesTransportAnnotation(JsonElement annotations, out string member)
+        {
+            if (annotations.ValueKind == JsonValueKind.Object)
+            {
+                if (annotations.TryGetProperty("forms", out _))
+                {
+                    member = "forms";
+                    return true;
+                }
+                if (annotations.TryGetProperty("security", out _))
+                {
+                    member = "security";
+                    return true;
+                }
+            }
+            member = string.Empty;
+            return false;
         }
 
         /// <summary>
