@@ -139,19 +139,49 @@ namespace Opc.Ua.WotCon.Bindings.Tests
         }
 
         [Test]
-        public void TwoClausesRequestingOnePathAreReported()
+        public void TwoClausesNormalizingToOnePathAreRejected()
         {
             WotBindingCompilation result = CompileEvent(
                 "{\"uav:eventSelectClauses\":[" +
                 "{\"uav:typeDefinitionId\":\"i=2041\",\"uav:browsePath\":\"Message\"}," +
                 "{\"uav:typeDefinitionId\":\"i=2782\",\"uav:browsePath\":\"Message\"}]}");
 
-            Assert.That(result.IsSupported, Is.True);
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    result.Diagnostics.Any(d =>
+                        d.Code == WotBindingDiagnosticCode.EventSelectClauseInvalid),
+                    Is.True,
+                    "Section 6.1 states clause uniqueness over the normalized path alone: " +
+                    "the path decides the data member, so two clauses that reach it compete " +
+                    "for it whatever EventType each names. " + Describe(result));
+                Assert.That(
+                    result.Entries.All(e => e.EventSelection is null),
+                    Is.True,
+                    "An invalid selection compiles to none.");
+            });
+        }
+
+        [Test]
+        public void TwoPrefixesForOneNamespaceCollideOnTheNormalizedPath()
+        {
+            var context = new WotBindingPlanContext(
+                namespacePrefixes: ImmutableDictionary<string, string>.Empty
+                    .Add("pump", "urn:example:pump")
+                    .Add("p2", "urn:example:pump"));
+
+            WotBindingCompilation result = CompileEvent(
+                "{\"uav:eventSelectClauses\":[" +
+                "{\"uav:typeDefinitionId\":\"i=2041\",\"uav:browsePath\":\"pump:Temperature\"}," +
+                "{\"uav:typeDefinitionId\":\"i=2041\",\"uav:browsePath\":\"p2:Temperature\"}]}",
+                context);
+
             Assert.That(
                 result.Diagnostics.Any(d =>
-                    d.Code == WotBindingDiagnosticCode.ConflictingFields),
+                    d.Code == WotBindingDiagnosticCode.EventSelectClauseInvalid),
                 Is.True,
-                Describe(result));
+                "Normalization is what makes two paths that name the same elements the same " +
+                "path even when their prefixes differ. " + Describe(result));
         }
 
         [Test]
@@ -474,7 +504,8 @@ namespace Opc.Ua.WotCon.Bindings.Tests
                 MessageSecurityMode.None, SecurityPolicies.None, "opc.tcp://weak");
             var executor = new OpcUaWotBindingExecutor(new OpcUaWotBindingOptions
             {
-                SessionFactory = (endpoint, ct) => new ValueTask<ISession>(session.Object)
+                ConstrainedSessionFactory = (request, ct) =>
+                    new ValueTask<ISession>(session.Object)
             });
 
             Assert.That(
@@ -495,7 +526,8 @@ namespace Opc.Ua.WotCon.Bindings.Tests
                 "opc.tcp://strong");
             var executor = new OpcUaWotBindingExecutor(new OpcUaWotBindingOptions
             {
-                SessionFactory = (endpoint, ct) => new ValueTask<ISession>(session.Object),
+                ConstrainedSessionFactory = (request, ct) =>
+                    new ValueTask<ISession>(session.Object),
                 DisposeSession = false
             });
 
@@ -505,6 +537,164 @@ namespace Opc.Ua.WotCon.Bindings.Tests
                 .ConfigureAwait(false);
 
             Assert.That(channel, Is.Not.Null);
+            await channel.DisposeAsync().ConfigureAwait(false);
+        }
+
+        [Test]
+        public async Task TheBuiltInSelectionTakesTheStrongestEligibleEndpointAsync()
+        {
+            EndpointDescription? selected = null;
+            Mock<ISession> session = MockSession(
+                MessageSecurityMode.SignAndEncrypt,
+                SecurityPolicies.Aes256_Sha256_RsaPss,
+                "opc.tcp://strong");
+            var executor = new OpcUaWotBindingExecutor(new OpcUaWotBindingOptions
+            {
+                EndpointDiscovery = (endpoint, ct) =>
+                    new ValueTask<ArrayOf<EndpointDescription>>(new EndpointDescription[]
+                    {
+                        Endpoint("opc.tcp://weak", MessageSecurityMode.None,
+                            SecurityPolicies.None, 0),
+                        Endpoint("opc.tcp://signed", MessageSecurityMode.Sign,
+                            SecurityPolicies.Basic256Sha256, 1),
+                        Endpoint("opc.tcp://strong", MessageSecurityMode.SignAndEncrypt,
+                            SecurityPolicies.Aes256_Sha256_RsaPss, 1)
+                    }),
+                SelectedEndpointSessionFactory = (endpoint, request, ct) =>
+                {
+                    selected = endpoint;
+                    return new ValueTask<ISession>(session.Object);
+                },
+                DisposeSession = false
+            });
+
+            IWotBindingChannel channel = await executor
+                .ActivateAsync(BuildForm(new WotSecurityFloor("Sign", "Basic256Sha256")),
+                    new WotExecutorContext())
+                .ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(selected, Is.Not.Null);
+                Assert.That(
+                    selected!.EndpointUrl,
+                    Is.EqualTo("opc.tcp://strong"),
+                    "Section 5.7.1 takes the strongest of what remains above the floor.");
+            });
+            await channel.DisposeAsync().ConfigureAwait(false);
+        }
+
+        [Test]
+        public void TheBuiltInSelectionFailsWhenNoEndpointIsEligible()
+        {
+            bool connected = false;
+            var executor = new OpcUaWotBindingExecutor(new OpcUaWotBindingOptions
+            {
+                EndpointDiscovery = (endpoint, ct) =>
+                    new ValueTask<ArrayOf<EndpointDescription>>(new EndpointDescription[]
+                    {
+                        Endpoint("opc.tcp://weak", MessageSecurityMode.None,
+                            SecurityPolicies.None, 0)
+                    }),
+                SelectedEndpointSessionFactory = (endpoint, request, ct) =>
+                {
+                    connected = true;
+                    return new ValueTask<ISession>(new Mock<ISession>().Object);
+                }
+            });
+
+            Assert.That(
+                async () => await executor
+                    .ActivateAsync(BuildForm(new WotSecurityFloor("Sign", "Basic256Sha256")),
+                        new WotExecutorContext())
+                    .ConfigureAwait(false),
+                Throws.InstanceOf<ServiceResultException>(),
+                "A client shall fail and report rather than fall back below a stated floor.");
+            Assert.That(connected, Is.False, "No session is opened below the floor.");
+        }
+
+        [Test]
+        public async Task TheBuiltInSelectionBreaksATieDeterministicallyAsync()
+        {
+            EndpointDescription? selected = null;
+            Mock<ISession> session = MockSession(
+                MessageSecurityMode.SignAndEncrypt,
+                SecurityPolicies.Aes256_Sha256_RsaPss,
+                "opc.tcp://alpha");
+            var executor = new OpcUaWotBindingExecutor(new OpcUaWotBindingOptions
+            {
+                EndpointDiscovery = (endpoint, ct) =>
+                    new ValueTask<ArrayOf<EndpointDescription>>(new EndpointDescription[]
+                    {
+                        Endpoint("opc.tcp://beta", MessageSecurityMode.SignAndEncrypt,
+                            SecurityPolicies.Aes256_Sha256_RsaPss, 5),
+                        Endpoint("opc.tcp://alpha", MessageSecurityMode.SignAndEncrypt,
+                            SecurityPolicies.Aes256_Sha256_RsaPss, 5)
+                    }),
+                SelectedEndpointSessionFactory = (endpoint, request, ct) =>
+                {
+                    selected = endpoint;
+                    return new ValueTask<ISession>(session.Object);
+                },
+                DisposeSession = false
+            });
+
+            IWotBindingChannel channel = await executor
+                .ActivateAsync(BuildForm(new WotSecurityFloor("SignAndEncrypt", null)),
+                    new WotExecutorContext())
+                .ConfigureAwait(false);
+
+            Assert.That(
+                selected!.EndpointUrl,
+                Is.EqualTo("opc.tcp://alpha"),
+                "Equal mode, policy and level leave the smallest endpointUrl in ascending " +
+                "Unicode code-point order, so two clients reach the same endpoint.");
+            await channel.DisposeAsync().ConfigureAwait(false);
+        }
+
+        [Test]
+        public void AFloorWithOnlyTheLegacyFactoryIsAConfigurationError()
+        {
+            bool connected = false;
+            var executor = new OpcUaWotBindingExecutor(new OpcUaWotBindingOptions
+            {
+                SessionFactory = (endpoint, ct) =>
+                {
+                    connected = true;
+                    return new ValueTask<ISession>(new Mock<ISession>().Object);
+                }
+            });
+
+            Assert.That(
+                async () => await executor
+                    .ActivateAsync(BuildForm(new WotSecurityFloor("Sign", "Basic256Sha256")),
+                        new WotExecutorContext())
+                    .ConfigureAwait(false),
+                Throws.InstanceOf<ServiceResultException>()
+                    .With.Message.Contains("SelectedEndpointSessionFactory"),
+                "The endpoint-blind factory cannot discard an endpoint below the floor, so " +
+                "the executor names what to configure rather than rejecting whatever endpoint " +
+                "the factory happened to pick.");
+            Assert.That(connected, Is.False, "No session is opened it could not have chosen.");
+        }
+
+        [Test]
+        public async Task WithoutAFloorTheLegacyFactoryStillConnectsAsync()
+        {
+            Mock<ISession> session = MockSession(
+                MessageSecurityMode.None, SecurityPolicies.None, "opc.tcp://plain");
+            var executor = new OpcUaWotBindingExecutor(new OpcUaWotBindingOptions
+            {
+                SessionFactory = (endpoint, ct) => new ValueTask<ISession>(session.Object),
+                DisposeSession = false
+            });
+
+            IWotBindingChannel channel = await executor
+                .ActivateAsync(BuildForm(floor: null), new WotExecutorContext())
+                .ConfigureAwait(false);
+
+            Assert.That(channel, Is.Not.Null, "Where no floor is stated the selection is " +
+                "unconstrained, as before.");
             await channel.DisposeAsync().ConfigureAwait(false);
         }
 
@@ -542,7 +732,8 @@ namespace Opc.Ua.WotCon.Bindings.Tests
             var session = new Mock<ISession>();
             var executor = new OpcUaWotBindingExecutor(new OpcUaWotBindingOptions
             {
-                SessionFactory = (endpoint, ct) => new ValueTask<ISession>(session.Object)
+                ConstrainedSessionFactory = (request, ct) =>
+                    new ValueTask<ISession>(session.Object)
             });
 
             Assert.That(
@@ -581,7 +772,7 @@ namespace Opc.Ua.WotCon.Bindings.Tests
             };
         }
 
-        private static WotCompiledForm BuildForm(WotSecurityFloor floor)
+        private static WotCompiledForm BuildForm(WotSecurityFloor? floor)
         {
             return new WotCompiledForm(
                 new WotBindingIdentity("opc.opcua", "10101", OpcUaBindingPlanner.BindingUri),

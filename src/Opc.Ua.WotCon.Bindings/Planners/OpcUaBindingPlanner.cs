@@ -267,6 +267,9 @@ namespace Opc.Ua.WotCon.Bindings.Planners
                 form.AffordanceElement.GetProperty(WotEventSelectClauses.Term);
             if (!WotEventSelectClauses.TryParse(
                 authored,
+                prefix => context.NamespacePrefixes.TryGetValue(prefix, out string? uri)
+                    ? uri
+                    : null,
                 out ArrayOf<WotEventSelectClause> clauses,
                 out string error,
                 out int errorIndex))
@@ -298,19 +301,21 @@ namespace Opc.Ua.WotCon.Bindings.Planners
                 resolved[ii] = clause!;
                 if (!paths.Add(clause!.BrowsePath))
                 {
-                    // Two clauses may name the same field under different
-                    // EventTypes, which Section 6.1 permits; the flat
-                    // WotNotification.EventFields envelope this runtime
-                    // delivers can carry one value per path, so the collision
-                    // is reported rather than resolved by silently dropping the
-                    // later clause.
-                    diagnostics.Add(WotBindingDiagnostic.Warning(
-                        WotBindingDiagnosticCode.ConflictingFields,
-                        $"Two select clauses request the browse path '{clause.BrowsePath}' under " +
-                        "different EventTypes. The notification envelope carries one value per " +
-                        "path, so the first clause is the one reported.",
+                    // Section 6.1 states clause uniqueness over the normalized
+                    // browse path alone, because the path decides which data
+                    // member a clause materializes: two clauses that reach the
+                    // same member compete for it whatever EventType each names
+                    // as the declaring type, and nothing in the document says
+                    // which of them filled it.
+                    diagnostics.Add(WotBindingDiagnostic.Error(
+                        WotBindingDiagnosticCode.EventSelectClauseInvalid,
+                        $"Two select clauses normalize to the browse path " +
+                        $"'{clause.BrowsePath}'. The normalized path of a clause shall be " +
+                        "unique within the array, because the path alone decides which data " +
+                        "member the clause materializes (WoT Binding Section 6.1).",
                         pointer + "/" + ii.ToString(System.Globalization.CultureInfo.InvariantCulture),
                         WotEventSelectClauses.Term));
+                    return null;
                 }
             }
             return new WotEventSelection(resolved, WotEventSelectionOrigin.Standard);

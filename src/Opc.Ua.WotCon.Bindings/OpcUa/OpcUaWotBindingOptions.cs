@@ -131,6 +131,59 @@ namespace Opc.Ua.WotCon.Bindings.OpcUa
         public ConstrainedSessionFactoryDelegate? ConstrainedSessionFactory { get; set; }
 
         /// <summary>
+        /// Discovers the endpoints a Server offers at an endpoint URL, which is
+        /// the <c>GetEndpoints</c> response WoT Binding Section 5.7.1 selects
+        /// from.
+        /// </summary>
+        /// <param name="endpointUrl">The endpoint the form targets.</param>
+        /// <param name="cancellationToken">The cancellation token.</param>
+        /// <returns>The discovered endpoints, in response order.</returns>
+        public delegate ValueTask<ArrayOf<EndpointDescription>> EndpointDiscoveryDelegate(
+            string endpointUrl, CancellationToken cancellationToken);
+
+        /// <summary>
+        /// Connects an <see cref="ISession"/> to an endpoint this library has
+        /// already selected under WoT Binding Section 5.7.1.
+        /// </summary>
+        /// <param name="endpoint">The selected endpoint.</param>
+        /// <param name="request">The endpoint and floor the form states.</param>
+        /// <param name="cancellationToken">The cancellation token.</param>
+        /// <returns>The connected session.</returns>
+        public delegate ValueTask<ISession> SelectedEndpointSessionFactoryDelegate(
+            EndpointDescription endpoint,
+            OpcUaWotSessionRequest request,
+            CancellationToken cancellationToken);
+
+        /// <summary>
+        /// Gets or sets the endpoint discovery this executor applies the
+        /// selection rules of WoT Binding Section 5.7.1 to. Configured together
+        /// with <see cref="SelectedEndpointSessionFactory"/>, it makes the
+        /// deterministic selection of <see cref="OpcUaWotEndpointSelector"/>
+        /// the built-in path for a form that states a security floor.
+        /// </summary>
+        /// <remarks>
+        /// Discovery is a delegate rather than an internal call because
+        /// <c>GetEndpoints</c> needs an application configuration, a
+        /// certificate store and a transport this library is deliberately not
+        /// given; a caller that has them supplies this pair and gets the
+        /// clause's selection without restating it. A caller that supplies
+        /// neither this pair nor a
+        /// <see cref="ConstrainedSessionFactory"/> cannot honour a floor at all,
+        /// and the executor says so rather than opening a session through the
+        /// endpoint-blind <see cref="SessionFactory"/> and rejecting it
+        /// afterwards - which reads as "no endpoint is strong enough" even where
+        /// one is.
+        /// </remarks>
+        public EndpointDiscoveryDelegate? EndpointDiscovery { get; set; }
+
+        /// <summary>
+        /// Gets or sets the factory that connects an <see cref="ISession"/> to
+        /// the endpoint <see cref="OpcUaWotEndpointSelector"/> chose from the
+        /// <see cref="EndpointDiscovery"/> response.
+        /// </summary>
+        public SelectedEndpointSessionFactoryDelegate? SelectedEndpointSessionFactory { get; set; }
+
+        /// <summary>
         /// Gets or sets whether the executor disposes the session when the channel
         /// is disposed. Set to <c>false</c> when a shared, caller-owned session is
         /// returned by the factory.

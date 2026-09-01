@@ -74,19 +74,17 @@ namespace Opc.Ua.WotCon.Bindings.OpcUa
             {
                 throw new ArgumentNullException(nameof(context));
             }
-            if (m_options.ConstrainedSessionFactory is null && m_options.SessionFactory is null)
+            if (m_options.ConstrainedSessionFactory is null &&
+                m_options.SessionFactory is null &&
+                !HasBuiltInSelection(m_options))
             {
                 throw new InvalidOperationException(
                     "No OPC UA session factory is configured on the executor options.");
             }
             string endpoint = BuildEndpoint(form.Endpoint);
             WotSecurityFloor? floor = form.SecurityFloor;
-            ISession session = m_options.ConstrainedSessionFactory is not null
-                ? await m_options.ConstrainedSessionFactory(
-                        new OpcUaWotSessionRequest(endpoint, floor, form.AffordanceName),
-                        cancellationToken)
-                    .ConfigureAwait(false)
-                : await m_options.SessionFactory!(endpoint, cancellationToken).ConfigureAwait(false);
+            ISession session = await ConnectAsync(
+                endpoint, floor, form, cancellationToken).ConfigureAwait(false);
             try
             {
                 EnforceSecurityFloor(session, form, floor);
@@ -100,6 +98,109 @@ namespace Opc.Ua.WotCon.Bindings.OpcUa
                 throw;
             }
             return new OpcUaWotBindingChannel(session, m_options.DisposeSession, form, context, m_options);
+        }
+
+        /// <summary>
+        /// Opens the session a compiled form needs, applying the endpoint
+        /// selection of WoT Binding Section 5.7.1 where the form states a
+        /// security floor.
+        /// </summary>
+        /// <remarks>
+        /// A floor constrains a <em>choice</em>, so it has to be applied where
+        /// the choice is made. Three configurations can make one:
+        /// <see cref="OpcUaWotBindingOptions.ConstrainedSessionFactory"/>, where
+        /// the caller's factory receives the floor and applies it; the built-in
+        /// path, where the caller supplies discovery and an endpoint-taking
+        /// factory and <see cref="OpcUaWotEndpointSelector"/> makes the
+        /// deterministic choice here; and no floor at all, where the
+        /// endpoint-blind legacy factory is exactly right. A floor with only the
+        /// legacy factory is the one combination that cannot work, and it fails
+        /// with a message naming what to configure rather than opening a session
+        /// and rejecting whatever endpoint the factory happened to pick - a
+        /// false negative that reads as "no endpoint is strong enough" even when
+        /// the Server offers one.
+        /// </remarks>
+        private async ValueTask<ISession> ConnectAsync(
+            string endpoint,
+            WotSecurityFloor? floor,
+            WotCompiledForm form,
+            CancellationToken cancellationToken)
+        {
+            var request = new OpcUaWotSessionRequest(endpoint, floor, form.AffordanceName);
+            if (m_options.ConstrainedSessionFactory is not null)
+            {
+                return await m_options.ConstrainedSessionFactory(request, cancellationToken)
+                    .ConfigureAwait(false);
+            }
+            bool constrained = floor is not null && !floor.IsEmpty;
+            if (constrained && HasBuiltInSelection(m_options))
+            {
+                return await SelectAndConnectAsync(request, form, cancellationToken)
+                    .ConfigureAwait(false);
+            }
+            if (constrained && m_options.SessionFactory is not null)
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadConfigurationError,
+                    $"The '{form.AffordanceName}' form states the security floor {floor}, but the " +
+                    "executor is configured only with the endpoint-blind SessionFactory, which " +
+                    "cannot discard an endpoint below the floor before connecting to it. " +
+                    "Configure ConstrainedSessionFactory, or EndpointDiscovery together with " +
+                    "SelectedEndpointSessionFactory, so the floor is applied where the endpoint " +
+                    "is chosen (WoT Binding Section 5.7.1).");
+            }
+            if (m_options.SessionFactory is not null)
+            {
+                return await m_options.SessionFactory(endpoint, cancellationToken)
+                    .ConfigureAwait(false);
+            }
+            return await SelectAndConnectAsync(request, form, cancellationToken)
+                .ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Applies the deterministic selection of WoT Binding Section 5.7.1 to
+        /// the discovered endpoints and connects to the one it names.
+        /// </summary>
+        /// <exception cref="ServiceResultException">
+        /// Thrown when no discovered endpoint satisfies the floor. A client
+        /// <em>shall</em> fail and report rather than fall back below a stated
+        /// floor.
+        /// </exception>
+        private async ValueTask<ISession> SelectAndConnectAsync(
+            OpcUaWotSessionRequest request,
+            WotCompiledForm form,
+            CancellationToken cancellationToken)
+        {
+            ArrayOf<EndpointDescription> discovered = await m_options
+                .EndpointDiscovery!(request.EndpointUrl, cancellationToken)
+                .ConfigureAwait(false);
+            EndpointDescription? selected = OpcUaWotEndpointSelector.Select(
+                discovered, request.MinimumSecurity);
+            if (selected is null)
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadSecurityModeRejected,
+                    $"The '{form.AffordanceName}' form states the security floor " +
+                    $"{request.MinimumSecurity}, and none of the " +
+                    $"{(discovered.IsNull ? 0 : discovered.Count)} endpoints " +
+                    $"'{request.EndpointUrl}' offers is at or above it. A client shall fail and " +
+                    "report rather than fall back below a stated floor " +
+                    "(WoT Binding Section 5.7.1).");
+            }
+            return await m_options
+                .SelectedEndpointSessionFactory!(selected, request, cancellationToken)
+                .ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Gets whether the options carry the pair the built-in deterministic
+        /// endpoint selection needs.
+        /// </summary>
+        private static bool HasBuiltInSelection(OpcUaWotBindingOptions options)
+        {
+            return options.EndpointDiscovery is not null &&
+                options.SelectedEndpointSessionFactory is not null;
         }
 
         /// <summary>

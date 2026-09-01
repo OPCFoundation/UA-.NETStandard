@@ -421,23 +421,33 @@ namespace Opc.Ua.WotCon.Bindings.OpcUa
 
         /// <summary>
         /// Projects a raw <see cref="EventFieldList"/> notification into a
-        /// <see cref="WotNotification"/> deterministically: every select-clause
-        /// field is captured in <see cref="WotNotification.EventFields"/> keyed
-        /// by the browse path the <em>document</em> authored, each carrying the
-        /// event's own Time / ReceiveTime as its source / server timestamp so no
-        /// timestamp is lost. The notification's primary
-        /// <see cref="DataValue"/> wraps the Message field (or the first field,
-        /// if Message was not selected) with a <see cref="StatusCodes.Good"/>
-        /// status.
+        /// <see cref="WotNotification"/> deterministically. Both
+        /// representations of WoT Binding Section 6.1 are built here, from one
+        /// selection and one pass: the nested <c>data</c> object the Binding
+        /// describes (<see cref="WotNotification.Data"/>), and the flat
+        /// transport-side index keyed by the joined browse path the
+        /// <em>document</em> authored (<see cref="WotNotification.EventFields"/>).
+        /// Each field carries the event's own Time / ReceiveTime as its source
+        /// / server timestamp so no timestamp is lost. The notification's
+        /// primary <see cref="DataValue"/> wraps the Message field (or the
+        /// first field, if Message was not selected) with a
+        /// <see cref="StatusCodes.Good"/> status.
         /// </summary>
         /// <remarks>
-        /// The key comes from the compiled selection rather than from the
+        /// Building the nested object once here, rather than leaving every
+        /// consumer to rebuild it from the flat index, is what keeps the two
+        /// representations from drifting: a consumer that split a key on '/'
+        /// would have to re-derive the member names, the state-Variable rule
+        /// and the collision handling for itself.
+        /// <para>
+        /// The keys come from the compiled selection rather than from the
         /// resolved <see cref="SimpleAttributeOperand"/>, whose browse path
         /// renders a non-zero namespace as the connected Server's numeric
-        /// index: a <c>data</c> member name that changed with the Server's
-        /// namespace table would not be the member the document describes. The
-        /// two are index-aligned because the filter is built from the same
-        /// selection, clause by clause.
+        /// index: a member name that changed with the Server's namespace table
+        /// would not be the member the document describes. The two are
+        /// index-aligned because the filter is built from the same selection,
+        /// clause by clause.
+        /// </para>
         /// </remarks>
         private static WotNotification BuildEventNotification(
             WotEventSelection selection, EventFieldList eventFields)
@@ -449,7 +459,7 @@ namespace Opc.Ua.WotCon.Bindings.OpcUa
             DateTimeUtc serverTimestamp = DateTimeUtc.Now;
             for (int i = 0; i < count; i++)
             {
-                string name = FormatFieldName(selection.Clauses[i]);
+                string name = selection.Clauses[i].FieldName;
                 if (string.Equals(name, EventBrowseNames.Time, StringComparison.Ordinal) &&
                     values[i].TryGetValue(out DateTimeUtc time))
                 {
@@ -463,23 +473,28 @@ namespace Opc.Ua.WotCon.Bindings.OpcUa
             }
 
             var fields = new Dictionary<string, DataValue>(count, StringComparer.Ordinal);
+            var data = new WotEventDataBuilder();
             Variant primary = Variant.Null;
             bool havePrimary = false;
             for (int i = 0; i < count; i++)
             {
-                string name = FormatFieldName(selection.Clauses[i]);
+                WotEventSelectClause clause = selection.Clauses[i];
+                string key = FormatTransportKey(clause);
                 Variant fieldValue = values[i];
+                var value = new DataValue(
+                    fieldValue, StatusCodes.Good, sourceTimestamp, serverTimestamp);
                 // Two clauses may select the same path under different
-                // EventTypes; the flat envelope can carry one, and the planner
+                // EventTypes; the flat index can carry one, and the planner
                 // reports the collision, so the first stated clause wins rather
                 // than the last quietly replacing it.
-                if (!fields.ContainsKey(name))
+                if (!fields.ContainsKey(key))
                 {
-                    fields[name] = new DataValue(
-                        fieldValue, StatusCodes.Good, sourceTimestamp, serverTimestamp);
+                    fields[key] = value;
                 }
+                data.Add(clause.MemberPath, value);
                 if (!havePrimary &&
-                    string.Equals(name, EventBrowseNames.Message, StringComparison.Ordinal))
+                    string.Equals(
+                        clause.FieldName, EventBrowseNames.Message, StringComparison.Ordinal))
                 {
                     primary = fieldValue;
                     havePrimary = true;
@@ -495,15 +510,21 @@ namespace Opc.Ua.WotCon.Bindings.OpcUa
             }
 
             var dataValue = new DataValue(primary, StatusCodes.Good, sourceTimestamp, serverTimestamp);
-            return new WotNotification(dataValue, fields);
+            return new WotNotification(dataValue, fields, data.Build());
         }
 
         /// <summary>
-        /// Names the <c>data</c> member a clause supplies: the browse path the
-        /// document authored, or <c>ConditionId</c> for the empty path, which is
-        /// the OPC 10000-9 idiom (WoT Binding Sections 6.1 and 13.3).
+        /// Names the transport-side index key a clause fills: the joined browse
+        /// path the document authored, or <c>ConditionId</c> for the empty path,
+        /// which is the OPC 10000-9 idiom (WoT Binding Sections 6.1 and 13.3).
         /// </summary>
-        private static string FormatFieldName(WotEventSelectClause clause)
+        /// <remarks>
+        /// This is deliberately not a <c>data</c> member name. Section 6.1
+        /// forbids a member name to contain the path separator, so the nested
+        /// object of <see cref="WotNotification.Data"/> is what a consumer reads
+        /// for the shape the Binding describes.
+        /// </remarks>
+        private static string FormatTransportKey(WotEventSelectClause clause)
         {
             return clause.IsConditionIdSelection
                 ? WotEventSelectClauses.ConditionIdFieldName

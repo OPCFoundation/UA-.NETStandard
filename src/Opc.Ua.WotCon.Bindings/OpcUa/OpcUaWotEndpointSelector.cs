@@ -82,7 +82,8 @@ namespace Opc.Ua.WotCon.Bindings.OpcUa
         /// ranking any policy this Binding does not name below every policy it
         /// names, then the highest <c>securityLevel</c> the Server reports,
         /// then the smallest <c>endpointUrl</c> in ascending Unicode code point
-        /// order, then the earliest position in the response. Steps three to
+        /// order (Annex G.3), then the earliest position in the response.
+        /// Steps three to
         /// five exist only to break a tie. A client <em>shall not</em> fall
         /// back below the floor, so no endpoint is returned when none remains.
         /// </remarks>
@@ -92,17 +93,14 @@ namespace Opc.Ua.WotCon.Bindings.OpcUa
         /// The selected endpoint, or <c>null</c> when no endpoint satisfies the
         /// floor.
         /// </returns>
-        /// <exception cref="ArgumentNullException">
-        /// Thrown when <paramref name="endpoints"/> is <c>null</c>.
-        /// </exception>
         public static EndpointDescription? Select(
-            IReadOnlyList<EndpointDescription> endpoints, WotSecurityFloor? floor)
+            ArrayOf<EndpointDescription> endpoints, WotSecurityFloor? floor)
         {
-            if (endpoints is null)
-            {
-                throw new ArgumentNullException(nameof(endpoints));
-            }
             EndpointDescription? best = null;
+            if (endpoints.IsNull)
+            {
+                return best;
+            }
             for (int ii = 0; ii < endpoints.Count; ii++)
             {
                 EndpointDescription candidate = endpoints[ii];
@@ -167,7 +165,7 @@ namespace Opc.Ua.WotCon.Bindings.OpcUa
             {
                 return candidate.SecurityLevel > best.SecurityLevel;
             }
-            return string.CompareOrdinal(
+            return WotCodePointComparer.Instance.Compare(
                 candidate.EndpointUrl ?? string.Empty, best.EndpointUrl ?? string.Empty) < 0;
         }
 
