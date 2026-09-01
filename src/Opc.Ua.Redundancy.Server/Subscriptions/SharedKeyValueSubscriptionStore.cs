@@ -984,7 +984,10 @@ namespace Opc.Ua.Redundancy.Server
                 SourceSamplingInterval = item.SourceSamplingInterval,
                 SubscriptionId = item.SubscriptionId,
                 TimestampsToReturn = item.TimestampsToReturn,
-                TypeMask = item.TypeMask
+                TypeMask = item.TypeMask,
+                FilteredRetainConditionIds = item.FilteredRetainConditionIds != null
+                    ? [.. item.FilteredRetainConditionIds]
+                    : null
             };
         }
 
@@ -1268,6 +1271,14 @@ namespace Opc.Ua.Redundancy.Server
                 encoder.WriteBoolean(null, item.IsDeleted);
                 encoder.WriteBoolean(null, item.IsDetached);
             }
+            if (version >= FilteredRetainDefinitionFormatVersion)
+            {
+                encoder.WriteStringArray(
+                    null,
+                    item.FilteredRetainConditionIds != null
+                        ? [.. item.FilteredRetainConditionIds]
+                        : ArrayOf.Empty<string>());
+            }
         }
 
         private static StoredMonitoredItem DecodeMonitoredItem(BinaryDecoder decoder, int version)
@@ -1308,6 +1319,19 @@ namespace Opc.Ua.Redundancy.Server
             {
                 item.IsDeleted = decoder.ReadBoolean(null);
                 item.IsDetached = decoder.ReadBoolean(null);
+            }
+            if (version >= FilteredRetainDefinitionFormatVersion)
+            {
+                ArrayOf<string?> filteredRetainConditionIds = decoder.ReadStringArray(null);
+                List<string> retainedIds = [];
+                foreach (string? id in filteredRetainConditionIds)
+                {
+                    if (id != null)
+                    {
+                        retainedIds.Add(id);
+                    }
+                }
+                item.FilteredRetainConditionIds = retainedIds.Count > 0 ? retainedIds : null;
             }
             return item;
         }
@@ -1391,7 +1415,8 @@ namespace Opc.Ua.Redundancy.Server
 
         private const int LegacyDefinitionFormatVersion = 1;
         private const int LifecycleStateDefinitionFormatVersion = 2;
-        private const int DefinitionFormatVersion = LifecycleStateDefinitionFormatVersion;
+        private const int FilteredRetainDefinitionFormatVersion = 3;
+        private const int DefinitionFormatVersion = FilteredRetainDefinitionFormatVersion;
         private const int DefinitionSnapshotManifestFormatVersion = 1;
         private const int ContinuationPointFormatVersion = 1;
         private const int LegacyRetransmissionStateFormatVersion = 1;

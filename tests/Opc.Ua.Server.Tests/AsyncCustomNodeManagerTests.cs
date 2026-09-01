@@ -5188,6 +5188,8 @@ namespace Opc.Ua.Server.Tests
 
         public NumericRange ParsedIndexRange { get; set; }
 
+        public IReadOnlyList<string> FilteredRetainConditionIds { get; set; }
+
         public bool IsDurable { get; set; }
 
         public ServiceResult LastError { get; set; }
