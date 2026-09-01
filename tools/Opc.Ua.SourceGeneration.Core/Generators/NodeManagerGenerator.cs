@@ -80,6 +80,14 @@ namespace Opc.Ua.SourceGeneration
         public bool EmitFactory { get; init; } = true;
 
         /// <summary>
+        /// Additional namespace URIs (beyond the model namespace) that
+        /// the generated constructor passes to the base node manager and
+        /// the generated factory advertises via <c>NamespacesUris</c>.
+        /// Typically a sample's separate instance namespace. Optional.
+        /// </summary>
+        public IReadOnlyList<string> AdditionalNamespaceUris { get; init; }
+
+        /// <summary>
         /// Create node manager generator.
         /// </summary>
         public NodeManagerGenerator(IGeneratorContext context)
@@ -137,8 +145,34 @@ namespace Opc.Ua.SourceGeneration
             template.AddReplacement(Tokens.Namespace, typeStem);
             template.AddReplacement(Tokens.NodeManagerClassName, targetClass);
             template.AddReplacement(Tokens.NamespaceUri, nsUriSymbol);
+            template.AddReplacement(
+                Tokens.AdditionalNamespaceUris,
+                FormatAdditionalNamespaceUris());
             template.Render();
             return fileName.AsTextFileResource();
+        }
+
+        /// <summary>
+        /// Renders the additional namespace URIs as a trailing
+        /// <c>, "uri"</c> argument list, or an empty string when none
+        /// were configured.
+        /// </summary>
+        private string FormatAdditionalNamespaceUris()
+        {
+            if (AdditionalNamespaceUris == null || AdditionalNamespaceUris.Count == 0)
+            {
+                return string.Empty;
+            }
+            var buffer = new System.Text.StringBuilder();
+            foreach (string uri in AdditionalNamespaceUris)
+            {
+                if (string.IsNullOrEmpty(uri))
+                {
+                    continue;
+                }
+                buffer.Append(", ").Append(uri.AsStringLiteral());
+            }
+            return buffer.ToString();
         }
 
         private TextFileResource EmitFactoryFile(
@@ -159,6 +193,9 @@ namespace Opc.Ua.SourceGeneration
             template.AddReplacement(Tokens.NodeManagerClassName, targetClass);
             template.AddReplacement(Tokens.NodeManagerFactoryClassName, factoryClass);
             template.AddReplacement(Tokens.NamespaceUri, nsUriSymbol);
+            template.AddReplacement(
+                Tokens.AdditionalNamespaceUris,
+                FormatAdditionalNamespaceUris());
             template.Render();
             return fileName.AsTextFileResource();
         }

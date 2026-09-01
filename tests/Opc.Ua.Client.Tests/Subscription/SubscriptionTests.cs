@@ -251,6 +251,49 @@ namespace Opc.Ua.Client.Subscriptions
         }
 
         [Test]
+        public async Task KeepAliveTimerShouldNotReportStoppedForNormalPublishGapAsync()
+        {
+            var sut = new TestSubscription(m_session, m_mockNotificationDataHandler.Object,
+                m_completion, m_options, m_telemetry, 22);
+            await using (sut.ConfigureAwait(false))
+            {
+                sut.OnSubscriptionUpdateComplete(
+                    created: true,
+                    subscriptionId: 22,
+                    revisedPublishingInterval: TimeSpan.FromMilliseconds(2800),
+                    revisedKeepAliveCount: 30,
+                    revisedLifetimeCount: 300,
+                    priority: 3,
+                    maxNotificationsPerPublish: 10,
+                    publishingEnabled: true);
+
+                sut.ResetPublishStateForTest();
+
+                bool stoppedObserved = await WaitForSignalAsync(
+                    sut.PublishStateChanged,
+                    TimeSpan.FromSeconds(4)).ConfigureAwait(false);
+
+                Assert.That(stoppedObserved, Is.False);
+                Assert.That(sut.LastPublishState, Is.Default);
+
+                await sut.OnPublishReceivedAsync(BuildKeepAliveMessage(1), null, [])
+                    .ConfigureAwait(false);
+
+                Assert.That(sut.LastPublishState, Is.Default);
+            }
+        }
+
+        private static async Task<bool> WaitForSignalAsync(
+            AsyncManualResetEvent signal,
+            TimeSpan timeout)
+        {
+            Task waitTask = signal.WaitAsync();
+            Task completedTask = await Task.WhenAny(waitTask, Task.Delay(timeout))
+                .ConfigureAwait(false);
+            return completedTask == waitTask;
+        }
+
+        [Test]
         public async Task ChangeMonitoredItemOptionsShouldAddCreatedItemsAsync()
         {
             // Arrange
@@ -2128,6 +2171,12 @@ namespace Opc.Ua.Client.Subscriptions
             {
                 await Block.WaitAsync().ConfigureAwait(false);
                 Block.Release();
+            }
+
+            public void ResetPublishStateForTest()
+            {
+                LastPublishState = default;
+                PublishStateChanged.Reset();
             }
 
             protected override void OnSubscriptionStateChanged(SubscriptionState state)

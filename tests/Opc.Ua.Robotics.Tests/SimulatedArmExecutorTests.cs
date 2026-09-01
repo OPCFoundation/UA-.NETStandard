@@ -35,6 +35,7 @@ using NUnit.Framework;
 using Opc.Ua.RobotIntent;
 using Robotics.IntentEnabledRobot.Kinematics;
 using Robotics.IntentEnabledRobot.Simulation;
+using Vision.BinPickingCell;
 
 namespace Opc.Ua.Robotics.Tests
 {
@@ -166,6 +167,125 @@ namespace Opc.Ua.Robotics.Tests
             {
                 Assert.That(outcome.State, Is.EqualTo(ExecutionStateEnum.Succeeded));
                 Assert.That(executor.CurrentSnapshot.GripperOpening, Is.EqualTo(0.02).Within(0.002));
+            });
+        }
+
+        [Test]
+        public async Task PickUsesSelectedPartPoseClosesBeforeHoldingAndRetracts()
+        {
+            var clock = new ManualSimulatedArmClock();
+            var executor = new SimulatedArmExecutor(new BinPickingPalletizerKinematics(), clock);
+            var source = new NodeId("bin", 2);
+            Pose3DDataType selectedPartPose = PalletizerPose(0.52, -0.08, -0.145);
+            var snapshots = new List<SimulatedArmSnapshot>();
+            executor.ResolvePickPose = (
+                NodeId resolvedSource,
+                string objectClass,
+                out Pose3DDataType pose) =>
+            {
+                pose = selectedPartPose;
+                return resolvedSource == source && objectClass == "RedCube";
+            };
+            executor.SnapshotChanged += (_, snapshot) => snapshots.Add(snapshot);
+
+            IntentOutcome outcome = await ExecuteAsync(
+                executor,
+                "pick-selected-part",
+                new PickIntentDataType
+                {
+                    Source = source,
+                    ObjectClass = "RedCube"
+                },
+                clock).ConfigureAwait(false);
+
+            SimulatedArmSnapshot firstHeld = snapshots.Find(snapshot => snapshot.HasObject)!;
+            Assert.Multiple(() =>
+            {
+                Assert.That(outcome.State, Is.EqualTo(ExecutionStateEnum.Succeeded));
+                Assert.That(firstHeld, Is.Not.Null);
+                Assert.That(firstHeld.HeldObjectClass, Is.EqualTo("RedCube"));
+                Assert.That(firstHeld.GripperOpening, Is.EqualTo(0.02).Within(0.002));
+                Assert.That(
+                    Distance(firstHeld.ToolPose, selectedPartPose),
+                    Is.LessThan(2e-5),
+                    "The part must attach only after the jaws close at its detected pose.");
+                Assert.That(
+                    executor.CurrentSnapshot.ToolPose.Position[0],
+                    Is.EqualTo(selectedPartPose.Position[0]).Within(2e-5));
+                Assert.That(
+                    executor.CurrentSnapshot.ToolPose.Position[2],
+                    Is.GreaterThan(selectedPartPose.Position[2] + 0.035),
+                    "A completed Pick must leave the tool retracted from the work.");
+            });
+        }
+
+        [Test]
+        public async Task PickAtCurrentWorkPositionSkipsCrossCellTraverse()
+        {
+            var clock = new ManualSimulatedArmClock();
+            var executor = new SimulatedArmExecutor(new BinPickingPalletizerKinematics(), clock);
+            Pose3DDataType target = PalletizerPose(0.60, 0.0, -0.145);
+            var diagnostics = new List<string>();
+            executor.ResolvePickPose = (
+                NodeId _,
+                string _,
+                out Pose3DDataType pose) =>
+            {
+                pose = target;
+                return true;
+            };
+            executor.Diagnostic = diagnostics.Add;
+
+            IntentOutcome outcome = await ExecuteAsync(
+                executor,
+                "pick-current-work-position",
+                new PickIntentDataType
+                {
+                    Source = new NodeId("fixture", 2),
+                    ObjectClass = "RedCube"
+                },
+                clock).ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(outcome.State, Is.EqualTo(ExecutionStateEnum.Succeeded));
+                Assert.That(
+                    diagnostics,
+                    Does.Contain("target is at the current work position; skipping cross-cell traverse"));
+                Assert.That(diagnostics, Does.Not.Contain("traversed the cell at the clear height"));
+            });
+        }
+
+        [Test]
+        public async Task FailedPickNotifiesHostThatTargetExclusionCanBeCleared()
+        {
+            var clock = new ManualSimulatedArmClock();
+            var executor = new SimulatedArmExecutor(new BinPickingPalletizerKinematics(), clock);
+            string finishedClass = string.Empty;
+            executor.ResolvePickPose = (
+                NodeId _,
+                string _,
+                out Pose3DDataType pose) =>
+            {
+                pose = PalletizerPose(3.0, 0.0, 0.0);
+                return true;
+            };
+            executor.PickAttemptFinished = objectClass => finishedClass = objectClass;
+
+            IntentOutcome outcome = await ExecuteAsync(
+                executor,
+                "pick-unreachable-target",
+                new PickIntentDataType
+                {
+                    Source = new NodeId("bin", 2),
+                    ObjectClass = "RedCube"
+                },
+                clock).ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(outcome.State, Is.EqualTo(ExecutionStateEnum.Failed));
+                Assert.That(finishedClass, Is.EqualTo("RedCube"));
             });
         }
 
@@ -432,6 +552,17 @@ namespace Opc.Ua.Robotics.Tests
             };
         }
 
+        private static Pose3DDataType PalletizerPose(double x, double y, double z)
+        {
+            return new Pose3DDataType
+            {
+                FrameId = BinPickingPalletizerGeometry.RobotBaseFrameId,
+                Position = new[] { x, y, z }.ToArrayOf(),
+                Orientation = BinPickingPalletizerKinematics.ToolDownOrientation(
+                    Math.Atan2(y, x),
+                    Math.PI / 2.0)
+            };
+        }
 
         private static Pose3DDataType ManualForward(ReadOnlySpan<double> jointAngles)
         {
@@ -566,7 +697,6 @@ namespace Opc.Ua.Robotics.Tests
             return Math.Sqrt((dx * dx) + (dy * dy) + (dz * dz));
         }
 
-
         private static double QuaternionDistance(ReadOnlySpan<double> left, ReadOnlySpan<double> right)
         {
             double dot = Math.Abs(
@@ -601,7 +731,6 @@ namespace Opc.Ua.Robotics.Tests
             {
             }
         }
-
 
         private const double D1 = 0.1625;
         private const double A2 = -0.425;

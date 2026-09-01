@@ -1194,6 +1194,10 @@ namespace Opc.Ua.Client.Subscriptions
             {
                 NotifySubscriptionsPaused(paused.Value);
             }
+            // Wake the controller so the pool is sized for the new state.
+            // Resuming is the first point at which a manager that was
+            // constructed paused has a reason to hold workers at all.
+            m_publishControl.Set();
         }
 
         private void SetPublishingQuiesced(bool quiesced)
@@ -1208,6 +1212,9 @@ namespace Opc.Ua.Client.Subscriptions
             {
                 NotifySubscriptionsPaused(paused.Value);
             }
+            // See SetPublishingRequested - leaving quiescence resumes
+            // publishing just like Resume does.
+            m_publishControl.Set();
         }
 
         private bool? UpdatePublishingState()
@@ -1436,6 +1443,58 @@ namespace Opc.Ua.Client.Subscriptions
             {
                 while (!ct.IsCancellationRequested)
                 {
+                    //
+                    // Wait before touching the pool. The controller runs
+                    // synchronously up to this first await, i.e. still inside
+                    // the constructor, where MinPublishWorkerCount and
+                    // MaxPublishWorkerCount are whatever the defaults are —
+                    // the owner has not had a chance to configure them yet.
+                    // Sizing the pool there spins up workers off the default
+                    // minimum only to tear them down again on the first
+                    // resize, and publishes that overshoot through
+                    // PublishWorkerCount. Every path that changes the desired
+                    // count (add/remove, pause/resume, the Min/Max setters,
+                    // Update) signals m_publishControl, so the pool is sized
+                    // exclusively in response to a signal or a worker exit.
+                    //
+                    Task[] waiting = [.. publishWorkers
+                        .Select(w => w.Task)
+                        .Prepend(controlWait)];
+                    await Task.WhenAny(waiting).ConfigureAwait(false);
+                    if (controlWait.IsCompleted)
+                    {
+                        controlWait = m_publishControl.WaitAsync(ct);
+                    }
+                    PublishControlCycles++;
+
+                    // Reap the workers that exited on their own before
+                    // sizing the pool, so a worker that is already gone is
+                    // never counted towards the pool nor kept alongside its
+                    // replacement.
+                    int index = 0;
+                    foreach (Task? item in waiting.Skip(1)) // Skip wait handle
+                    {
+                        if (item.IsCompleted)
+                        {
+                            PublishWorker worker = publishWorkers[index];
+                            m_logger.PublishWorkerExited(worker.Index);
+                            await worker.DisposeAsync().ConfigureAwait(false);
+                            publishWorkers.RemoveAt(index);
+                            continue;
+                        }
+                        index++;
+                    }
+
+                    // Now lower the max publish request if we got any too
+                    // many requests errors
+                    if (publishWorkers.Any(w => w.TooManyPublishRequests))
+                    {
+                        if (MaxPublishWorkerCount > 1)
+                        {
+                            MaxPublishWorkerCount--;
+                        }
+                    }
+
                     int desiredWorkerCount = GetDesiredPublishWorkerCount();
                     if (publishWorkers.Count > desiredWorkerCount)
                     {
@@ -1463,40 +1522,9 @@ namespace Opc.Ua.Client.Subscriptions
                                 desiredWorkerCount - publishWorkers.Count)
                             .Select(index => new PublishWorker(this, index)));
                     }
-                    PublishWorkerCount = publishWorkers.Count;
 
-                    Task[] waiting = [.. publishWorkers
-                        .Select(w => w.Task)
-                        .Prepend(controlWait)];
-                    await Task.WhenAny(waiting).ConfigureAwait(false);
-                    if (controlWait.IsCompleted)
-                    {
-                        controlWait = m_publishControl.WaitAsync(ct);
-                    }
-                    PublishControlCycles++;
-                    int index = 0;
-                    foreach (Task? item in waiting.Skip(1)) // Skip wait handle
-                    {
-                        if (item.IsCompleted)
-                        {
-                            PublishWorker worker = publishWorkers[index];
-                            m_logger.PublishWorkerExited(worker.Index);
-                            await worker.DisposeAsync().ConfigureAwait(false);
-                            publishWorkers.RemoveAt(index);
-                            continue;
-                        }
-                        index++;
-                    }
-
-                    // Now lower the max publish request if we got any too
-                    // many requests errors
-                    if (publishWorkers.Any(w => w.TooManyPublishRequests))
-                    {
-                        if (MaxPublishWorkerCount > 1)
-                        {
-                            MaxPublishWorkerCount--;
-                        }
-                    }
+                    // The pool is settled for this cycle — only now is the
+                    // count observable by callers.
                     PublishWorkerCount = publishWorkers.Count;
                 }
             }
@@ -1515,7 +1543,7 @@ namespace Opc.Ua.Client.Subscriptions
 
             int GetDesiredPublishWorkerCount()
             {
-                int publishCount = CreatedCount;
+                int publishCount = CreatedCount + m_session.SessionSubscriptionCount;
                 if (publishCount != 0)
                 {
                     //
@@ -1572,7 +1600,17 @@ namespace Opc.Ua.Client.Subscriptions
                 m_outer = outer;
                 m_cts = CancellationTokenSource.CreateLinkedTokenSource(outer.m_cts.Token);
                 m_logger = m_outer.m_loggerFactory.CreateLogger<PublishWorker>();
-                Task = PublishWorkerAsync(m_cts.Token);
+                //
+                // Start on the thread pool. Workers are constructed inline by
+                // the publish controller, and the worker loop only yields
+                // where it awaits something that is not already completed. A
+                // transport whose publish completes synchronously would
+                // therefore run the entire worker loop on the controller's
+                // stack, starving the control loop - it could neither resize
+                // the pool nor publish PublishWorkerCount.
+                //
+                CancellationToken token = m_cts.Token;
+                Task = Task.Run(() => PublishWorkerAsync(token), token);
             }
 
             /// <inheritdoc/>
@@ -1581,16 +1619,20 @@ namespace Opc.Ua.Client.Subscriptions
                 try
                 {
                     await m_cts.CancelAsync().ConfigureAwait(false);
-                    if (!Task.IsCompleted)
+                    try
                     {
-                        try
-                        {
-                            await Task.ConfigureAwait(false);
-                        }
-                        catch
-                        {
-                        } // Ignore
+                        //
+                        // Await unconditionally. The controller reaps a
+                        // worker whose task has already completed, and that
+                        // completion is usually a fault or a cancellation -
+                        // skipping the await for completed tasks would leave
+                        // those exceptions unobserved.
+                        //
+                        await Task.ConfigureAwait(false);
                     }
+                    catch
+                    {
+                    } // Ignore
                 }
                 finally
                 {
@@ -1751,6 +1793,21 @@ namespace Opc.Ua.Client.Subscriptions
                                 moreNotifications = false;
                                 await DelayUnresolvedSubscriptionAsync(ct)
                                     .ConfigureAwait(false);
+                            }
+                            else if (m_outer.m_session.TryDispatchToSessionSubscription(
+                                subscriptionId,
+                                notificationMessage,
+                                availableSequenceNumbers,
+                                response.ResponseHeader.StringTable,
+                                moreNotifications))
+                            {
+                                // The session holds this subscription through the classic
+                                // API. It is live and owned by the application, so the
+                                // notification belongs to it: deliver rather than drop it,
+                                // and never delete it as abandoned.
+                                Interlocked.Increment(ref m_outer.m_goodPublishRequestCount);
+                                m_lastUnknownSubscriptionId = 0;
+                                m_consecutiveUnresolvedResponses = 0;
                             }
                             else
                             {

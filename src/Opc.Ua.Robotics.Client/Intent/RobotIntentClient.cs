@@ -150,6 +150,7 @@ namespace Opc.Ua.Robotics.Client.Intent
         /// <summary>
         /// Submits an intent and returns an awaitable operation handle when accepted.
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         public async ValueTask<IntentOperationHandle> SubmitIntentAsync(
             IntentDataType intent,
             CancellationToken cancellationToken = default)
@@ -288,6 +289,7 @@ namespace Opc.Ua.Robotics.Client.Intent
         /// Use <see cref="RequestAuthorityAsync"/> when refusal is expected and the caller wants to branch on the
         /// lease.
         /// </remarks>
+        /// <exception cref="ServiceResultException"></exception>
         public async ValueTask<CommandAuthorityLease> RequireAuthorityAsync(
             CancellationToken cancellationToken = default)
         {
@@ -315,6 +317,7 @@ namespace Opc.Ua.Robotics.Client.Intent
         /// <summary>
         /// Submits a mission and records its update id for local stale-update checks.
         /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
         public async ValueTask<MissionSubmissionResult> SubmitMissionAsync(
             MissionDataType mission,
             CancellationToken cancellationToken = default)
@@ -334,6 +337,43 @@ namespace Opc.Ua.Robotics.Client.Intent
                 }
             }
             return result;
+        }
+
+        /// <summary>
+        /// Submits a mission and returns an awaitable handle when accepted.
+        /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
+        public async ValueTask<MissionHandle> SubmitAndTrackMissionAsync(
+            MissionDataType mission,
+            CancellationToken cancellationToken = default)
+        {
+            MissionSubmissionResult result = await SubmitMissionAsync(mission, cancellationToken)
+                .ConfigureAwait(false);
+            if (!result.Accepted)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadRequestNotAllowed,
+                    "Mission refused: {0} {1}",
+                    result.Failure,
+                    result.Message.Text ?? string.Empty);
+            }
+            string id = result.MissionId.Length == 0 ? mission.MissionId ?? string.Empty : result.MissionId;
+            MissionHandle handle = new(this, id, result.Operation);
+            await handle.StartAsync(cancellationToken).ConfigureAwait(false);
+            return handle;
+        }
+
+        /// <summary>
+        /// Opens an awaitable mission handle for an existing mission node.
+        /// </summary>
+        public async ValueTask<MissionHandle> TrackMissionAsync(
+            string missionId,
+            NodeId missionNode,
+            CancellationToken cancellationToken = default)
+        {
+            MissionHandle handle = new(this, missionId, missionNode);
+            await handle.StartAsync(cancellationToken).ConfigureAwait(false);
+            return handle;
         }
 
         /// <summary>
@@ -357,7 +397,8 @@ namespace Opc.Ua.Robotics.Client.Intent
                         "MissionUpdateId shall be strictly greater than the mission's current value.");
                     return new MissionUpdateOutcome(
                         MissionUpdateResultEnum.Outdated,
-                        new LocalizedText("MissionUpdateId shall be strictly greater than the mission's current value."));
+                        new LocalizedText(
+                            "MissionUpdateId shall be strictly greater than the mission's current value."));
                 }
             }
             MissionUpdateOutcome outcome = await Transport.UpdateMissionAsync(
@@ -403,6 +444,9 @@ namespace Opc.Ua.Robotics.Client.Intent
         private readonly Dictionary<string, uint> m_lastMissionUpdateIds = new(StringComparer.Ordinal);
     }
 
+    // LoggerMessage source generation requires a partial containing type.
+    // TODO: Remove when RCS1043 recognizes source-generated logging containers.
+#pragma warning disable RCS1043
     internal static partial class RobotIntentControllerClientLog
     {
         [LoggerMessage(
@@ -417,4 +461,5 @@ namespace Opc.Ua.Robotics.Client.Intent
             MissionUpdateResultEnum result,
             string message);
     }
+#pragma warning restore RCS1043
 }

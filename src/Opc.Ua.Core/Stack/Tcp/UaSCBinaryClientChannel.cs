@@ -743,8 +743,11 @@ namespace Opc.Ua.Bindings
                 // verify server certificate.
                 CompareCertificates(ServerCertificate, serverCertificate, true);
 
-                // verify sequence number.
-                ResetSequenceNumber(sequenceNumber);
+                // check for replay attacks.
+                if (!VerifySequenceNumber(sequenceNumber, "ProcessOpenSecureChannelResponse"))
+                {
+                    throw new ServiceResultException(StatusCodes.BadSequenceNumberInvalid);
+                }
 
                 // check if it is necessary to wait for more chunks.
                 if (!TcpMessageType.IsFinal(messageType))

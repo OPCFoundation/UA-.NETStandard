@@ -1847,9 +1847,8 @@ namespace Opc.Ua.Schema.Model
         /// a child, and merging it with the base declaration would be wrong. It
         /// does however emit an Add method named after the slot, so a subtype
         /// that redeclares the slot hides its base method and has to say so.
-        /// AASOrderedSubmodelElementCollectionType redeclaring the
-        /// SubmodelElement placeholder of AASSubmodelElementCollectionType is
-        /// the case in point.
+        /// This method detects that redeclaration so the generated member can
+        /// be marked appropriately.
         /// </remarks>
         public static bool HidesBaseTypePlaceholder(this InstanceDesign instance)
         {

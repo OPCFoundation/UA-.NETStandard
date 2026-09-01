@@ -85,7 +85,10 @@ namespace Opc.Ua.MigrationAnalyzer.Tests.Generators
                 name.StartsWith("Microsoft.CSharp", System.StringComparison.OrdinalIgnoreCase);
         }
 
-        private static GeneratorDriverRunResult Run(string userSource, string? extraSource = null)
+        private static GeneratorDriverRunResult Run(
+            string userSource,
+            string? extraSource = null,
+            MetadataReference? extraReference = null)
         {
             var parseOptions = new CSharpParseOptions(LanguageVersion.CSharp13);
 
@@ -99,10 +102,13 @@ namespace Opc.Ua.MigrationAnalyzer.Tests.Generators
                 trees.Add(CSharpSyntaxTree.ParseText(extraSource, parseOptions, "Extra.cs"));
             }
 
+            ImmutableArray<MetadataReference> references = extraReference is null
+                ? s_baseReferences
+                : s_baseReferences.Add(extraReference);
             var compilation = CSharpCompilation.Create(
                 "GeneratorTestAssembly",
                 trees,
-                s_baseReferences,
+                references,
                 new CSharpCompilationOptions(
                     OutputKind.DynamicallyLinkedLibrary,
                     nullableContextOptions: NullableContextOptions.Enable));
@@ -119,6 +125,23 @@ namespace Opc.Ua.MigrationAnalyzer.Tests.Generators
                 out _,
                 out _);
             return driver.GetRunResult();
+        }
+
+        private static PortableExecutableReference CreateMetadataReference(string source)
+        {
+            var parseOptions = new CSharpParseOptions(LanguageVersion.CSharp13);
+            var compilation = CSharpCompilation.Create(
+                "DependencyAssembly",
+                [CSharpSyntaxTree.ParseText(source, parseOptions)],
+                [MetadataReference.CreateFromFile(typeof(object).Assembly.Location)],
+                new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
+            using var stream = new MemoryStream();
+            var result = compilation.Emit(stream);
+            Assert.That(
+                result.Success,
+                Is.True,
+                string.Join(System.Environment.NewLine, result.Diagnostics));
+            return MetadataReference.CreateFromImage(stream.ToArray());
         }
 
         private static IEnumerable<TestCaseData> WellKnownOverridesCases()
@@ -281,8 +304,44 @@ namespace Opc.Ua.MigrationAnalyzer.Tests.Generators
             Assert.That(emitted, Is.False, "MIG01 path must not emit a shim type");
 
             ImmutableArray<Diagnostic> diagnostics = result.Diagnostics;
-            Assert.That(diagnostics.Any(d => d.Id == "MIG01"), Is.True,
+            Diagnostic? diagnostic = diagnostics.SingleOrDefault(d => d.Id == "MIG01");
+            Assert.That(diagnostic, Is.Not.Null,
                 $"Expected MIG01 diagnostic; saw: {string.Join(", ", diagnostics.Select(d => d.Id))}");
+            string message = diagnostic!.GetMessage(System.Globalization.CultureInfo.InvariantCulture);
+            Assert.That(message, Does.Contain("consumer source declarations"));
+            Assert.That(message, Does.Not.Contain("using directive"));
+            Assert.That(
+                diagnostic.Descriptor.HelpLinkUri,
+                Is.EqualTo(
+                    "https://github.com/OPCFoundation/UA-.NETStandard/blob/master/" +
+                    "docs/migrate/2.0.x/source-generation.md#mig01-resolution-playbook"));
+        }
+
+        [Test]
+        public void DependencyMetadataOutsideSupportedNamespacesReportsMig01()
+        {
+            const string dependency = """
+                namespace Vendor
+                {
+                    public sealed class Pump { }
+                }
+                """;
+            const string user = """
+                using Opc.Ua;
+                public static class Use
+                {
+                    public static void M(PumpCollection arg) { }
+                }
+                """;
+
+            GeneratorDriverRunResult result = Run(
+                user,
+                extraReference: CreateMetadataReference(dependency));
+
+            Assert.That(
+                result.Results.SelectMany(r => r.GeneratedSources),
+                Has.None.Matches<GeneratedSourceResult>(source => source.HintName == "PumpCollection.g.cs"));
+            Assert.That(result.Diagnostics, Has.One.Matches<Diagnostic>(diagnostic => diagnostic.Id == "MIG01"));
         }
 
         [Test]

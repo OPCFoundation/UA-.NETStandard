@@ -44,6 +44,7 @@
     - [Project-wide opt-in via MSBuild property (legacy)](#project-wide-opt-in-via-msbuild-property-legacy)
   - [Wiring callbacks: the Configure partial](#wiring-callbacks-the-configure-partial)
     - [Addressing modes](#addressing-modes)
+    - [Creating nodes under other managers' nodes (Objects folder)](#creating-nodes-under-other-managers-nodes-objects-folder)
   - [Typed model-traversal — the Configure(I{Manager}NodeManagerBuilder) partial](#typed-model-traversal--the-configureimanagernodemanagerbuilder-partial)
     - [What the generator emits per model](#what-the-generator-emits-per-model)
     - [Methods with arguments — typed OnCall overloads](#methods-with-arguments--typed-oncall-overloads)
@@ -89,6 +90,8 @@ Every `StandardServer` creates a `MasterNodeManager` and asks the server's `IMai
 ### Master node manager
 
 `MasterNodeManager` is not an address-space model in the same sense as an application manager. It is the coordinator that the server stores as `IServerInternal.NodeManager` and exposes through `IMasterNodeManager`. Service implementations route through it for reads, writes, browsing, TranslateBrowsePaths, method calls, node management, monitored-item setup, history, and event-related operations.
+
+Internally, service-call dispatch and lifecycle coordination are separated. The session-service implementations live in the internal `NodeManagerServiceDispatcher`, which depends only on the lock-free routing-table snapshot and never acquires lifecycle semaphores; `MasterNodeManager` keeps the public service surface (every virtual entry point and protected helper delegates to the dispatcher, so derived classes are unaffected) together with NodeManager lifecycle coordination. The node-management services (AddNodes, DeleteNodes, AddReferences, DeleteReferences) sit between the two: they dispatch per item like other services but serialize address-space mutation with runtime NodeManager lifecycle operations.
 
 The master node manager builds a routing table keyed by namespace index. During construction it ensures the configured dynamic namespace URI is present, registers the configuration/diagnostics manager first, registers the core node manager second, and then registers application managers. For a service request, `GetManagerHandleAsync` uses the `NodeId.NamespaceIndex` to find the candidate manager list and asks each candidate for a handle until one claims the node. If no explicit route exists for the namespace, it falls back to the core node manager. This means a namespace route is a candidate list, not a single-owner map.
 
@@ -758,9 +761,13 @@ namespace (legacy MSBuild mode) or the user class's namespace
     `ValueTask<NodeStateCollection>`.
   - `CreateAddressSpaceAsync` `await`s `base.CreateAddressSpaceAsync`,
     then builds a fluent `INodeManagerBuilder`, invokes
-    `Configure(builder)`, calls `builder.Seal()`, and replays
-    `NotifyNodeAdded` for every predefined node so per-node lifecycle
-    hooks fire deterministically.
+    `Configure(builder)`, `await`s `CompleteConfigureAsync` (re-running
+    the reverse-reference pass so nodes created inside `Configure`
+    publish their references to nodes owned by other managers — e.g. an
+    inverse `Organizes` to the ns=0 `Objects` folder — into the
+    `externalReferences` dictionary), calls `builder.Seal()`, and
+    replays `NotifyNodeAdded` for every predefined node so per-node
+    lifecycle hooks fire deterministically.
   - `AddPredefinedNodeAsync` / `RemovePredefinedNodeAsync` overrides
     forward to base and then dispatch the lifecycle notification.
   - `OnMonitoredItemCreated` (still synchronous on the base) dispatches
@@ -825,6 +832,24 @@ or by file stem:
 
 Set `GenerateFactory = false` to suppress factory emission when you want
 to ship a hand-written `IAsyncNodeManagerFactory`.
+
+When the manager also owns namespaces beyond the model's own — most
+commonly a separate *instance* namespace for nodes created at runtime —
+declare them on the attribute:
+
+```csharp
+[NodeManager(
+    NamespaceUri = Namespaces.Boiler,
+    AdditionalNamespaceUris = new[] { Namespaces.Boiler + "Instance" })]
+```
+
+The generated constructor passes them to the base manager together with
+the model namespace and the generated factory advertises them in
+`NamespacesUris`, so the master node manager routes requests for those
+namespaces to this manager from the moment it is built. Calling
+`SetNamespaces` later is not sufficient — the master builds its
+namespace routing from what the manager reported when it was
+constructed.
 
 #### Project-wide opt-in via MSBuild property (legacy)
 
@@ -928,6 +953,47 @@ All resolution happens **once** during `CreateAddressSpaceAsync`,
 against the in-memory predefined-node tree. There is no reflection, no
 `Activator.CreateInstance`, no `Expression.Compile` — the whole pipeline
 is NativeAOT-safe.
+
+#### Creating nodes under other managers' nodes (Objects folder)
+
+Anything a NodeSet can declare, `Configure` can declare identically —
+including references whose target is owned by **another** node manager,
+such as the ns=0 `Objects` folder managed by the `CoreNodeManager`.
+Write the inverse reference on your node; after the `Configure`
+partials return, the manager re-runs its reverse-reference pass
+(`FluentNodeManagerBase.CompleteConfigureAsync`) and publishes the
+matching forward edge into the `externalReferences` dictionary that the
+master node manager distributes once every manager's address space is
+built.
+
+Two helpers make the common placement declarative, and a manager-level
+`CreateInstance<TState>` creates root-level (parentless) instances,
+materializing the subtree from the type model and minting NodeIds
+through the manager's `INodeIdFactory`:
+
+```csharp
+partial void Configure(INodeManagerBuilder builder)
+{
+    // Instantiate a second boiler at runtime and place it under the
+    // ns=0 Objects folder — no LoadPredefinedNodesAsync override, no
+    // manual externalReferences bookkeeping.
+    builder.CreateInstance(
+            new QualifiedName("Boiler #2", NamespaceIndexes[1]),
+            p => new BoilerState(p))
+        .Configure(n => n.UnderObjectsFolder());
+
+    // Arbitrary parents work the same way:
+    //   n.OrganizedBy(parentNodeId)
+    // adds the inverse Organizes reference; the forward edge reaches
+    // the owning manager automatically.
+}
+```
+
+Inverse `HasNotifier` references to external notifiers get root-notifier
+registration through the same pass. This covers **startup-time**
+configuration only — for nodes created after startup use
+`IMasterNodeManager.AddReferencesAsync`, which dispatches to the live
+owning manager.
 
 ### Typed model-traversal — the `Configure(I{Manager}NodeManagerBuilder)` partial
 
@@ -1419,6 +1485,13 @@ builder.Node("Pumps/Pump #1/Operational/MyGroup")
        .HasProperty(metadataNodeId);
 ```
 
+`INodeBuilder.OrganizedBy(parentId)` and `.UnderObjectsFolder()` add
+the *inverse* `Organizes` reference, placing the current node below an
+organizing parent. The parent may be owned by another node manager
+(e.g. the ns=0 `Objects` folder) — the forward edge is published
+automatically when `Configure` completes; see
+[Creating nodes under other managers' nodes](#creating-nodes-under-other-managers-nodes-objects-folder).
+
 `INodeBuilder.AddObject(browseName, typeDefinitionId)` synthesises a
 new `BaseObjectState` child under the current node and returns a typed
 builder for the new object. NodeIds follow the
@@ -1469,6 +1542,22 @@ subtree with the owning node manager. The same registration behaviour
 is used by the fluent state-machine creators, so generated instances
 created from a builder can be browsed, read, and monitored without a
 separate `AddPredefinedNodeAsync` call.
+
+For **root-level** instances (no parent node in this manager),
+`INodeManagerBuilder.CreateInstance<TState>(name, factory)` accepts a
+plain constructor-style factory (`p => new BoilerState(p)`, invoked
+with a `null` parent), fully materialises the instance from its type
+model, and mints per-instance NodeIds for the whole subtree through
+the manager's `INodeIdFactory`. Combine with `.UnderObjectsFolder()`
+(or `.OrganizedBy(parentId)`) to place the instance below a node owned
+by another manager:
+
+```csharp
+builder.CreateInstance(
+        new QualifiedName("Boiler #2", NamespaceIndexes[1]),
+        p => new BoilerState(p))
+    .Configure(n => n.UnderObjectsFolder());
+```
 
 #### Alarm setup (MVP)
 

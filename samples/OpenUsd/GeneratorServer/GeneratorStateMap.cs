@@ -47,6 +47,32 @@ namespace Generators
     internal static class GeneratorStateMap
     {
         /// <summary>
+        /// Gets the model's state <em>node id</em> for every simulated
+        /// state — the identifier of the StateType node the model
+        /// declares, which is what <c>CurrentState/Id</c> must carry
+        /// (the state <em>number</em> is a different value published by
+        /// the StateNumber property).
+        /// </summary>
+        public static IReadOnlyDictionary<GeneratorRunState, uint> StateIds { get; } =
+            new Dictionary<GeneratorRunState, uint>
+            {
+                [GeneratorRunState.Off] = GeneratorStateMachineTypeIds.StateIds.Off,
+                [GeneratorRunState.Ready] = GeneratorStateMachineTypeIds.StateIds.Ready,
+                [GeneratorRunState.Starting] = GeneratorStateMachineTypeIds.StateIds.Starting,
+                [GeneratorRunState.Warmup] = GeneratorStateMachineTypeIds.StateIds.Warmup,
+                [GeneratorRunState.Running] = GeneratorStateMachineTypeIds.StateIds.Running,
+                [GeneratorRunState.Loaded] = GeneratorStateMachineTypeIds.StateIds.Loaded,
+                [GeneratorRunState.Synchronizing] =
+                    GeneratorStateMachineTypeIds.StateIds.Synchronizing,
+                [GeneratorRunState.Paralleled] = GeneratorStateMachineTypeIds.StateIds.Paralleled,
+                [GeneratorRunState.Cooldown] = GeneratorStateMachineTypeIds.StateIds.Cooldown,
+                [GeneratorRunState.Stopping] = GeneratorStateMachineTypeIds.StateIds.Stopping,
+                [GeneratorRunState.Fault] = GeneratorStateMachineTypeIds.StateIds.Fault,
+                [GeneratorRunState.EmergencyStopped] =
+                    GeneratorStateMachineTypeIds.StateIds.EmergencyStopped,
+            };
+
+        /// <summary>
         /// Gets the model's state number for every simulated state.
         /// </summary>
         public static IReadOnlyDictionary<GeneratorRunState, uint> StateNumbers { get; } =

@@ -71,10 +71,10 @@ namespace Opc.Ua.Server.Tests
             int maxPublishRequests = NumItems * 2;
             using var queue = new SessionPublishQueue(m_serverMock.Object, m_sessionMock.Object, maxPublishRequests);
 
-            var subs = new List<Mock<ISubscription>>();
+            var subs = new List<Mock<ISubscriptionPublishPipeline>>();
             for (int i = 0; i < NumItems; i++)
             {
-                var subMock = new Mock<ISubscription>();
+                var subMock = new Mock<ISubscriptionPublishPipeline>();
                 subMock.Setup(s => s.Id).Returns((uint)(i + 1));
                 subMock.Setup(s => s.Priority).Returns((byte)(i % 5));
                 subMock.Setup(s => s.PublishTimerExpired()).Returns(PublishingState.NotificationsAvailable);
@@ -83,7 +83,7 @@ namespace Opc.Ua.Server.Tests
             }
 
             using var startGate = new ManualResetEventSlim(false);
-            var publishTasks = new List<Task<ISubscription>>(NumItems);
+            var publishTasks = new List<Task<ISubscriptionPublishPipeline>>(NumItems);
             var timerTasks = new List<Task>(NumItems);
 
             // Start multiple threads requesting publish
@@ -114,7 +114,7 @@ namespace Opc.Ua.Server.Tests
             await Task.WhenAll(timerTasks).ConfigureAwait(false);
 
             // Wait for consumers to get their subscriptions
-            Task<ISubscription[]> resultsTask = Task.WhenAll(publishTasks);
+            Task<ISubscriptionPublishPipeline[]> resultsTask = Task.WhenAll(publishTasks);
             await Task.WhenAny(resultsTask, Task.Delay(TimeSpan.FromSeconds(30))).ConfigureAwait(false);
 
             queue.Close();

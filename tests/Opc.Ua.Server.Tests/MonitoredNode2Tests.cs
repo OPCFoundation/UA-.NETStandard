@@ -1752,6 +1752,7 @@ namespace Opc.Ua.Server.Tests
 
             int validationCalls = 0;
             var validationSignal = new AsyncSignal();
+            var queuedSignal = new AsyncSignal();
             var nodeManagerMock = new Mock<IAsyncNodeManager>();
             nodeManagerMock
                 .Setup(m => m.ValidateEventRolePermissionsAsync(
@@ -1769,6 +1770,9 @@ namespace Opc.Ua.Server.Tests
             serverMock.Setup(s => s.Auditing).Returns(false);
 
             Mock<IEventMonitoredItem> eventItemMock = CreateEventMonitoredItemMock(7u);
+            eventItemMock
+                .Setup(m => m.QueueEvent(It.IsAny<IFilterTarget>()))
+                .Callback(() => queuedSignal.Set());
 
             var monitoredNode = new MonitoredNode2(nodeManagerMock.Object, serverMock.Object, node);
             monitoredNode.Add(eventItemMock.Object);
@@ -1785,6 +1789,16 @@ namespace Opc.Ua.Server.Tests
 
             await monitoredNode.OnReportEventAsync(context, node, BuildEvent());
             Assert.That(await validationSignal.WaitAsync(TimeSpan.FromSeconds(30)).ConfigureAwait(false), Is.True);
+
+            // The verdict is written to the permission cache only after the
+            // validation callback returns, so the validation signal alone can
+            // resume this test while the consumer is still between the callback
+            // and that write. Removing the item there drops nothing and the
+            // stale verdict lands in the cache afterwards, so the second event
+            // is served from cache, never re-validates and the wait below times
+            // out. QueueEvent runs after the cache write, which makes it the
+            // marker that the first event is fully processed.
+            Assert.That(await queuedSignal.WaitAsync(TimeSpan.FromSeconds(30)).ConfigureAwait(false), Is.True);
             validationSignal.Reset();
 
             monitoredNode.Remove(eventItemMock.Object);

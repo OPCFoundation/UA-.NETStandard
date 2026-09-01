@@ -64,11 +64,14 @@ the [Developer Guide](docs/DeveloperGuide.md#packages-platform-support-and-versi
 are published to nuget.org under the `OPCFoundation.NetStandard`
 prefix — the meta package
 [OPCFoundation.NetStandard.Opc.Ua](https://www.nuget.org/packages/OPCFoundation.NetStandard.Opc.Ua/)
-pulls in everything, or pick the split
-`OPCFoundation.NetStandard.Opc.Ua.Core` / `.Client` / `.Server` /
-`.Bindings.Https` packages directly. Preview builds for every successful
-`master` build are available in the
-[Azure DevOps opcua-preview feed](https://opcfoundation.visualstudio.com/opcua-netstandard/_packaging?_a=feed&feed=opcua-preview%40Local).
+pulls in everything, or reference individual packages directly, e.g.
+`OPCFoundation.NetStandard.Opc.Ua.Client` for clients or
+`OPCFoundation.NetStandard.Opc.Ua.Server` for servers. Preview builds from
+every successful `master` build are available from the
+[GitHub Packages NuGet feed](https://nuget.pkg.github.com/OPCFoundation/index.json).
+Official public 2.0 preview releases are also on nuget.org. Enable prerelease
+packages and use `2.0.0-preview.*` to float to the latest published
+`2.0.0-preview.N` release.
 
 ### Sample applications
 
@@ -113,6 +116,21 @@ Each sample has its own `README.md` with build and run instructions.
 - [Intent Viewer Client](samples/Robotics/IntentViewerClient/README.md) — click a
   target in an OpenUSD viewport and watch the arm execute the resulting intent;
   also runs headless.
+- [Bin Picking Cell](samples/Robotics/BinPickingCell/README.md) — Robot Intent,
+  Vision, an eye-in-hand camera, and an in-address-space OpenUSD scene in one
+  reference cell.
+- [Bin Picking Client](samples/Robotics/BinPickingClient/README.md) — closes the
+  Vision-to-Robot-Intent loop, with optional MCP hosting and an OpenUSD viewport.
+- [Visual Inspection Cell](samples/Vision/VisualInspectionCell/README.md) — hosts
+  Vision, AI Model Management, ISA-95 Job Control V2, and an operator dialog for
+  deterministic machined-bracket inspection.
+- [Visual Inspection Agent](samples/Vision/VisualInspectionAgent/README.md) — drives
+  the inspection loop with typed clients, routes inference through deployment
+  `Invoke`, applies recipe verdicts, schedules allowlisted jobs, and records
+  operator ground truth.
+- [AI Model Management sample](samples/AI/README.md) — `ModelManagementServer`
+  publishes the draft AI Model Management catalogue and routes inference;
+  `ModelManagementClient` discovers deployments and exercises the Methods.
 - [Minimal ISA-95 Server](samples/Isa95/MinimalIsa95Server/README.md) —
   minimal server hosting the OPC-10030 ISA-95 Common Model together
   with OPC-10031-4 Job Control V1 and V2, using the typed common-model
@@ -130,16 +148,15 @@ repository.
 
 The 2.0 release introduces breaking API changes, and comes with a full
 [prescriptive migration guide](docs/MigrationGuide.md) that links to
-[per-area documentation](docs/migrate/2.0.x/README.md) covering
-telemetry, packages, source generation, types, encoders, node states,
-identity, certificates, configuration, sessions / subscriptions,
-alarms / model change, and TimeProvider.
+[per-area documentation](docs/migrate/2.0.x/README.md) for the migration
+sub-topics.
 
 Most of the mechanical migration work is automated:
 
 - **`OPCFoundation.NetStandard.Opc.Ua.MigrationAnalyzer` NuGet** —
-  install it in your project to get analyzer warnings (`UA0001`–`UA0022`)
-  + one-click code fixes for the patterns in the guide. Setup steps
+  install it in your project to get 26 analyzer rules through `UA0030`
+  (excluding `UA0013`, `UA0016`, `UA0017`, and the shim-only `UA0029`) plus
+  one-click code fixes for the patterns in the guide. Setup steps
   are in the package's
   [NugetREADME.md](tools/Opc.Ua.MigrationAnalyzer/NugetREADME.md).
 - **Migration agent skill** — the
@@ -148,6 +165,14 @@ Most of the mechanical migration work is automated:
   the NuGet, running `dotnet format analyzers` to apply auto-fixes,
   and handling the small residual manual patterns. The skill knows
   which sub-doc to load for each symptom so it stays context-efficient.
+
+Copilot CLI discovers the skill automatically inside a clone. To install it
+for use in any repository:
+
+```bash
+copilot plugin marketplace add OPCFoundation/UA-.NETStandard
+copilot plugin install opcua-v20-migration@opcua-dotnet
+```
 
 If you are still on 1.x and not ready to upgrade, stay on the
 [`master378`](https://github.com/OPCFoundation/UA-.NETStandard/tree/master378)
@@ -174,9 +199,6 @@ vulnerabilities via the process documented in
   one-line description.
 - [What's New in 2.0](docs/WhatsNewIn2.0.md) — narrative tour of the
   1.5.378 → 2.0 changes grouped by theme and layer.
-- [OPC UA for Asset Administration Shell](docs/Aas.md) — OPC 30270 / AAS V2
-  ingestion-only metamodel support and the AAS V3 metamodel, registry,
-  document round-trip, packages, federation and conformance matrices.
 - [OPC UA Profiles and Facets](docs/Profiles.md) — facets / transports /
   security policies the stack implements.
 - [Migration Guide](docs/MigrationGuide.md) — prescriptive
@@ -186,6 +208,5 @@ vulnerabilities via the process documented in
   the official OPC 10000 series specification index.
 - [OPC UA .NET Samples](https://github.com/OPCFoundation/UA-.NETStandard-Samples) —
   companion repository with more sample applications.
-- [Preview NuGet feed](https://opcfoundation.visualstudio.com/opcua-netstandard/_packaging?_a=feed&feed=opcua-preview%40Local) —
-  prerelease builds from Azure DevOps.
-
+- [Preview Nuget package feed](https://nuget.pkg.github.com/OPCFoundation/index.json) —
+  prerelease builds from every successful `master` build.

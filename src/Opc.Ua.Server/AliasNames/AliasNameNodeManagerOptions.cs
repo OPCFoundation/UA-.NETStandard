@@ -64,6 +64,19 @@ namespace Opc.Ua.Server.AliasNames
         public bool RequireSecurityAdminForMutations { get; set; } = true;
 
         /// <summary>
+        /// When <c>true</c> (default), the manager creates one browsable
+        /// <c>AliasNameType</c> instance per alias — BrowseName carrying
+        /// the alias name, <c>AliasFor</c> references to its targets and
+        /// the inverse <c>HasAlias</c> reference on local targets — as
+        /// Part 17 §6.2 clients (the CTT among them) discover aliases by
+        /// browsing. Disable to expose only the category tree and serve
+        /// aliases through <c>FindAlias</c>/<c>FindAliasVerbose</c>.
+        /// The nodes are a snapshot taken at address-space creation;
+        /// later store mutations change query results but not the nodes.
+        /// </summary>
+        public bool MaterializeAliasNodes { get; set; } = true;
+
+        /// <summary>
         /// When <c>true</c> (default), the manager registers its
         /// <see cref="IAliasNameStore"/> with the server-wide
         /// <see cref="IAliasNameStoreRegistry"/> resolved through

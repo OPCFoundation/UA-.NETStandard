@@ -586,10 +586,7 @@ namespace Opc.Ua.Robotics.Tests
             Assert.That(FindOperation("c")!.QueuePosition!.Value, Is.LessThanOrEqualTo(1));
         }
 
-        [TestCase(BufferModeEnum.BlendingLow)]
-        [TestCase(BufferModeEnum.BlendingPrevious)]
-        [TestCase(BufferModeEnum.BlendingNext)]
-        [TestCase(BufferModeEnum.BlendingHigh)]
+        [TestCaseSource(nameof(BlendingModes))]
         public async Task BlendingCompletesThePredecessorAtTheReportedPose(BufferModeEnum blendingMode)
         {
             m_executor.Gate = new SemaphoreSlim(0);
@@ -885,12 +882,16 @@ namespace Opc.Ua.Robotics.Tests
             Assert.Multiple(() =>
             {
                 Assert.That(retry.Accepted, Is.True);
-                Assert.That(retry.IntentId, Is.Not.EqualTo(first.IntentId));
+                Assert.That(retry.IntentId, Is.EqualTo("a#attempt-2"));
                 Assert.That(retry.Operation, Is.Not.EqualTo(first.Operation),
                     "a retry is a new attempt, and the history of the first survives");
             });
             await WaitForTerminalAsync(retry.IntentId).ConfigureAwait(false);
-            Assert.That(original.ExecutionState!.Value, Is.EqualTo(ExecutionStateEnum.Retriable));
+            Assert.Multiple(() =>
+            {
+                Assert.That(original.ExecutionState!.Value, Is.EqualTo(ExecutionStateEnum.Retriable));
+                Assert.That(original.Intent!.Value!.IntentId, Is.EqualTo("a"));
+            });
         }
 
         [Test]
@@ -1184,6 +1185,25 @@ namespace Opc.Ua.Robotics.Tests
         }
 
         [Test]
+        public async Task FailedExecutorOutcomeWithoutReasonIsNormalized()
+        {
+            m_executor.Outcome = new IntentOutcome { State = ExecutionStateEnum.Failed };
+
+            m_host.SubmitIntent(m_context, null, Move("missing-reason"));
+            IntentOperationState operation = await WaitForTerminalAsync("missing-reason")
+                .ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(operation.ExecutionState!.Value, Is.EqualTo(ExecutionStateEnum.Failed));
+                Assert.That(operation.Result!.Value!.Failure, Is.EqualTo(IntentFailureEnum.Other));
+                Assert.That(
+                    operation.Result.Value.Message.Text,
+                    Is.EqualTo("Executor reported failure without a failure classification."));
+            });
+        }
+
+        [Test]
         public async Task QueuedMissionStepCancellationAdvancesTheMission()
         {
             m_executor.Gate = new SemaphoreSlim(0);
@@ -1278,22 +1298,26 @@ namespace Opc.Ua.Robotics.Tests
         [Test]
         public async Task ReusingTerminalMissionIdCreatesDistinctMissionNode()
         {
-            MissionAdmission first = m_host.SubmitMission(m_context, null, new MissionDataType
+            var firstMission = new MissionDataType
             {
                 MissionId = "m1",
                 Steps = new[] { Step("s1", 1, released: true) }
-            });
+            };
+            firstMission.Steps[0].Intent!.IntentId = "m1-first";
+            MissionAdmission first = m_host.SubmitMission(m_context, null, firstMission);
             await WaitAsync(() =>
             {
                 MissionObjectState mission = FindOperationByNodeId<MissionObjectState>(first.Operation)!;
                 return mission.ExecutionState?.Value == ExecutionStateEnum.Succeeded;
             }).ConfigureAwait(false);
 
-            MissionAdmission second = m_host.SubmitMission(m_context, null, new MissionDataType
+            var secondMission = new MissionDataType
             {
                 MissionId = "m1",
                 Steps = new[] { Step("s1", 1, released: true) }
-            });
+            };
+            secondMission.Steps[0].Intent!.IntentId = "m1-second";
+            MissionAdmission second = m_host.SubmitMission(m_context, null, secondMission);
 
             Assert.Multiple(() =>
             {
@@ -1426,9 +1450,9 @@ namespace Opc.Ua.Robotics.Tests
                 AxisCount = 6,
                 MaxQueueDepth = 4
             };
-            options.Accept(RiDataTypeIds.LinearMoveIntentDataType);
-            options.Accept(RiDataTypeIds.JointMoveIntentDataType);
-            options.Accept(RiDataTypeIds.GraspIntentDataType, cancelSupported: false);
+            options.Accept(RiDataTypeIds.LinearMoveIntentDataType)
+                .Accept(RiDataTypeIds.JointMoveIntentDataType)
+                .Accept(RiDataTypeIds.GraspIntentDataType, cancelSupported: false);
             return options;
         }
 
@@ -1617,6 +1641,14 @@ namespace Opc.Ua.Robotics.Tests
                 await Task.Delay(10).ConfigureAwait(false);
             }
             Assert.Fail($"timed out waiting for {conditionDescription}");
+        }
+
+        private static IEnumerable<TestCaseData> BlendingModes()
+        {
+            yield return new TestCaseData(BufferModeEnum.BlendingLow);
+            yield return new TestCaseData(BufferModeEnum.BlendingPrevious);
+            yield return new TestCaseData(BufferModeEnum.BlendingNext);
+            yield return new TestCaseData(BufferModeEnum.BlendingHigh);
         }
 
         private ServiceMessageContext m_messageContext = null!;

@@ -165,7 +165,9 @@ namespace Opc.Ua.InformationModel.Tests
         [Test]
         public Task AliasNameSecurityAdminNotRequired()
         {
-            Assert.Ignore("AliasName SecurityAdmin CU is optional.");
+            Assert.Ignore(
+                "AliasName SecurityAdmin CU is optional; the mutation methods it " +
+                "covers are exercised by AliasnameOptionalMethodsTests.");
             return Task.CompletedTask;
         }
 

@@ -509,14 +509,26 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(result.Elements[0].ReferenceTypeId, Is.EqualTo(ReferenceTypeIds.HierarchicalReferences));
         }
 
+        /// <summary>
+        /// A freshly constructed element must follow forward References.
+        /// </summary>
+        /// <remarks>
+        /// This is not cosmetic. A caller that sets only a ReferenceTypeId and
+        /// a TargetName - which reads as "the child reached by this Reference"
+        /// - would otherwise ask the Server for the inverse Reference and be
+        /// told BadNoMatch, with nothing in the request to suggest why. That is
+        /// what happened to every source-generated Optional child accessor
+        /// routed through ObjectTypeClient.ResolveChildNodeIdAsync, which does
+        /// not set IsInverse. IncludeSubtypes defaulting to true is deliberate
+        /// and stays; IsInverse defaulting to true was not.
+        /// </remarks>
         [Test]
         public void RelativePathElementDefaultConstructorInitializesDefaults()
         {
-            // Defaults: IsInverse=true, IncludeSubtypes=true, ReferenceTypeId=default, TargetName=default
             var element = new RelativePathElement();
 
             Assert.That(element.ReferenceTypeId, Is.Default);
-            Assert.That(element.IsInverse, Is.True);
+            Assert.That(element.IsInverse, Is.False);
             Assert.That(element.IncludeSubtypes, Is.True);
             Assert.That(element.TargetName, Is.Default);
         }

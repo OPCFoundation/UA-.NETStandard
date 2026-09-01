@@ -66,6 +66,7 @@ namespace Opc.Ua.Server.Hosting
         {
             IApplicationConfigurationBuilderTransportQuotas quotasBuilder = builder
                 .SetMaxByteStringLength((int)options.MaxByteStringLength)
+                .SetMaxStringLength((int)options.MaxStringLength)
                 .SetMaxArrayLength((int)options.MaxArrayLength);
 
             if (options.MaxMessageSize is int maxMessageSize)

@@ -232,7 +232,8 @@ namespace Opc.Ua.Client
                 {
                     ReturnDiagnostics = dsf.ReturnDiagnostics,
                     SubscriptionEngineFactory = engineFactory,
-                    TimeProvider = timeProvider ?? dsf.TimeProvider
+                    TimeProvider = timeProvider ?? dsf.TimeProvider,
+                    SecurityPolicyRegistry = dsf.SecurityPolicyRegistry
                 };
             }
 
@@ -258,6 +259,7 @@ namespace Opc.Ua.Client
                 connectGate)
             {
                 m_engineFactory = engineFactory,
+                m_securityPolicies = ResolveSecurityPolicies(sessionFactory),
                 m_reverseConnectManager = reverseConnectManager
             };
 
@@ -1038,7 +1040,8 @@ namespace Opc.Ua.Client
                                 SessionFactory.Telemetry,
                                 SessionFactory.ReturnDiagnostics,
                                 m_timeProvider,
-                                m_engineFactory);
+                                m_engineFactory,
+                                m_securityPolicies);
                         }
 
                         session = (Session)await reverseFactory.CreateAsync(
@@ -1071,6 +1074,7 @@ namespace Opc.Ua.Client
                             m_preferredLocales,
                             m_engineFactory,
                             m_timeProvider,
+                            m_securityPolicies,
                             ct).ConfigureAwait(false);
                     }
                     else
@@ -1156,6 +1160,17 @@ namespace Opc.Ua.Client
             IRetryBudget budget,
             CancellationToken ct)
         {
+            Session? session = m_session;
+            if (session == null)
+            {
+                // Nothing to reactivate: the initial connect failed before it
+                // created an inner session, and the state machine went straight
+                // from Connecting to Reconnecting. Run a full connect so the
+                // reconnect policy retries it. Reporting Good instead would
+                // move the state machine to Connected with no inner session.
+                return await HandleConnectAsync(ct).ConfigureAwait(false);
+            }
+
             try
             {
                 m_logger.ManagedSessionReconnecting();
@@ -1163,57 +1178,53 @@ namespace Opc.Ua.Client
                 using (await m_serviceLock.WriterLockAsync(ct)
                     .ConfigureAwait(false))
                 {
-                    Session? session = m_session;
-                    if (session != null)
+                    try
                     {
-                        try
+                        await session.ReconnectAsync(
+                                budget,
+                                ct)
+                            .ConfigureAwait(false);
+                    }
+                    catch (ServiceResultException sre) when (
+                        sre.StatusCode == StatusCodes.BadSecureChannelClosed &&
+                        session.ManagedChannel?.State is ChannelState.Closed or ChannelState.Faulted)
+                    {
+                        ConfiguredEndpoint? alternateEndpoint =
+                            SelectNextNetworkEndpoint(ConfiguredEndpoint);
+                        if (alternateEndpoint == null)
                         {
-                            await session.ReconnectAsync(
-                                    budget,
-                                    ct)
-                                .ConfigureAwait(false);
+                            m_logger.ManagedSessionManagedChannelFaultedRecreatingSession(sre);
                         }
-                        catch (ServiceResultException sre) when (
-                            sre.StatusCode == StatusCodes.BadSecureChannelClosed &&
-                            session.ManagedChannel?.State is ChannelState.Closed or ChannelState.Faulted)
+                        else
                         {
-                            ConfiguredEndpoint? alternateEndpoint =
-                                SelectNextNetworkEndpoint(ConfiguredEndpoint);
-                            if (alternateEndpoint == null)
-                            {
-                                m_logger.ManagedSessionManagedChannelFaultedRecreatingSession(sre);
-                            }
-                            else
-                            {
-                                m_logger.ManagedSessionManagedChannelFaultedRecreatingSession2(sre);
-                            }
-                            await session.RecreateInPlaceAsync(
-                                    endpoint: alternateEndpoint,
-                                    budget: budget,
-                                    ct: ct)
-                                .ConfigureAwait(false);
+                            m_logger.ManagedSessionManagedChannelFaultedRecreatingSession2(sre);
                         }
-                        catch (ServiceResultException sre) when (
-                            RequiresSessionRecreate(sre.StatusCode))
-                        {
-                            // The server-side session can no longer be reactivated
-                            // by a plain reconnect: e.g. under load the server
-                            // processed an ActivateSession (rotating its nonce) but
-                            // the response was lost, so every subsequent reconnect
-                            // signs the now-stale nonce and is rejected with
-                            // BadApplicationSignatureInvalid forever. Fall back to a
-                            // fresh CreateSession/ActivateSession, which establishes
-                            // a new nonce and recovers the session instead of
-                            // looping on the unrecoverable reactivate.
-                            m_logger.ManagedSessionReconnectRejectedStatusRecreatingSession(
-                                sre,
-                                sre.StatusCode);
-                            await session.RecreateInPlaceAsync(
-                                    endpoint: null,
-                                    budget: budget,
-                                    ct: ct)
-                                .ConfigureAwait(false);
-                        }
+                        await session.RecreateInPlaceAsync(
+                                endpoint: alternateEndpoint,
+                                budget: budget,
+                                ct: ct)
+                            .ConfigureAwait(false);
+                    }
+                    catch (ServiceResultException sre) when (
+                        RequiresSessionRecreate(sre.StatusCode))
+                    {
+                        // The server-side session can no longer be reactivated
+                        // by a plain reconnect: e.g. under load the server
+                        // processed an ActivateSession (rotating its nonce) but
+                        // the response was lost, so every subsequent reconnect
+                        // signs the now-stale nonce and is rejected with
+                        // BadApplicationSignatureInvalid forever. Fall back to a
+                        // fresh CreateSession/ActivateSession, which establishes
+                        // a new nonce and recovers the session instead of
+                        // looping on the unrecoverable reactivate.
+                        m_logger.ManagedSessionReconnectRejectedStatusRecreatingSession(
+                            sre,
+                            sre.StatusCode);
+                        await session.RecreateInPlaceAsync(
+                                endpoint: null,
+                                budget: budget,
+                                ct: ct)
+                            .ConfigureAwait(false);
                     }
                 }
 
@@ -1800,6 +1811,18 @@ namespace Opc.Ua.Client
             cts?.Cancel();
         }
 
+        /// <summary>
+        /// Returns the security policy registry the session factory was
+        /// composed with, so a policy the application contributed through
+        /// <c>AddSecurityPolicy</c> also reaches the sessions this managed
+        /// session creates and re-creates.
+        /// </summary>
+        private static ISecurityPolicyRegistry? ResolveSecurityPolicies(
+            ISessionFactory sessionFactory)
+        {
+            return (sessionFactory as ISecurityPolicyRegistryProvider)?.SecurityPolicyRegistry;
+        }
+
         /// <inheritdoc/>
         public void Dispose()
         {
@@ -1944,6 +1967,7 @@ namespace Opc.Ua.Client
         private ReverseConnectManager? m_reverseConnectManager;
         private readonly IClientConnectGate? m_connectGate;
         private ISubscriptionEngineFactory? m_engineFactory;
+        private ISecurityPolicyRegistry? m_securityPolicies;
         private int m_channelReconnectInProgress;
         private ServerRedundancyInfo? m_redundancyInfo;
         private readonly Lock m_identityRefreshLock = new();

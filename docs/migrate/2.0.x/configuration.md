@@ -13,6 +13,7 @@ Because **Data Contract serialization** is not AOT compliant and does not suppor
 All configuration DTO classes (`ApplicationConfiguration`, `ServerConfiguration`, `TraceConfiguration`, `TransportConfiguration`, `ServerSecurityPolicy`, `OAuth2ServerSettings`, `OAuth2Credential`, `GlobalDiscoveryServerConfiguration`, `CertificateGroupConfiguration`, `BrowserOptions`, etc.) migrated from `[DataContract]`/`[DataMember]` to source-generated `[DataType]`/`[DataTypeField]` attributes and are now `partial` classes.
 
 - `ApplicationConfiguration.LoadWithNoValidation` uses `XmlParser`/`IEncodeable.Decode()`. Existing XML config files should remain loadable.
+  Applications moving to the dependency-injection surface can pass such a file directly to `services.AddOpcUa().AddServer("MyServer.Config.xml")` or `.AddClient("MyClient.Config.xml")` and keep every setting from it — see [Migrating with an existing configuration XML file](../../DependencyInjection.md#migrating-with-an-existing-configuration-xml-file) and [Client: using an existing configuration XML file](../../DependencyInjection.md#client-using-an-existing-configuration-xml-file).
 - Browser and session state persistence switched from XML to OPC UA Binary encoding. **Old persisted files cannot be loaded** — delete and re-save.
 - `SecuredApplication` uses `SecuredApplicationEncoding` helpers instead of `DataContractSerializer`.
 

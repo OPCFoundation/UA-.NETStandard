@@ -189,5 +189,45 @@ namespace Opc.Ua.Core.Tests.Security
 
             Assert.That(registry.GetInfo(SecurityPolicies.Basic256Sha256), Is.Not.Null);
         }
+
+        [Test]
+        public void ModernBuiltInPoliciesMeetMinimumSecurityRequirements()
+        {
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    SecurityPolicyInfo.Basic256Sha256.MeetsMinimumSecurityRequirements,
+                    Is.True);
+                Assert.That(
+                    SecurityPolicyInfo.ECC_nistP256.MeetsMinimumSecurityRequirements,
+                    Is.True);
+                Assert.That(
+                    SecurityPolicyInfo.RSA_DH_AesGcm.MeetsMinimumSecurityRequirements,
+                    Is.True);
+            });
+        }
+
+        [Test]
+        public void DeprecatedAndUnencryptedPoliciesDoNotMeetMinimumSecurityRequirements()
+        {
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    SecurityPolicyInfo.Basic128Rsa15.MeetsMinimumSecurityRequirements,
+                    Is.False);
+                Assert.That(SecurityPolicyInfo.None.MeetsMinimumSecurityRequirements, Is.False);
+            });
+        }
+
+        [Test]
+        public void MismatchedEphemeralKeyDoesNotMeetMinimumSecurityRequirements()
+        {
+            var policy = new SecurityPolicyInfo(SecurityPolicyInfo.Basic256Sha256)
+            {
+                EphemeralKeyAlgorithm = CertificateKeyAlgorithm.NistP256
+            };
+
+            Assert.That(policy.MeetsMinimumSecurityRequirements, Is.False);
+        }
     }
 }

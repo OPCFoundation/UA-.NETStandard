@@ -349,7 +349,8 @@ namespace Opc.Ua.Identity
                 return true;
             }
 
-            SecurityPolicyInfo? policyInfo = SecurityPolicies.Default.GetInfo(policy.SecurityPolicyUri);
+            SecurityPolicyInfo? policyInfo = context.EffectiveSecurityPolicies
+                .GetInfo(policy.SecurityPolicyUri);
             if (policyInfo == null)
             {
                 // Unknown URI handled later by
@@ -378,7 +379,7 @@ namespace Opc.Ua.Identity
                 return true;
             }
 
-            SecurityPolicyInfo? channelInfo = SecurityPolicies.Default.GetInfo(channelUri);
+            SecurityPolicyInfo? channelInfo = context.EffectiveSecurityPolicies.GetInfo(channelUri);
             if (channelInfo == null)
             {
                 rejectionReason = null;
@@ -527,7 +528,7 @@ namespace Opc.Ua.Identity
                 return true;
             }
 
-            SecurityPolicyInfo? info = SecurityPolicies.Default.GetInfo(effectiveUri);
+            SecurityPolicyInfo? info = context.EffectiveSecurityPolicies.GetInfo(effectiveUri);
             if (info == null || info.EphemeralKeyAlgorithm == CertificateKeyAlgorithm.None)
             {
                 // RSA user-token encryption uses the SERVER's certificate;

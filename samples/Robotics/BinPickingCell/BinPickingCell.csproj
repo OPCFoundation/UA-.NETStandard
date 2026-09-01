@@ -1,0 +1,63 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <OutputType>Exe</OutputType>
+    <IsPackable>false</IsPackable>
+    <AssemblyName>BinPickingCell</AssemblyName>
+    <PackageId>BinPickingCell</PackageId>
+    <Description>Bin-picking work cell that hosts both the Robot Intent and Vision node managers with an eye-in-hand camera. Reproduces the OPC UA Robotics-Vision Addendum's worked example against the OPC UA .NET Standard stack.</Description>
+    <RootNamespace>Vision.BinPickingCell</RootNamespace>
+    <Nullable>enable</Nullable>
+    <!-- CA1812: BinPickingRobotCell and its siblings are constructed by the DI container,
+         which the analyzer cannot see, so it reports them as never instantiated. -->
+    <NoWarn>$(NoWarn);CA1014;CA1822;CA1812</NoWarn>
+    <!-- No AOT: the OpenUSD render stack pulled in by Opc.Ua.Vision.OpenUsd is
+         not trim/AOT safe today. -->
+    <PublishAot>false</PublishAot>
+    <EnableConfigurationBindingGenerator>true</EnableConfigurationBindingGenerator>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <SelfContained>false</SelfContained>
+    <!-- Pinned to net10.0 so the sample cannot participate in legacy-TFM solution
+         legs; the referenced OpenUsd stack and Vision.OpenUsd provider do not
+         target net472/net48. -->
+    <RestrictForLegacyTfm>true</RestrictForLegacyTfm>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\src\Opc.Ua.Configuration\Opc.Ua.Configuration.csproj" />
+    <ProjectReference Include="..\..\..\src\Opc.Ua.Server\Opc.Ua.Server.csproj" />
+    <ProjectReference Include="..\..\..\src\Opc.Ua.OpenUsd\Opc.Ua.OpenUsd.csproj" />
+    <ProjectReference Include="..\..\..\src\Opc.Ua.OpenUsd.Server\Opc.Ua.OpenUsd.Server.csproj" />
+    <ProjectReference Include="..\..\..\src\Opc.Ua.Robotics\Opc.Ua.Robotics.csproj" />
+    <ProjectReference Include="..\..\..\src\Opc.Ua.Robotics.Server\Opc.Ua.Robotics.Server.csproj" />
+    <ProjectReference Include="..\..\..\src\Opc.Ua.Vision\Opc.Ua.Vision.csproj" />
+    <ProjectReference Include="..\..\..\src\Opc.Ua.Vision.Server\Opc.Ua.Vision.Server.csproj" />
+    <ProjectReference Include="..\..\..\src\Opc.Ua.Vision.OpenUsd\Opc.Ua.Vision.OpenUsd.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Hosting" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Console" />
+  </ItemGroup>
+  <ItemGroup>
+    <!-- Share the generic executor, collision/support models, and UR-compatible
+         constructors with IntentEnabledRobot. BinPickingCell injects its own analytic
+         palletizer kinematics at runtime. -->
+    <Compile Include="..\IntentEnabledRobot\Simulation\SimulatedArmExecutor.cs" Link="Simulation\SimulatedArmExecutor.cs" />
+    <Compile Include="..\IntentEnabledRobot\Simulation\SimulatedSupportModel.cs" Link="Simulation\SimulatedSupportModel.cs" />
+    <Compile Include="..\IntentEnabledRobot\Simulation\SimulatedCollisionModel.cs" Link="Simulation\SimulatedCollisionModel.cs" />
+    <Compile Include="..\IntentEnabledRobot\Kinematics\ISimulatedArmKinematics.cs" Link="Kinematics\ISimulatedArmKinematics.cs" />
+    <Compile Include="..\IntentEnabledRobot\Kinematics\SimulatedArmKinematics.cs" Link="Kinematics\SimulatedArmKinematics.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <!-- The cell stage, palletizer and gripper are embedded and extracted to a
+         per-user directory at startup by BinPickingCellStage. The palletizer
+         belongs only to this demo; the generic IntentEnabledRobot keeps the UR
+         asset. The gripper remains shared. -->
+    <None Remove="Assets\Cell.usda" />
+    <EmbeddedResource Include="Assets\Cell.usda"><LogicalName>Cell.usda</LogicalName></EmbeddedResource>
+    <None Remove="Assets\palletizer-arm.usda" />
+    <EmbeddedResource Include="Assets\palletizer-arm.usda"><LogicalName>palletizer-arm.usda</LogicalName></EmbeddedResource>
+    <None Remove="Assets\palletizer-gripper.usda" />
+    <EmbeddedResource Include="Assets\palletizer-gripper.usda"><LogicalName>palletizer-gripper.usda</LogicalName></EmbeddedResource>
+    <EmbeddedResource Include="..\IntentEnabledRobot\Assets\gripper.usda"><LogicalName>gripper.usda</LogicalName></EmbeddedResource>
+  </ItemGroup>
+</Project>

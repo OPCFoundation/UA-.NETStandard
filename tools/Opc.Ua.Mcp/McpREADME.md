@@ -2,13 +2,32 @@
 
 A [Model Context Protocol (MCP)](https://modelcontextprotocol.io) server that exposes OPC UA Part 4 service calls as MCP tools, enabling AI assistants (Claude, GitHub Copilot, VS Code, etc.) to interact with OPC UA servers.
 
-## Install
+## Run without installing (.NET 10 SDK)
 
 ```bash
-dotnet tool install --global OPCFoundation.NetStandard.Opc.Ua.Mcp
+dotnet tool exec "OPCFoundation.NetStandard.Opc.Ua.Mcp@2.0.0-preview.*"
+
+# Short form
+dnx "OPCFoundation.NetStandard.Opc.Ua.Mcp@2.0.0-preview.*"
 ```
 
+## Install globally
+
+```bash
+dotnet tool install --global OPCFoundation.NetStandard.Opc.Ua.Mcp --prerelease
+```
+
+> **Profile availability in `2.0.0-preview.3`:** the public tool package
+> includes `core`, `services`, `administration`, `pubsub`, `diagnostics`,
+> `robotics`, and `full`, but not `vision`. Run the current source when you
+> need `vision` or a composed `vision,robotics` profile until a later preview
+> includes `Opc.Ua.Mcp.Vision`.
+
 ## Usage
+
+The examples below assume a global installation. For run-on-demand use,
+replace `opcua-mcp` with
+`dnx "OPCFoundation.NetStandard.Opc.Ua.Mcp@2.0.0-preview.*" --`.
 
 ```bash
 # stdio transport (default) — for Claude Desktop, VS Code, Copilot
@@ -22,7 +41,13 @@ opcua-mcp --transport http --port 5100
 
 ## Tools
 
-The server exposes tools through a **tool profile** — a bounded, named catalog selected with `--profile core|services|administration|pubsub|diagnostics|full`. `full` is the default and currently registers every tool listed below; `core` and the other profiles expose a smaller, focused subset. See the [full documentation](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/McpServer.md#tool-profiles) for the profile-to-tool mapping.
+The server exposes tools through a **tool profile** — a bounded, named catalog
+selected with
+`--profile core|services|administration|pubsub|diagnostics|robotics|vision|full`.
+Profiles can be composed, for example `--profile vision,robotics`. `full` is the
+default; the other profiles expose smaller focused subsets. See the
+[full documentation](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/McpServer.md#tool-profiles)
+for the profile-to-tool mapping.
 
 Tools in the `full` profile cover all OPC UA Part 4 service sets:
 
@@ -35,6 +60,10 @@ Tools in the `full` profile cover all OPC UA Part 4 service sets:
 - **MonitoredItem**: CreateMonitoredItems, ModifyMonitoredItems, SetMonitoringMode, SetTriggering, DeleteMonitoredItems
 - **Discovery**: FindServers, FindServersOnNetwork, GetEndpoints, RegisterServer, RegisterServer2
 - **Convenience**: ReadValue, ReadValues, WriteValue, BrowseAll, CallMethod, ReadNode, Cancel
+- **Robotics**: typed Robot Intent control and missions, paged monitoring,
+  bounded operation/mission waits, and same-session `robotics_vision_pick`
+- **Vision**: image capture, structured one-shot inference, result monitoring,
+  feedback and frame-graph composition
 
 ## Embedding
 
@@ -57,6 +86,8 @@ builder.Services.AddMcpServer()
 | `OPCFoundation.NetStandard.Opc.Ua.Mcp.PubSub` | PubSub runtime, actions, discovery |
 | `OPCFoundation.NetStandard.Opc.Ua.Mcp.Diagnostics` | UA-TCP capture, decode, replay |
 | `OPCFoundation.NetStandard.Opc.Ua.Mcp.PubSub.Diagnostics` | PubSub capture, decode |
+| `OPCFoundation.NetStandard.Opc.Ua.Mcp.Robotics` | Robot Intent control, missions, waits and Vision-guided Pick |
+| `OPCFoundation.NetStandard.Opc.Ua.Mcp.Vision` | Vision discovery, seeing, inference, feedback and geometry |
 
 ## Documentation
 

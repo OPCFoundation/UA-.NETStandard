@@ -101,6 +101,7 @@ namespace Opc.Ua.Mcp
                 case McpToolProfile.Administration:
                 case McpToolProfile.Diagnostics:
                 case McpToolProfile.Robotics:
+                case McpToolProfile.Vision:
                     break;
                 default:
                     throw new ArgumentOutOfRangeException(
@@ -110,6 +111,41 @@ namespace Opc.Ua.Mcp
             }
 
             return mcpServerBuilder;
+        }
+
+        /// <summary>
+        /// Registers the PubSub tools when the composed
+        /// <paramref name="toolProfiles"/> includes
+        /// <see cref="McpToolProfile.PubSub"/>.
+        /// </summary>
+        /// <remarks>
+        /// This overload is the composition entry point a host uses when it
+        /// wants the PubSub runtime tools alongside other bounded profiles.
+        /// The PubSub tools do not resolve a named OPC UA session, so this
+        /// method never touches <see cref="Tools.ConnectionTools"/>.
+        /// </remarks>
+        /// <param name="mcpServerBuilder">The MCP server builder.</param>
+        /// <param name="toolProfiles">The composed set of profiles.</param>
+        /// <returns>The builder, for chaining.</returns>
+        /// <exception cref="ArgumentNullException">
+        /// <paramref name="mcpServerBuilder"/> is <c>null</c>.
+        /// </exception>
+        public static IMcpServerBuilder WithOpcUaPubSubTools(
+            this IMcpServerBuilder mcpServerBuilder,
+            McpToolProfileSet toolProfiles)
+        {
+            ArgumentNullException.ThrowIfNull(mcpServerBuilder);
+
+            if (!toolProfiles.Contains(McpToolProfile.PubSub) &&
+                !toolProfiles.Contains(McpToolProfile.Full))
+            {
+                return mcpServerBuilder;
+            }
+
+            return mcpServerBuilder
+                .WithTools<PubSubActionTools>()
+                .WithTools<PubSubDiscoveryTools>()
+                .WithTools<PubSubRuntimeTools>();
         }
     }
 }

@@ -1114,17 +1114,14 @@ namespace Opc.Ua.Server.Tests.NodeManager
         }
 
         [Test]
-        public void IsNodeInView_ValidatedHandleReturnsFalseFromPublicOverloadRecursion()
+        public void IsNodeInView_ValidatedHandleDelegatesToProtectedOverload()
         {
-            // FLAGGED PRODUCTION BEHAVIOUR (not fixed here): the public
-            // IsNodeInView(OperationContext, NodeId, object) delegates via
-            // IsNodeInView(context, viewId, handle.Node). Because it forwards an
-            // OperationContext (not a ServerSystemContext), overload resolution binds
-            // back to the same public (OperationContext, NodeId, object) overload rather
-            // than the intended protected (ServerSystemContext, NodeId, NodeState) helper.
-            // The recursive call then receives a NodeState (not a NodeHandle) and returns
-            // false, so the public API reports "not in view" for in-memory nodes even when
-            // the view exists. This characterization test locks in the current behaviour.
+            // Regression test: the public IsNodeInView(OperationContext, NodeId, object)
+            // used to forward the OperationContext unchanged, so overload resolution bound
+            // back to the same public overload instead of the protected
+            // (ServerSystemContext, NodeId, NodeState) helper, and every call reported
+            // "not in view". It now copies the context and delegates to the overridable
+            // protected helper, which accepts any view that is a predefined node.
             using Harness h = CreateHarness();
             var view = new ViewState();
             view.CreateAsPredefinedNode(h.Context);
@@ -1135,14 +1132,17 @@ namespace Opc.Ua.Server.Tests.NodeManager
             h.Manager.AddPredefinedNodePublic(h.Context, node);
             var handle = new NodeHandle(node.NodeId, node);
 
-            // The view genuinely resolves through the protected helper...
             Assert.That(h.Manager.FindPredefinedNode<ViewState>(view.NodeId), Is.SameAs(view));
 
-            // ...yet the public overload returns false because of the recursion described above.
             bool result = h.Manager.IsNodeInView(
                 h.NewContext(RequestType.Browse), view.NodeId, handle);
 
-            Assert.That(result, Is.False);
+            Assert.That(result, Is.True);
+
+            bool unknownView = h.Manager.IsNodeInView(
+                h.NewContext(RequestType.Browse), new NodeId("UnknownView", h.NamespaceIndex), handle);
+
+            Assert.That(unknownView, Is.False);
         }
 
         [Test]

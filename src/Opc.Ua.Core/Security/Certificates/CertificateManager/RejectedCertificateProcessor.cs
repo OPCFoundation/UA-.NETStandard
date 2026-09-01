@@ -100,11 +100,7 @@ namespace Opc.Ua
             // channel is processed in order, this also implies all earlier
             // requests have completed.
             Interlocked.Exchange(ref m_drainTcs, tcs);
-            var request = new WriteRequest(chain.AddRef(), tcs);
-
-            return m_channel.Writer.TryWrite(request)
-                ? default
-                : m_channel.Writer.WriteAsync(request, ct);
+            return WriteRequestAsync(new WriteRequest(chain.AddRef(), tcs), ct);
         }
 
         /// <summary>
@@ -118,11 +114,57 @@ namespace Opc.Ua
             var tcs = new TaskCompletionSource<bool>(
                 TaskCreationOptions.RunContinuationsAsynchronously);
             Interlocked.Exchange(ref m_drainTcs, tcs);
+            return WriteRequestAsync(new WriteRequest(Chain: null, tcs), ct);
+        }
 
-            var request = new WriteRequest(Chain: null, tcs);
+        private ValueTask WriteRequestAsync(WriteRequest request, CancellationToken ct)
+        {
             return m_channel.Writer.TryWrite(request)
                 ? default
-                : m_channel.Writer.WriteAsync(request, ct);
+                : WriteRequestSlowAsync(request, ct);
+        }
+
+        /// <summary>
+        /// Fallback for a refused <c>TryWrite</c>. The channel is bounded with
+        /// <see cref="BoundedChannelFullMode.DropOldest"/>, so a refused
+        /// TryWrite means the writer has been completed by
+        /// <see cref="DisposeAsync"/> and the awaited write below fails rather
+        /// than blocks. The request owns its chain (the per-cert AddRef taken
+        /// on enqueue): once the write cannot commit the request to the
+        /// channel, nothing else references it, so the chain must be disposed
+        /// here — an abandoned request keeps one leaked reference per
+        /// certificate for the life of the process (this was the intermittent
+        /// one-certificate leak reported by the test assemblies' teardown leak
+        /// detector when a late validation raced manager disposal). The
+        /// completion is resolved as "not processed" so a WaitForDrainAsync
+        /// caller is not left waiting on the abandoned request. An enqueue
+        /// after shutdown is a benign teardown race and the store write is
+        /// best-effort, so <see cref="ChannelClosedException"/> is swallowed;
+        /// cancellation still propagates.
+        /// </summary>
+        private async ValueTask WriteRequestSlowAsync(
+            WriteRequest request,
+            CancellationToken ct)
+        {
+            try
+            {
+                await m_channel.Writer.WriteAsync(request, ct).ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                try
+                {
+                    request.Chain?.Dispose();
+                }
+                finally
+                {
+                    request.Completion.TrySetResult(false);
+                }
+                if (ex is not ChannelClosedException)
+                {
+                    throw;
+                }
+            }
         }
 
         /// <summary>

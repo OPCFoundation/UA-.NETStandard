@@ -4,7 +4,7 @@ The OPC UA MCP Server exposes all OPC UA Part 4 service calls as [Model Context 
 
 ## What It Does
 
-The MCP server wraps the OPC UA .NET Standard client library, translating between JSON-based MCP tool calls and OPC UA binary protocol operations. The server exposes tools through a [tool profile](#tool-profiles) — a named, bounded catalog selected at startup — rather than a single fixed tool count. The default `full` profile currently registers every tool below; running a narrower profile (`core`, `services`, `administration`, `pubsub`, or `diagnostics`) exposes only the subset relevant to that workflow. The tables below list the complete tool surface, organized by OPC UA Part 4 service set:
+The MCP server wraps the OPC UA .NET Standard client library, translating between JSON-based MCP tool calls and OPC UA binary protocol operations. The server exposes tools through a [tool profile](#tool-profiles) — a named, bounded catalog selected at startup — rather than a single fixed tool count. The default `full` profile currently registers every tool below; running a narrower profile (`core`, `services`, `administration`, `pubsub`, `diagnostics`, `robotics`, or `vision`) exposes only the subset relevant to that workflow. The tables below list the complete tool surface, organized by OPC UA Part 4 service set:
 
 | Service Set | Tools | Description |
 |---|---|---|
@@ -57,7 +57,8 @@ The server selects its tool catalog through a **tool profile** — a bounded set
 | `administration` | Configuration, Connection, NodeSet Export, PKI Management | Certificate trust management and NodeSet export |
 | `pubsub` | PubSub runtime, discovery, action, and capture tools (plus PubSub decode when diagnostics tools are enabled) | Part 14 PubSub publish/subscribe, discovery, and capture workflows |
 | `diagnostics` | Connection, Packet Capture (plus decode/replay when diagnostics tools are enabled) | OPC UA-aware packet capture, offline decode, and replay |
-| `robotics` | Connection plus the Robot Intent discovery, monitoring, control and mission tools | Commanding and monitoring a Robot Intent controller |
+| `robotics` | Connection plus Robot Intent discovery, paged monitoring, control, mission and Vision-guided Pick tools | Commanding and monitoring a Robot Intent controller |
+| `vision` | Connection plus the Vision discovery, monitoring, seeing, inference, feedback and geometry tools | Perception-driven agents that need to see through a Vision server, compose poses across the §5.12 frame graph, run or submit inference, and (when composed with `robotics`) act on what they see — see the [Vision developer guide](Vision.md) |
 | `full` (default) | Every tool class above | Unrestricted access; the current-major default so existing integrations keep working unchanged |
 
 `full` is the default for the current major version — `core` and the other bounded profiles are opt-in. Select a profile with:
@@ -66,7 +67,39 @@ The server selects its tool catalog through a **tool profile** — a bounded set
 - The `McpServer:ToolProfile` configuration value
 - The `OPCUA_MCP_TOOL_PROFILE` environment variable
 
+**Profiles compose.** A `--profile` value can name more than one bounded profile at a time — the `BinPickingClient` sample runs `--profile vision,robotics` and exposes both catalogs from the same MCP host, deduplicating the shared `Connection` tools. The composed set uses the `WithOpcUaCoreTools(McpToolProfileSet)` / `WithOpcUaVisionTools(McpToolProfileSet)` / `WithOpcUaRoboticsTools(McpToolProfileSet)` overloads, and the core-tools overload owns the single `ConnectionTools` registration across every package that references the same MCP server. See the [Vision developer guide](Vision.md#mcp-tools) for the composed 64-tool example and the [BinPickingClient sample](../samples/Robotics/BinPickingClient) for the running catalog.
+
 Because the exact number of tools in each profile (and in `full`) changes as tools are added or removed, this document intentionally does not hard-code a tool count. Use the tables above (or `tools/list`) to enumerate the tools actually exposed by a running server.
+
+### Vision-guided Robotics
+
+`robotics_vision_pick` closes the common perception-to-action path without
+making an agent copy a result NodeId and several resource NodeIds between tool
+calls. It runs one detection inference through `Opc.Ua.Vision.Client`, on the
+same named OPC UA session as the Robot Intent controller, then submits either
+one Pick or a two-step Pick/Place mission:
+
+```json
+{
+  "request": {
+    "controller": "BinPickingController",
+    "pipeline": "BinPickingPipeline",
+    "source": "Bin",
+    "tool": "ParallelGripper",
+    "destination": "Fixture",
+    "classLabel": "RedCube",
+    "minimumConfidence": 0.9,
+    "missionId": "place-red-cube"
+  }
+}
+```
+
+Detection selection is deterministic: exact DetectionId/ClassLabel filters and
+the confidence threshold are applied first, then highest confidence wins with
+ordinal DetectionId and original result order as tie-breakers. The result
+contains Vision result/pipeline/sensor/model/frame provenance, the selected
+pose, and the authoritative intent or mission handle. The helper does not
+request authority, wait, retry, cancel, or reinterpret a server refusal.
 
 ## Resources
 
@@ -105,29 +138,78 @@ Sessions are listed via `resources/list` and detailed via `resources/read`.
 
 ## Installation
 
-### Option 1: Install as a .NET global tool (recommended)
+### Option 1: Run without installing (.NET 10 SDK)
+
+Run the public preview directly from nuget.org. `dotnet tool exec` downloads
+and caches the tool without adding a global tool installation:
 
 ```bash
-dotnet tool install --global OPCFoundation.NetStandard.Opc.Ua.Mcp
+# Stay on the latest published 2.0.0-preview.N release
+dotnet tool exec "OPCFoundation.NetStandard.Opc.Ua.Mcp@2.0.0-preview.*"
+
+# Or resolve the latest prerelease, regardless of preview line
+dotnet tool exec --prerelease OPCFoundation.NetStandard.Opc.Ua.Mcp
+
+# Short form of dotnet tool exec
+dnx "OPCFoundation.NetStandard.Opc.Ua.Mcp@2.0.0-preview.*"
+```
+
+### Option 2: Install as a .NET global tool
+
+```bash
+dotnet tool install --global OPCFoundation.NetStandard.Opc.Ua.Mcp --prerelease
 ```
 
 After installation, the `opcua-mcp` command is available globally.
 
-### Option 2: Run from source
+> **Public preview profile availability.** `2.0.0-preview.3` includes
+> `core`, `services`, `administration`, `pubsub`, `diagnostics`, `robotics`,
+> and `full`. It does not include `Opc.Ua.Mcp.Vision`, so `vision` and
+> composed `vision,robotics` profiles require running the current source
+> until a later preview contains that package.
+
+### Option 3: Run from source
 
 ```bash
 cd tools/Opc.Ua.Mcp
 dotnet run -c Release
 ```
 
-### Option 3: Install from local build
+### Option 4: Install from local build
 
 ```bash
 dotnet pack tools/Opc.Ua.Mcp/Opc.Ua.Mcp.csproj -c Release
-dotnet tool install --global --add-source tools/Opc.Ua.Mcp/bin/Release OPCFoundation.NetStandard.Opc.Ua.Mcp
+dotnet tool install --global --prerelease --add-source tools/Opc.Ua.Mcp/bin/Release OPCFoundation.NetStandard.Opc.Ua.Mcp
 ```
 
+If multiple prerelease versions are visible from configured sources, add
+`--version <the-version-produced-by-dotnet-pack>` to select the local package
+explicitly.
+
 ## Configuration
+
+### Run on demand without a global installation
+
+MCP clients that accept an executable and argument array can launch the tool
+through `dotnet tool exec`. Put MCP tool arguments after `--`:
+
+```json
+{
+  "mcpServers": {
+    "opcua": {
+      "command": "dotnet",
+      "args": [
+        "tool",
+        "exec",
+        "OPCFoundation.NetStandard.Opc.Ua.Mcp@2.0.0-preview.*",
+        "--",
+        "--profile",
+        "core"
+      ]
+    }
+  }
+}
+```
 
 ### Claude Desktop
 
@@ -411,7 +493,7 @@ runtime and collect publisher responses):
 
 ## Architecture
 
-The MCP tools ship as five libraries plus the executable that composes them.
+The MCP tools ship as six libraries plus the executable that composes them.
 The executable owns only transport, logging and CLI plumbing; every tool lives
 in a library that an application can reference on its own.
 
@@ -445,12 +527,16 @@ tools/
 │   └── Tools/{PacketCapture,PacketDecode,PacketReplay}Tools.cs
 ├── Opc.Ua.Mcp.PubSub.Diagnostics/       # PubSub capture and decode
 │   └── Tools/{PubSubCapture,PubSubDecode}Tools.cs
-├── Opc.Ua.Mcp.Robotics/                 # Robot Intent discovery, monitoring, control, missions
+├── Opc.Ua.Mcp.Robotics/                 # Robot Intent plus same-session Vision-guided picking
 │   ├── RoboticsIntentManager.cs
-│   └── Tools/Robotics{Discovery,Monitoring,Control,Mission}Tools.cs
+│   ├── VisionGuidedRoboticsManager.cs
+│   └── Tools/Robotics{Discovery,Monitoring,Control,Mission,Vision}Tools.cs
+├── Opc.Ua.Mcp.Vision/                   # Vision discovery, monitoring, seeing, inference, feedback, geometry
+│   ├── VisionClientAccessor.cs
+│   └── Tools/Vision{Discovery,Monitoring,Seeing,Inference,Feedback,Geometry}Tools.cs
 └── Opc.Ua.Mcp/                          # .NET 10 project, packaged as dotnet tool
     ├── Program.cs                       # Entry point, stdio + Streamable HTTP transport (/mcp)
-    ├── McpHostBuilder.cs                # Composes the five libraries
+    ├── McpHostBuilder.cs                # Composes the six libraries
     ├── Opc.Ua.Mcp.Config.xml            # OPC UA client application config
     └── .mcp/server.json                 # MCP server manifest for NuGet discovery
 ```
@@ -463,7 +549,8 @@ tools/
 | `OPCFoundation.NetStandard.Opc.Ua.Mcp.PubSub` | PubSub runtime, actions, discovery | Core + `Opc.Ua.PubSub` |
 | `OPCFoundation.NetStandard.Opc.Ua.Mcp.Diagnostics` | UA-TCP capture, decode, replay | Core + `Opc.Ua.Core.Diagnostics` |
 | `OPCFoundation.NetStandard.Opc.Ua.Mcp.PubSub.Diagnostics` | PubSub capture, decode | Core + `Opc.Ua.PubSub.Diagnostics` |
-| `OPCFoundation.NetStandard.Opc.Ua.Mcp.Robotics` | Robot Intent discovery, monitoring, control, missions | Core + `Opc.Ua.Robotics.Client` |
+| `OPCFoundation.NetStandard.Opc.Ua.Mcp.Robotics` | Robot Intent discovery, typed control/missions, paged monitoring, Vision-guided Pick | Core + `Opc.Ua.Robotics.Client` + `Opc.Ua.Vision.Client` |
+| `OPCFoundation.NetStandard.Opc.Ua.Mcp.Vision` | Vision discovery, monitoring, seeing (`vision_get_frame` returns an MCP `ImageContentBlock`), inference, off-server feedback, §5.12 pose composition | Core + `Opc.Ua.Vision.Client` |
 | `OPCFoundation.NetStandard.Opc.Ua.Mcp` | the ready-to-run `opcua-mcp` tool | all of the above |
 
 The libraries multi-target `net8.0;net9.0;net10.0`; the executable targets
@@ -495,11 +582,13 @@ builder.Services.AddOpcUaMcpPubSub();
 builder.Services.AddOpcUaMcpDiagnostics();
 builder.Services.AddOpcUaMcpPubSubDiagnostics();
 builder.Services.AddOpcUaMcpRobotics();
+builder.Services.AddOpcUaMcpVision();
 
 mcp.WithOpcUaPubSubTools(profile)
    .WithOpcUaDiagnosticsTools(profile, diagnosticsEnabled)
    .WithOpcUaPubSubDiagnosticsTools(profile, diagnosticsEnabled)
-   .WithOpcUaRoboticsTools(profile);
+   .WithOpcUaRoboticsTools(profile)
+   .WithOpcUaVisionTools(profile);
 ```
 
 `WithOpcUaMcpFilters` registers the request and schema filters that make tool
@@ -511,6 +600,17 @@ the profile to its own tools. A profile a package does not own contributes
 nothing rather than failing, so the same profile value can be passed to every
 package a host references — `Full` in a host that never referenced
 `Opc.Ua.Mcp.Diagnostics` simply yields no capture tools.
+
+Bounded profiles that own their own connection tools — `Vision` in the
+example above — carry `ConnectionTools` themselves in the single-profile
+overload of `WithOpcUa...Tools`. When two or more bounded profiles are
+composed through the `McpToolProfileSet` overloads (for example the
+[`vision,robotics` composition](Vision.md#mcp-tools) the BinPickingClient
+sample runs), the corresponding `WithOpcUaCoreTools(McpToolProfileSet)`
+overload owns and deduplicates `ConnectionTools` across every package.
+Each Vision or Robotics package's `McpToolProfileSet` overload never
+registers `ConnectionTools` directly, so the composed catalog contains
+one Connection surface, not several.
 
 The capture tool classes stay `internal` and are reachable only through their
 registration extensions.

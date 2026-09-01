@@ -34,8 +34,14 @@ using System.Threading.Tasks;
 namespace Opc.Ua.Server
 {
     /// <summary>
-    /// An interface used by the monitored items to signal the subscription.
+    /// The server-side representation of a subscription created by a client, exposing the
+    /// subscription service operations and diagnostics.
     /// </summary>
+    /// <remarks>
+    /// The publish pipeline (timer expiry, acknowledgement, notification consumption) is
+    /// driven through an internal contract implemented only by <see cref="Subscription"/>
+    /// and is not part of this surface.
+    /// </remarks>
     public interface ISubscription : IDisposable
     {
         /// <summary>
@@ -112,32 +118,6 @@ namespace Opc.Ua.Server
         /// Gets the current diagnostics for the subscription.
         /// </summary>
         SubscriptionDiagnosticsDataType Diagnostics { get; }
-
-        /// <summary>
-        /// Called when a monitored item is ready to publish.
-        /// </summary>
-        void ItemReadyToPublish(IMonitoredItem monitoredItem);
-
-        /// <summary>
-        /// Called when a monitored item is ready to publish.
-        /// </summary>
-        void ItemNotificationsAvailable(IMonitoredItem monitoredItem);
-
-        /// <summary>
-        /// Called when a value of monitored item is discarded in the monitoring queue.
-        /// </summary>
-        void QueueOverflowHandler();
-
-        /// <summary>
-        /// Checks if the subscription is ready to publish.
-        /// </summary>
-        PublishingState PublishTimerExpired();
-
-        /// <summary>
-        /// Returns the available sequence numbers for retransmission
-        /// For example used in Transfer Subscription
-        /// </summary>
-        ArrayOf<uint> AvailableSequenceNumbersForRetransmission();
 
         /// <summary>
         /// Refreshes the conditions.
@@ -218,30 +198,6 @@ namespace Opc.Ua.Server
         void ResendData(OperationContext context);
 
         /// <summary>
-        /// Tells the subscription that the owning session is being closed.
-        /// </summary>
-        [Obsolete("Use SessionClosed(ISession) instead, which only releases the subscription when the closing session still owns it.")]
-        void SessionClosed();
-
-        /// <summary>
-        /// Tells the subscription that a session is being closed, and releases the subscription
-        /// only when that session still owns it.
-        /// <para>
-        /// A subscription can be transferred to another session while the old one is closing, so
-        /// the closing session has to be passed in: clearing the owner unconditionally would strip
-        /// a subscription that has already moved on.
-        /// </para>
-        /// </summary>
-        /// <param name="closingSession">The session that is being closed.</param>
-        /// <returns><c>true</c> when the subscription was released by this call.</returns>
-        bool SessionClosed(ISession closingSession);
-
-        /// <summary>
-        /// Removes a message from the message queue.
-        /// </summary>
-        ServiceResult? Acknowledge(OperationContext context, uint sequenceNumber);
-
-        /// <summary>
         /// Deletes the subscription.
         /// </summary>
         ValueTask DeleteAsync(OperationContext context, CancellationToken cancellationToken = default);
@@ -262,24 +218,6 @@ namespace Opc.Ua.Server
         NotificationMessage Republish(OperationContext context, uint retransmitSequenceNumber);
 
         /// <summary>
-        /// Publishes a timeout status message.
-        /// </summary>
-        NotificationMessage PublishTimeout();
-
-        /// <summary>
-        /// Publishes a SubscriptionTransferred status message.
-        /// </summary>
-        NotificationMessage SubscriptionTransferred();
-
-        /// <summary>
-        /// Returns all available notifications.
-        /// </summary>
-        NotificationMessage? Publish(
-            OperationContext context,
-            out ArrayOf<uint> availableSequenceNumbers,
-            out bool moreNotifications);
-
-        /// <summary>
         /// Determines whether the authenticated owner of a target Session is compatible
         /// with the identity that owns this subscription.
         /// </summary>
@@ -288,14 +226,6 @@ namespace Opc.Ua.Server
         /// <c>true</c> when the target Session represents the same ClientUserId; otherwise, <c>false</c>.
         /// </returns>
         bool IsTransferIdentityCompatible(ISession targetSession);
-
-        /// <summary>
-        /// Transfers the subscription to a new session.
-        /// </summary>
-        /// <param name="context">The session to which the subscription is transferred.</param>
-        /// <param name="sendInitialValues">Whether the first Publish response shall contain current values.</param>
-        /// <param name="cancellationToken">The cancellation token.</param>
-        ValueTask TransferSessionAsync(OperationContext context, bool sendInitialValues, CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Updates the triggers for the monitored item.

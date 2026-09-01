@@ -38,7 +38,7 @@ namespace Opc.Ua.MigrationAnalyzer.Tests.Analyzers
 {
     /// <summary>
     /// Tests for UA0021 (CertificateValidator / CertificateValidationEventArgs structural rename).
-    /// The rule is diagnostic-only; there is no accompanying code fix because the 1.6
+    /// The rule is diagnostic-only; there is no accompanying code fix because the 2.0
     /// replacement is structural (event-based per-error accept handler -> async
     /// ValidateAsync returning CertificateValidationResult plus AcceptError callback).
     /// </summary>

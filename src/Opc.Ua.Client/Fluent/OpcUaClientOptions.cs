@@ -27,6 +27,8 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
+using System.IO;
 using Opc.Ua.Configuration;
 
 namespace Opc.Ua.Client
@@ -41,9 +43,109 @@ namespace Opc.Ua.Client
         /// The application configuration. When omitted,
         /// <c>ConfigureApplication(...)</c> must be registered on the root
         /// OPC UA builder, or the application identity properties below
-        /// must be set instead.
+        /// must be set instead, or the configuration must be supplied as an
+        /// existing XML document via <see cref="ConfigurationFile"/> /
+        /// <see cref="ConfigurationStream"/>.
         /// </summary>
         public ApplicationConfiguration? Configuration { get; set; }
+
+        /// <summary>
+        /// Optional path to a classic OPC UA application configuration XML
+        /// file (e.g. <c>MyClient.Config.xml</c>). When set, the client
+        /// loads the <see cref="ApplicationConfiguration"/> from this file
+        /// instead of building one, so existing applications can adopt
+        /// dependency injection and keep every setting from their
+        /// configuration file (security configuration, certificate stores,
+        /// transport quotas, client configuration, ...).
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// A relative path is resolved against the current working
+        /// directory. The file must validate as a client (or
+        /// client-and-server) configuration. The document is loaded and the
+        /// application-instance certificate is ensured on first use (first
+        /// session connect, reverse-connect startup, or an explicit
+        /// <c>GetAsync</c> on the resolved configuration provider),
+        /// mirroring how a shared <c>ConfigureApplication(...)</c>
+        /// application completes asynchronously.
+        /// </para>
+        /// <para>
+        /// Because the file is authoritative, it must not be combined with
+        /// an explicit <see cref="Configuration"/> or with the application
+        /// identity properties (<see cref="ApplicationName"/>, ...); use
+        /// <see cref="ConfigureLoadedConfiguration"/> for programmatic
+        /// overrides of the loaded file. This path also takes precedence
+        /// over a shared application registered with
+        /// <c>ConfigureApplication(...)</c>. Mutually exclusive with
+        /// <see cref="ConfigurationStream"/>.
+        /// </para>
+        /// </remarks>
+        public string? ConfigurationFile { get; set; }
+
+        /// <summary>
+        /// Optional stream containing a classic OPC UA application
+        /// configuration XML document, e.g. an embedded resource. When set,
+        /// the client loads the <see cref="ApplicationConfiguration"/> from
+        /// this stream with the same semantics as
+        /// <see cref="ConfigurationFile"/>.
+        /// </summary>
+        /// <remarks>
+        /// The stream must remain open until the configuration is first
+        /// used; it is read once and disposed after loading. Mutually
+        /// exclusive with <see cref="ConfigurationFile"/>.
+        /// </remarks>
+        public Stream? ConfigurationStream { get; set; }
+
+        /// <summary>
+        /// Optional callback invoked with the <see cref="ApplicationConfiguration"/>
+        /// loaded from <see cref="ConfigurationFile"/> or
+        /// <see cref="ConfigurationStream"/>, after the document has been
+        /// read and validated but before the application-instance
+        /// certificate is checked. Use it to override individual settings
+        /// from code without editing the document. Ignored when neither
+        /// <see cref="ConfigurationFile"/> nor
+        /// <see cref="ConfigurationStream"/> is set.
+        /// </summary>
+        public Action<ApplicationConfiguration>? ConfigureLoadedConfiguration { get; set; }
+
+        /// <summary>
+        /// When <c>true</c>, the client configuration is loaded and
+        /// validated during host start instead of on first use.
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// Registers an <c>IHostedService</c> that awaits
+        /// <see cref="IOpcUaApplicationConfigurationProvider.GetAsync"/> on
+        /// <see cref="ConfigurationProvider"/> while the .NET Generic Host
+        /// starts. When <c>host.StartAsync()</c> returns, the configuration
+        /// document is loaded and validated, the application-instance
+        /// certificate is ensured, <see cref="Configuration"/> is filled in,
+        /// and a failure fails the host start rather than surfacing on the
+        /// first session connect. This is what user-interface hosts need,
+        /// which must hand the <see cref="ApplicationConfiguration"/> to
+        /// their views before any session exists.
+        /// </para>
+        /// <para>
+        /// Applies to every configuration-provider source: a document
+        /// supplied via <see cref="ConfigurationFile"/> or
+        /// <see cref="ConfigurationStream"/>, and a shared application
+        /// registered with <c>ConfigureApplication(...)</c>. It is a no-op
+        /// when an explicit <see cref="Configuration"/> was set, which is
+        /// already complete, and when no host is present - the
+        /// configuration then still loads lazily on first use. Applications
+        /// without a host call
+        /// <see cref="IOpcUaApplicationConfigurationProvider.GetAsync"/> on
+        /// <see cref="ConfigurationProvider"/> instead; both routes share
+        /// the provider's single-flight load.
+        /// </para>
+        /// <para>
+        /// Because it decides a service registration, this must be set
+        /// within the <c>AddClient(...)</c> callback or bound from the
+        /// <c>OpcUa:Client</c> configuration section; setting it on the
+        /// resolved options afterwards has no effect.
+        /// </para>
+        /// </remarks>
+        public bool LoadConfigurationOnStart { get; set; }
 
         /// <summary>
         /// The application name. When set (and <see cref="Configuration"/>
@@ -133,7 +235,33 @@ namespace Opc.Ua.Client
         /// </summary>
         public ClientReverseConnectOptions? ReverseConnect { get; set; }
 
-        internal IOpcUaApplicationConfigurationProvider? ConfigurationProvider { get; set; }
+        /// <summary>
+        /// The configuration provider resolved for this client, or
+        /// <c>null</c> when an explicit <see cref="Configuration"/> was set
+        /// and no provider is involved.
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// Only available on the <see cref="OpcUaClientOptions"/> instance
+        /// resolved from the service provider, not on the instance passed to
+        /// the <c>AddClient(...)</c> callback. It is the supplied-document
+        /// provider when <see cref="ConfigurationFile"/> or
+        /// <see cref="ConfigurationStream"/> was set, and otherwise the
+        /// shared provider registered by <c>ConfigureApplication(...)</c>.
+        /// </para>
+        /// <para>
+        /// Use <see cref="IOpcUaApplicationConfigurationProvider.GetAsync"/>
+        /// to trigger the load explicitly without connecting a session,
+        /// <see cref="IOpcUaApplicationConfigurationProvider.Configuration"/>
+        /// to read the loaded document back, and
+        /// <see cref="IOpcUaApplicationConfigurationProvider.Application"/>
+        /// for the <see cref="IApplicationInstance"/> that owns the
+        /// application-instance certificate. Set
+        /// <see cref="LoadConfigurationOnStart"/> to have a hosted
+        /// application await the load during host start instead.
+        /// </para>
+        /// </remarks>
+        public IOpcUaApplicationConfigurationProvider? ConfigurationProvider { get; internal set; }
 
         /// <summary>
         /// <c>true</c> when any application identity or security property
@@ -153,5 +281,13 @@ namespace Opc.Ua.Client
             || AutoAcceptUntrustedCertificates != null
             || RejectSHA1SignedCertificates != null
             || MinimumCertificateKeySize != null;
+
+        /// <summary>
+        /// <c>true</c> when an existing configuration XML document was
+        /// supplied via <see cref="ConfigurationFile"/> or
+        /// <see cref="ConfigurationStream"/>.
+        /// </summary>
+        internal bool HasSuppliedConfigurationDocument =>
+            !string.IsNullOrEmpty(ConfigurationFile) || ConfigurationStream != null;
     }
 }

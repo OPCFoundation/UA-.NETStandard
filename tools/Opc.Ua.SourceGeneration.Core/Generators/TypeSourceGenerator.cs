@@ -529,6 +529,11 @@ namespace Opc.Ua.SourceGeneration
                 return null;
             }
 
+            // The clone starts as a shallow copy of the whole object
+            // (base.MemberwiseClone() for classes, 'with { }' for records),
+            // which already carries every field including inherited and
+            // init-only ones. Only fields with reference semantics need an
+            // explicit deep copy on top of that.
             if (NeedsCloning(field))
             {
                 // For init-only properties use the backing field for assignment
@@ -538,17 +543,6 @@ namespace Opc.Ua.SourceGeneration
                 context.Out.WriteLine(
                     "{0} = ({1})global::Opc.Ua.CoreUtils.Clone({2});",
                     target, field.TypeName, field.PropertyName);
-            }
-            else if (field.IsInitOnly)
-            {
-                // Record's 'with' already copies simple init-only fields
-                return null;
-            }
-            else
-            {
-                context.Out.WriteLine(
-                    "clone.{0} = {0};",
-                    field.PropertyName);
             }
             return null;
 

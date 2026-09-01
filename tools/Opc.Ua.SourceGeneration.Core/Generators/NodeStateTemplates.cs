@@ -126,6 +126,8 @@ namespace Opc.Ua.SourceGeneration
                 {
                 }
 
+                {{Tokens.ElementNamespaceOverride}}
+
                 {{Tokens.ListOfProperties}}
 
                 {{Tokens.ListOfNonMandatoryChildren}}

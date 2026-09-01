@@ -506,6 +506,58 @@ namespace Opc.Ua.Client.Tests.ManagedSession
         }
 
         [Test]
+        public void CreateAsyncThrowsInitialConnectErrorInsteadOfReturningUnconnectedSession()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            ApplicationConfiguration configuration = CreateClientConfiguration(telemetry);
+            ConfiguredEndpoint endpoint = CreateEndpoint();
+
+            int connectAttempts = 0;
+            var sessionFactory = new Mock<ISessionFactory>();
+            sessionFactory.SetupGet(f => f.Telemetry).Returns(telemetry);
+            sessionFactory.Setup(f => f.CreateAsync(
+                    It.IsAny<ApplicationConfiguration>(),
+                    It.IsAny<ConfiguredEndpoint>(),
+                    It.IsAny<bool>(),
+                    It.IsAny<bool>(),
+                    It.IsAny<string>(),
+                    It.IsAny<uint>(),
+                    It.IsAny<IUserIdentity?>(),
+                    It.IsAny<ArrayOf<string>>(),
+                    It.IsAny<CancellationToken>()))
+                .Callback(() => Interlocked.Increment(ref connectAttempts))
+                .ThrowsAsync(new ServiceResultException(
+                    StatusCodes.BadCertificateUntrusted));
+
+            var reconnectPolicy = new ReconnectPolicy
+            {
+                Strategy = BackoffStrategy.Constant,
+                InitialDelay = TimeSpan.FromMilliseconds(5),
+                MaxRetries = 2,
+                JitterFactor = 0.0,
+                MaxTotalReconnectTime = TimeSpan.FromSeconds(10)
+            };
+
+            ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(
+                async () => await Client.ManagedSession.CreateAsync(
+                    configuration,
+                    endpoint,
+                    sessionFactory.Object,
+                    reconnectPolicy: reconnectPolicy).ConfigureAwait(false));
+
+            // The original connect error must survive, not the BadNotSupported
+            // reported by the failover that has no redundant server to try, and
+            // not the BadNotConnected of a session handed back half-built.
+            Assert.That(
+                exception.StatusCode,
+                Is.EqualTo((StatusCode)StatusCodes.BadCertificateUntrusted));
+
+            // A reconnect with no inner session runs a full connect, so the
+            // retry policy actually retries the initial connect.
+            Assert.That(connectAttempts, Is.GreaterThan(1));
+        }
+
+        [Test]
         public async Task CreateAsyncDisposesManagedSessionWhenInitialWaitIsCanceledAsync()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();

@@ -134,6 +134,17 @@ namespace Opc.Ua.Robotics.Server.Tests
             Assert.That(
                 systemOperation.Machine.CurrentState.Number!.Value,
                 Is.EqualTo(2u));
+            // The state nodes are declared in the Robotics model, so
+            // CurrentState/Id must be qualified with that namespace and
+            // not the OPC UA one. This only holds because the machine
+            // completed its create lifecycle — OnAfterCreate is where
+            // ElementNamespaceUri is resolved.
+            Assert.That(
+                systemOperation.Machine.CurrentState.Id!.Value,
+                Is.EqualTo(NodeId.Create(
+                    SystemOperationStateMachineTypeIds.StateIds.Ready,
+                    Namespaces.Robotics,
+                    m_fixture.Manager.SystemContext.NamespaceUris)));
             Assert.That(systemOperation.Machine.LastTransition!.Value.Text, Is.EqualTo("ExecutingToReady"));
             Assert.That(
                 systemOperation.Machine.LastTransition.Number!.Value,

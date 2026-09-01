@@ -128,7 +128,75 @@ namespace Opc.Ua
         protected FiniteStateVariableState? LastState { get; set; }
 
         /// <summary>
-        /// Returns the current state of for the state machine.
+        /// Maps a numeric state id onto the NodeId of the
+        /// <c>StateType</c> node representing that state.
+        /// </summary>
+        /// <remarks>
+        /// The default follows the OPC UA convention of qualifying the
+        /// numeric element id with <see cref="ElementNamespaceIndex"/>.
+        /// Subclasses that materialize per-instance state nodes (whose
+        /// NodeIds therefore cannot be derived from the state id alone)
+        /// override this together with <see cref="GetStateId"/> so that
+        /// <c>CurrentState/Id</c> resolves to a node that actually
+        /// exists in the address space.
+        /// </remarks>
+        /// <param name="stateId">The numeric state id. Zero denotes
+        /// "no state" and maps to <see cref="NodeId.Null"/>.</param>
+        public virtual NodeId GetStateNodeId(uint stateId)
+        {
+            return stateId == 0 ? NodeId.Null : new NodeId(stateId, ElementNamespaceIndex);
+        }
+
+        /// <summary>
+        /// The inverse of <see cref="GetStateNodeId"/>. Returns 0 when
+        /// <paramref name="stateNodeId"/> does not identify a state of
+        /// this machine.
+        /// </summary>
+        public virtual uint GetStateId(NodeId stateNodeId)
+        {
+            if (stateNodeId.IsNull ||
+                ElementNamespaceIndex != stateNodeId.NamespaceIndex ||
+                !stateNodeId.TryGetValue(out uint numericId))
+            {
+                return 0;
+            }
+
+            return numericId;
+        }
+
+        /// <summary>
+        /// Maps a numeric transition id onto the NodeId of the
+        /// <c>TransitionType</c> node representing that transition. See
+        /// <see cref="GetStateNodeId"/> for the rationale.
+        /// </summary>
+        /// <param name="transitionId">The numeric transition id. Zero
+        /// denotes "no transition" and maps to <see cref="NodeId.Null"/>.</param>
+        public virtual NodeId GetTransitionNodeId(uint transitionId)
+        {
+            return transitionId == 0
+                ? NodeId.Null
+                : new NodeId(transitionId, ElementNamespaceIndex);
+        }
+
+        /// <summary>
+        /// The inverse of <see cref="GetTransitionNodeId"/>. Returns 0
+        /// when <paramref name="transitionNodeId"/> does not identify a
+        /// transition of this machine.
+        /// </summary>
+        public virtual uint GetTransitionId(NodeId transitionNodeId)
+        {
+            if (transitionNodeId.IsNull ||
+                ElementNamespaceIndex != transitionNodeId.NamespaceIndex ||
+                !transitionNodeId.TryGetValue(out uint numericId))
+            {
+                return 0;
+            }
+
+            return numericId;
+        }
+
+        /// <summary>
+        /// Returns the current state id of the state machine.
         /// </summary>
         protected uint GetCurrentStateId()
         {
@@ -139,15 +207,7 @@ namespace Opc.Ua
                 return 0;
             }
 
-            NodeId value = CurrentState.Id.Value;
-
-            if (ElementNamespaceIndex != value.NamespaceIndex ||
-                !value.TryGetValue(out uint numericId))
-            {
-                return 0;
-            }
-
-            return numericId;
+            return GetStateId(CurrentState.Id.Value);
         }
 
         /// <summary>
@@ -310,7 +370,7 @@ namespace Opc.Ua
                 if (state.Id == stateId)
                 {
                     variable.Value = new LocalizedText(state.Name);
-                    variable.Id?.Value = new NodeId(state.Id, ElementNamespaceIndex);
+                    variable.Id?.Value = GetStateNodeId(state.Id);
 
                     variable.Number?.Value = state.Number;
 
@@ -358,7 +418,7 @@ namespace Opc.Ua
                 if (transition.Id == transitionId)
                 {
                     variable.Value = new LocalizedText(transition.Name);
-                    variable.Id?.Value = new NodeId(transition.Id, ElementNamespaceIndex);
+                    variable.Id?.Value = GetTransitionNodeId(transition.Id);
 
                     variable.TransitionTime?.Value = DateTime.UtcNow;
 

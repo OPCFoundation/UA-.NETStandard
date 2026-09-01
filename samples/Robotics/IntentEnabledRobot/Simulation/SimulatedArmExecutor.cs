@@ -28,7 +28,9 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
+using System.Globalization;
 using System.Threading;
 using System.Threading.Tasks;
 using Opc.Ua;
@@ -53,7 +55,8 @@ namespace Robotics.IntentEnabledRobot.Simulation
             bool hasObject,
             string toolName,
             ArrayOf<double> heldPartPosition,
-            ArrayOf<bool> stackSlotsFilled)
+            ArrayOf<bool> stackSlotsFilled,
+            string heldObjectClass = "")
         {
             JointAngles = jointAngles;
             ToolPose = toolPose;
@@ -63,6 +66,7 @@ namespace Robotics.IntentEnabledRobot.Simulation
             ToolName = toolName;
             HeldPartPosition = heldPartPosition;
             StackSlotsFilled = stackSlotsFilled;
+            HeldObjectClass = heldObjectClass;
         }
 
         /// <summary>
@@ -99,6 +103,13 @@ namespace Robotics.IntentEnabledRobot.Simulation
         /// Gets the visible position of the part currently carried by the gripper.
         /// </summary>
         public ArrayOf<double> HeldPartPosition { get; }
+
+        /// <summary>
+        /// Gets the class label of the object the gripper carries, empty when it carries
+        /// nothing. <see cref="HasObject"/> says that something is held; this says what,
+        /// which is what a host needs to move the right item in its own world model.
+        /// </summary>
+        public string HeldObjectClass { get; }
 
         /// <summary>
         /// Gets a value for each pallet slot indicating whether that slot has been filled.
@@ -156,12 +167,35 @@ namespace Robotics.IntentEnabledRobot.Simulation
         }
 
         /// <summary>
+        /// Initializes a simulated executor over a kinematics provider.
+        /// </summary>
+        public SimulatedArmExecutor(ISimulatedArmKinematics kinematics)
+            : this(kinematics, RealTimeSimulatedArmClock.Shared)
+        {
+        }
+
+        /// <summary>
         /// Initializes a simulated executor.
         /// </summary>
         public SimulatedArmExecutor(SimulatedArmKinematics kinematics, ISimulatedArmClock clock)
+            : this((ISimulatedArmKinematics)kinematics, clock)
+        {
+        }
+
+        /// <summary>
+        /// Initializes a simulated executor over a kinematics provider.
+        /// </summary>
+        public SimulatedArmExecutor(ISimulatedArmKinematics kinematics, ISimulatedArmClock clock)
         {
             m_kinematics = kinematics ?? throw new ArgumentNullException(nameof(kinematics));
             m_clock = clock ?? throw new ArgumentNullException(nameof(clock));
+            m_jointAngles = m_kinematics.InitialJointAngles.Span.ToArray();
+            if (m_jointAngles.Length != m_kinematics.AxisCount)
+            {
+                throw new ArgumentException(
+                    "The initial joint configuration does not match the kinematics axis count.",
+                    nameof(kinematics));
+            }
             PublishCurrentPoseLocked();
         }
 
@@ -169,6 +203,62 @@ namespace Robotics.IntentEnabledRobot.Simulation
         /// Raised after the observable snapshot changes.
         /// </summary>
         public event EventHandler<SimulatedArmSnapshot>? SnapshotChanged;
+
+        /// <summary>
+        /// Gets how far below the tool centre point a grasped part hangs.
+        /// </summary>
+        /// <remarks>
+        /// A host that decides where a part should come to rest needs this to work back
+        /// from the part's resting height to the tool pose that leaves it there.
+        /// </remarks>
+        public const double HeldPartTcpOffset = 0.035;
+
+        /// <summary>
+        /// Resolves a Location NodeId to the position, in this arm's base frame, that a
+        /// Pick or Place should travel to before actuating the gripper. Optional: leave it
+        /// unset and both intents actuate the gripper where the arm already stands.
+        /// </summary>
+        public LocationPositionResolver? ResolveLocationPosition { get; set; }
+
+        /// <summary>
+        /// Resolves a Location NodeId to a complete tool pose. When set, this takes
+        /// precedence over <see cref="ResolveLocationPosition"/>.
+        /// </summary>
+        /// <remarks>
+        /// A position-only resolver makes every move inherit whatever orientation the
+        /// previous one left behind. A cell that knows how its tool should approach a bin
+        /// or fixture supplies this instead, so one grasp cannot strand the next move at a
+        /// yaw the arm cannot retract from.
+        /// </remarks>
+        public LocationPoseResolver? ResolveLocationPose { get; set; }
+
+        /// <summary>
+        /// Resolves a Pick to the current pose of the selected workpiece.
+        /// </summary>
+        public PickPoseResolver? ResolvePickPose { get; set; }
+
+        /// <summary>
+        /// Notifies the host after a Pick attempt finishes, whether it succeeded or failed.
+        /// </summary>
+        public Action<string>? PickAttemptFinished { get; set; }
+
+        /// <summary>
+        /// Gets or sets a host decision on whether the final approach to a Location should
+        /// be a straight Cartesian descent. Optional: when unset, the executor uses a
+        /// collision-checked joint path.
+        /// </summary>
+        /// <remarks>
+        /// A cell knows the difference between descending inside an open bin and descending
+        /// onto a fixture. The shared executor does not. Letting the host state that
+        /// difference keeps cell coordinates out of this type while allowing a vertical
+        /// descent where crossing a bin wall on a joint interpolation would be wrong.
+        /// </remarks>
+        public Func<NodeId, bool>? PreferCartesianDescent { get; set; }
+
+        /// <summary>
+        /// Gets or sets an optional diagnostic sink for travel planning decisions.
+        /// </summary>
+        internal Action<string>? Diagnostic { get; set; }
 
         /// <summary>
         /// Gets the latest observable state without exposing synchronization primitives.
@@ -183,6 +273,16 @@ namespace Robotics.IntentEnabledRobot.Simulation
             if (execution is null)
             {
                 throw new ArgumentNullException(nameof(execution));
+            }
+
+            if (execution.Intent is JointMoveIntentDataType
+                or LinearMoveIntentDataType
+                or CircularMoveIntentDataType
+                or TrajectoryIntentDataType
+                or CartesianPathIntentDataType
+                or ForceIntentDataType)
+            {
+                InvalidateRecordedApproach();
             }
 
             return execution.Intent switch
@@ -240,7 +340,7 @@ namespace Robotics.IntentEnabledRobot.Simulation
             ArrayOf<double> target;
             if (intent.HasJointTargets)
             {
-                if (intent.JointTargets.Count != SimulatedArmKinematics.JointCount ||
+                if (intent.JointTargets.Count != m_kinematics.AxisCount ||
                     !m_kinematics.IsWithinLimits(intent.JointTargets.Span))
                 {
                     return IntentOutcome.Fail(
@@ -259,7 +359,7 @@ namespace Robotics.IntentEnabledRobot.Simulation
             else
             {
                 return IntentOutcome.Fail(
-                    SimulatedArmKinematics.ToIntentFailure(failure), "The target pose cannot be reached.");
+                    m_kinematics.MapFailure(failure), "The target pose cannot be reached.");
             }
 
             double distance = JointDistance(start, target.Span);
@@ -308,7 +408,7 @@ namespace Robotics.IntentEnabledRobot.Simulation
                 fraction =>
                 {
                     Pose3DDataType pose = InterpolateArc(start, via, intent.Target, fraction);
-                    if (m_kinematics.TrySelectNearest(
+                    if (m_kinematics.TrySelectNearestConfiguration(
                         pose,
                         CurrentSnapshot.JointAngles.Span,
                         out SimulatedArmIkSolution? solution,
@@ -327,7 +427,7 @@ namespace Robotics.IntentEnabledRobot.Simulation
             if (moveFailure != SimulatedArmKinematicFailure.None)
             {
                 return IntentOutcome.Fail(
-                    SimulatedArmKinematics.ToIntentFailure(moveFailure), "The circular path is not feasible.");
+                    m_kinematics.MapFailure(moveFailure), "The circular path is not feasible.");
             }
             return outcome.State == ExecutionStateEnum.Succeeded
                 ? IntentOutcome.SucceededAt(CurrentSnapshot.ToolPose)
@@ -425,7 +525,7 @@ namespace Robotics.IntentEnabledRobot.Simulation
                     double distance = fraction * intent.MaxDistance;
                     Pose3DDataType pose = TranslatePose(start, directionX, directionY, directionZ, distance);
                     contacted = IsContact(pose.Position.Span);
-                    if (m_kinematics.TrySelectNearest(
+                    if (m_kinematics.TrySelectNearestConfiguration(
                         pose,
                         CurrentSnapshot.JointAngles.Span,
                         out SimulatedArmIkSolution? solution,
@@ -448,7 +548,7 @@ namespace Robotics.IntentEnabledRobot.Simulation
             if (moveFailure != SimulatedArmKinematicFailure.None)
             {
                 return IntentOutcome.Fail(
-                    SimulatedArmKinematics.ToIntentFailure(moveFailure), "The force path is not feasible.");
+                    m_kinematics.MapFailure(moveFailure), "The force path is not feasible.");
             }
             return contacted
                 ? IntentOutcome.SucceededAt(CurrentSnapshot.ToolPose)
@@ -459,7 +559,8 @@ namespace Robotics.IntentEnabledRobot.Simulation
         private async ValueTask<IntentOutcome> ExecuteGraspAsync(
             GraspIntentDataType intent,
             IntentExecution execution,
-            CancellationToken cancellationToken)
+            CancellationToken cancellationToken,
+            string objectClass = "")
         {
             SetNonCancellable(execution.IntentId);
             try
@@ -471,6 +572,7 @@ namespace Robotics.IntentEnabledRobot.Simulation
                 lock (m_lock)
                 {
                     m_hasObject = true;
+                    m_heldObjectClass = objectClass ?? string.Empty;
                     PublishCurrentPoseLocked();
                 }
                 SnapshotChanged?.Invoke(this, CurrentSnapshot);
@@ -507,6 +609,7 @@ namespace Robotics.IntentEnabledRobot.Simulation
                     FillNextStackSlotLocked();
                 }
                 m_hasObject = false;
+                m_heldObjectClass = string.Empty;
                 PublishCurrentPoseLocked();
             }
             SnapshotChanged?.Invoke(this, CurrentSnapshot);
@@ -518,11 +621,36 @@ namespace Robotics.IntentEnabledRobot.Simulation
             IntentExecution execution,
             CancellationToken cancellationToken)
         {
-            await m_clock.DelayAsync(TimeSpan.FromMilliseconds(80), cancellationToken).ConfigureAwait(false);
-            return await ExecuteGraspAsync(
-                new GraspIntentDataType { Force = intent.Force, Width = GripperClosed, Tool = intent.Tool },
-                execution,
-                cancellationToken).ConfigureAwait(false);
+            string objectClass = intent.ObjectClass ?? string.Empty;
+            try
+            {
+                await m_clock.DelayAsync(TimeSpan.FromMilliseconds(80), cancellationToken).ConfigureAwait(false);
+                if (!await MoveToLocationAsync(
+                        intent.Source,
+                        execution,
+                        cancellationToken,
+                        objectClass).ConfigureAwait(false))
+                {
+                    return Unreachable("Pick");
+                }
+                IntentOutcome grasp = await ExecuteGraspAsync(
+                    new GraspIntentDataType { Force = intent.Force, Width = GripperClosed, Tool = intent.Tool },
+                    execution,
+                    cancellationToken,
+                    objectClass).ConfigureAwait(false);
+                if (grasp.State != ExecutionStateEnum.Succeeded)
+                {
+                    return grasp;
+                }
+                return await RetractAfterActionAsync(
+                    "Pick",
+                    execution,
+                    cancellationToken).ConfigureAwait(false);
+            }
+            finally
+            {
+                PickAttemptFinished?.Invoke(objectClass);
+            }
         }
 
         private async ValueTask<IntentOutcome> ExecutePlaceAsync(
@@ -531,8 +659,663 @@ namespace Robotics.IntentEnabledRobot.Simulation
             CancellationToken cancellationToken)
         {
             await m_clock.DelayAsync(TimeSpan.FromMilliseconds(80), cancellationToken).ConfigureAwait(false);
-            return await ExecuteReleaseAsync(
+            if (!await MoveToLocationAsync(intent.Destination, execution, cancellationToken)
+                .ConfigureAwait(false))
+            {
+                return Unreachable("Place");
+            }
+            IntentOutcome release = await ExecuteReleaseAsync(
                 new ReleaseIntentDataType(), execution, cancellationToken).ConfigureAwait(false);
+            if (release.State != ExecutionStateEnum.Succeeded)
+            {
+                return release;
+            }
+            return await RetractAfterActionAsync(
+                "Place",
+                execution,
+                cancellationToken).ConfigureAwait(false);
+        }
+
+        private async ValueTask<IntentOutcome> RetractAfterActionAsync(
+            string action,
+            IntentExecution execution,
+            CancellationToken cancellationToken)
+        {
+            if (await RetractFromLastApproachAsync(execution, cancellationToken).ConfigureAwait(false))
+            {
+                return IntentOutcome.Success;
+            }
+            return IntentOutcome.Fail(
+                IntentFailureEnum.Unreachable,
+                action + " completed its tool action but could not reverse the local approach.");
+        }
+
+        /// <summary>
+        /// Reports an intent that could not be carried out because the arm could not get to
+        /// the Location it named.
+        /// </summary>
+        private IntentOutcome Unreachable(string what)
+        {
+            return IntentOutcome.Fail(
+                IntentFailureEnum.Unreachable,
+                what + " could not reach the Location: " + LastTravelFailure);
+        }
+
+        /// <summary>
+        /// Travels to the approach position a host resolved for a Location, so a Pick or a
+        /// Place is a move followed by a gripper action rather than a gripper action alone.
+        /// </summary>
+        /// <remarks>
+        /// A Location arrives as a NodeId, which this executor cannot resolve on its own -
+        /// it has no address space - so a host that knows its own cell supplies
+        /// <see cref="ResolveLocationPosition"/>. The tool keeps its current orientation and
+        /// only the position changes, because the current orientation belongs to a
+        /// configuration the arm is already in and so keeps the inverse-kinematic solve
+        /// well conditioned.
+        /// <para>
+        /// A host with no resolver gets the gripper action where the arm stands: it has not
+        /// told the executor where anything is, so there is nothing to travel to. But a
+        /// Location that <i>is</i> resolved and cannot be reached fails the intent. It used
+        /// to be best effort - the arm would stay where it was and close the gripper anyway,
+        /// reporting success - which reads as "picked from the fixture" while the tool is
+        /// still over the bin. A pick that never went anywhere is not a pick, and saying so
+        /// is what lets a caller notice.
+        /// </para>
+        /// </remarks>
+        /// <returns>
+        /// <c>true</c> when the arm reached the Location, or when no resolver is configured.
+        /// </returns>
+        private async ValueTask<bool> MoveToLocationAsync(
+            NodeId location,
+            IntentExecution execution,
+            CancellationToken cancellationToken,
+            string objectClass = "")
+        {
+            if (location.IsNull)
+            {
+                return true;
+            }
+            if (!await RetractFromLastApproachAsync(execution, cancellationToken).ConfigureAwait(false))
+            {
+                LastTravelFailure = "could not reverse the last local approach";
+                Diagnostic?.Invoke(LastTravelFailure);
+                return false;
+            }
+            Pose3DDataType current = CurrentSnapshot.ToolPose;
+            ArrayOf<double> position;
+            ArrayOf<double> orientation;
+            string frameId;
+            if (objectClass.Length > 0 &&
+                ResolvePickPose != null &&
+                ResolvePickPose(location, objectClass, out Pose3DDataType pickPose))
+            {
+                position = pickPose.Position;
+                orientation = pickPose.Orientation;
+                frameId = pickPose.FrameId ?? current.FrameId ?? string.Empty;
+            }
+            else if (ResolveLocationPose != null &&
+                ResolveLocationPose(location, out Pose3DDataType resolvedPose))
+            {
+                position = resolvedPose.Position;
+                orientation = resolvedPose.Orientation;
+                frameId = resolvedPose.FrameId ?? current.FrameId ?? string.Empty;
+            }
+            else if (ResolveLocationPosition != null &&
+                ResolveLocationPosition(location, out position))
+            {
+                orientation = current.Orientation;
+                frameId = current.FrameId ?? string.Empty;
+            }
+            else
+            {
+                return true;
+            }
+            if (position.Count < 3 || orientation.Count < 4)
+            {
+                return true;
+            }
+            ReadOnlySpan<double> targetPosition = position.Span;
+            ReadOnlySpan<double> currentPosition = current.Position.Span;
+            ArrayOf<double> currentOrientation = current.Orientation;
+            bool sameWorkPosition =
+                Distance2D(currentPosition, targetPosition) <= SameLocationToleranceMetres;
+
+            // Travel over the cell rather than straight at the target. A single joint-space
+            // move interpolates between two configurations, and the straight line between
+            // "over the bin" and "over the fixture" dips: the arm sweeps a link through the
+            // bench on the way, which is what makes it look like it is passing through the
+            // table even when both ends of the move are clear. Lifting to a transit height,
+            // crossing, and descending is both how a real cell moves and a set of legs whose
+            // straight-line paths stay clear.
+            double transitZ = Math.Max(
+                Math.Max(currentPosition[2], targetPosition[2]), TransitHeightMetres);
+            double[] lift = [currentPosition[0], currentPosition[1], transitZ];
+            double[] cross = [targetPosition[0], targetPosition[1], transitZ];
+            double[] descend = [targetPosition[0], targetPosition[1], targetPosition[2]];
+            // An empty gripper picking from any work area should come straight down on the
+            // object. A loaded gripper placing onto the fixture may need the short,
+            // collision-checked joint approach instead. The host preference still marks
+            // bin/home locations as vertical for both directions.
+            bool preferCartesianDescent = !CurrentSnapshot.HasObject ||
+                PreferCartesianDescent?.Invoke(location) == true;
+            Diagnostic?.Invoke(string.Create(
+                CultureInfo.InvariantCulture,
+                $"start=({currentPosition[0]:F3},{currentPosition[1]:F3},{currentPosition[2]:F3}) " +
+                $"target=({targetPosition[0]:F3},{targetPosition[1]:F3},{targetPosition[2]:F3}) " +
+                $"cartesianDescent={preferCartesianDescent}"));
+
+            if (sameWorkPosition)
+            {
+                Diagnostic?.Invoke("target is at the current work position; skipping cross-cell traverse");
+                bool localDescent = await MovePlannedCartesianAsync(
+                    descend,
+                    frameId,
+                    orientation,
+                    execution,
+                    recordRetractPath: true,
+                    cancellationToken).ConfigureAwait(false);
+                if (!localDescent)
+                {
+                    LastTravelFailure = "could not descend at the current work position";
+                    Diagnostic?.Invoke(LastTravelFailure);
+                }
+                return localDescent;
+            }
+
+            // Lift in Cartesian space so the tool moves vertically away from the work.
+            // Cross in joint space: a straight Cartesian line between the bin and fixture
+            // passes over the base, where the tool sits on the shoulder axis and the inverse
+            // kinematics are singular. Descend on a collision-checked joint path too: the
+            // final work pose is reachable, but re-solving every point on the vertical line
+            // can switch branches and reject the leg before it gets there. Raising the
+            // pedestal, lowering the bench and moving both work areas out leaves 9-13 clear
+            // candidates at the transit poses, so the arm can retract and traverse instead
+            // of making one sweep through the table.
+            bool retracted = await MoveToolToAsync(
+                lift, frameId, currentOrientation, execution, cancellationToken).ConfigureAwait(false);
+            if (!retracted)
+            {
+                // A low fixture pose can be reachable while the numerical solver has no
+                // continuous Cartesian branch straight above it. The destination is still
+                // a clear pose, so try the collision-checked joint path before refusing the
+                // Pick or Place.
+                retracted = await SwingToAsync(
+                    lift, frameId, currentOrientation, execution, cancellationToken).ConfigureAwait(false);
+            }
+            if (!retracted)
+            {
+                LastTravelFailure = "could not retract vertically from the work";
+                Diagnostic?.Invoke(LastTravelFailure);
+                return false;
+            }
+            Diagnostic?.Invoke("retracted to the clear height");
+            if (!await SwingToAsync(cross, frameId, orientation, execution, cancellationToken)
+                .ConfigureAwait(false))
+            {
+                Diagnostic?.Invoke("direct clear-height traverse unavailable; trying bypass");
+                // The direct interpolation between work areas on opposite sides can sweep
+                // through the shoulder axis even though both ends are clear. Route around
+                // it at the same safe height, the way a motion planner would choose a
+                // waypoint around a keep-out cylinder.
+                double[] nearBypass = [-TransitBypassXMetres, TransitBypassYMetres, transitZ];
+                double[] farBypass = [TransitBypassXMetres, TransitBypassYMetres, transitZ];
+                bool bypassed = await SwingToAsync(
+                    nearBypass, frameId, orientation, execution, cancellationToken).ConfigureAwait(false);
+                if (!bypassed)
+                {
+                    bypassed = await MoveToolToAsync(
+                        nearBypass, frameId, orientation, execution, cancellationToken).ConfigureAwait(false);
+                }
+                Diagnostic?.Invoke(bypassed
+                    ? "reached the near clear-height bypass"
+                    : "could not reach the near clear-height bypass");
+                if (bypassed)
+                {
+                    bypassed = await SwingToAsync(
+                        farBypass, frameId, orientation, execution, cancellationToken).ConfigureAwait(false);
+                    if (!bypassed)
+                    {
+                        bypassed = await MoveToolToAsync(
+                            farBypass, frameId, orientation, execution, cancellationToken).ConfigureAwait(false);
+                    }
+                    Diagnostic?.Invoke(bypassed
+                        ? "reached the far clear-height bypass"
+                        : "could not reach the far clear-height bypass");
+                }
+                if (bypassed)
+                {
+                    bypassed = await SwingToAsync(
+                        cross, frameId, orientation, execution, cancellationToken).ConfigureAwait(false);
+                    if (!bypassed)
+                    {
+                        bypassed = await MoveToolToAsync(
+                            cross, frameId, orientation, execution, cancellationToken).ConfigureAwait(false);
+                    }
+                    Diagnostic?.Invoke(bypassed
+                        ? "reached the far side from the bypass arc"
+                        : "could not reach the far side from the bypass arc");
+                }
+                if (!bypassed)
+                {
+                    LastTravelFailure = "could not traverse the cell around the base at the clear height";
+                    Diagnostic?.Invoke(LastTravelFailure);
+                    return false;
+                }
+            }
+            Diagnostic?.Invoke("traversed the cell at the clear height");
+            bool descended;
+            if (preferCartesianDescent)
+            {
+                descended = await MovePlannedCartesianAsync(
+                    descend,
+                    frameId,
+                    orientation,
+                    execution,
+                    recordRetractPath: true,
+                    cancellationToken).ConfigureAwait(false);
+            }
+            else
+            {
+                // First establish a configuration locally above the fixture. Solving the
+                // final pose from the far-side transit configuration can leave no connected
+                // joint interpolation even though the pose itself has several clear
+                // solutions. From 40 mm above, the short descent has the nearby branch a
+                // real approach motion needs without standing so high above a tall stack
+                // that the final branch disconnects again.
+                double[] preApproach =
+                    [descend[0], descend[1], descend[2] + LocalApproachHeightMetres];
+                descended = await MoveToolToAsync(
+                    preApproach, frameId, orientation, execution, cancellationToken)
+                    .ConfigureAwait(false);
+                if (descended)
+                {
+                    double[] retractJointAngles = GetJoints();
+                    descended = await MovePlannedCartesianAsync(
+                        descend,
+                        frameId,
+                        orientation,
+                        execution,
+                        recordRetractPath: true,
+                        cancellationToken)
+                        .ConfigureAwait(false);
+                    if (!descended)
+                    {
+                        descended = await SwingToAsync(
+                            descend, frameId, orientation, execution, cancellationToken)
+                            .ConfigureAwait(false);
+                        if (descended)
+                        {
+                            m_retractJointAngles = retractJointAngles;
+                            m_retractJointEndpoint = GetJoints();
+                        }
+                    }
+                }
+            }
+            if (!descended)
+            {
+                // The chosen path can still be unavailable because the numerical IK solver
+                // switches branches along a Cartesian line, or because the direct joint
+                // interpolation sweeps a link through an obstacle. Try the other path from
+                // wherever the first attempt stopped before refusing the intent.
+                descended = preferCartesianDescent
+                    ? await SwingToAsync(descend, frameId, orientation, execution, cancellationToken)
+                        .ConfigureAwait(false)
+                    : await MoveToolToAsync(
+                        descend,
+                        frameId,
+                        orientation,
+                        execution,
+                        cancellationToken,
+                        recordRetractPath: true)
+                        .ConfigureAwait(false);
+            }
+            if (!descended)
+            {
+                LastTravelFailure = "could not descend onto the work from the clear height";
+                Diagnostic?.Invoke(LastTravelFailure);
+                return false;
+            }
+            Diagnostic?.Invoke("descended onto the work");
+            return true;
+        }
+
+        /// <summary>
+        /// Replays the reverse of the last short fixture approach.
+        /// </summary>
+        /// <remarks>
+        /// The final fixture pose may require the yaw search to choose an orientation from
+        /// which IK cannot independently solve a vertical retract. The path into that pose
+        /// was already collision checked, so retaining its start configuration gives an
+        /// exact, deterministic path back out instead of asking the numerical solver to
+        /// rediscover one after the gripper action.
+        /// </remarks>
+        private async ValueTask<bool> RetractFromLastApproachAsync(
+            IntentExecution execution,
+            CancellationToken cancellationToken)
+        {
+            List<double[]>? sampledPath = m_retractCartesianPath;
+            if (sampledPath != null)
+            {
+                m_retractCartesianPath = null;
+                double[] current = GetJoints();
+                if (!SameJointConfiguration(current, sampledPath[^1]))
+                {
+                    Diagnostic?.Invoke("discarded a stale Cartesian retract path");
+                    return true;
+                }
+                double[] previous = current;
+                for (int ii = sampledPath.Count - 2; ii >= 0; ii--)
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    double[] next = sampledPath[ii];
+                    if (CurrentSnapshot.HasObject &&
+                        !m_kinematics.ClearsPath(previous, next))
+                    {
+                        return false;
+                    }
+                    SetJoints(next);
+                    previous = next;
+                    if (!await DelayTickAsync(cancellationToken).ConfigureAwait(false))
+                    {
+                        return false;
+                    }
+                }
+                Diagnostic?.Invoke("replayed the last Cartesian approach in reverse");
+                return true;
+            }
+
+            double[]? target = m_retractJointAngles;
+            if (target == null)
+            {
+                return true;
+            }
+            double[]? endpoint = m_retractJointEndpoint;
+            m_retractJointAngles = null;
+            m_retractJointEndpoint = null;
+            double[] start = GetJoints();
+            if (endpoint == null || !SameJointConfiguration(start, endpoint))
+            {
+                Diagnostic?.Invoke("discarded a stale joint retract path");
+                return true;
+            }
+            if (!m_kinematics.ClearsPath(start, target))
+            {
+                return false;
+            }
+            double distance = JointDistance(start, target);
+            var profile = new TrapezoidalVelocityProfile(
+                distance, JointSpeed(new MotionConstraintsDataType()), DefaultJointAcceleration);
+            IntentOutcome outcome = await FollowProfileAsync(
+                profile,
+                execution,
+                fraction => SetJoints(
+                    m_kinematics.InterpolateJoints(start, target, fraction).Span),
+                DefaultJointAcceleration,
+                cancellationToken).ConfigureAwait(false);
+            if (outcome.State == ExecutionStateEnum.Succeeded)
+            {
+                Diagnostic?.Invoke("reversed the last local approach");
+                return true;
+            }
+            return false;
+        }
+
+        /// <summary>
+        /// Invalidates a recorded local approach when another motion changes the arm pose.
+        /// </summary>
+        private void InvalidateRecordedApproach()
+        {
+            m_retractCartesianPath = null;
+            m_retractJointAngles = null;
+            m_retractJointEndpoint = null;
+        }
+
+        /// <summary>
+        /// Gets whether two joint configurations agree closely enough to replay a recorded
+        /// path from the current pose.
+        /// </summary>
+        private static bool SameJointConfiguration(double[] left, double[] right)
+        {
+            if (left.Length != right.Length)
+            {
+                return false;
+            }
+            for (int ii = 0; ii < left.Length; ii++)
+            {
+                if (Math.Abs(left[ii] - right[ii]) > RetractEndpointToleranceRadians)
+                {
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        /// <summary>
+        /// Swings the tool to a position in joint space, so the arm rotates around its base
+        /// rather than trying to carry the tool across the axis it stands on.
+        /// </summary>
+        private async ValueTask<bool> SwingToAsync(
+            double[] position,
+            string frameId,
+            ArrayOf<double> orientation,
+            IntentExecution execution,
+            CancellationToken cancellationToken)
+        {
+            double[] start = GetJoints();
+            if (!TrySolveWithYawSearch(position, frameId, orientation, start, out SimulatedArmIkSolution? solution))
+            {
+                return false;
+            }
+            double distance = JointDistance(start, solution.JointAngles.Span);
+            var profile = new TrapezoidalVelocityProfile(
+                distance, JointSpeed(new MotionConstraintsDataType()), DefaultJointAcceleration);
+            _ = await FollowProfileAsync(
+                profile,
+                execution,
+                fraction => SetJoints(
+                    m_kinematics.InterpolateJoints(start, solution.JointAngles.Span, fraction).Span),
+                DefaultJointAcceleration,
+                cancellationToken).ConfigureAwait(false);
+            return true;
+        }
+
+        /// <summary>
+        /// Solves for a tool position, turning the tool about the vertical when the
+        /// orientation it is holding does not work out.
+        /// </summary>
+        /// <remarks>
+        /// A parallel gripper coming straight down is free to choose its rotation about the
+        /// tool axis - the jaws close on a part the same way whichever way round they are -
+        /// but the cell never used that freedom: it reused whatever orientation the arm was
+        /// left holding, so each Location got exactly one pose and one chance. That is fine
+        /// until the solver has to satisfy clearance as well, at which point a single pose
+        /// often has no answer while the same position a few degrees round has several.
+        /// The requested orientation is tried first so nothing changes when it works, and
+        /// the offsets are a fixed sequence so the same target always resolves the same way.
+        /// </remarks>
+        private bool TrySolveWithYawSearch(
+            double[] position,
+            string frameId,
+            ArrayOf<double> orientation,
+            double[] start,
+            [NotNullWhen(true)] out SimulatedArmIkSolution? solution)
+        {
+            ReadOnlySpan<double> requested = orientation.Span;
+            foreach (double degrees in s_yawOffsetsDegrees)
+            {
+                var target = new Pose3DDataType
+                {
+                    FrameId = frameId,
+                    Position = position.ToArrayOf(),
+                    Orientation = degrees == 0.0
+                        ? orientation
+                        : TurnAboutVertical(requested, degrees).ToArrayOf()
+                };
+                if (m_kinematics.TrySelectNearest(
+                    target, start, out solution, out SimulatedArmKinematicFailure _))
+                {
+                    return true;
+                }
+            }
+            solution = null;
+            return false;
+        }
+
+        /// <summary>
+        /// Turns an orientation about the world vertical.
+        /// </summary>
+        private static double[] TurnAboutVertical(ReadOnlySpan<double> orientation, double degrees)
+        {
+            double half = degrees * Math.PI / 360.0;
+            double sin = Math.Sin(half);
+            double cos = Math.Cos(half);
+            return
+            [
+                (cos * orientation[0]) - (sin * orientation[1]),
+                (cos * orientation[1]) + (sin * orientation[0]),
+                (cos * orientation[2]) + (sin * orientation[3]),
+                (cos * orientation[3]) - (sin * orientation[2])
+            ];
+        }
+
+        /// <summary>
+        /// Gets why the last travel to a Location was refused, for the failure message.
+        /// </summary>
+        private string LastTravelFailure { get; set; } = string.Empty;
+
+        /// <summary>
+        /// Moves the tool centre point to one position along a straight line, keeping its
+        /// orientation.
+        /// </summary>
+        /// <remarks>
+        /// The line is followed in Cartesian space and re-solved at each step rather than
+        /// solved once and interpolated in joint space. Interpolating in joint space takes
+        /// whatever route the two configurations happen to describe, and when the solver
+        /// picks a different elbow branch for the far end that route swings a link through
+        /// the bench - so with clearance enforced, every candidate gets refused and the arm
+        /// simply stops. Re-solving along a straight line keeps each step next to the last
+        /// one, which is also what the move looks like on a real cell.
+        /// </remarks>
+        private async ValueTask<bool> MoveToolToAsync(
+            double[] position,
+            string frameId,
+            ArrayOf<double> orientation,
+            IntentExecution execution,
+            CancellationToken cancellationToken,
+            bool recordRetractPath = false)
+        {
+            var target = new Pose3DDataType
+            {
+                FrameId = frameId,
+                Position = position.ToArrayOf(),
+                Orientation = orientation
+            };
+            List<double[]>? jointPath = recordRetractPath ? [GetJoints()] : null;
+            IntentOutcome outcome = await MoveCartesianAsync(
+                target,
+                new MotionConstraintsDataType(),
+                execution,
+                cancellationToken,
+                jointPath)
+                .ConfigureAwait(false);
+            bool succeeded = outcome.State == ExecutionStateEnum.Succeeded;
+            if (recordRetractPath)
+            {
+                m_retractCartesianPath = succeeded && jointPath is { Count: > 1 }
+                    ? jointPath
+                    : null;
+            }
+            return succeeded;
+        }
+
+        /// <summary>
+        /// Plans a complete, locally sampled Cartesian move before executing any of it.
+        /// </summary>
+        /// <remarks>
+        /// Solving while moving can switch into a branch that has no continuation near the
+        /// target, even when another yaw has a clear path all the way down. This method
+        /// evaluates every sample first, tries the same deterministic yaw spread used by
+        /// direct moves, and executes only a sequence that reached the target. The samples
+        /// are close enough that checking every configuration is the swept-path
+        /// approximation; no unrelated joint interpolation is substituted for it.
+        /// </remarks>
+        private async ValueTask<bool> MovePlannedCartesianAsync(
+            double[] position,
+            string frameId,
+            ArrayOf<double> orientation,
+            IntentExecution execution,
+            bool recordRetractPath,
+            CancellationToken cancellationToken)
+        {
+            Pose3DDataType startPose = CurrentSnapshot.ToolPose;
+            double[] startingJoints = GetJoints();
+            double[] requested = orientation.Span.ToArray();
+            foreach (double degrees in s_yawOffsetsDegrees)
+            {
+                ArrayOf<double> candidateOrientation = degrees == 0.0
+                    ? orientation
+                    : TurnAboutVertical(requested, degrees).ToArrayOf();
+                var target = new Pose3DDataType
+                {
+                    FrameId = frameId,
+                    Position = position.ToArrayOf(),
+                    Orientation = candidateOrientation
+                };
+                var path = new List<double[]>(CartesianPlanningSamples + 1)
+                {
+                    (double[])startingJoints.Clone()
+                };
+                double[] reference = (double[])startingJoints.Clone();
+                bool complete = true;
+                for (int step = 1; step <= CartesianPlanningSamples; step++)
+                {
+                    double fraction = (double)step / CartesianPlanningSamples;
+                    Pose3DDataType pose = m_kinematics.InterpolateCartesian(startPose, target, fraction);
+                    if (!m_kinematics.TrySelectNearestConfiguration(
+                        pose,
+                        reference,
+                        out SimulatedArmIkSolution? solution,
+                        out SimulatedArmKinematicFailure _))
+                    {
+                        complete = false;
+                        break;
+                    }
+                    reference = solution.JointAngles.Span.ToArray();
+                    path.Add(reference);
+                }
+                if (!complete)
+                {
+                    continue;
+                }
+
+                double distance = Distance(startPose.Position.Span, target.Position.Span);
+                var profile = new TrapezoidalVelocityProfile(
+                    distance, DefaultCartesianSpeed, DefaultCartesianAcceleration);
+                IntentOutcome outcome = await FollowProfileAsync(
+                    profile,
+                    execution,
+                    fraction =>
+                    {
+                        int index = Math.Clamp(
+                            (int)Math.Round(fraction * (path.Count - 1)),
+                            0,
+                            path.Count - 1);
+                        SetPose(path[index]);
+                    },
+                    DefaultCartesianAcceleration,
+                    cancellationToken).ConfigureAwait(false);
+                bool succeeded = outcome.State == ExecutionStateEnum.Succeeded;
+                if (recordRetractPath)
+                {
+                    m_retractCartesianPath = succeeded ? path : null;
+                }
+                return succeeded;
+            }
+            if (recordRetractPath)
+            {
+                m_retractCartesianPath = null;
+            }
+            return false;
         }
 
         private async ValueTask<IntentOutcome> ExecuteToolChangeAsync(
@@ -583,7 +1366,8 @@ namespace Robotics.IntentEnabledRobot.Simulation
             Pose3DDataType target,
             MotionConstraintsDataType constraints,
             IntentExecution execution,
-            CancellationToken cancellationToken)
+            CancellationToken cancellationToken,
+            List<double[]>? jointPath = null)
         {
             Pose3DDataType start = CurrentSnapshot.ToolPose;
             double distance = Distance(start.Position.Span, target.Position.Span);
@@ -596,13 +1380,14 @@ namespace Robotics.IntentEnabledRobot.Simulation
                 fraction =>
                 {
                     Pose3DDataType pose = m_kinematics.InterpolateCartesian(start, target, fraction);
-                    if (m_kinematics.TrySelectNearest(
+                    if (m_kinematics.TrySelectNearestConfiguration(
                         pose,
                         CurrentSnapshot.JointAngles.Span,
                         out SimulatedArmIkSolution? solution,
                         out SimulatedArmKinematicFailure failure))
                     {
                         SetPose(solution.JointAngles.Span);
+                        jointPath?.Add(solution.JointAngles.Span.ToArray());
                     }
                     else
                     {
@@ -615,7 +1400,7 @@ namespace Robotics.IntentEnabledRobot.Simulation
             if (moveFailure != SimulatedArmKinematicFailure.None)
             {
                 return IntentOutcome.Fail(
-                    SimulatedArmKinematics.ToIntentFailure(moveFailure), "The Cartesian path is not feasible.");
+                    m_kinematics.MapFailure(moveFailure), "The Cartesian path is not feasible.");
             }
             return outcome.State == ExecutionStateEnum.Succeeded
                 ? IntentOutcome.SucceededAt(CurrentSnapshot.ToolPose)
@@ -825,7 +1610,8 @@ namespace Robotics.IntentEnabledRobot.Simulation
                     m_hasObject,
                     m_toolName,
                     HeldPartPosition(forward.ToolPose),
-                    ArrayOf.Create(m_stackSlotsFilled.AsSpan()));
+                    ArrayOf.Create(m_stackSlotsFilled.AsSpan()),
+                    m_heldObjectClass);
             }
             SnapshotChanged?.Invoke(this, CurrentSnapshot);
         }
@@ -842,7 +1628,8 @@ namespace Robotics.IntentEnabledRobot.Simulation
                 m_hasObject,
                 m_toolName,
                 HeldPartPosition(pose.ToolPose),
-                ArrayOf.Create(m_stackSlotsFilled.AsSpan()));
+                ArrayOf.Create(m_stackSlotsFilled.AsSpan()),
+                m_heldObjectClass);
         }
 
         private void FillNextStackSlotLocked()
@@ -1039,10 +1826,10 @@ namespace Robotics.IntentEnabledRobot.Simulation
             };
         }
 
-        private static double JointDistance(ReadOnlySpan<double> a, ReadOnlySpan<double> b)
+        private double JointDistance(ReadOnlySpan<double> a, ReadOnlySpan<double> b)
         {
             double sum = 0.0;
-            for (int i = 0; i < SimulatedArmKinematics.JointCount; i++)
+            for (int i = 0; i < m_kinematics.AxisCount; i++)
             {
                 double delta = a[i] - b[i];
                 sum += delta * delta;
@@ -1058,6 +1845,13 @@ namespace Robotics.IntentEnabledRobot.Simulation
             return Math.Sqrt((dx * dx) + (dy * dy) + (dz * dz));
         }
 
+        private static double Distance2D(ReadOnlySpan<double> a, ReadOnlySpan<double> b)
+        {
+            double x = a[0] - b[0];
+            double y = a[1] - b[1];
+            return Math.Sqrt((x * x) + (y * y));
+        }
+
         private static ArrayOf<double> HeldPartPosition(Pose3DDataType toolPose)
         {
             ReadOnlySpan<double> position = toolPose.Position.Span;
@@ -1069,6 +1863,32 @@ namespace Robotics.IntentEnabledRobot.Simulation
         }
 
         private const double DefaultCartesianSpeed = 0.25;
+
+        /// <summary>
+        /// How high the tool lifts to before crossing the cell, in the arm's base frame.
+        /// Above the bin walls and above a full stack on the fixture, so a straight
+        /// joint-space leg at this height clears the furniture between two work positions.
+        /// </summary>
+        private const double TransitHeightMetres = 0.32;
+        private const double TransitBypassXMetres = 0.20;
+        private const double TransitBypassYMetres = -0.35;
+        private const double LocalApproachHeightMetres = 0.04;
+        private const int CartesianPlanningSamples = 32;
+        private const double RetractEndpointToleranceRadians = 1e-5;
+        private const double SameLocationToleranceMetres = 0.01;
+
+        /// <summary>
+        /// The rotations about the vertical a Pick or Place may use when the orientation the
+        /// arm is holding has no clear solution. Zero first, so a target that already works
+        /// resolves exactly as before, then outwards in both directions.
+        /// </summary>
+        private static readonly double[] s_yawOffsetsDegrees =
+        [
+            0.0, 15.0, -15.0, 30.0, -30.0, 45.0, -45.0, 60.0, -60.0, 75.0, -75.0,
+            90.0, -90.0, 105.0, -105.0, 120.0, -120.0, 135.0, -135.0, 150.0, -150.0,
+            165.0, -165.0, 180.0
+        ];
+
         private const double DefaultCartesianAcceleration = 0.7;
         private const double DefaultJointSpeed = 0.9;
         private const double DefaultJointAcceleration = 2.0;
@@ -1076,15 +1896,43 @@ namespace Robotics.IntentEnabledRobot.Simulation
         private const double BenchTopZ = 0.829;
         private const double GripperOpen = 0.08;
         private const double GripperClosed = 0.018;
-        private const double HeldPartTcpOffset = 0.035;
         private const int StackSlotCount = 8;
 
         private readonly System.Threading.Lock m_lock = new();
-        private readonly SimulatedArmKinematics m_kinematics;
+        private readonly ISimulatedArmKinematics m_kinematics;
         private readonly ISimulatedArmClock m_clock;
-        private readonly double[] m_jointAngles = [-0.45, -0.95, 1.55, -0.9, 0.75, 0.0];
+
+        /// <summary>
+        /// <para>
+        /// Home configuration, radians. This arm is mounted on a bench in both samples that
+        /// use it, so the pose has to keep every joint above the work surface, and in the
+        /// bin-picking cell it also has to aim the eye-in-hand camera: it is solved so the
+        /// camera prim lands at the world position the Vision model declares for it
+        /// (0.38, 0, 1.35) looking straight down, which puts the bin 0.50 m away and 1.8
+        /// degrees off the optical axis - matching the standoff the detections report.
+        /// </para>
+        /// <para>
+        /// Two constraints on the solution are easy to miss and both were violated by
+        /// earlier attempts:
+        /// </para>
+        /// <para>
+        /// - It is the elbow-back branch. The elbow-forward solutions reach the same
+        /// camera pose but park a link directly under the camera, and the frame comes
+        /// back showing the arm's own upper arm instead of the bin.
+        /// - The wrist stays 25 degrees clear of J4 and J6 lining up. Aiming a
+        /// straight-down camera from a point on the base's own X-Z plane lands exactly
+        /// on that singularity, so the camera roll is tilted 15 degrees to get off it.
+        /// A singular home pose is not a cosmetic problem: the first IK solve of any
+        /// motion away from home fails, so every intent returns Kinematics.
+        /// </para>
+        /// </summary>
+        private readonly double[] m_jointAngles;
+        private double[]? m_retractJointAngles;
+        private double[]? m_retractJointEndpoint;
+        private List<double[]>? m_retractCartesianPath;
         private double m_gripperOpening = GripperOpen;
         private bool m_hasObject;
+        private string m_heldObjectClass = string.Empty;
         private readonly bool[] m_stackSlotsFilled = new bool[StackSlotCount];
         private string m_toolName = "parallel-gripper";
         private string m_nonCancellableIntentId = string.Empty;

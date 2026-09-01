@@ -1,0 +1,2211 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- OPC UA - Vision companion model. PROVISIONAL NodeIds and namespace (final IDs assigned by the OPC Foundation / working group). -->
+<UANodeSet xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd" xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd">
+  <NamespaceUris>
+    <Uri>http://opcfoundation.org/UA/Vision/</Uri>
+  </NamespaceUris>
+  <Models>
+    <Model ModelUri="http://opcfoundation.org/UA/Vision/" Version="0.2.0" PublicationDate="2026-08-11T00:00:00Z">
+      <RequiredModel ModelUri="http://opcfoundation.org/UA/" Version="1.05.04" PublicationDate="2023-12-15T00:00:00Z" />
+    </Model>
+  </Models>
+  <Aliases>
+    <Alias Alias="Boolean">i=1</Alias>
+    <Alias Alias="Int32">i=6</Alias>
+    <Alias Alias="UInt32">i=7</Alias>
+    <Alias Alias="UInt64">i=9</Alias>
+    <Alias Alias="Double">i=11</Alias>
+    <Alias Alias="String">i=12</Alias>
+    <Alias Alias="Guid">i=14</Alias>
+    <Alias Alias="ByteString">i=15</Alias>
+    <Alias Alias="NodeId">i=17</Alias>
+    <Alias Alias="QualifiedName">i=20</Alias>
+    <Alias Alias="LocalizedText">i=21</Alias>
+    <Alias Alias="UtcTime">i=294</Alias>
+    <Alias Alias="Duration">i=290</Alias>
+    <Alias Alias="Argument">i=296</Alias>
+    <Alias Alias="EUInformation">i=887</Alias>
+    <Alias Alias="BaseDataType">i=24</Alias>
+    <Alias Alias="HasComponent">i=47</Alias>
+    <Alias Alias="HasProperty">i=46</Alias>
+    <Alias Alias="HasSubtype">i=45</Alias>
+    <Alias Alias="Organizes">i=35</Alias>
+    <Alias Alias="HasTypeDefinition">i=40</Alias>
+    <Alias Alias="HasModellingRule">i=37</Alias>
+    <Alias Alias="HasInterface">i=17603</Alias>
+    <Alias Alias="HasEncoding">i=38</Alias>
+    <Alias Alias="Mandatory">i=78</Alias>
+    <Alias Alias="Optional">i=80</Alias>
+    <Alias Alias="OptionalPlaceholder">i=11508</Alias>
+    <Alias Alias="MandatoryPlaceholder">i=11510</Alias>
+  </Aliases>
+  <UADataType NodeId="ns=1;i=3001" BrowseName="1:VisionRealityKindEnum">
+    <DisplayName>VisionRealityKindEnum</DisplayName>
+    <Description>Whether the sensor observes the physical world, a simulation, or both. This is the sim/real switch: every other member of the model means the same thing regardless of its value.</Description>
+    <Category>Vision DataTypes</Category>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=29</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=3901</Reference>
+    </References>
+    <Definition Name="VisionRealityKindEnum"><Field Name="Physical" Value="0"><Description>A physical device observing the real world.</Description></Field><Field Name="Simulated" Value="1"><Description>A synthetic sensor rendered by a simulator (e.g. NVIDIA Isaac Sim); ground truth may be available.</Description></Field><Field Name="Hybrid" Value="2"><Description>A physical device whose output is augmented or replayed through a simulation.</Description></Field></Definition>
+  </UADataType>
+  <UAVariable NodeId="ns=1;i=3901" BrowseName="EnumStrings" ParentNodeId="ns=1;i=3001" DataType="LocalizedText" ValueRank="1" ArrayDimensions="3">
+    <DisplayName>EnumStrings</DisplayName>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=3001</Reference>
+    </References>
+    <Value><uax:ListOfLocalizedText xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd"><uax:LocalizedText><uax:Text>Physical</uax:Text></uax:LocalizedText><uax:LocalizedText><uax:Text>Simulated</uax:Text></uax:LocalizedText><uax:LocalizedText><uax:Text>Hybrid</uax:Text></uax:LocalizedText></uax:ListOfLocalizedText></Value>
+  </UAVariable>
+  <UADataType NodeId="ns=1;i=3002" BrowseName="1:VisionStreamProtocolEnum">
+    <DisplayName>VisionStreamProtocolEnum</DisplayName>
+    <Description>Wire protocol of a continuous media stream. Rtsp is the mandatory default: a conformant Server exposes at least one StreamEndpoint using it.</Description>
+    <Category>Vision DataTypes</Category>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=29</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=3902</Reference>
+    </References>
+    <Definition Name="VisionStreamProtocolEnum"><Field Name="Rtsp" Value="0"><Description>RTSP (RFC 7826/2326). MANDATORY default streaming protocol.</Description></Field><Field Name="Rtsps" Value="1"><Description>RTSP over TLS.</Description></Field><Field Name="WebRtc" Value="2"><Description>WebRTC.</Description></Field><Field Name="Srt" Value="3"><Description>Secure Reliable Transport.</Description></Field><Field Name="Hls" Value="4"><Description>HTTP Live Streaming.</Description></Field><Field Name="Mjpeg" Value="5"><Description>Motion JPEG over HTTP.</Description></Field><Field Name="GenDc" Value="6"><Description>GenICam GenDC container stream.</Description></Field><Field Name="Other" Value="7"><Description>A protocol identified by the endpoint URI scheme.</Description></Field><Field Name="DataChannel" Value="8"><Description>The stream is carried on an OPC UA data channel multiplexed onto the SecureChannel the client already has, per the OPC UA - Data Channels errata proposal. OPTIONAL and never a default: see clause 6.7. That proposal is a DRAFT in this repository, not a released OPC UA specification, so a Server is fully conformant without it.</Description></Field></Definition>
+  </UADataType>
+  <UAVariable NodeId="ns=1;i=3902" BrowseName="EnumStrings" ParentNodeId="ns=1;i=3002" DataType="LocalizedText" ValueRank="1" ArrayDimensions="9">
+    <DisplayName>EnumStrings</DisplayName>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=3002</Reference>
+    </References>
+    <Value><uax:ListOfLocalizedText xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd"><uax:LocalizedText><uax:Text>Rtsp</uax:Text></uax:LocalizedText><uax:LocalizedText><uax:Text>Rtsps</uax:Text></uax:LocalizedText><uax:LocalizedText><uax:Text>WebRtc</uax:Text></uax:LocalizedText><uax:LocalizedText><uax:Text>Srt</uax:Text></uax:LocalizedText><uax:LocalizedText><uax:Text>Hls</uax:Text></uax:LocalizedText><uax:LocalizedText><uax:Text>Mjpeg</uax:Text></uax:LocalizedText><uax:LocalizedText><uax:Text>GenDc</uax:Text></uax:LocalizedText><uax:LocalizedText><uax:Text>Other</uax:Text></uax:LocalizedText><uax:LocalizedText><uax:Text>DataChannel</uax:Text></uax:LocalizedText></uax:ListOfLocalizedText></Value>
+  </UAVariable>
+  <UADataType NodeId="ns=1;i=3003" BrowseName="1:VisionClipFormatEnum">
+    <DisplayName>VisionClipFormatEnum</DisplayName>
+    <Description>Encoding of a still clip. Jpeg is the mandatory default: a conformant Server exposes at least one ClipEndpoint using it.</Description>
+    <Category>Vision DataTypes</Category>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=29</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=3903</Reference>
+    </References>
+    <Definition Name="VisionClipFormatEnum"><Field Name="Jpeg" Value="0"><Description>JPEG (ISO/IEC 10918). MANDATORY default clip format.</Description></Field><Field Name="Png" Value="1"><Description>PNG.</Description></Field><Field Name="Tiff" Value="2"><Description>TIFF.</Description></Field><Field Name="Bmp" Value="3"><Description>BMP.</Description></Field><Field Name="WebP" Value="4"><Description>WebP.</Description></Field><Field Name="GenDc" Value="5"><Description>GenICam GenDC container.</Description></Field><Field Name="Other" Value="6"><Description>A format identified by the accompanying media type.</Description></Field></Definition>
+  </UADataType>
+  <UAVariable NodeId="ns=1;i=3903" BrowseName="EnumStrings" ParentNodeId="ns=1;i=3003" DataType="LocalizedText" ValueRank="1" ArrayDimensions="7">
+    <DisplayName>EnumStrings</DisplayName>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=3003</Reference>
+    </References>
+    <Value><uax:ListOfLocalizedText xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd"><uax:LocalizedText><uax:Text>Jpeg</uax:Text></uax:LocalizedText><uax:LocalizedText><uax:Text>Png</uax:Text></uax:LocalizedText><uax:LocalizedText><uax:Text>Tiff</uax:Text></uax:LocalizedText><uax:LocalizedText><uax:Text>Bmp</uax:Text></uax:LocalizedText><uax:LocalizedText><uax:Text>WebP</uax:Text></uax:LocalizedText><uax:LocalizedText><uax:Text>GenDc</uax:Text></uax:LocalizedText><uax:LocalizedText><uax:Text>Other</uax:Text></uax:LocalizedText></uax:ListOfLocalizedText></Value>
+  </UAVariable>
+  <UADataType NodeId="ns=1;i=3004" BrowseName="1:VisionVideoCodecEnum">
+    <DisplayName>VisionVideoCodecEnum</DisplayName>
+    <Description>Codec carried by a stream endpoint.</Description>
+    <Category>Vision DataTypes</Category>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=29</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=3904</Reference>
+    </References>
+    <Definition Name="VisionVideoCodecEnum"><Field Name="H264" Value="0"/><Field Name="H265" Value="1"/><Field Name="Mjpeg" Value="2"/><Field Name="Av1" Value="3"/><Field Name="Raw" Value="4"><Description>Uncompressed frames.</Description></Field><Field Name="Other" Value="5"/></Definition>
+  </UADataType>
+  <UAVariable NodeId="ns=1;i=3904" BrowseName="EnumStrings" ParentNodeId="ns=1;i=3004" DataType="LocalizedText" ValueRank="1" ArrayDimensions="6">
+    <DisplayName>EnumStrings</DisplayName>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=3004</Reference>
+    </References>
+    <Value><uax:ListOfLocalizedText xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd"><uax:LocalizedText><uax:Text>H264</uax:Text></uax:LocalizedText><uax:LocalizedText><uax:Text>H265</uax:Text></uax:LocalizedText><uax:LocalizedText><uax:Text>Mjpeg</uax:Text></uax:LocalizedText><uax:LocalizedText><uax:Text>Av1</uax:Text></uax:LocalizedText><uax:LocalizedText><uax:Text>Raw</uax:Text></uax:LocalizedText><uax:LocalizedText><uax:Text>Other</uax:Text></uax:LocalizedText></uax:ListOfLocalizedText></Value>
+  </UAVariable>
+  <UADataType NodeId="ns=1;i=3005" BrowseName="1:VisionEndpointStateEnum">
+    <DisplayName>VisionEndpointStateEnum</DisplayName>
+    <Description>Runtime lifecycle state of a media endpoint or deployment.</Description>
+    <Category>Vision DataTypes</Category>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=29</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=3905</Reference>
+    </References>
+    <Definition Name="VisionEndpointStateEnum"><Field Name="Inactive" Value="0"><Description>Declared but not serving.</Description></Field><Field Name="Ready" Value="1"><Description>Able to serve; no active session.</Description></Field><Field Name="Active" Value="2"><Description>Serving at least one session.</Description></Field><Field Name="Degraded" Value="3"><Description>Serving below configured quality.</Description></Field><Field Name="Faulted" Value="4"><Description>Unable to serve.</Description></Field></Definition>
+  </UADataType>
+  <UAVariable NodeId="ns=1;i=3905" BrowseName="EnumStrings" ParentNodeId="ns=1;i=3005" DataType="LocalizedText" ValueRank="1" ArrayDimensions="5">
+    <DisplayName>EnumStrings</DisplayName>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=3005</Reference>
+    </References>
+    <Value><uax:ListOfLocalizedText xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd"><uax:LocalizedText><uax:Text>Inactive</uax:Text></uax:LocalizedText><uax:LocalizedText><uax:Text>Ready</uax:Text></uax:LocalizedText><uax:LocalizedText><uax:Text>Active</uax:Text></uax:LocalizedText><uax:LocalizedText><uax:Text>Degraded</uax:Text></uax:LocalizedText><uax:LocalizedText><uax:Text>Faulted</uax:Text></uax:LocalizedText></uax:ListOfLocalizedText></Value>
+  </UAVariable>
+  <UADataType NodeId="ns=1;i=3006" BrowseName="1:VisionEndpointAuthenticationEnum">
+    <DisplayName>VisionEndpointAuthenticationEnum</DisplayName>
+    <Description>Authentication a client must present to the media endpoint. This is the media-plane credential, independent of the OPC UA session.</Description>
+    <Category>Vision DataTypes</Category>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=29</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=3906</Reference>
+    </References>
+    <Definition Name="VisionEndpointAuthenticationEnum"><Field Name="None" Value="0"><Description>No authentication. Appropriate only on an isolated network.</Description></Field><Field Name="Basic" Value="1"><Description>HTTP/RTSP Basic.</Description></Field><Field Name="Digest" Value="2"><Description>HTTP/RTSP Digest.</Description></Field><Field Name="Token" Value="3"><Description>Bearer token, typically the time-limited token returned by GetStreamEndpoint or GetClip.</Description></Field><Field Name="MutualTls" Value="4"><Description>Client certificate.</Description></Field></Definition>
+  </UADataType>
+  <UAVariable NodeId="ns=1;i=3906" BrowseName="EnumStrings" ParentNodeId="ns=1;i=3006" DataType="LocalizedText" ValueRank="1" ArrayDimensions="5">
+    <DisplayName>EnumStrings</DisplayName>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=3006</Reference>
+    </References>
+    <Value><uax:ListOfLocalizedText xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd"><uax:LocalizedText><uax:Text>None</uax:Text></uax:LocalizedText><uax:LocalizedText><uax:Text>Basic</uax:Text></uax:LocalizedText><uax:LocalizedText><uax:Text>Digest</uax:Text></uax:LocalizedText><uax:LocalizedText><uax:Text>Token</uax:Text></uax:LocalizedText><uax:LocalizedText><uax:Text>MutualTls</uax:Text></uax:LocalizedText></uax:ListOfLocalizedText></Value>
+  </UAVariable>
+  <UADataType NodeId="ns=1;i=3009" BrowseName="1:VisionResultEvaluationEnum">
+    <DisplayName>VisionResultEvaluationEnum</DisplayName>
+    <Description>Overall verdict of a result. Value semantics are aligned with the ResultEvaluationEnum of OPC 40001-101 so that a client already consuming Machinery results needs no new interpretation rules.</Description>
+    <Category>Vision DataTypes</Category>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=29</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=3909</Reference>
+    </References>
+    <Definition Name="VisionResultEvaluationEnum"><Field Name="Undefined" Value="0"><Description>No verdict available.</Description></Field><Field Name="Ok" Value="1"><Description>Within tolerance / accepted.</Description></Field><Field Name="NotOk" Value="2"><Description>Out of tolerance / rejected.</Description></Field><Field Name="NotDecidable" Value="3"><Description>A verdict was not possible, typically because the measurement uncertainty spans a tolerance limit.</Description></Field></Definition>
+  </UADataType>
+  <UAVariable NodeId="ns=1;i=3909" BrowseName="EnumStrings" ParentNodeId="ns=1;i=3009" DataType="LocalizedText" ValueRank="1" ArrayDimensions="4">
+    <DisplayName>EnumStrings</DisplayName>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=3009</Reference>
+    </References>
+    <Value><uax:ListOfLocalizedText xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd"><uax:LocalizedText><uax:Text>Undefined</uax:Text></uax:LocalizedText><uax:LocalizedText><uax:Text>Ok</uax:Text></uax:LocalizedText><uax:LocalizedText><uax:Text>NotOk</uax:Text></uax:LocalizedText><uax:LocalizedText><uax:Text>NotDecidable</uax:Text></uax:LocalizedText></uax:ListOfLocalizedText></Value>
+  </UAVariable>
+  <UADataType NodeId="ns=1;i=3010" BrowseName="1:VisionToleranceStatusEnum">
+    <DisplayName>VisionToleranceStatusEnum</DisplayName>
+    <Description>Per-characteristic tolerance outcome.</Description>
+    <Category>Vision DataTypes</Category>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=29</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=3910</Reference>
+    </References>
+    <Definition Name="VisionToleranceStatusEnum"><Field Name="InTolerance" Value="0"/><Field Name="OutOfTolerance" Value="1"/><Field Name="Indeterminate" Value="2"><Description>Uncertainty spans a tolerance limit.</Description></Field></Definition>
+  </UADataType>
+  <UAVariable NodeId="ns=1;i=3910" BrowseName="EnumStrings" ParentNodeId="ns=1;i=3010" DataType="LocalizedText" ValueRank="1" ArrayDimensions="3">
+    <DisplayName>EnumStrings</DisplayName>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=3010</Reference>
+    </References>
+    <Value><uax:ListOfLocalizedText xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd"><uax:LocalizedText><uax:Text>InTolerance</uax:Text></uax:LocalizedText><uax:LocalizedText><uax:Text>OutOfTolerance</uax:Text></uax:LocalizedText><uax:LocalizedText><uax:Text>Indeterminate</uax:Text></uax:LocalizedText></uax:ListOfLocalizedText></Value>
+  </UAVariable>
+  <UADataType NodeId="ns=1;i=3011" BrowseName="1:VisionFeedbackPurposeEnum">
+    <DisplayName>VisionFeedbackPurposeEnum</DisplayName>
+    <Description>Why a client is pushing information back into the vision system.</Description>
+    <Category>Vision DataTypes</Category>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=29</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=3911</Reference>
+    </References>
+    <Definition Name="VisionFeedbackPurposeEnum"><Field Name="Overlay" Value="0"><Description>Render the geometry onto the outgoing stream.</Description></Field><Field Name="Reconciliation" Value="1"><Description>Record a downstream verdict against the result.</Description></Field><Field Name="GroundTruthLabel" Value="2"><Description>Treat the payload as a corrected label for training.</Description></Field><Field Name="Trigger" Value="3"><Description>Use the payload as an acquisition or processing trigger.</Description></Field></Definition>
+  </UADataType>
+  <UAVariable NodeId="ns=1;i=3911" BrowseName="EnumStrings" ParentNodeId="ns=1;i=3011" DataType="LocalizedText" ValueRank="1" ArrayDimensions="4">
+    <DisplayName>EnumStrings</DisplayName>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=3011</Reference>
+    </References>
+    <Value><uax:ListOfLocalizedText xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd"><uax:LocalizedText><uax:Text>Overlay</uax:Text></uax:LocalizedText><uax:LocalizedText><uax:Text>Reconciliation</uax:Text></uax:LocalizedText><uax:LocalizedText><uax:Text>GroundTruthLabel</uax:Text></uax:LocalizedText><uax:LocalizedText><uax:Text>Trigger</uax:Text></uax:LocalizedText></uax:ListOfLocalizedText></Value>
+  </UAVariable>
+  <UADataType NodeId="ns=1;i=3012" BrowseName="1:VisionCalibrationMountEnum">
+    <DisplayName>VisionCalibrationMountEnum</DisplayName>
+    <Description>Physical relationship between a camera and the kinematic chain it is calibrated against.</Description>
+    <Category>Vision DataTypes</Category>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=29</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=3912</Reference>
+    </References>
+    <Definition Name="VisionCalibrationMountEnum"><Field Name="EyeInHand" Value="0"><Description>Camera mounted on the moving flange or tool.</Description></Field><Field Name="EyeToHand" Value="1"><Description>Camera fixed in the workspace observing the tool.</Description></Field><Field Name="Fixed" Value="2"><Description>Camera fixed with no associated kinematic chain.</Description></Field><Field Name="Unknown" Value="3"/></Definition>
+  </UADataType>
+  <UAVariable NodeId="ns=1;i=3912" BrowseName="EnumStrings" ParentNodeId="ns=1;i=3012" DataType="LocalizedText" ValueRank="1" ArrayDimensions="4">
+    <DisplayName>EnumStrings</DisplayName>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=3012</Reference>
+    </References>
+    <Value><uax:ListOfLocalizedText xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd"><uax:LocalizedText><uax:Text>EyeInHand</uax:Text></uax:LocalizedText><uax:LocalizedText><uax:Text>EyeToHand</uax:Text></uax:LocalizedText><uax:LocalizedText><uax:Text>Fixed</uax:Text></uax:LocalizedText><uax:LocalizedText><uax:Text>Unknown</uax:Text></uax:LocalizedText></uax:ListOfLocalizedText></Value>
+  </UAVariable>
+  <UADataType NodeId="ns=1;i=3013" BrowseName="1:VisionFrameRoleEnum">
+    <DisplayName>VisionFrameRoleEnum</DisplayName>
+    <Description>Role of a coordinate frame, following the ISO 9787 frame vocabulary. The mechanical interface and the tool are DISTINCT roles: a camera on a robot flange is calibrated to the mechanical interface, while a pick pose has to reach the tool centre point, and a model that cannot tell them apart cannot express the offset between them.</Description>
+    <Category>Vision DataTypes</Category>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=29</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=3913</Reference>
+    </References>
+    <Definition Name="VisionFrameRoleEnum"><Field Name="World" Value="0"/><Field Name="Base" Value="1"/><Field Name="MechanicalInterface" Value="2"><Description>The flange at the end of the last link, to which an end effector is fitted. This is what an eye-in-hand extrinsic calibration resolves to.</Description></Field><Field Name="Tool" Value="3"><Description>A tool frame, whose origin is a tool centre point.</Description></Field><Field Name="Object" Value="4"/><Field Name="Other" Value="5"/><Field Name="Camera" Value="6"><Description>A camera frame. Numbered after the ISO 9787 roles because it is not one of them.</Description></Field></Definition>
+  </UADataType>
+  <UAVariable NodeId="ns=1;i=3913" BrowseName="EnumStrings" ParentNodeId="ns=1;i=3013" DataType="LocalizedText" ValueRank="1" ArrayDimensions="7">
+    <DisplayName>EnumStrings</DisplayName>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=3013</Reference>
+    </References>
+    <Value><uax:ListOfLocalizedText xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd"><uax:LocalizedText><uax:Text>World</uax:Text></uax:LocalizedText><uax:LocalizedText><uax:Text>Base</uax:Text></uax:LocalizedText><uax:LocalizedText><uax:Text>MechanicalInterface</uax:Text></uax:LocalizedText><uax:LocalizedText><uax:Text>Tool</uax:Text></uax:LocalizedText><uax:LocalizedText><uax:Text>Object</uax:Text></uax:LocalizedText><uax:LocalizedText><uax:Text>Other</uax:Text></uax:LocalizedText><uax:LocalizedText><uax:Text>Camera</uax:Text></uax:LocalizedText></uax:ListOfLocalizedText></Value>
+  </UAVariable>
+  <UADataType NodeId="ns=1;i=3014" BrowseName="1:VisionDistortionModelEnum">
+    <DisplayName>VisionDistortionModelEnum</DisplayName>
+    <Description>Lens distortion model the coefficients belong to.</Description>
+    <Category>Vision DataTypes</Category>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=29</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=3914</Reference>
+    </References>
+    <Definition Name="VisionDistortionModelEnum"><Field Name="None" Value="0"/><Field Name="BrownConrady" Value="1"><Description>Radial and tangential (k1, k2, p1, p2, k3...).</Description></Field><Field Name="KannalaBrandt" Value="2"><Description>Fisheye / equidistant.</Description></Field><Field Name="RationalPolynomial" Value="3"/><Field Name="Other" Value="4"/></Definition>
+  </UADataType>
+  <UAVariable NodeId="ns=1;i=3914" BrowseName="EnumStrings" ParentNodeId="ns=1;i=3014" DataType="LocalizedText" ValueRank="1" ArrayDimensions="5">
+    <DisplayName>EnumStrings</DisplayName>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=3014</Reference>
+    </References>
+    <Value><uax:ListOfLocalizedText xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd"><uax:LocalizedText><uax:Text>None</uax:Text></uax:LocalizedText><uax:LocalizedText><uax:Text>BrownConrady</uax:Text></uax:LocalizedText><uax:LocalizedText><uax:Text>KannalaBrandt</uax:Text></uax:LocalizedText><uax:LocalizedText><uax:Text>RationalPolynomial</uax:Text></uax:LocalizedText><uax:LocalizedText><uax:Text>Other</uax:Text></uax:LocalizedText></uax:ListOfLocalizedText></Value>
+  </UAVariable>
+  <UADataType NodeId="ns=1;i=3015" BrowseName="1:VisionSensorModalityEnum">
+    <DisplayName>VisionSensorModalityEnum</DisplayName>
+    <Description>What the sensor measures.</Description>
+    <Category>Vision DataTypes</Category>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=29</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=3915</Reference>
+    </References>
+    <Definition Name="VisionSensorModalityEnum"><Field Name="Area2D" Value="0"><Description>Two-dimensional area-scan imaging.</Description></Field><Field Name="Line2D" Value="1"><Description>Line-scan imaging.</Description></Field><Field Name="Depth3D" Value="2"><Description>Depth or point-cloud sensing.</Description></Field><Field Name="Thermal" Value="3"/><Field Name="Multispectral" Value="4"/><Field Name="Event" Value="5"><Description>Event / neuromorphic camera.</Description></Field><Field Name="Other" Value="6"/></Definition>
+  </UADataType>
+  <UAVariable NodeId="ns=1;i=3915" BrowseName="EnumStrings" ParentNodeId="ns=1;i=3015" DataType="LocalizedText" ValueRank="1" ArrayDimensions="7">
+    <DisplayName>EnumStrings</DisplayName>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=3015</Reference>
+    </References>
+    <Value><uax:ListOfLocalizedText xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd"><uax:LocalizedText><uax:Text>Area2D</uax:Text></uax:LocalizedText><uax:LocalizedText><uax:Text>Line2D</uax:Text></uax:LocalizedText><uax:LocalizedText><uax:Text>Depth3D</uax:Text></uax:LocalizedText><uax:LocalizedText><uax:Text>Thermal</uax:Text></uax:LocalizedText><uax:LocalizedText><uax:Text>Multispectral</uax:Text></uax:LocalizedText><uax:LocalizedText><uax:Text>Event</uax:Text></uax:LocalizedText><uax:LocalizedText><uax:Text>Other</uax:Text></uax:LocalizedText></uax:ListOfLocalizedText></Value>
+  </UAVariable>
+  <UADataType NodeId="ns=1;i=3016" BrowseName="1:VisionLampTypeEnum">
+    <DisplayName>VisionLampTypeEnum</DisplayName>
+    <Description>Emitter technology of a light source. The named values are those OPC 40100-2 gives as examples for ILampType.LampType, which is a free String there.</Description>
+    <Category>Vision DataTypes</Category>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=29</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=3916</Reference>
+    </References>
+    <Definition Name="VisionLampTypeEnum"><Field Name="Led" Value="0"><Description>Light-emitting diode. The default because it is what the overwhelming majority of machine-vision illuminators use.</Description></Field><Field Name="Fluorescent" Value="1"/><Field Name="Laser" Value="2"><Description>Includes the line and pattern projectors of laser-triangulation and structured-light sensors.</Description></Field><Field Name="Xenon" Value="3"/><Field Name="Halogen" Value="4"/><Field Name="Other" Value="5"><Description>An emitter technology none of the above names.</Description></Field></Definition>
+  </UADataType>
+  <UAVariable NodeId="ns=1;i=3916" BrowseName="EnumStrings" ParentNodeId="ns=1;i=3016" DataType="LocalizedText" ValueRank="1" ArrayDimensions="6">
+    <DisplayName>EnumStrings</DisplayName>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=3016</Reference>
+    </References>
+    <Value><uax:ListOfLocalizedText xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd"><uax:LocalizedText><uax:Text>Led</uax:Text></uax:LocalizedText><uax:LocalizedText><uax:Text>Fluorescent</uax:Text></uax:LocalizedText><uax:LocalizedText><uax:Text>Laser</uax:Text></uax:LocalizedText><uax:LocalizedText><uax:Text>Xenon</uax:Text></uax:LocalizedText><uax:LocalizedText><uax:Text>Halogen</uax:Text></uax:LocalizedText><uax:LocalizedText><uax:Text>Other</uax:Text></uax:LocalizedText></uax:ListOfLocalizedText></Value>
+  </UAVariable>
+  <UADataType NodeId="ns=1;i=3017" BrowseName="1:VisionLightingModeEnum">
+    <DisplayName>VisionLightingModeEnum</DisplayName>
+    <Description>How a light source is being driven. The named values are those OPC 40100-2 gives as examples for ILightingControllerType.LightingMode, which is an unconstrained UInt32 there.</Description>
+    <Category>Vision DataTypes</Category>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=29</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=3917</Reference>
+    </References>
+    <Definition Name="VisionLightingModeEnum"><Field Name="Continuous" Value="0"><Description>Constant output, not synchronised to acquisition.</Description></Field><Field Name="Strobe" Value="1"><Description>Pulsed in synchronisation with acquisition, which is what makes a short exposure viable on a moving part.</Description></Field><Field Name="Modulated" Value="2"><Description>Driven at a carrier frequency, so the contribution of the illuminator can be separated from ambient light.</Description></Field><Field Name="Other" Value="3"><Description>A drive mode none of the above names.</Description></Field></Definition>
+  </UADataType>
+  <UAVariable NodeId="ns=1;i=3917" BrowseName="EnumStrings" ParentNodeId="ns=1;i=3017" DataType="LocalizedText" ValueRank="1" ArrayDimensions="4">
+    <DisplayName>EnumStrings</DisplayName>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=3017</Reference>
+    </References>
+    <Value><uax:ListOfLocalizedText xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd"><uax:LocalizedText><uax:Text>Continuous</uax:Text></uax:LocalizedText><uax:LocalizedText><uax:Text>Strobe</uax:Text></uax:LocalizedText><uax:LocalizedText><uax:Text>Modulated</uax:Text></uax:LocalizedText><uax:LocalizedText><uax:Text>Other</uax:Text></uax:LocalizedText></uax:ListOfLocalizedText></Value>
+  </UAVariable>
+  <UADataType NodeId="ns=1;i=3050" BrowseName="1:VisionPose3DDataType">
+    <DisplayName>VisionPose3DDataType</DisplayName>
+    <Description>A rigid-body pose expressed in a named coordinate frame. Position is metres; Orientation is a unit quaternion ordered (x, y, z, w). Covariance is an optional row-major 6x6 matrix over (x, y, z, rx, ry, rz); an empty array means the uncertainty is not reported.</Description>
+    <Category>Vision DataTypes</Category>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=22</Reference>
+      <Reference ReferenceType="HasEncoding">ns=1;i=5001</Reference>
+    </References>
+    <Definition Name="VisionPose3DDataType"><Field Name="FrameId" DataType="i=12"><Description>FrameId of the CoordinateFrame this pose is expressed in.</Description></Field><Field Name="Position" DataType="i=11" ValueRank="1" ArrayDimensions="3"><Description>Translation (x, y, z) in metres.</Description></Field><Field Name="Orientation" DataType="i=11" ValueRank="1" ArrayDimensions="4"><Description>Unit quaternion (x, y, z, w).</Description></Field><Field Name="Covariance" DataType="i=11" ValueRank="1" ArrayDimensions="36"><Description>Row-major 6x6 covariance, or empty.</Description></Field></Definition>
+  </UADataType>
+  <UAObject NodeId="ns=1;i=5001" BrowseName="Default Binary" SymbolicName="DefaultBinary">
+    <DisplayName>Default Binary</DisplayName>
+    <Description>Default Binary encoding of the structure.</Description>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
+      <Reference ReferenceType="HasEncoding" IsForward="false">ns=1;i=3050</Reference>
+    </References>
+  </UAObject>
+  <UADataType NodeId="ns=1;i=3051" BrowseName="1:VisionBoundingBox2DDataType">
+    <DisplayName>VisionBoundingBox2DDataType</DisplayName>
+    <Description>A box in image space. The origin is the top-left pixel; Rotation is degrees clockwise about the box centre, so 0 denotes an axis-aligned box.</Description>
+    <Category>Vision DataTypes</Category>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=22</Reference>
+      <Reference ReferenceType="HasEncoding">ns=1;i=5002</Reference>
+    </References>
+    <Definition Name="VisionBoundingBox2DDataType"><Field Name="CenterX" DataType="i=11"><Description>Box centre x, in pixels.</Description></Field><Field Name="CenterY" DataType="i=11"><Description>Box centre y, in pixels.</Description></Field><Field Name="Width" DataType="i=11"><Description>Box width, in pixels.</Description></Field><Field Name="Height" DataType="i=11"><Description>Box height, in pixels.</Description></Field><Field Name="Rotation" DataType="i=11"><Description>Rotation about the centre, in degrees.</Description></Field></Definition>
+  </UADataType>
+  <UAObject NodeId="ns=1;i=5002" BrowseName="Default Binary" SymbolicName="DefaultBinary">
+    <DisplayName>Default Binary</DisplayName>
+    <Description>Default Binary encoding of the structure.</Description>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
+      <Reference ReferenceType="HasEncoding" IsForward="false">ns=1;i=3051</Reference>
+    </References>
+  </UAObject>
+  <UADataType NodeId="ns=1;i=3052" BrowseName="1:VisionBoundingBox3DDataType">
+    <DisplayName>VisionBoundingBox3DDataType</DisplayName>
+    <Description>An oriented box in three-dimensional space, given by a centre pose and an extent.</Description>
+    <Category>Vision DataTypes</Category>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=22</Reference>
+      <Reference ReferenceType="HasEncoding">ns=1;i=5003</Reference>
+    </References>
+    <Definition Name="VisionBoundingBox3DDataType"><Field Name="Center" DataType="ns=1;i=3050"><Description>Centre pose of the box.</Description></Field><Field Name="Size" DataType="i=11" ValueRank="1" ArrayDimensions="3"><Description>Extent (x, y, z) in metres.</Description></Field></Definition>
+  </UADataType>
+  <UAObject NodeId="ns=1;i=5003" BrowseName="Default Binary" SymbolicName="DefaultBinary">
+    <DisplayName>Default Binary</DisplayName>
+    <Description>Default Binary encoding of the structure.</Description>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
+      <Reference ReferenceType="HasEncoding" IsForward="false">ns=1;i=3052</Reference>
+    </References>
+  </UAObject>
+  <UADataType NodeId="ns=1;i=3053" BrowseName="1:VisionImageReferenceDataType">
+    <DisplayName>VisionImageReferenceDataType</DisplayName>
+    <Description>A reference to image bytes that are NOT carried in the OPC UA payload. This is the default way results point at imagery: the Uri is resolved out-of-band, typically through a ClipEndpoint, and verified against Digest.</Description>
+    <Category>Vision DataTypes</Category>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=22</Reference>
+      <Reference ReferenceType="HasEncoding">ns=1;i=5004</Reference>
+    </References>
+    <Definition Name="VisionImageReferenceDataType"><Field Name="Uri" DataType="i=12"><Description>Location of the encoded image.</Description></Field><Field Name="Digest" DataType="i=15"><Description>Cryptographic digest of the referenced bytes.</Description></Field><Field Name="DigestAlgorithm" DataType="i=12"><Description>Digest algorithm; default SHA-256.</Description></Field><Field Name="Format" DataType="ns=1;i=3003"><Description>Container or encoding of the image.</Description></Field><Field Name="PixelFormat" DataType="i=12"><Description>Pixel format using GenICam PFNC naming, for example Mono8, BayerRG12 or RGB8.</Description></Field><Field Name="Width" DataType="i=7"><Description>Image width in pixels.</Description></Field><Field Name="Height" DataType="i=7"><Description>Image height in pixels.</Description></Field><Field Name="SizeBytes" DataType="i=7"><Description>Encoded size, so a client can decide whether to fetch.</Description></Field><Field Name="Timestamp" DataType="i=294"><Description>Acquisition time of the frame.</Description></Field></Definition>
+  </UADataType>
+  <UAObject NodeId="ns=1;i=5004" BrowseName="Default Binary" SymbolicName="DefaultBinary">
+    <DisplayName>Default Binary</DisplayName>
+    <Description>Default Binary encoding of the structure.</Description>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
+      <Reference ReferenceType="HasEncoding" IsForward="false">ns=1;i=3053</Reference>
+    </References>
+  </UAObject>
+  <UADataType NodeId="ns=1;i=3054" BrowseName="1:VisionIntrinsicsDataType">
+    <DisplayName>VisionIntrinsicsDataType</DisplayName>
+    <Description>Pinhole intrinsics plus a distortion model, in pixel units, valid for the stated image size. For a simulated sensor these are derived from the USD camera aperture and focal-length attributes.</Description>
+    <Category>Vision DataTypes</Category>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=22</Reference>
+      <Reference ReferenceType="HasEncoding">ns=1;i=5005</Reference>
+    </References>
+    <Definition Name="VisionIntrinsicsDataType"><Field Name="Fx" DataType="i=11"><Description>Focal length in pixels, x.</Description></Field><Field Name="Fy" DataType="i=11"><Description>Focal length in pixels, y.</Description></Field><Field Name="Cx" DataType="i=11"><Description>Principal point x, in pixels.</Description></Field><Field Name="Cy" DataType="i=11"><Description>Principal point y, in pixels.</Description></Field><Field Name="Skew" DataType="i=11"><Description>Axis skew; 0 for square pixels.</Description></Field><Field Name="DistortionModel" DataType="ns=1;i=3014"><Description>Model the coefficients belong to.</Description></Field><Field Name="DistortionCoefficients" DataType="i=11" ValueRank="1"><Description>Coefficients, model-ordered.</Description></Field><Field Name="Width" DataType="i=7"><Description>Image width these intrinsics are valid for.</Description></Field><Field Name="Height" DataType="i=7"><Description>Image height these intrinsics are valid for.</Description></Field></Definition>
+  </UADataType>
+  <UAObject NodeId="ns=1;i=5005" BrowseName="Default Binary" SymbolicName="DefaultBinary">
+    <DisplayName>Default Binary</DisplayName>
+    <Description>Default Binary encoding of the structure.</Description>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
+      <Reference ReferenceType="HasEncoding" IsForward="false">ns=1;i=3054</Reference>
+    </References>
+  </UAObject>
+  <UADataType NodeId="ns=1;i=3055" BrowseName="1:VisionDetectionDataType">
+    <DisplayName>VisionDetectionDataType</DisplayName>
+    <Description>One detected instance. This is the robotics-vision payload: a class, a score, and enough geometry to act on - a 2-D box for image-space work, a 3-D box and a 6-DoF pose for picking and visual servoing. Field naming follows the ROS 2 vision_msgs conventions so that a bridge is mechanical.</Description>
+    <Category>Vision DataTypes</Category>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=22</Reference>
+      <Reference ReferenceType="HasEncoding">ns=1;i=5006</Reference>
+    </References>
+    <Definition Name="VisionDetectionDataType"><Field Name="DetectionId" DataType="i=12"><Description>Identifier unique within the result.</Description></Field><Field Name="ClassLabel" DataType="i=12"><Description>Human-readable class name.</Description></Field><Field Name="ClassId" DataType="i=7"><Description>Numeric class identifier within the model label set.</Description></Field><Field Name="Confidence" DataType="i=11"><Description>Score in the range 0.0 to 1.0.</Description></Field><Field Name="HasBoundingBox2D" DataType="i=1"><Description>True when BoundingBox2D is meaningful.</Description></Field><Field Name="BoundingBox2D" DataType="ns=1;i=3051"><Description>Image-space box.</Description></Field><Field Name="HasBoundingBox3D" DataType="i=1"><Description>True when BoundingBox3D is meaningful.</Description></Field><Field Name="BoundingBox3D" DataType="ns=1;i=3052"><Description>Object-space box.</Description></Field><Field Name="HasPose" DataType="i=1"><Description>True when Pose is meaningful.</Description></Field><Field Name="Pose" DataType="ns=1;i=3050"><Description>6-DoF pose, for example a grasp pose.</Description></Field><Field Name="TrackId" DataType="i=12"><Description>Stable identity across frames, when tracking is done.</Description></Field></Definition>
+  </UADataType>
+  <UAObject NodeId="ns=1;i=5006" BrowseName="Default Binary" SymbolicName="DefaultBinary">
+    <DisplayName>Default Binary</DisplayName>
+    <Description>Default Binary encoding of the structure.</Description>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
+      <Reference ReferenceType="HasEncoding" IsForward="false">ns=1;i=3055</Reference>
+    </References>
+  </UAObject>
+  <UADataType NodeId="ns=1;i=3056" BrowseName="1:VisionCharacteristicDataType">
+    <DisplayName>VisionCharacteristicDataType</DisplayName>
+    <Description>One measured characteristic of an inspected part. This is the machine-vision payload, and the field set deliberately mirrors QIF (ISO 23952) Results, including measurement uncertainty, so that a QIF document can be produced from it without inventing information.</Description>
+    <Category>Vision DataTypes</Category>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=22</Reference>
+      <Reference ReferenceType="HasEncoding">ns=1;i=5007</Reference>
+    </References>
+    <Definition Name="VisionCharacteristicDataType"><Field Name="CharacteristicId" DataType="i=12"><Description>Identifier of the characteristic measured.</Description></Field><Field Name="Name" DataType="i=12"><Description>Human-readable characteristic name.</Description></Field><Field Name="Nominal" DataType="i=11"><Description>Design or target value.</Description></Field><Field Name="Actual" DataType="i=11"><Description>Measured value.</Description></Field><Field Name="Deviation" DataType="i=11"><Description>Actual minus Nominal.</Description></Field><Field Name="LowerTolerance" DataType="i=11"><Description>Lower tolerance limit, relative to Nominal.</Description></Field><Field Name="UpperTolerance" DataType="i=11"><Description>Upper tolerance limit, relative to Nominal.</Description></Field><Field Name="Uncertainty" DataType="i=11"><Description>Expanded measurement uncertainty (ISO 14253), in the same unit as Actual. 0 means not reported.</Description></Field><Field Name="Unit" DataType="i=887"><Description>Engineering unit of Nominal, Actual and Deviation.</Description></Field><Field Name="Status" DataType="ns=1;i=3010"><Description>Per-characteristic outcome.</Description></Field></Definition>
+  </UADataType>
+  <UAObject NodeId="ns=1;i=5007" BrowseName="Default Binary" SymbolicName="DefaultBinary">
+    <DisplayName>Default Binary</DisplayName>
+    <Description>Default Binary encoding of the structure.</Description>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
+      <Reference ReferenceType="HasEncoding" IsForward="false">ns=1;i=3056</Reference>
+    </References>
+  </UAObject>
+  <UADataType NodeId="ns=1;i=3057" BrowseName="1:VisionStreamSessionDataType">
+    <DisplayName>VisionStreamSessionDataType</DisplayName>
+    <Description>A leased media session. The Uri may embed a single-use or time-limited credential, which is why it is returned by a Method rather than published as a browsable Variable.</Description>
+    <Category>Vision DataTypes</Category>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=22</Reference>
+      <Reference ReferenceType="HasEncoding">ns=1;i=5008</Reference>
+    </References>
+    <Definition Name="VisionStreamSessionDataType"><Field Name="SessionToken" DataType="i=15"><Description>Opaque token identifying the lease.</Description></Field><Field Name="Uri" DataType="i=12"><Description>Media URI to open.</Description></Field><Field Name="Protocol" DataType="ns=1;i=3002"><Description>Protocol of the returned URI.</Description></Field><Field Name="ExpiresAt" DataType="i=294"><Description>Expiry after which the Uri is no longer valid.</Description></Field></Definition>
+  </UADataType>
+  <UAObject NodeId="ns=1;i=5008" BrowseName="Default Binary" SymbolicName="DefaultBinary">
+    <DisplayName>Default Binary</DisplayName>
+    <Description>Default Binary encoding of the structure.</Description>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
+      <Reference ReferenceType="HasEncoding" IsForward="false">ns=1;i=3057</Reference>
+    </References>
+  </UAObject>
+  <UAReferenceType NodeId="ns=1;i=4001" BrowseName="1:HasCalibration">
+    <DisplayName>HasCalibration</DisplayName>
+    <Description>Links a sensor to a calibration currently valid for it.</Description>
+    <Category>Vision ReferenceTypes</Category>
+    <InverseName>IsCalibrationOf</InverseName>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=32</Reference>
+    </References>
+  </UAReferenceType>
+  <UAReferenceType NodeId="ns=1;i=4002" BrowseName="1:MountedOn">
+    <DisplayName>MountedOn</DisplayName>
+    <Description>Links a sensor to the CoordinateFrame it is rigidly mounted on, for example a robot flange frame for an eye-in-hand camera.</Description>
+    <Category>Vision ReferenceTypes</Category>
+    <InverseName>HasMounted</InverseName>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=32</Reference>
+    </References>
+  </UAReferenceType>
+  <UAReferenceType NodeId="ns=1;i=4003" BrowseName="1:HasScenePrim">
+    <DisplayName>HasScenePrim</DisplayName>
+    <Description>Links a sensor to the materialized USD prim representing it, when the Server also implements OPC UA - OpenUSD Scene Materialization. The target is expected to be a UsdGeomCameraType instance. Optional: PrimPath remains the portable descriptor.</Description>
+    <Category>Vision ReferenceTypes</Category>
+    <InverseName>IsScenePrimOf</InverseName>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=32</Reference>
+    </References>
+  </UAReferenceType>
+  <UAReferenceType NodeId="ns=1;i=4005" BrowseName="1:ProducedBy">
+    <DisplayName>ProducedBy</DisplayName>
+    <Description>Links a result to the inference pipeline that produced it.</Description>
+    <Category>Vision ReferenceTypes</Category>
+    <InverseName>Produces</InverseName>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=32</Reference>
+    </References>
+  </UAReferenceType>
+  <UAObjectType NodeId="ns=1;i=1005" BrowseName="1:OpticsType">
+    <DisplayName>OpticsType</DisplayName>
+    <Description>The lens in front of a sensor. Member names are deliberately aligned with the ILensType of OPC 40100-2 so that a Server implementing both models reports one set of values under two vocabularies.</Description>
+    <Category>Vision</Category>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=58</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6001</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6002</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6003</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6004</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6005</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6006</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6007</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6008</Reference>
+    </References>
+  </UAObjectType>
+  <UAVariable NodeId="ns=1;i=6001" BrowseName="1:FocalLength" ParentNodeId="ns=1;i=1005" DataType="Double" ValueRank="-1">
+    <DisplayName>FocalLength</DisplayName>
+    <Description>Focal length in millimetres.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1005</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6002" BrowseName="1:Aperture" ParentNodeId="ns=1;i=1005" DataType="Double" ValueRank="-1">
+    <DisplayName>Aperture</DisplayName>
+    <Description>Current aperture as an f-number.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1005</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6003" BrowseName="1:WorkingDistance" ParentNodeId="ns=1;i=1005" DataType="Double" ValueRank="-1">
+    <DisplayName>WorkingDistance</DisplayName>
+    <Description>Current object-to-lens distance in metres.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1005</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6004" BrowseName="1:MinimumWorkingDistance" ParentNodeId="ns=1;i=1005" DataType="Double" ValueRank="-1">
+    <DisplayName>MinimumWorkingDistance</DisplayName>
+    <Description>Smallest usable object-to-lens distance in metres.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1005</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6005" BrowseName="1:Magnification" ParentNodeId="ns=1;i=1005" DataType="Double" ValueRank="-1">
+    <DisplayName>Magnification</DisplayName>
+    <Description>Image size divided by object size.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1005</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6006" BrowseName="1:OpticalFormat" ParentNodeId="ns=1;i=1005" DataType="String" ValueRank="-1">
+    <DisplayName>OpticalFormat</DisplayName>
+    <Description>Largest sensor diagonal the lens covers, for example 2/3 inch.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1005</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6007" BrowseName="1:MountType" ParentNodeId="ns=1;i=1005" DataType="String" ValueRank="-1">
+    <DisplayName>MountType</DisplayName>
+    <Description>Lens mount, for example C, CS, F or M12.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1005</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6008" BrowseName="1:LensType" ParentNodeId="ns=1;i=1005" DataType="String" ValueRank="-1">
+    <DisplayName>LensType</DisplayName>
+    <Description>Lens class, for example Entocentric, Telecentric or Fisheye.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1005</Reference>
+    </References>
+  </UAVariable>
+  <UAObjectType NodeId="ns=1;i=1006" BrowseName="1:IlluminationType">
+    <DisplayName>IlluminationType</DisplayName>
+    <Description>A controlled light source associated with a sensor. Member names align with the ILampType and ILightingControllerType of OPC 40100-2.</Description>
+    <Category>Vision</Category>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=58</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6009</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6010</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6011</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6012</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6013</Reference>
+    </References>
+  </UAObjectType>
+  <UAVariable NodeId="ns=1;i=6009" BrowseName="1:LampType" ParentNodeId="ns=1;i=1006" DataType="ns=1;i=3016" ValueRank="-1">
+    <DisplayName>LampType</DisplayName>
+    <Description>Emitter technology of this light source.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1006</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6010" BrowseName="1:Wavelength" ParentNodeId="ns=1;i=1006" DataType="Double" ValueRank="-1">
+    <DisplayName>Wavelength</DisplayName>
+    <Description>Dominant emission wavelength in nanometres.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1006</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6011" BrowseName="1:RelativeIntensity" ParentNodeId="ns=1;i=1006" DataType="Double" ValueRank="-1">
+    <DisplayName>RelativeIntensity</DisplayName>
+    <Description>Current output as a percentage of full capability.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1006</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6012" BrowseName="1:LightingMode" ParentNodeId="ns=1;i=1006" DataType="ns=1;i=3017" ValueRank="-1">
+    <DisplayName>LightingMode</DisplayName>
+    <Description>How this light source is currently being driven.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1006</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6013" BrowseName="1:Quality" ParentNodeId="ns=1;i=1006" DataType="Double" ValueRank="-1">
+    <DisplayName>Quality</DisplayName>
+    <Description>Remaining emitter quality as a percentage; 100 is new.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1006</Reference>
+    </References>
+  </UAVariable>
+  <UAObjectType NodeId="ns=1;i=1007" BrowseName="1:MediaEndpointType" IsAbstract="true">
+    <DisplayName>MediaEndpointType</DisplayName>
+    <Description>Abstract base for a media access point. The endpoint DESCRIBES where media can be obtained; on the default path the media itself never traverses OPC UA. Subtypes add the protocol- or format-specific members.</Description>
+    <Category>Vision</Category>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=58</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6014</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6015</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6016</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6017</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6018</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6019</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6196</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6197</Reference>
+    </References>
+  </UAObjectType>
+  <UAVariable NodeId="ns=1;i=6014" BrowseName="1:EndpointId" ParentNodeId="ns=1;i=1007" DataType="String" ValueRank="-1">
+    <DisplayName>EndpointId</DisplayName>
+    <Description>Identifier of this endpoint, unique within the sensor.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1007</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6015" BrowseName="1:EndpointUri" ParentNodeId="ns=1;i=1007" DataType="String" ValueRank="-1">
+    <DisplayName>EndpointUri</DisplayName>
+    <Description>Base URI at which the media is served. May be a template that GetStreamEndpoint or GetClip resolves into a session-specific URI.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1007</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6016" BrowseName="1:State" ParentNodeId="ns=1;i=1007" DataType="ns=1;i=3005" ValueRank="-1">
+    <DisplayName>State</DisplayName>
+    <Description>Runtime state of this endpoint.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1007</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6017" BrowseName="1:Authentication" ParentNodeId="ns=1;i=1007" DataType="ns=1;i=3006" ValueRank="-1">
+    <DisplayName>Authentication</DisplayName>
+    <Description>Credential the media plane requires. Independent of the OPC UA session.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1007</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6018" BrowseName="1:SecureTransport" ParentNodeId="ns=1;i=1007" DataType="Boolean" ValueRank="-1">
+    <DisplayName>SecureTransport</DisplayName>
+    <Description>True when the media transport itself provides confidentiality, for example RTSPS, SRT with encryption, or HTTPS. Mandatory because clause 12.2 evaluates credential issuance on it: a Server SHALL NOT return a URI embedding a credential unless this is true and the OPC UA SecureChannel is SignAndEncrypt. A client SHALL treat false as meaning the media transport offers no confidentiality, whatever Authentication states.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1007</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6019" BrowseName="1:DefaultProfileName" ParentNodeId="ns=1;i=1007" DataType="String" ValueRank="-1">
+    <DisplayName>DefaultProfileName</DisplayName>
+    <Description>Name of the profile this endpoint uses when GetStreamEndpoint is called with an empty ProfileName. A profile is a Server-local named configuration and has no node of its own, so this is the one profile name a client can rely on without prior knowledge of the Server. Empty means the endpoint has a single configuration and takes no profile name at all. See clause 6.3.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1007</Reference>
+    </References>
+  </UAVariable>
+  <UAObjectType NodeId="ns=1;i=1008" BrowseName="1:StreamEndpointType">
+    <DisplayName>StreamEndpointType</DisplayName>
+    <Description>A continuous media stream. A conformant Server SHALL expose at least one instance whose StreamProtocol is Rtsp; every other protocol is optional. This is the default way to obtain live imagery.</Description>
+    <Category>Vision</Category>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">ns=1;i=1007</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6020</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6021</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6022</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6023</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6024</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6025</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6026</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6027</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6028</Reference>
+    </References>
+  </UAObjectType>
+  <UAVariable NodeId="ns=1;i=6020" BrowseName="1:StreamProtocol" ParentNodeId="ns=1;i=1008" DataType="ns=1;i=3002" ValueRank="-1">
+    <DisplayName>StreamProtocol</DisplayName>
+    <Description>Protocol of this stream. Rtsp is the mandatory default.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1008</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6021" BrowseName="1:ProtocolVersion" ParentNodeId="ns=1;i=1008" DataType="String" ValueRank="-1">
+    <DisplayName>ProtocolVersion</DisplayName>
+    <Description>Version of StreamProtocol served, e.g. '1.0' for RTSP/1.0 (RFC 2326) or '2.0' for RTSP/2.0 (RFC 7826). RTSP 2.0 is not backward compatible with 1.0, so a client that must interoperate without probing reads this.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1008</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6022" BrowseName="1:Codec" ParentNodeId="ns=1;i=1008" DataType="ns=1;i=3004" ValueRank="-1">
+    <DisplayName>Codec</DisplayName>
+    <Description>Codec carried by the stream.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1008</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6023" BrowseName="1:Width" ParentNodeId="ns=1;i=1008" DataType="UInt32" ValueRank="-1">
+    <DisplayName>Width</DisplayName>
+    <Description>Streamed frame width in pixels.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1008</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6024" BrowseName="1:Height" ParentNodeId="ns=1;i=1008" DataType="UInt32" ValueRank="-1">
+    <DisplayName>Height</DisplayName>
+    <Description>Streamed frame height in pixels.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1008</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6025" BrowseName="1:FrameRate" ParentNodeId="ns=1;i=1008" DataType="Double" ValueRank="-1">
+    <DisplayName>FrameRate</DisplayName>
+    <Description>Streamed frames per second.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1008</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6026" BrowseName="1:Bitrate" ParentNodeId="ns=1;i=1008" DataType="UInt32" ValueRank="-1">
+    <DisplayName>Bitrate</DisplayName>
+    <Description>Target bitrate in bits per second.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1008</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6027" BrowseName="1:MaxSessions" ParentNodeId="ns=1;i=1008" DataType="UInt32" ValueRank="-1">
+    <DisplayName>MaxSessions</DisplayName>
+    <Description>Maximum concurrent sessions this endpoint will serve.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1008</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6028" BrowseName="1:ActiveSessions" ParentNodeId="ns=1;i=1008" DataType="UInt32" ValueRank="-1">
+    <DisplayName>ActiveSessions</DisplayName>
+    <Description>Sessions currently leased.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1008</Reference>
+    </References>
+  </UAVariable>
+  <UAObjectType NodeId="ns=1;i=1009" BrowseName="1:ClipEndpointType">
+    <DisplayName>ClipEndpointType</DisplayName>
+    <Description>A still-image access point. A conformant Server SHALL expose at least one instance whose ClipFormat is Jpeg; every other format is optional. In addition to the default URI path, this type MAY publish the encoded image inline as a ByteString so that clients can Read or Subscribe to it - but only within MaxInlineClipSize, which SHALL NOT exceed the Server's ServerCapabilities.MaxByteStringLength. Inline delivery serves single stills; it is not a substitute for a StreamEndpoint.</Description>
+    <Category>Vision</Category>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">ns=1;i=1007</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6029</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6030</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6031</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6032</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6033</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6034</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6035</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=6036</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=6037</Reference>
+    </References>
+  </UAObjectType>
+  <UAVariable NodeId="ns=1;i=6029" BrowseName="1:ClipFormat" ParentNodeId="ns=1;i=1009" DataType="ns=1;i=3003" ValueRank="-1">
+    <DisplayName>ClipFormat</DisplayName>
+    <Description>Encoding of clips from this endpoint. Jpeg is the mandatory default.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1009</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6030" BrowseName="1:Quality" ParentNodeId="ns=1;i=1009" DataType="UInt32" ValueRank="-1">
+    <DisplayName>Quality</DisplayName>
+    <Description>Encoder quality 0 to 100 where the format defines one, for example JPEG.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1009</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6031" BrowseName="1:Width" ParentNodeId="ns=1;i=1009" DataType="UInt32" ValueRank="-1">
+    <DisplayName>Width</DisplayName>
+    <Description>Clip width in pixels.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1009</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6032" BrowseName="1:Height" ParentNodeId="ns=1;i=1009" DataType="UInt32" ValueRank="-1">
+    <DisplayName>Height</DisplayName>
+    <Description>Clip height in pixels.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1009</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6033" BrowseName="1:Retention" ParentNodeId="ns=1;i=1009" DataType="Duration" ValueRank="-1">
+    <DisplayName>Retention</DisplayName>
+    <Description>How long a generated clip remains retrievable at its Uri.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1009</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6034" BrowseName="1:InlineDeliveryEnabled" ParentNodeId="ns=1;i=1009" DataType="Boolean" ValueRank="-1">
+    <DisplayName>InlineDeliveryEnabled</DisplayName>
+    <Description>True when LatestClip is published. False, the default, means clients use the URI path exclusively.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1009</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6035" BrowseName="1:MaxInlineClipSize" ParentNodeId="ns=1;i=1009" DataType="UInt32" ValueRank="-1">
+    <DisplayName>MaxInlineClipSize</DisplayName>
+    <Description>Largest inline payload this endpoint will publish, in bytes. SHALL NOT exceed Server.ServerCapabilities.MaxByteStringLength, and a Read or Publish response carrying the value is additionally bounded by the Session's MaxResponseMessageSize. See clause 6.4.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1009</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6036" BrowseName="1:LatestClip" ParentNodeId="ns=1;i=1009" DataType="ByteString" ValueRank="-1">
+    <DisplayName>LatestClip</DisplayName>
+    <Description>The most recently produced clip, encoded per ClipFormat. Subscribable: the value changes once per acquisition, which suits one-image-per-part inspection. When the encoded image exceeds MaxInlineClipSize the Server SHALL set the StatusCode to Bad_EncodingLimitsExceeded, and the client SHALL fall back to LatestClipMetadata.Uri, which remains valid.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=63</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1009</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6037" BrowseName="1:LatestClipMetadata" ParentNodeId="ns=1;i=1009" DataType="ns=1;i=3053" ValueRank="-1">
+    <DisplayName>LatestClipMetadata</DisplayName>
+    <Description>Descriptor of LatestClip, including the out-of-band Uri and Digest. Populated whenever a clip exists, whether or not the bytes are published inline.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=63</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1009</Reference>
+    </References>
+  </UAVariable>
+  <UAObjectType NodeId="ns=1;i=1010" BrowseName="1:VisionMediaManagementType">
+    <DisplayName>VisionMediaManagementType</DisplayName>
+    <Description>Container and control surface for a sensor's media endpoints. Holds the endpoint folders and the Methods that select, configure and lease them.</Description>
+    <Category>Vision</Category>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=58</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=6038</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=6040</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6042</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6043</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=6044</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=6047</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=6049</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=6051</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=6053</Reference>
+    </References>
+  </UAObjectType>
+  <UAObject NodeId="ns=1;i=6038" BrowseName="1:StreamEndpoints" ParentNodeId="ns=1;i=1010">
+    <DisplayName>StreamEndpoints</DisplayName>
+    <Description>StreamEndpointType instances offered by this sensor. At least one uses Rtsp.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=61</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1010</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=6039</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="ns=1;i=6039" BrowseName="1:&lt;StreamEndpoint&gt;" ParentNodeId="ns=1;i=6038">
+    <DisplayName>&lt;StreamEndpoint&gt;</DisplayName>
+    <Description>A stream endpoint offered by this sensor.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=11510</Reference>
+      <Reference ReferenceType="HasTypeDefinition">ns=1;i=1008</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=6038</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="ns=1;i=6040" BrowseName="1:ClipEndpoints" ParentNodeId="ns=1;i=1010">
+    <DisplayName>ClipEndpoints</DisplayName>
+    <Description>ClipEndpointType instances offered by this sensor. At least one uses Jpeg.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=61</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1010</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=6041</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="ns=1;i=6041" BrowseName="1:&lt;ClipEndpoint&gt;" ParentNodeId="ns=1;i=6040">
+    <DisplayName>&lt;ClipEndpoint&gt;</DisplayName>
+    <Description>A clip endpoint offered by this sensor.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=11510</Reference>
+      <Reference ReferenceType="HasTypeDefinition">ns=1;i=1009</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=6040</Reference>
+    </References>
+  </UAObject>
+  <UAVariable NodeId="ns=1;i=6042" BrowseName="1:PreferredStreamEndpoint" ParentNodeId="ns=1;i=1010" DataType="NodeId" ValueRank="-1">
+    <DisplayName>PreferredStreamEndpoint</DisplayName>
+    <Description>The StreamEndpoint a client should use unless it has a reason not to.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1010</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6043" BrowseName="1:PreferredClipEndpoint" ParentNodeId="ns=1;i=1010" DataType="NodeId" ValueRank="-1">
+    <DisplayName>PreferredClipEndpoint</DisplayName>
+    <Description>The ClipEndpoint a client should use unless it has a reason not to.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1010</Reference>
+    </References>
+  </UAVariable>
+  <UAMethod NodeId="ns=1;i=6044" BrowseName="1:GetStreamEndpoint" ParentNodeId="ns=1;i=1010">
+    <DisplayName>GetStreamEndpoint</DisplayName>
+    <Description>Lease a stream. Returns a session descriptor whose Uri may embed a time-limited credential; the client opens that Uri with the media protocol. The preferred protocol is advisory - the Server returns what it can serve, which is at minimum RTSP.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1010</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6045</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6046</Reference>
+    </References>
+  </UAMethod>
+  <UAVariable NodeId="ns=1;i=6045" BrowseName="InputArguments" ParentNodeId="ns=1;i=6044" DataType="Argument" ValueRank="1" ArrayDimensions="3">
+    <DisplayName>InputArguments</DisplayName>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=6044</Reference>
+    </References>
+    <Value><uax:ListOfExtensionObject xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd"><uax:ExtensionObject><uax:TypeId><uax:Identifier>i=297</uax:Identifier></uax:TypeId><uax:Body><uax:Argument><uax:Name>Endpoint</uax:Name><uax:DataType><uax:Identifier>i=17</uax:Identifier></uax:DataType><uax:ValueRank>-1</uax:ValueRank><uax:ArrayDimensions/><uax:Description><uax:Text>StreamEndpoint to lease. Null selects PreferredStreamEndpoint, or, when that is also null, the first endpoint in StreamEndpoints in BrowseName order that satisfies the request.</uax:Text></uax:Description></uax:Argument></uax:Body></uax:ExtensionObject><uax:ExtensionObject><uax:TypeId><uax:Identifier>i=297</uax:Identifier></uax:TypeId><uax:Body><uax:Argument><uax:Name>ProfileName</uax:Name><uax:DataType><uax:Identifier>i=12</uax:Identifier></uax:DataType><uax:ValueRank>-1</uax:ValueRank><uax:ArrayDimensions/><uax:Description><uax:Text>Requested profile, or empty for the default.</uax:Text></uax:Description></uax:Argument></uax:Body></uax:ExtensionObject><uax:ExtensionObject><uax:TypeId><uax:Identifier>i=297</uax:Identifier></uax:TypeId><uax:Body><uax:Argument><uax:Name>PreferredProtocol</uax:Name><uax:DataType><uax:Identifier>ns=1;i=3002</uax:Identifier></uax:DataType><uax:ValueRank>-1</uax:ValueRank><uax:ArrayDimensions/><uax:Description><uax:Text>Advisory protocol preference.</uax:Text></uax:Description></uax:Argument></uax:Body></uax:ExtensionObject></uax:ListOfExtensionObject></Value>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6046" BrowseName="OutputArguments" ParentNodeId="ns=1;i=6044" DataType="Argument" ValueRank="1" ArrayDimensions="2">
+    <DisplayName>OutputArguments</DisplayName>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=6044</Reference>
+    </References>
+    <Value><uax:ListOfExtensionObject xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd"><uax:ExtensionObject><uax:TypeId><uax:Identifier>i=297</uax:Identifier></uax:TypeId><uax:Body><uax:Argument><uax:Name>Session</uax:Name><uax:DataType><uax:Identifier>ns=1;i=3057</uax:Identifier></uax:DataType><uax:ValueRank>-1</uax:ValueRank><uax:ArrayDimensions/><uax:Description><uax:Text>The leased session.</uax:Text></uax:Description></uax:Argument></uax:Body></uax:ExtensionObject><uax:ExtensionObject><uax:TypeId><uax:Identifier>i=297</uax:Identifier></uax:TypeId><uax:Body><uax:Argument><uax:Name>Endpoint</uax:Name><uax:DataType><uax:Identifier>i=17</uax:Identifier></uax:DataType><uax:ValueRank>-1</uax:ValueRank><uax:ArrayDimensions/><uax:Description><uax:Text>The StreamEndpoint that was leased.</uax:Text></uax:Description></uax:Argument></uax:Body></uax:ExtensionObject></uax:ListOfExtensionObject></Value>
+  </UAVariable>
+  <UAMethod NodeId="ns=1;i=6047" BrowseName="1:ReleaseStreamEndpoint" ParentNodeId="ns=1;i=1010">
+    <DisplayName>ReleaseStreamEndpoint</DisplayName>
+    <Description>Release a previously leased stream session. A Server SHALL also expire leases automatically at ExpiresAt.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1010</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6048</Reference>
+    </References>
+  </UAMethod>
+  <UAVariable NodeId="ns=1;i=6048" BrowseName="InputArguments" ParentNodeId="ns=1;i=6047" DataType="Argument" ValueRank="1" ArrayDimensions="1">
+    <DisplayName>InputArguments</DisplayName>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=6047</Reference>
+    </References>
+    <Value><uax:ListOfExtensionObject xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd"><uax:ExtensionObject><uax:TypeId><uax:Identifier>i=297</uax:Identifier></uax:TypeId><uax:Body><uax:Argument><uax:Name>SessionToken</uax:Name><uax:DataType><uax:Identifier>i=15</uax:Identifier></uax:DataType><uax:ValueRank>-1</uax:ValueRank><uax:ArrayDimensions/><uax:Description><uax:Text>Token from GetStreamEndpoint.</uax:Text></uax:Description></uax:Argument></uax:Body></uax:ExtensionObject></uax:ListOfExtensionObject></Value>
+  </UAVariable>
+  <UAMethod NodeId="ns=1;i=6049" BrowseName="1:ConfigureStreamEndpoint" ParentNodeId="ns=1;i=1010">
+    <DisplayName>ConfigureStreamEndpoint</DisplayName>
+    <Description>Change the encoding parameters of a stream endpoint. A Server MAY reject or clamp values it cannot serve; the resulting effective values are readable on the endpoint.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1010</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6050</Reference>
+    </References>
+  </UAMethod>
+  <UAVariable NodeId="ns=1;i=6050" BrowseName="InputArguments" ParentNodeId="ns=1;i=6049" DataType="Argument" ValueRank="1" ArrayDimensions="6">
+    <DisplayName>InputArguments</DisplayName>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=6049</Reference>
+    </References>
+    <Value><uax:ListOfExtensionObject xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd"><uax:ExtensionObject><uax:TypeId><uax:Identifier>i=297</uax:Identifier></uax:TypeId><uax:Body><uax:Argument><uax:Name>Endpoint</uax:Name><uax:DataType><uax:Identifier>i=17</uax:Identifier></uax:DataType><uax:ValueRank>-1</uax:ValueRank><uax:ArrayDimensions/><uax:Description><uax:Text>StreamEndpoint to configure.</uax:Text></uax:Description></uax:Argument></uax:Body></uax:ExtensionObject><uax:ExtensionObject><uax:TypeId><uax:Identifier>i=297</uax:Identifier></uax:TypeId><uax:Body><uax:Argument><uax:Name>Codec</uax:Name><uax:DataType><uax:Identifier>ns=1;i=3004</uax:Identifier></uax:DataType><uax:ValueRank>-1</uax:ValueRank><uax:ArrayDimensions/><uax:Description><uax:Text>Requested codec.</uax:Text></uax:Description></uax:Argument></uax:Body></uax:ExtensionObject><uax:ExtensionObject><uax:TypeId><uax:Identifier>i=297</uax:Identifier></uax:TypeId><uax:Body><uax:Argument><uax:Name>Width</uax:Name><uax:DataType><uax:Identifier>i=7</uax:Identifier></uax:DataType><uax:ValueRank>-1</uax:ValueRank><uax:ArrayDimensions/><uax:Description><uax:Text>Requested width in pixels.</uax:Text></uax:Description></uax:Argument></uax:Body></uax:ExtensionObject><uax:ExtensionObject><uax:TypeId><uax:Identifier>i=297</uax:Identifier></uax:TypeId><uax:Body><uax:Argument><uax:Name>Height</uax:Name><uax:DataType><uax:Identifier>i=7</uax:Identifier></uax:DataType><uax:ValueRank>-1</uax:ValueRank><uax:ArrayDimensions/><uax:Description><uax:Text>Requested height in pixels.</uax:Text></uax:Description></uax:Argument></uax:Body></uax:ExtensionObject><uax:ExtensionObject><uax:TypeId><uax:Identifier>i=297</uax:Identifier></uax:TypeId><uax:Body><uax:Argument><uax:Name>FrameRate</uax:Name><uax:DataType><uax:Identifier>i=11</uax:Identifier></uax:DataType><uax:ValueRank>-1</uax:ValueRank><uax:ArrayDimensions/><uax:Description><uax:Text>Requested frames per second.</uax:Text></uax:Description></uax:Argument></uax:Body></uax:ExtensionObject><uax:ExtensionObject><uax:TypeId><uax:Identifier>i=297</uax:Identifier></uax:TypeId><uax:Body><uax:Argument><uax:Name>Bitrate</uax:Name><uax:DataType><uax:Identifier>i=7</uax:Identifier></uax:DataType><uax:ValueRank>-1</uax:ValueRank><uax:ArrayDimensions/><uax:Description><uax:Text>Requested bitrate in bits per second.</uax:Text></uax:Description></uax:Argument></uax:Body></uax:ExtensionObject></uax:ListOfExtensionObject></Value>
+  </UAVariable>
+  <UAMethod NodeId="ns=1;i=6051" BrowseName="1:SelectEndpoint" ParentNodeId="ns=1;i=1010">
+    <DisplayName>SelectEndpoint</DisplayName>
+    <Description>Designate the preferred stream and clip endpoints, updating PreferredStreamEndpoint and PreferredClipEndpoint.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1010</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6052</Reference>
+    </References>
+  </UAMethod>
+  <UAVariable NodeId="ns=1;i=6052" BrowseName="InputArguments" ParentNodeId="ns=1;i=6051" DataType="Argument" ValueRank="1" ArrayDimensions="2">
+    <DisplayName>InputArguments</DisplayName>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=6051</Reference>
+    </References>
+    <Value><uax:ListOfExtensionObject xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd"><uax:ExtensionObject><uax:TypeId><uax:Identifier>i=297</uax:Identifier></uax:TypeId><uax:Body><uax:Argument><uax:Name>StreamEndpoint</uax:Name><uax:DataType><uax:Identifier>i=17</uax:Identifier></uax:DataType><uax:ValueRank>-1</uax:ValueRank><uax:ArrayDimensions/><uax:Description><uax:Text>Preferred stream endpoint, or null to leave unchanged.</uax:Text></uax:Description></uax:Argument></uax:Body></uax:ExtensionObject><uax:ExtensionObject><uax:TypeId><uax:Identifier>i=297</uax:Identifier></uax:TypeId><uax:Body><uax:Argument><uax:Name>ClipEndpoint</uax:Name><uax:DataType><uax:Identifier>i=17</uax:Identifier></uax:DataType><uax:ValueRank>-1</uax:ValueRank><uax:ArrayDimensions/><uax:Description><uax:Text>Preferred clip endpoint, or null to leave unchanged.</uax:Text></uax:Description></uax:Argument></uax:Body></uax:ExtensionObject></uax:ListOfExtensionObject></Value>
+  </UAVariable>
+  <UAMethod NodeId="ns=1;i=6053" BrowseName="1:GetClip" ParentNodeId="ns=1;i=1010">
+    <DisplayName>GetClip</DisplayName>
+    <Description>Obtain a still image: either the frame associated with a given ResultId, or the frame nearest a timestamp. The returned descriptor always carries a Uri. The bytes are returned inline only when RequestInline is true AND the encoded image fits MaxInlineClipSize; otherwise InlineImage is empty and the client uses the Uri.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1010</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6054</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6055</Reference>
+    </References>
+  </UAMethod>
+  <UAVariable NodeId="ns=1;i=6054" BrowseName="InputArguments" ParentNodeId="ns=1;i=6053" DataType="Argument" ValueRank="1" ArrayDimensions="5">
+    <DisplayName>InputArguments</DisplayName>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=6053</Reference>
+    </References>
+    <Value><uax:ListOfExtensionObject xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd"><uax:ExtensionObject><uax:TypeId><uax:Identifier>i=297</uax:Identifier></uax:TypeId><uax:Body><uax:Argument><uax:Name>Endpoint</uax:Name><uax:DataType><uax:Identifier>i=17</uax:Identifier></uax:DataType><uax:ValueRank>-1</uax:ValueRank><uax:ArrayDimensions/><uax:Description><uax:Text>ClipEndpoint to use. Null selects PreferredClipEndpoint, or, when that is also null, the first endpoint in ClipEndpoints in BrowseName order that supports Format.</uax:Text></uax:Description></uax:Argument></uax:Body></uax:ExtensionObject><uax:ExtensionObject><uax:TypeId><uax:Identifier>i=297</uax:Identifier></uax:TypeId><uax:Body><uax:Argument><uax:Name>ResultId</uax:Name><uax:DataType><uax:Identifier>i=12</uax:Identifier></uax:DataType><uax:ValueRank>-1</uax:ValueRank><uax:ArrayDimensions/><uax:Description><uax:Text>Result whose frame is wanted, or empty.</uax:Text></uax:Description></uax:Argument></uax:Body></uax:ExtensionObject><uax:ExtensionObject><uax:TypeId><uax:Identifier>i=297</uax:Identifier></uax:TypeId><uax:Body><uax:Argument><uax:Name>Timestamp</uax:Name><uax:DataType><uax:Identifier>i=294</uax:Identifier></uax:DataType><uax:ValueRank>-1</uax:ValueRank><uax:ArrayDimensions/><uax:Description><uax:Text>Frame nearest this time, used when ResultId is empty.</uax:Text></uax:Description></uax:Argument></uax:Body></uax:ExtensionObject><uax:ExtensionObject><uax:TypeId><uax:Identifier>i=297</uax:Identifier></uax:TypeId><uax:Body><uax:Argument><uax:Name>Format</uax:Name><uax:DataType><uax:Identifier>ns=1;i=3003</uax:Identifier></uax:DataType><uax:ValueRank>-1</uax:ValueRank><uax:ArrayDimensions/><uax:Description><uax:Text>Requested encoding; Jpeg is always supported.</uax:Text></uax:Description></uax:Argument></uax:Body></uax:ExtensionObject><uax:ExtensionObject><uax:TypeId><uax:Identifier>i=297</uax:Identifier></uax:TypeId><uax:Body><uax:Argument><uax:Name>RequestInline</uax:Name><uax:DataType><uax:Identifier>i=1</uax:Identifier></uax:DataType><uax:ValueRank>-1</uax:ValueRank><uax:ArrayDimensions/><uax:Description><uax:Text>Ask for the bytes inline in addition to the Uri.</uax:Text></uax:Description></uax:Argument></uax:Body></uax:ExtensionObject></uax:ListOfExtensionObject></Value>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6055" BrowseName="OutputArguments" ParentNodeId="ns=1;i=6053" DataType="Argument" ValueRank="1" ArrayDimensions="3">
+    <DisplayName>OutputArguments</DisplayName>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=6053</Reference>
+    </References>
+    <Value><uax:ListOfExtensionObject xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd"><uax:ExtensionObject><uax:TypeId><uax:Identifier>i=297</uax:Identifier></uax:TypeId><uax:Body><uax:Argument><uax:Name>Image</uax:Name><uax:DataType><uax:Identifier>ns=1;i=3053</uax:Identifier></uax:DataType><uax:ValueRank>-1</uax:ValueRank><uax:ArrayDimensions/><uax:Description><uax:Text>Descriptor of the clip.</uax:Text></uax:Description></uax:Argument></uax:Body></uax:ExtensionObject><uax:ExtensionObject><uax:TypeId><uax:Identifier>i=297</uax:Identifier></uax:TypeId><uax:Body><uax:Argument><uax:Name>Endpoint</uax:Name><uax:DataType><uax:Identifier>i=17</uax:Identifier></uax:DataType><uax:ValueRank>-1</uax:ValueRank><uax:ArrayDimensions/><uax:Description><uax:Text>The ClipEndpoint that served the clip.</uax:Text></uax:Description></uax:Argument></uax:Body></uax:ExtensionObject><uax:ExtensionObject><uax:TypeId><uax:Identifier>i=297</uax:Identifier></uax:TypeId><uax:Body><uax:Argument><uax:Name>InlineImage</uax:Name><uax:DataType><uax:Identifier>i=15</uax:Identifier></uax:DataType><uax:ValueRank>-1</uax:ValueRank><uax:ArrayDimensions/><uax:Description><uax:Text>Encoded bytes, or empty when not requested or too large.</uax:Text></uax:Description></uax:Argument></uax:Body></uax:ExtensionObject></uax:ListOfExtensionObject></Value>
+  </UAVariable>
+  <UAObjectType NodeId="ns=1;i=1011" BrowseName="1:CoordinateFrameType">
+    <DisplayName>CoordinateFrameType</DisplayName>
+    <Description>A named coordinate frame. Frames form a tree through ParentFrame, so a client can compose a chain from a camera frame to a world frame. Roles follow ISO 9787, which standardises WHICH frames exist - note that no standard defines how to CALIBRATE between them, which is why ExtrinsicCalibrationType carries the result explicitly.</Description>
+    <Category>Vision</Category>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=58</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6056</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6057</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6058</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=6059</Reference>
+    </References>
+  </UAObjectType>
+  <UAVariable NodeId="ns=1;i=6056" BrowseName="1:FrameId" ParentNodeId="ns=1;i=1011" DataType="String" ValueRank="-1">
+    <DisplayName>FrameId</DisplayName>
+    <Description>Identifier referenced by VisionPose3DDataType.FrameId.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1011</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6057" BrowseName="1:Role" ParentNodeId="ns=1;i=1011" DataType="ns=1;i=3013" ValueRank="-1">
+    <DisplayName>Role</DisplayName>
+    <Description>Role of this frame.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1011</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6058" BrowseName="1:ParentFrame" ParentNodeId="ns=1;i=1011" DataType="NodeId" ValueRank="-1">
+    <DisplayName>ParentFrame</DisplayName>
+    <Description>The frame this one is expressed in; null for a root frame.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1011</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6059" BrowseName="1:Transform" ParentNodeId="ns=1;i=1011" DataType="ns=1;i=3050" ValueRank="-1">
+    <DisplayName>Transform</DisplayName>
+    <Description>Pose of this frame within ParentFrame.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=63</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1011</Reference>
+    </References>
+  </UAVariable>
+  <UAObjectType NodeId="ns=1;i=1012" BrowseName="1:VisionCalibrationType" IsAbstract="true">
+    <DisplayName>VisionCalibrationType</DisplayName>
+    <Description>Abstract base for a calibration result, carrying the provenance a client needs in order to decide whether to trust it.</Description>
+    <Category>Vision</Category>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=58</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6060</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6061</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6062</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6063</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6064</Reference>
+    </References>
+  </UAObjectType>
+  <UAVariable NodeId="ns=1;i=6060" BrowseName="1:CalibrationId" ParentNodeId="ns=1;i=1012" DataType="String" ValueRank="-1">
+    <DisplayName>CalibrationId</DisplayName>
+    <Description>Identifier of this calibration.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1012</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6061" BrowseName="1:PerformedAt" ParentNodeId="ns=1;i=1012" DataType="UtcTime" ValueRank="-1">
+    <DisplayName>PerformedAt</DisplayName>
+    <Description>When the calibration was computed.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1012</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6062" BrowseName="1:Valid" ParentNodeId="ns=1;i=1012" DataType="Boolean" ValueRank="-1">
+    <DisplayName>Valid</DisplayName>
+    <Description>False when the Server knows the calibration is stale, for example after a mount change.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1012</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6063" BrowseName="1:ResidualError" ParentNodeId="ns=1;i=1012" DataType="Double" ValueRank="-1">
+    <DisplayName>ResidualError</DisplayName>
+    <Description>Reprojection or fit residual, in the natural unit of the method.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1012</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6064" BrowseName="1:Method" ParentNodeId="ns=1;i=1012" DataType="String" ValueRank="-1">
+    <DisplayName>Method</DisplayName>
+    <Description>Free-text method identifier, for example Zhang, Tsai-Lenz or Daniilidis.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1012</Reference>
+    </References>
+  </UAVariable>
+  <UAObjectType NodeId="ns=1;i=1013" BrowseName="1:IntrinsicCalibrationType">
+    <DisplayName>IntrinsicCalibrationType</DisplayName>
+    <Description>Camera intrinsics and lens distortion for a specific image size.</Description>
+    <Category>Vision</Category>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">ns=1;i=1012</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=6065</Reference>
+    </References>
+  </UAObjectType>
+  <UAVariable NodeId="ns=1;i=6065" BrowseName="1:Intrinsics" ParentNodeId="ns=1;i=1013" DataType="ns=1;i=3054" ValueRank="-1">
+    <DisplayName>Intrinsics</DisplayName>
+    <Description>The intrinsic parameters.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=63</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1013</Reference>
+    </References>
+  </UAVariable>
+  <UAObjectType NodeId="ns=1;i=1014" BrowseName="1:ExtrinsicCalibrationType">
+    <DisplayName>ExtrinsicCalibrationType</DisplayName>
+    <Description>The rigid transform between two frames. For a robot cell this is the hand-eye calibration. No ISO, IEC or VDI standard defines the calibration PROCEDURE, so this type carries the resulting transform, the mounting arrangement it applies to, and its residual, which is what a consumer actually needs.</Description>
+    <Category>Vision</Category>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">ns=1;i=1012</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6066</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6067</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6068</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=6069</Reference>
+    </References>
+  </UAObjectType>
+  <UAVariable NodeId="ns=1;i=6066" BrowseName="1:Mount" ParentNodeId="ns=1;i=1014" DataType="ns=1;i=3012" ValueRank="-1">
+    <DisplayName>Mount</DisplayName>
+    <Description>Mounting arrangement the transform applies to.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1014</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6067" BrowseName="1:SourceFrame" ParentNodeId="ns=1;i=1014" DataType="NodeId" ValueRank="-1">
+    <DisplayName>SourceFrame</DisplayName>
+    <Description>Frame the transform maps from.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1014</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6068" BrowseName="1:TargetFrame" ParentNodeId="ns=1;i=1014" DataType="NodeId" ValueRank="-1">
+    <DisplayName>TargetFrame</DisplayName>
+    <Description>Frame the transform maps to.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1014</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6069" BrowseName="1:Transform" ParentNodeId="ns=1;i=1014" DataType="ns=1;i=3050" ValueRank="-1">
+    <DisplayName>Transform</DisplayName>
+    <Description>Pose of SourceFrame expressed in TargetFrame.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=63</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1014</Reference>
+    </References>
+  </UAVariable>
+  <UAObjectType NodeId="ns=1;i=1002" BrowseName="1:VisionSensorType" IsAbstract="true">
+    <DisplayName>VisionSensorType</DisplayName>
+    <Description>Abstract base for anything that produces imagery or range data. The RealityKind property is what makes the model sim/real symmetric: a physical camera and a simulated one expose the same members, so a client written against this type works against either.</Description>
+    <Category>Vision</Category>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=58</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6070</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6071</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6072</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6073</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6074</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6075</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6076</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6077</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=6078</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=6079</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=6080</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=6081</Reference>
+    </References>
+  </UAObjectType>
+  <UAVariable NodeId="ns=1;i=6070" BrowseName="1:SensorId" ParentNodeId="ns=1;i=1002" DataType="String" ValueRank="-1">
+    <DisplayName>SensorId</DisplayName>
+    <Description>Identifier of the sensor, unique within the Server.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1002</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6071" BrowseName="1:RealityKind" ParentNodeId="ns=1;i=1002" DataType="ns=1;i=3001" ValueRank="-1">
+    <DisplayName>RealityKind</DisplayName>
+    <Description>Whether this sensor is physical, simulated or hybrid.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1002</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6072" BrowseName="1:Modality" ParentNodeId="ns=1;i=1002" DataType="ns=1;i=3015" ValueRank="-1">
+    <DisplayName>Modality</DisplayName>
+    <Description>What the sensor measures.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1002</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6073" BrowseName="1:Manufacturer" ParentNodeId="ns=1;i=1002" DataType="LocalizedText" ValueRank="-1">
+    <DisplayName>Manufacturer</DisplayName>
+    <Description>Device manufacturer.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1002</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6074" BrowseName="1:Model" ParentNodeId="ns=1;i=1002" DataType="LocalizedText" ValueRank="-1">
+    <DisplayName>Model</DisplayName>
+    <Description>Device model designation.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1002</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6075" BrowseName="1:SerialNumber" ParentNodeId="ns=1;i=1002" DataType="String" ValueRank="-1">
+    <DisplayName>SerialNumber</DisplayName>
+    <Description>Device serial number.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1002</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6076" BrowseName="1:DeviceUri" ParentNodeId="ns=1;i=1002" DataType="String" ValueRank="-1">
+    <DisplayName>DeviceUri</DisplayName>
+    <Description>Transport-level device identifier, for example a GigE Vision or USB3 Vision device id. Lets a client correlate this sensor with the GenICam layer that actually moves the pixels.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1002</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6077" BrowseName="1:FrameId" ParentNodeId="ns=1;i=1002" DataType="String" ValueRank="-1">
+    <DisplayName>FrameId</DisplayName>
+    <Description>FrameId of this sensor's own camera frame.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1002</Reference>
+    </References>
+  </UAVariable>
+  <UAObject NodeId="ns=1;i=6078" BrowseName="1:Media" ParentNodeId="ns=1;i=1002">
+    <DisplayName>Media</DisplayName>
+    <Description>Media endpoints and their control surface.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasTypeDefinition">ns=1;i=1010</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1002</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="ns=1;i=6079" BrowseName="1:Optics" ParentNodeId="ns=1;i=1002">
+    <DisplayName>Optics</DisplayName>
+    <Description>Lens in front of this sensor.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasTypeDefinition">ns=1;i=1005</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1002</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="ns=1;i=6080" BrowseName="1:Illumination" ParentNodeId="ns=1;i=1002">
+    <DisplayName>Illumination</DisplayName>
+    <Description>Light source associated with this sensor.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasTypeDefinition">ns=1;i=1006</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1002</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="ns=1;i=6081" BrowseName="1:Calibrations" ParentNodeId="ns=1;i=1002">
+    <DisplayName>Calibrations</DisplayName>
+    <Description>VisionCalibrationType instances for this sensor.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=61</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1002</Reference>
+    </References>
+  </UAObject>
+  <UAObjectType NodeId="ns=1;i=1003" BrowseName="1:ImageSensorType">
+    <DisplayName>ImageSensorType</DisplayName>
+    <Description>A two-dimensional imaging sensor. The acquisition parameters use GenICam SFNC 2.8 names and semantics so that a Server bridging a GenICam device can map them one to one, and a client that knows SFNC needs no translation table. This is the layer OPC 40100-2 leaves empty: its VisionImageSensorType adds no members at all.</Description>
+    <Category>Vision</Category>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">ns=1;i=1002</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6082</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6083</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6084</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6085</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6086</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6087</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6088</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6089</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6090</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6091</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6092</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6093</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6094</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6095</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=6096</Reference>
+    </References>
+  </UAObjectType>
+  <UAVariable NodeId="ns=1;i=6082" BrowseName="1:Width" ParentNodeId="ns=1;i=1003" DataType="UInt32" ValueRank="-1">
+    <DisplayName>Width</DisplayName>
+    <Description>Image width in pixels (SFNC Width).</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1003</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6083" BrowseName="1:Height" ParentNodeId="ns=1;i=1003" DataType="UInt32" ValueRank="-1">
+    <DisplayName>Height</DisplayName>
+    <Description>Image height in pixels (SFNC Height).</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1003</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6084" BrowseName="1:PixelFormat" ParentNodeId="ns=1;i=1003" DataType="String" ValueRank="-1">
+    <DisplayName>PixelFormat</DisplayName>
+    <Description>Pixel format using GenICam PFNC naming, for example Mono8, BayerRG12 or RGB8 (SFNC PixelFormat).</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1003</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6085" BrowseName="1:ExposureTime" ParentNodeId="ns=1;i=1003" DataType="Double" ValueRank="-1">
+    <DisplayName>ExposureTime</DisplayName>
+    <Description>Exposure time in microseconds (SFNC ExposureTime).</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1003</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6086" BrowseName="1:Gain" ParentNodeId="ns=1;i=1003" DataType="Double" ValueRank="-1">
+    <DisplayName>Gain</DisplayName>
+    <Description>Analog gain (SFNC Gain).</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1003</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6087" BrowseName="1:AcquisitionFrameRate" ParentNodeId="ns=1;i=1003" DataType="Double" ValueRank="-1">
+    <DisplayName>AcquisitionFrameRate</DisplayName>
+    <Description>Frames per second (SFNC AcquisitionFrameRate).</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1003</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6088" BrowseName="1:TriggerMode" ParentNodeId="ns=1;i=1003" DataType="String" ValueRank="-1">
+    <DisplayName>TriggerMode</DisplayName>
+    <Description>Trigger mode, On or Off (SFNC TriggerMode).</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1003</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6089" BrowseName="1:TriggerSource" ParentNodeId="ns=1;i=1003" DataType="String" ValueRank="-1">
+    <DisplayName>TriggerSource</DisplayName>
+    <Description>Active trigger source (SFNC TriggerSource).</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1003</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6090" BrowseName="1:OffsetX" ParentNodeId="ns=1;i=1003" DataType="UInt32" ValueRank="-1">
+    <DisplayName>OffsetX</DisplayName>
+    <Description>Region-of-interest x offset (SFNC OffsetX).</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1003</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6091" BrowseName="1:OffsetY" ParentNodeId="ns=1;i=1003" DataType="UInt32" ValueRank="-1">
+    <DisplayName>OffsetY</DisplayName>
+    <Description>Region-of-interest y offset (SFNC OffsetY).</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1003</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6092" BrowseName="1:BinningHorizontal" ParentNodeId="ns=1;i=1003" DataType="UInt32" ValueRank="-1">
+    <DisplayName>BinningHorizontal</DisplayName>
+    <Description>Horizontal binning factor (SFNC BinningHorizontal).</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1003</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6093" BrowseName="1:BinningVertical" ParentNodeId="ns=1;i=1003" DataType="UInt32" ValueRank="-1">
+    <DisplayName>BinningVertical</DisplayName>
+    <Description>Vertical binning factor (SFNC BinningVertical).</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1003</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6094" BrowseName="1:ReverseX" ParentNodeId="ns=1;i=1003" DataType="Boolean" ValueRank="-1">
+    <DisplayName>ReverseX</DisplayName>
+    <Description>Horizontal flip (SFNC ReverseX).</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1003</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6095" BrowseName="1:ReverseY" ParentNodeId="ns=1;i=1003" DataType="Boolean" ValueRank="-1">
+    <DisplayName>ReverseY</DisplayName>
+    <Description>Vertical flip (SFNC ReverseY).</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1003</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6096" BrowseName="1:Intrinsics" ParentNodeId="ns=1;i=1003" DataType="ns=1;i=3054" ValueRank="-1">
+    <DisplayName>Intrinsics</DisplayName>
+    <Description>Currently applicable intrinsics, mirroring the active IntrinsicCalibration.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=63</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1003</Reference>
+    </References>
+  </UAVariable>
+  <UAObjectType NodeId="ns=1;i=1004" BrowseName="1:Depth3DSensorType">
+    <DisplayName>Depth3DSensorType</DisplayName>
+    <Description>A sensor producing depth or point-cloud data. Point clouds are large and are obtained through a media endpoint, not read as an OPC UA array.</Description>
+    <Category>Vision</Category>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">ns=1;i=1002</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6097</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6098</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6099</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6100</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6101</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6199</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6200</Reference>
+    </References>
+  </UAObjectType>
+  <UAVariable NodeId="ns=1;i=6097" BrowseName="1:MinDepth" ParentNodeId="ns=1;i=1004" DataType="Double" ValueRank="-1">
+    <DisplayName>MinDepth</DisplayName>
+    <Description>Smallest reportable range in metres.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1004</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6098" BrowseName="1:MaxDepth" ParentNodeId="ns=1;i=1004" DataType="Double" ValueRank="-1">
+    <DisplayName>MaxDepth</DisplayName>
+    <Description>Largest reportable range in metres.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1004</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6099" BrowseName="1:DepthScale" ParentNodeId="ns=1;i=1004" DataType="Double" ValueRank="-1">
+    <DisplayName>DepthScale</DisplayName>
+    <Description>Metres represented by one unit of the raw depth map.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1004</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6100" BrowseName="1:Baseline" ParentNodeId="ns=1;i=1004" DataType="Double" ValueRank="-1">
+    <DisplayName>Baseline</DisplayName>
+    <Description>Stereo baseline in metres, where applicable.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1004</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6101" BrowseName="1:PointsPerFrame" ParentNodeId="ns=1;i=1004" DataType="UInt32" ValueRank="-1">
+    <DisplayName>PointsPerFrame</DisplayName>
+    <Description>Nominal point count per frame.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1004</Reference>
+    </References>
+  </UAVariable>
+  <UAObjectType NodeId="ns=1;i=1030" BrowseName="1:IVisionSimulatedType" IsAbstract="true">
+    <DisplayName>IVisionSimulatedType</DisplayName>
+    <Description>Applied to a sensor whose RealityKind is Simulated or Hybrid. It names the simulator and the scene prim being rendered, which is what makes a synthetic sensor addressable in the same terms as a physical one. When the Server also implements OPC UA - OpenUSD Scene Materialization, PrimPath resolves to a UsdGeomCameraType instance and HasScenePrim points at it directly.</Description>
+    <Category>Vision</Category>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=17602</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6102</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6103</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6104</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6105</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6106</Reference>
+    </References>
+  </UAObjectType>
+  <UAVariable NodeId="ns=1;i=6102" BrowseName="1:SimulatorUri" ParentNodeId="ns=1;i=1030" DataType="String" ValueRank="-1">
+    <DisplayName>SimulatorUri</DisplayName>
+    <Description>Identifier of the simulator or renderer, for example an Isaac Sim instance.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1030</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6103" BrowseName="1:StageIdentifier" ParentNodeId="ns=1;i=1030" DataType="String" ValueRank="-1">
+    <DisplayName>StageIdentifier</DisplayName>
+    <Description>Root layer identifier of the stage being rendered. Uses the same identity contract as OPC UA - OpenUSD Bindings and Scene Materialization.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1030</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6104" BrowseName="1:PrimPath" ParentNodeId="ns=1;i=1030" DataType="String" ValueRank="-1">
+    <DisplayName>PrimPath</DisplayName>
+    <Description>Absolute SdfPath of the camera prim this sensor renders from.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1030</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6105" BrowseName="1:GroundTruthAvailable" ParentNodeId="ns=1;i=1030" DataType="Boolean" ValueRank="-1">
+    <DisplayName>GroundTruthAvailable</DisplayName>
+    <Description>True when the simulator can emit annotator ground truth alongside imagery.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1030</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6106" BrowseName="1:RandomizationSeed" ParentNodeId="ns=1;i=1030" DataType="UInt64" ValueRank="-1">
+    <DisplayName>RandomizationSeed</DisplayName>
+    <Description>Seed of the active domain-randomization run, so a dataset can be reproduced.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1030</Reference>
+    </References>
+  </UAVariable>
+  <UAObjectType NodeId="ns=1;i=1020" BrowseName="1:VisionResultType" IsAbstract="true">
+    <DisplayName>VisionResultType</DisplayName>
+    <Description>Abstract base for a vision result. Unlike OPC 40100-1, whose ResultContent is BaseDataType[] and explicitly not defined, the subtypes of this type define their content. The trust members exist so that a high-risk deployment can log which model version produced a decision and where its explanation lives.</Description>
+    <Category>Vision</Category>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=58</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6137</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6138</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6139</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6140</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6141</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6142</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6143</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=6144</Reference>
+    </References>
+  </UAObjectType>
+  <UAVariable NodeId="ns=1;i=6137" BrowseName="1:ResultId" ParentNodeId="ns=1;i=1020" DataType="String" ValueRank="-1">
+    <DisplayName>ResultId</DisplayName>
+    <Description>Identifier of the result, unique within the Server.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1020</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6138" BrowseName="1:CreationTime" ParentNodeId="ns=1;i=1020" DataType="UtcTime" ValueRank="-1">
+    <DisplayName>CreationTime</DisplayName>
+    <Description>When the result was produced.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1020</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6139" BrowseName="1:Sensor" ParentNodeId="ns=1;i=1020" DataType="NodeId" ValueRank="-1">
+    <DisplayName>Sensor</DisplayName>
+    <Description>Sensor the frame came from.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1020</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6140" BrowseName="1:Pipeline" ParentNodeId="ns=1;i=1020" DataType="NodeId" ValueRank="-1">
+    <DisplayName>Pipeline</DisplayName>
+    <Description>Pipeline that produced it.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1020</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6141" BrowseName="1:ModelVersionUsed" ParentNodeId="ns=1;i=1020" DataType="String" ValueRank="-1">
+    <DisplayName>ModelVersionUsed</DisplayName>
+    <Description>Version of the model that produced the result. Required in practice for auditability when the model can be updated in the field.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1020</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6142" BrowseName="1:Confidence" ParentNodeId="ns=1;i=1020" DataType="Double" ValueRank="-1">
+    <DisplayName>Confidence</DisplayName>
+    <Description>Overall confidence in the range 0.0 to 1.0, where the model reports one.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1020</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6143" BrowseName="1:ExplanationUri" ParentNodeId="ns=1;i=1020" DataType="String" ValueRank="-1">
+    <DisplayName>ExplanationUri</DisplayName>
+    <Description>Location of an explanation artefact, for example a saliency map. Treated as untrusted input.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1020</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6144" BrowseName="1:Frame" ParentNodeId="ns=1;i=1020" DataType="ns=1;i=3053" ValueRank="-1">
+    <DisplayName>Frame</DisplayName>
+    <Description>Reference to the frame this result was computed from.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=63</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1020</Reference>
+    </References>
+  </UAVariable>
+  <UAObjectType NodeId="ns=1;i=1021" BrowseName="1:InspectionResultType">
+    <DisplayName>InspectionResultType</DisplayName>
+    <Description>A machine-vision inspection outcome: a verdict plus the characteristics that produced it. Carrying nominal, actual, tolerance AND uncertainty is what makes the verdict reproducible by a third party, and is why VisionResultEvaluationEnum has a NotDecidable value.</Description>
+    <Category>Vision</Category>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">ns=1;i=1020</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6145</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6146</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6147</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=6148</Reference>
+    </References>
+  </UAObjectType>
+  <UAVariable NodeId="ns=1;i=6145" BrowseName="1:Evaluation" ParentNodeId="ns=1;i=1021" DataType="ns=1;i=3009" ValueRank="-1">
+    <DisplayName>Evaluation</DisplayName>
+    <Description>Overall verdict.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1021</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6146" BrowseName="1:PartId" ParentNodeId="ns=1;i=1021" DataType="String" ValueRank="-1">
+    <DisplayName>PartId</DisplayName>
+    <Description>Identifier of the inspected part.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1021</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6147" BrowseName="1:RecipeId" ParentNodeId="ns=1;i=1021" DataType="String" ValueRank="-1">
+    <DisplayName>RecipeId</DisplayName>
+    <Description>Identifier of the inspection recipe or program applied.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1021</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6148" BrowseName="1:Characteristics" ParentNodeId="ns=1;i=1021" DataType="ns=1;i=3056" ValueRank="1">
+    <DisplayName>Characteristics</DisplayName>
+    <Description>Measured characteristics.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=63</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1021</Reference>
+    </References>
+  </UAVariable>
+  <UAObjectType NodeId="ns=1;i=1022" BrowseName="1:DetectionResultType">
+    <DisplayName>DetectionResultType</DisplayName>
+    <Description>A robotics-vision perception outcome: zero or more detected instances, each optionally carrying a 6-DoF pose suitable for picking or servoing.</Description>
+    <Category>Vision</Category>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">ns=1;i=1020</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=6149</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6150</Reference>
+    </References>
+  </UAObjectType>
+  <UAVariable NodeId="ns=1;i=6149" BrowseName="1:Detections" ParentNodeId="ns=1;i=1022" DataType="ns=1;i=3055" ValueRank="1">
+    <DisplayName>Detections</DisplayName>
+    <Description>Detected instances.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=63</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1022</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6150" BrowseName="1:FrameId" ParentNodeId="ns=1;i=1022" DataType="String" ValueRank="-1">
+    <DisplayName>FrameId</DisplayName>
+    <Description>FrameId that detection poses are expressed in.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1022</Reference>
+    </References>
+  </UAVariable>
+  <UAObjectType NodeId="ns=1;i=1023" BrowseName="1:SegmentationResultType">
+    <DisplayName>SegmentationResultType</DisplayName>
+    <Description>A per-pixel labelling outcome. The mask itself is referenced, not inlined.</Description>
+    <Category>Vision</Category>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">ns=1;i=1020</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6151</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=6152</Reference>
+    </References>
+  </UAObjectType>
+  <UAVariable NodeId="ns=1;i=6151" BrowseName="1:LabelClasses" ParentNodeId="ns=1;i=1023" DataType="String" ValueRank="1">
+    <DisplayName>LabelClasses</DisplayName>
+    <Description>Class labels present in the mask.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1023</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6152" BrowseName="1:Mask" ParentNodeId="ns=1;i=1023" DataType="ns=1;i=3053" ValueRank="-1">
+    <DisplayName>Mask</DisplayName>
+    <Description>Reference to the encoded mask image.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=63</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1023</Reference>
+    </References>
+  </UAVariable>
+  <UAObjectType NodeId="ns=1;i=1024" BrowseName="1:VisionFeedbackType">
+    <DisplayName>VisionFeedbackType</DisplayName>
+    <Description>The return path into the vision system. It serves three purposes at once: drawing geometry onto the outgoing stream, recording a downstream verdict against a result, and - most importantly - accepting corrected labels that become training data. That last purpose is what turns a deployed inspection system into a learning one. Every Method here is a WRITE and requires explicit authorization.</Description>
+    <Category>Vision</Category>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=58</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6153</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6154</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6155</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6156</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=6157</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=6159</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=6161</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=6163</Reference>
+    </References>
+  </UAObjectType>
+  <UAVariable NodeId="ns=1;i=6153" BrowseName="1:OverlayEnabled" ParentNodeId="ns=1;i=1024" DataType="Boolean" ValueRank="-1">
+    <DisplayName>OverlayEnabled</DisplayName>
+    <Description>True when submitted geometry is rendered onto the outgoing stream.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1024</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6154" BrowseName="1:OverlayStyle" ParentNodeId="ns=1;i=1024" DataType="String" ValueRank="-1">
+    <DisplayName>OverlayStyle</DisplayName>
+    <Description>Vendor-defined overlay style identifier.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1024</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6155" BrowseName="1:OverlayTtl" ParentNodeId="ns=1;i=1024" DataType="Duration" ValueRank="-1">
+    <DisplayName>OverlayTtl</DisplayName>
+    <Description>How long submitted overlay geometry remains rendered.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1024</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6156" BrowseName="1:MaxInlineFeedbackImageSize" ParentNodeId="ns=1;i=1024" DataType="UInt32" ValueRank="-1">
+    <DisplayName>MaxInlineFeedbackImageSize</DisplayName>
+    <Description>Largest inline image this surface accepts, in bytes. SHALL NOT exceed Server.ServerCapabilities.MaxByteStringLength, and a Call request carrying the value is additionally bounded by the Session's MaxRequestMessageSize. An oversized payload is rejected with Bad_EncodingLimitsExceeded and the client uses SubmitImageReference instead. See clause 6.4.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1024</Reference>
+    </References>
+  </UAVariable>
+  <UAMethod NodeId="ns=1;i=6157" BrowseName="1:SubmitDetections" ParentNodeId="ns=1;i=1024">
+    <DisplayName>SubmitDetections</DisplayName>
+    <Description>Push detected geometry back into the vision system. With Purpose set to Overlay the boxes are drawn on the stream; with Purpose set to GroundTruthLabel they are retained as corrected labels for the associated learning job.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1024</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6158</Reference>
+    </References>
+  </UAMethod>
+  <UAVariable NodeId="ns=1;i=6158" BrowseName="InputArguments" ParentNodeId="ns=1;i=6157" DataType="Argument" ValueRank="1" ArrayDimensions="5">
+    <DisplayName>InputArguments</DisplayName>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=6157</Reference>
+    </References>
+    <Value><uax:ListOfExtensionObject xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd"><uax:ExtensionObject><uax:TypeId><uax:Identifier>i=297</uax:Identifier></uax:TypeId><uax:Body><uax:Argument><uax:Name>Purpose</uax:Name><uax:DataType><uax:Identifier>ns=1;i=3011</uax:Identifier></uax:DataType><uax:ValueRank>-1</uax:ValueRank><uax:ArrayDimensions/><uax:Description><uax:Text>Why the geometry is being sent.</uax:Text></uax:Description></uax:Argument></uax:Body></uax:ExtensionObject><uax:ExtensionObject><uax:TypeId><uax:Identifier>i=297</uax:Identifier></uax:TypeId><uax:Body><uax:Argument><uax:Name>Detections</uax:Name><uax:DataType><uax:Identifier>ns=1;i=3055</uax:Identifier></uax:DataType><uax:ValueRank>1</uax:ValueRank><uax:ArrayDimensions><uax:UInt32>0</uax:UInt32></uax:ArrayDimensions><uax:Description><uax:Text>The detections.</uax:Text></uax:Description></uax:Argument></uax:Body></uax:ExtensionObject><uax:ExtensionObject><uax:TypeId><uax:Identifier>i=297</uax:Identifier></uax:TypeId><uax:Body><uax:Argument><uax:Name>FrameReference</uax:Name><uax:DataType><uax:Identifier>ns=1;i=3053</uax:Identifier></uax:DataType><uax:ValueRank>-1</uax:ValueRank><uax:ArrayDimensions/><uax:Description><uax:Text>Frame the detections belong to.</uax:Text></uax:Description></uax:Argument></uax:Body></uax:ExtensionObject><uax:ExtensionObject><uax:TypeId><uax:Identifier>i=297</uax:Identifier></uax:TypeId><uax:Body><uax:Argument><uax:Name>InlineImage</uax:Name><uax:DataType><uax:Identifier>i=15</uax:Identifier></uax:DataType><uax:ValueRank>-1</uax:ValueRank><uax:ArrayDimensions/><uax:Description><uax:Text>Optional annotated image, accepted only within MaxInlineFeedbackImageSize; otherwise use SubmitImageReference.</uax:Text></uax:Description></uax:Argument></uax:Body></uax:ExtensionObject><uax:ExtensionObject><uax:TypeId><uax:Identifier>i=297</uax:Identifier></uax:TypeId><uax:Body><uax:Argument><uax:Name>SceneIsEmpty</uax:Name><uax:DataType><uax:Identifier>i=1</uax:Identifier></uax:DataType><uax:ValueRank>-1</uax:ValueRank><uax:ArrayDimensions/><uax:Description><uax:Text>True asserts that the frame was examined and contains nothing to report, which is a deliberate observation and not a failed one. It is the only way Detections may be empty: an empty array with this false is rejected, so a call that lost its payload is still caught. False with a non-empty Detections is the ordinary case. Last in the list because argument order is part of the wire contract. See clause 9.5.</uax:Text></uax:Description></uax:Argument></uax:Body></uax:ExtensionObject></uax:ListOfExtensionObject></Value>
+  </UAVariable>
+  <UAMethod NodeId="ns=1;i=6159" BrowseName="1:SubmitInspectionResult" ParentNodeId="ns=1;i=1024">
+    <DisplayName>SubmitInspectionResult</DisplayName>
+    <Description>Record a downstream inspection verdict against a result, for reconciliation with what the vision system originally reported.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1024</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6160</Reference>
+    </References>
+  </UAMethod>
+  <UAVariable NodeId="ns=1;i=6160" BrowseName="InputArguments" ParentNodeId="ns=1;i=6159" DataType="Argument" ValueRank="1" ArrayDimensions="3">
+    <DisplayName>InputArguments</DisplayName>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=6159</Reference>
+    </References>
+    <Value><uax:ListOfExtensionObject xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd"><uax:ExtensionObject><uax:TypeId><uax:Identifier>i=297</uax:Identifier></uax:TypeId><uax:Body><uax:Argument><uax:Name>ResultId</uax:Name><uax:DataType><uax:Identifier>i=12</uax:Identifier></uax:DataType><uax:ValueRank>-1</uax:ValueRank><uax:ArrayDimensions/><uax:Description><uax:Text>Result being reconciled.</uax:Text></uax:Description></uax:Argument></uax:Body></uax:ExtensionObject><uax:ExtensionObject><uax:TypeId><uax:Identifier>i=297</uax:Identifier></uax:TypeId><uax:Body><uax:Argument><uax:Name>Evaluation</uax:Name><uax:DataType><uax:Identifier>ns=1;i=3009</uax:Identifier></uax:DataType><uax:ValueRank>-1</uax:ValueRank><uax:ArrayDimensions/><uax:Description><uax:Text>Downstream verdict.</uax:Text></uax:Description></uax:Argument></uax:Body></uax:ExtensionObject><uax:ExtensionObject><uax:TypeId><uax:Identifier>i=297</uax:Identifier></uax:TypeId><uax:Body><uax:Argument><uax:Name>Characteristics</uax:Name><uax:DataType><uax:Identifier>ns=1;i=3056</uax:Identifier></uax:DataType><uax:ValueRank>1</uax:ValueRank><uax:ArrayDimensions><uax:UInt32>0</uax:UInt32></uax:ArrayDimensions><uax:Description><uax:Text>Downstream measurements, where available.</uax:Text></uax:Description></uax:Argument></uax:Body></uax:ExtensionObject></uax:ListOfExtensionObject></Value>
+  </UAVariable>
+  <UAMethod NodeId="ns=1;i=6161" BrowseName="1:SubmitCorrection" ParentNodeId="ns=1;i=1024">
+    <DisplayName>SubmitCorrection</DisplayName>
+    <Description>Submit a human-in-the-loop or downstream correction of a previous result. This is the primary source of labelled data for retraining.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1024</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6162</Reference>
+    </References>
+  </UAMethod>
+  <UAVariable NodeId="ns=1;i=6162" BrowseName="InputArguments" ParentNodeId="ns=1;i=6161" DataType="Argument" ValueRank="1" ArrayDimensions="7">
+    <DisplayName>InputArguments</DisplayName>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=6161</Reference>
+    </References>
+    <Value><uax:ListOfExtensionObject xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd"><uax:ExtensionObject><uax:TypeId><uax:Identifier>i=297</uax:Identifier></uax:TypeId><uax:Body><uax:Argument><uax:Name>ResultId</uax:Name><uax:DataType><uax:Identifier>i=12</uax:Identifier></uax:DataType><uax:ValueRank>-1</uax:ValueRank><uax:ArrayDimensions/><uax:Description><uax:Text>Result being corrected.</uax:Text></uax:Description></uax:Argument></uax:Body></uax:ExtensionObject><uax:ExtensionObject><uax:TypeId><uax:Identifier>i=297</uax:Identifier></uax:TypeId><uax:Body><uax:Argument><uax:Name>Purpose</uax:Name><uax:DataType><uax:Identifier>ns=1;i=3011</uax:Identifier></uax:DataType><uax:ValueRank>-1</uax:ValueRank><uax:ArrayDimensions/><uax:Description><uax:Text>Normally GroundTruthLabel.</uax:Text></uax:Description></uax:Argument></uax:Body></uax:ExtensionObject><uax:ExtensionObject><uax:TypeId><uax:Identifier>i=297</uax:Identifier></uax:TypeId><uax:Body><uax:Argument><uax:Name>CorrectedDetections</uax:Name><uax:DataType><uax:Identifier>ns=1;i=3055</uax:Identifier></uax:DataType><uax:ValueRank>1</uax:ValueRank><uax:ArrayDimensions><uax:UInt32>0</uax:UInt32></uax:ArrayDimensions><uax:Description><uax:Text>Corrected detections, where the result was a detection.</uax:Text></uax:Description></uax:Argument></uax:Body></uax:ExtensionObject><uax:ExtensionObject><uax:TypeId><uax:Identifier>i=297</uax:Identifier></uax:TypeId><uax:Body><uax:Argument><uax:Name>CorrectedCharacteristics</uax:Name><uax:DataType><uax:Identifier>ns=1;i=3056</uax:Identifier></uax:DataType><uax:ValueRank>1</uax:ValueRank><uax:ArrayDimensions><uax:UInt32>0</uax:UInt32></uax:ArrayDimensions><uax:Description><uax:Text>Corrected characteristics, where the result was an inspection.</uax:Text></uax:Description></uax:Argument></uax:Body></uax:ExtensionObject><uax:ExtensionObject><uax:TypeId><uax:Identifier>i=297</uax:Identifier></uax:TypeId><uax:Body><uax:Argument><uax:Name>Reason</uax:Name><uax:DataType><uax:Identifier>i=21</uax:Identifier></uax:DataType><uax:ValueRank>-1</uax:ValueRank><uax:ArrayDimensions/><uax:Description><uax:Text>Why the correction was made.</uax:Text></uax:Description></uax:Argument></uax:Body></uax:ExtensionObject><uax:ExtensionObject><uax:TypeId><uax:Identifier>i=297</uax:Identifier></uax:TypeId><uax:Body><uax:Argument><uax:Name>InlineImage</uax:Name><uax:DataType><uax:Identifier>i=15</uax:Identifier></uax:DataType><uax:ValueRank>-1</uax:ValueRank><uax:ArrayDimensions/><uax:Description><uax:Text>Optional corrected or annotated image, accepted only within MaxInlineFeedbackImageSize; otherwise use SubmitImageReference.</uax:Text></uax:Description></uax:Argument></uax:Body></uax:ExtensionObject><uax:ExtensionObject><uax:TypeId><uax:Identifier>i=297</uax:Identifier></uax:TypeId><uax:Body><uax:Argument><uax:Name>RetractAll</uax:Name><uax:DataType><uax:Identifier>i=1</uax:Identifier></uax:DataType><uax:ValueRank>-1</uax:ValueRank><uax:ArrayDimensions/><uax:Description><uax:Text>True asserts that the corrected result should contain nothing at all - every detection or characteristic it reported was a false positive and nothing replaces it. It is the only way both corrected arrays may be empty. This is the most valuable correction shape for a learning loop, because a false positive is the error an operator is most able to label with confidence. Last in the list because argument order is part of the wire contract. See clause 9.5.</uax:Text></uax:Description></uax:Argument></uax:Body></uax:ExtensionObject></uax:ListOfExtensionObject></Value>
+  </UAVariable>
+  <UAMethod NodeId="ns=1;i=6163" BrowseName="1:SubmitImageReference" ParentNodeId="ns=1;i=1024">
+    <DisplayName>SubmitImageReference</DisplayName>
+    <Description>The default way to hand an image back: by reference. Used whenever the image exceeds MaxInlineFeedbackImageSize, and preferred in all cases.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1024</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6164</Reference>
+    </References>
+  </UAMethod>
+  <UAVariable NodeId="ns=1;i=6164" BrowseName="InputArguments" ParentNodeId="ns=1;i=6163" DataType="Argument" ValueRank="1" ArrayDimensions="3">
+    <DisplayName>InputArguments</DisplayName>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=6163</Reference>
+    </References>
+    <Value><uax:ListOfExtensionObject xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd"><uax:ExtensionObject><uax:TypeId><uax:Identifier>i=297</uax:Identifier></uax:TypeId><uax:Body><uax:Argument><uax:Name>Purpose</uax:Name><uax:DataType><uax:Identifier>ns=1;i=3011</uax:Identifier></uax:DataType><uax:ValueRank>-1</uax:ValueRank><uax:ArrayDimensions/><uax:Description><uax:Text>Why the image is being sent.</uax:Text></uax:Description></uax:Argument></uax:Body></uax:ExtensionObject><uax:ExtensionObject><uax:TypeId><uax:Identifier>i=297</uax:Identifier></uax:TypeId><uax:Body><uax:Argument><uax:Name>Image</uax:Name><uax:DataType><uax:Identifier>ns=1;i=3053</uax:Identifier></uax:DataType><uax:ValueRank>-1</uax:ValueRank><uax:ArrayDimensions/><uax:Description><uax:Text>Descriptor of the image.</uax:Text></uax:Description></uax:Argument></uax:Body></uax:ExtensionObject><uax:ExtensionObject><uax:TypeId><uax:Identifier>i=297</uax:Identifier></uax:TypeId><uax:Body><uax:Argument><uax:Name>ResultId</uax:Name><uax:DataType><uax:Identifier>i=12</uax:Identifier></uax:DataType><uax:ValueRank>-1</uax:ValueRank><uax:ArrayDimensions/><uax:Description><uax:Text>Associated result, or empty.</uax:Text></uax:Description></uax:Argument></uax:Body></uax:ExtensionObject></uax:ListOfExtensionObject></Value>
+  </UAVariable>
+  <UAObjectType NodeId="ns=1;i=1018" BrowseName="1:InferencePipelineType">
+    <DisplayName>InferencePipelineType</DisplayName>
+    <Description>Binds a sensor to a deployment and publishes the results. The same type serves on-server and off-server inference: when the deployment is remote the Server publishes results it did not compute, and the only observable difference is DeploymentType.InferenceLocation.</Description>
+    <Category>Vision</Category>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=58</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6165</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6166</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6167</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6168</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6169</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=6170</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=6171</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=6172</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=6175</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=6176</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6198</Reference>
+    </References>
+  </UAObjectType>
+  <UAVariable NodeId="ns=1;i=6165" BrowseName="1:PipelineId" ParentNodeId="ns=1;i=1018" DataType="String" ValueRank="-1">
+    <DisplayName>PipelineId</DisplayName>
+    <Description>Identifier of the pipeline.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1018</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6166" BrowseName="1:Sensor" ParentNodeId="ns=1;i=1018" DataType="NodeId" ValueRank="-1">
+    <DisplayName>Sensor</DisplayName>
+    <Description>Sensor supplying frames.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1018</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6167" BrowseName="1:Deployment" ParentNodeId="ns=1;i=1018" DataType="NodeId" ValueRank="-1">
+    <DisplayName>Deployment</DisplayName>
+    <Description>The deployment executing inference. This is a NodeId, not a reference, and the node it names is NOT defined by this specification - see clause 8.2. Where the Server also implements OPC UA - AI Model Management and Inference it names a DeploymentType instance there, which is what clause 8's provenance argument assumes; a Server that describes its deployment some other way names that node instead. Nothing in this NodeSet references the other model's identifiers, so adopting or ignoring it changes nothing about loading this one.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1018</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6168" BrowseName="1:State" ParentNodeId="ns=1;i=1018" DataType="ns=1;i=3005" ValueRank="-1">
+    <DisplayName>State</DisplayName>
+    <Description>Runtime state of the pipeline.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1018</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6169" BrowseName="1:Continuous" ParentNodeId="ns=1;i=1018" DataType="Boolean" ValueRank="-1">
+    <DisplayName>Continuous</DisplayName>
+    <Description>True while the pipeline runs on every frame.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1018</Reference>
+    </References>
+  </UAVariable>
+  <UAObject NodeId="ns=1;i=6170" BrowseName="1:Results" ParentNodeId="ns=1;i=1018">
+    <DisplayName>Results</DisplayName>
+    <Description>Recent VisionResultType instances produced by this pipeline.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=61</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1018</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="ns=1;i=6171" BrowseName="1:Feedback" ParentNodeId="ns=1;i=1018">
+    <DisplayName>Feedback</DisplayName>
+    <Description>Feedback surface for pushing results back into the vision system.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasTypeDefinition">ns=1;i=1024</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1018</Reference>
+    </References>
+  </UAObject>
+  <UAMethod NodeId="ns=1;i=6172" BrowseName="1:RunInference" ParentNodeId="ns=1;i=1018">
+    <DisplayName>RunInference</DisplayName>
+    <Description>Run inference once, on the current or a specified frame, and return the identifier of the result that was produced.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1018</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6173</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6174</Reference>
+    </References>
+  </UAMethod>
+  <UAVariable NodeId="ns=1;i=6173" BrowseName="InputArguments" ParentNodeId="ns=1;i=6172" DataType="Argument" ValueRank="1" ArrayDimensions="1">
+    <DisplayName>InputArguments</DisplayName>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=6172</Reference>
+    </References>
+    <Value><uax:ListOfExtensionObject xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd"><uax:ExtensionObject><uax:TypeId><uax:Identifier>i=297</uax:Identifier></uax:TypeId><uax:Body><uax:Argument><uax:Name>Timestamp</uax:Name><uax:DataType><uax:Identifier>i=294</uax:Identifier></uax:DataType><uax:ValueRank>-1</uax:ValueRank><uax:ArrayDimensions/><uax:Description><uax:Text>Frame nearest this time, or null for the newest.</uax:Text></uax:Description></uax:Argument></uax:Body></uax:ExtensionObject></uax:ListOfExtensionObject></Value>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6174" BrowseName="OutputArguments" ParentNodeId="ns=1;i=6172" DataType="Argument" ValueRank="1" ArrayDimensions="1">
+    <DisplayName>OutputArguments</DisplayName>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=6172</Reference>
+    </References>
+    <Value><uax:ListOfExtensionObject xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd"><uax:ExtensionObject><uax:TypeId><uax:Identifier>i=297</uax:Identifier></uax:TypeId><uax:Body><uax:Argument><uax:Name>ResultId</uax:Name><uax:DataType><uax:Identifier>i=12</uax:Identifier></uax:DataType><uax:ValueRank>-1</uax:ValueRank><uax:ArrayDimensions/><uax:Description><uax:Text>Identifier of the produced result.</uax:Text></uax:Description></uax:Argument></uax:Body></uax:ExtensionObject></uax:ListOfExtensionObject></Value>
+  </UAVariable>
+  <UAMethod NodeId="ns=1;i=6175" BrowseName="1:StartContinuous" ParentNodeId="ns=1;i=1018">
+    <DisplayName>StartContinuous</DisplayName>
+    <Description>Begin running inference on every acquired frame.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1018</Reference>
+    </References>
+  </UAMethod>
+  <UAMethod NodeId="ns=1;i=6176" BrowseName="1:Stop" ParentNodeId="ns=1;i=1018">
+    <DisplayName>Stop</DisplayName>
+    <Description>Stop continuous inference.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1018</Reference>
+    </References>
+  </UAMethod>
+  <UAObjectType NodeId="ns=1;i=1001" BrowseName="1:VisionRootType">
+    <DisplayName>VisionRootType</DisplayName>
+    <Description>The single well-known entry point for everything in this model. A client starts here, enumerates Sensors, and follows references outward. Mirrors the discovery pattern of OPC UA - OpenUSD Bindings.</Description>
+    <Category>Vision</Category>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=58</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=6191</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=6192</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=6194</Reference>
+    </References>
+  </UAObjectType>
+  <UAObject NodeId="ns=1;i=6191" BrowseName="1:Sensors" ParentNodeId="ns=1;i=1001">
+    <DisplayName>Sensors</DisplayName>
+    <Description>VisionSensorType instances known to this Server.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=61</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1001</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="ns=1;i=6192" BrowseName="1:Pipelines" ParentNodeId="ns=1;i=1001">
+    <DisplayName>Pipelines</DisplayName>
+    <Description>InferencePipelineType instances.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=61</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1001</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="ns=1;i=6194" BrowseName="1:Frames" ParentNodeId="ns=1;i=1001">
+    <DisplayName>Frames</DisplayName>
+    <Description>CoordinateFrameType instances.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=61</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1001</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="ns=1;i=7001" BrowseName="1:Vision" ParentNodeId="i=2253">
+    <DisplayName>Vision</DisplayName>
+    <Description>The well-known Vision entry point, a component of the Server object. A conformant Server exposes exactly one.</Description>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">ns=1;i=1001</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=2253</Reference>
+    </References>
+  </UAObject>
+  <UAVariable NodeId="ns=1;i=6196" BrowseName="1:DataChannelSource" ParentNodeId="ns=1;i=1007" DataType="NodeId" ValueRank="-1">
+    <DisplayName>DataChannelSource</DisplayName>
+    <Description>NodeId of the Object through which this endpoint's bytes can also be obtained on an OPC UA data channel, per the OPC UA - Data Channels errata proposal. Non-null means the data channel path is offered IN ADDITION to the endpoint's out-of-band path; null or absent means out-of-band only. The target is created by the Server - typically a DataChannelSourceType instance, or any Object implementing IDataChannelSourceType - and is NOT defined by this specification. That proposal is a DRAFT: a conformant Server may leave this null forever. See clause 6.7.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1007</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6197" BrowseName="1:DataChannelContentType" ParentNodeId="ns=1;i=1007" DataType="String" ValueRank="-1">
+    <DisplayName>DataChannelContentType</DisplayName>
+    <Description>IANA media type the data channel carries, for example video/H264 or image/jpeg. Mirrors IDataChannelSourceType.ContentType so a client can learn the payload type from this model alone, without the Data Channels model being present. Meaningful only where DataChannelSource is non-null.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1007</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6198" BrowseName="1:LearningJob" ParentNodeId="ns=1;i=1018" DataType="NodeId" ValueRank="-1">
+    <DisplayName>LearningJob</DisplayName>
+    <Description>LearningJobType instance that consumes GroundTruthLabel corrections submitted through this pipeline's Feedback object, or null where the Server retains none. A NodeId and not a reference, for the same reason Deployment is: this model takes no dependency on the model that defines the job. Section 9.5.1 requires this to be non-null wherever such a correction is retained - without it a client cannot establish whether its label reached a learning loop at all.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1018</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6199" BrowseName="1:DepthWidth" ParentNodeId="ns=1;i=1004" DataType="UInt32" ValueRank="-1">
+    <DisplayName>DepthWidth</DisplayName>
+    <Description>Width in pixels of the sensor's native depth image. Present on a device whose depth output is an ordered image - structured-light, time-of-flight and stereo sensors - and absent on one whose output is an unordered point cloud, where there is no image to have a shape. PointsPerFrame is a nominal count and is not a substitute: it cannot be used to reproject a depth pixel, nor to size a decoder. See clause 5.6.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1004</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6200" BrowseName="1:DepthHeight" ParentNodeId="ns=1;i=1004" DataType="UInt32" ValueRank="-1">
+    <DisplayName>DepthHeight</DisplayName>
+    <Description>Height in pixels of the sensor's native depth image, under the same condition as DepthWidth. The two are present or absent together.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1004</Reference>
+    </References>
+  </UAVariable>
+</UANodeSet>
