@@ -331,7 +331,7 @@ namespace Opc.Ua.WotCon.Bindings.OpcUa
         {
             WotEventSelection selection = Form.EventSelection ?? WotEventSelection.Default;
             var filter = new EventFilter();
-            foreach (WotEventSelectClause clause in selection.Clauses)
+            foreach (WotResolvedEventSelectClause clause in selection.Clauses)
             {
                 if (!TryResolveNodeId(clause.TypeDefinitionId, out NodeId typeDefinitionId))
                 {
@@ -366,7 +366,7 @@ namespace Opc.Ua.WotCon.Bindings.OpcUa
         /// Thrown when a path element names a NamespaceUri the Server's
         /// namespace table does not hold.
         /// </exception>
-        private ArrayOf<QualifiedName> ResolveBrowsePath(WotEventSelectClause clause)
+        private ArrayOf<QualifiedName> ResolveBrowsePath(WotResolvedEventSelectClause clause)
         {
             ArrayOf<string> elements = clause.PathElements;
             if (elements.Count == 0)
@@ -485,7 +485,7 @@ namespace Opc.Ua.WotCon.Bindings.OpcUa
             bool havePrimary = false;
             for (int i = 0; i < count; i++)
             {
-                WotEventSelectClause clause = selection.Clauses[i];
+                WotResolvedEventSelectClause clause = selection.Clauses[i];
                 string key = FormatTransportKey(clause);
                 Variant fieldValue = values[i];
                 var value = new DataValue(
@@ -544,7 +544,7 @@ namespace Opc.Ua.WotCon.Bindings.OpcUa
         /// object of <see cref="WotNotification.Data"/> is what a consumer reads
         /// for the shape the Binding describes.
         /// </remarks>
-        private static string FormatTransportKey(WotEventSelectClause clause)
+        private static string FormatTransportKey(WotResolvedEventSelectClause clause)
         {
             return clause.IsConditionIdSelection
                 ? WotEventSelectClauses.ConditionIdFieldName

@@ -95,6 +95,83 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 Is.True);
         }
 
+        /// <summary>
+        /// An event affordance names the EventType definition its fields are
+        /// selected from, and every explicit select clause names one too
+        /// (WoT Binding Section 6.1). Both are dependency edges: the reference
+        /// resolves against the documents a consumer holds, so the EventType
+        /// Thing Model has to be a member of the same closure and has to be
+        /// loaded before the document that selects from it.
+        /// </summary>
+        [Test]
+        public void ExtractReferencesFindsEventTypeLinks()
+        {
+            byte[] doc = System.Text.Encoding.UTF8.GetBytes(
+                "{\"@context\":\"https://www.w3.org/2022/wot/td/v1.1\"," +
+                "\"@type\":\"Thing\",\"id\":\"urn:td\",\"title\":\"Td\"," +
+                "\"events\":{\"alarm\":{\"@type\":\"uav:eventType\"," +
+                "\"tm:ref\":\"urn:tm-events#/events/alarm\"," +
+                "\"uav:eventSelectClauses\":[" +
+                "{\"tm:ref\":\"urn:tm-base\",\"uav:browsePath\":\"EventId\"}]}}}");
+
+            IReadOnlyList<(string Href, string RefType)> references =
+                WotDependencyGraph.ExtractReferences(doc, 64);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    references.Any(r =>
+                        r.Href == "urn:tm-events#/events/alarm" &&
+                        r.RefType == WotDependencyGraph.EventTypeRefType),
+                    Is.True,
+                    "The affordance-level fast path is an edge to the EventType definition.");
+                Assert.That(
+                    references.Any(r =>
+                        r.Href == "urn:tm-base" &&
+                        r.RefType == WotDependencyGraph.EventSelectClauseRefType),
+                    Is.True,
+                    "A clause names the EventType that declares the field it selects, which " +
+                    "is an edge of its own.");
+                Assert.That(
+                    references.Count(r => r.Href == "urn:tm-events#/events/alarm"),
+                    Is.EqualTo(1),
+                    "The edge is stated once, under the label that says what it is.");
+            });
+        }
+
+        /// <summary>
+        /// The edge is what puts an EventType Thing Model in the closure of the
+        /// document that selects from it, and the topological order loads it
+        /// first.
+        /// </summary>
+        [Test]
+        public async Task AnEventTypeModelIsLoadedBeforeTheDocumentThatSelectsFromIt()
+        {
+            SnapshotFixture fixture = await Snapshot(
+                (WoTDocumentKindEnum.ThingModel, "events", TestMaterialization.Tm("urn:tm-events")),
+                (WoTDocumentKindEnum.ThingDescription, "td",
+                    System.Text.Encoding.UTF8.GetBytes(
+                        "{\"@context\":\"https://www.w3.org/2022/wot/td/v1.1\"," +
+                        "\"@type\":\"Thing\",\"id\":\"urn:td\",\"title\":\"Td\"," +
+                        "\"events\":{\"alarm\":{\"@type\":\"uav:eventType\"," +
+                        "\"tm:ref\":\"urn:tm-events#/events/alarm\"}}}")));
+
+            ImmutableArray<WotDependencyClosure> closures =
+                await WotDependencyGraph.BuildClosuresAsync(
+                    fixture.Snapshot,
+                    [.. fixture.Snapshot.AllResources()],
+                    64,
+                    fixture.ReadContent,
+                    CancellationToken.None);
+
+            Assert.That(closures, Has.Length.EqualTo(1));
+            Assert.That(
+                closures[0].OrderedResources.Select(r => r.ResourceId),
+                Is.EqualTo(new[] { "events", "td" }).AsCollection,
+                "A consumer resolves the reference against the documents it holds, so the " +
+                "definition is materialized before the document that names it.");
+        }
+
         [Test]
         public async Task BuildClosuresSharedModelYieldsSingleClosureTmFirst()
         {

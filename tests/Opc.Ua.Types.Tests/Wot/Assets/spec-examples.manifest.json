@@ -3,7 +3,7 @@
   "source": {
     "repository": "https://github.com/OPCF-Members/spec-drafts.git",
     "branch": "copilot/wot-binding-alignment",
-    "commit": "0d2099f96ef2a1a081d37d22f7d49eba9efca85d",
+    "commit": "2e48f1d510cf84c9c24690c7a0677cccf6c77439",
     "path": "wot-specs/WoT-Binding/examples"
   },
   "bindingRevision": "1.1",
@@ -12,7 +12,7 @@
     "lineEnding": "lf",
     "transformation": "none"
   },
-  "exampleCount": 26,
+  "exampleCount": 27,
   "files": [
     {
       "name": "01-opcua-td-pump.jsonld",
@@ -116,8 +116,8 @@
     },
     {
       "name": "21-condition-limit-alarm.jsonld",
-      "bytes": 8801,
-      "sha256": "38dfc316a13e70422d2499c4918d056eb8063dfa3e0fac1770ea6c134ae4f6dc"
+      "bytes": 7326,
+      "sha256": "00f84596a8028ea825f2c892c34180266857cd67770aa96fb081a1889a7a771a"
     },
     {
       "name": "22-type-binding-and-instance-reference.jsonld",
@@ -143,6 +143,11 @@
       "name": "26-data-type-node.jsonld",
       "bytes": 2441,
       "sha256": "fa32c08f969ba55d67d0e200b07acab561c0378ee4a62ffbde83f399e87fbeb2"
+    },
+    {
+      "name": "27-event-type-models.jsonld",
+      "bytes": 6894,
+      "sha256": "a46debedccef337b316e27087e31560e06444c71f5f274b078d3218e0163f308"
     }
   ]
 }

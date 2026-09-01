@@ -63,7 +63,7 @@ namespace Opc.Ua.Types.Tests.Wot
             "Detail.Inner.Value")]
         public void AClauseMaterializesIntoOneDataMember(string browsePath, string expected)
         {
-            var clause = new WotEventSelectClause("i=2041", browsePath);
+            var clause = new WotEventSelectClause("./base-event.tm.jsonld", browsePath);
 
             Assert.That(
                 WotEventSelectClauses.FormatMemberPath(clause.MemberPath),
@@ -78,9 +78,9 @@ namespace Opc.Ua.Types.Tests.Wot
         {
             ArrayOf<WotEventSelectClause> clauses =
             [
-                new WotEventSelectClause("i=2041", "pump:LatchState"),
-                new WotEventSelectClause("i=2041", "pump:LatchState/Id"),
-                new WotEventSelectClause("i=2041", "pump:Detail/Value")
+                new WotEventSelectClause("./base-event.tm.jsonld", "pump:LatchState"),
+                new WotEventSelectClause("./base-event.tm.jsonld", "pump:LatchState/Id"),
+                new WotEventSelectClause("./base-event.tm.jsonld", "pump:Detail/Value")
             ];
 
             ArrayOf<ArrayOf<string>> members =
@@ -113,11 +113,11 @@ namespace Opc.Ua.Types.Tests.Wot
         {
             Assert.That(
                 TryParse(
-                    "[{\"uav:typeDefinitionId\":\"i=2782\",\"uav:browsePath\":\"\"}," +
-                    "{\"uav:typeDefinitionId\":\"i=2782\",\"uav:browsePath\":\"EnabledState\"}," +
-                    "{\"uav:typeDefinitionId\":\"i=2782\"," +
+                    "[{\"tm:ref\":\"./condition.tm.jsonld\",\"uav:browsePath\":\"\"}," +
+                    "{\"tm:ref\":\"./condition.tm.jsonld\",\"uav:browsePath\":\"EnabledState\"}," +
+                    "{\"tm:ref\":\"./condition.tm.jsonld\"," +
                     "\"uav:browsePath\":\"EnabledState/Id\"}," +
-                    "{\"uav:typeDefinitionId\":\"i=2041\"," +
+                    "{\"tm:ref\":\"./base-event.tm.jsonld\"," +
                     "\"uav:browsePath\":\"pump:Detail/pump:Inner/Value\"}]",
                     out ArrayOf<WotEventSelectClause> clauses,
                     out string error),
@@ -127,29 +127,29 @@ namespace Opc.Ua.Types.Tests.Wot
         }
 
         [TestCase(
-            "[{\"uav:typeDefinitionId\":\"i=2782\",\"uav:browsePath\":\"EnabledState\"}," +
-            "{\"uav:typeDefinitionId\":\"i=2782\",\"uav:browsePath\":\"EnabledState/Name\"}]",
+            "[{\"tm:ref\":\"./condition.tm.jsonld\",\"uav:browsePath\":\"EnabledState\"}," +
+            "{\"tm:ref\":\"./condition.tm.jsonld\",\"uav:browsePath\":\"EnabledState/Name\"}]",
             "EnabledState.Name",
             TestName = "AStateVariableAndItsNameMemberCollide")]
         [TestCase(
-            "[{\"uav:typeDefinitionId\":\"i=2041\",\"uav:browsePath\":\"Severity\"}," +
-            "{\"uav:typeDefinitionId\":\"i=2041\",\"uav:browsePath\":\"pump:Severity\"}]",
+            "[{\"tm:ref\":\"./base-event.tm.jsonld\",\"uav:browsePath\":\"Severity\"}," +
+            "{\"tm:ref\":\"./base-event.tm.jsonld\",\"uav:browsePath\":\"pump:Severity\"}]",
             "Severity",
             TestName = "ABareAndAQualifiedNameCollide")]
         [TestCase(
-            "[{\"uav:typeDefinitionId\":\"i=2041\",\"uav:browsePath\":\"pump:LatchState\"}," +
-            "{\"uav:typeDefinitionId\":\"i=2041\",\"uav:browsePath\":\"pump:LatchState/Id\"}," +
-            "{\"uav:typeDefinitionId\":\"i=2041\",\"uav:browsePath\":\"pump:LatchState/Name\"}]",
+            "[{\"tm:ref\":\"./base-event.tm.jsonld\",\"uav:browsePath\":\"pump:LatchState\"}," +
+            "{\"tm:ref\":\"./base-event.tm.jsonld\",\"uav:browsePath\":\"pump:LatchState/Id\"}," +
+            "{\"tm:ref\":\"./base-event.tm.jsonld\",\"uav:browsePath\":\"pump:LatchState/Name\"}]",
             "LatchState.Name",
             TestName = "ACompanionStateAndItsNameMemberCollide")]
         [TestCase(
-            "[{\"uav:typeDefinitionId\":\"i=2782\",\"uav:browsePath\":\"\"}," +
-            "{\"uav:typeDefinitionId\":\"i=2881\",\"uav:browsePath\":\"\"}]",
+            "[{\"tm:ref\":\"./condition.tm.jsonld\",\"uav:browsePath\":\"\"}," +
+            "{\"tm:ref\":\"./alarm.tm.jsonld\",\"uav:browsePath\":\"\"}]",
             "ConditionId",
             TestName = "TwoEmptyPathsCollideOnConditionId")]
         [TestCase(
-            "[{\"uav:typeDefinitionId\":\"i=2041\",\"uav:browsePath\":\"Severity\"}," +
-            "{\"uav:typeDefinitionId\":\"i=2782\",\"uav:browsePath\":\"Severity\"}]",
+            "[{\"tm:ref\":\"./base-event.tm.jsonld\",\"uav:browsePath\":\"Severity\"}," +
+            "{\"tm:ref\":\"./condition.tm.jsonld\",\"uav:browsePath\":\"Severity\"}]",
             "Severity",
             TestName = "TwoEventTypesCollideOnOneMember")]
         public void TwoClausesThatMaterializeOneMemberAreRejected(string json, string member)
@@ -167,8 +167,8 @@ namespace Opc.Ua.Types.Tests.Wot
         {
             Assert.That(
                 TryParse(
-                    "[{\"uav:typeDefinitionId\":\"i=2041\",\"uav:browsePath\":\"Severity\"}," +
-                    "{\"uav:typeDefinitionId\":\"i=2041\",\"uav:browsePath\":\"Severity\"}]",
+                    "[{\"tm:ref\":\"./base-event.tm.jsonld\",\"uav:browsePath\":\"Severity\"}," +
+                    "{\"tm:ref\":\"./base-event.tm.jsonld\",\"uav:browsePath\":\"Severity\"}]",
                     out _,
                     out string error),
                 Is.False);
@@ -176,7 +176,7 @@ namespace Opc.Ua.Types.Tests.Wot
         }
 
         /// <summary>
-        /// The documented default list is a process-wide shared value that
+        /// The implicit default list is a process-wide shared value that
         /// every planner and channel reads. A member computed on first use
         /// would be written by whichever thread reached it first, which is a
         /// data race on a multiword <see cref="ArrayOf{T}"/> field.
@@ -184,7 +184,7 @@ namespace Opc.Ua.Types.Tests.Wot
         [Test]
         public void TheDefaultClausesCarryNoLazilyWrittenState()
         {
-            FieldInfo[] fields = typeof(WotEventSelectClause)
+            FieldInfo[] fields = typeof(WotResolvedEventSelectClause)
                 .GetFields(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
 
             Assert.That(fields, Is.Not.Empty);
@@ -202,7 +202,7 @@ namespace Opc.Ua.Types.Tests.Wot
         [Test]
         public void TheDefaultClausesReadTheSameMemberPathFromEveryThread()
         {
-            ArrayOf<WotEventSelectClause> clauses = WotEventSelectClauses.Default;
+            ArrayOf<WotResolvedEventSelectClause> clauses = WotEventSelectClauses.Default;
             var observed = new string[64][];
 
             Parallel.For(0, observed.Length, ii =>
@@ -263,7 +263,7 @@ namespace Opc.Ua.Types.Tests.Wot
                     Is.EqualTo(browsePath),
                     "The elements round-trip through the joined form the document authored.");
                 Assert.That(
-                    new WotEventSelectClause("i=2041", browsePath).PathElements.ToList(),
+                    new WotEventSelectClause("./base-event.tm.jsonld", browsePath).PathElements.ToList(),
                     Is.EqualTo(expected).AsCollection,
                     "A clause carries the same elements every rule is stated over.");
             });
@@ -279,7 +279,7 @@ namespace Opc.Ua.Types.Tests.Wot
         public void ANamespaceUriCarryingTheSeparatorIsOneElementRatherThanFive()
         {
             var clause = new WotEventSelectClause(
-                "i=2041", "nsu=http://example.org/pump/;Temperature");
+                "./base-event.tm.jsonld", "nsu=http://example.org/pump/;Temperature");
 
             Assert.Multiple(() =>
             {
@@ -300,7 +300,7 @@ namespace Opc.Ua.Types.Tests.Wot
         {
             Assert.That(
                 TryParse(
-                    "[{\"uav:typeDefinitionId\":\"i=2041\"," +
+                    "[{\"tm:ref\":\"./base-event.tm.jsonld\"," +
                     "\"uav:browsePath\":\"nsu=http://example.org/pump/;Temperature\"}]",
                     out ArrayOf<WotEventSelectClause> clauses,
                     out string error),
@@ -314,11 +314,11 @@ namespace Opc.Ua.Types.Tests.Wot
         {
             Assert.That(
                 TryParse(
-                    "[{\"uav:typeDefinitionId\":\"i=2041\",\"uav:browsePath\":" +
+                    "[{\"tm:ref\":\"./base-event.tm.jsonld\",\"uav:browsePath\":" +
                     "\"nsu=http://example.org/pump/;Detail/" +
                     "nsu=http://example.org/site/a/;Inner/Value\"}," +
-                    "{\"uav:typeDefinitionId\":\"i=2782\",\"uav:browsePath\":\"\"}," +
-                    "{\"uav:typeDefinitionId\":\"i=2041\",\"uav:browsePath\":" +
+                    "{\"tm:ref\":\"./condition.tm.jsonld\",\"uav:browsePath\":\"\"}," +
+                    "{\"tm:ref\":\"./base-event.tm.jsonld\",\"uav:browsePath\":" +
                     "\"nsu=urn:example:pump;Severity\"}]",
                     out ArrayOf<WotEventSelectClause> clauses,
                     out string error),
@@ -347,15 +347,15 @@ namespace Opc.Ua.Types.Tests.Wot
         }
 
         [TestCase(
-            "[{\"uav:typeDefinitionId\":\"i=2041\",\"uav:browsePath\":\"Temperature\"}," +
-            "{\"uav:typeDefinitionId\":\"i=2041\",\"uav:browsePath\":" +
+            "[{\"tm:ref\":\"./base-event.tm.jsonld\",\"uav:browsePath\":\"Temperature\"}," +
+            "{\"tm:ref\":\"./base-event.tm.jsonld\",\"uav:browsePath\":" +
             "\"nsu=http://example.org/pump/;Temperature\"}]",
             "Temperature",
             TestName = "ASlashCarryingNamespaceAndABareNameCollide")]
         [TestCase(
-            "[{\"uav:typeDefinitionId\":\"i=2041\",\"uav:browsePath\":" +
+            "[{\"tm:ref\":\"./base-event.tm.jsonld\",\"uav:browsePath\":" +
             "\"nsu=http://example.org/pump/;Detail/Value\"}," +
-            "{\"uav:typeDefinitionId\":\"i=2041\",\"uav:browsePath\":" +
+            "{\"tm:ref\":\"./base-event.tm.jsonld\",\"uav:browsePath\":" +
             "\"{http://example.org/other/}Detail/Value\"}]",
             "Detail.Value",
             TestName = "TwoSlashCarryingNamespacesCollideOnTheNestedMember")]
@@ -381,7 +381,7 @@ namespace Opc.Ua.Types.Tests.Wot
         {
             Assert.That(
                 TryParse(
-                    "[{\"uav:typeDefinitionId\":\"i=2041\",\"uav:browsePath\":\"" +
+                    "[{\"tm:ref\":\"./base-event.tm.jsonld\",\"uav:browsePath\":\"" +
                     browsePath + "\"}]",
                     out _,
                     out string error),

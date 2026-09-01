@@ -35,53 +35,107 @@ using System.Text.Json;
 namespace Opc.Ua.Wot
 {
     /// <summary>
-    /// One OPC UA event field select clause authored by
-    /// <c>uav:eventSelectClauses</c> (WoT Binding Section 6.1): the EventType
-    /// that declares the field, and the browse path from that type to it.
+    /// The path half of an OPC UA event field select clause, which the authored
+    /// and the resolved forms of a clause state identically
+    /// (WoT Binding Section 6.1).
     /// </summary>
     /// <remarks>
-    /// The clause is the readable form of an OPC 10000-4
-    /// <c>SimpleAttributeOperand</c>. It is deliberately transport-neutral:
-    /// <see cref="TypeDefinitionId"/> stays the portable ExpandedNodeId the
-    /// document wrote, because a namespace index only means something to the
-    /// session that read the namespace table, and a consumer resolves both the
-    /// type and the path elements against its own table when it creates the
-    /// MonitoredItem.
+    /// A clause names an EventType and a browse path from it. The two forms
+    /// differ only in how the EventType is named — an authored clause references
+    /// its definition with <c>tm:ref</c>, a resolved clause carries the portable
+    /// ExpandedNodeId that reference produced — so every rule stated over the
+    /// path is stated once, over this interface.
     /// </remarks>
-    public sealed class WotEventSelectClause : IEquatable<WotEventSelectClause>
+    public interface IWotEventSelectClause
     {
         /// <summary>
-        /// Initializes a new select clause.
+        /// Gets the browse path from the clause's EventType to the selected
+        /// field, relative because the EventType is the clause's anchor.
         /// </summary>
-        /// <param name="typeDefinitionId">
-        /// The portable ExpandedNodeId of the EventType that declares the field.
+        string BrowsePath { get; }
+
+        /// <summary>
+        /// Gets <see cref="BrowsePath"/> as the elements it is made of, in path
+        /// order.
+        /// </summary>
+        ArrayOf<string> PathElements { get; }
+
+        /// <summary>
+        /// Gets the <c>data</c> member path the clause materializes into,
+        /// decided from the clause alone.
+        /// </summary>
+        ArrayOf<string> MemberPath { get; }
+
+        /// <summary>
+        /// Gets the name the selected field carries in the event <c>data</c>
+        /// object.
+        /// </summary>
+        string FieldName { get; }
+
+        /// <summary>
+        /// Gets whether the clause is the empty-path <c>ConditionId</c>
+        /// selection.
+        /// </summary>
+        bool IsConditionIdSelection { get; }
+    }
+
+    /// <summary>
+    /// One OPC UA event field select clause exactly as a document authors it in
+    /// <c>uav:eventSelectClauses</c> (WoT Binding Section 6.1): a <c>tm:ref</c>
+    /// naming the EventType definition that declares the field, and the browse
+    /// path from that EventType to it.
+    /// </summary>
+    /// <remarks>
+    /// The authored clause is what the document states and never more: the
+    /// EventType is named by reference, and the portable ExpandedNodeId a
+    /// consumer needs is the <c>uav:id</c> of the definition that reference
+    /// resolves to. Resolution is asynchronous and bounded, so it happens once,
+    /// in <see cref="WotEventSelectionResolver"/>, and what a runtime consumes
+    /// is the resolved <see cref="WotResolvedEventSelectClause"/> rather than
+    /// this.
+    /// </remarks>
+    public sealed class WotEventSelectClause :
+        IWotEventSelectClause, IEquatable<WotEventSelectClause>
+    {
+        /// <summary>
+        /// Initializes a new authored select clause.
+        /// </summary>
+        /// <param name="typeDefinitionReference">
+        /// The <c>tm:ref</c> naming the EventType definition that declares the
+        /// field: a document URI with an optional RFC 6901 JSON Pointer.
         /// </param>
         /// <param name="browsePath">
-        /// The relative browse path from that type to the field. The empty path
-        /// is the OPC 10000-9 <c>ConditionId</c> idiom and selects the NodeId
-        /// Attribute of the Node the notification is about.
+        /// The relative browse path from that EventType to the field. The empty
+        /// path is the OPC 10000-9 <c>ConditionId</c> idiom and selects the
+        /// NodeId Attribute of the Node the notification is about.
         /// </param>
         /// <exception cref="ArgumentNullException">
         /// Thrown when a required value is <c>null</c>.
         /// </exception>
-        public WotEventSelectClause(string typeDefinitionId, string browsePath)
+        public WotEventSelectClause(string typeDefinitionReference, string browsePath)
         {
-            TypeDefinitionId = typeDefinitionId ??
-                throw new ArgumentNullException(nameof(typeDefinitionId));
+            TypeDefinitionReference = typeDefinitionReference ??
+                throw new ArgumentNullException(nameof(typeDefinitionReference));
             BrowsePath = browsePath ?? throw new ArgumentNullException(nameof(browsePath));
             PathElements = WotEventSelectClauses.SplitBrowsePath(BrowsePath);
-            MemberPath = BuildMemberPath(PathElements);
+            MemberPath = WotEventSelectClauses.BuildMemberPath(PathElements);
         }
 
         /// <summary>
-        /// Gets the portable ExpandedNodeId of the EventType that declares the
-        /// selected field (WoT Binding Sections 5.1.1 and 6.1).
+        /// Gets the <c>tm:ref</c> naming the EventType definition that declares
+        /// the selected field (WoT Binding Section 6.1).
         /// </summary>
-        public string TypeDefinitionId { get; }
+        /// <remarks>
+        /// The reference resolves through the local document context of
+        /// Section 5.1.5 and is never dereferenced over the network. The
+        /// definition it names supplies the clause's <c>TypeDefinitionId</c>
+        /// through its <c>uav:id</c>.
+        /// </remarks>
+        public string TypeDefinitionReference { get; }
 
         /// <summary>
-        /// Gets the browse path from <see cref="TypeDefinitionId"/> to the
-        /// selected field, relative because the type definition is the clause's
+        /// Gets the browse path from the referenced EventType to the selected
+        /// field, relative because the EventType definition is the clause's
         /// anchor (WoT Binding Sections 5.1.4 and 6.1).
         /// </summary>
         public string BrowsePath { get; }
@@ -198,29 +252,17 @@ namespace Opc.Ua.Wot
         /// <returns>The normalized path.</returns>
         public string GetNormalizedBrowsePath(Func<string, string?>? resolvePrefix = null)
         {
-            if (IsConditionIdSelection)
-            {
-                return string.Empty;
-            }
-            ArrayOf<string> elements = PathElements;
-            var normalized = new StringBuilder();
-            for (int ii = 0; ii < elements.Count; ii++)
-            {
-                if (ii > 0)
-                {
-                    normalized.Append('/');
-                }
-                normalized.Append(
-                    WotEventSelectClauses.NormalizeElement(elements[ii], resolvePrefix));
-            }
-            return normalized.ToString();
+            return WotEventSelectClauses.NormalizeBrowsePath(this, resolvePrefix);
         }
 
         /// <inheritdoc/>
         public bool Equals(WotEventSelectClause? other)
         {
             return other is not null &&
-                string.Equals(TypeDefinitionId, other.TypeDefinitionId, StringComparison.Ordinal) &&
+                string.Equals(
+                    TypeDefinitionReference,
+                    other.TypeDefinitionReference,
+                    StringComparison.Ordinal) &&
                 string.Equals(BrowsePath, other.BrowsePath, StringComparison.Ordinal);
         }
 
@@ -234,46 +276,27 @@ namespace Opc.Ua.Wot
         public override int GetHashCode()
         {
             return HashCode.Combine(
-                StringComparer.Ordinal.GetHashCode(TypeDefinitionId),
+                StringComparer.Ordinal.GetHashCode(TypeDefinitionReference),
                 StringComparer.Ordinal.GetHashCode(BrowsePath));
         }
 
         /// <inheritdoc/>
         public override string ToString()
         {
-            return TypeDefinitionId + "#" + BrowsePath;
-        }
-
-        private static ArrayOf<string> BuildMemberPath(ArrayOf<string> elements)
-        {
-            if (elements.Count == 0)
-            {
-                return new[] { WotEventSelectClauses.ConditionIdFieldName };
-            }
-            var members = new List<string>(elements.Count + 1);
-            for (int ii = 0; ii < elements.Count; ii++)
-            {
-                members.Add(WotEventSelectClauses.MemberName(elements[ii]));
-            }
-            if (WotEventSelectClauses.IsStateVariableFieldName(members[members.Count - 1]))
-            {
-                members.Add(WotEventSelectClauses.StateNameMember);
-            }
-            return members.ToArray();
+            return "tm:ref '" + TypeDefinitionReference + "' path '" + BrowsePath + "'";
         }
     }
 
     /// <summary>
     /// The <c>uav:eventSelectClauses</c> term of WoT Binding Section 6.1: its
-    /// spelling, its documented default and the one implementation of its
-    /// structural rules.
+    /// spelling, the implicit <c>BaseEventType</c> default and the one
+    /// implementation of its structural rules.
     /// </summary>
     /// <remarks>
-    /// The term states the complete select-clause list an event MonitoredItem
-    /// is created with. Where it is absent a consumer selects the eight
-    /// mandatory <c>BaseEventType</c> fields of <see cref="Default"/>; where it
-    /// is present that default is replaced rather than extended, so one list is
-    /// read rather than a list plus a rule about what silently precedes it.
+    /// An event affordance states its field selection by linking its EventType
+    /// definition with <c>tm:ref</c>, by refining that baseline with this term,
+    /// or with both. Where it states neither, a consumer selects the eight
+    /// mandatory <c>BaseEventType</c> fields of <see cref="Default"/>.
     /// </remarks>
     public static class WotEventSelectClauses
     {
@@ -283,16 +306,32 @@ namespace Opc.Ua.Wot
         public const string Term = "uav:eventSelectClauses";
 
         /// <summary>
-        /// The clause member naming the EventType that declares the field.
+        /// The member naming the EventType definition that declares the field:
+        /// the W3C <c>tm:ref</c> this Binding already uses for projections
+        /// (WoT Binding Sections 6.1 and 12.3).
         /// </summary>
-        public const string TypeDefinitionIdTerm = "uav:typeDefinitionId";
+        public const string TypeDefinitionReferenceTerm = "tm:ref";
 
         /// <summary>
         /// The clause member carrying the browse path to the field. The term is
         /// the same <c>uav:browsePath</c> Section 5.1.4 defines, anchored here
-        /// by the clause's type definition.
+        /// by the EventType definition the clause references.
         /// </summary>
         public const string BrowsePathTerm = "uav:browsePath";
+
+        /// <summary>
+        /// The term naming the order an EventType definition's <c>data</c>
+        /// members are walked in (WoT Binding Sections 6.1 and 6.11.4). JSON
+        /// object member order is not an order, so a walked object with more
+        /// than one property states this one.
+        /// </summary>
+        public const string FieldOrderTerm = "uav:fieldOrder";
+
+        /// <summary>
+        /// The <c>@type</c> token that marks an EventType definition
+        /// (WoT Binding Section 5.2).
+        /// </summary>
+        public const string EventTypeAnnotation = "uav:eventType";
 
         /// <summary>
         /// The ExpandedNodeId of <c>BaseEventType</c>, the type that declares
@@ -383,9 +422,11 @@ namespace Opc.Ua.Wot
         /// </para>
         /// </remarks>
         /// <param name="clauses">The clause list, in document order.</param>
+        /// <typeparam name="TClause">The clause form: authored or resolved.</typeparam>
         /// <returns>The materialized member path of each clause.</returns>
-        public static ArrayOf<ArrayOf<string>> GetMaterializedMemberPaths(
-            ArrayOf<WotEventSelectClause> clauses)
+        public static ArrayOf<ArrayOf<string>> GetMaterializedMemberPaths<TClause>(
+            ArrayOf<TClause> clauses)
+            where TClause : IWotEventSelectClause
         {
             if (clauses.IsNull || clauses.Count == 0)
             {
@@ -395,7 +436,7 @@ namespace Opc.Ua.Wot
             var reachedThrough = new HashSet<string>(StringComparer.Ordinal);
             for (int ii = 0; ii < clauses.Count; ii++)
             {
-                WotEventSelectClause clause = clauses[ii];
+                TClause clause = clauses[ii];
                 string[] names = clause.IsConditionIdSelection
                     ? [ConditionIdFieldName]
                     : SplitMemberNames(clause.PathElements);
@@ -739,25 +780,35 @@ namespace Opc.Ua.Wot
         ];
 
         /// <summary>
-        /// The documented default select-clause list, which applies when an
-        /// event affordance carries no <c>uav:eventSelectClauses</c>
-        /// (WoT Binding Section 6.1). It is the one statement of that default:
-        /// a planner, a channel and the validation rules all read it from here.
+        /// The implicit <c>BaseEventType</c> selection of WoT Binding
+        /// Section 6.1, which applies when an event affordance carries neither
+        /// <c>tm:ref</c> nor <c>uav:eventSelectClauses</c>. It is the one
+        /// statement of that default: a resolver, a planner, a channel and the
+        /// validation rules all read it from here.
         /// </summary>
-        public static ArrayOf<WotEventSelectClause> Default { get; } = BuildDefault();
+        /// <remarks>
+        /// The default needs no resolution: every clause of it is declared by
+        /// <c>BaseEventType</c>, whose ExpandedNodeId is fixed by OPC 10000-5,
+        /// so it is already in the resolved form a runtime consumes.
+        /// </remarks>
+        public static ArrayOf<WotResolvedEventSelectClause> Default { get; } = BuildDefault();
 
         /// <summary>
         /// Parses and validates a <c>uav:eventSelectClauses</c> array against
         /// the structural rules of WoT Binding Sections 6.1 and 7.
         /// </summary>
         /// <remarks>
-        /// The rules are stated once here because both the document converter
-        /// and the OPC UA binding planner enforce them, and a second
-        /// implementation would eventually disagree with the first. A
-        /// <c>WhereClause</c> or <c>ContentFilter</c> is rejected with its own
-        /// message: it is a query language this Binding deliberately does not
-        /// express, and an author who wrote one deserves to be told why rather
-        /// than being told a member is unexpected.
+        /// The rules are stated once here because the document converter, the
+        /// EventType-reference resolver and the OPC UA binding planner all
+        /// enforce them, and a second implementation would eventually disagree
+        /// with the first. Only the rules a document states on its own are
+        /// checked: whether the referenced definition exists, is an EventType
+        /// and declares the named field is decided by
+        /// <see cref="WotEventSelectionResolver"/>, which is the one place that
+        /// resolves a reference. A <c>WhereClause</c> or <c>ContentFilter</c> is
+        /// rejected with its own message: it is a query language this Binding
+        /// deliberately does not express, and an author who wrote one deserves
+        /// to be told why rather than being told a member is unexpected.
         /// </remarks>
         /// <param name="selectClauses">The array member's value.</param>
         /// <param name="clauses">The parsed clauses, in document order.</param>
@@ -839,7 +890,7 @@ namespace Opc.Ua.Wot
                 if (clause.ValueKind != JsonValueKind.Object)
                 {
                     error = "A select clause shall be an object carrying exactly " +
-                        $"{TypeDefinitionIdTerm} and {BrowsePathTerm}.";
+                        $"{TypeDefinitionReferenceTerm} and {BrowsePathTerm}.";
                     return false;
                 }
                 if (!TryParseClause(clause, out WotEventSelectClause? entry, out error))
@@ -886,12 +937,14 @@ namespace Opc.Ua.Wot
         /// The index of the second clause of the colliding pair, or <c>-1</c>
         /// when there is none.
         /// </param>
+        /// <typeparam name="TClause">The clause form: authored or resolved.</typeparam>
         /// <returns><c>true</c> when no two clauses collide.</returns>
-        public static bool TryFindMaterializedCollision(
-            ArrayOf<WotEventSelectClause> clauses,
+        public static bool TryFindMaterializedCollision<TClause>(
+            ArrayOf<TClause> clauses,
             Func<string, string?>? resolvePrefix,
             out string error,
             out int errorIndex)
+            where TClause : IWotEventSelectClause
         {
             error = string.Empty;
             errorIndex = -1;
@@ -910,31 +963,68 @@ namespace Opc.Ua.Wot
                     seen.Add(key, ii);
                     continue;
                 }
-                WotEventSelectClause entry = clauses[ii];
-                WotEventSelectClause first = clauses[firstIndex];
+                TClause entry = clauses[ii];
+                TClause first = clauses[firstIndex];
                 errorIndex = ii;
                 if (string.Equals(
-                        first.TypeDefinitionId, entry.TypeDefinitionId, StringComparison.Ordinal) &&
+                        entry.ToString(), first.ToString(), StringComparison.Ordinal) &&
                     string.Equals(
-                        first.GetNormalizedBrowsePath(resolvePrefix),
-                        entry.GetNormalizedBrowsePath(resolvePrefix),
+                        NormalizeBrowsePath(first, resolvePrefix),
+                        NormalizeBrowsePath(entry, resolvePrefix),
                         StringComparison.Ordinal))
                 {
-                    error = $"The clause ({entry.TypeDefinitionId}, '{entry.BrowsePath}') " +
-                        "appears twice; the same clause shall not be selected twice.";
+                    error = $"The clause ({entry}) appears twice; the same clause shall not " +
+                        "be selected twice.";
                     return false;
                 }
-                error = $"The clause ({entry.TypeDefinitionId}, '{entry.BrowsePath}') " +
-                    $"materializes the data member '{FormatMemberPath(memberPath)}', which " +
-                    $"({first.TypeDefinitionId}, '{first.BrowsePath}') already materializes. " +
+                error = $"The clause ({entry}) materializes the data member " +
+                    $"'{FormatMemberPath(memberPath)}', which ({first}) already materializes. " +
                     "The materialized member path of a clause shall be unique within the " +
-                    "array, because that member and not the browse path it came from decides " +
-                    "the output, so two clauses that reach it would compete for it and " +
-                    "nothing in the document would say which of them filled it " +
+                    "selection, because that member and not the browse path it came from " +
+                    "decides the output, so two clauses that reach it would compete for it " +
+                    "and nothing in the document would say which of them filled it " +
                     "(Section 6.1).";
                 return false;
             }
             return true;
+        }
+
+        /// <summary>
+        /// Normalizes a clause's browse path to the portable form of
+        /// WoT Binding Section 5.1.3.
+        /// </summary>
+        /// <param name="clause">The clause.</param>
+        /// <param name="resolvePrefix">
+        /// Resolves a path-element prefix to the NamespaceUri the document's
+        /// <c>@context</c> binds it to, or <c>null</c> to compare paths as
+        /// written.
+        /// </param>
+        /// <returns>The normalized path.</returns>
+        /// <exception cref="ArgumentNullException">
+        /// Thrown when <paramref name="clause"/> is <c>null</c>.
+        /// </exception>
+        public static string NormalizeBrowsePath(
+            IWotEventSelectClause clause, Func<string, string?>? resolvePrefix = null)
+        {
+            if (clause is null)
+            {
+                throw new ArgumentNullException(nameof(clause));
+            }
+            if (clause.IsConditionIdSelection)
+            {
+                return string.Empty;
+            }
+            ArrayOf<string> elements = clause.PathElements;
+            var normalized = new StringBuilder();
+            for (int ii = 0; ii < elements.Count; ii++)
+            {
+                if (ii > 0)
+                {
+                    normalized.Append('/');
+                }
+                normalized.Append(NormalizeElement(elements[ii], resolvePrefix));
+            }
+            return normalized.ToString();
         }
 
         /// <summary>
@@ -965,19 +1055,20 @@ namespace Opc.Ua.Wot
             out string error)
         {
             parsed = null;
-            string? typeDefinitionId = null;
+            string? typeDefinitionReference = null;
             string? browsePath = null;
             foreach (JsonProperty member in clause.EnumerateObject())
             {
-                if (string.Equals(member.Name, TypeDefinitionIdTerm, StringComparison.Ordinal))
+                if (string.Equals(
+                    member.Name, TypeDefinitionReferenceTerm, StringComparison.Ordinal))
                 {
                     if (member.Value.ValueKind != JsonValueKind.String)
                     {
-                        error = $"The {TypeDefinitionIdTerm} of a select clause shall be an " +
-                            "ExpandedNodeId string.";
+                        error = $"The {TypeDefinitionReferenceTerm} of a select clause shall " +
+                            "be a document URI with an optional RFC 6901 JSON Pointer.";
                         return false;
                     }
-                    typeDefinitionId = member.Value.GetString();
+                    typeDefinitionReference = member.Value.GetString();
                     continue;
                 }
                 if (string.Equals(member.Name, BrowsePathTerm, StringComparison.Ordinal))
@@ -996,14 +1087,22 @@ namespace Opc.Ua.Wot
                         "occurrences are delivered - is out of scope of this Binding and " +
                         "shall not be carried by any of its terms (Section 6.1)."
                     : $"A select clause carries '{member.Name}'; a clause carries exactly " +
-                        $"{TypeDefinitionIdTerm} and {BrowsePathTerm} and no other member.";
+                        $"{TypeDefinitionReferenceTerm} and {BrowsePathTerm} and no other " +
+                        "member.";
                 return false;
             }
 
-            if (string.IsNullOrEmpty(typeDefinitionId))
+            if (string.IsNullOrEmpty(typeDefinitionReference))
             {
-                error = $"A select clause shall carry {TypeDefinitionIdTerm}, the " +
-                    "ExpandedNodeId of the EventType that declares the selected field.";
+                error = $"A select clause shall carry {TypeDefinitionReferenceTerm}, naming " +
+                    "the EventType definition that declares the selected field.";
+                return false;
+            }
+            if (!IsEventTypeReference(typeDefinitionReference!))
+            {
+                error = $"The select-clause {TypeDefinitionReferenceTerm} " +
+                    $"'{typeDefinitionReference}' is not a document URI with an optional " +
+                    "RFC 6901 JSON Pointer (Section 6.1).";
                 return false;
             }
             if (browsePath is null)
@@ -1022,8 +1121,9 @@ namespace Opc.Ua.Wot
                 if (elements[0].Length == 0)
                 {
                     error = $"The select-clause browse path '{browsePath}' is absolute; a " +
-                        "clause path is relative to the clause's " +
-                        $"{TypeDefinitionIdTerm}, which anchors it (Section 6.1).";
+                        "clause path is relative to the EventType definition the clause " +
+                        $"references through {TypeDefinitionReferenceTerm}, which anchors it " +
+                        "(Section 6.1).";
                     return false;
                 }
                 if (elements[elements.Count - 1].Length == 0)
@@ -1044,17 +1144,109 @@ namespace Opc.Ua.Wot
                 }
             }
 
-            parsed = new WotEventSelectClause(typeDefinitionId!, browsePath);
+            parsed = new WotEventSelectClause(typeDefinitionReference!, browsePath);
             error = string.Empty;
             return true;
         }
 
-        private static ArrayOf<WotEventSelectClause> BuildDefault()
+        /// <summary>
+        /// Determines whether a value spells an EventType reference: a document
+        /// URI, optionally followed by a '#' and a non-empty RFC 6901 JSON
+        /// Pointer (WoT Binding Section 6.1).
+        /// </summary>
+        /// <param name="reference">The <c>tm:ref</c> value.</param>
+        /// <returns><c>true</c> when the value is a well-formed reference.</returns>
+        public static bool IsEventTypeReference(string? reference)
         {
-            var clauses = new WotEventSelectClause[DefaultFieldNames.Count];
+            return TrySplitEventTypeReference(reference, out _, out _);
+        }
+
+        /// <summary>
+        /// Splits an EventType reference into the document URI it names and the
+        /// RFC 6901 JSON Pointer into that document, which is empty where the
+        /// reference names the document's root (WoT Binding Section 6.1).
+        /// </summary>
+        /// <param name="reference">The <c>tm:ref</c> value.</param>
+        /// <param name="document">The document URI.</param>
+        /// <param name="pointer">The JSON Pointer, empty for the root.</param>
+        /// <returns><c>true</c> when the value is a well-formed reference.</returns>
+        public static bool TrySplitEventTypeReference(
+            string? reference, out string document, out string pointer)
+        {
+            document = string.Empty;
+            pointer = string.Empty;
+            if (string.IsNullOrEmpty(reference))
+            {
+                return false;
+            }
+            int hash = reference!.IndexOf('#', StringComparison.Ordinal);
+            if (hash < 0)
+            {
+                document = reference;
+                return true;
+            }
+            if (hash == 0 || hash + 1 >= reference.Length)
+            {
+                // A reference without a document names nothing this Binding can
+                // resolve, and a '#' that starts no pointer is not a pointer.
+                return false;
+            }
+            string candidate = reference.Substring(hash + 1);
+            if (candidate[0] != '/')
+            {
+                return false;
+            }
+            for (int ii = 0; ii < candidate.Length; ii++)
+            {
+                if (candidate[ii] != '~')
+                {
+                    continue;
+                }
+                if (ii + 1 >= candidate.Length ||
+                    (candidate[ii + 1] != '0' && candidate[ii + 1] != '1'))
+                {
+                    return false;
+                }
+                ii++;
+            }
+            document = reference.Substring(0, hash);
+            pointer = candidate;
+            return true;
+        }
+
+        /// <summary>
+        /// Builds the <c>data</c> member path a browse path materializes into,
+        /// decided from that path alone (WoT Binding Section 6.1).
+        /// </summary>
+        /// <param name="elements">The browse-path elements, in path order.</param>
+        /// <returns>The member path, outermost first.</returns>
+        internal static ArrayOf<string> BuildMemberPath(ArrayOf<string> elements)
+        {
+            if (elements.Count == 0)
+            {
+                return new[] { ConditionIdFieldName };
+            }
+            var members = new List<string>(elements.Count + 1);
+            for (int ii = 0; ii < elements.Count; ii++)
+            {
+                members.Add(MemberName(elements[ii]));
+            }
+            if (IsStateVariableFieldName(members[members.Count - 1]))
+            {
+                members.Add(StateNameMember);
+            }
+            return members.ToArray();
+        }
+
+        private static ArrayOf<WotResolvedEventSelectClause> BuildDefault()
+        {
+            var clauses = new WotResolvedEventSelectClause[DefaultFieldNames.Count];
             for (int ii = 0; ii < DefaultFieldNames.Count; ii++)
             {
-                clauses[ii] = new WotEventSelectClause(BaseEventTypeId, DefaultFieldNames[ii]);
+                clauses[ii] = new WotResolvedEventSelectClause(
+                    BaseEventTypeId,
+                    DefaultFieldNames[ii],
+                    WotEventSelectClauseSource.ImplicitDefault);
             }
             return clauses;
         }

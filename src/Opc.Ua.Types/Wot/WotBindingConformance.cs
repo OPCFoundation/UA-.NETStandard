@@ -652,7 +652,7 @@ namespace Opc.Ua.Wot
                 "uav:isEvent",
                 WotNodeSetConverter.SeverityTerm,
                 WotEventSelectClauses.Term,
-                WotEventSelectClauses.TypeDefinitionIdTerm,
+                WotEventSelectClauses.TypeDefinitionReferenceTerm,
                 // Section 6.2 - links and references.
                 "uav:refName",
                 "uav:refId",

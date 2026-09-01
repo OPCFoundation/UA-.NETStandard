@@ -143,6 +143,7 @@ namespace Opc.Ua.Wot
             WotThingCatalog? thingCatalog = null;
             WotThingCatalog? parentCatalog = null;
             WotReferenceTypeCatalog? referenceTypeCatalog = null;
+            WotEventSelectionCatalog? eventSelections = null;
             if (!TakesRestorePath(document))
             {
                 referenceTypeCatalog = await PreresolveReferenceTypesAsync(
@@ -174,6 +175,26 @@ namespace Opc.Ua.Wot
                     parentCatalog,
                     diagnostics,
                     cancellationToken).ConfigureAwait(false);
+
+                // WoT Binding Section 6.1: an event affordance names the
+                // EventType definition its fields are selected from, and the
+                // synthesis below needs that definition's field set before it
+                // can materialize the EventType's Nodes. Resolution follows
+                // document links, so it happens here, once, and the synchronous
+                // synthesis reads the result.
+                if (!TakesRestorePath(document))
+                {
+                    var selectionResolver = new WotEventSelectionResolver(thingResolver, options);
+                    WotConversionResult<WotEventSelectionCatalog> selectionResult =
+                        await selectionResolver
+                            .ResolveAsync(document, resolutionContext, cancellationToken)
+                            .ConfigureAwait(false);
+                    foreach (WotDiagnostic diagnostic in selectionResult.Diagnostics)
+                    {
+                        diagnostics.Add(diagnostic);
+                    }
+                    eventSelections = selectionResult.Value;
+                }
             }
 
             // WoT Binding Section 5.2.1 only applies to synthesized Nodes.
@@ -202,7 +223,8 @@ namespace Opc.Ua.Wot
                 resolutionContext,
                 diagnostics,
                 typeBinding,
-                parentPlacement);
+                parentPlacement,
+                eventSelections);
             ApplyIdentifierLeniency(diagnostics, options);
             return new WotConversionResult<UANodeSet>(nodeSet, diagnostics);
         }
@@ -540,7 +562,8 @@ namespace Opc.Ua.Wot
             WotResolutionContext? resolutionContext,
             List<WotDiagnostic> diagnostics,
             WotTypeBinding? typeBinding = null,
-            WotParentPlacement? parentPlacement = null)
+            WotParentPlacement? parentPlacement = null,
+            WotEventSelectionCatalog? eventSelections = null)
         {
             options ??= new WotNodeSetConverterOptions();
             options.Validate();
@@ -595,7 +618,8 @@ namespace Opc.Ua.Wot
                     resolutionContext,
                     diagnostics,
                     typeBinding,
-                    parentPlacement);
+                    parentPlacement,
+                    eventSelections);
             if (synthesized is not null)
             {
                 WotJsonResidue.Replace(synthesized, document, options, diagnostics);
@@ -924,7 +948,8 @@ namespace Opc.Ua.Wot
             WotResolutionContext resolutionContext,
             List<WotDiagnostic> diagnostics,
             WotTypeBinding? typeBinding,
-            WotParentPlacement? parentPlacement)
+            WotParentPlacement? parentPlacement,
+            WotEventSelectionCatalog? eventSelections = null)
         {
             WotDocumentKind kind = document.Kind;
             if (kind == WotDocumentKind.Unknown)
@@ -949,7 +974,7 @@ namespace Opc.Ua.Wot
             ValidateModelConceptNames(document, diagnostics);
             ValidateModelVocabulary(document, diagnostics);
             ValidateBindingConformance(document, options, diagnostics);
-            ValidateConditions(document, diagnostics);
+            ValidateConditions(document, eventSelections, diagnostics);
 
             string modelUri = DeriveModelUri(document);
             string rootLocal = LocalName(GetUavString(document, "browseName")) ??
@@ -1120,7 +1145,8 @@ namespace Opc.Ua.Wot
                 }
                 SynthesizeEvent(
                     document, nodeSet, eventAffordance.Key, eventAffordance.Value,
-                    rootLocal, items, rootReferences, conditionMethods, diagnostics);
+                    rootLocal, items, rootReferences, conditionMethods, diagnostics,
+                    eventSelections);
             }
 
             // A ReferenceType relation whose target is also listed under
@@ -1565,7 +1591,8 @@ namespace Opc.Ua.Wot
             List<UANode> items,
             List<Reference> rootReferences,
             Dictionary<string, List<string>> conditionMethods,
-            List<WotDiagnostic> diagnostics)
+            List<WotDiagnostic> diagnostics,
+            WotEventSelectionCatalog? eventSelections)
         {
             string local = LocalName(GetElementString(eventAffordance, "uav:browseName")) ?? key;
             string? authoredNodeId = GetElementString(
@@ -1621,7 +1648,7 @@ namespace Opc.Ua.Wot
             SynthesizeEventFields(
                 document, nodeSet, eventAffordance, key,
                 eventType.References[0].Value!, nodeId, local, rootLocal,
-                items, eventReferences, diagnostics);
+                items, eventReferences, diagnostics, eventSelections);
 
             // Section 13.4: the Condition Methods that act on this event are
             // components of the type that declares the Condition, which is what
@@ -3262,6 +3289,15 @@ namespace Opc.Ua.Wot
         /// BaseEventType and therefore projects a UA EventType, annotated with
         /// <c>uav:eventType</c> (WoT Binding Section 5.2).
         /// </summary>
+        /// <remarks>
+        /// The chain is walked through the Nodes the NodeSet holds and stops at
+        /// the first type this Binding knows: a type derived from a standard
+        /// ConditionType projects an EventType whether or not the source
+        /// carried the base NodeSet, because the ConditionTypes of Section 13.1
+        /// all derive from <c>BaseEventType</c> by definition. A chain that
+        /// leaves the NodeSet through an identifier this Binding does not know
+        /// is not guessed at.
+        /// </remarks>
         private static bool IsEventTypeRoot(UANode? root, UANodeSet nodeSet)
         {
             if (root is not UAObjectType)
@@ -3278,7 +3314,8 @@ namespace Opc.Ua.Wot
                 {
                     return false;
                 }
-                if (string.Equals(superType, WotVocabulary.BaseEventType, StringComparison.Ordinal))
+                if (string.Equals(superType, WotVocabulary.BaseEventType, StringComparison.Ordinal) ||
+                    WotVocabulary.TryGetConditionTypeName(superType, out _))
                 {
                     return true;
                 }

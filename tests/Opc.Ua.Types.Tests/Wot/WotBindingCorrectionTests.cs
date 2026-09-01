@@ -811,8 +811,8 @@ namespace Opc.Ua.Types.Tests.Wot
                 "\"events\":{\"alarm\":{\"@type\":\"uav:eventType\",\"uav:isEvent\":true," +
                 "\"uav:browseName\":\"pump:AlarmEventType\"," +
                 "\"uav:eventSelectClauses\":[" +
-                "{\"uav:typeDefinitionId\":\"i=2041\",\"uav:browsePath\":\"Severity\"}," +
-                "{\"uav:typeDefinitionId\":\"i=2782\",\"uav:browsePath\":\"Severity\"}]}}",
+                "{\"tm:ref\":\"./base-event.tm.jsonld\",\"uav:browsePath\":\"Severity\"}," +
+                "{\"tm:ref\":\"./condition.tm.jsonld\",\"uav:browsePath\":\"Severity\"}]}}",
                 new WotNodeSetConverterOptions());
 
             Assert.That(
@@ -820,7 +820,7 @@ namespace Opc.Ua.Types.Tests.Wot
                     d.Code == WotDiagnosticCode.EventSelectClauseInvalid),
                 Is.True,
                 "Uniqueness is stated over the normalized path and not over the " +
-                "typeDefinitionId-and-path pair: the path alone decides the output member " +
+                "referenced-EventType-and-path pair: the path alone decides the output member " +
                 "(Section 6.1).");
         }
 
@@ -836,8 +836,8 @@ namespace Opc.Ua.Types.Tests.Wot
                 "\"events\":{\"alarm\":{\"@type\":\"uav:eventType\",\"uav:isEvent\":true," +
                 "\"uav:browseName\":\"pump:AlarmEventType\"," +
                 "\"uav:eventSelectClauses\":[" +
-                "{\"uav:typeDefinitionId\":\"i=2041\",\"uav:browsePath\":\"pump:Trace\"}," +
-                "{\"uav:typeDefinitionId\":\"i=2041\",\"uav:browsePath\":\"p2:Trace\"}]}}}");
+                "{\"tm:ref\":\"./base-event.tm.jsonld\",\"uav:browsePath\":\"pump:Trace\"}," +
+                "{\"tm:ref\":\"./base-event.tm.jsonld\",\"uav:browsePath\":\"p2:Trace\"}]}}}");
             using WotDocument document = WotDocument.Parse(json);
 
             WotConversionResult<UANodeSet> result =
@@ -858,8 +858,8 @@ namespace Opc.Ua.Types.Tests.Wot
                 "\"events\":{\"alarm\":{\"@type\":\"uav:eventType\",\"uav:isEvent\":true," +
                 "\"uav:browseName\":\"pump:AlarmEventType\"," +
                 "\"uav:eventSelectClauses\":[" +
-                "{\"uav:typeDefinitionId\":\"i=2041\",\"uav:browsePath\":\"Severity\"}," +
-                "{\"uav:typeDefinitionId\":\"i=2782\",\"uav:browsePath\":\"LastSeverity\"}]}}",
+                "{\"tm:ref\":\"./base-event.tm.jsonld\",\"uav:browsePath\":\"Severity\"}," +
+                "{\"tm:ref\":\"./condition.tm.jsonld\",\"uav:browsePath\":\"LastSeverity\"}]}}",
                 new WotNodeSetConverterOptions());
 
             Assert.That(
@@ -869,21 +869,28 @@ namespace Opc.Ua.Types.Tests.Wot
                 string.Join("; ", result.Diagnostics.Select(d => d.Message)));
         }
 
+        /// <summary>
+        /// Section 6.1 makes an explicit clause a refinement of the baseline
+        /// rather than a replacement of it, so an affordance that links to no
+        /// EventType definition still selects the eight mandatory
+        /// <c>BaseEventType</c> fields — <c>EventId</c> among them — however few
+        /// clauses it writes.
+        /// </summary>
         [Test]
-        public void AConditionAffordanceSelectsTheEventIdItDeclares()
+        public void AConditionAffordanceKeepsTheMandatoryEventIdWhenItOnlyRefines()
         {
             WotConversionResult<UANodeSet> result = Convert(ConditionEvent(
                 "\"uav:eventSelectClauses\":[" +
-                "{\"uav:typeDefinitionId\":\"i=2041\",\"uav:browsePath\":\"Severity\"}]"),
+                "{\"tm:ref\":\"./base-event.tm.jsonld\",\"uav:browsePath\":\"Severity\"}]"),
                 new WotNodeSetConverterOptions());
 
             Assert.That(
                 result.Diagnostics.Any(d =>
                     d.Code == WotDiagnosticCode.ConditionEventIdMissing),
-                Is.True,
-                "A complete list replaces the documented default rather than extending it, " +
-                "so a list that omits EventId describes a notification that never carries " +
-                "the one field Section 13.3 requires.");
+                Is.False,
+                "The clauses overlay the implicit BaseEventType baseline, which always " +
+                "carries EventId. " +
+                string.Join("; ", result.Diagnostics.Select(d => d.Message)));
         }
 
         [Test]
@@ -891,8 +898,8 @@ namespace Opc.Ua.Types.Tests.Wot
         {
             WotConversionResult<UANodeSet> result = Convert(ConditionEvent(
                 "\"uav:eventSelectClauses\":[" +
-                "{\"uav:typeDefinitionId\":\"i=2041\",\"uav:browsePath\":\"EventId\"}," +
-                "{\"uav:typeDefinitionId\":\"i=2782\",\"uav:browsePath\":\"\"}]"),
+                "{\"tm:ref\":\"./base-event.tm.jsonld\",\"uav:browsePath\":\"EventId\"}," +
+                "{\"tm:ref\":\"./condition.tm.jsonld\",\"uav:browsePath\":\"\"}]"),
                 new WotNodeSetConverterOptions());
 
             Assert.That(
@@ -907,7 +914,7 @@ namespace Opc.Ua.Types.Tests.Wot
         {
             WotConversionResult<UANodeSet> result = Convert(ConditionEvent(
                 "\"uav:eventSelectClauses\":[" +
-                "{\"uav:typeDefinitionId\":\"i=2041\",\"uav:browsePath\":\"EventId\"}]"),
+                "{\"tm:ref\":\"./base-event.tm.jsonld\",\"uav:browsePath\":\"EventId\"}]"),
                 new WotNodeSetConverterOptions());
 
             Assert.That(

@@ -51,7 +51,8 @@ namespace Opc.Ua.WotCon.Bindings
             WoTDocumentKindEnum documentKind = WoTDocumentKindEnum.ThingDescription,
             string? baseUri = null,
             WotBindingBounds? bounds = null,
-            ImmutableDictionary<string, string>? namespacePrefixes = null)
+            ImmutableDictionary<string, string>? namespacePrefixes = null,
+            WotEventSelectionCatalog? eventSelections = null)
         {
             SecurityDefinitions = securityDefinitions ?? ImmutableDictionary<string, WotSecurityDefinition>.Empty;
             Codecs = codecs ?? WotPayloadCodecRegistry.Default;
@@ -59,6 +60,7 @@ namespace Opc.Ua.WotCon.Bindings
             BaseUri = baseUri;
             Bounds = bounds ?? WotBindingBounds.Default;
             NamespacePrefixes = namespacePrefixes ?? ImmutableDictionary<string, string>.Empty;
+            EventSelections = eventSelections ?? WotEventSelectionCatalog.Empty;
         }
 
         /// <summary>
@@ -95,6 +97,20 @@ namespace Opc.Ua.WotCon.Bindings
         /// document.
         /// </summary>
         public ImmutableDictionary<string, string> NamespacePrefixes { get; }
+
+        /// <summary>
+        /// Gets the event field selections resolved from the document's
+        /// EventType <c>tm:ref</c> links before planning
+        /// (WoT Binding Section 6.1).
+        /// </summary>
+        /// <remarks>
+        /// An affordance appears in the catalog exactly when it states a
+        /// selection. A planner that meets an affordance stating one but
+        /// absent here reports it as unresolved: planning never performs I/O,
+        /// and quietly falling back to the implicit default would subscribe
+        /// with a field list the document does not state.
+        /// </remarks>
+        public WotEventSelectionCatalog EventSelections { get; }
     }
 
     /// <summary>

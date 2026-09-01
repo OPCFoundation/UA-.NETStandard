@@ -66,10 +66,10 @@ namespace Opc.Ua.Types.Tests.Wot
         public void StandardSelectClausesProduceNoDiagnostic()
         {
             WotConversionResult<UANodeSet> result = Convert(EventWithClauses(
-                "{\"uav:typeDefinitionId\":\"i=2041\",\"uav:browsePath\":\"EventId\"}," +
-                "{\"uav:typeDefinitionId\":\"i=2782\",\"uav:browsePath\":\"EnabledState/Id\"}," +
-                "{\"uav:typeDefinitionId\":\"i=2782\",\"uav:browsePath\":\"\"}," +
-                "{\"uav:typeDefinitionId\":\"nsu=urn:test:pump;i=6001\"," +
+                "{\"tm:ref\":\"./base-event.tm.jsonld\",\"uav:browsePath\":\"EventId\"}," +
+                "{\"tm:ref\":\"./condition.tm.jsonld\",\"uav:browsePath\":\"EnabledState/Id\"}," +
+                "{\"tm:ref\":\"./condition.tm.jsonld\",\"uav:browsePath\":\"\"}," +
+                "{\"tm:ref\":\"./pump-event.tm.jsonld\"," +
                 "\"uav:browsePath\":\"pump:Temperature\"}"));
 
             Assert.That(result.Value, Is.Not.Null);
@@ -82,7 +82,7 @@ namespace Opc.Ua.Types.Tests.Wot
         [Test]
         public void EmptyBrowsePathIsTheConditionIdSelection()
         {
-            var clause = new WotEventSelectClause("i=2782", string.Empty);
+            var clause = new WotEventSelectClause("./condition.tm.jsonld", string.Empty);
 
             Assert.Multiple(() =>
             {
@@ -94,7 +94,7 @@ namespace Opc.Ua.Types.Tests.Wot
         [Test]
         public void NestedBrowsePathNamesItsLastElement()
         {
-            var clause = new WotEventSelectClause("i=2782", "EnabledState/Id");
+            var clause = new WotEventSelectClause("./condition.tm.jsonld", "EnabledState/Id");
 
             Assert.Multiple(() =>
             {
@@ -107,7 +107,7 @@ namespace Opc.Ua.Types.Tests.Wot
         public void AbsoluteSelectClausePathIsRejected()
         {
             WotConversionResult<UANodeSet> result = Convert(EventWithClauses(
-                "{\"uav:typeDefinitionId\":\"i=2041\",\"uav:browsePath\":\"/EventId\"}"));
+                "{\"tm:ref\":\"./base-event.tm.jsonld\",\"uav:browsePath\":\"/EventId\"}"));
 
             AssertSelectClauseError(result, "absolute");
         }
@@ -124,7 +124,7 @@ namespace Opc.Ua.Types.Tests.Wot
         public void SelectClauseCarryingAWhereClauseIsRejected()
         {
             WotConversionResult<UANodeSet> result = Convert(EventWithClauses(
-                "{\"uav:typeDefinitionId\":\"i=2041\",\"uav:browsePath\":\"EventId\"," +
+                "{\"tm:ref\":\"./base-event.tm.jsonld\",\"uav:browsePath\":\"EventId\"," +
                 "\"uav:whereClause\":{\"op\":\"GreaterThan\"}}"));
 
             AssertSelectClauseError(result, "WhereClause");
@@ -134,8 +134,8 @@ namespace Opc.Ua.Types.Tests.Wot
         public void RepeatedSelectClauseIsRejected()
         {
             WotConversionResult<UANodeSet> result = Convert(EventWithClauses(
-                "{\"uav:typeDefinitionId\":\"i=2041\",\"uav:browsePath\":\"EventId\"}," +
-                "{\"uav:typeDefinitionId\":\"i=2041\",\"uav:browsePath\":\"EventId\"}"));
+                "{\"tm:ref\":\"./base-event.tm.jsonld\",\"uav:browsePath\":\"EventId\"}," +
+                "{\"tm:ref\":\"./base-event.tm.jsonld\",\"uav:browsePath\":\"EventId\"}"));
 
             AssertSelectClauseError(result, "twice");
         }
@@ -146,7 +146,7 @@ namespace Opc.Ua.Types.Tests.Wot
             WotConversionResult<UANodeSet> result = Convert(EventWithClauses(
                 "{\"uav:browsePath\":\"EventId\"}"));
 
-            AssertSelectClauseError(result, "uav:typeDefinitionId");
+            AssertSelectClauseError(result, "tm:ref");
         }
 
         [Test]
@@ -154,7 +154,7 @@ namespace Opc.Ua.Types.Tests.Wot
         {
             WotConversionResult<UANodeSet> result = Convert(
                 "\"properties\":{\"speed\":{\"type\":\"number\"," +
-                "\"uav:eventSelectClauses\":[{\"uav:typeDefinitionId\":\"i=2041\"," +
+                "\"uav:eventSelectClauses\":[{\"tm:ref\":\"./base-event.tm.jsonld\"," +
                 "\"uav:browsePath\":\"EventId\"}]}}");
 
             AssertSelectClauseError(result, "belongs only directly on an event affordance");
@@ -164,29 +164,33 @@ namespace Opc.Ua.Types.Tests.Wot
         public void SelectClausesAtTheDocumentRootAreRejected()
         {
             WotConversionResult<UANodeSet> result = Convert(
-                "\"uav:eventSelectClauses\":[{\"uav:typeDefinitionId\":\"i=2041\"," +
+                "\"uav:eventSelectClauses\":[{\"tm:ref\":\"./base-event.tm.jsonld\"," +
                 "\"uav:browsePath\":\"EventId\"}]");
 
             AssertSelectClauseError(result, "belongs only directly on an event affordance");
         }
 
+        /// <summary>
+        /// A clause names its EventType by reference and never by NodeId, so
+        /// the shape that carried one is rejected as an unexpected member
+        /// rather than being read as a second spelling of the same fact
+        /// (WoT Binding Section 6.1).
+        /// </summary>
         [Test]
-        public void SessionLocalSelectClauseTypeIsRejected()
+        public void ASelectClauseCarryingANodeIdIsRejected()
         {
             WotConversionResult<UANodeSet> result = Convert(EventWithClauses(
-                "{\"uav:typeDefinitionId\":\"ns=2;i=6001\",\"uav:browsePath\":\"Temperature\"}"));
+                "{\"uav:typeDefinitionId\":\"nsu=urn:test:pump;i=6001\"," +
+                "\"uav:browsePath\":\"Temperature\"}"));
 
-            Assert.That(
-                result.Diagnostics.Any(d => d.Code == WotDiagnosticCode.NonPortableIdentity),
-                Is.True,
-                Describe(result));
+            AssertSelectClauseError(result, "uav:typeDefinitionId");
         }
 
         [Test]
         public void NumericNamespacePrefixInASelectClausePathIsRejected()
         {
             WotConversionResult<UANodeSet> result = Convert(EventWithClauses(
-                "{\"uav:typeDefinitionId\":\"i=2041\",\"uav:browsePath\":\"2:Temperature\"}"));
+                "{\"tm:ref\":\"./base-event.tm.jsonld\",\"uav:browsePath\":\"2:Temperature\"}"));
 
             Assert.That(
                 result.Diagnostics.Any(d => d.Code == WotDiagnosticCode.NonPortableQualifiedName),
@@ -198,8 +202,8 @@ namespace Opc.Ua.Types.Tests.Wot
         public void SelectClausesSurviveWotToNodeSetToWot()
         {
             using WotDocument original = ParseThingModel(EventWithClauses(
-                "{\"uav:typeDefinitionId\":\"i=2041\",\"uav:browsePath\":\"EventId\"}," +
-                "{\"uav:typeDefinitionId\":\"i=2782\",\"uav:browsePath\":\"\"}"));
+                "{\"tm:ref\":\"./base-event.tm.jsonld\",\"uav:browsePath\":\"EventId\"}," +
+                "{\"tm:ref\":\"./condition.tm.jsonld\",\"uav:browsePath\":\"\"}"));
 
             UANodeSet nodeSet = WotNodeSetConverter.ToNodeSet(original);
             using WotDocument restored = WotNodeSetConverter.FromNodeSet(nodeSet);
@@ -210,8 +214,8 @@ namespace Opc.Ua.Types.Tests.Wot
             {
                 Assert.That(clauses.GetArrayLength(), Is.EqualTo(2));
                 Assert.That(
-                    clauses[0].GetProperty("uav:typeDefinitionId").GetString(),
-                    Is.EqualTo("i=2041"));
+                    clauses[0].GetProperty("tm:ref").GetString(),
+                    Is.EqualTo("./base-event.tm.jsonld"));
                 Assert.That(clauses[1].GetProperty("uav:browsePath").GetString(), Is.Empty);
             });
         }
@@ -226,7 +230,7 @@ namespace Opc.Ua.Types.Tests.Wot
                 "\"uav:securityPolicy\":\"Basic256Sha256\"}}}," +
                 "\"security\":\"opcua_auto_sc\"," +
                 EventWithClauses(
-                    "{\"uav:typeDefinitionId\":\"i=2041\",\"uav:browsePath\":\"EventId\"}"));
+                    "{\"tm:ref\":\"./base-event.tm.jsonld\",\"uav:browsePath\":\"EventId\"}"));
 
             UANodeSet nodeSet = WotNodeSetConverter.ToNodeSet(original);
             byte[] serialized = WotTestData.Serialize(nodeSet);
@@ -562,7 +566,7 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.Multiple(() =>
             {
                 Assert.That(WotBindingConformance.IsKnownTerm("uav:eventSelectClauses"), Is.True);
-                Assert.That(WotBindingConformance.IsKnownTerm("uav:typeDefinitionId"), Is.True);
+                Assert.That(WotBindingConformance.IsKnownTerm("tm:ref"), Is.True);
                 Assert.That(WotBindingConformance.IsKnownTerm("uav:bindingVersion"), Is.True);
                 Assert.That(WotBindingConformance.IsKnownTerm("uav:profile"), Is.True);
                 Assert.That(WotBindingConformance.IsKnownTerm("uav:minimumSecurity"), Is.True);
@@ -575,6 +579,11 @@ namespace Opc.Ua.Types.Tests.Wot
                 Assert.That(WotBindingConformance.IsKnownTerm("uav:fieldOrder"), Is.True);
                 Assert.That(WotBindingConformance.IsKnownTerm("uav:structureType"), Is.True);
                 Assert.That(WotBindingConformance.IsKnownTerm("uav:eventFields"), Is.False);
+                Assert.That(
+                    WotBindingConformance.IsKnownTerm("uav:typeDefinitionId"),
+                    Is.False,
+                    "The NodeId clause form was removed; a clause names its EventType with " +
+                    "tm:ref (WoT Binding Section 6.1).");
             });
         }
 

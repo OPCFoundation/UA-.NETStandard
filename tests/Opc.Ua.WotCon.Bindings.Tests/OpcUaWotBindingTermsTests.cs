@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
 using System.Text;
@@ -74,9 +75,9 @@ namespace Opc.Ua.WotCon.Bindings.Tests
         {
             WotBindingCompilation result = CompileEvent(
                 "{\"uav:eventSelectClauses\":[" +
-                "{\"uav:typeDefinitionId\":\"i=2041\",\"uav:browsePath\":\"Time\"}," +
-                "{\"uav:typeDefinitionId\":\"i=2782\",\"uav:browsePath\":\"EnabledState/Id\"}," +
-                "{\"uav:typeDefinitionId\":\"i=2782\",\"uav:browsePath\":\"\"}]}");
+                "{\"tm:ref\":\"./base-event.tm.jsonld\",\"uav:browsePath\":\"Time\"}," +
+                "{\"tm:ref\":\"./condition.tm.jsonld\",\"uav:browsePath\":\"EnabledState/Id\"}," +
+                "{\"tm:ref\":\"./condition.tm.jsonld\",\"uav:browsePath\":\"\"}]}");
 
             Assert.That(result.IsSupported, Is.True);
             WotEventSelection selection = result.Entries[0].EventSelection!;
@@ -101,9 +102,9 @@ namespace Opc.Ua.WotCon.Bindings.Tests
 
             WotBindingCompilation result = CompileEvent(
                 "{\"uav:eventSelectClauses\":[" +
-                "{\"uav:typeDefinitionId\":\"nsu=http://example.com/demo/pump;i=6001\"," +
+                "{\"tm:ref\":\"./pump-event.tm.jsonld\"," +
                 "\"uav:browsePath\":\"pump:Temperature\"}," +
-                "{\"uav:typeDefinitionId\":\"i=2041\",\"uav:browsePath\":\"ua:Message\"}]}",
+                "{\"tm:ref\":\"./base-event.tm.jsonld\",\"uav:browsePath\":\"ua:Message\"}]}",
                 context);
 
             Assert.That(result.IsSupported, Is.True);
@@ -135,12 +136,12 @@ namespace Opc.Ua.WotCon.Bindings.Tests
 
             WotBindingCompilation result = CompileEvent(
                 "{\"uav:eventSelectClauses\":[" +
-                "{\"uav:typeDefinitionId\":\"i=2041\"," +
+                "{\"tm:ref\":\"./base-event.tm.jsonld\"," +
                 "\"uav:browsePath\":\"pump:Temperature\"}]}",
                 context);
 
             Assert.That(result.IsSupported, Is.True, Describe(result));
-            WotEventSelectClause clause = result.Entries[0].EventSelection!.Clauses[0];
+            WotResolvedEventSelectClause clause = result.Entries[0].EventSelection!.Clauses[0];
             Assert.Multiple(() =>
             {
                 Assert.That(
@@ -173,11 +174,11 @@ namespace Opc.Ua.WotCon.Bindings.Tests
 
             WotBindingCompilation result = CompileEvent(
                 "{\"uav:eventSelectClauses\":[" +
-                "{\"uav:typeDefinitionId\":\"i=2041\"," +
+                "{\"tm:ref\":\"./base-event.tm.jsonld\"," +
                 "\"uav:browsePath\":\"pump:Detail/site:Inner/Value\"}," +
-                "{\"uav:typeDefinitionId\":\"i=2041\"," +
+                "{\"tm:ref\":\"./base-event.tm.jsonld\"," +
                 "\"uav:browsePath\":\"legacy:Severity\"}," +
-                "{\"uav:typeDefinitionId\":\"i=2782\",\"uav:browsePath\":\"\"}]}",
+                "{\"tm:ref\":\"./condition.tm.jsonld\",\"uav:browsePath\":\"\"}]}",
                 context);
 
             Assert.That(result.IsSupported, Is.True, Describe(result));
@@ -224,8 +225,8 @@ namespace Opc.Ua.WotCon.Bindings.Tests
 
             WotBindingCompilation result = CompileEvent(
                 "{\"uav:eventSelectClauses\":[" +
-                "{\"uav:typeDefinitionId\":\"i=2041\",\"uav:browsePath\":\"Temperature\"}," +
-                "{\"uav:typeDefinitionId\":\"i=2041\"," +
+                "{\"tm:ref\":\"./base-event.tm.jsonld\",\"uav:browsePath\":\"Temperature\"}," +
+                "{\"tm:ref\":\"./base-event.tm.jsonld\"," +
                 "\"uav:browsePath\":\"pump:Temperature\"}]}",
                 context);
 
@@ -253,7 +254,7 @@ namespace Opc.Ua.WotCon.Bindings.Tests
 
             WotBindingCompilation result = CompileEvent(
                 "{\"uav:eventSelectClauses\":[" +
-                "{\"uav:typeDefinitionId\":\"i=2041\",\"uav:browsePath\":\"odd:Temperature\"}]}",
+                "{\"tm:ref\":\"./base-event.tm.jsonld\",\"uav:browsePath\":\"odd:Temperature\"}]}",
                 context);
 
             Assert.That(result.IsSupported, Is.True);
@@ -269,8 +270,8 @@ namespace Opc.Ua.WotCon.Bindings.Tests
         {
             WotBindingCompilation result = CompileEvent(
                 "{\"uav:eventSelectClauses\":[" +
-                "{\"uav:typeDefinitionId\":\"i=2041\",\"uav:browsePath\":\"Message\"}," +
-                "{\"uav:typeDefinitionId\":\"i=2782\",\"uav:browsePath\":\"Message\"}]}");
+                "{\"tm:ref\":\"./base-event.tm.jsonld\",\"uav:browsePath\":\"Message\"}," +
+                "{\"tm:ref\":\"./condition.tm.jsonld\",\"uav:browsePath\":\"Message\"}]}");
 
             Assert.Multiple(() =>
             {
@@ -297,8 +298,8 @@ namespace Opc.Ua.WotCon.Bindings.Tests
 
             WotBindingCompilation result = CompileEvent(
                 "{\"uav:eventSelectClauses\":[" +
-                "{\"uav:typeDefinitionId\":\"i=2041\",\"uav:browsePath\":\"Severity\"}," +
-                "{\"uav:typeDefinitionId\":\"i=2041\",\"uav:browsePath\":\"pump:Severity\"}]}",
+                "{\"tm:ref\":\"./base-event.tm.jsonld\",\"uav:browsePath\":\"Severity\"}," +
+                "{\"tm:ref\":\"./base-event.tm.jsonld\",\"uav:browsePath\":\"pump:Severity\"}]}",
                 context);
 
             Assert.Multiple(() =>
@@ -324,8 +325,8 @@ namespace Opc.Ua.WotCon.Bindings.Tests
         {
             WotBindingCompilation result = CompileEvent(
                 "{\"uav:eventSelectClauses\":[" +
-                "{\"uav:typeDefinitionId\":\"i=2782\",\"uav:browsePath\":\"EnabledState\"}," +
-                "{\"uav:typeDefinitionId\":\"i=2782\"," +
+                "{\"tm:ref\":\"./condition.tm.jsonld\",\"uav:browsePath\":\"EnabledState\"}," +
+                "{\"tm:ref\":\"./condition.tm.jsonld\"," +
                 "\"uav:browsePath\":\"EnabledState/Name\"}]}");
 
             Assert.That(
@@ -346,11 +347,11 @@ namespace Opc.Ua.WotCon.Bindings.Tests
 
             WotBindingCompilation result = CompileEvent(
                 "{\"uav:eventSelectClauses\":[" +
-                "{\"uav:typeDefinitionId\":\"i=2041\"," +
+                "{\"tm:ref\":\"./base-event.tm.jsonld\"," +
                 "\"uav:browsePath\":\"pump:LatchState\"}," +
-                "{\"uav:typeDefinitionId\":\"i=2041\"," +
+                "{\"tm:ref\":\"./base-event.tm.jsonld\"," +
                 "\"uav:browsePath\":\"pump:LatchState/Id\"}," +
-                "{\"uav:typeDefinitionId\":\"i=2041\"," +
+                "{\"tm:ref\":\"./base-event.tm.jsonld\"," +
                 "\"uav:browsePath\":\"pump:LatchState/Name\"}]}",
                 context);
 
@@ -372,16 +373,16 @@ namespace Opc.Ua.WotCon.Bindings.Tests
 
             WotBindingCompilation result = CompileEvent(
                 "{\"uav:eventSelectClauses\":[" +
-                "{\"uav:typeDefinitionId\":\"i=2782\",\"uav:browsePath\":\"EnabledState\"}," +
-                "{\"uav:typeDefinitionId\":\"i=2782\"," +
+                "{\"tm:ref\":\"./condition.tm.jsonld\",\"uav:browsePath\":\"EnabledState\"}," +
+                "{\"tm:ref\":\"./condition.tm.jsonld\"," +
                 "\"uav:browsePath\":\"EnabledState/Id\"}," +
-                "{\"uav:typeDefinitionId\":\"i=2041\"," +
+                "{\"tm:ref\":\"./base-event.tm.jsonld\"," +
                 "\"uav:browsePath\":\"pump:LatchState\"}," +
-                "{\"uav:typeDefinitionId\":\"i=2041\"," +
+                "{\"tm:ref\":\"./base-event.tm.jsonld\"," +
                 "\"uav:browsePath\":\"pump:LatchState/Id\"}," +
-                "{\"uav:typeDefinitionId\":\"i=2041\"," +
+                "{\"tm:ref\":\"./base-event.tm.jsonld\"," +
                 "\"uav:browsePath\":\"pump:Detail/pump:Inner/Value\"}," +
-                "{\"uav:typeDefinitionId\":\"i=2782\",\"uav:browsePath\":\"\"}]}",
+                "{\"tm:ref\":\"./condition.tm.jsonld\",\"uav:browsePath\":\"\"}]}",
                 context);
 
             Assert.That(result.IsSupported, Is.True, Describe(result));
@@ -425,8 +426,8 @@ namespace Opc.Ua.WotCon.Bindings.Tests
 
             WotBindingCompilation result = CompileEvent(
                 "{\"uav:eventSelectClauses\":[" +
-                "{\"uav:typeDefinitionId\":\"i=2041\",\"uav:browsePath\":\"pump:Temperature\"}," +
-                "{\"uav:typeDefinitionId\":\"i=2041\",\"uav:browsePath\":\"p2:Temperature\"}]}",
+                "{\"tm:ref\":\"./base-event.tm.jsonld\",\"uav:browsePath\":\"pump:Temperature\"}," +
+                "{\"tm:ref\":\"./base-event.tm.jsonld\",\"uav:browsePath\":\"p2:Temperature\"}]}",
                 context);
 
             Assert.That(
@@ -470,7 +471,7 @@ namespace Opc.Ua.WotCon.Bindings.Tests
         {
             WotBindingCompilation result = CompileEvent(
                 "{\"uav:eventSelectClauses\":[" +
-                "{\"uav:typeDefinitionId\":\"i=2041\",\"uav:browsePath\":\"pump:Temperature\"}]}");
+                "{\"tm:ref\":\"./base-event.tm.jsonld\",\"uav:browsePath\":\"pump:Temperature\"}]}");
 
             Assert.Multiple(() =>
             {
@@ -483,13 +484,21 @@ namespace Opc.Ua.WotCon.Bindings.Tests
             });
         }
 
+        /// <summary>
+        /// Planning is synchronous and side-effect free, so an affordance that
+        /// names its EventType definition and reaches a planner with no
+        /// resolved selection is reported rather than followed: reading a
+        /// document while a plan is compiled would make the plan depend on what
+        /// a host served at that moment (WoT Binding Sections 5.1.5 and 6.1).
+        /// </summary>
         [Test]
-        public void AClauseCarryingAWhereClauseFailsTheForm()
+        public void AnUnresolvedEventTypeLinkFailsTheFormRatherThanBeingFollowed()
         {
-            WotBindingCompilation result = CompileEvent(
-                "{\"uav:eventSelectClauses\":[" +
-                "{\"uav:typeDefinitionId\":\"i=2041\",\"uav:browsePath\":\"EventId\"," +
-                "\"uav:whereClause\":{\"op\":\"OfType\"}}]}");
+            WotBindingCompilation result = new OpcUaBindingPlanner().Compile(
+                MakeEventForm(
+                    "{\"href\":\"opc.tcp://server.example.com:4840\",\"uav:id\":\"i=2253\"}",
+                    "{\"tm:ref\":\"./event-types.tm.jsonld#/events/highTemperature\"}"),
+                new WotBindingPlanContext());
 
             Assert.Multiple(() =>
             {
@@ -497,7 +506,35 @@ namespace Opc.Ua.WotCon.Bindings.Tests
                 Assert.That(
                     result.Diagnostics.Any(d =>
                         d.Code == WotBindingDiagnosticCode.EventSelectClauseInvalid &&
-                        d.Message.Contains("WhereClause", StringComparison.Ordinal)),
+                        d.Message.Contains(
+                            "no resolved selection", StringComparison.Ordinal)),
+                    Is.True,
+                    Describe(result));
+            });
+        }
+
+        /// <summary>
+        /// The same holds for an affordance that states only the explicit
+        /// overlay: every clause names an EventType definition, and no clause
+        /// can be compiled before those references have been resolved.
+        /// </summary>
+        [Test]
+        public void UnresolvedExplicitClausesFailTheForm()
+        {
+            WotBindingCompilation result = new OpcUaBindingPlanner().Compile(
+                MakeEventForm(
+                    "{\"href\":\"opc.tcp://server.example.com:4840\",\"uav:id\":\"i=2253\"}",
+                    "{\"uav:eventSelectClauses\":[" +
+                    "{\"tm:ref\":\"./base-event.tm.jsonld\"," +
+                    "\"uav:browsePath\":\"EventId\"}]}"),
+                new WotBindingPlanContext());
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(result.IsSupported, Is.False);
+                Assert.That(
+                    result.Diagnostics.Any(d =>
+                        d.Code == WotBindingDiagnosticCode.EventSelectClauseInvalid),
                     Is.True,
                     Describe(result));
             });
@@ -508,7 +545,7 @@ namespace Opc.Ua.WotCon.Bindings.Tests
         {
             WotAffordanceForm form = MakeEventForm(
                 "{\"href\":\"opc.tcp://server.example.com:4840\",\"uav:id\":\"i=2253\"," +
-                "\"uav:eventSelectClauses\":[{\"uav:typeDefinitionId\":\"i=2041\"," +
+                "\"uav:eventSelectClauses\":[{\"tm:ref\":\"./base-event.tm.jsonld\"," +
                 "\"uav:browsePath\":\"EventId\"}]}",
                 "{}");
 
@@ -533,7 +570,7 @@ namespace Opc.Ua.WotCon.Bindings.Tests
             WotAffordanceForm form = MakePropertyForm(
                 "{\"href\":\"opc.tcp://server.example.com:4840\",\"uav:id\":\"i=2258\"," +
                 "\"op\":\"readproperty\"}",
-                "{\"uav:eventSelectClauses\":[{\"uav:typeDefinitionId\":\"i=2041\"," +
+                "{\"uav:eventSelectClauses\":[{\"tm:ref\":\"./base-event.tm.jsonld\"," +
                 "\"uav:browsePath\":\"EventId\"}]}");
 
             WotBindingCompilation result = new OpcUaBindingPlanner().Compile(
@@ -552,19 +589,23 @@ namespace Opc.Ua.WotCon.Bindings.Tests
             WotAffordanceForm form = MakeEventForm(
                 "{\"href\":\"opc.tcp://server.example.com:4840\",\"uav:id\":\"i=2253\"," +
                 "\"uav:eventFields\":[\"LocalTime\"]}",
-                "{\"uav:eventSelectClauses\":[{\"uav:typeDefinitionId\":\"i=2041\"," +
+                "{\"uav:eventSelectClauses\":[{\"tm:ref\":\"./base-event.tm.jsonld\"," +
                 "\"uav:browsePath\":\"EventId\"}]}");
 
             WotBindingCompilation result = new OpcUaBindingPlanner().Compile(
-                form, new WotBindingPlanContext());
+                form,
+                WithResolvedSelection(
+                    "{\"uav:eventSelectClauses\":[{\"tm:ref\":\"./base-event.tm.jsonld\"," +
+                    "\"uav:browsePath\":\"EventId\"}]}",
+                    new WotBindingPlanContext()));
 
-            Assert.That(result.IsSupported, Is.True);
+            Assert.That(result.IsSupported, Is.True, Describe(result));
             WotEventSelection selection = result.Entries[0].EventSelection!;
             Assert.Multiple(() =>
             {
                 Assert.That(selection.Origin, Is.EqualTo(WotEventSelectionOrigin.Standard));
                 Assert.That(selection.Clauses.Count, Is.EqualTo(1),
-                    "The standardized list is complete; the superseded spelling is not merged.");
+                    "The resolved selection is honoured; the superseded spelling is not merged.");
                 Assert.That(
                     result.Diagnostics.Any(d =>
                         d.Code == WotBindingDiagnosticCode.ConflictingFields),
@@ -1075,8 +1116,84 @@ namespace Opc.Ua.WotCon.Bindings.Tests
             string formJson, string affordanceJson, WotBindingPlanContext context)
         {
             return new OpcUaBindingPlanner().Compile(
-                MakeEventForm(formJson, affordanceJson), context);
+                MakeEventForm(formJson, affordanceJson),
+                WithResolvedSelection(affordanceJson, context));
         }
+
+        /// <summary>
+        /// Supplies the resolved event selection a plan request carries
+        /// (WoT Binding Section 6.1), so a planner test exercises the planner
+        /// rather than the resolver.
+        /// </summary>
+        /// <remarks>
+        /// Resolution turns each clause's <c>tm:ref</c> into the portable
+        /// ExpandedNodeId the referenced definition declares as its
+        /// <c>uav:id</c>. These tests state the mapping directly, in the same
+        /// order the affordance writes its clauses, because what they are about
+        /// is what the planner does with a resolved clause: rewriting a compact
+        /// path element into the portable form, and rejecting two clauses that
+        /// reach one <c>data</c> member.
+        /// </remarks>
+        private static WotBindingPlanContext WithResolvedSelection(
+            string affordanceJson, WotBindingPlanContext context)
+        {
+            using var affordance = JsonDocument.Parse(affordanceJson);
+            if (affordance.RootElement.ValueKind != JsonValueKind.Object ||
+                !affordance.RootElement.TryGetProperty(
+                    WotEventSelectClauses.Term, out JsonElement authored) ||
+                authored.ValueKind != JsonValueKind.Array ||
+                authored.GetArrayLength() == 0)
+            {
+                return context;
+            }
+            var resolved = new List<WotResolvedEventSelectClause>();
+            foreach (JsonElement clause in authored.EnumerateArray())
+            {
+                if (clause.ValueKind != JsonValueKind.Object ||
+                    !clause.TryGetProperty(
+                        WotEventSelectClauses.TypeDefinitionReferenceTerm,
+                        out JsonElement reference) ||
+                    reference.ValueKind != JsonValueKind.String ||
+                    !clause.TryGetProperty(
+                        WotEventSelectClauses.BrowsePathTerm, out JsonElement path) ||
+                    path.ValueKind != JsonValueKind.String)
+                {
+                    continue;
+                }
+                string href = reference.GetString()!;
+                resolved.Add(new WotResolvedEventSelectClause(
+                    s_eventTypeIds.TryGetValue(href, out string? id) ? id : href,
+                    path.GetString()!,
+                    WotEventSelectClauseSource.Explicit,
+                    href));
+            }
+            if (resolved.Count == 0)
+            {
+                return context;
+            }
+            var selections = new Dictionary<string, ArrayOf<WotResolvedEventSelectClause>>(
+                StringComparer.Ordinal)
+            {
+                ["overTemperature"] = resolved.ToArray()
+            };
+            return new WotBindingPlanContext(
+                context.SecurityDefinitions,
+                context.Codecs,
+                context.DocumentKind,
+                context.BaseUri,
+                context.Bounds,
+                context.NamespacePrefixes,
+                WotEventSelectionCatalog.Create(selections));
+        }
+
+        /// <inheritdoc cref="WithResolvedSelection"/>
+        private static readonly Dictionary<string, string> s_eventTypeIds =
+            new(StringComparer.Ordinal)
+            {
+                ["./base-event.tm.jsonld"] = "i=2041",
+                ["./condition.tm.jsonld"] = "i=2782",
+                ["./pump-event.tm.jsonld"] = "nsu=http://example.com/demo/pump;i=6001"
+            };
 
         private static WotAffordanceForm MakeEventForm(string formJson, string affordanceJson)
         {

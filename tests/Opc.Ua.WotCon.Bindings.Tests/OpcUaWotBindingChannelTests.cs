@@ -39,6 +39,7 @@ using Opc.Ua.Client;
 using Opc.Ua.Client.TestFramework;
 using Opc.Ua.Server.TestFramework;
 using Opc.Ua.Tests;
+using Opc.Ua.Wot;
 using Opc.Ua.WotCon.Bindings.OpcUa;
 using Opc.Ua.WotCon.Bindings.Planners;
 using Quickstarts.ReferenceServer;
@@ -78,17 +79,26 @@ namespace Opc.Ua.WotCon.Bindings.Tests
         private const string InvalidNodeId = "INVALID-NOT-A-NODE";
 
         /// <summary>
-        /// The ordinal-sorted transport-index keys that the authored select
-        /// clauses of the <c>selectclauses</c> affordance must yield, and
-        /// nothing else. The key is the joined browse path the document
-        /// authored, so the NamespaceUri-qualified clause appears in full: its
-        /// URI carries '/' but the path has one element, not four.
+        /// The ordinal-sorted transport-index keys the <c>selectclauses</c>
+        /// affordance yields, and nothing else. Section 6.1 makes the explicit
+        /// clauses an <em>overlay</em> of the implicit <c>BaseEventType</c>
+        /// baseline: the three clauses that name a baseline field move it to
+        /// the end with the EventType and path they state, the empty path adds
+        /// the <c>ConditionId</c> selection, and the remaining mandatory fields
+        /// stay. The key is the joined browse path the selection carries, so
+        /// the NamespaceUri-qualified clause appears in full: its URI carries
+        /// '/' but the path has one element, not four.
         /// </summary>
         private static readonly string[] s_authoredSelectClauseFields =
         [
             "ConditionId",
+            "EventId",
+            "EventType",
             "Message",
+            "ReceiveTime",
             "SourceName",
+            "SourceNode",
+            "Time",
             "nsu=http://opcfoundation.org/UA/;Severity"
         ];
 
@@ -100,7 +110,15 @@ namespace Opc.Ua.WotCon.Bindings.Tests
         /// </summary>
         private static readonly string[] s_authoredSelectClauseMembers =
         [
-            "ConditionId", "Message", "Severity", "SourceName"
+            "ConditionId",
+            "EventId",
+            "EventType",
+            "Message",
+            "ReceiveTime",
+            "Severity",
+            "SourceName",
+            "SourceNode",
+            "Time"
         ];
 
         private ServerFixture<ReferenceServer> m_serverFixture = null!;
@@ -146,9 +164,11 @@ namespace Opc.Ua.WotCon.Bindings.Tests
                 ],
                 endpointPolicy: new WotEndpointPolicy { AllowLoopback = true });
 
-            m_plan = m_registry.Prepare(WotBindingPlanRequest.FromDocument(
-                "xid", WoTDocumentKindEnum.ThingDescription,
-                System.Text.Encoding.UTF8.GetBytes(BuildThingDescription(url.ToString()))));
+            m_plan = m_registry.Prepare(await WotBindingPlanRequest.FromDocumentAsync(
+                "xid",
+                WoTDocumentKindEnum.ThingDescription,
+                System.Text.Encoding.UTF8.GetBytes(BuildThingDescription(url.ToString())),
+                new BaseEventTypeResolver()).ConfigureAwait(false));
 
             Assert.That(m_plan.Diagnostics.Any(d => d.IsError), Is.False,
                 "The channel-test Thing Description must compile without diagnostic errors: " +
@@ -449,8 +469,9 @@ namespace Opc.Ua.WotCon.Bindings.Tests
                     Assert.That(
                         notification!.EventFields.Keys.OrderBy(k => k, StringComparer.Ordinal),
                         Is.EqualTo(s_authoredSelectClauseFields),
-                        "The authored list is complete: the documented default is replaced, " +
-                        "not extended, and the empty path supplies the ConditionId member.");
+                        "The clauses overlay the implicit BaseEventType baseline: each names " +
+                        "a field the baseline already carries and moves it, and the empty " +
+                        "path adds the ConditionId member.");
                     Assert.That(
                         notification.Data.Members.Keys.OrderBy(k => k, StringComparer.Ordinal),
                         Is.EqualTo(s_authoredSelectClauseMembers),
@@ -524,11 +545,11 @@ namespace Opc.Ua.WotCon.Bindings.Tests
                 // replaces the documented default and includes the empty-path
                 // ConditionId selection
                 "\"selectclauses\":{\"uav:isEvent\":true,\"uav:eventSelectClauses\":[" +
-                "{\"uav:typeDefinitionId\":\"i=2041\",\"uav:browsePath\":\"Message\"}," +
-                "{\"uav:typeDefinitionId\":\"i=2041\"," +
+                "{\"tm:ref\":\"./base-event.tm.jsonld\",\"uav:browsePath\":\"Message\"}," +
+                "{\"tm:ref\":\"./base-event.tm.jsonld\"," +
                 "\"uav:browsePath\":\"nsu=http://opcfoundation.org/UA/;Severity\"}," +
-                "{\"uav:typeDefinitionId\":\"i=2041\",\"uav:browsePath\":\"SourceName\"}," +
-                "{\"uav:typeDefinitionId\":\"i=2041\",\"uav:browsePath\":\"\"}]," +
+                "{\"tm:ref\":\"./base-event.tm.jsonld\",\"uav:browsePath\":\"SourceName\"}," +
+                "{\"tm:ref\":\"./base-event.tm.jsonld\",\"uav:browsePath\":\"\"}]," +
                 "\"forms\":[" +
                 "{\"href\":\"" + endpoint + "\",\"uav:id\":\"" + ServerObjectNodeId + "\"," +
                 "\"op\":[\"subscribeevent\"]}" +
@@ -543,6 +564,48 @@ namespace Opc.Ua.WotCon.Bindings.Tests
         {
             var expanded = ExpandedNodeId.Parse(value);
             return ExpandedNodeId.ToNodeId(expanded, m_session.NamespaceUris);
+        }
+
+        /// <summary>
+        /// Serves the one EventType definition this fixture's select clauses
+        /// name: the Thing Model of <c>BaseEventType</c>, which declares every
+        /// standard field (WoT Binding Section 6.1).
+        /// </summary>
+        /// <remarks>
+        /// A clause names its EventType by reference, and a reference resolves
+        /// against the documents a consumer holds rather than over the network.
+        /// The fixture therefore holds this one, which is what a registry
+        /// closure or a document set would hold in a deployment.
+        /// </remarks>
+        private sealed class BaseEventTypeResolver : IWotThingResolver
+        {
+            public ValueTask<WotResolverResult> ResolveThingAsync(
+                string reference,
+                WotResolutionContext context,
+                System.Threading.CancellationToken cancellationToken)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                return new ValueTask<WotResolverResult>(
+                    reference.EndsWith("base-event.tm.jsonld", StringComparison.Ordinal)
+                        ? WotResolverResult.FromBytes(
+                            System.Text.Encoding.UTF8.GetBytes(BaseEventTypeModel))
+                        : WotResolverResult.NotFound);
+            }
+
+            private const string BaseEventTypeModel =
+                "{\"@context\":[\"https://www.w3.org/2022/wot/td/v1.1\"," +
+                "{\"uav\":\"http://opcfoundation.org/UA/WoT-Binding/\"}]," +
+                "\"@type\":[\"tm:ThingModel\",\"uav:eventType\"]," +
+                "\"title\":\"BaseEventType\",\"uav:id\":\"i=2041\"," +
+                "\"uav:browseName\":\"BaseEventType\"," +
+                "\"data\":{\"type\":\"object\"," +
+                "\"uav:fieldOrder\":[\"ConditionId\",\"Message\",\"Severity\",\"SourceName\"]," +
+                "\"properties\":{" +
+                "\"ConditionId\":{\"type\":\"string\"}," +
+                "\"Message\":{\"type\":\"string\"}," +
+                "\"Severity\":{\"uav:browseName\":" +
+                "\"nsu=http://opcfoundation.org/UA/;Severity\",\"type\":\"integer\"}," +
+                "\"SourceName\":{\"type\":\"string\"}}}}";
         }
     }
 }

@@ -47,7 +47,7 @@ namespace Opc.Ua.WotCon.Bindings.Tests
         [Test]
         public void AOneElementPathNamesAMemberOfData()
         {
-            var clause = new WotEventSelectClause("i=2041", "Severity");
+            var clause = new WotResolvedEventSelectClause("i=2041", "Severity");
 
             Assert.Multiple(() =>
             {
@@ -59,7 +59,7 @@ namespace Opc.Ua.WotCon.Bindings.Tests
         [Test]
         public void ALongerPathNestsOneObjectMemberPerPrecedingElement()
         {
-            var clause = new WotEventSelectClause("i=2782", "EnabledState/Id");
+            var clause = new WotResolvedEventSelectClause("i=2782", "EnabledState/Id");
 
             Assert.Multiple(() =>
             {
@@ -78,7 +78,7 @@ namespace Opc.Ua.WotCon.Bindings.Tests
         [Test]
         public void AStateVariableSuppliesTheNameMemberOfItsObject()
         {
-            var clause = new WotEventSelectClause("i=2782", "EnabledState");
+            var clause = new WotResolvedEventSelectClause("i=2782", "EnabledState");
 
             Assert.That(
                 clause.MemberPath.ToArray(),
@@ -90,7 +90,7 @@ namespace Opc.Ua.WotCon.Bindings.Tests
         [Test]
         public void TheEmptyPathMaterializesConditionId()
         {
-            var clause = new WotEventSelectClause("i=2782", string.Empty);
+            var clause = new WotResolvedEventSelectClause("i=2782", string.Empty);
 
             Assert.Multiple(() =>
             {
@@ -109,16 +109,16 @@ namespace Opc.Ua.WotCon.Bindings.Tests
             Assert.Multiple(() =>
             {
                 Assert.That(
-                    new WotEventSelectClause("i=2041", "pump:Trace").FieldName,
+                    new WotResolvedEventSelectClause("i=2041", "pump:Trace").FieldName,
                     Is.EqualTo("Trace"),
                     "A prefix says where the field is declared, not what the member is " +
                     "called.");
                 Assert.That(
-                    new WotEventSelectClause(
+                    new WotResolvedEventSelectClause(
                         "i=2041", "nsu=urn:example:pump;Trace").FieldName,
                     Is.EqualTo("Trace"));
                 Assert.That(
-                    new WotEventSelectClause("i=2041", "{urn:example:pump}Trace").FieldName,
+                    new WotResolvedEventSelectClause("i=2041", "{urn:example:pump}Trace").FieldName,
                     Is.EqualTo("Trace"));
             });
         }
@@ -132,9 +132,9 @@ namespace Opc.Ua.WotCon.Bindings.Tests
             }
 
             Assert.That(
-                new WotEventSelectClause("i=2041", "pump:Trace").GetNormalizedBrowsePath(Resolve),
+                new WotResolvedEventSelectClause("i=2041", "pump:Trace").GetNormalizedBrowsePath(Resolve),
                 Is.EqualTo(
-                    new WotEventSelectClause("i=2041", "p2:Trace")
+                    new WotResolvedEventSelectClause("i=2041", "p2:Trace")
                         .GetNormalizedBrowsePath(Resolve)),
                 "Normalization is what makes two paths that name the same elements the same " +
                 "path even when their prefixes differ.");
@@ -145,13 +145,13 @@ namespace Opc.Ua.WotCon.Bindings.Tests
         {
             var builder = new WotEventDataBuilder();
             builder.Add(
-                new WotEventSelectClause("i=2041", "Severity").MemberPath, Value(500));
+                new WotResolvedEventSelectClause("i=2041", "Severity").MemberPath, Value(500));
             builder.Add(
-                new WotEventSelectClause("i=2782", "EnabledState").MemberPath, Value("Enabled"));
+                new WotResolvedEventSelectClause("i=2782", "EnabledState").MemberPath, Value("Enabled"));
             builder.Add(
-                new WotEventSelectClause("i=2782", "EnabledState/Id").MemberPath, Value(true));
+                new WotResolvedEventSelectClause("i=2782", "EnabledState/Id").MemberPath, Value(true));
             builder.Add(
-                new WotEventSelectClause("i=2782", string.Empty).MemberPath, Value("cond-1"));
+                new WotResolvedEventSelectClause("i=2782", string.Empty).MemberPath, Value("cond-1"));
 
             WotEventData data = builder.Build();
 
@@ -183,10 +183,10 @@ namespace Opc.Ua.WotCon.Bindings.Tests
         {
             var builder = new WotEventDataBuilder();
             builder.Add(
-                new WotEventSelectClause("i=2041", "pump:LatchState").MemberPath,
+                new WotResolvedEventSelectClause("i=2041", "pump:LatchState").MemberPath,
                 Value("Latched"));
             builder.Add(
-                new WotEventSelectClause("i=2041", "pump:LatchState/Id").MemberPath,
+                new WotResolvedEventSelectClause("i=2041", "pump:LatchState/Id").MemberPath,
                 Value(true));
 
             WotEventData data = builder.Build();
@@ -208,10 +208,10 @@ namespace Opc.Ua.WotCon.Bindings.Tests
         {
             var builder = new WotEventDataBuilder();
             builder.Add(
-                new WotEventSelectClause("i=2041", "pump:LatchState/Id").MemberPath,
+                new WotResolvedEventSelectClause("i=2041", "pump:LatchState/Id").MemberPath,
                 Value(true));
             builder.Add(
-                new WotEventSelectClause("i=2041", "pump:LatchState").MemberPath,
+                new WotResolvedEventSelectClause("i=2041", "pump:LatchState").MemberPath,
                 Value("Latched"));
 
             WotEventData data = builder.Build();
@@ -227,11 +227,11 @@ namespace Opc.Ua.WotCon.Bindings.Tests
             var builder = new WotEventDataBuilder();
             Assert.That(
                 builder.Add(
-                    new WotEventSelectClause("i=2041", "Severity").MemberPath, Value(100)),
+                    new WotResolvedEventSelectClause("i=2041", "Severity").MemberPath, Value(100)),
                 Is.True);
             Assert.That(
                 builder.Add(
-                    new WotEventSelectClause("i=2782", "Severity").MemberPath, Value(900)),
+                    new WotResolvedEventSelectClause("i=2782", "Severity").MemberPath, Value(900)),
                 Is.False,
                 "Two clauses that materialize one member compete for it, so the first " +
                 "stated clause wins rather than the last quietly replacing it.");
@@ -248,12 +248,12 @@ namespace Opc.Ua.WotCon.Bindings.Tests
         {
             var builder = new WotEventDataBuilder();
             builder.Add(
-                new WotEventSelectClause("i=2782", "EnabledState/Name").MemberPath,
+                new WotResolvedEventSelectClause("i=2782", "EnabledState/Name").MemberPath,
                 Value("Enabled"));
 
             Assert.That(
                 builder.Add(
-                    new WotEventSelectClause("i=2782", "EnabledState").MemberPath,
+                    new WotResolvedEventSelectClause("i=2782", "EnabledState").MemberPath,
                     Value("Disabled")),
                 Is.False,
                 "The state Variable's own value belongs in the Name member, which another " +
@@ -272,11 +272,11 @@ namespace Opc.Ua.WotCon.Bindings.Tests
         {
             var builder = new WotEventDataBuilder();
             builder.Add(
-                new WotEventSelectClause("i=2782", "EnabledState/Id").MemberPath, Value(true));
+                new WotResolvedEventSelectClause("i=2782", "EnabledState/Id").MemberPath, Value(true));
 
             Assert.That(
                 builder.Add(
-                    new WotEventSelectClause("i=2782", "EnabledState/Id/Extra").MemberPath,
+                    new WotResolvedEventSelectClause("i=2782", "EnabledState/Id/Extra").MemberPath,
                     Value("x")),
                 Is.True,
                 "The rule applies at every level: a field another clause nests through is a " +
@@ -293,7 +293,7 @@ namespace Opc.Ua.WotCon.Bindings.Tests
         public void TheDataObjectResolvesAMemberPath()
         {
             var builder = new WotEventDataBuilder();
-            var clause = new WotEventSelectClause("i=2782", "EnabledState/Id");
+            var clause = new WotResolvedEventSelectClause("i=2782", "EnabledState/Id");
             builder.Add(clause.MemberPath, Value(true));
 
             WotEventData data = builder.Build();
@@ -305,7 +305,7 @@ namespace Opc.Ua.WotCon.Bindings.Tests
                 Assert.That(flag, Is.True);
                 Assert.That(
                     data.TryGetValue(
-                        new WotEventSelectClause("i=2782", "AckedState").MemberPath, out _),
+                        new WotResolvedEventSelectClause("i=2782", "AckedState").MemberPath, out _),
                     Is.False);
             });
         }

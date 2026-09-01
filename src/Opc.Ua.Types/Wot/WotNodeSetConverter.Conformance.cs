@@ -538,17 +538,6 @@ namespace Opc.Ua.Wot
             string pointer,
             List<WotDiagnostic> diagnostics)
         {
-            if (IsSessionLocalNodeId(clause.TypeDefinitionId))
-            {
-                diagnostics.Add(new WotDiagnostic(
-                    WotDiagnosticSeverity.Error,
-                    WotDiagnosticCode.NonPortableIdentity,
-                    "The select clause names the EventType " +
-                    $"'{clause.TypeDefinitionId}' with the session-local ns=<index> form; " +
-                    "use nsu=<NamespaceUri>;<idtype>=<id> (WoT Binding Section 5.1.1).",
-                    WotLocation.FromPointer(pointer + "/" +
-                        WotEventSelectClauses.TypeDefinitionIdTerm)));
-            }
             if (clause.BrowsePath.Length == 0)
             {
                 return;

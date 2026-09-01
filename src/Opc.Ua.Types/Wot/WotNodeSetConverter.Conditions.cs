@@ -472,9 +472,15 @@ namespace Opc.Ua.Wot
         /// reject an invalid document rather than repair it.
         /// </remarks>
         /// <param name="document">The document being converted.</param>
+        /// <param name="eventSelections">
+        /// The resolved event field selections of WoT Binding Section 6.1, or
+        /// <c>null</c> where no resolver held the documents the affordances
+        /// link to.
+        /// </param>
         /// <param name="diagnostics">The diagnostics sink.</param>
         private static void ValidateConditions(
             WotDocument document,
+            WotEventSelectionCatalog? eventSelections,
             List<WotDiagnostic> diagnostics)
         {
             var conditionEvents = new HashSet<string>(StringComparer.Ordinal);
@@ -506,15 +512,16 @@ namespace Opc.Ua.Wot
                         $"'{EventIdField}' in its 'data' object (WoT Binding Section 13.3).",
                         WotLocation.FromPointer(pointer)));
                 }
-                else if (!SelectsConditionEventId(affordance.Value))
+                else if (!SelectsConditionEventId(
+                    affordance.Key, affordance.Value, eventSelections))
                 {
                     diagnostics.Add(new WotDiagnostic(
                         WotDiagnosticSeverity.Error,
                         WotDiagnosticCode.ConditionEventIdMissing,
                         $"An event affordance carrying '{ConditionTypeTerm}' shall select " +
-                        $"'{EventIdField}' as well as declare it: a complete select-clause " +
-                        "list replaces the documented default rather than extending it, so a " +
-                        "list that omits the field describes a notification that never " +
+                        $"'{EventIdField}' as well as declare it: the resolved selection of " +
+                        "WoT Binding Section 6.1 decides what a notification carries, so a " +
+                        "selection that omits the field describes a notification that never " +
                         "carries it (WoT Binding Section 13.3).",
                         WotLocation.FromPointer(
                             pointer + "/" + EscapeJsonPointerToken(WotEventSelectClauses.Term))));
@@ -591,25 +598,31 @@ namespace Opc.Ua.Wot
         }
 
         /// <summary>
-        /// Gets whether an event affordance's select-clause list materializes
+        /// Gets whether an event affordance's resolved selection materializes
         /// the <c>EventId</c> member (WoT Binding Sections 6.1 and 13.3).
         /// </summary>
         /// <remarks>
-        /// An affordance that states no list uses the documented default, which
-        /// selects the eight mandatory <c>BaseEventType</c> fields and so always
-        /// carries <c>EventId</c>. A list that is present replaces that default
-        /// rather than extending it, so it has to name the field itself. A list
-        /// this library cannot parse is reported by the select-clause rules and
-        /// is not double-reported here.
+        /// An affordance that states no selection takes the implicit
+        /// <c>BaseEventType</c> default, which always carries <c>EventId</c>.
+        /// An affordance that states one is decided by the resolved selection,
+        /// because the overlay of Section 6.1 — a linked EventType's baseline
+        /// refined by the explicit clauses — is what a MonitoredItem is
+        /// actually created with. Where the caller resolved no selection the
+        /// link is unresolved, which the resolver reports on its own; it is not
+        /// double-reported here as a missing field.
         /// </remarks>
-        private static bool SelectsConditionEventId(JsonElement affordance)
+        private static bool SelectsConditionEventId(
+            string affordanceName,
+            JsonElement affordance,
+            WotEventSelectionCatalog? eventSelections)
         {
-            if (!affordance.TryGetProperty(WotEventSelectClauses.Term, out JsonElement value))
+            if (!WotEventSelectionResolver.StatesSelection(affordance))
             {
                 return true;
             }
-            if (!WotEventSelectClauses.TryParse(
-                value, out ArrayOf<WotEventSelectClause> clauses, out _, out _))
+            if (eventSelections is null ||
+                !eventSelections.TryGetSelection(
+                    affordanceName, out ArrayOf<WotResolvedEventSelectClause> clauses))
             {
                 return true;
             }
@@ -886,14 +899,75 @@ namespace Opc.Ua.Wot
                 CollectStandardEventFields(projection.StandardTypeNodeId);
             Dictionary<string, UAVariable> declared = CollectDeclaredEventFields(eventType, index);
 
+            WriteEventDataSchema(
+                writer, standard, declared, namespaceUris, nodeSet, defaultLocale);
+        }
+
+        /// <summary>
+        /// Writes the <c>data</c> DataSchema of an EventType: the fields it
+        /// inherits and the fields it declares, in a stated order
+        /// (WoT Binding Sections 6.1 and 13.3).
+        /// </summary>
+        /// <remarks>
+        /// The schema is what the fast path of Section 6.1 derives a select
+        /// clause per leaf from, so it states <c>uav:fieldOrder</c> for every
+        /// object with more than one property: JSON member order is not an
+        /// order, and two consumers reading the same document would otherwise
+        /// request one EventType's fields in two different orders. The order
+        /// written here is the inherited standard fields in the order
+        /// OPC 10000-5 and OPC 10000-9 declare them, followed by the fields the
+        /// type declares itself in the order its References state them, which
+        /// is the NodeSet's own declaration order and therefore reproducible.
+        /// </remarks>
+        private static void WriteEventDataSchema(
+            Utf8JsonWriter writer,
+            List<WotStandardEventField> standard,
+            Dictionary<string, UAVariable> declared,
+            string[]? namespaceUris,
+            UANodeSet nodeSet,
+            string defaultLocale)
+        {
             writer.WritePropertyName(DataMember);
             writer.WriteStartObject();
             writer.WriteString("type", "object");
 
             var required = new List<string>();
+            var order = new List<string>();
+            var written = new HashSet<string>(StringComparer.Ordinal);
+            foreach (WotStandardEventField field in standard)
+            {
+                if (written.Add(field.Name))
+                {
+                    order.Add(field.Name);
+                }
+            }
+            foreach (KeyValuePair<string, UAVariable> field in declared)
+            {
+                // A Variable whose BrowseName is one of the standard fields
+                // re-declares an inherited field rather than adding one, so it
+                // has already refined the standard member below. Writing it a
+                // second time would state the same field twice under the same
+                // name.
+                if (written.Add(field.Key))
+                {
+                    order.Add(field.Key);
+                }
+            }
+
+            if (order.Count > 1)
+            {
+                writer.WritePropertyName(WotEventSelectClauses.FieldOrderTerm);
+                writer.WriteStartArray();
+                foreach (string name in order)
+                {
+                    writer.WriteStringValue(name);
+                }
+                writer.WriteEndArray();
+            }
+
             writer.WritePropertyName("properties");
             writer.WriteStartObject();
-            var written = new HashSet<string>(StringComparer.Ordinal);
+            written.Clear();
             foreach (WotStandardEventField field in standard)
             {
                 if (!written.Add(field.Name))
@@ -910,11 +984,6 @@ namespace Opc.Ua.Wot
             }
             foreach (KeyValuePair<string, UAVariable> field in declared)
             {
-                // A Variable whose BrowseName is one of the standard fields
-                // re-declares an inherited field rather than adding one, so it
-                // has already refined the standard member above. Writing it a
-                // second time would state the same field twice under the same
-                // name.
                 if (!written.Add(field.Key))
                 {
                     continue;
@@ -940,6 +1009,29 @@ namespace Opc.Ua.Wot
                 writer.WriteEndArray();
             }
             writer.WriteEndObject();
+        }
+
+        /// <summary>
+        /// Writes the <c>data</c> DataSchema an EventType Node's own Thing
+        /// Model carries, which is the EventType definition an event affordance
+        /// links to with <c>tm:ref</c> (WoT Binding Section 6.1).
+        /// </summary>
+        internal static void WriteEventTypeDefinitionData(
+            Utf8JsonWriter writer,
+            UANode eventType,
+            string[]? namespaceUris,
+            UANodeSet nodeSet,
+            Dictionary<string, UANode> index,
+            string defaultLocale)
+        {
+            WotConditionProjection projection = ResolveConditionProjection(eventType, index);
+            WriteEventDataSchema(
+                writer,
+                CollectStandardEventFields(projection.StandardTypeNodeId),
+                CollectDeclaredEventFields(eventType, index),
+                namespaceUris,
+                nodeSet,
+                defaultLocale);
         }
 
         /// <summary>
@@ -1054,13 +1146,22 @@ namespace Opc.Ua.Wot
                     break;
                 case WotEventFieldKind.TwoState:
                     writer.WriteString("type", "object");
+                    // Section 6.1 derives one select clause per leaf of this
+                    // schema and walks a multi-property object in the order
+                    // uav:fieldOrder states, because JSON member order is not
+                    // an order.
+                    writer.WritePropertyName(WotEventSelectClauses.FieldOrderTerm);
+                    writer.WriteStartArray();
+                    writer.WriteStringValue("Id");
+                    writer.WriteStringValue(WotEventSelectClauses.StateNameMember);
+                    writer.WriteEndArray();
                     writer.WritePropertyName("properties");
                     writer.WriteStartObject();
                     writer.WritePropertyName("Id");
                     writer.WriteStartObject();
                     writer.WriteString("type", "boolean");
                     writer.WriteEndObject();
-                    writer.WritePropertyName("Name");
+                    writer.WritePropertyName(WotEventSelectClauses.StateNameMember);
                     writer.WriteStartObject();
                     writer.WriteString("type", "string");
                     writer.WriteEndObject();
@@ -1436,16 +1537,60 @@ namespace Opc.Ua.Wot
             string rootLocal,
             List<UANode> items,
             List<Reference> eventReferences,
+            List<WotDiagnostic> diagnostics,
+            WotEventSelectionCatalog? eventSelections = null)
+        {
+            System.Text.Json.JsonDocument? linked = null;
+            try
+            {
+                if (!eventAffordance.TryGetProperty(DataMember, out JsonElement data) ||
+                    data.ValueKind != JsonValueKind.Object)
+                {
+                    // Section 6.1: where an affordance declares no data of its
+                    // own, the definition it links to is its effective schema,
+                    // so the fields materialized here are the ones that
+                    // definition declares rather than none at all.
+                    if (eventSelections is null ||
+                        !eventSelections.TryGetLinkedData(
+                            key, out ReadOnlyMemory<byte> linkedData))
+                    {
+                        return;
+                    }
+                    linked = System.Text.Json.JsonDocument.Parse(linkedData);
+                    data = linked.RootElement;
+                }
+                if (!data.TryGetProperty("properties", out JsonElement properties) ||
+                    properties.ValueKind != JsonValueKind.Object)
+                {
+                    return;
+                }
+                SynthesizeEventFieldMembers(
+                    document, nodeSet, eventAffordance, data, properties, key,
+                    superTypeNodeId, eventNodeId, eventLocal, rootLocal, items,
+                    eventReferences, diagnostics);
+            }
+            finally
+            {
+                linked?.Dispose();
+            }
+        }
+
+        /// <inheritdoc cref="SynthesizeEventFields"/>
+        private static void SynthesizeEventFieldMembers(
+            WotDocument document,
+            UANodeSet nodeSet,
+            JsonElement eventAffordance,
+            JsonElement data,
+            JsonElement properties,
+            string key,
+            string superTypeNodeId,
+            string eventNodeId,
+            string eventLocal,
+            string rootLocal,
+            List<UANode> items,
+            List<Reference> eventReferences,
             List<WotDiagnostic> diagnostics)
         {
-            if (!eventAffordance.TryGetProperty(DataMember, out JsonElement data) ||
-                data.ValueKind != JsonValueKind.Object ||
-                !data.TryGetProperty("properties", out JsonElement properties) ||
-                properties.ValueKind != JsonValueKind.Object)
-            {
-                return;
-            }
-
             bool isCondition = HasNonEmptyString(eventAffordance, ConditionTypeTerm) ||
                 HasNonEmptyString(eventAffordance, ConditionTypeIdTerm);
             HashSet<string> inherited = InheritedEventFieldNames(superTypeNodeId, isCondition);

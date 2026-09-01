@@ -188,18 +188,23 @@ namespace Opc.Ua.WotCon.Bindings.Planners
         /// Section 6.1 for an event affordance.
         /// </summary>
         /// <remarks>
-        /// The standardized <c>uav:eventSelectClauses</c> term states the
-        /// complete list and replaces the documented default; the superseded
-        /// <c>uav:eventFields</c> spelling this implementation minted before
-        /// the term existed adds field names to that default. Where a form
-        /// carries both, the standardized term wins and the contradiction is
-        /// reported: merging the two would produce a list neither spelling
-        /// states, and silently preferring one without saying so would leave
-        /// the author unable to tell which was honoured.
+        /// An affordance states its selection by linking its EventType
+        /// definition with <c>tm:ref</c>, by overlaying that baseline with
+        /// <c>uav:eventSelectClauses</c>, or with both; an affordance that
+        /// states neither takes the implicit <c>BaseEventType</c> default.
+        /// Resolving a link follows document references, so it happens before
+        /// planning and this method reads the result from
+        /// <see cref="WotBindingPlanContext.EventSelections"/>. The superseded
+        /// <c>uav:eventFields</c> spelling this implementation minted before the
+        /// terms existed adds field names to that default. Where a form carries
+        /// both, the standardized terms win and the contradiction is reported:
+        /// merging the two would produce a list neither spelling states, and
+        /// silently preferring one without saying so would leave the author
+        /// unable to tell which was honoured.
         /// </remarks>
         /// <returns>
         /// The effective selection, or <c>null</c> when the affordance is not
-        /// an event or the authored selection is invalid.
+        /// an event or the authored selection is invalid or unresolved.
         /// </returns>
         private static WotEventSelection? ResolveEventSelection(
             WotAffordanceForm form,
@@ -233,7 +238,7 @@ namespace Opc.Ua.WotCon.Bindings.Planners
                 return null;
             }
 
-            if (!HasSelectClauses(form.AffordanceElement))
+            if (!WotEventSelectionResolver.StatesSelection(form.AffordanceElement))
             {
                 if (!legacy)
                 {
@@ -243,8 +248,8 @@ namespace Opc.Ua.WotCon.Bindings.Planners
                     WotBindingDiagnosticCode.UnknownVocabularyTerm,
                     $"'{LegacyEventFieldsTerm}' is the spelling this implementation minted " +
                     $"before WoT Binding Section 6.1 standardized '{WotEventSelectClauses.Term}'. " +
-                    "It is still read, and its fields are added to the documented default " +
-                    "selection, but a portable document states the standardized term instead.",
+                    "It is still read, and its fields are added to the implicit default " +
+                    "selection, but a portable document states the standardized terms instead.",
                     form.Pointer(LegacyEventFieldsTerm),
                     LegacyEventFieldsTerm));
                 return BuildLegacySelection(legacyFields);
@@ -254,41 +259,43 @@ namespace Opc.Ua.WotCon.Bindings.Planners
             {
                 diagnostics.Add(WotBindingDiagnostic.Warning(
                     WotBindingDiagnosticCode.ConflictingFields,
-                    $"The affordance states '{WotEventSelectClauses.Term}' and the form states " +
-                    $"'{LegacyEventFieldsTerm}'. The standardized term states the complete list " +
-                    "and is honoured; the superseded spelling is ignored rather than merged, " +
-                    "because a merged list is one neither spelling states.",
+                    $"The affordance states its selection with the standardized terms of " +
+                    $"WoT Binding Section 6.1 and the form states '{LegacyEventFieldsTerm}'. " +
+                    "The standardized terms are honoured; the superseded spelling is ignored " +
+                    "rather than merged, because a merged list is one neither spelling states.",
                     form.Pointer(LegacyEventFieldsTerm),
                     LegacyEventFieldsTerm));
             }
 
             string pointer = form.AffordancePointer(WotEventSelectClauses.Term);
-            System.Text.Json.JsonElement authored =
-                form.AffordanceElement.GetProperty(WotEventSelectClauses.Term);
-            if (!WotEventSelectClauses.TryParse(
-                authored,
-                prefix => context.NamespacePrefixes.TryGetValue(prefix, out string? uri)
-                    ? uri
-                    : null,
-                out ArrayOf<WotEventSelectClause> clauses,
-                out string error,
-                out int errorIndex))
+            if (!context.EventSelections.TryGetSelection(
+                form.AffordanceName, out ArrayOf<WotResolvedEventSelectClause> clauses) ||
+                clauses.Count == 0)
             {
+                // Planning is synchronous and side-effect free, so a link this
+                // request never resolved is reported rather than followed here:
+                // an EventType definition is a document, and reading one during
+                // planning would make a plan depend on what a host served at the
+                // moment it was compiled.
                 diagnostics.Add(WotBindingDiagnostic.Error(
                     WotBindingDiagnosticCode.EventSelectClauseInvalid,
-                    error,
-                    errorIndex < 0
-                        ? pointer
-                        : pointer + "/" + errorIndex.ToString(
-                            System.Globalization.CultureInfo.InvariantCulture),
+                    $"The event affordance '{form.AffordanceName}' states its field selection " +
+                    $"with '{WotEventSelectClauses.TypeDefinitionReferenceTerm}' or " +
+                    $"'{WotEventSelectClauses.Term}', and no resolved selection was supplied " +
+                    "with the plan request. Build the request with " +
+                    "WotBindingPlanRequest.FromDocumentAsync, or supply a resolved event " +
+                    "selection catalog: planning never dereferences a document link " +
+                    "(WoT Binding Sections 5.1.5 and 6.1).",
+                    pointer,
                     WotEventSelectClauses.Term));
                 return null;
             }
 
-            var resolved = new WotEventSelectClause[clauses.Count];
+            var resolved = new WotResolvedEventSelectClause[clauses.Count];
             for (int ii = 0; ii < clauses.Count; ii++)
             {
-                if (!TryResolveClause(clauses[ii], context, out WotEventSelectClause? clause, out error))
+                if (!TryResolveClause(
+                    clauses[ii], context, out WotResolvedEventSelectClause? clause, out string error))
                 {
                     diagnostics.Add(WotBindingDiagnostic.Error(
                         WotBindingDiagnosticCode.UnboundNamespacePrefix,
@@ -304,16 +311,19 @@ namespace Opc.Ua.WotCon.Bindings.Planners
             // path, because that member and not the browse path it came from
             // decides the output: two clauses that reach the same member compete
             // for it whatever EventType each names as the declaring type, and
-            // nothing in the document says which of them filled it. The parser
-            // has already checked the authored list; this checks the list the
-            // planner rewrote into portable form, so a rewrite can never
+            // nothing in the document says which of them filled it. Resolution
+            // has already checked the overlaid selection; this checks the list
+            // the planner rewrote into portable form, so a rewrite can never
             // introduce a collision the plan would carry into a subscription.
             if (!WotEventSelectClauses.TryFindMaterializedCollision(
-                resolved, null, out error, out int collisionIndex))
+                new ArrayOf<WotResolvedEventSelectClause>(resolved),
+                null,
+                out string collision,
+                out int collisionIndex))
             {
                 diagnostics.Add(WotBindingDiagnostic.Error(
                     WotBindingDiagnosticCode.EventSelectClauseInvalid,
-                    error,
+                    collision,
                     collisionIndex < 0
                         ? pointer
                         : pointer + "/" + collisionIndex.ToString(
@@ -331,9 +341,9 @@ namespace Opc.Ua.WotCon.Bindings.Planners
         /// and 5.8).
         /// </summary>
         private static bool TryResolveClause(
-            WotEventSelectClause clause,
+            WotResolvedEventSelectClause clause,
             WotBindingPlanContext context,
-            out WotEventSelectClause? resolved,
+            out WotResolvedEventSelectClause? resolved,
             out string error)
         {
             resolved = null;
@@ -359,8 +369,7 @@ namespace Opc.Ua.WotCon.Bindings.Planners
                 elements[ii] = element;
             }
             resolved = rewritten
-                ? new WotEventSelectClause(
-                    clause.TypeDefinitionId, WotEventSelectClauses.JoinBrowsePath(elements))
+                ? clause.WithBrowsePath(WotEventSelectClauses.JoinBrowsePath(elements))
                 : clause;
             error = string.Empty;
             return true;
@@ -416,9 +425,9 @@ namespace Opc.Ua.WotCon.Bindings.Planners
 
         private static WotEventSelection BuildLegacySelection(ImmutableArray<string> fields)
         {
-            var clauses = new List<WotEventSelectClause>(
+            var clauses = new List<WotResolvedEventSelectClause>(
                 WotEventSelectClauses.Default.Count + fields.Length);
-            foreach (WotEventSelectClause clause in WotEventSelectClauses.Default)
+            foreach (WotResolvedEventSelectClause clause in WotEventSelectClauses.Default)
             {
                 clauses.Add(clause);
             }
@@ -426,12 +435,17 @@ namespace Opc.Ua.WotCon.Bindings.Planners
             {
                 // A superseded field that reaches a data member the default
                 // already fills is not added twice: Section 6.1 lets exactly one
-                // clause materialize a member, and the documented default is the
+                // clause materialize a member, and the implicit default is the
                 // list this spelling extends rather than competes with.
-                clauses.Add(new WotEventSelectClause(
-                    WotEventSelectClauses.BaseEventTypeId, field));
+                clauses.Add(new WotResolvedEventSelectClause(
+                    WotEventSelectClauses.BaseEventTypeId,
+                    field,
+                    WotEventSelectClauseSource.Explicit));
                 if (!WotEventSelectClauses.TryFindMaterializedCollision(
-                    clauses.ToArray(), null, out _, out _))
+                    new ArrayOf<WotResolvedEventSelectClause>(clauses.ToArray()),
+                    null,
+                    out _,
+                    out _))
                 {
                     clauses.RemoveAt(clauses.Count - 1);
                 }
