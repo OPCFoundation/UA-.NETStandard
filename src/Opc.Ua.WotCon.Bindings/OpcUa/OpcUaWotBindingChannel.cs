@@ -32,7 +32,7 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Opc.Ua.Client;
-using WellKnownObjectTypeIds = Opc.Ua.Types.ObjectTypeIds;
+using Opc.Ua.Wot;
 
 namespace Opc.Ua.WotCon.Bindings.OpcUa
 {
@@ -184,6 +184,7 @@ namespace Opc.Ua.WotCon.Bindings.OpcUa
                     StatusCodes.BadNodeIdInvalid, $"'{m_nodeId}' is not a valid event notifier NodeId.");
             }
             EventFilter filter = BuildEventFilter();
+            WotEventSelection selection = Form.EventSelection ?? WotEventSelection.Default;
             return CreateMonitoredSubscriptionAsync(
                 notifierId,
                 NodeClass.Object,
@@ -191,7 +192,7 @@ namespace Opc.Ua.WotCon.Bindings.OpcUa
                 filter,
                 queueSize: m_options.EventQueueSize,
                 translate: (_, notificationValue) => notificationValue is EventFieldList eventFields
-                    ? BuildEventNotification(filter, eventFields)
+                    ? BuildEventNotification(selection, eventFields)
                     : null,
                 onEvent,
                 cancellationToken);
@@ -303,73 +304,152 @@ namespace Opc.Ua.WotCon.Bindings.OpcUa
         }
 
         /// <summary>
-        /// Builds the event select filter: <see cref="EventBrowseNames.EventId"/>,
-        /// <see cref="EventBrowseNames.EventType"/>, <see cref="EventBrowseNames.SourceNode"/>,
-        /// <see cref="EventBrowseNames.SourceName"/>, <see cref="EventBrowseNames.Time"/>,
-        /// <see cref="EventBrowseNames.ReceiveTime"/>, <see cref="EventBrowseNames.Message"/>
-        /// and <see cref="EventBrowseNames.Severity"/>, plus any binding-authored
-        /// <c>uav:eventFields</c> select clauses carried by the compiled form.
+        /// Builds the event select filter from the compiled selection of
+        /// WoT Binding Section 6.1.
         /// </summary>
+        /// <remarks>
+        /// The planner always compiles the effective selection - the eight
+        /// mandatory <c>BaseEventType</c> fields when the affordance states
+        /// none, the complete authored list when it states one - so this method
+        /// resolves rather than decides. Resolution is what needs a session:
+        /// a portable ExpandedNodeId and a NamespaceUri-qualified path element
+        /// only become a <see cref="NodeId"/> and a <see cref="QualifiedName"/>
+        /// against a namespace table, and a table exists only once a session
+        /// does. An empty browse path selects the NodeId Attribute, which is
+        /// the OPC 10000-9 <c>ConditionId</c> idiom; every other clause selects
+        /// the Value Attribute of the Node its path reaches.
+        /// </remarks>
+        /// <exception cref="ServiceResultException">
+        /// Thrown when a clause names a type or a namespace this session cannot
+        /// resolve. Subscribing with a silently shortened field list would
+        /// deliver an event whose <c>data</c> object the document does not
+        /// describe.
+        /// </exception>
         private EventFilter BuildEventFilter()
         {
+            WotEventSelection selection = Form.EventSelection ?? WotEventSelection.Default;
             var filter = new EventFilter();
-            filter.AddSelectClause(
-                WellKnownObjectTypeIds.BaseEventType, QualifiedName.From(EventBrowseNames.EventId));
-            filter.AddSelectClause(
-                WellKnownObjectTypeIds.BaseEventType, QualifiedName.From(EventBrowseNames.EventType));
-            filter.AddSelectClause(
-                WellKnownObjectTypeIds.BaseEventType, QualifiedName.From(EventBrowseNames.SourceNode));
-            filter.AddSelectClause(
-                WellKnownObjectTypeIds.BaseEventType, QualifiedName.From(EventBrowseNames.SourceName));
-            filter.AddSelectClause(
-                WellKnownObjectTypeIds.BaseEventType, QualifiedName.From(EventBrowseNames.Time));
-            filter.AddSelectClause(
-                WellKnownObjectTypeIds.BaseEventType, QualifiedName.From(EventBrowseNames.ReceiveTime));
-            filter.AddSelectClause(
-                WellKnownObjectTypeIds.BaseEventType, QualifiedName.From(EventBrowseNames.Message));
-            filter.AddSelectClause(
-                WellKnownObjectTypeIds.BaseEventType, QualifiedName.From(EventBrowseNames.Severity));
-
-            if (Form.Addressing.Metadata.TryGetValue("eventFields", out string? extra) &&
-                !string.IsNullOrEmpty(extra))
+            foreach (WotEventSelectClause clause in selection.Clauses)
             {
-                var seen = new HashSet<string>(StringComparer.Ordinal)
+                if (!TryResolveNodeId(clause.TypeDefinitionId, out NodeId typeDefinitionId))
                 {
-                    EventBrowseNames.EventId, EventBrowseNames.EventType, EventBrowseNames.SourceNode,
-                    EventBrowseNames.SourceName, EventBrowseNames.Time, EventBrowseNames.ReceiveTime,
-                    EventBrowseNames.Message, EventBrowseNames.Severity
-                };
-                foreach (string field in extra.Split('|', StringSplitOptions.RemoveEmptyEntries))
-                {
-                    if (seen.Add(field))
-                    {
-                        filter.AddSelectClause(WellKnownObjectTypeIds.BaseEventType, field, Attributes.Value);
-                    }
+                    throw new ServiceResultException(
+                        StatusCodes.BadTypeDefinitionInvalid,
+                        $"The event select clause names the EventType " +
+                        $"'{clause.TypeDefinitionId}', which this session cannot resolve.");
                 }
+                var operand = new SimpleAttributeOperand
+                {
+                    TypeDefinitionId = typeDefinitionId,
+                    AttributeId = clause.IsConditionIdSelection
+                        ? Attributes.NodeId
+                        : Attributes.Value,
+                    BrowsePath = ResolveBrowsePath(clause.BrowsePath)
+                };
+                filter.SelectClauses = filter.SelectClauses.AddItem(operand);
             }
             return filter;
+        }
+
+        /// <summary>
+        /// Resolves a select-clause browse path into qualified names against
+        /// the connected session's namespace table.
+        /// </summary>
+        /// <exception cref="ServiceResultException">
+        /// Thrown when a path element names a NamespaceUri the Server's
+        /// namespace table does not hold.
+        /// </exception>
+        private ArrayOf<QualifiedName> ResolveBrowsePath(string browsePath)
+        {
+            if (browsePath.Length == 0)
+            {
+                return ArrayOf<QualifiedName>.Empty;
+            }
+            string[] elements = browsePath.Split('/');
+            var names = new QualifiedName[elements.Length];
+            for (int ii = 0; ii < elements.Length; ii++)
+            {
+                names[ii] = ResolveBrowseName(elements[ii]);
+            }
+            return names;
+        }
+
+        private QualifiedName ResolveBrowseName(string element)
+        {
+            string? namespaceUri = null;
+            string name = element;
+            if (element.StartsWith("nsu=", StringComparison.Ordinal))
+            {
+                int separator = element.IndexOf(';', 4);
+                if (separator <= 4 || separator + 1 >= element.Length)
+                {
+                    throw new ServiceResultException(
+                        StatusCodes.BadBrowseNameInvalid,
+                        $"The event select-clause path element '{element}' is not a valid " +
+                        "NamespaceUri-qualified browse name.");
+                }
+                namespaceUri = CoreUtils.UnescapeUri(element.AsSpan(4, separator - 4));
+                name = element.Substring(separator + 1);
+            }
+            else if (element.Length > 0 && element[0] == '{')
+            {
+                int separator = element.IndexOf('}', 1);
+                if (separator <= 1 || separator + 1 >= element.Length)
+                {
+                    throw new ServiceResultException(
+                        StatusCodes.BadBrowseNameInvalid,
+                        $"The event select-clause path element '{element}' is not a valid " +
+                        "NamespaceUri-qualified browse name.");
+                }
+                namespaceUri = element.Substring(1, separator - 1);
+                name = element.Substring(separator + 1);
+            }
+            if (namespaceUri is null)
+            {
+                return QualifiedName.From(name);
+            }
+            int index = m_session.NamespaceUris.GetIndex(namespaceUri);
+            if (index < 0)
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadBrowseNameInvalid,
+                    $"The event select clause names the namespace '{namespaceUri}', which the " +
+                    "Server's namespace table does not hold.");
+            }
+            return new QualifiedName(name, (ushort)index);
         }
 
         /// <summary>
         /// Projects a raw <see cref="EventFieldList"/> notification into a
         /// <see cref="WotNotification"/> deterministically: every select-clause
         /// field is captured in <see cref="WotNotification.EventFields"/> keyed
-        /// by its browse path, each carrying the event's own Time / ReceiveTime
-        /// as its source / server timestamp so no timestamp is lost. The
-        /// notification's primary <see cref="DataValue"/> wraps the Message
-        /// field (or the first field, if Message was not selected) with a
-        /// <see cref="StatusCodes.Good"/> status.
+        /// by the browse path the <em>document</em> authored, each carrying the
+        /// event's own Time / ReceiveTime as its source / server timestamp so no
+        /// timestamp is lost. The notification's primary
+        /// <see cref="DataValue"/> wraps the Message field (or the first field,
+        /// if Message was not selected) with a <see cref="StatusCodes.Good"/>
+        /// status.
         /// </summary>
-        private static WotNotification BuildEventNotification(EventFilter filter, EventFieldList eventFields)
+        /// <remarks>
+        /// The key comes from the compiled selection rather than from the
+        /// resolved <see cref="SimpleAttributeOperand"/>, whose browse path
+        /// renders a non-zero namespace as the connected Server's numeric
+        /// index: a <c>data</c> member name that changed with the Server's
+        /// namespace table would not be the member the document describes. The
+        /// two are index-aligned because the filter is built from the same
+        /// selection, clause by clause.
+        /// </remarks>
+        private static WotNotification BuildEventNotification(
+            WotEventSelection selection, EventFieldList eventFields)
         {
             ArrayOf<Variant> values = eventFields.EventFields;
-            int count = Math.Min(filter.SelectClauses.Count, values.Count);
+            int count = Math.Min(selection.Clauses.Count, values.Count);
 
             DateTimeUtc sourceTimestamp = DateTimeUtc.Now;
             DateTimeUtc serverTimestamp = DateTimeUtc.Now;
             for (int i = 0; i < count; i++)
             {
-                string name = FormatFieldName(filter.SelectClauses[i]);
+                string name = FormatFieldName(selection.Clauses[i]);
                 if (string.Equals(name, EventBrowseNames.Time, StringComparison.Ordinal) &&
                     values[i].TryGetValue(out DateTimeUtc time))
                 {
@@ -387,20 +467,28 @@ namespace Opc.Ua.WotCon.Bindings.OpcUa
             bool havePrimary = false;
             for (int i = 0; i < count; i++)
             {
-                string name = FormatFieldName(filter.SelectClauses[i]);
+                string name = FormatFieldName(selection.Clauses[i]);
                 Variant fieldValue = values[i];
-                fields[name] = new DataValue(fieldValue, StatusCodes.Good, sourceTimestamp, serverTimestamp);
-                if (string.Equals(name, EventBrowseNames.Message, StringComparison.Ordinal))
+                // Two clauses may select the same path under different
+                // EventTypes; the flat envelope can carry one, and the planner
+                // reports the collision, so the first stated clause wins rather
+                // than the last quietly replacing it.
+                if (!fields.ContainsKey(name))
+                {
+                    fields[name] = new DataValue(
+                        fieldValue, StatusCodes.Good, sourceTimestamp, serverTimestamp);
+                }
+                if (!havePrimary &&
+                    string.Equals(name, EventBrowseNames.Message, StringComparison.Ordinal))
                 {
                     primary = fieldValue;
                     havePrimary = true;
                 }
             }
-            // Defensive: BuildEventFilter always adds the Message select clause
-            // and is the only filter BuildEventNotification is ever called with,
-            // so a primary value is always found. The fallback keeps the
-            // notification meaningful if that filter ever stops selecting
-            // Message.
+            // Defensive: the documented default selection always carries the
+            // Message field, but an authored selection replaces that default and
+            // need not select it. The fallback keeps the notification meaningful
+            // when it does not.
             if (!havePrimary && count > 0)
             {
                 primary = values[0];
@@ -411,30 +499,30 @@ namespace Opc.Ua.WotCon.Bindings.OpcUa
         }
 
         /// <summary>
-        /// Formats a select-clause browse path without its leading separator.
+        /// Names the <c>data</c> member a clause supplies: the browse path the
+        /// document authored, or <c>ConditionId</c> for the empty path, which is
+        /// the OPC 10000-9 idiom (WoT Binding Sections 6.1 and 13.3).
         /// </summary>
-        private static string FormatFieldName(SimpleAttributeOperand clause)
+        private static string FormatFieldName(WotEventSelectClause clause)
         {
-            string formatted = SimpleAttributeOperand.Format(clause.BrowsePath);
-            return formatted.Length > 0 && formatted[0] == '/' ? formatted[1..] : formatted;
+            return clause.IsConditionIdSelection
+                ? WotEventSelectClauses.ConditionIdFieldName
+                : clause.BrowsePath;
         }
 
         /// <summary>
-        /// The mandatory <c>BaseEventType</c> browse names (Part 5 §6.4.2) used to
-        /// build the baseline event select filter. These are stable OPC UA
-        /// browse names, so they are declared locally rather than depending on
-        /// a per-project generated identifier set.
+        /// The mandatory <c>BaseEventType</c> browse names (Part 5 §6.4.2) the
+        /// notification projection recognizes so an event's own Time and
+        /// ReceiveTime become the notification's source and server timestamps
+        /// and its Message becomes the primary value. The select clauses
+        /// themselves come from the compiled selection of WoT Binding
+        /// Section 6.1, not from here.
         /// </summary>
         private static class EventBrowseNames
         {
-            public const string EventId = "EventId";
-            public const string EventType = "EventType";
-            public const string SourceNode = "SourceNode";
-            public const string SourceName = "SourceName";
             public const string Time = "Time";
             public const string ReceiveTime = "ReceiveTime";
             public const string Message = "Message";
-            public const string Severity = "Severity";
         }
 
         /// <summary>

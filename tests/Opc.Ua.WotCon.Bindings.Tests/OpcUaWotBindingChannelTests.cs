@@ -377,6 +377,58 @@ namespace Opc.Ua.WotCon.Bindings.Tests
             }
         }
 
+        [Test]
+        public async Task SubscribeEventAsyncSelectsExactlyTheAuthoredSelectClausesAsync()
+        {
+            WotCompiledForm form = m_plan.CompiledForms.First(
+                f => f.AffordanceName == "selectclauses" &&
+                    f.Operation == WoTBindingCapabilityEnum.SubscribeEvent);
+
+            Assert.That(form.EventSelection, Is.Not.Null);
+            Assert.That(
+                form.EventSelection!.Origin, Is.EqualTo(WotEventSelectionOrigin.Standard));
+
+            var received = new ConcurrentQueue<WotNotification>();
+            IWotBindingChannel channel = await m_registry.OpenChannelAsync(form).ConfigureAwait(false);
+            await using (channel.ConfigureAwait(false))
+            {
+                IWotSubscription subscription = await channel
+                    .SubscribeEventAsync(received.Enqueue).ConfigureAwait(false);
+                await using (subscription.ConfigureAwait(false))
+                {
+                    NodeId triggerNodeId = ResolvePortableNodeId(TriggerNode01Id);
+                    var writeValue = new WriteValue
+                    {
+                        NodeId = triggerNodeId,
+                        AttributeId = Attributes.Value,
+                        Value = new DataValue(new Variant(78))
+                    };
+                    WriteResponse writeResponse = await m_session
+                        .WriteAsync(null, new WriteValue[] { writeValue }, CancellationToken.None)
+                        .ConfigureAwait(false);
+                    Assert.That(StatusCode.IsGood(writeResponse.Results[0]), Is.True,
+                        "Writing the trigger node must succeed to fire a BaseEvent.");
+
+                    WotNotification? notification = null;
+                    for (int i = 0; i < 100 && notification is null; i++)
+                    {
+                        if (!received.TryDequeue(out notification))
+                        {
+                            await Task.Delay(50).ConfigureAwait(false);
+                        }
+                    }
+
+                    Assert.That(notification, Is.Not.Null,
+                        "The select-clause subscription must deliver the triggered event.");
+                    Assert.That(
+                        notification!.EventFields.Keys.OrderBy(k => k, StringComparer.Ordinal),
+                        Is.EqualTo(new[] { "ConditionId", "Message", "Severity", "SourceName" }),
+                        "The authored list is complete: the documented default is replaced, " +
+                        "not extended, and the empty path supplies the ConditionId member.");
+                }
+            }
+        }
+
         /// <summary>
         /// Builds a Thing Description JSON that includes edge-case affordances for every
         /// uncovered <c>OpcUaWotBindingChannel</c> path.
@@ -426,10 +478,23 @@ namespace Opc.Ua.WotCon.Bindings.Tests
                 "{\"href\":\"" + endpoint + "\",\"uav:id\":\"" + InvalidNodeId + "\"," +
                 "\"op\":[\"subscribeevent\"]}" +
                 "]}," +
-                // extrafields: real event notifier with uav:eventFields → exercises BuildEventFilter
+                // extrafields: real event notifier with uav:eventFields → exercises the
+                // superseded spelling, which adds to the documented default selection
                 "\"extrafields\":{\"forms\":[" +
                 "{\"href\":\"" + endpoint + "\",\"uav:id\":\"" + ServerObjectNodeId + "\"," +
                 "\"op\":[\"subscribeevent\"],\"uav:eventFields\":[\"LocalTime\"]}" +
+                "]}," +
+                // selectclauses: the standardized uav:eventSelectClauses list, which
+                // replaces the documented default and includes the empty-path
+                // ConditionId selection
+                "\"selectclauses\":{\"uav:isEvent\":true,\"uav:eventSelectClauses\":[" +
+                "{\"uav:typeDefinitionId\":\"i=2041\",\"uav:browsePath\":\"Message\"}," +
+                "{\"uav:typeDefinitionId\":\"i=2041\",\"uav:browsePath\":\"Severity\"}," +
+                "{\"uav:typeDefinitionId\":\"i=2041\",\"uav:browsePath\":\"SourceName\"}," +
+                "{\"uav:typeDefinitionId\":\"i=2041\",\"uav:browsePath\":\"\"}]," +
+                "\"forms\":[" +
+                "{\"href\":\"" + endpoint + "\",\"uav:id\":\"" + ServerObjectNodeId + "\"," +
+                "\"op\":[\"subscribeevent\"]}" +
                 "]}}}";
         }
 

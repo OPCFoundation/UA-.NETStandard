@@ -788,20 +788,28 @@ namespace Opc.Ua.WotCon.Bindings.Tests
         }
 
         [Test]
-        public void OpcUaPlannerAddsEventFieldsToMetadata()
+        public void OpcUaPlannerCompilesLegacyEventFieldsOntoTheDocumentedDefault()
         {
             var planner = new OpcUaBindingPlanner();
             WotAffordanceForm form = MakeEventForm(
                 "{\"href\":\"opc.tcp://server.example.com:4840\"," +
                 "\"uav:id\":\"ns=2;i=3001\"," +
-                "\"uav:eventFields\":[\"Message\",\"Severity\"]}");
+                "\"uav:eventFields\":[\"Message\",\"LocalTime\"]}");
 
             WotBindingCompilation result = planner.Compile(form, DefaultContext());
 
             Assert.That(result.IsSupported, Is.True);
-            Assert.That(result.Entries[0].Addressing.Metadata.ContainsKey("eventFields"), Is.True);
-            Assert.That(result.Entries[0].Addressing.Metadata["eventFields"],
-                Does.Contain("Message").And.Contains("Severity"));
+            WotEventSelection? selection = result.Entries[0].EventSelection;
+            Assert.That(selection, Is.Not.Null);
+            Assert.That(selection!.Origin, Is.EqualTo(WotEventSelectionOrigin.Legacy));
+            Assert.That(
+                selection.Clauses.ToList().Select(c => c.BrowsePath),
+                Is.EqualTo(new[]
+                {
+                    "EventId", "EventType", "SourceNode", "SourceName",
+                    "Time", "ReceiveTime", "Message", "Severity", "LocalTime"
+                }),
+                "The superseded spelling adds to the documented default and never repeats it.");
         }
 
         [Test]

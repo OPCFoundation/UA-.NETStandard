@@ -30,13 +30,16 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
+using Opc.Ua.Wot;
 
 namespace Opc.Ua.WotCon.Bindings.Planners
 {
     /// <summary>
     /// The OPC UA WoT Connectivity binding planner (OPC 10101). It validates the
     /// portable <c>uav:id</c> / <c>opc.tcp</c> href and the <c>uav:componentOf</c>
-    /// containment reference, checks <c>op</c> compatibility, and compiles the
+    /// containment reference, checks <c>op</c> compatibility, compiles the
+    /// event field selection of WoT Binding Section 6.1 and the <c>auto</c>
+    /// endpoint security floor of Section 5.7.1, and compiles the
     /// form into immutable endpoint and NodeId addressing metadata. It is
     /// executable when the OPC UA executor is registered. The OPC 10101 §6.5.4
     /// target-mapping terms (<c>uav:mapToNodeId</c> / <c>uav:mapToType</c> /
@@ -51,6 +54,20 @@ namespace Opc.Ua.WotCon.Bindings.Planners
         /// The OPC UA WoT binding vocabulary URI.
         /// </summary>
         public const string BindingUri = "http://opcfoundation.org/UA/WoT-Binding/";
+
+        /// <summary>
+        /// The superseded spelling this implementation minted for an event's
+        /// extra select clauses before WoT Binding Section 6.1 standardized
+        /// <see cref="WotEventSelectClauses.Term"/>.
+        /// </summary>
+        /// <remarks>
+        /// It is authored on a form, carries bare browse paths and adds to the
+        /// documented default selection. It is still read so a document already
+        /// authored against this implementation keeps working, and it is never
+        /// written: a document this stack produces states the standardized
+        /// term.
+        /// </remarks>
+        public const string LegacyEventFieldsTerm = "uav:eventFields";
 
         private static readonly string[] s_schemes = ["opc.tcp", "opc.https", "opc.wss"];
 
@@ -132,19 +149,10 @@ namespace Opc.Ua.WotCon.Bindings.Planners
                 .Add("nodeId", nodeId!);
             metadata = AddIfPresent(form, "uav:componentOf", "componentOf", metadata);
 
-            // uav:eventFields is a non-standard extension of this implementation
-            // rather than release 1.1 vocabulary: Section 8 carries an event's
-            // fields in the event data schema and its delivery configuration in
-            // uav:eventConfiguration, and defines no eventFields term. It is
-            // still read so that a form already authored against this
-            // implementation keeps working, but a portable document should not
-            // rely on it.
-            if (form.Kind == WotAffordanceKind.Event &&
-                form.TryGetStringArray("uav:eventFields", out ImmutableArray<string> eventFields))
+            WotEventSelection? eventSelection = ResolveEventSelection(form, context, diagnostics);
+            if (form.Kind == WotAffordanceKind.Event && eventSelection is null)
             {
-                // '|' joins the binding-authored select-clause browse paths; a
-                // browse name legally contains '/' (nested paths) but never '|'.
-                metadata = metadata.Add("eventFields", string.Join("|", eventFields));
+                return WotBindingCompilation.Unsupported([.. diagnostics]);
             }
 
             if (!ResolveCodec(form, context, diagnostics, out WotPayloadDescriptor payload))
@@ -153,6 +161,10 @@ namespace Opc.Ua.WotCon.Bindings.Planners
             }
             var addressing = new WotAddressingDescriptor(nodeId!, metadata);
             ImmutableArray<WotCredentialReference> security = ResolveSecurity(form, context, authority, diagnostics);
+            if (!TryResolveSecurityFloor(form, context, diagnostics, out WotSecurityFloor? securityFloor))
+            {
+                return WotBindingCompilation.Unsupported([.. diagnostics]);
+            }
 
             ImmutableArray<WotCompiledForm>.Builder entries = ImmutableArray.CreateBuilder<WotCompiledForm>();
             foreach ((string op, WoTBindingCapabilityEnum capability) in ResolveOperations(form, diagnostics))
@@ -160,7 +172,8 @@ namespace Opc.Ua.WotCon.Bindings.Planners
                 var operation = new WotOperationDescriptor(capability, op, OpcUaService(capability));
                 entries.Add(new WotCompiledForm(
                     Identity, form.Kind, form.AffordanceName, form.JsonPointer, capability, op,
-                    endpoint, addressing, operation, payload, security, Capability.IsExecutable));
+                    endpoint, addressing, operation, payload, security, Capability.IsExecutable,
+                    targetMapping: null, eventSelection, securityFloor));
             }
 
             if (entries.Count == 0)
@@ -168,6 +181,353 @@ namespace Opc.Ua.WotCon.Bindings.Planners
                 return WotBindingCompilation.Unsupported([.. diagnostics]);
             }
             return WotBindingCompilation.Supported(entries.ToImmutable(), [.. diagnostics]);
+        }
+
+        /// <summary>
+        /// Compiles the effective event field selection of WoT Binding
+        /// Section 6.1 for an event affordance.
+        /// </summary>
+        /// <remarks>
+        /// The standardized <c>uav:eventSelectClauses</c> term states the
+        /// complete list and replaces the documented default; the superseded
+        /// <c>uav:eventFields</c> spelling this implementation minted before
+        /// the term existed adds field names to that default. Where a form
+        /// carries both, the standardized term wins and the contradiction is
+        /// reported: merging the two would produce a list neither spelling
+        /// states, and silently preferring one without saying so would leave
+        /// the author unable to tell which was honoured.
+        /// </remarks>
+        /// <returns>
+        /// The effective selection, or <c>null</c> when the affordance is not
+        /// an event or the authored selection is invalid.
+        /// </returns>
+        private static WotEventSelection? ResolveEventSelection(
+            WotAffordanceForm form,
+            WotBindingPlanContext context,
+            List<WotBindingDiagnostic> diagnostics)
+        {
+            bool legacy = form.TryGetStringArray(
+                LegacyEventFieldsTerm, out ImmutableArray<string> legacyFields);
+            if (form.Kind != WotAffordanceKind.Event)
+            {
+                if (HasSelectClauses(form.FormElement) || HasSelectClauses(form.AffordanceElement))
+                {
+                    diagnostics.Add(WotBindingDiagnostic.Error(
+                        WotBindingDiagnosticCode.EventSelectClauseInvalid,
+                        $"'{WotEventSelectClauses.Term}' selects OPC UA event fields and belongs " +
+                        "only on an event affordance (WoT Binding Sections 6.1 and 7).",
+                        form.AffordancePointer(WotEventSelectClauses.Term),
+                        WotEventSelectClauses.Term));
+                }
+                return null;
+            }
+
+            if (HasSelectClauses(form.FormElement))
+            {
+                diagnostics.Add(WotBindingDiagnostic.Error(
+                    WotBindingDiagnosticCode.EventSelectClauseInvalid,
+                    $"'{WotEventSelectClauses.Term}' is defined by WoT Binding Section 6.1 " +
+                    "directly on the event affordance, not on a form.",
+                    form.Pointer(WotEventSelectClauses.Term),
+                    WotEventSelectClauses.Term));
+                return null;
+            }
+
+            if (!HasSelectClauses(form.AffordanceElement))
+            {
+                if (!legacy)
+                {
+                    return WotEventSelection.Default;
+                }
+                diagnostics.Add(WotBindingDiagnostic.Warning(
+                    WotBindingDiagnosticCode.UnknownVocabularyTerm,
+                    $"'{LegacyEventFieldsTerm}' is the spelling this implementation minted " +
+                    $"before WoT Binding Section 6.1 standardized '{WotEventSelectClauses.Term}'. " +
+                    "It is still read, and its fields are added to the documented default " +
+                    "selection, but a portable document states the standardized term instead.",
+                    form.Pointer(LegacyEventFieldsTerm),
+                    LegacyEventFieldsTerm));
+                return BuildLegacySelection(legacyFields);
+            }
+
+            if (legacy)
+            {
+                diagnostics.Add(WotBindingDiagnostic.Warning(
+                    WotBindingDiagnosticCode.ConflictingFields,
+                    $"The affordance states '{WotEventSelectClauses.Term}' and the form states " +
+                    $"'{LegacyEventFieldsTerm}'. The standardized term states the complete list " +
+                    "and is honoured; the superseded spelling is ignored rather than merged, " +
+                    "because a merged list is one neither spelling states.",
+                    form.Pointer(LegacyEventFieldsTerm),
+                    LegacyEventFieldsTerm));
+            }
+
+            string pointer = form.AffordancePointer(WotEventSelectClauses.Term);
+            System.Text.Json.JsonElement authored =
+                form.AffordanceElement.GetProperty(WotEventSelectClauses.Term);
+            if (!WotEventSelectClauses.TryParse(
+                authored,
+                out ArrayOf<WotEventSelectClause> clauses,
+                out string error,
+                out int errorIndex))
+            {
+                diagnostics.Add(WotBindingDiagnostic.Error(
+                    WotBindingDiagnosticCode.EventSelectClauseInvalid,
+                    error,
+                    errorIndex < 0
+                        ? pointer
+                        : pointer + "/" + errorIndex.ToString(
+                            System.Globalization.CultureInfo.InvariantCulture),
+                    WotEventSelectClauses.Term));
+                return null;
+            }
+
+            var resolved = new WotEventSelectClause[clauses.Count];
+            var paths = new HashSet<string>(StringComparer.Ordinal);
+            for (int ii = 0; ii < clauses.Count; ii++)
+            {
+                if (!TryResolveClause(clauses[ii], context, out WotEventSelectClause? clause, out error))
+                {
+                    diagnostics.Add(WotBindingDiagnostic.Error(
+                        WotBindingDiagnosticCode.UnboundNamespacePrefix,
+                        error,
+                        pointer + "/" + ii.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                        WotEventSelectClauses.Term));
+                    return null;
+                }
+                resolved[ii] = clause!;
+                if (!paths.Add(clause!.BrowsePath))
+                {
+                    // Two clauses may name the same field under different
+                    // EventTypes, which Section 6.1 permits; the flat
+                    // WotNotification.EventFields envelope this runtime
+                    // delivers can carry one value per path, so the collision
+                    // is reported rather than resolved by silently dropping the
+                    // later clause.
+                    diagnostics.Add(WotBindingDiagnostic.Warning(
+                        WotBindingDiagnosticCode.ConflictingFields,
+                        $"Two select clauses request the browse path '{clause.BrowsePath}' under " +
+                        "different EventTypes. The notification envelope carries one value per " +
+                        "path, so the first clause is the one reported.",
+                        pointer + "/" + ii.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                        WotEventSelectClauses.Term));
+                }
+            }
+            return new WotEventSelection(resolved, WotEventSelectionOrigin.Standard);
+        }
+
+        /// <summary>
+        /// Rewrites a clause's compact model names into the portable
+        /// <c>nsu=</c> form so a channel can resolve it against a Server's
+        /// namespace table without the document (WoT Binding Sections 5.1.2
+        /// and 5.8).
+        /// </summary>
+        private static bool TryResolveClause(
+            WotEventSelectClause clause,
+            WotBindingPlanContext context,
+            out WotEventSelectClause? resolved,
+            out string error)
+        {
+            resolved = null;
+            if (clause.BrowsePath.Length == 0)
+            {
+                resolved = clause;
+                error = string.Empty;
+                return true;
+            }
+            string[] elements = clause.BrowsePath.Split('/');
+            bool rewritten = false;
+            for (int ii = 0; ii < elements.Length; ii++)
+            {
+                if (!TryResolvePathElement(elements[ii], context, out string element, out error))
+                {
+                    return false;
+                }
+                rewritten |= !string.Equals(element, elements[ii], StringComparison.Ordinal);
+                elements[ii] = element;
+            }
+            resolved = rewritten
+                ? new WotEventSelectClause(clause.TypeDefinitionId, string.Join("/", elements))
+                : clause;
+            error = string.Empty;
+            return true;
+        }
+
+        private static bool TryResolvePathElement(
+            string element,
+            WotBindingPlanContext context,
+            out string resolved,
+            out string error)
+        {
+            resolved = element;
+            error = string.Empty;
+            if (element.StartsWith("nsu=", StringComparison.Ordinal) || element[0] == '{')
+            {
+                // Already NamespaceUri-qualified, in either the OPC 10000-6 or
+                // the OPC 10000-4 spelling.
+                return true;
+            }
+            int separator = element.IndexOf(':', 0);
+            if (separator <= 0 || separator + 1 >= element.Length)
+            {
+                // A bare name is a namespace 0 BrowseName.
+                return true;
+            }
+            string prefix = element.Substring(0, separator);
+            string name = element.Substring(separator + 1);
+            if (string.Equals(prefix, "ua", StringComparison.Ordinal))
+            {
+                resolved = name;
+                return true;
+            }
+            if (!context.NamespacePrefixes.TryGetValue(prefix, out string? namespaceUri))
+            {
+                error = $"The select-clause browse path element '{element}' uses the prefix " +
+                    $"'{prefix}', which the document's @context does not bind (WoT Binding " +
+                    "Section 5.8).";
+                return false;
+            }
+            resolved = string.Equals(
+                namespaceUri, WotBindingConformance.OpcUaNamespace, StringComparison.Ordinal)
+                ? name
+                // ';' terminates the NamespaceUri and '%' starts an escape, so the
+                // URI is percent-escaped exactly as every other nsu= producer in
+                // this stack escapes it (OPC 10000-6 §5.3.1.11).
+                : "nsu=" + CoreUtils.EscapeUri(namespaceUri) + ";" + name;
+            return true;
+        }
+
+        private static WotEventSelection BuildLegacySelection(ImmutableArray<string> fields)
+        {
+            var clauses = new List<WotEventSelectClause>(
+                WotEventSelectClauses.Default.Count + fields.Length);
+            var seen = new HashSet<string>(StringComparer.Ordinal);
+            foreach (WotEventSelectClause clause in WotEventSelectClauses.Default)
+            {
+                clauses.Add(clause);
+                seen.Add(clause.BrowsePath);
+            }
+            foreach (string field in fields)
+            {
+                if (seen.Add(field))
+                {
+                    clauses.Add(new WotEventSelectClause(WotEventSelectClauses.BaseEventTypeId, field));
+                }
+            }
+            return new WotEventSelection(clauses.ToArray(), WotEventSelectionOrigin.Legacy);
+        }
+
+        private static bool HasSelectClauses(System.Text.Json.JsonElement element)
+        {
+            return element.ValueKind == System.Text.Json.JsonValueKind.Object &&
+                element.TryGetProperty(WotEventSelectClauses.Term, out _);
+        }
+
+        /// <summary>
+        /// Resolves the security floor an <c>auto</c> scheme referenced by the
+        /// form puts on endpoint selection (WoT Binding Section 5.7.1).
+        /// </summary>
+        /// <remarks>
+        /// A floor the document declares but this Binding cannot read - one
+        /// carried by a scheme other than <c>auto</c>, or naming a mode or
+        /// policy Section 5.7 does not - fails the form rather than compiling
+        /// it without the constraint. A floor a client may quietly step below
+        /// states nothing, and a floor a client never learned about states
+        /// less.
+        /// </remarks>
+        private static bool TryResolveSecurityFloor(
+            WotAffordanceForm form,
+            WotBindingPlanContext context,
+            List<WotBindingDiagnostic> diagnostics,
+            out WotSecurityFloor? floor)
+        {
+            floor = null;
+            WotSecurityFloor? combined = null;
+            var visited = new HashSet<string>(StringComparer.Ordinal);
+            var pending = new Queue<string>();
+            foreach (string schemeName in form.SecuritySchemes)
+            {
+                pending.Enqueue(schemeName);
+            }
+            while (pending.Count > 0)
+            {
+                string schemeName = pending.Dequeue();
+                if (!visited.Add(schemeName) ||
+                    !context.SecurityDefinitions.TryGetValue(
+                        schemeName, out WotSecurityDefinition? definition))
+                {
+                    continue;
+                }
+                // A `combo` scheme is the standard way to require a secure
+                // channel and a user token together, so a floor stated on the
+                // channel scheme it combines is a floor the form is subject to.
+                foreach (string referenced in definition.Combines)
+                {
+                    pending.Enqueue(referenced);
+                }
+                if (definition.MinimumSecurity is { IsEmpty: false } stated)
+                {
+                    combined = Combine(combined, stated);
+                    continue;
+                }
+                if (definition.DeclaresMinimumSecurity)
+                {
+                    diagnostics.Add(WotBindingDiagnostic.Error(
+                        WotBindingDiagnosticCode.InvalidSecurityFloor,
+                        $"The '{schemeName}' security scheme declares " +
+                        $"'{WotBindingConformance.MinimumSecurityTerm}' but the floor cannot be " +
+                        "read: WoT Binding Section 5.7.1 carries it only on an 'auto' scheme and " +
+                        "only with the mode and policy names Section 5.7 lists.",
+                        "/securityDefinitions/" + WotAffordanceForm.EscapePointerToken(schemeName) +
+                            "/" + WotBindingConformance.MinimumSecurityTerm,
+                        WotBindingConformance.MinimumSecurityTerm));
+                    return false;
+                }
+            }
+            floor = combined;
+            return true;
+        }
+
+        /// <summary>
+        /// Combines two floors into the stronger constraint in each dimension,
+        /// which is what a form that references two constrained schemes means.
+        /// </summary>
+        private static WotSecurityFloor Combine(WotSecurityFloor? left, WotSecurityFloor right)
+        {
+            return left is null ? right : Strongest(left, right);
+        }
+
+        /// <summary>
+        /// Combines two floors into the stronger constraint in each dimension,
+        /// which is what a form that references two constrained schemes means.
+        /// </summary>
+        private static WotSecurityFloor Strongest(WotSecurityFloor left, WotSecurityFloor right)
+        {
+            return new WotSecurityFloor(
+                StrongerMode(left.SecurityMode, right.SecurityMode),
+                StrongerPolicy(left.SecurityPolicy, right.SecurityPolicy));
+        }
+
+        private static string? StrongerMode(string? left, string? right)
+        {
+            if (left is null || right is null)
+            {
+                return left ?? right;
+            }
+            WotBindingConformance.TryGetSecurityModeRank(left, out int leftRank);
+            WotBindingConformance.TryGetSecurityModeRank(right, out int rightRank);
+            return leftRank >= rightRank ? left : right;
+        }
+
+        private static string? StrongerPolicy(string? left, string? right)
+        {
+            if (left is null || right is null)
+            {
+                return left ?? right;
+            }
+            WotBindingConformance.TryGetSecurityPolicyRank(left, out int leftRank);
+            WotBindingConformance.TryGetSecurityPolicyRank(right, out int rightRank);
+            return leftRank >= rightRank ? left : right;
         }
 
         private static bool IsOpcScheme(string scheme)

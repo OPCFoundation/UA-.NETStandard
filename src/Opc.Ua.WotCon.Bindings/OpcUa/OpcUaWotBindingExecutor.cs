@@ -32,6 +32,7 @@ using System.Globalization;
 using System.Threading;
 using System.Threading.Tasks;
 using Opc.Ua.Client;
+using Opc.Ua.Wot;
 using Opc.Ua.WotCon.Bindings.Planners;
 
 namespace Opc.Ua.WotCon.Bindings.OpcUa
@@ -73,14 +74,79 @@ namespace Opc.Ua.WotCon.Bindings.OpcUa
             {
                 throw new ArgumentNullException(nameof(context));
             }
-            if (m_options.SessionFactory is null)
+            if (m_options.ConstrainedSessionFactory is null && m_options.SessionFactory is null)
             {
                 throw new InvalidOperationException(
                     "No OPC UA session factory is configured on the executor options.");
             }
             string endpoint = BuildEndpoint(form.Endpoint);
-            ISession session = await m_options.SessionFactory(endpoint, cancellationToken).ConfigureAwait(false);
+            WotSecurityFloor? floor = form.SecurityFloor;
+            ISession session = m_options.ConstrainedSessionFactory is not null
+                ? await m_options.ConstrainedSessionFactory(
+                        new OpcUaWotSessionRequest(endpoint, floor, form.AffordanceName),
+                        cancellationToken)
+                    .ConfigureAwait(false)
+                : await m_options.SessionFactory!(endpoint, cancellationToken).ConfigureAwait(false);
+            try
+            {
+                EnforceSecurityFloor(session, form, floor);
+            }
+            catch (ServiceResultException)
+            {
+                if (m_options.DisposeSession)
+                {
+                    session.Dispose();
+                }
+                throw;
+            }
             return new OpcUaWotBindingChannel(session, m_options.DisposeSession, form, context, m_options);
+        }
+
+        /// <summary>
+        /// Verifies that the session a factory returned sits at or above the
+        /// security floor the document states (WoT Binding Section 5.7.1).
+        /// </summary>
+        /// <remarks>
+        /// The factory chooses the endpoint, so the floor is enforced by
+        /// checking the endpoint the session reports rather than by trusting
+        /// the factory to have applied it: a client <em>shall not</em> silently
+        /// fall back below a floor, and a floor whose enforcement this executor
+        /// merely assumed would be a claim rather than a guarantee. A session
+        /// that cannot state its endpoint at all fails the same way, because an
+        /// endpoint that cannot be inspected cannot be shown to satisfy
+        /// anything.
+        /// </remarks>
+        /// <exception cref="ServiceResultException">
+        /// Thrown when the selected endpoint is below the floor, or when it
+        /// cannot be inspected.
+        /// </exception>
+        private static void EnforceSecurityFloor(
+            ISession session, WotCompiledForm form, WotSecurityFloor? floor)
+        {
+            if (floor is null || floor.IsEmpty)
+            {
+                return;
+            }
+            EndpointDescription? description = session.ConfiguredEndpoint?.Description;
+            if (description is null)
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadSecurityModeRejected,
+                    $"The '{form.AffordanceName}' form states the security floor {floor}, but the " +
+                    "session does not report the endpoint it selected, so the floor cannot be " +
+                    "shown to hold.");
+            }
+            if (!OpcUaWotEndpointSelector.Satisfies(description, floor))
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadSecurityModeRejected,
+                    $"The '{form.AffordanceName}' form states the security floor {floor}, but the " +
+                    $"session selected '{description.EndpointUrl}' with security mode " +
+                    $"{description.SecurityMode} and policy " +
+                    $"'{description.SecurityPolicyUri}', which is below it. A client shall fail " +
+                    "and report rather than fall back below a stated floor " +
+                    "(WoT Binding Section 5.7.1).");
+            }
         }
 
         private static string BuildEndpoint(WotEndpointDescriptor endpoint)

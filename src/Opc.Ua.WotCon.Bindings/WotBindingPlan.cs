@@ -51,7 +51,8 @@ namespace Opc.Ua.WotCon.Bindings
             ImmutableArray<WotAffordanceForm> forms,
             ImmutableDictionary<string, WotSecurityDefinition>? securityDefinitions = null,
             string? baseUri = null,
-            WotBindingSelectionContext? selection = null)
+            WotBindingSelectionContext? selection = null,
+            ImmutableDictionary<string, string>? namespacePrefixes = null)
         {
             ResourceXid = resourceXid ?? string.Empty;
             Kind = kind;
@@ -59,6 +60,7 @@ namespace Opc.Ua.WotCon.Bindings
             SecurityDefinitions = securityDefinitions ?? ImmutableDictionary<string, WotSecurityDefinition>.Empty;
             BaseUri = baseUri;
             Selection = selection ?? WotBindingSelectionContext.Empty;
+            NamespacePrefixes = namespacePrefixes ?? ImmutableDictionary<string, string>.Empty;
         }
 
         /// <summary>
@@ -92,16 +94,23 @@ namespace Opc.Ua.WotCon.Bindings
         public WotBindingSelectionContext Selection { get; }
 
         /// <summary>
+        /// Gets the namespace prefixes the document's <c>@context</c> binds.
+        /// </summary>
+        public ImmutableDictionary<string, string> NamespacePrefixes { get; }
+
+        /// <summary>
         /// Builds a plan context from this request.
         /// </summary>
         public WotBindingPlanContext CreateContext(IWotCodecRegistry codecs, WotBindingBounds bounds)
         {
-            return new WotBindingPlanContext(SecurityDefinitions, codecs, Kind, BaseUri, bounds);
+            return new WotBindingPlanContext(
+                SecurityDefinitions, codecs, Kind, BaseUri, bounds, NamespacePrefixes);
         }
 
         /// <summary>
         /// Builds a plan request from a WoT document: it extracts the forms, the
-        /// base URI and the secret-free security definitions.
+        /// base URI, the secret-free security definitions and the namespace
+        /// prefixes the document's <c>@context</c> binds.
         /// </summary>
         public static WotBindingPlanRequest FromDocument(
             string resourceXid,
@@ -112,54 +121,102 @@ namespace Opc.Ua.WotCon.Bindings
         {
             ImmutableArray<WotAffordanceForm> forms = WotFormExtractor.Extract(document, maxJsonDepth);
             ImmutableDictionary<string, WotSecurityDefinition> definitions =
-                ReadSecurityDefinitions(document, maxJsonDepth);
-            string? baseUri = ReadBase(document, maxJsonDepth);
-            return new WotBindingPlanRequest(resourceXid, kind, forms, definitions, baseUri, selection);
+                ImmutableDictionary<string, WotSecurityDefinition>.Empty;
+            ImmutableDictionary<string, string> prefixes = ImmutableDictionary<string, string>.Empty;
+            string? baseUri = null;
+            try
+            {
+                // One parse for every document-level member: the forms are
+                // extracted above from their own pass, and re-parsing the whole
+                // document once per member would cost a copy of it each time.
+                var options = new JsonDocumentOptions { MaxDepth = maxJsonDepth <= 0 ? 64 : maxJsonDepth };
+                using var json = JsonDocument.Parse(document, options);
+                JsonElement root = json.RootElement;
+                if (root.ValueKind == JsonValueKind.Object)
+                {
+                    definitions = ReadSecurityDefinitions(root);
+                    baseUri = ReadBase(root);
+                    prefixes = ReadNamespacePrefixes(root);
+                }
+            }
+            catch (JsonException)
+            {
+            }
+            return new WotBindingPlanRequest(
+                resourceXid, kind, forms, definitions, baseUri, selection, prefixes);
         }
 
         private static ImmutableDictionary<string, WotSecurityDefinition> ReadSecurityDefinitions(
-            ReadOnlyMemory<byte> document, int maxJsonDepth)
+            JsonElement root)
         {
             ImmutableDictionary<string, WotSecurityDefinition>.Builder builder =
                 ImmutableDictionary.CreateBuilder<string, WotSecurityDefinition>(
                     StringComparer.Ordinal);
-            try
+            if (root.TryGetProperty("securityDefinitions", out JsonElement definitions) &&
+                definitions.ValueKind == JsonValueKind.Object)
             {
-                var options = new JsonDocumentOptions { MaxDepth = maxJsonDepth <= 0 ? 64 : maxJsonDepth };
-                using var json = JsonDocument.Parse(document, options);
-                if (json.RootElement.ValueKind == JsonValueKind.Object &&
-                    json.RootElement.TryGetProperty("securityDefinitions", out JsonElement definitions) &&
-                    definitions.ValueKind == JsonValueKind.Object)
+                foreach (JsonProperty definition in definitions.EnumerateObject())
                 {
-                    foreach (JsonProperty definition in definitions.EnumerateObject())
-                    {
-                        builder[definition.Name] = WotSecurityDefinition.Parse(definition.Name, definition.Value);
-                    }
+                    builder[definition.Name] = WotSecurityDefinition.Parse(definition.Name, definition.Value);
                 }
-            }
-            catch (JsonException)
-            {
             }
             return builder.ToImmutable();
         }
 
-        private static string? ReadBase(ReadOnlyMemory<byte> document, int maxJsonDepth)
+        private static string? ReadBase(JsonElement root)
         {
-            try
+            return root.TryGetProperty("base", out JsonElement baseElement) &&
+                baseElement.ValueKind == JsonValueKind.String
+                ? baseElement.GetString()
+                : null;
+        }
+
+        /// <summary>
+        /// Reads the prefix bindings of the document's <c>@context</c>
+        /// (WoT Binding Section 5.8). Only string-valued members are prefix
+        /// bindings; a scoped context object or a keyword such as
+        /// <c>@language</c> is not one.
+        /// </summary>
+        private static ImmutableDictionary<string, string> ReadNamespacePrefixes(JsonElement root)
+        {
+            if (!root.TryGetProperty("@context", out JsonElement context))
             {
-                var options = new JsonDocumentOptions { MaxDepth = maxJsonDepth <= 0 ? 64 : maxJsonDepth };
-                using var json = JsonDocument.Parse(document, options);
-                if (json.RootElement.ValueKind == JsonValueKind.Object &&
-                    json.RootElement.TryGetProperty("base", out JsonElement baseElement) &&
-                    baseElement.ValueKind == JsonValueKind.String)
+                return ImmutableDictionary<string, string>.Empty;
+            }
+            ImmutableDictionary<string, string>.Builder builder =
+                ImmutableDictionary.CreateBuilder<string, string>(StringComparer.Ordinal);
+            CollectNamespacePrefixes(context, builder);
+            return builder.ToImmutable();
+        }
+
+        private static void CollectNamespacePrefixes(
+            JsonElement context, ImmutableDictionary<string, string>.Builder builder)
+        {
+            if (context.ValueKind == JsonValueKind.Array)
+            {
+                foreach (JsonElement entry in context.EnumerateArray())
                 {
-                    return baseElement.GetString();
+                    CollectNamespacePrefixes(entry, builder);
+                }
+                return;
+            }
+            if (context.ValueKind != JsonValueKind.Object)
+            {
+                return;
+            }
+            foreach (JsonProperty member in context.EnumerateObject())
+            {
+                if (member.Value.ValueKind == JsonValueKind.String &&
+                    member.Name.Length > 0 &&
+                    member.Name[0] != '@')
+                {
+                    string? uri = member.Value.GetString();
+                    if (!string.IsNullOrEmpty(uri))
+                    {
+                        builder[member.Name] = uri!;
+                    }
                 }
             }
-            catch (JsonException)
-            {
-            }
-            return null;
         }
     }
 
