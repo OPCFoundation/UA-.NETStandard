@@ -3835,7 +3835,7 @@ namespace Opc.Ua.Server
             }
             finally
             {
-                store?.Close();
+                store?.Dispose();
             }
 
             return StatusCodes.Good;

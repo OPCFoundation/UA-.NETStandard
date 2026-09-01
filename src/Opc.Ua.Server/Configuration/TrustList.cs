@@ -1666,7 +1666,7 @@ namespace Opc.Ua.Server
                 }
                 finally
                 {
-                    store.Close();
+                    store?.Dispose();
                 }
             }
             catch
@@ -1710,7 +1710,7 @@ namespace Opc.Ua.Server
                 }
                 finally
                 {
-                    store.Close();
+                    store?.Dispose();
                 }
             }
             catch
