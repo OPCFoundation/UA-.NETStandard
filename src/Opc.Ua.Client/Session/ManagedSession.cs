@@ -1436,7 +1436,17 @@ namespace Opc.Ua.Client
                     m_closeResult = StatusCodes.Bad;
                 }
 
-                session.Dispose();
+                // Disposing a session closes and disposes its transport
+                // channel, so the channel has to be released first when the
+                // caller asked to keep it open.
+                if (m_closeChannel)
+                {
+                    await session.DisposeAsync().ConfigureAwait(false);
+                }
+                else
+                {
+                    await session.DisposeKeepingChannelAsync().ConfigureAwait(false);
+                }
             }
         }
 

@@ -453,6 +453,18 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
+        /// Disposes the session but leaves the underlying transport channel
+        /// open: the caller keeps the ownership of the channel and is
+        /// responsible for closing it. Used to honor a close that was
+        /// requested with <c>closeChannel: false</c>.
+        /// </summary>
+        internal async ValueTask DisposeKeepingChannelAsync()
+        {
+            ReleaseChannel();
+            await DisposeAsync().ConfigureAwait(false);
+        }
+
+        /// <summary>
         /// Core async dispose logic for the session.
         /// </summary>
         /// <param name="disposing">True if called from dispose, false otherwise.</param>
@@ -4053,6 +4065,27 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
+        /// Returns true while the transport can still deliver a response for a
+        /// request in flight. <see cref="SessionClient.Connected"/> alone is not
+        /// a transport-health check: it only reports that a session id exists,
+        /// which is still the case while the peer is unreachable and the session
+        /// is reconnecting or its keep alive has stopped.
+        /// </summary>
+        private bool CanReceiveResponses()
+        {
+            if (!Connected || Reconnecting || KeepAliveStopped)
+            {
+                return false;
+            }
+
+            ChannelState? channelState = ManagedChannel?.State;
+
+            return channelState is null or
+                ChannelState.Ready or
+                ChannelState.TransportConnectedSessionReactivating;
+        }
+
+        /// <summary>
         /// Waits for outstanding publish requests to complete or cancels them.
         /// </summary>
         private async Task WaitForOrCancelOutstandingPublishRequestsAsync(CancellationToken ct)
@@ -4091,9 +4124,10 @@ namespace Opc.Ua.Client
             m_logger.WaitingCountOutstandingPublishRequestsComplete(outstandingCount);
 
             // Wait for the requests in flight, but only while a response can
-            // still arrive: without a connection the wait would just delay the
-            // close by the full timeout.
-            if (pending.Count > 0 && Connected && PublishRequestCancelDelayOnCloseSession != 0)
+            // still arrive: without a live transport the wait would just delay
+            // the close by the full timeout.
+            if (pending.Count > 0 && CanReceiveResponses() &&
+                PublishRequestCancelDelayOnCloseSession != 0)
             {
                 TimeSpan waitTimeout = PublishRequestCancelDelayOnCloseSession < 0
                     ? Timeout.InfiniteTimeSpan

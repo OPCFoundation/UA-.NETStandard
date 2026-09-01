@@ -722,6 +722,121 @@ namespace Opc.Ua.Client.Tests.ManagedSession
         }
 
         [Test]
+        public async Task CloseAsyncReturnsBadTimeoutWhenInnerCloseDoesNotCompleteAsync()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            ApplicationConfiguration configuration = CreateClientConfiguration(telemetry);
+            ConfiguredEndpoint endpoint = CreateEndpoint();
+
+            var channel = new Mock<IManagedTransportChannel>();
+            channel.SetupGet(c => c.MessageContext).Returns(
+                configuration.CreateMessageContext());
+
+            var release = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            var innerSession = new BlockingCloseSession(
+                channel.Object,
+                configuration,
+                endpoint)
+            {
+                CloseBlocker = release.Task
+            };
+
+            using Client.ManagedSession managedSession = CreateManagedSessionWithInner(
+                configuration,
+                endpoint,
+                innerSession,
+                telemetry);
+            managedSession.StateMachine.Start();
+
+            StatusCode result = await managedSession
+                .CloseAsync(250, closeChannel: true)
+                .ConfigureAwait(false);
+
+            Assert.That(result, Is.EqualTo((StatusCode)StatusCodes.BadTimeout));
+
+            // The close continues in the background: let it finish so the
+            // session is torn down before the fixture completes.
+            release.TrySetResult(true);
+            await managedSession.StateMachine
+                .WaitForClosedAsync(default)
+                .ConfigureAwait(false);
+        }
+
+        [Test]
+        public async Task CloseAsyncPropagatesInnerCloseStatusAsync()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            ApplicationConfiguration configuration = CreateClientConfiguration(telemetry);
+            ConfiguredEndpoint endpoint = CreateEndpoint();
+
+            var channel = new Mock<IManagedTransportChannel>();
+            channel.SetupGet(c => c.MessageContext).Returns(
+                configuration.CreateMessageContext());
+
+            var innerSession = new BlockingCloseSession(
+                channel.Object,
+                configuration,
+                endpoint)
+            {
+                CloseResult = StatusCodes.BadSessionClosed
+            };
+
+            using Client.ManagedSession managedSession = CreateManagedSessionWithInner(
+                configuration,
+                endpoint,
+                innerSession,
+                telemetry);
+            managedSession.StateMachine.Start();
+
+            StatusCode result = await managedSession
+                .CloseAsync(10_000, closeChannel: true)
+                .ConfigureAwait(false);
+
+            Assert.That(result, Is.EqualTo((StatusCode)StatusCodes.BadSessionClosed));
+            Assert.That(innerSession.CloseChannelRequested, Is.True);
+            channel.Verify(c => c.Dispose(), Times.Once);
+        }
+
+        [Test]
+        public async Task CloseAsyncWithCloseChannelFalseKeepsTransportChannelAsync()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            ApplicationConfiguration configuration = CreateClientConfiguration(telemetry);
+            ConfiguredEndpoint endpoint = CreateEndpoint();
+
+            var channel = new Mock<IManagedTransportChannel>();
+            channel.SetupGet(c => c.MessageContext).Returns(
+                configuration.CreateMessageContext());
+
+            var innerSession = new BlockingCloseSession(
+                channel.Object,
+                configuration,
+                endpoint);
+
+            using Client.ManagedSession managedSession = CreateManagedSessionWithInner(
+                configuration,
+                endpoint,
+                innerSession,
+                telemetry);
+            managedSession.StateMachine.Start();
+
+            StatusCode result = await managedSession
+                .CloseAsync(10_000, closeChannel: false)
+                .ConfigureAwait(false);
+
+            Assert.That(result, Is.EqualTo((StatusCode)StatusCodes.Good));
+            Assert.That(innerSession.CloseChannelRequested, Is.False);
+
+            // The channel stays owned by the caller: neither closed nor
+            // disposed by the session teardown.
+            channel.Verify(
+                c => c.CloseAsync(It.IsAny<CancellationToken>()),
+                Times.Never);
+            channel.Verify(c => c.Dispose(), Times.Never);
+        }
+
+        [Test]
         public async Task CreateAsyncLogsDisposeFailureAndPreservesCancellationAsync()
         {
             var logger = new Mock<ILogger>();
@@ -920,8 +1035,50 @@ namespace Opc.Ua.Client.Tests.ManagedSession
         }
 #pragma warning restore IDE0051, RCS1213
 
-        private sealed class BlockingConnectGate : IClientConnectGate
+        /// <summary>
+        /// Inner session whose close can be observed and delayed by the test.
+        /// </summary>
+        private sealed class BlockingCloseSession : Session
         {
+            public BlockingCloseSession(
+                ITransportChannel channel,
+                ApplicationConfiguration configuration,
+                ConfiguredEndpoint endpoint)
+                : base(
+                    channel,
+                    configuration,
+                    endpoint,
+                    engineFactory: DefaultSubscriptionEngineFactory.Instance)
+            {
+            }
+
+            /// <summary>
+            /// The status the inner close reports.
+            /// </summary>
+            public StatusCode CloseResult { get; set; } = StatusCodes.Good;
+
+            /// <summary>
+            /// Completes when the inner close is allowed to return.
+            /// </summary>
+            public Task CloseBlocker { get; set; } = Task.CompletedTask;
+
+            /// <summary>
+            /// The value the managed session forwarded for closeChannel.
+            /// </summary>
+            public bool? CloseChannelRequested { get; private set; }
+
+            public override async Task<StatusCode> CloseAsync(
+                int timeout,
+                bool closeChannel,
+                CancellationToken ct = default)
+            {
+                CloseChannelRequested = closeChannel;
+                await CloseBlocker.ConfigureAwait(false);
+                return CloseResult;
+            }
+        }
+
+        private sealed class BlockingConnectGate : IClientConnectGate        {
             public Task Started => m_started.Task;
 
             public Task Stopped => m_stopped.Task;

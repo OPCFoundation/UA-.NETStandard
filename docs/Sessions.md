@@ -321,7 +321,9 @@ StatusCode status = await session.CloseAsync(
 Both overloads close through the state machine and report the status of
 the inner `CloseSession` call; `CloseAsync(ct)` is equivalent to
 `CloseAsync(0, closeChannel: true, ct)`, where a `timeout` of `0` leaves
-the wait unbounded (other than by `ct`).
+the wait unbounded (other than by `ct`). Passing `closeChannel: false`
+tears down the session but leaves the transport channel open and owned by
+the caller, so it can be reused for another session.
 
 ### Server retry-after backpressure
 
