@@ -508,7 +508,66 @@ namespace Opc.Ua.Wot
         /// ReferenceType, so the reference is reported rather than created
         /// with some other type in its place.
         /// </summary>
-        ReferenceTypeNodeClassInvalid = 6041
+        ReferenceTypeNodeClassInvalid = 6041,
+
+        /// <summary>
+        /// A <c>uav:eventSelectClauses</c> list violates WoT Binding Sections
+        /// 6.1 and 7: it is empty, sits somewhere other than directly on an
+        /// event affordance, repeats a clause, carries a member beyond
+        /// <c>uav:typeDefinitionId</c> and <c>uav:browsePath</c> — an
+        /// <c>EventFilter</c> <c>WhereClause</c> among them, which this
+        /// Binding deliberately does not express — or anchors a clause with an
+        /// absolute path.
+        /// </summary>
+        EventSelectClauseInvalid = 6042,
+
+        /// <summary>
+        /// A <c>uav:</c> member is not a term of the vocabulary revision this
+        /// library implements (WoT Binding Sections 4.1 and 7). Permissive
+        /// processing never reports this: an unknown member is carried
+        /// unchanged as residue. Strict conformance reports it, because a term
+        /// added by a later revision and a term an author misspelled look
+        /// identical to a consumer that cannot see the revision.
+        /// </summary>
+        UnknownVocabularyTerm = 6043,
+
+        /// <summary>
+        /// A <c>uav:bindingVersion</c> claim is not a
+        /// <c>&lt;major&gt;.&lt;minor&gt;</c> revision string, does not sit at
+        /// the document root, or — under strict conformance only — names a
+        /// published revision this library does not implement (WoT Binding
+        /// Section 4.1).
+        /// </summary>
+        InvalidBindingVersion = 6044,
+
+        /// <summary>
+        /// A <c>uav:profile</c> claim is not a non-empty array of the
+        /// conformance unit and profile names WoT Binding Section 11 defines,
+        /// does not sit at the document root, or — under strict conformance
+        /// with required claims configured — omits a claim the caller
+        /// requires.
+        /// </summary>
+        InvalidConformanceClaim = 6045,
+
+        /// <summary>
+        /// An opaque object (<c>uav:metadata</c> or one of the three
+        /// configuration members) breaks the structural rules of WoT Binding
+        /// Section 6.6: it is not an object, exceeds the size, depth or
+        /// top-level key bounds, or carries a top-level key that is neither an
+        /// absolute IRI nor a compact IRI whose prefix the document's
+        /// <c>@context</c> binds. The contents stay opaque either way; the
+        /// value is always preserved.
+        /// </summary>
+        OpaqueObjectInvalid = 6046,
+
+        /// <summary>
+        /// A <c>uav:minimumSecurity</c> floor breaks WoT Binding Sections 5.7.1
+        /// and 7: it sits on a scheme other than <c>auto</c> or outside
+        /// <c>securityDefinitions</c> altogether, carries a member beyond
+        /// <c>uav:securityMode</c> and <c>uav:securityPolicy</c>, or states a
+        /// mode or policy this Binding does not name.
+        /// </summary>
+        InvalidSecurityFloor = 6047
     }
 
     /// <summary>

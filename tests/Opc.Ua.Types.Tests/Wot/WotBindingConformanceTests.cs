@@ -1,0 +1,779 @@
+/* ========================================================================
+ * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
+ *
+ * OPC Foundation MIT License 1.00
+ *
+ * Permission is hereby granted, free of charge, to any person
+ * obtaining a copy of this software and associated documentation
+ * files (the "Software"), to deal in the Software without
+ * restriction, including without limitation the rights to use,
+ * copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following
+ * conditions:
+ *
+ * The above copyright notice and this permission notice shall be
+ * included in all copies or substantial portions of the Software.
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+ * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+ * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ * OTHER DEALINGS IN THE SOFTWARE.
+ *
+ * The complete license agreement can be found here:
+ * http://opcfoundation.org/License/MIT/1.00/
+ * ======================================================================*/
+
+using System.Linq;
+using System.Text;
+using System.Text.Json;
+using NUnit.Framework;
+using Opc.Ua.Export;
+using Opc.Ua.Wot;
+
+namespace Opc.Ua.Types.Tests.Wot
+{
+    /// <summary>
+    /// Validates the document-level conformance vocabulary of the WoT Binding:
+    /// the event select-clause list of Section 6.1, the vocabulary revision and
+    /// conformance claims of Section 4.1, the structural bounds on opaque
+    /// objects of Section 6.6 and the <c>auto</c> endpoint security floor of
+    /// Section 5.7.1, in both the permissive and the strict conformance mode.
+    /// </summary>
+    [TestFixture]
+    [Category("WoT")]
+    [Parallelizable]
+    public class WotBindingConformanceTests
+    {
+        [Test]
+        public void DocumentedDefaultSelectsTheEightMandatoryBaseEventTypeFields()
+        {
+            Assert.That(
+                WotEventSelectClauses.Default.ToList().Select(c => c.BrowsePath),
+                Is.EqualTo(s_mandatoryBaseEventTypeFields));
+            Assert.That(
+                WotEventSelectClauses.Default.ToList().All(c =>
+                    c.TypeDefinitionId == WotEventSelectClauses.BaseEventTypeId),
+                Is.True,
+                "Every default clause is declared by BaseEventType.");
+        }
+
+        [Test]
+        public void StandardSelectClausesProduceNoDiagnostic()
+        {
+            WotConversionResult<UANodeSet> result = Convert(EventWithClauses(
+                "{\"uav:typeDefinitionId\":\"i=2041\",\"uav:browsePath\":\"EventId\"}," +
+                "{\"uav:typeDefinitionId\":\"i=2782\",\"uav:browsePath\":\"EnabledState/Id\"}," +
+                "{\"uav:typeDefinitionId\":\"i=2782\",\"uav:browsePath\":\"\"}," +
+                "{\"uav:typeDefinitionId\":\"nsu=urn:test:pump;i=6001\"," +
+                "\"uav:browsePath\":\"pump:Temperature\"}"));
+
+            Assert.That(result.Value, Is.Not.Null);
+            Assert.That(
+                result.Diagnostics.Any(d => d.Code == WotDiagnosticCode.EventSelectClauseInvalid),
+                Is.False,
+                Describe(result));
+        }
+
+        [Test]
+        public void EmptyBrowsePathIsTheConditionIdSelection()
+        {
+            var clause = new WotEventSelectClause("i=2782", string.Empty);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(clause.IsConditionIdSelection, Is.True);
+                Assert.That(clause.FieldName, Is.EqualTo("ConditionId"));
+            });
+        }
+
+        [Test]
+        public void NestedBrowsePathNamesItsLastElement()
+        {
+            var clause = new WotEventSelectClause("i=2782", "EnabledState/Id");
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(clause.IsConditionIdSelection, Is.False);
+                Assert.That(clause.FieldName, Is.EqualTo("Id"));
+            });
+        }
+
+        [Test]
+        public void AbsoluteSelectClausePathIsRejected()
+        {
+            WotConversionResult<UANodeSet> result = Convert(EventWithClauses(
+                "{\"uav:typeDefinitionId\":\"i=2041\",\"uav:browsePath\":\"/EventId\"}"));
+
+            AssertSelectClauseError(result, "absolute");
+        }
+
+        [Test]
+        public void EmptySelectClauseArrayIsRejected()
+        {
+            WotConversionResult<UANodeSet> result = Convert(EventWithClauses(string.Empty));
+
+            AssertSelectClauseError(result, "empty");
+        }
+
+        [Test]
+        public void SelectClauseCarryingAWhereClauseIsRejected()
+        {
+            WotConversionResult<UANodeSet> result = Convert(EventWithClauses(
+                "{\"uav:typeDefinitionId\":\"i=2041\",\"uav:browsePath\":\"EventId\"," +
+                "\"uav:whereClause\":{\"op\":\"GreaterThan\"}}"));
+
+            AssertSelectClauseError(result, "WhereClause");
+        }
+
+        [Test]
+        public void RepeatedSelectClauseIsRejected()
+        {
+            WotConversionResult<UANodeSet> result = Convert(EventWithClauses(
+                "{\"uav:typeDefinitionId\":\"i=2041\",\"uav:browsePath\":\"EventId\"}," +
+                "{\"uav:typeDefinitionId\":\"i=2041\",\"uav:browsePath\":\"EventId\"}"));
+
+            AssertSelectClauseError(result, "twice");
+        }
+
+        [Test]
+        public void SelectClauseMissingItsTypeDefinitionIsRejected()
+        {
+            WotConversionResult<UANodeSet> result = Convert(EventWithClauses(
+                "{\"uav:browsePath\":\"EventId\"}"));
+
+            AssertSelectClauseError(result, "uav:typeDefinitionId");
+        }
+
+        [Test]
+        public void SelectClausesOnAPropertyAffordanceAreRejected()
+        {
+            WotConversionResult<UANodeSet> result = Convert(
+                "\"properties\":{\"speed\":{\"type\":\"number\"," +
+                "\"uav:eventSelectClauses\":[{\"uav:typeDefinitionId\":\"i=2041\"," +
+                "\"uav:browsePath\":\"EventId\"}]}}");
+
+            AssertSelectClauseError(result, "belongs only directly on an event affordance");
+        }
+
+        [Test]
+        public void SelectClausesAtTheDocumentRootAreRejected()
+        {
+            WotConversionResult<UANodeSet> result = Convert(
+                "\"uav:eventSelectClauses\":[{\"uav:typeDefinitionId\":\"i=2041\"," +
+                "\"uav:browsePath\":\"EventId\"}]");
+
+            AssertSelectClauseError(result, "belongs only directly on an event affordance");
+        }
+
+        [Test]
+        public void SessionLocalSelectClauseTypeIsRejected()
+        {
+            WotConversionResult<UANodeSet> result = Convert(EventWithClauses(
+                "{\"uav:typeDefinitionId\":\"ns=2;i=6001\",\"uav:browsePath\":\"Temperature\"}"));
+
+            Assert.That(
+                result.Diagnostics.Any(d => d.Code == WotDiagnosticCode.NonPortableIdentity),
+                Is.True,
+                Describe(result));
+        }
+
+        [Test]
+        public void NumericNamespacePrefixInASelectClausePathIsRejected()
+        {
+            WotConversionResult<UANodeSet> result = Convert(EventWithClauses(
+                "{\"uav:typeDefinitionId\":\"i=2041\",\"uav:browsePath\":\"2:Temperature\"}"));
+
+            Assert.That(
+                result.Diagnostics.Any(d => d.Code == WotDiagnosticCode.NonPortableQualifiedName),
+                Is.True,
+                Describe(result));
+        }
+
+        [Test]
+        public void SelectClausesSurviveWotToNodeSetToWot()
+        {
+            using WotDocument original = ParseThingModel(EventWithClauses(
+                "{\"uav:typeDefinitionId\":\"i=2041\",\"uav:browsePath\":\"EventId\"}," +
+                "{\"uav:typeDefinitionId\":\"i=2782\",\"uav:browsePath\":\"\"}"));
+
+            UANodeSet nodeSet = WotNodeSetConverter.ToNodeSet(original);
+            using WotDocument restored = WotNodeSetConverter.FromNodeSet(nodeSet);
+
+            JsonElement affordance = restored.Events.Values.Single();
+            JsonElement clauses = affordance.GetProperty(WotEventSelectClauses.Term);
+            Assert.Multiple(() =>
+            {
+                Assert.That(clauses.GetArrayLength(), Is.EqualTo(2));
+                Assert.That(
+                    clauses[0].GetProperty("uav:typeDefinitionId").GetString(),
+                    Is.EqualTo("i=2041"));
+                Assert.That(clauses[1].GetProperty("uav:browsePath").GetString(), Is.Empty);
+            });
+        }
+
+        [Test]
+        public void ADocumentCarryingTheNewTermsImportsAsANodeSet()
+        {
+            using WotDocument original = ParseThingModel(
+                "\"uav:bindingVersion\":\"1.1\",\"uav:profile\":[\"WoT-Modeller\"]," +
+                "\"securityDefinitions\":{\"opcua_auto_sc\":{\"scheme\":\"auto\"," +
+                "\"uav:minimumSecurity\":{\"uav:securityMode\":\"Sign\"," +
+                "\"uav:securityPolicy\":\"Basic256Sha256\"}}}," +
+                "\"security\":\"opcua_auto_sc\"," +
+                EventWithClauses(
+                    "{\"uav:typeDefinitionId\":\"i=2041\",\"uav:browsePath\":\"EventId\"}"));
+
+            UANodeSet nodeSet = WotNodeSetConverter.ToNodeSet(original);
+            byte[] serialized = WotTestData.Serialize(nodeSet);
+            using var stream = new System.IO.MemoryStream(serialized);
+            UANodeSet reread = UANodeSet.Read(stream);
+
+            Assert.That(reread.Items, Is.Not.Null);
+            Assert.DoesNotThrow(() => WotNodeSetConverter.FromNodeSet(reread).Dispose());
+        }
+
+        [Test]
+        public void ValidRevisionAndProfileClaimsProduceNoDiagnostic()
+        {
+            WotConversionResult<UANodeSet> result = Convert(
+                "\"uav:bindingVersion\":\"1.1\"," +
+                "\"uav:profile\":[\"WoT-Reader\",\"WoT-ModelVocabulary\"]",
+                Strict());
+
+            Assert.That(result.Value, Is.Not.Null);
+            Assert.That(
+                result.Diagnostics.Any(d =>
+                    d.Code is WotDiagnosticCode.InvalidBindingVersion
+                        or WotDiagnosticCode.InvalidConformanceClaim),
+                Is.False,
+                Describe(result));
+        }
+
+        [Test]
+        public void MalformedRevisionIsRejectedInEveryMode()
+        {
+            WotConversionResult<UANodeSet> result = Convert("\"uav:bindingVersion\":\"one.one\"");
+
+            Assert.That(
+                result.Diagnostics.Any(d => d.Code == WotDiagnosticCode.InvalidBindingVersion),
+                Is.True,
+                Describe(result));
+        }
+
+        [Test]
+        public void UnimplementedRevisionIsAcceptedPermissivelyAndReportedStrictly()
+        {
+            WotConversionResult<UANodeSet> permissive = Convert("\"uav:bindingVersion\":\"9.9\"");
+            WotConversionResult<UANodeSet> strict =
+                Convert("\"uav:bindingVersion\":\"9.9\"", Strict());
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    permissive.Diagnostics.Any(d =>
+                        d.Code == WotDiagnosticCode.InvalidBindingVersion),
+                    Is.False,
+                    "Section 4.1 forbids rejecting a document for declaring an unimplemented " +
+                    "revision.");
+                Assert.That(
+                    strict.Diagnostics.Any(d => d.Code == WotDiagnosticCode.InvalidBindingVersion),
+                    Is.True,
+                    Describe(strict));
+            });
+        }
+
+        [Test]
+        public void UnknownProfileNameIsRejected()
+        {
+            WotConversionResult<UANodeSet> result = Convert("\"uav:profile\":[\"WoT-Wizard\"]");
+
+            Assert.That(
+                result.Diagnostics.Any(d => d.Code == WotDiagnosticCode.InvalidConformanceClaim),
+                Is.True,
+                Describe(result));
+        }
+
+        [Test]
+        public void EmptyProfileArrayIsRejected()
+        {
+            WotConversionResult<UANodeSet> result = Convert("\"uav:profile\":[]");
+
+            Assert.That(
+                result.Diagnostics.Any(d => d.Code == WotDiagnosticCode.InvalidConformanceClaim),
+                Is.True,
+                Describe(result));
+        }
+
+        [Test]
+        public void MissingRequiredClaimIsReportedInStrictMode()
+        {
+            var options = Strict();
+            options.RequiredConformance = s_eventMappingRequirement;
+
+            WotConversionResult<UANodeSet> missing = Convert("\"uav:profile\":[\"WoT-Reader\"]", options);
+            WotConversionResult<UANodeSet> claimed =
+                Convert("\"uav:profile\":[\"WoT-Modeller\"]", options);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    missing.Diagnostics.Any(d =>
+                        d.Code == WotDiagnosticCode.InvalidConformanceClaim),
+                    Is.True,
+                    "WoT-Reader names neither WoT-EventMapping nor a profile that does.");
+                Assert.That(
+                    claimed.Diagnostics.Any(d =>
+                        d.Code == WotDiagnosticCode.InvalidConformanceClaim),
+                    Is.False,
+                    "Claiming WoT-Modeller claims every unit it names, WoT-EventMapping among " +
+                    "them: " + Describe(claimed));
+            });
+        }
+
+        [Test]
+        public void RequiredClaimIsNotEnforcedPermissively()
+        {
+            var options = new WotNodeSetConverterOptions
+            {
+                RequiredConformance = s_eventMappingRequirement
+            };
+
+            WotConversionResult<UANodeSet> result = Convert("\"uav:profile\":[\"WoT-Reader\"]", options);
+
+            Assert.That(
+                result.Diagnostics.Any(d => d.Code == WotDiagnosticCode.InvalidConformanceClaim),
+                Is.False,
+                Describe(result));
+        }
+
+        [Test]
+        public void RevisionAndProfileClaimsSurviveWotToNodeSetToWot()
+        {
+            using WotDocument original = ParseThingModel(
+                "\"uav:bindingVersion\":\"1.1\",\"uav:profile\":[\"WoT-Converter\"]");
+
+            UANodeSet nodeSet = WotNodeSetConverter.ToNodeSet(original);
+            using WotDocument restored = WotNodeSetConverter.FromNodeSet(nodeSet);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    restored.RootElement.GetProperty("uav:bindingVersion").GetString(),
+                    Is.EqualTo("1.1"));
+                Assert.That(
+                    restored.RootElement.GetProperty("uav:profile")[0].GetString(),
+                    Is.EqualTo("WoT-Converter"));
+            });
+        }
+
+        [Test]
+        public void ClaimsNeverBecomeNodes()
+        {
+            using WotDocument original = ParseThingModel(
+                "\"uav:bindingVersion\":\"1.1\",\"uav:profile\":[\"WoT-Reader\"]");
+
+            UANodeSet nodeSet = WotNodeSetConverter.ToNodeSet(original);
+
+            Assert.That(
+                nodeSet.Items?.Any(node =>
+                    node.BrowseName is not null &&
+                    (node.BrowseName.IndexOf("bindingVersion", System.StringComparison.Ordinal) >= 0 ||
+                        node.BrowseName.IndexOf("profile", System.StringComparison.Ordinal) >= 0)),
+                Is.False,
+                "A document-level claim describes the document, not the AddressSpace.");
+        }
+
+        [Test]
+        public void UnknownVocabularyTermIsCarriedPermissivelyAndReportedStrictly()
+        {
+            WotConversionResult<UANodeSet> permissive = Convert("\"uav:futureTerm\":\"value\"");
+            WotConversionResult<UANodeSet> strict = Convert("\"uav:futureTerm\":\"value\"", Strict());
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    permissive.Diagnostics.Any(d =>
+                        d.Code == WotDiagnosticCode.UnknownVocabularyTerm),
+                    Is.False);
+                Assert.That(
+                    strict.Diagnostics.Any(d => d.Code == WotDiagnosticCode.UnknownVocabularyTerm),
+                    Is.True,
+                    Describe(strict));
+            });
+        }
+
+        [Test]
+        public void MisspelledTermOnAnAffordanceIsReportedStrictly()
+        {
+            WotConversionResult<UANodeSet> strict = Convert(
+                "\"properties\":{\"speed\":{\"type\":\"number\",\"uav:browsname\":\"pump:Speed\"}}",
+                Strict());
+
+            Assert.That(
+                strict.Diagnostics.Any(d => d.Code == WotDiagnosticCode.UnknownVocabularyTerm),
+                Is.True,
+                Describe(strict));
+        }
+
+        [Test]
+        public void TheSupersededEventFieldsSpellingIsUnknownToStrictConformance()
+        {
+            WotConversionResult<UANodeSet> strict = Convert(
+                "\"events\":{\"alarm\":{\"uav:isEvent\":true," +
+                "\"uav:eventFields\":[\"LocalTime\"]}}",
+                Strict());
+
+            Assert.That(
+                strict.Diagnostics.Any(d => d.Code == WotDiagnosticCode.UnknownVocabularyTerm),
+                Is.True,
+                Describe(strict));
+        }
+
+        [Test]
+        public void EveryTermTheKnownSetHoldsIsRecognized()
+        {
+            Assert.Multiple(() =>
+            {
+                Assert.That(WotBindingConformance.IsKnownTerm("uav:eventSelectClauses"), Is.True);
+                Assert.That(WotBindingConformance.IsKnownTerm("uav:typeDefinitionId"), Is.True);
+                Assert.That(WotBindingConformance.IsKnownTerm("uav:bindingVersion"), Is.True);
+                Assert.That(WotBindingConformance.IsKnownTerm("uav:profile"), Is.True);
+                Assert.That(WotBindingConformance.IsKnownTerm("uav:minimumSecurity"), Is.True);
+                Assert.That(WotBindingConformance.IsKnownTerm("uav:instrumentRange"), Is.True);
+                Assert.That(WotBindingConformance.IsKnownTerm("uav:engineeringUnits"), Is.True);
+                Assert.That(WotBindingConformance.IsKnownTerm("uav:valueRank"), Is.True);
+                Assert.That(WotBindingConformance.IsKnownTerm("uav:arrayDimensions"), Is.True);
+                Assert.That(WotBindingConformance.IsKnownTerm("uav:inverseName"), Is.True);
+                Assert.That(WotBindingConformance.IsKnownTerm("uav:symmetric"), Is.True);
+                Assert.That(WotBindingConformance.IsKnownTerm("uav:fieldOrder"), Is.True);
+                Assert.That(WotBindingConformance.IsKnownTerm("uav:structureType"), Is.True);
+                Assert.That(WotBindingConformance.IsKnownTerm("uav:eventFields"), Is.False);
+            });
+        }
+
+        [Test]
+        public void NamespacedOpaqueKeysProduceNoDiagnostic()
+        {
+            WotConversionResult<UANodeSet> result = Convert(
+                "\"uav:metadata\":{\"pump:revision\":3," +
+                "\"http://example.com/vocab/maintainer\":\"Modeling WG\"}",
+                Strict());
+
+            Assert.That(
+                result.Diagnostics.Any(d => d.Code == WotDiagnosticCode.OpaqueObjectInvalid),
+                Is.False,
+                Describe(result));
+        }
+
+        [Test]
+        public void UnnamespacedOpaqueKeyWarnsPermissivelyAndFailsStrictly()
+        {
+            WotConversionResult<UANodeSet> permissive = Convert("\"uav:metadata\":{\"revision\":3}");
+            WotConversionResult<UANodeSet> strict =
+                Convert("\"uav:metadata\":{\"revision\":3}", Strict());
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(permissive.Value, Is.Not.Null, "The value is preserved, not rejected.");
+                Assert.That(
+                    permissive.Diagnostics.Any(d =>
+                        d.Code == WotDiagnosticCode.OpaqueObjectInvalid &&
+                        d.Severity == WotDiagnosticSeverity.Warning),
+                    Is.True,
+                    Describe(permissive));
+                Assert.That(
+                    strict.Diagnostics.Any(d =>
+                        d.Code == WotDiagnosticCode.OpaqueObjectInvalid &&
+                        d.Severity == WotDiagnosticSeverity.Error),
+                    Is.True,
+                    Describe(strict));
+            });
+        }
+
+        [Test]
+        public void UnboundOpaqueKeyPrefixIsReported()
+        {
+            WotConversionResult<UANodeSet> result =
+                Convert("\"uav:metadata\":{\"vendor:revision\":3}", Strict());
+
+            Assert.That(
+                result.Diagnostics.Any(d => d.Code == WotDiagnosticCode.OpaqueObjectInvalid),
+                Is.True,
+                Describe(result));
+        }
+
+        [Test]
+        public void OpaqueObjectExceedingTheKeyBoundIsReported()
+        {
+            var builder = new StringBuilder("\"uav:eventConfiguration\":{");
+            for (int ii = 0; ii <= WotBindingConformance.OpaqueMaxTopLevelKeys; ii++)
+            {
+                if (ii > 0)
+                {
+                    builder.Append(',');
+                }
+                builder.Append("\"pump:k").Append(ii).Append("\":1");
+            }
+            builder.Append('}');
+
+            WotConversionResult<UANodeSet> result = Convert(
+                "\"events\":{\"alarm\":{\"uav:isEvent\":true," + builder + "}}", Strict());
+
+            Assert.That(
+                result.Diagnostics.Any(d =>
+                    d.Code == WotDiagnosticCode.OpaqueObjectInvalid &&
+                    d.Message.IndexOf("top-level keys", System.StringComparison.Ordinal) >= 0),
+                Is.True,
+                Describe(result));
+        }
+
+        [Test]
+        public void OpaqueObjectExceedingTheDepthBoundIsReported()
+        {
+            var builder = new StringBuilder("\"uav:metadata\":{\"pump:deep\":");
+            for (int ii = 0; ii < WotBindingConformance.OpaqueMaxDepth; ii++)
+            {
+                builder.Append("{\"pump:n\":");
+            }
+            builder.Append('1');
+            for (int ii = 0; ii < WotBindingConformance.OpaqueMaxDepth; ii++)
+            {
+                builder.Append('}');
+            }
+            builder.Append('}');
+
+            WotConversionResult<UANodeSet> result = Convert(builder.ToString(), Strict());
+
+            Assert.That(
+                result.Diagnostics.Any(d =>
+                    d.Code == WotDiagnosticCode.OpaqueObjectInvalid &&
+                    d.Message.IndexOf("levels deep", System.StringComparison.Ordinal) >= 0),
+                Is.True,
+                Describe(result));
+        }
+
+        [Test]
+        public void OpaqueObjectExceedingTheSizeBoundIsReported()
+        {
+            string padding = new('x', WotBindingConformance.OpaqueMaxOctets + 16);
+
+            WotConversionResult<UANodeSet> result = Convert(
+                "\"uav:propertyConfiguration\":{\"pump:blob\":\"" + padding + "\"}", Strict());
+
+            Assert.That(
+                result.Diagnostics.Any(d =>
+                    d.Code == WotDiagnosticCode.OpaqueObjectInvalid &&
+                    d.Message.IndexOf("octets", System.StringComparison.Ordinal) >= 0),
+                Is.True,
+                Describe(result));
+        }
+
+        [Test]
+        public void OpaqueContentsAreNeverInterpreted()
+        {
+            // A vendor key that spells a term of this Binding is still the
+            // vendor's own: the bounds apply to the shape, never to what the
+            // object says.
+            WotConversionResult<UANodeSet> result = Convert(
+                "\"uav:metadata\":{\"pump:inner\":{\"uav:futureTerm\":1}}", Strict());
+
+            Assert.That(
+                result.Diagnostics.Any(d => d.Code == WotDiagnosticCode.UnknownVocabularyTerm),
+                Is.False,
+                Describe(result));
+        }
+
+        [Test]
+        public void ValidMinimumSecurityProducesNoDiagnostic()
+        {
+            WotConversionResult<UANodeSet> result = Convert(
+                "\"securityDefinitions\":{\"opcua_auto_sc\":{\"scheme\":\"auto\"," +
+                "\"uav:minimumSecurity\":{\"uav:securityMode\":\"Sign\"," +
+                "\"uav:securityPolicy\":\"Basic256Sha256\"}}}," +
+                "\"security\":\"opcua_auto_sc\"",
+                Strict());
+
+            Assert.That(
+                result.Diagnostics.Any(d => d.Code == WotDiagnosticCode.InvalidSecurityFloor),
+                Is.False,
+                Describe(result));
+        }
+
+        [Test]
+        public void MinimumSecurityOnANonAutoSchemeIsRejected()
+        {
+            WotConversionResult<UANodeSet> result = Convert(
+                "\"securityDefinitions\":{\"opcua_channel_sc\":{\"scheme\":\"uav:channelsec\"," +
+                "\"uav:securityMode\":\"Sign\"," +
+                "\"uav:minimumSecurity\":{\"uav:securityMode\":\"Sign\"}}}");
+
+            Assert.That(
+                result.Diagnostics.Any(d => d.Code == WotDiagnosticCode.InvalidSecurityFloor),
+                Is.True,
+                Describe(result));
+        }
+
+        [Test]
+        public void MinimumSecurityOutsideASecuritySchemeIsRejected()
+        {
+            WotConversionResult<UANodeSet> result = Convert(
+                "\"uav:minimumSecurity\":{\"uav:securityMode\":\"Sign\"}");
+
+            Assert.That(
+                result.Diagnostics.Any(d => d.Code == WotDiagnosticCode.InvalidSecurityFloor),
+                Is.True,
+                Describe(result));
+        }
+
+        [Test]
+        public void MinimumSecurityWithAnUnknownPolicyIsRejected()
+        {
+            WotConversionResult<UANodeSet> result = Convert(
+                "\"securityDefinitions\":{\"opcua_auto_sc\":{\"scheme\":\"auto\"," +
+                "\"uav:minimumSecurity\":{\"uav:securityPolicy\":\"Basic999\"}}}");
+
+            Assert.That(
+                result.Diagnostics.Any(d => d.Code == WotDiagnosticCode.InvalidSecurityFloor),
+                Is.True,
+                Describe(result));
+        }
+
+        [Test]
+        public void MinimumSecurityCarryingAnotherMemberIsRejected()
+        {
+            WotConversionResult<UANodeSet> result = Convert(
+                "\"securityDefinitions\":{\"opcua_auto_sc\":{\"scheme\":\"auto\"," +
+                "\"uav:minimumSecurity\":{\"uav:securityMode\":\"Sign\"," +
+                "\"uav:trustList\":\"required\"}}}");
+
+            Assert.That(
+                result.Diagnostics.Any(d => d.Code == WotDiagnosticCode.InvalidSecurityFloor),
+                Is.True,
+                Describe(result));
+        }
+
+        [Test]
+        public void EmptyMinimumSecurityIsRejected()
+        {
+            WotConversionResult<UANodeSet> result = Convert(
+                "\"securityDefinitions\":{\"opcua_auto_sc\":{\"scheme\":\"auto\"," +
+                "\"uav:minimumSecurity\":{}}}");
+
+            Assert.That(
+                result.Diagnostics.Any(d => d.Code == WotDiagnosticCode.InvalidSecurityFloor),
+                Is.True,
+                Describe(result));
+        }
+
+        [Test]
+        public void SecurityFloorOrdersModesAndPoliciesAsTheSpecificationStates()
+        {
+            var floor = new WotSecurityFloor("Sign", "Basic256Sha256");
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(floor.Permits("SignAndEncrypt", "Aes256_Sha256_RsaPss"), Is.True);
+                Assert.That(floor.Permits("Sign", "Basic256Sha256"), Is.True);
+                Assert.That(floor.Permits("None", "Aes256_Sha256_RsaPss"), Is.False);
+                Assert.That(floor.Permits("SignAndEncrypt", "Basic256"), Is.False,
+                    "A floor of Basic256Sha256 excludes the deprecated policies without naming " +
+                    "them.");
+                Assert.That(floor.Permits("SignAndEncrypt", "Vendor_Policy"), Is.False,
+                    "A policy this Binding does not name ranks below every policy it names.");
+            });
+        }
+
+        [Test]
+        public void ClaimExpansionFollowsTheProfileNesting()
+        {
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    WotBindingConformance.ClaimsSatisfy(
+                        s_archivalClaim, "WoT-NativeMapping"),
+                    Is.True);
+                Assert.That(
+                    WotBindingConformance.ClaimsSatisfy(
+                        s_readerClaim, "WoT-JsonResidue"),
+                    Is.False);
+                Assert.That(
+                    WotBindingConformance.Expand("WoT-Reader").ToList(),
+                    Does.Contain("WoT-ProtocolBinding"));
+            });
+        }
+
+        private static readonly string[] s_mandatoryBaseEventTypeFields =
+        [
+            "EventId", "EventType", "SourceNode", "SourceName",
+            "Time", "ReceiveTime", "Message", "Severity"
+        ];
+
+        private static readonly string[] s_archivalClaim = ["WoT-ArchivalConverter"];
+
+        private static readonly string[] s_readerClaim = ["WoT-Reader"];
+
+        private static readonly string[] s_eventMappingRequirement = ["WoT-EventMapping"];
+
+        private static WotNodeSetConverterOptions Strict()
+        {
+            return new WotNodeSetConverterOptions
+            {
+                ConformanceMode = WotConformanceMode.Strict
+            };
+        }
+
+        private static string EventWithClauses(string clauses)
+        {
+            return "\"events\":{\"overTemperature\":{\"@type\":\"uav:eventType\"," +
+                "\"uav:isEvent\":true,\"uav:browseName\":\"pump:OverTemperatureEventType\"," +
+                "\"uav:eventSelectClauses\":[" + clauses + "]}}";
+        }
+
+        private static string Describe(WotConversionResult<UANodeSet> result)
+        {
+            return string.Join("; ", result.Diagnostics.Select(d => d.ToString()));
+        }
+
+        private static void AssertSelectClauseError(
+            WotConversionResult<UANodeSet> result, string fragment)
+        {
+            Assert.That(
+                result.Diagnostics.Any(d =>
+                    d.Code == WotDiagnosticCode.EventSelectClauseInvalid &&
+                    d.Message.IndexOf(fragment, System.StringComparison.Ordinal) >= 0),
+                Is.True,
+                Describe(result));
+        }
+
+        private static WotConversionResult<UANodeSet> Convert(string members)
+        {
+            return Convert(members, new WotNodeSetConverterOptions());
+        }
+
+        private static WotConversionResult<UANodeSet> Convert(
+            string members, WotNodeSetConverterOptions options)
+        {
+            using WotDocument document = ParseThingModel(members);
+            return WotNodeSetConverter.ToNodeSetResult(document, options);
+        }
+
+        private static WotDocument ParseThingModel(string members)
+        {
+            byte[] json = WotTestData.Utf8(
+                "{\"@context\":[\"https://www.w3.org/2022/wot/td/v1.1\"," +
+                "{\"uav\":\"http://opcfoundation.org/UA/WoT-Binding/\"," +
+                "\"ua\":\"http://opcfoundation.org/UA/\"," +
+                "\"pump\":\"urn:test:pump\"}]," +
+                "\"@type\":[\"tm:ThingModel\",\"uav:objectType\"]," +
+                "\"title\":\"Pump\",\"uav:browseName\":\"pump:PumpType\"," +
+                "\"uav:id\":\"nsu=urn:test:pump;i=1001\"," +
+                members +
+                "}");
+            return WotDocument.Parse(json);
+        }
+    }
+}

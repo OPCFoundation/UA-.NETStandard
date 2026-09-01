@@ -403,6 +403,29 @@ namespace Opc.Ua.Wot
             return stream.ToArray();
         }
 
+        /// <summary>
+        /// Measures a JSON value in the canonical UTF-8 form of WoT Binding
+        /// Annex G.2, which is the form its size bounds are stated in.
+        /// </summary>
+        /// <remarks>
+        /// The value is written to a counting buffer rather than materialized
+        /// as an array, so measuring an opaque member costs no copy of it.
+        /// </remarks>
+        /// <param name="element">The value to measure.</param>
+        /// <returns>The canonical size in octets.</returns>
+        internal static long MeasureCanonicalUtf8(JsonElement element)
+        {
+            using var stream = new MemoryStream();
+            using (var writer = new Utf8JsonWriter(
+                stream,
+                new JsonWriterOptions { Indented = false, SkipValidation = false }))
+            {
+                WriteCanonical(writer, element);
+                writer.Flush();
+            }
+            return stream.Length;
+        }
+
         /// <inheritdoc/>
         public void Dispose()
         {

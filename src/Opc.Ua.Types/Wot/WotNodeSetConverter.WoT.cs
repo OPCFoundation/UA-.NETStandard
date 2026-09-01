@@ -943,6 +943,7 @@ namespace Opc.Ua.Wot
             ValidateEventAnnotations(document, diagnostics);
             ValidateModelConceptNames(document, diagnostics);
             ValidateModelVocabulary(document, diagnostics);
+            ValidateBindingConformance(document, options, diagnostics);
             ValidateConditions(document, diagnostics);
 
             string modelUri = DeriveModelUri(document);

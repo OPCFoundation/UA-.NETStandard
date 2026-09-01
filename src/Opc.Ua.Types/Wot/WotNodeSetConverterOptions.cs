@@ -55,6 +55,35 @@ namespace Opc.Ua.Wot
     }
 
     /// <summary>
+    /// How strictly a document is held to the WoT Binding revision this
+    /// library implements.
+    /// </summary>
+    public enum WotConformanceMode
+    {
+        /// <summary>
+        /// Process what is understood and preserve the rest. An unknown
+        /// <c>uav:</c> term is carried unchanged as residue rather than
+        /// reported, a revision this library does not implement is accepted,
+        /// and a revision 1.0 opaque object whose top-level keys are not
+        /// namespaced is preserved with a deprecation warning. This is the
+        /// default and the behaviour WoT Binding Sections 4.1, 6.6, 9.4 and
+        /// 10.2 require of a consumer.
+        /// </summary>
+        Permissive,
+
+        /// <summary>
+        /// Additionally report what the permissive mode tolerates: a
+        /// <c>uav:</c> term this revision does not define, a declared
+        /// vocabulary revision this library does not implement, a missing
+        /// required conformance claim, and an opaque object that breaks the
+        /// key or bound rules of Section 6.6. Intended for authoring and
+        /// conformance testing, where a misspelled term should fail rather
+        /// than travel silently.
+        /// </summary>
+        Strict
+    }
+
+    /// <summary>
     /// Resource limits and behavioural switches used while reading and
     /// writing WoT documents, preservation envelopes and NodeSet2 payloads.
     /// </summary>
@@ -89,6 +118,31 @@ namespace Opc.Ua.Wot
         /// is then interpreted exactly as v1.00 defined it.
         /// </remarks>
         public bool AllowNonPortableIdentifiers { get; set; }
+
+        /// <summary>
+        /// Gets or sets how strictly a document is held to the WoT Binding
+        /// revision this library implements. The default is
+        /// <see cref="WotConformanceMode.Permissive"/>, which processes what it
+        /// understands and preserves the rest.
+        /// </summary>
+        /// <remarks>
+        /// Strict conformance is opt-in because Sections 4.1 and 6.6 forbid a
+        /// consumer from rejecting a document merely because it declares an
+        /// unimplemented revision or carries a term the consumer does not know:
+        /// the value has to be preserved, not refused. A tool that authors or
+        /// certifies documents wants the opposite, so it asks for it.
+        /// </remarks>
+        public WotConformanceMode ConformanceMode { get; set; } = WotConformanceMode.Permissive;
+
+        /// <summary>
+        /// Gets or sets the WoT Binding Section 11 conformance units and
+        /// profiles a document is required to claim through <c>uav:profile</c>.
+        /// Empty by default, which requires no claim at all. Only
+        /// <see cref="WotConformanceMode.Strict"/> enforces it, because a claim
+        /// is a statement about the producer rather than a property of the
+        /// document.
+        /// </summary>
+        public ArrayOf<string> RequiredConformance { get; set; }
 
         /// <summary>
         /// Gets or sets the maximum accepted WoT JSON document size in bytes.
@@ -165,6 +219,25 @@ namespace Opc.Ua.Wot
                     nameof(PreservationMode),
                     PreservationMode,
                     "The preservation mode is not defined.");
+            }
+            if (ConformanceMode is not (
+                WotConformanceMode.Permissive or WotConformanceMode.Strict))
+            {
+                throw new ArgumentOutOfRangeException(
+                    nameof(ConformanceMode),
+                    ConformanceMode,
+                    "The conformance mode is not defined.");
+            }
+            foreach (string claim in RequiredConformance)
+            {
+                if (!WotBindingConformance.IsConformanceName(claim))
+                {
+                    throw new ArgumentOutOfRangeException(
+                        nameof(RequiredConformance),
+                        claim,
+                        "The required claim is not a conformance unit or profile " +
+                        "of WoT Binding Section 11.");
+                }
             }
             EnsurePositive(MaxJsonDocumentSize, nameof(MaxJsonDocumentSize));
             EnsurePositive(MaxNodeSetSize, nameof(MaxNodeSetSize));
