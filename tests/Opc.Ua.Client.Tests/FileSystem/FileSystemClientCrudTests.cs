@@ -83,6 +83,38 @@ namespace Opc.Ua.Client.Tests.FileSystem
         }
 
         [Test]
+        public async Task CreateFileAsyncReturnsCanonicalPathForUnqualifiedParentSegmentAsync()
+        {
+            var harness = FileSystemSessionHarness.Create();
+            NodeId mount = harness.RegisterDirectory(
+                harness.Root,
+                new QualifiedName("SampleFiles", 2),
+                new NodeId(7101, 2));
+            NodeId uploads = harness.RegisterDirectory(
+                mount,
+                new QualifiedName("Uploads", 2),
+                new NodeId(7102, 2));
+            var createdId = new NodeId(7103, 2);
+            ScriptCreateFile(harness, createdId);
+            var client = new FileSystemClient(harness.Session, harness.Root);
+
+            UaFileInfo file = await client
+                .CreateFileAsync(
+                    "/2:SampleFiles/Uploads/probe.txt",
+                    createIntermediate: false)
+                .ConfigureAwait(false);
+
+            CallMethodRequest request = SingleCallTo(
+                harness,
+                Methods.FileDirectoryType_CreateFile);
+            Assert.That(request.ObjectId, Is.EqualTo(uploads));
+            Assert.That(file.NodeId, Is.EqualTo(createdId));
+            Assert.That(
+                file.FullPath,
+                Is.EqualTo("/2:SampleFiles/2:Uploads/2:probe.txt"));
+        }
+
+        [Test]
         public async Task CreateDirectoryAsyncCreatesIntermediateDirectoriesAsync()
         {
             var harness = FileSystemSessionHarness.Create();
@@ -125,11 +157,12 @@ namespace Opc.Ua.Client.Tests.FileSystem
                 harness.Root,
                 new QualifiedName("SampleFiles", 2),
                 new NodeId(7001, 2));
-            harness.RegisterDirectory(
+            NodeId uploads = harness.RegisterDirectory(
                 mount,
                 new QualifiedName("Uploads", 2),
                 new NodeId(7002, 2));
-            ScriptCreateDirectory(harness, new NodeId(7003, 2));
+            var createdId = new NodeId(7003, 2);
+            ScriptCreateDirectory(harness, createdId);
             var client = new FileSystemClient(harness.Session, harness.Root);
 
             UaDirectoryInfo dir = await client.CreateDirectoryAsync(
@@ -137,6 +170,13 @@ namespace Opc.Ua.Client.Tests.FileSystem
                 createIntermediate).ConfigureAwait(false);
 
             Assert.That(harness.CallRequests, Has.Count.EqualTo(1));
+            CallMethodRequest request = SingleCallTo(
+                harness,
+                Methods.FileDirectoryType_CreateDirectory);
+            Assert.That(request.ObjectId, Is.EqualTo(uploads));
+            request.InputArguments[0].TryGetValue(out string directoryName);
+            Assert.That(directoryName, Is.EqualTo("New"));
+            Assert.That(dir.NodeId, Is.EqualTo(createdId));
             Assert.That(dir.FullPath, Is.EqualTo("/2:SampleFiles/2:Uploads/2:New"));
         }
 
@@ -339,7 +379,10 @@ namespace Opc.Ua.Client.Tests.FileSystem
                     mid == Methods.FileDirectoryType_CreateFile)
                 {
                     req.InputArguments[0].TryGetValue(out string newName);
-                    harness.RegisterFile(req.ObjectId, new QualifiedName(newName), newId);
+                    harness.RegisterFile(
+                        req.ObjectId,
+                        new QualifiedName(newName, req.ObjectId.NamespaceIndex),
+                        newId);
                     return new CallMethodResult
                     {
                         StatusCode = StatusCodes.Good,

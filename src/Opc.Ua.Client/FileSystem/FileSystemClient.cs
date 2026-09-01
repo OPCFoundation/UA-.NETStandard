@@ -252,11 +252,11 @@ namespace Opc.Ua.Client.FileSystem
                 bool isLast = i == segments.Length - 1;
                 QualifiedName inputSegment = segments[i];
                 QualifiedName segment = Qualify(inputSegment, current.NodeId);
-                segments[i] = segment;
                 NodeId? childId = await TryResolveSingleAsync(current.NodeId, segment, ct)
                     .ConfigureAwait(false);
                 if (childId != null)
                 {
+                    segments[i] = segment;
                     UaFileSystemInfo info = await BuildInfoAsync(
                         new ResolvedNode(childId.Value, segment),
                         [.. segments.Take(i + 1)],
@@ -266,8 +266,11 @@ namespace Opc.Ua.Client.FileSystem
                         current = dir;
                         continue;
                     }
+                    string currentPath = string.Join(
+                        "/",
+                        segments.Take(i + 1).Select(UaPath.FormatSegment));
                     throw new IOException(
-                        $"Cannot create directory '{path}': '{string.Join("/", segments.Take(i + 1).Select(UaPath.FormatSegment))}' is not a directory.");
+                        $"Cannot create directory '{path}': '{currentPath}' is not a directory.");
                 }
                 if (!createIntermediate && !isLast)
                 {
@@ -277,12 +280,15 @@ namespace Opc.Ua.Client.FileSystem
                 }
                 if (inputSegment.NamespaceIndex != 0)
                 {
+                    string formattedSegment = UaPath.FormatSegment(inputSegment);
                     throw new ArgumentException(
-                        $"Cannot create '{UaPath.FormatSegment(inputSegment)}': leaf segments must not include a namespace prefix; the server picks the BrowseName namespace.",
+                        $"Cannot create '{formattedSegment}': leaf segments must not include a " +
+                        "namespace prefix; the server picks the BrowseName namespace.",
                         nameof(path));
                 }
                 current = await CreateDirectoryInAsync(current, inputSegment.Name!, ct)
                     .ConfigureAwait(false);
+                segments[i] = current.BrowseName;
             }
             return current;
         }
@@ -937,6 +943,7 @@ namespace Opc.Ua.Client.FileSystem
                 NodeId? cached = m_pathCache.TryGet(currentParent, segment);
                 if (cached != null)
                 {
+                    segments[i] = segment;
                     if (isLast)
                     {
                         return new ResolvedNode(cached.Value, segment);
@@ -957,6 +964,7 @@ namespace Opc.Ua.Client.FileSystem
                     return null;
                 }
                 m_pathCache.Put(currentParent, segment, resolved.Value);
+                segments[i] = segment;
                 if (isLast)
                 {
                     return new ResolvedNode(resolved.Value, segment);
