@@ -498,6 +498,35 @@ Cost is one node plus one property per declared state and transition,
 per machine instance — worth weighing for servers that instantiate
 many machines.
 
+### Executable causes
+
+A cause is a Method, and whether it may fire depends on the state the
+machine is in. Part 3 §5.7 defines `Executable` / `UserExecutable` as
+exactly that question, and Part 4 §5.11.2 has `Call` refuse a Method
+that is not executable with `Bad_NotExecutable`.
+
+`WithCause(methodNodeId)` therefore answers both attributes from
+`IsCausePermitted(context, causeId, checkUserAccessRights)` alongside
+installing the call handler — `Executable` ignoring user rights,
+`UserExecutable` running the machine's `OnCheckUserPermission`
+callback as well. A client can read them after every transition and
+offer only the causes that currently apply, instead of duplicating the
+server's state table or calling one to find out.
+
+Pass `reportExecutable: false` to opt out, for servers that
+deliberately keep their methods executable and answer at call time.
+
+The stack-shipped `ProgramStateMachineState` does the same for its own
+`Start` / `Suspend` / `Resume` / `Halt` / `Reset` methods when they are
+created, so a Program server no longer repeats the wiring per method.
+Those five are optional placeholders on the type, so only the ones an
+instance declares are wired, matched on browse name alone — a subtype
+that redeclares them puts them in its own namespace. Call
+`WireCauseMethods(context)` yourself if you add one to an
+already-created instance; `Create` rebuilds the child list from the
+type template, so children added by hand before it are not there when
+the automatic pass runs.
+
 ### Client side — sub-SM observation
 
 ```csharp
@@ -608,7 +637,9 @@ Callers that passed the state machine's `ObjectId` to
   cause id is derived from the method NodeId's numeric identifier
   (OPC UA convention); the cause→transition mapping is whatever the
   underlying FSM declared (`OnCause(...)` in definition mode or
-  hardcoded in a stack/vendor subclass).
+  hardcoded in a stack/vendor subclass). It also answers the method's
+  `Executable` / `UserExecutable` attributes from `IsCausePermitted`
+  — see [Executable causes](#executable-causes).
 * **Drive auto-transitions.** `WithTimedTransition(fromStateId,
   timeout, transitionId, causeId)` arms a `System.Threading.Timer`
   on every entry into `fromStateId` (including the initial state)
@@ -629,6 +660,9 @@ Callers that passed the state machine's `ObjectId` to
   the layering behavior on top of pre-existing delegates.
 * `tests/Opc.Ua.Server.Tests/StateMachines/FluentFiniteStateMachineStateTests.cs`
   covers the table projections.
+* `tests/Opc.Ua.Server.Tests/StateMachines/StateMachineBuilderCauseExecutableTests.cs`
+  and `tests/Opc.Ua.Core.Tests/Stack/State/ProgramStateMachineStateTests.cs`
+  cover the `Executable` / `UserExecutable` reporting of causes.
 * The Part 9 conformance tests in
   `tests/Opc.Ua.History.Tests/AlarmsAndConditions*.cs` exercise
   `AlarmClient.GetShelvingStateAsync` and

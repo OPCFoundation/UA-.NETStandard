@@ -217,7 +217,14 @@ namespace Opc.Ua.Server
         /// <inheritdoc/>
         public bool TryGetSubscription(uint id, [NotNullWhen(true)] out ISubscription? subscription)
         {
-            return m_subscriptions.TryGetValue(id, out subscription);
+            if (m_subscriptions.TryGetValue(id, out ISubscriptionPublishPipeline? found))
+            {
+                subscription = found;
+                return true;
+            }
+
+            subscription = null;
+            return false;
         }
 
         /// <summary>
@@ -521,7 +528,7 @@ namespace Opc.Ua.Server
             bool deleteSubscriptions,
             CancellationToken cancellationToken)
         {
-            IList<ISubscription>? sessionSubscriptions = null;
+            IList<ISubscriptionPublishPipeline>? sessionSubscriptions = null;
             SessionPublishQueue? publishQueue = null;
 
             // close the publish queue for the session.
@@ -544,7 +551,7 @@ namespace Opc.Ua.Server
                     {
                         for (int ii = 0; ii < sessionSubscriptions.Count; ii++)
                         {
-                            ISubscription subscription = sessionSubscriptions[ii];
+                            ISubscriptionPublishPipeline subscription = sessionSubscriptions[ii];
                             if (m_abandonedSubscriptions.TryAdd(
                                     subscription.Id,
                                     subscription))
@@ -608,7 +615,7 @@ namespace Opc.Ua.Server
         /// <exception cref="ServiceResultException"></exception>
         public void ConditionRefresh(OperationContext context, uint subscriptionId)
         {
-            if (!m_subscriptions.TryGetValue(subscriptionId, out ISubscription? subscription))
+            if (!m_subscriptions.TryGetValue(subscriptionId, out ISubscriptionPublishPipeline? subscription))
             {
                 throw ServiceResultException.Create(
                     StatusCodes.BadSubscriptionIdInvalid,
@@ -652,7 +659,7 @@ namespace Opc.Ua.Server
             uint subscriptionId,
             uint monitoredItemId)
         {
-            if (!m_subscriptions.TryGetValue(subscriptionId, out ISubscription? subscription))
+            if (!m_subscriptions.TryGetValue(subscriptionId, out ISubscriptionPublishPipeline? subscription))
             {
                 throw ServiceResultException.Create(
                     StatusCodes.BadSubscriptionIdInvalid,
@@ -725,7 +732,7 @@ namespace Opc.Ua.Server
         /// <exception cref="ServiceResultException"></exception>
         public async ValueTask<StatusCode> DeleteSubscriptionAsync(OperationContext context, uint subscriptionId, CancellationToken cancellationToken = default)
         {
-            ISubscription? subscription = null;
+            ISubscriptionPublishPipeline? subscription = null;
 
             await m_semaphoreSlim.WaitAsync(cancellationToken).ConfigureAwait(false);
             try
@@ -836,7 +843,7 @@ namespace Opc.Ua.Server
         {
             var publishingDiagnostics = new Dictionary<double, uint>();
 
-            foreach (KeyValuePair<uint, ISubscription> kvp in m_subscriptions)
+            foreach (KeyValuePair<uint, ISubscriptionPublishPipeline> kvp in m_subscriptions)
             {
                 double publishingInterval = kvp.Value.PublishingInterval;
 
@@ -906,7 +913,7 @@ namespace Opc.Ua.Server
                 maxNotificationsPerPublish);
 
             // create the subscription.
-            ISubscription subscription = CreateSubscription(
+            ISubscription created = CreateSubscription(
                 context,
                 subscriptionId,
                 revisedPublishingInterval,
@@ -915,6 +922,19 @@ namespace Opc.Ua.Server
                 maxNotificationsPerPublish,
                 priority,
                 publishingEnabled);
+
+            if (created is not ISubscriptionPublishPipeline subscription)
+            {
+                // The publish pipeline drives subscriptions through an internal contract
+                // that only Subscription implements, so a custom ISubscription that does
+                // not derive from it could never be published. Fail at creation instead.
+                created.Dispose();
+                throw new ServiceResultException(
+                    StatusCodes.BadInternalError,
+                    $"CreateSubscription returned '{created.GetType()}', which does not derive from " +
+                    "Opc.Ua.Server.Subscription. Custom subscription implementations must derive from " +
+                    "Subscription (see docs/migrate/2.0.x/sessions-subscriptions.md).");
+            }
 
             await m_semaphoreSlim.WaitAsync(cancellationToken).ConfigureAwait(false);
             try
@@ -1052,7 +1072,7 @@ namespace Opc.Ua.Server
         /// Called when a subscription expires.
         /// </summary>
         /// <param name="subscription">The subscription.</param>
-        internal void SubscriptionExpired(ISubscription subscription)
+        internal void SubscriptionExpired(ISubscriptionPublishPipeline subscription)
         {
             lock (m_statusMessagesLock)
             {
@@ -1080,13 +1100,13 @@ namespace Opc.Ua.Server
             ISession sourceSession,
             SessionPublishQueue.QueuedSubscription queuedSubscription)
         {
-            ISubscription subscription = queuedSubscription.Subscription;
+            ISubscriptionPublishPipeline subscription = queuedSubscription.Subscription;
             m_semaphoreSlim.Wait();
             try
             {
                 if (!m_subscriptions.TryGetValue(
                         subscription.Id,
-                        out ISubscription? currentSubscription) ||
+                        out ISubscriptionPublishPipeline? currentSubscription) ||
                     !ReferenceEquals(currentSubscription, subscription) ||
                     m_expiringSubscriptions.ContainsKey(subscription.Id) ||
                     !ReferenceEquals(subscription.Session, sourceSession) ||
@@ -1113,14 +1133,14 @@ namespace Opc.Ua.Server
             }
         }
 
-        private bool TryClaimAbandonedSubscriptionExpiration(ISubscription subscription)
+        private bool TryClaimAbandonedSubscriptionExpiration(ISubscriptionPublishPipeline subscription)
         {
             m_semaphoreSlim.Wait();
             try
             {
                 if (!m_subscriptions.TryGetValue(
                         subscription.Id,
-                        out ISubscription? currentSubscription) ||
+                        out ISubscriptionPublishPipeline? currentSubscription) ||
                     !ReferenceEquals(currentSubscription, subscription) ||
                     m_expiringSubscriptions.ContainsKey(subscription.Id) ||
                     subscription.Session != null)
@@ -1143,12 +1163,12 @@ namespace Opc.Ua.Server
             }
         }
 
-        private bool TryRemoveAbandonedSubscription(ISubscription subscription)
+        private bool TryRemoveAbandonedSubscription(ISubscriptionPublishPipeline subscription)
         {
-            var entry = new KeyValuePair<uint, ISubscription>(
+            var entry = new KeyValuePair<uint, ISubscriptionPublishPipeline>(
                 subscription.Id,
                 subscription);
-            return ((ICollection<KeyValuePair<uint, ISubscription>>)m_abandonedSubscriptions)
+            return ((ICollection<KeyValuePair<uint, ISubscriptionPublishPipeline>>)m_abandonedSubscriptions)
                 .Remove(entry);
         }
 
@@ -1156,7 +1176,7 @@ namespace Opc.Ua.Server
         {
             return m_abandonedSubscriptions.TryGetValue(
                     subscription.Id,
-                    out ISubscription? currentSubscription) &&
+                    out ISubscriptionPublishPipeline? currentSubscription) &&
                 ReferenceEquals(currentSubscription, subscription);
         }
 
@@ -1220,7 +1240,7 @@ namespace Opc.Ua.Server
                 {
                     // blocks until a subscription is available or timeout expires.
                     // Publish requests always carry a channel context.
-                    ISubscription subscription = await queue.PublishAsync(
+                    ISubscriptionPublishPipeline subscription = await queue.PublishAsync(
                         context.ChannelContext!.SecureChannelId,
                         context.OperationDeadline,
                         requeue,
@@ -1324,7 +1344,7 @@ namespace Opc.Ua.Server
 
             // find subscription.
 
-            if (!m_subscriptions.TryGetValue(subscriptionId, out ISubscription? subscription))
+            if (!m_subscriptions.TryGetValue(subscriptionId, out ISubscriptionPublishPipeline? subscription))
             {
                 throw new ServiceResultException(StatusCodes.BadSubscriptionIdInvalid);
             }
@@ -1385,7 +1405,7 @@ namespace Opc.Ua.Server
         {
             revisedLifetimeInHours = 0;
 
-            if (!m_subscriptions.TryGetValue(subscriptionId, out ISubscription? subscription))
+            if (!m_subscriptions.TryGetValue(subscriptionId, out ISubscriptionPublishPipeline? subscription))
             {
                 throw new ServiceResultException(StatusCodes.BadSubscriptionIdInvalid);
             }
@@ -1440,7 +1460,7 @@ namespace Opc.Ua.Server
                 {
                     // find subscription.
 
-                    if (!m_subscriptions.TryGetValue(subscriptionIds[ii], out ISubscription? subscription))
+                    if (!m_subscriptions.TryGetValue(subscriptionIds[ii], out ISubscriptionPublishPipeline? subscription))
                     {
                         throw new ServiceResultException(StatusCodes.BadSubscriptionIdInvalid);
                     }
@@ -1518,7 +1538,7 @@ namespace Opc.Ua.Server
                 try
                 {
                     // find subscription.
-                    if (!m_subscriptions.TryGetValue(subscriptionIds[ii], out ISubscription? subscription))
+                    if (!m_subscriptions.TryGetValue(subscriptionIds[ii], out ISubscriptionPublishPipeline? subscription))
                     {
                         result.StatusCode = StatusCodes.BadSubscriptionIdInvalid;
                         results.Add(result);
@@ -1533,7 +1553,6 @@ namespace Opc.Ua.Server
                         diagnostics => diagnostics.TransferRequestCount++);
 
                     ISession ownerSession = null!;
-                    var concreteSubscription = subscription as Subscription;
                     SessionPublishQueue? sourcePublishQueue = null;
                     SessionPublishQueue.SubscriptionTransferClaim? sourceQueueClaim = null;
                     bool sourceIsAbandoned = false;
@@ -1547,7 +1566,7 @@ namespace Opc.Ua.Server
                     {
                         if (!m_subscriptions.TryGetValue(
                                 subscriptionIds[ii],
-                                out ISubscription? currentSubscription) ||
+                                out ISubscriptionPublishPipeline? currentSubscription) ||
                             !ReferenceEquals(currentSubscription, subscription) ||
                             m_expiringSubscriptions.ContainsKey(subscription.Id))
                         {
@@ -1623,44 +1642,10 @@ namespace Opc.Ua.Server
                                 continue;
                             }
 
-                            if (concreteSubscription != null)
-                            {
-                                if (!sourcePublishQueue.TryClaimForTransfer(
-                                        concreteSubscription,
-                                        ownerSession,
-                                        out sourceQueueClaim))
-                                {
-                                    result.StatusCode = StatusCodes.BadSubscriptionIdInvalid;
-                                    results.Add(result);
-                                    if ((context.DiagnosticsMask & DiagnosticsMasks.OperationAll) != 0)
-                                    {
-                                        diagnosticInfos.Add(null!);
-                                    }
-                                    continue;
-                                }
-                                sourceRemoved = true;
-                                transferStarted = true;
-                            }
-                            else
-                            {
-                                sourceRemoved = sourcePublishQueue.TryRemoveForTransfer(subscription);
-                                if (!sourceRemoved)
-                                {
-                                    result.StatusCode = StatusCodes.BadSubscriptionIdInvalid;
-                                    results.Add(result);
-                                    if ((context.DiagnosticsMask & DiagnosticsMasks.OperationAll) != 0)
-                                    {
-                                        diagnosticInfos.Add(null!);
-                                    }
-                                    continue;
-                                }
-                            }
-                        }
-                        else if (ContainsAbandonedSubscription(subscription))
-                        {
-                            sourceIsAbandoned = true;
-                            if (concreteSubscription != null &&
-                                !concreteSubscription.TryBeginTransfer(null))
+                            if (!sourcePublishQueue.TryClaimForTransfer(
+                                    subscription,
+                                    ownerSession,
+                                    out sourceQueueClaim))
                             {
                                 result.StatusCode = StatusCodes.BadSubscriptionIdInvalid;
                                 results.Add(result);
@@ -1670,11 +1655,27 @@ namespace Opc.Ua.Server
                                 }
                                 continue;
                             }
-                            transferStarted = concreteSubscription != null;
+                            sourceRemoved = true;
+                            transferStarted = true;
+                        }
+                        else if (ContainsAbandonedSubscription(subscription))
+                        {
+                            sourceIsAbandoned = true;
+                            if (!subscription.TryBeginTransfer(null))
+                            {
+                                result.StatusCode = StatusCodes.BadSubscriptionIdInvalid;
+                                results.Add(result);
+                                if ((context.DiagnosticsMask & DiagnosticsMasks.OperationAll) != 0)
+                                {
+                                    diagnosticInfos.Add(null!);
+                                }
+                                continue;
+                            }
+                            transferStarted = true;
                             sourceRemoved = TryRemoveAbandonedSubscription(subscription);
                             if (!sourceRemoved)
                             {
-                                concreteSubscription?.AbortTransfer(null);
+                                subscription.AbortTransfer(null);
                                 result.StatusCode = StatusCodes.BadSubscriptionIdInvalid;
                                 results.Add(result);
                                 if ((context.DiagnosticsMask & DiagnosticsMasks.OperationAll) != 0)
@@ -1694,9 +1695,9 @@ namespace Opc.Ua.Server
                             }
                             continue;
                         }
-                        else if (concreteSubscription != null)
+                        else
                         {
-                            if (!concreteSubscription.TryBeginTransfer(null))
+                            if (!subscription.TryBeginTransfer(null))
                             {
                                 result.StatusCode = StatusCodes.BadSubscriptionIdInvalid;
                                 results.Add(result);
@@ -1711,25 +1712,14 @@ namespace Opc.Ua.Server
 
                         try
                         {
-                            if (concreteSubscription != null)
-                            {
-                                preparedTransfer = await concreteSubscription
-                                    .PrepareSessionTransferAsync(
-                                        context,
-                                        ownerSession,
-                                        sendInitialValues,
-                                        cancellationToken)
-                                    .ConfigureAwait(false);
-                                preparedTransfer.CommitOwnership();
-                            }
-                            else
-                            {
-                                await subscription.TransferSessionAsync(
-                                        context,
-                                        sendInitialValues,
-                                        cancellationToken)
-                                    .ConfigureAwait(false);
-                            }
+                            preparedTransfer = await subscription
+                                .PrepareSessionTransferAsync(
+                                    context,
+                                    ownerSession,
+                                    sendInitialValues,
+                                    cancellationToken)
+                                .ConfigureAwait(false);
+                            preparedTransfer.CommitOwnership();
 
                             // add to queue in new session, create queue if necessary
                             if (!m_publishQueues.TryGetValue(
@@ -1746,11 +1736,8 @@ namespace Opc.Ua.Server
                             }
                             destinationPublishQueue.Add(subscription);
                             destinationAdded = true;
-                            preparedTransfer?.CommitMonitoredItemEffects();
-                            if (concreteSubscription != null)
-                            {
-                                concreteSubscription.CompleteTransfer(context.Session);
-                            }
+                            preparedTransfer.CommitMonitoredItemEffects();
+                            subscription.CompleteTransfer(context.Session);
                             if (sourceQueueClaim != null)
                             {
                                 sourcePublishQueue!.CompleteTransferClaim(sourceQueueClaim);
@@ -1778,8 +1765,7 @@ namespace Opc.Ua.Server
                                 }
                             }
                             else if (!ReferenceEquals(subscription.Session, ownerSession) &&
-                                concreteSubscription != null &&
-                                !concreteSubscription.TryRestoreSessionAfterFailedTransfer(
+                                !subscription.TryRestoreSessionAfterFailedTransfer(
                                     context.Session,
                                     ownerSession))
                             {
@@ -1816,7 +1802,7 @@ namespace Opc.Ua.Server
 
                             if (transferStarted)
                             {
-                                concreteSubscription!.AbortTransfer(ownerSession);
+                                subscription.AbortTransfer(ownerSession);
                             }
 
                             if (rollbackErrors.Count > 0)
@@ -1978,7 +1964,7 @@ namespace Opc.Ua.Server
             uint retransmitSequenceNumber)
         {
             // find subscription.
-            if (!m_subscriptions.TryGetValue(subscriptionId, out ISubscription? subscription))
+            if (!m_subscriptions.TryGetValue(subscriptionId, out ISubscriptionPublishPipeline? subscription))
             {
                 throw new ServiceResultException(StatusCodes.BadSubscriptionIdInvalid);
             }
@@ -2003,8 +1989,7 @@ namespace Opc.Ua.Server
             out ArrayOf<DiagnosticInfo> removeDiagnosticInfos)
         {
             // find subscription.
-
-            if (!m_subscriptions.TryGetValue(subscriptionId, out ISubscription? subscription))
+            if (!m_subscriptions.TryGetValue(subscriptionId, out ISubscriptionPublishPipeline? subscription))
             {
                 throw new ServiceResultException(StatusCodes.BadSubscriptionIdInvalid);
             }
@@ -2033,7 +2018,7 @@ namespace Opc.Ua.Server
             CancellationToken cancellationToken = default)
         {
             // find subscription.
-            if (!m_subscriptions.TryGetValue(subscriptionId, out ISubscription? subscription))
+            if (!m_subscriptions.TryGetValue(subscriptionId, out ISubscriptionPublishPipeline? subscription))
             {
                 throw new ServiceResultException(StatusCodes.BadSubscriptionIdInvalid);
             }
@@ -2073,7 +2058,7 @@ namespace Opc.Ua.Server
             CancellationToken cancellationToken = default)
         {
             // find subscription.
-            if (!m_subscriptions.TryGetValue(subscriptionId, out ISubscription? subscription))
+            if (!m_subscriptions.TryGetValue(subscriptionId, out ISubscriptionPublishPipeline? subscription))
             {
                 throw new ServiceResultException(StatusCodes.BadSubscriptionIdInvalid);
             }
@@ -2097,7 +2082,7 @@ namespace Opc.Ua.Server
             CancellationToken cancellationToken = default)
         {
             // find subscription.
-            if (!m_subscriptions.TryGetValue(subscriptionId, out ISubscription? subscription))
+            if (!m_subscriptions.TryGetValue(subscriptionId, out ISubscriptionPublishPipeline? subscription))
             {
                 throw new ServiceResultException(StatusCodes.BadSubscriptionIdInvalid);
             }
@@ -2136,7 +2121,7 @@ namespace Opc.Ua.Server
             CancellationToken cancellationToken = default)
         {
             // find subscription.
-            if (!m_subscriptions.TryGetValue(subscriptionId, out ISubscription? subscription))
+            if (!m_subscriptions.TryGetValue(subscriptionId, out ISubscriptionPublishPipeline? subscription))
             {
                 throw new ServiceResultException(StatusCodes.BadSubscriptionIdInvalid);
             }
@@ -2517,7 +2502,7 @@ namespace Opc.Ua.Server
                     // ConcurrentDictionary enumeration is thread-safe and provides a stable
                     // snapshot for the current pass without taking the manager semaphore.
                     SessionPublishQueue[] queues = [.. m_publishQueues.Values];
-                    IReadOnlyList<ISubscription> abandonedSubscriptions =
+                    IReadOnlyList<ISubscriptionPublishPipeline> abandonedSubscriptions =
                         CaptureAbandonedPublishTimerSnapshot();
 
                     // check the publish timer for each subscription. Each queue is
@@ -2568,7 +2553,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Captures the abandoned subscriptions processed by one publish timer pass.
         /// </summary>
-        internal IReadOnlyList<ISubscription> CaptureAbandonedPublishTimerSnapshot()
+        internal IReadOnlyList<ISubscriptionPublishPipeline> CaptureAbandonedPublishTimerSnapshot()
         {
             return [.. m_abandonedSubscriptions.Values];
         }
@@ -2577,17 +2562,17 @@ namespace Opc.Ua.Server
         /// Checks the publish timer for an exact abandoned subscription snapshot.
         /// </summary>
         internal void ProcessAbandonedPublishTimers(
-            IReadOnlyList<ISubscription> abandonedSubscriptions)
+            IReadOnlyList<ISubscriptionPublishPipeline> abandonedSubscriptions)
         {
             if (abandonedSubscriptions.Count == 0)
             {
                 return;
             }
 
-            var subscriptionsToDelete = new List<ISubscription>();
+            var subscriptionsToDelete = new List<ISubscriptionPublishPipeline>();
             for (int ii = 0; ii < abandonedSubscriptions.Count; ii++)
             {
-                ISubscription subscription = abandonedSubscriptions[ii];
+                ISubscriptionPublishPipeline subscription = abandonedSubscriptions[ii];
                 if (!ContainsAbandonedSubscription(subscription) ||
                     subscription.PublishTimerExpired() != PublishingState.Expired ||
                     !TryClaimAbandonedSubscriptionExpiration(subscription))
@@ -2684,7 +2669,7 @@ namespace Opc.Ua.Server
         /// before the caller that scheduled it goes away.</param>
         internal static void CleanupSubscriptions(
             IServerInternal server,
-            IList<ISubscription> subscriptionsToDelete,
+            IList<ISubscriptionPublishPipeline> subscriptionsToDelete,
             ILogger logger,
             BackgroundTaskScope backgroundWork)
         {
@@ -2704,7 +2689,7 @@ namespace Opc.Ua.Server
         /// </summary>
         private static async ValueTask CleanupSubscriptionsCoreAsync(
             IServerInternal server,
-            IList<ISubscription> subscriptionsToDelete,
+            IList<ISubscriptionPublishPipeline> subscriptionsToDelete,
             ILogger logger,
             CancellationToken cancellationToken = default)
         {
@@ -2712,7 +2697,7 @@ namespace Opc.Ua.Server
             {
                 logger.ServerCleanupSubscriptionsTaskStarted();
 
-                foreach (ISubscription subscription in subscriptionsToDelete)
+                foreach (ISubscriptionPublishPipeline subscription in subscriptionsToDelete)
                 {
                     await server.DeleteSubscriptionAsync(subscription.Id, cancellationToken).ConfigureAwait(false);
                 }
@@ -2784,9 +2769,9 @@ namespace Opc.Ua.Server
         private readonly int m_maxPublishRequestCount;
         private readonly int m_maxSubscriptionCount;
         private readonly bool m_durableSubscriptionsEnabled;
-        private readonly ConcurrentDictionary<uint, ISubscription> m_subscriptions;
-        private readonly ConcurrentDictionary<uint, ISubscription> m_abandonedSubscriptions;
-        private readonly Dictionary<uint, ISubscription> m_expiringSubscriptions;
+        private readonly ConcurrentDictionary<uint, ISubscriptionPublishPipeline> m_subscriptions;
+        private readonly ConcurrentDictionary<uint, ISubscriptionPublishPipeline> m_abandonedSubscriptions;
+        private readonly Dictionary<uint, ISubscriptionPublishPipeline> m_expiringSubscriptions;
         private readonly NodeIdDictionary<Queue<StatusMessage>> m_statusMessages;
         private readonly NodeIdDictionary<SessionPublishQueue> m_publishQueues;
         private readonly ManualResetEvent m_shutdownEvent;

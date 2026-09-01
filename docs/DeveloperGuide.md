@@ -17,7 +17,7 @@ The C# language version is pinned (`LangVersion` 14) and analyzer/style rules ar
 
 | Path | Contents |
 | --- | --- |
-| `src/` | The core stack and higher-level libraries: `Opc.Ua.Types`, `Opc.Ua.Core*`, `Opc.Ua.Client`, `Opc.Ua.Server`, `Opc.Ua.Configuration`, `Opc.Ua.PubSub` (+ transports), the GDS / DI / LDS / WoT / AAS libraries, and the `Opc.Ua.Redundancy*` family. |
+| `src/` | The core stack and higher-level libraries: `Opc.Ua.Types`, `Opc.Ua.Core*`, `Opc.Ua.Client`, `Opc.Ua.Server`, `Opc.Ua.Configuration`, `Opc.Ua.PubSub` (+ transports), the GDS / DI / LDS / WoT libraries, and the `Opc.Ua.Redundancy*` family. |
 | `samples/` | Reference and sample apps: `ConsoleReferenceServer`, `ConsoleReferenceClient`, `Quickstarts.Servers`, the `Minimal*` / `PumpDeviceIntegrationServer` NativeAOT samples, `Redundant*`, etc. |
 | `tests/` | Unit and integration test projects, mirroring the library structure, plus shared test frameworks. |
 | `tools/` | Source generators, migration analyzers, and the installable `Opc.Ua.Mcp` tool. Each analyzer and generator has a build project and — for the source generators — a `*.Pack` project that packages it under a Roslyn-versioned analyzer folder. |
@@ -68,6 +68,21 @@ Conventions and requirements:
 - **Coverage.** Coverage is measured with **Coverlet** and must not regress; every non-application, non-test project should stay at or above **80 %**. Two gates enforce this in CI — see [Continuous integration](#continuous-integration).
 - **Integration tests.** Client/server and pub/sub features need integration tests as well as unit tests. A feature library's integration tests normally live with its unit tests in `<Component>.Tests`, for example `Opc.Ua.Robotics.Tests`, and every test project name ends in `.Tests`. Split integration tests into a separate project only when they run long, destabilise the unit tests, or the suite needs further division. Keep them deterministic: allocate a free port per fixture rather than hard-coding one, wait on the actual signal instead of using `Thread.Sleep` as a synchronisation primitive, and dispose every session, subscription and server in teardown including on failure. A flaky integration test is worse than none.
 - **Test output.** Do not write per-test diagnostics to `TestContext.Out` (or the console) unconditionally. The NUnit adapter forwards every captured line to the test runner as its own message over the socket it shares with the test host, so output that is harmless in one test becomes a bottleneck when a data-driven fixture repeats it thousands of times — it inflates the published results artifact, slows the run, and can wedge that socket until the CI job times out with no output at all (issue #4213). Buffer the dump and emit it only when the test does not pass; `EncoderCommon.TestOutput` in [`tests/Opc.Ua.Core.TestFramework/EncoderCommon.cs`](../tests/Opc.Ua.Core.TestFramework/EncoderCommon.cs) does exactly that and is the pattern to copy.
+- **Certificate leak diagnostics.** Set `OPCUA_CERTIFICATE_LEAK_TRACKING=1` before starting a
+  test process to capture allocation stacks for `Certificate` handles that are not explicitly
+  disposed. The assembly-level leak detector includes live and unreachable outstanding handles,
+  their allocation stacks, and the NUnit fixture where available. Tracking is enabled by default
+  in Debug builds and opt-in in Release because stack capture adds per-certificate overhead. The
+  equivalent AppContext switch is `Opc.Ua.Security.Certificates.CertificateLeakTracking`; set it
+  before the first `Certificate` is created. For example, in PowerShell:
+
+  ```powershell
+  $env:OPCUA_CERTIFICATE_LEAK_TRACKING = '1'
+  dotnet test `
+      tests\Opc.Ua.Sessions.Tests\Opc.Ua.Sessions.Tests.csproj `
+      -f net10.0 `
+      -p:CustomTestTarget=net10.0
+  ```
 - **Before a pull request** the `UA.slnx` suite must pass on at least **.NET Framework 4.8** and **.NET 10.0**.
 - **Testing a specific target framework.** The libraries multi-target, but the test executables run on one framework at a time. To run the suite against a non-default framework, set `CustomTestTarget` (supported values: `netstandard2.0`, `netstandard2.1`, `net472`, `net48`, `net8.0`, `net9.0`, `net10.0`). The batch file [`tests/customtest.bat`](../tests/customtest.bat) cleans, restores, and runs the tests for a chosen target; in Visual Studio, uncomment and set the `CustomTestTarget` property in [`targets.props`](../targets.props). A clean build for the target is recommended when switching.
 - **CI matrix.** The pull-request gate runs the test suite on **net48** and **net10.0**, and compiles the solution for *every* supported target framework; the remaining test matrices (Debug, .NET 9/8, .NET Framework 4.7.2, netstandard) run in scheduled or manual CI. Fix all failing, flaky, and CodeQL findings in the pipelines. See [Continuous integration](#continuous-integration).
@@ -218,7 +233,12 @@ The following NuGet packages are released on a monthly cadence (with hot fixes f
 - [OPCFoundation.NetStandard.Opc.Ua.Bindings.Https](https://www.nuget.org/packages/OPCFoundation.NetStandard.Opc.Ua.Bindings.Https/) — optional `opc.https` transport.
 - [OPCFoundation.NetStandard.Opc.Ua.PubSub](https://www.nuget.org/packages/OPCFoundation.NetStandard.Opc.Ua.PubSub/) (Beta) — publisher/subscriber model.
 
-For improved source-level debugging, symbol packages are published on nuget.org in `snupkg` format, and `Debug`-compiled packages are available with a `.Debug` suffix. In addition, every successful `master` build publishes preview packages to the [Azure DevOps preview feed](https://opcfoundation.visualstudio.com/opcua-netstandard/_artifacts/feed/opcua-preview).
+For improved source-level debugging, symbol packages are published on nuget.org in `snupkg` format, and
+`Debug`-compiled packages are available with a `.Debug` suffix. Public 2.0 previews are also published on
+nuget.org. Use `2.0.0-preview.*` to float to the latest published
+`2.0.0-preview.N` release, pass `--prerelease` to `dotnet add package`, or
+select *Include prerelease* in Visual Studio. No additional package source or
+credentials are required.
 
 The full set of packages the preview pipeline produces is pinned in [`.azurepipelines/expected-packages.txt`](../.azurepipelines/expected-packages.txt). `.azurepipelines/validate-source-generator-packages.ps1` fails the build when the packed output does not match it, so adding, removing or renaming a shipped package has to be done deliberately in the same pull request. That script also validates the analyzer packages: their `analyzers/dotnet/roslyn<major>.<minor>/cs` layout, that they carry their runtime closure privately, that the model generator's auto-imported `build/<PackageId>.props` is named after the package id, and — end to end — that a standalone project consuming the packed generator with a NodeSet actually gets code generated.
 
@@ -418,4 +438,3 @@ Omit `-BaseRef` to check only the project floor, and `-SummaryPath` to skip the 
 - [Diagnostics](Diagnostics.md) — telemetry context, logging runtime, metrics, audit events, server diagnostics nodes, and packet capture.
 - [Dependency Injection](DependencyInjection.md), [Certificates](Certificates.md) / [Certificate Manager](CertificateManager.md), [NativeAOT](NativeAoT.md), [Migration Guide](MigrationGuide.md), [What's New in 2.0](WhatsNewIn2.0.md).
 - [Fuzz testing](../fuzzing/Fuzzing.md).
-

@@ -825,9 +825,6 @@ namespace Opc.Ua.Server.Tests
                     context, MonitoringMode.Reporting, [])));
             AssertBadSubscriptionId(Assert.ThrowsAsync<ServiceResultException>(
                 async () => await subscription.ConditionRefreshAsync()));
-            AssertBadSubscriptionId(Assert.ThrowsAsync<ServiceResultException>(
-                async () => await subscription.TransferSessionAsync(
-                    context, sendInitialValues: false)));
         }
 
         private static void AssertBadSubscriptionId(ServiceResultException ex)

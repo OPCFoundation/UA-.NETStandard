@@ -899,12 +899,23 @@ namespace Opc.Ua.Server.StateMachines
         /// </summary>
         /// <param name="methodNodeId">The method node whose
         /// <c>OnCallMethod2</c> handler will be installed.</param>
+        /// <param name="reportExecutable">When <c>true</c> (the
+        /// default) the method's <c>Executable</c> and
+        /// <c>UserExecutable</c> attributes are answered from
+        /// <see cref="FiniteStateMachineState.IsCausePermitted"/>, so a
+        /// client can see which causes apply in the current state and a
+        /// call made anyway is refused with <c>Bad_NotExecutable</c>
+        /// (Part 4 §5.11.2). Pass <c>false</c> for servers that
+        /// deliberately keep the method executable at all times and
+        /// answer at call time instead.</param>
         /// <exception cref="ArgumentException">
         /// <paramref name="methodNodeId"/> is null, has a non-numeric
         /// identifier, or could not be resolved to a child method
         /// of the state machine.
         /// </exception>
-        public StateMachineBuilder<TState> WithCause(NodeId methodNodeId)
+        public StateMachineBuilder<TState> WithCause(
+            NodeId methodNodeId,
+            bool reportExecutable = true)
         {
             FreezeDefinition();
 
@@ -930,7 +941,7 @@ namespace Opc.Ua.Server.StateMachines
                     "machine's children.",
                     nameof(methodNodeId));
 
-            m_dispatcher.InstallCauseMethod(method, causeId);
+            m_dispatcher.InstallCauseMethod(method, causeId, reportExecutable);
 
             // Part 16 §4.4.11: every transition this cause can trigger
             // gets a HasCause reference to the method node. Only
@@ -1590,10 +1601,34 @@ namespace Opc.Ua.Server.StateMachines
             EnsureInstalled();
         }
 
-        public void InstallCauseMethod(MethodState method, uint causeId)
+        public void InstallCauseMethod(
+            MethodState method,
+            uint causeId,
+            bool reportExecutable = true)
         {
             method.OnCallMethod2 = (ctx, m, objectId, inputs, outputs) =>
                 m_stateMachine.DoCause(ctx, m, causeId, inputs, outputs);
+
+            if (!reportExecutable)
+            {
+                return;
+            }
+
+            // Part 3 §5.7: Executable / UserExecutable answer "may this
+            // Method be called right now"; for a Part 16 cause that is
+            // exactly IsCausePermitted. Without this the attributes stay
+            // at the node's construction value (true) and a client can
+            // only discover the answer by calling and being refused.
+            method.OnReadExecutable =
+                (ISystemContext ctx, NodeState node, ref bool value) => {
+                    value = m_stateMachine.IsCausePermitted(ctx, causeId, false);
+                    return ServiceResult.Good;
+                };
+            method.OnReadUserExecutable =
+                (ISystemContext ctx, NodeState node, ref bool value) => {
+                    value = m_stateMachine.IsCausePermitted(ctx, causeId, true);
+                    return ServiceResult.Good;
+                };
         }
 
         public void AddTimedTransition(

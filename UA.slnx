@@ -4,7 +4,6 @@
     <Project Path="samples/WotCon/AggregationClient/AggregationClient.csproj" />
     <Project Path="samples/WotCon/AggregationServer/AggregationServer.csproj" />
     <Project Path="samples/WotCon/FlatTagServer/FlatTagServer.csproj" />
-    <Project Path="samples/Aas/AasSample.csproj" />
     <Project Path="samples/Robotics/MinimalRobotServer/MinimalRobotServer.csproj" />
     <Project Path="samples/Robotics/IntentEnabledRobot/IntentEnabledRobot.csproj" />
     <Project Path="samples/Robotics/IntentViewerClient/IntentViewerClient.csproj" />
@@ -141,10 +140,6 @@
     <Project Path="src/Opc.Ua.XRegistry/Opc.Ua.XRegistry.csproj" />
     <Project Path="src/Opc.Ua.XRegistry.Client/Opc.Ua.XRegistry.Client.csproj" />
     <Project Path="src/Opc.Ua.XRegistry.Server/Opc.Ua.XRegistry.Server.csproj" />
-    <Project Path="src/Opc.Ua.Aas/Opc.Ua.Aas.csproj" />
-    <Project Path="src/Opc.Ua.Aas.Server/Opc.Ua.Aas.Server.csproj" />
-    <Project Path="src/Opc.Ua.Aas.Client/Opc.Ua.Aas.Client.csproj" />
-    <Project Path="src/Opc.Ua.Aas.WoT/Opc.Ua.Aas.WoT.csproj" />
     <Project Path="src/Opc.Ua.Redundancy.Server/Opc.Ua.Redundancy.Server.csproj" />
     <Project Path="src/Opc.Ua.Redundancy.Client/Opc.Ua.Redundancy.Client.csproj" />
     <Project Path="src/Opc.Ua.Redundancy.Kubernetes/Opc.Ua.Redundancy.Kubernetes.csproj" />
@@ -320,7 +315,6 @@
     <Project Path="tests/Opc.Ua.Server.Tests/Opc.Ua.Server.Tests.csproj" />
     <Project Path="tests/Opc.Ua.XRegistry.Tests/Opc.Ua.XRegistry.Tests.csproj" />
     <Project Path="tests/Opc.Ua.AI.Tests/Opc.Ua.AI.Tests.csproj" />
-    <Project Path="tests/Opc.Ua.Aas.Tests/Opc.Ua.Aas.Tests.csproj" />
     <Project Path="tests/Opc.Ua.Redundancy.Server.Tests/Opc.Ua.Redundancy.Server.Tests.csproj" />
     <Project Path="tests/Opc.Ua.Redundancy.Kubernetes.Tests/Opc.Ua.Redundancy.Kubernetes.Tests.csproj" />
     <Project Path="tests/Opc.Ua.Redundancy.Samples.Tests/Opc.Ua.Redundancy.Samples.Tests.csproj" />

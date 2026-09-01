@@ -1,6 +1,6 @@
 # Improved Type Safety
 
-> **When to read this:** Read this when hit by `CS0029` / `CS1503` / `CS0266` on `NodeId`, `Variant`, `DataValue`, `ExtensionObject`, `QualifiedName`, `LocalizedText`, `ArrayOf<T>` / `MatrixOf<T>`, `ByteString`, `StatusCode`, `XmlElement`, `EnumValue`, or by `[Obsolete]` warnings on built-in type APIs - covers every value-type and `Variant`-for-`object` migration. Maps to analyzer rules UA0001-UA0020.
+> **When to read this:** Read this when hit by `CS0029` / `CS1503` / `CS0266` on `NodeId`, `Variant`, `DataValue`, `ExtensionObject`, `QualifiedName`, `LocalizedText`, `ArrayOf<T>` / `MatrixOf<T>`, `ByteString`, `StatusCode`, `XmlElement`, `EnumValue`, or by `[Obsolete]` warnings on built-in type APIs - covers every value-type and `Variant`-for-`object` migration. Maps to analyzer rules `UA0002`–`UA0008`, `UA0014`, and `UA0019`.
 
 ### Several built in types are now immutable value types
 

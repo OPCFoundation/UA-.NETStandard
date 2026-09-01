@@ -17,7 +17,8 @@ green build for most 1.5.378 consumers, leaving only `[Obsolete]` warnings + the
 
 API the 2.0 stack still exposes but no longer carries inline — the shim
 re-supplies them as `[Obsolete]` C# 14 `extension` members in the `Opc.Ua`
-namespace:
+namespace. The shim is precompiled, so consumer projects do not need to enable
+C# 14 to call those members:
 
 - `NodeId` / `Variant` / `DataValue` null-check helpers (`IsNull`,
   `IsNullOrEmpty`, …)
@@ -37,12 +38,16 @@ so call sites bind:
 - `EncodeableFactory.GlobalFactory` (UA0020) — returns a process-singleton
   factory backed by `ServiceMessageContext.GlobalContext.Factory`
 - `CertificateIdentifier.Certificate` (UA0018) — throws `NotSupportedException`
-  with a message pointing at `LoadCertificate2Async`. The shim exists so the
-  reference compiles; the analyzer fires UA0018 so the caller migrates.
+  with a message pointing at `CertificateIdentifierResolver.ResolveAsync`.
+  The shim exists so the reference compiles; the analyzer fires UA0018 so the
+  caller migrates.
 - Sync wrappers for `IUserIdentityTokenHandler.{Encrypt, Decrypt, Sign,
   Verify}` (UA0011)
 - Sync + APM wrappers for the `GlobalDiscoveryServerClient` /
   `LocalDiscoveryServerClient` / `ServerPushConfigurationClient` (UA0015)
+- `SecurityPolicies` lookup and cryptography statics (UA0029 marker) — forward
+  to `SecurityPolicies.Default` and produce `CS0618`. No analyzer currently
+  reports UA0029; migrate to the application's `ISecurityPolicyRegistry`.
 - `GlobalDiscoverySampleServer` 1.5.378-shape ctor (in-tree at
   `src/Opc.Ua.Gds.Server.Common/GlobalDiscoverySampleServer.cs`) — the 5-arg
   variant without `ITelemetryContext`
@@ -70,8 +75,8 @@ production hot paths because:
 - The wrapper synchronously blocks a thread that 2.0's async code path
   otherwise would have released. On constrained hosts (containers with low
   vCPU budget, Kestrel under load) this surfaces as request timeouts.
-- Any exceptions are wrapped in `AggregateException` and the stack trace
-  loses the original async causality chain.
+- Synchronous blocking obscures the async call chain and complicates timeout
+  and cancellation handling.
 
 The analyzers `UA0011` (token-handler sync wrappers) and `UA0015` (GDS / LDS
 sync + APM) report each sync shim use at **Info** severity, with a message
@@ -93,8 +98,8 @@ analyzer fix:
 
 The shim only ships in the migration package. Removing the
 `<PackageReference Include="OPCFoundation.NetStandard.Opc.Ua.MigrationAnalyzer">`
-removes both the analyzers and the shim DLL at once. Any remaining shim use is
-flagged by the analyzers; address those first, then remove the package.
+removes both the analyzers and the shim DLL at once. Remaining shim use is flagged by an analyzer or by compiler `[Obsolete]`
+warnings; address both before removing the package.
 
 After removal, the consumer's compile output references only the 2.0 stack —
 no `Opc.Ua.MigrationAnalyzer.Core.dll` is shipped or loaded at runtime.

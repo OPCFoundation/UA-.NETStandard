@@ -178,10 +178,18 @@ namespace Opc.Ua.MigrationAnalyzer.Diagnostics
 
         public static readonly DiagnosticDescriptor UA0021_CertificateValidatorRename = Create(
             DiagnosticIds.UA0021,
-            "CertificateValidator / CertificateValidationEventArgs renamed in 1.6",
-            "'{0}' was replaced in 1.6 by the new CertificateManager pipeline (ICertificateManager / ICertificateValidatorEx / CertificateValidationResult). The migration is structural (event-based -> async result + AcceptError callback) — see docs/migrate/2.0.x/certificates.md.",
+            "CertificateValidator / CertificateValidationEventArgs renamed in 2.0",
+            "'{0}' was replaced in 2.0 by the new CertificateManager pipeline " +
+            "(ICertificateManager / ICertificateValidatorEx / CertificateValidationResult). " +
+            "The migration is structural (event-based -> async result + AcceptError callback) — " +
+            "see docs/migrate/2.0.x/certificates.md.",
             DiagnosticSeverity.Info,
-            "The CertificateValidator class and CertificateValidationEventArgs were removed in 1.6. The new ICertificateManager (composed of ICertificateValidatorEx, ICertificateRegistry, ICertificateTrustListManager, ICertificateLifecycle) replaces them; per-error accept logic moves from the CertificateValidation event to CertificateValidationOptions.AcceptError. This rule is diagnostic-only because the migration changes the API shape (no mechanical rename).");
+            "The CertificateValidator class and CertificateValidationEventArgs were removed in 2.0. " +
+            "The new ICertificateManager (composed of ICertificateValidatorEx, " +
+            "ICertificateRegistry, ICertificateTrustListManager, ICertificateLifecycle) " +
+            "replaces them; per-error accept logic moves from the CertificateValidation event to " +
+            "CertificateValidationOptions.AcceptError. This rule is diagnostic-only because the " +
+            "migration changes the API shape (no mechanical rename).");
 
         public static readonly DiagnosticDescriptor UA0022_CertificateValidatorPropertyRename = Create(
             DiagnosticIds.UA0022,
@@ -193,9 +201,16 @@ namespace Opc.Ua.MigrationAnalyzer.Diagnostics
         public static readonly DiagnosticDescriptor UA0023_PubSubTopLevelObsolete = Create(
             DiagnosticIds.UA0023,
             "PubSub top-level types replaced in 2.0",
-            "'{0}' was replaced in 2.0 — use the new IPubSubApplication / PubSubApplicationBuilder surface (or AddPubSub() / AddUdpTransport() / AddMqttTransport() on IOpcUaBuilder)",
+            "'{0}' was replaced in 2.0 — use IPubSubApplication / " +
+            "PubSubApplicationBuilder, or call AddPubSub(...) on IOpcUaBuilder " +
+            "and configure transports on IPubSubBuilder",
             DiagnosticSeverity.Warning,
-            "The 1.04-era PubSub top-level types (UaPubSubApplication, IUaPubSubConnection, IUaPublisher, UaPubSubDataStore, UaPubSubConfigurator) ship as obsolete shims in 2.0; the new top-level surface uses provider-model abstractions wired via PubSubApplicationBuilder or Microsoft.Extensions.DependencyInjection extensions (docs/migrate/2.0.x/pubsub.md).");
+            "The 1.04-era application, connection, publisher, and configurator APIs " +
+            "are removed in 2.0. IUaPubSubDataStore remains as an obsolete bridge; " +
+            "the new top-level surface uses provider-model abstractions wired via " +
+            "PubSubApplicationBuilder or " +
+            "Microsoft.Extensions.DependencyInjection extensions " +
+            "(docs/migrate/2.0.x/pubsub.md).");
 
         public static readonly DiagnosticDescriptor UA0024_RemovedDiagnosticsLock = Create(
             DiagnosticIds.UA0024,
@@ -204,7 +219,7 @@ namespace Opc.Ua.MigrationAnalyzer.Diagnostics
             DiagnosticSeverity.Warning,
             "IServerInternal, ISession and ISubscription no longer expose DiagnosticsLock / DiagnosticsWriteLock. A caller could not see what else took those locks, in what order, or for how long, and holding one across a call back into the stack could deadlock. Each owner now applies the mutation itself through UpdateDiagnostics / UpdateServerDiagnostics, with ISession.ReadDiagnostics / ISubscription.ReadDiagnostics for projections. Do not let the diagnostics object escape the callback: once it returns the lock is released. This rule reports rather than fixes, because turning a lock statement body into a lambda depends on what the body captures and returns.");
 
-                    public static readonly DiagnosticDescriptor UA0025_RemovedNodeDataLock = Create(
+        public static readonly DiagnosticDescriptor UA0025_RemovedNodeDataLock = Create(
             DiagnosticIds.UA0025,
             "ILocalNode.DataLock is no longer exposed",
             "'{0}.DataLock' was removed in 2.0 — the node synchronizes its own state, so take a lock you own if the surrounding operation still needs to be atomic",
@@ -235,8 +250,19 @@ namespace Opc.Ua.MigrationAnalyzer.Diagnostics
         public static readonly DiagnosticDescriptor UA0029_SecurityPoliciesStaticsMoved = Create(
             DiagnosticIds.UA0029,
             "SecurityPolicies lookup and cryptography moved to ISecurityPolicyRegistry in 2.0",
-            "'SecurityPolicies.{0}' was removed in 2.0 — resolve an 'ISecurityPolicyRegistry' and call '{0}' on it, or use 'SecurityPolicies.Default' where no container is in scope",
+            "'SecurityPolicies.{0}' was removed in 2.0 — resolve an 'ISecurityPolicyRegistry' " +
+            "and call '{0}' on it, or use 'SecurityPolicies.Default' where no container is in scope",
             DiagnosticSeverity.Warning,
-            "These operate on the set of registered security policies rather than on constants, so they are members of the registry that owns that set. The registry also carries its own logger, so the Encrypt/Decrypt logger argument is gone. SecurityPolicies keeps the policy URI constants. See docs/MigrationGuide.md#ua0029.");
+            "These operate on the set of registered security policies rather than on constants, " +
+            "so they are members of the registry that owns that set. The registry also carries its " +
+            "own logger, so the Encrypt/Decrypt logger argument is gone. SecurityPolicies keeps the " +
+            "policy URI constants. See docs/MigrationGuide.md#ua0029.");
+
+        public static readonly DiagnosticDescriptor UA0030_SubscriptionPublishPipelineInternalized = Create(
+            DiagnosticIds.UA0030,
+            "The ISubscription publish pipeline is server-internal in 2.0",
+            "'{0}' was removed from the public API in 2.0 — {1}",
+            DiagnosticSeverity.Warning,
+            "The members that drive the publishing state machine (PublishTimerExpired, Acknowledge, PublishTimeout, SubscriptionTransferred, AvailableSequenceNumbersForRetransmission, QueueOverflowHandler, SessionClosed and Publish) moved onto an internal contract implemented only by Subscription, and SessionPublishQueue became internal: a caller outside the pipeline invoking them corrupted the publishing state machine (consumed notifications, advanced sequence numbers, released a subscription its session still owned). ItemReadyToPublish and ItemNotificationsAvailable were deleted outright - their bodies had been commented out since 1.5.x, so every call was already a no-op. TransferSessionAsync was deleted - the server transfers subscriptions through its internal claim/prepare/commit protocol, reached via the TransferSubscriptions service. Custom ISubscription implementations must derive from Subscription; subscription creation fails with Bad_InternalError otherwise. See docs/MigrationGuide.md#ua0030.");
     }
 }

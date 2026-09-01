@@ -9,14 +9,17 @@ not in place of it):
 ```xml
 <ItemGroup>
   <PackageReference Include="OPCFoundation.NetStandard.Opc.Ua.MigrationAnalyzer"
-                    Version="2.0.*-*"
+                    Version="2.0.0-preview.*"
                     PrivateAssets="all" />
 </ItemGroup>
 ```
 
-- `Version="2.0.*-*"` floats to the latest 2.0 preview, which is what you want
-  during the migration window. Pin to a specific version (e.g.
-  `"2.0.10-preview.gXXXXXXXX"`) once you have a stable target.
+- The package is public on nuget.org; no custom package source or
+  authentication is required.
+- `Version="2.0.0-preview.*"` floats to the latest published
+  `2.0.0-preview.N` release,
+  which is what you want during the migration window. Pin to a specific
+  version such as `"2.0.0-preview.3"` once you have a stable target.
 - `PrivateAssets="all"` ensures the package does not flow as a transitive
   dependency to downstream consumers of your library — it is a build-only
   helper, not a runtime dependency. After you finish the migration and remove
@@ -31,7 +34,7 @@ it up without an edit:
 <Project>
   <ItemGroup Condition="'$(SkipOpcUaMigrationAnalyzer)' != 'true'">
     <PackageReference Include="OPCFoundation.NetStandard.Opc.Ua.MigrationAnalyzer"
-                      Version="2.0.*-*"
+                      Version="2.0.0-preview.*"
                       PrivateAssets="all" />
   </ItemGroup>
 </Project>
@@ -51,7 +54,7 @@ want the analyzer running against.
 ## Bump the OPC UA package versions
 
 In the same edit, change every existing OPC UA reference from `1.5.378.x` to
-`2.0.*-*`:
+`2.0.0-preview.*`:
 
 ```xml
 <!-- Before -->
@@ -59,8 +62,8 @@ In the same edit, change every existing OPC UA reference from `1.5.378.x` to
 <PackageReference Include="OPCFoundation.NetStandard.Opc.Ua.Server" Version="1.5.378.145" />
 
 <!-- After -->
-<PackageReference Include="OPCFoundation.NetStandard.Opc.Ua.Core" Version="2.0.*-*" />
-<PackageReference Include="OPCFoundation.NetStandard.Opc.Ua.Server" Version="2.0.*-*" />
+<PackageReference Include="OPCFoundation.NetStandard.Opc.Ua.Core" Version="2.0.0-preview.*" />
+<PackageReference Include="OPCFoundation.NetStandard.Opc.Ua.Server" Version="2.0.0-preview.*" />
 ```
 
 Common packages and their 2.0 paths:
@@ -75,18 +78,23 @@ Common packages and their 2.0 paths:
 | `OPCFoundation.NetStandard.Opc.Ua.Server` | Unchanged name. |
 | `OPCFoundation.NetStandard.Opc.Ua.Bindings.Https` | Unchanged name. |
 | `OPCFoundation.NetStandard.Opc.Ua.Gds.Common` | **New in 2.0** — intermediate project with shared GDS types. If you reference `Gds.Client.Common` or `Gds.Server.Common`, they now depend on it transitively (no action needed in most cases). |
-| `OPCFoundation.NetStandard.Opc.Ua.Quickstarts.Servers` | **Not published on 2.0** — switch to a `<ProjectReference>` to `samples/Quickstarts.Servers` or equivalent. |
+| `OPCFoundation.NetStandard.Opc.Ua.Quickstarts.Servers` | Published in the 2.0 previews; keep the package reference and use a prerelease version. |
 
 If your solution already uses **Central Package Management** (`Directory.Packages.props`),
 update there instead:
 
 ```xml
 <ItemGroup>
-  <PackageVersion Include="OPCFoundation.NetStandard.Opc.Ua.Core" Version="2.0.*-*" />
-  <PackageVersion Include="OPCFoundation.NetStandard.Opc.Ua.MigrationAnalyzer" Version="2.0.*-*" />
+  <PackageVersion Include="OPCFoundation.NetStandard.Opc.Ua.Core" Version="2.0.0-preview.3" />
+  <PackageVersion Include="OPCFoundation.NetStandard.Opc.Ua.MigrationAnalyzer" Version="2.0.0-preview.3" />
   <!-- … -->
 </ItemGroup>
 ```
+
+Central Package Management rejects floating `PackageVersion` values by default
+(`NU1011`), so this example pins the public preview. To float centrally, set
+`<CentralPackageFloatingVersionsEnabled>true</CentralPackageFloatingVersionsEnabled>`
+and use `2.0.0-preview.*` deliberately.
 
 ## Restore and build
 
@@ -100,10 +108,10 @@ If `dotnet build` reports:
 - Only `[Obsolete]` (CS0612/CS0618), `UA00xx`, and `MIG01` **warnings** → success.
   Move on to applying the auto-fixes.
 - `NU1102: Unable to find package … with version (>= 2.0.…)` → the requested
-  package version isn't on a feed in your `NuGet.config`. Either bump the
-  package versions to match what is published, or add the
-  `https://opcfoundation.visualstudio.com/opcua-netstandard/_packaging/opcua-preview/nuget/v3/index.json`
-  preview feed as a source.
+  package version is not available from an enabled source. Confirm nuget.org
+  (`https://api.nuget.org/v3/index.json`) is enabled and use
+  `2.0.0-preview.*` or an exact preview such as `2.0.0-preview.3`.
+  `2.0.*` does not include prereleases.
 - `CS0246: type or namespace not found` for a `<Type>Collection` name → the
   source generator either couldn't resolve the element type (look for an
   accompanying `MIG01`) or the analyzer didn't load (verify with
@@ -121,10 +129,12 @@ dotnet format analyzers <YourSolution>.sln \
 Or run the helper script in `scripts/apply-codefixes.ps1` which auto-discovers
 the solution file and reports before/after warning counts.
 
-The 14 rules listed above are the **auto-fixable** subset of UA00xx. The 5
-remaining (`UA0001`, `UA0011`, `UA0015`, `UA0018`, `UA0021`) are diagnostic-only
-because they require human judgement — see `references/migration-patterns.md`
-for the manual playbook.
+The 14 rules listed above are the **auto-fixable** subset of UA00xx. The 12
+remaining (`UA0001`, `UA0011`, `UA0015`, `UA0018`, `UA0021`, and
+`UA0023`–`UA0028`, plus `UA0030`) are diagnostic-only because they require
+human judgement — see `references/migration-patterns.md` and
+`references/stack-migration/sessions-subscriptions.md` for the manual
+playbooks.
 
 ## Remove the package once warning-free
 
@@ -145,6 +155,6 @@ When the build is `0 Warnings 0 Errors` on the migration diagnostics:
 dotnet restore && dotnet build
 # 3. Apply auto-fixes
 dotnet format analyzers MySolution.sln --diagnostics UA0002 UA0003 UA0004 UA0005 UA0006 UA0007 UA0008 UA0009 UA0010 UA0012 UA0014 UA0019 UA0020 UA0022 --severity warn
-# 4. Walk UA0001/UA0011/UA0015/UA0018/UA0021 manually
+# 4. Walk UA0001/UA0011/UA0015/UA0018/UA0021, UA0023-UA0028, and UA0030 manually
 # 5. Remove MigrationAnalyzer reference; rebuild; commit
 ```

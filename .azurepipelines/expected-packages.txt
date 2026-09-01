@@ -18,10 +18,6 @@ OPCFoundation.NetStandard.Opc.Ua.AI
 OPCFoundation.NetStandard.Opc.Ua.AI.Client
 OPCFoundation.NetStandard.Opc.Ua.AI.Inference
 OPCFoundation.NetStandard.Opc.Ua.AI.Server
-OPCFoundation.NetStandard.Opc.Ua.Aas
-OPCFoundation.NetStandard.Opc.Ua.Aas.Client
-OPCFoundation.NetStandard.Opc.Ua.Aas.Server
-OPCFoundation.NetStandard.Opc.Ua.Aas.WoT
 OPCFoundation.NetStandard.Opc.Ua.Bindings.Https
 OPCFoundation.NetStandard.Opc.Ua.Client
 OPCFoundation.NetStandard.Opc.Ua.Client.ComplexTypes
