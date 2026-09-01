@@ -41,8 +41,10 @@ in its own `<Aliases>` table; the importer reports `BadNodeIdInvalid` for a
 name it cannot find. Both halves of the conversion produce such names —
 synthesis writes the readable names directly, and a restore reproduces
 whatever spelling the document it restores from used — so every converted
-NodeSet is passed through an alias-completion pass
-(`Opc.Ua.Wot.WotNodeSetAliases`) before it is returned.
+NodeSet is passed through an alias-completion pass before it is returned.
+That pass is not a WoT concept: `NodeSetAliasCompleter` and the table of
+standard names it resolves through (`NodeSetStandardAliases`) sit beside
+`UANodeSet` itself, and the converter is one of its callers.
 
 The pass declares only names it can resolve to a standard base-namespace
 Node, appended after the declarations the document already carried in
@@ -50,6 +52,12 @@ ascending ordinal order of the alias. It is idempotent, so a byte-exact
 `uav:nodeSet` restore stays byte-exact, and it never rewrites a name: a
 vendor alias the document uses but does not declare still fails the import
 with the message that names it, rather than being quietly discarded.
+
+Completion is a decision a *producer* makes about a document it writes.
+Comparison never makes it: `NodeSetComparer.CompareEquivalent` resolves
+only the aliases each document declares for itself, so a document that
+writes `HasComponent` without declaring it — which no Server could load —
+is not reported as equivalent to one that writes `i=47`.
 
 That matters beyond tidiness, because the runtime registry materialization
 path is `ConvertAsync` → serialize → `UANodeSet.Read` → `Import`. Every

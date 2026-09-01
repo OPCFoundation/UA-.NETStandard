@@ -189,7 +189,7 @@ namespace Opc.Ua.Types.Tests.Wot
             UANodeSet restored = WotNodeSetConverter.ToNodeSet(document);
             Assert.That(
                 NodeSetComparer.CompareEquivalent(
-                    source, restored, new WotNodeSetConverterOptions()).AreEquivalent,
+                    source, restored).AreEquivalent,
                 Is.True);
         }
 
@@ -238,7 +238,7 @@ namespace Opc.Ua.Types.Tests.Wot
             UANodeSet restored = WotNodeSetConverter.ToNodeSet(document);
             Assert.That(
                 NodeSetComparer.CompareEquivalent(
-                    source, restored, new WotNodeSetConverterOptions()).AreEquivalent,
+                    source, restored).AreEquivalent,
                 Is.True);
         }
 
@@ -485,7 +485,10 @@ namespace Opc.Ua.Types.Tests.Wot
             string rootLocale = "en",
             Export.LocalizedText[]? speedTitle = null)
         {
-            return new UANodeSet
+            // A NodeSet2 document may only use a name where a NodeId is
+            // expected if it declares that name, so the fixture declares what
+            // it uses and is a document a Server could load.
+            return NodeSetAliasCompleter.Complete(new UANodeSet
             {
                 NamespaceUris = ["urn:test:pump"],
                 Models = [new ModelTableEntry { ModelUri = "urn:test:pump" }],
@@ -546,7 +549,7 @@ namespace Opc.Ua.Types.Tests.Wot
                         ]
                     }
                 ]
-            };
+            })!;
         }
 
         private static WotConversionResult<UANodeSet> Convert(string members)

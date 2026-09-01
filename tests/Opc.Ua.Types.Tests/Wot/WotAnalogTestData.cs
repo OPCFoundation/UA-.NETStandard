@@ -156,12 +156,15 @@ namespace Opc.Ua.Types.Tests.Wot
                     150,
                     "i=80"));
             }
-            return new UANodeSet
+            // A NodeSet2 document may only use a name where a NodeId is
+            // expected if it declares that name, so the fixture declares what
+            // it uses and is a document a Server could load.
+            return NodeSetAliasCompleter.Complete(new UANodeSet
             {
                 NamespaceUris = ["urn:test:analog"],
                 Models = [new ModelTableEntry { ModelUri = "urn:test:analog" }],
                 Items = [.. items]
-            };
+            })!;
         }
 
         internal static UAVariable CreateRangeProperty(

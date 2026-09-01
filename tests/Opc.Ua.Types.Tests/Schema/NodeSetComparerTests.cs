@@ -34,8 +34,8 @@ using System.Text;
 using System.Xml;
 using NUnit.Framework;
 using Opc.Ua.Export;
-using Opc.Ua.Wot;
 using Opc.Ua.Types.Tests.Wot;
+using Opc.Ua.Wot;
 
 namespace Opc.Ua.Types.Tests.Schema
 {
@@ -65,8 +65,10 @@ namespace Opc.Ua.Types.Tests.Schema
         [Test]
         public void AnAliasAndTheIdentifierItStandsForAreEquivalentButNotIdentical()
         {
+            // The fixture declares "Double", so both spellings are legal here;
+            // a document that used the name without declaring it could not be
+            // imported and is not the same document at all.
             UANodeSet aliased = WotTestData.CreateReconstructableNodeSet();
-            aliased.Aliases = [new NodeIdAlias { Alias = "Double", Value = "i=11" }];
             aliased.Items!.OfType<UAVariable>().Single().DataType = "Double";
             UANodeSet expanded = WotTestData.CreateReconstructableNodeSet();
             expanded.Items!.OfType<UAVariable>().Single().DataType = "i=11";
@@ -120,6 +122,53 @@ namespace Opc.Ua.Types.Tests.Schema
                 NodeSetComparer.CompareEquivalent(left, right).AreEquivalent,
                 Is.False,
                 "Only a DataType, a ReferenceType and a Reference's target may be an alias.");
+        }
+
+        /// <summary>
+        /// An alias name is the document's own choice of shorthand, so two
+        /// documents that declare different names for one identifier state the
+        /// same fact and only spell it differently.
+        /// </summary>
+        [Test]
+        public void TwoDifferentlyNamedDeclaredAliasesForOneIdentifierAreEquivalent()
+        {
+            UANodeSet left = WotTestData.CreateReconstructableNodeSet();
+            left.Aliases = [new NodeIdAlias { Alias = "Double", Value = "i=11" }];
+            left.Items!.OfType<UAVariable>().Single().DataType = "Double";
+            UANodeSet right = WotTestData.CreateReconstructableNodeSet();
+            right.Aliases = [new NodeIdAlias { Alias = "TheDoubleType", Value = "i=11" }];
+            right.Items!.OfType<UAVariable>().Single().DataType = "TheDoubleType";
+
+            Assert.That(
+                NodeSetComparer.Compare(left, right).AreEquivalent,
+                Is.False,
+                "Compare answers whether the document was reproduced as written.");
+            Assert.That(
+                NodeSetComparer.CompareEquivalent(left, right).AreEquivalent,
+                Is.True,
+                "Each side resolves through its own table, so the names need not agree.");
+        }
+
+        /// <summary>
+        /// A name a document does not declare is not an alias, however
+        /// standard it reads. A NodeSet2 that writes <c>Double</c> without
+        /// declaring it cannot be imported at all, so resolving it here would
+        /// report an unloadable document as equivalent to a loadable one.
+        /// </summary>
+        [Test]
+        public void CompareEquivalentDoesNotResolveAnUndeclaredStandardName()
+        {
+            UANodeSet undeclared = WotTestData.CreateReconstructableNodeSet();
+            undeclared.Aliases = null;
+            undeclared.Items!.OfType<UAVariable>().Single().DataType = "Double";
+            UANodeSet expanded = WotTestData.CreateReconstructableNodeSet();
+            expanded.Aliases = null;
+            expanded.Items!.OfType<UAVariable>().Single().DataType = "i=11";
+
+            Assert.That(
+                NodeSetComparer.CompareEquivalent(undeclared, expanded).AreEquivalent,
+                Is.False,
+                "Comparison states what the documents say, not what they could have declared.");
         }
 
         [Test]
@@ -177,7 +226,7 @@ namespace Opc.Ua.Types.Tests.Schema
         public void MaxXmlDepthAllowsDocumentAtConfiguredLimit()
         {
             byte[] xml = CreateNestedXml(4);
-            var options = new WotNodeSetConverterOptions
+            var options = new NodeSetComparisonOptions
             {
                 MaxXmlDepth = 4
             };
@@ -192,7 +241,7 @@ namespace Opc.Ua.Types.Tests.Schema
         public void MaxXmlDepthRejectsDocumentPastConfiguredLimit()
         {
             byte[] xml = CreateNestedXml(5);
-            var options = new WotNodeSetConverterOptions
+            var options = new NodeSetComparisonOptions
             {
                 MaxXmlDepth = 4
             };
@@ -208,7 +257,7 @@ namespace Opc.Ua.Types.Tests.Schema
         [Test]
         public void RoundtripReportConfirmsNativePreservationWithoutEnvelope()
         {
-            NodeSetRoundtripReport report = NodeSetComparer.Roundtrip(
+            WotNodeSetRoundtripReport report = WotNodeSetRoundtrip.Run(
                 WotTestData.CreateRichNodeSet());
 
             Assert.That(report.NativeProjectionPreserved, Is.True);

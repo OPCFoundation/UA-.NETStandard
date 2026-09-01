@@ -789,8 +789,9 @@ not by copying the source document. The readable surface tracks the current
   the readable document and omits `uav:nodes` when it is equivalent; it then
   validates the structured projection when fallback is required. Tests that
   prove completeness use `Never` and assert that no opaque envelope exists.
-  `NodeSetRoundtripReport.NativeProjectionPreserved` and
-  `UsedPreservationEnvelope` distinguish the two paths.
+  `WotNodeSetRoundtripReport.NativeProjectionPreserved` and
+  `UsedPreservationEnvelope` distinguish the two paths
+  (`Opc.Ua.Wot.WotNodeSetRoundtrip.Run`).
 
 * **Unknown members survive as residue, not an envelope.** During
   TD/TM-to-NodeSet synthesis, only unrecognized or unmapped JSON values are

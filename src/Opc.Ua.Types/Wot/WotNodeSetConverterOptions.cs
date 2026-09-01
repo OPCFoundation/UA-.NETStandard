@@ -29,6 +29,7 @@
  * ======================================================================*/
 
 using System;
+using Opc.Ua.Export;
 
 namespace Opc.Ua.Wot
 {
@@ -281,9 +282,9 @@ namespace Opc.Ua.Wot
         }
 
         /// <summary>
-        /// Projects the aggregate resolver limits configured on this instance
-        /// onto a <see cref="WotResolverOptions"/> suitable for seeding a
-        /// single <see cref="WotResolutionContext"/> per top-level conversion.
+        /// Projects the resolver limits configured on this instance onto a
+        /// <see cref="WotResolverOptions"/> suitable for seeding a single
+        /// <see cref="WotResolutionContext"/> per top-level conversion.
         /// </summary>
         /// <returns>The equivalent bounded resolution options.</returns>
         public WotResolverOptions ToResolverOptions()
@@ -294,6 +295,24 @@ namespace Opc.Ua.Wot
                 MaxDocuments = MaxResolverDocuments,
                 MaxDocumentBytes = MaxResolverDocumentBytes,
                 MaxTotalBytes = MaxResolverTotalBytes
+            };
+        }
+
+        /// <summary>
+        /// Projects the limits a NodeSet2 comparison is bounded by onto a
+        /// <see cref="NodeSetComparisonOptions"/>.
+        /// </summary>
+        /// <remarks>
+        /// Comparing two NodeSets is not a WoT operation and does not depend
+        /// on any conversion setting, so the comparison is given the one limit
+        /// that applies to it rather than these options.
+        /// </remarks>
+        /// <returns>The equivalent bounded comparison options.</returns>
+        public NodeSetComparisonOptions ToComparisonOptions()
+        {
+            return new NodeSetComparisonOptions
+            {
+                MaxXmlDepth = MaxXmlDepth
             };
         }
 

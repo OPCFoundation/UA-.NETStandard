@@ -180,7 +180,8 @@ namespace Opc.Ua.Wot
                     if (reconstructed is not null && !HasErrors(reconstructionDiagnostics))
                     {
                         NodeSetComparisonResult comparison =
-                            NodeSetComparer.Compare(nodeSet, reconstructed, options);
+                            NodeSetComparer.Compare(
+                                nodeSet, reconstructed, options.ToComparisonOptions());
                         nativeComplete = comparison.AreEquivalent;
                         if (!nativeComplete && comparison.Differences.Count > 0)
                         {
@@ -391,7 +392,8 @@ namespace Opc.Ua.Wot
             // NodeSet, not an identically spelled one, so the comparison
             // resolves each side's own aliases first.
             return result.Success &&
-                NodeSetComparer.CompareEquivalent(source, result.Value!, options).AreEquivalent;
+                NodeSetComparer.CompareEquivalent(
+                    source, result.Value!, options.ToComparisonOptions()).AreEquivalent;
         }
 
         private static byte[] RemoveRootMembers(

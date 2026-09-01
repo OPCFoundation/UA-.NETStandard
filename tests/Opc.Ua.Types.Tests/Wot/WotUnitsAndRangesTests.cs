@@ -409,7 +409,7 @@ namespace Opc.Ua.Types.Tests.Wot
             UANodeSet restored = WotNodeSetConverter.ToNodeSet(document);
             Assert.That(
                 NodeSetComparer.CompareEquivalent(
-                    source, restored, new WotNodeSetConverterOptions()).AreEquivalent,
+                    source, restored).AreEquivalent,
                 Is.True);
         }
 
@@ -426,7 +426,7 @@ namespace Opc.Ua.Types.Tests.Wot
             UANodeSet restored = WotNodeSetConverter.ToNodeSet(document);
             Assert.That(
                 NodeSetComparer.CompareEquivalent(
-                    source, restored, new WotNodeSetConverterOptions()).AreEquivalent,
+                    source, restored).AreEquivalent,
                 Is.True);
         }
 
@@ -461,7 +461,7 @@ namespace Opc.Ua.Types.Tests.Wot
             UANodeSet restored = WotNodeSetConverter.ToNodeSet(document);
             Assert.That(
                 NodeSetComparer.CompareEquivalent(
-                    source, restored, new WotNodeSetConverterOptions()).AreEquivalent,
+                    source, restored).AreEquivalent,
                 Is.True,
                 "Nothing is silently lost.");
         }

@@ -374,7 +374,7 @@ namespace Opc.Ua.WotCon.Tests.Samples
 
             foreach (string source in sources)
             {
-                NodeSetRoundtripReport report = NodeSetComparer.Roundtrip(
+                WotNodeSetRoundtripReport report = WotNodeSetRoundtrip.Run(
                     WotAggregationDocumentGenerator.ReadNodeSet(source));
 
                 Assert.That(report.NativeProjectionPreserved, Is.True, source);

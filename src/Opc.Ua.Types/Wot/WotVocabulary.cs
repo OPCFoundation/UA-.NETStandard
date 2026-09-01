@@ -31,6 +31,7 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using Opc.Ua.Export;
 
 namespace Opc.Ua.Wot
 {
@@ -187,131 +188,6 @@ namespace Opc.Ua.Wot
             return false;
         }
 
-        /// <summary>
-        /// One standard ReferenceType: its base-namespace NodeId, its
-        /// BrowseName and its InverseName.
-        /// </summary>
-        /// <remarks>
-        /// A WoT Binding Section 5.3 link names a ReferenceType by its
-        /// <em>model name</em>, and OPC 10000-3 gives a ReferenceType two
-        /// names: the BrowseName reads the reference in the forward direction
-        /// and the InverseName reads the same reference backwards. A table of
-        /// forward names alone therefore cannot tell <c>ua:HasComponent</c>
-        /// from <c>ua:ComponentOf</c>, and silently emits both as forward.
-        /// A symmetric ReferenceType has no InverseName; its entry leaves the
-        /// inverse name empty.
-        /// </remarks>
-        private readonly record struct StandardReferenceType(
-            string NodeId,
-            string BrowseName,
-            string InverseName);
-
-        /// <summary>
-        /// The standard ReferenceTypes this library names, with the InverseName
-        /// OPC 10000-5 gives each. Both lookup tables below are built from this
-        /// one array so a name and its identifier can never disagree.
-        /// </summary>
-        private static readonly StandardReferenceType[] s_standardReferenceTypes =
-        [
-            new("i=31", "References", string.Empty),
-            new(NonHierarchicalReferences, "NonHierarchicalReferences", string.Empty),
-            new("i=33", "HierarchicalReferences", "InverseHierarchicalReferences"),
-            new("i=34", "HasChild", "ChildOf"),
-            new(Organizes, "Organizes", "OrganizedBy"),
-            new("i=36", "HasEventSource", "EventSourceOf"),
-            new(HasModellingRule, "HasModellingRule", "ModellingRuleOf"),
-            new(HasEncoding, "HasEncoding", "EncodingOf"),
-            new("i=39", "HasDescription", "DescriptionOf"),
-            new(HasTypeDefinition, "HasTypeDefinition", "TypeDefinitionOf"),
-            new(GeneratesEvent, "GeneratesEvent", "GeneratedBy"),
-            new("i=3065", "AlwaysGeneratesEvent", "AlwaysGeneratedBy"),
-            new("i=44", "Aggregates", "AggregatedBy"),
-            new(HasSubtype, "HasSubtype", "SubtypeOf"),
-            new(HasProperty, "HasProperty", "PropertyOf"),
-            new(HasComponent, "HasComponent", "ComponentOf"),
-            new("i=48", "HasNotifier", "NotifierOf"),
-            new(HasOrderedComponent, "HasOrderedComponent", "OrderedComponentOf"),
-            new("i=51", "FromState", "ToTransition"),
-            new("i=52", "ToState", "FromTransition"),
-            new("i=53", "HasCause", "MayBeCausedBy"),
-            new("i=54", "HasEffect", "MayBeEffectedBy"),
-            new("i=56", "HasHistoricalConfiguration", "HistoricalConfigurationOf"),
-            new("i=117", "HasSubStateMachine", "SubStateMachineOf"),
-            new("i=129", "HasArgumentDescription", "ArgumentDescriptionOf"),
-            new(
-                "i=131",
-                "HasOptionalInputArgumentDescription",
-                "OptionalInputArgumentDescriptionOf"),
-            new("i=9004", "HasTrueSubState", "IsTrueSubStateOf"),
-            new("i=9005", "HasFalseSubState", "IsFalseSubStateOf"),
-            new("i=9006", "HasCondition", "IsConditionOf"),
-            new("i=15112", "HasGuard", "GuardOf"),
-            new("i=16361", "HasAlarmSuppressionGroup", "IsAlarmSuppressionGroupOf"),
-            new("i=16362", "AlarmGroupMember", "MemberOfAlarmGroup"),
-            new("i=17597", "HasDictionaryEntry", "DictionaryEntryOf"),
-            new(HasInterface, "HasInterface", "InterfaceOf"),
-            new("i=17604", "HasAddIn", "AddInOf"),
-            new("i=32059", "AlarmSuppressionGroupMember", "MemberOfAlarmSuppressionGroup")
-        ];
-
-        private static readonly Dictionary<string, string> s_referenceTypeNameToNodeId =
-            BuildForwardNameTable();
-
-        private static readonly Dictionary<string, string> s_referenceTypeInverseNameToNodeId =
-            BuildInverseNameTable();
-
-        private static readonly Dictionary<string, string> s_referenceTypeNodeIdToName =
-            BuildNodeIdTable();
-
-        private static readonly Dictionary<string, string> s_referenceTypeNodeIdToInverseName =
-            BuildNodeIdInverseNameTable();
-
-        private static Dictionary<string, string> BuildForwardNameTable()
-        {
-            var table = new Dictionary<string, string>(StringComparer.Ordinal);
-            foreach (StandardReferenceType entry in s_standardReferenceTypes)
-            {
-                table[entry.BrowseName] = entry.NodeId;
-            }
-            return table;
-        }
-
-        private static Dictionary<string, string> BuildInverseNameTable()
-        {
-            var table = new Dictionary<string, string>(StringComparer.Ordinal);
-            foreach (StandardReferenceType entry in s_standardReferenceTypes)
-            {
-                if (entry.InverseName.Length != 0)
-                {
-                    table[entry.InverseName] = entry.NodeId;
-                }
-            }
-            return table;
-        }
-
-        private static Dictionary<string, string> BuildNodeIdTable()
-        {
-            var table = new Dictionary<string, string>(StringComparer.Ordinal);
-            foreach (StandardReferenceType entry in s_standardReferenceTypes)
-            {
-                table[entry.NodeId] = entry.BrowseName;
-            }
-            return table;
-        }
-
-        private static Dictionary<string, string> BuildNodeIdInverseNameTable()
-        {
-            var table = new Dictionary<string, string>(StringComparer.Ordinal);
-            foreach (StandardReferenceType entry in s_standardReferenceTypes)
-            {
-                if (entry.InverseName.Length != 0)
-                {
-                    table[entry.NodeId] = entry.InverseName;
-                }
-            }
-            return table;
-        }
-
         // HasComponent subtypes (base namespace) that carry stronger semantics
         // than plain HasComponent and must be pinned by a link whose rel is
         // the ReferenceType model name (WoT Binding Section 5.3). Keyed by both the reference-type
@@ -466,13 +342,7 @@ namespace Opc.Ua.Wot
             string? browseName,
             out string nodeId)
         {
-            if (browseName is not null &&
-                s_referenceTypeNameToNodeId.TryGetValue(browseName, out nodeId!))
-            {
-                return true;
-            }
-            nodeId = string.Empty;
-            return false;
+            return NodeSetStandardAliases.TryGetReferenceTypeNodeId(browseName, out nodeId);
         }
 
         /// <summary>
@@ -498,22 +368,8 @@ namespace Opc.Ua.Wot
             out string nodeId,
             out bool isForward)
         {
-            if (name is not null)
-            {
-                if (s_referenceTypeNameToNodeId.TryGetValue(name, out nodeId!))
-                {
-                    isForward = true;
-                    return true;
-                }
-                if (s_referenceTypeInverseNameToNodeId.TryGetValue(name, out nodeId!))
-                {
-                    isForward = false;
-                    return true;
-                }
-            }
-            nodeId = string.Empty;
-            isForward = true;
-            return false;
+            return NodeSetStandardAliases.TryResolveReferenceTypeName(
+                name, out nodeId, out isForward);
         }
 
         /// <summary>
@@ -531,35 +387,15 @@ namespace Opc.Ua.Wot
             string? nodeId,
             out string inverseName)
         {
-            if (nodeId is not null &&
-                s_referenceTypeNodeIdToInverseName.TryGetValue(nodeId, out inverseName!))
-            {
-                return true;
-            }
-            inverseName = string.Empty;
-            return false;
+            return NodeSetStandardAliases.TryGetReferenceTypeInverseName(nodeId, out inverseName);
         }
 
         public static bool TryGetReferenceTypeBrowseName(
             string? referenceType,
             out string browseName)
         {
-            if (referenceType is not null)
-            {
-                if (s_referenceTypeNodeIdToName.TryGetValue(
-                    referenceType,
-                    out browseName!))
-                {
-                    return true;
-                }
-                if (s_referenceTypeNameToNodeId.ContainsKey(referenceType))
-                {
-                    browseName = referenceType;
-                    return true;
-                }
-            }
-            browseName = string.Empty;
-            return false;
+            return NodeSetStandardAliases.TryGetReferenceTypeBrowseName(
+                referenceType, out browseName);
         }
 
         public static string FormatUInt(uint value)

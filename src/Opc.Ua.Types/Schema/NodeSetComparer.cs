@@ -34,7 +34,6 @@ using System.IO;
 using System.Text;
 using System.Xml;
 using System.Xml.Linq;
-using Opc.Ua.Wot;
 
 namespace Opc.Ua.Export
 {
@@ -58,50 +57,7 @@ namespace Opc.Ua.Export
     }
 
     /// <summary>
-    /// The result of a NodeSet2 to WoT to NodeSet2 round trip.
-    /// </summary>
-    public sealed class NodeSetRoundtripReport
-    {
-        internal NodeSetRoundtripReport(
-            bool nativeProjectionPreserved,
-            bool envelopePreserved,
-            bool usedPreservationEnvelope,
-            NodeSetComparisonResult comparison,
-            IReadOnlyList<WotDiagnostic> diagnostics)
-        {
-            NativeProjectionPreserved = nativeProjectionPreserved;
-            EnvelopePreserved = envelopePreserved;
-            UsedPreservationEnvelope = usedPreservationEnvelope;
-            Comparison = comparison;
-            Diagnostics = diagnostics;
-        }
-
-        /// <summary>
-        /// Gets a value indicating whether the structured native projection,
-        /// without an envelope, reproduced an equivalent NodeSet2.
-        /// </summary>
-        public bool NativeProjectionPreserved { get; }
-
-        /// <summary>
-        /// Gets a value indicating whether the envelope reproduced a byte-identical NodeSet2.
-        /// </summary>
-        public bool EnvelopePreserved { get; }
-
-        /// <summary>
-        /// Gets a value indicating whether the conversion used a
-        /// <c>uav:nodeSet</c> preservation envelope.
-        /// </summary>
-        public bool UsedPreservationEnvelope { get; }
-
-        /// <summary>Gets the canonical comparison of the source and restored NodeSet2.</summary>
-        public NodeSetComparisonResult Comparison { get; }
-
-        /// <summary>Gets the diagnostics produced during the round trip.</summary>
-        public IReadOnlyList<WotDiagnostic> Diagnostics { get; }
-    }
-
-    /// <summary>
-    /// Compares NodeSet2 documents on a canonical basis and reports round trips.
+    /// Compares NodeSet2 documents on a canonical basis.
     /// The canonical form ignores indentation, line endings and attribute order
     /// while preserving element structure, attribute values and text so that
     /// semantic changes are detected.
@@ -118,7 +74,7 @@ namespace Opc.Ua.Export
         public static NodeSetComparisonResult Compare(
             UANodeSet left,
             UANodeSet right,
-            WotNodeSetConverterOptions? options = null)
+            NodeSetComparisonOptions? options = null)
         {
             if (left is null)
             {
@@ -141,9 +97,9 @@ namespace Opc.Ua.Export
         public static NodeSetComparisonResult CompareXml(
             ReadOnlySpan<byte> left,
             ReadOnlySpan<byte> right,
-            WotNodeSetConverterOptions? options = null)
+            NodeSetComparisonOptions? options = null)
         {
-            options ??= new WotNodeSetConverterOptions();
+            options ??= new NodeSetComparisonOptions();
             options.Validate();
 
             string canonicalLeft;
@@ -170,20 +126,22 @@ namespace Opc.Ua.Export
         /// </summary>
         /// <remarks>
         /// <para>
-        /// <i>OPC UA — WoT Binding</i> §9.2 asks whether a readable document
-        /// reproduces an <b>equivalent</b> UANodeSet, and text equality is
-        /// strictly stronger than that. A NodeSet may write a DataType or a
-        /// ReferenceType either as an alias its own <c>Aliases</c> table
-        /// declares or as the identifier that alias stands for, and the two say
-        /// the same thing. Comparing them as text reports a difference in
-        /// spelling as a difference in content.
+        /// A NodeSet may write a DataType or a ReferenceType either as an
+        /// alias its own <c>Aliases</c> table declares or as the identifier
+        /// that alias stands for, and the two say the same thing. A caller
+        /// that asks whether a document reproduces the <em>content</em> of
+        /// another - a converter proving that it lost nothing, for instance -
+        /// is answered wrongly by a text comparison, which reports a
+        /// difference in spelling as a difference in content.
         /// </para>
         /// <para>
         /// This resolves each side through its own table and drops the table
-        /// itself, which is only the definition of the shorthand. It is separate
-        /// from <see cref="Compare"/> because that comparison is used where
-        /// exact reproduction is the question, and loosening it there would stop
-        /// it answering that question.
+        /// itself, which is only the definition of the shorthand. A name a
+        /// document does not declare is left exactly as written: it is not an
+        /// alias, and a document that uses one cannot be imported at all. It
+        /// is separate from <see cref="Compare"/> because that comparison is
+        /// used where exact reproduction is the question, and loosening it
+        /// there would stop it answering that question.
         /// </para>
         /// </remarks>
         /// <param name="left">The first document.</param>
@@ -196,7 +154,7 @@ namespace Opc.Ua.Export
         public static NodeSetComparisonResult CompareEquivalent(
             UANodeSet left,
             UANodeSet right,
-            WotNodeSetConverterOptions? options = null)
+            NodeSetComparisonOptions? options = null)
         {
             if (left is null)
             {
@@ -206,7 +164,7 @@ namespace Opc.Ua.Export
             {
                 throw new ArgumentNullException(nameof(right));
             }
-            options ??= new WotNodeSetConverterOptions();
+            options ??= new NodeSetComparisonOptions();
             options.Validate();
 
             string canonicalLeft;
@@ -227,70 +185,6 @@ namespace Opc.Ua.Export
                 return new NodeSetComparisonResult(false, [ex.Message]);
             }
             return BuildResult(canonicalLeft, canonicalRight);
-        }
-
-        /// <summary>
-        /// Converts a NodeSet2 document to a WoT document and back. By default,
-        /// the report uses native-only mode so completeness is never proved by
-        /// the preservation envelope.
-        /// </summary>
-        /// <param name="source">The NodeSet2 document to round trip.</param>
-        /// <param name="options">Resource limits; defaults are used when omitted.</param>
-        /// <returns>The round-trip report.</returns>
-        public static NodeSetRoundtripReport Roundtrip(
-            UANodeSet source,
-            WotNodeSetConverterOptions? options = null)
-        {
-            if (source is null)
-            {
-                throw new ArgumentNullException(nameof(source));
-            }
-
-            var diagnostics = new List<WotDiagnostic>();
-            byte[] sourceBytes = Serialize(source);
-            WotNodeSetConverterOptions effectiveOptions = options ??
-                new WotNodeSetConverterOptions
-                {
-                    PreservationMode = WotNodeSetPreservationMode.Never
-                };
-
-            WotConversionResult<WotDocument> forward =
-                WotNodeSetConverter.FromNodeSetResult(source, null, effectiveOptions);
-            AddRange(diagnostics, forward.Diagnostics);
-            if (forward.Value is null)
-            {
-                return new NodeSetRoundtripReport(
-                    false,
-                    false,
-                    false,
-                    new NodeSetComparisonResult(false, ["The NodeSet could not be converted to a WoT document."]),
-                    diagnostics);
-            }
-
-            using WotDocument document = forward.Value;
-            bool usedEnvelope = document.TryGetEnvelope(out _);
-            WotConversionResult<UANodeSet> backward =
-                WotNodeSetConverter.ToNodeSetResult(document, effectiveOptions);
-            AddRange(diagnostics, backward.Diagnostics);
-            if (backward.Value is null)
-            {
-                return new NodeSetRoundtripReport(
-                    false,
-                    false,
-                    usedEnvelope,
-                    new NodeSetComparisonResult(false, ["The WoT document could not be converted back to a NodeSet."]),
-                    diagnostics);
-            }
-
-            byte[] restoredBytes = Serialize(backward.Value);
-            NodeSetComparisonResult comparison = CompareXml(sourceBytes, restoredBytes, effectiveOptions);
-            bool byteIdentical = ByteEquals(sourceBytes, restoredBytes);
-            return new NodeSetRoundtripReport(
-                !usedEnvelope && comparison.AreEquivalent,
-                usedEnvelope && byteIdentical,
-                usedEnvelope,
-                comparison,
-                diagnostics);
         }
 
         private static NodeSetComparisonResult BuildResult(string left, string right)
@@ -455,27 +349,19 @@ namespace Opc.Ua.Export
         /// Resolves an alias-able value to the identifier it stands for.
         /// </summary>
         /// <remarks>
-        /// The document's own table is consulted first, then the standard
-        /// base-namespace names. Declaring a standard name changes nothing
-        /// about what a document means - a <c>ReferenceType</c> of
-        /// <c>HasComponent</c> denotes <c>i=47</c> whether or not the table
-        /// spells that out - so a comparison that saw the difference would
-        /// report two equivalent documents as different purely because one
-        /// completed its table and the other did not.
+        /// Only the document's own table is consulted. A name it does not
+        /// declare is not an alias: a NodeSet2 document that writes
+        /// <c>HasComponent</c> without declaring it cannot be imported at all,
+        /// and reading it here as <c>i=47</c> would let a comparison call an
+        /// unloadable document equivalent to a loadable one.
         /// </remarks>
         private static string Resolve(string value, Dictionary<string, string>? aliases)
         {
-            if (aliases is null)
-            {
-                return value;
-            }
-            if (aliases.TryGetValue(value, out string? resolved))
+            if (aliases is not null && aliases.TryGetValue(value, out string? resolved))
             {
                 return resolved;
             }
-            return WotNodeSetAliases.TryResolveStandardName(value, out string standard)
-                ? standard
-                : value;
+            return value;
         }
 
         private const string AliasesElement = "Aliases";
@@ -495,30 +381,6 @@ namespace Opc.Ua.Export
                 return bytes[3..];
             }
             return bytes;
-        }
-
-        private static bool ByteEquals(ReadOnlySpan<byte> left, ReadOnlySpan<byte> right)
-        {
-            if (left.Length != right.Length)
-            {
-                return false;
-            }
-            for (int ii = 0; ii < left.Length; ii++)
-            {
-                if (left[ii] != right[ii])
-                {
-                    return false;
-                }
-            }
-            return true;
-        }
-
-        private static void AddRange(List<WotDiagnostic> target, IReadOnlyList<WotDiagnostic> source)
-        {
-            for (int ii = 0; ii < source.Count; ii++)
-            {
-                target.Add(source[ii]);
-            }
         }
     }
 }
