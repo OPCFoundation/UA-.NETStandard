@@ -3,7 +3,7 @@
   "source": {
     "repository": "https://github.com/OPCF-Members/spec-drafts.git",
     "branch": "copilot/wot-binding-alignment",
-    "commit": "70edc6a9d6aafb1f373a74d9680f884582bc74ae",
+    "commit": "0d2099f96ef2a1a081d37d22f7d49eba9efca85d",
     "path": "wot-specs/WoT-Binding/examples"
   },
   "bindingRevision": "1.1",
