@@ -692,8 +692,8 @@ namespace Opc.Ua.Server.Tests
                 stored = monitoredItem.ToStorableMonitoredItem();
             }
 
-            Assert.That(stored.FilteredRetainConditionIds, Is.Not.Null);
-            Assert.That(stored.FilteredRetainConditionIds, Has.Count.EqualTo(1));
+            Assert.That(stored.FilteredRetainConditionIds.IsNull, Is.False);
+            Assert.That(stored.FilteredRetainConditionIds.Count, Is.EqualTo(1));
 
             using TestableMonitoredItem restored = RestoreMonitoredItem(stored, telemetry);
 
@@ -715,8 +715,8 @@ namespace Opc.Ua.Server.Tests
             using TestableMonitoredItem monitoredItem = CreateMonitoredItem(filter, telemetry);
 
             Assert.That(
-                monitoredItem.ToStorableMonitoredItem().FilteredRetainConditionIds,
-                Is.Null);
+                monitoredItem.ToStorableMonitoredItem().FilteredRetainConditionIds.IsNull,
+                Is.True);
         }
 
         private void CanSendFilteredAlarm(

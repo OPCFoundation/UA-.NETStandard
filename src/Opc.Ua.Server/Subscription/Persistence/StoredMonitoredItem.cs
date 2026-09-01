@@ -26,7 +26,6 @@
  * The complete license agreement can be found here:
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
-using System.Collections.Generic;
 
 namespace Opc.Ua.Server
 {
@@ -112,7 +111,7 @@ namespace Opc.Ua.Server
         public NumericRange ParsedIndexRange { get; set; }
 
         /// <inheritdoc/>
-        public IReadOnlyList<string>? FilteredRetainConditionIds { get; set; }
+        public ArrayOf<string> FilteredRetainConditionIds { get; set; }
 
         /// <inheritdoc/>
         public IDataChangeMonitoredItemQueue? RestoredDataChangeQueue { get; set; }

@@ -26,7 +26,6 @@
  * The complete license agreement can be found here:
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
-using System.Collections.Generic;
 
 namespace Opc.Ua.Server
 {
@@ -175,10 +174,10 @@ namespace Opc.Ua.Server
         /// Without this state a durable subscription drops the first transition out of
         /// filter scope after a restart, because the item no longer knows that the client
         /// had ever been told about the condition. The entries are opaque keys built by the
-        /// monitored item; a store only has to round-trip them. <c>null</c> or an empty
-        /// collection both mean nothing is being tracked.
+        /// monitored item; a store only has to round-trip them. A null or empty array both
+        /// mean nothing is being tracked.
         /// </remarks>
-        IReadOnlyList<string>? FilteredRetainConditionIds { get; set; }
+        ArrayOf<string> FilteredRetainConditionIds { get; set; }
 
         /// <summary>
         /// An optional data-change queue pre-hydrated by an asynchronous

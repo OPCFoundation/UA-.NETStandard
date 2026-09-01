@@ -985,9 +985,7 @@ namespace Opc.Ua.Redundancy.Server
                 SubscriptionId = item.SubscriptionId,
                 TimestampsToReturn = item.TimestampsToReturn,
                 TypeMask = item.TypeMask,
-                FilteredRetainConditionIds = item.FilteredRetainConditionIds != null
-                    ? [.. item.FilteredRetainConditionIds]
-                    : null
+                FilteredRetainConditionIds = item.FilteredRetainConditionIds
             };
         }
 
@@ -1273,11 +1271,7 @@ namespace Opc.Ua.Redundancy.Server
             }
             if (version >= FilteredRetainDefinitionFormatVersion)
             {
-                encoder.WriteStringArray(
-                    null,
-                    item.FilteredRetainConditionIds != null
-                        ? [.. item.FilteredRetainConditionIds]
-                        : ArrayOf.Empty<string>());
+                encoder.WriteStringArray(null, item.FilteredRetainConditionIds);
             }
         }
 
@@ -1322,16 +1316,8 @@ namespace Opc.Ua.Redundancy.Server
             }
             if (version >= FilteredRetainDefinitionFormatVersion)
             {
-                ArrayOf<string?> filteredRetainConditionIds = decoder.ReadStringArray(null);
-                List<string> retainedIds = [];
-                foreach (string? id in filteredRetainConditionIds)
-                {
-                    if (id != null)
-                    {
-                        retainedIds.Add(id);
-                    }
-                }
-                item.FilteredRetainConditionIds = retainedIds.Count > 0 ? retainedIds : null;
+                // the keys are written by the monitored item and never null.
+                item.FilteredRetainConditionIds = decoder.ReadStringArray(null)!;
             }
             return item;
         }

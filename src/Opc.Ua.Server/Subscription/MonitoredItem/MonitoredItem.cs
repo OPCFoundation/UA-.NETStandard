@@ -323,10 +323,10 @@ namespace Opc.Ua.Server
             // without this the first transition out of filter scope after a restart is
             // dropped, because the item would not know the client had been told about the
             // condition.
-            IReadOnlyList<string>? filteredRetainConditionIds =
+            ArrayOf<string> filteredRetainConditionIds =
                 storedMonitoredItem.FilteredRetainConditionIds;
 
-            if (filteredRetainConditionIds?.Count > 0)
+            if (!filteredRetainConditionIds.IsEmpty)
             {
                 m_filteredRetainConditionIds = [.. filteredRetainConditionIds];
             }
@@ -1932,7 +1932,7 @@ namespace Opc.Ua.Server
                     ParsedIndexRange = m_parsedIndexRange,
                     FilteredRetainConditionIds = m_filteredRetainConditionIds?.Count > 0
                         ? [.. m_filteredRetainConditionIds]
-                        : null
+                        : ArrayOf<string>.Null
                 };
             }
         }
