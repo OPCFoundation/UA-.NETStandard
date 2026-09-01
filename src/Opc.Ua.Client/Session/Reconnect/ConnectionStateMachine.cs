@@ -62,6 +62,15 @@ namespace Opc.Ua.Client
         private readonly TimeProvider m_timeProvider;
         private readonly TimeSpan m_maxTotalReconnectTime;
         private readonly CancellationTokenSource m_cts = new();
+
+        /// <summary>
+        /// Cancelled by <see cref="RequestClose"/> so that the connect,
+        /// reconnect or failover attempt in flight is abandoned right away.
+        /// Without it a close would have to wait out the current attempt,
+        /// which runs to the endpoint's operation timeout against a peer that
+        /// accepts the connection but never answers.
+        /// </summary>
+        private readonly CancellationTokenSource m_closeRequested = new();
         private readonly AsyncAutoResetEvent m_trigger = new(false);
         private readonly AsyncManualResetEvent m_closed = new(false);
 
@@ -253,21 +262,23 @@ namespace Opc.Ua.Client
         {
             lock (m_lock)
             {
-                if (m_state is ConnectionState.Closed
-                    or ConnectionState.Closing)
+                if (m_state is not ConnectionState.Closed
+                    and not ConnectionState.Closing)
                 {
-                    return;
+                    TransitionTo(
+                        ConnectionState.Closing,
+                        error: null,
+                        reconnectAttempt: 0);
+
+                    // Closing abandons any pending connect: release the waiters so
+                    // they observe the failure instead of blocking forever.
+                    m_settled.Set();
                 }
-
-                TransitionTo(
-                    ConnectionState.Closing,
-                    error: null,
-                    reconnectAttempt: 0);
-
-                // Closing abandons any pending connect: release the waiters so
-                // they observe the failure instead of blocking forever.
-                m_settled.Set();
             }
+
+            // Abandon the attempt in flight so the worker observes the Closing
+            // state now instead of after the current operation timed out.
+            CancelCloseRequested();
 
             m_trigger.Set();
         }
@@ -324,7 +335,34 @@ namespace Opc.Ua.Client
             }
 
             m_cts.Dispose();
+            m_closeRequested.Dispose();
             GC.SuppressFinalize(this);
+        }
+
+        /// <summary>
+        /// Signals the close request to the operation in flight. Best effort:
+        /// the source may already be disposed by a concurrent dispose.
+        /// </summary>
+        private void CancelCloseRequested()
+        {
+            try
+            {
+                m_closeRequested.Cancel();
+            }
+            catch (ObjectDisposedException)
+            {
+                // The machine is already disposed, nothing is in flight.
+            }
+        }
+
+        /// <summary>
+        /// Creates a token source that is cancelled when the worker shuts down
+        /// or when a close is requested.
+        /// </summary>
+        private CancellationTokenSource CreateCloseAwareTokenSource(CancellationToken ct)
+        {
+            return CancellationTokenSource.CreateLinkedTokenSource(
+                ct, m_closeRequested.Token);
         }
 
         /// <summary>
@@ -394,11 +432,30 @@ namespace Opc.Ua.Client
         {
             m_logger.ConnectionStateMachineAttemptingInitialConnection();
 
-            ServiceResult result = await InvokeConnectAsync(ct)
-                .ConfigureAwait(false);
+            ServiceResult result;
+            using (CancellationTokenSource closeAware = CreateCloseAwareTokenSource(ct))
+            {
+                try
+                {
+                    result = await InvokeConnectAsync(closeAware.Token)
+                        .ConfigureAwait(false);
+                }
+                catch (OperationCanceledException) when (!ct.IsCancellationRequested)
+                {
+                    // A close was requested while connecting: return so the
+                    // worker loop handles the Closing state right away.
+                    return;
+                }
+            }
 
             lock (m_lock)
             {
+                if (m_state is ConnectionState.Closing
+                    or ConnectionState.Closed)
+                {
+                    return;
+                }
+
                 if (ServiceResult.IsGood(result))
                 {
                     m_reconnectPolicy.Reset();
@@ -431,94 +488,115 @@ namespace Opc.Ua.Client
             m_settled.Reset();
             IRetryBudget budget = GetOrCreateReconnectBudget();
 
+            // A close must not wait for the attempt in flight: against a peer
+            // that accepts the connection but never answers the attempt only
+            // ends when the endpoint's operation timeout expires.
+            using CancellationTokenSource closeAware = CreateCloseAwareTokenSource(ct);
+            CancellationToken attemptCt = closeAware.Token;
+
             StatusCode lastStatus = StatusCodes.Good;
             string? lastAdditionalInfo = null;
             string? lastMessage = null;
-            for (int attempt = 0; !ct.IsCancellationRequested; attempt++)
+            try
             {
-                TimeSpan? delay = GetAdaptiveDelay(
-                    attempt, lastStatus, lastAdditionalInfo, lastMessage, ct);
-
-                if (delay == null)
+                for (int attempt = 0; !attemptCt.IsCancellationRequested; attempt++)
                 {
-                    TransitionToFailover(attempt, budgetExhausted: false);
-                    return;
-                }
+                    TimeSpan? delay = GetAdaptiveDelay(
+                        attempt, lastStatus, lastAdditionalInfo, lastMessage, attemptCt);
 
-                if (!budget.TryConsume(out TimeSpan remaining))
-                {
-                    TransitionToFailover(attempt, budgetExhausted: true);
-                    return;
-                }
-
-                if (remaining < delay.Value)
-                {
-                    delay = remaining;
-                }
-
-                m_logger.ConnectionStateMachineReconnectAttemptAttemptDelayDelayMs(
-                    attempt,
-                    (int)delay.Value.TotalMilliseconds);
-
-                await m_timeProvider.Delay(delay.Value, ct)
-                    .ConfigureAwait(false);
-
-                if (budget.IsExhausted)
-                {
-                    TransitionToFailover(attempt, budgetExhausted: true);
-                    return;
-                }
-
-                ServiceResult result = await InvokeReconnectAsync(budget, ct)
-                    .ConfigureAwait(false);
-
-                // Remember the outcome so the next backoff can react to a
-                // server-busy signal (adaptive policies back off harder) and honor
-                // a server-provided retry-after hint when present.
-                lastStatus = result.StatusCode;
-                lastAdditionalInfo = result.AdditionalInfo;
-                lastMessage = result.LocalizedText.Text;
-
-                if (ServiceResult.IsGood(result))
-                {
-                    m_logger.ConnectionStateMachineReconnectedAttemptAttempt(attempt);
-
-                    budget.Reset();
-                    ClearReconnectBudget();
-                    m_reconnectPolicy.Reset();
-
-                    lock (m_lock)
+                    if (delay == null)
                     {
-                        TransitionTo(
-                            ConnectionState.Connected,
-                            error: null,
-                            reconnectAttempt: 0);
-                        m_settled.Set();
-                    }
-
-                    return;
-                }
-
-                lock (m_lock)
-                {
-                    m_lastError = result;
-
-                    // Stay in Reconnecting but notify observers
-                    // of the failed attempt.
-                    if (m_state is ConnectionState.Closing
-                        or ConnectionState.Closed)
-                    {
+                        TransitionToFailover(attempt, budgetExhausted: false);
                         return;
                     }
 
-                    OnStateChanged(new ConnectionStateChangedEventArgs
+                    if (!budget.TryConsume(out TimeSpan remaining))
                     {
-                        PreviousState = ConnectionState.Reconnecting,
-                        NewState = ConnectionState.Reconnecting,
-                        Error = result,
-                        ReconnectAttempt = attempt
-                    });
+                        TransitionToFailover(attempt, budgetExhausted: true);
+                        return;
+                    }
+
+                    if (remaining < delay.Value)
+                    {
+                        delay = remaining;
+                    }
+
+                    m_logger.ConnectionStateMachineReconnectAttemptAttemptDelayDelayMs(
+                        attempt,
+                        (int)delay.Value.TotalMilliseconds);
+
+                    await m_timeProvider.Delay(delay.Value, attemptCt)
+                        .ConfigureAwait(false);
+
+                    if (budget.IsExhausted)
+                    {
+                        TransitionToFailover(attempt, budgetExhausted: true);
+                        return;
+                    }
+
+                    ServiceResult result = await InvokeReconnectAsync(budget, attemptCt)
+                        .ConfigureAwait(false);
+
+                    // Remember the outcome so the next backoff can react to a
+                    // server-busy signal (adaptive policies back off harder) and honor
+                    // a server-provided retry-after hint when present.
+                    lastStatus = result.StatusCode;
+                    lastAdditionalInfo = result.AdditionalInfo;
+                    lastMessage = result.LocalizedText.Text;
+
+                    if (ServiceResult.IsGood(result))
+                    {
+                        m_logger.ConnectionStateMachineReconnectedAttemptAttempt(attempt);
+
+                        budget.Reset();
+                        ClearReconnectBudget();
+                        m_reconnectPolicy.Reset();
+
+                        lock (m_lock)
+                        {
+                            if (m_state is ConnectionState.Closing
+                                or ConnectionState.Closed)
+                            {
+                                return;
+                            }
+
+                            TransitionTo(
+                                ConnectionState.Connected,
+                                error: null,
+                                reconnectAttempt: 0);
+                            m_settled.Set();
+                        }
+
+                        return;
+                    }
+
+                    lock (m_lock)
+                    {
+                        m_lastError = result;
+
+                        // Stay in Reconnecting but notify observers
+                        // of the failed attempt.
+                        if (m_state is ConnectionState.Closing
+                            or ConnectionState.Closed)
+                        {
+                            return;
+                        }
+
+                        OnStateChanged(new ConnectionStateChangedEventArgs
+                        {
+                            PreviousState = ConnectionState.Reconnecting,
+                            NewState = ConnectionState.Reconnecting,
+                            Error = result,
+                            ReconnectAttempt = attempt
+                        });
+                    }
                 }
+            }
+            catch (OperationCanceledException) when (!ct.IsCancellationRequested)
+            {
+                // A close was requested: abandon the attempt in flight and let
+                // the worker loop handle the Closing state.
+                m_logger.ConnectionStateMachineReconnectAbandonedForClose();
             }
         }
 
@@ -613,10 +691,31 @@ namespace Opc.Ua.Client
             m_logger.ConnectionStateMachineAttemptingFailoverRedundantServer();
 
             IRetryBudget budget = GetOrCreateReconnectBudget();
-            ServiceResult result = await InvokeFailoverAsync(budget, ct).ConfigureAwait(false);
+
+            ServiceResult result;
+            using (CancellationTokenSource closeAware = CreateCloseAwareTokenSource(ct))
+            {
+                try
+                {
+                    result = await InvokeFailoverAsync(budget, closeAware.Token)
+                        .ConfigureAwait(false);
+                }
+                catch (OperationCanceledException) when (!ct.IsCancellationRequested)
+                {
+                    // A close was requested while failing over: return so the
+                    // worker loop handles the Closing state right away.
+                    return;
+                }
+            }
 
             lock (m_lock)
             {
+                if (m_state is ConnectionState.Closing
+                    or ConnectionState.Closed)
+                {
+                    return;
+                }
+
                 if (ServiceResult.IsGood(result))
                 {
                     budget.Reset();
@@ -911,6 +1010,10 @@ namespace Opc.Ua.Client
         public static partial void ConnectionStateMachineStateChangedHandlerThrewException(
             this ILogger logger,
             Exception? exception);
+
+        [LoggerMessage(EventId = ClientEventIds.ConnectionStateMachine + 16, Level = LogLevel.Information,
+            Message = "ConnectionStateMachine: Reconnect attempt abandoned because a close was requested.")]
+        public static partial void ConnectionStateMachineReconnectAbandonedForClose(this ILogger logger);
     }
 
 }

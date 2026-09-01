@@ -803,16 +803,47 @@ namespace Opc.Ua.Client
         }
 
         /// <inheritdoc/>
+        /// <remarks>
+        /// A positive <paramref name="timeout"/> bounds the wait for the
+        /// connection state machine to settle in
+        /// <see cref="ConnectionState.Closed"/>; when it expires the call
+        /// returns <see cref="StatusCodes.BadTimeout"/> and the close continues
+        /// in the background.
+        /// </remarks>
         public async Task<StatusCode> CloseAsync(
             int timeout,
             bool closeChannel,
             CancellationToken ct = default)
         {
+            // Picked up by HandleCloseSessionAsync, which performs the actual
+            // close on the worker of the state machine.
+            m_closeTimeout = timeout;
+            m_closeChannel = closeChannel;
+
             StateMachine.RequestClose();
 
-            await StateMachine.WaitForClosedAsync(ct).ConfigureAwait(false);
+            if (timeout > 0)
+            {
+                using var bounded = CancellationTokenSource
+                    .CreateLinkedTokenSource(ct);
+                bounded.CancelAfter(timeout);
+                try
+                {
+                    await StateMachine.WaitForClosedAsync(bounded.Token)
+                        .ConfigureAwait(false);
+                }
+                catch (OperationCanceledException)
+                    when (!ct.IsCancellationRequested)
+                {
+                    return StatusCodes.BadTimeout;
+                }
+            }
+            else
+            {
+                await StateMachine.WaitForClosedAsync(ct).ConfigureAwait(false);
+            }
 
-            return StatusCodes.Good;
+            return m_closeResult;
         }
 
         /// <inheritdoc/>
@@ -935,18 +966,12 @@ namespace Opc.Ua.Client
         }
 
         /// <inheritdoc/>
-        public async Task<StatusCode> CloseAsync(
+        public Task<StatusCode> CloseAsync(
             CancellationToken ct = default)
         {
-            StateMachine.RequestClose();
-            Session? session = m_session;
-            if (session != null)
-            {
-                return await session.CloseAsync(ct)
-                    .ConfigureAwait(false);
-            }
-
-            return StatusCodes.Good;
+            // Both overloads close through the state machine so that they
+            // report the same status and leave the machine in the same state.
+            return CloseAsync(0, closeChannel: true, ct);
         }
 
         /// <inheritdoc/>
@@ -1401,13 +1426,14 @@ namespace Opc.Ua.Client
 
                 try
                 {
-                    await session
-                        .CloseAsync(ct)
+                    m_closeResult = await session
+                        .CloseAsync(m_closeTimeout, m_closeChannel, ct)
                         .ConfigureAwait(false);
                 }
                 catch (Exception ex)
                 {
                     m_logger.ManagedSessionSessionCloseFailed(ex);
+                    m_closeResult = StatusCodes.Bad;
                 }
 
                 session.Dispose();
@@ -1983,6 +2009,9 @@ namespace Opc.Ua.Client
         private long m_identityRefreshAttemptVersion;
         private long m_identityRefreshCompletedVersion;
         private long m_identityRefreshObservedVersion;
+        private int m_closeTimeout;
+        private bool m_closeChannel = true;
+        private StatusCode m_closeResult = StatusCodes.Good;
         private int m_disposed;
     }
 
