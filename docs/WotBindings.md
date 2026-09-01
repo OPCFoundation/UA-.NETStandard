@@ -355,8 +355,9 @@ The superseded `uav:eventFields` spelling this implementation minted before the 
 standardized is still **read** — it is authored on a form, carries bare browse names and
 *adds* to the default selection — and is never **written**. Where a form carries both,
 the standardized term wins and the contradiction is reported (`ConflictingFields`)
-rather than silently merged. New documents should author `uav:eventSelectClauses`; see
-[Migrating WoT Binding documents and converted NodeSets](MigrationGuide.md#migrating-wot-binding-documents-and-converted-nodesets).
+rather than silently merged. New documents should author the standardized terms
+instead: link the EventType definition with `tm:ref` and state only the clauses that
+refine it, as described above.
 
 ### Constraining an `auto` endpoint selection (`uav:minimumSecurity`)
 

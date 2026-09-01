@@ -17,6 +17,14 @@ conformance accepts, the versioned artifact base
 name set — derives from that constant. No public behaviour is keyed to an
 upstream commit: a revision is a published contract, a commit is not.
 
+The `uav` prefix binds to `http://opcfoundation.org/UA/WoT-Binding/`. The
+reader matches the compact `uav:` spelling and never consults the IRI a
+document binds the prefix to, in permissive *and* in strict mode, because
+strictness is about the vocabulary a document uses and not about the IRI it
+declares that vocabulary under. A document written against the earlier
+`http://opcfoundation.org/UA/WoT/v1#` draft binding therefore stays
+readable; that leniency is deliberate and is covered by a test.
+
 The specification's worked examples are vendored as test fixtures under
 `tests/Opc.Ua.Types.Tests/Wot/Assets`, and *those* do record the exact
 source. `spec-examples.manifest.json` beside them names the source
@@ -61,13 +69,14 @@ ModellingRule Object at all. The four rules therefore map as:
 | `OptionalPlaceholder` | `i=11508` |
 | `MandatoryPlaceholder` | `i=11510` |
 
-Earlier releases mapped `MandatoryPlaceholder` to `i=11508` and
-`OptionalPlaceholder` to `i=11509`, which inverted the first rule and left
-the second pointing at a Node that does not exist. Both directions now
-derive from one pair of constants, so a round trip preserves the rule it
-started with. See
-[Migrating WoT Binding documents and converted NodeSets](MigrationGuide.md#migrating-wot-binding-documents-and-converted-nodesets)
-for what that changes in previously emitted documents.
+An earlier draft of this converter mapped `MandatoryPlaceholder` to
+`i=11508` and `OptionalPlaceholder` to `i=11509`, which inverted the first
+rule and left the second pointing at a Node that does not exist. Both
+directions now derive from one pair of constants, so a round trip preserves
+the rule it started with. A NodeSet2 emitted by that draft keeps the wrong
+`HasModellingRule` target until it is converted again; the readable spelling
+a document authors never changed, so re-generating the NodeSet is the whole
+of the fix.
 
 ## WoT to NodeSet defaults
 
