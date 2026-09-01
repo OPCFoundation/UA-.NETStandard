@@ -194,11 +194,99 @@ The executable bindings fail closed and never downgrade a secure form to an inse
 | `writeproperty` | `Write` service; the mapped `StatusCode` is preserved. |
 | `observeproperty` | A native data-change `MonitoredItem` (`AttributeId = Value`, queue size 1) on a dedicated `Subscription`; no client-side polling. |
 | `invokeaction` | `Call` service; the method NodeId is `uav:id` and its owner object is resolved from `uav:componentOf`. |
-| `subscribeevent` | A native event `MonitoredItem` (`AttributeId = EventNotifier`) selecting `EventId`, `EventType`, `SourceNode`, `SourceName`, `Time`, `ReceiveTime`, `Message` and `Severity`, plus any `uav:eventFields`-authored extra select clauses. Every selected field is delivered in `WotNotification.EventFields`, keyed by its browse path, with the event's own `Time` / `ReceiveTime` as the source / server timestamp. |
+| `subscribeevent` | A native event `MonitoredItem` (`AttributeId = EventNotifier`) whose `EventFilter` select clauses are the compiled `WotEventSelection` of WoT Binding Section 6.1: the eight mandatory `BaseEventType` fields (`EventId`, `EventType`, `SourceNode`, `SourceName`, `Time`, `ReceiveTime`, `Message`, `Severity`) when the affordance states no selection, or exactly the `uav:eventSelectClauses` list it does state. Every selected field is delivered in `WotNotification.EventFields`, keyed by its browse path — an empty path supplies `ConditionId` — with the event's own `Time` / `ReceiveTime` as the source / server timestamp. |
 
 Both subscription kinds share one code path: a dedicated `Subscription` is created per channel subscription, its `MonitoredItem` is disposed and the subscription removed from the session (`ISession.RemoveSubscriptionAsync`) when the returned `IWotSubscription` is disposed, so no session or subscription is leaked — including when creation fails partway through.
 
 A compiled form's NodeId (`uav:id`, and `uav:componentOf` for actions) is resolved with `NodeId.Parse` for the plain `ns=` / `i=` / `s=` / `g=` / `b=` forms; a portable NodeId carrying an `nsu=` namespace URI is parsed as an `ExpandedNodeId` and resolved against the connected session's namespace table, since `NodeId.Parse` alone cannot resolve a namespace URI without one.
+
+### Event field selection (`uav:eventSelectClauses`)
+
+WoT Binding Section 6.1 states an event's `EventFilter` select clauses as an ordered
+array on the **event affordance** — never on a form. Each clause carries exactly
+`uav:typeDefinitionId` (the portable ExpandedNodeId of the EventType that declares the
+field) and `uav:browsePath` (the path from that type to the field, relative because the
+type definition anchors it).
+
+```jsonc
+"events": { "highTemperature": {
+  "@type": "uav:eventType", "uav:isEvent": true,
+  "uav:eventSelectClauses": [
+    { "uav:typeDefinitionId": "i=2041", "uav:browsePath": "EventId" },
+    { "uav:typeDefinitionId": "i=2782", "uav:browsePath": "EnabledState/Id" },
+    { "uav:typeDefinitionId": "i=2782", "uav:browsePath": "" },
+    { "uav:typeDefinitionId": "nsu=http://example.com/demo/pump;i=6001",
+      "uav:browsePath": "pump:Temperature" }
+  ],
+  "forms": [{ "href": "opc.tcp://server:4840", "uav:id": "i=2253",
+              "op": ["subscribeevent"] }] } }
+```
+
+What the runtime does with it:
+
+* `OpcUaBindingPlanner` compiles the **effective** selection onto
+  `WotCompiledForm.EventSelection`. Where the term is absent that is
+  `WotEventSelection.Default` — the eight mandatory `BaseEventType` fields, stated once
+  in `Opc.Ua.Wot.WotEventSelectClauses.Default` and shared by planner and channel.
+  Where it is present the authored list is **complete**: it replaces the default rather
+  than extending it.
+* A compact path element such as `pump:Temperature` is rewritten to the portable
+  `nsu=<NamespaceUri>;Temperature` form using the prefixes the document's `@context`
+  binds (`WotBindingPlanContext.NamespacePrefixes`). An unbound prefix fails the form
+  with `UnboundNamespacePrefix` rather than guessing a namespace.
+* `OpcUaWotBindingChannel` materializes each clause into a `SimpleAttributeOperand`
+  against the connected session's namespace table. The **empty** browse path selects the
+  `NodeId` Attribute — the OPC 10000-9 `ConditionId` idiom — and every other clause
+  selects `Value`.
+* An `EventFilter` `WhereClause` / `ContentFilter` is out of scope of the Binding; a
+  clause carrying one is rejected with `EventSelectClauseInvalid` instead of being
+  reinterpreted.
+
+The superseded `uav:eventFields` spelling this implementation minted before the term was
+standardized is still **read** — it is authored on a form, carries bare browse names and
+*adds* to the default selection — and is never **written**. Where a form carries both,
+the standardized term wins and the contradiction is reported (`ConflictingFields`)
+rather than silently merged.
+
+### Constraining an `auto` endpoint selection (`uav:minimumSecurity`)
+
+WoT Binding Section 5.7.1 lets an `auto` security scheme state a floor:
+
+```jsonc
+"securityDefinitions": {
+  "opcua_auto_sc": {
+    "scheme": "auto",
+    "uav:minimumSecurity": {
+      "uav:securityMode": "Sign",
+      "uav:securityPolicy": "Basic256Sha256"
+    }
+  }
+}
+```
+
+The planner compiles it onto `WotCompiledForm.SecurityFloor`. A floor the Binding cannot
+read — one carried by a scheme other than `auto`, or naming a mode or policy Section 5.7
+does not — fails the form (`InvalidSecurityFloor`) instead of compiling without the
+constraint.
+
+Because the session factory owns endpoint selection, the runtime enforces the floor at
+both ends:
+
+* `OpcUaWotBindingOptions.ConstrainedSessionFactory` receives an
+  `OpcUaWotSessionRequest` carrying the floor, so a factory can discard endpoints before
+  opening a channel. `OpcUaWotEndpointSelector.Select` applies the clause's rules to a
+  `GetEndpoints` response — discard everything below the floor, then take the strongest
+  mode, then the strongest policy (ranking a policy the Binding does not name below every
+  policy it does), then the highest `securityLevel`, then the smallest `endpointUrl` in
+  code-point order, then the earliest position.
+* Whichever factory is used, `OpcUaWotBindingExecutor` verifies the endpoint the returned
+  session reports and **fails closed** (`BadSecurityModeRejected`, session disposed) when
+  it is below the floor, or when the session cannot state its endpoint at all. A floor
+  whose enforcement was merely assumed would be a claim rather than a guarantee.
+
+The clause constrains a choice among the endpoints a Server already offers and nothing
+else: certificate trust, trust-list policy, filtering on any other endpoint attribute and
+transport-profile negotiation stay with the application's own security configuration.
 
 ## Adding your own binding
 
@@ -811,25 +899,33 @@ Conditionally exclude executor source on older TFMs rather than reducing the bas
 
 ## Conformance to WoT Binding 1.1
 
-The specification defines ten conformance units and four recommended profiles
+The specification defines twelve conformance units and four recommended profiles
 (Section 11). This is where the implementation stands against them.
 
 | Unit | Status | Where |
 |---|---|---|
-| **WoT-ProtocolBinding** | covered | URI/base/href handling, the four service mappings, access levels and the security schemes, in `Opc.Ua.WotCon.Bindings` and its planners |
+| **WoT-ProtocolBinding** | covered | URI/base/href handling, the four service mappings, access levels, the security schemes and the `auto` endpoint-selection constraint of Section 5.7.1, in `Opc.Ua.WotCon.Bindings` and its planners |
 | **WoT-NativeMapping** | covered | `WotNodeSetConverter`, including the proof that `uav:nodes` is omitted when the readable mapping is complete. It descends the whole composition tree (`FromNodeSetDocuments`, §9.1's "Thing / nested Thing"), seeds namespaces from `@context`, and keeps type definitions, DataTypes and scalar values. See *What the readable mapping cannot express* below |
 | **WoT-StructuredFallback** | covered | the structured `uav:nodes` projection in `WotNativeProjection` |
 | **WoT-JsonResidue** | covered | `WotJsonResidue`, pointer-addressed preservation through the NodeSet Extension |
 | **WoT-NodeSetPreservation** | covered | the byte-exact `uav:nodeSet` envelope with digest verification |
 | **WoT-ExactRoundtrip** | covered | the envelope-free roundtrip invariants, including residue |
-| **WoT-EventMapping** | covered | `subscribeevent` / `unsubscribeevent` mapped to event MonitoredItems |
+| **WoT-EventMapping** | covered | `subscribeevent` / `unsubscribeevent` mapped to event MonitoredItems, including the `uav:eventSelectClauses` list and its documented default (Section 6.1) |
 | **WoT-ConditionMapping** | covered | Section 13 (`uav:conditionType`, `uav:conditionTypeId`, `uav:conditionAction`, `uav:actsOn`) in `WotNodeSetConverter.Conditions`, with the Condition supertype resolution and the Section 13.3/13.4 conformance rules |
-| **WoT-ModelVocabulary** | covered | `WotNodeSetConverter.ModelVocabulary`, all Section 6 terms with their validation rules |
+| **WoT-ModelVocabulary** | covered | `WotNodeSetConverter.ModelVocabulary` and `WotNodeSetConverter.Conformance`, all Section 6 terms with their validation rules |
+| **WoT-DataTypeDefinition** | covered | `WotNodeSetConverter.DataTypes`, the explicit and inferred DataType definitions of Section 6.11 |
 | **WoT-ExternalResolver** | covered | `WotResolver` for `uav:externalSchema`, `uav:mapToType`, `uav:mapToNodeId` and cross-document links |
 | **WoT-Projection** | covered | `WotProjection`, `WotProjectionResolver` and, for materialization, `WotProjectionViewBuilder` with `LifecycleWotViewProjectionHost` |
 
 All four profiles - **WoT-Reader**, **WoT-Modeller**, **WoT-Converter** and
 **WoT-ArchivalConverter** - are therefore satisfied by the units above.
+
+The unit and profile names themselves are stated once, in
+`Opc.Ua.Wot.WotBindingConformance`, together with the vocabulary revision this
+library implements (`CurrentRevision`, `1.1`) and the profile nesting Section 11
+defines. A document declares what it claims with `uav:profile` and the revision it
+was authored against with `uav:bindingVersion` (Section 4.1); both are validated,
+neither becomes a Node, and both are restated verbatim on a round trip.
 
 ### What the readable mapping does not yet carry
 

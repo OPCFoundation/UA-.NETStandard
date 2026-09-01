@@ -138,6 +138,16 @@ A NodeSet holding an Object and the EventType it raises is projected about the
 **Object**: an EventType something else generates is a declaration that Node
 uses, not the subject of the document.
 
+The `data` object states what a notification *carries*; `uav:eventSelectClauses`
+states what a MonitoredItem *asks for* (Section 6.1). The two are independent:
+the schema is derived from the type, the request is authored on the affordance,
+and where no request is authored a consumer selects the eight mandatory
+`BaseEventType` fields. The converter validates the list and carries it
+unchanged — it is a client-side request rather than a model fact, so it projects
+to no Node — and the OPC UA binding runtime compiles it into the
+`EventFilter.SelectClauses` of the MonitoredItem (see
+[WotBindings.md](WotBindings.md#event-field-selection-uaveventselectclauses)).
+
 ## DataType definitions (Section 6.11)
 
 WoT Binding §6.11 gives Structures, Unions, Enumerations, OptionSets and
@@ -239,8 +249,56 @@ handles them in one direction with full round-trip fidelity:
   local part rather than its original map key.
 
 The opaque terms `uav:metadata`, `uav:propertyConfiguration`,
-`uav:actionConfiguration` and `uav:eventConfiguration` are never
-validated and never cause rejection; they are carried verbatim.
+`uav:actionConfiguration` and `uav:eventConfiguration` are never read and
+never cause rejection; they are carried verbatim. Their **shape** is
+checked, because a consumer that must carry a value unchanged and must
+not reject it is otherwise obliged to carry an unbounded, unattributable
+value (Section 6.6): every top-level key is an absolute IRI or a compact
+IRI whose prefix the document's `@context` binds, and the object stays
+within 65 536 canonical octets, 32 levels of nesting and 256 top-level
+keys. Revision 1.0 stated no key rule, so a document whose keys are not
+namespaced is **preserved** and reported as deprecated rather than
+rejected; strict conformance (below) turns the same finding into an
+error.
+
+## Conformance claims and strict mode (Sections 4.1, 6.1, 6.6 and 11)
+
+Four document-level terms describe the document rather than the
+AddressSpace, so none of them becomes a Node and all of them survive a
+round trip verbatim through the residue mechanism:
+
+| Term | Where | What is checked |
+|---|---|---|
+| `uav:bindingVersion` | TD/TM root | a `<major>.<minor>` revision string (Section 4.1) |
+| `uav:profile` | TD/TM root | a non-empty array of the Section 11 unit and profile names |
+| `uav:eventSelectClauses` | event affordance | a non-empty ordered list of two-member clauses with relative paths and no repeats (Section 6.1) |
+| `uav:minimumSecurity` | `auto` security scheme | `uav:securityMode`, `uav:securityPolicy`, or both, and no other member (Section 5.7.1) |
+
+`WotNodeSetConverterOptions.ConformanceMode` chooses how strictly the rest
+is held:
+
+- **`Permissive`** (the default) processes what it understands and
+  preserves the rest. An unknown `uav:` term is carried unchanged as
+  residue rather than reported, a revision this library does not
+  implement is accepted, and an unnamespaced opaque key is a warning.
+  This is what Sections 4.1, 6.6, 9.4 and 10.2 require of a consumer.
+- **`Strict`** additionally reports a `uav:` term this revision does not
+  define, a declared revision this library does not implement, an opaque
+  object that breaks the key or bound rules, and — where
+  `RequiredConformance` names units or profiles — a claim the document
+  does not make. Claiming a profile claims every unit it names, so
+  `WoT-Modeller` satisfies a requirement of `WoT-EventMapping`.
+
+Strict mode is for authoring and conformance testing: a misspelled term
+should fail there rather than travel silently. It is never the default,
+because a consumer is not allowed to reject a document for carrying a
+term it does not know.
+
+The revision this library implements, the closed Section 11 name set, the
+opaque bounds and the security strength orders are stated once, in
+`Opc.Ua.Wot.WotBindingConformance`; the select-clause term, its shape rules
+and its documented `BaseEventType` default are stated once, in
+`Opc.Ua.Wot.WotEventSelectClauses`.
 
 `uav:severity` is the exception to the "readable annotation" rule above: it
 names one OPC UA model fact, the EventType's own `Severity` Property, so both
