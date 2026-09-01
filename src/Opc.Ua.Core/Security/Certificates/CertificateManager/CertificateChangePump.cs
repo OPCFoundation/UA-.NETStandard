@@ -197,6 +197,13 @@ namespace Opc.Ua
 
         private async Task DrainAsync()
         {
+            // Yield once before the first snapshot so a synchronous burst of
+            // events (e.g. TrustListUpdated immediately followed by
+            // CrlUpdated from one notifier call) folds into a single pending
+            // state instead of racing the snapshot into two processing
+            // passes.
+            await Task.Yield();
+
             while (true)
             {
                 TState? state;

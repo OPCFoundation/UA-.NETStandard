@@ -35,6 +35,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Security.Certificates;
+using Opc.Ua.Tests;
 
 namespace Opc.Ua.Core.Tests.Security.Certificates
 {
@@ -236,17 +237,11 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             }
         }
 
-        private static async Task WaitUntilAsync(Func<bool> condition)
+        private static Task WaitUntilAsync(Func<bool> condition)
         {
-            DateTime deadline = DateTime.UtcNow + TimeSpan.FromSeconds(10);
-            while (!condition())
-            {
-                if (DateTime.UtcNow > deadline)
-                {
-                    Assert.Fail("Timed out waiting for the pump to settle.");
-                }
-                await Task.Delay(10).ConfigureAwait(false);
-            }
+            return TestPolling.WaitUntilAsync(
+                condition,
+                timeoutMessage: "Timed out waiting for the pump to settle.");
         }
     }
 }

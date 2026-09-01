@@ -314,7 +314,7 @@ namespace Opc.Ua.Server.Tests
             // An out-of-band CRL change (no push transaction, no ApplyChanges)
             // must still trigger the §7.10.9 effect fan-out via the
             // trust-material enforcement pump.
-            var handler = new ThreadSafeCapturingEffectHandler();
+            var handler = new CapturingEffectHandler();
             IPushConfigurationTrustListEffectHandler original = ReplaceEffectHandler(m_configManager, handler);
 
             try
@@ -344,7 +344,7 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public async Task OutOfBandUserTrustChangeDispatchesUserIdentityEffectAsync()
         {
-            var handler = new ThreadSafeCapturingEffectHandler();
+            var handler = new CapturingEffectHandler();
             IPushConfigurationTrustListEffectHandler original = ReplaceEffectHandler(m_configManager, handler);
 
             try
@@ -372,7 +372,7 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public async Task OutOfBandRejectedScopeChangeDispatchesNoEffectAsync()
         {
-            var handler = new ThreadSafeCapturingEffectHandler();
+            var handler = new CapturingEffectHandler();
             IPushConfigurationTrustListEffectHandler original = ReplaceEffectHandler(m_configManager, handler);
 
             try
@@ -581,56 +581,11 @@ namespace Opc.Ua.Server.Tests
             }
         }
 
-        private static async Task WaitUntilAsync(Func<bool> condition)
+        private static Task WaitUntilAsync(Func<bool> condition)
         {
-            DateTime deadline = DateTime.UtcNow + TimeSpan.FromSeconds(10);
-            while (!condition())
-            {
-                if (DateTime.UtcNow > deadline)
-                {
-                    Assert.Fail("Timed out waiting for the enforcement pump.");
-                }
-                await Task.Delay(10).ConfigureAwait(false);
-            }
-        }
-
-        private sealed class ThreadSafeCapturingEffectHandler : IPushConfigurationTrustListEffectHandler
-        {
-            public int InvocationCount
-            {
-                get
-                {
-                    lock (m_sync)
-                    {
-                        return m_contexts.Count;
-                    }
-                }
-            }
-
-            public IReadOnlyList<PushConfigurationTrustListEffectContext> Contexts
-            {
-                get
-                {
-                    lock (m_sync)
-                    {
-                        return [.. m_contexts];
-                    }
-                }
-            }
-
-            public ValueTask ApplyAsync(
-                PushConfigurationTrustListEffectContext context,
-                CancellationToken cancellationToken = default)
-            {
-                lock (m_sync)
-                {
-                    m_contexts.Add(context);
-                }
-                return default;
-            }
-
-            private readonly List<PushConfigurationTrustListEffectContext> m_contexts = [];
-            private readonly Lock m_sync = new();
+            return TestPolling.WaitUntilAsync(
+                condition,
+                timeoutMessage: "Timed out waiting for the enforcement pump.");
         }
 
         private async Task<IReadOnlyList<TrustListChangeEffect>> DriveApplyChangesForTrustListAsync(
@@ -742,20 +697,59 @@ namespace Opc.Ua.Server.Tests
             };
         }
 
+        /// <summary>
+        /// Thread-safe capturing fake: invocations may arrive from the
+        /// enforcement pump's background drain task while the test thread
+        /// polls, so every access synchronizes on one lock.
+        /// </summary>
         private sealed class CapturingEffectHandler : IPushConfigurationTrustListEffectHandler
         {
-            public int InvocationCount { get; private set; }
+            public int InvocationCount
+            {
+                get
+                {
+                    lock (m_sync)
+                    {
+                        return m_contexts.Count;
+                    }
+                }
+            }
 
-            public PushConfigurationTrustListEffectContext? LastContext { get; private set; }
+            public PushConfigurationTrustListEffectContext? LastContext
+            {
+                get
+                {
+                    lock (m_sync)
+                    {
+                        return m_contexts.Count > 0 ? m_contexts[^1] : null;
+                    }
+                }
+            }
+
+            public IReadOnlyList<PushConfigurationTrustListEffectContext> Contexts
+            {
+                get
+                {
+                    lock (m_sync)
+                    {
+                        return [.. m_contexts];
+                    }
+                }
+            }
 
             public ValueTask ApplyAsync(
                 PushConfigurationTrustListEffectContext context,
                 CancellationToken cancellationToken = default)
             {
-                InvocationCount++;
-                LastContext = context;
+                lock (m_sync)
+                {
+                    m_contexts.Add(context);
+                }
                 return default;
             }
+
+            private readonly List<PushConfigurationTrustListEffectContext> m_contexts = [];
+            private readonly Lock m_sync = new();
         }
 
         /// <summary>

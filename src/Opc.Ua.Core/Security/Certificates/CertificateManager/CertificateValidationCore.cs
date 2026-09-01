@@ -754,11 +754,18 @@ namespace Opc.Ua
                 // evaluates the revocation lists, so a cached certificate
                 // that has been revoked since it was first validated (e.g.
                 // by a freshly pushed CRL) is never waved through on the
-                // thumbprint alone. On a clean cache hit the expensive
-                // chain-policy build below is still skipped, which is the
-                // performance intent of UseValidatedCertificates.
+                // thumbprint alone. Only an ACTUAL revocation blocks the
+                // fast path - a certificate enters the cache after a
+                // successful validation or an explicitly accepted
+                // suppressible error (e.g. RevocationUnknown when the CA
+                // publishes no CRL), and re-raising such an accepted error
+                // on every validation would re-fire the accept callback per
+                // connection and permanently defeat the cache for exactly
+                // the certificates it was written for. On a cache hit the
+                // expensive chain-policy build below is skipped, which is
+                // the performance intent of UseValidatedCertificates.
                 if (UseValidatedCertificates &&
-                    sresult == null &&
+                    !HasRevocationError(validationErrors) &&
                     m_validatedCertificates.TryGetValue(
                         certificate.Thumbprint,
                         out byte[]? certificate2) &&
@@ -1688,6 +1695,30 @@ namespace Opc.Ua
             }
 
             return null;
+        }
+
+        /// <summary>
+        /// Reports whether the issuer walk found an actual revocation
+        /// (<see cref="StatusCodes.BadCertificateRevoked"/> or
+        /// <see cref="StatusCodes.BadCertificateIssuerRevoked"/>) for any
+        /// certificate in the chain. Unknown-revocation statuses do not
+        /// count: they are suppressible and, when previously accepted, must
+        /// not defeat the validated-certificate fast path.
+        /// </summary>
+        private static bool HasRevocationError(
+            Dictionary<Certificate, ServiceResultException> validationErrors)
+        {
+            foreach (ServiceResultException error in validationErrors.Values)
+            {
+                if (error != null &&
+                    (error.StatusCode == StatusCodes.BadCertificateRevoked ||
+                        error.StatusCode == StatusCodes.BadCertificateIssuerRevoked))
+                {
+                    return true;
+                }
+            }
+
+            return false;
         }
 
         private static ServiceResult? PopulateSresultWithValidationErrors(

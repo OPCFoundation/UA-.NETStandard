@@ -164,11 +164,15 @@ namespace Opc.Ua.Server
             m_trustListEffectHandler = trustListEffectHandler
                 ?? new PushConfigurationTrustListEffectHandler(server.Telemetry);
             m_serverConfigurationOptions = serverConfigurationOptions ?? new ServerConfigurationOptions();
-            string? rejectedStorePath = configuration.SecurityConfiguration.RejectedCertificateStore?
-                .StorePath;
-            if (!string.IsNullOrEmpty(rejectedStorePath))
+            CertificateStoreIdentifier? rejectedStore =
+                configuration.SecurityConfiguration.RejectedCertificateStore;
+            if (!string.IsNullOrEmpty(rejectedStore?.StorePath))
             {
-                m_rejectedStore = new CertificateStoreIdentifier(rejectedStorePath!);
+                // Preserves a configured custom StoreType, like the group
+                // stores below - the validator writes rejected certificates
+                // through the configured store, so GetRejectedList must read
+                // through the same store implementation.
+                m_rejectedStore = CreateGroupStoreIdentifier(rejectedStore!);
             }
             m_certificateGroups = [];
             m_configuration = configuration;
@@ -359,14 +363,21 @@ namespace Opc.Ua.Server
         {
             if (disposing)
             {
+                // Signal any in-flight deferred ApplyChanges and trust-material
+                // enforcement pass to stop FIRST, before any member they use is
+                // torn down below. DeleteAddressSpaceAsync drains those tasks
+                // deterministically during the async server shutdown; Dispose
+                // only signals (it must never block on async work), which also
+                // covers the direct-construction path where
+                // DeleteAddressSpaceAsync is not invoked.
+                CancelPendingApplyChanges();
+
                 // Stop reacting to trust-material changes before the
                 // listeners/session manager are torn down. An enforcement
-                // pass already in flight bails out on the shutdown token;
-                // DeleteAddressSpaceAsync drains it deterministically during
-                // the async server shutdown.
+                // pass already in flight bails out on the shutdown token
+                // cancelled above.
                 m_trustMaterialPump?.Dispose();
                 m_trustMaterialPump = null;
-                m_selfTrustNotification.Dispose();
 
                 // Signal only: Dispose is synchronous. A deferred apply already
                 // running stops at its next await once the token trips.
@@ -409,14 +420,8 @@ namespace Opc.Ua.Server
                 // no separate global rotation list to clean up here.
                 m_coordinator.Reset();
 
-                // Signal any in-flight deferred ApplyChanges effects to stop
-                // so they never run against listeners/managers being disposed.
-                // DeleteAddressSpaceAsync drains the task deterministically as
-                // part of the async server shutdown; Dispose only signals
-                // (it must never block on async work), which also covers the
-                // direct-construction path where DeleteAddressSpaceAsync is
-                // not invoked.
-                CancelPendingApplyChanges();
+                // The shutdown source was cancelled at the top of this
+                // method; only the disposal remains.
                 m_shutdownCts.Dispose();
 
                 StopAlarmMonitoring();
@@ -435,6 +440,13 @@ namespace Opc.Ua.Server
                 }
 
                 m_rejectedStore?.DisposeCachedStore();
+
+                // Disposed LAST: a deferred apply that raced past the
+                // cancellation above may still write the self-notification
+                // flag from its own thread; disposing the ThreadLocal any
+                // earlier would fault that task with ObjectDisposedException
+                // and skip its remaining effect application.
+                m_selfTrustNotification.Dispose();
             }
 
             base.Dispose(disposing);
@@ -3520,34 +3532,54 @@ namespace Opc.Ua.Server
                         continue;
                     }
 
-                    if (certGroup.BrowseName == BrowseNames.DefaultUserTokenGroup)
-                    {
-                        effects.Add(new TrustListChangeEffect
-                        {
-                            TrustListId = trustListId,
-                            CertificateGroupId = certGroup.NodeId,
-                            Kind = TrustListEffectKind.UserIdentityTrust,
-                            ValidationScope = TrustListIdentifier.Users
-                        });
-                    }
-                    else
-                    {
-                        effects.Add(new TrustListChangeEffect
-                        {
-                            TrustListId = trustListId,
-                            CertificateGroupId = certGroup.NodeId,
-                            Kind = TrustListEffectKind.SecureChannelTrust,
-                            ValidationScope = certGroup.BrowseName == BrowseNames.DefaultHttpsGroup
-                                ? TrustListIdentifier.Https
-                                : TrustListIdentifier.Peers
-                        });
-                    }
-
+                    effects.Add(CreateTrustListEffect(certGroup));
                     break;
                 }
             }
 
             return effects;
+        }
+
+        /// <summary>
+        /// The single source of truth for the certificate-group →
+        /// trust-list-scope mapping used by both effect builders: the
+        /// user-token group validates X.509 user identities
+        /// (<see cref="TrustListIdentifier.Users"/>), the HTTPS group the
+        /// HTTPS transport certificates
+        /// (<see cref="TrustListIdentifier.Https"/>), every other group the
+        /// peer application certificates
+        /// (<see cref="TrustListIdentifier.Peers"/>).
+        /// </summary>
+        private static TrustListIdentifier GetGroupValidationScope(
+            ServerCertificateGroup certGroup)
+        {
+            if (certGroup.BrowseName == BrowseNames.DefaultUserTokenGroup)
+            {
+                return TrustListIdentifier.Users;
+            }
+
+            return certGroup.BrowseName == BrowseNames.DefaultHttpsGroup
+                ? TrustListIdentifier.Https
+                : TrustListIdentifier.Peers;
+        }
+
+        /// <summary>
+        /// Builds the §7.10.9 effect for a certificate group from the shared
+        /// scope mapping.
+        /// </summary>
+        private static TrustListChangeEffect CreateTrustListEffect(
+            ServerCertificateGroup certGroup)
+        {
+            TrustListIdentifier scope = GetGroupValidationScope(certGroup);
+            return new TrustListChangeEffect
+            {
+                TrustListId = certGroup.Node?.TrustList?.NodeId ?? NodeId.Null,
+                CertificateGroupId = certGroup.NodeId,
+                Kind = scope == TrustListIdentifier.Users
+                    ? TrustListEffectKind.UserIdentityTrust
+                    : TrustListEffectKind.SecureChannelTrust,
+                ValidationScope = scope
+            };
         }
 
         /// <summary>
@@ -4013,38 +4045,16 @@ namespace Opc.Ua.Server
         internal List<TrustListChangeEffect> BuildTrustListEffectsForScopes(
             IEnumerable<TrustListIdentifier> scopes)
         {
+            // A null scope in the input matches no group and simply drops out.
+            var requested = new HashSet<TrustListIdentifier>(
+                scopes.Where(static scope => scope != null));
+
             var effects = new List<TrustListChangeEffect>();
-            foreach (TrustListIdentifier scope in scopes)
+            foreach (ServerCertificateGroup certGroup in m_certificateGroups)
             {
-                if (scope == null)
+                if (requested.Contains(GetGroupValidationScope(certGroup)))
                 {
-                    continue;
-                }
-
-                foreach (ServerCertificateGroup certGroup in m_certificateGroups)
-                {
-                    TrustListIdentifier groupScope =
-                        certGroup.BrowseName == BrowseNames.DefaultUserTokenGroup
-                            ? TrustListIdentifier.Users
-                            : certGroup.BrowseName == BrowseNames.DefaultHttpsGroup
-                                ? TrustListIdentifier.Https
-                                : TrustListIdentifier.Peers;
-                    if (groupScope != scope)
-                    {
-                        continue;
-                    }
-
-                    effects.Add(new TrustListChangeEffect
-                    {
-                        TrustListId = certGroup.Node?.TrustList?.NodeId ?? NodeId.Null,
-                        CertificateGroupId = certGroup.NodeId,
-                        Kind = scope == TrustListIdentifier.Users
-                            ? TrustListEffectKind.UserIdentityTrust
-                            : TrustListEffectKind.SecureChannelTrust,
-                        ValidationScope = scope
-                    });
-
-                    break;
+                    effects.Add(CreateTrustListEffect(certGroup));
                 }
             }
 
