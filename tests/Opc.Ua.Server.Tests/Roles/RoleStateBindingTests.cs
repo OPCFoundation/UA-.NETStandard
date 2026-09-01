@@ -941,6 +941,65 @@ namespace Opc.Ua.Server.Tests.Roles
                 "A role added directly on the manager must appear under the RoleSet.");
         }
 
+        // ----------------------------------------------------------------
+        // Teardown and failure handling
+        // ----------------------------------------------------------------
+
+        [Test]
+        public async Task Bind_MaterializationThrows_StillCompletesTheBindingAsync()
+        {
+            // One role the server cannot represent must not stop the server from
+            // starting: the sweep logs it and carries on.
+            using var roleManager = new RoleManager();
+            Assume.That(ServiceResult.IsGood(roleManager.AddRole(
+                "Unmaterializable", "http://test.org/role-binding/", m_namespaceTable,
+                m_nodeManager.NamespaceIndex, out NodeId roleId)), Is.True);
+
+            m_nodeManager.SystemContext.NodeIdFactory = new ThrowingNodeIdFactory();
+
+            using RoleStateBinding? binding = await RoleStateBinding
+                .BindAsync(m_nodeManager, roleManager, m_auditServer.Object)
+                .ConfigureAwait(false);
+
+            Assert.That(binding, Is.Not.Null,
+                "A role that cannot be materialized must not abort the binding.");
+            Assert.That(m_nodeManager.PredefinedNodes.ContainsKey(roleId), Is.False,
+                "The failed role must not leave a half-built node behind.");
+            Assert.That(m_roleSet.AddRole!.OnCallAsync, Is.Not.Null,
+                "The RoleSet methods must still be wired up.");
+        }
+
+        [Test]
+        public async Task AddRoleHandler_AfterDispose_ReturnsBadInvalidStateAndRollsBackAsync()
+        {
+            m_binding!.Dispose();
+
+            ISystemContext ctx = BuildAdminContext(MessageSecurityMode.SignAndEncrypt);
+            AddRoleMethodStateResult result = await InvokeAddRoleAsync(
+                ctx, "AfterShutdown", "http://test.org/role-binding/").ConfigureAwait(false);
+
+            Assert.That(result.ServiceResult.StatusCode,
+                Is.EqualTo(StatusCodes.BadInvalidState),
+                "A torn-down binding must not report success for a role it never created.");
+            Assert.That(result.RoleNodeId.IsNull, Is.True);
+            Assert.That(
+                m_roleManager.RoleIds.Any(id =>
+                    string.Equals(m_roleManager.GetRole(id)?.BrowseName, "AfterShutdown",
+                        System.StringComparison.Ordinal)),
+                Is.False,
+                "A role that could not be materialized must not linger in the manager.");
+        }
+
+        [Test]
+        public void Dispose_IsIdempotent()
+        {
+            Assert.DoesNotThrow(() =>
+            {
+                m_binding!.Dispose();
+                m_binding.Dispose();
+            });
+        }
+
         private async Task WaitForNodeAsync(NodeId nodeId)
         {
             for (int ii = 0; ii < 200 && !m_nodeManager.PredefinedNodes.ContainsKey(nodeId); ii++)
@@ -1187,6 +1246,18 @@ namespace Opc.Ua.Server.Tests.Roles
 
             private readonly NodeId m_fixedNodeId;
             private readonly Dictionary<NodeId, RoleEntry> m_roles = [];
+        }
+
+        /// <summary>
+        /// Fails every allocation, so materializing a role throws part-way
+        /// through building its subtree.
+        /// </summary>
+        private sealed class ThrowingNodeIdFactory : INodeIdFactory
+        {
+            public NodeId New(ISystemContext context, NodeState node)
+            {
+                throw new InvalidOperationException("NodeId allocation failed.");
+            }
         }
 
         private sealed class SequentialNodeIdFactory : INodeIdFactory
