@@ -146,34 +146,75 @@ namespace Opc.Ua.Server
         internal RoleConfigurationOptions? PendingConfiguration { get; set; }
 
         /// <summary>
-        /// Applies the staged configuration to roles that already exist — the
-        /// well-known ones — leaving the rest for
-        /// <see cref="ApplyPendingConfiguration"/>. Lets a caller inspect the
-        /// configured roles before the server is running.
+        /// Applies <see cref="PendingConfiguration"/>.
         /// </summary>
-        internal void ApplyPendingConfigurationToExistingRoles()
-        {
-            ApplyPendingConfigurationCore(
-                namespaces: null, defaultNamespaceIndex: 0, createMissingRoles: false);
-        }
-
-        /// <summary>
-        /// Applies and clears <see cref="PendingConfiguration"/>, creating the
-        /// roles that do not exist yet.
-        /// </summary>
-        /// <param name="namespaces">The server's namespace table.</param>
+        /// <param name="namespaces">
+        /// The server's namespace table, which allows roles that do not exist
+        /// yet to be created and clears the staged configuration. Pass
+        /// <c>null</c> before the address space exists: settings on roles that
+        /// are already there — the well-known ones — are applied, everything
+        /// else stays staged for the call that supplies a table.
+        /// </param>
         /// <param name="defaultNamespaceIndex">
-        /// Namespace index used for the NodeIds of newly created roles.
+        /// Namespace index the NodeIds of newly created roles are allocated in.
+        /// Ignored when <paramref name="namespaces"/> is <c>null</c>.
         /// </param>
         /// <exception cref="InvalidOperationException">
         /// A configured role could not be created.
         /// </exception>
         internal void ApplyPendingConfiguration(
-            NamespaceTable namespaces,
-            ushort defaultNamespaceIndex)
+            NamespaceTable? namespaces,
+            ushort defaultNamespaceIndex = 0)
         {
-            ApplyPendingConfigurationCore(
-                namespaces, defaultNamespaceIndex, createMissingRoles: true);
+            RoleConfigurationOptions? options = PendingConfiguration;
+            if (options == null)
+            {
+                return;
+            }
+            if (namespaces != null)
+            {
+                PendingConfiguration = null;
+            }
+
+            foreach (RoleDefinitionOptions role in options.Roles)
+            {
+                if (string.IsNullOrWhiteSpace(role.Name))
+                {
+                    continue;
+                }
+
+                NodeId roleId = FindRoleByBrowseName(role.Name);
+                if (roleId.IsNull)
+                {
+                    if (namespaces == null)
+                    {
+                        // The role needs a server-assigned NodeId, which cannot
+                        // be allocated before the namespace table exists.
+                        continue;
+                    }
+                    roleId = CreateConfiguredRole(namespaces, defaultNamespaceIndex, role);
+                }
+
+                foreach (RoleIdentityMappingOptions identity in role.Identities)
+                {
+                    AddIdentity(roleId, new IdentityMappingRuleType
+                    {
+                        CriteriaType = identity.CriteriaType,
+                        Criteria = identity.Criteria
+                    });
+                }
+                foreach (string application in role.Applications)
+                {
+                    AddApplication(roleId, application);
+                }
+                foreach (EndpointType endpoint in role.Endpoints)
+                {
+                    AddEndpoint(roleId, endpoint);
+                }
+                SetApplicationsExclude(roleId, role.ApplicationsExclude);
+                SetEndpointsExclude(roleId, role.EndpointsExclude);
+                SetCustomConfiguration(roleId, role.CustomConfiguration);
+            }
         }
 
         /// <inheritdoc/>
@@ -809,62 +850,6 @@ namespace Opc.Ua.Server
                 !string.IsNullOrEmpty(roleName) &&
                 string.Equals(claims.Issuer, issuer, StringComparison.Ordinal) &&
                 claims.Roles.Contains(roleName, StringComparer.Ordinal);
-        }
-
-        private void ApplyPendingConfigurationCore(
-            NamespaceTable? namespaces,
-            ushort defaultNamespaceIndex,
-            bool createMissingRoles)
-        {
-            RoleConfigurationOptions? options = PendingConfiguration;
-            if (options == null)
-            {
-                return;
-            }
-            if (createMissingRoles)
-            {
-                PendingConfiguration = null;
-            }
-
-            foreach (RoleDefinitionOptions role in options.Roles)
-            {
-                if (string.IsNullOrWhiteSpace(role.Name))
-                {
-                    continue;
-                }
-
-                NodeId roleId = FindRoleByBrowseName(role.Name);
-                if (roleId.IsNull)
-                {
-                    if (!createMissingRoles)
-                    {
-                        // The role needs a server-assigned NodeId, which cannot
-                        // be allocated before the namespace table exists.
-                        continue;
-                    }
-                    roleId = CreateConfiguredRole(namespaces!, defaultNamespaceIndex, role);
-                }
-
-                foreach (RoleIdentityMappingOptions identity in role.Identities)
-                {
-                    AddIdentity(roleId, new IdentityMappingRuleType
-                    {
-                        CriteriaType = identity.CriteriaType,
-                        Criteria = identity.Criteria
-                    });
-                }
-                foreach (string application in role.Applications)
-                {
-                    AddApplication(roleId, application);
-                }
-                foreach (EndpointType endpoint in role.Endpoints)
-                {
-                    AddEndpoint(roleId, endpoint);
-                }
-                SetApplicationsExclude(roleId, role.ApplicationsExclude);
-                SetEndpointsExclude(roleId, role.EndpointsExclude);
-                SetCustomConfiguration(roleId, role.CustomConfiguration);
-            }
         }
 
         private NodeId FindRoleByBrowseName(string browseName)

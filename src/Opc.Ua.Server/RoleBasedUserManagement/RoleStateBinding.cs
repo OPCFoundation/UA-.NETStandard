@@ -69,13 +69,17 @@ namespace Opc.Ua.Server
         private readonly ILogger m_logger;
         private readonly ConcurrentDictionary<NodeId, RoleState> m_boundRoles = new();
 
+        // Serializes every mutation of the RoleSet subtree — materializing a
+        // role and dropping one both rewrite the RoleSet's children and
+        // references, which are not thread-safe collections.
+        //
         // CA2213: deliberately not disposed. A RoleAdded event can still have a
         // materialization queued on this semaphore when the binding is torn
         // down, and disposing it under a pending waiter throws on a background
         // thread. SemaphoreSlim holds no unmanaged resource here because
         // AvailableWaitHandle is never touched.
 #pragma warning disable CA2213
-        private readonly SemaphoreSlim m_materializeLock = new(1, 1);
+        private readonly SemaphoreSlim m_roleSetLock = new(1, 1);
 #pragma warning restore CA2213
         private RoleSetState? m_roleSet;
         private bool m_disposed;
@@ -259,12 +263,17 @@ namespace Opc.Ua.Server
             // reconfigured by a client.
             foreach (NodeId roleId in m_roleManager.RoleIds)
             {
-                if (m_boundRoles.ContainsKey(roleId))
+                // One role the server cannot represent must not stop the server
+                // from starting: log it and carry on with the rest.
+                try
                 {
-                    continue;
+                    await EnsureRoleMaterializedAsync(roleId, cancellationToken)
+                        .ConfigureAwait(false);
                 }
-                await EnsureRoleMaterializedAsync(roleId, cancellationToken)
-                    .ConfigureAwait(false);
+                catch (Exception ex) when (ex is not OperationCanceledException)
+                {
+                    m_logger.MaterializingRoleRoleIdFailed(ex, roleId);
+                }
             }
         }
 
@@ -622,11 +631,12 @@ namespace Opc.Ua.Server
                 return NotBoundResult();
             }
 
-            await m_materializeLock.WaitAsync(cancellationToken).ConfigureAwait(false);
+            await m_roleSetLock.WaitAsync(cancellationToken).ConfigureAwait(false);
             try
             {
                 // Dispose may have won the race for the lock.
-                if (!IsBound())
+                RoleSetState? roleSet = m_disposed ? null : m_roleSet;
+                if (roleSet == null)
                 {
                     return NotBoundResult();
                 }
@@ -673,13 +683,13 @@ namespace Opc.Ua.Server
                             $"NodeId '{roleId}' is not in a namespace owned by the RoleSet's NodeManager."));
                 }
 
-                await MaterializeDynamicRoleAsync(entry, cancellationToken)
+                await MaterializeDynamicRoleAsync(roleSet, entry, cancellationToken)
                     .ConfigureAwait(false);
                 return ServiceResult.Good;
             }
             finally
             {
-                m_materializeLock.Release();
+                m_roleSetLock.Release();
             }
         }
 
@@ -795,17 +805,15 @@ namespace Opc.Ua.Server
         /// allocated NodeId and rebase its mandatory and optional descendants
         /// through the owning NodeManager's <see cref="ISystemContext.NodeIdFactory"/>.
         /// Callers must go through <see cref="EnsureRoleMaterializedAsync"/>,
-        /// which checks that the NodeId is free first.
+        /// which holds <c>m_roleSetLock</c> and checks that the NodeId is free
+        /// first — hence the <paramref name="roleSet"/> parameter rather than a
+        /// re-read of the field, so this can never silently do nothing.
         /// </remarks>
         private async ValueTask MaterializeDynamicRoleAsync(
+            RoleSetState roleSet,
             RoleEntry entry,
             CancellationToken cancellationToken)
         {
-            if (m_roleSet == null)
-            {
-                return;
-            }
-
             NodeId roleNodeId = entry.RoleId;
             string roleName = entry.BrowseName ?? roleNodeId.IdentifierAsString ?? "Role";
 
@@ -817,11 +825,11 @@ namespace Opc.Ua.Server
             ServerSystemContext nodeContext = m_nodeManager.SystemContext.Copy();
             nodeContext.NodeIdFactory = new DynamicRoleNodeIdFactory(
                 nodeContext.NodeIdFactory,
-                m_roleSet,
+                roleSet,
                 roleNodeId);
 
             RoleState roleState = nodeContext.CreateInstanceOfRoleType(
-                parent: m_roleSet,
+                parent: roleSet,
                 browseName: new QualifiedName(roleName, browseNs));
             roleState.NodeId = roleNodeId;
             roleState.SymbolicName = roleName;
@@ -878,9 +886,9 @@ namespace Opc.Ua.Server
             // typed children collection; the actual HasComponent reference
             // pair that Browse traverses is added explicitly so the new
             // role shows up when clients walk the RoleSet's children.
-            m_roleSet.AddChild(roleState);
-            m_roleSet.AddReference(ReferenceTypeIds.HasComponent, isInverse: false, roleState.NodeId);
-            roleState.AddReference(ReferenceTypeIds.HasComponent, isInverse: true, m_roleSet.NodeId);
+            roleSet.AddChild(roleState);
+            roleSet.AddReference(ReferenceTypeIds.HasComponent, isInverse: false, roleState.NodeId);
+            roleState.AddReference(ReferenceTypeIds.HasComponent, isInverse: true, roleSet.NodeId);
 
             await m_nodeManager.AddPredefinedNodeAsync(roleState, cancellationToken)
                 .ConfigureAwait(false);
@@ -917,15 +925,27 @@ namespace Opc.Ua.Server
             NodeId roleNodeId,
             CancellationToken cancellationToken)
         {
-            // Drop the binding bookkeeping first so any concurrent
-            // RoleConfigurationChanged listener walks the new state.
-            m_boundRoles.TryRemove(roleNodeId, out _);
+            // Deleting the node rewrites the RoleSet's children and references,
+            // so it has to be serialized against materialization: otherwise a
+            // concurrent AddRole and RemoveRole mutate those collections from
+            // two threads.
+            await m_roleSetLock.WaitAsync(cancellationToken).ConfigureAwait(false);
+            try
+            {
+                // Drop the binding bookkeeping first so any concurrent
+                // RoleConfigurationChanged listener walks the new state.
+                m_boundRoles.TryRemove(roleNodeId, out _);
 
-            await m_nodeManager.DeleteNodeAsync(
-                    m_nodeManager.SystemContext,
-                    roleNodeId,
-                    cancellationToken)
-                .ConfigureAwait(false);
+                await m_nodeManager.DeleteNodeAsync(
+                        m_nodeManager.SystemContext,
+                        roleNodeId,
+                        cancellationToken)
+                    .ConfigureAwait(false);
+            }
+            finally
+            {
+                m_roleSetLock.Release();
+            }
         }
 
         /// <summary>

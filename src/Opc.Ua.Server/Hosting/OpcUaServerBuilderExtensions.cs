@@ -1517,7 +1517,7 @@ namespace Microsoft.Extensions.DependencyInjection
 
             // Settings on roles that already exist — the nine well-known ones —
             // take effect immediately; the rest wait for the address space.
-            roleManager.ApplyPendingConfigurationToExistingRoles();
+            roleManager.ApplyPendingConfiguration(namespaces: null);
             return roleManager;
         }
 
