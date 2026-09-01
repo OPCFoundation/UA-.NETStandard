@@ -18,6 +18,8 @@ This document starts with the bindings that ship today and how to register them,
   - [Intentionally unsupported operations](#intentionally-unsupported-operations)
   - [Transport security](#transport-security)
   - [Operation coverage (OPC UA executor)](#operation-coverage-opc-ua-executor)
+  - [Event field selection (`uav:eventSelectClauses`)](#event-field-selection-uaveventselectclauses)
+  - [Constraining an `auto` endpoint selection (`uav:minimumSecurity`)](#constraining-an-auto-endpoint-selection-uavminimumsecurity)
 - [Adding your own binding](#adding-your-own-binding)
   - [Architecture and lifecycle](#architecture-and-lifecycle)
   - [Identification and capability](#identification-and-capability)
@@ -39,6 +41,13 @@ This document starts with the bindings that ship today and how to register them,
   - [Contributor checklist](#contributor-checklist)
   - [Testing matrix](#testing-matrix)
 - [Related documentation](#related-documentation)
+- [Conformance to WoT Binding 1.1](#conformance-to-wot-binding-11)
+  - [What the readable mapping does not yet carry](#what-the-readable-mapping-does-not-yet-carry)
+  - [How this is checked](#how-this-is-checked)
+  - [Resolving a type binding: the local context](#resolving-a-type-binding-the-local-context)
+  - [Resolving a relation: companion ReferenceTypes](#resolving-a-relation-companion-referencetypes)
+  - [Alarms and Conditions](#alarms-and-conditions)
+  - [Compatibility switch for non-portable identifiers](#compatibility-switch-for-non-portable-identifiers)
 
 ## Bindings that ship today
 
@@ -246,7 +255,8 @@ The superseded `uav:eventFields` spelling this implementation minted before the 
 standardized is still **read** — it is authored on a form, carries bare browse names and
 *adds* to the default selection — and is never **written**. Where a form carries both,
 the standardized term wins and the contradiction is reported (`ConflictingFields`)
-rather than silently merged.
+rather than silently merged. New documents should author `uav:eventSelectClauses`; see
+[Migrating WoT Binding documents and converted NodeSets](MigrationGuide.md#migrating-wot-binding-documents-and-converted-nodesets).
 
 ### Constraining an `auto` endpoint selection (`uav:minimumSecurity`)
 
@@ -953,14 +963,47 @@ for callers that need to know a document was reproduced as written.
 
 ### How this is checked
 
-The specification publishes twenty-two worked examples, and two of them are a
+The specification publishes twenty-three worked examples, and two of them are a
 golden pair: a projection document and the resolved view it is defined to
-resolve to. `WotSpecExampleTests` embeds all twenty-two and runs the pair
+resolve to. `WotSpecExampleTests` embeds all twenty-three and runs the pair
 through the resolver, asserting against the specification's own expected output
 rather than against our reading of the prose. That covers, in one document, all
 three selection forms, the bulk naming rule, the security closure naming and the
 provenance term. Example 22 is additionally converted to check that a document
-binds the node it projects to an existing type (Section 5.2.1).
+binds the node it projects to an existing type (Section 5.2.1) and constrains
+its `auto` endpoint selection with a Section 5.7.1 floor.
+
+`WotSpecExampleTests.EveryPublishedExamplePassesStrictConformanceAndImports`
+runs every one of the twenty-three through the whole reading pipeline — parse,
+**strict** conformance validation, conversion, then serialize, re-read and
+`Import`. A document that claims a profile covering `WoT-Modeller` has to
+convert: the claim is what makes the conversion mandatory rather than optional.
+
+#### Keeping the vendored examples honest
+
+The examples are vendored byte-for-byte from the specification repository into
+`tests/Opc.Ua.Types.Tests/Wot/Assets`, and `.gitattributes` marks `*.jsonld`
+`eol=lf` so the checked-out bytes are the upstream bytes on every platform.
+They used to be copied by hand with no record of the source, and they drifted:
+one example gained a security floor upstream while the copy here kept the
+superseded text, and a later example never arrived at all.
+
+`spec-examples.manifest.json` beside them now records the source repository,
+branch and commit, the vocabulary revision, and the size and SHA-256 of every
+file. `WotSpecFixtureManifestTests` enforces it in three layers:
+
+| Check | Needs | What it catches |
+| --- | --- | --- |
+| manifest set, count, numbering and per-file SHA-256 | nothing — offline, from embedded resources | an edited, replaced, added or dropped example, and a gap in the `NN-` numbering that would hide a missing tail |
+| manifest provenance | nothing | a manifest that names no full source commit, or that records a revision this library does not implement |
+| byte identity against the specification checkout | a sibling `spec-drafts` checkout, or `OPCUA_WOT_SPEC_DRAFTS` | a regeneration made from the wrong source, which would record wrong hashes just as consistently |
+
+The third check is skipped, not failed, where no checkout is present, so CI needs
+neither the network nor a second repository. Re-vendoring is the explicit
+developer step `WotSpecFixtureManifestTests.RegenerateFromSpecCheckout`, which
+copies the published examples over the vendored ones and rewrites the manifest
+from `git` in the source checkout — so the diff a reviewer sees is the
+specification's diff.
 
 ### Resolving a type binding: the local context
 

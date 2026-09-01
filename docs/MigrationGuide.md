@@ -934,6 +934,104 @@ parameters, which an asynchronous method cannot have. Use
 `WriteAsymmetricMessageAsync` in place of the removed synchronous
 overload.
 
+## Migrating WoT Binding documents and converted NodeSets
+
+`Opc.Ua.Wot` now tracks **WoT Binding revision 1.1**
+(`Opc.Ua.Wot.WotBindingConformance.CurrentRevision`). No public API was
+removed and nothing is `[Obsolete]`, but converted documents and converted
+NodeSets change in six ways worth knowing before you diff a regenerated
+artifact. The reference material is in
+[WoT / NodeSet conversion](WoTNodeSetConversion.md),
+[WoT protocol bindings](WotBindings.md) and
+[WoT Connectivity](WoTConnectivity.md); this section states only what a
+consumer has to do.
+
+### Emitted NodeSets now declare their `<Aliases>`
+
+The converter wrote standard names such as `HasComponent` and `Double`
+where a NodeId is expected without declaring them, so `UANodeSet.Import`
+rejected the result with `BadNodeIdInvalid`. Converted NodeSets are now
+alias-complete on all three restoration paths.
+
+**What to do:** nothing, unless you compared converted documents
+byte-for-byte. Such a comparison sees a new or extended `<Aliases>`
+element; the completion pass is idempotent and appends in ascending
+ordinal order of the alias, so the result depends only on content.
+A byte-exact `uav:nodeSet` restore is unaffected, because a document that
+already declares what it uses gains nothing.
+
+### The modelling-rule placeholders pointed at the wrong Nodes
+
+`MandatoryPlaceholder` was emitted as `i=11508` — which is
+`OptionalPlaceholder` — and `OptionalPlaceholder` as `i=11509`, which is
+not a ModellingRule Object at all. A round trip therefore inverted the
+first rule and dropped the second with no diagnostic. The correct
+identifiers are `i=11510` and `i=11508`.
+
+**What to do:** re-generate any NodeSet2 previously produced from a
+document that authored `uav:modellingRule: "MandatoryPlaceholder"` or
+`"OptionalPlaceholder"`. A stored NodeSet keeps the wrong
+`HasModellingRule` target until it is converted again. Documents
+themselves are unaffected — the readable spelling never changed.
+
+### Generated documents carry more metadata
+
+A document generated from the same NodeSet now additionally carries event
+severity, `Method` argument schemas, event `data` and the Section 13
+Condition terms, engineering units and ranges, `titles` / `descriptions`
+for every locale a `LocalizedText` holds, `uav:valueRank` /
+`uav:arrayDimensions`, and typed links for companion ReferenceTypes
+including the inverse direction.
+
+**What to do:** re-generate and review, rather than diff against a stored
+expectation. Where the readable mapping previously fell short the
+converter emitted a `uav:nodes` projection to compensate, so some
+documents also *lose* projection content they no longer need. Nothing
+that was readable before became unreadable.
+
+### Strict conformance is opt-in
+
+`WotNodeSetConverterOptions.ConformanceMode` defaults to `Permissive`,
+which preserves an unknown `uav:` term as residue and accepts a revision
+this library does not implement — what Section 4.1 requires of a consumer.
+`WotConformanceMode.Strict` reports both, plus opaque-object violations
+and, with `RequiredConformance`, a Section 11 claim the document does not
+make.
+
+**What to do:** nothing to keep working. Opt into `Strict` for authoring
+and conformance testing, where a misspelled term should fail rather than
+travel silently. Do not enable it on an ingestion path.
+
+### `uav:eventFields` is still read but should not be authored
+
+The pre-standardization `uav:eventFields` spelling — authored on a form,
+carrying bare browse names and *adding* to the default selection — is
+still read and is never written. The standardized
+`uav:eventSelectClauses` is authored on the event affordance, carries
+`uav:typeDefinitionId` and `uav:browsePath`, and **replaces** the default
+selection rather than extending it. Where a form carries both, the
+standardized term wins and the contradiction is reported
+(`ConflictingFields`).
+
+**What to do:** move authored selections to `uav:eventSelectClauses` and
+re-check them, because the two terms compose differently: a list that
+relied on being added to the eight mandatory `BaseEventType` fields has to
+name those fields itself. See
+[Event field selection](WotBindings.md#event-field-selection-uaveventselectclauses).
+
+### The `WoT/v1#` vocabulary IRI is superseded
+
+`uav` binds to `http://opcfoundation.org/UA/WoT-Binding/`; the versioned
+artifacts live under `http://opcfoundation.org/UA/WoT-Binding/v1.1/`. The
+earlier draft's `http://opcfoundation.org/UA/WoT/v1#` is superseded.
+
+**What to do:** re-bind the prefix in documents you author. Nothing
+breaks if you do not: the reader matches the compact `uav:` spelling and
+never consults the prefix IRI, in permissive *and* in strict mode, because
+strictness is about the vocabulary a document uses and not about the IRI it
+declares the vocabulary under. That leniency is deliberate and is covered
+by a test, so an old document stays readable.
+
 ## Migrating from 1.05.377 to 1.05.378
 
 ### Asynchronous as default

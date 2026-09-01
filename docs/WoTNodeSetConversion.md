@@ -7,6 +7,68 @@ when requested, uses the structured `uav:nodes` projection when the
 readable vocabulary is not complete, and otherwise synthesizes NodeSet2
 from the readable WoT terms.
 
+## Which specification revision this tracks
+
+This implementation tracks **WoT Binding revision 1.1**. The revision is
+stated once, as `Opc.Ua.Wot.WotBindingConformance.CurrentRevision`, and
+everything that depends on it — the `uav:bindingVersion` values strict
+conformance accepts, the versioned artifact base
+`http://opcfoundation.org/UA/WoT-Binding/v1.1/`, and the closed Section 11
+name set — derives from that constant. No public behaviour is keyed to an
+upstream commit: a revision is a published contract, a commit is not.
+
+The specification's worked examples are vendored as test fixtures under
+`tests/Opc.Ua.Types.Tests/Wot/Assets`, and *those* do record the exact
+source. `spec-examples.manifest.json` beside them names the source
+repository, branch and commit together with the size and SHA-256 of every
+example, and `WotSpecFixtureManifestTests` fails the build when the two
+disagree. See [How this is checked](WotBindings.md#how-this-is-checked)
+for the drift check and the regeneration step.
+
+## Importable output
+
+A NodeSet2 document may write a standard name such as `HasComponent` or
+`Double` wherever a NodeId is expected, but only if it declares that name
+in its own `<Aliases>` table; the importer reports `BadNodeIdInvalid` for a
+name it cannot find. Both halves of the conversion produce such names —
+synthesis writes the readable names directly, and a restore reproduces
+whatever spelling the document it restores from used — so every converted
+NodeSet is passed through an alias-completion pass
+(`Opc.Ua.Wot.WotNodeSetAliases`) before it is returned.
+
+The pass declares only names it can resolve to a standard base-namespace
+Node, appended after the declarations the document already carried in
+ascending ordinal order of the alias. It is idempotent, so a byte-exact
+`uav:nodeSet` restore stays byte-exact, and it never rewrites a name: a
+vendor alias the document uses but does not declare still fails the import
+with the message that names it, rather than being quietly discarded.
+
+That matters beyond tidiness, because the runtime registry materialization
+path is `ConvertAsync` → serialize → `UANodeSet.Read` → `Import`. Every
+vendored specification example that converts is run through exactly that
+sequence by `WotNodeSetImportTests`, and so is every preservation mode.
+
+### Modelling rules and the two placeholder identifiers
+
+OPC 10000-5 assigns `OptionalPlaceholder` the identifier `11508` and
+`MandatoryPlaceholder` the identifier `11510`; `11509` is not a
+ModellingRule Object at all. The four rules therefore map as:
+
+| `uav:modellingRule` | NodeId |
+| --- | --- |
+| `Mandatory` | `i=78` |
+| `Optional` | `i=80` |
+| `OptionalPlaceholder` | `i=11508` |
+| `MandatoryPlaceholder` | `i=11510` |
+
+Earlier releases mapped `MandatoryPlaceholder` to `i=11508` and
+`OptionalPlaceholder` to `i=11509`, which inverted the first rule and left
+the second pointing at a Node that does not exist. Both directions now
+derive from one pair of constants, so a round trip preserves the rule it
+started with. See
+[Migrating WoT Binding documents and converted NodeSets](MigrationGuide.md#migrating-wot-binding-documents-and-converted-nodesets)
+for what that changes in previously emitted documents.
+
 ## WoT to NodeSet defaults
 
 The table below lists the defaults the current WoT-to-NodeSet
@@ -447,4 +509,29 @@ companion model's relations completely enough to convert back.
 [Resolving a relation: companion ReferenceTypes](WotBindings.md#resolving-a-relation-companion-referencetypes)
 for how a `rel` and a `uav:refId` are resolved against the Section 5.1.5 local
 context.
+
+### `uav:componentOf` and its `ua:ComponentOf` alias
+
+Section 9.1 spells the parent-placement relation `uav:componentOf` and declares
+`ua:ComponentOf` as an alias of it. Both spellings are accepted wherever the
+relation is read, and they are treated as the same term rather than as a term
+and a lookalike: the alias reads as a compact model name whose local part is the
+InverseName of `HasComponent`, so it is intercepted as a binding term instead of
+being realized a second time as a generic inverse typed link. A document using
+the alias used to be rejected with `ModelConceptUnresolved`.
+
+`uav:componentOf` remains the spelling this implementation writes. The alias is
+read, never emitted, which keeps one relation one spelling on the way out.
+
+### Projections and legacy asset documents
+
+Two neighbouring subjects are documented elsewhere so they are stated once:
+
+- A **projection document** declares affordances instead of defining them, and
+  Section 12.5 closes the set of members it may annotate beside `tm:ref`. See
+  [Projection documents and the View NodeClass](WoTConnectivity.md#124-projection-documents-and-the-view-nodeclass).
+- The **OPC 10100-1 v1.02 asset surface** (`CreateAsset`, `WoTFile` upload, the
+  `AssetRegistry` POCO reader) is a separate code path governed by that
+  specification, not by the WoT Binding draft. Nothing on this page describes
+  it. See [The 1.02 asset surface](WoTConnectivity.md#126-the-102-asset-surface).
 
