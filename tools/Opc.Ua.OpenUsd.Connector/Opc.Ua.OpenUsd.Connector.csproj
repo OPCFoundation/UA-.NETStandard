@@ -22,8 +22,8 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\src\Opc.Ua.Configuration\Opc.Ua.Configuration.csproj" />
+    <ProjectReference Include="..\..\src\Opc.Ua.OpenUsd\Opc.Ua.OpenUsd.csproj" />
     <ProjectReference Include="..\..\src\Opc.Ua.OpenUsd.Client\Opc.Ua.OpenUsd.Client.csproj" />
-    <ProjectReference Include="..\..\src\Opc.Ua.OpenUsdScene\Opc.Ua.OpenUsdScene.csproj" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="Microsoft.Extensions.Logging.Console" />

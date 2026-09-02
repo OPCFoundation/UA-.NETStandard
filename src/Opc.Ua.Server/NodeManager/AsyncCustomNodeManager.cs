@@ -970,8 +970,12 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Add a created instance and its children to the NodeManagers AddressSpace. Assigns NodeIds if needed and fixes ReferenceTargets after assigning NodeIds.
+        /// Adds an instance and its children to the NodeManager address space.
         /// </summary>
+        /// <remarks>
+        /// Assigns NodeIds if needed, updates reference targets, and completes
+        /// the create lifecycle before indexing the subtree.
+        /// </remarks>
         /// <param name="context">The operation context.</param>
         /// <param name="parentId">An optional parent identifier.</param>
         /// <param name="instance">The instance to create.</param>
@@ -1038,6 +1042,11 @@ namespace Opc.Ua.Server
         /// overload, this method does <strong>not</strong>
         /// run <c>AssignNodeIds</c> — the NodeIds set on the instance and its
         /// children are kept verbatim and used as PredefinedNodes keys.
+        /// </para>
+        /// <para>
+        /// Registration completes the create lifecycle for nodes which have
+        /// not already passed through
+        /// <see cref="NodeState.CreateAsPredefinedNode"/>.
         /// </para>
         /// <para>
         /// The supplied <paramref name="node"/> should already be attached to
@@ -2042,8 +2051,14 @@ namespace Opc.Ua.Server
         /// </summary>
         protected virtual async ValueTask AddPredefinedNodeAsync(ISystemContext context, NodeState node, CancellationToken cancellationToken = default)
         {
+            PrepareInstanceNodeIdsForRegistration(context, node);
+            CompleteCreateLifecycleForRegistration(context, node);
             NodeState activeNode = await AddBehaviourToPredefinedNodeAsync(context, node, cancellationToken).ConfigureAwait(false);
-            PrepareInstanceNodeIdsForRegistration(context, activeNode);
+            if (!ReferenceEquals(activeNode, node))
+            {
+                PrepareInstanceNodeIdsForRegistration(context, activeNode);
+                CompleteCreateLifecycleForRegistration(context, activeNode);
+            }
             IndexPredefinedNode(activeNode);
 
             var children = new List<BaseInstanceState>();
@@ -2204,8 +2219,9 @@ namespace Opc.Ua.Server
         /// this path does not invoke
         /// <see cref="AddBehaviourToPredefinedNodeAsync"/> — it is intended
         /// for plain instance nodes that carry no asynchronous behaviour
-        /// wiring. Registration is idempotent, so a subsequent tree
-        /// registration that includes the same node is safe.
+        /// wiring. It completes the create lifecycle before indexing.
+        /// Registration is idempotent, so a subsequent tree registration
+        /// that includes the same node is safe.
         /// </remarks>
         /// <param name="node">The node subtree to register.</param>
         /// <exception cref="ArgumentNullException">
@@ -2223,6 +2239,7 @@ namespace Opc.Ua.Server
 
         private void AddPredefinedNodeSynchronously(ISystemContext context, NodeState node)
         {
+            CompleteCreateLifecycleForRegistration(context, node);
             IndexPredefinedNode(node);
 
             var children = new List<BaseInstanceState>();
@@ -2237,6 +2254,24 @@ namespace Opc.Ua.Server
                 }
 
                 AddPredefinedNodeSynchronously(context, children[ii]);
+            }
+        }
+
+        private void CompleteCreateLifecycleForRegistration(
+            ISystemContext context,
+            NodeState node)
+        {
+            if (node.IsCreated)
+            {
+                return;
+            }
+
+            node.CreateAsPredefinedNode(context);
+            if (m_logger != null)
+            {
+                m_logger.PredefinedNodeLifecycleCompletedAtRegistration(
+                    node.NodeId,
+                    node.BrowseName);
             }
         }
 

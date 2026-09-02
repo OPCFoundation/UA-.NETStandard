@@ -29,10 +29,14 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Text;
+using System.Threading;
+using System.Threading.Tasks;
 using System.Xml;
 using Opc.Ua.Export;
+using Opc.Ua.Wot;
 
 namespace Opc.Ua.Types.Tests.Wot
 {
@@ -108,7 +112,19 @@ namespace Opc.Ua.Types.Tests.Wot
                 ],
                 Aliases =
                 [
-                    new NodeIdAlias { Alias = "MachineTypeAlias", Value = "ns=1;i=1001" }
+                    // A NodeSet2 document may only use a name where a NodeId is
+                    // expected if it declares that name here, so a fixture that
+                    // exercises the round trip declares every name it uses; an
+                    // undeclared one cannot be imported at all.
+                    new NodeIdAlias { Alias = "MachineTypeAlias", Value = "ns=1;i=1001" },
+                    new NodeIdAlias { Alias = "Double", Value = "i=11" },
+                    new NodeIdAlias { Alias = "GeneratesEvent", Value = "i=41" },
+                    new NodeIdAlias { Alias = "HasComponent", Value = "i=47" },
+                    new NodeIdAlias { Alias = "HasModellingRule", Value = "i=37" },
+                    new NodeIdAlias { Alias = "HasProperty", Value = "i=46" },
+                    new NodeIdAlias { Alias = "HasSubtype", Value = "i=45" },
+                    new NodeIdAlias { Alias = "HasTypeDefinition", Value = "i=40" },
+                    new NodeIdAlias { Alias = "String", Value = "i=12" }
                 ],
                 Extensions = [modelExtension],
                 LastModified = new DateTime(2026, 7, 21, 12, 34, 56, DateTimeKind.Utc),
@@ -359,6 +375,17 @@ namespace Opc.Ua.Types.Tests.Wot
                         PublicationDateSpecified = true
                     }
                 ],
+                Aliases =
+                [
+                    // Declared for the same reason as in CreateRichNodeSet: a
+                    // name used where a NodeId is expected has to be declared
+                    // or the document cannot be imported.
+                    new NodeIdAlias { Alias = "Double", Value = "i=11" },
+                    new NodeIdAlias { Alias = "HasComponent", Value = "i=47" },
+                    new NodeIdAlias { Alias = "HasModellingRule", Value = "i=37" },
+                    new NodeIdAlias { Alias = "HasSubtype", Value = "i=45" },
+                    new NodeIdAlias { Alias = "HasTypeDefinition", Value = "i=40" }
+                ],
                 Items =
                 [
                     new UAObjectType
@@ -411,9 +438,106 @@ namespace Opc.Ua.Types.Tests.Wot
             return stream.ToArray();
         }
 
+        /// <summary>
+        /// Serves the sibling EventType definitions the event-selection
+        /// fixtures name, so a document that states a selection of WoT Binding
+        /// Section 6.1 converts through the asynchronous path that resolves it.
+        /// </summary>
+        public static IWotThingResolver EventTypeDocuments()
+        {
+            return new SiblingDocumentResolver(
+                ("./base-event.tm.jsonld", BaseEventTypeDocument),
+                ("./condition.tm.jsonld", ConditionTypeDocument));
+        }
+
         public static byte[] Utf8(string text)
         {
             return Encoding.UTF8.GetBytes(text);
+        }
+
+        /// <summary>
+        /// Parses a NodeSet value fragment without admitting a DTD.
+        /// </summary>
+        /// <remarks>
+        /// A value fixture is authored as text because that is how it reads,
+        /// but <c>LoadXml</c> resolves an external DTD, so the reader states
+        /// explicitly that there is none to resolve.
+        /// </remarks>
+        public static System.Xml.XmlElement ParseValue(string xml)
+        {
+            var document = new XmlDocument { XmlResolver = null };
+            using (var reader = XmlReader.Create(
+                new StringReader(xml),
+                new XmlReaderSettings
+                {
+                    DtdProcessing = DtdProcessing.Prohibit,
+                    XmlResolver = null
+                }))
+            {
+                document.Load(reader);
+            }
+            return document.DocumentElement;
+        }
+
+        /// <summary>
+        /// The <c>BaseEventType</c> definition the fixtures link to: the fields
+        /// a clause names plus the identity every clause taken from it carries
+        /// (WoT Binding Section 6.1).
+        /// </summary>
+        private const string BaseEventTypeDocument =
+            "{\"@context\":[\"https://www.w3.org/2022/wot/td/v1.1\"," +
+            "{\"uav\":\"http://opcfoundation.org/UA/WoT-Binding/\"," +
+            "\"pump\":\"urn:test:pump\"}]," +
+            "\"@type\":[\"tm:ThingModel\",\"uav:eventType\"]," +
+            "\"title\":\"BaseEventType\",\"uav:id\":\"i=2041\"," +
+            "\"data\":{\"type\":\"object\"," +
+            "\"uav:fieldOrder\":[\"EventId\",\"Severity\",\"Trace\"]," +
+            "\"properties\":{\"EventId\":{\"type\":\"string\"}," +
+            "\"Severity\":{\"type\":\"integer\"}," +
+            "\"Trace\":{\"uav:browseName\":\"pump:Trace\",\"type\":\"string\"}}}}";
+
+        /// <summary>
+        /// The <c>ConditionType</c> definition the fixtures link to.
+        /// </summary>
+        private const string ConditionTypeDocument =
+            "{\"@context\":[\"https://www.w3.org/2022/wot/td/v1.1\"," +
+            "{\"uav\":\"http://opcfoundation.org/UA/WoT-Binding/\"}]," +
+            "\"@type\":[\"tm:ThingModel\",\"uav:eventType\"]," +
+            "\"title\":\"ConditionType\",\"uav:id\":\"i=2782\"," +
+            "\"data\":{\"type\":\"object\"," +
+            "\"uav:fieldOrder\":[\"ConditionId\",\"Severity\",\"LastSeverity\"]," +
+            "\"properties\":{\"ConditionId\":{\"type\":\"string\"}," +
+            "\"Severity\":{\"type\":\"integer\"}," +
+            "\"LastSeverity\":{\"type\":\"integer\"}}}}";
+
+        /// <summary>
+        /// Serves a fixed set of sibling documents by href, and nothing else:
+        /// a reference resolves through the local document context of WoT
+        /// Binding Section 5.1.5 and is never dereferenced over the network.
+        /// </summary>
+        private sealed class SiblingDocumentResolver : IWotThingResolver
+        {
+            public SiblingDocumentResolver(params (string Href, string Json)[] documents)
+            {
+                foreach ((string href, string json) in documents)
+                {
+                    m_documents[href] = json;
+                }
+            }
+
+            public ValueTask<WotResolverResult> ResolveThingAsync(
+                string reference,
+                WotResolutionContext context,
+                CancellationToken cancellationToken)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                return new ValueTask<WotResolverResult>(
+                    m_documents.TryGetValue(reference, out string json)
+                        ? WotResolverResult.FromBytes(Utf8(json))
+                        : WotResolverResult.NotFound);
+            }
+
+            private readonly Dictionary<string, string> m_documents = new(StringComparer.Ordinal);
         }
     }
 }

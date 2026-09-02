@@ -30,10 +30,10 @@
 using System.Collections.Generic;
 using System.Linq;
 using NUnit.Framework;
-using Opc.Ua.OpenUsdScene.Scene;
-using Opc.Ua.OpenUsdScene.Server;
+using Opc.Ua.OpenUsd.Scene;
+using Opc.Ua.OpenUsd.Server.Scene;
 
-namespace Opc.Ua.OpenUsdScene.Tests
+namespace Opc.Ua.OpenUsd.Tests
 {
     /// <summary>
     /// Part 1 interoperability (§10): a Server hosting several materialized stages disambiguates

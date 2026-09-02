@@ -102,15 +102,24 @@ namespace Opc.Ua.WotCon.Bindings
         /// </param>
         /// <param name="eventFields">
         /// The optional event field envelope: every <c>EventFilter</c>
-        /// select-clause field (browse path, '/'-joined for nested paths)
-        /// mapped to its own <see cref="DataValue"/>. Empty for a property
-        /// observe notification.
+        /// select-clause field mapped to its own <see cref="DataValue"/>, keyed
+        /// by the joined browse path the document authored. This is the
+        /// transport-side index of WoT Binding Section 6.1 and not the shape
+        /// the Binding describes; see <see cref="Data"/> for that. Empty for a
+        /// property observe notification.
+        /// </param>
+        /// <param name="data">
+        /// The event <c>data</c> object in the nested shape of WoT Binding
+        /// Sections 6.1 and 13.3. Empty for a property observe notification.
         /// </param>
         public WotNotification(
-            DataValue value, IReadOnlyDictionary<string, DataValue>? eventFields = null)
+            DataValue value,
+            IReadOnlyDictionary<string, DataValue>? eventFields = null,
+            WotEventData? data = null)
         {
             Value = value;
             EventFields = eventFields ?? ImmutableDictionary<string, DataValue>.Empty;
+            Data = data ?? WotEventData.Empty;
         }
 
         /// <summary>
@@ -119,9 +128,31 @@ namespace Opc.Ua.WotCon.Bindings
         public DataValue Value { get; }
 
         /// <summary>
-        /// Gets the event field envelope, keyed by the select-clause browse
-        /// path. Empty for a property observe notification.
+        /// Gets the event <c>data</c> object in the nested shape WoT Binding
+        /// Sections 6.1 and 13.3 describe: <c>EnabledState/Id</c> is
+        /// <c>data.EnabledState.Id</c>, and a member name never contains the
+        /// browse-path separator. Empty for a property observe notification.
         /// </summary>
+        /// <remarks>
+        /// This is the normative representation and the one to read.
+        /// <see cref="EventFields"/> is the same notification indexed by joined
+        /// browse path, which is a transport-side artifact of this runtime; the
+        /// two are built together from one selection so they cannot disagree.
+        /// </remarks>
+        public WotEventData Data { get; }
+
+        /// <summary>
+        /// Gets the event field envelope, keyed by the joined select-clause
+        /// browse path. Empty for a property observe notification.
+        /// </summary>
+        /// <remarks>
+        /// The index is the transport-side artifact WoT Binding Section 6.1
+        /// names as such: a <c>MonitoredItem</c> returns field values
+        /// positionally and a runtime keys them by the clause that asked for
+        /// them. A document never names a <c>data</c> member with a joined
+        /// browse path, so a consumer that wants the shape the Binding
+        /// describes reads <see cref="Data"/>.
+        /// </remarks>
         public IReadOnlyDictionary<string, DataValue> EventFields { get; }
     }
 

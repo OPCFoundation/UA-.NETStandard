@@ -11,7 +11,7 @@
   "@type": "uav:object",
   "id": "urn:dev:opcua:pump-01-conditions",
   "title": "Pump 01 Conditions",
-  "description": "A Thing Description showing a high-temperature OPC UA LimitAlarmType notification paired with acknowledge and confirm actions.",
+  "description": "A Thing Description showing a high-temperature OPC UA LimitAlarmType notification paired with acknowledge and confirm actions. The event affordance links to the EventType definition its fields are selected from and states only the two clauses that refine it.",
   "uav:browseName": "pump:Pump",
   "uav:id": "nsu=http://example.com/demo/pump;s=Pump",
   "securityDefinitions": {
@@ -42,6 +42,17 @@
       "uav:browseName": "pump:HighTemperatureAlarmType",
       "uav:conditionType": "ua:LimitAlarmType",
       "uav:conditionTypeId": "i=2955",
+      "tm:ref": "./27-event-type-models.jsonld#/events/highTemperatureAlarm",
+      "uav:eventSelectClauses": [
+        {
+          "tm:ref": "./27-event-type-models.jsonld#/events/limitAlarm",
+          "uav:browsePath": "HighHighLimit"
+        },
+        {
+          "tm:ref": "./27-event-type-models.jsonld#/events/highTemperatureAlarm",
+          "uav:browsePath": "Severity"
+        }
+      ],
       "data": {
         "type": "object",
         "required": [
@@ -172,6 +183,15 @@
             }
           },
           "HighLimit": {
+            "type": "number",
+            "unit": "Cel"
+          },
+          "HighHighLimit": {
+            "type": "number",
+            "unit": "Cel"
+          },
+          "Temperature": {
+            "uav:browseName": "pump:Temperature",
             "type": "number",
             "unit": "Cel"
           }

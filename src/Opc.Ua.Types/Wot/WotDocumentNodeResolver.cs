@@ -50,7 +50,7 @@ namespace Opc.Ua.Wot
     /// converting one without this resolver either mistypes every node or
     /// reports every type binding unresolved.
     /// </remarks>
-    public sealed class WotDocumentNodeResolver : IWotNodeResolver
+    public sealed class WotDocumentNodeResolver : IWotNodeResolver, IWotReferenceTypeResolver
     {
         /// <summary>
         /// Initializes a resolver over the supplied documents.
@@ -137,6 +137,107 @@ namespace Opc.Ua.Wot
             return expected == WotExpectedNodeClass.Any || expected == actual;
         }
 
+        /// <inheritdoc/>
+        /// <remarks>
+        /// A document set describes the ReferenceTypes of a companion model the
+        /// same way it describes its ObjectTypes: one document per Node, with
+        /// the BrowseName it is known by and — because OPC 10000-3 gives a
+        /// ReferenceType a second name — its InverseName and Symmetric flag.
+        /// Reading them here is what lets a document of the set state a
+        /// relation of that model in either direction and have it resolve
+        /// against its own siblings, before any AddressSpace is consulted.
+        /// </remarks>
+        public ValueTask<ArrayOf<WotResolvedReferenceType>> ResolveReferenceTypesAsync(
+            string namespaceUri,
+            string name,
+            CancellationToken cancellationToken = default)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (string.IsNullOrEmpty(namespaceUri) ||
+                string.IsNullOrEmpty(name) ||
+                !m_referenceTypes.TryGetValue(
+                    namespaceUri + "|" + name, out List<WotResolvedReferenceType>? matches))
+            {
+                return new ValueTask<ArrayOf<WotResolvedReferenceType>>(
+                    ArrayOf<WotResolvedReferenceType>.Empty);
+            }
+            return new ValueTask<ArrayOf<WotResolvedReferenceType>>(matches.ToArrayOf());
+        }
+
+        /// <summary>
+        /// Indexes a document that describes a ReferenceType under both of the
+        /// names it answers to.
+        /// </summary>
+        private void IndexReferenceType(WotDocument document)
+        {
+            if (ClassOfTokens(document.TypeTokens) != WotExpectedNodeClass.ReferenceType)
+            {
+                return;
+            }
+            string? nodeId = ReadString(document.RootElement, "uav:id");
+            string? browseName = ReadString(document.RootElement, "uav:browseName");
+            if (nodeId is null || browseName is null)
+            {
+                return;
+            }
+            int colon = browseName.IndexOf(':', StringComparison.Ordinal);
+            if (colon <= 0)
+            {
+                return;
+            }
+            string local = browseName[(colon + 1)..];
+            string namespaceUri = browseName.StartsWith("nsu=", StringComparison.Ordinal)
+                ? browseName[4..colon]
+                : ResolvePrefix(document, browseName[..colon]);
+            if (namespaceUri.Length == 0)
+            {
+                return;
+            }
+            m_namespaces.Add(namespaceUri);
+            AddReferenceTypeName(namespaceUri, local, nodeId, local, true);
+
+            // A symmetric ReferenceType has one name for both directions, so
+            // its BrowseName already covers the inverse and no second entry is
+            // made: adding one would make every use of the name ambiguous.
+            bool symmetric =
+                document.RootElement.TryGetProperty(
+                    WotNodeSetConverter.SymmetricTerm, out JsonElement flag) &&
+                flag.ValueKind == JsonValueKind.True;
+            string? inverseName = ReadString(
+                document.RootElement, WotNodeSetConverter.InverseNameTerm);
+            if (!symmetric &&
+                inverseName is { Length: > 0 } &&
+                !string.Equals(inverseName, local, StringComparison.Ordinal))
+            {
+                AddReferenceTypeName(namespaceUri, inverseName, nodeId, inverseName, false);
+            }
+        }
+
+        private void AddReferenceTypeName(
+            string namespaceUri,
+            string name,
+            string nodeId,
+            string matchedName,
+            bool isForward)
+        {
+            string key = namespaceUri + "|" + name;
+            if (!m_referenceTypes.TryGetValue(
+                key, out List<WotResolvedReferenceType>? matches))
+            {
+                matches = [];
+                m_referenceTypes[key] = matches;
+            }
+            foreach (WotResolvedReferenceType existing in matches)
+            {
+                if (string.Equals(existing.NodeId, nodeId, StringComparison.Ordinal) &&
+                    existing.IsForward == isForward)
+                {
+                    return;
+                }
+            }
+            matches.Add(new WotResolvedReferenceType(nodeId, matchedName, isForward));
+        }
+
         private void Index(WotDocument document)
         {
             if (document is null)
@@ -159,6 +260,7 @@ namespace Opc.Ua.Wot
             {
                 IndexNode(entry.Value, WotExpectedNodeClass.ObjectType, document);
             }
+            IndexReferenceType(document);
             IndexNativeProjection(document);
         }
 
@@ -339,6 +441,10 @@ namespace Opc.Ua.Wot
                 {
                     return WotExpectedNodeClass.VariableType;
                 }
+                if (string.Equals(tokens[i], "uav:referenceType", StringComparison.Ordinal))
+                {
+                    return WotExpectedNodeClass.ReferenceType;
+                }
             }
             return WotExpectedNodeClass.Any;
         }
@@ -356,6 +462,9 @@ namespace Opc.Ua.Wot
             new(StringComparer.Ordinal);
 
         private readonly Dictionary<string, List<WotResolvedNode>> m_byBrowseName =
+            new(StringComparer.Ordinal);
+
+        private readonly Dictionary<string, List<WotResolvedReferenceType>> m_referenceTypes =
             new(StringComparer.Ordinal);
 
         private readonly HashSet<string> m_namespaces = new(StringComparer.Ordinal);

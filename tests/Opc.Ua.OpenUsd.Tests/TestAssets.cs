@@ -29,10 +29,10 @@
 
 using System;
 using System.IO;
-using Opc.Ua.OpenUsdScene.Conversion;
-using Opc.Ua.OpenUsdScene.Scene;
+using Opc.Ua.OpenUsd.Scene.Conversion;
+using Opc.Ua.OpenUsd.Scene;
 
-namespace Opc.Ua.OpenUsdScene.Tests
+namespace Opc.Ua.OpenUsd.Tests
 {
     /// <summary>
     /// Locates and loads the bundled <c>.usda</c> example layers that are copied next to the test

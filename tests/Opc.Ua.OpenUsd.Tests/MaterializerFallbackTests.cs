@@ -29,9 +29,9 @@
 
 using System.Collections.Generic;
 using NUnit.Framework;
-using Opc.Ua.OpenUsdScene.Scene;
+using Opc.Ua.OpenUsd.Scene;
 
-namespace Opc.Ua.OpenUsdScene.Tests
+namespace Opc.Ua.OpenUsd.Tests
 {
     /// <summary>
     /// Unknown-type fallback (§8.4) and failure-mode tests: nothing unrecognised is dropped,
@@ -52,7 +52,7 @@ namespace Opc.Ua.OpenUsdScene.Tests
             UsdPrimState node = ms.Prim("/Thing");
             Assert.That(
                 node.TypeDefinitionId,
-                Is.EqualTo(new NodeId(Opc.Ua.OpenUsdScene.ObjectTypes.UsdPrimType, ms.Namespace)));
+                Is.EqualTo(new NodeId(Opc.Ua.OpenUsd.Scene.ObjectTypes.UsdPrimType, ms.Namespace)));
             Assert.That(node.TypeName!.Value, Is.EqualTo("MyVendorThing"));
         }
 
@@ -64,7 +64,7 @@ namespace Opc.Ua.OpenUsdScene.Tests
             UsdPrimState keyLight = ms.Prim("/Cell/KeyLight");
             Assert.That(
                 keyLight.TypeDefinitionId,
-                Is.EqualTo(new NodeId(Opc.Ua.OpenUsdScene.ObjectTypes.UsdPrimType, ms.Namespace)));
+                Is.EqualTo(new NodeId(Opc.Ua.OpenUsd.Scene.ObjectTypes.UsdPrimType, ms.Namespace)));
             Assert.That(keyLight.TypeName!.Value, Is.EqualTo("DistantLight"));
 
             // Its float attribute still maps onto a concrete DataType.
@@ -201,7 +201,7 @@ namespace Opc.Ua.OpenUsdScene.Tests
             Assert.That(a.BoxedValue(), Is.Null);
             Assert.That(
                 a.DataType,
-                Is.EqualTo(new NodeId(Opc.Ua.OpenUsdScene.DataTypes.UsdToken, ms.Namespace)));
+                Is.EqualTo(new NodeId(Opc.Ua.OpenUsd.Scene.DataTypes.UsdToken, ms.Namespace)));
             Assert.That(a.UsdTypeName!.Value, Is.EqualTo("token"));
         }
 

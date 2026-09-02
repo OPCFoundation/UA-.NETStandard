@@ -1788,6 +1788,13 @@ namespace Opc.Ua.SourceGeneration
             /// <summary>
             /// Creates an instance of the {{Tokens.SymbolicName}} Method node state.
             /// </summary>
+            /// <remarks>
+            /// The returned node graph has not completed its create lifecycle.
+            /// Node manager registration completes it automatically. Call
+            /// <see cref="global::Opc.Ua.NodeState.CreateAsPredefinedNode"/>
+            /// before registration when configuration depends on
+            /// <c>OnBeforeCreate</c> or <c>OnAfterCreate</c>.
+            /// </remarks>
             public static {{Tokens.StateClassName}} CreateInstanceOf{{Tokens.SymbolicId}}(
                 this global::Opc.Ua.ISystemContext context,
                 global::Opc.Ua.NodeState parent = null,
@@ -1893,6 +1900,13 @@ namespace Opc.Ua.SourceGeneration
             /// <summary>
             /// Creates an instance of the {{Tokens.TypeName}} type.
             /// </summary>
+            /// <remarks>
+            /// The returned node graph has not completed its create lifecycle.
+            /// Node manager registration completes it automatically. Call
+            /// <see cref="global::Opc.Ua.NodeState.CreateAsPredefinedNode"/>
+            /// before registration when configuration depends on
+            /// <c>OnBeforeCreate</c> or <c>OnAfterCreate</c>.
+            /// </remarks>
             public static {{Tokens.StateClassName}} Create{{Tokens.SymbolicId}}(
                 this global::Opc.Ua.ISystemContext context,
                 global::Opc.Ua.NodeState parent = null,
@@ -1951,6 +1965,13 @@ namespace Opc.Ua.SourceGeneration
             /// <summary>
             /// Creates an instance of the {{Tokens.TypeName}} variable type.
             /// </summary>
+            /// <remarks>
+            /// The returned node graph has not completed its create lifecycle.
+            /// Node manager registration completes it automatically. Call
+            /// <see cref="global::Opc.Ua.NodeState.CreateAsPredefinedNode"/>
+            /// before registration when configuration depends on
+            /// <c>OnBeforeCreate</c> or <c>OnAfterCreate</c>.
+            /// </remarks>
             public static {{Tokens.StateClassName}} Create{{Tokens.SymbolicId}}(
                 this global::Opc.Ua.ISystemContext context,
                 global::Opc.Ua.NodeState parent = null,

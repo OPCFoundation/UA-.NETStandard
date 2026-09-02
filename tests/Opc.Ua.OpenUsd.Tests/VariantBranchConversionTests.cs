@@ -30,10 +30,10 @@
 using System.Collections.Generic;
 using System.Linq;
 using NUnit.Framework;
-using Opc.Ua.OpenUsdScene.Conversion;
-using Opc.Ua.OpenUsdScene.Scene;
+using Opc.Ua.OpenUsd.Scene.Conversion;
+using Opc.Ua.OpenUsd.Scene;
 
-namespace Opc.Ua.OpenUsdScene.Tests
+namespace Opc.Ua.OpenUsd.Tests
 {
     /// <summary>
     /// Conversion-layer tests for full <c>&lt;Variant&gt;</c> branch fidelity (§5.6, Composition

@@ -397,10 +397,14 @@ namespace Opc.Ua.Server.Historian
             }
 
             // Part 11 v1.05.07 §6.5.4.2: the request domain is defined by StartTime, EndTime and
-            // ProcessingInterval, all of which shall be specified. If StartTime equals EndTime there
-            // is no meaningful way to interpret the (zero-width) time domain, so the Server shall
-            // return Bad_InvalidArgument.
-            if (details.StartTime == details.EndTime)
+            // ProcessingInterval, all of which shall be specified. A zero ProcessingInterval is
+            // valid and requests one aggregate over the entire range; negative or non-finite
+            // durations are invalid. If StartTime equals EndTime there is no meaningful way to
+            // interpret the zero-width time domain.
+            if (details.StartTime == details.EndTime ||
+                details.ProcessingInterval < 0 ||
+                double.IsNaN(details.ProcessingInterval) ||
+                double.IsInfinity(details.ProcessingInterval))
             {
                 result.StatusCode = StatusCodes.BadInvalidArgument;
                 return StatusCodes.BadInvalidArgument;
@@ -545,13 +549,10 @@ namespace Opc.Ua.Server.Historian
 
                 foreach (HistoricalDataValue sample in page.Values)
                 {
-                    if (!calculator.QueueRawValue(sample.Value))
+                    if (!calculator.QueueRawValue(sample.Value) &&
+                        !TryFlushCalculator(calculator, values, partial: false))
                     {
-                        FlushCalculator(calculator, values, partial: false);
-                        if (values.Count > kMaxProcessedBufferedOutputs)
-                        {
-                            return StatusCodes.BadTooManyOperations;
-                        }
+                        return StatusCodes.BadTooManyOperations;
                     }
                 }
 
@@ -562,8 +563,7 @@ namespace Opc.Ua.Server.Historian
                 token2 = page.NextToken;
             }
 
-            FlushCalculator(calculator, values, partial: true);
-            if (values.Count > kMaxProcessedBufferedOutputs)
+            if (!TryFlushCalculator(calculator, values, partial: true))
             {
                 return StatusCodes.BadTooManyOperations;
             }
@@ -2018,12 +2018,22 @@ namespace Opc.Ua.Server.Historian
             _ = nodeId;
         }
 
-        private static void FlushCalculator(IAggregateCalculator calculator, List<DataValue> output, bool partial)
+        private static bool TryFlushCalculator(
+            IAggregateCalculator calculator,
+            List<DataValue> output,
+            bool partial)
         {
             while (calculator.TryGetProcessedValue(partial, out DataValue computed))
             {
+                if (output.Count >= kMaxProcessedBufferedOutputs)
+                {
+                    return false;
+                }
+
                 output.Add(computed);
             }
+
+            return true;
         }
 
         private static async ValueTask<List<DataValue>> CollectAllRawAsync(

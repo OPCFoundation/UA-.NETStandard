@@ -94,5 +94,27 @@ namespace Opc.Ua
         Task<ITrustListTransaction> BeginUpdateAsync(
             TrustListIdentifier trustList,
             CancellationToken ct = default);
+
+        /// <summary>
+        /// Notifies the manager that the stores backing the specified trust
+        /// list were modified outside of its own write APIs (e.g. by the GDS
+        /// push model writing directly to the stores). The manager drops any
+        /// cached validation state so subsequent validations observe the new
+        /// trust material, and raises the corresponding
+        /// <see cref="CertificateChangeKind.TrustListUpdated"/> and/or
+        /// <see cref="CertificateChangeKind.CrlUpdated"/> events. A no-op
+        /// when neither flag is set.
+        /// </summary>
+        /// <param name="trustList">The trust list whose stores changed.</param>
+        /// <param name="trustChanged">
+        /// <see langword="true"/> when trusted or issuer certificates changed.
+        /// </param>
+        /// <param name="crlChanged">
+        /// <see langword="true"/> when certificate revocation lists changed.
+        /// </param>
+        void NotifyTrustListChanged(
+            TrustListIdentifier trustList,
+            bool trustChanged,
+            bool crlChanged);
     }
 }

@@ -567,16 +567,23 @@ namespace Opc.Ua.WotCon.Server.Materialization
         /// <summary>
         /// Computes <c>ViewVersion</c> exactly as <i>OPC UA — WoT Binding</i>
         /// §12.6 specifies: take the ExpandedNodeId of each resolved member in
-        /// the portable form of §5.1.1, sort those strings ascending by Unicode
-        /// code point, then for each write its length in UTF-8 octets as decimal
-        /// digits, a colon, the string, and U+000A; encode as UTF-8 and take the
-        /// first four octets of the SHA-256 digest as a big-endian
-        /// <c>UInt32</c>. A value of zero is reported as one, because
-        /// OPC 10000-3 §5.4 requires a <c>ViewVersion</c> greater than zero.
+        /// the portable form of §5.1.1, remove duplicates, sort those strings
+        /// ascending by Unicode code point, then for each write its length in
+        /// UTF-8 octets as decimal digits, a colon, the string, and U+000A;
+        /// encode as UTF-8 and take the first four octets of the SHA-256 digest
+        /// as a big-endian <c>UInt32</c>. A value of zero is reported as one,
+        /// because OPC 10000-3 §5.4 requires a <c>ViewVersion</c> greater than
+        /// zero.
         /// </summary>
         /// <remarks>
-        /// The length prefix is what makes the encoding injective: a NodeId
-        /// string identifier may itself contain U+000A, so joining on the
+        /// The membership is a <em>set</em>: a Node the view reaches through
+        /// more than one organized group (§12.7) is one member of the View and
+        /// contributes once, because a View <c>Organizes</c> a Node or it does
+        /// not, and the same <c>Organizes</c> Reference is not created twice. A
+        /// server that counted a shared Node twice would compute a different
+        /// value from one that organized it under a single group, for the same
+        /// View. The length prefix is what makes the encoding injective: a
+        /// NodeId string identifier may itself contain U+000A, so joining on the
         /// separator alone would let one member embedding a newline serialize as
         /// the two members it imitates. Only the members are hashed. Groups and
         /// their names are deliberately not: the clause states that
@@ -588,9 +595,26 @@ namespace Opc.Ua.WotCon.Server.Materialization
         /// </remarks>
         private uint ComputeViewVersion(Membership root)
         {
-            var members = new List<string>();
-            CollectPortableMembers(root, members);
-            members.Sort(StringComparer.Ordinal);
+            var collected = new List<string>();
+            CollectPortableMembers(root, collected);
+
+            // §12.6 computes over the membership as a set, so a Node organized
+            // through two groups contributes one entry and not two.
+            var distinct = new HashSet<string>(StringComparer.Ordinal);
+            var members = new List<string>(collected.Count);
+            for (int i = 0; i < collected.Count; i++)
+            {
+                if (distinct.Add(collected[i]))
+                {
+                    members.Add(collected[i]);
+                }
+            }
+
+            // §12.6 sorts by Unicode code point, which is not UTF-16 code-unit
+            // order: an ordinal sort places every supplementary character below
+            // U+E000..U+FFFF and would make this Server compute a different
+            // ViewVersion from a conforming one for the same membership.
+            members.Sort(WotCodePointComparer.Instance);
 
             var builder = new StringBuilder();
             foreach (string member in members)

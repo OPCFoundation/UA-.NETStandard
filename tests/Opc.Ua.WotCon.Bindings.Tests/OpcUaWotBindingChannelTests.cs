@@ -39,6 +39,7 @@ using Opc.Ua.Client;
 using Opc.Ua.Client.TestFramework;
 using Opc.Ua.Server.TestFramework;
 using Opc.Ua.Tests;
+using Opc.Ua.Wot;
 using Opc.Ua.WotCon.Bindings.OpcUa;
 using Opc.Ua.WotCon.Bindings.Planners;
 using Quickstarts.ReferenceServer;
@@ -76,6 +77,49 @@ namespace Opc.Ua.WotCon.Bindings.Tests
         /// <c>TryResolveNodeId</c> returns <c>false</c>.
         /// </summary>
         private const string InvalidNodeId = "INVALID-NOT-A-NODE";
+
+        /// <summary>
+        /// The ordinal-sorted transport-index keys the <c>selectclauses</c>
+        /// affordance yields, and nothing else. Section 6.1 makes the explicit
+        /// clauses an <em>overlay</em> of the implicit <c>BaseEventType</c>
+        /// baseline: the three clauses that name a baseline field move it to
+        /// the end with the EventType and path they state, the empty path adds
+        /// the <c>ConditionId</c> selection, and the remaining mandatory fields
+        /// stay. The key is the joined browse path the selection carries, so
+        /// the NamespaceUri-qualified clause appears in full: its URI carries
+        /// '/' but the path has one element, not four.
+        /// </summary>
+        private static readonly string[] s_authoredSelectClauseFields =
+        [
+            "ConditionId",
+            "EventId",
+            "EventType",
+            "Message",
+            "ReceiveTime",
+            "SourceName",
+            "SourceNode",
+            "Time",
+            "nsu=http://opcfoundation.org/UA/;Severity"
+        ];
+
+        /// <summary>
+        /// The ordinal-sorted <c>data</c> member names those same clauses
+        /// materialize into. A member name drops the namespace qualification,
+        /// so a URI slash never nests a field under a fragment of its own
+        /// NamespaceUri.
+        /// </summary>
+        private static readonly string[] s_authoredSelectClauseMembers =
+        [
+            "ConditionId",
+            "EventId",
+            "EventType",
+            "Message",
+            "ReceiveTime",
+            "Severity",
+            "SourceName",
+            "SourceNode",
+            "Time"
+        ];
 
         private ServerFixture<ReferenceServer> m_serverFixture = null!;
         private ISession m_session = null!;
@@ -120,9 +164,11 @@ namespace Opc.Ua.WotCon.Bindings.Tests
                 ],
                 endpointPolicy: new WotEndpointPolicy { AllowLoopback = true });
 
-            m_plan = m_registry.Prepare(WotBindingPlanRequest.FromDocument(
-                "xid", WoTDocumentKindEnum.ThingDescription,
-                System.Text.Encoding.UTF8.GetBytes(BuildThingDescription(url.ToString()))));
+            m_plan = m_registry.Prepare(await WotBindingPlanRequest.FromDocumentAsync(
+                "xid",
+                WoTDocumentKindEnum.ThingDescription,
+                System.Text.Encoding.UTF8.GetBytes(BuildThingDescription(url.ToString())),
+                new BaseEventTypeResolver()).ConfigureAwait(false));
 
             Assert.That(m_plan.Diagnostics.Any(d => d.IsError), Is.False,
                 "The channel-test Thing Description must compile without diagnostic errors: " +
@@ -377,6 +423,69 @@ namespace Opc.Ua.WotCon.Bindings.Tests
             }
         }
 
+        [Test]
+        public async Task SubscribeEventAsyncSelectsExactlyTheAuthoredSelectClausesAsync()
+        {
+            WotCompiledForm form = m_plan.CompiledForms.First(
+                f => f.AffordanceName == "selectclauses" &&
+                    f.Operation == WoTBindingCapabilityEnum.SubscribeEvent);
+
+            Assert.That(form.EventSelection, Is.Not.Null);
+            Assert.That(
+                form.EventSelection!.Origin, Is.EqualTo(WotEventSelectionOrigin.Standard));
+
+            var received = new ConcurrentQueue<WotNotification>();
+            IWotBindingChannel channel = await m_registry.OpenChannelAsync(form).ConfigureAwait(false);
+            await using (channel.ConfigureAwait(false))
+            {
+                IWotSubscription subscription = await channel
+                    .SubscribeEventAsync(received.Enqueue).ConfigureAwait(false);
+                await using (subscription.ConfigureAwait(false))
+                {
+                    NodeId triggerNodeId = ResolvePortableNodeId(TriggerNode01Id);
+                    var writeValue = new WriteValue
+                    {
+                        NodeId = triggerNodeId,
+                        AttributeId = Attributes.Value,
+                        Value = new DataValue(new Variant(78))
+                    };
+                    WriteResponse writeResponse = await m_session
+                        .WriteAsync(null, new WriteValue[] { writeValue }, CancellationToken.None)
+                        .ConfigureAwait(false);
+                    Assert.That(StatusCode.IsGood(writeResponse.Results[0]), Is.True,
+                        "Writing the trigger node must succeed to fire a BaseEvent.");
+
+                    WotNotification? notification = null;
+                    for (int i = 0; i < 100 && notification is null; i++)
+                    {
+                        if (!received.TryDequeue(out notification))
+                        {
+                            await Task.Delay(50).ConfigureAwait(false);
+                        }
+                    }
+
+                    Assert.That(notification, Is.Not.Null,
+                        "The select-clause subscription must deliver the triggered event.");
+                    Assert.That(
+                        notification!.EventFields.Keys.OrderBy(k => k, StringComparer.Ordinal),
+                        Is.EqualTo(s_authoredSelectClauseFields),
+                        "The clauses overlay the implicit BaseEventType baseline: each names " +
+                        "a field the baseline already carries and moves it, and the empty " +
+                        "path adds the ConditionId member.");
+                    Assert.That(
+                        notification.Data.Members.Keys.OrderBy(k => k, StringComparer.Ordinal),
+                        Is.EqualTo(s_authoredSelectClauseMembers),
+                        "A NamespaceUri carrying '/' is one path element, so the field is " +
+                        "data.Severity and nothing is nested under 'nsu=http:', an empty " +
+                        "member and 'opcfoundation.org'.");
+                    Assert.That(
+                        notification.Data["Severity"]!.HasValue,
+                        Is.True,
+                        "The qualified clause fills a value member, not an object.");
+                }
+            }
+        }
+
         /// <summary>
         /// Builds a Thing Description JSON that includes edge-case affordances for every
         /// uncovered <c>OpcUaWotBindingChannel</c> path.
@@ -426,10 +535,24 @@ namespace Opc.Ua.WotCon.Bindings.Tests
                 "{\"href\":\"" + endpoint + "\",\"uav:id\":\"" + InvalidNodeId + "\"," +
                 "\"op\":[\"subscribeevent\"]}" +
                 "]}," +
-                // extrafields: real event notifier with uav:eventFields → exercises BuildEventFilter
+                // extrafields: real event notifier with uav:eventFields → exercises the
+                // superseded spelling, which adds to the implicit BaseEventType default
                 "\"extrafields\":{\"forms\":[" +
                 "{\"href\":\"" + endpoint + "\",\"uav:id\":\"" + ServerObjectNodeId + "\"," +
                 "\"op\":[\"subscribeevent\"],\"uav:eventFields\":[\"LocalTime\"]}" +
+                "]}," +
+                // selectclauses: the standardized uav:eventSelectClauses list, which
+                // overlays the implicit BaseEventType default and includes the empty-path
+                // ConditionId selection
+                "\"selectclauses\":{\"uav:isEvent\":true,\"uav:eventSelectClauses\":[" +
+                "{\"tm:ref\":\"./base-event.tm.jsonld\",\"uav:browsePath\":\"Message\"}," +
+                "{\"tm:ref\":\"./base-event.tm.jsonld\"," +
+                "\"uav:browsePath\":\"nsu=http://opcfoundation.org/UA/;Severity\"}," +
+                "{\"tm:ref\":\"./base-event.tm.jsonld\",\"uav:browsePath\":\"SourceName\"}," +
+                "{\"tm:ref\":\"./base-event.tm.jsonld\",\"uav:browsePath\":\"\"}]," +
+                "\"forms\":[" +
+                "{\"href\":\"" + endpoint + "\",\"uav:id\":\"" + ServerObjectNodeId + "\"," +
+                "\"op\":[\"subscribeevent\"]}" +
                 "]}}}";
         }
 
@@ -441,6 +564,48 @@ namespace Opc.Ua.WotCon.Bindings.Tests
         {
             var expanded = ExpandedNodeId.Parse(value);
             return ExpandedNodeId.ToNodeId(expanded, m_session.NamespaceUris);
+        }
+
+        /// <summary>
+        /// Serves the one EventType definition this fixture's select clauses
+        /// name: the Thing Model of <c>BaseEventType</c>, which declares every
+        /// standard field (WoT Binding Section 6.1).
+        /// </summary>
+        /// <remarks>
+        /// A clause names its EventType by reference, and a reference resolves
+        /// against the documents a consumer holds rather than over the network.
+        /// The fixture therefore holds this one, which is what a registry
+        /// closure or a document set would hold in a deployment.
+        /// </remarks>
+        private sealed class BaseEventTypeResolver : IWotThingResolver
+        {
+            public ValueTask<WotResolverResult> ResolveThingAsync(
+                string reference,
+                WotResolutionContext context,
+                System.Threading.CancellationToken cancellationToken)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                return new ValueTask<WotResolverResult>(
+                    reference.EndsWith("base-event.tm.jsonld", StringComparison.Ordinal)
+                        ? WotResolverResult.FromBytes(
+                            System.Text.Encoding.UTF8.GetBytes(BaseEventTypeModel))
+                        : WotResolverResult.NotFound);
+            }
+
+            private const string BaseEventTypeModel =
+                "{\"@context\":[\"https://www.w3.org/2022/wot/td/v1.1\"," +
+                "{\"uav\":\"http://opcfoundation.org/UA/WoT-Binding/\"}]," +
+                "\"@type\":[\"tm:ThingModel\",\"uav:eventType\"]," +
+                "\"title\":\"BaseEventType\",\"uav:id\":\"i=2041\"," +
+                "\"uav:browseName\":\"BaseEventType\"," +
+                "\"data\":{\"type\":\"object\"," +
+                "\"uav:fieldOrder\":[\"ConditionId\",\"Message\",\"Severity\",\"SourceName\"]," +
+                "\"properties\":{" +
+                "\"ConditionId\":{\"type\":\"string\"}," +
+                "\"Message\":{\"type\":\"string\"}," +
+                "\"Severity\":{\"uav:browseName\":" +
+                "\"nsu=http://opcfoundation.org/UA/;Severity\",\"type\":\"integer\"}," +
+                "\"SourceName\":{\"type\":\"string\"}}}}";
         }
     }
 }

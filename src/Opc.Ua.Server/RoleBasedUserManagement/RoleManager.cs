@@ -120,6 +120,103 @@ namespace Opc.Ua.Server
         /// <inheritdoc/>
         public event EventHandler<RoleConfigurationChangedEventArgs>? RoleConfigurationChanged;
 
+        /// <summary>
+        /// Predicate consulted by <see cref="AllocateDynamicNodeId"/> to skip
+        /// identifiers that already name a node in the server address space.
+        /// Installed by <see cref="RoleStateBinding"/>, which is the only
+        /// component that can see the address space.
+        /// </summary>
+        /// <remarks>
+        /// Invoked while the manager holds its write lock, so the callback must
+        /// not call back into the manager.
+        /// </remarks>
+        internal Func<NodeId, bool>? NodeIdInUseProbe { get; set; }
+
+        /// <summary>
+        /// Role definitions supplied through <c>ConfigureRoles</c> that have not
+        /// been applied yet.
+        /// </summary>
+        /// <remarks>
+        /// Roles are created with a server-assigned NodeId, so the namespace
+        /// table the server ends up with has to exist before they can be
+        /// allocated. The hosting extensions therefore stage the options here
+        /// and <see cref="RoleStateBinding"/> applies them once the address
+        /// space is up — see <see cref="ApplyPendingConfiguration"/>.
+        /// </remarks>
+        internal RoleConfigurationOptions? PendingConfiguration { get; set; }
+
+        /// <summary>
+        /// Applies <see cref="PendingConfiguration"/>.
+        /// </summary>
+        /// <param name="namespaces">
+        /// The server's namespace table, which allows roles that do not exist
+        /// yet to be created and clears the staged configuration. Pass
+        /// <c>null</c> before the address space exists: settings on roles that
+        /// are already there — the well-known ones — are applied, everything
+        /// else stays staged for the call that supplies a table.
+        /// </param>
+        /// <param name="defaultNamespaceIndex">
+        /// Namespace index the NodeIds of newly created roles are allocated in.
+        /// Ignored when <paramref name="namespaces"/> is <c>null</c>.
+        /// </param>
+        /// <exception cref="InvalidOperationException">
+        /// A configured role could not be created.
+        /// </exception>
+        internal void ApplyPendingConfiguration(
+            NamespaceTable? namespaces,
+            ushort defaultNamespaceIndex = 0)
+        {
+            RoleConfigurationOptions? options = PendingConfiguration;
+            if (options == null)
+            {
+                return;
+            }
+            if (namespaces != null)
+            {
+                PendingConfiguration = null;
+            }
+
+            foreach (RoleDefinitionOptions role in options.Roles)
+            {
+                if (string.IsNullOrWhiteSpace(role.Name))
+                {
+                    continue;
+                }
+
+                NodeId roleId = FindRoleByBrowseName(role.Name);
+                if (roleId.IsNull)
+                {
+                    if (namespaces == null)
+                    {
+                        // The role needs a server-assigned NodeId, which cannot
+                        // be allocated before the namespace table exists.
+                        continue;
+                    }
+                    roleId = CreateConfiguredRole(namespaces, defaultNamespaceIndex, role);
+                }
+
+                foreach (RoleIdentityMappingOptions identity in role.Identities)
+                {
+                    AddIdentity(roleId, new IdentityMappingRuleType
+                    {
+                        CriteriaType = identity.CriteriaType,
+                        Criteria = identity.Criteria
+                    });
+                }
+                foreach (string application in role.Applications)
+                {
+                    AddApplication(roleId, application);
+                }
+                foreach (EndpointType endpoint in role.Endpoints)
+                {
+                    AddEndpoint(roleId, endpoint);
+                }
+                SetApplicationsExclude(roleId, role.ApplicationsExclude);
+                SetEndpointsExclude(roleId, role.EndpointsExclude);
+                SetCustomConfiguration(roleId, role.CustomConfiguration);
+            }
+        }
+
         /// <inheritdoc/>
         public IReadOnlyList<NodeId> RoleIds
         {
@@ -432,46 +529,46 @@ namespace Opc.Ua.Server
                 throw new ArgumentNullException(nameof(namespaces));
             }
 
-            bool isWellKnown = false;
             bool useOpcUaNamespace =
                 string.IsNullOrEmpty(namespaceUri) ||
                 string.Equals(namespaceUri, Ua.Namespaces.OpcUa, StringComparison.Ordinal);
 
             // If naming a well-known role under the OPC UA namespace, reuse
             // the well-known NodeId per Part 18 §4.2.2.
-            NodeId? candidate = null;
-            ushort namespaceIndex = defaultNamespaceIndex;
-            if (useOpcUaNamespace)
-            {
-                candidate = ResolveWellKnownNodeId(roleName);
-                if (candidate != null)
-                {
-                    isWellKnown = true;
-                    namespaceIndex = 0;
-                }
-            }
+            NodeId? wellKnownId = useOpcUaNamespace
+                ? ResolveWellKnownNodeId(roleName)
+                : null;
 
-            if (candidate == null)
+            // Per Part 18 §4.2.2 the NamespaceUri argument qualifies the
+            // BrowseName of the new role. It deliberately does NOT select the
+            // namespace the role's NodeId is allocated in: the NodeId is
+            // server-assigned, and counting up from i=1 in a namespace owned by
+            // some other NodeManager would hand out identifiers that already
+            // belong to that manager's model.
+            //
+            // Only the URI is kept. An index is meaningless outside the table it
+            // came from, and this one need not be the server's — consumers
+            // resolve the URI against the table they are working with.
+            string? browseNamespaceUri;
+            if (!useOpcUaNamespace)
             {
-                if (!useOpcUaNamespace)
+                if (namespaces.GetIndex(namespaceUri!) < 0)
                 {
-                    int idx = namespaces.GetIndex(namespaceUri!);
-                    if (idx < 0)
-                    {
-                        return new ServiceResult(StatusCodes.BadInvalidArgument,
-                            new LocalizedText($"Namespace URI '{namespaceUri}' is not registered."));
-                    }
-                    namespaceIndex = (ushort)idx;
+                    return new ServiceResult(StatusCodes.BadInvalidArgument,
+                        new LocalizedText($"Namespace URI '{namespaceUri}' is not registered."));
                 }
-                else
-                {
-                    // The caller asked for the default namespace (either no
-                    // URI provided or the bare OPC UA URI) but the role name
-                    // is not one of the reserved Part 3 §4.9 names. Allocate
-                    // in the manager's dynamic namespace rather than ns=0,
-                    // which is reserved for OPC UA core nodes per Part 5.
-                    namespaceIndex = defaultNamespaceIndex;
-                }
+                browseNamespaceUri = namespaceUri;
+            }
+            else if (wellKnownId != null)
+            {
+                browseNamespaceUri = Ua.Namespaces.OpcUa;
+            }
+            else
+            {
+                // "If empty the Server chooses a namespace" — use the one the
+                // NodeId is allocated in rather than ns=0, whose BrowseNames are
+                // reserved for names the OPC UA specification defines.
+                browseNamespaceUri = namespaces.GetString(defaultNamespaceIndex);
             }
 
             m_lock.EnterWriteLock();
@@ -484,24 +581,25 @@ namespace Opc.Ua.Server
                 }
 
                 NodeId allocated;
-                if (candidate != null)
+                if (wellKnownId != null)
                 {
-                    if (m_roles.ContainsKey(candidate.Value))
+                    if (m_roles.ContainsKey(wellKnownId.Value))
                     {
                         return new ServiceResult(StatusCodes.BadAlreadyExists,
                             new LocalizedText($"Well-known role '{roleName}' is already registered."));
                     }
-                    allocated = candidate.Value;
+                    allocated = wellKnownId.Value;
                 }
                 else
                 {
-                    allocated = AllocateDynamicNodeId(namespaceIndex);
+                    allocated = AllocateDynamicNodeId(defaultNamespaceIndex);
                 }
 
                 // Per §4.2.2: initial values of ApplicationsExclude/EndpointsExclude
                 // shall be TRUE on newly created roles when the properties exist.
-                m_roles[allocated] = new MutableRole(allocated, roleName, namespaceIndex,
-                    isReserved: false, isWellKnown: isWellKnown)
+                m_roles[allocated] = new MutableRole(allocated, roleName,
+                    browseNamespaceUri,
+                    isReserved: false, isWellKnown: wellKnownId != null)
                 {
                     ApplicationsExclude = true,
                     EndpointsExclude = true
@@ -753,18 +851,90 @@ namespace Opc.Ua.Server
                 claims.Roles.Contains(roleName, StringComparer.Ordinal);
         }
 
+        private NodeId FindRoleByBrowseName(string browseName)
+        {
+            m_lock.EnterReadLock();
+            try
+            {
+                return m_browseNameIndex.TryGetValue(browseName, out NodeId roleId)
+                    ? roleId
+                    : NodeId.Null;
+            }
+            finally
+            {
+                m_lock.ExitReadLock();
+            }
+        }
+
+        private NodeId CreateConfiguredRole(
+            NamespaceTable namespaces,
+            ushort defaultNamespaceIndex,
+            RoleDefinitionOptions role)
+        {
+            string? namespaceUri = role.NamespaceUri;
+            if (!string.IsNullOrEmpty(namespaceUri))
+            {
+                // Make sure the BrowseName namespace is resolvable; the URI need
+                // not belong to any NodeManager.
+                namespaces.GetIndexOrAppend(namespaceUri!);
+            }
+
+            ServiceResult result = AddRole(
+                role.Name,
+                namespaceUri,
+                namespaces,
+                defaultNamespaceIndex,
+                out NodeId newRoleId);
+            if (ServiceResult.IsBad(result))
+            {
+                throw new InvalidOperationException(
+                    $"Role '{role.Name}' could not be configured: {result}.");
+            }
+            return newRoleId;
+        }
+
         private MutableRole AddBuiltInRole(NodeId roleId, string browseName, bool isReserved)
         {
-            var role = new MutableRole(roleId, browseName, roleId.NamespaceIndex,
-                isReserved: isReserved, isWellKnown: true);
+            var role = new MutableRole(roleId, browseName,
+                Ua.Namespaces.OpcUa, isReserved: isReserved, isWellKnown: true);
             m_roles[roleId] = role;
             m_browseNameIndex[browseName] = roleId;
             return role;
         }
 
+        /// <summary>
+        /// Allocates the next free numeric identifier in
+        /// <paramref name="namespaceIndex"/>.
+        /// </summary>
+        /// <remarks>
+        /// Identifiers already used by another role — or reported as taken by
+        /// <see cref="NodeIdInUseProbe"/>, which <see cref="RoleStateBinding"/>
+        /// points at the address space — are skipped. Handing out an identifier
+        /// that is already in use would silently replace the existing node when
+        /// the role is materialized under the <c>RoleSet</c>.
+        /// </remarks>
         private NodeId AllocateDynamicNodeId(ushort namespaceIndex)
         {
-            return new NodeId(m_nextDynamicId++, namespaceIndex);
+            Func<NodeId, bool>? probe = NodeIdInUseProbe;
+            while (true)
+            {
+                if (m_nextDynamicId == 0)
+                {
+                    // Identifier 0 is not a usable numeric NodeId; skip it on
+                    // the (theoretical) wrap-around of the counter.
+                    m_nextDynamicId = 1;
+                }
+                var candidate = new NodeId(m_nextDynamicId++, namespaceIndex);
+                if (m_roles.ContainsKey(candidate))
+                {
+                    continue;
+                }
+                if (probe != null && probe(candidate))
+                {
+                    continue;
+                }
+                return candidate;
+            }
         }
 
         private ServiceResult TryGetMutableRole(NodeId roleId, bool requireMutable, out MutableRole? role)
@@ -834,12 +1004,12 @@ namespace Opc.Ua.Server
         /// </summary>
         private sealed class MutableRole
         {
-            public MutableRole(NodeId roleId, string browseName, ushort namespaceIndex,
-                bool isReserved, bool isWellKnown)
+            public MutableRole(NodeId roleId, string browseName,
+                string? namespaceUri, bool isReserved, bool isWellKnown)
             {
                 RoleId = roleId;
                 BrowseName = browseName;
-                NamespaceIndex = namespaceIndex;
+                NamespaceUri = namespaceUri;
                 IsReserved = isReserved;
                 IsWellKnown = isWellKnown;
                 Identities = [];
@@ -849,7 +1019,7 @@ namespace Opc.Ua.Server
 
             public NodeId RoleId { get; }
             public string BrowseName { get; }
-            public ushort NamespaceIndex { get; }
+            public string? NamespaceUri { get; }
             public bool IsReserved { get; }
             public bool IsWellKnown { get; }
             public List<IdentityMappingRuleType> Identities { get; }
@@ -864,7 +1034,7 @@ namespace Opc.Ua.Server
                 return new RoleEntry(
                     RoleId,
                     BrowseName,
-                    NamespaceIndex,
+                    NamespaceUri,
                     IsReserved,
                     IsWellKnown,
                     [.. Identities.Select(Clone)],

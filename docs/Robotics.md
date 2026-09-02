@@ -301,7 +301,8 @@ Instances are always materialised through the generated
 `ISystemContext.CreateInstanceOf<Type>` factories (for example
 `CreateInstanceOfMotionDeviceSystemType`), so each instance carries the full
 companion-type structure and its per-instance NodeIds, rather than only a
-type-definition reference on a bare `BaseObjectState`.
+type-definition reference on a bare `BaseObjectState`. Registration completes
+the node create lifecycle before the subtree enters the address space.
 
 ### Binding live values
 

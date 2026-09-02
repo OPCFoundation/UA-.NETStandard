@@ -185,7 +185,10 @@ namespace Opc.Ua.SourceGeneration
                     // file or network I/O beyond the supplied AdditionalText
                     // content, so referenced TD/TM documents are left
                     // unresolved (reported as a WotDiagnosticCode.
-                    // UnresolvedReference warning by the converter).
+                    // UnresolvedReference warning by the converter, and as a
+                    // WotDiagnosticCode.EventSelectionUnresolved error where an
+                    // event affordance states a field selection that only a
+                    // resolved EventType definition can supply).
                     WotConversionResult<UANodeSet> result = WotNodeSetConverter.ToNodeSetResult(
                         document,
                         options: null);
