@@ -2835,6 +2835,10 @@ namespace Opc.Ua.Gds.Server
             {
                 foreach (ICertificateGroup certificateGroup in m_certificateGroups.Values)
                 {
+                    // The TrustList handler holds its store instances open
+                    // for reuse across operations; the node manager owns the
+                    // node and therefore the handler's lifetime.
+                    (certificateGroup.DefaultTrustList?.Handle as IDisposable)?.Dispose();
                     (certificateGroup as IDisposable)?.Dispose();
                 }
 

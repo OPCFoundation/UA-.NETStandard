@@ -153,10 +153,9 @@ namespace Opc.Ua
             }
             try
             {
-                ICertificateStore store = storeIdentifier!.OpenStore(telemetry) ??
+                using ICertificateStore store = storeIdentifier!.OpenStore(telemetry) ??
                     throw ServiceResultException.ConfigurationError(
                         "Failed to open {0} store", storeName);
-                store.Close();
             }
             catch (Exception ex)
             {
