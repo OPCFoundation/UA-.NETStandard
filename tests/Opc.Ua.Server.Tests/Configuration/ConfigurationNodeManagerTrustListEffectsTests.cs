@@ -274,6 +274,313 @@ namespace Opc.Ua.Server.Tests
             }
         }
 
+        [Test]
+        public void BuildTrustListEffectsForScopesMapsPeersToSecureChannelTrust()
+        {
+            List<TrustListChangeEffect> effects = m_configManager.BuildTrustListEffectsForScopes(
+                [TrustListIdentifier.Peers]);
+
+            Assert.That(effects, Has.Count.EqualTo(1));
+            Assert.That(effects[0].Kind, Is.EqualTo(TrustListEffectKind.SecureChannelTrust));
+            Assert.That(effects[0].ValidationScope, Is.EqualTo(TrustListIdentifier.Peers));
+            Assert.That(
+                effects[0].TrustListId,
+                Is.EqualTo(ObjectIds.ServerConfiguration_CertificateGroups_DefaultApplicationGroup_TrustList));
+        }
+
+        [Test]
+        public void BuildTrustListEffectsForScopesMapsUsersToUserIdentityTrust()
+        {
+            List<TrustListChangeEffect> effects = m_configManager.BuildTrustListEffectsForScopes(
+                [TrustListIdentifier.Users]);
+
+            Assert.That(effects, Has.Count.EqualTo(1));
+            Assert.That(effects[0].Kind, Is.EqualTo(TrustListEffectKind.UserIdentityTrust));
+            Assert.That(effects[0].ValidationScope, Is.EqualTo(TrustListIdentifier.Users));
+        }
+
+        [Test]
+        public void BuildTrustListEffectsForScopesIgnoresUnmappedScopes()
+        {
+            List<TrustListChangeEffect> effects = m_configManager.BuildTrustListEffectsForScopes(
+                [TrustListIdentifier.Rejected, new TrustListIdentifier("CustomScope"), null!]);
+
+            Assert.That(effects, Is.Empty);
+        }
+
+        [Test]
+        public async Task OutOfBandCrlUpdateDispatchesSecureChannelEffectAsync()
+        {
+            // An out-of-band CRL change (no push transaction, no ApplyChanges)
+            // must still trigger the §7.10.9 effect fan-out via the
+            // trust-material enforcement pump.
+            var handler = new CapturingEffectHandler();
+            IPushConfigurationTrustListEffectHandler original = ReplaceEffectHandler(m_configManager, handler);
+
+            try
+            {
+                ICertificateManager certificateManager = m_fixture.Config.CertificateManager;
+                Assert.That(certificateManager, Is.Not.Null);
+
+                certificateManager.NotifyTrustListChanged(
+                    TrustListIdentifier.Peers,
+                    trustChanged: false,
+                    crlChanged: true);
+
+                await WaitUntilAsync(() => handler.InvocationCount >= 1).ConfigureAwait(false);
+
+                PushConfigurationTrustListEffectContext context = handler.Contexts[0];
+                Assert.That(context.Effects, Has.Count.EqualTo(1));
+                Assert.That(context.Effects[0].Kind, Is.EqualTo(TrustListEffectKind.SecureChannelTrust));
+                Assert.That(context.Effects[0].ValidationScope, Is.EqualTo(TrustListIdentifier.Peers));
+                Assert.That(context.CertificateValidator, Is.Not.Null);
+            }
+            finally
+            {
+                ReplaceEffectHandler(m_configManager, original);
+            }
+        }
+
+        [Test]
+        public async Task OutOfBandUserTrustChangeDispatchesUserIdentityEffectAsync()
+        {
+            var handler = new CapturingEffectHandler();
+            IPushConfigurationTrustListEffectHandler original = ReplaceEffectHandler(m_configManager, handler);
+
+            try
+            {
+                ICertificateManager certificateManager = m_fixture.Config.CertificateManager;
+
+                certificateManager.NotifyTrustListChanged(
+                    TrustListIdentifier.Users,
+                    trustChanged: true,
+                    crlChanged: true);
+
+                await WaitUntilAsync(() => handler.InvocationCount >= 1).ConfigureAwait(false);
+
+                PushConfigurationTrustListEffectContext context = handler.Contexts[0];
+                Assert.That(context.Effects, Has.Count.EqualTo(1));
+                Assert.That(context.Effects[0].Kind, Is.EqualTo(TrustListEffectKind.UserIdentityTrust));
+                Assert.That(context.Effects[0].ValidationScope, Is.EqualTo(TrustListIdentifier.Users));
+            }
+            finally
+            {
+                ReplaceEffectHandler(m_configManager, original);
+            }
+        }
+
+        [Test]
+        public async Task OutOfBandRejectedScopeChangeDispatchesNoEffectAsync()
+        {
+            var handler = new CapturingEffectHandler();
+            IPushConfigurationTrustListEffectHandler original = ReplaceEffectHandler(m_configManager, handler);
+
+            try
+            {
+                ICertificateManager certificateManager = m_fixture.Config.CertificateManager;
+
+                // The Rejected scope maps to no server certificate group, so
+                // the pump pass must produce no effect at all.
+                certificateManager.NotifyTrustListChanged(
+                    TrustListIdentifier.Rejected,
+                    trustChanged: true,
+                    crlChanged: true);
+
+                await Task.Delay(500).ConfigureAwait(false);
+                Assert.That(handler.InvocationCount, Is.Zero);
+            }
+            finally
+            {
+                ReplaceEffectHandler(m_configManager, original);
+            }
+        }
+
+        [Test]
+        public async Task PushedCrlIsEnforcedByTheLiveValidatorAfterApplyChangesAsync()
+        {
+            // End-to-end regression for the CRL-push enforcement pipeline: a
+            // CRL committed through the ApplyChanges deferred apply must be
+            // observed by the server's LIVE certificate validator immediately
+            // afterwards — no token renewal, no store-cache staleness window.
+            ICertificateManager certificateManager = m_fixture.Config.CertificateManager;
+            SecurityConfiguration securityConfiguration = m_fixture.Config.SecurityConfiguration;
+            var trustedStoreId = new CertificateStoreIdentifier(
+                securityConfiguration.TrustedPeerCertificates!.StorePath!);
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
+            using Certificate caCert = CertificateBuilder
+                .Create("CN=CRL Push Test CA, O=OPC Foundation")
+                .SetCAConstraint()
+                .SetRSAKeySize(2048)
+                .CreateForRSA();
+            using Certificate leaf = CertificateBuilder
+                .Create("CN=CRL Push Test Client")
+                .SetIssuer(caCert)
+                .SetRSAKeySize(2048)
+                .CreateForRSA();
+
+            // An empty CRL so the CA has a known (non-revoked) revocation
+            // status before the push.
+            X509CRL emptyCrl = DefaultCertificateIssuer.Instance.RevokeCertificates(
+                caCert, null!, null!);
+            X509CRL revokingCrl = null!;
+
+            TimeSpan originalGrace = m_configManager.ApplyChangesGracePeriod;
+            try
+            {
+                using (ICertificateStore store = trustedStoreId.OpenStore(telemetry))
+                {
+                    await store.AddAsync(caCert).ConfigureAwait(false);
+                    await store.AddCRLAsync(emptyCrl).ConfigureAwait(false);
+                }
+
+                // Make the live validator observe the seeded CA immediately.
+                certificateManager.NotifyTrustListChanged(
+                    TrustListIdentifier.Peers, trustChanged: true, crlChanged: true);
+
+                CertificateValidationResult before = await certificateManager
+                    .ValidateAsync(leaf, TrustListIdentifier.Peers)
+                    .ConfigureAwait(false);
+                Assert.That(before.IsValid, Is.True,
+                    $"leaf must validate before revocation but was {before.StatusCode}");
+
+                // Push the revocation through the real ApplyChanges pipeline:
+                // the staged commit writes the CRL exactly like the TrustList
+                // CloseAndUpdate commit does, and the deferred apply must
+                // invalidate the validator's cached state afterwards.
+                using (var revoked = new CertificateCollection { leaf })
+                {
+                    revokingCrl = DefaultCertificateIssuer.Instance.RevokeCertificates(
+                        caCert,
+                        new X509CRLCollection { emptyCrl },
+                        revoked);
+                }
+
+                m_configManager.ApplyChangesGracePeriod = TimeSpan.Zero;
+                var sessionId = new NodeId(Guid.NewGuid(), 1);
+                IPushConfigurationTransactionCoordinator coordinator = GetCoordinator(m_configManager);
+                coordinator.Stage(sessionId, new PushConfigurationOperation
+                {
+                    AffectedTrustList =
+                        ObjectIds.ServerConfiguration_CertificateGroups_DefaultApplicationGroup_TrustList,
+                    CommitAsync = async ct =>
+                    {
+                        using ICertificateStore store = trustedStoreId.OpenStore(telemetry);
+                        await store.AddCRLAsync(revokingCrl, ct).ConfigureAwait(false);
+                    }
+                });
+
+                ServiceResult result = await InvokeApplyChangesAsync(sessionId).ConfigureAwait(false);
+                Assert.That(ServiceResult.IsGood(result), Is.True);
+                await m_configManager.DrainPendingApplyChangesAsync().ConfigureAwait(false);
+
+                CertificateValidationResult after = await certificateManager
+                    .ValidateAsync(leaf, TrustListIdentifier.Peers)
+                    .ConfigureAwait(false);
+                Assert.That(after.IsValid, Is.False,
+                    "revoked leaf must no longer validate after the CRL push");
+                Assert.That(after.StatusCode, Is.EqualTo(StatusCodes.BadCertificateRevoked));
+            }
+            finally
+            {
+                m_configManager.ApplyChangesGracePeriod = originalGrace;
+
+                // Remove the test CA and its CRLs so other tests see the
+                // original trust material, and re-sync the validator.
+                try
+                {
+                    using (ICertificateStore store = trustedStoreId.OpenStore(telemetry))
+                    {
+                        await store.DeleteAsync(caCert.Thumbprint).ConfigureAwait(false);
+                        await store.DeleteCRLAsync(emptyCrl).ConfigureAwait(false);
+                        if (revokingCrl != null)
+                        {
+                            await store.DeleteCRLAsync(revokingCrl).ConfigureAwait(false);
+                        }
+                    }
+                }
+                catch
+                {
+                    // Best-effort cleanup.
+                }
+                certificateManager.NotifyTrustListChanged(
+                    TrustListIdentifier.Peers, trustChanged: true, crlChanged: true);
+            }
+        }
+
+        [Test]
+        public async Task CreateGroupStoreIdentifierOpensTheConfiguredCustomStoreTypeAsync()
+        {
+            MethodInfo method = typeof(ConfigurationNodeManager).GetMethod(
+                "CreateGroupStoreIdentifier", BindingFlags.NonPublic | BindingFlags.Static)
+                ?? throw new InvalidOperationException("CreateGroupStoreIdentifier not found.");
+
+            // A custom store type is not inferable from the path; the group
+            // identifier must carry the configured type so the push path
+            // actually opens (and writes through) the registered custom
+            // store implementation instead of silently downgrading to a
+            // directory store. The registration below uses the legacy static
+            // registry - the resolution path identifier-based store access
+            // supports; there is no unregister API, so the name is unique
+            // and the registration is process-lifetime.
+            const string storeTypeName = "TrustListEffectsTestStore";
+            if (CertificateStoreType.GetCertificateStoreTypeByName(storeTypeName) == null)
+            {
+#pragma warning disable CS0618 // The static registry is the identifier-resolvable extension point.
+                CertificateStoreType.RegisterCertificateStoreType(
+                    storeTypeName,
+                    new InMemoryCertificateStoreType());
+#pragma warning restore CS0618
+            }
+
+            var source = new CertificateTrustList
+            {
+                StoreType = storeTypeName,
+                StorePath = "custom://trust/peers"
+            };
+
+            var identifier = (CertificateStoreIdentifier)method.Invoke(null, [source])!;
+            Assert.That(identifier.StoreType, Is.EqualTo(storeTypeName));
+            Assert.That(identifier.StorePath, Is.EqualTo("custom://trust/peers"));
+
+            // The identifier must resolve to the registered implementation
+            // and be usable for a real write/read round trip. The using
+            // disposes the cached store instance, so nothing is retained on
+            // the identifier afterwards.
+            using Certificate certificate = CertificateBuilder
+                .Create("CN=Custom Store Type Cert")
+                .SetRSAKeySize(2048)
+                .CreateForRSA();
+            using ICertificateStore store = identifier.OpenStore(NUnitTelemetryContext.Create());
+            Assert.That(store, Is.InstanceOf<CertificateIdentifierCollectionStore>());
+            await store.AddAsync(certificate).ConfigureAwait(false);
+            using CertificateCollection found = await store
+                .FindByThumbprintAsync(certificate.Thumbprint)
+                .ConfigureAwait(false);
+            Assert.That(found, Has.Count.EqualTo(1));
+        }
+
+        private sealed class InMemoryCertificateStoreType : ICertificateStoreType
+        {
+            public bool SupportsStorePath(string storePath)
+            {
+                return storePath != null &&
+                    storePath.StartsWith("custom://", StringComparison.OrdinalIgnoreCase);
+            }
+
+            public ICertificateStore CreateStore(ITelemetryContext telemetry)
+            {
+                return new CertificateIdentifierCollectionStore(telemetry);
+            }
+        }
+
+        private static Task WaitUntilAsync(Func<bool> condition)
+        {
+            return TestPolling.WaitUntilAsync(
+                condition,
+                timeoutMessage: "Timed out waiting for the enforcement pump.");
+        }
+
         private async Task<IReadOnlyList<TrustListChangeEffect>> DriveApplyChangesForTrustListAsync(
             NodeId trustListId)
         {
@@ -383,20 +690,59 @@ namespace Opc.Ua.Server.Tests
             };
         }
 
+        /// <summary>
+        /// Thread-safe capturing fake: invocations may arrive from the
+        /// enforcement pump's background drain task while the test thread
+        /// polls, so every access synchronizes on one lock.
+        /// </summary>
         private sealed class CapturingEffectHandler : IPushConfigurationTrustListEffectHandler
         {
-            public int InvocationCount { get; private set; }
+            public int InvocationCount
+            {
+                get
+                {
+                    lock (m_sync)
+                    {
+                        return m_contexts.Count;
+                    }
+                }
+            }
 
-            public PushConfigurationTrustListEffectContext? LastContext { get; private set; }
+            public PushConfigurationTrustListEffectContext? LastContext
+            {
+                get
+                {
+                    lock (m_sync)
+                    {
+                        return m_contexts.Count > 0 ? m_contexts[^1] : null;
+                    }
+                }
+            }
+
+            public IReadOnlyList<PushConfigurationTrustListEffectContext> Contexts
+            {
+                get
+                {
+                    lock (m_sync)
+                    {
+                        return [.. m_contexts];
+                    }
+                }
+            }
 
             public ValueTask ApplyAsync(
                 PushConfigurationTrustListEffectContext context,
                 CancellationToken cancellationToken = default)
             {
-                InvocationCount++;
-                LastContext = context;
+                lock (m_sync)
+                {
+                    m_contexts.Add(context);
+                }
                 return default;
             }
+
+            private readonly List<PushConfigurationTrustListEffectContext> m_contexts = [];
+            private readonly Lock m_sync = new();
         }
 
         /// <summary>

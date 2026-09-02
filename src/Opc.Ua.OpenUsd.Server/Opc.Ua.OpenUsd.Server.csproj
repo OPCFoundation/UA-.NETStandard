@@ -6,7 +6,7 @@
     <RootNamespace>Opc.Ua.OpenUsd.Server</RootNamespace>
     <NoWarn>$(NoWarn);CS1591</NoWarn>
     <Nullable>enable</Nullable>
-    <Description>Server-side reusable functionality for the draft OPC UA - OpenUSD Bindings companion model: authoring live/alarm/history/command bindings and component compositions on a representation, and serving the artist-authored USD asset closure through a read-only Part 5 FileType (spec §5.15).</Description>
+    <Description>Server-side functionality for the draft OPC UA - OpenUSD Bindings and Scene Materialization models: authoring bindings, serving assets, and materializing or exporting USD stages.</Description>
     <IsPackable>true</IsPackable>
     <PackageReadmeFile>NugetREADME.md</PackageReadmeFile>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
@@ -15,6 +15,7 @@
   <ItemGroup>
     <InternalsVisibleTo Include="PumpDeviceIntegrationServer" />
     <InternalsVisibleTo Include="MinimalRobotServer" />
+    <InternalsVisibleTo Include="Opc.Ua.OpenUsd.Tests" />
     <InternalsVisibleTo Include="Opc.Ua.Robotics.Server" />
     <InternalsVisibleTo Include="Opc.Ua.Di.Tests" />
   </ItemGroup>

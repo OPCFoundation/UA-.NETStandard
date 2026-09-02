@@ -250,9 +250,23 @@ function ConvertTo-RelativePath([string] $path, [string[]] $sourceRoots, [string
         return $normalized.Substring($normalizedRepo.Length + 1)
     }
 
+    # Reports merged from several operating systems can retain an absolute
+    # filename from a different agent. Re-anchor the longest suffix that exists
+    # in this checkout so /Users/.../src/Foo.cs matches src/Foo.cs on Linux.
+    if ($normalized.StartsWith('/') -or [System.IO.Path]::IsPathRooted($normalized)) {
+        $segments = @($normalized.Trim('/') -split '/')
+        for ($index = 1; $index -lt $segments.Count; $index++) {
+            $candidate = $segments[$index..($segments.Count - 1)] -join '/'
+            if (Test-Path -LiteralPath (Join-Path $repoRoot $candidate) -PathType Leaf) {
+                return $candidate
+            }
+        }
+    }
+
     foreach ($root in $sourceRoots) {
         if ([string]::IsNullOrWhiteSpace($root)) { continue }
         $normalizedRoot = $root.Replace('\', '/').TrimEnd('/')
+        if ([string]::IsNullOrWhiteSpace($normalizedRoot)) { continue }
 
         # <source> is the common prefix of every file in the report, which is
         # usually a sub-directory of the repository such as '<repo>/src'. The

@@ -43,6 +43,88 @@ namespace Opc.Ua
 
             UpdateStateVariable(context, Objects.ProgramStateMachineType_Ready, CurrentState);
             UpdateTransitionVariable(context, 0, LastTransition);
+
+            WireCauseMethods(context);
+        }
+
+        /// <summary>
+        /// Binds each materialized cause method to the matching
+        /// <c>OnXxx</c> handler and answers its <c>Executable</c> /
+        /// <c>UserExecutable</c> attributes from
+        /// <see cref="FiniteStateMachineState.IsCausePermitted"/>.
+        /// </summary>
+        /// <remarks>
+        /// Part 3 §5.7 defines those attributes as "may this Method be
+        /// called right now", which for a Part 16 cause is exactly what
+        /// <c>IsCausePermitted</c> answers, and Part 4 §5.11.2 has
+        /// <c>Call</c> refuse a non-executable Method with
+        /// <c>Bad_NotExecutable</c>. Left unwired, the methods keep the
+        /// <c>true</c> they were constructed with and a client can only
+        /// discover which causes apply by calling one and being
+        /// refused.
+        /// <para>
+        /// The five methods are optional placeholders on
+        /// <c>ProgramStateMachineType</c>, so only the ones an instance
+        /// actually declares are wired. They are matched on the browse
+        /// name alone, without the namespace index: Part 10 names the
+        /// causes, but a subtype that redeclares them (as the Boiler
+        /// model does) puts them in its own namespace.
+        /// Subclasses that override <see cref="OnAfterCreate"/> and
+        /// call the base first can still replace any of these
+        /// assignments.
+        /// </para>
+        /// <para>
+        /// Called automatically from <see cref="OnAfterCreate"/>, which
+        /// covers every instance whose type model declares the methods.
+        /// Call it again after adding one of them to an already-created
+        /// instance — <c>Create</c> rebuilds the child list from the
+        /// type template, so children added by hand before it are not
+        /// there when it runs.
+        /// </para>
+        /// </remarks>
+        /// <param name="context">The system context.</param>
+        public void WireCauseMethods(ISystemContext context)
+        {
+            var children = new List<BaseInstanceState>();
+            GetChildren(context, children);
+
+            foreach (BaseInstanceState child in children)
+            {
+                if (child is not MethodState method)
+                {
+                    continue;
+                }
+
+                switch (method.BrowseName.Name)
+                {
+                    case BrowseNames.Start:
+                        Wire(method, OnStart, IsStartExecutable, IsStartUserExecutable);
+                        break;
+                    case BrowseNames.Suspend:
+                        Wire(method, OnSuspend, IsSuspendExecutable, IsSuspendUserExecutable);
+                        break;
+                    case BrowseNames.Resume:
+                        Wire(method, OnResume, IsResumeExecutable, IsResumeUserExecutable);
+                        break;
+                    case BrowseNames.Halt:
+                        Wire(method, OnHalt, IsHaltExecutable, IsHaltUserExecutable);
+                        break;
+                    case BrowseNames.Reset:
+                        Wire(method, OnReset, IsResetExecutable, IsResetUserExecutable);
+                        break;
+                }
+            }
+
+            static void Wire(
+                MethodState method,
+                GenericMethodCalledEventHandler onCall,
+                NodeAttributeEventHandler<bool> onReadExecutable,
+                NodeAttributeEventHandler<bool> onReadUserExecutable)
+            {
+                method.OnCallMethod = onCall;
+                method.OnReadExecutable = onReadExecutable;
+                method.OnReadUserExecutable = onReadUserExecutable;
+            }
         }
 
         /// <summary>

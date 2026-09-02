@@ -469,7 +469,63 @@ namespace Opc.Ua.Wot
                     Reference = reference.GetString() ?? string.Empty,
                     Annotations = affordance.Value
                 });
+                ValidateAnnotations(affordance.Key, affordance.Value, diagnostics);
             }
+        }
+
+        /// <summary>
+        /// Enforces the closed set of members a projection may annotate a
+        /// declared affordance with (WoT Binding Section 12.5).
+        /// </summary>
+        /// <remarks>
+        /// The set is closed for the same reason the <c>uav:select</c> filter
+        /// set is: a projection declares affordances and does not define them,
+        /// so anything it restates about the source's schema either repeats the
+        /// source - in which case it says nothing - or contradicts it, in which
+        /// case a consumer merging it would publish a view that disagrees with
+        /// the Node it projects. Presentation, semantics and, where the source
+        /// is routed through the projection, the transport binding are the only
+        /// things an annotation may carry.
+        /// </remarks>
+        private static void ValidateAnnotations(
+            string name,
+            JsonElement affordance,
+            List<WotDiagnostic> diagnostics)
+        {
+            foreach (JsonProperty member in affordance.EnumerateObject())
+            {
+                if (IsPermittedAnnotation(member.Name))
+                {
+                    continue;
+                }
+                diagnostics.Add(new WotDiagnostic(
+                    WotDiagnosticSeverity.Error,
+                    WotDiagnosticCode.ProjectionAnnotationNotPermitted,
+                    $"The projected affordance '{name}' shall not annotate " +
+                    $"'{member.Name}'; a projection may restate only title, " +
+                    "titles, description, descriptions, @type, uav:semanticId, " +
+                    "uav:metadata and - under projection routing - forms and " +
+                    "security.",
+                    new WotLocation(reference: name)));
+            }
+        }
+
+        /// <summary>
+        /// Gets whether a member may appear beside <c>tm:ref</c> on a declared
+        /// affordance.
+        /// </summary>
+        internal static bool IsPermittedAnnotation(string name)
+        {
+            return name is "tm:ref"
+                or "title"
+                or "titles"
+                or "description"
+                or "descriptions"
+                or "@type"
+                or "uav:semanticId"
+                or "uav:metadata"
+                or "forms"
+                or "security";
         }
 
         private static ArrayOf<WotOrganizingLink> ReadOrganizingLinks(WotDocument document)

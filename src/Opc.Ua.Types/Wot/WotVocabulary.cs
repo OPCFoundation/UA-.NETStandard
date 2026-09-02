@@ -31,6 +31,7 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using Opc.Ua.Export;
 
 namespace Opc.Ua.Wot
 {
@@ -56,6 +57,7 @@ namespace Opc.Ua.Wot
         public const string HasProperty = "i=46";
         public const string HasComponent = "i=47";
         public const string HasOrderedComponent = "i=49";
+        public const string HasEncoding = "i=38";
         public const string Organizes = "i=35";
         public const string HasTypeDefinition = "i=40";
         public const string HasModellingRule = "i=37";
@@ -98,13 +100,46 @@ namespace Opc.Ua.Wot
         /// outside the mapping. A ConditionType outside this set is named by
         /// <c>uav:conditionTypeId</c>, which is definitive and needs no lookup.
         /// </remarks>
+        public const string ConditionType = "i=2782";
+
+        /// <inheritdoc cref="ConditionType"/>
+        public const string AcknowledgeableConditionType = "i=2881";
+
+        /// <inheritdoc cref="ConditionType"/>
+        public const string AlarmConditionType = "i=2915";
+
+        /// <inheritdoc cref="ConditionType"/>
+        public const string LimitAlarmType = "i=2955";
+
+        /// <summary>
+        /// The Condition Methods OPC 10000-9 declares, by the type that
+        /// declares each. A Method materialized for a
+        /// <c>uav:conditionAction</c> carries the declaration as its
+        /// <c>MethodDeclarationId</c>, which is what tells a Server the
+        /// instance Method is that standard Method rather than a same-named
+        /// Method of its own.
+        /// </summary>
+        public const string ConditionTypeEnableMethod = "i=9027";
+
+        /// <inheritdoc cref="ConditionTypeEnableMethod"/>
+        public const string ConditionTypeDisableMethod = "i=9028";
+
+        /// <inheritdoc cref="ConditionTypeEnableMethod"/>
+        public const string ConditionTypeAddCommentMethod = "i=9029";
+
+        /// <inheritdoc cref="ConditionTypeEnableMethod"/>
+        public const string AcknowledgeableConditionTypeAcknowledgeMethod = "i=9111";
+
+        /// <inheritdoc cref="ConditionTypeEnableMethod"/>
+        public const string AcknowledgeableConditionTypeConfirmMethod = "i=9113";
+
         private static readonly Dictionary<string, string> s_conditionTypeNameToNodeId =
             new(StringComparer.Ordinal)
             {
-                ["ConditionType"] = "i=2782",
-                ["AcknowledgeableConditionType"] = "i=2881",
-                ["AlarmConditionType"] = "i=2915",
-                ["LimitAlarmType"] = "i=2955"
+                ["ConditionType"] = ConditionType,
+                ["AcknowledgeableConditionType"] = AcknowledgeableConditionType,
+                ["AlarmConditionType"] = AlarmConditionType,
+                ["LimitAlarmType"] = LimitAlarmType
             };
 
         /// <summary>
@@ -128,35 +163,30 @@ namespace Opc.Ua.Wot
             return false;
         }
 
-        private static readonly Dictionary<string, string> s_referenceTypeNameToNodeId =
-            new(StringComparer.Ordinal)
+        /// <summary>
+        /// Resolves the BrowseName of a ConditionType named by its
+        /// base-namespace NodeId, which is what lets the forward direction
+        /// state <c>uav:conditionType</c> as the compact model name Section
+        /// 13.2 requires.
+        /// </summary>
+        /// <param name="nodeId">The base-namespace NodeId.</param>
+        /// <param name="browseName">The BrowseName, when the id is one this maps.</param>
+        /// <returns><c>true</c> when the identifier resolved.</returns>
+        public static bool TryGetConditionTypeName(
+            string? nodeId,
+            out string browseName)
+        {
+            foreach (KeyValuePair<string, string> entry in s_conditionTypeNameToNodeId)
             {
-                ["Organizes"] = Organizes,
-                ["HasModellingRule"] = HasModellingRule,
-                ["HasTypeDefinition"] = HasTypeDefinition,
-                ["GeneratesEvent"] = GeneratesEvent,
-                ["HasSubtype"] = HasSubtype,
-                ["HasProperty"] = HasProperty,
-                ["HasComponent"] = HasComponent,
-                ["HasOrderedComponent"] = HasOrderedComponent,
-                ["NonHierarchicalReferences"] = NonHierarchicalReferences,
-                ["HasInterface"] = HasInterface
-            };
-
-        private static readonly Dictionary<string, string> s_referenceTypeNodeIdToName =
-            new(StringComparer.Ordinal)
-            {
-                [Organizes] = "Organizes",
-                [HasModellingRule] = "HasModellingRule",
-                [HasTypeDefinition] = "HasTypeDefinition",
-                [GeneratesEvent] = "GeneratesEvent",
-                [HasSubtype] = "HasSubtype",
-                [HasProperty] = "HasProperty",
-                [HasComponent] = "HasComponent",
-                [HasOrderedComponent] = "HasOrderedComponent",
-                [NonHierarchicalReferences] = "NonHierarchicalReferences",
-                [HasInterface] = "HasInterface"
-            };
+                if (string.Equals(entry.Value, nodeId, StringComparison.Ordinal))
+                {
+                    browseName = entry.Key;
+                    return true;
+                }
+            }
+            browseName = string.Empty;
+            return false;
+        }
 
         // HasComponent subtypes (base namespace) that carry stronger semantics
         // than plain HasComponent and must be pinned by a link whose rel is
@@ -189,11 +219,15 @@ namespace Opc.Ua.Wot
         public const string Number = "i=26";
         public const string UriString = "i=23751";
 
-        // Modelling rules (base namespace).
+        // Modelling rules (base namespace). The two placeholder identifiers are
+        // not adjacent and are not in name order: OPC 10000-5 assigns
+        // OptionalPlaceholder 11508 and MandatoryPlaceholder 11510, and 11509
+        // is not a ModellingRule Object at all. Both lookup tables below derive
+        // from these constants, so every mapping path shares one definition.
         public const string ModellingRuleMandatory = "i=78";
         public const string ModellingRuleOptional = "i=80";
-        public const string ModellingRuleMandatoryPlaceholder = "i=11508";
-        public const string ModellingRuleOptionalPlaceholder = "i=11509";
+        public const string ModellingRuleMandatoryPlaceholder = "i=11510";
+        public const string ModellingRuleOptionalPlaceholder = "i=11508";
 
         private static readonly Dictionary<string, string> s_modellingRuleToNodeId =
             new(StringComparer.Ordinal)
@@ -308,35 +342,60 @@ namespace Opc.Ua.Wot
             string? browseName,
             out string nodeId)
         {
-            if (browseName is not null &&
-                s_referenceTypeNameToNodeId.TryGetValue(browseName, out nodeId!))
-            {
-                return true;
-            }
-            nodeId = string.Empty;
-            return false;
+            return NodeSetStandardAliases.TryGetReferenceTypeNodeId(browseName, out nodeId);
+        }
+
+        /// <summary>
+        /// Resolves a base-namespace ReferenceType named by either its
+        /// BrowseName or its InverseName, reporting which of the two matched.
+        /// </summary>
+        /// <remarks>
+        /// The BrowseName is tried first, so a name that is both a BrowseName
+        /// and some other type's InverseName reads forward. No standard name
+        /// is currently ambiguous in that way; the order fixes the outcome if
+        /// one ever is.
+        /// </remarks>
+        /// <param name="name">The unqualified BrowseName or InverseName.</param>
+        /// <param name="nodeId">The ReferenceType's base-namespace NodeId.</param>
+        /// <param name="isForward">
+        /// <c>true</c> when the BrowseName matched, <c>false</c> when the
+        /// InverseName did. A reference whose InverseName was used is emitted
+        /// with <c>IsForward = false</c>.
+        /// </param>
+        /// <returns><c>true</c> when the name resolved.</returns>
+        public static bool TryResolveReferenceTypeName(
+            string? name,
+            out string nodeId,
+            out bool isForward)
+        {
+            return NodeSetStandardAliases.TryResolveReferenceTypeName(
+                name, out nodeId, out isForward);
+        }
+
+        /// <summary>
+        /// Gets the InverseName OPC 10000-5 gives a base-namespace
+        /// ReferenceType, which is the name a link <c>rel</c> uses to state the
+        /// same reference backwards.
+        /// </summary>
+        /// <param name="nodeId">The ReferenceType's base-namespace NodeId.</param>
+        /// <param name="inverseName">
+        /// The InverseName, or an empty string when the ReferenceType is
+        /// abstract enough to have none.
+        /// </param>
+        /// <returns><c>true</c> when an InverseName is known.</returns>
+        public static bool TryGetReferenceTypeInverseName(
+            string? nodeId,
+            out string inverseName)
+        {
+            return NodeSetStandardAliases.TryGetReferenceTypeInverseName(nodeId, out inverseName);
         }
 
         public static bool TryGetReferenceTypeBrowseName(
             string? referenceType,
             out string browseName)
         {
-            if (referenceType is not null)
-            {
-                if (s_referenceTypeNodeIdToName.TryGetValue(
-                    referenceType,
-                    out browseName!))
-                {
-                    return true;
-                }
-                if (s_referenceTypeNameToNodeId.ContainsKey(referenceType))
-                {
-                    browseName = referenceType;
-                    return true;
-                }
-            }
-            browseName = string.Empty;
-            return false;
+            return NodeSetStandardAliases.TryGetReferenceTypeBrowseName(
+                referenceType, out browseName);
         }
 
         public static string FormatUInt(uint value)

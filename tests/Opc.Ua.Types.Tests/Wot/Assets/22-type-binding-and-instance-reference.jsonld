@@ -11,15 +11,24 @@
   "@type": ["Thing", "uav:object", "pump:TankType"],
   "id": "urn:dev:opcua:tank:tank-07",
   "title": "Tank 07",
-  "description": "A Thing Description bound to an existing type by both forms of Section 5.2.1 - the readable compact name in @type and the definitive ExpandedNodeId on a ua:HasTypeDefinition link - and carrying a typed reference to the instance projected by another Thing Description. That reference belongs to this tank and not to any tank type: the pump it is served by is a fact about this installation, so nothing in the type graph carries it and no type-level declaration is required.",
-  "securityDefinitions": { "nosec_sc": { "scheme": "nosec" } },
-  "security": "nosec_sc",
+  "description": "A Thing Description bound to an existing type by both forms of Section 5.2.1 - the readable compact name in @type and the definitive ExpandedNodeId on a ua:HasTypeDefinition link - and carrying a typed reference to the instance projected by another Thing Description. That reference belongs to this tank and not to any tank type: the pump it is served by is a fact about this installation, so nothing in the type graph carries it and no type-level declaration is required. It also constrains its auto endpoint selection with a security floor (Section 5.7.1).",
+  "securityDefinitions": {
+    "opcua_auto_sc": {
+      "scheme": "auto",
+      "uav:minimumSecurity": {
+        "uav:securityMode": "Sign",
+        "uav:securityPolicy": "Basic256Sha256"
+      }
+    }
+  },
+  "security": "opcua_auto_sc",
   "properties": {
     "level": {
       "type": "number",
       "unit": "m",
       "readOnly": true,
       "uav:browseName": "pump:Level",
+      "uav:metadata": { "pump:calibratedOn": "2026-05-14" },
       "forms": [{ "href": "/tank-07/Level", "op": ["readproperty", "observeproperty"] }]
     }
   },

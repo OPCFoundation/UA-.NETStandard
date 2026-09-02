@@ -1137,11 +1137,13 @@ namespace Opc.Ua
         /// Invalidates cached validation cores for the affected trust
         /// list and dispatches <see cref="CertificateChangeKind.TrustListUpdated"/>
         /// and/or <see cref="CertificateChangeKind.CrlUpdated"/> events.
-        /// Called by <see cref="WriteTrustListAsync"/> and by
+        /// Called by <see cref="WriteTrustListAsync"/>, by
         /// <see cref="TrustListTransaction.CommitAsync"/> after a
-        /// successful apply. No-op when no change kind is set.
+        /// successful apply, and by writers that modify the backing stores
+        /// directly (e.g. the server's GDS push TrustList after
+        /// <c>ApplyChanges</c> commits). No-op when no change kind is set.
         /// </summary>
-        internal void NotifyTrustListChanged(
+        public void NotifyTrustListChanged(
             TrustListIdentifier trustList,
             bool trustChanged,
             bool crlChanged)
@@ -1153,11 +1155,15 @@ namespace Opc.Ua
 
             // Drop cached validation cores so the next ValidateAsync
             // pick up the fresh trust list / CRL state. We invalidate
-            // all three roles defensively — trust list changes can
-            // affect peer, user and HTTPS validators alike.
+            // all three well-known roles AND every custom trust-list core
+            // defensively — trust list changes can affect peer, user and
+            // HTTPS validators alike, and a change announced for a custom
+            // trust list must not leave its cached core validating against
+            // stale trust material.
             CertificateValidationCore? oldPeer;
             CertificateValidationCore? oldUser;
             CertificateValidationCore? oldHttps;
+            CertificateValidationCore[] oldCustom;
             lock (m_certificatesLock)
             {
                 oldPeer = m_peerCore;
@@ -1166,11 +1172,17 @@ namespace Opc.Ua
                 m_userCore = null;
                 oldHttps = m_httpsCore;
                 m_httpsCore = null;
+                oldCustom = [.. m_customCores.Values];
+                m_customCores.Clear();
             }
 
             oldPeer?.Dispose();
             oldUser?.Dispose();
             oldHttps?.Dispose();
+            foreach (CertificateValidationCore core in oldCustom)
+            {
+                core.Dispose();
+            }
 
             if (trustChanged)
             {

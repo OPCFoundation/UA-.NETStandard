@@ -82,6 +82,29 @@ namespace Opc.Ua.OpenUsd.Tests.Generator
         }
 
         /// <summary>
+        /// Completing the generated alarm instance binds the standard condition
+        /// methods supplied by its base classes.
+        /// </summary>
+        [Test]
+        public void CompletingFactoryCreatedAlarmBindsConditionMethods()
+        {
+            SystemContext context = CreateContext();
+            GeneratorModel.GeneratorProtectionAlarmState alarm = CreateAlarm(context);
+
+            Assert.That(alarm.IsCreated, Is.False);
+            Assert.That(alarm.Enable!.OnCallMethod, Is.Null);
+            Assert.That(alarm.Disable!.OnCallMethod, Is.Null);
+            Assert.That(alarm.AddComment!.OnCall, Is.Null);
+
+            alarm.CreateAsPredefinedNode(context);
+
+            Assert.That(alarm.IsCreated, Is.True);
+            Assert.That(alarm.Enable.OnCallMethod, Is.Not.Null);
+            Assert.That(alarm.Disable.OnCallMethod, Is.Not.Null);
+            Assert.That(alarm.AddComment.OnCall, Is.Not.Null);
+        }
+
+        /// <summary>
         /// The production path gives every published member a reference a browse can
         /// follow.
         /// </summary>

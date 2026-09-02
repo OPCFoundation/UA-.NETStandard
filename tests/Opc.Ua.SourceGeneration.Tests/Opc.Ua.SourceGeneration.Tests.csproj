@@ -40,6 +40,9 @@
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       <Link>Resources\%(Filename)%(Extension)</Link>
     </EmbeddedResource>
+    <EmbeddedResource Include="..\..\src\Opc.Ua.Gds.Common\Design\OpcUaGdsModel.*">
+      <Link>Resources\%(Filename)%(Extension)</Link>
+    </EmbeddedResource>
   </ItemGroup>
   <ItemGroup>
     <Compile Include="..\Opc.Ua.SourceGeneration.Core.Tests\CompilerUtils.cs" />

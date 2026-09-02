@@ -75,6 +75,35 @@ namespace Opc.Ua.SourceGeneration.Api.Tests
             GenerateStack(generationType, telemetry, out _);
         }
 
+        [Test]
+        public void EncodedTicketUsesByteStringSupertype()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create(logLevel: LogLevel.Error);
+            Dictionary<string, string> generatedText = GenerateStack(
+                StackGenerationType.Models,
+                telemetry,
+                out _);
+            string nodeStates = generatedText.Single(pair =>
+                pair.Key.EndsWith(
+                    "Opc.Ua.NodeStates.ex.g.cs",
+                    System.StringComparison.Ordinal)).Value;
+            const string declaration =
+                "internal static global::Opc.Ua.DataTypeState CreateEncodedTicket(";
+            int declarationIndex = nodeStates.IndexOf(
+                declaration,
+                System.StringComparison.Ordinal);
+
+            Assert.That(declarationIndex, Is.GreaterThanOrEqualTo(0));
+            int initializerEnd = System.Math.Min(
+                declarationIndex + 1500,
+                nodeStates.Length);
+            string encodedTicketInitializer =
+                nodeStates[declarationIndex..initializerEnd];
+            Assert.That(
+                encodedTicketInitializer,
+                Does.Contain("state.SuperTypeId = global::Opc.Ua.NodeId.Create(15u,"));
+        }
+
         [Theory]
         public async Task GenerateAndCompileStackTestAsync(
             OptimizationLevel optimizationLevel,

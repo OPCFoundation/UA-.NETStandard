@@ -431,19 +431,84 @@ namespace Opc.Ua.Server.Tests
         // ----------------------------------------------------------------
 
         [Test]
-        public void AddRole_NewName_AllocatesDynamicNodeId()
+        public void AddRole_NewName_AllocatesDynamicNodeIdInTheDefaultNamespace()
         {
             using var manager = new RoleManager();
             var namespaces = new NamespaceTable();
             namespaces.GetIndexOrAppend("http://example.org/custom");
+            namespaces.GetIndexOrAppend("http://example.org/roles");
 
             ServiceResult result = manager.AddRole("CustomRole",
-                "http://example.org/custom", namespaces, defaultNamespaceIndex: 0,
+                "http://example.org/custom", namespaces, defaultNamespaceIndex: 2,
                 out NodeId newId);
             Assert.That(ServiceResult.IsGood(result), Is.True);
             Assert.That(newId.IsNull, Is.False);
-            Assert.That(newId.NamespaceIndex, Is.EqualTo(1));
-            Assert.That(manager.GetRole(newId), Is.Not.Null);
+
+            // Part 18 §4.2.2: NamespaceUri qualifies the BrowseName of the new
+            // role; the NodeId is server-assigned and must stay in the namespace
+            // the server picked, never in the caller-supplied one.
+            Assert.That(newId.NamespaceIndex, Is.EqualTo(2),
+                "The role NodeId must be allocated in the default namespace.");
+
+            RoleEntry? entry = manager.GetRole(newId);
+            Assert.That(entry, Is.Not.Null);
+            Assert.That(entry!.NamespaceUri, Is.EqualTo("http://example.org/custom"),
+                "The BrowseName must stay qualified by the requested NamespaceUri.");
+        }
+
+        [Test]
+        public void AddRole_UnregisteredNamespaceUri_ReturnsBadInvalidArgument()
+        {
+            using var manager = new RoleManager();
+
+            ServiceResult result = manager.AddRole("CustomRole",
+                "http://example.org/not-registered", new NamespaceTable(),
+                defaultNamespaceIndex: 1, out NodeId newId);
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadInvalidArgument));
+            Assert.That(newId.IsNull, Is.True);
+        }
+
+        [Test]
+        public void AddRole_SkipsNodeIdsReportedInUseByTheAddressSpace()
+        {
+            using var manager = new RoleManager();
+            var taken = new HashSet<NodeId>
+            {
+                new(1u, 2),
+                new(2u, 2),
+                new(3u, 2)
+            };
+            manager.NodeIdInUseProbe = taken.Contains;
+
+            var namespaces = new NamespaceTable();
+            namespaces.GetIndexOrAppend("http://example.org/custom");
+            namespaces.GetIndexOrAppend("http://example.org/roles");
+
+            Assert.That(ServiceResult.IsGood(manager.AddRole("CustomRole", null,
+                namespaces, defaultNamespaceIndex: 2, out NodeId first)), Is.True);
+            Assert.That(first, Is.EqualTo(new NodeId(4u, 2)),
+                "Identifiers already used in the address space must be skipped.");
+
+            Assert.That(ServiceResult.IsGood(manager.AddRole("OtherRole", null,
+                namespaces, defaultNamespaceIndex: 2, out NodeId second)), Is.True);
+            Assert.That(second, Is.EqualTo(new NodeId(5u, 2)));
+        }
+
+        [Test]
+        public void AddRole_NeverReusesTheNodeIdOfAnExistingRole()
+        {
+            using var manager = new RoleManager();
+            var namespaces = new NamespaceTable();
+            namespaces.GetIndexOrAppend("http://example.org/roles");
+
+            var allocated = new HashSet<NodeId>();
+            for (int ii = 0; ii < 5; ii++)
+            {
+                Assert.That(ServiceResult.IsGood(manager.AddRole($"Role{ii}", null,
+                    namespaces, defaultNamespaceIndex: 1, out NodeId roleId)), Is.True);
+                Assert.That(allocated.Add(roleId), Is.True,
+                    "AddRole must never hand out a NodeId that is already a role.");
+            }
         }
 
         [Test]

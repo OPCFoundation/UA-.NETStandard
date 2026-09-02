@@ -33,6 +33,7 @@ using System.Security.Cryptography.X509Certificates;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
+using Opc.Ua.Wot;
 
 namespace Opc.Ua.WotCon.Bindings
 {
@@ -111,11 +112,72 @@ namespace Opc.Ua.WotCon.Bindings
         /// Initializes a new immutable security definition.
         /// </summary>
         public WotSecurityDefinition(string name, WotSecurityScheme scheme, string? @in, string? parameterName)
+            : this(name, scheme, @in, parameterName, null, false)
+        {
+        }
+
+        /// <summary>
+        /// Initializes a new immutable security definition carrying the
+        /// <c>uav:minimumSecurity</c> floor of WoT Binding Section 5.7.1.
+        /// </summary>
+        /// <param name="name">The definition name.</param>
+        /// <param name="scheme">The security scheme kind.</param>
+        /// <param name="in">Where the credential is carried.</param>
+        /// <param name="parameterName">The parameter name, if any.</param>
+        /// <param name="minimumSecurity">
+        /// The parsed security floor, or <c>null</c> when the scheme states
+        /// none or states one that is not valid.
+        /// </param>
+        /// <param name="declaresMinimumSecurity">
+        /// Whether the definition carries the <c>uav:minimumSecurity</c> member
+        /// at all, which is how a floor on a scheme that may not carry one — or
+        /// a floor that failed to parse — stays visible to a planner instead of
+        /// being silently dropped.
+        /// </param>
+        public WotSecurityDefinition(
+            string name,
+            WotSecurityScheme scheme,
+            string? @in,
+            string? parameterName,
+            WotSecurityFloor? minimumSecurity,
+            bool declaresMinimumSecurity)
+            : this(name, scheme, @in, parameterName, minimumSecurity, declaresMinimumSecurity, [])
+        {
+        }
+
+        /// <summary>
+        /// Initializes a new immutable security definition that combines other
+        /// schemes through the WoT <c>combo</c> scheme.
+        /// </summary>
+        /// <param name="name">The definition name.</param>
+        /// <param name="scheme">The security scheme kind.</param>
+        /// <param name="in">Where the credential is carried.</param>
+        /// <param name="parameterName">The parameter name, if any.</param>
+        /// <param name="minimumSecurity">The parsed security floor, if any.</param>
+        /// <param name="declaresMinimumSecurity">
+        /// Whether the definition carries the <c>uav:minimumSecurity</c> member.
+        /// </param>
+        /// <param name="combines">
+        /// The scheme names an <c>allOf</c> / <c>oneOf</c> combo references. A
+        /// constraint stated on a combined scheme belongs to every form that
+        /// references the combo.
+        /// </param>
+        public WotSecurityDefinition(
+            string name,
+            WotSecurityScheme scheme,
+            string? @in,
+            string? parameterName,
+            WotSecurityFloor? minimumSecurity,
+            bool declaresMinimumSecurity,
+            ImmutableArray<string> combines)
         {
             Name = name ?? string.Empty;
             Scheme = scheme;
             In = @in;
             ParameterName = parameterName;
+            MinimumSecurity = minimumSecurity;
+            DeclaresMinimumSecurity = declaresMinimumSecurity;
+            Combines = combines.IsDefault ? [] : combines;
         }
 
         /// <summary>
@@ -139,6 +201,31 @@ namespace Opc.Ua.WotCon.Bindings
         public string? ParameterName { get; }
 
         /// <summary>
+        /// Gets the security floor an <c>auto</c> scheme puts on endpoint
+        /// selection (<c>uav:minimumSecurity</c>, WoT Binding Section 5.7.1),
+        /// or <c>null</c> when the scheme states none or states one this
+        /// Binding cannot read.
+        /// </summary>
+        public WotSecurityFloor? MinimumSecurity { get; }
+
+        /// <summary>
+        /// Gets whether the definition carries a <c>uav:minimumSecurity</c>
+        /// member. A definition that declares one but exposes no
+        /// <see cref="MinimumSecurity"/> either carries it on a scheme that may
+        /// not, or states a mode or policy this Binding does not name; either
+        /// way a planner reports it rather than proceeding without the floor
+        /// the author asked for.
+        /// </summary>
+        public bool DeclaresMinimumSecurity { get; }
+
+        /// <summary>
+        /// Gets the scheme names this definition combines through the WoT
+        /// <c>combo</c> scheme (<c>allOf</c> / <c>oneOf</c>). Empty for every
+        /// other scheme.
+        /// </summary>
+        public ImmutableArray<string> Combines { get; }
+
+        /// <summary>
         /// Parses a <c>securityDefinitions</c> entry into a definition.
         /// </summary>
         public static WotSecurityDefinition Parse(string name, JsonElement definition)
@@ -146,6 +233,9 @@ namespace Opc.Ua.WotCon.Bindings
             WotSecurityScheme scheme = WotSecurityScheme.Other;
             string? @in = null;
             string? parameterName = null;
+            WotSecurityFloor? floor = null;
+            bool declaresFloor = false;
+            ImmutableArray<string> combines = [];
             if (definition.ValueKind == JsonValueKind.Object)
             {
                 if (definition.TryGetProperty("scheme", out JsonElement schemeElement) &&
@@ -163,9 +253,59 @@ namespace Opc.Ua.WotCon.Bindings
                 {
                     parameterName = nameElement.GetString();
                 }
+                combines = ReadCombinedSchemes(definition);
+                if (definition.TryGetProperty(
+                    WotBindingConformance.MinimumSecurityTerm, out JsonElement minimum))
+                {
+                    // The floor constrains an `auto` selection and nothing
+                    // else, so it is only carried forward from that scheme; a
+                    // floor anywhere else stays visible through
+                    // DeclaresMinimumSecurity so a planner can report it.
+                    declaresFloor = true;
+                    if (scheme == WotSecurityScheme.Auto &&
+                        WotSecurityFloor.TryParse(minimum, out WotSecurityFloor? parsed, out _))
+                    {
+                        floor = parsed;
+                    }
+                }
             }
-            return new WotSecurityDefinition(name, scheme, @in, parameterName);
+            return new WotSecurityDefinition(
+                name, scheme, @in, parameterName, floor, declaresFloor, combines);
         }
+
+        /// <summary>
+        /// Reads the scheme names a WoT <c>combo</c> definition combines. A
+        /// constraint stated on a combined scheme belongs to every form that
+        /// references the combo, so the names have to be reachable rather than
+        /// resolved once and forgotten.
+        /// </summary>
+        private static ImmutableArray<string> ReadCombinedSchemes(JsonElement definition)
+        {
+            ImmutableArray<string>.Builder? builder = null;
+            foreach (string member in s_comboMembers)
+            {
+                if (!definition.TryGetProperty(member, out JsonElement value) ||
+                    value.ValueKind != JsonValueKind.Array)
+                {
+                    continue;
+                }
+                foreach (JsonElement item in value.EnumerateArray())
+                {
+                    if (item.ValueKind == JsonValueKind.String)
+                    {
+                        string? referenced = item.GetString();
+                        if (!string.IsNullOrEmpty(referenced))
+                        {
+                            builder ??= ImmutableArray.CreateBuilder<string>();
+                            builder.Add(referenced!);
+                        }
+                    }
+                }
+            }
+            return builder is null ? [] : builder.ToImmutable();
+        }
+
+        private static readonly string[] s_comboMembers = ["allOf", "oneOf"];
 
         private static WotSecurityScheme MapScheme(string? scheme)
         {

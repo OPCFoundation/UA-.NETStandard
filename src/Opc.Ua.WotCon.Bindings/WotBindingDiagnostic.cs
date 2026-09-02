@@ -149,7 +149,31 @@ namespace Opc.Ua.WotCon.Bindings
         /// <summary>
         /// A target-mapping term (OPC 10101 §6.5.4) is not a string.
         /// </summary>
-        TargetMappingInvalidValue = 7019
+        TargetMappingInvalidValue = 7019,
+
+        /// <summary>
+        /// A <c>uav:eventSelectClauses</c> list (WoT Binding Section 6.1) is
+        /// misplaced or malformed: it sits on a form instead of the event
+        /// affordance, on an affordance that is not an event, or breaks the
+        /// clause shape — a clause carrying an <c>EventFilter</c>
+        /// <c>WhereClause</c> among them, which this Binding does not express.
+        /// </summary>
+        EventSelectClauseInvalid = 7020,
+
+        /// <summary>
+        /// A <c>uav:minimumSecurity</c> floor (WoT Binding Section 5.7.1) is
+        /// carried by a scheme other than <c>auto</c> or states a mode or
+        /// policy this Binding does not name.
+        /// </summary>
+        InvalidSecurityFloor = 7021,
+
+        /// <summary>
+        /// A select-clause browse path names a namespace prefix the document's
+        /// <c>@context</c> does not bind, so the field cannot be resolved
+        /// against a Server's namespace table (WoT Binding Sections 5.1.2 and
+        /// 6.1).
+        /// </summary>
+        UnboundNamespacePrefix = 7022
     }
 
     /// <summary>

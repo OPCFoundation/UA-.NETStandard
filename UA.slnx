@@ -20,6 +20,10 @@
   <Folder Name="/samples/DI/">
     <Project Path="samples/DI/PumpDeviceIntegrationServer/PumpDeviceIntegrationServer.csproj" />
   </Folder>
+  <Folder Name="/samples/Gds/">
+    <Project Path="samples/Gds/OnboardingClient/OnboardingClient.csproj" />
+    <Project Path="samples/Gds/OnboardingRegistrar/OnboardingRegistrar.csproj" />
+  </Folder>
   <Folder Name="/samples/Isa95/">
     <Project Path="samples/Isa95/MinimalIsa95Server/MinimalIsa95Server.csproj" />
   </Folder>
@@ -102,8 +106,6 @@
     <Project Path="src/Opc.Ua.OpenUsd/Opc.Ua.OpenUsd.csproj" />
     <Project Path="src/Opc.Ua.OpenUsd.Server/Opc.Ua.OpenUsd.Server.csproj" />
     <Project Path="src/Opc.Ua.OpenUsd.Client/Opc.Ua.OpenUsd.Client.csproj" />
-    <Project Path="src/Opc.Ua.OpenUsdScene/Opc.Ua.OpenUsdScene.csproj" />
-    <Project Path="src/Opc.Ua.OpenUsdScene.Server/Opc.Ua.OpenUsdScene.Server.csproj" />
     <Project Path="src/Opc.Ua.Positioning/Opc.Ua.Positioning.csproj" />
     <Project Path="src/Opc.Ua.Positioning.Client/Opc.Ua.Positioning.Client.csproj" />
     <Project Path="src/Opc.Ua.Positioning.Server/Opc.Ua.Positioning.Server.csproj" />

@@ -24,13 +24,15 @@ requires the other.
 
 | Package | Role |
 | --- | --- |
-| `OPCFoundation.NetStandard.Opc.Ua.OpenUsd` | The draft OpenUSD-binding companion model (source-generated NodeStates). |
+| `OPCFoundation.NetStandard.Opc.Ua.OpenUsd` | The draft binding and scene-materialization companion models, scene document model, `.usda` reader/writer, and value-type map. |
 | `OPCFoundation.NetStandard.Opc.Ua.OpenUsd.Client` | The generic, domain-agnostic `OpenUsdConnector`, the `IUsdSink` abstraction, and the file/mock sinks. |
-| `OPCFoundation.NetStandard.Opc.Ua.OpenUsd.Server` | Server-side authoring helpers (`UsdAssetDelivery`, representation authoring). |
+| `OPCFoundation.NetStandard.Opc.Ua.OpenUsd.Server` | Binding authoring and asset delivery plus scene materialization, export, discovery, and Part 1 interop. |
 | `OPCFoundation.NetStandard.Opc.Ua.OpenUsd.Connector` | A ready-to-run console connector tool built on the client library. |
 | `OPCFoundation.NetStandard.Opc.Ua.OpenUsd.Connector.Viewer` | Optional viewport for the connector's `--view` option. Renders the composed stage and exposes it as an `IUsdSink`. |
-| `OPCFoundation.NetStandard.Opc.Ua.OpenUsdScene` | Part 2: the source-generated companion model, the scene document model, the `.usda` reader/writer, and the value-type map. |
-| `OPCFoundation.NetStandard.Opc.Ua.OpenUsdScene.Server` | Part 2: materializer, exporter, discovery, and Part 1 interop. |
+
+Part 2 APIs use the nested CLR namespaces `Opc.Ua.OpenUsd.Scene`,
+`Opc.Ua.OpenUsd.Scene.Conversion`, and `Opc.Ua.OpenUsd.Server.Scene`; they ship in
+the same core and server packages as Part 1.
 
 The runtime path is intentionally narrow: the connector is an OPC UA client that
 discovers binding descriptors, subscribes to source Variables, converts values to
@@ -304,6 +306,10 @@ limitations.
 Where the binding model above keeps the USD scene **outside** OPC UA, scene materialization puts the
 composed prim tree **inside** the address space: browsing the server is browsing the scene, and an
 ordinary Subscription on an attribute Variable is a live feed of that part of it.
+
+The scene document and source-generated companion types are in `Opc.Ua.OpenUsd.Scene`,
+conversion helpers are in `Opc.Ua.OpenUsd.Scene.Conversion`, and server extensions are in
+`Opc.Ua.OpenUsd.Server.Scene`.
 
 ### Materializing a stage
 

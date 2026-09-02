@@ -217,8 +217,9 @@ ITopologyElementBuilder<TElement> TopologyElementByBrowseName<TElement>(
    sets BrowseName/SymbolicName/DisplayName and stamps the
    `TypeDefinitionId`.
 5. Calls the real `AsyncCustomNodeManager.AddPredefinedNodeAsync` so
-   subscription wiring, type-tree registration, and root-notifier
-   propagation all happen exactly as for nodes loaded from a NodeSet2.
+   the node create lifecycle, subscription wiring, type-tree registration,
+   and root-notifier propagation all happen exactly as for nodes loaded from
+   a NodeSet2.
 
 Machinery-aware subclasses can additionally reference managed machines
 from the OPC 40001 `Machines` entry point. `DiNodeManager`'s helper adds

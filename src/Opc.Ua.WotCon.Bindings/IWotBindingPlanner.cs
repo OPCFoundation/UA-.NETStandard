@@ -30,6 +30,7 @@
 using System;
 using System.Collections.Immutable;
 using System.Linq;
+using Opc.Ua.Wot;
 
 namespace Opc.Ua.WotCon.Bindings
 {
@@ -49,13 +50,17 @@ namespace Opc.Ua.WotCon.Bindings
             IWotCodecRegistry? codecs = null,
             WoTDocumentKindEnum documentKind = WoTDocumentKindEnum.ThingDescription,
             string? baseUri = null,
-            WotBindingBounds? bounds = null)
+            WotBindingBounds? bounds = null,
+            ImmutableDictionary<string, string>? namespacePrefixes = null,
+            WotEventSelectionCatalog? eventSelections = null)
         {
             SecurityDefinitions = securityDefinitions ?? ImmutableDictionary<string, WotSecurityDefinition>.Empty;
             Codecs = codecs ?? WotPayloadCodecRegistry.Default;
             DocumentKind = documentKind;
             BaseUri = baseUri;
             Bounds = bounds ?? WotBindingBounds.Default;
+            NamespacePrefixes = namespacePrefixes ?? ImmutableDictionary<string, string>.Empty;
+            EventSelections = eventSelections ?? WotEventSelectionCatalog.Empty;
         }
 
         /// <summary>
@@ -82,6 +87,30 @@ namespace Opc.Ua.WotCon.Bindings
         /// Gets the applied safety bounds.
         /// </summary>
         public WotBindingBounds Bounds { get; }
+
+        /// <summary>
+        /// Gets the namespace prefixes the document's <c>@context</c> binds,
+        /// keyed by prefix. A compact model name (WoT Binding Section 5.1.2)
+        /// such as <c>pump:Temperature</c> resolves through it, which is what
+        /// lets a planner rewrite a select-clause path element into the
+        /// portable <c>nsu=</c> form a channel can resolve without the
+        /// document.
+        /// </summary>
+        public ImmutableDictionary<string, string> NamespacePrefixes { get; }
+
+        /// <summary>
+        /// Gets the event field selections resolved from the document's
+        /// EventType <c>tm:ref</c> links before planning
+        /// (WoT Binding Section 6.1).
+        /// </summary>
+        /// <remarks>
+        /// An affordance appears in the catalog exactly when it states a
+        /// selection. A planner that meets an affordance stating one but
+        /// absent here reports it as unresolved: planning never performs I/O,
+        /// and quietly falling back to the implicit default would subscribe
+        /// with a field list the document does not state.
+        /// </remarks>
+        public WotEventSelectionCatalog EventSelections { get; }
     }
 
     /// <summary>
@@ -124,6 +153,56 @@ namespace Opc.Ua.WotCon.Bindings
             Security = security.IsDefault ? [] : security;
             IsExecutable = isExecutable;
             TargetMapping = targetMapping ?? WotTargetMappingDescriptor.Empty;
+        }
+
+        /// <summary>
+        /// Initializes a new immutable compiled form carrying the OPC UA event
+        /// field selection of WoT Binding Section 6.1 and the <c>auto</c>
+        /// endpoint security floor of Section 5.7.1.
+        /// </summary>
+        /// <param name="binding">The identity of the binder that compiled the form.</param>
+        /// <param name="affordanceKind">The affordance kind.</param>
+        /// <param name="affordanceName">The affordance name.</param>
+        /// <param name="jsonPointer">The JSON Pointer of the originating form.</param>
+        /// <param name="operation">The resolved capability operation.</param>
+        /// <param name="opToken">The originating WoT <c>op</c> token.</param>
+        /// <param name="endpoint">The compiled endpoint metadata.</param>
+        /// <param name="addressing">The compiled addressing metadata.</param>
+        /// <param name="operationInfo">The compiled operation metadata.</param>
+        /// <param name="payload">The compiled payload metadata.</param>
+        /// <param name="security">The secret-free credential references.</param>
+        /// <param name="isExecutable">Whether a runtime executor is available.</param>
+        /// <param name="targetMapping">The OPC 10101 §6.5.4 target mapping, if any.</param>
+        /// <param name="eventSelection">
+        /// The compiled event field selection, present on an event affordance
+        /// only.
+        /// </param>
+        /// <param name="securityFloor">
+        /// The security floor an <c>auto</c> scheme puts on endpoint selection,
+        /// if any.
+        /// </param>
+        public WotCompiledForm(
+            WotBindingIdentity binding,
+            WotAffordanceKind affordanceKind,
+            string affordanceName,
+            string jsonPointer,
+            WoTBindingCapabilityEnum operation,
+            string opToken,
+            WotEndpointDescriptor endpoint,
+            WotAddressingDescriptor addressing,
+            WotOperationDescriptor operationInfo,
+            WotPayloadDescriptor payload,
+            ImmutableArray<WotCredentialReference> security,
+            bool isExecutable,
+            WotTargetMappingDescriptor? targetMapping,
+            WotEventSelection? eventSelection,
+            WotSecurityFloor? securityFloor)
+            : this(
+                binding, affordanceKind, affordanceName, jsonPointer, operation, opToken,
+                endpoint, addressing, operationInfo, payload, security, isExecutable, targetMapping)
+        {
+            EventSelection = eventSelection;
+            SecurityFloor = securityFloor;
         }
 
         /// <summary>
@@ -195,6 +274,23 @@ namespace Opc.Ua.WotCon.Bindings
         public WotTargetMappingDescriptor TargetMapping { get; }
 
         /// <summary>
+        /// Gets the compiled OPC UA event field selection of WoT Binding
+        /// Section 6.1, or <c>null</c> for a form that is not an event
+        /// subscription. It is always the <em>effective</em> selection: the
+        /// implicit <c>BaseEventType</c> default when the affordance states
+        /// none, and otherwise the selection resolved from the EventType
+        /// definition it links to, overlaid by the clauses it states.
+        /// </summary>
+        public WotEventSelection? EventSelection { get; }
+
+        /// <summary>
+        /// Gets the security floor an <c>auto</c> security scheme puts on
+        /// endpoint selection (<c>uav:minimumSecurity</c>, WoT Binding
+        /// Section 5.7.1), or <c>null</c> when the document constrains nothing.
+        /// </summary>
+        public WotSecurityFloor? SecurityFloor { get; }
+
+        /// <summary>
         /// Returns a copy of this entry with the supplied executability.
         /// </summary>
         public WotCompiledForm WithExecutable(bool isExecutable)
@@ -205,13 +301,17 @@ namespace Opc.Ua.WotCon.Bindings
             }
             return new WotCompiledForm(
                 Binding, AffordanceKind, AffordanceName, JsonPointer, Operation, OpToken,
-                Endpoint, Addressing, OperationInfo, Payload, Security, isExecutable, TargetMapping);
+                Endpoint, Addressing, OperationInfo, Payload, Security, isExecutable, TargetMapping,
+                EventSelection, SecurityFloor);
         }
 
         /// <summary>
         /// Returns a copy of this entry with the supplied target-mapping descriptor.
         /// </summary>
-        /// <exception cref="ArgumentNullException"></exception>
+        /// <param name="targetMapping">The target-mapping descriptor to attach.</param>
+        /// <exception cref="ArgumentNullException">
+        /// Thrown when <paramref name="targetMapping"/> is <c>null</c>.
+        /// </exception>
         public WotCompiledForm WithTargetMapping(WotTargetMappingDescriptor targetMapping)
         {
             if (targetMapping is null)
@@ -224,7 +324,8 @@ namespace Opc.Ua.WotCon.Bindings
             }
             return new WotCompiledForm(
                 Binding, AffordanceKind, AffordanceName, JsonPointer, Operation, OpToken,
-                Endpoint, Addressing, OperationInfo, Payload, Security, IsExecutable, targetMapping);
+                Endpoint, Addressing, OperationInfo, Payload, Security, IsExecutable, targetMapping,
+                EventSelection, SecurityFloor);
         }
     }
 

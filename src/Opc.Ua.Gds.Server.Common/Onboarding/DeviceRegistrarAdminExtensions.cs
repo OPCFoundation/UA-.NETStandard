@@ -29,16 +29,17 @@
 
 using System;
 using System.Collections.Generic;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace Opc.Ua.Gds.Server.Onboarding
 {
     /// <summary>
-    /// Convenience extensions that wire an
-    /// <see cref="ITicketStore"/> + <see cref="IManagedApplicationRegistry"/>
-    /// pair to the OPC 10000-100 Part 21 <c>DeviceRegistrarAdminType</c>
+    /// Convenience extensions that wire an <see cref="ITicketStore"/>
+    /// to the OPC 10000-21 <c>DeviceRegistrarAdminType</c>
     /// method children — <c>RegisterTickets</c> and
     /// <c>UnregisterTickets</c>. Uses
-    /// <see cref="MethodState.OnCallMethod2"/> so the extension works
+    /// <see cref="MethodState.OnCallMethod2Async"/> so the extension works
     /// against any concrete state derived from
     /// <see cref="BaseObjectState"/> that carries the expected
     /// method children.
@@ -88,97 +89,113 @@ namespace Opc.Ua.Gds.Server.Onboarding
 
             ITicketStore capturedStore = store;
 
-            register.OnCallMethod2 = (ctx, m, objectId, inputs, outputs) =>
-                HandleRegister(ctx, capturedStore, inputs, outputs);
+            register.OnCallMethod2Async = (ctx, m, objectId, inputs, outputs, ct) =>
+                HandleRegisterAsync(capturedStore, inputs, outputs, ct);
 
-            unregister.OnCallMethod2 = (ctx, m, objectId, inputs, outputs) =>
-                HandleUnregister(ctx, capturedStore, inputs, outputs);
+            unregister.OnCallMethod2Async = (ctx, m, objectId, inputs, outputs, ct) =>
+                HandleUnregisterAsync(capturedStore, inputs, outputs, ct);
         }
 
-        private static ServiceResult HandleRegister(
-            ISystemContext context,
+        private static async ValueTask<ServiceResult> HandleRegisterAsync(
             ITicketStore store,
             ArrayOf<Variant> inputs,
-            List<Variant> outputs)
+            List<Variant> outputs,
+            CancellationToken cancellationToken)
         {
             if (inputs.Count < 1)
             {
                 return StatusCodes.BadArgumentsMissing;
             }
-            byte[][] tickets = ExtractTicketArray(inputs[0]);
-            int[] results = new int[tickets.Length];
-
-            for (int i = 0; i < tickets.Length; i++)
+            if (!inputs[0].TryGetValue(out ArrayOf<ByteString> tickets))
             {
-                string ticketId = ComputeTicketId(tickets[i]);
+                return StatusCodes.BadTypeMismatch;
+            }
+            if (outputs.Count < 1)
+            {
+                return StatusCodes.BadUnexpectedError;
+            }
+            var results = new StatusCode[tickets.Count];
+
+            for (int i = 0; i < tickets.Count; i++)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                byte[] ticket = tickets[i].ToArray();
+                string ticketId = ComputeTicketId(ticket);
                 try
                 {
-                    store.AddAsync(
-                        ticketId,
-                        tickets[i],
-                        new TicketMetadata(
-                            Kind: TicketKind.Unspecified,
-                            ManufacturerName: string.Empty,
-                            ModelName: string.Empty,
-                            SerialNumber: string.Empty,
-                            ProductInstanceUri: string.Empty))
-                        .AsTask().GetAwaiter().GetResult();
-                    results[i] = (int)(uint)StatusCodes.Good;
+                    await store.AddAsync(
+                            ticketId,
+                            ticket,
+                            new TicketMetadata(
+                                Kind: TicketKind.Unspecified,
+                                ManufacturerName: string.Empty,
+                                ModelName: string.Empty,
+                                SerialNumber: string.Empty,
+                                ProductInstanceUri: string.Empty),
+                            cancellationToken)
+                        .ConfigureAwait(false);
+                    results[i] = StatusCodes.Good;
+                }
+                catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+                {
+                    throw;
                 }
                 catch (Exception ex)
                 {
-                    results[i] = (int)new ServiceResult(ex).StatusCode.Code;
+                    results[i] = new ServiceResult(ex).StatusCode;
                 }
             }
 
-            outputs.Add(new Variant(results.ToArrayOf()));
+            outputs[0] = Variant.From(results.ToArrayOf());
             return ServiceResult.Good;
         }
 
-        private static ServiceResult HandleUnregister(
-            ISystemContext context,
+        private static async ValueTask<ServiceResult> HandleUnregisterAsync(
             ITicketStore store,
             ArrayOf<Variant> inputs,
-            List<Variant> outputs)
+            List<Variant> outputs,
+            CancellationToken cancellationToken)
         {
             if (inputs.Count < 1)
             {
                 return StatusCodes.BadArgumentsMissing;
             }
-            byte[][] tickets = ExtractTicketArray(inputs[0]);
-            int[] results = new int[tickets.Length];
-
-            for (int i = 0; i < tickets.Length; i++)
+            if (!inputs[0].TryGetValue(out ArrayOf<ByteString> tickets))
             {
-                string ticketId = ComputeTicketId(tickets[i]);
+                return StatusCodes.BadTypeMismatch;
+            }
+            if (outputs.Count < 1)
+            {
+                return StatusCodes.BadUnexpectedError;
+            }
+            var results = new StatusCode[tickets.Count];
+
+            for (int i = 0; i < tickets.Count; i++)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                byte[] ticket = tickets[i].ToArray();
+                string ticketId = ComputeTicketId(ticket);
                 try
                 {
-                    bool removed = store.RemoveAsync(ticketId).AsTask().GetAwaiter().GetResult();
+                    bool removed = await store
+                        .RemoveAsync(ticketId, cancellationToken)
+                        .ConfigureAwait(false);
                     results[i] = removed
-                        ? (int)(uint)StatusCodes.Good
-                        : (int)(uint)StatusCodes.BadNotFound;
+                        ? StatusCodes.Good
+                        : StatusCodes.BadNotFound;
+                }
+                catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+                {
+                    throw;
                 }
                 catch (Exception ex)
                 {
-                    results[i] = (int)new ServiceResult(ex).StatusCode.Code;
+                    results[i] = new ServiceResult(ex).StatusCode;
                 }
             }
 
-            outputs.Add(new Variant(results.ToArrayOf()));
+            outputs[0] = Variant.From(results.ToArrayOf());
             return ServiceResult.Good;
-        }
-
-        private static byte[][] ExtractTicketArray(Variant variant)
-        {
-            object? boxed = variant.AsBoxedObject();
-            return boxed switch
-            {
-                byte[][] arr => arr,
-                ByteString[] bs => Array.ConvertAll(bs, b => b.ToArray()),
-                ArrayOf<ByteString> abs => abs.ToArray()
-                    is { } abu ? Array.ConvertAll(abu, b => b.ToArray()) : [],
-                _ => []
-            };
         }
 
         private static string ComputeTicketId(byte[] ticket)
