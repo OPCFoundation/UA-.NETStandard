@@ -27,54 +27,48 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System;
+using System.Collections.Generic;
 
-namespace Opc.Ua.OpenUsdScene.Scene
+namespace Opc.Ua.OpenUsd.Scene
 {
     /// <summary>
-    /// An applied USD API schema, materialized as an AddIn under a prim's
-    /// <c>AppliedSchemas</c> folder (draft OPC UA — OpenUSD Scene Materialization §5.6, §8.2).
-    /// An unknown API schema is never dropped: it degrades to a generic
-    /// <c>UsdApiSchemaType</c> AddIn carrying <see cref="SchemaName"/> (§8.4).
+    /// A variant set on a prim together with its resolved selection and the full set of
+    /// authored variant branches (draft OPC UA — OpenUSD Scene Materialization §5.6).
     /// </summary>
-    public sealed class UsdApiSchema
+    public sealed class UsdVariantSet
     {
-        private static readonly char[] s_colon = [':'];
-
         /// <summary>
-        /// Creates an applied API schema.
+        /// Creates a variant set.
         /// </summary>
-        /// <param name="schemaName">The schema token as authored, for example
-        /// <c>CollectionAPI:lights</c> or <c>CesiumGlobeAnchorAPI</c>.</param>
-        public UsdApiSchema(string schemaName)
+        /// <param name="setName">The variant set name.</param>
+        /// <param name="selection">The selected variant, or an empty string when nothing
+        /// is selected.</param>
+        public UsdVariantSet(string setName, string selection = "")
         {
-            SchemaName = schemaName ?? string.Empty;
-            string[] parts = SchemaName.Split(s_colon, 2);
-            FamilyName = parts[0];
-            InstanceName = parts.Length > 1 ? parts[1] : string.Empty;
+            SetName = setName ?? string.Empty;
+            Selection = selection ?? string.Empty;
         }
 
         /// <summary>
-        /// The applied schema token exactly as authored.
+        /// The variant set name.
         /// </summary>
-        public string SchemaName { get; }
+        public string SetName { get; }
 
         /// <summary>
-        /// The instance name of a multiple-apply schema — the portion after the colon
-        /// (for example <c>lights</c> in <c>CollectionAPI:lights</c>), or an empty string
-        /// for a single-apply schema.
+        /// The selected variant.
         /// </summary>
-        public string InstanceName { get; }
+        public string Selection { get; set; }
 
         /// <summary>
-        /// The schema family name — the portion before the colon (for example
-        /// <c>CollectionAPI</c>), which selects the materialized AddIn ObjectType.
+        /// The authored variant branches of this set, in authored order (§5.6). Each branch
+        /// is prim-shaped: its <see cref="UsdPrim.Name"/> is the variant name and its
+        /// attributes, relationships and child prims are the content the branch contributes
+        /// when it is the selection. All branches are captured — not only the selected one —
+        /// so the Composition Provenance CU can materialize the full
+        /// <c>&lt;Variant&gt;</c> structure the model defines under <c>UsdVariantSetType</c>.
+        /// This authoring provenance is intentionally separate from the composed result and
+        /// therefore excluded from the §7.4 composed-scene signature.
         /// </summary>
-        public string FamilyName { get; }
-
-        /// <summary>
-        /// The expansion rule of a collection-style schema, when authored.
-        /// </summary>
-        public string ExpansionRule { get; set; } = string.Empty;
+        public IList<UsdPrim> Variants { get; } = new List<UsdPrim>();
     }
 }

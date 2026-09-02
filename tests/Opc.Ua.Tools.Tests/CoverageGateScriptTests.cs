@@ -69,6 +69,34 @@ namespace Opc.Ua.Tools.Tests
         }
 
         [Test]
+        public async Task ForeignAgentAbsolutePathIsReanchoredToCurrentCheckoutAsync()
+        {
+            using TestRepository repository = await TestRepository.CreateAsync().ConfigureAwait(false);
+            repository.WriteSourceFile("1");
+            await repository.CommitAllAsync("base").ConfigureAwait(false);
+            await repository.CreateAndCheckoutBranchAsync("feature").ConfigureAwait(false);
+            repository.WriteSourceFile("2");
+            await repository.CommitAllAsync("change source").ConfigureAwait(false);
+            string reportPath = repository.WriteCoberturaReportWithRawPaths(
+                "/Users/runner/work/fixture/fixture/src/CoverageSubject/Subject.cs",
+                "/",
+                5,
+                1);
+
+            ScriptResult result = await RunCoverageGateAsync(
+                repository.RootPath,
+                reportPath,
+                ".").ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(result.ExitCode, Is.Zero, result.Output);
+                Assert.That(result.Output, Does.Contain("Patch:       100.00% (1/1 changed lines covered"));
+                Assert.That(result.Output, Does.Not.Contain("Changed C# files were found, but none matched"));
+            });
+        }
+
+        [Test]
         public async Task PatchGatePassesWhenNoCSharpFilesChangedAsync()
         {
             using TestRepository repository = await TestRepository.CreateAsync().ConfigureAwait(false);
@@ -248,22 +276,33 @@ namespace Opc.Ua.Tools.Tests
 
             public string WriteCoberturaReport(string filePath, string sourceRoot, int lineNumber, int hits)
             {
+                return WriteCoberturaReportWithRawPaths(
+                    NormalizeCoberturaPath(filePath),
+                    NormalizeCoberturaPath(sourceRoot),
+                    lineNumber,
+                    hits);
+            }
+
+            public string WriteCoberturaReportWithRawPaths(
+                string filePath,
+                string sourceRoot,
+                int lineNumber,
+                int hits)
+            {
                 string reportPath = Path.Combine(RootPath, "coverage.xml");
-                string normalizedSourceRoot = NormalizeCoberturaPath(sourceRoot);
-                string normalizedFilePath = NormalizeCoberturaPath(filePath);
                 File.WriteAllText(
                     reportPath,
                     $$"""
                     <?xml version="1.0" encoding="utf-8"?>
                     <coverage line-rate="1" branch-rate="1" version="1.0">
                       <sources>
-                        <source>{{EscapeXml(normalizedSourceRoot)}}</source>
+                        <source>{{EscapeXml(sourceRoot)}}</source>
                       </sources>
                       <packages>
                         <package name="CoverageSubject" line-rate="1" branch-rate="1">
                           <classes>
                             <class name="CoverageSubject.Subject"
-                                   filename="{{EscapeXml(normalizedFilePath)}}"
+                                   filename="{{EscapeXml(filePath)}}"
                                    line-rate="1"
                                    branch-rate="1">
                               <lines>

@@ -29,9 +29,9 @@
 
 using System.Collections.Generic;
 using NUnit.Framework;
-using Opc.Ua.OpenUsdScene.Scene;
+using Opc.Ua.OpenUsd.Scene;
 
-namespace Opc.Ua.OpenUsdScene.Tests
+namespace Opc.Ua.OpenUsd.Tests
 {
     /// <summary>
     /// Tests for <see cref="UsdValue"/>, the union that scopes an authored USD value to the

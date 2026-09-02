@@ -30,7 +30,7 @@
 using System;
 using System.Collections.Generic;
 
-namespace Opc.Ua.OpenUsdScene.Scene
+namespace Opc.Ua.OpenUsd.Scene
 {
     /// <summary>
     /// A composed USD stage — the root of a materialized scene

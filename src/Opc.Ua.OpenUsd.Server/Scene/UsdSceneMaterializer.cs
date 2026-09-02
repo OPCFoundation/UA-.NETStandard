@@ -29,10 +29,10 @@
 
 using System;
 using System.Collections.Generic;
-using Opc.Ua.OpenUsdScene.Conversion;
-using Opc.Ua.OpenUsdScene.Scene;
+using Opc.Ua.OpenUsd.Scene.Conversion;
+using Opc.Ua.OpenUsd.Scene;
 
-namespace Opc.Ua.OpenUsdScene.Server
+namespace Opc.Ua.OpenUsd.Server.Scene
 {
     /// <summary>
     /// Options controlling how much of a scene is materialized. Each switch corresponds to a

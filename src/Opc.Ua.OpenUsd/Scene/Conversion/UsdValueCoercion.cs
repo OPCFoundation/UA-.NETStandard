@@ -31,9 +31,9 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Globalization;
-using Opc.Ua.OpenUsdScene.Scene;
+using Opc.Ua.OpenUsd.Scene;
 
-namespace Opc.Ua.OpenUsdScene.Conversion
+namespace Opc.Ua.OpenUsd.Scene.Conversion
 {
     /// <summary>
     /// Converts a parsed USD attribute value into the OPC UA <see cref="Variant"/> shape
