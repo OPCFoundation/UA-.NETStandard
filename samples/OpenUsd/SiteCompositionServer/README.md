@@ -38,6 +38,19 @@ directly, so there is no cache to invalidate and no second copy of the truth.
 
 ## Running it
 
+The demo script builds the three servers, publishes the connector and viewport
+side by side, waits for every endpoint, and cleans up when the viewer closes:
+
+```powershell
+pwsh samples/OpenUsd/run-site-composition-demo.ps1
+```
+
+Use `-Renderer D3D12`, `-PumpCount`, `-GeneratorCount`, or `-Keep` to override
+the defaults. `-ViewerBundlePath` can point at an already published connector
+and viewport directory.
+
+To start each process manually, run:
+
 Start the two device servers, then the site server:
 
 ```

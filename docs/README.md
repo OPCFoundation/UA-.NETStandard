@@ -4,6 +4,8 @@ Here is a list of available documentation for different topics:
 
 > **New contributor?** Start with the **[Developer Guide](DeveloperGuide.md)** — prerequisites, building, testing, coding standards, and how-to recipes (including how to add logging).
 
+* [Sample applications](samples.md) - Platform-independent reference, PubSub, minimal API, companion-model, robotics, Vision, AI, ISA-95, and OpenUSD demos included in this repository.
+
 ## UA Core stack related
 
 * [OPC UA Profiles and Facets](Profiles.md) - Overview of supported OPC UA profiles, facets, security policies, and transport protocols.

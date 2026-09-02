@@ -218,14 +218,16 @@ namespace Opc.Ua.OpenUsd.Client.Tests
         }
 
         [Test]
-        public void SetAttributeVectorAuthorsDouble3Property()
+        public void SetAttributeStructuredTransformAuthorsMatrixProperty()
         {
             var sink = new UsdFileSink(m_path);
             sink.SetAttribute("/Pump", "xformOp:translate",
                 new Variant((ArrayOf<double>)[1.0, 2.0, 3.0]));
 
             string layer = ReadLayer();
-            Assert.That(layer, Does.Contain("double3 xformOp:translate = (1.0000, 2.0000, 3.0000)"));
+            Assert.That(layer, Does.Contain("matrix4d xformOp:transform ="));
+            Assert.That(layer, Does.Contain("(1.0000, 2.0000, 3.0000, 1.0000)"));
+            Assert.That(layer, Does.Not.Contain("double3 xformOp:translate"));
         }
 
         [Test]
@@ -240,7 +242,7 @@ namespace Opc.Ua.OpenUsd.Client.Tests
         }
 
         [Test]
-        public void TimeSamplesAuthorDouble3FrameBlock()
+        public void TimeSamplesAuthorMatrixTransformFrameBlock()
         {
             var sink = new UsdFileSink(m_path);
             var t0 = new DateTime(1970, 1, 1, 0, 0, 1, DateTimeKind.Utc);
@@ -254,9 +256,12 @@ namespace Opc.Ua.OpenUsd.Client.Tests
             }
 
             string layer = ReadLayer();
-            Assert.That(layer, Does.Contain("double3 xformOp:translate.timeSamples = {"));
-            Assert.That(layer, Does.Contain("1.000: (1.0000, 2.0000, 3.0000)"));
-            Assert.That(layer, Does.Contain("2.000: (4.0000, 5.0000, 6.0000)"));
+            Assert.That(layer, Does.Contain("matrix4d xformOp:transform.timeSamples = {"));
+            Assert.That(layer, Does.Contain("1.000:"));
+            Assert.That(layer, Does.Contain("(1.0000, 2.0000, 3.0000, 1.0000)"));
+            Assert.That(layer, Does.Contain("2.000:"));
+            Assert.That(layer, Does.Contain("(4.0000, 5.0000, 6.0000, 1.0000)"));
+            Assert.That(layer, Does.Not.Contain("double3 xformOp:translate.timeSamples"));
         }
 
         [Test]

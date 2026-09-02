@@ -295,6 +295,7 @@ namespace Opc.Ua.OpenUsd.Connector
 
             var fileSink = new UsdFileSink(outPath);
             string? stagePath = stageOption;
+            bool generatedStage = false;
             IUsdViewHost? viewHost = null;
             if (view && !UsdViewHostLoader.TryLoad(out viewHost, out string unavailable))
             {
@@ -330,7 +331,11 @@ namespace Opc.Ua.OpenUsd.Connector
                     if (fetched.Count > 0)
                     {
                         WriteStageUsda(cacheDir!, fetched);
-                        stagePath ??= Path.Combine(cacheDir!, "stage.usda");
+                        if (string.IsNullOrEmpty(stagePath))
+                        {
+                            stagePath = Path.Combine(cacheDir!, "stage.usda");
+                            generatedStage = true;
+                        }
                         cameraPath ??= FindStageCamera(fetched);
                         Console.WriteLine(
                             $"Fetched {fetched.Count} server-delivered USD layer(s) into {cacheDir}; " +
@@ -351,6 +356,13 @@ namespace Opc.Ua.OpenUsd.Connector
                 {
                     await fetcher.DisposeAsync().ConfigureAwait(false);
                 }
+            }
+
+            if (view && generatedStage)
+            {
+                await PrecomposeViewportStageAsync(
+                    session, fileSink, enableCommands, connectorOptions, telemetry)
+                    .ConfigureAwait(false);
             }
 
             int exit = view
@@ -446,16 +458,38 @@ namespace Opc.Ua.OpenUsd.Connector
         }
 
         // Writes a self-contained stage.usda that composes the connector's live override
-        // layer over the server-delivered root layer (both now local in the cache dir).
+        // over every server-delivered root layer, all now local in the cache directory.
         internal static void WriteStageUsda(string cacheDir, List<OpenUsdConnector.FetchedAsset> fetched)
         {
-            OpenUsdConnector.FetchedAsset? root = fetched.Find(a => a.Kind == OpenUsdAssetKind.RootLayer);
-            string rootName = root != null ? Path.GetFileName(root.LocalPath) : "base.usda";
+            var rootNames = new List<string>();
+            foreach (OpenUsdConnector.FetchedAsset asset in fetched)
+            {
+                if (asset.Kind != OpenUsdAssetKind.RootLayer)
+                {
+                    continue;
+                }
+                string rootName = Path.GetFileName(asset.LocalPath);
+                if (!rootNames.Exists(
+                    name => string.Equals(name, rootName, StringComparison.Ordinal)))
+                {
+                    rootNames.Add(rootName);
+                }
+            }
+            if (rootNames.Count == 0)
+            {
+                rootNames.Add("base.usda");
+            }
+
             var sb = new StringBuilder();
             sb.Append("#usda 1.0\n(\n");
             sb.Append("    doc = \"Self-contained OpenUSD stage: server-delivered base layers " +
                 "+ the live OPC UA override.\"\n");
-            sb.Append("    subLayers = [\n        @./live.usda@,\n        @./").Append(rootName).Append("@\n    ]\n");
+            sb.Append("    subLayers = [\n        @./live.usda@");
+            foreach (string rootName in rootNames)
+            {
+                sb.Append(",\n        @./").Append(rootName).Append('@');
+            }
+            sb.Append("\n    ]\n");
             sb.Append(")\n");
             File.WriteAllText(Path.Combine(cacheDir, "stage.usda"), sb.ToString());
 
@@ -468,6 +502,29 @@ namespace Opc.Ua.OpenUsd.Connector
                 File.WriteAllText(
                     livePath,
                     "#usda 1.0\n(\n    doc = \"OPC UA -> OpenUSD live bindings (override layer)\"\n)\n");
+            }
+        }
+
+        [ExcludeFromCodeCoverage]
+        private static async Task PrecomposeViewportStageAsync(
+            ISession session,
+            IUsdSink fileSink,
+            bool enableCommands,
+            OpenUsdConnectorOptions? connectorOptions,
+            ITelemetryContext telemetry)
+        {
+            var connector = connectorOptions != null
+                ? new OpenUsdConnector(session, fileSink, connectorOptions, telemetry)
+                : new OpenUsdConnector(session, fileSink, enableCommands);
+            try
+            {
+                await connector.StartAsync(CancellationToken.None).ConfigureAwait(false);
+                Console.WriteLine(
+                    "Prepared the viewport stage with its discovered component composition.");
+            }
+            finally
+            {
+                await connector.DisposeAsync().ConfigureAwait(false);
             }
         }
 
@@ -660,7 +717,9 @@ namespace Opc.Ua.OpenUsd.Connector
             ITelemetryContext telemetry,
             CancellationToken cancellationToken)
         {
-            var sink = new CompositeUsdSink(fileSink, stageSink);
+            var sink = new CompositeUsdSink(
+                fileSink,
+                new UsdViewportValueSink(stageSink));
             var connector = connectorOptions != null
                 ? new OpenUsdConnector(session, sink, connectorOptions, telemetry)
                 : new OpenUsdConnector(session, sink, enableCommands);
