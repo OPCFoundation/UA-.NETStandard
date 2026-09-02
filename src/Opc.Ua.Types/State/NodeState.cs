@@ -3143,7 +3143,7 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Recusivesly calls OnBeforeCreate for the node and its children.
+        /// Recursively calls OnBeforeCreate for the node and its children.
         /// </summary>
         private void CallOnBeforeCreate(
             ISystemContext context,
@@ -3167,7 +3167,7 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Recusivesly calls OnBeforeCreate for the node and its children.
+        /// Recursively calls OnBeforeAssignNodeIds for the node and its children.
         /// </summary>
         private void CallOnBeforeAssignNodeIds(
             ISystemContext context,
@@ -3188,7 +3188,7 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Recusivesly calls OnAfterCreate for the node and its children.
+        /// Recursively calls OnAfterCreate for the node and its children.
         /// </summary>
         private void CallOnAfterCreate(
             ISystemContext context,
