@@ -381,6 +381,25 @@ services.AddOpcUa()
     .AddNodeManager(sp => new MyNodeManager(sp.GetRequiredService<ITelemetryContext>()));
 ```
 
+For a one-shot fluent node manager, the callback creates and places the
+complete contributed graph. The hosting API does not add an implicit root:
+
+```csharp
+const string namespaceUri = "urn:example:line";
+
+services.AddOpcUa()
+    .AddServer(o => { /* … */ })
+    .AddNodeManager(namespaceUri, builder =>
+    {
+        ushort namespaceIndex =
+            (ushort)builder.Context.NamespaceUris.GetIndex(namespaceUri);
+        builder.CreateInstance(
+                new QualifiedName("Line", namespaceIndex),
+                parent => new FolderState(parent))
+            .Configure(node => node.UnderObjectsFolder());
+    });
+```
+
 ### Runtime registration
 
 A running server exposes `INodeManagerLifecycle`. Resolve it from dependency injection in a hosted
