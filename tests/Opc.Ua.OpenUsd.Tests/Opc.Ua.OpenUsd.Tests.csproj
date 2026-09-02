@@ -31,9 +31,8 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\src\Opc.Ua.OpenUsd.Client\Opc.Ua.OpenUsd.Client.csproj" />
+    <ProjectReference Include="..\..\src\Opc.Ua.OpenUsd\Opc.Ua.OpenUsd.csproj" />
     <ProjectReference Include="..\..\src\Opc.Ua.OpenUsd.Server\Opc.Ua.OpenUsd.Server.csproj" />
-    <ProjectReference Include="..\..\src\Opc.Ua.OpenUsdScene\Opc.Ua.OpenUsdScene.csproj" />
-    <ProjectReference Include="..\..\src\Opc.Ua.OpenUsdScene.Server\Opc.Ua.OpenUsdScene.Server.csproj" />
     <ProjectReference Include="..\..\src\Opc.Ua.Robotics\Opc.Ua.Robotics.csproj"
                       Condition="'$(TargetFramework)' == 'net10.0'" />
     <ProjectReference Include="..\..\tools\Opc.Ua.OpenUsd.Connector\Opc.Ua.OpenUsd.Connector.csproj"

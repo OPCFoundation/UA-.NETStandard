@@ -29,46 +29,38 @@
 
 using System.Collections.Generic;
 
-namespace Opc.Ua.OpenUsdScene.Scene
+namespace Opc.Ua.OpenUsd.Scene
 {
     /// <summary>
-    /// A variant set on a prim together with its resolved selection and the full set of
-    /// authored variant branches (draft OPC UA — OpenUSD Scene Materialization §5.6).
+    /// A materialized USD relationship — an ordered set of target paths
+    /// (draft OPC UA — OpenUSD Scene Materialization §5.5).
     /// </summary>
-    public sealed class UsdVariantSet
+    public sealed class UsdRelationship
     {
         /// <summary>
-        /// Creates a variant set.
+        /// Creates a relationship.
         /// </summary>
-        /// <param name="setName">The variant set name.</param>
-        /// <param name="selection">The selected variant, or an empty string when nothing
-        /// is selected.</param>
-        public UsdVariantSet(string setName, string selection = "")
+        /// <param name="name">The relationship name (for example <c>material:binding</c>).</param>
+        public UsdRelationship(string name)
         {
-            SetName = setName ?? string.Empty;
-            Selection = selection ?? string.Empty;
+            Name = name ?? string.Empty;
         }
 
         /// <summary>
-        /// The variant set name.
+        /// The relationship name.
         /// </summary>
-        public string SetName { get; }
+        public string Name { get; }
 
         /// <summary>
-        /// The selected variant.
+        /// The ordered target SdfPath strings. Materialized both as the <c>TargetPaths</c>
+        /// property (for fidelity when a target lies outside the materialized subtree) and,
+        /// for each resolved target, as a <c>UsdRelationshipTarget</c> reference.
         /// </summary>
-        public string Selection { get; set; }
+        public IList<string> Targets { get; } = new List<string>();
 
         /// <summary>
-        /// The authored variant branches of this set, in authored order (§5.6). Each branch
-        /// is prim-shaped: its <see cref="UsdPrim.Name"/> is the variant name and its
-        /// attributes, relationships and child prims are the content the branch contributes
-        /// when it is the selection. All branches are captured — not only the selected one —
-        /// so the Composition Provenance CU can materialize the full
-        /// <c>&lt;Variant&gt;</c> structure the model defines under <c>UsdVariantSetType</c>.
-        /// This authoring provenance is intentionally separate from the composed result and
-        /// therefore excluded from the §7.4 composed-scene signature.
+        /// Whether the relationship is a custom (non-schema) property.
         /// </summary>
-        public IList<UsdPrim> Variants { get; } = new List<UsdPrim>();
+        public bool Custom { get; set; }
     }
 }

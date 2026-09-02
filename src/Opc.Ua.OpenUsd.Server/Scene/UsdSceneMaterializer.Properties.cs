@@ -30,10 +30,10 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
-using Opc.Ua.OpenUsdScene.Conversion;
-using Opc.Ua.OpenUsdScene.Scene;
+using Opc.Ua.OpenUsd.Scene.Conversion;
+using Opc.Ua.OpenUsd.Scene;
 
-namespace Opc.Ua.OpenUsdScene.Server
+namespace Opc.Ua.OpenUsd.Server.Scene
 {
     public static partial class UsdSceneMaterializer
     {
@@ -187,7 +187,7 @@ namespace Opc.Ua.OpenUsdScene.Server
                     resolved.Add(target.NodeId);
                     node.AddReference(
                         ExpandedNodeId.ToNodeId(
-                            Opc.Ua.OpenUsdScene.ReferenceTypeIds.UsdRelationshipTarget,
+                            Opc.Ua.OpenUsd.Scene.ReferenceTypeIds.UsdRelationshipTarget,
                             context.NamespaceUris),
                         false,
                         target.NodeId);
@@ -202,7 +202,7 @@ namespace Opc.Ua.OpenUsdScene.Server
             Dictionary<string, UsdAttributeState> attributes)
         {
             NodeId connectionTypeId = ExpandedNodeId.ToNodeId(
-                Opc.Ua.OpenUsdScene.ReferenceTypeIds.UsdConnection, context.NamespaceUris);
+                Opc.Ua.OpenUsd.Scene.ReferenceTypeIds.UsdConnection, context.NamespaceUris);
             foreach ((UsdAttributeState node, UsdAttribute source) in pending)
             {
                 // ConnectionPaths is the connection counterpart of UsdRelationshipType's
@@ -612,9 +612,10 @@ namespace Opc.Ua.OpenUsdScene.Server
                 return;
             }
             UsdGeoreferenceApiState node = context.CreateInstanceOfUsdGeoreferenceApiType(
-                folder, new QualifiedName(BrowseNames.UsdGeoreferenceApiType, ns));
+                folder, new QualifiedName(Opc.Ua.OpenUsd.Scene.BrowseNames.UsdGeoreferenceApiType, ns));
             Attach(context, folder, node, Opc.Ua.ReferenceTypeIds.HasAddIn);
-            node.CreateOrReplaceSchemaName(context, null!).Value = BrowseNames.UsdGeoreferenceApiType;
+            node.CreateOrReplaceSchemaName(context, null!).Value =
+                Opc.Ua.OpenUsd.Scene.BrowseNames.UsdGeoreferenceApiType;
             node.CreateOrReplaceLatitude(context, null!).Value = latitude;
             node.CreateOrReplaceLongitude(context, null!).Value = longitude;
             node.CreateOrReplaceHeight(context, null!).Value = height;
@@ -630,9 +631,10 @@ namespace Opc.Ua.OpenUsdScene.Server
                 return;
             }
             UsdGlobeAnchorApiState node = context.CreateInstanceOfUsdGlobeAnchorApiType(
-                folder, new QualifiedName(BrowseNames.UsdGlobeAnchorApiType, ns));
+                folder, new QualifiedName(Opc.Ua.OpenUsd.Scene.BrowseNames.UsdGlobeAnchorApiType, ns));
             Attach(context, folder, node, Opc.Ua.ReferenceTypeIds.HasAddIn);
-            node.CreateOrReplaceSchemaName(context, null!).Value = BrowseNames.UsdGlobeAnchorApiType;
+            node.CreateOrReplaceSchemaName(context, null!).Value =
+                Opc.Ua.OpenUsd.Scene.BrowseNames.UsdGlobeAnchorApiType;
             node.CreateOrReplaceLatitude(context, null!).Value = latitude;
             node.CreateOrReplaceLongitude(context, null!).Value = longitude;
             node.CreateOrReplaceHeight(context, null!).Value = height;

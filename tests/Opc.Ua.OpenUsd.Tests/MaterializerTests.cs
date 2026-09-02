@@ -30,10 +30,10 @@
 using System.Collections.Generic;
 using System.Linq;
 using NUnit.Framework;
-using Opc.Ua.OpenUsdScene.Scene;
-using Opc.Ua.OpenUsdScene.Server;
+using Opc.Ua.OpenUsd.Scene;
+using Opc.Ua.OpenUsd.Server.Scene;
 
-namespace Opc.Ua.OpenUsdScene.Tests
+namespace Opc.Ua.OpenUsd.Tests
 {
     /// <summary>
     /// Materializer tests for scene structure (§5, §7.1), typed prims (§5.3), the §6.2
@@ -143,16 +143,16 @@ namespace Opc.Ua.OpenUsdScene.Tests
         // ---- Typed prims (§5.3) --------------------------------------------------------
 
         [Test]
-        [TestCase("Xform", Opc.Ua.OpenUsdScene.ObjectTypes.UsdGeomXformType)]
-        [TestCase("Scope", Opc.Ua.OpenUsdScene.ObjectTypes.UsdGeomScopeType)]
-        [TestCase("Mesh", Opc.Ua.OpenUsdScene.ObjectTypes.UsdGeomMeshType)]
-        [TestCase("Cylinder", Opc.Ua.OpenUsdScene.ObjectTypes.UsdGeomCylinderType)]
-        [TestCase("Sphere", Opc.Ua.OpenUsdScene.ObjectTypes.UsdGeomSphereType)]
-        [TestCase("Cube", Opc.Ua.OpenUsdScene.ObjectTypes.UsdGeomCubeType)]
-        [TestCase("Cone", Opc.Ua.OpenUsdScene.ObjectTypes.UsdGeomConeType)]
-        [TestCase("Capsule", Opc.Ua.OpenUsdScene.ObjectTypes.UsdGeomCapsuleType)]
-        [TestCase("Material", Opc.Ua.OpenUsdScene.ObjectTypes.UsdShadeMaterialType)]
-        [TestCase("Shader", Opc.Ua.OpenUsdScene.ObjectTypes.UsdShadeShaderType)]
+        [TestCase("Xform", Opc.Ua.OpenUsd.Scene.ObjectTypes.UsdGeomXformType)]
+        [TestCase("Scope", Opc.Ua.OpenUsd.Scene.ObjectTypes.UsdGeomScopeType)]
+        [TestCase("Mesh", Opc.Ua.OpenUsd.Scene.ObjectTypes.UsdGeomMeshType)]
+        [TestCase("Cylinder", Opc.Ua.OpenUsd.Scene.ObjectTypes.UsdGeomCylinderType)]
+        [TestCase("Sphere", Opc.Ua.OpenUsd.Scene.ObjectTypes.UsdGeomSphereType)]
+        [TestCase("Cube", Opc.Ua.OpenUsd.Scene.ObjectTypes.UsdGeomCubeType)]
+        [TestCase("Cone", Opc.Ua.OpenUsd.Scene.ObjectTypes.UsdGeomConeType)]
+        [TestCase("Capsule", Opc.Ua.OpenUsd.Scene.ObjectTypes.UsdGeomCapsuleType)]
+        [TestCase("Material", Opc.Ua.OpenUsd.Scene.ObjectTypes.UsdShadeMaterialType)]
+        [TestCase("Shader", Opc.Ua.OpenUsd.Scene.ObjectTypes.UsdShadeShaderType)]
         public void TypedPrim_GetsHasTypeDefinition_AndKeepsToken(string typeName, uint objectType)
         {
             var stage = new UsdStage("Typed") { DefaultPrim = "P" };
@@ -170,20 +170,20 @@ namespace Opc.Ua.OpenUsdScene.Tests
         {
             MaterializedScene ms = MaterializationHarness.Materialize(TestAssets.Load("Plant.usda"));
 
-            AssertTypeDefinition(ms, "/Plant", Opc.Ua.OpenUsdScene.ObjectTypes.UsdGeomXformType);
-            AssertTypeDefinition(ms, "/Plant/Pumps", Opc.Ua.OpenUsdScene.ObjectTypes.UsdGeomScopeType);
+            AssertTypeDefinition(ms, "/Plant", Opc.Ua.OpenUsd.Scene.ObjectTypes.UsdGeomXformType);
+            AssertTypeDefinition(ms, "/Plant/Pumps", Opc.Ua.OpenUsd.Scene.ObjectTypes.UsdGeomScopeType);
             AssertTypeDefinition(
-                ms, "/Plant/Pumps/P101/Body", Opc.Ua.OpenUsdScene.ObjectTypes.UsdGeomCylinderType);
+                ms, "/Plant/Pumps/P101/Body", Opc.Ua.OpenUsd.Scene.ObjectTypes.UsdGeomCylinderType);
             AssertTypeDefinition(
-                ms, "/Plant/Pumps/P101/Bearing", Opc.Ua.OpenUsdScene.ObjectTypes.UsdGeomSphereType);
+                ms, "/Plant/Pumps/P101/Bearing", Opc.Ua.OpenUsd.Scene.ObjectTypes.UsdGeomSphereType);
             AssertTypeDefinition(
                 ms,
                 "/Plant/Pumps/P101/StatusLight/Mat",
-                Opc.Ua.OpenUsdScene.ObjectTypes.UsdShadeMaterialType);
+                Opc.Ua.OpenUsd.Scene.ObjectTypes.UsdShadeMaterialType);
             AssertTypeDefinition(
                 ms,
                 "/Plant/Pumps/P101/StatusLight/Mat/Surface",
-                Opc.Ua.OpenUsdScene.ObjectTypes.UsdShadeShaderType);
+                Opc.Ua.OpenUsd.Scene.ObjectTypes.UsdShadeShaderType);
         }
 
         // ---- Attributes and the §6.2 mapping -------------------------------------------
@@ -223,7 +223,7 @@ namespace Opc.Ua.OpenUsdScene.Tests
 
             Assert.That(
                 a.DataType,
-                Is.EqualTo(new NodeId(Opc.Ua.OpenUsdScene.DataTypes.UsdToken, ms.Namespace)));
+                Is.EqualTo(new NodeId(Opc.Ua.OpenUsd.Scene.DataTypes.UsdToken, ms.Namespace)));
             Assert.That(a.ValueRank, Is.EqualTo(Opc.Ua.ValueRanks.Scalar));
             Assert.That(a.UsdTypeName!.Value, Is.EqualTo("token"));
             // "uniform token axis" — authored uniform.
@@ -238,7 +238,7 @@ namespace Opc.Ua.OpenUsdScene.Tests
 
             Assert.That(
                 a.DataType,
-                Is.EqualTo(new NodeId(Opc.Ua.OpenUsdScene.DataTypes.UsdToken, ms.Namespace)));
+                Is.EqualTo(new NodeId(Opc.Ua.OpenUsd.Scene.DataTypes.UsdToken, ms.Namespace)));
             Assert.That(a.ValueRank, Is.EqualTo(Opc.Ua.ValueRanks.OneDimension));
             Assert.That(a.Dims(), Is.EqualTo(new uint[] { 0 }));
             Assert.That(a.UsdTypeName!.Value, Is.EqualTo("token[]"));
@@ -253,7 +253,7 @@ namespace Opc.Ua.OpenUsdScene.Tests
 
             Assert.That(
                 a.DataType,
-                Is.EqualTo(new NodeId(Opc.Ua.OpenUsdScene.DataTypes.UsdColor3f, ms.Namespace)));
+                Is.EqualTo(new NodeId(Opc.Ua.OpenUsd.Scene.DataTypes.UsdColor3f, ms.Namespace)));
             Assert.That(a.ValueRank, Is.EqualTo(Opc.Ua.ValueRanks.OneDimension));
             Assert.That(a.Dims(), Is.EqualTo(new uint[] { 3 }));
             Assert.That(a.UsdTypeName!.Value, Is.EqualTo("color3f"));
@@ -268,7 +268,7 @@ namespace Opc.Ua.OpenUsdScene.Tests
 
             Assert.That(
                 a.DataType,
-                Is.EqualTo(new NodeId(Opc.Ua.OpenUsdScene.DataTypes.UsdColor3f, ms.Namespace)));
+                Is.EqualTo(new NodeId(Opc.Ua.OpenUsd.Scene.DataTypes.UsdColor3f, ms.Namespace)));
             Assert.That(a.ValueRank, Is.EqualTo(Opc.Ua.ValueRanks.TwoDimensions));
             Assert.That(a.Dims(), Is.EqualTo(new uint[] { 0, 3 }));
             Assert.That(a.UsdTypeName!.Value, Is.EqualTo("color3f[]"));
@@ -413,7 +413,7 @@ namespace Opc.Ua.OpenUsdScene.Tests
         private static NodeId RelationshipTargetType(MaterializedScene ms)
         {
             return ExpandedNodeId.ToNodeId(
-                Opc.Ua.OpenUsdScene.ReferenceTypeIds.UsdRelationshipTarget, ms.Context.NamespaceUris);
+                Opc.Ua.OpenUsd.Scene.ReferenceTypeIds.UsdRelationshipTarget, ms.Context.NamespaceUris);
         }
 
         private static bool HasReference(

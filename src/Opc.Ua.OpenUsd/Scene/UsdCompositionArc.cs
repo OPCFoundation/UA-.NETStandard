@@ -27,40 +27,52 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System.Collections.Generic;
-
-namespace Opc.Ua.OpenUsdScene.Scene
+namespace Opc.Ua.OpenUsd.Scene
 {
     /// <summary>
-    /// A materialized USD relationship — an ordered set of target paths
-    /// (draft OPC UA — OpenUSD Scene Materialization §5.5).
+    /// A recorded composition arc — how a composed prim came to be
+    /// (draft OPC UA — OpenUSD Scene Materialization §5.6). Preserving the arc list is
+    /// what makes the §7.4 round-trip contract provenance-aware.
     /// </summary>
-    public sealed class UsdRelationship
+    public sealed class UsdCompositionArc
     {
         /// <summary>
-        /// Creates a relationship.
+        /// Creates a composition arc.
         /// </summary>
-        /// <param name="name">The relationship name (for example <c>material:binding</c>).</param>
-        public UsdRelationship(string name)
+        /// <param name="arcKind">The kind of arc.</param>
+        public UsdCompositionArc(UsdArcKindEnum arcKind)
         {
-            Name = name ?? string.Empty;
+            ArcKind = arcKind;
         }
 
         /// <summary>
-        /// The relationship name.
+        /// The kind of composition arc.
         /// </summary>
-        public string Name { get; }
+        public UsdArcKindEnum ArcKind { get; }
 
         /// <summary>
-        /// The ordered target SdfPath strings. Materialized both as the <c>TargetPaths</c>
-        /// property (for fidelity when a target lies outside the materialized subtree) and,
-        /// for each resolved target, as a <c>UsdRelationshipTarget</c> reference.
+        /// The referenced asset path, when the arc names one.
         /// </summary>
-        public IList<string> Targets { get; } = new List<string>();
+        public string AssetPath { get; set; } = string.Empty;
 
         /// <summary>
-        /// Whether the relationship is a custom (non-schema) property.
+        /// The target prim path within the referenced asset, when authored.
         /// </summary>
-        public bool Custom { get; set; }
+        public string PrimPath { get; set; } = string.Empty;
+
+        /// <summary>
+        /// The list-edit position the arc was authored with.
+        /// </summary>
+        public UsdListOpTypeEnum ListPosition { get; set; } = UsdListOpTypeEnum.Explicit;
+
+        /// <summary>
+        /// The variant set name, for a <see cref="UsdArcKindEnum.VariantSet"/> arc.
+        /// </summary>
+        public string VariantSet { get; set; } = string.Empty;
+
+        /// <summary>
+        /// The selected variant, for a <see cref="UsdArcKindEnum.VariantSet"/> arc.
+        /// </summary>
+        public string VariantSelection { get; set; } = string.Empty;
     }
 }
