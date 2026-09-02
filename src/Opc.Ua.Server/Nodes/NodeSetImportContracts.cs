@@ -30,7 +30,7 @@
 namespace Opc.Ua.Server.Nodes
 {
     /// <summary>
-    /// Internal opt-in seam for node sources that supply NodeSet import factories.
+    /// Public opt-in seam for node sources that supply NodeSet import factories.
     /// </summary>
     public interface INodeSetImportFactoryProvider
     {

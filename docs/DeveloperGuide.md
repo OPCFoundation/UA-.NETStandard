@@ -215,7 +215,11 @@ logger.ReadArrayZeroDimension(index, dimensions);
 - **Compositional node authoring** — implement `INodeSource`, create nodes through
   `INodeGraphBuilder`, and register it with `AddNodeSource<TSource>()`; see
   [NodeManagers.md](NodeManagers.md#compositional-node-sources).
-- **Source-generated node managers / data types** — see [NodeManagers.md](NodeManagers.md#source-generated-node-managers) and [SourceGeneratedDataTypes.md](SourceGeneratedDataTypes.md).
+- **Source-generated node managers / data types** — use
+  `[NodeManager(GenerateNodeSource = true)]` to generate an `INodeSource`
+  migration artifact alongside the legacy manager; see
+  [NodeManagers.md](NodeManagers.md#source-generated-node-managers) and
+  [SourceGeneratedDataTypes.md](SourceGeneratedDataTypes.md).
 - **Server namespace metadata / history advertisement** — see [NodeManagers.md](NodeManagers.md#server-address-space-metadata).
 - **Dependency injection** — see [DependencyInjection.md](DependencyInjection.md).
 - **NativeAOT** — see [NativeAoT.md](NativeAoT.md).

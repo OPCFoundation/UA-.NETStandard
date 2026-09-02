@@ -544,7 +544,8 @@ namespace Opc.Ua.SourceGeneration
         {
             string reason = options.OmitFluentApi
                 ? "OmitFluentApi is also enabled."
-                : designOptions?.GenerateNodeManager == true
+                : designOptions?.GenerateNodeManager == true ||
+                    designOptions?.GenerateNodeSource == true
                     ? "NodeManager generation is also enabled."
                     : null;
             if (reason == null)
@@ -618,6 +619,7 @@ namespace Opc.Ua.SourceGeneration
                 NodeManagerNamespace = match.TargetNamespace,
                 NodeManagerClassName = match.TargetClassName,
                 EmitNodeManagerFactory = match.GenerateFactory,
+                GenerateNodeSource = match.GenerateNodeSource,
                 NodeManagerAdditionalNamespaceUris = match.AdditionalNamespaceUris
             };
         }
@@ -1157,18 +1159,26 @@ namespace Opc.Ua.SourceGeneration
             constantsGenerator.Emit();
             var nodeIdGenerator = new NodeIdGenerator(context);
             nodeIdGenerator.Emit();
-            var nodeStateCodeGenerator = new NodeStateGenerator(context);
+            bool generateNodeSource = designOptions?.GenerateNodeSource == true;
+            bool generateNodeManager =
+                designOptions?.GenerateNodeManager == true ||
+                generateNodeSource;
+            var nodeStateCodeGenerator = new NodeStateGenerator(context)
+            {
+                GenerateNodeSourceSupport = generateNodeSource
+            };
             nodeStateCodeGenerator.Emit();
             var dataTypesGenerator = new DataTypeGenerator(context);
             dataTypesGenerator.Emit();
 
-            if (designOptions?.GenerateNodeManager == true)
+            if (generateNodeManager)
             {
                 new NodeManagerGenerator(context)
                 {
                     OverrideNamespace = designOptions.NodeManagerNamespace,
                     OverrideClassName = designOptions.NodeManagerClassName,
                     EmitFactory = designOptions.EmitNodeManagerFactory,
+                    EmitNodeSource = generateNodeSource,
                     AdditionalNamespaceUris = designOptions.NodeManagerAdditionalNamespaceUris
                 }.Emit();
             }
@@ -1181,7 +1191,7 @@ namespace Opc.Ua.SourceGeneration
             // GenerateNodeManager=true we ALWAYS emit (any consumer
             // that wires a node manager already references
             // Opc.Ua.Server, so suppression is unnecessary).
-            bool emitTypedAccessors = designOptions?.GenerateNodeManager == true ||
+            bool emitTypedAccessors = generateNodeManager ||
                 context.Options?.OmitFluentApi != true;
             if (emitTypedAccessors)
             {
@@ -1189,7 +1199,7 @@ namespace Opc.Ua.SourceGeneration
                 {
                     OverrideManagerNamespace = designOptions?.NodeManagerNamespace,
                     OverrideManagerClassName = designOptions?.NodeManagerClassName,
-                    GenerateManagerWrappers = designOptions?.GenerateNodeManager == true,
+                    GenerateManagerWrappers = generateNodeManager,
                     EmitFluentAccessors = emitTypedAccessors
                 }.Emit();
             }

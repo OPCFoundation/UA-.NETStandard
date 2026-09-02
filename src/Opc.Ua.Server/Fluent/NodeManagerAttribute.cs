@@ -46,6 +46,9 @@ namespace Opc.Ua.Server.Fluent
     /// A matching <c>{ClassName}Factory</c> implementing
     /// <see cref="INodeManagerFactory"/> is also emitted unless
     /// <see cref="GenerateFactory"/> is set to <c>false</c>.
+    /// Set <see cref="GenerateNodeSource"/> to additionally emit a public
+    /// compositional source and typed NodeSet import support while retaining
+    /// the generated manager.
     /// </para>
     /// <para>
     /// This is the recommended opt-in mechanism. The MSBuild property
@@ -82,6 +85,19 @@ namespace Opc.Ua.Server.Fluent
         /// author the factory by hand.
         /// </summary>
         public bool GenerateFactory { get; set; } = true;
+
+        /// <summary>
+        /// When <c>true</c>, the generator additionally emits a public,
+        /// compositional <c>{ClassName}Source</c> implementing
+        /// <see cref="Nodes.INodeSource"/>.
+        /// </summary>
+        /// <remarks>
+        /// The generated <see cref="FluentNodeManagerBase"/> partial and its
+        /// optional factory remain the default output. This property is an
+        /// explicit migration opt-in and does not replace the generated node
+        /// manager.
+        /// </remarks>
+        public bool GenerateNodeSource { get; set; }
 
         /// <summary>
         /// Additional namespace URIs the manager owns beyond the model's

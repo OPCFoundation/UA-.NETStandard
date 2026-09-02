@@ -48,6 +48,9 @@
     <EmbeddedResource Include="CoverageNodeSet\Assets\Opc.Ua.CoverageTestSecondary.NodeSet2.xml">
       <LogicalName>Opc.Ua.Server.Tests.CoverageNodeSet.Assets.Opc.Ua.CoverageTestSecondary.NodeSet2.xml</LogicalName>
     </EmbeddedResource>
+    <EmbeddedResource Include="Nodes\Assets\GeneratedNodeSource.NodeSet2.xml">
+      <LogicalName>Opc.Ua.Server.Tests.Nodes.Assets.GeneratedNodeSource.NodeSet2.xml</LogicalName>
+    </EmbeddedResource>
   </ItemGroup>
   <!-- Source-generation pipeline for the kitchen-sink coverage NodeSet (issue #4251).
        The same XML is embedded above for the runtime import pipeline. -->
@@ -62,6 +65,11 @@
       <ModelSourceGeneratorModelUri>http://opcfoundation.org/UA/CoverageTest/Secondary/</ModelSourceGeneratorModelUri>
       <ModelSourceGeneratorName>CoverageTestSecondary</ModelSourceGeneratorName>
       <ModelSourceGeneratorPrefix>Opc.Ua.CoverageTestSecondary</ModelSourceGeneratorPrefix>
+    </AdditionalFiles>
+    <AdditionalFiles Include="Nodes\Assets\GeneratedNodeSource.NodeSet2.xml">
+      <ModelSourceGeneratorModelUri>urn:opcfoundation.org:2026-09:GeneratedNodeSource</ModelSourceGeneratorModelUri>
+      <ModelSourceGeneratorName>GeneratedNodeSourceModel</ModelSourceGeneratorName>
+      <ModelSourceGeneratorPrefix>GeneratedNodeSourceModel</ModelSourceGeneratorPrefix>
     </AdditionalFiles>
   </ItemGroup>
   <Import Project="..\..\tools\Opc.Ua.SourceGeneration\OPCFoundation.Opc.Ua.SourceGeneration.props" />
@@ -94,4 +102,3 @@
     <ProjectReference Include="..\Opc.Ua.Test.Common\Opc.Ua.Test.Common.csproj" />
   </ItemGroup>
 </Project>
-

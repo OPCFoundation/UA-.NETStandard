@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -280,6 +281,208 @@ namespace Opc.Ua.Server.Tests.Nodes
         }
 
         [Test]
+        public async Task GeneratedNodeSourceBuildsFreshGraphsWithTypedHelpersAsync()
+        {
+            var source = new GeneratedPhase5NodeManagerSource();
+            NodeManagerRegistration registration = await m_server.NodeManagerLifecycle
+                .AddNodeSourceAsync(source)
+                .ConfigureAwait(false);
+            try
+            {
+                var manager = (NodeSourceNodeManager)registration.NodeManager;
+                Assert.Multiple(() =>
+                {
+                    Assert.That(source.NamespaceUris.Count, Is.EqualTo(2));
+                    Assert.That(
+                        source.NamespaceUris[0],
+                        Is.EqualTo(GeneratedNodeSetImportSource.NamespaceUri));
+                    Assert.That(
+                        source.NamespaceUris[1],
+                        Is.EqualTo(GeneratedNodeSetImportSource.InstanceNamespaceUri));
+                    Assert.That(source.UntypedConfigureCount, Is.EqualTo(1));
+                    Assert.That(source.TypedConfigureCount, Is.EqualTo(1));
+                    Assert.That(source.BehaviorRegistrationConfigureCount, Is.EqualTo(1));
+                    Assert.That(source.MaterializedDevices, Has.Count.EqualTo(1));
+                    Assert.That(
+                        source.GetNodeSetImportFactories().Count,
+                        Is.GreaterThan(0));
+                    Assert.That(
+                        source.AuthoredObjectId.IdentifierAsString,
+                        Is.EqualTo("GeneratedPhase5Root_AuthoredObject"));
+                    Assert.That(
+                        source.AuthoredVariableId.IdentifierAsString,
+                        Is.EqualTo(
+                            "GeneratedPhase5Root_AuthoredObject_AuthoredVariable"));
+                    Assert.That(
+                        source.AuthoredMethodId.IdentifierAsString,
+                        Is.EqualTo(
+                            "GeneratedPhase5Root_AuthoredObject_AuthoredMethod"));
+                    Assert.That(
+                        manager.Find(source.AuthoredObjectId),
+                        Is.TypeOf<GeneratedNodeSourceModel.DeviceState>());
+                    Assert.That(
+                        manager.Find(source.AuthoredVariableId),
+                        Is.TypeOf<GeneratedNodeSourceModel.CustomValueState>());
+                    Assert.That(
+                        manager.Find(source.AuthoredMethodId),
+                        Is.TypeOf<GeneratedNodeSourceModel.CalibrateMethodState>());
+                });
+
+                GeneratedNodeSourceModel.DeviceState firstDevice =
+                    source.MaterializedDevices[0];
+                registration = await m_server.NodeManagerLifecycle
+                    .ReloadNodeSourceAsync(registration, source)
+                    .ConfigureAwait(false);
+
+                Assert.Multiple(() =>
+                {
+                    Assert.That(source.UntypedConfigureCount, Is.EqualTo(2));
+                    Assert.That(source.TypedConfigureCount, Is.EqualTo(2));
+                    Assert.That(source.BehaviorRegistrationConfigureCount, Is.EqualTo(2));
+                    Assert.That(source.MaterializedDevices, Has.Count.EqualTo(2));
+                    Assert.That(
+                        source.MaterializedDevices[1],
+                        Is.Not.SameAs(firstDevice),
+                        "Each BuildAsync invocation must materialize a fresh node graph.");
+                });
+            }
+            finally
+            {
+                await m_server.NodeManagerLifecycle
+                    .RemoveAsync(registration, callerContext: null)
+                    .ConfigureAwait(false);
+            }
+        }
+
+        [Test]
+        public async Task GeneratedImportProviderCreatesTypedStatesThroughGraphImportAsync()
+        {
+            ArrayOf<INodeSetImportFactory> factories =
+                GeneratedNodeSourceModel.GeneratedNodeSourceModelNodeSetImportFactoryProvider
+                    .Instance
+                    .GetNodeSetImportFactories();
+            Assert.That(
+                factories.ToArray()
+                    .Select(factory =>
+                        $"{factory.NodeClass}|{factory.Discriminator}|" +
+                        $"{factory.DiscriminatorId}")
+                    .Distinct(StringComparer.Ordinal)
+                    .Count(),
+                Is.EqualTo(factories.Count),
+                "Generated registrations must not contain duplicate discriminator keys.");
+
+            INodeSetImportFactory objectFactory = FindGeneratedImportFactory(
+                factories,
+                NodeClass.Object,
+                NodeSetImportDiscriminator.TypeDefinition,
+                1000u);
+            INodeSetImportFactory methodFactory = FindGeneratedImportFactory(
+                factories,
+                NodeClass.Method,
+                NodeSetImportDiscriminator.MethodDeclaration,
+                1003u);
+            var emptyObject =
+                (GeneratedNodeSourceModel.DeviceState)objectFactory.CreateEmptyState();
+            var secondEmptyObject =
+                (GeneratedNodeSourceModel.DeviceState)objectFactory.CreateEmptyState();
+            var emptyMethod =
+                (GeneratedNodeSourceModel.CalibrateMethodState)methodFactory.CreateEmptyState();
+            var emptyObjectChildren = new List<BaseInstanceState>();
+            var emptyObjectReferences = new List<IReference>();
+            var emptyMethodChildren = new List<BaseInstanceState>();
+            var emptyMethodReferences = new List<IReference>();
+            emptyObject.GetChildren(
+                m_server.CurrentInstance.DefaultSystemContext,
+                emptyObjectChildren);
+            emptyObject.GetReferences(
+                m_server.CurrentInstance.DefaultSystemContext,
+                emptyObjectReferences);
+            emptyMethod.GetChildren(
+                m_server.CurrentInstance.DefaultSystemContext,
+                emptyMethodChildren);
+            emptyMethod.GetReferences(
+                m_server.CurrentInstance.DefaultSystemContext,
+                emptyMethodReferences);
+            Assert.Multiple(() =>
+            {
+                Assert.That(emptyObject, Is.Not.SameAs(secondEmptyObject));
+                Assert.That(emptyObject.IsCreated, Is.False);
+                Assert.That(emptyObject.NodeId.IsNull, Is.True);
+                Assert.That(emptyObject.Value, Is.Null);
+                Assert.That(emptyObject.Calibrate, Is.Null);
+                Assert.That(emptyObjectChildren, Is.Empty);
+                Assert.That(emptyObjectReferences, Is.Empty);
+                Assert.That(emptyMethod.IsCreated, Is.False);
+                Assert.That(emptyMethod.NodeId.IsNull, Is.True);
+                Assert.That(emptyMethod.InputArguments, Is.Null);
+                Assert.That(emptyMethod.OutputArguments, Is.Null);
+                Assert.That(emptyMethodChildren, Is.Empty);
+                Assert.That(emptyMethodReferences, Is.Empty);
+            });
+
+            var source = new GeneratedNodeSetImportSource();
+            NodeManagerRegistration registration = await m_server.NodeManagerLifecycle
+                .AddNodeSourceAsync(source)
+                .ConfigureAwait(false);
+            try
+            {
+                var manager = (NodeSourceNodeManager)registration.NodeManager;
+                ushort namespaceIndex = (ushort)m_server.CurrentInstance.NamespaceUris.GetIndex(
+                    GeneratedNodeSetImportSource.NamespaceUri);
+                NodeId Id(uint identifier) => new(identifier, namespaceIndex);
+
+                Assert.Multiple(() =>
+                {
+                    Assert.That(
+                        manager.Find(Id(1000u)),
+                        Is.TypeOf<BaseObjectTypeState>());
+                    Assert.That(
+                        manager.Find(Id(1001u)),
+                        Is.TypeOf<BaseDataVariableTypeState>());
+                    Assert.That(
+                        manager.Find(Id(1010u)),
+                        Is.TypeOf<GeneratedNodeSourceModel.CalibrateMethodState>());
+                    Assert.That(
+                        manager.Find(Id(1002u)),
+                        Is.TypeOf<GeneratedNodeSourceModel.CustomValueState>());
+                    Assert.That(
+                        manager.Find(Id(2000u)),
+                        Is.TypeOf<GeneratedNodeSourceModel.DeviceState>());
+                    Assert.That(
+                        manager.Find(Id(2001u)),
+                        Is.TypeOf<GeneratedNodeSourceModel.CustomValueState>());
+                    Assert.That(
+                        manager.Find(Id(2002u)),
+                        Is.TypeOf<GeneratedNodeSourceModel.CalibrateMethodState>());
+                    Assert.That(
+                        manager.Find(Id(2003u)),
+                        Is.InstanceOf<PropertyState<ArrayOf<Argument>>>());
+                    Assert.That(
+                        manager.Find(Id(2004u)),
+                        Is.InstanceOf<PropertyState<ArrayOf<Argument>>>());
+                });
+
+                var device =
+                    (GeneratedNodeSourceModel.DeviceState)manager.Find(Id(2000u));
+                var method =
+                    (GeneratedNodeSourceModel.CalibrateMethodState)manager.Find(Id(2002u));
+                Assert.Multiple(() =>
+                {
+                    Assert.That(device.Value?.NodeId, Is.EqualTo(Id(2001u)));
+                    Assert.That(device.Calibrate?.NodeId, Is.EqualTo(Id(2002u)));
+                    Assert.That(method.InputArguments?.NodeId, Is.EqualTo(Id(2003u)));
+                    Assert.That(method.OutputArguments?.NodeId, Is.EqualTo(Id(2004u)));
+                });
+            }
+            finally
+            {
+                await m_server.NodeManagerLifecycle
+                    .RemoveAsync(registration, callerContext: null)
+                    .ConfigureAwait(false);
+            }
+        }
+
+        [Test]
         public void BuildExceptionLeavesNoCommittedRegistration()
         {
             var source = new FailingSource();
@@ -514,6 +717,21 @@ namespace Opc.Ua.Server.Tests.Nodes
                 }
             }
             return count;
+        }
+
+        private static INodeSetImportFactory FindGeneratedImportFactory(
+            ArrayOf<INodeSetImportFactory> factories,
+            NodeClass nodeClass,
+            NodeSetImportDiscriminator discriminator,
+            uint identifier)
+        {
+            var expectedId = new ExpandedNodeId(
+                identifier,
+                GeneratedNodeSetImportSource.NamespaceUri);
+            return factories.ToArray().Single(factory =>
+                factory.NodeClass == nodeClass &&
+                factory.Discriminator == discriminator &&
+                factory.DiscriminatorId == expectedId);
         }
 
         private sealed class GraphSource : INodeSource
@@ -775,6 +993,49 @@ namespace Opc.Ua.Server.Tests.Nodes
                 using var stream = new MemoryStream(Encoding.UTF8.GetBytes(xml));
                 return UANodeSet.Read(stream);
             }
+        }
+
+        private sealed class GeneratedNodeSetImportSource :
+            INodeSource,
+            INodeSetImportFactoryProvider
+        {
+            public ArrayOf<string> NamespaceUris => [NamespaceUri];
+
+            public ValueTask BuildAsync(
+                INodeGraphBuilder builder,
+                CancellationToken cancellationToken = default)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                builder.Import(ReadNodeSet());
+                return default;
+            }
+
+            public ArrayOf<INodeSetImportFactory> GetNodeSetImportFactories()
+            {
+                return GeneratedNodeSourceModel.
+                    GeneratedNodeSourceModelNodeSetImportFactoryProvider.Instance.
+                    GetNodeSetImportFactories();
+            }
+
+            private static UANodeSet ReadNodeSet()
+            {
+                using Stream stream = typeof(GeneratedNodeSetImportSource)
+                    .Assembly
+                    .GetManifestResourceStream(
+                        "Opc.Ua.Server.Tests.Nodes.Assets." +
+                        "GeneratedNodeSource.NodeSet2.xml");
+                if (stream is null)
+                {
+                    throw new InvalidOperationException(
+                        "The generated node-source test NodeSet resource was not found.");
+                }
+                return UANodeSet.Read(stream);
+            }
+
+            public const string NamespaceUri =
+                "urn:opcfoundation.org:2026-09:GeneratedNodeSource";
+            public const string InstanceNamespaceUri =
+                "urn:opcfoundation.org:2026-09:GeneratedNodeSource:Instance";
         }
 
         private sealed class ImportedNodeFactory : INodeSetImportFactory

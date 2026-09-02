@@ -1089,6 +1089,129 @@ namespace Opc.Ua.SourceGeneration
         }
 
         [Theory]
+        public void NodeManagerGenerateNodeSourceOptInTargetsOnlySelectedModel(
+            LanguageVersion languageVersion)
+        {
+            const string bindingSource =
+                """
+                namespace Opc.Ua.Server.Fluent
+                {
+                public sealed class NodeManagerAttribute : global::System.Attribute
+                {
+                public string NamespaceUri { get; set; }
+                public string Design { get; set; }
+                public bool GenerateFactory { get; set; }
+                public bool GenerateNodeSource { get; set; }
+                }
+                }
+                namespace CrossModelConsumer
+                {
+                [global::Opc.Ua.Server.Fluent.NodeManager(
+                    NamespaceUri = "http://test.org/UA/CrossModel/Types",
+                    GenerateNodeSource = true)]
+                public partial class TypesNodeManager
+                {
+                }
+                }
+                """;
+            (ImmutableArray<Diagnostic> diagnostics, GeneratorDriverRunResult runResult) =
+                RunMixedModelGenerator(languageVersion, bindingSource);
+
+            Assert.That(
+                diagnostics.Where(d => d.Id == "MODELGEN010"),
+                Is.Empty);
+
+            GeneratorRunResult result = runResult.Results[0];
+            string generated = string.Join(
+                "\n",
+                result.GeneratedSources.Select(source => source.SourceText.ToString()));
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    result.GeneratedSources.Count(source =>
+                        source.HintName.EndsWith(
+                            ".NodeSource.g.cs",
+                            StringComparison.Ordinal)),
+                    Is.EqualTo(1),
+                    "Only the explicitly selected model should emit a node source.");
+                Assert.That(
+                    generated,
+                    Does.Contain("class TypesNodeManager :"),
+                    "The legacy generated manager must remain present.");
+                Assert.That(
+                    generated,
+                    Does.Contain("sealed partial class TypesNodeManagerSource"));
+                Assert.That(
+                    generated,
+                    Does.Contain("global::Opc.Ua.Server.Nodes.INodeSource"));
+                Assert.That(
+                    generated,
+                    Does.Contain("CrossModelTypesNodeSetImportFactoryProvider"));
+            });
+        }
+
+        [Theory]
+        public void GeneratedNodeSourceProviderLeavesDependencyFactoriesToDependencyModel(
+            LanguageVersion languageVersion)
+        {
+            const string bindingSource =
+                """
+                namespace Opc.Ua.Server.Fluent
+                {
+                public sealed class NodeManagerAttribute : global::System.Attribute
+                {
+                public string NamespaceUri { get; set; }
+                public string Design { get; set; }
+                public bool GenerateFactory { get; set; }
+                public bool GenerateNodeSource { get; set; }
+                }
+                }
+                namespace CrossModelConsumer
+                {
+                [global::Opc.Ua.Server.Fluent.NodeManager(
+                    NamespaceUri = "http://test.org/UA/CrossModel/Instances",
+                    GenerateNodeSource = true)]
+                public partial class InstancesNodeManager
+                {
+                }
+                }
+                """;
+            (ImmutableArray<Diagnostic> diagnostics, GeneratorDriverRunResult runResult) =
+                RunMixedModelGenerator(languageVersion, bindingSource);
+
+            Assert.That(
+                diagnostics.Where(d => d.Id == "MODELGEN010"),
+                Is.Empty);
+
+            string generated = string.Join(
+                "\n",
+                runResult.Results[0].GeneratedSources.Select(
+                    source => source.SourceText.ToString()));
+            string importProvider = runResult.Results[0]
+                .GeneratedSources
+                .Select(source => source.SourceText.ToString())
+                .Single(source => source.Contains(
+                    "public sealed class CrossModelInstancesNodeSetImportFactoryProvider",
+                    StringComparison.Ordinal));
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    generated,
+                    Does.Contain(
+                        "global::CrossModel.Instances.CrossModelInstancesExtensions."));
+                Assert.That(
+                    importProvider,
+                    Does.Contain("new global::CrossModelTypes.WidgetState(null)"));
+                Assert.That(
+                    importProvider,
+                    Does.Not.Contain("NodeSetImportDiscriminator.TypeDefinition"));
+                Assert.That(
+                    generated,
+                    Does.Contain("AddNodeSetImportFactories"));
+            });
+        }
+
+        [Theory]
         public void NodeManagerBoundToModelDesignInstancesIsNotReportedUnmatchedWithNodeSet2(
             LanguageVersion languageVersion)
         {

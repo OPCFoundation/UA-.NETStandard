@@ -222,13 +222,39 @@ namespace Opc.Ua.Server.RuntimeNodeSet
                         $"NodeSet import factory discriminator '{factory.Discriminator}' " +
                         $"is not valid for node class '{factory.NodeClass}'.")
                 };
-                if (!added)
+                if (!added && !ContainsSameFactory(
+                    factory,
+                    discriminatorId))
                 {
                     throw new InvalidOperationException(
                         $"A NodeSet import factory is already registered for " +
                         $"{factory.NodeClass} discriminator '{discriminatorId}'.");
                 }
             }
+        }
+
+        private bool ContainsSameFactory(
+            INodeSetImportFactory factory,
+            NodeId discriminatorId)
+        {
+            INodeSetImportFactory? existing;
+            bool found = factory.Discriminator switch
+            {
+                NodeSetImportDiscriminator.TypeDefinition =>
+                    m_instanceFactories.TryGetValue(
+                        (factory.NodeClass, discriminatorId),
+                        out existing),
+                NodeSetImportDiscriminator.MethodDeclaration =>
+                    m_methodFactories.TryGetValue(
+                        discriminatorId,
+                        out existing),
+                NodeSetImportDiscriminator.NodeId =>
+                    m_declarationFactories.TryGetValue(
+                        (factory.NodeClass, discriminatorId),
+                        out existing),
+                _ => SetFactoryNotFound(out existing)
+            };
+            return found && ReferenceEquals(existing, factory);
         }
 
         /// <summary>

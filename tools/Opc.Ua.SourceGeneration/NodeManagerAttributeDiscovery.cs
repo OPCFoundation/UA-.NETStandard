@@ -87,6 +87,9 @@ namespace Opc.Ua.SourceGeneration
                     .Any(p => p.Key == nameof(NodeManagerAttributeBinding.GenerateFactory) &&
                         p.Value.Value is bool b &&
                         !b);
+            bool generateNodeSource = attr?.NamedArguments
+                .Any(p => p.Key == nameof(NodeManagerAttributeBinding.GenerateNodeSource) &&
+                    p.Value.Value is true) == true;
 
             string targetNamespace = symbol.GetFullNamespace();
             string targetClassName = symbol.Name;
@@ -107,6 +110,7 @@ namespace Opc.Ua.SourceGeneration
                     NamespaceUri = namespaceUri,
                     Design = design,
                     GenerateFactory = generateFactory,
+                    GenerateNodeSource = generateNodeSource,
                     AdditionalNamespaceUris = additionalNamespaceUris
                 },
                 Location = location,

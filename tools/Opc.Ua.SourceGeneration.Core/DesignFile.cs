@@ -106,6 +106,13 @@ namespace Opc.Ua.SourceGeneration
         public bool EmitNodeManagerFactory { get; init; } = true;
 
         /// <summary>
+        /// When <c>true</c>, emits a compositional
+        /// <c>{NodeManagerClassName}Source</c> and typed graph/import support
+        /// alongside the generated node manager. Defaults to <c>false</c>.
+        /// </summary>
+        public bool GenerateNodeSource { get; init; }
+
+        /// <summary>
         /// Additional namespace URIs (beyond the model namespace) that
         /// the generated <c>NodeManager</c> constructor reports to the
         /// base node manager and the generated factory advertises via

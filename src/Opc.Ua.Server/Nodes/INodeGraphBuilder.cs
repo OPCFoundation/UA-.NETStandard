@@ -73,6 +73,21 @@ namespace Opc.Ua.Server.Nodes
             where TState : NodeState;
 
         /// <summary>
+        /// Adds a pre-built root without synthesizing an Objects-folder parent.
+        /// Existing references on the root are preserved.
+        /// </summary>
+        /// <typeparam name="TState">The concrete state type.</typeparam>
+        /// <param name="node">The root node or subtree to add.</param>
+        /// <returns>A typed fluent builder for the added root.</returns>
+        INodeBuilder<TState> AddRoot<TState>(TState node)
+            where TState : NodeState;
+
+        /// <summary>
+        /// Attempts to resolve an authored or already registered node.
+        /// </summary>
+        bool TryGetNode(NodeId nodeId, out NodeState? node);
+
+        /// <summary>
         /// Creates a folder.
         /// </summary>
         INodeBuilder<FolderState> AddFolder(

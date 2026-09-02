@@ -55,19 +55,31 @@ namespace Opc.Ua.SourceGeneration
             CollectNodesToGenerate();
         }
 
+        /// <summary>
+        /// When <c>true</c>, emits typed graph-creation helpers and the
+        /// model's public NodeSet import factory provider.
+        /// </summary>
+        public bool GenerateNodeSourceSupport { get; init; }
+
         /// <inheritdoc/>
         public IEnumerable<Resource> Emit()
         {
             m_initializers.Clear();
             if (m_instances.Count + m_nodes.Count == 0)
             {
-                return [];
+                return GenerateNodeSourceSupport
+                    ? [EmitNodeSourceSupport()]
+                    : [];
             }
             List<Resource> resources =
             [
                 EmitNodeStateClasses(),
                 EmitExtensions()
             ];
+            if (GenerateNodeSourceSupport)
+            {
+                resources.Add(EmitNodeSourceSupport());
+            }
             Resource initializers = EmbedInitializers();
             if (initializers != null)
             {
@@ -165,6 +177,613 @@ namespace Opc.Ua.SourceGeneration
 
             template.Render();
             return fileName.AsTextFileResource();
+        }
+
+        private TextFileResource EmitNodeSourceSupport()
+        {
+            string nsPrefix = m_context.ModelDesign.TargetNamespace.Prefix;
+            string typeStem = nsPrefix.Replace(".", string.Empty, StringComparison.Ordinal);
+            string fileName = Path.Combine(m_context.OutputFolder, CoreUtils.Format(
+                "{0}.NodeSourceSupport.g.cs",
+                nsPrefix));
+            using TextWriter writer = m_context.FileSystem.CreateTextWriter(fileName);
+            using var templateWriter = new TemplateWriter(writer);
+            var template = new Template(
+                templateWriter,
+                NodeStateTemplates.NodeSourceSupport_File);
+            template.AddReplacement(Tokens.NamespacePrefix, nsPrefix);
+            template.AddReplacement(
+                Tokens.ListOfTypes,
+                ["body"],
+                onLoad: context =>
+                {
+                    EmitGraphCreationExtensions(
+                        context.Out,
+                        typeStem + "NodeGraphBuilderExtensions",
+                        typeStem + "Extensions");
+                    EmitNodeSetImportFactoryProvider(
+                        context.Out,
+                        typeStem + "NodeSetImportFactoryProvider");
+                    return null;
+                });
+            template.Render();
+            return fileName.AsTextFileResource();
+        }
+
+        private void EmitGraphCreationExtensions(
+            ITemplateWriter writer,
+            string className,
+            string nodeStateExtensionsClassName)
+        {
+            List<NodeToGenerate> helpers = GetGraphCreationHelpers();
+            writer.WriteLine("    /// <summary>");
+            writer.WriteLine(
+                "    /// Typed graph-creation extensions for generated model types.");
+            writer.WriteLine("    /// </summary>");
+            writer.WriteLine(
+                "    [global::System.CodeDom.Compiler.GeneratedCodeAttribute(\"{0}\", \"{1}\")]",
+                typeof(NodeStateGenerator).Assembly.GetName().Name,
+                typeof(NodeStateGenerator).Assembly.GetName().Version);
+            writer.WriteLine("    public static partial class {0}", className);
+            writer.WriteLine("    {");
+
+            var emittedNames = new HashSet<string>(StringComparer.Ordinal);
+            foreach (NodeToGenerate typeNode in helpers)
+            {
+                NodeToGenerate instanceNode = typeNode.Instance;
+                InstanceDesign instance = (InstanceDesign)instanceNode.Design;
+                string helperName = GetGraphHelperName(typeNode.Design, emittedNames);
+                string stateType = instance.GetNodeStateClassName(
+                    m_context.ModelDesign.TargetNamespace.Value,
+                    m_context.ModelDesign.Namespaces);
+                string factoryName = instance is MethodDesign
+                    ? "CreateInstanceOf" + typeNode.Design.SymbolicId.Name
+                    : "Create" + instance.SymbolicId.Name;
+
+                writer.WriteLine();
+                writer.WriteLine("        /// <summary>");
+                writer.WriteLine(
+                    "        /// Creates and adds an instance of <c>{0}</c>.",
+                    typeNode.Design.SymbolicName.Name);
+                writer.WriteLine("        /// </summary>");
+                if (instance is VariableDesign variable)
+                {
+                    string valueType = variable.DataTypeNode.GetMethodArgumentTypeAsCode(
+                        variable.ValueRank,
+                        m_context.ModelDesign.TargetNamespace.Value,
+                        m_context.ModelDesign.Namespaces,
+                        isOptional: false);
+                    writer.WriteLine(
+                        "        public static global::Opc.Ua.Server.Fluent.IVariableBuilder<{0}> {1}(",
+                        valueType,
+                        helperName);
+                }
+                else
+                {
+                    writer.WriteLine(
+                        "        public static global::Opc.Ua.Server.Fluent.INodeBuilder<{0}> {1}(",
+                        stateType,
+                        helperName);
+                }
+                writer.WriteLine(
+                    "            this global::Opc.Ua.Server.Nodes.INodeGraphBuilder builder,");
+                writer.WriteLine("            global::Opc.Ua.QualifiedName browseName,");
+                writer.WriteLine(
+                    "            global::Opc.Ua.NodeId parentId = default)");
+                writer.WriteLine("        {");
+                writer.WriteLine("            if (builder == null)");
+                writer.WriteLine("            {");
+                writer.WriteLine(
+                    "                throw new global::System.ArgumentNullException(nameof(builder));");
+                writer.WriteLine("            }");
+                writer.WriteLine("            if (browseName.IsNull)");
+                writer.WriteLine("            {");
+                writer.WriteLine(
+                    "                throw new global::System.ArgumentException(");
+                writer.WriteLine(
+                    "                    \"The browse name cannot be null.\",");
+                writer.WriteLine(
+                    "                    nameof(browseName));");
+                writer.WriteLine("            }");
+                writer.WriteLine(
+                    "            if (browseName.NamespaceIndex == 0)");
+                writer.WriteLine("            {");
+                writer.WriteLine(
+                    "                browseName = new global::Opc.Ua.QualifiedName(");
+                writer.WriteLine("                    browseName.Name,");
+                writer.WriteLine(
+                    "                    builder.Context.NamespaceUris.GetIndexOrAppend(");
+                writer.WriteLine(
+                    "                        {0}));",
+                    m_context.ModelDesign.Namespaces.GetConstantSymbolForNamespace(
+                        m_context.ModelDesign.TargetNamespace.Value));
+                writer.WriteLine("            }");
+                writer.WriteLine();
+                writer.WriteLine(
+                    "            builder.TryGetNode(parentId, out global::Opc.Ua.NodeState? parent);");
+                writer.WriteLine(
+                    "            {0} state = global::{1}.{2}.{3}(",
+                    stateType,
+                    m_context.ModelDesign.TargetNamespace.Prefix,
+                    nodeStateExtensionsClassName,
+                    factoryName);
+                writer.WriteLine("                builder.Context,");
+                writer.WriteLine("                parent,");
+                writer.WriteLine("                browseName);");
+                writer.WriteLine(
+                    "            global::Opc.Ua.Server.Fluent.INodeBuilder<{0}> result =",
+                    stateType);
+                writer.WriteLine("                builder.Add(state, parentId);");
+                if (instance is VariableDesign variableInstance)
+                {
+                    string valueType = variableInstance.DataTypeNode.GetMethodArgumentTypeAsCode(
+                        variableInstance.ValueRank,
+                        m_context.ModelDesign.TargetNamespace.Value,
+                        m_context.ModelDesign.Namespaces,
+                        isOptional: false);
+                    writer.WriteLine(
+                        "            return global::Opc.Ua.Server.Fluent.VariableBuilderExtensions.");
+                    writer.WriteLine(
+                        "                AsVariable<{0}>(result);",
+                        valueType);
+                }
+                else
+                {
+                    writer.WriteLine("            return result;");
+                }
+                writer.WriteLine("        }");
+            }
+
+            writer.WriteLine("    }");
+            writer.WriteLine();
+        }
+
+        private List<NodeToGenerate> GetGraphCreationHelpers()
+        {
+            string targetNamespace = m_context.ModelDesign.TargetNamespace.Value;
+            return
+            [
+                .. m_nodes.Values
+                    .Where(node =>
+                        node.Parent == null &&
+                        node.Instance != null &&
+                        string.Equals(
+                            node.Design.SymbolicId.Namespace,
+                            targetNamespace,
+                            StringComparison.Ordinal) &&
+                        node.Design switch
+                        {
+                            ObjectTypeDesign objectType => !objectType.IsAbstract,
+                            VariableTypeDesign variableType => !variableType.IsAbstract,
+                            MethodDesign method => method.IsMethodTypeDesign(),
+                            _ => false
+                        })
+                    .OrderBy(
+                        node => node.Design.SymbolicId.Name,
+                        StringComparer.Ordinal)
+            ];
+        }
+
+        private static string GetGraphHelperName(
+            NodeDesign type,
+            HashSet<string> emittedNames)
+        {
+            string typeName = type.SymbolicId.Name;
+            string name = "Add" + typeName;
+            if (s_reservedGraphBuilderMethodNames.Contains(name) ||
+                !emittedNames.Add(name))
+            {
+                name = "AddInstanceOf" + typeName;
+                int suffix = 2;
+                string candidate = name;
+                while (!emittedNames.Add(candidate))
+                {
+                    candidate = name + suffix.ToString(CultureInfo.InvariantCulture);
+                    suffix++;
+                }
+                name = candidate;
+            }
+            return name;
+        }
+
+        private void EmitNodeSetImportFactoryProvider(
+            ITemplateWriter writer,
+            string className)
+        {
+            List<ImportFactoryRegistration> registrations =
+                GetNodeSetImportFactoryRegistrations();
+
+            writer.WriteLine("    /// <summary>");
+            writer.WriteLine(
+                "    /// Public registration provider for typed NodeSet imports.");
+            writer.WriteLine("    /// </summary>");
+            writer.WriteLine(
+                "    [global::System.CodeDom.Compiler.GeneratedCodeAttribute(\"{0}\", \"{1}\")]",
+                typeof(NodeStateGenerator).Assembly.GetName().Name,
+                typeof(NodeStateGenerator).Assembly.GetName().Version);
+            writer.WriteLine(
+                "    public sealed class {0} :",
+                className);
+            writer.WriteLine(
+                "        global::Opc.Ua.Server.Nodes.INodeSetImportFactoryProvider");
+            writer.WriteLine("    {");
+            writer.WriteLine("        /// <summary>");
+            writer.WriteLine("        /// Initializes a provider.");
+            writer.WriteLine("        /// </summary>");
+            writer.WriteLine("        public {0}()", className);
+            writer.WriteLine("        {");
+            writer.WriteLine("        }");
+            writer.WriteLine();
+            writer.WriteLine("        /// <summary>");
+            writer.WriteLine("        /// Gets the shared provider instance.");
+            writer.WriteLine("        /// </summary>");
+            writer.WriteLine(
+                "        public static {0} Instance {{ get; }} = new {0}();",
+                className);
+            writer.WriteLine();
+            writer.WriteLine("        /// <inheritdoc/>");
+            writer.WriteLine(
+                "        public global::Opc.Ua.ArrayOf<global::Opc.Ua.Server.Nodes.INodeSetImportFactory>");
+            writer.WriteLine("            GetNodeSetImportFactories()");
+            writer.WriteLine("        {");
+            if (registrations.Count == 0)
+            {
+                writer.WriteLine("            return [];");
+            }
+            else
+            {
+                writer.WriteLine("            return");
+                writer.WriteLine("            [");
+                for (int i = 0; i < registrations.Count; i++)
+                {
+                    writer.WriteLine(
+                        "                ImportFactory{0:D4}.Instance{1}",
+                        i,
+                        i + 1 == registrations.Count ? string.Empty : ",");
+                }
+                writer.WriteLine("            ];");
+            }
+            writer.WriteLine("        }");
+
+            for (int i = 0; i < registrations.Count; i++)
+            {
+                EmitNodeSetImportFactory(writer, registrations[i], i);
+            }
+
+            writer.WriteLine("    }");
+        }
+
+        private static void EmitNodeSetImportFactory(
+            ITemplateWriter writer,
+            ImportFactoryRegistration registration,
+            int index)
+        {
+            writer.WriteLine();
+            writer.WriteLine(
+                "        private sealed class ImportFactory{0:D4} :",
+                index);
+            writer.WriteLine(
+                "            global::Opc.Ua.Server.Nodes.INodeSetImportFactory");
+            writer.WriteLine("        {");
+            writer.WriteLine(
+                "            private ImportFactory{0:D4}()",
+                index);
+            writer.WriteLine("            {");
+            writer.WriteLine("            }");
+            writer.WriteLine();
+            writer.WriteLine(
+                "            public static ImportFactory{0:D4} Instance {{ get; }} = new ImportFactory{0:D4}();",
+                index);
+            writer.WriteLine();
+            writer.WriteLine(
+                "            public global::Opc.Ua.NodeClass NodeClass");
+            writer.WriteLine(
+                "                => global::Opc.Ua.NodeClass.{0};",
+                registration.NodeClass);
+            writer.WriteLine();
+            writer.WriteLine(
+                "            public global::Opc.Ua.Server.Nodes.NodeSetImportDiscriminator Discriminator");
+            writer.WriteLine(
+                "                => global::Opc.Ua.Server.Nodes.NodeSetImportDiscriminator.{0};",
+                registration.Discriminator);
+            writer.WriteLine();
+            writer.WriteLine(
+                "            public global::Opc.Ua.ExpandedNodeId DiscriminatorId");
+            writer.WriteLine(
+                "                => {0};",
+                registration.DiscriminatorId);
+            writer.WriteLine();
+            writer.WriteLine(
+                "            public global::Opc.Ua.NodeState CreateEmptyState()");
+            writer.WriteLine("            {");
+            writer.WriteLine(
+                "                return {0};",
+                registration.CreateExpression);
+            writer.WriteLine("            }");
+            writer.WriteLine("        }");
+        }
+
+        private List<ImportFactoryRegistration>
+            GetNodeSetImportFactoryRegistrations()
+        {
+            var registrations = new Dictionary<string, ImportFactoryRegistration>(
+                StringComparer.Ordinal);
+            string targetNamespace = m_context.ModelDesign.TargetNamespace.Value;
+
+            void Add(
+                string nodeClass,
+                string discriminator,
+                NodeDesign discriminatorNode,
+                string createExpression)
+            {
+                if (discriminatorNode == null ||
+                    string.IsNullOrEmpty(createExpression) ||
+                    !HasResolvableNodeId(discriminatorNode))
+                {
+                    return;
+                }
+
+                string discriminatorId = discriminatorNode.GetExpandedNodeIdAsCode(
+                    m_context.ModelDesign.Namespaces);
+                string key = nodeClass + "|" + discriminator + "|" + discriminatorId;
+                registrations.TryAdd(
+                    key,
+                    new ImportFactoryRegistration(
+                        nodeClass,
+                        discriminator,
+                        discriminatorId,
+                        createExpression));
+            }
+
+            foreach (NodeToGenerate node in m_nodes.Values)
+            {
+                if (node.Parent != null ||
+                    !string.Equals(
+                        node.Design.SymbolicId.Namespace,
+                        targetNamespace,
+                        StringComparison.Ordinal))
+                {
+                    continue;
+                }
+
+                switch (node.Design)
+                {
+                    case ObjectTypeDesign objectType:
+                        Add(
+                            "ObjectType",
+                            "NodeId",
+                            objectType,
+                            "new global::Opc.Ua.BaseObjectTypeState()");
+                        if (!objectType.IsAbstract && node.Instance != null)
+                        {
+                            Add(
+                                "Object",
+                                "TypeDefinition",
+                                objectType,
+                                GetDirectEmptyStateCreation(
+                                    (InstanceDesign)node.Instance.Design));
+                        }
+                        break;
+                    case VariableTypeDesign variableType:
+                        Add(
+                            "VariableType",
+                            "NodeId",
+                            variableType,
+                            "new global::Opc.Ua.BaseDataVariableTypeState()");
+                        if (!variableType.IsAbstract && node.Instance != null)
+                        {
+                            Add(
+                                "Variable",
+                                "TypeDefinition",
+                                variableType,
+                                GetDirectEmptyStateCreation(
+                                    (InstanceDesign)node.Instance.Design));
+                        }
+                        break;
+                    case DataTypeDesign dataType:
+                        Add(
+                            "DataType",
+                            "NodeId",
+                            dataType,
+                            "new global::Opc.Ua.DataTypeState()");
+                        break;
+                    case ReferenceTypeDesign referenceType:
+                        Add(
+                            "ReferenceType",
+                            "NodeId",
+                            referenceType,
+                            "new global::Opc.Ua.ReferenceTypeState()");
+                        break;
+                    case ViewDesign view:
+                        Add(
+                            "View",
+                            "NodeId",
+                            view,
+                            "new global::Opc.Ua.ViewState()");
+                        break;
+                    case MethodDesign method
+                        when method.IsMethodTypeDesign():
+                        string createExpression =
+                            GetDirectEmptyStateCreation(method);
+                        Add(
+                            "Method",
+                            "NodeId",
+                            method,
+                            createExpression);
+                        Add(
+                            "Method",
+                            "MethodDeclaration",
+                            method,
+                            createExpression);
+                        break;
+                }
+            }
+
+            foreach (NodeToGenerate node in m_nodes.Values)
+            {
+                if (node.Design is MethodDesign method &&
+                    node.RootIsTypeDefinition &&
+                    !method.IsMethodTypeDesign() &&
+                    string.Equals(
+                        method.SymbolicId.Namespace,
+                        targetNamespace,
+                        StringComparison.Ordinal))
+                {
+                    Add(
+                        "Method",
+                        "MethodDeclaration",
+                        method,
+                        GetDirectEmptyStateCreation(method));
+                }
+            }
+
+            foreach (NodeToGenerate node in m_nodes.Values)
+            {
+                if (node.Design is not InstanceDesign instance ||
+                    !string.Equals(
+                        instance.SymbolicId.Namespace,
+                        targetNamespace,
+                        StringComparison.Ordinal) ||
+                    !IsInAddressSpace(node))
+                {
+                    continue;
+                }
+
+                string nodeClass = GetImportNodeClass(instance);
+                if (nodeClass == null)
+                {
+                    continue;
+                }
+                Add(
+                    nodeClass,
+                    "NodeId",
+                    instance,
+                    GetDirectEmptyStateCreation(instance));
+
+                if (instance is ObjectDesign &&
+                    instance.TypeDefinitionNode is ObjectTypeDesign objectType &&
+                    string.Equals(
+                        objectType.SymbolicId.Namespace,
+                        targetNamespace,
+                        StringComparison.Ordinal))
+                {
+                    Add(
+                        "Object",
+                        "TypeDefinition",
+                        objectType,
+                        GetDirectTypeInstanceCreation(objectType, instance));
+                }
+                else if (instance is VariableDesign &&
+                    instance.TypeDefinitionNode is VariableTypeDesign variableType &&
+                    string.Equals(
+                        variableType.SymbolicId.Namespace,
+                        targetNamespace,
+                        StringComparison.Ordinal))
+                {
+                    Add(
+                        "Variable",
+                        "TypeDefinition",
+                        variableType,
+                        GetDirectTypeInstanceCreation(variableType, instance));
+                }
+
+                if (instance is MethodDesign method &&
+                    method.MethodDeclarationNode != null)
+                {
+                    Add(
+                        "Method",
+                        "MethodDeclaration",
+                        method.MethodDeclarationNode,
+                        GetDirectEmptyStateCreation(method));
+                }
+            }
+
+            return
+            [
+                .. registrations.Values
+                    .OrderBy(
+                        registration => registration.Discriminator,
+                        StringComparer.Ordinal)
+                    .ThenBy(
+                        registration => registration.NodeClass,
+                        StringComparer.Ordinal)
+                    .ThenBy(
+                        registration => registration.DiscriminatorId,
+                        StringComparer.Ordinal)
+            ];
+        }
+
+        private string GetDirectTypeInstanceCreation(
+            TypeDesign type,
+            InstanceDesign fallbackInstance)
+        {
+            if (m_nodes.TryGetValue(
+                    type.SymbolicId,
+                    out NodeToGenerate typeNode) &&
+                typeNode.Instance?.Design is InstanceDesign typeInstance)
+            {
+                return GetDirectEmptyStateCreation(typeInstance);
+            }
+            return GetDirectEmptyStateCreation(fallbackInstance);
+        }
+
+        private string GetDirectEmptyStateCreation(InstanceDesign instance)
+        {
+            string factory = instance.GetNodeStateClassName(
+                m_context.ModelDesign.TargetNamespace.Value,
+                m_context.ModelDesign.Namespaces,
+                asFactory: true);
+            return ConvertStateFactoryToDirectConstructor(factory);
+        }
+
+        private string GetDirectEmptyStateCreation(MethodDesign method)
+        {
+            string factory = method.GetNodeStateClassName(
+                m_context.ModelDesign.TargetNamespace.Value,
+                m_context.ModelDesign.Namespaces,
+                asFactory: true);
+            return ConvertStateFactoryToDirectConstructor(factory);
+        }
+
+        private static string ConvertStateFactoryToDirectConstructor(
+            string factory)
+        {
+            if (string.IsNullOrEmpty(factory))
+            {
+                return null;
+            }
+            if (factory.StartsWith("new ", StringComparison.Ordinal))
+            {
+                return factory + "(null)";
+            }
+
+            const string withMarker = ".With<";
+            int withIndex = factory.LastIndexOf(
+                withMarker,
+                StringComparison.Ordinal);
+            if (withIndex >= 0)
+            {
+                string stateType = factory[..withIndex];
+                string builderType = factory[(withIndex + ".With".Length)..];
+                return "new " +
+                    stateType +
+                    ".Implementation" +
+                    builderType +
+                    "(null)";
+            }
+
+            return null;
+        }
+
+        private static string GetImportNodeClass(InstanceDesign instance)
+        {
+            return instance switch
+            {
+                ObjectDesign => "Object",
+                VariableDesign => "Variable",
+                MethodDesign => "Method",
+                _ => null
+            };
         }
 
         private TemplateString LoadTemplate_ListOfNodeStateActivators(ILoadContext context)
@@ -4185,7 +4804,28 @@ namespace Opc.Ua.SourceGeneration
             string BrowseName,
             Parameter[] Arguments);
 
+        private sealed record ImportFactoryRegistration(
+            string NodeClass,
+            string Discriminator,
+            string DiscriminatorId,
+            string CreateExpression);
+
         private const string kNamespaceTableContextVariable = "context.NamespaceUris";
+
+        private static readonly HashSet<string> s_reservedGraphBuilderMethodNames =
+        [
+            "Add",
+            "AddFolder",
+            "AddMethod",
+            "AddObject",
+            "AddVariable",
+            "Import",
+            "Node",
+            "NodeFromTypeId",
+            "Variable",
+            "VariableFromDataTypeId",
+            "VariableFromTypeId"
+        ];
 
         private static readonly XmlQualifiedName s_inputArgumentsBrowseName = new(
             "InputArguments",

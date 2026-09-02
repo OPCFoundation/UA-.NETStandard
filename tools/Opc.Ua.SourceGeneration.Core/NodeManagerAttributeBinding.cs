@@ -72,6 +72,12 @@ namespace Opc.Ua.SourceGeneration
         public bool GenerateFactory { get; init; } = true;
 
         /// <summary>
+        /// Whether to emit the compositional node-source migration artifact
+        /// alongside the legacy generated node manager.
+        /// </summary>
+        public bool GenerateNodeSource { get; init; }
+
+        /// <summary>
         /// Additional namespace URIs (beyond the model namespace) that
         /// the generated constructor reports to the base node manager,
         /// e.g. a separate instance namespace. <c>null</c> when the

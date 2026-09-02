@@ -1,0 +1,238 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+ * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
+ *
+ * OPC Foundation MIT License 1.00
+ *
+ * Permission is hereby granted, free of charge, to any person
+ * obtaining a copy of this software and associated documentation
+ * files (the "Software"), to deal in the Software without
+ * restriction, including without limitation the rights to use,
+ * copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following
+ * conditions:
+ *
+ * The above copyright notice and this permission notice shall be
+ * included in all copies or substantial portions of the Software.
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+ * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+ * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ * OTHER DEALINGS IN THE SOFTWARE.
+ *
+ * The complete license agreement can be found here:
+ * http://opcfoundation.org/License/MIT/1.00/
+-->
+<UANodeSet xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd"
+           xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd">
+  <NamespaceUris>
+    <Uri>urn:opcfoundation.org:2026-09:GeneratedNodeSource</Uri>
+  </NamespaceUris>
+  <Models>
+    <Model ModelUri="urn:opcfoundation.org:2026-09:GeneratedNodeSource"
+           PublicationDate="2026-09-02T00:00:00Z"
+           Version="1.0.0">
+      <RequiredModel ModelUri="http://opcfoundation.org/UA/"
+                     PublicationDate="2025-12-25T00:00:00Z"
+                     Version="1.05.07"/>
+    </Model>
+  </Models>
+  <Aliases>
+    <Alias Alias="Argument">i=296</Alias>
+    <Alias Alias="BaseDataVariableType">i=63</Alias>
+    <Alias Alias="BaseObjectType">i=58</Alias>
+    <Alias Alias="HasComponent">i=47</Alias>
+    <Alias Alias="HasModellingRule">i=37</Alias>
+    <Alias Alias="HasProperty">i=46</Alias>
+    <Alias Alias="HasSubtype">i=45</Alias>
+    <Alias Alias="HasTypeDefinition">i=40</Alias>
+    <Alias Alias="Int32">i=6</Alias>
+    <Alias Alias="Mandatory">i=78</Alias>
+    <Alias Alias="Organizes">i=35</Alias>
+    <Alias Alias="PropertyType">i=68</Alias>
+  </Aliases>
+
+  <UAVariableType NodeId="ns=1;i=1001"
+                  BrowseName="1:CustomValueType"
+                  DataType="i=6">
+    <DisplayName>CustomValueType</DisplayName>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">BaseDataVariableType</Reference>
+    </References>
+  </UAVariableType>
+
+  <UAMethod NodeId="ns=1;i=1010"
+            BrowseName="1:CalibrateMethodType">
+    <DisplayName>CalibrateMethodType</DisplayName>
+    <References>
+      <Reference ReferenceType="HasProperty">ns=1;i=1011</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=1012</Reference>
+    </References>
+  </UAMethod>
+
+  <UAVariable NodeId="ns=1;i=1011"
+              BrowseName="InputArguments"
+              ParentNodeId="ns=1;i=1010"
+              DataType="i=296"
+              ValueRank="1"
+              ArrayDimensions="1">
+    <DisplayName>InputArguments</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">PropertyType</Reference>
+      <Reference ReferenceType="HasModellingRule">Mandatory</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1010</Reference>
+    </References>
+    <Value>
+      <uax:ListOfExtensionObject>
+        <uax:ExtensionObject>
+          <uax:TypeId>
+            <uax:Identifier>i=297</uax:Identifier>
+          </uax:TypeId>
+          <uax:Body>
+            <uax:Argument>
+              <uax:Name>target</uax:Name>
+              <uax:DataType>
+                <uax:Identifier>i=6</uax:Identifier>
+              </uax:DataType>
+              <uax:ValueRank>-1</uax:ValueRank>
+              <uax:ArrayDimensions />
+              <uax:Description />
+            </uax:Argument>
+          </uax:Body>
+        </uax:ExtensionObject>
+      </uax:ListOfExtensionObject>
+    </Value>
+  </UAVariable>
+
+  <UAVariable NodeId="ns=1;i=1012"
+              BrowseName="OutputArguments"
+              ParentNodeId="ns=1;i=1010"
+              DataType="i=296"
+              ValueRank="1"
+              ArrayDimensions="1">
+    <DisplayName>OutputArguments</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">PropertyType</Reference>
+      <Reference ReferenceType="HasModellingRule">Mandatory</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1010</Reference>
+    </References>
+    <Value>
+      <uax:ListOfExtensionObject>
+        <uax:ExtensionObject>
+          <uax:TypeId>
+            <uax:Identifier>i=297</uax:Identifier>
+          </uax:TypeId>
+          <uax:Body>
+            <uax:Argument>
+              <uax:Name>accepted</uax:Name>
+              <uax:DataType>
+                <uax:Identifier>i=6</uax:Identifier>
+              </uax:DataType>
+              <uax:ValueRank>-1</uax:ValueRank>
+              <uax:ArrayDimensions />
+              <uax:Description />
+            </uax:Argument>
+          </uax:Body>
+        </uax:ExtensionObject>
+      </uax:ListOfExtensionObject>
+    </Value>
+  </UAVariable>
+
+  <UAObjectType NodeId="ns=1;i=1000"
+                BrowseName="1:DeviceType">
+    <DisplayName>DeviceType</DisplayName>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">BaseObjectType</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=1002</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=1003</Reference>
+    </References>
+  </UAObjectType>
+
+  <UAVariable NodeId="ns=1;i=1002"
+              BrowseName="1:Value"
+              ParentNodeId="ns=1;i=1000"
+              DataType="i=6">
+    <DisplayName>Value</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">ns=1;i=1001</Reference>
+      <Reference ReferenceType="HasModellingRule">Mandatory</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1000</Reference>
+    </References>
+  </UAVariable>
+
+  <UAMethod NodeId="ns=1;i=1003"
+            BrowseName="1:Calibrate"
+            ParentNodeId="ns=1;i=1000"
+            MethodDeclarationId="ns=1;i=1010">
+    <DisplayName>Calibrate</DisplayName>
+    <References>
+      <Reference ReferenceType="HasModellingRule">Mandatory</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1000</Reference>
+    </References>
+  </UAMethod>
+
+  <UAObject NodeId="ns=1;i=2000"
+            BrowseName="1:Device"
+            ParentNodeId="i=85">
+    <DisplayName>Device</DisplayName>
+    <References>
+      <Reference ReferenceType="Organizes" IsForward="false">i=85</Reference>
+      <Reference ReferenceType="HasTypeDefinition">ns=1;i=1000</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=2001</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=2002</Reference>
+    </References>
+  </UAObject>
+
+  <UAVariable NodeId="ns=1;i=2001"
+              BrowseName="1:Value"
+              ParentNodeId="ns=1;i=2000"
+              DataType="i=6">
+    <DisplayName>Value</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">ns=1;i=1001</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=2000</Reference>
+    </References>
+  </UAVariable>
+
+  <UAMethod NodeId="ns=1;i=2002"
+            BrowseName="1:Calibrate"
+            ParentNodeId="ns=1;i=2000"
+            MethodDeclarationId="ns=1;i=1003">
+    <DisplayName>Calibrate</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=2000</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=2003</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=2004</Reference>
+    </References>
+  </UAMethod>
+
+  <UAVariable NodeId="ns=1;i=2003"
+              BrowseName="InputArguments"
+              ParentNodeId="ns=1;i=2002"
+              DataType="i=296"
+              ValueRank="1"
+              ArrayDimensions="1">
+    <DisplayName>InputArguments</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">PropertyType</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=2002</Reference>
+    </References>
+  </UAVariable>
+
+  <UAVariable NodeId="ns=1;i=2004"
+              BrowseName="OutputArguments"
+              ParentNodeId="ns=1;i=2002"
+              DataType="i=296"
+              ValueRank="1"
+              ArrayDimensions="1">
+    <DisplayName>OutputArguments</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">PropertyType</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=2002</Reference>
+    </References>
+  </UAVariable>
+</UANodeSet>

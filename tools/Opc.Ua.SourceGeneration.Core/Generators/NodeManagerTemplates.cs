@@ -93,7 +93,10 @@ namespace Opc.Ua.SourceGeneration
                         global::System.Threading.CancellationToken cancellationToken = default)
                     {
                         return new global::System.Threading.Tasks.ValueTask<global::Opc.Ua.NodeStateCollection>(
-                            new global::Opc.Ua.NodeStateCollection().Add{{Tokens.Namespace}}(context));
+                            global::{{Tokens.ModelNamespacePrefix}}.{{Tokens.Namespace}}Extensions.
+                                Add{{Tokens.Namespace}}(
+                                    new global::Opc.Ua.NodeStateCollection(),
+                                    context));
                     }
 
                     /// <inheritdoc/>
@@ -316,6 +319,126 @@ namespace Opc.Ua.SourceGeneration
                         return new global::System.Threading.Tasks.ValueTask<global::Opc.Ua.Server.IAsyncNodeManager>(
                             new {{Tokens.NodeManagerClassName}}(server, configuration));
                     }
+                }
+            }
+            """);
+
+        /// <summary>
+        /// Top-level template for the opt-in compositional node source.
+        /// </summary>
+        public static readonly TemplateString NodeSourceFile = TemplateString.Parse(
+            $$"""
+            {{Tokens.CodeHeader}}
+
+            namespace {{Tokens.NamespacePrefix}}
+            {
+                /// <summary>
+                /// Source-generated compositional node source for the
+                /// <c>{{Tokens.NamespaceUri}}</c> namespace.
+                /// </summary>
+                /// <remarks>
+                /// Each <see cref="BuildAsync"/> invocation materializes a new
+                /// node-state graph. The legacy generated
+                /// <see cref="{{Tokens.NodeManagerClassName}}"/> remains available
+                /// while applications migrate to
+                /// <see cref="global::Opc.Ua.Server.Nodes.INodeSource"/>.
+                /// </remarks>
+                [global::System.CodeDom.Compiler.GeneratedCodeAttribute("{{Tokens.Tool}}", "{{Tokens.Version}}")]
+                public sealed partial class {{Tokens.NodeSourceClassName}} :
+                    global::Opc.Ua.Server.Nodes.INodeSource,
+                    global::Opc.Ua.Server.Nodes.INodeSetImportFactoryProvider
+                {
+                    /// <summary>
+                    /// Initializes a new <see cref="{{Tokens.NodeSourceClassName}}"/>.
+                    /// </summary>
+                    public {{Tokens.NodeSourceClassName}}()
+                    {
+                    }
+
+                    /// <inheritdoc/>
+                    public global::Opc.Ua.ArrayOf<string> NamespaceUris
+                        => new global::Opc.Ua.ArrayOf<string>(
+                            new string[] { {{Tokens.NamespaceUri}}{{Tokens.AdditionalNamespaceUris}} });
+
+                    /// <summary>
+                    /// Configures the freshly materialized graph through the
+                    /// public compositional builder.
+                    /// </summary>
+                    partial void Configure(
+                        global::Opc.Ua.Server.Nodes.INodeGraphBuilder builder);
+
+                    /// <summary>
+                    /// Configures the freshly materialized graph through the
+                    /// generated typed traversal facade.
+                    /// </summary>
+                    partial void Configure(I{{Tokens.NodeManagerClassName}}Builder builder);
+
+                    /// <summary>
+                    /// Extension seam for a generated behavior-registration
+                    /// partial. It intentionally uses only public contracts.
+                    /// </summary>
+                    partial void ConfigureBehaviorRegistrations(
+                        global::Opc.Ua.Server.Nodes.INodeGraphBuilder builder);
+
+                    /// <inheritdoc/>
+                    public global::System.Threading.Tasks.ValueTask BuildAsync(
+                        global::Opc.Ua.Server.Nodes.INodeGraphBuilder builder,
+                        global::System.Threading.CancellationToken cancellationToken = default)
+                    {
+                        if (builder == null)
+                        {
+                            throw new global::System.ArgumentNullException(nameof(builder));
+                        }
+
+                        cancellationToken.ThrowIfCancellationRequested();
+                        global::Opc.Ua.NodeStateCollection __nodes =
+                            global::{{Tokens.ModelNamespacePrefix}}.{{Tokens.Namespace}}Extensions.
+                                Add{{Tokens.Namespace}}(
+                                    new global::Opc.Ua.NodeStateCollection(),
+                                    builder.Context);
+                        foreach (global::Opc.Ua.NodeState __node in __nodes)
+                        {
+                            cancellationToken.ThrowIfCancellationRequested();
+                            builder.AddRoot(__node);
+                        }
+
+                        Configure(builder);
+                        Configure(new {{Tokens.NodeManagerClassName}}TypedBuilder(builder));
+                        ConfigureBehaviorRegistrations(builder);
+                        return default;
+                    }
+
+                    /// <inheritdoc/>
+                    public global::Opc.Ua.ArrayOf<
+                        global::Opc.Ua.Server.Nodes.INodeSetImportFactory>
+                        GetNodeSetImportFactories()
+                    {
+                        var __factories = new global::System.Collections.Generic.List<
+                            global::Opc.Ua.Server.Nodes.INodeSetImportFactory>();
+                        global::Opc.Ua.ArrayOf<
+                            global::Opc.Ua.Server.Nodes.INodeSetImportFactory>
+                            __generatedFactories =
+                                global::{{Tokens.ModelNamespacePrefix}}.
+                                    {{Tokens.NodeSetImportFactoryProviderClassName}}.Instance.
+                                    GetNodeSetImportFactories();
+                        for (int __index = 0;
+                            __index < __generatedFactories.Count;
+                            __index++)
+                        {
+                            __factories.Add(__generatedFactories[__index]);
+                        }
+                        AddNodeSetImportFactories(__factories);
+                        return new global::Opc.Ua.ArrayOf<
+                            global::Opc.Ua.Server.Nodes.INodeSetImportFactory>(
+                                __factories.ToArray());
+                    }
+
+                    /// <summary>
+                    /// Adds import factories supplied by dependency models.
+                    /// </summary>
+                    partial void AddNodeSetImportFactories(
+                        global::System.Collections.Generic.List<
+                            global::Opc.Ua.Server.Nodes.INodeSetImportFactory> factories);
                 }
             }
             """);

@@ -134,7 +134,32 @@ namespace Opc.Ua.Server.Fluent
             TState node,
             NodeId parentId)
         {
-            return AddNode(node, parentId);
+            return AddNode(node, parentId, attachDefaultParent: true);
+        }
+
+        INodeBuilder<TState> INodeGraphBuilder.AddRoot<TState>(TState node)
+        {
+            return AddNode(node, NodeId.Null, attachDefaultParent: false);
+        }
+
+        bool INodeGraphBuilder.TryGetNode(
+            NodeId nodeId,
+            out NodeState? node)
+        {
+            ThrowIfGraphAuthoringUnavailable();
+            ThrowIfSealed();
+            if (nodeId.IsNull)
+            {
+                node = null;
+                return false;
+            }
+            if (m_authoredNodes.TryGetValue(nodeId, out node))
+            {
+                return true;
+            }
+
+            node = m_nodeIdResolver(nodeId);
+            return node is not null;
         }
 
         void INodeGraphBuilder.Import(UANodeSet nodeSet)
@@ -161,7 +186,8 @@ namespace Opc.Ua.Server.Fluent
 
         private NodeBuilder<TState> AddNode<TState>(
             TState node,
-            NodeId parentId)
+            NodeId parentId,
+            bool attachDefaultParent = true)
             where TState : NodeState
         {
             ThrowIfGraphAuthoringUnavailable();
@@ -172,7 +198,7 @@ namespace Opc.Ua.Server.Fluent
                 throw new ArgumentNullException(nameof(node));
             }
 
-            AttachToParent(node, parentId);
+            AttachToParent(node, parentId, attachDefaultParent);
             PrepareNodeIds(node);
             IndexAuthoredSubtree(node);
 
@@ -919,7 +945,10 @@ namespace Opc.Ua.Server.Fluent
             return m_rootResolver(browseName);
         }
 
-        private void AttachToParent(NodeState node, NodeId parentId)
+        private void AttachToParent(
+            NodeState node,
+            NodeId parentId,
+            bool attachDefaultParent)
         {
             if (node is not BaseInstanceState instance)
             {
@@ -976,12 +1005,13 @@ namespace Opc.Ua.Server.Fluent
             }
             else
             {
-                if (effectiveParentId.IsNull)
+                if (effectiveParentId.IsNull && attachDefaultParent)
                 {
                     effectiveParentId = ObjectIds.ObjectsFolder;
                 }
 
-                if (!m_authoredNodes.TryGetValue(effectiveParentId, out parent))
+                if (!effectiveParentId.IsNull &&
+                    !m_authoredNodes.TryGetValue(effectiveParentId, out parent))
                 {
                     parent = m_nodeIdResolver(effectiveParentId);
                 }
@@ -996,7 +1026,7 @@ namespace Opc.Ua.Server.Fluent
                 }
             }
 
-            if (useDefaultReferenceType)
+            if (useDefaultReferenceType && !effectiveParentId.IsNull)
             {
                 instance.ReferenceTypeId =
                     effectiveParentId == ObjectIds.ObjectsFolder ||
@@ -1011,10 +1041,13 @@ namespace Opc.Ua.Server.Fluent
                 return;
             }
 
-            instance.AddReferenceIfMissing(
-                instance.ReferenceTypeId,
-                true,
-                effectiveParentId);
+            if (!effectiveParentId.IsNull)
+            {
+                instance.AddReferenceIfMissing(
+                    instance.ReferenceTypeId,
+                    true,
+                    effectiveParentId);
+            }
         }
 
         private void PrepareNodeIds(NodeState node)

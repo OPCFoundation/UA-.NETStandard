@@ -44,6 +44,7 @@
   - [What the generator produces](#what-the-generator-produces)
   - [Opting in](#opting-in)
     - [Per-class opt-in via [NodeManager] (recommended)](#per-class-opt-in-via-nodemanager-recommended)
+    - [Generated node-source migration mode](#generated-node-source-migration-mode)
     - [Project-wide opt-in via MSBuild property (legacy)](#project-wide-opt-in-via-msbuild-property-legacy)
   - [Wiring callbacks: the Configure partial](#wiring-callbacks-the-configure-partial)
     - [Addressing modes](#addressing-modes)
@@ -752,6 +753,10 @@ documents. Import factories can select instances by TypeDefinition, methods by
 MethodDeclarationId, or an exact node by NodeId. Exact-node registrations are
 used for generated child slots such as method arguments.
 
+Models using `[NodeManager(GenerateNodeSource = true)]` receive a generated
+`INodeSource`, typed graph-creation helpers, and a generated import-factory
+provider. See [Generated node-source migration mode](#generated-node-source-migration-mode).
+
 Use [runtime NodeSets](RuntimeNodeSets.md) when the files or streams should be registered directly
 without an application-owned `INodeSource`.
 
@@ -938,6 +943,22 @@ namespace (legacy MSBuild mode) or the user class's namespace
   - Both members are `virtual` so consumers can subclass to add a second
     namespace or swap in a manager subclass.
 
+With the explicit attribute option `GenerateNodeSource = true`, generation also
+adds:
+
+- `public sealed partial class {UserClass}Source : INodeSource,
+  INodeSetImportFactoryProvider`;
+- public `Add{ObjectType}`, `Add{VariableType}`, and `Add{MethodType}`
+  extensions on `INodeGraphBuilder`;
+- a public `{Model}NodeSetImportFactoryProvider` backed by sealed singleton
+  factories for type definitions, method declarations, declaration NodeIds,
+  and exact generated child NodeIds.
+
+This migration output is additive. The generated `FluentNodeManagerBase`
+partial and its factory remain present and remain the default hosting path.
+Register either the manager factory or the generated source for a model, not
+both, because they own the same namespace and NodeIds.
+
 `AddNodeManager` on `StandardServer` has overloads for both
 `INodeManagerFactory` and `IAsyncNodeManagerFactory`; the generated
 async factory binds to the latter automatically.
@@ -988,6 +1009,85 @@ or by file stem:
 
 Set `GenerateFactory = false` to suppress factory emission when you want
 to ship a hand-written `IAsyncNodeManagerFactory`.
+
+#### Generated node-source migration mode
+
+Set `GenerateNodeSource = true` on the per-class attribute to emit a
+compositional source alongside, not instead of, the generated manager:
+
+```csharp
+using Opc.Ua.Server.Fluent;
+using Opc.Ua.Server.Nodes;
+using MyModel;
+
+namespace MyCompany.MyServer;
+
+[NodeManager(
+    NamespaceUri = MyModel.Namespaces.MyModel,
+    GenerateNodeSource = true)]
+public partial class MyDeviceNodeManager
+{
+}
+
+public sealed partial class MyDeviceNodeManagerSource
+{
+    partial void Configure(INodeGraphBuilder builder)
+    {
+        INodeBuilder<FolderState> plant =
+            builder.AddFolder(new QualifiedName("Plant"));
+
+        INodeBuilder<MyModel.DeviceState> device =
+            builder.AddDeviceType(
+                new QualifiedName("Device1"),
+                plant.Node.NodeId);
+
+        builder.AddMeasurementType(
+                new QualifiedName("Temperature"),
+                device.Node.NodeId)
+            .OnRead(ReadTemperature);
+    }
+
+    partial void Configure(IMyDeviceNodeManagerBuilder builder)
+    {
+        builder.Device.Builder.OnNodeAdded(OnDeviceAdded);
+    }
+}
+```
+
+`BuildAsync` creates a new `NodeStateCollection`, calls the existing generated
+`Add{Model}(context)` materializer, and adds each root through
+`INodeGraphBuilder.Add`. It then invokes both `Configure` overloads. No mutable
+`NodeState` graph is retained between builds, so reloading the same source
+instance still produces a fresh graph.
+
+The generated source is public, sealed, partial, and has a public parameterless
+constructor, so it can be registered directly or constructed by dependency
+injection:
+
+```csharp
+services.AddOpcUa()
+    .AddServer(options => { /* application and endpoint options */ })
+    .AddNodeSource<MyDeviceNodeManagerSource>();
+```
+
+The source advertises the same model and `AdditionalNamespaceUris` set as the
+legacy manager. It also implements `INodeSetImportFactoryProvider`; therefore,
+any `builder.Import(nodeSet)` call made from the untyped `Configure` hook uses
+the generated direct-constructor factories automatically. The public
+`{Model}NodeSetImportFactoryProvider.Instance` can also be delegated to by
+another `INodeSource`.
+
+Import factories return empty states only. They do not call `Create`,
+`Initialize`, generated `CreateInstanceOf` helpers, or reflection. The NodeSet
+importer applies attributes and references and links typed children afterward.
+Generated exact-NodeId registrations preserve typed parent slots for
+`InputArguments`, `OutputArguments`, optional children, placeholders, and
+other strongly typed generated children.
+
+The generated source declares and invokes a
+`ConfigureBehaviorRegistrations(INodeGraphBuilder)` partial seam. It uses no
+internal behavior contracts; behavior-factory generation can implement that
+seam when those registrations become a public phase.
 
 When the manager also owns namespaces beyond the model's own — most
 commonly a separate *instance* namespace for nodes created at runtime —
