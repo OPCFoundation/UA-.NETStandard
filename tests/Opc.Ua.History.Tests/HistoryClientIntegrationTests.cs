@@ -357,6 +357,109 @@ namespace Opc.Ua.History.Tests
         }
 
         [Test]
+        public async Task InsertCollisionRollsBackEntireBatchAsync()
+        {
+            var client = new HistoryClient(Session);
+            DateTime baseTime = DateTime.UtcNow.AddYears(-10).AddSeconds(1101);
+            DateTime firstTime = baseTime;
+            DateTime existingTime = baseTime.AddSeconds(1);
+            DateTime thirdTime = baseTime.AddSeconds(2);
+
+            DataValue[] existing =
+            [
+                new DataValue(
+                    new Variant(99.0),
+                    StatusCodes.Good,
+                    existingTime,
+                    existingTime)
+            ];
+            IList<StatusCode> seedStatuses = await client.InsertAsync(
+                m_doubleNodeId,
+                existing).ConfigureAwait(false);
+            Assert.That(seedStatuses, Has.Count.EqualTo(1));
+            Assert.That(StatusCode.IsGood(seedStatuses[0]), Is.True);
+
+            IList<StatusCode> statuses = await client.InsertAsync(
+                m_doubleNodeId,
+                [
+                    new DataValue(new Variant(1.0), StatusCodes.Good, firstTime, firstTime),
+                    new DataValue(new Variant(2.0), StatusCodes.Good, existingTime, existingTime),
+                    new DataValue(new Variant(3.0), StatusCodes.Good, thirdTime, thirdTime)
+                ]).ConfigureAwait(false);
+
+            Assert.That(statuses, Has.Count.EqualTo(3));
+            Assert.That(statuses[0], Is.EqualTo(StatusCodes.BadHistoryOperationUnsupported));
+            Assert.That(statuses[1], Is.EqualTo(StatusCodes.BadEntryExists));
+            Assert.That(statuses[2], Is.EqualTo(StatusCodes.BadHistoryOperationUnsupported));
+
+            var remaining = new List<DataValue>();
+            await foreach (DataValue dataValue in client.ReadRawAsync(
+                m_doubleNodeId,
+                firstTime.AddMilliseconds(-1),
+                thirdTime.AddMilliseconds(1)).ConfigureAwait(false))
+            {
+                remaining.Add(dataValue);
+            }
+
+            Assert.That(remaining, Has.Count.EqualTo(1));
+            Assert.That(remaining[0].SourceTimestamp, Is.EqualTo(existingTime));
+            Assert.That(
+                remaining[0].WrappedValue.TryGetValue(out double remainingValue),
+                Is.True);
+            Assert.That(remainingValue, Is.EqualTo(99.0));
+        }
+
+        [Test]
+        public async Task ReadModifiedReturnsValueAndModificationInfoAsync()
+        {
+            var client = new HistoryClient(Session);
+            DateTime sourceTime = DateTime.UtcNow.AddYears(-10).AddSeconds(1201);
+            DateTime beforeReplace = DateTime.UtcNow;
+
+            IList<StatusCode> insertStatuses = await client.InsertAsync(
+                m_doubleNodeId,
+                [
+                    new DataValue(
+                        new Variant(123.0),
+                        StatusCodes.Good,
+                        sourceTime,
+                        sourceTime)
+                ]).ConfigureAwait(false);
+            Assert.That(StatusCode.IsGood(insertStatuses[0]), Is.True);
+
+            IList<StatusCode> replaceStatuses = await client.ReplaceAsync(
+                m_doubleNodeId,
+                [
+                    new DataValue(
+                        new Variant(456.0),
+                        StatusCodes.Good,
+                        sourceTime,
+                        sourceTime)
+                ]).ConfigureAwait(false);
+            Assert.That(StatusCode.IsGood(replaceStatuses[0]), Is.True);
+
+            var modified = new List<ModifiedDataValue>();
+            await foreach (ModifiedDataValue modifiedValue in client.ReadModifiedAsync(
+                m_doubleNodeId,
+                sourceTime.AddMilliseconds(-1),
+                sourceTime.AddMilliseconds(1)).ConfigureAwait(false))
+            {
+                modified.Add(modifiedValue);
+            }
+
+            Assert.That(modified, Has.Count.EqualTo(1));
+            Assert.That(modified[0].Value.SourceTimestamp, Is.EqualTo(sourceTime));
+            Assert.That(
+                modified[0].Value.WrappedValue.TryGetValue(out double priorValue),
+                Is.True);
+            Assert.That(priorValue, Is.EqualTo(123.0));
+            Assert.That(modified[0].Info.UpdateType, Is.EqualTo(HistoryUpdateType.Replace));
+            Assert.That(
+                modified[0].Info.ModificationTime.ToDateTime(),
+                Is.GreaterThanOrEqualTo(beforeReplace));
+        }
+
+        [Test]
         public async Task GetServerCapabilitiesReportsHistoricalAccessAsync()
         {
             var client = new HistoryClient(Session);
@@ -379,11 +482,11 @@ namespace Opc.Ua.History.Tests
             // it returns BadHistoryOperationUnsupported.
             try
             {
-                var values = new List<DataValue>();
-                await foreach (DataValue dv in client.ReadModifiedAsync(
+                var values = new List<ModifiedDataValue>();
+                await foreach (ModifiedDataValue value in client.ReadModifiedAsync(
                     m_doubleNodeId, now.AddMinutes(-1), now))
                 {
-                    values.Add(dv);
+                    values.Add(value);
                 }
 
                 // If we reach here the call succeeded (values may be empty

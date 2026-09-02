@@ -22,10 +22,12 @@ This document is split into:
 │  Opc.Ua.Client.Historian.HistoryClient                        │
 │    ├ ReadRawAsync / ReadModifiedAsync     (IAsyncEnumerable)  │
 │    ├ ReadAtTimeAsync / ReadProcessedAsync (IAsyncEnumerable)  │
-│    ├ ReadAnnotationsAsync                 (IAsyncEnumerable)  │
+│    ├ ReadAnnotationsAsync / ReadEventsAsync                   │
 │    ├ InsertAsync / ReplaceAsync / UpdateAsync                 │
+│    ├ InsertEventsAsync / ReplaceEventsAsync                   │
+│    ├ UpdateEventsAsync / DeleteEventsAsync                    │
 │    ├ DeleteRawAsync / DeleteAtTimeAsync                       │
-│    ├ WriteAnnotationAsync / DeleteAnnotationAsync             │
+│    ├ UpdateStructureDataAsync / WriteAnnotationsAsync         │
 │    ├ GetServerCapabilitiesAsync / GetConfigurationAsync       │
 │    └ session.Historian() extension                            │
 └──────────┬────────────────────────────────────────────────────┘
@@ -62,14 +64,14 @@ This release ships the following Part 11 capabilities:
 | Feature                                | Status     |
 | -------------------------------------- | ---------- |
 | Read raw history                       | ✅ Shipped |
-| Read modified history                  | ✅ Shipped |
+| Read modified history                  | ✅ Shipped — `HistoryClient.ReadModifiedAsync` returns each `DataValue` with its `ModificationInfo`. |
 | Read processed (aggregates)            | ✅ Shipped — streaming `AggregateManager` fallback (paginated via buffered output) or provider push-down. All 37 Part 13 v1.05.07 functions; see the [Aggregates (Part 13)](Aggregates.md) guide. |
 | Read at-time                           | ✅ Shipped via interpolation fallback or provider push-down |
 | Insert / Replace / Update raw values   | ✅ Shipped — per-value best-effort by default, atomic via `IHistorianTransactionalProvider` |
 | Delete raw / Delete at-time            | ✅ Shipped |
-| Annotations (read / write / delete)    | ✅ Shipped — server dispatcher routes the `Annotations` Property to the parent variable's `IHistorianAnnotationProvider`. Fluent `Historize(...)` auto-creates the Annotations property and sets its access-level bits when the provider advertises `InsertAnnotation`. Client surfaces it via `HistoryClient.{Read,Write,Delete}AnnotationAsync`. |
+| Annotations (read / write / delete)    | ✅ Shipped — server dispatcher routes the `Annotations` Property to the parent variable's `IHistorianAnnotationProvider`. Fluent `Historize(...)` auto-creates the Annotations property and sets its access-level bits when the provider advertises `InsertAnnotation`. Client supports single and batched writes/removes through `WriteAnnotationAsync`, `WriteAnnotationsAsync`, and `UpdateStructureDataAsync`. |
 | `HistoryServerCapabilities` population | ✅ Shipped (union of registered providers). `AggregateFunctions` folder populated by `AggregateManager.RegisterFactoryAsync` → `DiagnosticsNodeManager.AddAggregateFunctionAsync`. |
-| Event history (read / write / delete)  | ✅ Shipped — `IHistorianEventProvider`, dispatcher event paths, `InMemoryHistorianProvider` event store. `SelectClauses` projected by browse-name lookup; `WhereClause` evaluated server-side via `HistorianEventFilterTarget` + the framework's `FilterEvaluator`. |
+| Event history (read / write / delete)  | ✅ Shipped — `IHistorianEventProvider`, dispatcher event paths, `InMemoryHistorianProvider` event store, and full `HistoryClient` read/insert/replace/update/delete APIs. `SelectClauses` are projected by browse-name lookup; `WhereClause` is evaluated server-side via `HistorianEventFilterTarget` + the framework's `FilterEvaluator`. |
 | `HistoricalDataConfigurationType`      | ✅ Shipped — eager install via `HistorianBuilder.Historize(..., installConfigurationNode: true, systemContext)`; lazy install on first browse via `installConfigurationOnBrowse: true` (attaches a self-detaching `OnPopulateBrowser` handler). |
 | Sync `CustomNodeManager2` wiring       | ✅ Shipped — sync hooks route through `HistorianDispatcher` (sync-over-async). |
 | Fluent registration                    | ✅ Shipped — `server.UseHistorian().UseInMemory().Historize(variable).RegisterAsDefault()`. |
@@ -478,7 +480,7 @@ All update methods return one `StatusCode` per input value (`IList<StatusCode>`)
 
 ### Atomic batch updates (`IHistorianTransactionalProvider`)
 
-The default contract is per-value best-effort. If your backend supports atomic batch commits, additionally implement `IHistorianTransactionalProvider`. The dispatcher prefers the atomic path when both are available. The atomic contract:
+The default contract is per-value best-effort. If your backend supports atomic batch commits, additionally implement `IHistorianTransactionalProvider`. The dispatcher automatically calls the atomic Insert, Replace, or Update method when the resolved provider implements both interfaces. The atomic contract:
 
 - If every input value is applicable, return one success status per value and commit.
 - If any value cannot be applied, return the per-value failure code(s) and roll back the entire batch — the archive is left in its pre-call state.
@@ -648,11 +650,16 @@ await foreach (DataValue v in historian.ReadRawAsync(
     Console.WriteLine($"{v.SourceTimestamp:o}  {v.Value}");
 }
 
-// Modified history
-await foreach (DataValue v in historian.ReadModifiedAsync(
+// Modified history: prior value plus who/when/how it was changed
+await foreach (ModifiedDataValue modified in historian.ReadModifiedAsync(
     nodeId: temperatureNodeId,
     startTime: DateTime.UtcNow.AddDays(-1),
-    endTime: DateTime.UtcNow)) { /* … */ }
+    endTime: DateTime.UtcNow))
+{
+    Console.WriteLine(
+        $"{modified.Value.SourceTimestamp:o} " +
+        $"{modified.Info.UpdateType} by {modified.Info.UserName}");
+}
 
 // Processed (aggregate) — 1-minute Average buckets
 await foreach (DataValue v in historian.ReadProcessedAsync(
@@ -678,6 +685,36 @@ await foreach (Annotation a in historian.ReadAnnotationsAsync(
 {
     Console.WriteLine($"{a.AnnotationTime:o} {a.UserName}: {a.Message}");
 }
+
+// Historical events. Each field list follows the select-clause order.
+var eventFilter = new EventFilter();
+eventFilter.AddSelectClause(
+    ObjectTypeIds.BaseEventType,
+    BrowseNames.EventId,
+    Attributes.Value);
+eventFilter.AddSelectClause(
+    ObjectTypeIds.BaseEventType,
+    BrowseNames.EventType,
+    Attributes.Value);
+eventFilter.AddSelectClause(
+    ObjectTypeIds.BaseEventType,
+    BrowseNames.Time,
+    Attributes.Value);
+eventFilter.AddSelectClause(
+    ObjectTypeIds.BaseEventType,
+    BrowseNames.Message,
+    Attributes.Value);
+
+await foreach (HistoryEventFieldList fields in historian.ReadEventsAsync(
+    nodeId: notifierId,
+    startTime: DateTime.UtcNow.AddHours(-1),
+    endTime: DateTime.UtcNow,
+    filter: eventFilter))
+{
+    fields.EventFields[0].TryGetValue(out ByteString eventId);
+    fields.EventFields[3].TryGetValue(out LocalizedText message);
+    Console.WriteLine($"{eventId}: {message}");
+}
 ```
 
 ### Writes
@@ -702,7 +739,7 @@ await historian.DeleteRawAsync(temperatureNodeId, fromUtc, untilUtc);
 // Delete by exact timestamps
 await historian.DeleteAtTimeAsync(temperatureNodeId, new[] { tsA, tsB });
 
-// Annotations
+// Single annotation
 await historian.WriteAnnotationAsync(
     variableId: temperatureNodeId,
     annotationTime: DateTime.UtcNow,
@@ -712,7 +749,51 @@ await historian.WriteAnnotationAsync(
 await historian.DeleteAnnotationAsync(
     variableId: temperatureNodeId,
     annotationTime: when);
+
+// Batched annotations use one UpdateStructureDataDetails service operation.
+ArrayOf<Annotation> annotations =
+[
+    new Annotation
+    {
+        AnnotationTime = t1,
+        Message = "calibration started",
+        UserName = "alice"
+    },
+    new Annotation
+    {
+        AnnotationTime = t2,
+        Message = "calibration completed",
+        UserName = "alice"
+    }
+];
+await historian.WriteAnnotationsAsync(temperatureNodeId, annotations);
+await historian.WriteAnnotationsAsync(
+    temperatureNodeId,
+    annotations,
+    PerformUpdateType.Remove);
+
+// Event writes use the same filter and field order as event reads.
+var historicalEvent = new HistoryEventFieldList
+{
+    EventFields =
+    [
+        new Variant(eventId),
+        new Variant(ObjectTypeIds.BaseEventType),
+        new Variant((DateTimeUtc)DateTime.UtcNow),
+        new Variant(new LocalizedText("maintenance started"))
+    ]
+};
+await historian.InsertEventsAsync(notifierId, eventFilter, [historicalEvent]);
+await historian.ReplaceEventsAsync(notifierId, eventFilter, [historicalEvent]);
+await historian.UpdateEventsAsync(notifierId, eventFilter, [historicalEvent]);
+await historian.DeleteEventsAsync(notifierId, [eventId]);
 ```
+
+`PerformUpdateType.Remove` is valid for `UpdateStructureDataDetails`, including
+annotation removal through `UpdateStructureDataAsync` or
+`WriteAnnotationsAsync`. It is not valid for `UpdateDataDetails` in Part 11
+v1.05.07. Use `DeleteAtTimeAsync` to remove exact raw values and
+`DeleteRawAsync` to remove a raw time range.
 
 ### Discovery — capabilities and configuration
 

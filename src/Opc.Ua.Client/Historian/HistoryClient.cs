@@ -102,8 +102,12 @@ namespace Opc.Ua.Client.Historian
                 ReturnBounds = returnBounds
             };
 
-            await foreach (DataValue value in ReadRawOrModifiedAsync(
-                nodeId, details, timestampsToReturn, cancellationToken)
+            await foreach (DataValue value in ReadDetailsAsync(
+                nodeId,
+                new ExtensionObject(details),
+                timestampsToReturn,
+                DecodeHistoryData,
+                cancellationToken)
                 .ConfigureAwait(false))
             {
                 yield return value;
@@ -114,7 +118,7 @@ namespace Opc.Ua.Client.Historian
         /// Reads the modified-history audit trail for a single variable
         /// (Part 11 §5.2.5).
         /// </summary>
-        public async IAsyncEnumerable<DataValue> ReadModifiedAsync(
+        public async IAsyncEnumerable<ModifiedDataValue> ReadModifiedAsync(
             NodeId nodeId,
             DateTime startTime,
             DateTime endTime,
@@ -130,8 +134,12 @@ namespace Opc.Ua.Client.Historian
                 NumValuesPerNode = maxValuesPerNode
             };
 
-            await foreach (DataValue value in ReadRawOrModifiedAsync(
-                nodeId, details, timestampsToReturn, cancellationToken)
+            await foreach (ModifiedDataValue value in ReadDetailsAsync(
+                nodeId,
+                new ExtensionObject(details),
+                timestampsToReturn,
+                DecodeHistoryModifiedData,
+                cancellationToken)
                 .ConfigureAwait(false))
             {
                 yield return value;
@@ -190,12 +198,11 @@ namespace Opc.Ua.Client.Historian
                 EndTime = endTime
             };
 
-            HistoryUpdateResponse response = await Session.HistoryUpdateAsync(
-                null,
-                [new ExtensionObject(details)],
+            HistoryUpdateResult? result = await SendHistoryUpdateAsync(
+                new ExtensionObject(details),
                 cancellationToken).ConfigureAwait(false);
 
-            return response.Results.Count > 0 ? response.Results[0].StatusCode : StatusCodes.BadInternalError;
+            return result?.StatusCode ?? StatusCodes.BadInternalError;
         }
 
         /// <summary>
@@ -218,144 +225,14 @@ namespace Opc.Ua.Client.Historian
                 ReqTimes = typed
             };
 
-            HistoryUpdateResponse response = await Session.HistoryUpdateAsync(
-                null,
-                [new ExtensionObject(details)],
+            HistoryUpdateResult? result = await SendHistoryUpdateAsync(
+                new ExtensionObject(details),
                 cancellationToken).ConfigureAwait(false);
 
-            if (response.Results.Count == 0)
-            {
-                return [];
-            }
-
-            ArrayOf<StatusCode> opResults = response.Results[0].OperationResults;
-            var result = new StatusCode[opResults.Count];
-            for (int i = 0; i < opResults.Count; i++)
-            {
-                result[i] = opResults[i];
-            }
-            return result;
-        }
-
-        private async IAsyncEnumerable<DataValue> ReadRawOrModifiedAsync(
-            NodeId nodeId,
-            ReadRawModifiedDetails details,
-            TimestampsToReturn timestampsToReturn,
-            [EnumeratorCancellation] CancellationToken cancellationToken)
-        {
-            // See HistoryClient.Extras.cs ReadDetailsAsync for the rationale:
-            // tracks the in-flight continuation point so the finally block
-            // can release it when the consumer abandons iteration; counts
-            // consecutive empty pages to detect a buggy server.
-            ByteString continuationPoint = ByteString.Empty;
-            ByteString liveContinuationPoint = ByteString.Empty;
-            ExtensionObject detailsExt = new(details);
-            int emptyPagesInARow = 0;
-            try
-            {
-                while (true)
-                {
-                    var nodesToRead = new HistoryReadValueId[]
-                    {
-                        new()
-                        {
-                            NodeId = nodeId,
-                            ContinuationPoint = continuationPoint
-                        }
-                    };
-
-                    HistoryReadResponse response = await Session.HistoryReadAsync(
-                        null,
-                        detailsExt,
-                        timestampsToReturn,
-                        releaseContinuationPoints: false,
-                        nodesToRead,
-                        cancellationToken).ConfigureAwait(false);
-
-                    if (response.Results.Count == 0)
-                    {
-                        yield break;
-                    }
-
-                    HistoryReadResult result = response.Results[0];
-                    if (StatusCode.IsBad(result.StatusCode))
-                    {
-                        throw new ServiceResultException(result.StatusCode, "HistoryRead returned a bad status.");
-                    }
-
-                    liveContinuationPoint = result.ContinuationPoint;
-
-                    bool yieldedSomething = false;
-                    if (!result.HistoryData.IsNull &&
-                        result.HistoryData.TryGetValue(out HistoryData? hd))
-                    {
-                        DataValue[]? values = hd.DataValues.ToArray();
-                        if (values != null && values.Length > 0)
-                        {
-                            foreach (DataValue v in values)
-                            {
-                                yield return v;
-                            }
-                            yieldedSomething = true;
-                        }
-                    }
-
-                    if (result.ContinuationPoint.IsEmpty)
-                    {
-                        liveContinuationPoint = ByteString.Empty;
-                        yield break;
-                    }
-
-                    if (!yieldedSomething)
-                    {
-                        emptyPagesInARow++;
-                        if (emptyPagesInARow >= 3)
-                        {
-                            throw new ServiceResultException(
-                                StatusCodes.BadInternalError,
-                                "Server returned three consecutive empty paginated history pages with a non-empty continuation point.");
-                        }
-                    }
-                    else
-                    {
-                        emptyPagesInARow = 0;
-                    }
-
-                    continuationPoint = result.ContinuationPoint;
-                }
-            }
-            finally
-            {
-                if (!liveContinuationPoint.IsEmpty)
-                {
-                    try
-                    {
-                        var releaseNodes = new HistoryReadValueId[]
-                        {
-                            new() { NodeId = nodeId, ContinuationPoint = liveContinuationPoint }
-                        };
-                        _ = await Session.HistoryReadAsync(
-                            null,
-                            detailsExt,
-                            timestampsToReturn,
-                            releaseContinuationPoints: true,
-                            releaseNodes,
-                            CancellationToken.None).ConfigureAwait(false);
-                    }
-                    catch (ServiceResultException)
-                    {
-                        // best-effort cleanup
-                    }
-                    catch (TaskCanceledException)
-                    {
-                        // best-effort cleanup
-                    }
-                    catch (OperationCanceledException)
-                    {
-                        // best-effort cleanup
-                    }
-                }
-            }
+            return ToStatusList(GetOperationResults(
+                result,
+                timestamps.Count,
+                useStatusFallback: false));
         }
 
         private async ValueTask<IList<StatusCode>> PerformUpdateAsync(
@@ -377,23 +254,14 @@ namespace Opc.Ua.Client.Historian
                 UpdateValues = updateValues
             };
 
-            HistoryUpdateResponse response = await Session.HistoryUpdateAsync(
-                null,
-                [new ExtensionObject(details)],
+            HistoryUpdateResult? result = await SendHistoryUpdateAsync(
+                new ExtensionObject(details),
                 cancellationToken).ConfigureAwait(false);
 
-            if (response.Results.Count == 0)
-            {
-                return [];
-            }
-
-            ArrayOf<StatusCode> opResults = response.Results[0].OperationResults;
-            var result = new StatusCode[opResults.Count];
-            for (int i = 0; i < opResults.Count; i++)
-            {
-                result[i] = opResults[i];
-            }
-            return result;
+            return ToStatusList(GetOperationResults(
+                result,
+                values.Count,
+                useStatusFallback: false));
         }
     }
 }

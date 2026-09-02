@@ -187,8 +187,9 @@ Client-side feature coverage:
   `AlarmStreamExtensions`; see
   [Alarms and Conditions](AlarmsAndConditions.md).
 - **Historical Access** — `HistoryClient` (`session.Historian()`) for
-  raw, modified, at-time, processed (aggregate), and annotation reads /
-  updates; see [Historical Access](HistoricalAccess.md).
+  raw, modified (including `ModificationInfo`), at-time, processed
+  (aggregate), annotation, and event history reads / updates; see
+  [Historical Access](HistoricalAccess.md).
 - **State Machines** — Streaming and read helpers
   (`GetCurrentFiniteStateAsync`, `ObserveFiniteTransitionsAsync`,
   `WaitForStateAsync`) on the source-generated `*TypeClient` proxies;

@@ -71,7 +71,11 @@ namespace Opc.Ua.Client.Historian
             [EnumeratorCancellation] CancellationToken cancellationToken)
         {
             await foreach (DataValue v in ReadDetailsAsync(
-                nodeId, details, timestampsToReturn, cancellationToken)
+                nodeId,
+                details,
+                timestampsToReturn,
+                DecodeHistoryData,
+                cancellationToken)
                 .ConfigureAwait(false))
             {
                 yield return v;
@@ -121,7 +125,11 @@ namespace Opc.Ua.Client.Historian
             };
 
             await foreach (DataValue v in ReadDetailsAsync(
-                nodeId, new ExtensionObject(details), timestampsToReturn, cancellationToken)
+                nodeId,
+                new ExtensionObject(details),
+                timestampsToReturn,
+                DecodeHistoryData,
+                cancellationToken)
                 .ConfigureAwait(false))
             {
                 yield return v;
@@ -158,8 +166,11 @@ namespace Opc.Ua.Client.Historian
             };
 
             await foreach (DataValue v in ReadDetailsAsync(
-                annotationsNode, new ExtensionObject(details),
-                TimestampsToReturn.Source, cancellationToken).ConfigureAwait(false))
+                annotationsNode,
+                new ExtensionObject(details),
+                TimestampsToReturn.Source,
+                DecodeHistoryData,
+                cancellationToken).ConfigureAwait(false))
             {
                 if (v.WrappedValue.TryGetValue(out ExtensionObject ext) &&
                     !ext.IsNull &&
@@ -182,13 +193,6 @@ namespace Opc.Ua.Client.Historian
             PerformUpdateType performUpdate = PerformUpdateType.Insert,
             CancellationToken cancellationToken = default)
         {
-            NodeId annotationsNode = await ResolveAnnotationsPropertyAsync(
-                variableId, cancellationToken).ConfigureAwait(false);
-            if (annotationsNode.IsNull)
-            {
-                return StatusCodes.BadNodeIdUnknown;
-            }
-
             var annotation = new Annotation
             {
                 Message = message,
@@ -196,33 +200,68 @@ namespace Opc.Ua.Client.Historian
                 AnnotationTime = annotationTime
             };
 
-            var dataValue = new DataValue(
-                new Variant(new ExtensionObject(annotation)),
-                StatusCodes.Good,
-                sourceTimestamp: annotationTime,
-                serverTimestamp: DateTimeUtc.MinValue);
+            ArrayOf<StatusCode> statuses = await WriteAnnotationsAsync(
+                variableId,
+                [annotation],
+                performUpdate,
+                cancellationToken).ConfigureAwait(false);
 
-            var details = new UpdateStructureDataDetails
+            return statuses.Count > 0 ? statuses[0] : StatusCodes.BadInternalError;
+        }
+
+        /// <summary>
+        /// Inserts, replaces, updates, or removes a batch of annotations in one
+        /// <c>UpdateStructureDataDetails</c> request.
+        /// </summary>
+        public async ValueTask<ArrayOf<StatusCode>> WriteAnnotationsAsync(
+            NodeId variableId,
+            ArrayOf<Annotation> annotations,
+            PerformUpdateType performUpdate = PerformUpdateType.Insert,
+            CancellationToken cancellationToken = default)
+        {
+            if (variableId.IsNull)
             {
-                NodeId = annotationsNode,
-                PerformInsertReplace = performUpdate,
-                UpdateValues = new DataValue[] { dataValue }
-            };
-
-            HistoryUpdateResponse response = await Session.HistoryUpdateAsync(
-                null, new ExtensionObject[] { new(details) }, cancellationToken)
-                .ConfigureAwait(false);
-
-            if (response.Results.Count == 0)
-            {
-                return StatusCodes.BadInternalError;
+                throw new ArgumentNullException(nameof(variableId));
             }
-            HistoryUpdateResult result = response.Results[0];
-            if (result.OperationResults.Count > 0)
+            if (annotations.IsNull)
             {
-                return result.OperationResults[0];
+                throw new ArgumentNullException(nameof(annotations));
             }
-            return result.StatusCode;
+
+            NodeId annotationsNode = await ResolveAnnotationsPropertyAsync(
+                variableId, cancellationToken).ConfigureAwait(false);
+            if (annotationsNode.IsNull)
+            {
+                var statuses = new StatusCode[annotations.Count];
+                for (int i = 0; i < statuses.Length; i++)
+                {
+                    statuses[i] = StatusCodes.BadNodeIdUnknown;
+                }
+                return statuses.ToArrayOf();
+            }
+
+            var values = new DataValue[annotations.Count];
+            for (int i = 0; i < values.Length; i++)
+            {
+                Annotation annotation = annotations[i];
+                if (annotation == null)
+                {
+                    throw new ArgumentException(
+                        "The annotations collection contains a null value.",
+                        nameof(annotations));
+                }
+                values[i] = new DataValue(
+                    new Variant(new ExtensionObject(annotation)),
+                    StatusCodes.Good,
+                    sourceTimestamp: annotation.AnnotationTime,
+                    serverTimestamp: DateTimeUtc.MinValue);
+            }
+
+            return await UpdateStructureDataAsync(
+                annotationsNode,
+                performUpdate,
+                values.ToArrayOf(),
+                cancellationToken).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -401,131 +440,6 @@ namespace Opc.Ua.Client.Historian
                 TreatUncertainAsBad = ReadBool(values[2]),
                 UseSlopedExtrapolation = ReadBool(values[3])
             };
-        }
-
-        private async IAsyncEnumerable<DataValue> ReadDetailsAsync(
-            NodeId nodeId,
-            ExtensionObject historyReadDetails,
-            TimestampsToReturn timestampsToReturn,
-            [EnumeratorCancellation] CancellationToken cancellationToken)
-        {
-            // Tracks the in-flight continuation point. When the enumerator
-            // is abandoned mid-iteration (via break/exception/cancellation)
-            // we issue a best-effort release in the finally block to avoid
-            // server-side continuation-point leaks. R3.1: also detects a
-            // buggy server emitting an unbounded sequence of empty pages
-            // with a non-empty continuation point.
-            ByteString continuationPoint = ByteString.Empty;
-            ByteString liveContinuationPoint = ByteString.Empty;
-            int emptyPagesInARow = 0;
-            try
-            {
-                while (true)
-                {
-                    var nodesToRead = new HistoryReadValueId[]
-                    {
-                        new() { NodeId = nodeId, ContinuationPoint = continuationPoint }
-                    };
-
-                    HistoryReadResponse response = await Session.HistoryReadAsync(
-                        null,
-                        historyReadDetails,
-                        timestampsToReturn,
-                        releaseContinuationPoints: false,
-                        nodesToRead,
-                        cancellationToken).ConfigureAwait(false);
-
-                    if (response.Results.Count == 0)
-                    {
-                        yield break;
-                    }
-
-                    HistoryReadResult result = response.Results[0];
-                    if (StatusCode.IsBad(result.StatusCode))
-                    {
-                        throw new ServiceResultException(
-                            result.StatusCode, "HistoryRead returned a bad status.");
-                    }
-
-                    // Capture the server-held CP so the finally block can release it.
-                    liveContinuationPoint = result.ContinuationPoint;
-
-                    bool yieldedSomething = false;
-                    if (!result.HistoryData.IsNull &&
-                        result.HistoryData.TryGetValue(out HistoryData? hd))
-                    {
-                        DataValue[]? values = hd.DataValues.ToArray();
-                        if (values != null && values.Length > 0)
-                        {
-                            foreach (DataValue v in values)
-                            {
-                                yield return v;
-                            }
-                            yieldedSomething = true;
-                        }
-                    }
-
-                    if (result.ContinuationPoint.IsEmpty)
-                    {
-                        // Server has already released the CP — clear our cleanup marker.
-                        liveContinuationPoint = ByteString.Empty;
-                        yield break;
-                    }
-
-                    // R3.1: malformed-server guard.
-                    if (!yieldedSomething)
-                    {
-                        emptyPagesInARow++;
-                        if (emptyPagesInARow >= 3)
-                        {
-                            throw new ServiceResultException(
-                                StatusCodes.BadInternalError,
-                                "Server returned three consecutive empty paginated history pages with a non-empty continuation point.");
-                        }
-                    }
-                    else
-                    {
-                        emptyPagesInARow = 0;
-                    }
-
-                    continuationPoint = result.ContinuationPoint;
-                }
-            }
-            finally
-            {
-                if (!liveContinuationPoint.IsEmpty)
-                {
-                    // Best-effort release. Swallow exceptions because the
-                    // caller may already be tearing down the session, or
-                    // the CP may have expired before this runs.
-                    try
-                    {
-                        var releaseNodes = new HistoryReadValueId[]
-                        {
-                            new() { NodeId = nodeId, ContinuationPoint = liveContinuationPoint }
-                        };
-                        _ = await Session.HistoryReadAsync(
-                            null,
-                            historyReadDetails,
-                            timestampsToReturn,
-                            releaseContinuationPoints: true,
-                            releaseNodes,
-                            CancellationToken.None).ConfigureAwait(false);
-                    }
-                    catch (ServiceResultException)
-                    {
-                        // ignore — best-effort cleanup
-                    }
-                    catch (TaskCanceledException)
-                    {
-                        // ignore — best-effort cleanup
-                    }
-                    catch (OperationCanceledException)
-                    {
-                        // ignore — best-effort cleanup
-                    }
-                }
-            }
         }
 
         private ValueTask<NodeId> ResolveAnnotationsPropertyAsync(

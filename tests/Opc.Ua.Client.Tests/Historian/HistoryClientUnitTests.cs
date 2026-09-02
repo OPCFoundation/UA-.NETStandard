@@ -446,20 +446,29 @@ namespace Opc.Ua.Client.Tests.Historian
                     {
                         StatusCode = StatusCodes.Good,
                         ContinuationPoint = ByteString.Empty,
-                        HistoryData = new ExtensionObject(new HistoryData
+                        HistoryData = new ExtensionObject(new HistoryModifiedData
                         {
                             DataValues =
                             [
                                 new DataValue(new Variant(42), StatusCodes.Good, DateTime.UtcNow)
+                            ],
+                            ModificationInfos =
+                            [
+                                new ModificationInfo
+                                {
+                                    ModificationTime = DateTime.UtcNow,
+                                    UpdateType = HistoryUpdateType.Replace,
+                                    UserName = "operator"
+                                }
                             ]
                         })
                     }]
                 }));
 
             var client = new HistoryClient(mockSession.Object);
-            var values = new List<DataValue>();
+            var values = new List<ModifiedDataValue>();
 
-            await foreach (DataValue value in client.ReadModifiedAsync(
+            await foreach (ModifiedDataValue value in client.ReadModifiedAsync(
                 new NodeId("TestNode", 2),
                 DateTime.UtcNow.AddHours(-1),
                 DateTime.UtcNow,
@@ -470,8 +479,10 @@ namespace Opc.Ua.Client.Tests.Historian
             }
 
             Assert.That(values, Has.Count.EqualTo(1));
-            Assert.That(values[0].WrappedValue.TryGetValue(out int number), Is.True);
+            Assert.That(values[0].Value.WrappedValue.TryGetValue(out int number), Is.True);
             Assert.That(number, Is.EqualTo(42));
+            Assert.That(values[0].Info.UpdateType, Is.EqualTo(HistoryUpdateType.Replace));
+            Assert.That(values[0].Info.UserName, Is.EqualTo("operator"));
             Assert.That(capturedDetails, Is.Not.Null);
             ExtensionObject detailsObject = capturedDetails ?? throw new AssertionException("No ReadModified details captured.");
             Assert.That(detailsObject.TryGetValue(out ReadRawModifiedDetails details), Is.True);

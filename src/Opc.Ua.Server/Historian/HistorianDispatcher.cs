@@ -222,13 +222,46 @@ namespace Opc.Ua.Server.Historian
                 updateType);
 
             ArrayOf<DataValue> values = details.UpdateValues;
-            IList<StatusCode> statuses = details.PerformInsertReplace switch
-            {
-                PerformUpdateType.Insert => await data.InsertAsync(opContext, node.NodeId, ToList(values), cancellationToken).ConfigureAwait(false),
-                PerformUpdateType.Replace => await data.ReplaceAsync(opContext, node.NodeId, ToList(values), cancellationToken).ConfigureAwait(false),
-                PerformUpdateType.Update => await data.UpdateAsync(opContext, node.NodeId, ToList(values), cancellationToken).ConfigureAwait(false),
-                _ => RepeatStatus(StatusCodes.BadInvalidArgument, values.Count)
-            };
+            List<DataValue> updateValues = ToList(values);
+            IList<StatusCode> statuses = provider is IHistorianTransactionalProvider transactional
+                ? details.PerformInsertReplace switch
+                {
+                    PerformUpdateType.Insert => await transactional.InsertAtomicAsync(
+                        opContext,
+                        node.NodeId,
+                        updateValues,
+                        cancellationToken).ConfigureAwait(false),
+                    PerformUpdateType.Replace => await transactional.ReplaceAtomicAsync(
+                        opContext,
+                        node.NodeId,
+                        updateValues,
+                        cancellationToken).ConfigureAwait(false),
+                    PerformUpdateType.Update => await transactional.UpdateAtomicAsync(
+                        opContext,
+                        node.NodeId,
+                        updateValues,
+                        cancellationToken).ConfigureAwait(false),
+                    _ => RepeatStatus(StatusCodes.BadInvalidArgument, values.Count)
+                }
+                : details.PerformInsertReplace switch
+                {
+                    PerformUpdateType.Insert => await data.InsertAsync(
+                        opContext,
+                        node.NodeId,
+                        updateValues,
+                        cancellationToken).ConfigureAwait(false),
+                    PerformUpdateType.Replace => await data.ReplaceAsync(
+                        opContext,
+                        node.NodeId,
+                        updateValues,
+                        cancellationToken).ConfigureAwait(false),
+                    PerformUpdateType.Update => await data.UpdateAsync(
+                        opContext,
+                        node.NodeId,
+                        updateValues,
+                        cancellationToken).ConfigureAwait(false),
+                    _ => RepeatStatus(StatusCodes.BadInvalidArgument, values.Count)
+                };
 
             result.OperationResults = ToStatusArray(statuses);
 
