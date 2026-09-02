@@ -35,8 +35,8 @@ using System.Threading.Tasks;
 namespace Opc.Ua.Gds.Server.Onboarding
 {
     /// <summary>
-    /// Storage abstraction for OPC 10000-100 Onboarding tickets
-    /// (Part 21, OpcUaOnboardingModel.xml). A ticket is the encoded
+    /// Storage abstraction for OPC 10000-21 Onboarding tickets.
+    /// A ticket is the encoded
     /// identifier-and-vendor data block a device presents during
     /// provisioning; the registrar stores them and matches incoming
     /// device certificates against the bundle.
@@ -46,9 +46,9 @@ namespace Opc.Ua.Gds.Server.Onboarding
     /// This is the application-facing facade; the source-generated
     /// <c>BaseTicketType</c> / <c>DeviceIdentityTicketType</c> /
     /// <c>CompositeIdentityTicketType</c> proxies in
-    /// <c>Opc.Ua.Di</c> remain the wire-level encoding. The store
-    /// works with the encoded ticket bytes (the spec's
-    /// <c>EncodedTicket</c> type — a <see cref="byte"/>[] alias).
+    /// <c>Opc.Ua.Onboarding</c> remain the wire-level encoding. The store
+    /// persists the bytes carried by the specification's
+    /// <c>EncodedTicket</c> ByteString subtype.
     /// </para>
     /// <para>
     /// All implementations must be safe for concurrent calls.
@@ -67,8 +67,8 @@ namespace Opc.Ua.Gds.Server.Onboarding
         /// ticket).
         /// </param>
         /// <param name="encodedTicket">
-        /// Encoded ticket bytes (DataType <c>EncodedTicket</c>, a
-        /// <see cref="byte"/>[] alias).
+        /// Encoded ticket bytes carried on the wire as the
+        /// <c>EncodedTicket</c> ByteString subtype.
         /// </param>
         /// <param name="metadata">
         /// Application-supplied metadata for the ticket (kind,
