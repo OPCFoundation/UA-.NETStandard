@@ -48,6 +48,18 @@ For interop with .NET APIs that require `X509Certificate2`, use `certificate.AsX
 
 See [CertificateManager.md](CertificateManager.md#certificate-wrapper-and-reference-counting) for details.
 
+### Opening a certificate store
+
+A `CertificateStoreIdentifier` is only a *description* of a store (`StoreType` / `StorePath`) — the analogue of a `CertificateIdentifier` resolving to a `Certificate`. Every call to `OpenStore` creates and opens a new `ICertificateStore` instance that the caller owns and must dispose:
+
+```csharp
+var identifier = new CertificateStoreIdentifier(storePath);
+using ICertificateStore store = identifier.OpenStore(telemetry);
+CertificateCollection certificates = await store.EnumerateAsync(ct);
+```
+
+A component that accesses a store repeatedly should open one instance, keep it for the component's lifetime and dispose it at shutdown — the store refreshes its parsed-certificate cache itself when the backing data changes — rather than re-open the store per operation.
+
 ### Windows .NET applications
 
 By default the self signed certificates are stored in a **X509Store** called **CurrentUser\\UA_MachineDefault**. The certificates can be viewed or deleted with the Windows Certificate Management Console (certmgr.msc). The *trusted*, *issuer* and *rejected* stores remain in a folder called **OPC Foundation\pki** with a root folder which is specified by the `SpecialFolder` variable **%CommonApplicationData%**. On Windows 7/8/8.1/10 this is usually the invisible folder **C:\ProgramData**.
