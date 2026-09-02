@@ -105,6 +105,53 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             Assert.That(identifier.OpenStore(telemetry), Is.Null);
         }
 
+        [Test]
+        public void OpenStorePropagatesTheOpenFailure()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
+            // an X509 store path without a store name fails in Open; the
+            // just-created store is disposed before the exception surfaces
+            var identifier = new CertificateStoreIdentifier(
+                "not-a-store-path",
+                CertificateStoreType.X509Store);
+            Assert.Throws<ServiceResultException>(() => identifier.OpenStore(telemetry));
+        }
+
+        [Test]
+        public async Task TrustListGetCertificatesReturnsPersistedCertificatesAsync()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            string dir = NewTempDir();
+            try
+            {
+                using Certificate certificate = CertificateBuilder
+                    .Create("CN=TrustList GetCertificates Test")
+                    .SetRSAKeySize(2048)
+                    .CreateForRSA();
+
+                var trustList = new CertificateTrustList
+                {
+                    StoreType = CertificateStoreType.Directory,
+                    StorePath = dir
+                };
+                using (ICertificateStore store = trustList.OpenStore(telemetry))
+                {
+                    await store.AddAsync(certificate).ConfigureAwait(false);
+                }
+
+                using CertificateCollection certs = await trustList
+                    .GetCertificatesAsync(telemetry)
+                    .ConfigureAwait(false);
+                Assert.That(certs, Has.Count.EqualTo(1));
+                Assert.That(certs[0].Thumbprint, Is.EqualTo(certificate.Thumbprint));
+            }
+            finally
+            {
+                Directory.Delete(dir, recursive: true);
+            }
+        }
+
         private static string NewTempDir()
         {
             string dir = Path.Combine(
