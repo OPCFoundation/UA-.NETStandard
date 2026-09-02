@@ -152,6 +152,7 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
                 Assert.That(referenceType.InverseName.Text, Is.EqualTo("IsTypedBy"));
                 Assert.That(view, Is.TypeOf<TypedViewState>());
                 Assert.That(view.ContainsNoLoops, Is.True);
+                Assert.That(view.EventNotifier, Is.EqualTo((byte)1));
                 Assert.That(Find(importer, 200), Is.TypeOf<TypedObjectState>());
                 Assert.That(Find(importer, 201), Is.TypeOf<TypedVariableState>());
                 Assert.That(Find(importer, 202), Is.TypeOf<TypedMethodState>());
@@ -299,6 +300,9 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
                 genericNodes.Single(node => HasNumericIdentifier(node, 202)),
                 typedContext,
                 Find(typedImporter, 202));
+            Assert.That(
+                ((MethodState)Find(typedImporter, 202)).UserExecutable,
+                Is.False);
 
             var genericVariable = (BaseVariableState)genericNodes.Single(
                 node => HasNumericIdentifier(node, 201));
@@ -427,6 +431,38 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
                     child.ReferenceTypeId,
                     Is.EqualTo(ReferenceTypeIds.HasComponent));
             });
+        }
+
+        [Test]
+        public void SameBatchCustomHierarchyRetainsItsReferenceType()
+        {
+            SystemContext context = CreateContext();
+            var importer = new NodeSetImporter(context, factoryProvider: null);
+            UANodeSet nodeSet = ReadNodeSet(
+                """
+                  <UAReferenceType NodeId="ns=1;i=500" BrowseName="1:HasTypedChild">
+                    <DisplayName>HasTypedChild</DisplayName>
+                    <References>
+                      <Reference ReferenceType="i=45" IsForward="false">i=33</Reference>
+                    </References>
+                  </UAReferenceType>
+                  <UAObject NodeId="ns=1;i=1" BrowseName="1:Parent">
+                    <DisplayName>Parent</DisplayName>
+                  </UAObject>
+                  <UAObject NodeId="ns=1;i=2" BrowseName="1:Child"
+                            ParentNodeId="ns=1;i=1">
+                    <DisplayName>Child</DisplayName>
+                    <References>
+                      <Reference ReferenceType="ns=1;i=500" IsForward="false">ns=1;i=1</Reference>
+                    </References>
+                  </UAObject>
+                """);
+
+            importer.Import(nodeSet);
+            importer.Complete();
+
+            var child = (BaseInstanceState)Find(importer, 2);
+            Assert.That(child.ReferenceTypeId, Is.EqualTo(new NodeId(500u, 1)));
         }
 
         [Test]

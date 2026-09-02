@@ -340,11 +340,14 @@ namespace Opc.Ua.Server
             }
 
             if (node is BaseInstanceState { Parent: { } parent } &&
-                !parent.NodeId.IsNull &&
-                parent.NodeId.NamespaceIndex == namespaceIndex)
+                !parent.NodeId.IsNull)
             {
+                string parentIdentifier =
+                    parent.NodeId.NamespaceIndex == namespaceIndex
+                        ? parent.NodeId.IdentifierAsString
+                        : parent.NodeId.ToString();
                 return new NodeId(
-                    $"{parent.NodeId.IdentifierAsString}_{browseName}",
+                    $"{parentIdentifier}_{browseName}",
                     namespaceIndex);
             }
 

@@ -678,19 +678,31 @@ namespace Opc.Ua.Export
         {
             var references = new List<IReference>();
             instance.GetReferences(context!, references);
+            NodeId unresolvedReferenceType = NodeId.Null;
             for (int i = 0; i < references.Count; i++)
             {
                 IReference reference = references[i];
                 if (reference.IsInverse &&
                     !reference.TargetId.IsAbsolute &&
-                    (NodeId)reference.TargetId == parentNodeId &&
-                    (context is null ||
+                    (NodeId)reference.TargetId == parentNodeId)
+                {
+                    if (context is null ||
                         context.TypeTable.IsTypeOf(
                             reference.ReferenceTypeId,
-                            ReferenceTypeIds.HierarchicalReferences)))
-                {
-                    return reference.ReferenceTypeId;
+                            ReferenceTypeIds.HierarchicalReferences))
+                    {
+                        return reference.ReferenceTypeId;
+                    }
+                    if (unresolvedReferenceType.IsNull)
+                    {
+                        unresolvedReferenceType = reference.ReferenceTypeId;
+                    }
                 }
+            }
+
+            if (!unresolvedReferenceType.IsNull)
+            {
+                return unresolvedReferenceType;
             }
 
             return instance is PropertyState
@@ -1326,7 +1338,7 @@ namespace Opc.Ua.Export
                     }
 
                     value.Executable = o.Executable;
-                    value.UserExecutable = o.Executable;
+                    value.UserExecutable = o.UserExecutable;
                     value.MethodDeclarationId = discriminatorId;
                     value.DesignToolOnly = o.DesignToolOnly;
                     importedNode = value;
@@ -1353,6 +1365,7 @@ namespace Opc.Ua.Export
                     }
 
                     value.ContainsNoLoops = o.ContainsNoLoops;
+                    value.EventNotifier = o.EventNotifier;
                     value.DesignToolOnly = o.DesignToolOnly;
                     importedNode = value;
                     break;

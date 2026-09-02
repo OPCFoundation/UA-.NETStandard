@@ -126,6 +126,38 @@ namespace Opc.Ua.Server.Tests.Nodes
         }
 
         [Test]
+        public async Task CrossNamespaceChildrenIncludeParentIdentityAsync()
+        {
+            var source = new CrossNamespaceChildrenSource();
+            IAsyncNodeManager manager = await CreateManagerAsync(source)
+                .ConfigureAwait(false);
+            try
+            {
+                await manager
+                    .CreateAddressSpaceAsync(
+                        new Dictionary<NodeId, IList<IReference>>())
+                    .ConfigureAwait(false);
+
+                Assert.Multiple(() =>
+                {
+                    Assert.That(source.FirstChildId, Is.Not.EqualTo(source.SecondChildId));
+                    Assert.That(source.FirstChildId.NamespaceIndex, Is.EqualTo((ushort)1));
+                    Assert.That(source.SecondChildId.NamespaceIndex, Is.EqualTo((ushort)1));
+                    Assert.That(
+                        ((NodeSourceNodeManager)manager).Find(source.FirstChildId),
+                        Is.Not.Null);
+                    Assert.That(
+                        ((NodeSourceNodeManager)manager).Find(source.SecondChildId),
+                        Is.Not.Null);
+                });
+            }
+            finally
+            {
+                ((IDisposable)manager).Dispose();
+            }
+        }
+
+        [Test]
         public async Task NodeIdsAreFinalBeforeReturnedBuilderIsConfiguredAsync()
         {
             var source = new NodeIdCaptureSource();
@@ -428,6 +460,52 @@ namespace Opc.Ua.Server.Tests.Nodes
             }
 
             private readonly InvalidGraphKind m_kind;
+        }
+
+        private sealed class CrossNamespaceChildrenSource : INodeSource
+        {
+            private const string kInstanceNamespaceUri =
+                "urn:opcfoundation.org:Tests:NodeSource:Instances";
+
+            public ArrayOf<string> NamespaceUris =>
+                [kNamespaceUri, kInstanceNamespaceUri];
+
+            public NodeId FirstChildId { get; private set; }
+
+            public NodeId SecondChildId { get; private set; }
+
+            public ValueTask BuildAsync(
+                INodeGraphBuilder builder,
+                CancellationToken cancellationToken = default)
+            {
+                ushort modelNamespaceIndex =
+                    builder.Context.NamespaceUris.GetIndexOrAppend(kNamespaceUri);
+                ushort instanceNamespaceIndex =
+                    builder.Context.NamespaceUris.GetIndexOrAppend(kInstanceNamespaceUri);
+                INodeBuilder<BaseObjectState> firstParent = builder.Add(
+                    new BaseObjectState(null)
+                    {
+                        BrowseName = new QualifiedName("First", instanceNamespaceIndex)
+                    });
+                INodeBuilder<BaseObjectState> secondParent = builder.Add(
+                    new BaseObjectState(null)
+                    {
+                        BrowseName = new QualifiedName("Second", instanceNamespaceIndex)
+                    });
+                FirstChildId = builder.Add(
+                    new BaseDataVariableState(firstParent.Node)
+                    {
+                        BrowseName = new QualifiedName("Value", modelNamespaceIndex),
+                        DataType = DataTypeIds.Int32
+                    }).Node.NodeId;
+                SecondChildId = builder.Add(
+                    new BaseDataVariableState(secondParent.Node)
+                    {
+                        BrowseName = new QualifiedName("Value", modelNamespaceIndex),
+                        DataType = DataTypeIds.Int32
+                    }).Node.NodeId;
+                return default;
+            }
         }
 
         public enum InvalidGraphKind
