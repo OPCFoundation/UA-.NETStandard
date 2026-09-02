@@ -8,6 +8,15 @@
 
 Analysis performed against commit `e73e71184` on `master`.
 
+> **2.0 transition note (September 2026):** generated application authoring now
+> uses the source-only `[NodeSource]` interface documented in
+> `docs/NodeManagers.md`. The legacy `[NodeManager]` generator remains only for
+> specialized in-repository managers, notably `ReferenceNodeManager`, whose
+> node-management, custom NodeId, history, and sampling capabilities cannot yet
+> be represented by the small source interface without recreating the broad
+> virtual seam. Keep that compatibility path out of public guidance and delete
+> it before the final 2.0 release once those capabilities have narrower modules.
+
 ## Table of contents
 
 - [Purpose](#purpose)
@@ -418,7 +427,7 @@ virtuals that duplicate them.
   narrow seam rather than stacking on the wide one.
 - **Source generators emit against this surface.** The generated `NodeManagerBase` derives
   from `FluentNodeManagerBase`; generator templates must move in lockstep. See
-  [NodeManagers.md](../docs/NodeManagers.md#source-generated-node-managers).
+  [NodeManagers.md](../docs/NodeManagers.md#source-generated-node-sources).
 - **`SampleNodeManager` implements `INodeManager` directly** and is the one external
   adapter for that interface. It either migrates or stays as the demonstration of the
   obsolete path.

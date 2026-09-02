@@ -104,12 +104,12 @@ namespace Opc.Ua.SourceGeneration
         /// <see cref="GeneratorOptions.FluentAccessorsOnly"/> is enabled they are
         /// instead loaded and used to emit typed fluent accessors only.</param>
         /// <param name="nodeManagerBindings">
-        /// Optional <c>[NodeManager]</c> attribute bindings discovered in
+        /// Optional node-manager or node-source attribute bindings discovered in
         /// the consuming compilation. When supplied, each binding is
         /// matched to a design by <see cref="NodeManagerAttributeBinding.NamespaceUri"/>
         /// (preferred) or, if no URI is given, by single-design fallback.
-        /// Matched bindings force <c>GenerateNodeManager = true</c> for the
-        /// design and override the manager class name and namespace.
+        /// Matched bindings select legacy node-manager or node-source
+        /// generation and override the authoring class name and namespace.
         /// </param>
         /// <param name="reportBindingDiagnostic">
         /// Optional callback invoked for each binding-related warning or
@@ -562,7 +562,7 @@ namespace Opc.Ua.SourceGeneration
 
         /// <summary>
         /// Resolve the effective per-design options by overlaying any
-        /// matching <c>[NodeManager]</c> attribute binding on top of the
+        /// matching node-authoring attribute binding on top of the
         /// existing <see cref="DesignFileCollection.Options"/>.
         /// </summary>
         private static DesignFileOptions ApplyNodeManagerBinding(
@@ -615,7 +615,7 @@ namespace Opc.Ua.SourceGeneration
 
             return (effective ?? new DesignFileOptions()) with
             {
-                GenerateNodeManager = true,
+                GenerateNodeManager = match.GenerateNodeManager,
                 NodeManagerNamespace = match.TargetNamespace,
                 NodeManagerClassName = match.TargetClassName,
                 EmitNodeManagerFactory = match.GenerateFactory,
@@ -625,7 +625,7 @@ namespace Opc.Ua.SourceGeneration
         }
 
         /// <summary>
-        /// Report a diagnostic for every <c>[NodeManager]</c> binding that
+        /// Report a diagnostic for every node-authoring binding that
         /// no generation pass matched. Binding resolution runs in two
         /// independent passes (NodeSet2 and ModelDesign); a binding matched
         /// by either pass is recorded in the shared
@@ -637,7 +637,7 @@ namespace Opc.Ua.SourceGeneration
         /// everything else is reported as an unmatched selector.
         /// </summary>
         /// <param name="bindings">
-        /// The full set of discovered <c>[NodeManager]</c> bindings.
+        /// The full set of discovered node-authoring bindings.
         /// </param>
         /// <param name="usedBindings">
         /// The bindings that were matched to a model across all passes.
@@ -658,9 +658,57 @@ namespace Opc.Ua.SourceGeneration
             {
                 return;
             }
-            foreach (NodeManagerAttributeBinding binding in bindings)
+            for (int bindingIndex = 0; bindingIndex < bindings.Count; bindingIndex++)
             {
+                NodeManagerAttributeBinding binding = bindings[bindingIndex];
                 if (usedBindings != null && usedBindings.Contains(binding))
+                {
+                    continue;
+                }
+                NodeManagerAttributeBinding conflictingBinding = usedBindings?.FirstOrDefault(
+                    candidate =>
+                        !candidate.Equals(binding) &&
+                        HasSameSelector(candidate, binding));
+                if (conflictingBinding != null)
+                {
+                    reportBindingDiagnostic(
+                        binding,
+                        "[" + binding.AttributeName + "] on '" +
+                        binding.TargetNamespace +
+                        "." +
+                        binding.TargetClassName +
+                        "' targets the same model as [" +
+                        conflictingBinding.AttributeName +
+                        "] on '" +
+                        conflictingBinding.TargetNamespace +
+                        "." +
+                        conflictingBinding.TargetClassName +
+                        "'. A model can have only one generated authoring class.");
+                    continue;
+                }
+                NodeManagerAttributeBinding earlierBinding = bindings
+                    .Take(bindingIndex)
+                    .FirstOrDefault(candidate => HasSameSelector(candidate, binding));
+                if (earlierBinding != null)
+                {
+                    reportBindingDiagnostic(
+                        binding,
+                        "[" + binding.AttributeName + "] on '" +
+                        binding.TargetNamespace +
+                        "." +
+                        binding.TargetClassName +
+                        "' targets the same model selector as [" +
+                        earlierBinding.AttributeName +
+                        "] on '" +
+                        earlierBinding.TargetNamespace +
+                        "." +
+                        earlierBinding.TargetClassName +
+                        "'. A model can have only one generated authoring class.");
+                    continue;
+                }
+                if (bindings
+                    .Skip(bindingIndex + 1)
+                    .Any(candidate => HasSameSelector(candidate, binding)))
                 {
                     continue;
                 }
@@ -670,7 +718,7 @@ namespace Opc.Ua.SourceGeneration
                 {
                     reportBindingDiagnostic(
                         binding,
-                        "[NodeManager] on '" +
+                        "[" + binding.AttributeName + "] on '" +
                         binding.TargetNamespace +
                         "." +
                         binding.TargetClassName +
@@ -686,7 +734,7 @@ namespace Opc.Ua.SourceGeneration
                         : "(no selector)";
                 reportBindingDiagnostic(
                     binding,
-                    "[NodeManager] on '" +
+                    "[" + binding.AttributeName + "] on '" +
                     binding.TargetNamespace +
                     "." +
                     binding.TargetClassName +
@@ -694,6 +742,29 @@ namespace Opc.Ua.SourceGeneration
                     selector +
                     ").");
             }
+        }
+
+        private static bool HasSameSelector(
+            NodeManagerAttributeBinding left,
+            NodeManagerAttributeBinding right)
+        {
+            if (!string.IsNullOrEmpty(left.NamespaceUri) ||
+                !string.IsNullOrEmpty(right.NamespaceUri))
+            {
+                return string.Equals(
+                    left.NamespaceUri,
+                    right.NamespaceUri,
+                    StringComparison.Ordinal);
+            }
+            if (!string.IsNullOrEmpty(left.Design) ||
+                !string.IsNullOrEmpty(right.Design))
+            {
+                return string.Equals(
+                    left.Design,
+                    right.Design,
+                    StringComparison.OrdinalIgnoreCase);
+            }
+            return true;
         }
 
         /// <summary>
@@ -763,13 +834,13 @@ namespace Opc.Ua.SourceGeneration
         /// fluent accessors only. Transitive nodeset dependencies found in
         /// the map are also satisfied without erroring.</param>
         /// <param name="nodeManagerBindings">
-        /// Optional <c>[NodeManager]</c> attribute bindings discovered in
+        /// Optional node-manager or node-source attribute bindings discovered in
         /// the consuming compilation. When supplied, each binding is
         /// matched to a nodeset model by
         /// <see cref="NodeManagerAttributeBinding.NamespaceUri"/> (preferred)
         /// or, if no URI is given, by single-design fallback. Matched
-        /// bindings force <c>GenerateNodeManager = true</c> for the model
-        /// and override the manager class name and namespace.
+        /// bindings select legacy node-manager or node-source generation and
+        /// override the authoring class name and namespace.
         /// </param>
         /// <param name="reportBindingDiagnostic">
         /// Optional callback invoked for each binding-related warning or
@@ -1160,9 +1231,8 @@ namespace Opc.Ua.SourceGeneration
             var nodeIdGenerator = new NodeIdGenerator(context);
             nodeIdGenerator.Emit();
             bool generateNodeSource = designOptions?.GenerateNodeSource == true;
-            bool generateNodeManager =
-                designOptions?.GenerateNodeManager == true ||
-                generateNodeSource;
+            bool generateNodeManager = designOptions?.GenerateNodeManager == true;
+            bool generateNodeAuthoring = generateNodeManager || generateNodeSource;
             var nodeStateCodeGenerator = new NodeStateGenerator(context)
             {
                 GenerateNodeSourceSupport = generateNodeSource
@@ -1171,13 +1241,15 @@ namespace Opc.Ua.SourceGeneration
             var dataTypesGenerator = new DataTypeGenerator(context);
             dataTypesGenerator.Emit();
 
-            if (generateNodeManager)
+            if (generateNodeAuthoring)
             {
                 new NodeManagerGenerator(context)
                 {
                     OverrideNamespace = designOptions.NodeManagerNamespace,
                     OverrideClassName = designOptions.NodeManagerClassName,
-                    EmitFactory = designOptions.EmitNodeManagerFactory,
+                    EmitNodeManager = generateNodeManager,
+                    EmitFactory = generateNodeManager &&
+                        designOptions.EmitNodeManagerFactory,
                     EmitNodeSource = generateNodeSource,
                     AdditionalNamespaceUris = designOptions.NodeManagerAdditionalNamespaceUris
                 }.Emit();
@@ -1191,15 +1263,27 @@ namespace Opc.Ua.SourceGeneration
             // GenerateNodeManager=true we ALWAYS emit (any consumer
             // that wires a node manager already references
             // Opc.Ua.Server, so suppression is unnecessary).
-            bool emitTypedAccessors = generateNodeManager ||
+            bool emitTypedAccessors = generateNodeAuthoring ||
                 context.Options?.OmitFluentApi != true;
             if (emitTypedAccessors)
             {
+                string fluentAuthoringClassName = designOptions?.NodeManagerClassName;
+                if (generateNodeSource &&
+                    !generateNodeManager &&
+                    string.IsNullOrEmpty(fluentAuthoringClassName))
+                {
+                    fluentAuthoringClassName =
+                        context.ModelDesign.TargetNamespace.Prefix.Replace(
+                            ".",
+                            string.Empty,
+                            StringComparison.Ordinal) +
+                        "NodeSource";
+                }
                 new FluentBuilderGenerator(context)
                 {
                     OverrideManagerNamespace = designOptions?.NodeManagerNamespace,
-                    OverrideManagerClassName = designOptions?.NodeManagerClassName,
-                    GenerateManagerWrappers = generateNodeManager,
+                    OverrideManagerClassName = fluentAuthoringClassName,
+                    GenerateManagerWrappers = generateNodeAuthoring,
                     EmitFluentAccessors = emitTypedAccessors
                 }.Emit();
             }

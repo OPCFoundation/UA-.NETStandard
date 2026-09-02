@@ -32,13 +32,15 @@ using System;
 namespace Opc.Ua.Server.Fluent
 {
     /// <summary>
-    /// Marks a user-authored partial class as the source-generated
+    /// Marks a user-authored partial class as a legacy source-generated
     /// <see cref="CustomNodeManager2"/> target for an OPC UA model design.
     /// </summary>
     /// <remarks>
     /// <para>
-    /// The OPC UA source generator scans for this attribute. When found,
-    /// it emits a companion <c>partial class</c> (in the same namespace
+    /// The OPC UA source generator scans for this attribute for specialized
+    /// in-repository managers that still require the inheritance interface.
+    /// New model authoring should use <see cref="NodeSourceAttribute"/>.
+    /// When found, it emits a companion <c>partial class</c> in the same namespace
     /// and with the same name as the attributed class) that derives from
     /// <see cref="CustomNodeManager2"/>, loads the predefined nodes for
     /// the matching design, and exposes the
@@ -46,12 +48,7 @@ namespace Opc.Ua.Server.Fluent
     /// A matching <c>{ClassName}Factory</c> implementing
     /// <see cref="INodeManagerFactory"/> is also emitted unless
     /// <see cref="GenerateFactory"/> is set to <c>false</c>.
-    /// Set <see cref="GenerateNodeSource"/> to additionally emit a public
-    /// compositional source and typed NodeSet import support while retaining
-    /// the generated manager.
-    /// </para>
-    /// <para>
-    /// This is the recommended opt-in mechanism. The MSBuild property
+    /// The MSBuild property
     /// <c>ModelSourceGeneratorGenerateNodeManager</c> remains as a
     /// project-wide fallback that produces conventionally-named managers
     /// (<c>{Prefix}NodeManager</c> in <c>namespace {Prefix}</c>) for
@@ -85,19 +82,6 @@ namespace Opc.Ua.Server.Fluent
         /// author the factory by hand.
         /// </summary>
         public bool GenerateFactory { get; set; } = true;
-
-        /// <summary>
-        /// When <c>true</c>, the generator additionally emits a public,
-        /// compositional <c>{ClassName}Source</c> implementing
-        /// <see cref="Nodes.INodeSource"/>.
-        /// </summary>
-        /// <remarks>
-        /// The generated <see cref="FluentNodeManagerBase"/> partial and its
-        /// optional factory remain the default output. This property is an
-        /// explicit migration opt-in and does not replace the generated node
-        /// manager.
-        /// </remarks>
-        public bool GenerateNodeSource { get; set; }
 
         /// <summary>
         /// Additional namespace URIs the manager owns beyond the model's

@@ -33,19 +33,13 @@ using Opc.Ua.Server.Nodes;
 
 namespace Opc.Ua.Server.Tests.Nodes
 {
-    [NodeManager(
+    [NodeSource(
         NamespaceUri = "urn:opcfoundation.org:2026-09:GeneratedNodeSource",
-        GenerateFactory = false,
-        GenerateNodeSource = true,
         AdditionalNamespaceUris =
         [
             "urn:opcfoundation.org:2026-09:GeneratedNodeSource:Instance"
         ])]
-    public partial class GeneratedPhase5NodeManager
-    {
-    }
-
-    public sealed partial class GeneratedPhase5NodeManagerSource
+    public sealed partial class GeneratedPhase5NodeSource
     {
         public int UntypedConfigureCount { get; private set; }
 
@@ -58,6 +52,14 @@ namespace Opc.Ua.Server.Tests.Nodes
         public NodeId AuthoredVariableId { get; private set; }
 
         public NodeId AuthoredMethodId { get; private set; }
+
+        public NodeId StringNamedObjectId { get; private set; }
+
+        public NodeId StringNamedVariableId { get; private set; }
+
+        public NodeId StringNamedMethodId { get; private set; }
+
+        public QualifiedName StringNamedBrowseName { get; private set; } = QualifiedName.Null;
 
         public List<GeneratedNodeSourceModel.DeviceState> MaterializedDevices { get; } = [];
 
@@ -75,6 +77,24 @@ namespace Opc.Ua.Server.Tests.Nodes
 
             INodeBuilder<FolderState> root = builder.AddFolder(
                 new QualifiedName("GeneratedPhase5Root", namespaceIndex));
+            INodeBuilder<GeneratedNodeSourceModel.DeviceState> stringNamedObject =
+                GeneratedNodeSourceModel.GeneratedNodeSourceModelNodeGraphBuilderExtensions.
+                    AddDeviceType(
+                    builder,
+                    "StringNamed",
+                    root.Node.NodeId);
+            IVariableBuilder<int> stringNamedVariable =
+                GeneratedNodeSourceModel.GeneratedNodeSourceModelNodeGraphBuilderExtensions.
+                    AddCustomValueType(
+                    builder,
+                    "StringValue",
+                    stringNamedObject.Node.NodeId);
+            INodeBuilder<GeneratedNodeSourceModel.CalibrateMethodState> stringNamedMethod =
+                GeneratedNodeSourceModel.GeneratedNodeSourceModelNodeGraphBuilderExtensions.
+                    AddCalibrateMethodType(
+                    builder,
+                    "StringMethod",
+                    stringNamedObject.Node.NodeId);
             INodeBuilder<GeneratedNodeSourceModel.DeviceState> authoredObject =
                 GeneratedNodeSourceModel.GeneratedNodeSourceModelNodeGraphBuilderExtensions.
                     AddDeviceType(
@@ -94,12 +114,16 @@ namespace Opc.Ua.Server.Tests.Nodes
                     new QualifiedName("AuthoredMethod", namespaceIndex),
                     authoredObject.Node.NodeId);
 
+            StringNamedObjectId = stringNamedObject.Node.NodeId;
+            StringNamedVariableId = stringNamedVariable.Node.NodeId;
+            StringNamedMethodId = stringNamedMethod.Node.NodeId;
+            StringNamedBrowseName = stringNamedObject.Node.BrowseName;
             AuthoredObjectId = authoredObject.Node.NodeId;
             AuthoredVariableId = authoredVariable.Node.NodeId;
             AuthoredMethodId = authoredMethod.Node.NodeId;
         }
 
-        partial void Configure(IGeneratedPhase5NodeManagerBuilder builder)
+        partial void Configure(IGeneratedPhase5NodeSourceBuilder builder)
         {
             TypedConfigureCount++;
             _ = builder.Device;

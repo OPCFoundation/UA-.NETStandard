@@ -334,9 +334,9 @@ namespace Opc.Ua.Aot.Tests
             {
                 BuildCount++;
                 INodeBuilder<FolderState> folder =
-                    builder.AddFolder(new QualifiedName("AotSource"));
+                    builder.AddFolder("AotSource");
                 IVariableBuilder<int> variable = builder.AddVariable<int>(
-                    new QualifiedName("Value"),
+                    "Value",
                     folder.Node.NodeId);
                 variable.Node.WrappedValue = new Variant(Dependency.Value);
                 VariableId = variable.Node.NodeId;

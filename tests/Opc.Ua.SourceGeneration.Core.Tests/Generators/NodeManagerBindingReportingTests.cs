@@ -122,6 +122,58 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
         }
 
         [Test]
+        public void DuplicateModelBindingReportsConflictingAuthoringClass()
+        {
+            NodeManagerAttributeBinding manager = CreateBinding(
+                namespaceUri: "urn:model",
+                className: "LegacyManager");
+            NodeManagerAttributeBinding source = CreateBinding(
+                namespaceUri: "urn:model",
+                className: "ModelSource") with
+            {
+                AttributeName = "NodeSource",
+                GenerateNodeManager = false,
+                GenerateNodeSource = true
+            };
+            var reports = new List<string>();
+
+            Generators.ReportUnmatchedNodeManagerBindings(
+                [manager, source],
+                [manager],
+                totalModelCount: 1,
+                (_, message) => reports.Add(message));
+
+            Assert.That(reports, Has.Count.EqualTo(1));
+            Assert.That(reports[0], Does.Contain("targets the same model"));
+            Assert.That(reports[0], Does.Contain("[NodeManager]"));
+            Assert.That(reports[0], Does.Contain("[NodeSource]"));
+        }
+
+        [Test]
+        public void DuplicateSelectorlessBindingsReportConflictForSingleModel()
+        {
+            NodeManagerAttributeBinding manager = CreateBinding(
+                className: "LegacyManager");
+            NodeManagerAttributeBinding source = CreateBinding(
+                className: "ModelSource") with
+            {
+                AttributeName = "NodeSource",
+                GenerateNodeManager = false,
+                GenerateNodeSource = true
+            };
+            var reports = new List<string>();
+
+            Generators.ReportUnmatchedNodeManagerBindings(
+                [manager, source],
+                [],
+                totalModelCount: 1,
+                (_, message) => reports.Add(message));
+
+            Assert.That(reports, Has.Count.EqualTo(1));
+            Assert.That(reports[0], Does.Contain("same model selector"));
+        }
+
+        [Test]
         public void ReportIsNoOpWhenBindingsAreNullOrEmpty()
         {
             Assert.DoesNotThrow(() =>

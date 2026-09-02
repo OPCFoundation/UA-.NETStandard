@@ -130,7 +130,7 @@ namespace Opc.Ua.SourceGeneration
                     m_telemetry);
                 ReportNodesetIdentifierDiagnostics(nodesets.IdentifierValidationErrors);
 
-                // Resolve [NodeManager] bindings: validate partial-ness and
+                // Resolve node-authoring bindings: validate partial-ness and
                 // build the binding list to pass into both GenerateCode calls
                 // (nodeset-derived and design-file-derived).
                 var bindings = new List<NodeManagerAttributeBinding>();
@@ -150,7 +150,8 @@ namespace Opc.Ua.SourceGeneration
                                 discovery.Location,
                                 discovery.Binding.TargetNamespace +
                                 "." +
-                                discovery.Binding.TargetClassName));
+                                discovery.Binding.TargetClassName,
+                                discovery.Binding.AttributeName));
                         continue;
                     }
                     bindings.Add(discovery.Binding);
@@ -197,7 +198,7 @@ namespace Opc.Ua.SourceGeneration
                 // The design files that are not NodeSet2 inputs form the
                 // ModelDesign pass. Compute them up front so the total model
                 // count (NodeSet2 models + ModelDesign targets) can be shared
-                // with both passes: [NodeManager] bindings are resolved across
+                // with both passes: node-authoring bindings are resolved across
                 // both passes, so single-model fallback / ambiguity detection
                 // must see the global model count, not the per-pass count.
                 // Use a set for O(1) membership tests instead of an O(n)
@@ -212,7 +213,7 @@ namespace Opc.Ua.SourceGeneration
                 var designDependencies = new List<string>(nodesets.DesignFileEntries);
                 designDependencies.AddRange(designTargets);
 
-                // A [NodeManager] may bind to a model produced by either pass
+                // A node-authoring attribute may bind to a model produced by either pass
                 // (a NodeSet2 type model or a ModelDesign instance model). The
                 // "used" set is therefore shared across both passes and the
                 // unmatched-binding diagnostics are reported once, after both
@@ -279,7 +280,7 @@ namespace Opc.Ua.SourceGeneration
                     m_referencedModels,
                     m_referencedAccessorProviders);
 
-                // Report any [NodeManager] bindings that neither pass matched,
+                // Report any node-authoring bindings that neither pass matched,
                 // once, against the shared used-set aggregated across passes.
                 Generators.ReportUnmatchedNodeManagerBindings(
                     bindings,

@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  *
@@ -27,37 +27,28 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System.IO;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Logging;
+using System;
 
-HostApplicationBuilder builder = Host.CreateApplicationBuilder(args);
-const string applicationName = "MinimalBoilerServer";
-
-builder.Logging.ClearProviders();
-builder.Logging.AddConsole();
-
-int port = int.TryParse(builder.Configuration["port"], out int p) ? p : 62541;
-
-builder.Services
-    .AddOpcUa()
-    .AddServer(o =>
+namespace Opc.Ua.Server.Nodes
+{
+    /// <summary>
+    /// Creates the node-manager factory adapter used to host an
+    /// <see cref="INodeSource"/> without dependency injection.
+    /// </summary>
+    public static class NodeSourceFactory
     {
-        o.ApplicationName = applicationName;
-        o.ApplicationUri = "urn:localhost:OPCFoundation:MinimalBoilerServer";
-        o.ProductUri = "uri:opcfoundation.org:MinimalBoilerServer";
-        // Sample convenience only; never auto-accept untrusted certificates in production.
-        o.AutoAcceptUntrustedCertificates = true;
-        o.PkiRoot = Path.Combine(
-            Path.GetTempPath(),
-            "OPC Foundation",
-            applicationName,
-            "pki");
-        o.RejectSHA1Certificates = true;
-        o.MinCertificateKeySize = 2048;
-        o.EndpointUrls.Add($"opc.tcp://localhost:{port}/MinimalBoilerServer");
-    })
-    .AddNodeSource<Boiler.BoilerNodeSource>();
-
-await builder.Build().RunAsync().ConfigureAwait(false);
+        /// <summary>
+        /// Creates a factory for the supplied node source.
+        /// </summary>
+        /// <param name="source">The source to host.</param>
+        /// <returns>
+        /// A factory accepted by
+        /// <see cref="StandardServer.AddNodeManager(IAsyncNodeManagerFactory)"/>.
+        /// </returns>
+        public static IAsyncNodeManagerFactory Create(INodeSource source)
+        {
+            return new NodeSourceNodeManagerFactory(
+                source ?? throw new ArgumentNullException(nameof(source)));
+        }
+    }
+}

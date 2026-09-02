@@ -283,7 +283,7 @@ namespace Opc.Ua.Server.Tests.Nodes
         [Test]
         public async Task GeneratedNodeSourceBuildsFreshGraphsWithTypedHelpersAsync()
         {
-            var source = new GeneratedPhase5NodeManagerSource();
+            var source = new GeneratedPhase5NodeSource();
             NodeManagerRegistration registration = await m_server.NodeManagerLifecycle
                 .AddNodeSourceAsync(source)
                 .ConfigureAwait(false);
@@ -306,6 +306,20 @@ namespace Opc.Ua.Server.Tests.Nodes
                     Assert.That(
                         source.GetNodeSetImportFactories().Count,
                         Is.GreaterThan(0));
+                    Assert.That(
+                        source.StringNamedBrowseName.NamespaceIndex,
+                        Is.EqualTo(
+                            (ushort)m_server.CurrentInstance.NamespaceUris.GetIndex(
+                                GeneratedNodeSetImportSource.NamespaceUri)));
+                    Assert.That(
+                        manager.Find(source.StringNamedObjectId),
+                        Is.TypeOf<GeneratedNodeSourceModel.DeviceState>());
+                    Assert.That(
+                        manager.Find(source.StringNamedVariableId),
+                        Is.TypeOf<GeneratedNodeSourceModel.CustomValueState>());
+                    Assert.That(
+                        manager.Find(source.StringNamedMethodId),
+                        Is.TypeOf<GeneratedNodeSourceModel.CalibrateMethodState>());
                     Assert.That(
                         source.AuthoredObjectId.IdentifierAsString,
                         Is.EqualTo("GeneratedPhase5Root_AuthoredObject"));
@@ -785,19 +799,19 @@ namespace Opc.Ua.Server.Tests.Nodes
                 BuildCount++;
 
                 INodeBuilder<FolderState> folder =
-                    builder.AddFolder(new QualifiedName("NodeSourceRoot"));
+                    builder.AddFolder("NodeSourceRoot");
                 FolderId = folder.Node.NodeId;
                 FolderBrowseName = folder.Node.BrowseName;
                 FolderReferenceTypeId = folder.Node.ReferenceTypeId;
 
                 INodeBuilder<BaseObjectState> instance =
-                    builder.AddObject(new QualifiedName("Device"), FolderId);
+                    builder.AddObject("Device", FolderId);
                 ObjectId = instance.Node.NodeId;
                 ObjectBrowseName = instance.Node.BrowseName;
                 ObjectReferenceTypeId = instance.Node.ReferenceTypeId;
 
                 IVariableBuilder<int> variable =
-                    builder.AddVariable<int>(new QualifiedName("Value"), ObjectId);
+                    builder.AddVariable<int>("Value", ObjectId);
                 variable.Node.WrappedValue = new Variant(m_generation);
                 variable.OnNodeAdded((_, _) => NodeAddedCount++);
                 variable.OnNodeRemoved((_, _) => NodeRemovedCount++);
@@ -806,7 +820,7 @@ namespace Opc.Ua.Server.Tests.Nodes
                 VariableReferenceTypeId = variable.Node.ReferenceTypeId;
 
                 INodeBuilder<MethodState> method =
-                    builder.AddMethod(new QualifiedName("Reset"), ObjectId);
+                    builder.AddMethod("Reset", ObjectId);
                 method.OnCall(
                     (_, _, _, _, _, _) =>
                     {
@@ -843,7 +857,7 @@ namespace Opc.Ua.Server.Tests.Nodes
                 CancellationToken cancellationToken = default)
             {
                 BuildCount++;
-                builder.AddFolder(new QualifiedName("Uncommitted"));
+                builder.AddFolder("Uncommitted");
                 throw new InvalidOperationException(FailureMessage);
             }
         }
@@ -864,7 +878,7 @@ namespace Opc.Ua.Server.Tests.Nodes
                 CancellationToken cancellationToken = default)
             {
                 BuildCount++;
-                builder.AddFolder(new QualifiedName("Canceled"));
+                builder.AddFolder("Canceled");
                 m_cancellation.Cancel();
                 cancellationToken.ThrowIfCancellationRequested();
                 return default;
@@ -895,7 +909,7 @@ namespace Opc.Ua.Server.Tests.Nodes
             {
                 cancellationToken.ThrowIfCancellationRequested();
                 builder.Import(ReadNodeSet());
-                builder.AddFolder(new QualifiedName("AuthoredRoot"));
+                builder.AddFolder("AuthoredRoot");
                 var namespaceIndex = (ushort)builder.Context.NamespaceUris.GetIndex(
                     kImportedNamespaceUri);
                 ObjectId = new NodeId(200u, namespaceIndex);

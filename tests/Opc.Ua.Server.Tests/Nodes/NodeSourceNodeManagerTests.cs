@@ -99,6 +99,23 @@ namespace Opc.Ua.Server.Tests.Nodes
                 Throws.InstanceOf<InvalidOperationException>());
         }
 
+        [Test]
+        public void PublicFactoryCreatesClassicHostingAdapter()
+        {
+            IAsyncNodeManagerFactory factory = NodeSourceFactory.Create(
+                new EmptySource());
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(factory, Is.TypeOf<NodeSourceNodeManagerFactory>());
+                Assert.That(factory.NamespacesUris, Has.Count.EqualTo(1));
+                Assert.That(factory.NamespacesUris[0], Is.EqualTo(kNamespaceUri));
+                Assert.That(
+                    () => NodeSourceFactory.Create(null!),
+                    Throws.ArgumentNullException);
+            });
+        }
+
         [TestCase(InvalidGraphKind.UnknownOwnedParent)]
         [TestCase(InvalidGraphKind.NamespaceZeroNodeId)]
         [TestCase(InvalidGraphKind.ForeignNamespaceNodeId)]
@@ -220,6 +237,83 @@ namespace Opc.Ua.Server.Tests.Nodes
         }
 
         [Test]
+        public async Task BrowseNameOverloadsUseExplicitNamespaceSemanticsAsync()
+        {
+            var source = new BrowseNameSource();
+            IAsyncNodeManager manager = await CreateManagerAsync(source)
+                .ConfigureAwait(false);
+            try
+            {
+                await manager
+                    .CreateAddressSpaceAsync(
+                        new Dictionary<NodeId, IList<IReference>>())
+                    .ConfigureAwait(false);
+
+                Assert.Multiple(() =>
+                {
+                    Assert.That(
+                        source.DefaultBrowseName,
+                        Is.EqualTo(new QualifiedName("Default", source.DefaultNamespaceIndex)));
+                    Assert.That(
+                        source.ExplicitBrowseName,
+                        Is.EqualTo(new QualifiedName("Explicit", source.SecondaryNamespaceIndex)));
+                });
+            }
+            finally
+            {
+                ((IDisposable)manager).Dispose();
+            }
+        }
+
+        [Test]
+        public async Task QualifiedBrowseNameRequiresNonzeroNamespaceIndexAsync()
+        {
+            IAsyncNodeManager manager = await CreateManagerAsync(
+                new AmbiguousBrowseNameSource()).ConfigureAwait(false);
+            try
+            {
+                ServiceResultException exception =
+                    Assert.ThrowsAsync<ServiceResultException>(
+                        async () => await manager
+                            .CreateAddressSpaceAsync(
+                                new Dictionary<NodeId, IList<IReference>>())
+                            .ConfigureAwait(false));
+
+                Assert.That(
+                    exception.StatusCode,
+                    Is.EqualTo((uint)StatusCodes.BadBrowseNameInvalid));
+            }
+            finally
+            {
+                ((IDisposable)manager).Dispose();
+            }
+        }
+
+        [Test]
+        public async Task GeneratedHelperRequiresNonzeroQualifiedBrowseNameNamespaceAsync()
+        {
+            IAsyncNodeManager manager = await CreateManagerAsync(
+                new AmbiguousGeneratedBrowseNameSource()).ConfigureAwait(false);
+            try
+            {
+                ServiceResultException exception =
+                    Assert.ThrowsAsync<ServiceResultException>(
+                        async () => await manager
+                            .CreateAddressSpaceAsync(
+                                new Dictionary<NodeId, IList<IReference>>())
+                            .ConfigureAwait(false));
+
+                Assert.That(
+                    exception.StatusCode,
+                    Is.EqualTo((uint)StatusCodes.BadBrowseNameInvalid));
+            }
+            finally
+            {
+                ((IDisposable)manager).Dispose();
+            }
+        }
+
+        [Test]
         public async Task BuildRunsOnceAndSealedBuilderRejectsLateAuthoringAsync()
         {
             var source = new RetainedBuilderSource();
@@ -233,7 +327,7 @@ namespace Opc.Ua.Server.Tests.Nodes
                     .ConfigureAwait(false);
 
                 ServiceResultException lateAuthoring = Assert.Throws<ServiceResultException>(
-                    () => source.Builder!.AddFolder(new QualifiedName("Late")));
+                    () => source.Builder!.AddFolder("Late"));
                 Assert.That(
                     lateAuthoring.StatusCode,
                     Is.EqualTo((uint)StatusCodes.BadInvalidState));
@@ -400,7 +494,7 @@ namespace Opc.Ua.Server.Tests.Nodes
                 CancellationToken cancellationToken = default)
             {
                 INodeBuilder<FolderState> folder =
-                    builder.AddFolder(new QualifiedName("Configured"));
+                    builder.AddFolder("Configured");
                 Configure(folder);
                 return default;
             }
@@ -430,7 +524,7 @@ namespace Opc.Ua.Server.Tests.Nodes
             {
                 BuildCount++;
                 Builder = builder;
-                builder.AddFolder(new QualifiedName("Initial"));
+                builder.AddFolder("Initial");
                 return default;
             }
         }
@@ -468,6 +562,82 @@ namespace Opc.Ua.Server.Tests.Nodes
             }
         }
 
+        private sealed class EmptySource : INodeSource
+        {
+            public ArrayOf<string> NamespaceUris => [kNamespaceUri];
+
+            public ValueTask BuildAsync(
+                INodeGraphBuilder builder,
+                CancellationToken cancellationToken = default)
+            {
+                return default;
+            }
+        }
+
+        private sealed class BrowseNameSource : INodeSource
+        {
+            private const string kSecondaryNamespaceUri =
+                "urn:opcfoundation.org:Tests:NodeSource:Secondary";
+
+            public ArrayOf<string> NamespaceUris =>
+                [kNamespaceUri, kSecondaryNamespaceUri];
+
+            public ushort DefaultNamespaceIndex { get; private set; }
+
+            public ushort SecondaryNamespaceIndex { get; private set; }
+
+            public QualifiedName DefaultBrowseName { get; private set; } = QualifiedName.Null;
+
+            public QualifiedName ExplicitBrowseName { get; private set; } = QualifiedName.Null;
+
+            public ValueTask BuildAsync(
+                INodeGraphBuilder builder,
+                CancellationToken cancellationToken = default)
+            {
+                DefaultNamespaceIndex =
+                    builder.Context.NamespaceUris.GetIndexOrAppend(kNamespaceUri);
+                SecondaryNamespaceIndex =
+                    builder.Context.NamespaceUris.GetIndexOrAppend(kSecondaryNamespaceUri);
+                INodeBuilder<FolderState> folder = builder.AddFolder("Default");
+                DefaultBrowseName = folder.Node.BrowseName;
+                ExplicitBrowseName = builder.AddObject(
+                    new QualifiedName("Explicit", SecondaryNamespaceIndex),
+                    folder.Node.NodeId).Node.BrowseName;
+                return default;
+            }
+        }
+
+        private sealed class AmbiguousBrowseNameSource : INodeSource
+        {
+            public ArrayOf<string> NamespaceUris => [kNamespaceUri];
+
+            public ValueTask BuildAsync(
+                INodeGraphBuilder builder,
+                CancellationToken cancellationToken = default)
+            {
+                builder.AddFolder(new QualifiedName("Ambiguous"));
+                return default;
+            }
+        }
+
+        private sealed class AmbiguousGeneratedBrowseNameSource : INodeSource
+        {
+            public ArrayOf<string> NamespaceUris =>
+                [GeneratedNodeSourceModel.Namespaces.GeneratedNodeSourceModel];
+
+            public ValueTask BuildAsync(
+                INodeGraphBuilder builder,
+                CancellationToken cancellationToken = default)
+            {
+                GeneratedNodeSourceModel.
+                    GeneratedNodeSourceModelNodeGraphBuilderExtensions.
+                    AddDeviceType(
+                        builder,
+                        new QualifiedName("Ambiguous"));
+                return default;
+            }
+        }
+
         private sealed class InvalidGraphSource : INodeSource
         {
             public InvalidGraphSource(InvalidGraphKind kind)
@@ -485,7 +655,7 @@ namespace Opc.Ua.Server.Tests.Nodes
                 {
                     case InvalidGraphKind.UnknownOwnedParent:
                         builder.AddObject(
-                            new QualifiedName("Child"),
+                            "Child",
                             new NodeId("Missing", 1));
                         break;
                     case InvalidGraphKind.NamespaceZeroNodeId:
@@ -571,10 +741,10 @@ namespace Opc.Ua.Server.Tests.Nodes
                 CancellationToken cancellationToken = default)
             {
                 FirstId = builder.AddObject(
-                    new QualifiedName("Shared"),
+                    "Shared",
                     ObjectIds.Server).Node.NodeId;
                 SecondId = builder.AddObject(
-                    new QualifiedName("Shared"),
+                    "Shared",
                     ObjectIds.Server_ServerCapabilities).Node.NodeId;
                 return default;
             }

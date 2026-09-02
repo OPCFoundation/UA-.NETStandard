@@ -168,16 +168,20 @@ Resolution precedence is deterministic — see [Provider resolution order](#prov
 
 ### Fluent server API integration (`builder.Variable<T>(...).Historize()`)
 
-The historian surface is also reachable from the standard `Opc.Ua.Server.Fluent` builder used by source-generated node managers — historization fits in the same `Configure(INodeManagerBuilder)` chain as `OnRead` / `OnWrite` / `OnCall` / `Publish<TEvent>`:
+The historian surface is also reachable from the standard `Opc.Ua.Server.Fluent`
+builder used by source-generated node sources. Historization fits in the same
+`Configure(INodeGraphBuilder)` chain as `OnRead`, `OnWrite`, `OnCall`, and
+`Publish<TEvent>`:
 
 ```csharp
 using Opc.Ua.Server.Fluent;       // exposes UseHistorian/Historize/WithHistorian
 using Opc.Ua.Server.Historian;
+using Opc.Ua.Server.Nodes;
 
-[NodeManager(NamespaceUri = "http://example.com/Plant/")]
-public partial class PlantNodeManager
+[NodeSource(NamespaceUri = "http://example.com/Plant/")]
+public sealed partial class PlantNodeSource
 {
-    partial void Configure(INodeManagerBuilder builder)
+    partial void Configure(INodeGraphBuilder builder)
     {
         // Provision once: in-memory engine, registered as the default.
         HistorianBuilder hist = builder.UseHistorian();
@@ -222,7 +226,7 @@ builder.Variable<double>("ReadOnlySensor")
 Source-generated typed traversal works the same way — the trailing `.Historize()` attaches to any `IVariableBuilder<T>`:
 
 ```csharp
-partial void Configure(IBoilerNodeManagerBuilder builder)
+partial void Configure(IBoilerNodeSourceBuilder builder)
 {
     builder.Boilers.Boiler__1.LCX001.Measurement
            .OnRead(GenerateLevelControlMeasurement)

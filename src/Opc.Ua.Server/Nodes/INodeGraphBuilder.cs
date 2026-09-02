@@ -38,9 +38,10 @@ namespace Opc.Ua.Server.Nodes
     /// <remarks>
     /// Creation is compositional: returned builders are the same fluent
     /// builders used by source-generated and runtime NodeSet managers.
-    /// NodeIds are assigned before a builder is returned. A browse name
-    /// with namespace index zero uses the source's first namespace. A default
-    /// <c>parentId</c> places instance nodes below the standard Objects folder.
+    /// NodeIds are assigned before a builder is returned. String browse names
+    /// use the source's first namespace; <see cref="QualifiedName"/> overloads
+    /// require an explicit nonzero namespace index. A default <c>parentId</c>
+    /// places instance nodes below the standard Objects folder.
     /// </remarks>
     public interface INodeGraphBuilder : INodeManagerBuilder
     {
@@ -88,14 +89,29 @@ namespace Opc.Ua.Server.Nodes
         bool TryGetNode(NodeId nodeId, out NodeState? node);
 
         /// <summary>
-        /// Creates a folder.
+        /// Creates a folder in the source's first namespace.
+        /// </summary>
+        INodeBuilder<FolderState> AddFolder(
+            string browseName,
+            NodeId parentId = default);
+
+        /// <summary>
+        /// Creates a folder using an explicitly namespaced browse name.
         /// </summary>
         INodeBuilder<FolderState> AddFolder(
             QualifiedName browseName,
             NodeId parentId = default);
 
         /// <summary>
-        /// Creates an object.
+        /// Creates an object in the source's first namespace.
+        /// </summary>
+        INodeBuilder<BaseObjectState> AddObject(
+            string browseName,
+            NodeId parentId = default,
+            NodeId typeDefinitionId = default);
+
+        /// <summary>
+        /// Creates an object using an explicitly namespaced browse name.
         /// </summary>
         INodeBuilder<BaseObjectState> AddObject(
             QualifiedName browseName,
@@ -103,7 +119,15 @@ namespace Opc.Ua.Server.Nodes
             NodeId typeDefinitionId = default);
 
         /// <summary>
-        /// Creates a typed data variable.
+        /// Creates a typed data variable in the source's first namespace.
+        /// </summary>
+        /// <typeparam name="TValue">The CLR type of the variable value.</typeparam>
+        IVariableBuilder<TValue> AddVariable<TValue>(
+            string browseName,
+            NodeId parentId = default);
+
+        /// <summary>
+        /// Creates a typed data variable using an explicitly namespaced browse name.
         /// </summary>
         /// <typeparam name="TValue">The CLR type of the variable value.</typeparam>
         IVariableBuilder<TValue> AddVariable<TValue>(
@@ -111,7 +135,14 @@ namespace Opc.Ua.Server.Nodes
             NodeId parentId = default);
 
         /// <summary>
-        /// Creates an executable method.
+        /// Creates an executable method in the source's first namespace.
+        /// </summary>
+        INodeBuilder<MethodState> AddMethod(
+            string browseName,
+            NodeId parentId = default);
+
+        /// <summary>
+        /// Creates an executable method using an explicitly namespaced browse name.
         /// </summary>
         INodeBuilder<MethodState> AddMethod(
             QualifiedName browseName,

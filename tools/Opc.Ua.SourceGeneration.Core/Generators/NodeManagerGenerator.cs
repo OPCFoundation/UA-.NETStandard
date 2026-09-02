@@ -35,11 +35,8 @@ using Opc.Ua.Schema.Model;
 namespace Opc.Ua.SourceGeneration
 {
     /// <summary>
-    /// Emits a partial <c>{Namespace}NodeManager</c> deriving from
-    /// <c>AsyncCustomNodeManager</c> plus a matching
-    /// <c>{Namespace}NodeManagerFactory</c> implementing
-    /// <c>IAsyncNodeManagerFactory</c>. Opt-in via
-    /// <see cref="DesignFileOptions.GenerateNodeManager"/>.
+    /// Emits legacy node-manager or compositional node-source authoring
+    /// artifacts for a model design.
     /// </summary>
     /// <remarks>
     /// The generated manager wires the predefined nodes from the existing
@@ -80,8 +77,12 @@ namespace Opc.Ua.SourceGeneration
         public bool EmitFactory { get; init; } = true;
 
         /// <summary>
-        /// When <c>true</c>, emits a compositional node-source artifact
-        /// alongside the legacy generated node manager.
+        /// When <c>true</c>, emits the legacy generated node manager.
+        /// </summary>
+        public bool EmitNodeManager { get; init; } = true;
+
+        /// <summary>
+        /// When <c>true</c>, emits a compositional node-source artifact.
         /// </summary>
         public bool EmitNodeSource { get; init; }
 
@@ -113,23 +114,32 @@ namespace Opc.Ua.SourceGeneration
                 ? nsPrefix
                 : OverrideNamespace;
             string targetClass = string.IsNullOrEmpty(OverrideClassName)
-                ? typeStem + "NodeManager"
+                ? typeStem + (EmitNodeManager ? "NodeManager" : "NodeSource")
                 : OverrideClassName;
             string factoryClass = string.IsNullOrEmpty(OverrideClassName)
                 ? typeStem + "NodeManagerFactory"
                 : OverrideClassName + "Factory";
-            string nodeSourceClass = targetClass + "Source";
+            string nodeSourceClass = EmitNodeManager
+                ? targetClass + "Source"
+                : targetClass;
             string importFactoryProviderClass =
                 typeStem + "NodeSetImportFactoryProvider";
             string fileStem = string.IsNullOrEmpty(OverrideClassName)
                 ? nsPrefix
                 : OverrideClassName;
 
-            var resources = new List<Resource>(3)
+            var resources = new List<Resource>(3);
+            if (EmitNodeManager)
             {
-                EmitNodeManager(targetNamespace, targetClass, typeStem, nsUriSymbol, fileStem)
-            };
-            if (EmitFactory)
+                resources.Add(
+                    EmitNodeManagerFile(
+                        targetNamespace,
+                        targetClass,
+                        typeStem,
+                        nsUriSymbol,
+                        fileStem));
+            }
+            if (EmitNodeManager && EmitFactory)
             {
                 resources.Add(EmitFactoryFile(targetNamespace, targetClass, factoryClass, nsUriSymbol, fileStem));
             }
@@ -137,7 +147,7 @@ namespace Opc.Ua.SourceGeneration
             {
                 resources.Add(EmitNodeSourceFile(
                     targetNamespace,
-                    targetClass,
+                    EmitNodeManager ? targetClass : nodeSourceClass,
                     nodeSourceClass,
                     typeStem,
                     nsPrefix,
@@ -148,7 +158,7 @@ namespace Opc.Ua.SourceGeneration
             return resources;
         }
 
-        private TextFileResource EmitNodeManager(
+        private TextFileResource EmitNodeManagerFile(
             string targetNamespace,
             string targetClass,
             string typeStem,

@@ -127,6 +127,11 @@ namespace Opc.Ua.Server.Fluent
         /// <inheritdoc/>
         public IAsyncNodeManager NodeManager { get; }
 
+        /// <summary>
+        /// Gets the namespace index used by unqualified fluent authoring helpers.
+        /// </summary>
+        internal ushort DefaultNamespaceIndex => m_defaultNamespaceIndex;
+
         /// <inheritdoc/>
         public IFluentDispatcher Dispatcher => this;
 
@@ -211,15 +216,28 @@ namespace Opc.Ua.Server.Fluent
         }
 
         INodeBuilder<FolderState> INodeGraphBuilder.AddFolder(
+            string browseName,
+            NodeId parentId)
+        {
+            return AddFolder(CreateDefaultBrowseName(browseName), parentId);
+        }
+
+        INodeBuilder<FolderState> INodeGraphBuilder.AddFolder(
             QualifiedName browseName,
             NodeId parentId)
         {
-            QualifiedName normalizedBrowseName = NormalizeBrowseName(browseName);
-            string symbolicName = normalizedBrowseName.Name!;
+            return AddFolder(ValidateExplicitBrowseName(browseName), parentId);
+        }
+
+        private NodeBuilder<FolderState> AddFolder(
+            QualifiedName browseName,
+            NodeId parentId)
+        {
+            string symbolicName = browseName.Name!;
             var folder = new FolderState(null)
             {
                 SymbolicName = symbolicName,
-                BrowseName = normalizedBrowseName,
+                BrowseName = browseName,
                 DisplayName = new LocalizedText(symbolicName),
                 ReferenceTypeId = ReferenceTypeIds.Organizes,
                 TypeDefinitionId = ObjectTypeIds.FolderType
@@ -228,16 +246,37 @@ namespace Opc.Ua.Server.Fluent
         }
 
         INodeBuilder<BaseObjectState> INodeGraphBuilder.AddObject(
+            string browseName,
+            NodeId parentId,
+            NodeId typeDefinitionId)
+        {
+            return AddObject(
+                CreateDefaultBrowseName(browseName),
+                parentId,
+                typeDefinitionId);
+        }
+
+        INodeBuilder<BaseObjectState> INodeGraphBuilder.AddObject(
             QualifiedName browseName,
             NodeId parentId,
             NodeId typeDefinitionId)
         {
-            QualifiedName normalizedBrowseName = NormalizeBrowseName(browseName);
-            string symbolicName = normalizedBrowseName.Name!;
+            return AddObject(
+                ValidateExplicitBrowseName(browseName),
+                parentId,
+                typeDefinitionId);
+        }
+
+        private NodeBuilder<BaseObjectState> AddObject(
+            QualifiedName browseName,
+            NodeId parentId,
+            NodeId typeDefinitionId)
+        {
+            string symbolicName = browseName.Name!;
             var instance = new BaseObjectState(null)
             {
                 SymbolicName = symbolicName,
-                BrowseName = normalizedBrowseName,
+                BrowseName = browseName,
                 DisplayName = new LocalizedText(symbolicName),
                 TypeDefinitionId = typeDefinitionId.IsNull
                     ? ObjectTypeIds.BaseObjectType
@@ -247,15 +286,32 @@ namespace Opc.Ua.Server.Fluent
         }
 
         IVariableBuilder<TValue> INodeGraphBuilder.AddVariable<TValue>(
+            string browseName,
+            NodeId parentId)
+        {
+            return AddVariable<TValue>(
+                CreateDefaultBrowseName(browseName),
+                parentId);
+        }
+
+        IVariableBuilder<TValue> INodeGraphBuilder.AddVariable<TValue>(
             QualifiedName browseName,
             NodeId parentId)
         {
-            QualifiedName normalizedBrowseName = NormalizeBrowseName(browseName);
-            string symbolicName = normalizedBrowseName.Name!;
+            return AddVariable<TValue>(
+                ValidateExplicitBrowseName(browseName),
+                parentId);
+        }
+
+        private VariableBuilder<TValue> AddVariable<TValue>(
+            QualifiedName browseName,
+            NodeId parentId)
+        {
+            string symbolicName = browseName.Name!;
             var variable = new BaseDataVariableState(null)
             {
                 SymbolicName = symbolicName,
-                BrowseName = normalizedBrowseName,
+                BrowseName = browseName,
                 DisplayName = new LocalizedText(symbolicName),
                 TypeDefinitionId = VariableTypeIds.BaseDataVariableType,
                 DataType = TypeInfo.GetDataTypeId(typeof(TValue), Context.NamespaceUris),
@@ -265,19 +321,32 @@ namespace Opc.Ua.Server.Fluent
             };
             NodeBuilder<BaseDataVariableState> nodeBuilder =
                 AddNode(variable, parentId);
-            return ToVariableBuilder<TValue>(nodeBuilder.Node, normalizedBrowseName.ToString());
+            return ToVariableBuilder<TValue>(nodeBuilder.Node, browseName.ToString());
+        }
+
+        INodeBuilder<MethodState> INodeGraphBuilder.AddMethod(
+            string browseName,
+            NodeId parentId)
+        {
+            return AddMethod(CreateDefaultBrowseName(browseName), parentId);
         }
 
         INodeBuilder<MethodState> INodeGraphBuilder.AddMethod(
             QualifiedName browseName,
             NodeId parentId)
         {
-            QualifiedName normalizedBrowseName = NormalizeBrowseName(browseName);
-            string symbolicName = normalizedBrowseName.Name!;
+            return AddMethod(ValidateExplicitBrowseName(browseName), parentId);
+        }
+
+        private NodeBuilder<MethodState> AddMethod(
+            QualifiedName browseName,
+            NodeId parentId)
+        {
+            string symbolicName = browseName.Name!;
             var method = new MethodState(null)
             {
                 SymbolicName = symbolicName,
-                BrowseName = normalizedBrowseName,
+                BrowseName = browseName,
                 DisplayName = new LocalizedText(symbolicName),
                 Executable = true,
                 UserExecutable = true
@@ -1283,7 +1352,18 @@ namespace Opc.Ua.Server.Fluent
                 node.NodeId.NamespaceIndex);
         }
 
-        private QualifiedName NormalizeBrowseName(QualifiedName browseName)
+        private QualifiedName CreateDefaultBrowseName(string browseName)
+        {
+            if (string.IsNullOrEmpty(browseName))
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadBrowseNameInvalid,
+                    "Browse name is null or empty.");
+            }
+            return new QualifiedName(browseName, m_defaultNamespaceIndex);
+        }
+
+        private static QualifiedName ValidateExplicitBrowseName(QualifiedName browseName)
         {
             if (browseName.IsNull)
             {
@@ -1293,9 +1373,10 @@ namespace Opc.Ua.Server.Fluent
             }
             if (browseName.NamespaceIndex == 0)
             {
-                return new QualifiedName(
-                    browseName.Name,
-                    m_defaultNamespaceIndex);
+                throw ServiceResultException.Create(
+                    StatusCodes.BadBrowseNameInvalid,
+                    "A QualifiedName browse name must specify a nonzero namespace index. " +
+                    "Use the string overload for the source's first namespace.");
             }
             return browseName;
         }

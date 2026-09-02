@@ -267,6 +267,67 @@ namespace Opc.Ua.SourceGeneration
                 }
                 writer.WriteLine(
                     "            this global::Opc.Ua.Server.Nodes.INodeGraphBuilder builder,");
+                writer.WriteLine("            string browseName,");
+                writer.WriteLine(
+                    "            global::Opc.Ua.NodeId parentId = default)");
+                writer.WriteLine("        {");
+                writer.WriteLine("            if (builder == null)");
+                writer.WriteLine("            {");
+                writer.WriteLine(
+                    "                throw new global::System.ArgumentNullException(nameof(builder));");
+                writer.WriteLine("            }");
+                writer.WriteLine(
+                    "            if (global::System.String.IsNullOrEmpty(browseName))");
+                writer.WriteLine("            {");
+                writer.WriteLine(
+                    "                throw global::Opc.Ua.ServiceResultException.Create(");
+                writer.WriteLine(
+                    "                    global::Opc.Ua.StatusCodes.BadBrowseNameInvalid,");
+                writer.WriteLine(
+                    "                    \"The browse name cannot be null or empty.\");");
+                writer.WriteLine("            }");
+                writer.WriteLine(
+                    "            return {0}(",
+                    helperName);
+                writer.WriteLine("                builder,");
+                writer.WriteLine(
+                    "                new global::Opc.Ua.QualifiedName(");
+                writer.WriteLine("                    browseName,");
+                writer.WriteLine(
+                    "                    builder.Context.NamespaceUris.GetIndexOrAppend(");
+                writer.WriteLine(
+                    "                        {0})),",
+                    m_context.ModelDesign.Namespaces.GetConstantSymbolForNamespace(
+                        m_context.ModelDesign.TargetNamespace.Value));
+                writer.WriteLine("                parentId);");
+                writer.WriteLine("        }");
+                writer.WriteLine();
+                writer.WriteLine("        /// <summary>");
+                writer.WriteLine(
+                    "        /// Creates and adds an instance of <c>{0}</c> using an explicitly namespaced browse name.",
+                    typeNode.Design.SymbolicName.Name);
+                writer.WriteLine("        /// </summary>");
+                if (instance is VariableDesign explicitVariable)
+                {
+                    string explicitValueType = explicitVariable.DataTypeNode.GetMethodArgumentTypeAsCode(
+                        explicitVariable.ValueRank,
+                        m_context.ModelDesign.TargetNamespace.Value,
+                        m_context.ModelDesign.Namespaces,
+                        isOptional: false);
+                    writer.WriteLine(
+                        "        public static global::Opc.Ua.Server.Fluent.IVariableBuilder<{0}> {1}(",
+                        explicitValueType,
+                        helperName);
+                }
+                else
+                {
+                    writer.WriteLine(
+                        "        public static global::Opc.Ua.Server.Fluent.INodeBuilder<{0}> {1}(",
+                        stateType,
+                        helperName);
+                }
+                writer.WriteLine(
+                    "            this global::Opc.Ua.Server.Nodes.INodeGraphBuilder builder,");
                 writer.WriteLine("            global::Opc.Ua.QualifiedName browseName,");
                 writer.WriteLine(
                     "            global::Opc.Ua.NodeId parentId = default)");
@@ -279,24 +340,23 @@ namespace Opc.Ua.SourceGeneration
                 writer.WriteLine("            if (browseName.IsNull)");
                 writer.WriteLine("            {");
                 writer.WriteLine(
-                    "                throw new global::System.ArgumentException(");
+                    "                throw global::Opc.Ua.ServiceResultException.Create(");
                 writer.WriteLine(
-                    "                    \"The browse name cannot be null.\",");
+                    "                    global::Opc.Ua.StatusCodes.BadBrowseNameInvalid,");
                 writer.WriteLine(
-                    "                    nameof(browseName));");
+                    "                    \"The browse name cannot be null or empty.\");");
                 writer.WriteLine("            }");
                 writer.WriteLine(
                     "            if (browseName.NamespaceIndex == 0)");
                 writer.WriteLine("            {");
                 writer.WriteLine(
-                    "                browseName = new global::Opc.Ua.QualifiedName(");
-                writer.WriteLine("                    browseName.Name,");
+                    "                throw global::Opc.Ua.ServiceResultException.Create(");
                 writer.WriteLine(
-                    "                    builder.Context.NamespaceUris.GetIndexOrAppend(");
+                    "                    global::Opc.Ua.StatusCodes.BadBrowseNameInvalid,");
                 writer.WriteLine(
-                    "                        {0}));",
-                    m_context.ModelDesign.Namespaces.GetConstantSymbolForNamespace(
-                        m_context.ModelDesign.TargetNamespace.Value));
+                    "                    \"A QualifiedName browse name must specify a nonzero namespace index. \" +");
+                writer.WriteLine(
+                    "                    \"Use the string overload for the model namespace.\");");
                 writer.WriteLine("            }");
                 writer.WriteLine();
                 writer.WriteLine(

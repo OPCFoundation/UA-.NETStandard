@@ -80,16 +80,16 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
         }
 
         [Test]
-        public void Emit_WithNodeSourceOptIn_ProducesSourceAlongsideLegacyManager()
+        public void Emit_WithNodeSourceOptIn_ProducesSourceWithoutLegacyManager()
         {
             Dictionary<string, string> files = GenerateForTestModel(
-                generateNodeManager: true,
+                generateNodeManager: false,
                 generateNodeSource: true);
 
             Assert.Multiple(() =>
             {
-                Assert.That(files.Keys, Has.Some.EndsWith(".NodeManager.g.cs"));
-                Assert.That(files.Keys, Has.Some.EndsWith(".NodeManagerFactory.g.cs"));
+                Assert.That(files.Keys, Has.None.EndsWith(".NodeManager.g.cs"));
+                Assert.That(files.Keys, Has.None.EndsWith(".NodeManagerFactory.g.cs"));
                 Assert.That(files.Keys, Has.Some.EndsWith(".NodeSource.g.cs"));
                 Assert.That(files.Keys, Has.Some.EndsWith(".NodeSourceSupport.g.cs"));
             });
@@ -99,11 +99,14 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
         public void EmittedNodeSource_MaterializesFreshGraphAndInvokesConfigureHooks()
         {
             Dictionary<string, string> files = GenerateForTestModel(
-                generateNodeManager: true,
+                generateNodeManager: false,
                 generateNodeSource: true,
                 additionalNamespaceUris: ["urn:test:instance"]);
             string source = files
                 .Single(kv => kv.Key.EndsWith(".NodeSource.g.cs", StringComparison.Ordinal))
+                .Value;
+            string fluentBuilders = files
+                .Single(kv => kv.Key.EndsWith(".FluentBuilders.g.cs", StringComparison.Ordinal))
                 .Value;
 
             Assert.Multiple(() =>
@@ -116,7 +119,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
                     Does.Contain("global::Opc.Ua.Server.Nodes.INodeSetImportFactoryProvider"));
                 Assert.That(
                     source,
-                    Does.Contain("public TestModelNodeManagerSource()"));
+                    Does.Contain("sealed partial class TestModelNodeSource"));
                 Assert.That(
                     source,
                     Does.Contain("new global::Opc.Ua.NodeStateCollection()"));
@@ -132,10 +135,16 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
                         @"global::Opc\.Ua\.Server\.Nodes\.INodeGraphBuilder\s+builder\s*\);"));
                 Assert.That(
                     source,
-                    Does.Contain("partial void Configure(ITestModelNodeManagerBuilder builder);"));
+                    Does.Contain("partial void Configure(ITestModelNodeSourceBuilder builder);"));
                 Assert.That(
                     source,
-                    Does.Contain("Configure(new TestModelNodeManagerTypedBuilder(builder));"));
+                    Does.Contain("Configure(new TestModelNodeSourceTypedBuilder(builder));"));
+                Assert.That(
+                    fluentBuilders,
+                    Does.Contain("interface ITestModelNodeSourceBuilder"));
+                Assert.That(
+                    fluentBuilders,
+                    Does.Contain("class TestModelNodeSourceTypedBuilder"));
                 Assert.That(
                     source,
                     Does.Contain("partial void ConfigureBehaviorRegistrations("));
@@ -148,7 +157,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
         public void EmittedNodeSourceSupport_HasTypedGraphHelpersAndDirectImportFactories()
         {
             Dictionary<string, string> files = GenerateForTestModel(
-                generateNodeManager: true,
+                generateNodeManager: false,
                 generateNodeSource: true);
             string support = files
                 .Single(kv => kv.Key.EndsWith(".NodeSourceSupport.g.cs", StringComparison.Ordinal))
@@ -165,6 +174,13 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
                 Assert.That(
                     support,
                     Does.Contain("AddRestrictedMethodType("));
+                Assert.That(
+                    support,
+                    Does.Contain("string browseName"));
+                Assert.That(
+                    support,
+                    Does.Contain(
+                        "A QualifiedName browse name must specify a nonzero namespace index."));
                 Assert.That(
                     support,
                     Does.Contain(
@@ -217,7 +233,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
         public void EmittedImportFactoriesCoverPlaceholderInheritedAndArgumentChildren()
         {
             Dictionary<string, string> files = GenerateForTestModel(
-                generateNodeManager: true,
+                generateNodeManager: false,
                 generateNodeSource: true);
             string support = files
                 .Single(kv => kv.Key.EndsWith(".NodeSourceSupport.g.cs", StringComparison.Ordinal))

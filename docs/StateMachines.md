@@ -679,5 +679,5 @@ Callers that passed the state machine's `ObjectId` to
   — the four DI SU state machines, the typed
   `SoftwareUpdateClient.StateMachine` partial, and the server-side
   `On*StateChanged` instrumentation hooks.
-- [Source-generated NodeManagers](NodeManagers.md#source-generated-node-managers) —
+- [Source-generated node sources](NodeManagers.md#source-generated-node-sources) —
   how vendor NodeSets get their `*TypeClient` proxies emitted.

@@ -338,23 +338,13 @@ namespace Opc.Ua.SourceGeneration
                 /// </summary>
                 /// <remarks>
                 /// Each <see cref="BuildAsync"/> invocation materializes a new
-                /// node-state graph. The legacy generated
-                /// <see cref="{{Tokens.NodeManagerClassName}}"/> remains available
-                /// while applications migrate to
-                /// <see cref="global::Opc.Ua.Server.Nodes.INodeSource"/>.
+                /// node-state graph for transactional activation and publication.
                 /// </remarks>
                 [global::System.CodeDom.Compiler.GeneratedCodeAttribute("{{Tokens.Tool}}", "{{Tokens.Version}}")]
                 public sealed partial class {{Tokens.NodeSourceClassName}} :
                     global::Opc.Ua.Server.Nodes.INodeSource,
                     global::Opc.Ua.Server.Nodes.INodeSetImportFactoryProvider
                 {
-                    /// <summary>
-                    /// Initializes a new <see cref="{{Tokens.NodeSourceClassName}}"/>.
-                    /// </summary>
-                    public {{Tokens.NodeSourceClassName}}()
-                    {
-                    }
-
                     /// <inheritdoc/>
                     public global::Opc.Ua.ArrayOf<string> NamespaceUris
                         => new global::Opc.Ua.ArrayOf<string>(

@@ -34,31 +34,29 @@
   - [Related documentation](#related-documentation)
 - [Compositional node sources](#compositional-node-sources)
   - [Authoring a source](#authoring-a-source)
+  - [NodeState lifecycle inside a source generation](#nodestate-lifecycle-inside-a-source-generation)
   - [Hosting and runtime lifecycle](#hosting-and-runtime-lifecycle)
 - [Server address-space metadata](#server-address-space-metadata)
   - [NamespaceMetadata for every namespace](#namespacemetadata-for-every-namespace)
     - [Node-manager authoring note](#node-manager-authoring-note)
   - [Historical-access reconciliation](#historical-access-reconciliation)
   - [See also](#see-also)
-- [Source-generated node managers](#source-generated-node-managers)
+- [Source-generated node sources](#source-generated-node-sources)
   - [What the generator produces](#what-the-generator-produces)
   - [Opting in](#opting-in)
-    - [Per-class opt-in via [NodeManager] (recommended)](#per-class-opt-in-via-nodemanager-recommended)
-    - [Generated node-source migration mode](#generated-node-source-migration-mode)
-    - [Project-wide opt-in via MSBuild property (legacy)](#project-wide-opt-in-via-msbuild-property-legacy)
+    - [Per-class opt-in via [NodeSource]](#per-class-opt-in-via-nodesource)
   - [Wiring callbacks: the Configure partial](#wiring-callbacks-the-configure-partial)
     - [Addressing modes](#addressing-modes)
     - [Creating nodes under other managers' nodes (Objects folder)](#creating-nodes-under-other-managers-nodes-objects-folder)
-  - [Typed model-traversal — the Configure(I{Manager}NodeManagerBuilder) partial](#typed-model-traversal--the-configureimanagernodemanagerbuilder-partial)
+  - [Typed model-traversal — the Configure(I{Source}Builder) partial](#typed-model-traversal--the-configureisourcebuilder-partial)
     - [What the generator emits per model](#what-the-generator-emits-per-model)
     - [Methods with arguments — typed OnCall overloads](#methods-with-arguments--typed-oncall-overloads)
   - [Event sources — typed Publish&lt;TEvent&gt; on notifier wrappers](#event-sources--typed-publishtevent-on-notifier-wrappers)
     - [Where the typed overload appears](#where-the-typed-overload-appears)
     - [Two registration shapes](#two-registration-shapes)
     - [Tuning lifecycle with EventPublishOptions](#tuning-lifecycle-with-eventpublishoptions)
-    - [Hand-written node managers](#hand-written-node-managers)
+    - [Hand-written node sources](#hand-written-node-sources)
   - [Single-file Program.cs — what it looks like](#single-file-programcs--what-it-looks-like)
-  - [Multi-namespace and manager-swap subclassing](#multi-namespace-and-manager-swap-subclassing)
   - [NativeAOT publishing](#nativeaot-publishing)
   - [Runtime NodeSet alternative](#runtime-nodeset-alternative)
   - [Building richer node managers — the fluent extension surface](#building-richer-node-managers--the-fluent-extension-surface)
@@ -363,7 +361,7 @@ which a NodeManager can be registered with a server, and what the server guarant
 registrations change while the server is running.
 
 For how to author an address space, see [compositional node sources](#compositional-node-sources),
-[source-generated NodeManagers](#source-generated-node-managers), [runtime NodeSets](RuntimeNodeSets.md), and
+[source-generated node sources](#source-generated-node-sources), [runtime NodeSets](RuntimeNodeSets.md), and
 [CoreNodeManager vs CustomNodeManager2](#core-vs-custom-node-managers).
 
 There are several ways a NodeManager originates and is added to a server, shown in the following
@@ -654,7 +652,7 @@ live without any of this, and becomes reloadable once it implements the interfac
 ### Related documentation
 
 * [Runtime NodeSets](RuntimeNodeSets.md) — loading NodeSet2 XML without source generation.
-* [Source-generated NodeManagers](#source-generated-node-managers) — compile-time models.
+* [Source-generated node sources](#source-generated-node-sources) — compile-time models.
 * [Dependency Injection](DependencyInjection.md) — the `services.AddOpcUa()` hosting surface.
 * [Model Change Tracking](ModelChangeTracking.md) — how Clients observe address-space changes.
 
@@ -686,18 +684,18 @@ public sealed class PlantSource(IPlantGateway gateway) : INodeSource
         CancellationToken cancellationToken = default)
     {
         INodeBuilder<FolderState> plant =
-            builder.AddFolder(new QualifiedName("Plant"));
+            builder.AddFolder("Plant");
         INodeBuilder<BaseObjectState> pump =
-            builder.AddObject(new QualifiedName("Pump1"), plant.Node.NodeId);
+            builder.AddObject("Pump1", plant.Node.NodeId);
 
         IVariableBuilder<double> speed =
             builder.AddVariable<double>(
-                new QualifiedName("Speed"),
+                "Speed",
                 pump.Node.NodeId);
         speed.Node.WrappedValue = new Variant(0.0);
         speed.OnRead(token => gateway.ReadSpeedAsync(token));
 
-        builder.AddMethod(new QualifiedName("Reset"), pump.Node.NodeId)
+        builder.AddMethod("Reset", pump.Node.NodeId)
             .OnCall(async (context, method, objectId, input, output, token) =>
             {
                 await gateway.ResetAsync(token).ConfigureAwait(false);
@@ -709,11 +707,14 @@ public sealed class PlantSource(IPlantGateway gateway) : INodeSource
 }
 ```
 
-An unqualified `QualifiedName` is placed in the source's first namespace. Supply an explicit
-namespace index for a secondary namespace declared by the same source. The default parent for an
-instance is `Objects`; roots and folders default to `Organizes`, while other children use the
-node's assigned `ReferenceTypeId` or `HasComponent`. `Add<TState>` preserves caller-assigned NodeIds
-and returns an `INodeBuilder<TState>`, so custom state types remain strongly typed.
+The string overloads place a browse name in the source's first namespace. The
+`QualifiedName` overloads require a nonzero namespace index, making a secondary
+namespace explicit and preventing an accidental `ns=0` name from being silently
+reinterpreted. The default parent for an instance is `Objects`; roots and folders
+default to `Organizes`, while other children use the node's assigned
+`ReferenceTypeId` or `HasComponent`. `Add<TState>` preserves caller-assigned
+NodeIds and returns an `INodeBuilder<TState>`, so custom state types remain
+strongly typed.
 
 The adapter's `INodeIdFactory` assigns missing NodeIds before a returned builder can register
 callbacks keyed by that id. Its default scheme is deterministic by parent and browse name, which
@@ -753,18 +754,61 @@ documents. Import factories can select instances by TypeDefinition, methods by
 MethodDeclarationId, or an exact node by NodeId. Exact-node registrations are
 used for generated child slots such as method arguments.
 
-Models using `[NodeManager(GenerateNodeSource = true)]` receive a generated
-`INodeSource`, typed graph-creation helpers, and a generated import-factory
-provider. See [Generated node-source migration mode](#generated-node-source-migration-mode).
+Models using `[NodeSource]` receive a generated `INodeSource`, typed
+graph-creation helpers, and a generated import-factory provider. See
+[Source-generated node sources](#source-generated-node-sources).
 
 Use [runtime NodeSets](RuntimeNodeSets.md) when the files or streams should be registered directly
 without an application-owned `INodeSource`.
 
+### NodeState lifecycle inside a source generation
+
+Runtime-loaded NodeSets, source-generated models, and hand-authored nodes all
+converge on the same lifecycle after the graph has been linked and assigned its
+final NodeIds:
+
+```mermaid
+flowchart TD
+    A[Build or import complete graph] --> B[Link parents, references, and final NodeIds]
+    B --> C[OnBeforeCreate: parent before children]
+    C --> D[OnAfterCreate: children before parent]
+    D --> E{Callbacks added children?}
+    E -- yes --> C
+    E -- no --> F[Index complete graph in hidden manager]
+    F --> G[Activate behaviors: child first, base type to derived type]
+    G --> H[Publish manager generation]
+```
+
+`CreateAsPredefinedNode` is idempotent per node. A completion pass invokes
+`OnBeforeCreate` only for nodes whose `IsCreated` is false, then invokes
+`OnAfterCreate` from leaves back to the root and sets `IsCreated`. If a callback
+adds another child, completion repeats for only the uncreated nodes. Cancellation
+is checked between nodes; retrying completes the remaining nodes without
+re-running callbacks on nodes that already completed.
+
+Deletion is the object lifecycle, not merely removal from the manager index:
+
+```mermaid
+flowchart TD
+    A[Unpublish and drain manager generation] --> B[Deactivate and dispose behavior leases in reverse]
+    B --> C[NodeState.Delete on each root]
+    C --> D[OnBeforeDelete on parent]
+    D --> E[Delete children recursively]
+    E --> F[OnAfterDelete on parent]
+    F --> G[Reset IsCreated and clear manager indexes]
+```
+
+`RemovePredefinedNode*` only de-indexes a node and deliberately does not run
+delete callbacks. `DeleteAddressSpace*` destroys the generation and uses
+`NodeState.Delete` on its roots.
+
 ### Hosting and runtime lifecycle
 
-`AddNodeSource<TSource>()` constructs the source through dependency injection and follows the same
-NativeAOT-safe `DynamicallyAccessedMembers(PublicConstructors)` convention as
-`AddNodeManager<TFactory>()`:
+`AddNodeSource<TSource>()` is a generic registration; source dispatch does not
+use reflection. Dependency injection constructs `TSource`, and the generic type
+parameter is annotated with
+`DynamicallyAccessedMembers(PublicConstructors)` so constructor activation remains
+NativeAOT safe:
 
 ```csharp
 services.AddSingleton<IPlantGateway, PlantGateway>();
@@ -885,18 +929,18 @@ continue advertising historical access.
 
 - [Historical Access](HistoricalAccess.md) — historian provider model
   and fluent `.Historize()` wiring.
-- [Source-generated NodeManagers](#source-generated-node-managers) —
+- [Source-generated node sources](#source-generated-node-sources) —
   NodeSet2 import, fluent node creation, and runtime instance NodeId
   assignment.
 
-## Source-generated node managers
+## Source-generated node sources
 
-This guide explains how to use the OPC UA stack source generator to emit a
-ready-to-host `AsyncCustomNodeManager` for an information model design XML, and
-how to wire callbacks (read/write/method/lifecycle) using the fluent
-`INodeManagerBuilder` API. The combination is designed for **single-file,
-NativeAOT-friendly** servers — see
-`samples/MinimalApi/MinimalBoilerServer` for the canonical sample.
+The source generator can complete a user-authored partial class as a
+ready-to-host `INodeSource` for an information model design. The result uses
+the same compositional graph interface as a hand-written source and is designed
+for single-file, NativeAOT-friendly servers. See
+`samples/MinimalApi/MinimalBoilerServer` and
+`samples/MinimalApi/MinimalCalcServer`.
 
 ### What the generator produces
 
@@ -907,113 +951,35 @@ The base source generator already emits, for each model design:
 - `Add{Ns}(INodeStateFactoryBuilder)` — registers strongly-typed activators.
 - `Add{Ns}DataTypes(IEncodeableFactoryBuilder)` — registers encodeables.
 
-When `ModelSourceGeneratorGenerateNodeManager=true` is set **or** a
-class is annotated with `[Opc.Ua.Server.Fluent.NodeManagerAttribute]`,
-the generator **additionally** emits, in either the `{ModelNamespace}`
-namespace (legacy MSBuild mode) or the user class's namespace
-(attribute mode):
+When a partial class is annotated with
+`[Opc.Ua.Server.Fluent.NodeSourceAttribute]`, generation additionally
+completes that class with:
 
-- `public partial class {Ns}NodeManager : AsyncCustomNodeManager` (legacy)
-  or `public partial class {UserClass} : AsyncCustomNodeManager` (attribute)
-  - Constructor `(IServerInternal, ApplicationConfiguration)`.
-  - Pre-registers the model namespace URI.
-  - `LoadPredefinedNodesAsync` returns
-    `new NodeStateCollection().Add{Ns}(context)` wrapped in a
-    `ValueTask<NodeStateCollection>`.
-  - `CreateAddressSpaceAsync` `await`s `base.CreateAddressSpaceAsync`,
-    then builds a fluent `INodeManagerBuilder`, invokes
-    `Configure(builder)`, `await`s `CompleteConfigureAsync` (re-running
-    the reverse-reference pass so nodes created inside `Configure`
-    publish their references to nodes owned by other managers — e.g. an
-    inverse `Organizes` to the ns=0 `Objects` folder — into the
-    `externalReferences` dictionary), calls `builder.Seal()`, and
-    replays `NotifyNodeAdded` for every predefined node so per-node
-    lifecycle hooks fire deterministically.
-  - `AddPredefinedNodeAsync` / `RemovePredefinedNodeAsync` overrides
-    forward to base and then dispatch the lifecycle notification.
-  - `OnMonitoredItemCreated` (still synchronous on the base) dispatches
-    the per-node hook.
-  - Declares `partial void Configure(INodeManagerBuilder builder);` for
-    user wiring.
-- `public class {Ns}NodeManagerFactory : IAsyncNodeManagerFactory`
-  - Returns the namespace URI in `NamespacesUris`.
-  - `CreateAsync(IServerInternal, ApplicationConfiguration, CancellationToken)`
-    returns a `ValueTask<IAsyncNodeManager>` containing a new manager
-    instance.
-  - Both members are `virtual` so consumers can subclass to add a second
-    namespace or swap in a manager subclass.
-
-With the explicit attribute option `GenerateNodeSource = true`, generation also
-adds:
-
-- `public sealed partial class {UserClass}Source : INodeSource,
-  INodeSetImportFactoryProvider`;
+- `INodeSource` and `INodeSetImportFactoryProvider`;
+- `NamespaceUris` containing the model namespace and any declared additional
+  namespaces;
+- `BuildAsync`, which materializes a fresh graph and invokes the untyped and
+  typed `Configure` partials;
 - public `Add{ObjectType}`, `Add{VariableType}`, and `Add{MethodType}`
   extensions on `INodeGraphBuilder`;
 - a public `{Model}NodeSetImportFactoryProvider` backed by sealed singleton
   factories for type definitions, method declarations, declaration NodeIds,
   and exact generated child NodeIds.
 
-This migration output is additive. The generated `FluentNodeManagerBase`
-partial and its factory remain present and remain the default hosting path.
-Register either the manager factory or the generated source for a model, not
-both, because they own the same namespace and NodeIds.
-
-`AddNodeManager` on `StandardServer` has overloads for both
-`INodeManagerFactory` and `IAsyncNodeManagerFactory`; the generated
-async factory binds to the latter automatically.
+`[NodeSource]` does not generate a public NodeManager subclass or factory.
+The existing legacy generator remains only for specialized in-repository
+managers that still require inheritance capabilities not represented by the
+source interface. That transition is tracked in
+[`plans/NodeManagerAnalysis.md`](../plans/NodeManagerAnalysis.md), not as a
+recommended application authoring path.
 
 ### Opting in
 
 Add the generator analyzer to your project (this is what
-`OPCFoundation.Opc.Ua.SourceGeneration.props` is for) and choose **one**
-of the two opt-in modes:
+`OPCFoundation.Opc.Ua.SourceGeneration.props` is for) and annotate the
+user-authored partial source class.
 
-#### Per-class opt-in via `[NodeManager]` (recommended)
-
-Annotate the user-authored partial class that should host the generated
-manager:
-
-```csharp
-using Opc.Ua.Server.Fluent;
-
-namespace MyCompany.MyServer;
-
-[NodeManager]
-public partial class MyDeviceNodeManager
-{
-    partial void Configure(INodeManagerBuilder builder)
-    {
-        // wire your callbacks here
-    }
-}
-```
-
-The generator emits a sibling `partial class MyDeviceNodeManager :
-AsyncCustomNodeManager` and a `MyDeviceNodeManagerFactory` (implementing
-`IAsyncNodeManagerFactory`) in the same namespace as the user class. No
-MSBuild flag is required.
-
-When a project carries multiple model designs, disambiguate which
-design the attribute targets via either:
-
-```csharp
-[NodeManager(NamespaceUri = "http://opcfoundation.org/UA/Boiler/")]
-```
-
-or by file stem:
-
-```csharp
-[NodeManager(Design = "BoilerDesign")]
-```
-
-Set `GenerateFactory = false` to suppress factory emission when you want
-to ship a hand-written `IAsyncNodeManagerFactory`.
-
-#### Generated node-source migration mode
-
-Set `GenerateNodeSource = true` on the per-class attribute to emit a
-compositional source alongside, not instead of, the generated manager:
+#### Per-class opt-in via `[NodeSource]`
 
 ```csharp
 using Opc.Ua.Server.Fluent;
@@ -1022,36 +988,38 @@ using MyModel;
 
 namespace MyCompany.MyServer;
 
-[NodeManager(
-    NamespaceUri = MyModel.Namespaces.MyModel,
-    GenerateNodeSource = true)]
-public partial class MyDeviceNodeManager
-{
-}
-
-public sealed partial class MyDeviceNodeManagerSource
+[NodeSource(NamespaceUri = MyModel.Namespaces.MyModel)]
+public sealed partial class MyDeviceNodeSource
 {
     partial void Configure(INodeGraphBuilder builder)
     {
-        INodeBuilder<FolderState> plant =
-            builder.AddFolder(new QualifiedName("Plant"));
+        INodeBuilder<FolderState> plant = builder.AddFolder("Plant");
 
         INodeBuilder<MyModel.DeviceState> device =
-            builder.AddDeviceType(
-                new QualifiedName("Device1"),
-                plant.Node.NodeId);
+            builder.AddDeviceType("Device1", plant.Node.NodeId);
 
-        builder.AddMeasurementType(
-                new QualifiedName("Temperature"),
-                device.Node.NodeId)
+        builder.AddMeasurementType("Temperature", device.Node.NodeId)
             .OnRead(ReadTemperature);
     }
 
-    partial void Configure(IMyDeviceNodeManagerBuilder builder)
+    partial void Configure(IMyDeviceNodeSourceBuilder builder)
     {
         builder.Device.Builder.OnNodeAdded(OnDeviceAdded);
     }
 }
+```
+
+When a project carries multiple model designs, disambiguate which
+design the attribute targets via either:
+
+```csharp
+[NodeSource(NamespaceUri = "http://opcfoundation.org/UA/Boiler/")]
+```
+
+or by file stem:
+
+```csharp
+[NodeSource(Design = "BoilerDesign")]
 ```
 
 `BuildAsync` creates a new `NodeStateCollection`, calls the existing generated
@@ -1060,18 +1028,35 @@ public sealed partial class MyDeviceNodeManagerSource
 `NodeState` graph is retained between builds, so reloading the same source
 instance still produces a fresh graph.
 
-The generated source is public, sealed, partial, and has a public parameterless
-constructor, so it can be registered directly or constructed by dependency
-injection:
+Generated `Add{Type}(string, ...)` helpers place the browse name in that
+generated model's namespace. This is intentionally more specific than
+`INodeGraphBuilder.AddObject(string, ...)`, which uses the source's first
+namespace. Use the `QualifiedName` overload with a nonzero namespace index when
+creating a generated model type in another namespace.
+
+The generated source is public, sealed, and partial. A class without a
+user-authored constructor has the normal public parameterless constructor; a
+class with constructor dependencies is created by dependency injection:
 
 ```csharp
 services.AddOpcUa()
     .AddServer(options => { /* application and endpoint options */ })
-    .AddNodeSource<MyDeviceNodeManagerSource>();
+    .AddNodeSource<MyDeviceNodeSource>();
 ```
 
-The source advertises the same model and `AdditionalNamespaceUris` set as the
-legacy manager. It also implements `INodeSetImportFactoryProvider`; therefore,
+For a directly constructed `StandardServer` subclass, adapt an existing source
+without DI:
+
+```csharp
+protected override void OnServerStarting(ApplicationConfiguration configuration)
+{
+    base.OnServerStarting(configuration);
+    AddNodeManager(NodeSourceFactory.Create(new MyDeviceNodeSource()));
+}
+```
+
+The source advertises the model and `AdditionalNamespaceUris` set. It also
+implements `INodeSetImportFactoryProvider`; therefore,
 any `builder.Import(nodeSet)` call made from the untyped `Configure` hook uses
 the generated direct-constructor factories automatically. The public
 `{Model}NodeSetImportFactoryProvider.Instance` can also be delegated to by
@@ -1089,48 +1074,21 @@ The generated source declares and invokes a
 internal behavior contracts; behavior-factory generation can implement that
 seam when those registrations become a public phase.
 
-When the manager also owns namespaces beyond the model's own — most
+When the source also owns namespaces beyond the model's own — most
 commonly a separate *instance* namespace for nodes created at runtime —
 declare them on the attribute:
 
 ```csharp
-[NodeManager(
+[NodeSource(
     NamespaceUri = Namespaces.Boiler,
     AdditionalNamespaceUris = new[] { Namespaces.Boiler + "Instance" })]
 ```
 
-The generated constructor passes them to the base manager together with
-the model namespace and the generated factory advertises them in
-`NamespacesUris`, so the master node manager routes requests for those
-namespaces to this manager from the moment it is built. Calling
-`SetNamespaces` later is not sufficient — the master builds its
-namespace routing from what the manager reported when it was
-constructed.
+`NamespaceUris` includes them from construction, so the master node manager
+routes those namespaces to the source adapter immediately.
 
-#### Project-wide opt-in via MSBuild property (legacy)
-
-If you prefer a generator-derived class identity (`{Prefix}NodeManager` /
-`{Prefix}NodeManagerFactory`) without authoring a stub partial, set the
-opt-in property:
-
-```xml
-<PropertyGroup>
-  <ModelSourceGeneratorGenerateNodeManager>true</ModelSourceGeneratorGenerateNodeManager>
-</PropertyGroup>
-
-<ItemGroup>
-  <AdditionalFiles Include="Generated\MyModelDesign.xml" />
-  <AdditionalFiles Include="Generated\MyModelDesign.csv" />
-</ItemGroup>
-```
-
-This emits `{Prefix}NodeManager` + `{Prefix}NodeManagerFactory` for
-every design in the project. Wire callbacks by adding a sibling
-`partial class {Prefix}NodeManager` that implements `Configure`.
-
-Without either opt-in, only the existing `Add{Ns}*` extensions are
-emitted — hand-written `AsyncCustomNodeManager` (or legacy
-`CustomNodeManager2`) subclasses keep working unchanged.
+Without `[NodeSource]`, only the existing model/state/data-type extensions and
+the default fluent accessor extensions are emitted.
 
 ### Wiring callbacks: the `Configure` partial
 
@@ -1139,9 +1097,9 @@ Author a sibling partial that fills in `Configure`:
 ```csharp
 namespace MyModel;
 
-public partial class MyModelNodeManager
+public sealed partial class MyModelNodeSource
 {
-    partial void Configure(INodeManagerBuilder builder)
+    partial void Configure(INodeGraphBuilder builder)
     {
         builder
             .Node("Boilers/Boiler #1/Drum1001/LevelIndicator/Output")
@@ -1153,13 +1111,16 @@ public partial class MyModelNodeManager
         // HistoryServerCapabilities or a single BoilerType instance.
         builder
             .NodeFromTypeId(ExpandedNodeId.ToNodeId(
-                MyModel.ObjectTypeIds.BoilerType, Server.NamespaceUris))
+                MyModel.ObjectTypeIds.BoilerType,
+                builder.Context.NamespaceUris))
             .OnNodeAdded((ctx, node) => /* ... */);
 
         // For multi-instance types, disambiguate with a BrowseName:
         builder
             .NodeFromTypeId(
-                ExpandedNodeId.ToNodeId(MyModel.ObjectTypeIds.BoilerType, Server.NamespaceUris),
+                ExpandedNodeId.ToNodeId(
+                    MyModel.ObjectTypeIds.BoilerType,
+                    builder.Context.NamespaceUris),
                 new QualifiedName("Boiler #2", nsIndex))
             .OnRead(MyReadHandler);
     }
@@ -1179,7 +1140,7 @@ different namespace.
 | `NodeFromTypeId(NodeId typeId)` / `NodeFromTypeId<TState>(NodeId typeId)` | `BaseInstanceState.TypeDefinitionId` | Singleton instance of a well-known type |
 | `NodeFromTypeId(NodeId typeId, QualifiedName browseName)` | TypeDefinitionId + BrowseName | Multi-instance types — pick one |
 
-`NodeFromTypeId` walks every predefined node owned by this manager
+`NodeFromTypeId` walks every node already materialized in this source generation
 (and their sub-trees) at Configure-time. Error matrix:
 
 * `BadNodeIdInvalid` — `typeId` is null or `IsNull`.
@@ -1200,58 +1161,43 @@ The builder exposes:
 | `OnNodeAdded` / `OnNodeRemoved` | Lifecycle dispatch from `NotifyNodeAdded` |
 | `OnEvent`, `OnConditionRefresh`, `OnHistoryRead`, `OnHistoryUpdate`, `OnMonitoredItemCreated` | Manager-level dispatch keyed by `NodeId` |
 
-`INodeManagerBuilder.NodeManager` is typed as `IAsyncNodeManager`. Use
-`builder.NodeManager.SyncNodeManager` to obtain the synchronous
-`INodeManager` facade for legacy interop, or cast it to your concrete
-manager type if you need direct access.
+`INodeGraphBuilder.NodeManager` exposes only the `IAsyncNodeManager` interface.
+The concrete source adapter is deliberately internal; source code should use
+the graph and fluent interfaces rather than cast to a manager implementation.
 
-All resolution happens **once** during `CreateAddressSpaceAsync`,
-against the in-memory predefined-node tree. There is no reflection, no
+All resolution happens once during `BuildAsync`, against the prepared in-memory
+graph. There is no reflection, no
 `Activator.CreateInstance`, no `Expression.Compile` — the whole pipeline
 is NativeAOT-safe.
 
 #### Creating nodes under other managers' nodes (Objects folder)
 
-Anything a NodeSet can declare, `Configure` can declare identically —
-including references whose target is owned by **another** node manager,
-such as the ns=0 `Objects` folder managed by the `CoreNodeManager`.
-Write the inverse reference on your node; after the `Configure`
-partials return, the manager re-runs its reverse-reference pass
-(`FluentNodeManagerBase.CompleteConfigureAsync`) and publishes the
-matching forward edge into the `externalReferences` dictionary that the
-master node manager distributes once every manager's address space is
-built.
-
-Two helpers make the common placement declarative, and a manager-level
-`CreateInstance<TState>` creates root-level (parentless) instances,
-materializing the subtree from the type model and minting NodeIds
-through the manager's `INodeIdFactory`:
+Anything a NodeSet can declare, `Configure` can declare identically, including
+references whose target is owned by another node manager. A default parent
+places authored instances below the ns=0 `Objects` folder; passing another
+external parent NodeId records the matching cross-manager reference during
+graph finalization:
 
 ```csharp
-partial void Configure(INodeManagerBuilder builder)
+partial void Configure(INodeGraphBuilder builder)
 {
-    // Instantiate a second boiler at runtime and place it under the
-    // ns=0 Objects folder — no LoadPredefinedNodesAsync override, no
-    // manual externalReferences bookkeeping.
-    builder.CreateInstance(
-            new QualifiedName("Boiler #2", NamespaceIndexes[1]),
-            p => new BoilerState(p))
-        .Configure(n => n.UnderObjectsFolder());
+    INodeBuilder<FolderState> area = builder.AddFolder("Area");
+    builder.AddBoilerType("Boiler #2", area.Node.NodeId);
 
-    // Arbitrary parents work the same way:
-    //   n.OrganizedBy(parentNodeId)
-    // adds the inverse Organizes reference; the forward edge reaches
-    // the owning manager automatically.
+    builder.AddObject(
+        "ServerChild",
+        ObjectIds.Server,
+        ExpandedNodeId.ToNodeId(
+            MyModel.ObjectTypeIds.DeviceType,
+            builder.Context.NamespaceUris));
 }
 ```
 
 Inverse `HasNotifier` references to external notifiers get root-notifier
-registration through the same pass. This covers **startup-time**
-configuration only — for nodes created after startup use
-`IMasterNodeManager.AddReferencesAsync`, which dispatches to the live
-owning manager.
+registration through the same pass. Committed source topology is changed by
+building and reloading a fresh generation, not by mutating the published graph.
 
-### Typed model-traversal — the `Configure(I{Manager}NodeManagerBuilder)` partial
+### Typed model-traversal — the `Configure(I{Source}Builder)` partial
 
 Alongside the string/NodeId/TypeId addressing surface above, the
 generator emits a **second** `Configure` partial whose builder parameter
@@ -1261,12 +1207,12 @@ properties — typos are compile-time errors, not startup-time
 `ServiceResultException`s.
 
 ```csharp
-public partial class BoilerNodeManager
+public sealed partial class BoilerNodeSource
 {
     // Untyped Configure remains available for nodes outside the model
     // (e.g. dynamic instances, foreign-namespace nodes, or just to keep
     // hand-written wiring side-by-side with typed wiring).
-    partial void Configure(INodeManagerBuilder builder)
+    partial void Configure(INodeGraphBuilder builder)
     {
         builder
             .Node("Boilers/Boiler #1/DrumX001/LIX001/Output")
@@ -1276,7 +1222,7 @@ public partial class BoilerNodeManager
     // Typed Configure: every accessor below is a generated property
     // resolved against the model. The compiler enforces both the path
     // shape AND the value type of every leaf.
-    partial void Configure(IBoilerNodeManagerBuilder builder)
+    partial void Configure(IBoilerNodeSourceBuilder builder)
     {
         // Variable: typed Func<double> handler — the generator removed
         // the ref-Variant boilerplate.
@@ -1304,11 +1250,11 @@ for everything else.
 #### What the generator emits per model
 
 For a model with `N` ObjectTypes and `M` predefined instances/children
-the generator emits, into a single `{Manager}.FluentBuilders.g.cs`:
+the generator emits, into a single `{Source}.FluentBuilders.g.cs`:
 
-- `internal interface I{Manager}NodeManagerBuilder : INodeManagerBuilder`
+- `internal interface I{Source}Builder : INodeManagerBuilder`
   — one accessor per top-level predefined instance.
-- `internal sealed class {Manager}NodeManagerTypedBuilder` — proxy that
+- `internal sealed class {Source}TypedBuilder` — proxy that
   forwards `INodeManagerBuilder` members to the runtime builder while
   surfacing the typed accessors.
 - One `internal sealed class` per instance node — whose properties map
@@ -1345,8 +1291,8 @@ Two overloads are emitted per method, shaped by the declared arguments:
   `OnCall(Func<TIn1, …, TResult> handler)` (synchronous dispatch through
   `MethodState.OnCallMethod2`) and
   `OnCall(Func<TIn1, …, CancellationToken, ValueTask<TResult>> handler)`
-  (async dispatch through `MethodState.OnCallMethod2Async`, awaited inside
-  `AsyncCustomNodeManager.CallAsync` so the lambda may freely `await`).
+  (async dispatch through `MethodState.OnCallMethod2Async`, awaited by the
+  source adapter so the lambda may freely `await`).
 - **Inputs but no output** (a `void`-returning action) →
   `OnCall(Action<TIn1, …> handler)` and
   `OnCall(Func<TIn1, …, CancellationToken, ValueTask> handler)`. The inputs
@@ -1366,10 +1312,10 @@ This means **instance methods imported from a NodeSet2** (whose
 the same typed `OnCall` overloads as methods authored in a ModelDesign.
 
 ```csharp
-[NodeManager(NamespaceUri = "http://opcfoundation.org/UA/Calc/")]
-public partial class CalcNodeManager
+[NodeSource(NamespaceUri = "http://opcfoundation.org/UA/Calc/")]
+public sealed partial class CalcNodeSource
 {
-    partial void Configure(ICalcNodeManagerBuilder builder)
+    partial void Configure(ICalcNodeSourceBuilder builder)
     {
         // Sync int+int → int. The generator unpacks each Variant
         // through Variant.TryGetValue<int> and boxes the result back
@@ -1378,7 +1324,7 @@ public partial class CalcNodeManager
             .OnCall((int a, int b) => a + b);
 
         // Async double+double → double. The CancellationToken is
-        // forwarded by AsyncCustomNodeManager.CallAsync so the
+        // forwarded by the asynchronous call path so the
         // handler may freely await and honour cancellation.
         builder.Calculator.Multiply
             .OnCall(async (double x, double y, CancellationToken ct) =>
@@ -1417,11 +1363,11 @@ iterator the first time a client subscribes to events on the notifier
 `HasEventSource` references), cancels it when the last interested
 monitored item disappears, and disposes it on manager teardown.
 
-Generated managers derive from `Opc.Ua.Server.Fluent.FluentNodeManagerBase`
-out of the box, so wiring is one call:
+Generated sources are hosted by the internal
+`Opc.Ua.Server.Fluent.FluentNodeManagerBase` adapter, so wiring is one call:
 
 ```csharp
-partial void Configure(IBoilerNodeManagerBuilder builder)
+partial void Configure(IBoilerNodeSourceBuilder builder)
 {
     // The DrumX001 wrapper exposes Publish<TEvent> because the model
     // declares EventNotifier=SubscribeToEvents on the node. Lazy by
@@ -1518,13 +1464,11 @@ builder.Boilers.Boiler__1.DrumX001
         });
 ```
 
-#### Hand-written node managers
+#### Hand-written node sources
 
-Managers that don't use the source generator can opt in by deriving
-from `Opc.Ua.Server.Fluent.FluentNodeManagerBase` and calling
-`AttachToBuilder(builder)` from inside their address-space-build
-callback. Once attached, all `Publish` extensions resolve against the
-manager's registry exactly as for generated managers.
+Hand-written `INodeSource` implementations receive the same
+`INodeGraphBuilder`, so `Publish` extensions resolve against the adapter-owned
+event registry exactly as for generated sources.
 
 The end-to-end sample lives in
 `samples/MinimalApi/MinimalBoilerServer/BoilerNodeManager.Configure.cs`
@@ -1560,53 +1504,24 @@ builder.Services
         o.AutoAcceptUntrustedCertificates = true;
         o.EndpointUrls.Add("opc.tcp://localhost:51210/MyServer");
     })
-    .AddNodeManager<MyModel.MyModelNodeManagerFactory>();
+    .AddNodeSource<MyModel.MyModelNodeSource>();
 
 await builder.Build().RunAsync();
 ```
 
 `AddOpcUa()` registers a `ServiceProviderTelemetryContext` that adapts
 the host's `ILoggerFactory` to `ITelemetryContext` — no separate logging
-pipeline is required. `IOpcUaServerBuilder.AddNodeManager<T>()` registers
-an `IAsyncNodeManagerFactory`; use `AddSyncNodeManager<T>()` for the
-legacy `INodeManagerFactory`. For advanced configuration (custom security
-policies, additional builder calls), set `OpcUaServerOptions.ConfigureBuilder`.
+pipeline is required. `AddNodeSource<TSource>()` registers `TSource` with
+dependency injection and hosts it through the sealed adapter. For advanced
+configuration (custom security policies, additional builder calls), set
+`OpcUaServerOptions.ConfigureBuilder`.
 
 That's the whole server. The Boiler version is in
 `samples/MinimalApi/MinimalBoilerServer/Program.cs`.
 
-### Multi-namespace and manager-swap subclassing
-
-Because the generated factory members are `virtual`, you can extend
-without forking:
-
-```csharp
-public sealed class MyExtendedFactory : MyModel.MyModelNodeManagerFactory
-{
-    public override ArrayOf<string> NamespacesUris
-    {
-        get
-        {
-            var ns = base.NamespacesUris;
-            ns.Add("urn:my:second:namespace");
-            return ns;
-        }
-    }
-
-    public override ValueTask<IAsyncNodeManager> CreateAsync(
-        IServerInternal server,
-        ApplicationConfiguration cfg,
-        CancellationToken cancellationToken = default)
-        => new(new MyExtendedNodeManager(server, cfg));
-}
-```
-
-The `tests/Opc.Ua.Server.Tests/Fluent/GeneratedManagerHybridTests.cs`
-suite verifies these subclassing scenarios.
-
 ### NativeAOT publishing
 
-The project that hosts the generated manager only needs the standard AOT
+The project that hosts the generated source only needs the standard AOT
 settings:
 
 ```xml
@@ -1629,7 +1544,7 @@ warnings** (~29 MB self-contained EXE).
 
 ### Runtime NodeSet alternative
 
-When you want to host a NodeSet2 document without any source generation — for example a companion-spec XML received from a vendor, or a model that changes more frequently than you rebuild — use [AddRuntimeNodeSet](RuntimeNodeSets.md) instead. The runtime path loads a file or stream, imports nodes in topological dependency order, and exposes them through the same untyped `INodeManagerBuilder` surface as the `Configure` partial above. Use `AddRuntimeNodeSet` for startup registration or `INodeManagerLifecycle` to add, reload, and remove a model while the server runs. See [RuntimeNodeSets.md](RuntimeNodeSets.md) for a side-by-side comparison of the two paths.
+When you want to host a NodeSet2 document without any source generation — for example a companion-spec XML received from a vendor, or a model that changes more frequently than you rebuild — use [AddRuntimeNodeSet](RuntimeNodeSets.md) instead. The runtime path loads a file or stream, imports nodes in topological dependency order, and exposes them through the same untyped `INodeGraphBuilder` surface as the `Configure` partial above. Use `AddRuntimeNodeSet` for startup registration or `INodeManagerLifecycle` to add, reload, and remove a model while the server runs. See [RuntimeNodeSets.md](RuntimeNodeSets.md) for a side-by-side comparison of the two paths.
 
 ### Building richer node managers — the fluent extension surface
 
@@ -2027,14 +1942,14 @@ The generator resolves the cross-model reference automatically — every
 input is supplied to the others as a resolution dependency (both
 `ModelDesign → NodeSet2` and `ModelDesign → ModelDesign`).
 
-> **Binding a `[NodeManager]` in a mixed project.** A `[NodeManager]`
+> **Binding a `[NodeSource]` in a mixed project.** A `[NodeSource]`
 > may target the namespace of *either* input — the NodeSet2 type model
 > or the ModelDesign instance model — by setting its `NamespaceUri` to
 > that model's URI. Binding is resolved across both the NodeSet2 and the
-> ModelDesign generation passes, so a manager bound to the NodeSet2 types
+> ModelDesign generation passes, so a source bound to the NodeSet2 types
 > is **not** reported as unmatched (`MODELGEN010`) just because the
 > project also contains a ModelDesign — and vice-versa. The generated
-> node-manager class name and namespace come from the annotated partial
+> node-source class name and namespace come from the annotated partial
 > class itself, **not** from `ModelSourceGeneratorPrefix`/`Name` (those
 > control the generated `*State`/type class names — see the note below).
 

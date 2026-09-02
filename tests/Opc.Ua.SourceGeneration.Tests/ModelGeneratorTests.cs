@@ -1089,27 +1089,25 @@ namespace Opc.Ua.SourceGeneration
         }
 
         [Theory]
-        public void NodeManagerGenerateNodeSourceOptInTargetsOnlySelectedModel(
+        public void NodeSourceAttributeTargetsOnlySelectedModel(
             LanguageVersion languageVersion)
         {
             const string bindingSource =
                 """
                 namespace Opc.Ua.Server.Fluent
                 {
-                public sealed class NodeManagerAttribute : global::System.Attribute
+                public sealed class NodeSourceAttribute : global::System.Attribute
                 {
                 public string NamespaceUri { get; set; }
                 public string Design { get; set; }
-                public bool GenerateFactory { get; set; }
-                public bool GenerateNodeSource { get; set; }
+                public string[] AdditionalNamespaceUris { get; set; }
                 }
                 }
                 namespace CrossModelConsumer
                 {
-                [global::Opc.Ua.Server.Fluent.NodeManager(
-                    NamespaceUri = "http://test.org/UA/CrossModel/Types",
-                    GenerateNodeSource = true)]
-                public partial class TypesNodeManager
+                [global::Opc.Ua.Server.Fluent.NodeSource(
+                    NamespaceUri = "http://test.org/UA/CrossModel/Types")]
+                public partial class TypesNodeSource
                 {
                 }
                 }
@@ -1136,11 +1134,10 @@ namespace Opc.Ua.SourceGeneration
                     "Only the explicitly selected model should emit a node source.");
                 Assert.That(
                     generated,
-                    Does.Contain("class TypesNodeManager :"),
-                    "The legacy generated manager must remain present.");
+                    Does.Not.Contain("class TypesNodeManager :"));
                 Assert.That(
                     generated,
-                    Does.Contain("sealed partial class TypesNodeManagerSource"));
+                    Does.Contain("sealed partial class TypesNodeSource"));
                 Assert.That(
                     generated,
                     Does.Contain("global::Opc.Ua.Server.Nodes.INodeSource"));
@@ -1158,20 +1155,18 @@ namespace Opc.Ua.SourceGeneration
                 """
                 namespace Opc.Ua.Server.Fluent
                 {
-                public sealed class NodeManagerAttribute : global::System.Attribute
+                public sealed class NodeSourceAttribute : global::System.Attribute
                 {
                 public string NamespaceUri { get; set; }
                 public string Design { get; set; }
-                public bool GenerateFactory { get; set; }
-                public bool GenerateNodeSource { get; set; }
+                public string[] AdditionalNamespaceUris { get; set; }
                 }
                 }
                 namespace CrossModelConsumer
                 {
-                [global::Opc.Ua.Server.Fluent.NodeManager(
-                    NamespaceUri = "http://test.org/UA/CrossModel/Instances",
-                    GenerateNodeSource = true)]
-                public partial class InstancesNodeManager
+                [global::Opc.Ua.Server.Fluent.NodeSource(
+                    NamespaceUri = "http://test.org/UA/CrossModel/Instances")]
+                public partial class InstancesNodeSource
                 {
                 }
                 }

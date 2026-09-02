@@ -32,15 +32,15 @@ extern alias calcsample;
 using Microsoft.Extensions.Logging;
 using Opc.Ua.Client;
 using Opc.Ua.Server;
+using Opc.Ua.Server.Nodes;
 using TUnit.Core.Interfaces;
 
 namespace Opc.Ua.Aot.Tests
 {
     /// <summary>
     /// AOT smoke tests that verify the source-generated
-    /// <c>Calc.CalcNodeManagerFactory</c> emitted by the
-    /// <c>[NodeManager]</c> attribute on
-    /// <see cref="Calc.CalcNodeManager"/> (in the MinimalCalcServer
+    /// <c>Calc.CalcNodeSource</c> emitted by the
+    /// <c>[NodeSource]</c> attribute (in the MinimalCalcServer
     /// sample) loads the calculator address space, registers its
     /// namespace, and dispatches each of the three typed fluent
     /// <c>OnCall(...)</c> overloads — sync int+int→int, async
@@ -51,7 +51,7 @@ namespace Opc.Ua.Aot.Tests
     /// against the AOT-compiled binary.
     /// </summary>
     [ClassDataSource<CalculatorAotFixture>(Shared = SharedType.PerTestSession)]
-    public class CalculatorNodeManagerAotTests(CalculatorAotFixture fixture)
+    public class CalculatorNodeSourceAotTests(CalculatorAotFixture fixture)
     {
         private const string kCalcNamespaceUri =
             "http://opcfoundation.org/UA/Calc/";
@@ -72,7 +72,7 @@ namespace Opc.Ua.Aot.Tests
         [Test]
         public async Task AddMethodReturnsSum()
         {
-            // Wired via Configure(ICalcNodeManagerBuilder) using
+            // Wired via Configure(ICalcNodeSourceBuilder) using
             // builder.Calculator.Add.OnCall((int a, int b) => a + b) —
             // exercises the typed sync OnCall overload end-to-end with
             // primitive value-type inputs and output.
@@ -99,11 +99,11 @@ namespace Opc.Ua.Aot.Tests
         [Test]
         public async Task MultiplyMethodReturnsProductAsync()
         {
-            // Wired via Configure(ICalcNodeManagerBuilder) using
+            // Wired via Configure(ICalcNodeSourceBuilder) using
             // builder.Calculator.Multiply.OnCall(async (double, double,
             // CancellationToken) => ...) — exercises the typed async
             // OnCall overload end-to-end through
-            // AsyncCustomNodeManager.CallAsync.
+            // the asynchronous method-call path.
             NodeId calculator = await ResolveCalculatorNodeAsync()
                 .ConfigureAwait(false);
             NodeId multiplyMethod = await ResolveCalculatorNodeAsync("Multiply")
@@ -127,7 +127,7 @@ namespace Opc.Ua.Aot.Tests
         [Test]
         public async Task ConcatMethodReturnsConcatenation()
         {
-            // Wired via Configure(ICalcNodeManagerBuilder) using
+            // Wired via Configure(ICalcNodeSourceBuilder) using
             // builder.Calculator.Concat.OnCall((string l, string r) =>
             // ...) — exercises typed reference-type marshalling on both
             // input arguments and the return value.
@@ -215,7 +215,7 @@ namespace Opc.Ua.Aot.Tests
 
     /// <summary>
     /// Per-test-session fixture that boots a NativeAOT-friendly server
-    /// hosting the source-generated <c>CalcNodeManagerFactory</c> and
+    /// hosting the source-generated <c>CalcNodeSource</c> and
     /// connects an anonymous client session to it.
     /// </summary>
     public sealed class CalculatorAotFixture : IAsyncInitializer, IAsyncDisposable
@@ -340,8 +340,8 @@ namespace Opc.Ua.Aot.Tests
 
     /// <summary>
     /// Public <see cref="StandardServer"/> subclass that registers the
-    /// source-generated <see cref="Calc.CalcNodeManagerFactory"/>.
-    /// Mirrors the implicit hosting that <c>AddNodeManager</c> sets up
+    /// source-generated <see cref="Calc.CalcNodeSource"/>.
+    /// Mirrors the implicit hosting that <c>AddNodeSource</c> sets up
     /// in MinimalCalcServer's <c>Program.cs</c> but is exposed as
     /// <c>public</c> so <see cref="AotServerFixture{T}"/> can host it.
     /// </summary>
@@ -355,7 +355,8 @@ namespace Opc.Ua.Aot.Tests
         protected override void OnServerStarting(ApplicationConfiguration configuration)
         {
             base.OnServerStarting(configuration);
-            AddNodeManager(new calcsample::Calc.CalcNodeManagerFactory());
+            AddNodeManager(NodeSourceFactory.Create(
+                new calcsample::Calc.CalcNodeSource()));
         }
     }
 }

@@ -36,7 +36,7 @@ using Microsoft.CodeAnalysis.CSharp.Syntax;
 namespace Opc.Ua.SourceGeneration
 {
     /// <summary>
-    /// Discovered <c>[Opc.Ua.Server.Fluent.NodeManager]</c> binding plus
+    /// Discovered node-manager or node-source binding plus
     /// the source location of the attribute, used to report friendly
     /// diagnostics back at the user's class.
     /// </summary>
@@ -73,6 +73,7 @@ namespace Opc.Ua.SourceGeneration
         /// </summary>
         public static NodeManagerAttributeDiscovery Create(
             GeneratorAttributeSyntaxContext context,
+            bool generateNodeSource,
             CancellationToken cancellationToken)
         {
             var symbol = (INamedTypeSymbol)context.TargetSymbol;
@@ -82,14 +83,13 @@ namespace Opc.Ua.SourceGeneration
             string design = attr.GetValue(nameof(NodeManagerAttributeBinding.Design));
             string[] additionalNamespaceUris = attr.GetStringArray(
                 nameof(NodeManagerAttributeBinding.AdditionalNamespaceUris));
-            bool generateFactory = attr == null ||
+            bool generateNodeManager = !generateNodeSource;
+            bool generateFactory = generateNodeManager &&
+                (attr == null ||
                 !attr.NamedArguments
                     .Any(p => p.Key == nameof(NodeManagerAttributeBinding.GenerateFactory) &&
                         p.Value.Value is bool b &&
-                        !b);
-            bool generateNodeSource = attr?.NamedArguments
-                .Any(p => p.Key == nameof(NodeManagerAttributeBinding.GenerateNodeSource) &&
-                    p.Value.Value is true) == true;
+                        !b));
 
             string targetNamespace = symbol.GetFullNamespace();
             string targetClassName = symbol.Name;
@@ -107,9 +107,11 @@ namespace Opc.Ua.SourceGeneration
                 {
                     TargetNamespace = targetNamespace,
                     TargetClassName = targetClassName,
+                    AttributeName = generateNodeSource ? "NodeSource" : "NodeManager",
                     NamespaceUri = namespaceUri,
                     Design = design,
                     GenerateFactory = generateFactory,
+                    GenerateNodeManager = generateNodeManager,
                     GenerateNodeSource = generateNodeSource,
                     AdditionalNamespaceUris = additionalNamespaceUris
                 },

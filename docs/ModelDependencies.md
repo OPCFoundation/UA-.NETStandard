@@ -94,7 +94,7 @@ decoded.
 
 | ID            | Severity | Meaning                                                            |
 | ------------- | -------- | ------------------------------------------------------------------ |
-| `MODELGEN010` | Warning  | A `[NodeManager]` attribute could not be bound to a model (unmatched selector, or ambiguous when the project has multiple models). |
+| `MODELGEN010` | Warning  | A `[NodeSource]` or legacy `[NodeManager]` attribute could not be bound to a model, or conflicts with another authoring binding. |
 | `MODELGEN012` | Info     | Multiple referenced assemblies provide the same model URI.         |
 | `MODELGEN013` | Info     | Local model skipped because a referenced assembly provides it.     |
 
@@ -154,5 +154,4 @@ variable-type data type restrictions, and method arguments including the
 `ModelDesign` can therefore declare an `Object` or `Variable` whose
 `TypeDefinition` is a type from another design file and have its inherited
 children generate exactly as if the type were declared locally.
-
 

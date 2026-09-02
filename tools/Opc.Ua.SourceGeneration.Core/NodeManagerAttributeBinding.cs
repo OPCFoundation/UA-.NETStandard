@@ -32,8 +32,8 @@ using System.Collections.Generic;
 namespace Opc.Ua.SourceGeneration
 {
     /// <summary>
-    /// A discovered <c>[NodeManager]</c> attribute binding from user code.
-    /// Carries the user-chosen manager class identity and the selector
+    /// A discovered node-authoring attribute binding from user code.
+    /// Carries the user-chosen class identity and the selector
     /// (namespace URI or design file name) used to bind it to one of the
     /// design files in the project.
     /// </summary>
@@ -51,6 +51,11 @@ namespace Opc.Ua.SourceGeneration
         /// emitted as <c>{TargetClassName}Factory</c>.
         /// </summary>
         public string TargetClassName { get; init; }
+
+        /// <summary>
+        /// The short attribute name used for diagnostics.
+        /// </summary>
+        public string AttributeName { get; init; } = "NodeManager";
 
         /// <summary>
         /// Optional model namespace URI selector. When set, the binding
@@ -72,8 +77,12 @@ namespace Opc.Ua.SourceGeneration
         public bool GenerateFactory { get; init; } = true;
 
         /// <summary>
-        /// Whether to emit the compositional node-source migration artifact
-        /// alongside the legacy generated node manager.
+        /// Whether to emit the legacy generated node manager.
+        /// </summary>
+        public bool GenerateNodeManager { get; init; } = true;
+
+        /// <summary>
+        /// Whether to emit the compositional node source.
         /// </summary>
         public bool GenerateNodeSource { get; init; }
 
