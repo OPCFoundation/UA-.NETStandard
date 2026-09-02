@@ -231,10 +231,23 @@ namespace Opc.Ua.SourceGeneration
             IReadOnlyList<string> targets)
         {
             string targetDirectory = Path.GetDirectoryName(target) ?? string.Empty;
-            return targets.Count(path => string.Equals(
-                Path.GetDirectoryName(path) ?? string.Empty,
-                targetDirectory,
-                StringComparison.Ordinal)) == 1;
+            bool foundTarget = false;
+            foreach (string path in targets)
+            {
+                if (!string.Equals(
+                    Path.GetDirectoryName(path) ?? string.Empty,
+                    targetDirectory,
+                    StringComparison.Ordinal))
+                {
+                    continue;
+                }
+                if (foundTarget)
+                {
+                    return false;
+                }
+                foundTarget = true;
+            }
+            return foundTarget;
         }
 
         /// <summary>

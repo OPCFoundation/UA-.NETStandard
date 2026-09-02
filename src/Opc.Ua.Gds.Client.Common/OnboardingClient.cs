@@ -75,8 +75,39 @@ namespace Opc.Ua.Gds.Client
             {
                 throw new ArgumentNullException(nameof(session));
             }
-            session.MessageContext.NamespaceUris.Update(session.NamespaceUris.ToArray());
+            NamespaceTable messageContextNamespaces =
+                session.MessageContext.NamespaceUris;
+            NamespaceTable sessionNamespaces = session.NamespaceUris;
+            if (!NamespaceTablesMatch(messageContextNamespaces, sessionNamespaces))
+            {
+                messageContextNamespaces.Update(sessionNamespaces.ToArray());
+            }
             return session;
+        }
+
+        private static bool NamespaceTablesMatch(
+            NamespaceTable first,
+            NamespaceTable second)
+        {
+            if (ReferenceEquals(first, second))
+            {
+                return true;
+            }
+            if (first.Count != second.Count)
+            {
+                return false;
+            }
+            for (int i = 0; i < first.Count; i++)
+            {
+                if (!string.Equals(
+                    first.GetString((uint)i),
+                    second.GetString((uint)i),
+                    StringComparison.Ordinal))
+                {
+                    return false;
+                }
+            }
+            return true;
         }
 
         private static NodeId ValidateRegistrarNodeId(NodeId registrarNodeId)
