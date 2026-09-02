@@ -1178,8 +1178,7 @@ namespace Opc.Ua.Bindings
 
                     try
                     {
-                        string thumbprint =
-                            senderCertificateChain[0].Thumbprint
+                        _ = senderCertificateChain[0].Thumbprint
                             ?? throw ServiceResultException.Create(
                                 StatusCodes.BadCertificateInvalid,
                                 "Invalid certificate thumbprint.");
@@ -1202,7 +1201,7 @@ namespace Opc.Ua.Bindings
                 // verify receiver thumbprint.
                 if (thumbprintData.Length > 0)
                 {
-                    // TODO: client should use the proider too!
+                    // TODO: client should use the provider too!
                     if (m_serverCertificates != null)
                     {
                         // Replace the channel-owned instance certificate (and its
