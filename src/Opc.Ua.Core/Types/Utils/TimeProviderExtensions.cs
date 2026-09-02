@@ -243,6 +243,8 @@ namespace Opc.Ua
         /// .NET 8+ this delegates to the built-in BCL constructor; on older
         /// targets it is implemented manually using
         /// <see cref="TimeProvider.CreateTimer"/>.
+        /// Delays greater than the maximum timer interval are clamped to
+        /// <c>uint.MaxValue - 1</c> milliseconds.
         /// On older targets, <see cref="CancellationTokenSource.CancelAfter(TimeSpan)"/>
         /// does not replace the initial timer used by the manual implementation.
         /// </remarks>
@@ -256,6 +258,11 @@ namespace Opc.Ua
             if (timeProvider == null)
             {
                 throw new ArgumentNullException(nameof(timeProvider));
+            }
+            TimeSpan maximumTimerDelay = TimeSpan.FromMilliseconds(uint.MaxValue - 1u);
+            if (delay > maximumTimerDelay)
+            {
+                delay = maximumTimerDelay;
             }
 #if NET8_0_OR_GREATER
             return new CancellationTokenSource(delay, timeProvider);

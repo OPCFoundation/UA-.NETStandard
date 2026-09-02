@@ -51,6 +51,22 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         }
 
         [Test]
+        public void CreateCancellationTokenSourceClampsDelayAboveMaximumTimerDelay()
+        {
+            var timeProvider = new FakeTimeProvider();
+            TimeSpan maximumTimerDelay = TimeSpan.FromMilliseconds(uint.MaxValue - 1u);
+
+            using CancellationTokenSource cts = timeProvider.CreateCancellationTokenSource(
+                TimeSpan.FromMilliseconds(uint.MaxValue));
+
+            timeProvider.Advance(maximumTimerDelay - TimeSpan.FromTicks(1));
+            Assert.That(cts.IsCancellationRequested, Is.False);
+
+            timeProvider.Advance(TimeSpan.FromTicks(1));
+            Assert.That(cts.IsCancellationRequested, Is.True);
+        }
+
+        [Test]
         public void CreateCancellationTokenSourceUsesProvidedTimeProvider()
         {
             var timeProvider = new FakeTimeProvider();

@@ -891,12 +891,6 @@ namespace Opc.Ua.Server
                 TimeSpan timeOut = operationTimeout < DateTime.MaxValue
                     ? operationTimeout.AddMilliseconds(500) - timeProvider.GetUtcNow().UtcDateTime
                     : TimeSpan.Zero;
-                // uint.MaxValue is reserved by the underlying timer for an infinite delay.
-                TimeSpan maximumTimerDelay = TimeSpan.FromMilliseconds(uint.MaxValue - 1);
-                if (timeOut > maximumTimerDelay)
-                {
-                    timeOut = maximumTimerDelay;
-                }
                 if (operationTimeout < DateTime.MaxValue && timeOut.TotalMilliseconds > 0)
                 {
                     m_cancellationTokenSource = timeProvider.CreateCancellationTokenSource(timeOut);
