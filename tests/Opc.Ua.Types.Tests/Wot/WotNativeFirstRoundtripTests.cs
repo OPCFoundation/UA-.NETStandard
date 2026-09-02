@@ -49,6 +49,13 @@ namespace Opc.Ua.Types.Tests.Wot
             {
                 NamespaceUris = ["urn:test:readable"],
                 Models = [new ModelTableEntry { ModelUri = "urn:test:readable" }],
+                Aliases =
+                [
+                    // Declared because the reference below names the type
+                    // rather than identifying it, and a NodeSet2 document may
+                    // only do that for a name it declares.
+                    new NodeIdAlias { Alias = "HasSubtype", Value = "i=45" }
+                ],
                 Items =
                 [
                     new UAObjectType
@@ -80,7 +87,11 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(document.TryGetNativeProjection(out _), Is.False);
             Assert.That(document.TryGetEnvelope(out _), Is.False);
             UANodeSet restored = WotNodeSetConverter.ToNodeSet(document);
-            Assert.That(NodeSetComparer.Compare(source, restored).AreEquivalent, Is.True);
+            NodeSetComparisonResult comparison = NodeSetComparer.Compare(source, restored);
+            Assert.That(
+                comparison.AreEquivalent,
+                Is.True,
+                string.Join("; ", comparison.Differences));
         }
 
         [Test]

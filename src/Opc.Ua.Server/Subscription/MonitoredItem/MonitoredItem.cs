@@ -320,6 +320,17 @@ namespace Opc.Ua.Server
             m_lastValue = storedMonitoredItem.LastValue;
             MonitoredItemType = storedMonitoredItem.TypeMask;
 
+            // without this the first transition out of filter scope after a restart is
+            // dropped, because the item would not know the client had been told about the
+            // condition.
+            ArrayOf<string> filteredRetainConditionIds =
+                storedMonitoredItem.FilteredRetainConditionIds;
+
+            if (!filteredRetainConditionIds.IsEmpty)
+            {
+                m_filteredRetainConditionIds = [.. filteredRetainConditionIds];
+            }
+
             // create aggregate calculator.
             if (storedMonitoredItem.FilterToUse is ServerAggregateFilter aggregateFilter)
             {
@@ -924,9 +935,13 @@ namespace Opc.Ua.Server
                 ClientHandle = clientHandle;
                 m_discardOldest = discardOldest;
 
+                MonitoringFilter? previousFilterToUse = m_filterToUse;
+
                 Filter = originalFilter;
                 m_filterToUse = filterToUse;
                 m_cachedDataChangeFilter = filterToUse as DataChangeFilter;
+
+                DiscardFilteredRetainStateOnWhereClauseChange(previousFilterToUse, filterToUse);
 
                 if (range != null)
                 {
@@ -1348,6 +1363,22 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Determines whether an event can be sent with SupportsFilteredRetain in consideration.
         /// </summary>
+        /// <remarks>
+        /// Filtered retain (OPC UA Part 9, B.1.4) lets a condition report one final event as it
+        /// leaves the scope of this client's where clause, so the client sees Retain go false
+        /// even though the condition itself is unchanged on the server. The item therefore
+        /// remembers which conditions currently pass its where clause; a condition that drops
+        /// out of that set is delivered once more and then forgotten.
+        /// <para>
+        /// The condition behind <paramref name="instance"/> is resolved from either an
+        /// <see cref="InstanceStateSnapshot"/> - the shape <c>ReportEvent</c> produces - or a
+        /// <see cref="ConditionState"/> handed over directly, which is what
+        /// <c>ConditionState.ConditionRefresh</c> puts into the refresh event list. Any other
+        /// <see cref="IFilterTarget"/> cannot be mapped onto a condition, so a server that
+        /// queues its own filter targets falls back to plain where clause evaluation and
+        /// filtered retain has no effect for those events.
+        /// </para>
+        /// </remarks>
         protected bool CanSendFilteredAlarm(
             IFilterContext context,
             EventFilter filter,
@@ -1355,58 +1386,109 @@ namespace Opc.Ua.Server
         {
             bool passedFilter = filter.WhereClause.Evaluate(context, instance);
 
-            ConditionState? alarmCondition = null;
-            NodeId conditionId = default;
-            if (instance is InstanceStateSnapshot instanceStateSnapshot)
-            {
-                alarmCondition = instanceStateSnapshot.Handle as ConditionState;
+            ConditionState? alarmCondition = GetFilteredRetainCondition(instance);
 
-                if (alarmCondition != null &&
-                    alarmCondition.SupportsFilteredRetain != null &&
-                    alarmCondition.SupportsFilteredRetain.Value &&
-                    !filter.SelectClauses.IsNull)
-                {
-                    conditionId = alarmCondition.NodeId;
-                }
+            if (alarmCondition == null || filter.SelectClauses.IsNull)
+            {
+                return passedFilter;
             }
 
-            bool canSend = passedFilter;
+            HashSet<string> conditionIds = GetFilteredRetainConditionIds();
+            string key = GetFilteredRetainKey(alarmCondition);
 
-            // ConditionId is valid only if FilteredRetain is set for the alarm condition
-            if (!conditionId.IsNull && alarmCondition != null)
+            // the key is present exactly while the condition passed the where clause the
+            // last time it was evaluated, so removing it here both consumes the entry for
+            // the transition out of scope and clears the way for re-priming it below.
+            bool wasInFilterScope = conditionIds.Remove(key);
+
+            if (passedFilter)
             {
-                HashSet<string> conditionIds = GetFilteredRetainConditionIds();
-
-                string key = conditionId.ToString();
-
-                bool saved = conditionIds.Contains(key);
-
-                if (saved)
-                {
-                    conditionIds.Remove(key);
-                }
-
-                if (passedFilter)
-                {
-                    // Archie - December 17 2024
-                    // Requires discussion with Part 9 Editor
-                    // if (alarmCondition.Retain.Value)
-                    {
-                        conditionIds.Add(key);
-                    }
-                }
-                else if (saved)
-                {
-                    canSend = true;
-                }
+                // Archie - December 17 2024
+                // Whether the condition should only be tracked while Retain is true is an
+                // open question with the Part 9 editor; it is tracked in
+                // https://github.com/OPCFoundation/UA-.NETStandard/issues/4370. Until that
+                // is settled a condition is tracked whenever it passes the where clause,
+                // which means it always produces one trailing event on the way out - even
+                // if Retain was already false when it passed.
+                conditionIds.Add(key);
+                return true;
             }
 
-            return canSend;
+            // out of scope now: send the trailing event if it was in scope before.
+            return wasInFilterScope;
+        }
+
+        /// <summary>
+        /// Returns the condition that <paramref name="instance"/> reports on when that
+        /// condition opted into filtered retain, otherwise <c>null</c>.
+        /// </summary>
+        private static ConditionState? GetFilteredRetainCondition(IFilterTarget instance)
+        {
+            ConditionState? condition = instance switch
+            {
+                InstanceStateSnapshot snapshot => snapshot.Handle as ConditionState,
+                ConditionState state => state,
+                _ => null
+            };
+
+            return condition?.SupportsFilteredRetain?.Value == true ? condition : null;
+        }
+
+        /// <summary>
+        /// Builds the key a condition is tracked under.
+        /// </summary>
+        /// <remarks>
+        /// A branch shares its parent's NodeId - branches are told apart by BranchId - so the
+        /// NodeId alone would make a condition and all of its branches contend for a single
+        /// entry, and one branch leaving filter scope would consume the entry another branch
+        /// relies on.
+        /// </remarks>
+        private static string GetFilteredRetainKey(ConditionState condition)
+        {
+            return Utils.Format(
+                "{0}|{1}",
+                condition.NodeId,
+                condition.BranchId?.Value ?? default);
         }
 
         private HashSet<string> GetFilteredRetainConditionIds()
         {
             return m_filteredRetainConditionIds ??= [];
+        }
+
+        /// <summary>
+        /// Drops the filtered retain bookkeeping when the where clause it was derived from
+        /// is replaced.
+        /// </summary>
+        /// <remarks>
+        /// Every entry means "this condition passed the previous where clause". Keeping
+        /// those across a ModifyMonitoredItems that changes the where clause would produce
+        /// a trailing event against a filter that never saw the condition pass. The select
+        /// clauses do not take part in the decision, since they only shape the fields of an
+        /// event that is being sent anyway.
+        /// <para>
+        /// A monitoring mode change deliberately keeps the state. A disabled item does not
+        /// evaluate events at all, so the entries still describe what the client was last
+        /// told, and the trailing event is owed to it once reporting resumes.
+        /// </para>
+        /// </remarks>
+        private void DiscardFilteredRetainStateOnWhereClauseChange(
+            MonitoringFilter? previousFilter,
+            MonitoringFilter? newFilter)
+        {
+            if (m_filteredRetainConditionIds == null ||
+                m_filteredRetainConditionIds.Count == 0)
+            {
+                return;
+            }
+
+            ContentFilter? previousWhereClause = (previousFilter as EventFilter)?.WhereClause;
+            ContentFilter? newWhereClause = (newFilter as EventFilter)?.WhereClause;
+
+            if (!Utils.IsEqual(previousWhereClause, newWhereClause))
+            {
+                m_filteredRetainConditionIds.Clear();
+            }
         }
 
         /// <summary>
@@ -1847,7 +1929,10 @@ namespace Opc.Ua.Server
                     Range = m_range,
                     TimestampsToReturn = m_timestampsToReturn,
                     TypeMask = MonitoredItemType,
-                    ParsedIndexRange = m_parsedIndexRange
+                    ParsedIndexRange = m_parsedIndexRange,
+                    FilteredRetainConditionIds = m_filteredRetainConditionIds?.Count > 0
+                        ? [.. m_filteredRetainConditionIds]
+                        : ArrayOf<string>.Null
                 };
             }
         }

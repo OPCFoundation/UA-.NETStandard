@@ -109,7 +109,7 @@ namespace Opc.Ua.Types.Tests.Wot
         public void MaxXmlDepthAllowsDocumentAtConfiguredLimit()
         {
             byte[] xml = CreateNestedXml(4);
-            var options = new WotNodeSetConverterOptions
+            var options = new NodeSetComparisonOptions
             {
                 MaxXmlDepth = 4
             };
@@ -124,7 +124,7 @@ namespace Opc.Ua.Types.Tests.Wot
         public void MaxXmlDepthRejectsDocumentPastConfiguredLimit()
         {
             byte[] xml = CreateNestedXml(5);
-            var options = new WotNodeSetConverterOptions
+            var options = new NodeSetComparisonOptions
             {
                 MaxXmlDepth = 4
             };
@@ -140,7 +140,7 @@ namespace Opc.Ua.Types.Tests.Wot
         [Test]
         public void RoundtripReportConfirmsNativePreservationWithoutEnvelope()
         {
-            NodeSetRoundtripReport report = NodeSetComparer.Roundtrip(
+            WotNodeSetRoundtripReport report = WotNodeSetRoundtrip.Run(
                 WotTestData.CreateRichNodeSet());
 
             Assert.That(report.NativeProjectionPreserved, Is.True);

@@ -227,8 +227,14 @@ namespace Opc.Ua.Gds.Client
             NodeId certificateTypeId,
             CancellationToken ct = default);
 
-        /// <summary>Lists the certificates configured on the server.</summary>
-        /// <remarks>Calls the <c>GetCertificates</c> method on <c>ServerConfigurationType</c> (OPC 10000-12 §7.10.7).</remarks>
+        /// <summary>
+        /// Lists the certificates configured on the server.
+        /// </summary>
+        /// <remarks>
+        /// Calls the <c>GetCertificates</c> method on <c>ServerConfigurationType</c>
+        /// (OPC 10000-12 §7.10.8). Passing <see cref="NodeId.Null"/> selects the
+        /// default application group.
+        /// </remarks>
         ValueTask<(ArrayOf<NodeId> certificateTypeIds, ArrayOf<ByteString> certificates)> GetCertificatesAsync(
             NodeId certificateGroupId,
             CancellationToken ct = default);

@@ -256,6 +256,81 @@ namespace Opc.Ua.Types.Tests.Wot
                 Is.True);
         }
 
+        /// <summary>
+        /// WoT Binding Section 9.4 asks whether a residue entry holds the same
+        /// <em>value</em> as the member already there, and RFC 8785 is what
+        /// answers it. A reordered object, an equivalent escape and a different
+        /// number spelling are spellings of one value, not conflicts.
+        /// </summary>
+        [TestCase("{\"a\":1,\"b\":2}", "{\"b\":2,\"a\":1}", TestName =
+            "ResidueEqualityIgnoresMemberOrder")]
+        [TestCase("\"caf\\u00e9\"", "\"caf\u00e9\"", TestName =
+            "ResidueEqualityIgnoresEquivalentEscapes")]
+        [TestCase("1.0", "1", TestName = "ResidueEqualityIgnoresATrailingZero")]
+        [TestCase("1e2", "100.0", TestName = "ResidueEqualityIgnoresExponentForm")]
+        [TestCase("{\"a\":[1.0,2e0]}", "{\"a\":[1,2]}", TestName =
+            "ResidueEqualityReachesIntoArrays")]
+        public void ApplyReportsNoConflictForTwoSpellingsOfOneValue(
+            string existing, string residue)
+        {
+            byte[] json = WotTestData.Utf8("{\"title\":\"T\",\"vendor:x\":" + existing + "}");
+            SysXmlElement member = CreateResidueMember("/vendor:x", residue);
+            SysXmlElement ext = CreateResidueExtension("1.0", member);
+            var nodeSet = new UANodeSet { Extensions = [ext] };
+            var diagnostics = new List<WotDiagnostic>();
+
+            WotJsonResidue.Apply(json, nodeSet, new WotNodeSetConverterOptions(), diagnostics);
+
+            Assert.That(
+                diagnostics.Where(d => d.Code == WotDiagnosticCode.ResidueConflict),
+                Is.Empty,
+                "The two are the same JSON value under RFC 8785, so nothing is in conflict.");
+        }
+
+        [TestCase("{\"a\":1,\"b\":2}", "{\"b\":2,\"a\":3}", TestName =
+            "ResidueConflictSurvivesReordering")]
+        [TestCase("1.0", "1.5", TestName = "ResidueConflictSurvivesNumberNormalization")]
+        [TestCase("{\"a\":[1,2]}", "{\"a\":[2,1]}", TestName =
+            "ResidueConflictKeepsArrayOrderSignificant")]
+        [TestCase("\"1\"", "1", TestName = "ResidueConflictSeparatesAStringFromANumber")]
+        public void ApplyStillReportsAConflictForARealDifference(
+            string existing, string residue)
+        {
+            byte[] json = WotTestData.Utf8("{\"title\":\"T\",\"vendor:x\":" + existing + "}");
+            SysXmlElement member = CreateResidueMember("/vendor:x", residue);
+            SysXmlElement ext = CreateResidueExtension("1.0", member);
+            var nodeSet = new UANodeSet { Extensions = [ext] };
+            var diagnostics = new List<WotDiagnostic>();
+
+            WotJsonResidue.Apply(json, nodeSet, new WotNodeSetConverterOptions(), diagnostics);
+
+            Assert.That(
+                diagnostics.Any(d => d.Code == WotDiagnosticCode.ResidueConflict),
+                Is.True,
+                "Canonicalizing two values never makes two different values one.");
+        }
+
+        [Test]
+        public void ApplyReportsAConflictWhenAValueCannotBeCanonicalized()
+        {
+            // A literal an IEEE-754 double cannot hold is outside the
+            // interoperable domain RFC 8785 is defined over, so the two are
+            // compared as written instead: that can report a conflict the
+            // scheme would not, and never reports two values as one.
+            byte[] json = WotTestData.Utf8(
+                "{\"title\":\"T\",\"vendor:x\":9007199254740993}");
+            SysXmlElement member = CreateResidueMember("/vendor:x", "9007199254740992");
+            SysXmlElement ext = CreateResidueExtension("1.0", member);
+            var nodeSet = new UANodeSet { Extensions = [ext] };
+            var diagnostics = new List<WotDiagnostic>();
+
+            WotJsonResidue.Apply(json, nodeSet, new WotNodeSetConverterOptions(), diagnostics);
+
+            Assert.That(
+                diagnostics.Any(d => d.Code == WotDiagnosticCode.ResidueConflict),
+                Is.True);
+        }
+
         [Test]
         public void ApplyReportsInvalidTargetPointerForNonObjectRoot()
         {

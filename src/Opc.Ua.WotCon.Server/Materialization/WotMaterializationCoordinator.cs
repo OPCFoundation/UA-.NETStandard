@@ -543,7 +543,11 @@ namespace Opc.Ua.WotCon.Server.Materialization
                     return new ClosureOutcome(results.ToImmutable(), projections);
                 }
 
-                WotBindingPlan plan = m_binders.Prepare(BuildPlanRequest(member, version, memberContent));
+                WotBindingPlan plan = m_binders.Prepare(
+                    await BuildPlanRequestAsync(
+                            member, version, memberContent, snapshot, contentCache,
+                            cancellationToken)
+                        .ConfigureAwait(false));
                 bindingPlans.Add(plan);
                 if (!plan.FullySupported)
                 {
@@ -1209,11 +1213,44 @@ namespace Opc.Ua.WotCon.Server.Materialization
             return parts.Count == 0 ? fallback : string.Join("; ", parts);
         }
 
-        private WotBindingPlanRequest BuildPlanRequest(
-            WotResource resource, WotResourceVersion version, ByteString content)
+        /// <summary>
+        /// Builds the binding plan request for one closure member, resolving
+        /// the EventType definitions its event affordances link to with
+        /// <c>tm:ref</c> before the synchronous planning that consumes them
+        /// (WoT Binding Section 6.1).
+        /// </summary>
+        /// <remarks>
+        /// The links are resolved against the closure itself: the same
+        /// <see cref="SnapshotThingResolver"/> and content cache the conversion
+        /// uses hold the sibling documents, and the dependency graph already
+        /// treats a <c>tm:ref</c> as an edge, so an EventType Thing Model is a
+        /// member of the closure and is loaded with it. Nothing is fetched over
+        /// the network, and planning itself stays synchronous and side-effect
+        /// free. A link that does not resolve leaves the affordance out of the
+        /// catalog, which the planner reports as an unsupported form: the
+        /// closure then fails strictly or materializes degraded, and the
+        /// failure names the affordance rather than being swallowed here.
+        /// </remarks>
+        private async ValueTask<WotBindingPlanRequest> BuildPlanRequestAsync(
+            WotResource resource,
+            WotResourceVersion version,
+            ByteString content,
+            WotRegistrySnapshot snapshot,
+            IReadOnlyDictionary<string, ByteString> contentCache,
+            CancellationToken cancellationToken)
         {
+            byte[] utf8 = content.Span.ToArray();
+            var thingResolver = new SnapshotThingResolver(snapshot, contentCache);
+            WotEventSelectionCatalog catalog = await WotBindingPlanRequest
+                .ResolveEventSelectionsAsync(
+                    utf8,
+                    thingResolver,
+                    m_converterOptions.MaxJsonDepth,
+                    null,
+                    cancellationToken)
+                .ConfigureAwait(false);
             return WotBindingPlanRequest.FromDocument(
-                resource.Xid, resource.Kind, content.Span.ToArray(), m_converterOptions.MaxJsonDepth);
+                resource.Xid, resource.Kind, utf8, catalog, m_converterOptions.MaxJsonDepth);
         }
 
         private byte[] ComputeAggregateDigest(IReadOnlyList<WotResource> members)

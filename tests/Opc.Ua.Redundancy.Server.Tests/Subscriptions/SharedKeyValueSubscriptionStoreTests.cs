@@ -64,6 +64,9 @@ namespace Opc.Ua.Server.Tests.Redundancy
     {
         private const ushort NamespaceIndex = 2;
 
+        private static readonly string[] s_filteredRetainConditionIds =
+            ["ns=2;s=Alarm|", "ns=2;s=Alarm|i=7"];
+
         [Test]
         public async Task StoreAndRestoreRoundTripsDefinitionAsync()
         {
@@ -107,6 +110,57 @@ namespace Opc.Ua.Server.Tests.Redundancy
                 Assert.That(actual.IsDeleted, Is.EqualTo(isDeleted));
                 Assert.That(actual.IsDetached, Is.EqualTo(isDetached));
             });
+        }
+
+        [Test]
+        public async Task StoreAndRestoreRoundTripsFilteredRetainConditionIdsAsync()
+        {
+            using var kv = new InMemorySharedKeyValueStore();
+            SharedKeyValueSubscriptionStore active = CreateStore(kv);
+            SharedKeyValueSubscriptionStore backup = CreateStore(kv);
+            StoredSubscription expected = NewSubscription(103, 13);
+            var expectedItem = (StoredMonitoredItem)expected.MonitoredItems.Single();
+            expectedItem.FilteredRetainConditionIds = [.. s_filteredRetainConditionIds];
+
+            await active.StoreSubscriptionsAsync([expected]).ConfigureAwait(false);
+            RestoreSubscriptionResult result = await backup.RestoreSubscriptionsAsync().ConfigureAwait(false);
+
+            Assert.That(result.Success, Is.True);
+            var actual = (StoredMonitoredItem)result.Subscriptions!.Single().MonitoredItems.Single();
+            Assert.That(
+                actual.FilteredRetainConditionIds.Memory.ToArray(),
+                Is.EqualTo(s_filteredRetainConditionIds));
+        }
+
+        [Test]
+        public async Task StoreAndRestoreRoundTripsAbsentFilteredRetainConditionIdsAsync()
+        {
+            using var kv = new InMemorySharedKeyValueStore();
+            SharedKeyValueSubscriptionStore active = CreateStore(kv);
+            SharedKeyValueSubscriptionStore backup = CreateStore(kv);
+
+            await active.StoreSubscriptionsAsync([NewSubscription(104, 14)]).ConfigureAwait(false);
+            RestoreSubscriptionResult result = await backup.RestoreSubscriptionsAsync().ConfigureAwait(false);
+
+            Assert.That(result.Success, Is.True);
+            var actual = (StoredMonitoredItem)result.Subscriptions!.Single().MonitoredItems.Single();
+            Assert.That(actual.FilteredRetainConditionIds.IsEmpty, Is.True);
+        }
+
+        [Test]
+        public void CloneMonitoredItemPreservesFilteredRetainConditionIds()
+        {
+            StoredMonitoredItem item = NewItem(105, 15);
+            item.FilteredRetainConditionIds = [.. s_filteredRetainConditionIds];
+            MethodInfo clone = GetPrivateMethod(
+                "CloneMonitoredItem",
+                typeof(IStoredMonitoredItem));
+
+            var cloned = (StoredMonitoredItem)clone.Invoke(null, [item])!;
+
+            Assert.That(
+                cloned.FilteredRetainConditionIds.Memory.ToArray(),
+                Is.EqualTo(s_filteredRetainConditionIds));
         }
 
         [Test]

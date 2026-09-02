@@ -2101,7 +2101,7 @@ namespace Opc.Ua.Server
 
                 ServerCertificateGroup certificateGroup = VerifyGroupAndTypeId(
                     certificateGroupId,
-                    certificateTypeId)!;
+                    certificateTypeId);
 
                 // OPC 10000-12 §7.10.5: "The Purpose of the associated
                 // CertificateGroup determines the validation rules for
@@ -2819,7 +2819,7 @@ namespace Opc.Ua.Server
 
             ServerCertificateGroup certificateGroup = VerifyGroupAndTypeId(
                 certificateGroupId,
-                certificateTypeId)!;
+                certificateTypeId);
 
             // merge DNS names and IP addresses into one domain list. OPC
             // 10000-12 §7.10.6 requires at least one non-empty entry
@@ -3080,7 +3080,7 @@ namespace Opc.Ua.Server
 
             ServerCertificateGroup certificateGroup = VerifyGroupAndTypeId(
                 certificateGroupId,
-                certificateTypeId)!;
+                certificateTypeId);
 
             NodeId sessionId = GetSessionId(context);
             await AcquireTransactionOwnershipAsync(sessionId, cancellationToken).ConfigureAwait(false);
@@ -3198,7 +3198,7 @@ namespace Opc.Ua.Server
 
             ServerCertificateGroup certificateGroup = VerifyGroupAndTypeId(
                 certificateGroupId,
-                certificateTypeId)!;
+                certificateTypeId);
 
             // OPC 10000-12 §7.10.10: when a new private key is regenerated the
             // caller must supply at least 32 bytes of additional entropy in
@@ -3853,12 +3853,7 @@ namespace Opc.Ua.Server
             // authenticated SecureChannel is sufficient.
             HasApplicationSecureAdminAccess(context, requireEncryptedChannel: false);
 
-            ServerCertificateGroup certificateGroup =
-                m_certificateGroups.FirstOrDefault(
-                    group => Utils.IsEqual(group.NodeId, certificateGroupId))
-                ?? throw new ServiceResultException(
-                    StatusCodes.BadInvalidArgument,
-                    "Certificate group invalid.");
+            ServerCertificateGroup certificateGroup = VerifyGroupId(certificateGroupId);
 
             // Look up each certificate via the manager registry so the
             // returned blobs reflect the currently-active cert (the
@@ -3912,7 +3907,22 @@ namespace Opc.Ua.Server
             return (occupiedTypes.ToArrayOf(), occupiedCerts.ToArrayOf());
         }
 
-        private ServerCertificateGroup? VerifyGroupAndTypeId(
+        private ServerCertificateGroup VerifyGroupId(NodeId certificateGroupId)
+        {
+            if (certificateGroupId.IsNull)
+            {
+                certificateGroupId = ObjectIds
+                    .ServerConfiguration_CertificateGroups_DefaultApplicationGroup;
+            }
+
+            return m_certificateGroups.FirstOrDefault(
+                group => Utils.IsEqual(group.NodeId, certificateGroupId))
+                ?? throw new ServiceResultException(
+                    StatusCodes.BadInvalidArgument,
+                    "Certificate group invalid.");
+        }
+
+        private ServerCertificateGroup VerifyGroupAndTypeId(
             NodeId certificateGroupId,
             NodeId certificateTypeId)
         {
@@ -3924,19 +3934,7 @@ namespace Opc.Ua.Server
                     "Certificate type not specified.");
             }
 
-            // verify requested certificate group
-            if (certificateGroupId.IsNull)
-            {
-                certificateGroupId = ObjectIds
-                    .ServerConfiguration_CertificateGroups_DefaultApplicationGroup;
-            }
-
-            ServerCertificateGroup certificateGroup =
-                m_certificateGroups.FirstOrDefault(
-                    group => Utils.IsEqual(group.NodeId, certificateGroupId))
-                ?? throw new ServiceResultException(
-                    StatusCodes.BadInvalidArgument,
-                    "Certificate group invalid.");
+            ServerCertificateGroup certificateGroup = VerifyGroupId(certificateGroupId);
 
             // verify certificate type
             bool foundCertType = certificateGroup.CertificateTypes

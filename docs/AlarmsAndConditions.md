@@ -41,6 +41,7 @@ For the formal model, see
 | Latched + Reset | `SetLatchedState` + auto from `SetActiveState` | `AlarmClient.ResetAsync` |
 | Shelve / Unshelve | `SetShelvingState` | `AlarmClient.TimedShelveAsync` / `OneShotShelveAsync` / `UnshelveAsync` |
 | Re-alarm | `ProcessReAlarm` | n/a (server timer) |
+| Filtered retain | `ConditionState.SupportsFilteredRetain` | n/a (per-subscription) |
 | Alarm groups | `AlarmGroup`, `AlarmSuppressionEngine` | `AlarmClient.GetGroupMembershipsAsync` |
 | Alarm rate | `AlarmRateTracker` | read `AlarmMetricsType` attributes |
 | Refresh state | `Server.ConditionRefresh` (server-driven) | `AlarmClient.ConditionRefreshAsync` / `ConditionRefresh2Async` |
@@ -198,6 +199,41 @@ alarm.SetOutOfServiceState(context, true);    // SuppressedOrShelved stays true
 alarm.SetSuppressedState(context, false);     // SuppressedOrShelved stays true
 alarm.SetOutOfServiceState(context, false);   // SuppressedOrShelved = false
 ```
+
+### Filtered retain
+
+Part 9 B.1.4 lets a server give each client a Retain flag that takes
+that client's event filter into account. With filtered retain on, a
+condition that drops out of the scope of a client's where clause
+reports one final event — so that client sees `Retain = false` even
+though nothing changed on the server, and the alarm stays active for
+everyone else.
+
+Opt a condition in by setting `SupportsFilteredRetain`:
+
+```csharp
+alarm.SupportsFilteredRetain =
+    PropertyState<bool>.With<VariantBuilder>(alarm, value: true);
+```
+
+Notes on the shape of that property:
+
+* Part 9 provides `SupportsFilteredRetain` **on the ConditionType
+  only** — the standard nodeset declares no modelling rule for it, so
+  condition instances do not carry it as a child. The C# property is
+  therefore the server side switch, not an address space node:
+  `FindChild(BrowseNames.SupportsFilteredRetain)` on an instance
+  returns null by design. Clients read the flag from the type node,
+  which the generated address space already builds.
+* Branches inherit the parent's setting — `CreateBranch` copies it,
+  since nothing that walks the instance children would.
+* Each condition and branch is tracked separately, so one branch
+  leaving filter scope does not affect its siblings or its parent.
+* `ConditionRefresh` participates: refreshed conditions are evaluated
+  against the where clause and re-prime the tracking.
+* Changing a monitored item's where clause with `ModifyMonitoredItems`
+  discards the tracking, because it describes the *previous* filter.
+  Durable subscriptions carry it across a restart.
 
 ### Alarm groups and first-in-group
 

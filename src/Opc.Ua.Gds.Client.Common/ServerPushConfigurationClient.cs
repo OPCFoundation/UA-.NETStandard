@@ -689,7 +689,10 @@ namespace Opc.Ua.Gds.Client
         /// <summary>
         /// returns the Certificates assigned to CertificateTypes associated with a CertificateGroup.
         /// </summary>
-        /// <param name="certificateGroupId">The identifier for the CertificateGroup.</param>
+        /// <param name="certificateGroupId">
+        /// The identifier for the CertificateGroup. <see cref="NodeId.Null"/> selects the
+        /// default application group.
+        /// </param>
         /// <param name="ct"> The cancellationToken.</param>
         /// <returns>The CertificateTypes that currently have a Certificate assigned.
         ///The length of this list is the same as the length as certificates list.
