@@ -244,45 +244,69 @@ namespace Opc.Ua.Client
             // surfaces as BadConnectionClosed / BadNotConnected on first use.
             // Rather than failing the whole connect, request a freshly delivered
             // connection and retry a bounded number of times.
+            return await CreateReverseConnectSessionWithRetryAsync(
+                connection,
+                (resolved, token) => CreateAsync(
+                    configuration,
+                    resolved,
+                    endpoint,
+                    false,
+                    checkDomain,
+                    sessionName,
+                    sessionTimeout,
+                    userIdentity,
+                    preferredLocales,
+                    token),
+                token => reverseConnectManager.WaitForConnectionAsync(
+                    endpoint.EndpointUrl!,
+                    endpoint.ReverseConnect?.ServerUri,
+                    token),
+                kMaxReverseConnectAttempts,
+                Telemetry?.CreateLogger<DefaultSessionFactory>(),
+                endpoint.EndpointUrl,
+                ct).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Creates a session from a reverse connection, retrying with a freshly
+        /// delivered connection when an attempt fails because the delivered
+        /// connection was already closed/dropped by the server. Bounded by
+        /// <paramref name="maxAttempts"/> so a genuinely unreachable server still
+        /// fails; non-transient failures and cancellation surface immediately.
+        /// </summary>
+        internal static async Task<ISession> CreateReverseConnectSessionWithRetryAsync(
+            ITransportWaitingConnection initialConnection,
+            Func<ITransportWaitingConnection, CancellationToken, Task<ISession>> createSessionAsync,
+            Func<CancellationToken, Task<ITransportWaitingConnection>> resolveFreshConnectionAsync,
+            int maxAttempts,
+            ILogger? logger,
+            Uri? endpointUrl,
+            CancellationToken ct)
+        {
+            ITransportWaitingConnection connection = initialConnection;
             for (int attempt = 1; ; attempt++)
             {
                 try
                 {
-                    return await CreateAsync(
-                        configuration,
-                        connection,
-                        endpoint,
-                        false,
-                        checkDomain,
-                        sessionName,
-                        sessionTimeout,
-                        userIdentity,
-                        preferredLocales,
-                        ct).ConfigureAwait(false);
+                    return await createSessionAsync(connection, ct).ConfigureAwait(false);
                 }
                 catch (ServiceResultException sre) when (
-                    attempt < kMaxReverseConnectAttempts &&
+                    attempt < maxAttempts &&
                     !ct.IsCancellationRequested &&
                     IsStaleReverseConnectionStatus(sre.StatusCode))
                 {
-                    ILogger? logger = Telemetry?.CreateLogger<DefaultSessionFactory>();
                     if (logger != null)
                     {
                         logger.LogWarning(
                             "Reverse connection to {EndpointUrl} was stale ({StatusCode}); " +
                             "retrying with a fresh connection (attempt {Attempt} of {Max}).",
-                            endpoint.EndpointUrl,
+                            endpointUrl,
                             sre.StatusCode,
                             attempt,
-                            kMaxReverseConnectAttempts);
+                            maxAttempts);
                     }
 
-                    connection = await reverseConnectManager
-                        .WaitForConnectionAsync(
-                            endpoint.EndpointUrl!,
-                            endpoint.ReverseConnect?.ServerUri,
-                            ct)
-                        .ConfigureAwait(false);
+                    connection = await resolveFreshConnectionAsync(ct).ConfigureAwait(false);
                 }
             }
         }

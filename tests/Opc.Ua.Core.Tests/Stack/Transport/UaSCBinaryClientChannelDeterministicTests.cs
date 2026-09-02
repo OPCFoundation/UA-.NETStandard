@@ -237,6 +237,81 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         }
 
         [Test]
+        public void ReadAsymmetricMessageHeaderDisposesSenderChainWhenReceiverCertificateMissing()
+        {
+            var factory = new RecordingByteTransportFactory();
+            using var channel = new TestClientChannel(
+                m_buffers,
+                factory,
+                m_quotas,
+                null,
+                BuildEndpoint(MessageSecurityMode.None, SecurityPolicies.None),
+                m_telemetry,
+                new FakeTimeProvider());
+
+            using Certificate sender = CreateSmallCertificate();
+
+            byte[] header = BuildAsymmetricHeader(
+                SecurityPolicies.Basic256Sha256,
+                sender.RawData,
+                new byte[TcpMessageLimits.CertificateThumbprintSize]);
+
+            long createdBefore = Certificate.InstancesCreated;
+            long disposedBefore = Certificate.InstancesDisposed;
+
+            // No receiver certificate and no server certificate registry (client
+            // side): the parser reaches the "receiver has no matching certificate"
+            // failure after the sender chain is allocated.
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(
+                () => channel.CallReadAsymmetricMessageHeader(
+                    new ArraySegment<byte>(header), receiverCertificate: null))!;
+            Assert.That(ex.StatusCode, Is.EqualTo((uint)StatusCodes.BadCertificateInvalid));
+
+            Assert.That(
+                Certificate.InstancesCreated - createdBefore,
+                Is.EqualTo(Certificate.InstancesDisposed - disposedBefore),
+                "the parsed sender chain must be disposed when the receiver certificate is missing.");
+        }
+
+        [Test]
+        public void ReadAsymmetricMessageHeaderDisposesSenderChainWhenReceiverThumbprintMissing()
+        {
+            var factory = new RecordingByteTransportFactory();
+            using var channel = new TestClientChannel(
+                m_buffers,
+                factory,
+                m_quotas,
+                null,
+                BuildEndpoint(MessageSecurityMode.None, SecurityPolicies.None),
+                m_telemetry,
+                new FakeTimeProvider());
+
+            using Certificate sender = CreateSmallCertificate();
+            using Certificate receiver = CreateSmallCertificate();
+
+            // A secured policy with no receiver thumbprint on the wire reaches the
+            // "receiver's certificate thumbprint was not specified" failure after
+            // the sender chain is allocated.
+            byte[] header = BuildAsymmetricHeader(
+                SecurityPolicies.Basic256Sha256,
+                sender.RawData,
+                Array.Empty<byte>());
+
+            long createdBefore = Certificate.InstancesCreated;
+            long disposedBefore = Certificate.InstancesDisposed;
+
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(
+                () => channel.CallReadAsymmetricMessageHeader(
+                    new ArraySegment<byte>(header), receiver))!;
+            Assert.That(ex.StatusCode, Is.EqualTo((uint)StatusCodes.BadCertificateInvalid));
+
+            Assert.That(
+                Certificate.InstancesCreated - createdBefore,
+                Is.EqualTo(Certificate.InstancesDisposed - disposedBefore),
+                "the parsed sender chain must be disposed when the receiver thumbprint is absent.");
+        }
+
+        [Test]
         public void VerifyMessageTypeWithWrongTypeThrowsBadTcpMessageTypeInvalid()
         {
             byte[] header = BuildTypeAndSize(TcpMessageType.Error, 8);
