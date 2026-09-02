@@ -87,7 +87,9 @@ namespace Opc.Ua.Server.Nodes
 
             return lifecycle.ReloadAsync(
                 registration,
-                new NodeSourceNodeManagerFactory(replacement),
+                NodeSourceNodeManagerFactory.CreateReplacement(
+                    replacement,
+                    registration),
                 callerContext,
                 cancellationToken);
         }
@@ -116,7 +118,9 @@ namespace Opc.Ua.Server.Nodes
 
             return lifecycle.ShadowReloadAsync(
                 registration,
-                new NodeSourceNodeManagerFactory(replacement),
+                NodeSourceNodeManagerFactory.CreateReplacement(
+                    replacement,
+                    registration),
                 cancellationToken);
         }
 
@@ -144,7 +148,9 @@ namespace Opc.Ua.Server.Nodes
 
             return lifecycle.ImmediateReloadAsync(
                 registration,
-                new NodeSourceNodeManagerFactory(replacement),
+                NodeSourceNodeManagerFactory.CreateReplacement(
+                    replacement,
+                    registration),
                 cancellationToken);
         }
     }

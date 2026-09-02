@@ -1084,7 +1084,8 @@ namespace Microsoft.Extensions.DependencyInjection
             builder.Services.AddSingleton(sp =>
                 new OpcUaServerNodeManagerRegistration(
                     new NodeSourceNodeManagerFactory(
-                        sp.GetRequiredService<TSource>())));
+                        sp.GetRequiredService<TSource>(),
+                        sp)));
             return builder;
         }
 

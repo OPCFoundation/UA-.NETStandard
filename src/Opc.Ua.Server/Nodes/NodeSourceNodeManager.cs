@@ -30,6 +30,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.ExceptionServices;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -47,13 +48,69 @@ namespace Opc.Ua.Server
         /// Initializes the factory and snapshots the source namespaces.
         /// </summary>
         public NodeSourceNodeManagerFactory(INodeSource source)
+            : this(
+                source,
+                serviceProvider: null,
+                NodeBehaviorGenerationIdentity.CreateInitial())
+        {
+        }
+
+        /// <summary>
+        /// Initializes a DI-backed factory and snapshots the source namespaces.
+        /// </summary>
+        public NodeSourceNodeManagerFactory(
+            INodeSource source,
+            IServiceProvider serviceProvider)
+            : this(
+                source,
+                serviceProvider ?? throw new ArgumentNullException(nameof(serviceProvider)),
+                NodeBehaviorGenerationIdentity.CreateInitial())
+        {
+        }
+
+        private NodeSourceNodeManagerFactory(
+            INodeSource source,
+            IServiceProvider? serviceProvider,
+            NodeBehaviorGenerationIdentity generation)
         {
             m_source = source ?? throw new ArgumentNullException(nameof(source));
+            m_serviceProvider = serviceProvider;
+            m_generation = generation ??
+                throw new ArgumentNullException(nameof(generation));
             NamespacesUris = ValidateNamespaceUris(source.NamespaceUris);
         }
 
         /// <inheritdoc/>
         public ArrayOf<string> NamespacesUris { get; }
+
+        /// <summary>
+        /// Creates a direct lifecycle replacement that continues the behavior identity.
+        /// </summary>
+        public static NodeSourceNodeManagerFactory CreateReplacement(
+            INodeSource source,
+            NodeManagerRegistration registration)
+        {
+            if (source is null)
+            {
+                throw new ArgumentNullException(nameof(source));
+            }
+            if (registration is null)
+            {
+                throw new ArgumentNullException(nameof(registration));
+            }
+
+            NodeSourceNodeManager? manager =
+                registration.NodeManager as NodeSourceNodeManager;
+            NodeBehaviorGenerationIdentity generation = manager is not null
+                ? manager.BehaviorGeneration.Next()
+                : new NodeBehaviorGenerationIdentity(
+                    registration.Id,
+                    checked(registration.Generation + 1));
+            return new NodeSourceNodeManagerFactory(
+                source,
+                manager?.Services,
+                generation);
+        }
 
         /// <inheritdoc/>
         public ValueTask<IAsyncNodeManager> CreateAsync(
@@ -83,6 +140,8 @@ namespace Opc.Ua.Server
                 configuration,
                 logger,
                 m_source,
+                m_serviceProvider,
+                m_generation,
                 namespaceUris);
 #pragma warning restore CA2000
             return new ValueTask<IAsyncNodeManager>(manager);
@@ -126,6 +185,8 @@ namespace Opc.Ua.Server
         }
 
         private readonly INodeSource m_source;
+        private readonly IServiceProvider? m_serviceProvider;
+        private readonly NodeBehaviorGenerationIdentity m_generation;
     }
 
     /// <summary>
@@ -144,11 +205,26 @@ namespace Opc.Ua.Server
             ApplicationConfiguration configuration,
             ILogger logger,
             INodeSource source,
+            IServiceProvider? serviceProvider,
+            NodeBehaviorGenerationIdentity behaviorGeneration,
             params string[] namespaceUris)
             : base(server, configuration, logger, namespaceUris)
         {
             m_source = source ?? throw new ArgumentNullException(nameof(source));
+            m_serviceProvider = serviceProvider;
+            BehaviorGeneration = behaviorGeneration ??
+                throw new ArgumentNullException(nameof(behaviorGeneration));
         }
+
+        /// <summary>
+        /// Gets the identity used by behavior contexts for this generation.
+        /// </summary>
+        public NodeBehaviorGenerationIdentity BehaviorGeneration { get; }
+
+        /// <summary>
+        /// Gets the source registration's service provider, if available.
+        /// </summary>
+        internal IServiceProvider? Services => m_serviceProvider;
 
         /// <inheritdoc/>
         public override async ValueTask CreateAddressSpaceAsync(
@@ -180,13 +256,66 @@ namespace Opc.Ua.Server
 
             await CompleteConfigureAsync(externalReferences, cancellationToken)
                 .ConfigureAwait(false);
-            m_dispatcher = builder.Dispatcher;
             builder.SealGraphAuthoring();
+            await ActivateBehaviorsAsync(cancellationToken).ConfigureAwait(false);
+            cancellationToken.ThrowIfCancellationRequested();
+            m_dispatcher = builder.Dispatcher;
             foreach (KeyValuePair<NodeId, NodeState> entry in PredefinedNodes)
             {
                 builder.Dispatcher.NotifyNodeAdded(SystemContext, entry.Value);
             }
             builder.StartSimulations();
+        }
+
+        /// <inheritdoc/>
+        public override async ValueTask DeleteAddressSpaceAsync(
+            CancellationToken cancellationToken = default)
+        {
+            _ = cancellationToken;
+            NodeBehaviorActivation? activation =
+                Interlocked.Exchange(ref m_behaviorActivation, null);
+            Exception? behaviorException = null;
+            if (activation is not null)
+            {
+                try
+                {
+                    await activation
+                        .DeactivateAndDisposeAsync()
+                        .ConfigureAwait(false);
+                }
+                catch (Exception ex) when (ex is not OutOfMemoryException)
+                {
+                    behaviorException = ex;
+                }
+            }
+
+            Exception? baseException = null;
+            try
+            {
+                await base
+                    .DeleteAddressSpaceAsync(CancellationToken.None)
+                    .ConfigureAwait(false);
+            }
+            catch (Exception ex) when (ex is not OutOfMemoryException)
+            {
+                baseException = ex;
+            }
+
+            if (behaviorException is not null && baseException is not null)
+            {
+                throw new AggregateException(
+                    "Node behavior and address-space cleanup both failed.",
+                    behaviorException,
+                    baseException);
+            }
+            if (behaviorException is not null)
+            {
+                ExceptionDispatchInfo.Capture(behaviorException).Throw();
+            }
+            if (baseException is not null)
+            {
+                ExceptionDispatchInfo.Capture(baseException).Throw();
+            }
         }
 
         /// <inheritdoc/>
@@ -374,6 +503,44 @@ namespace Opc.Ua.Server
             }
         }
 
+        private async ValueTask ActivateBehaviorsAsync(
+            CancellationToken cancellationToken)
+        {
+            if (m_source is not INodeBehaviorFactoryProvider provider)
+            {
+                return;
+            }
+
+            var registry = new NodeBehaviorRegistry(
+                provider.GetNodeBehaviorFactories(),
+                Server.NamespaceUris,
+                Server.TypeTree);
+            if (registry.IsEmpty)
+            {
+                return;
+            }
+
+            var addressSpace = new NodeBehaviorAddressSpace(
+                Server.NamespaceUris,
+                Find);
+            var activation = new NodeBehaviorActivation(
+                registry,
+                addressSpace,
+                SystemContext,
+                m_serviceProvider,
+                Server.Telemetry,
+                (Server as ITimeProviderProvider)?.TimeProvider ??
+                    TimeProvider.System,
+                m_source,
+                BehaviorGeneration);
+            m_behaviorActivation = activation;
+            await activation
+                .ActivateAsync(
+                    new ArrayOf<NodeState>(PredefinedNodes.Values.ToArray()),
+                    cancellationToken)
+                .ConfigureAwait(false);
+        }
+
         private Dictionary<NodeId, IList<IReference>> GetAddedReferences()
         {
             lock (m_addedReferencesLock)
@@ -385,8 +552,10 @@ namespace Opc.Ua.Server
         }
 
         private readonly INodeSource m_source;
+        private readonly IServiceProvider? m_serviceProvider;
         private readonly Lock m_addedReferencesLock = new();
         private readonly Dictionary<NodeId, List<IReference>> m_addedReferences = [];
+        private NodeBehaviorActivation? m_behaviorActivation;
         private IFluentDispatcher? m_dispatcher;
         private int m_buildStarted;
     }
