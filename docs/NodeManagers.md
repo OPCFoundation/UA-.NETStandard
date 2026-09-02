@@ -669,8 +669,8 @@ cleanup keep the same implementation as existing NodeManagers.
 ### Authoring a source
 
 `INodeGraphBuilder` extends the existing `INodeManagerBuilder`. All fluent wiring extensions
-therefore remain available, while `Add<TState>`, `Folder`, `Object`, `Variable<T>`, and `Method`
-add the missing creation operations.
+therefore remain available, while `Add<TState>`, `AddFolder`, `AddObject`, `AddVariable<T>`,
+`AddMethod`, and `Import` add the missing graph-construction operations.
 
 ```csharp
 using Opc.Ua.Server.Fluent;
@@ -726,8 +726,34 @@ builder, and replays `OnNodeAdded`. Calls through a retained builder after seali
 `BadInvalidState`. If building, cancellation, registration, or callback replay fails, the existing
 lifecycle transaction tears down the prepared generation without publishing a registration.
 
-NodeSet import is deliberately not part of this authoring surface. Use
-[runtime NodeSets](RuntimeNodeSets.md) when the source of the graph is NodeSet2 XML.
+`Import(UANodeSet)` adds a parsed NodeSet2 document to the same graph generation. Imported NodeIds
+are available immediately for NodeId-based fluent wiring inside `BuildAsync`; imported and authored
+roots are then finalized, registered, activated, and published together. Multiple `Import` calls
+form one batch, so cross-document parents are linked exactly once after `BuildAsync` completes.
+Call `Import` in dependency order when one document requires another:
+
+```csharp
+public ValueTask BuildAsync(
+    INodeGraphBuilder builder,
+    CancellationToken cancellationToken = default)
+{
+    builder.Import(m_dependencyNodeSet);
+    builder.Import(m_applicationNodeSet);
+
+    builder.Node(m_startMethodId)
+        .OnCall(StartAsync);
+    return default;
+}
+```
+
+The source must list every namespace containing imported nodes in
+`INodeSource.NamespaceUris`, including namespaces supplied by dependency
+documents. Import factories can select instances by TypeDefinition, methods by
+MethodDeclarationId, or an exact node by NodeId. Exact-node registrations are
+used for generated child slots such as method arguments.
+
+Use [runtime NodeSets](RuntimeNodeSets.md) when the files or streams should be registered directly
+without an application-owned `INodeSource`.
 
 ### Hosting and runtime lifecycle
 

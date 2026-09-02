@@ -36,6 +36,7 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Opc.Ua.Export;
 using Opc.Ua.Server.Fluent;
+using Opc.Ua.Server.Nodes;
 using static Opc.Ua.Server.RuntimeNodeSet.RuntimeNodeSetNodeManagerFactory;
 
 namespace Opc.Ua.Server.RuntimeNodeSet
@@ -113,93 +114,72 @@ namespace Opc.Ua.Server.RuntimeNodeSet
                 throw new ArgumentNullException(nameof(externalReferences));
             }
 
-            // Step 1 – Ensure all mapping NamespaceUris (external references)
-            // from every document are registered before any Import call, so
-            // that node ids in those namespaces resolve correctly.
+            ushort defaultNamespaceIndex =
+                m_configure is not null || m_configureAsync is not null
+                    ? ResolveDefaultNamespaceIndex()
+                    : NamespaceIndex;
+            NodeManagerBuilder builder = CreateFluentBuilder(defaultNamespaceIndex);
+            builder.EnableGraphAuthoring(
+                importFactoryProvider: null,
+                ValidateOwnedNodeNamespace);
+
+            // Import every document into one graph-builder batch. The builder
+            // links parent-child relationships once when registration begins.
             foreach (ParsedNodeSetDocument doc in m_documents)
             {
-                RegisterMappingNamespaces(doc.NodeSet);
+                ((INodeGraphBuilder)builder).Import(doc.NodeSet);
             }
 
-            // Step 2 – Import each document in topological order.
-            var predefinedNodes = new NodeStateCollection();
-
-            foreach (ParsedNodeSetDocument doc in m_documents)
-            {
-                doc.NodeSet.Import(SystemContext, predefinedNodes, linkParentChild: true);
-            }
-
-            // Step 3 – Detect duplicate NodeIds across all loaded sources.
-            DetectDuplicateNodeIds(predefinedNodes);
-            ValidateOwnedNodeNamespaces(predefinedNodes);
-
-            // Step 4 – Add every imported node through the base flow so they
-            // are indexed and properly linked.
-            for (int i = 0; i < predefinedNodes.Count; i++)
-            {
-                if (predefinedNodes[i] is BaseInstanceState { Parent: not null })
-                {
-                    continue;
-                }
-
-                await AddPredefinedNodeAsync(
+            await builder.RegisterAuthoredNodesAsync(
+                (node, ct) => AddPredefinedNodeAsync(
                     SystemContext,
-                    predefinedNodes[i],
-                    cancellationToken).ConfigureAwait(false);
-            }
+                    node,
+                    ct),
+                cancellationToken).ConfigureAwait(false);
 
-            // Step 5 – Establish reverse references to external node managers.
-            await AddReverseReferencesAsync(externalReferences, cancellationToken)
+            await CompleteConfigureAsync(externalReferences, cancellationToken)
                 .ConfigureAwait(false);
 
-            ReportUnbackedExternalParents(predefinedNodes);
+            ReportUnbackedExternalParents(builder.ImportedNodes);
 
-            // Step 6 – Apply the optional fluent configuration.
-            if (m_configure is not null || m_configureAsync is not null)
+            m_configure?.Invoke(builder);
+
+            IAsyncDisposable? generationOwner = m_configureAsync is null
+                ? null
+                : await m_configureAsync(builder, cancellationToken).ConfigureAwait(false);
+            try
             {
-                ushort defaultNsIndex = ResolveDefaultNamespaceIndex();
-
-                NodeManagerBuilder builder = CreateFluentBuilder(defaultNsIndex);
-                m_configure?.Invoke(builder);
-
-                IAsyncDisposable? generationOwner = m_configureAsync is null
-                    ? null
-                    : await m_configureAsync(builder, cancellationToken).ConfigureAwait(false);
-                try
-                {
-                    builder.Seal();
-
-                    // Step 7 – Replay NotifyNodeAdded for every predefined node
-                    // so that OnNodeAdded handlers registered in Configure fire.
-                    foreach (KeyValuePair<NodeId, NodeState> kvp in PredefinedNodes)
-                    {
-                        builder.NotifyNodeAdded(SystemContext, kvp.Value);
-                    }
-                }
-                catch (Exception activationException) when (
-                    activationException is not OutOfMemoryException)
-                {
-                    if (generationOwner is not null)
-                    {
-                        try
-                        {
-                            await generationOwner.DisposeAsync().ConfigureAwait(false);
-                        }
-                        catch (Exception disposalException) when (
-                            disposalException is not OutOfMemoryException)
-                        {
-                            throw new AggregateException(
-                                "RuntimeNodeSet configuration and generation owner disposal both failed.",
-                                activationException,
-                                disposalException);
-                        }
-                    }
-                    throw;
-                }
-
+                builder.SealGraphAuthoring();
+                cancellationToken.ThrowIfCancellationRequested();
                 m_dispatcher = builder.Dispatcher;
-                m_generationOwner = generationOwner;
+                foreach (KeyValuePair<NodeId, NodeState> entry in PredefinedNodes)
+                {
+                    builder.Dispatcher.NotifyNodeAdded(SystemContext, entry.Value);
+                }
+                builder.StartSimulations();
             }
+            catch (Exception activationException) when (
+                activationException is not OutOfMemoryException)
+            {
+                if (generationOwner is not null)
+                {
+                    try
+                    {
+                        await generationOwner.DisposeAsync().ConfigureAwait(false);
+                    }
+                    catch (Exception disposalException) when (
+                        disposalException is not OutOfMemoryException)
+                    {
+                        throw new AggregateException(
+                            "RuntimeNodeSet configuration and generation owner disposal both failed.",
+                            activationException,
+                            disposalException);
+                    }
+                }
+                throw;
+            }
+
+            m_generationOwner = generationOwner;
         }
 
         /// <inheritdoc/>
@@ -498,28 +478,6 @@ namespace Opc.Ua.Server.RuntimeNodeSet
         }
 
         /// <summary>
-        /// Appends all <c>NamespaceUris</c> entries from the NodeSet2
-        /// document to the server's namespace table without claiming them.
-        /// These are mapping/reference namespaces required for resolving
-        /// node ids that belong to external models.
-        /// </summary>
-        private void RegisterMappingNamespaces(UANodeSet nodeSet)
-        {
-            if (nodeSet.NamespaceUris is null)
-            {
-                return;
-            }
-
-            foreach (string uri in nodeSet.NamespaceUris)
-            {
-                if (!string.IsNullOrEmpty(uri))
-                {
-                    Server.NamespaceUris.GetIndexOrAppend(uri);
-                }
-            }
-        }
-
-        /// <summary>
         /// Reports an imported node whose declared <c>ParentNodeId</c> is
         /// outside this manager and is not backed by an explicit inverse
         /// hierarchical Reference.
@@ -573,62 +531,30 @@ namespace Opc.Ua.Server.RuntimeNodeSet
         }
 
         /// <summary>
-        /// Scans the imported node collection for duplicate
-        /// <see cref="NodeId"/> values and throws
-        /// <see cref="InvalidOperationException"/> on the first duplicate
-        /// detected.
-        /// </summary>
-        /// <exception cref="InvalidOperationException"></exception>
-        private static void DetectDuplicateNodeIds(NodeStateCollection nodes)
-        {
-            var seen = new HashSet<NodeId>();
-
-            for (int i = 0; i < nodes.Count; i++)
-            {
-                NodeId id = nodes[i].NodeId;
-
-                if (!id.IsNull && !seen.Add(id))
-                {
-                    throw new InvalidOperationException(
-                        $"Duplicate NodeId '{id}' detected across the loaded NodeSet2 " +
-                        "sources. Each node must have a unique NodeId.");
-                }
-            }
-        }
-
-        /// <summary>
         /// Rejects nodes defined in namespaces that this manager does not own.
         /// Referenced namespaces may appear in NodeSet references, but not as
         /// NodeIds of nodes imported by this manager.
         /// </summary>
         /// <exception cref="InvalidOperationException"></exception>
-        private void ValidateOwnedNodeNamespaces(NodeStateCollection nodes)
+        private void ValidateOwnedNodeNamespace(NodeState node)
         {
-            for (int i = 0; i < nodes.Count; i++)
+            NodeId nodeId = node.NodeId;
+            if (nodeId.IsNull)
             {
-                NodeId nodeId = nodes[i].NodeId;
-                if (nodeId.IsNull)
-                {
-                    continue;
-                }
+                return;
+            }
 
-                bool owned = false;
-                for (int j = 0; j < NamespaceIndexes.Count; j++)
+            for (int i = 0; i < NamespaceIndexes.Count; i++)
+            {
+                if (NamespaceIndexes[i] == nodeId.NamespaceIndex)
                 {
-                    if (NamespaceIndexes[j] == nodeId.NamespaceIndex)
-                    {
-                        owned = true;
-                        break;
-                    }
-                }
-
-                if (!owned)
-                {
-                    throw new InvalidOperationException(
-                        $"Node '{nodeId}' is defined in namespace index " +
-                        $"{nodeId.NamespaceIndex}, which is not owned by this runtime NodeSet manager.");
+                    return;
                 }
             }
+
+            throw new InvalidOperationException(
+                $"Node '{nodeId}' is defined in namespace index " +
+                $"{nodeId.NamespaceIndex}, which is not owned by this runtime NodeSet manager.");
         }
 
         /// <summary>

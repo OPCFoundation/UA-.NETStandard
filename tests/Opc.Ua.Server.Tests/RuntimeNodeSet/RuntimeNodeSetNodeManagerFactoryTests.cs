@@ -28,13 +28,16 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Moq;
 using NUnit.Framework;
+using Opc.Ua.Export;
 using Opc.Ua.Server.RuntimeNodeSet;
 
 namespace Opc.Ua.Server.Tests.RuntimeNodeSet
@@ -53,6 +56,8 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
     {
         private const string kUriA = "urn:test:ModelA";
         private const string kUriB = "urn:test:ModelB";
+        private static readonly string[] s_dependencyOrder =
+            ["dependency", "dependent"];
 
         private static StreamRuntimeNodeSetSource MakeStreamSource(string modelUri, string xml)
         {
@@ -85,6 +90,12 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
                 "    </Model>\r\n" +
                 "  </Models>\r\n" +
                 "</UANodeSet>";
+        }
+
+        private static UANodeSet ReadNodeSet(string xml)
+        {
+            using var stream = new MemoryStream(Encoding.UTF8.GetBytes(xml));
+            return UANodeSet.Read(stream);
         }
 
         /// <summary>
@@ -259,6 +270,32 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
                     default).ConfigureAwait(false));
 
             Assert.That(ex.Message, Does.Contain("circular"));
+        }
+
+        [Test]
+        public void TopologicalSortPlacesDependenciesBeforeDependents()
+        {
+            UANodeSet dependent = ReadNodeSet(MakeCycleXml(kUriA, kUriB));
+            UANodeSet dependency = ReadNodeSet(MakeMinimalXml(kUriB));
+            RuntimeNodeSetNodeManagerFactory.ParsedNodeSetDocument[] documents =
+            [
+                new(dependent, [kUriA], "dependent"),
+                new(dependency, [kUriB], "dependency")
+            ];
+            var modelIndexes = new Dictionary<string, int>(StringComparer.Ordinal)
+            {
+                [kUriA] = 0,
+                [kUriB] = 1
+            };
+
+            RuntimeNodeSetNodeManagerFactory.ParsedNodeSetDocument[] sorted =
+                RuntimeNodeSetNodeManagerFactory.TopologicalSort(
+                    documents,
+                    modelIndexes);
+
+            Assert.That(
+                sorted.Select(document => document.SourceName),
+                Is.EqualTo(s_dependencyOrder));
         }
 
         /// <summary>

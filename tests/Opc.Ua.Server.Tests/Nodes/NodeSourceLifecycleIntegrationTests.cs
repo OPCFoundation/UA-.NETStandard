@@ -30,10 +30,12 @@
 using System;
 using System.IO;
 using System.Linq;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using NUnit.Framework;
+using Opc.Ua.Export;
 using Opc.Ua.Server.Fluent;
 using Opc.Ua.Server.Nodes;
 using Opc.Ua.Server.TestFramework;
@@ -54,6 +56,8 @@ namespace Opc.Ua.Server.Tests.Nodes
         private const double kMaxAge = 10000;
         private const string kNamespaceUri =
             "urn:opcfoundation.org:Tests:NodeSourceLifecycle";
+        private const string kImportedNamespaceUri =
+            "urn:opcfoundation.org:Tests:NodeSourceLifecycle:Imported";
 
         private string m_pkiRoot;
         private ServerFixture<ReferenceServer> m_fixture;
@@ -164,7 +168,7 @@ namespace Opc.Ua.Server.Tests.Nodes
                     initial.FolderId.IdentifierAsString,
                     Is.EqualTo("NodeSourceRoot"));
             });
-            await CallMethodAsync(initial).ConfigureAwait(false);
+            await CallMethodAsync(initial.ObjectId, initial.MethodId).ConfigureAwait(false);
             Assert.That(initial.MethodCallCount, Is.EqualTo(1));
 
             var reloaded = new GraphSource(generation: 2);
@@ -210,6 +214,69 @@ namespace Opc.Ua.Server.Tests.Nodes
                 objectsBrowse.Results[0].References.Contains(reference =>
                     reference.BrowseName == immediateReloaded.FolderBrowseName),
                 Is.False);
+        }
+
+        [Test]
+        public async Task BuildAsyncImportSupportsTypedBrowseReadAndCallAsync()
+        {
+            var source = new ImportedGraphSource();
+            NodeManagerRegistration registration = await m_server.NodeManagerLifecycle
+                .AddNodeSourceAsync(source)
+                .ConfigureAwait(false);
+            try
+            {
+                IServerInternal server = m_server.CurrentInstance;
+                NodeState instance = await server.NodeManager
+                    .FindNodeInAddressSpaceAsync(source.ObjectId)
+                    .ConfigureAwait(false);
+                NodeState variable = await server.NodeManager
+                    .FindNodeInAddressSpaceAsync(source.VariableId)
+                    .ConfigureAwait(false);
+                NodeState method = await server.NodeManager
+                    .FindNodeInAddressSpaceAsync(source.MethodId)
+                    .ConfigureAwait(false);
+                BrowseResponse objectsBrowse = await BrowseAsync(ObjectIds.ObjectsFolder)
+                    .ConfigureAwait(false);
+                BrowseResponse objectBrowse = await BrowseAsync(source.ObjectId)
+                    .ConfigureAwait(false);
+                DataValue value = await ReadValueAsync(source.VariableId)
+                    .ConfigureAwait(false);
+                await CallMethodAsync(source.ObjectId, source.MethodId)
+                    .ConfigureAwait(false);
+
+                Assert.Multiple(() =>
+                {
+                    Assert.That(source.TypedNodesResolvedDuringBuild, Is.True);
+                    Assert.That(instance, Is.TypeOf<ImportedDeviceState>());
+                    Assert.That(variable, Is.TypeOf<ImportedValueState>());
+                    Assert.That(method, Is.TypeOf<ImportedResetMethodState>());
+                    Assert.That(
+                        objectsBrowse.Results[0].References.Contains(reference =>
+                            reference.BrowseName.Name == "ImportedDevice"),
+                        Is.True);
+                    Assert.That(
+                        objectsBrowse.Results[0].References.Contains(reference =>
+                            reference.BrowseName.Name == "AuthoredRoot"),
+                        Is.True);
+                    Assert.That(
+                        objectBrowse.Results[0].References.Contains(reference =>
+                            reference.BrowseName.Name == "Value"),
+                        Is.True);
+                    Assert.That(
+                        objectBrowse.Results[0].References.Contains(reference =>
+                            reference.BrowseName.Name == "Reset"),
+                        Is.True);
+                    Assert.That(value.StatusCode, Is.EqualTo(StatusCodes.Good));
+                    Assert.That(value.WrappedValue.GetInt32(), Is.EqualTo(42));
+                    Assert.That(source.MethodCallCount, Is.EqualTo(1));
+                });
+            }
+            finally
+            {
+                await m_server.NodeManagerLifecycle
+                    .RemoveAsync(registration, callerContext: null)
+                    .ConfigureAwait(false);
+            }
         }
 
         [Test]
@@ -389,14 +456,16 @@ namespace Opc.Ua.Server.Tests.Nodes
             return response;
         }
 
-        private async Task CallMethodAsync(GraphSource source)
+        private async Task CallMethodAsync(
+            NodeId objectId,
+            NodeId methodId)
         {
             ArrayOf<CallMethodRequest> methodsToCall =
             [
                 new CallMethodRequest
                 {
-                    ObjectId = source.ObjectId,
-                    MethodId = source.MethodId
+                    ObjectId = objectId,
+                    MethodId = methodId
                 }
             ];
             m_requestHeader.Timestamp = DateTimeUtc.Now;
@@ -584,6 +653,186 @@ namespace Opc.Ua.Server.Tests.Nodes
             }
 
             private readonly CancellationTokenSource m_cancellation;
+        }
+
+        private sealed class ImportedGraphSource :
+            INodeSource,
+            INodeSetImportFactoryProvider
+        {
+            public ArrayOf<string> NamespaceUris => [kImportedNamespaceUri];
+
+            public NodeId ObjectId { get; private set; }
+
+            public NodeId VariableId { get; private set; }
+
+            public NodeId MethodId { get; private set; }
+
+            public int MethodCallCount { get; private set; }
+
+            public bool TypedNodesResolvedDuringBuild { get; private set; }
+
+            public ValueTask BuildAsync(
+                INodeGraphBuilder builder,
+                CancellationToken cancellationToken = default)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                builder.Import(ReadNodeSet());
+                builder.AddFolder(new QualifiedName("AuthoredRoot"));
+                var namespaceIndex = (ushort)builder.Context.NamespaceUris.GetIndex(
+                    kImportedNamespaceUri);
+                ObjectId = new NodeId(200u, namespaceIndex);
+                VariableId = new NodeId(201u, namespaceIndex);
+                MethodId = new NodeId(202u, namespaceIndex);
+
+                ImportedDeviceState instance =
+                    builder.Node<ImportedDeviceState>(ObjectId).Node;
+                ImportedValueState variable =
+                    builder.Node<ImportedValueState>(VariableId).Node;
+                INodeBuilder<ImportedResetMethodState> method =
+                    builder.Node<ImportedResetMethodState>(MethodId);
+                variable.Value = new Variant(42);
+                method.OnCall(
+                    (_, _, _, _, _, _) =>
+                    {
+                        MethodCallCount++;
+                        return new ValueTask<ServiceResult>(ServiceResult.Good);
+                    });
+                TypedNodesResolvedDuringBuild =
+                    instance.TypeDefinitionId ==
+                        new NodeId(100u, namespaceIndex) &&
+                    variable.TypeDefinitionId ==
+                        new NodeId(101u, namespaceIndex) &&
+                    method.Node.MethodDeclarationId ==
+                        new NodeId(102u, namespaceIndex);
+                return default;
+            }
+
+            public ArrayOf<INodeSetImportFactory> GetNodeSetImportFactories()
+            {
+                return
+                [
+                    new ImportedNodeFactory(
+                        NodeClass.Object,
+                        new ExpandedNodeId(100u, kImportedNamespaceUri),
+                        static () => new ImportedDeviceState(null)),
+                    new ImportedNodeFactory(
+                        NodeClass.Variable,
+                        new ExpandedNodeId(101u, kImportedNamespaceUri),
+                        static () => new ImportedValueState(null)),
+                    new ImportedNodeFactory(
+                        NodeClass.Method,
+                        new ExpandedNodeId(102u, kImportedNamespaceUri),
+                        static () => new ImportedResetMethodState(null))
+                ];
+            }
+
+            private static UANodeSet ReadNodeSet()
+            {
+                string xml =
+                    "<?xml version=\"1.0\" encoding=\"utf-8\"?>\r\n" +
+                    "<UANodeSet xmlns=\"http://opcfoundation.org/UA/2011/03/UANodeSet.xsd\">\r\n" +
+                    "  <NamespaceUris>\r\n" +
+                    $"    <Uri>{kImportedNamespaceUri}</Uri>\r\n" +
+                    "  </NamespaceUris>\r\n" +
+                    "  <UAObjectType NodeId=\"ns=1;i=100\" BrowseName=\"1:ImportedDeviceType\">\r\n" +
+                    "    <DisplayName>ImportedDeviceType</DisplayName>\r\n" +
+                    "    <References>\r\n" +
+                    "      <Reference ReferenceType=\"i=45\" IsForward=\"false\">i=58</Reference>\r\n" +
+                    "    </References>\r\n" +
+                    "  </UAObjectType>\r\n" +
+                    "  <UAVariableType NodeId=\"ns=1;i=101\" BrowseName=\"1:ImportedValueType\" " +
+                    "DataType=\"i=6\">\r\n" +
+                    "    <DisplayName>ImportedValueType</DisplayName>\r\n" +
+                    "    <References>\r\n" +
+                    "      <Reference ReferenceType=\"i=45\" IsForward=\"false\">i=63</Reference>\r\n" +
+                    "    </References>\r\n" +
+                    "  </UAVariableType>\r\n" +
+                    "  <UAObject NodeId=\"ns=1;i=200\" BrowseName=\"1:ImportedDevice\">\r\n" +
+                    "    <DisplayName>ImportedDevice</DisplayName>\r\n" +
+                    "    <References>\r\n" +
+                    "      <Reference ReferenceType=\"i=40\">ns=1;i=100</Reference>\r\n" +
+                    "      <Reference ReferenceType=\"i=35\" IsForward=\"false\">i=85</Reference>\r\n" +
+                    "      <Reference ReferenceType=\"i=47\">ns=1;i=201</Reference>\r\n" +
+                    "      <Reference ReferenceType=\"i=47\">ns=1;i=202</Reference>\r\n" +
+                    "    </References>\r\n" +
+                    "  </UAObject>\r\n" +
+                    "  <UAVariable NodeId=\"ns=1;i=201\" BrowseName=\"1:Value\" " +
+                    "ParentNodeId=\"ns=1;i=200\" DataType=\"i=6\">\r\n" +
+                    "    <DisplayName>Value</DisplayName>\r\n" +
+                    "    <References>\r\n" +
+                    "      <Reference ReferenceType=\"i=40\">ns=1;i=101</Reference>\r\n" +
+                    "      <Reference ReferenceType=\"i=47\" IsForward=\"false\">ns=1;i=200</Reference>\r\n" +
+                    "    </References>\r\n" +
+                    "  </UAVariable>\r\n" +
+                    "  <UAMethod NodeId=\"ns=1;i=202\" BrowseName=\"1:Reset\" " +
+                    "ParentNodeId=\"ns=1;i=200\" MethodDeclarationId=\"ns=1;i=102\">\r\n" +
+                    "    <DisplayName>Reset</DisplayName>\r\n" +
+                    "    <References>\r\n" +
+                    "      <Reference ReferenceType=\"i=47\" IsForward=\"false\">ns=1;i=200</Reference>\r\n" +
+                    "    </References>\r\n" +
+                    "  </UAMethod>\r\n" +
+                    "</UANodeSet>";
+                using var stream = new MemoryStream(Encoding.UTF8.GetBytes(xml));
+                return UANodeSet.Read(stream);
+            }
+        }
+
+        private sealed class ImportedNodeFactory : INodeSetImportFactory
+        {
+            public ImportedNodeFactory(
+                NodeClass nodeClass,
+                ExpandedNodeId discriminatorId,
+                Func<NodeState> create)
+            {
+                NodeClass = nodeClass;
+                DiscriminatorId = discriminatorId;
+                m_create = create;
+            }
+
+            public NodeClass NodeClass { get; }
+
+            public NodeSetImportDiscriminator Discriminator =>
+                NodeClass switch
+                {
+                    NodeClass.Object or NodeClass.Variable =>
+                        NodeSetImportDiscriminator.TypeDefinition,
+                    NodeClass.Method =>
+                        NodeSetImportDiscriminator.MethodDeclaration,
+                    _ => NodeSetImportDiscriminator.NodeId
+                };
+
+            public ExpandedNodeId DiscriminatorId { get; }
+
+            public NodeState CreateEmptyState()
+            {
+                return m_create();
+            }
+
+            private readonly Func<NodeState> m_create;
+        }
+
+        private sealed class ImportedDeviceState : BaseObjectState
+        {
+            public ImportedDeviceState(NodeState parent)
+                : base(parent)
+            {
+            }
+        }
+
+        private sealed class ImportedValueState : BaseDataVariableState
+        {
+            public ImportedValueState(NodeState parent)
+                : base(parent)
+            {
+            }
+        }
+
+        private sealed class ImportedResetMethodState : MethodState
+        {
+            public ImportedResetMethodState(NodeState parent)
+                : base(parent)
+            {
+            }
         }
     }
 }

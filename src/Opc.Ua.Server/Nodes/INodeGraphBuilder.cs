@@ -27,6 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using Opc.Ua.Export;
 using Opc.Ua.Server.Fluent;
 
 namespace Opc.Ua.Server.Nodes
@@ -43,6 +44,19 @@ namespace Opc.Ua.Server.Nodes
     /// </remarks>
     public interface INodeGraphBuilder : INodeManagerBuilder
     {
+        /// <summary>
+        /// Imports a NodeSet2 document into this graph generation.
+        /// </summary>
+        /// <remarks>
+        /// Imported nodes retain their NodeSet-defined NodeIds, attributes,
+        /// values, references, and parent relationships. Multiple calls form
+        /// one import batch and are linked once before registration. Every
+        /// namespace containing imported nodes must be declared by the owning
+        /// <see cref="INodeSource"/>.
+        /// </remarks>
+        /// <param name="nodeSet">The parsed NodeSet2 document.</param>
+        void Import(UANodeSet nodeSet);
+
         /// <summary>
         /// Adds an already constructed state and preserves caller-assigned NodeIds.
         /// </summary>

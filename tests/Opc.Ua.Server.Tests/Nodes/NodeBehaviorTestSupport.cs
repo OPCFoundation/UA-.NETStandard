@@ -29,8 +29,11 @@
 
 using System;
 using System.Collections.Generic;
+using System.IO;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using Opc.Ua.Export;
 using Opc.Ua.Server.Nodes;
 
 namespace Opc.Ua.Server.Tests.Nodes
@@ -173,6 +176,117 @@ namespace Opc.Ua.Server.Tests.Nodes
         private readonly bool m_includeChild;
         private readonly bool m_includeSibling;
         private readonly ArrayOf<INodeBehaviorFactory> m_factories;
+    }
+
+    internal sealed class ImportedNodeBehaviorTestSource :
+        INodeSource,
+        INodeBehaviorFactoryProvider,
+        INodeSetImportFactoryProvider
+    {
+        public const string NamespaceUri =
+            "urn:opcfoundation.org:Tests:ImportedNodeBehavior";
+
+        public ImportedNodeBehaviorTestSource(
+            NodeBehaviorTestRecorder recorder,
+            Func<string, string, NodeBehaviorTestLeaseOptions> leaseOptions = null)
+        {
+            Recorder = recorder ?? throw new ArgumentNullException(nameof(recorder));
+            m_behaviorFactories =
+            [
+                new NodeBehaviorTestFactory(
+                    "imported",
+                    new ExpandedNodeId(100u, NamespaceUri),
+                    recorder,
+                    createFailure: null,
+                    leaseOptions)
+            ];
+        }
+
+        public ArrayOf<string> NamespaceUris => [NamespaceUri];
+
+        public NodeBehaviorTestRecorder Recorder { get; }
+
+        public NodeId NodeId { get; private set; }
+
+        public ImportedBehaviorObjectState Node { get; private set; }
+
+        public ValueTask BuildAsync(
+            INodeGraphBuilder builder,
+            CancellationToken cancellationToken = default)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            builder.Import(ReadNodeSet());
+            var namespaceIndex =
+                (ushort)builder.Context.NamespaceUris.GetIndex(NamespaceUri);
+            NodeId = new NodeId(200u, namespaceIndex);
+            Node = builder.Node<ImportedBehaviorObjectState>(NodeId).Node;
+            return default;
+        }
+
+        public ArrayOf<INodeBehaviorFactory> GetNodeBehaviorFactories()
+        {
+            return m_behaviorFactories;
+        }
+
+        public ArrayOf<INodeSetImportFactory> GetNodeSetImportFactories()
+        {
+            return
+            [
+                new ImportedBehaviorNodeFactory()
+            ];
+        }
+
+        private static UANodeSet ReadNodeSet()
+        {
+            string xml =
+                "<?xml version=\"1.0\" encoding=\"utf-8\"?>\r\n" +
+                "<UANodeSet xmlns=\"http://opcfoundation.org/UA/2011/03/UANodeSet.xsd\">\r\n" +
+                "  <NamespaceUris>\r\n" +
+                $"    <Uri>{NamespaceUri}</Uri>\r\n" +
+                "  </NamespaceUris>\r\n" +
+                "  <UAObjectType NodeId=\"ns=1;i=100\" BrowseName=\"1:ImportedBehaviorType\">\r\n" +
+                "    <DisplayName>ImportedBehaviorType</DisplayName>\r\n" +
+                "    <References>\r\n" +
+                "      <Reference ReferenceType=\"i=45\" IsForward=\"false\">i=58</Reference>\r\n" +
+                "    </References>\r\n" +
+                "  </UAObjectType>\r\n" +
+                "  <UAObject NodeId=\"ns=1;i=200\" BrowseName=\"1:ImportedBehaviorObject\">\r\n" +
+                "    <DisplayName>ImportedBehaviorObject</DisplayName>\r\n" +
+                "    <References>\r\n" +
+                "      <Reference ReferenceType=\"i=40\">ns=1;i=100</Reference>\r\n" +
+                "      <Reference ReferenceType=\"i=35\" IsForward=\"false\">i=85</Reference>\r\n" +
+                "    </References>\r\n" +
+                "  </UAObject>\r\n" +
+                "</UANodeSet>";
+            using var stream = new MemoryStream(Encoding.UTF8.GetBytes(xml));
+            return UANodeSet.Read(stream);
+        }
+
+        private readonly ArrayOf<INodeBehaviorFactory> m_behaviorFactories;
+
+        private sealed class ImportedBehaviorNodeFactory : INodeSetImportFactory
+        {
+            public NodeClass NodeClass => NodeClass.Object;
+
+            public NodeSetImportDiscriminator Discriminator =>
+                NodeSetImportDiscriminator.TypeDefinition;
+
+            public ExpandedNodeId DiscriminatorId =>
+                new(100u, NamespaceUri);
+
+            public NodeState CreateEmptyState()
+            {
+                return new ImportedBehaviorObjectState(null);
+            }
+        }
+    }
+
+    internal sealed class ImportedBehaviorObjectState : BaseObjectState
+    {
+        public ImportedBehaviorObjectState(NodeState parent)
+            : base(parent)
+        {
+        }
     }
 
     internal sealed class NodeBehaviorTestRecorder

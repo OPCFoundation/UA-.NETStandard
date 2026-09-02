@@ -31,7 +31,9 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using Opc.Ua.Export;
 using Opc.Ua.Server.Nodes;
+using Opc.Ua.Server.RuntimeNodeSet;
 
 namespace Opc.Ua.Server.Fluent
 {
@@ -135,6 +137,28 @@ namespace Opc.Ua.Server.Fluent
             return AddNode(node, parentId);
         }
 
+        void INodeGraphBuilder.Import(UANodeSet nodeSet)
+        {
+            ThrowIfGraphAuthoringUnavailable();
+            ThrowIfSealed();
+            ThrowIfGraphFinalizationStarted();
+            if (nodeSet is null)
+            {
+                throw new ArgumentNullException(nameof(nodeSet));
+            }
+
+            m_nodeSetImporter ??= new NodeSetImporter(
+                Context,
+                m_importFactoryProvider);
+            ArrayOf<NodeState> imported = m_nodeSetImporter.Import(nodeSet);
+            for (int i = 0; i < imported.Count; i++)
+            {
+                NodeState node = imported[i];
+                ValidateImportedNode(node);
+                IndexAuthoredNode(node);
+            }
+        }
+
         private NodeBuilder<TState> AddNode<TState>(
             TState node,
             NodeId parentId)
@@ -142,6 +166,7 @@ namespace Opc.Ua.Server.Fluent
         {
             ThrowIfGraphAuthoringUnavailable();
             ThrowIfSealed();
+            ThrowIfGraphFinalizationStarted();
             if (node is null)
             {
                 throw new ArgumentNullException(nameof(node));
@@ -465,6 +490,7 @@ namespace Opc.Ua.Server.Fluent
                     "The authored node graph has already been registered.");
             }
 
+            CompleteImportedNodes();
             m_authoredNodesRegistered = true;
             foreach (NodeState root in m_authoredRoots)
             {
@@ -475,11 +501,28 @@ namespace Opc.Ua.Server.Fluent
             }
         }
 
-        internal void EnableGraphAuthoring()
+        internal void EnableGraphAuthoring(
+            INodeSetImportFactoryProvider? importFactoryProvider = null,
+            Action<NodeState>? importedNodeValidator = null)
         {
             ThrowIfSealed();
+            if (m_graphAuthoringEnabled)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadInvalidState,
+                    "Node graph authoring has already been enabled.");
+            }
+
+            m_importFactoryProvider = importFactoryProvider;
+            m_importedNodeValidator = importedNodeValidator;
             m_graphAuthoringEnabled = true;
         }
+
+        /// <summary>
+        /// Gets the nodes contributed through NodeSet imports.
+        /// </summary>
+        internal NodeStateCollection ImportedNodes =>
+            m_nodeSetImporter?.ImportedNodes ?? [];
 
         /// <summary>
         /// Event-source registry owned by the
@@ -1024,43 +1067,88 @@ namespace Opc.Ua.Server.Fluent
             for (int i = 0; i < nodes.Count; i++)
             {
                 NodeState node = nodes[i];
-                if (node.NodeId.IsNull)
-                {
-                    throw ServiceResultException.Create(
-                        StatusCodes.BadConfigurationError,
-                        "The NodeId factory did not assign an id to node '{0}'.",
-                        node.BrowseName);
-                }
-
-                if (m_authoredNodes.TryGetValue(
-                    node.NodeId,
-                    out NodeState? existing))
-                {
-                    if (!ReferenceEquals(existing, node))
-                    {
-                        throw ServiceResultException.Create(
-                            StatusCodes.BadNodeIdExists,
-                            "NodeId '{0}' is already used by node '{1}'.",
-                            node.NodeId,
-                            existing.BrowseName);
-                    }
-                }
-                else
-                {
-                    NodeState? predefined = m_nodeIdResolver(node.NodeId);
-                    if (predefined != null && !ReferenceEquals(predefined, node))
-                    {
-                        throw ServiceResultException.Create(
-                            StatusCodes.BadNodeIdExists,
-                            "NodeId '{0}' is already used by a predefined node.",
-                            node.NodeId);
-                    }
-                    m_authoredNodes.Add(node.NodeId, node);
-                }
+                IndexAuthoredNode(node);
 
                 children.Clear();
                 node.GetChildren(Context, children);
                 nodes.AddRange(children);
+            }
+        }
+
+        private void IndexAuthoredNode(NodeState node)
+        {
+            if (node.NodeId.IsNull)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadConfigurationError,
+                    "The NodeId factory did not assign an id to node '{0}'.",
+                    node.BrowseName);
+            }
+
+            if (m_authoredNodes.TryGetValue(
+                node.NodeId,
+                out NodeState? existing))
+            {
+                if (!ReferenceEquals(existing, node))
+                {
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadNodeIdExists,
+                        "NodeId '{0}' is already used by node '{1}'.",
+                        node.NodeId,
+                        existing.BrowseName);
+                }
+                return;
+            }
+
+            NodeState? predefined = m_nodeIdResolver(node.NodeId);
+            if (predefined != null && !ReferenceEquals(predefined, node))
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadNodeIdExists,
+                    "NodeId '{0}' is already used by a predefined node.",
+                    node.NodeId);
+            }
+            m_authoredNodes.Add(node.NodeId, node);
+        }
+
+        private void CompleteImportedNodes()
+        {
+            if (m_nodeSetImporter is null)
+            {
+                return;
+            }
+
+            m_nodeSetImporter.Complete();
+            NodeStateCollection importedNodes = m_nodeSetImporter.ImportedNodes;
+            for (int i = 0; i < importedNodes.Count; i++)
+            {
+                NodeState node = importedNodes[i];
+                if (node is not BaseInstanceState { Parent: not null })
+                {
+                    AddAuthoredRoot(node);
+                }
+            }
+        }
+
+        private void ValidateImportedNode(NodeState node)
+        {
+            if (node.NodeId.IsNull)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadNodeIdInvalid,
+                    "Imported node '{0}' has no NodeId.",
+                    node.BrowseName);
+            }
+
+            if (m_importedNodeValidator is not null)
+            {
+                m_importedNodeValidator(node);
+                return;
+            }
+
+            if (NodeManager is AsyncCustomNodeManager manager)
+            {
+                ValidateAuthoredNodeId(manager, node);
             }
         }
 
@@ -1177,12 +1265,23 @@ namespace Opc.Ua.Server.Fluent
 
         private void ThrowIfSealed()
         {
-            if (m_sealed || m_authoredNodesRegistered)
+            if (m_sealed)
             {
                 throw ServiceResultException.Create(
                     StatusCodes.BadInvalidState,
-                    "Cannot wire or add nodes after graph finalization has begun. " +
+                    "Cannot wire or add nodes after the builder has been sealed. " +
                     "All calls must occur inside the Configure or BuildAsync delegate.");
+            }
+        }
+
+        private void ThrowIfGraphFinalizationStarted()
+        {
+            if (m_authoredNodesRegistered)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadInvalidState,
+                    "Cannot add nodes after graph finalization has begun. " +
+                    "All graph authoring calls must occur inside BuildAsync.");
             }
         }
 
@@ -1219,6 +1318,9 @@ namespace Opc.Ua.Server.Fluent
         private readonly Func<NodeId, ArrayOf<NodeState>> m_dataTypeIdResolver;
         private readonly Dictionary<NodeId, NodeState> m_authoredNodes = [];
         private readonly List<NodeState> m_authoredRoots = [];
+        private INodeSetImportFactoryProvider? m_importFactoryProvider;
+        private Action<NodeState>? m_importedNodeValidator;
+        private NodeSetImporter? m_nodeSetImporter;
         private bool m_sealed;
         private bool m_graphAuthoringEnabled;
         private bool m_authoredNodesRegistered;

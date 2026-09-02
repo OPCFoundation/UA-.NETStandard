@@ -244,7 +244,8 @@ namespace Opc.Ua.Server
 
             cancellationToken.ThrowIfCancellationRequested();
             NodeManagerBuilder builder = CreateFluentBuilder(NamespaceIndex);
-            builder.EnableGraphAuthoring();
+            builder.EnableGraphAuthoring(
+                m_source as INodeSetImportFactoryProvider);
             await m_source.BuildAsync(builder, cancellationToken).ConfigureAwait(false);
             cancellationToken.ThrowIfCancellationRequested();
             await builder.RegisterAuthoredNodesAsync(

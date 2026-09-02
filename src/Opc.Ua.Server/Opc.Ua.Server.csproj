@@ -15,6 +15,7 @@
   </PropertyGroup>
   <ItemGroup>
     <InternalsVisibleTo Include="Opc.Ua.Server.Tests" />
+    <InternalsVisibleTo Include="Opc.Ua.Aot.Tests" />
     <InternalsVisibleTo Include="Opc.Ua.Server.TestFramework" />
     <InternalsVisibleTo Include="Opc.Ua.Session.Tests" />
     <InternalsVisibleTo Include="Opc.Ua.Sessions.Tests" />

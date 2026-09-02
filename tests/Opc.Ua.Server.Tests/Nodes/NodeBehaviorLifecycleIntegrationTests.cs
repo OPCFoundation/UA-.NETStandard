@@ -200,6 +200,78 @@ namespace Opc.Ua.Server.Tests.Nodes
             });
         }
 
+        [Test]
+        public async Task RuntimeImportedTypedNodeBehaviorCleansUpOnRemovalAsync()
+        {
+            var recorder = new NodeBehaviorTestRecorder();
+            var source = new ImportedNodeBehaviorTestSource(recorder);
+            NodeManagerRegistration registration = await m_server.NodeManagerLifecycle
+                .AddNodeSourceAsync(source)
+                .ConfigureAwait(false);
+            NodeBehaviorTestLease lease = recorder.GetLeases().Single();
+            NodeState visible = await m_server.CurrentInstance.NodeManager
+                .FindNodeInAddressSpaceAsync(source.NodeId)
+                .ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(source.Node, Is.TypeOf<ImportedBehaviorObjectState>());
+                Assert.That(visible, Is.SameAs(source.Node));
+                Assert.That(lease.Context.Node, Is.SameAs(source.Node));
+                Assert.That(lease.IsActive, Is.True);
+                Assert.That(lease.ActivateCount, Is.EqualTo(1));
+            });
+
+            await m_server.NodeManagerLifecycle
+                .RemoveAsync(registration, callerContext: null)
+                .ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(lease.IsActive, Is.False);
+                Assert.That(lease.DeactivateCount, Is.EqualTo(1));
+                Assert.That(lease.DisposeCount, Is.EqualTo(1));
+            });
+        }
+
+        [Test]
+        public async Task RuntimeImportedTypedNodeBehaviorRollsBackActivationFailureAsync()
+        {
+            var failure = new InvalidOperationException("imported behavior activation failed");
+            var recorder = new NodeBehaviorTestRecorder();
+            var source = new ImportedNodeBehaviorTestSource(
+                recorder,
+                (_, _) => new NodeBehaviorTestLeaseOptions
+                {
+                    ActivationException = failure
+                });
+            int registrationsBefore =
+                m_server.NodeManagerLifecycle.Registrations.Count;
+
+            InvalidOperationException exception =
+                Assert.ThrowsAsync<InvalidOperationException>(
+                    async () => await m_server.NodeManagerLifecycle
+                        .AddNodeSourceAsync(source)
+                        .ConfigureAwait(false));
+            NodeBehaviorTestLease lease = recorder.GetLeases().Single();
+            NodeState visible = await m_server.CurrentInstance.NodeManager
+                .FindNodeInAddressSpaceAsync(source.NodeId)
+                .ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(exception, Is.SameAs(failure));
+                Assert.That(lease.Context.Node, Is.SameAs(source.Node));
+                Assert.That(lease.ActivateCount, Is.EqualTo(1));
+                Assert.That(lease.DeactivateCount, Is.Zero);
+                Assert.That(lease.DisposeCount, Is.EqualTo(1));
+                Assert.That(visible, Is.Null);
+                Assert.That(
+                    m_server.NodeManagerLifecycle.Registrations.Count,
+                    Is.EqualTo(registrationsBefore));
+            });
+        }
+
         [TestCase(ReloadKind.Reload)]
         [TestCase(ReloadKind.Shadow)]
         public async Task ReloadActivatesReplacementBeforeVisibilityAsync(
