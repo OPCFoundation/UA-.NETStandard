@@ -3102,8 +3102,16 @@ namespace Opc.Ua
 
             CallOnAfterCreate(context, children, forceCreateLifecycle);
 
-            while (HasUncreatedNodes(context))
+            const int maxLifecycleCompletionPasses = 100;
+            for (int pass = 0; HasUncreatedNodes(context); pass++)
             {
+                if (pass >= maxLifecycleCompletionPasses)
+                {
+                    throw new InvalidOperationException(
+                        "The node create lifecycle did not converge because lifecycle callbacks " +
+                        "kept adding uncreated nodes.");
+                }
+
                 CallOnBeforeCreate(context, false);
                 CallOnAfterCreate(context, null, false);
             }

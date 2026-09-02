@@ -2699,6 +2699,17 @@ namespace Opc.Ua.Types.Tests.State
         }
 
         [Test]
+        public void CreateAsPredefinedNodeRejectsNonConvergingLifecycle()
+        {
+            var node = new NonConvergingState(null);
+
+            Assert.That(
+                () => node.CreateAsPredefinedNode(m_context),
+                Throws.TypeOf<InvalidOperationException>()
+                    .With.Message.Contains("did not converge"));
+        }
+
+        [Test]
         public void DeleteResetsCreatedState()
         {
             var node = new LifecycleProbeState(null);
@@ -2840,6 +2851,23 @@ namespace Opc.Ua.Types.Tests.State
                     AddedChild = new LifecycleProbeState(this);
                     AddChild(AddedChild);
                 }
+            }
+        }
+
+        private sealed class NonConvergingState : BaseObjectState
+        {
+            public NonConvergingState(NodeState parent)
+                : base(parent)
+            {
+            }
+
+            protected override void OnAfterCreate(
+                ISystemContext context,
+                NodeState node,
+                System.Threading.CancellationToken ct = default)
+            {
+                base.OnAfterCreate(context, node, ct);
+                AddChild(new NonConvergingState(this));
             }
         }
     }
