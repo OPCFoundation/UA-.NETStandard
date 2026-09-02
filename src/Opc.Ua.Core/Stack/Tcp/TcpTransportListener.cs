@@ -1339,10 +1339,22 @@ namespace Opc.Ua.Bindings
         /// </summary>
         private void DetectInactiveChannels(object? state = null)
         {
+            // This is a fire-and-forget timer callback: CloseAsync disposes the
+            // timer and nulls m_channels under m_lock, but a callback already
+            // dispatched can still run afterwards. Snapshot the field and bail
+            // out when the listener has closed rather than dereferencing null,
+            // which would surface as an unhandled NullReferenceException that
+            // crashes the process.
+            ConcurrentDictionary<uint, TcpListenerChannel>? activeChannels = m_channels;
+            if (activeChannels == null)
+            {
+                return;
+            }
+
             var channels = new List<TcpListenerChannel>();
 
             bool cleanup = false;
-            foreach (KeyValuePair<uint, TcpListenerChannel> chEntry in m_channels!)
+            foreach (KeyValuePair<uint, TcpListenerChannel> chEntry in activeChannels)
             {
                 if (chEntry.Value.ElapsedSinceLastActiveTime > m_quotas.ChannelLifetime)
                 {
