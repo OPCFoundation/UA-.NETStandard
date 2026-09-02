@@ -252,9 +252,11 @@ namespace Opc.Ua.Sessions.Tests
                     ArrayOf<SubscriptionAcknowledgement>.Empty,
                     CancellationToken.None).ConfigureAwait(false);
 
-                Assert.NotNull(response);
-                Assert.AreEqual((StatusCode)StatusCodes.Good, response.ResponseHeader.ServiceResult);
-                Assert.AreEqual(createResponse.SubscriptionId, response.SubscriptionId);
+                Assert.That(response, Is.Not.Null);
+                Assert.That(
+                    response.ResponseHeader.ServiceResult,
+                    Is.EqualTo((StatusCode)StatusCodes.Good));
+                Assert.That(response.SubscriptionId, Is.EqualTo(createResponse.SubscriptionId));
             }
             finally
             {
