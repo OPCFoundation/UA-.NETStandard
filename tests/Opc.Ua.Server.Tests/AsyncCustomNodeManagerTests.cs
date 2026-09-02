@@ -371,6 +371,92 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
+        public async Task RegistrationRebasesTypedChildrenAndPreservesExplicitIdsAsync()
+        {
+            using ITestNodeManager manager = CreateManager();
+            Assume.That(manager is TestableAsyncCustomNodeManager,
+                "Requires AsyncCustomNodeManager NodeId preparation");
+            ushort namespaceIndex = manager.NamespaceIndexes[0];
+            var program = new ProgramStateMachineState(null);
+            program.Create(
+                manager.SystemContext,
+                new NodeId("Program", namespaceIndex),
+                new QualifiedName("Program", namespaceIndex),
+                default,
+                assignNodeIds: false);
+            var explicitChildId = new NodeId("Program_Explicit", namespaceIndex);
+            var explicitChild = new BaseDataVariableState(program)
+            {
+                NodeId = explicitChildId,
+                BrowseName = new QualifiedName("Explicit", namespaceIndex),
+                DisplayName = new LocalizedText("Explicit"),
+                DataType = DataTypeIds.UInt32,
+                ValueRank = ValueRanks.Scalar
+            };
+            program.AddChild(explicitChild);
+
+            Assert.That(program.CurrentState, Is.Not.Null);
+            Assert.That(program.CurrentState!.Id, Is.Not.Null);
+            Assert.That(program.CurrentState.NodeId.NamespaceIndex, Is.Zero);
+            Assert.That(program.CurrentState.Id!.NodeId.NamespaceIndex, Is.Zero);
+
+            await manager
+                .AddPredefinedNodeAsync(manager.SystemContext, program)
+                .ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    program.CurrentState.NodeId.NamespaceIndex,
+                    Is.EqualTo(namespaceIndex));
+                Assert.That(
+                    program.CurrentState.Id.NodeId.NamespaceIndex,
+                    Is.EqualTo(namespaceIndex));
+                Assert.That(explicitChild.NodeId, Is.EqualTo(explicitChildId));
+                Assert.That(manager.Find(program.CurrentState.NodeId), Is.SameAs(program.CurrentState));
+                Assert.That(manager.Find(program.CurrentState.Id.NodeId), Is.SameAs(program.CurrentState.Id));
+                Assert.That(manager.Find(explicitChildId), Is.SameAs(explicitChild));
+            });
+            Assert.That(
+                await manager.GetManagerHandleAsync(program.CurrentState.NodeId).ConfigureAwait(false),
+                Is.Not.Null);
+            Assert.That(
+                await manager.GetManagerHandleAsync(program.CurrentState.Id.NodeId).ConfigureAwait(false),
+                Is.Not.Null);
+        }
+
+        [Test]
+        public async Task RegistrationPreservesNamespaceZeroRootIdsAsync()
+        {
+            using ITestNodeManager manager = CreateManager();
+            Assume.That(manager is TestableAsyncCustomNodeManager,
+                "Requires AsyncCustomNodeManager NodeId preparation");
+            var root = new BaseObjectState(null)
+            {
+                NodeId = ObjectIds.ServerConfiguration,
+                BrowseName = new QualifiedName(BrowseNames.ServerConfiguration)
+            };
+            var childNodeId = new NodeId(11715u);
+            var child = new BaseDataVariableState(root)
+            {
+                NodeId = childNodeId,
+                BrowseName = new QualifiedName(BrowseNames.ServerCapabilities),
+                DataType = DataTypeIds.BaseDataType
+            };
+            root.AddChild(child);
+
+            await manager
+                .AddPredefinedNodeAsync(manager.SystemContext, root)
+                .ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(root.NodeId, Is.EqualTo(ObjectIds.ServerConfiguration));
+                Assert.That(child.NodeId, Is.EqualTo(childNodeId));
+            });
+        }
+
+        [Test]
         public void SynchronousPredefinedNodeRegistrationCompletesCreateLifecycle()
         {
             using ITestNodeManager manager = CreateManager();
@@ -390,6 +476,31 @@ namespace Opc.Ua.Server.Tests
             Assert.That(node.IsCreated, Is.True);
             Assert.That(node.BeforeCreateCount, Is.EqualTo(1));
             Assert.That(node.AfterCreateCount, Is.EqualTo(1));
+        }
+
+        [Test]
+        public void SynchronousRegistrationRebasesTypedChildren()
+        {
+            using ITestNodeManager manager = CreateManager();
+            Assume.That(manager is TestableAsyncCustomNodeManager,
+                "Requires AsyncCustomNodeManager synchronous registration");
+            var asyncManager = (TestableAsyncCustomNodeManager)manager;
+            ushort namespaceIndex = manager.NamespaceIndex;
+            var program = new ProgramStateMachineState(null);
+            program.Create(
+                manager.SystemContext,
+                new NodeId("SynchronousProgram", namespaceIndex),
+                new QualifiedName("SynchronousProgram", namespaceIndex),
+                default,
+                assignNodeIds: false);
+
+            asyncManager.AddPredefinedNodeSynchronouslyPublic(program);
+
+            Assert.That(program.CurrentState, Is.Not.Null);
+            Assert.That(
+                program.CurrentState!.NodeId.NamespaceIndex,
+                Is.EqualTo(namespaceIndex));
+            Assert.That(manager.Find(program.CurrentState.NodeId), Is.SameAs(program.CurrentState));
         }
 
         [Test]

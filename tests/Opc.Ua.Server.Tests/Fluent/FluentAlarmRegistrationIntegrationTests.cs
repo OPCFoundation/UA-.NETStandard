@@ -152,7 +152,7 @@ namespace Opc.Ua.Server.Tests.Fluent
         }
 
         [Test]
-        public void OtherFluentCreatorsRegisterCreatedNodes()
+        public async Task OtherFluentCreatorsRegisterCreatedNodesAsync()
         {
             using Harness h = CreateHarness();
 
@@ -166,6 +166,25 @@ namespace Opc.Ua.Server.Tests.Fluent
             Assert.That(h.Manager.PredefinedNodes.ContainsKey(group.Node.NodeId), Is.True);
             Assert.That(h.Manager.PredefinedNodes.ContainsKey(instance.Node.NodeId), Is.True);
             Assert.That(h.Manager.PredefinedNodes.ContainsKey(machine.StateMachine.NodeId), Is.True);
+            Assert.That(machine.StateMachine.CurrentState, Is.Not.Null);
+            Assert.That(machine.StateMachine.CurrentState!.Id, Is.Not.Null);
+            Assert.That(
+                machine.StateMachine.CurrentState.NodeId.NamespaceIndex,
+                Is.EqualTo(h.NamespaceIndex));
+            Assert.That(
+                machine.StateMachine.CurrentState.Id!.NodeId.NamespaceIndex,
+                Is.EqualTo(h.NamespaceIndex));
+            Assert.That(
+                h.Manager.PredefinedNodes.ContainsKey(machine.StateMachine.CurrentState.NodeId),
+                Is.True);
+            Assert.That(
+                h.Manager.PredefinedNodes.ContainsKey(machine.StateMachine.CurrentState.Id.NodeId),
+                Is.True);
+            Assert.That(
+                await h.Manager
+                    .GetManagerHandlePublicAsync(machine.StateMachine.CurrentState.NodeId)
+                    .ConfigureAwait(false),
+                Is.Not.Null);
         }
 
         private static async Task<IList<ReferenceDescription>> BrowseAsync(
