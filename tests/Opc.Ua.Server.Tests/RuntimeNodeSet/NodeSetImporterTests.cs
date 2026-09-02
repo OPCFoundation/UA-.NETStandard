@@ -440,7 +440,13 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
             var importer = new NodeSetImporter(context, factoryProvider: null);
             UANodeSet nodeSet = ReadNodeSet(
                 """
-                  <UAReferenceType NodeId="ns=1;i=500" BrowseName="1:HasTypedChild">
+                  <UAReferenceType NodeId="ns=1;i=500" BrowseName="1:RelatedToParent">
+                    <DisplayName>RelatedToParent</DisplayName>
+                    <References>
+                      <Reference ReferenceType="i=45" IsForward="false">i=32</Reference>
+                    </References>
+                  </UAReferenceType>
+                  <UAReferenceType NodeId="ns=1;i=501" BrowseName="1:HasTypedChild">
                     <DisplayName>HasTypedChild</DisplayName>
                     <References>
                       <Reference ReferenceType="i=45" IsForward="false">i=33</Reference>
@@ -454,6 +460,7 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
                     <DisplayName>Child</DisplayName>
                     <References>
                       <Reference ReferenceType="ns=1;i=500" IsForward="false">ns=1;i=1</Reference>
+                      <Reference ReferenceType="ns=1;i=501" IsForward="false">ns=1;i=1</Reference>
                     </References>
                   </UAObject>
                 """);
@@ -462,7 +469,7 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
             importer.Complete();
 
             var child = (BaseInstanceState)Find(importer, 2);
-            Assert.That(child.ReferenceTypeId, Is.EqualTo(new NodeId(500u, 1)));
+            Assert.That(child.ReferenceTypeId, Is.EqualTo(new NodeId(501u, 1)));
         }
 
         [Test]

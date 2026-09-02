@@ -77,6 +77,9 @@ namespace Opc.Ua.Server.Tests.Nodes
                         source.AssignedChild.NodeId,
                         Is.EqualTo(source.AssignedChildNodeId));
                     Assert.That(source.DeepGeneratedChild.NodeId.IsNull, Is.False);
+                    Assert.That(
+                        source.DeepGeneratedReferenceTarget,
+                        Is.EqualTo(source.DeepGeneratedChild.NodeId));
                     Assert.That(source.State.FindChild(
                         adapter.SystemContext,
                         source.AssignedChild.BrowseName), Is.SameAs(source.AssignedChild));
@@ -148,6 +151,36 @@ namespace Opc.Ua.Server.Tests.Nodes
                         Is.Not.Null);
                     Assert.That(
                         ((NodeSourceNodeManager)manager).Find(source.SecondChildId),
+                        Is.Not.Null);
+                });
+            }
+            finally
+            {
+                ((IDisposable)manager).Dispose();
+            }
+        }
+
+        [Test]
+        public async Task SameNamedExternalChildrenIncludeExternalParentIdentityAsync()
+        {
+            var source = new ExternalParentChildrenSource();
+            IAsyncNodeManager manager = await CreateManagerAsync(source)
+                .ConfigureAwait(false);
+            try
+            {
+                await manager
+                    .CreateAddressSpaceAsync(
+                        new Dictionary<NodeId, IList<IReference>>())
+                    .ConfigureAwait(false);
+
+                Assert.Multiple(() =>
+                {
+                    Assert.That(source.FirstId, Is.Not.EqualTo(source.SecondId));
+                    Assert.That(
+                        ((NodeSourceNodeManager)manager).Find(source.FirstId),
+                        Is.Not.Null);
+                    Assert.That(
+                        ((NodeSourceNodeManager)manager).Find(source.SecondId),
                         Is.Not.Null);
                 });
             }
@@ -305,10 +338,15 @@ namespace Opc.Ua.Server.Tests.Nodes
                 };
                 DeepGeneratedChild = new BaseDataVariableState(AssignedChild)
                 {
+                    NodeId = new NodeId(123u),
                     BrowseName = new QualifiedName("DeepGeneratedChild", 1),
                     DataType = DataTypeIds.Int32
                 };
                 AssignedChild.AddChild(DeepGeneratedChild);
+                AssignedChild.AddReference(
+                    ReferenceTypeIds.HasComponent,
+                    false,
+                    DeepGeneratedChild.NodeId);
             }
 
             public ArrayOf<string> NamespaceUris => [kNamespaceUri];
@@ -324,6 +362,18 @@ namespace Opc.Ua.Server.Tests.Nodes
             public TypedObjectState State { get; }
 
             public TypedObjectState ReturnedState { get; private set; }
+
+            public NodeId DeepGeneratedReferenceTarget
+            {
+                get
+                {
+                    var references = new List<IReference>();
+                    AssignedChild.GetReferences(null!, references);
+                    return (NodeId)references.Single(reference =>
+                        reference.ReferenceTypeId == ReferenceTypeIds.HasComponent &&
+                        !reference.IsInverse).TargetId;
+                }
+            }
 
             public ValueTask BuildAsync(
                 INodeGraphBuilder builder,
@@ -504,6 +554,28 @@ namespace Opc.Ua.Server.Tests.Nodes
                         BrowseName = new QualifiedName("Value", modelNamespaceIndex),
                         DataType = DataTypeIds.Int32
                     }).Node.NodeId;
+                return default;
+            }
+        }
+
+        private sealed class ExternalParentChildrenSource : INodeSource
+        {
+            public ArrayOf<string> NamespaceUris => [kNamespaceUri];
+
+            public NodeId FirstId { get; private set; }
+
+            public NodeId SecondId { get; private set; }
+
+            public ValueTask BuildAsync(
+                INodeGraphBuilder builder,
+                CancellationToken cancellationToken = default)
+            {
+                FirstId = builder.AddObject(
+                    new QualifiedName("Shared"),
+                    ObjectIds.Server).Node.NodeId;
+                SecondId = builder.AddObject(
+                    new QualifiedName("Shared"),
+                    ObjectIds.Server_ServerCapabilities).Node.NodeId;
                 return default;
             }
         }

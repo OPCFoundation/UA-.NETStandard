@@ -575,6 +575,16 @@ namespace Opc.Ua.Export
                     nodeTable[node.NodeId] = node;
                 }
             }
+            var referenceSuperTypes = new Dictionary<NodeId, NodeId>();
+            foreach (NodeState node in nodes)
+            {
+                if (node is ReferenceTypeState referenceType &&
+                    !referenceType.NodeId.IsNull)
+                {
+                    referenceSuperTypes[referenceType.NodeId] =
+                        referenceType.SuperTypeId;
+                }
+            }
 
             // Process each node to establish parent-child relationships
             foreach (NodeState node in nodes)
@@ -601,7 +611,8 @@ namespace Opc.Ua.Export
                             instance.ReferenceTypeId = FindParentReferenceType(
                                 context,
                                 instance,
-                                parentNodeId);
+                                parentNodeId,
+                                referenceSuperTypes);
                         }
 
                         // Set the Parent property to establish the relationship
@@ -674,40 +685,66 @@ namespace Opc.Ua.Export
         private static NodeId FindParentReferenceType(
             ISystemContext? context,
             BaseInstanceState instance,
-            NodeId parentNodeId)
+            NodeId parentNodeId,
+            IReadOnlyDictionary<NodeId, NodeId> referenceSuperTypes)
         {
             var references = new List<IReference>();
             instance.GetReferences(context!, references);
-            NodeId unresolvedReferenceType = NodeId.Null;
             for (int i = 0; i < references.Count; i++)
             {
                 IReference reference = references[i];
                 if (reference.IsInverse &&
                     !reference.TargetId.IsAbsolute &&
-                    (NodeId)reference.TargetId == parentNodeId)
+                    (NodeId)reference.TargetId == parentNodeId &&
+                    IsHierarchicalReference(
+                        context,
+                        reference.ReferenceTypeId,
+                        referenceSuperTypes))
                 {
-                    if (context is null ||
-                        context.TypeTable.IsTypeOf(
-                            reference.ReferenceTypeId,
-                            ReferenceTypeIds.HierarchicalReferences))
-                    {
-                        return reference.ReferenceTypeId;
-                    }
-                    if (unresolvedReferenceType.IsNull)
-                    {
-                        unresolvedReferenceType = reference.ReferenceTypeId;
-                    }
+                    return reference.ReferenceTypeId;
                 }
-            }
-
-            if (!unresolvedReferenceType.IsNull)
-            {
-                return unresolvedReferenceType;
             }
 
             return instance is PropertyState
                 ? ReferenceTypeIds.HasProperty
                 : ReferenceTypeIds.HasComponent;
+        }
+
+        private static bool IsHierarchicalReference(
+            ISystemContext? context,
+            NodeId referenceTypeId,
+            IReadOnlyDictionary<NodeId, NodeId> referenceSuperTypes)
+        {
+            if (referenceTypeId == ReferenceTypeIds.HierarchicalReferences ||
+                (context is not null &&
+                    context.TypeTable.IsTypeOf(
+                        referenceTypeId,
+                        ReferenceTypeIds.HierarchicalReferences)))
+            {
+                return true;
+            }
+
+            var visited = new HashSet<NodeId>();
+            NodeId current = referenceTypeId;
+            while (!current.IsNull && visited.Add(current))
+            {
+                if (!referenceSuperTypes.TryGetValue(
+                        current,
+                        out NodeId superType))
+                {
+                    return false;
+                }
+                current = superType;
+                if (current == ReferenceTypeIds.HierarchicalReferences ||
+                    (context is not null &&
+                        context.TypeTable.IsTypeOf(
+                            current,
+                            ReferenceTypeIds.HierarchicalReferences)))
+                {
+                    return true;
+                }
+            }
+            return false;
         }
 
         /// <summary>

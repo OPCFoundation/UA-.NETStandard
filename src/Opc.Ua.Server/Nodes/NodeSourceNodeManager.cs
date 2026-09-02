@@ -339,19 +339,34 @@ namespace Opc.Ua.Server
                 namespaceIndex = NamespaceIndex;
             }
 
-            if (node is BaseInstanceState { Parent: { } parent } &&
-                !parent.NodeId.IsNull)
+            NodeId parentNodeId = node is BaseInstanceState { Parent: { } parent }
+                ? parent.NodeId
+                : GetExternalParent(node);
+            if (!parentNodeId.IsNull &&
+                parentNodeId != ObjectIds.ObjectsFolder)
             {
                 string parentIdentifier =
-                    parent.NodeId.NamespaceIndex == namespaceIndex
-                        ? parent.NodeId.IdentifierAsString
-                        : parent.NodeId.ToString();
+                    parentNodeId.NamespaceIndex == namespaceIndex
+                        ? parentNodeId.IdentifierAsString
+                        : parentNodeId.ToString();
                 return new NodeId(
                     $"{parentIdentifier}_{browseName}",
                     namespaceIndex);
             }
 
             return new NodeId(browseName, namespaceIndex);
+        }
+
+        internal void SetExternalParent(NodeState node, NodeId parentNodeId)
+        {
+            m_externalParents[node] = parentNodeId;
+        }
+
+        private NodeId GetExternalParent(NodeState node)
+        {
+            return m_externalParents.TryGetValue(node, out NodeId parentNodeId)
+                ? parentNodeId
+                : NodeId.Null;
         }
 
         /// <inheritdoc/>
@@ -559,6 +574,7 @@ namespace Opc.Ua.Server
         private readonly IServiceProvider? m_serviceProvider;
         private readonly Lock m_addedReferencesLock = new();
         private readonly Dictionary<NodeId, List<IReference>> m_addedReferences = [];
+        private readonly Dictionary<NodeState, NodeId> m_externalParents = [];
         private NodeBehaviorActivation? m_behaviorActivation;
         private IFluentDispatcher? m_dispatcher;
         private int m_buildStarted;

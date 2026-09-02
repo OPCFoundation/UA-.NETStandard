@@ -1043,6 +1043,10 @@ namespace Opc.Ua.Server.Fluent
 
             if (!effectiveParentId.IsNull)
             {
+                if (NodeManager is NodeSourceNodeManager sourceManager)
+                {
+                    sourceManager.SetExternalParent(node, effectiveParentId);
+                }
                 instance.AddReferenceIfMissing(
                     instance.ReferenceTypeId,
                     true,

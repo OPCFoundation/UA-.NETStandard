@@ -1090,6 +1090,7 @@ namespace Opc.Ua.Server
 
             var nodes = new List<NodeState> { node };
             var children = new List<BaseInstanceState>();
+            var mappingTable = new Dictionary<NodeId, NodeId>();
             for (int i = 0; i < nodes.Count; i++)
             {
                 NodeState candidate = nodes[i];
@@ -1098,12 +1099,24 @@ namespace Opc.Ua.Server
                         node.NodeId.NamespaceIndex != 0 &&
                         candidate.NodeId.NamespaceIndex == 0))
                 {
-                    SystemContext.AssignInstanceNodeId(candidate);
+                    NodeId previousNodeId =
+                        SystemContext.AssignInstanceNodeId(candidate);
+                    if (!previousNodeId.IsNull &&
+                        !candidate.NodeId.IsNull &&
+                        previousNodeId != candidate.NodeId)
+                    {
+                        mappingTable[previousNodeId] = candidate.NodeId;
+                    }
                 }
 
                 children.Clear();
                 candidate.GetChildren(SystemContext, children);
                 nodes.AddRange(children);
+            }
+
+            if (mappingTable.Count > 0)
+            {
+                node.UpdateReferenceTargets(SystemContext, mappingTable);
             }
         }
 
