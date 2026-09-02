@@ -29,6 +29,29 @@ To migrate, perform the following general replacements in your code:
 - If your code tried to set a byte in the ByteString, create a buffer `byte[]` and after changing convert to `ByteString` using `ByteString.From(buffer)` or `.ToByteString()` extension method
 - Perform changes only where you encounter build breaks. This should be enough to get into a working state. Later adjust the code as needed.
 
+#### OnboardingClient ticket API
+
+The preview OPC 10000-21 `OnboardingClient` now follows the generated
+model contract. Replace `byte[][]` ticket arrays and `int[]` result
+codes with the built-in OPC UA value types:
+
+```csharp
+// Earlier 2.0 previews
+int[] results = await client.RegisterTicketsAsync(
+    new byte[][] { firstTicket, secondTicket });
+
+// Current 2.0 API
+ArrayOf<StatusCode> results = await client.RegisterTicketsAsync(
+[
+    new ByteString(firstTicket),
+    new ByteString(secondTicket)
+]);
+```
+
+The same change applies to `UnregisterTicketsAsync`. No compatibility
+overload is retained because the earlier API encoded the Part 21
+`EncodedTicket` and `StatusCode` wire types incorrectly.
+
 ### ArrayOf and MatrixOf
 
 Similar to `ByteString`, `ArrayOf<T>` and `MatrixOf<T>` are new type safe and sliceable generic value types representing non-scalar values. They are immutable meaning the values at an index inside them cannot be "set" unless they are converted to a `Span<T>` (and then reconverted to a `ArrayOf`/`MatrixOf`).

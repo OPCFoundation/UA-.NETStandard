@@ -20,6 +20,10 @@
   <Folder Name="/samples/DI/">
     <Project Path="samples/DI/PumpDeviceIntegrationServer/PumpDeviceIntegrationServer.csproj" />
   </Folder>
+  <Folder Name="/samples/Gds/">
+    <Project Path="samples/Gds/OnboardingClient/OnboardingClient.csproj" />
+    <Project Path="samples/Gds/OnboardingRegistrar/OnboardingRegistrar.csproj" />
+  </Folder>
   <Folder Name="/samples/Isa95/">
     <Project Path="samples/Isa95/MinimalIsa95Server/MinimalIsa95Server.csproj" />
   </Folder>

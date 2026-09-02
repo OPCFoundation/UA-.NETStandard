@@ -1,5 +1,12 @@
 # OPC Foundation UA .NET Standard Reference Server
 
+## Additional samples
+
+- [OPC 10000-21 onboarding registrar/client](Gds/README.md) — loads the
+  generated Onboarding companion model, binds the standard registrar
+  administration methods to an injected ticket store, and drives a secure
+  register/unregister round trip with a PowerShell script.
+
 ## Introduction
 
 This document is referring to the CTT version 1.04.9.398.

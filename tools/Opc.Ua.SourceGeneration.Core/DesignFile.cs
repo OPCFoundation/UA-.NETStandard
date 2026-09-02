@@ -151,10 +151,10 @@ namespace Opc.Ua.SourceGeneration
     internal static class DesignFileExtensions
     {
         /// <summary>
-        /// Get design file groups for processing. A group is a set of design files
-        /// in the same common folder with an optional csv file included. Each group
-        /// carries the same <see cref="DesignFileCollection.Dependencies"/> so that
-        /// cross-model references resolve for every target.
+        /// Gets design file groups for processing. Each target is emitted as an
+        /// independent model and is paired with an adjacent identifier file that
+        /// has the same base name. Every other target remains available as a
+        /// dependency so cross-model references resolve in either direction.
         /// </summary>
         /// <exception cref="ArgumentNullException"><paramref name="collection"/>
         /// is <c>null</c>.</exception>
@@ -166,31 +166,75 @@ namespace Opc.Ua.SourceGeneration
             {
                 throw new ArgumentNullException(nameof(collection));
             }
-            var idFiles = new Dictionary<string, List<string>>();
-            if (identifierFiles != null)
-            {
-                foreach (string idFile in identifierFiles)
-                {
-                    string dir = Path.GetDirectoryName(idFile);
-                    if (!idFiles.TryGetValue(dir, out List<string> value))
-                    {
-                        value = [];
-                        idFiles[dir] = value;
-                    }
-                    value.Add(idFile);
-                }
-            }
+            IReadOnlyList<string> idFiles = identifierFiles ?? [];
             IReadOnlyList<string> dependencies = collection.Dependencies ?? [];
+            IReadOnlyList<string> targets = collection.Targets;
             return collection.Targets
-                .GroupBy(Path.GetDirectoryName)
-                .Select(g => new DesignFileCollection
+                .Select(target => new DesignFileCollection
                 {
-                    Targets = [.. g],
-                    Dependencies = dependencies,
-                    IdentifierFilePath = idFiles.TryGetValue(g.Key, out List<string> files) ?
-                        files.FirstOrDefault() : collection.IdentifierFilePath,
+                    Targets = [target],
+                    Dependencies = [.. dependencies
+                        .Concat(targets)
+                        .Where(path => !string.Equals(path, target, StringComparison.Ordinal))
+                        .Distinct(StringComparer.Ordinal)],
+                    IdentifierFilePath = ResolveIdentifierFile(
+                        target,
+                        idFiles,
+                        collection.IdentifierFilePath,
+                        IsSoleTargetInDirectory(target, targets)),
                     Options = collection.Options
                 });
+        }
+
+        private static string ResolveIdentifierFile(
+            string target,
+            IReadOnlyList<string> identifierFiles,
+            string fallback,
+            bool useSoleAdjacentFallback)
+        {
+            string targetDirectory = Path.GetDirectoryName(target) ?? string.Empty;
+            string targetName = Path.GetFileNameWithoutExtension(target);
+            string basenameMatch = identifierFiles.FirstOrDefault(path =>
+                string.Equals(
+                    Path.GetDirectoryName(path) ?? string.Empty,
+                    targetDirectory,
+                    StringComparison.Ordinal) &&
+                string.Equals(
+                    Path.GetFileNameWithoutExtension(path),
+                    targetName,
+                    StringComparison.Ordinal) &&
+                string.Equals(
+                    Path.GetExtension(path),
+                    ".csv",
+                    StringComparison.OrdinalIgnoreCase));
+            if (basenameMatch != null)
+            {
+                return basenameMatch;
+            }
+            if (useSoleAdjacentFallback)
+            {
+                string[] adjacentFiles = [.. identifierFiles.Where(path =>
+                    string.Equals(
+                        Path.GetDirectoryName(path) ?? string.Empty,
+                        targetDirectory,
+                        StringComparison.Ordinal))];
+                if (adjacentFiles.Length == 1)
+                {
+                    return adjacentFiles[0];
+                }
+            }
+            return fallback;
+        }
+
+        private static bool IsSoleTargetInDirectory(
+            string target,
+            IReadOnlyList<string> targets)
+        {
+            string targetDirectory = Path.GetDirectoryName(target) ?? string.Empty;
+            return targets.Count(path => string.Equals(
+                Path.GetDirectoryName(path) ?? string.Empty,
+                targetDirectory,
+                StringComparison.Ordinal)) == 1;
         }
 
         /// <summary>
