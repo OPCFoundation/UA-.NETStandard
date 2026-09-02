@@ -366,6 +366,14 @@ namespace Opc.Ua.Server
                 // running stops at its next await once the token trips.
                 m_backgroundWork.Dispose();
 
+                // Dispose the TrustList handlers and the rejected store
+                // instance held open for reuse across operations.
+                foreach (ServerCertificateGroup certGroup in m_certificateGroups)
+                {
+                    (certGroup.Node?.TrustList?.Handle as IDisposable)?.Dispose();
+                }
+                Interlocked.Exchange(ref m_rejectedStoreInstance, null)?.Dispose();
+
                 if (FindPredefinedNode<NamespacesState>(ObjectIds.Server_Namespaces)
                     is NamespacesState serverNamespacesNode)
                 {
@@ -3819,26 +3827,49 @@ namespace Opc.Ua.Server
                 return StatusCodes.Good;
             }
 
-            ICertificateStore store = m_rejectedStore.OpenStore(Server.Telemetry);
-            try
+            ICertificateStore store = GetRejectedStore();
+            using CertificateCollection collection = store.EnumerateAsync().Result;
+            var rawList = new List<ByteString>();
+            foreach (Certificate cert in collection)
             {
-                if (store != null)
-                {
-                    using CertificateCollection collection = store.EnumerateAsync().Result;
-                    var rawList = new List<ByteString>();
-                    foreach (Certificate cert in collection)
-                    {
-                        rawList.Add(cert.RawData.ToByteString());
-                    }
-                    certificates = rawList.ToArrayOf();
-                }
+                rawList.Add(cert.RawData.ToByteString());
             }
-            finally
-            {
-                store?.Dispose();
-            }
+            certificates = rawList.ToArrayOf();
 
             return StatusCodes.Good;
+        }
+
+        /// <summary>
+        /// Returns the rejected-certificate store instance, opening it on
+        /// first use. The instance is held open for the node manager's
+        /// lifetime (its parsed-certificate cache is reused across reads,
+        /// refreshed by the store itself when the backing data changes) and
+        /// disposed by <see cref="Dispose(bool)"/>.
+        /// </summary>
+        /// <exception cref="ServiceResultException">
+        /// The store could not be opened.
+        /// </exception>
+        private ICertificateStore GetRejectedStore()
+        {
+            ICertificateStore? store = Volatile.Read(ref m_rejectedStoreInstance);
+            if (store != null)
+            {
+                return store;
+            }
+
+            ICertificateStore created = m_rejectedStore!.OpenStore(Server.Telemetry) ??
+                throw ServiceResultException.ConfigurationError(
+                    "Failed to open rejected certificate store.");
+            ICertificateStore? current = Interlocked.CompareExchange(
+                ref m_rejectedStoreInstance,
+                created,
+                null);
+            if (current != null)
+            {
+                created.Dispose();
+                return current;
+            }
+            return created;
         }
 
         private ServiceResult GetCertificates(
@@ -4471,6 +4502,7 @@ namespace Opc.Ua.Server
         private ApplicationConfigurationFile? m_configurationFile;
         private readonly List<ServerCertificateGroup> m_certificateGroups;
         private readonly CertificateStoreIdentifier? m_rejectedStore;
+        private ICertificateStore? m_rejectedStoreInstance;
         private ITimer? m_alarmTimer;
         private readonly List<AlarmMonitorEntry> m_alarmMonitors = [];
         private readonly Lock m_alarmEvaluationLock = new();
