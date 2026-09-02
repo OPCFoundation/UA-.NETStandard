@@ -30,7 +30,6 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Threading;
 
 namespace Opc.Ua
 {
@@ -296,54 +295,36 @@ namespace Opc.Ua
         /// Returns an object to access the store containing the certificates.
         /// </summary>
         /// <remarks>
-        /// Opens a cached instance of the store which contains public and private keys.
-        /// To take advantage of the certificate cache use <see cref="ICertificateStore.Close"/>.
-        /// Disposing the store has no functional impact but may
-        /// enforce unnecessary refresh of the cached certificate store.
+        /// The identifier is only a description of the store — the analogue
+        /// of a <see cref="CertificateIdentifier"/> resolving to a
+        /// <see cref="Security.Certificates.Certificate"/>: every call creates and opens a new
+        /// store instance that the caller owns and must dispose. Callers
+        /// that access a store repeatedly should keep their instance open
+        /// for as long as they need it (the store retains its
+        /// parsed-certificate cache across <see cref="ICertificateStore.Close"/>)
+        /// rather than re-open it per operation.
         /// </remarks>
         /// <returns>A disposable instance of the <see cref="ICertificateStore"/>.</returns>
         public virtual ICertificateStore OpenStore(ITelemetryContext telemetry)
         {
-            ICertificateStore? store = m_store;
-
-            // determine if the store configuration changed
-            if (store != null &&
-                (
-                    store.StoreType != StoreType ||
-                    store.StorePath != StorePath ||
-                    store.NoPrivateKeys != m_noPrivateKeys))
+            if (string.IsNullOrEmpty(StoreType) || string.IsNullOrEmpty(StorePath))
             {
-                ICertificateStore? previousStore = Interlocked.CompareExchange(
-                    ref m_store,
-                    null,
-                    store);
-                previousStore?.Dispose();
-                store = null;
+                return null!;
             }
 
-            // create and open the store
-            if (store == null &&
-                !string.IsNullOrEmpty(StoreType) &&
-                !string.IsNullOrEmpty(StorePath))
+            ICertificateStore store = CreateStore(StoreType!, telemetry);
+            try
             {
-                store = CreateStore(StoreType!, telemetry);
-                ICertificateStore? currentStore = Interlocked.CompareExchange(
-                    ref m_store,
-                    store,
-                    null);
-                if (currentStore != null)
-                {
-                    store?.Dispose();
-                    store = currentStore;
-                }
+                store.Open(StorePath ?? string.Empty, m_noPrivateKeys);
             }
-
-            store?.Open(StorePath ?? string.Empty, m_noPrivateKeys);
-
-            return store!;
+            catch
+            {
+                store.Dispose();
+                throw;
+            }
+            return store;
         }
 
-        private ICertificateStore? m_store;
         private readonly bool m_noPrivateKeys;
     }
 

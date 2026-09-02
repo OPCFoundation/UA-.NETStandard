@@ -45,11 +45,13 @@ namespace Opc.Ua.Wot
         /// Section 6 against the per-term domain and range table of Section 7.
         /// </summary>
         /// <remarks>
-        /// The terms validated here have no distinct readable NodeSet structure
+        /// Most terms validated here have no distinct readable NodeSet structure
         /// in this converter, so a well-formed value is carried verbatim through
         /// the <c>uav:nodes</c> / residue mechanism (Section 9) and survives a
-        /// WoT to NodeSet to WoT round-trip unchanged. Only malformed values are
-        /// reported; a violation is an error because Section 7 requires a
+        /// WoT to NodeSet to WoT round-trip unchanged. <c>uav:severity</c> is the
+        /// exception: it maps to the EventType's <c>Severity</c> Property, so a
+        /// valid value is materialized rather than carried. Only malformed values
+        /// are reported; a violation is an error because Section 7 requires a
         /// consumer to treat the document as invalid rather than repair it. The
         /// opaque terms <c>uav:metadata</c>, <c>uav:propertyConfiguration</c>,
         /// <c>uav:actionConfiguration</c> and <c>uav:eventConfiguration</c> are
@@ -67,28 +69,32 @@ namespace Opc.Ua.Wot
             {
                 return;
             }
+            string defaultLocale = GetDocumentLocale(document);
 
             // Type-level terms (WoT Binding Sections 6.1, 6.4, 6.7, 6.8).
             ValidateBooleanTerm(root, "uav:isComposite", string.Empty, diagnostics);
             ValidateBooleanTerm(root, "uav:includeInherited", string.Empty, diagnostics);
             ValidateBooleanTerm(root, "uav:additionalProperties", string.Empty, diagnostics);
             ValidateAbsoluteIriTerm(root, "uav:semanticId", string.Empty, diagnostics);
+            ValidateLocalizedText(root, string.Empty, defaultLocale, diagnostics);
             ValidateContains(document, root, diagnostics);
             ValidateContainedIn(document, root, diagnostics);
 
-            // Property-level terms (WoT Binding Sections 6.5, 6.7).
+            // Property-level terms (WoT Binding Sections 6.4, 6.5, 6.6, 6.7).
             ValidateAffordanceModelVocabulary(
-                document, document.Properties, "properties", diagnostics);
+                document, document.Properties, "properties", false, defaultLocale, diagnostics);
             ValidateAffordanceModelVocabulary(
-                document, document.Actions, "actions", diagnostics);
+                document, document.Actions, "actions", false, defaultLocale, diagnostics);
             ValidateAffordanceModelVocabulary(
-                document, document.Events, "events", diagnostics);
+                document, document.Events, "events", true, defaultLocale, diagnostics);
         }
 
         private static void ValidateAffordanceModelVocabulary(
             WotDocument document,
             IReadOnlyDictionary<string, JsonElement> affordances,
             string section,
+            bool isEventAffordance,
+            string defaultLocale,
             List<WotDiagnostic> diagnostics)
         {
             foreach (KeyValuePair<string, JsonElement> affordance in affordances)
@@ -101,8 +107,63 @@ namespace Opc.Ua.Wot
                 string parentPointer = "/" + section + "/" + affordance.Key;
                 ValidateScaleFactor(node, parentPointer, diagnostics);
                 ValidateDecimalPlaces(node, parentPointer, diagnostics);
-                ValidateUnitProperty(document, node, parentPointer, diagnostics);
+                ValidateUnitProperty(document, node, affordance.Key, parentPointer, diagnostics);
+                ValidateEngineeringUnits(node, parentPointer, diagnostics);
+                ValidateRanges(node, parentPointer, diagnostics);
+                ValidateValueRank(node, parentPointer, diagnostics);
+                ValidateLocalizedText(node, parentPointer, defaultLocale, diagnostics);
                 ValidateAbsoluteIriTerm(node, "uav:semanticId", parentPointer, diagnostics);
+                ValidateSeverity(node, parentPointer, isEventAffordance, diagnostics);
+            }
+        }
+
+        /// <summary>
+        /// Validates <c>uav:severity</c> against the OPC 10000-5 range and the
+        /// domain WoT Binding Section 7 gives it.
+        /// </summary>
+        /// <remarks>
+        /// The range is a hard bound rather than a hint: OPC 10000-5 defines
+        /// <c>BaseEventType.Severity</c> as 1..1000, so a value outside it
+        /// cannot be published at all. Section 7 states that a consumer
+        /// <em>shall not</em> silently clamp such a value, which is why this
+        /// reports an error rather than repairing it - a clamped severity is a
+        /// number the author never wrote, and no later reader could tell.
+        /// </remarks>
+        private static void ValidateSeverity(
+            JsonElement element,
+            string parentPointer,
+            bool isEventAffordance,
+            List<WotDiagnostic> diagnostics)
+        {
+            if (!element.TryGetProperty(SeverityTerm, out JsonElement value))
+            {
+                return;
+            }
+            string pointer = parentPointer + "/" + SeverityTerm;
+            if (!isEventAffordance)
+            {
+                diagnostics.Add(new WotDiagnostic(
+                    WotDiagnosticSeverity.Error,
+                    WotDiagnosticCode.InvalidEventSeverity,
+                    $"The {SeverityTerm} term belongs on an event affordance " +
+                    "and states the default Severity of that event " +
+                    "(WoT Binding Section 6.6).",
+                    WotLocation.FromPointer(pointer)));
+                return;
+            }
+            if (value.ValueKind != JsonValueKind.Number ||
+                !IsIntegerLiteral(value) ||
+                !value.TryGetInt32(out int severity) ||
+                !IsSeverityInRange(severity))
+            {
+                diagnostics.Add(new WotDiagnostic(
+                    WotDiagnosticSeverity.Error,
+                    WotDiagnosticCode.InvalidEventSeverity,
+                    $"The {SeverityTerm} term shall be an integer in the range " +
+                    $"{MinimumSeverity}..{MaximumSeverity}, the range OPC 10000-5 " +
+                    "defines for BaseEventType.Severity; a consumer shall not " +
+                    "clamp a value outside it (WoT Binding Section 7).",
+                    WotLocation.FromPointer(pointer)));
             }
         }
 
@@ -195,31 +256,170 @@ namespace Opc.Ua.Wot
             }
         }
 
+        /// <summary>
+        /// Validates <c>uav:unitProperty</c> against the canonical pointer form
+        /// of WoT Binding Sections 6.4 and 7.
+        /// </summary>
+        /// <remarks>
+        /// The OPC UA fact the term records is an <c>EngineeringUnits</c>
+        /// Property Node of its own, so it projects to a property affordance of
+        /// its own and the pointer names <em>that</em> affordance. A pointer at
+        /// the annotated affordance's own <c>unit</c> member names a string
+        /// inside the affordance rather than a Node, and a pointer at the
+        /// affordance itself names the value the unit belongs to rather than
+        /// the unit.
+        /// </remarks>
         private static void ValidateUnitProperty(
             WotDocument document,
             JsonElement element,
+            string affordanceName,
             string parentPointer,
             List<WotDiagnostic> diagnostics)
         {
-            if (!element.TryGetProperty("uav:unitProperty", out JsonElement value))
+            if (!element.TryGetProperty(UnitPropertyTerm, out JsonElement value))
             {
                 return;
             }
-            string? pointer = value.ValueKind == JsonValueKind.String
+            string pointer = parentPointer + "/" + UnitPropertyTerm;
+            string? declared = value.ValueKind == JsonValueKind.String
                 ? value.GetString()
                 : null;
-            if (string.IsNullOrEmpty(pointer) ||
-                pointer![0] != '/' ||
-                !WotDocument.TryEvaluatePointer(
-                    document.RootElement, pointer, out JsonElement target) ||
-                target.ValueKind != JsonValueKind.String)
+            string? token = declared is not null &&
+                declared.StartsWith(UnitPointerPrefix, StringComparison.Ordinal)
+                ? declared.Substring(UnitPointerPrefix.Length)
+                : null;
+            if (token is null or { Length: 0 } ||
+                token.Contains('/', StringComparison.Ordinal))
             {
                 diagnostics.Add(new WotDiagnostic(
                     WotDiagnosticSeverity.Error,
                     WotDiagnosticCode.InvalidUnitPointer,
-                    "The uav:unitProperty term shall be a non-empty RFC 6901 JSON " +
-                    "Pointer resolving to a string property (WoT Binding Section 6.5).",
-                    WotLocation.FromPointer(parentPointer + "/uav:unitProperty")));
+                    $"The {UnitPropertyTerm} term shall be a canonical RFC 6901 " +
+                    "JSON Pointer of the form '/properties/<name>' (WoT Binding " +
+                    "Section 6.4).",
+                    WotLocation.FromPointer(pointer)));
+                return;
+            }
+            string target = token!
+                .Replace("~1", "/", StringComparison.Ordinal)
+                .Replace("~0", "~", StringComparison.Ordinal);
+            if (string.Equals(target, affordanceName, StringComparison.Ordinal))
+            {
+                diagnostics.Add(new WotDiagnostic(
+                    WotDiagnosticSeverity.Error,
+                    WotDiagnosticCode.InvalidUnitPointer,
+                    $"The {UnitPropertyTerm} term names the affordance that " +
+                    "carries it; the unit of a value is a sibling Property of " +
+                    "that value, not the value itself (WoT Binding Section 6.4).",
+                    WotLocation.FromPointer(pointer)));
+                return;
+            }
+            if (!document.Properties.TryGetValue(target, out JsonElement sibling) ||
+                sibling.ValueKind != JsonValueKind.Object ||
+                !string.Equals(
+                    GetElementString(sibling, "type"), "string", StringComparison.Ordinal))
+            {
+                diagnostics.Add(new WotDiagnostic(
+                    WotDiagnosticSeverity.Error,
+                    WotDiagnosticCode.InvalidUnitPointer,
+                    $"The {UnitPropertyTerm} term shall resolve, within the same " +
+                    "document, to a sibling property affordance whose DataSchema " +
+                    "type is 'string' (WoT Binding Section 7).",
+                    WotLocation.FromPointer(pointer)));
+            }
+        }
+
+        /// <summary>
+        /// Validates <c>uav:engineeringUnits</c> against WoT Binding Sections
+        /// 6.4.1 and 7.
+        /// </summary>
+        private static void ValidateEngineeringUnits(
+            JsonElement element,
+            string parentPointer,
+            List<WotDiagnostic> diagnostics)
+        {
+            if (!element.TryGetProperty(EngineeringUnitsTerm, out JsonElement declared))
+            {
+                return;
+            }
+            if (TryReadEngineeringUnits(declared, out _))
+            {
+                return;
+            }
+            diagnostics.Add(new WotDiagnostic(
+                WotDiagnosticSeverity.Error,
+                WotDiagnosticCode.InvalidEngineeringUnits,
+                $"The {EngineeringUnitsTerm} term shall be an object carrying a " +
+                "namespaceUri, an integer unitId and a displayName. A display " +
+                "string alone is lossy, because the authority's machine-readable " +
+                "UnitId cannot be recovered from it (WoT Binding Section 6.4.1).",
+                WotLocation.FromPointer(parentPointer + "/" + EngineeringUnitsTerm)));
+        }
+
+        /// <summary>
+        /// Validates the engineering and instrument ranges of WoT Binding
+        /// Sections 6.4.1 and 7.
+        /// </summary>
+        /// <remarks>
+        /// An engineering range outside what the instrument can measure is not
+        /// a fact about any instrument, which is why containment is checked
+        /// rather than assumed.
+        /// </remarks>
+        private static void ValidateRanges(
+            JsonElement element,
+            string parentPointer,
+            List<WotDiagnostic> diagnostics)
+        {
+            bool hasMinimum = element.TryGetProperty(MinimumMember, out JsonElement minimum);
+            bool hasMaximum = element.TryGetProperty(MaximumMember, out JsonElement maximum);
+            WotRange? euRange = null;
+            if (hasMinimum &&
+                hasMaximum &&
+                minimum.ValueKind == JsonValueKind.Number &&
+                maximum.ValueKind == JsonValueKind.Number)
+            {
+                if (!TryReadRangeMembers(element, out WotRange range))
+                {
+                    diagnostics.Add(new WotDiagnostic(
+                        WotDiagnosticSeverity.Error,
+                        WotDiagnosticCode.InvalidRangeValue,
+                        "The minimum of a DataSchema shall not exceed its maximum; " +
+                        "the two carry the OPC UA EURange of the Variable the " +
+                        "affordance projects (WoT Binding Section 7).",
+                        WotLocation.FromPointer(parentPointer + "/" + MinimumMember)));
+                }
+                else
+                {
+                    euRange = range;
+                }
+            }
+            if (!element.TryGetProperty(InstrumentRangeTerm, out JsonElement declared))
+            {
+                return;
+            }
+            string pointer = parentPointer + "/" + InstrumentRangeTerm;
+            if (!TryReadRangeMembers(declared, out WotRange instrument))
+            {
+                diagnostics.Add(new WotDiagnostic(
+                    WotDiagnosticSeverity.Error,
+                    WotDiagnosticCode.InvalidRangeValue,
+                    $"The {InstrumentRangeTerm} term shall be an object carrying a " +
+                    "numeric minimum no greater than its numeric maximum (WoT " +
+                    "Binding Section 6.4.1).",
+                    WotLocation.FromPointer(pointer)));
+                return;
+            }
+            if (euRange is { } engineering &&
+                (engineering.Low < instrument.Low || engineering.High > instrument.High))
+            {
+                diagnostics.Add(new WotDiagnostic(
+                    WotDiagnosticSeverity.Error,
+                    WotDiagnosticCode.InvalidRangeValue,
+                    "The engineering range the DataSchema states is not contained " +
+                    $"in its {InstrumentRangeTerm}. An engineering range outside " +
+                    "what the instrument can measure is not a fact about any " +
+                    "instrument (WoT Binding Section 6.4.1).",
+                    WotLocation.FromPointer(pointer)));
             }
         }
 

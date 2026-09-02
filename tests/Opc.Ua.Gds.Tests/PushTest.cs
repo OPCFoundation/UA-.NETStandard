@@ -1205,14 +1205,16 @@ namespace Opc.Ua.Gds.Tests
         {
             await ConnectPushClientAsync(true).ConfigureAwait(false);
 
-            await Assert.ThatAsync(
-                () => m_pushClient.PushClient.GetCertificatesAsync(default).AsTask(),
-                Throws.Exception).ConfigureAwait(false);
-
-            (ArrayOf<NodeId> certificateTypeIds, ArrayOf<ByteString> certificates) = await m_pushClient.PushClient.GetCertificatesAsync(
-                m_pushClient.PushClient.DefaultApplicationGroup).ConfigureAwait(false);
+            (ArrayOf<NodeId> certificateTypeIds, ArrayOf<ByteString> certificates) =
+                await m_pushClient.PushClient.GetCertificatesAsync(default).ConfigureAwait(false);
+            (ArrayOf<NodeId> expectedCertificateTypeIds, ArrayOf<ByteString> expectedCertificates) =
+                await m_pushClient.PushClient
+                .GetCertificatesAsync(m_pushClient.PushClient.DefaultApplicationGroup)
+                .ConfigureAwait(false);
 
             Assert.That(certificateTypeIds.Count, Is.EqualTo(certificates.Count));
+            Assert.That(certificateTypeIds.ToList(), Is.EqualTo(expectedCertificateTypeIds.ToList()));
+            Assert.That(certificates.ToList(), Is.EqualTo(expectedCertificates.ToList()));
             Assert.That(certificates[0].IsEmpty, Is.False);
             using var x509 = Certificate.FromRawData(certificates[0]);
             Assert.That(x509, Is.Not.Null);

@@ -149,6 +149,27 @@ See [CertificateManager.md](https://github.com/OPCFoundation/UA-.NETStandard/blo
 
 See [CertificateManager.md](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/CertificateManager.md#migration-certificateidentifier-is-metadata-only) for the full migration walkthrough.
 
+### CertificateStoreIdentifier is a store description — `OpenStore` returns a caller-owned store
+
+`CertificateStoreIdentifier` follows the same design as `CertificateIdentifier`: it is only a *description* of a store (`StoreType` / `StorePath`), the analogue of a `CertificateIdentifier` resolving to a `Certificate`. It no longer caches a store instance.
+
+**No API was removed or changed** — existing code compiles unchanged. What changed is the ownership contract of `OpenStore`:
+
+* **Before:** `OpenStore` returned the *one* store instance cached on the identifier and shared by every caller. Disposing it destroyed shared state; the guidance was to call `Close()` and leave disposal to the identifier.
+* **After:** every `OpenStore` call creates and opens a **new** store instance that the caller owns and must dispose. Two calls never return the same instance. If `Open` fails, the instance is disposed before the exception propagates.
+
+**Migration patterns:**
+
+| Before (legacy) | After |
+|---|---|
+| `var store = id.OpenStore(telemetry); ...; store.Close();` | `using ICertificateStore store = id.OpenStore(telemetry); ...` |
+| Relying on two `OpenStore` calls observing the same instance / parsed-certificate cache | Each call is independent. A component that accesses a store repeatedly should open **one** instance, keep it for the component's lifetime, and dispose it at shutdown — the store refreshes its parsed-certificate cache itself when the backing data changes. |
+| Re-opening the store per operation for cache warmth | Hold the instance open (see `CertificateValidationCore` and the server `TrustList` for the in-tree pattern). |
+
+A caller that only ever called `Close()` on the returned store previously kept the shared cache warm; the same code now leaks the instance it owns — add a `using` or `Dispose()`. Standard IDisposable analyzers (`CA2000` / `IDE0067`) flag the pattern; no dedicated `UA00xx` migration rule exists because the API surface is unchanged.
+
+**Server `TrustList` is `IDisposable`:** the Part 12 TrustList handler now holds its trusted/issuer store instances open across operations. Hosts that create `TrustList` handlers directly (custom node managers) must dispose them at shutdown; the in-tree `ConfigurationNodeManager` and GDS `ApplicationsNodeManager` do this for the handlers they own.
+
 ### PushManagement transactions: TrustList/Certificate updates now require `ApplyChanges`
 
 `ConfigurationNodeManager` now implements the full OPC UA Part 12 §7.10.2

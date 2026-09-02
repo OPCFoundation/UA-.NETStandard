@@ -52,7 +52,11 @@
   <ItemGroup>
     <!-- The WoT Binding specification's worked examples, used as conformance
          fixtures. Two of them are golden pairs: a projection document and the
-         resolved view the specification says it resolves to. -->
+         resolved view the specification says it resolves to. They are vendored
+         byte-for-byte and pinned by spec-examples.manifest.json, which records
+         the source repository, branch, commit and per-file SHA-256 so a
+         specification change cannot reach them unreviewed. -->
     <EmbeddedResource Include="Wot\Assets\*.jsonld" />
+    <EmbeddedResource Include="Wot\Assets\spec-examples.manifest.json" />
   </ItemGroup>
 </Project>

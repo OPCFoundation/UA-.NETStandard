@@ -127,6 +127,13 @@ namespace Opc.Ua.Types.Tests.Wot
                         PublicationDateSpecified = true
                     }
                 ],
+                Aliases =
+                [
+                    // A NodeSet2 document has to declare every name it uses
+                    // where a NodeId is expected; without this the document
+                    // cannot be imported.
+                    new NodeIdAlias { Alias = "HasSubtype", Value = "i=45" }
+                ],
                 Extensions = [extension],
                 Items =
                 [

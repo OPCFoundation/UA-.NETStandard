@@ -61,6 +61,7 @@ namespace Opc.Ua.Server.Tests
         private string m_basePath;
         private CertificateStoreIdentifier m_trustedStore;
         private CertificateStoreIdentifier m_issuerStore;
+        private readonly List<TrustList> m_createdTrustLists = [];
 
         [SetUp]
         public void SetUp()
@@ -77,14 +78,12 @@ namespace Opc.Ua.Server.Tests
         [TearDown]
         public void TearDown()
         {
-            // Release the store instances cached on the per-test identifiers
-            // through the existing OpenStore contract (disposing the
-            // returned store disposes the cached instance): operations like
-            // AddCRL enumerate the store and would otherwise retain the
-            // parsed certificates past the test, tripping the assembly-level
-            // leak detector. Interim until the store-ownership redesign.
-            m_trustedStore?.OpenStore(m_telemetry)?.Dispose();
-            m_issuerStore?.OpenStore(m_telemetry)?.Dispose();
+            // Dispose the store instances the created TrustLists hold open.
+            foreach (TrustList trustList in m_createdTrustLists)
+            {
+                trustList.Dispose();
+            }
+            m_createdTrustLists.Clear();
 
             if (Directory.Exists(m_basePath))
             {
@@ -1598,7 +1597,7 @@ namespace Opc.Ua.Server.Tests
 
             if (maxTrustListSizeSafetyCeiling.HasValue)
             {
-                return new TrustList(
+                return Track(new TrustList(
                     node,
                     m_trustedStore,
                     m_issuerStore,
@@ -1607,17 +1606,23 @@ namespace Opc.Ua.Server.Tests
                     m_telemetry,
                     coordinator: null,
                     maxTrustListSize,
-                    maxTrustListSizeSafetyCeiling.Value);
+                    maxTrustListSizeSafetyCeiling.Value));
             }
 
-            return new TrustList(
+            return Track(new TrustList(
                 node,
                 m_trustedStore,
                 m_issuerStore,
                 readAccess,
                 writeAccess,
                 m_telemetry,
-                maxTrustListSize);
+                maxTrustListSize));
+        }
+
+        private TrustList Track(TrustList trustList)
+        {
+            m_createdTrustLists.Add(trustList);
+            return trustList;
         }
 
         private static void AllowAccess(ISystemContext context, CertificateStoreIdentifier store)

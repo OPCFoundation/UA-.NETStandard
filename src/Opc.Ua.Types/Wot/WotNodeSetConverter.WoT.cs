@@ -31,9 +31,9 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
-using System.Text.Json;
 using Opc.Ua.Export;
 
 namespace Opc.Ua.Wot
@@ -43,14 +43,26 @@ namespace Opc.Ua.Wot
     /// <see cref="WotNodeSetConverter"/>.
     /// </summary>
     public static partial class WotNodeSetConverter
-    {        /// <summary>
+    {
+        /// <summary>
         /// Restores or synthesizes the NodeSet2 document described by a WoT
         /// document, throwing on any error diagnostic.
         /// </summary>
+        /// <remarks>
+        /// This conversion follows no document link, so an event affordance
+        /// that states its field selection with <c>tm:ref</c> or
+        /// <c>uav:eventSelectClauses</c> (WoT Binding Section 6.1) is reported
+        /// rather than converted without the fields the linked definition
+        /// declares. Use <c>ToNodeSetResultAsync</c> with an
+        /// <see cref="IWotThingResolver"/> to convert such a document.
+        /// </remarks>
         /// <param name="document">The WoT document.</param>
         /// <param name="options">Resource limits; defaults are used when omitted.</param>
         /// <returns>The restored or synthesized NodeSet2 document.</returns>
         /// <exception cref="FormatException">Thrown when the conversion fails.</exception>
+        /// <exception cref="ArgumentNullException">
+        /// Thrown when <paramref name="document"/> is <c>null</c>.
+        /// </exception>
         public static UANodeSet ToNodeSet(
             WotDocument document,
             WotNodeSetConverterOptions? options = null)
@@ -61,7 +73,7 @@ namespace Opc.Ua.Wot
             }
 
             var diagnostics = new List<WotDiagnostic>();
-            UANodeSet? nodeSet = ToNodeSetCore(document, options, null, null, diagnostics);
+            UANodeSet? nodeSet = ToNodeSetCore(document, options, null, null, null, diagnostics);
             ApplyIdentifierLeniency(diagnostics, options);
             ThrowIfErrors(diagnostics);
             return nodeSet
@@ -138,6 +150,16 @@ namespace Opc.Ua.Wot
             var diagnostics = new List<WotDiagnostic>();
             WotThingCatalog? thingCatalog = null;
             WotThingCatalog? parentCatalog = null;
+            WotReferenceTypeCatalog? referenceTypeCatalog = null;
+            WotEventSelectionCatalog? eventSelections = null;
+            bool eventSelectionsResolved = false;
+            if (!TakesRestorePath(document))
+            {
+                referenceTypeCatalog = await PreresolveReferenceTypesAsync(
+                    document,
+                    nodeResolver,
+                    cancellationToken).ConfigureAwait(false);
+            }
             if (thingResolver is not null)
             {
                 options ??= new WotNodeSetConverterOptions();
@@ -151,6 +173,7 @@ namespace Opc.Ua.Wot
                     thingResolver,
                     resolutionContext,
                     thingCatalog,
+                    referenceTypeCatalog,
                     diagnostics,
                     cancellationToken).ConfigureAwait(false);
                 await PreresolveParentReferencesAsync(
@@ -161,6 +184,27 @@ namespace Opc.Ua.Wot
                     parentCatalog,
                     diagnostics,
                     cancellationToken).ConfigureAwait(false);
+
+                // WoT Binding Section 6.1: an event affordance names the
+                // EventType definition its fields are selected from, and the
+                // synthesis below needs that definition's field set before it
+                // can materialize the EventType's Nodes. Resolution follows
+                // document links, so it happens here, once, and the synchronous
+                // synthesis reads the result.
+                if (!TakesRestorePath(document))
+                {
+                    var selectionResolver = new WotEventSelectionResolver(thingResolver, options);
+                    WotConversionResult<WotEventSelectionCatalog> selectionResult =
+                        await selectionResolver
+                            .ResolveAsync(document, resolutionContext, cancellationToken)
+                            .ConfigureAwait(false);
+                    foreach (WotDiagnostic diagnostic in selectionResult.Diagnostics)
+                    {
+                        diagnostics.Add(diagnostic);
+                    }
+                    eventSelections = selectionResult.Value;
+                    eventSelectionsResolved = true;
+                }
             }
 
             // WoT Binding Section 5.2.1 only applies to synthesized Nodes.
@@ -185,21 +229,139 @@ namespace Opc.Ua.Wot
                 document,
                 options,
                 thingCatalog,
+                referenceTypeCatalog,
                 resolutionContext,
                 diagnostics,
                 typeBinding,
-                parentPlacement);
+                parentPlacement,
+                eventSelections,
+                eventSelectionsResolved);
             ApplyIdentifierLeniency(diagnostics, options);
             return new WotConversionResult<UANodeSet>(nodeSet, diagnostics);
+        }
+
+        /// <summary>
+        /// Resolves every ReferenceType a link relation names against the
+        /// WoT Binding Section 5.1.5 local context, and the NodeClass the
+        /// context reports for every definitive <c>uav:refId</c> a link
+        /// carries, before the synchronous synthesis needs the answers.
+        /// </summary>
+        /// <remarks>
+        /// Only a resolver that offers <see cref="IWotReferenceTypeResolver"/>
+        /// contributes names: a local context describing no ReferenceType has
+        /// none to offer, so nothing is gained by asking it. The standard
+        /// base-namespace names stay available in either case, so a companion
+        /// model's own ReferenceType resolves where the caller supplied a local
+        /// context and the built-in names resolve where it did not. The
+        /// identifier probe uses the ordinary
+        /// <see cref="IWotNodeResolver.ResolveByNodeIdAsync"/>, because
+        /// "this identifier names an ObjectType" is a fact about a Node and not
+        /// about a ReferenceType name.
+        /// </remarks>
+        private static async ValueTask<WotReferenceTypeCatalog?> PreresolveReferenceTypesAsync(
+            WotDocument document,
+            IWotNodeResolver? nodeResolver,
+            CancellationToken cancellationToken)
+        {
+            if (nodeResolver is null)
+            {
+                return null;
+            }
+
+            var referenceTypes = nodeResolver as IWotReferenceTypeResolver;
+            WotReferenceTypeCatalog? catalog = null;
+            foreach (JsonElement link in document.Links)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                string? rel = GetElementString(link, "rel");
+                if (rel is not null && IsModelConceptRelation(document, link, rel))
+                {
+                    catalog ??= new WotReferenceTypeCatalog();
+                    if (!catalog.Contains(rel) &&
+                        TrySplitCompactModelName(rel, out string prefix, out string name) &&
+                        TryGetContextNamespace(document, prefix, out string namespaceUri))
+                    {
+                        catalog.Add(
+                            rel,
+                            await ResolveReferenceTypeAnswerAsync(
+                                nodeResolver,
+                                referenceTypes,
+                                namespaceUri,
+                                name,
+                                cancellationToken).ConfigureAwait(false));
+                    }
+                }
+
+                string? definitive = GetElementString(link, "uav:refId");
+                if (definitive is null)
+                {
+                    continue;
+                }
+                catalog ??= new WotReferenceTypeCatalog();
+                if (!catalog.ContainsIdentity(definitive))
+                {
+                    WotResolvedNode? node = await nodeResolver
+                        .ResolveByNodeIdAsync(definitive, cancellationToken)
+                        .ConfigureAwait(false);
+                    catalog.AddIdentity(definitive, node?.NodeClass);
+                }
+            }
+            return catalog;
+        }
+
+        /// <summary>
+        /// Asks the local context for one name, and tells "the model does not
+        /// define this" apart from "the model defines it as something that is
+        /// not a ReferenceType".
+        /// </summary>
+        private static async ValueTask<WotReferenceTypeAnswer> ResolveReferenceTypeAnswerAsync(
+            IWotNodeResolver nodeResolver,
+            IWotReferenceTypeResolver? referenceTypes,
+            string namespaceUri,
+            string name,
+            CancellationToken cancellationToken)
+        {
+            ArrayOf<WotResolvedReferenceType> matches = referenceTypes is null
+                ? ArrayOf<WotResolvedReferenceType>.Empty
+                : await referenceTypes
+                    .ResolveReferenceTypesAsync(namespaceUri, name, cancellationToken)
+                    .ConfigureAwait(false);
+            if (matches.Count > 0)
+            {
+                return WotReferenceTypeAnswer.FromMatches(matches);
+            }
+
+            // The name is not a ReferenceType here. If the same namespace
+            // exposes it as some other Node, the document named a real thing of
+            // the wrong kind, which is a different report from "unknown".
+            ArrayOf<WotResolvedNode> others = await nodeResolver
+                .ResolveByBrowseNameAsync(
+                    namespaceUri, name, WotExpectedNodeClass.Any, cancellationToken)
+                .ConfigureAwait(false);
+            return others.Count > 0
+                ? WotReferenceTypeAnswer.NotAReferenceType
+                : WotReferenceTypeAnswer.Unresolved;
         }
 
         /// <summary>
         /// Restores or synthesizes the NodeSet2 document described by a WoT
         /// document, returning structured diagnostics together with the result.
         /// </summary>
+        /// <remarks>
+        /// This conversion follows no document link, so an event affordance
+        /// that states its field selection with <c>tm:ref</c> or
+        /// <c>uav:eventSelectClauses</c> (WoT Binding Section 6.1) is reported
+        /// with <see cref="WotDiagnosticCode.EventSelectionUnresolved"/> rather
+        /// than converted without the fields the linked definition declares.
+        /// Use <c>ToNodeSetResultAsync</c> with an
+        /// <see cref="IWotThingResolver"/> to convert such a document.
+        /// </remarks>
         /// <param name="document">The WoT document.</param>
         /// <param name="options">Resource limits; defaults are used when omitted.</param>
         /// <returns>The conversion result and its diagnostics.</returns>
+        /// <exception cref="ArgumentNullException">
+        /// Thrown when <paramref name="document"/> is <c>null</c>.
+        /// </exception>
         public static WotConversionResult<UANodeSet> ToNodeSetResult(
             WotDocument document,
             WotNodeSetConverterOptions? options = null)
@@ -210,7 +372,7 @@ namespace Opc.Ua.Wot
             }
             var diagnostics = new List<WotDiagnostic>();
             UANodeSet? nodeSet = ToNodeSetCore(
-                document, options, null, null, diagnostics);
+                document, options, null, null, null, diagnostics);
             ApplyIdentifierLeniency(diagnostics, options);
             return new WotConversionResult<UANodeSet>(nodeSet, diagnostics);
         }
@@ -322,6 +484,80 @@ namespace Opc.Ua.Wot
             return true;
         }
 
+        /// <summary>
+        /// Describes the ReferenceType a Thing Model projects: the two names it
+        /// answers to and its identity.
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// OPC 10000-3 gives a ReferenceType a BrowseName that reads a
+        /// reference forward and an InverseName that reads the same reference
+        /// backwards, and WoT Binding Section 5.1.2 lets a link <c>rel</c> use
+        /// either. A local context therefore has to offer both names, which
+        /// <see cref="TryDescribeProjectedType"/> cannot: it describes a Node
+        /// and a Node has one BrowseName.
+        /// </para>
+        /// <para>
+        /// This exists so an <see cref="IWotReferenceTypeResolver"/> over a set
+        /// of documents can index them without paying for a full conversion,
+        /// and so the names are derived by exactly the rules the conversion
+        /// uses.
+        /// </para>
+        /// </remarks>
+        /// <param name="document">The document to describe.</param>
+        /// <param name="namespaceUri">The NamespaceUri the ReferenceType is in.</param>
+        /// <param name="browseName">The unqualified BrowseName.</param>
+        /// <param name="inverseName">
+        /// The unqualified InverseName, or an empty string where the document
+        /// states none.
+        /// </param>
+        /// <param name="isSymmetric">
+        /// Whether the ReferenceType is symmetric, in which case one name reads
+        /// both directions.
+        /// </param>
+        /// <param name="nodeId">
+        /// The ReferenceType's identity, as a portable ExpandedNodeId string.
+        /// </param>
+        /// <returns>
+        /// <c>true</c> when <paramref name="document"/> is a Thing Model
+        /// describing a ReferenceType.
+        /// </returns>
+        /// <exception cref="ArgumentNullException">
+        /// <paramref name="document"/> is <c>null</c>.
+        /// </exception>
+        public static bool TryDescribeProjectedReferenceType(
+            WotDocument document,
+            out string namespaceUri,
+            out string browseName,
+            out string inverseName,
+            out bool isSymmetric,
+            out string nodeId)
+        {
+            inverseName = string.Empty;
+            isSymmetric = false;
+            if (!TryDescribeProjectedType(document, out namespaceUri, out browseName, out nodeId))
+            {
+                return false;
+            }
+            if (!HasTypeAnnotation(document, "uav:referenceType"))
+            {
+                namespaceUri = string.Empty;
+                browseName = string.Empty;
+                nodeId = string.Empty;
+                return false;
+            }
+            if (document.RootElement.TryGetProperty(
+                    InverseNameTerm, out JsonElement inverse) &&
+                inverse.ValueKind == JsonValueKind.String)
+            {
+                inverseName = inverse.GetString() ?? string.Empty;
+            }
+            isSymmetric =
+                document.RootElement.TryGetProperty(SymmetricTerm, out JsonElement symmetric) &&
+                symmetric.ValueKind == JsonValueKind.True;
+            return true;
+        }
+
         private static bool TryDescribeProjectionRoot(WotDocument document, out string nodeId)
         {
             nodeId = string.Empty;
@@ -342,10 +578,13 @@ namespace Opc.Ua.Wot
             WotDocument document,
             WotNodeSetConverterOptions? options,
             WotThingCatalog? thingCatalog,
+            WotReferenceTypeCatalog? referenceTypeCatalog,
             WotResolutionContext? resolutionContext,
             List<WotDiagnostic> diagnostics,
             WotTypeBinding? typeBinding = null,
-            WotParentPlacement? parentPlacement = null)
+            WotParentPlacement? parentPlacement = null,
+            WotEventSelectionCatalog? eventSelections = null,
+            bool eventSelectionsResolved = false)
         {
             options ??= new WotNodeSetConverterOptions();
             options.Validate();
@@ -374,7 +613,7 @@ namespace Opc.Ua.Wot
                     }
                 }
                 WotJsonResidue.Replace(restored, document, options, diagnostics);
-                return restored;
+                return NodeSetAliasCompleter.Complete(restored, WotNodeSetAliases.Instance);
             }
 
             if (document.TryGetNativeProjection(out JsonElement nativeProjection))
@@ -388,7 +627,7 @@ namespace Opc.Ua.Wot
                     ValidateNativeAffordanceCoverage(document, restored, diagnostics);
                     WotJsonResidue.Replace(restored, document, options, diagnostics);
                 }
-                return restored;
+                return NodeSetAliasCompleter.Complete(restored, WotNodeSetAliases.Instance);
             }
 
             UANodeSet? synthesized =
@@ -396,15 +635,18 @@ namespace Opc.Ua.Wot
                     document,
                     options,
                     thingCatalog,
+                    referenceTypeCatalog,
                     resolutionContext,
                     diagnostics,
                     typeBinding,
-                    parentPlacement);
+                    parentPlacement,
+                    eventSelections,
+                    eventSelectionsResolved);
             if (synthesized is not null)
             {
                 WotJsonResidue.Replace(synthesized, document, options, diagnostics);
             }
-            return synthesized;
+            return NodeSetAliasCompleter.Complete(synthesized, WotNodeSetAliases.Instance);
         }
 
         private static UANodeSet? RestoreFromEnvelope(
@@ -562,7 +804,7 @@ namespace Opc.Ua.Wot
             }
 
             NodeSetComparisonResult comparison =
-                NodeSetComparer.Compare(baseline, projected, options);
+                NodeSetComparer.Compare(baseline, projected, options.ToComparisonOptions());
             if (!comparison.AreEquivalent)
             {
                 diagnostics.Add(new WotDiagnostic(
@@ -724,10 +966,13 @@ namespace Opc.Ua.Wot
             WotDocument document,
             WotNodeSetConverterOptions options,
             WotThingCatalog? thingCatalog,
+            WotReferenceTypeCatalog? referenceTypeCatalog,
             WotResolutionContext resolutionContext,
             List<WotDiagnostic> diagnostics,
             WotTypeBinding? typeBinding,
-            WotParentPlacement? parentPlacement)
+            WotParentPlacement? parentPlacement,
+            WotEventSelectionCatalog? eventSelections = null,
+            bool eventSelectionsResolved = false)
         {
             WotDocumentKind kind = document.Kind;
             if (kind == WotDocumentKind.Unknown)
@@ -751,7 +996,9 @@ namespace Opc.Ua.Wot
             ValidateEventAnnotations(document, diagnostics);
             ValidateModelConceptNames(document, diagnostics);
             ValidateModelVocabulary(document, diagnostics);
-            ValidateConditions(document, diagnostics);
+            ValidateBindingConformance(document, options, diagnostics);
+            ValidateEventSelectionsResolved(document, eventSelectionsResolved, diagnostics);
+            ValidateConditions(document, eventSelections, diagnostics);
 
             string modelUri = DeriveModelUri(document);
             string rootLocal = LocalName(GetUavString(document, "browseName")) ??
@@ -782,6 +1029,14 @@ namespace Opc.Ua.Wot
 
             var items = new List<UANode>();
             var rootReferences = new List<Reference>();
+
+            // Section 13.4 pairs a Condition Method with the event affordance
+            // whose Condition it acts on. That pairing is recorded structurally
+            // - the Method becomes a component of the projected EventType -
+            // and the actions are synthesized before the events, so the
+            // attachments are collected here and applied as each EventType is
+            // created.
+            var conditionMethods = new Dictionary<string, List<string>>(StringComparer.Ordinal);
 
             UANode rootNode;
             string? boundType = null;
@@ -862,14 +1117,19 @@ namespace Opc.Ua.Wot
                     rootBrowseName,
                     nodeSet,
                     diagnostics);
-            rootNode.DisplayName = MakeText(document.Title ?? rootLocal);
-            string? rootDescription = GetRootString(document, "description");
-            if (rootDescription is not null)
-            {
-                rootNode.Description = MakeText(rootDescription);
-            }
+
+            // §9.1.1: every locale the document states survives, and the
+            // default locale's entry is the one the Node's own DisplayName
+            // carries.
+            string? declaredLocale = GetDeclaredLocale(document);
+            rootNode.DisplayName = ReadTitle(
+                document.RootElement, declaredLocale, document.Title ?? rootLocal) ??
+                MakeText(rootLocal);
+            rootNode.Description = ReadDescription(document.RootElement, declaredLocale);
+            ApplyReferenceTypeNames(rootNode, document, declaredLocale);
 
             int affordanceCount = 0;
+            var propertyNodeIds = new Dictionary<string, string>(StringComparer.Ordinal);
 
             foreach (KeyValuePair<string, JsonElement> property in document.Properties)
             {
@@ -879,9 +1139,16 @@ namespace Opc.Ua.Wot
                 }
                 SynthesizeProperty(
                     document, nodeSet, property.Key, property.Value, rootLocal,
-                    rootNodeId, isThingModel,
-                    items, rootReferences, diagnostics);
+                    rootNodeId, isThingModel, declaredLocale,
+                    items, rootReferences, propertyNodeIds, diagnostics);
             }
+
+            // Sections 6.4 and 6.4.1 relate two affordances - the annotated one
+            // and the sibling that carries its unit - so the analog Properties
+            // are materialized once every affordance has become a Variable.
+            SynthesizeAnalogFacets(
+                document, nodeSet, rootLocal, rootNodeId, propertyNodeIds,
+                items, rootReferences, diagnostics);
 
             foreach (KeyValuePair<string, JsonElement> action in document.Actions)
             {
@@ -891,7 +1158,7 @@ namespace Opc.Ua.Wot
                 }
                 SynthesizeAction(
                     document, nodeSet, action.Key, action.Value, rootLocal,
-                    rootNodeId, items, rootReferences, diagnostics);
+                    rootNodeId, items, rootReferences, conditionMethods, diagnostics);
             }
 
             foreach (KeyValuePair<string, JsonElement> eventAffordance in document.Events)
@@ -902,7 +1169,8 @@ namespace Opc.Ua.Wot
                 }
                 SynthesizeEvent(
                     document, nodeSet, eventAffordance.Key, eventAffordance.Value,
-                    rootLocal, items, rootReferences, diagnostics);
+                    rootLocal, items, rootReferences, conditionMethods, diagnostics,
+                    eventSelections);
             }
 
             // A ReferenceType relation whose target is also listed under
@@ -911,11 +1179,13 @@ namespace Opc.Ua.Wot
             // link pass does not also emit a separate generic reference and the
             // component pass recreates the exact ReferenceType.
             Dictionary<string, string> componentTypedRefs =
-                CollectComponentTypedRefs(document, diagnostics);
+                CollectComponentTypedRefs(document, referenceTypeCatalog, diagnostics);
             SynthesizeLinks(
                 document, rootReferences, componentTypedRefs, thingCatalog,
-                resolutionContext, options, boundType, diagnostics);
-            SynthesizeComponentArrays(document, rootReferences, componentTypedRefs);
+                referenceTypeCatalog, resolutionContext, options, boundType, nodeSet,
+                diagnostics);
+            SynthesizeComponentArrays(
+                document, rootReferences, componentTypedRefs, nodeSet, diagnostics);
             if (parentPlacement is { } placement)
             {
                 rootReferences.Add(new Reference
@@ -944,8 +1214,10 @@ namespace Opc.Ua.Wot
             string rootLocal,
             string rootNodeId,
             bool isThingModel,
+            string? declaredLocale,
             List<UANode> items,
             List<Reference> rootReferences,
+            Dictionary<string, string> propertyNodeIds,
             List<WotDiagnostic> diagnostics)
         {
             string local = LocalName(GetElementString(schema, "uav:browseName")) ?? key;
@@ -968,34 +1240,45 @@ namespace Opc.Ua.Wot
                 DataType = MapJsonSchemaToDataType(document, schema, nodeSet, diagnostics),
                 AccessLevel = MapAccessLevel(schema)
             };
-            string? title = GetElementString(schema, "title");
-            if (title is not null)
-            {
-                variable.DisplayName = MakeText(title);
-            }
-            string? description = GetElementString(schema, "description");
-            if (description is not null)
-            {
-                variable.Description = MakeText(description);
-            }
+
+            // §9.1 maps a Variable's DataType together with its ValueRank and
+            // ArrayDimensions, and OPC 10000-3 tells five ranks apart that a
+            // json type cannot.
+            variable.ValueRank = ReadValueRank(schema);
+            variable.ArrayDimensions = ReadArrayDimensions(schema);
+            variable.DisplayName = ReadTitle(schema, declaredLocale);
+            variable.Description = ReadDescription(schema, declaredLocale);
+
+            // §6.4.1: the affordance reads as a string at run time but the Node
+            // behind it holds the EUInformation structure the term states.
+            ApplyEngineeringUnits(variable, schema);
 
             // §9.1: a property may state the Variable it belongs to rather than
             // the Thing. Without this a Variable's own Variables — EURange and
             // EngineeringUnits below an analog Variable — come back re-parented
             // onto the Thing, one level higher than the source put them.
             string owner = ReadComponentOfParent(schema, nodeSet, diagnostics) ?? rootNodeId;
+            string? typeDefinition = ReadAffordanceTypeDefinition(schema, nodeSet, diagnostics);
+
+            // OPC 10000-3 reaches a Property through HasProperty and nothing
+            // else, so an affordance that binds itself to PropertyType - which
+            // is what EngineeringUnits, EURange and every other Property does -
+            // is held that way rather than as a component.
+            string ownership = string.Equals(
+                typeDefinition, WotVocabulary.PropertyType, StringComparison.Ordinal)
+                ? "HasProperty"
+                : "HasComponent";
             var references = new List<Reference>
             {
                 new Reference
                 {
                     ReferenceType = "HasTypeDefinition",
                     IsForward = true,
-                    Value = ReadAffordanceTypeDefinition(schema, nodeSet, diagnostics)
-                        ?? WotVocabulary.BaseDataVariableType
+                    Value = typeDefinition ?? WotVocabulary.BaseDataVariableType
                 },
                 new Reference
                 {
-                    ReferenceType = "HasComponent",
+                    ReferenceType = ownership,
                     IsForward = false,
                     Value = owner
                 }
@@ -1003,25 +1286,54 @@ namespace Opc.Ua.Wot
             AddModellingRule(schema, references);
             variable.ParentNodeId = owner;
             variable.References = [.. references];
-            variable.Value = BuildVariableValue(schema, variable.DataType);
+            variable.Value ??= BuildVariableValue(schema, variable.DataType);
 
             ReportUnsupportedSchema(schema, nodeId, diagnostics);
 
             items.Add(variable);
+            propertyNodeIds[key] = nodeId;
             if (string.Equals(owner, rootNodeId, StringComparison.Ordinal))
             {
                 rootReferences.Add(new Reference
                 {
-                    ReferenceType = "HasComponent",
+                    ReferenceType = ownership,
                     IsForward = true,
                     Value = nodeId
                 });
             }
             else
             {
-                AddOwnedComponent(items, owner, nodeId);
+                AddOwnedComponent(items, owner, nodeId, ownership);
             }
             _ = isThingModel;
+        }
+
+        /// <summary>
+        /// Gets whether the converter maps an affordance's <c>uav:componentOf</c>
+        /// onto the Variable that holds it, which is what decides whether
+        /// preservation must also carry the term.
+        /// </summary>
+        /// <remarks>
+        /// One parent is one inverse component Reference, and the forward
+        /// direction restates it from that Reference. A list naming more than
+        /// one parent states something a single ParentNodeId cannot, so it is
+        /// not mapped and is kept verbatim instead.
+        /// </remarks>
+        internal static bool MapsComponentOf(JsonElement affordance)
+        {
+            if (affordance.ValueKind != JsonValueKind.Object ||
+                !affordance.TryGetProperty("uav:componentOf", out JsonElement declared) ||
+                declared.ValueKind != JsonValueKind.Array ||
+                declared.GetArrayLength() != 1)
+            {
+                return false;
+            }
+            foreach (JsonElement entry in declared.EnumerateArray())
+            {
+                return entry.ValueKind == JsonValueKind.String &&
+                    entry.GetString() is { Length: > 0 };
+            }
+            return false;
         }
 
         /// <summary>
@@ -1052,7 +1364,11 @@ namespace Opc.Ua.Wot
         /// Adds the forward component reference from the owning Variable, so the
         /// child hangs where the document says rather than being orphaned.
         /// </summary>
-        private static void AddOwnedComponent(List<UANode> items, string owner, string nodeId)
+        private static void AddOwnedComponent(
+            List<UANode> items,
+            string owner,
+            string nodeId,
+            string referenceType = "HasComponent")
         {
             foreach (UANode node in items)
             {
@@ -1064,7 +1380,7 @@ namespace Opc.Ua.Wot
                 {
                     new Reference
                     {
-                        ReferenceType = "HasComponent",
+                        ReferenceType = referenceType,
                         IsForward = true,
                         Value = nodeId
                     }
@@ -1183,9 +1499,39 @@ namespace Opc.Ua.Wot
             string rootNodeId,
             List<UANode> items,
             List<Reference> rootReferences,
+            Dictionary<string, List<string>> conditionMethods,
             List<WotDiagnostic> diagnostics)
         {
-            string local = LocalName(GetElementString(action, "uav:browseName")) ?? key;
+            // Section 13.4: a Condition Method is the standard Method OPC
+            // 10000-9 declares on a ConditionType, not a same-named Method of
+            // the projected type. Where the pairing holds, the Method takes the
+            // standard BrowseName it is declared with and becomes a component
+            // of the EventType the pairing names - which is what lets the
+            // forward direction read the pairing back instead of guessing at
+            // it. The declaration identifier is written only where the
+            // ConditionType the target event projects is one this Binding knows
+            // and actually declares the Method; a pairing it does not admit is
+            // reported instead of being materialized against a Method that is
+            // not there.
+            string? declaration = ResolveConditionMethodDeclaration(
+                document, action, key, nodeSet, diagnostics);
+            string conditionAction;
+            string actsOn = string.Empty;
+            bool isConditionMethod =
+                TryGetNonEmptyString(action, ConditionActionTerm, out conditionAction) &&
+                IsMappedConditionAction(conditionAction) &&
+                TryGetNonEmptyString(action, ActsOnTerm, out actsOn) &&
+                document.Events.ContainsKey(actsOn) &&
+                IsStandardConditionMethodName(action, conditionAction);
+            if (!isConditionMethod)
+            {
+                conditionAction = string.Empty;
+                actsOn = string.Empty;
+            }
+
+            string local = isConditionMethod
+                ? conditionAction
+                : LocalName(GetElementString(action, "uav:browseName")) ?? key;
             string? authoredNodeId = GetElementString(action, "uav:id");
             string nodeId = authoredNodeId is null
                 ? GenerateNodeId(rootLocal + "/" + local)
@@ -1194,19 +1540,38 @@ namespace Opc.Ua.Wot
             var method = new UAMethod
             {
                 NodeId = nodeId,
-                BrowseName = authoredBrowseName is null
-                    ? "1:" + local
-                    : ToNodeSetQualifiedName(
-                        document,
-                        authoredBrowseName,
-                        nodeSet,
-                        diagnostics),
+                BrowseName = isConditionMethod
+                    // The standard Condition Method's BrowseName is in the base
+                    // OPC UA namespace; writing the document's own namespace
+                    // there would name a different QualifiedName than the one
+                    // OPC 10000-9 declares.
+                    ? conditionAction
+                    : authoredBrowseName is null
+                        ? "1:" + local
+                        : ToNodeSetQualifiedName(
+                            document,
+                            authoredBrowseName,
+                            nodeSet,
+                            diagnostics),
+                MethodDeclarationId = declaration,
                 ParentNodeId = rootNodeId
             };
-            string? title = GetElementString(action, "title");
-            if (title is not null)
+            string? declaredLocale = GetDeclaredLocale(document);
+            method.DisplayName = ReadTitle(action, declaredLocale);
+            method.Description = ReadDescription(action, declaredLocale);
+
+            string owner = rootNodeId;
+            if (isConditionMethod &&
+                document.Events.TryGetValue(actsOn, out JsonElement target))
             {
-                method.DisplayName = MakeText(title);
+                owner = EventNodeId(target, actsOn, rootLocal, nodeSet);
+                method.ParentNodeId = owner;
+                if (!conditionMethods.TryGetValue(actsOn, out List<string>? attached))
+                {
+                    attached = [];
+                    conditionMethods[actsOn] = attached;
+                }
+                attached.Add(nodeId);
             }
 
             var references = new List<Reference>
@@ -1215,19 +1580,30 @@ namespace Opc.Ua.Wot
                 {
                     ReferenceType = "HasComponent",
                     IsForward = false,
-                    Value = rootNodeId
+                    Value = owner
                 }
             };
             AddModellingRule(action, references);
+            items.Add(method);
+
+            // §9.1: the action's input and output DataSchemas are the Method's
+            // InputArguments and OutputArguments Properties. A schema that
+            // cannot be mapped is reported and left to preservation rather than
+            // dropped, so a Method never silently loses its signature.
+            SynthesizeMethodArguments(
+                document, nodeSet, action, key, nodeId, local, rootLocal,
+                items, references, diagnostics);
             method.References = [.. references];
 
-            items.Add(method);
-            rootReferences.Add(new Reference
+            if (string.Equals(owner, rootNodeId, StringComparison.Ordinal))
             {
-                ReferenceType = "HasComponent",
-                IsForward = true,
-                Value = nodeId
-            });
+                rootReferences.Add(new Reference
+                {
+                    ReferenceType = "HasComponent",
+                    IsForward = true,
+                    Value = nodeId
+                });
+            }
         }
 
         private static void SynthesizeEvent(
@@ -1238,7 +1614,9 @@ namespace Opc.Ua.Wot
             string rootLocal,
             List<UANode> items,
             List<Reference> rootReferences,
-            List<WotDiagnostic> diagnostics)
+            Dictionary<string, List<string>> conditionMethods,
+            List<WotDiagnostic> diagnostics,
+            WotEventSelectionCatalog? eventSelections)
         {
             string local = LocalName(GetElementString(eventAffordance, "uav:browseName")) ?? key;
             string? authoredNodeId = GetElementString(
@@ -1262,11 +1640,9 @@ namespace Opc.Ua.Wot
                         diagnostics),
                 IsAbstract = false
             };
-            string? title = GetElementString(eventAffordance, "title");
-            if (title is not null)
-            {
-                eventType.DisplayName = MakeText(title);
-            }
+            string? declaredLocale = GetDeclaredLocale(document);
+            eventType.DisplayName = ReadTitle(eventAffordance, declaredLocale);
+            eventType.Description = ReadDescription(eventAffordance, declaredLocale);
             eventType.References =
             [
                 new Reference
@@ -1279,6 +1655,42 @@ namespace Opc.Ua.Wot
             ];
 
             items.Add(eventType);
+
+            // Section 6.6: an authored default severity is the value of the
+            // EventType's own Severity Property, so it materializes as that
+            // Property rather than being carried as opaque metadata. An
+            // out-of-range value is reported by ValidateSeverity and left to
+            // preservation; nothing is clamped here.
+            var eventReferences = new List<Reference>(eventType.References);
+            SynthesizeEventSeverity(
+                eventAffordance, nodeId, local, rootLocal, items, eventReferences);
+
+            // Section 13.3: the members of the notification's data object that
+            // the projected type adds are fields of that type. The ones it
+            // inherits are already declared by the type they come from and are
+            // deliberately not created a second time here.
+            SynthesizeEventFields(
+                document, nodeSet, eventAffordance, key,
+                eventType.References[0].Value!, nodeId, local, rootLocal,
+                items, eventReferences, diagnostics, eventSelections);
+
+            // Section 13.4: the Condition Methods that act on this event are
+            // components of the type that declares the Condition, which is what
+            // records the pairing the two terms state.
+            if (conditionMethods.TryGetValue(key, out List<string>? attached))
+            {
+                foreach (string methodNodeId in attached)
+                {
+                    eventReferences.Add(new Reference
+                    {
+                        ReferenceType = "HasComponent",
+                        IsForward = true,
+                        Value = methodNodeId
+                    });
+                }
+            }
+            eventType.References = [.. eventReferences];
+
             rootReferences.Add(new Reference
             {
                 ReferenceType = "GeneratesEvent",
@@ -1292,14 +1704,17 @@ namespace Opc.Ua.Wot
             List<Reference> rootReferences,
             Dictionary<string, string> componentTypedRefs,
             WotThingCatalog? thingCatalog,
+            WotReferenceTypeCatalog? referenceTypeCatalog,
             WotResolutionContext resolutionContext,
             WotNodeSetConverterOptions options,
             string? boundType,
+            UANodeSet nodeSet,
             List<WotDiagnostic> diagnostics)
         {
             foreach (ResolvableThingReference thingReference in EnumerateResolvableThingReferences(
                 document,
                 componentTypedRefs,
+                referenceTypeCatalog,
                 diagnostics))
             {
                 if (thingReference.IsExtends)
@@ -1328,8 +1743,9 @@ namespace Opc.Ua.Wot
                 {
                     rootReferences.Add(new Reference
                     {
-                        ReferenceType = thingReference.ReferenceType!,
-                        IsForward = true,
+                        ReferenceType = ToNodeSetReferenceType(
+                            thingReference.ReferenceType!, nodeSet, diagnostics),
+                        IsForward = thingReference.IsForward,
                         Value = linkTarget
                     });
                 }
@@ -1352,8 +1768,11 @@ namespace Opc.Ua.Wot
             diagnostics.Add(new WotDiagnostic(
                 WotDiagnosticSeverity.Error,
                 WotDiagnosticCode.InvalidTypeBinding,
-                "The document instantiates a Thing Model that projects '" + extendsTarget +
-                "', but its type binding resolves to '" + boundType + "'. The two must " +
+                "The document instantiates a Thing Model that projects '" +
+                extendsTarget +
+                "', but its type binding resolves to '" +
+                boundType +
+                "'. The two must " +
                 "resolve to the same type node (WoT Binding Section 5.2.1).",
                 new WotLocation(jsonPointer: "/links")));
         }
@@ -1413,6 +1832,7 @@ namespace Opc.Ua.Wot
             EnumerateResolvableThingReferences(
                 WotDocument document,
                 Dictionary<string, string> componentTypedRefs,
+                WotReferenceTypeCatalog? referenceTypeCatalog,
                 List<WotDiagnostic> diagnostics)
         {
             foreach (JsonElement link in document.Links)
@@ -1426,7 +1846,7 @@ namespace Opc.Ua.Wot
 
                 if (string.Equals(rel, "tm:extends", StringComparison.Ordinal))
                 {
-                    yield return new ResolvableThingReference(href, null, true);
+                    yield return new ResolvableThingReference(href, null, true, true);
                     continue;
                 }
 
@@ -1447,10 +1867,13 @@ namespace Opc.Ua.Wot
                     document,
                     link,
                     rel,
+                    referenceTypeCatalog,
                     diagnostics,
-                    out string referenceType))
+                    out string referenceType,
+                    out bool isForward))
                 {
-                    yield return new ResolvableThingReference(href, referenceType, false);
+                    yield return new ResolvableThingReference(
+                        href, referenceType, false, isForward);
                 }
             }
         }
@@ -1459,9 +1882,12 @@ namespace Opc.Ua.Wot
             WotDocument document,
             JsonElement link,
             string rel,
+            WotReferenceTypeCatalog? referenceTypeCatalog,
             List<WotDiagnostic> diagnostics,
-            out string referenceType)
+            out string referenceType,
+            out bool isForward)
         {
+            isForward = true;
             string? modelName = IsModelConceptRelation(document, link, rel)
                 ? rel
                 : null;
@@ -1470,42 +1896,85 @@ namespace Opc.Ua.Wot
             if (definitive is not null && canonicalDefinitive is null)
             {
                 diagnostics.Add(new WotDiagnostic(
-                    WotDiagnosticSeverity.Error,
-                    WotDiagnosticCode.ModelConceptUnresolved,
-                    $"The uav:refId value '{definitive}' is not a portable " +
-                    "ExpandedNodeId.",
-                    new WotLocation(reference: definitive)));
+                WotDiagnosticSeverity.Error,
+                WotDiagnosticCode.ModelConceptUnresolved,
+                $"The uav:refId value '{definitive}' is not a portable " +
+                "ExpandedNodeId.",
+                new WotLocation(reference: definitive)));
                 referenceType = string.Empty;
                 return false;
             }
 
-            if (modelName is not null &&
-                TryResolveReferenceTypeName(
-                    document,
-                    modelName,
-                    out string resolvedName))
+            // A definitive identifier the local context holds as something
+            // other than a ReferenceType types nothing, so it is reported
+            // before it can be used as if it did (WoT Binding Section 6.2).
+            if (canonicalDefinitive is not null &&
+                referenceTypeCatalog is not null &&
+                referenceTypeCatalog.NamesNonReferenceType(canonicalDefinitive))
             {
+                diagnostics.Add(new WotDiagnostic(
+                    WotDiagnosticSeverity.Error,
+                    WotDiagnosticCode.ReferenceTypeNodeClassInvalid,
+                    $"The uav:refId value '{canonicalDefinitive}' names a Node " +
+                    "that is not a ReferenceType, so it cannot type a relation.",
+                    new WotLocation(reference: canonicalDefinitive)));
+                referenceType = string.Empty;
+                return false;
+            }
+
+            WotReferenceTypeAnswer answer = modelName is null
+                ? WotReferenceTypeAnswer.Unresolved
+                : ResolveReferenceTypeName(document, modelName, referenceTypeCatalog);
+
+            if (answer.Outcome == WotReferenceTypeOutcome.Resolved)
+            {
+                WotResolvedReferenceType resolved = answer.Single;
                 if (canonicalDefinitive is not null &&
-                    !string.Equals(
-                        resolvedName,
-                        canonicalDefinitive,
-                        StringComparison.Ordinal))
+                    !AreSameExpandedNodeId(resolved.NodeId, canonicalDefinitive))
                 {
                     diagnostics.Add(new WotDiagnostic(
                         WotDiagnosticSeverity.Error,
                         WotDiagnosticCode.ModelConceptConflict,
                         $"The ReferenceType model name '{modelName}' resolves to " +
-                        $"'{resolvedName}' but uav:refId is '{definitive}'.",
+                        $"'{resolved.NodeId}' but uav:refId is '{definitive}'.",
                         new WotLocation(reference: modelName)));
                     referenceType = string.Empty;
                     return false;
                 }
-                referenceType = resolvedName;
+                referenceType = resolved.NodeId;
+                isForward = resolved.IsForward;
                 return true;
+            }
+
+            if (answer.Outcome == WotReferenceTypeOutcome.Ambiguous)
+            {
+                return TrySettleAmbiguousReferenceType(
+                    answer,
+                    modelName!,
+                    definitive,
+                    canonicalDefinitive,
+                    diagnostics,
+                    out referenceType,
+                    out isForward);
+            }
+
+            if (answer.Outcome == WotReferenceTypeOutcome.NotAReferenceType)
+            {
+                diagnostics.Add(new WotDiagnostic(
+                    WotDiagnosticSeverity.Error,
+                    WotDiagnosticCode.ReferenceTypeNodeClassInvalid,
+                    $"The relation '{modelName}' names a Node that is not a " +
+                    "ReferenceType, so it cannot type a relation.",
+                    new WotLocation(reference: modelName)));
+                referenceType = string.Empty;
+                return false;
             }
 
             if (canonicalDefinitive is not null)
             {
+                // uav:refId is definitive and names the ReferenceType only, not
+                // a direction, so the reference reads forward. This is the
+                // behaviour a document authored against release 1.0 relies on.
                 referenceType = canonicalDefinitive;
                 return true;
             }
@@ -1513,11 +1982,11 @@ namespace Opc.Ua.Wot
             if (modelName is not null)
             {
                 diagnostics.Add(new WotDiagnostic(
-                    WotDiagnosticSeverity.Error,
-                    WotDiagnosticCode.ModelConceptUnresolved,
-                    $"The ReferenceType relation '{modelName}' could not be " +
-                    "resolved and has no ExpandedNodeId fallback.",
-                    new WotLocation(reference: modelName)));
+                WotDiagnosticSeverity.Error,
+                WotDiagnosticCode.ModelConceptUnresolved,
+                $"The ReferenceType relation '{modelName}' could not be " +
+                "resolved and has no ExpandedNodeId fallback.",
+                new WotLocation(reference: modelName)));
                 referenceType = string.Empty;
                 return false;
             }
@@ -1540,27 +2009,146 @@ namespace Opc.Ua.Wot
             return IsNodeId(referenceType) ? referenceType : null;
         }
 
-        private static bool TryResolveReferenceTypeName(
-            WotDocument document,
+        /// <summary>
+        /// Settles a relation whose name the local context matched more than
+        /// once.
+        /// </summary>
+        /// <remarks>
+        /// WoT Binding Section 6.2 makes <c>uav:refId</c> required exactly
+        /// here, and it settles the name by identifying which of the candidates
+        /// was meant - which also fixes the direction, because each candidate
+        /// carries the name that matched it. An identifier naming none of them
+        /// is a conflict, and no identifier at all leaves the relation
+        /// ambiguous; neither is repaired by choosing one.
+        /// </remarks>
+        private static bool TrySettleAmbiguousReferenceType(
+            WotReferenceTypeAnswer answer,
             string modelName,
-            out string referenceType)
+            string? definitive,
+            string? canonicalDefinitive,
+            List<WotDiagnostic> diagnostics,
+            out string referenceType,
+            out bool isForward)
         {
             referenceType = string.Empty;
+            isForward = true;
+            if (canonicalDefinitive is null)
+            {
+                diagnostics.Add(new WotDiagnostic(
+                    WotDiagnosticSeverity.Error,
+                    WotDiagnosticCode.ReferenceTypeAmbiguous,
+                    $"The ReferenceType relation '{modelName}' resolves to " +
+                    $"{answer.Matches.Count} ReferenceTypes and carries no " +
+                    "uav:refId to settle it (WoT Binding Section 6.2).",
+                    new WotLocation(reference: modelName)));
+                return false;
+            }
+            foreach (WotResolvedReferenceType candidate in answer.Matches)
+            {
+                if (AreSameExpandedNodeId(candidate.NodeId, canonicalDefinitive))
+                {
+                    referenceType = candidate.NodeId;
+                    isForward = candidate.IsForward;
+                    return true;
+                }
+            }
+            diagnostics.Add(new WotDiagnostic(
+                WotDiagnosticSeverity.Error,
+                WotDiagnosticCode.ModelConceptConflict,
+                $"The ReferenceType model name '{modelName}' resolves to " +
+                $"{answer.Matches.Count} ReferenceTypes, none of which is " +
+                $"the uav:refId '{definitive}'.",
+                new WotLocation(reference: modelName)));
+            return false;
+        }
+
+        /// <summary>
+        /// Restores the second name a projected ReferenceType answers to.
+        /// </summary>
+        /// <remarks>
+        /// OPC 10000-3 gives a ReferenceType an InverseName and a Symmetric
+        /// flag, and WoT Binding Section 5.1.2 makes the InverseName the name a
+        /// link <c>rel</c> uses for the reverse direction. Restoring them is
+        /// what makes a ReferenceType document a complete description of the
+        /// Node - and what lets a local context built from a set of documents
+        /// answer an inverse relation of a companion model.
+        /// </remarks>
+        private static void ApplyReferenceTypeNames(
+            UANode rootNode,
+            WotDocument document,
+            string? declaredLocale)
+        {
+            if (rootNode is not UAReferenceType referenceType)
+            {
+                return;
+            }
+            if (document.RootElement.TryGetProperty(
+                    InverseNameTerm, out JsonElement inverseName) &&
+                inverseName.ValueKind == JsonValueKind.String &&
+                inverseName.GetString() is { Length: > 0 } value)
+            {
+                referenceType.InverseName =
+                [
+                    new Export.LocalizedText
+                    {
+                        Locale = declaredLocale ?? string.Empty,
+                        Value = value
+                    }
+                ];
+            }
+            referenceType.Symmetric =
+                document.RootElement.TryGetProperty(SymmetricTerm, out JsonElement symmetric) &&
+                symmetric.ValueKind == JsonValueKind.True;
+        }
+
+        /// <summary>
+        /// Resolves the ReferenceType a compact model name denotes, the
+        /// direction the name expressed, and how definite the answer is.
+        /// </summary>
+        /// <remarks>
+        /// The local context of WoT Binding Section 5.1.5 is consulted first,
+        /// so a companion model's own ReferenceType resolves by name wherever
+        /// the caller supplied one, and the standard base-namespace names are
+        /// the fallback for the reserved <c>ua</c> namespace. Both halves
+        /// resolve a BrowseName <em>and</em> an InverseName: OPC 10000-3 gives
+        /// a ReferenceType two names, and the one an author used is what says
+        /// which way the reference runs. Nothing here is limited to a fixed
+        /// table: any ReferenceType the local context holds resolves by the
+        /// same rules the base-namespace ones do.
+        /// </remarks>
+        private static WotReferenceTypeAnswer ResolveReferenceTypeName(
+            WotDocument document,
+            string modelName,
+            WotReferenceTypeCatalog? referenceTypeCatalog)
+        {
             if (!TrySplitCompactModelName(
                 modelName,
                 out string prefix,
                 out string browseName) ||
                 !TryGetContextNamespace(document, prefix, out string namespaceUri))
             {
-                return false;
+                return WotReferenceTypeAnswer.Unresolved;
             }
-            return string.Equals(
+            if (referenceTypeCatalog is not null &&
+                referenceTypeCatalog.TryGet(modelName, out WotReferenceTypeAnswer answer) &&
+                answer.Outcome != WotReferenceTypeOutcome.Unresolved)
+            {
+                return answer;
+            }
+            if (string.Equals(
                     namespaceUri,
                     WotVocabulary.OpcUaNamespace,
                     StringComparison.Ordinal) &&
-                WotVocabulary.TryGetReferenceTypeNodeId(
+                WotVocabulary.TryResolveReferenceTypeName(
                     browseName,
-                    out referenceType);
+                    out string standard,
+                    out bool isForward))
+            {
+                return WotReferenceTypeAnswer.FromMatches(
+                    new ArrayOf<WotResolvedReferenceType>(
+                        [new WotResolvedReferenceType(standard, browseName, isForward)]));
+            }
+            return WotReferenceTypeAnswer.Unresolved;
         }
 
         private static bool TrySplitCompactModelName(
@@ -1650,7 +2238,8 @@ namespace Opc.Ua.Wot
             WotDocument document,
             string prefix,
             out string namespaceUri)
-        {            if (string.Equals(prefix, "ua", StringComparison.Ordinal))
+        {
+            if (string.Equals(prefix, "ua", StringComparison.Ordinal))
             {
                 namespaceUri = WotVocabulary.OpcUaNamespace;
                 return true;
@@ -1705,6 +2294,7 @@ namespace Opc.Ua.Wot
         /// </summary>
         private static Dictionary<string, string> CollectComponentTypedRefs(
             WotDocument document,
+            WotReferenceTypeCatalog? referenceTypeCatalog,
             List<WotDiagnostic> diagnostics)
         {
             var pins = new Dictionary<string, string>(StringComparer.Ordinal);
@@ -1730,9 +2320,15 @@ namespace Opc.Ua.Wot
                         document,
                         link,
                         rel,
+                        referenceTypeCatalog,
                         diagnostics,
-                        out string refType))
+                        out string refType,
+                        out _))
                 {
+                    // Only the ReferenceType is pinned. Which way the reference
+                    // runs is fixed by the array the target is listed in -
+                    // uav:hasComponent forward, uav:componentOf inverse - so a
+                    // pin never overrides it (WoT Binding Section 5.3).
                     pins[href] = refType;
                 }
             }
@@ -1761,7 +2357,9 @@ namespace Opc.Ua.Wot
         private static void SynthesizeComponentArrays(
             WotDocument document,
             List<Reference> rootReferences,
-            Dictionary<string, string> componentTypedRefs)
+            Dictionary<string, string> componentTypedRefs,
+            UANodeSet nodeSet,
+            List<WotDiagnostic> diagnostics)
         {
             if (document.TryGetUav("hasComponent", out JsonElement hasComponent) &&
                 hasComponent.ValueKind == JsonValueKind.Array)
@@ -1772,7 +2370,10 @@ namespace Opc.Ua.Wot
                     {
                         rootReferences.Add(new Reference
                         {
-                            ReferenceType = ComponentReferenceType(target.GetString(), componentTypedRefs),
+                            ReferenceType = ToNodeSetReferenceType(
+                                ComponentReferenceType(target.GetString(), componentTypedRefs),
+                                nodeSet,
+                                diagnostics),
                             IsForward = true,
                             Value = target.GetString()
                         });
@@ -1788,13 +2389,40 @@ namespace Opc.Ua.Wot
                     {
                         rootReferences.Add(new Reference
                         {
-                            ReferenceType = ComponentReferenceType(target.GetString(), componentTypedRefs),
+                            ReferenceType = ToNodeSetReferenceType(
+                                ComponentReferenceType(target.GetString(), componentTypedRefs),
+                                nodeSet,
+                                diagnostics),
                             IsForward = false,
                             Value = target.GetString()
                         });
                     }
                 }
             }
+        }
+
+        /// <summary>
+        /// Rewrites a resolved ReferenceType into the form a NodeSet may state
+        /// it in.
+        /// </summary>
+        /// <remarks>
+        /// A relation resolves to the portable ExpandedNodeId of WoT Binding
+        /// Section 5.1.1, but a NodeSet2 document states a ReferenceType as a
+        /// NodeSet-local NodeId or as a name it declares in
+        /// <c>&lt;Aliases&gt;</c>, and the importer rejects anything else. A
+        /// standard name such as <c>HasComponent</c> is left alone - the alias
+        /// completion pass declares it - and a portable identifier is resolved
+        /// through the NodeSet's own namespace table, appending the namespace
+        /// when the companion model it names is not yet in it.
+        /// </remarks>
+        private static string ToNodeSetReferenceType(
+            string referenceType,
+            UANodeSet nodeSet,
+            List<WotDiagnostic> diagnostics)
+        {
+            return referenceType.StartsWith("nsu=", StringComparison.Ordinal)
+                ? ToNodeSetNodeId(referenceType, nodeSet, diagnostics)
+                : referenceType;
         }
 
         private static string ComponentReferenceType(
@@ -1817,6 +2445,7 @@ namespace Opc.Ua.Wot
             IWotThingResolver resolver,
             WotResolutionContext context,
             WotThingCatalog thingCatalog,
+            WotReferenceTypeCatalog? referenceTypeCatalog,
             List<WotDiagnostic> diagnostics,
             CancellationToken cancellationToken)
         {
@@ -1829,10 +2458,11 @@ namespace Opc.Ua.Wot
 
             var discoveryDiagnostics = new List<WotDiagnostic>();
             Dictionary<string, string> componentTypedRefs =
-                CollectComponentTypedRefs(document, discoveryDiagnostics);
-            foreach ((string reference, _, _) in EnumerateResolvableThingReferences(
+                CollectComponentTypedRefs(document, referenceTypeCatalog, discoveryDiagnostics);
+            foreach ((string reference, _, _, _) in EnumerateResolvableThingReferences(
                 document,
                 componentTypedRefs,
+                referenceTypeCatalog,
                 discoveryDiagnostics))
             {
                 cancellationToken.ThrowIfCancellationRequested();
@@ -1938,10 +2568,8 @@ namespace Opc.Ua.Wot
         {
             foreach (JsonElement link in document.Links)
             {
-                if (string.Equals(
-                    GetElementString(link, "rel"),
-                    "uav:componentOf",
-                    StringComparison.Ordinal))
+                string? rel = GetElementString(link, "rel");
+                if (rel is not null && IsKnownBindingRelation(rel))
                 {
                     yield return link;
                 }
@@ -2365,69 +2993,6 @@ namespace Opc.Ua.Wot
         }
 
         /// <summary>
-        /// Resolves the EventType a projected event derives from.
-        /// </summary>
-        /// <remarks>
-        /// <para>
-        /// WoT Binding Section 13 projects a Condition notification as an event
-        /// affordance, and the type it derives from is the ConditionType the
-        /// affordance names rather than <c>BaseEventType</c>. Getting this
-        /// wrong would lose the Condition state model entirely: a Client
-        /// browsing the projected type would see none of the Condition fields
-        /// and could not tell an alarm from an ordinary event.
-        /// </para>
-        /// <para>
-        /// Section 13.2 uses the hint-plus-pin pattern of Section 5.3.
-        /// <c>uav:conditionTypeId</c> is definitive and wins; the compact name
-        /// in <c>uav:conditionType</c> is a hint, resolved here for the four
-        /// ConditionTypes Section 13.1 scopes. A name outside that set that
-        /// carries no pin is reported rather than guessed, because deriving
-        /// from the wrong supertype is worse than saying so.
-        /// </para>
-        /// </remarks>
-        private static string ResolveConditionSupertype(
-            WotDocument document,
-            JsonElement eventAffordance,
-            string key,
-            UANodeSet nodeSet,
-            List<WotDiagnostic> diagnostics)
-        {
-            string? pinned = GetElementString(eventAffordance, ConditionTypeIdTerm);
-            if (pinned is not null)
-            {
-                return ToNodeSetNodeId(pinned, nodeSet, diagnostics);
-            }
-
-            string? hint = GetElementString(eventAffordance, ConditionTypeTerm);
-            if (hint is null)
-            {
-                return WotVocabulary.BaseEventType;
-            }
-
-            // §13.2 names the ConditionType with a compact model name, which
-            // §5.1.2 resolves through the document's @context rather than by
-            // its literal prefix - an author may bind a second prefix to the
-            // OPC UA namespace. Only that namespace resolves without a local
-            // context; a companion ConditionType has to be pinned.
-            if (TrySplitCompactModelName(hint, out string prefix, out string local) &&
-                TryGetContextNamespace(document, prefix, out string namespaceUri) &&
-                string.Equals(
-                    namespaceUri, WotVocabulary.OpcUaNamespace, StringComparison.Ordinal) &&
-                WotVocabulary.TryGetConditionTypeNodeId(local, out string nodeId))
-            {
-                return nodeId;
-            }
-
-            diagnostics.Add(new WotDiagnostic(
-                WotDiagnosticSeverity.Error,
-                WotDiagnosticCode.UnresolvedConditionType,
-                $"'{hint}' is not a ConditionType this Binding resolves. Pin it with " +
-                $"'{ConditionTypeIdTerm}' (WoT Binding Section 13.2).",
-                WotLocation.FromPointer("/events/" + key + "/" + ConditionTypeTerm)));
-            return WotVocabulary.BaseEventType;
-        }
-
-        /// <summary>
         /// Reads the definitive type binding a document declares through
         /// <c>ua:HasTypeDefinition</c> links (WoT Binding Section 5.2.1).
         /// </summary>
@@ -2748,6 +3313,15 @@ namespace Opc.Ua.Wot
         /// BaseEventType and therefore projects a UA EventType, annotated with
         /// <c>uav:eventType</c> (WoT Binding Section 5.2).
         /// </summary>
+        /// <remarks>
+        /// The chain is walked through the Nodes the NodeSet holds and stops at
+        /// the first type this Binding knows: a type derived from a standard
+        /// ConditionType projects an EventType whether or not the source
+        /// carried the base NodeSet, because the ConditionTypes of Section 13.1
+        /// all derive from <c>BaseEventType</c> by definition. A chain that
+        /// leaves the NodeSet through an identifier this Binding does not know
+        /// is not guessed at.
+        /// </remarks>
         private static bool IsEventTypeRoot(UANode? root, UANodeSet nodeSet)
         {
             if (root is not UAObjectType)
@@ -2764,7 +3338,8 @@ namespace Opc.Ua.Wot
                 {
                     return false;
                 }
-                if (string.Equals(superType, WotVocabulary.BaseEventType, StringComparison.Ordinal))
+                if (string.Equals(superType, WotVocabulary.BaseEventType, StringComparison.Ordinal) ||
+                    WotVocabulary.TryGetConditionTypeName(superType, out _))
                 {
                     return true;
                 }
@@ -2784,9 +3359,10 @@ namespace Opc.Ua.Wot
             }
             foreach (Reference reference in node.References)
             {
-                if (!reference.IsForward && reference.Value is not null &&
+                if (!reference.IsForward &&
+                    reference.Value is not null &&
                     (string.Equals(reference.ReferenceType, "HasSubtype", StringComparison.Ordinal) ||
-                     string.Equals(reference.ReferenceType, WotVocabulary.HasSubtype, StringComparison.Ordinal)))
+                        string.Equals(reference.ReferenceType, WotVocabulary.HasSubtype, StringComparison.Ordinal)))
                 {
                     return reference.Value;
                 }

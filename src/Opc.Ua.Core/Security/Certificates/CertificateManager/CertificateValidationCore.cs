@@ -1282,15 +1282,21 @@ namespace Opc.Ua
                 return cached;
             }
 
-            // OpenStore itself returns a single cached instance per identifier,
-            // so a benign race here resolves to the same store instance.
+            // OpenStore creates a new caller-owned store instance; a racing
+            // thread may have cached its own instance first, in which case
+            // this one must be disposed.
             ICertificateStore? store = storeIdentifier.OpenStore(m_telemetry);
             if (store == null)
             {
                 return null;
             }
 
-            return m_stores.GetOrAdd(storeIdentifier, store);
+            ICertificateStore added = m_stores.GetOrAdd(storeIdentifier, store);
+            if (!ReferenceEquals(added, store))
+            {
+                store.Dispose();
+            }
+            return added;
         }
 
         /// <summary>

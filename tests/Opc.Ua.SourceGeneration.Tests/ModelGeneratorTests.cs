@@ -142,6 +142,62 @@ namespace Opc.Ua.SourceGeneration
         }
 
         [Test]
+        public void SameDirectoryModelDesignFilesGenerateEveryModelTest()
+        {
+            var options = new AnalyzerOptionsProvider(
+                new Dictionary<string, string>
+                {
+                    ["build_property.ModelSourceGeneratorVersion"] = "v105",
+                    ["build_property.ModelSourceGeneratorExclude"] = "Draft",
+                    ["build_property.ModelSourceGeneratorUseAllowSubtypes"] = "true",
+                    ["build_property.ModelSourceGeneratorOmitFluentApi"] = "true",
+                    ["build_property.ModelSourceGeneratorOmitEventRecords"] = "true"
+                });
+
+            (ImmutableArray<Diagnostic> diagnostics, GeneratorDriverRunResult runResult) =
+                RunGeneratorLeniently(
+                    options,
+                [
+                    EmbeddedText.From("OpcUaGdsModel.xml"),
+                    EmbeddedText.From("OpcUaGdsModel.csv"),
+                    EmbeddedText.From("OpcUaOnboardingModel.xml"),
+                    EmbeddedText.From("OpcUaOnboardingModel.csv")
+                ]);
+
+            Assert.That(
+                diagnostics,
+                Is.Empty,
+                string.Join("\n", diagnostics.Select(diagnostic => diagnostic.ToString())));
+            GeneratorRunResult result = runResult.Results[0];
+            Assert.That(result.Exception, Is.Null);
+            string generated = string.Join(
+                "\n",
+                result.GeneratedSources.Select(source => source.SourceText.ToString()));
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    result.GeneratedSources.Any(source =>
+                        source.HintName == "Opc.Ua.Gds.Identifiers.g.cs"),
+                    Is.True);
+                Assert.That(
+                    result.GeneratedSources.Any(source =>
+                        source.HintName == "Opc.Ua.Onboarding.Identifiers.g.cs"),
+                    Is.True);
+                Assert.That(
+                    generated,
+                    Does.Contain("public const uint ApplicationRecordDataType = 1;"));
+                Assert.That(
+                    generated,
+                    Does.Contain("public const uint DeviceRegistrar = 1344;"));
+                Assert.That(
+                    generated,
+                    Does.Contain(
+                        "global::Opc.Ua.ArrayOf<global::Opc.Ua.ByteString> tickets"));
+            });
+        }
+
+        [Test]
         public void GenerateAndCompileDemoModelWotNativeProjectionTest()
         {
             var generator = new ModelSourceGenerator();

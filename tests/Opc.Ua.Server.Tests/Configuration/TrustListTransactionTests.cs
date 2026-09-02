@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
@@ -58,6 +59,7 @@ namespace Opc.Ua.Server.Tests
         private CertificateStoreIdentifier m_trustedStore;
         private CertificateStoreIdentifier m_issuerStore;
         private PushConfigurationTransactionCoordinator m_coordinator;
+        private readonly List<TrustList> m_createdTrustLists = [];
 
         [SetUp]
         public void SetUp()
@@ -75,6 +77,13 @@ namespace Opc.Ua.Server.Tests
         [TearDown]
         public void TearDown()
         {
+            // dispose the store instances the created TrustLists hold open
+            foreach (TrustList trustList in m_createdTrustLists)
+            {
+                trustList.Dispose();
+            }
+            m_createdTrustLists.Clear();
+
             if (Directory.Exists(m_basePath))
             {
                 Directory.Delete(m_basePath, true);
@@ -401,13 +410,13 @@ namespace Opc.Ua.Server.Tests
         public void LegacyConstructorWithoutCoordinatorAppliesCloseAndUpdateImmediately()
         {
             TrustListState node = CreateNode();
-            var trustList = new TrustList(
+            TrustList trustList = Track(new TrustList(
                 node,
                 m_trustedStore,
                 m_issuerStore,
                 AllowAccess,
                 AllowAccess,
-                m_telemetry);
+                m_telemetry));
 
             Assert.That(trustList, Is.Not.Null);
             // The pre-existing (non-transactional) constructor overload
@@ -438,14 +447,20 @@ namespace Opc.Ua.Server.Tests
 
         private TrustList CreateTransactionalTrustList(TrustListState node)
         {
-            return new TrustList(
+            return Track(new TrustList(
                 node,
                 m_trustedStore,
                 m_issuerStore,
                 AllowAccess,
                 AllowAccess,
                 m_telemetry,
-                m_coordinator);
+                m_coordinator));
+        }
+
+        private TrustList Track(TrustList trustList)
+        {
+            m_createdTrustLists.Add(trustList);
+            return trustList;
         }
 
         private static void AllowAccess(ISystemContext context, CertificateStoreIdentifier store)

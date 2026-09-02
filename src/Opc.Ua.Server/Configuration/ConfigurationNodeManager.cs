@@ -383,6 +383,14 @@ namespace Opc.Ua.Server
                 // running stops at its next await once the token trips.
                 m_backgroundWork.Dispose();
 
+                // Dispose the TrustList handlers and the rejected store
+                // instance held open for reuse across operations.
+                foreach (ServerCertificateGroup certGroup in m_certificateGroups)
+                {
+                    (certGroup.Node?.TrustList?.Handle as IDisposable)?.Dispose();
+                }
+                Interlocked.Exchange(ref m_rejectedStoreInstance, null)?.Dispose();
+
                 if (FindPredefinedNode<NamespacesState>(ObjectIds.Server_Namespaces)
                     is NamespacesState serverNamespacesNode)
                 {
@@ -425,23 +433,6 @@ namespace Opc.Ua.Server
                 m_shutdownCts.Dispose();
 
                 StopAlarmMonitoring();
-
-                // INTERIM until the CertificateStoreIdentifier.OpenStore
-                // ownership redesign lands (see the PR #4357 review
-                // discussion): release the store instances cached on the
-                // group identifiers through the EXISTING contract -
-                // disposing the store OpenStore returns disposes the cached
-                // instance, freeing the parsed certificates it deliberately
-                // retains across Close(). Without this the assembly-level
-                // leak gates trip at server shutdown. The TrustList handlers
-                // share the same identifier instances.
-                foreach (ServerCertificateGroup certGroup in m_certificateGroups)
-                {
-                    DisposeCachedStoreInterim(certGroup.TrustedStore);
-                    DisposeCachedStoreInterim(certGroup.IssuerStore);
-                }
-
-                DisposeCachedStoreInterim(m_rejectedStore);
 
                 // Disposed LAST: a deferred apply that raced past the
                 // cancellation above may still write the self-notification
@@ -2159,7 +2150,7 @@ namespace Opc.Ua.Server
 
                 ServerCertificateGroup certificateGroup = VerifyGroupAndTypeId(
                     certificateGroupId,
-                    certificateTypeId)!;
+                    certificateTypeId);
 
                 // OPC 10000-12 §7.10.5: "The Purpose of the associated
                 // CertificateGroup determines the validation rules for
@@ -2877,7 +2868,7 @@ namespace Opc.Ua.Server
 
             ServerCertificateGroup certificateGroup = VerifyGroupAndTypeId(
                 certificateGroupId,
-                certificateTypeId)!;
+                certificateTypeId);
 
             // merge DNS names and IP addresses into one domain list. OPC
             // 10000-12 §7.10.6 requires at least one non-empty entry
@@ -3138,7 +3129,7 @@ namespace Opc.Ua.Server
 
             ServerCertificateGroup certificateGroup = VerifyGroupAndTypeId(
                 certificateGroupId,
-                certificateTypeId)!;
+                certificateTypeId);
 
             NodeId sessionId = GetSessionId(context);
             await AcquireTransactionOwnershipAsync(sessionId, cancellationToken).ConfigureAwait(false);
@@ -3256,7 +3247,7 @@ namespace Opc.Ua.Server
 
             ServerCertificateGroup certificateGroup = VerifyGroupAndTypeId(
                 certificateGroupId,
-                certificateTypeId)!;
+                certificateTypeId);
 
             // OPC 10000-12 §7.10.10: when a new private key is regenerated the
             // caller must supply at least 32 bytes of additional entropy in
@@ -3829,33 +3820,6 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Releases the store instance cached on the identifier by opening
-        /// and disposing it - the existing
-        /// <see cref="CertificateStoreIdentifier.OpenStore()"/> contract
-        /// returns the cached instance, so its disposal frees the
-        /// parsed-certificate cache retained across
-        /// <see cref="ICertificateStore.Close"/>. Interim shutdown cleanup
-        /// until the store-ownership redesign replaces it; failures are
-        /// swallowed because nothing can act on them during dispose.
-        /// </summary>
-        private void DisposeCachedStoreInterim(CertificateStoreIdentifier? storeIdentifier)
-        {
-            if (storeIdentifier == null)
-            {
-                return;
-            }
-
-            try
-            {
-                storeIdentifier.OpenStore(Server.Telemetry)?.Dispose();
-            }
-            catch (Exception)
-            {
-                // Best-effort release during shutdown.
-            }
-        }
-
-        /// <summary>
         /// Builds the certificate group's private store identifier from the
         /// configured trust list, preserving the configured
         /// <see cref="CertificateStoreIdentifier.StoreType"/>. Re-inferring
@@ -4141,26 +4105,52 @@ namespace Opc.Ua.Server
                 return StatusCodes.Good;
             }
 
-            ICertificateStore store = m_rejectedStore.OpenStore(Server.Telemetry);
-            try
+            ICertificateStore store = GetRejectedStore();
+            using CertificateCollection collection = store.EnumerateAsync()
+                .ConfigureAwait(false)
+                .GetAwaiter()
+                .GetResult();
+            var rawList = new List<ByteString>();
+            foreach (Certificate cert in collection)
             {
-                if (store != null)
-                {
-                    using CertificateCollection collection = store.EnumerateAsync().Result;
-                    var rawList = new List<ByteString>();
-                    foreach (Certificate cert in collection)
-                    {
-                        rawList.Add(cert.RawData.ToByteString());
-                    }
-                    certificates = rawList.ToArrayOf();
-                }
+                rawList.Add(cert.RawData.ToByteString());
             }
-            finally
-            {
-                store?.Close();
-            }
+            certificates = rawList.ToArrayOf();
 
             return StatusCodes.Good;
+        }
+
+        /// <summary>
+        /// Returns the rejected-certificate store instance, opening it on
+        /// first use. The instance is held open for the node manager's
+        /// lifetime (its parsed-certificate cache is reused across reads,
+        /// refreshed by the store itself when the backing data changes) and
+        /// disposed by <see cref="Dispose(bool)"/>.
+        /// </summary>
+        /// <exception cref="ServiceResultException">
+        /// The store could not be opened.
+        /// </exception>
+        private ICertificateStore GetRejectedStore()
+        {
+            ICertificateStore? store = Volatile.Read(ref m_rejectedStoreInstance);
+            if (store != null)
+            {
+                return store;
+            }
+
+            ICertificateStore created = m_rejectedStore!.OpenStore(Server.Telemetry) ??
+                throw ServiceResultException.ConfigurationError(
+                    "Failed to open rejected certificate store.");
+            ICertificateStore? current = Interlocked.CompareExchange(
+                ref m_rejectedStoreInstance,
+                created,
+                null);
+            if (current != null)
+            {
+                created.Dispose();
+                return current;
+            }
+            return created;
         }
 
         private ServiceResult GetCertificates(
@@ -4175,12 +4165,7 @@ namespace Opc.Ua.Server
             // authenticated SecureChannel is sufficient.
             HasApplicationSecureAdminAccess(context, requireEncryptedChannel: false);
 
-            ServerCertificateGroup certificateGroup =
-                m_certificateGroups.FirstOrDefault(
-                    group => Utils.IsEqual(group.NodeId, certificateGroupId))
-                ?? throw new ServiceResultException(
-                    StatusCodes.BadInvalidArgument,
-                    "Certificate group invalid.");
+            ServerCertificateGroup certificateGroup = VerifyGroupId(certificateGroupId);
 
             // Look up each certificate via the manager registry so the
             // returned blobs reflect the currently-active cert (the
@@ -4234,7 +4219,22 @@ namespace Opc.Ua.Server
             return (occupiedTypes.ToArrayOf(), occupiedCerts.ToArrayOf());
         }
 
-        private ServerCertificateGroup? VerifyGroupAndTypeId(
+        private ServerCertificateGroup VerifyGroupId(NodeId certificateGroupId)
+        {
+            if (certificateGroupId.IsNull)
+            {
+                certificateGroupId = ObjectIds
+                    .ServerConfiguration_CertificateGroups_DefaultApplicationGroup;
+            }
+
+            return m_certificateGroups.FirstOrDefault(
+                group => Utils.IsEqual(group.NodeId, certificateGroupId))
+                ?? throw new ServiceResultException(
+                    StatusCodes.BadInvalidArgument,
+                    "Certificate group invalid.");
+        }
+
+        private ServerCertificateGroup VerifyGroupAndTypeId(
             NodeId certificateGroupId,
             NodeId certificateTypeId)
         {
@@ -4246,19 +4246,7 @@ namespace Opc.Ua.Server
                     "Certificate type not specified.");
             }
 
-            // verify requested certificate group
-            if (certificateGroupId.IsNull)
-            {
-                certificateGroupId = ObjectIds
-                    .ServerConfiguration_CertificateGroups_DefaultApplicationGroup;
-            }
-
-            ServerCertificateGroup certificateGroup =
-                m_certificateGroups.FirstOrDefault(
-                    group => Utils.IsEqual(group.NodeId, certificateGroupId))
-                ?? throw new ServiceResultException(
-                    StatusCodes.BadInvalidArgument,
-                    "Certificate group invalid.");
+            ServerCertificateGroup certificateGroup = VerifyGroupId(certificateGroupId);
 
             // verify certificate type
             bool foundCertType = certificateGroup.CertificateTypes
@@ -4793,6 +4781,7 @@ namespace Opc.Ua.Server
         private ApplicationConfigurationFile? m_configurationFile;
         private readonly List<ServerCertificateGroup> m_certificateGroups;
         private readonly CertificateStoreIdentifier? m_rejectedStore;
+        private ICertificateStore? m_rejectedStoreInstance;
         private ITimer? m_alarmTimer;
         private readonly List<AlarmMonitorEntry> m_alarmMonitors = [];
         private readonly Lock m_alarmEvaluationLock = new();

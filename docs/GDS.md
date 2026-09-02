@@ -18,9 +18,9 @@ control.
 
 | NuGet Package | Contents |
 |---------------|----------|
-| `Opc.Ua.Gds.Common` | Model types, encodeable types, design files |
-| `Opc.Ua.Gds.Server.Common` | Server-side node managers, providers, authorization |
-| `Opc.Ua.Gds.Client.Common` | Client proxies for GDS, push, KeyCredential, AuthorizationService |
+| `Opc.Ua.Gds.Common` | Part 12 and Part 21 model types, node states, identifiers, encodeable types |
+| `Opc.Ua.Gds.Server.Common` | Server-side node managers, providers, authorization, onboarding ticket-store binding |
+| `Opc.Ua.Gds.Client.Common` | Client proxies for GDS, push, KeyCredential, AuthorizationService, onboarding |
 
 ---
 
@@ -95,6 +95,49 @@ await pushClient.CreateSelfSignedCertificateAsync(
     ObjectTypeIds.RsaSha256ApplicationCertificateType,
     "CN=NewSubject", domainNames);
 ```
+
+### OPC 10000-21 OnboardingClient
+
+`Opc.Ua.Gds.Common` ships the generated `Opc.Ua.Onboarding` model,
+including the well-known `DeviceRegistrar` instance and the typed
+`DeviceRegistrarAdminTypeClient`. `OnboardingClient` is the DI-friendly
+facade for loading and removing encoded tickets:
+
+```csharp
+NodeId registrarId = ExpandedNodeId.ToNodeId(
+    Opc.Ua.Onboarding.ObjectIds.DeviceRegistrar_Administration,
+    session.NamespaceUris);
+
+var onboarding = new OnboardingClient(session, registrarId, telemetry);
+ArrayOf<StatusCode> results = await onboarding.RegisterTicketsAsync(
+[
+    new ByteString(firstTicket),
+    new ByteString(secondTicket)
+]);
+```
+
+The public contract follows Part 21: tickets are
+`ArrayOf<ByteString>` (`EncodedTicket` is a ByteString subtype), and
+the per-ticket results are `ArrayOf<StatusCode>`.
+
+On the server, load the generated model and bind the standard
+administration object to an injected ticket store:
+
+```csharp
+NodeStateCollection nodes = new NodeStateCollection()
+    .AddOpcUaGds(context)
+    .AddOpcUaOnboarding(context);
+DeviceRegistrarState registrar =
+    nodes.OfType<DeviceRegistrarState>().Single();
+
+registrar.Administration!.BindToTicketStore(ticketStore);
+```
+
+The handlers are asynchronous, pass request cancellation to
+`ITicketStore`, and populate the single declared `Results` output.
+See the runnable
+[`samples/Gds` onboarding demo](../samples/Gds/README.md) for a secure
+registrar/client round trip.
 
 ---
 
@@ -497,7 +540,7 @@ Pull Certificate Management moved from §7.6 (1.04) to **§7.9** (v1.05.07); the
 | §7.10.5 | UpdateCertificate | ✅ | `ConfigurationNodeManager.UpdateCertificateAsync` (staged; ApplicationCertificate TrustList validation; supplied issuers ignored for app groups) | `ConfigurationNodeManagerPushTests` (`UpdateCertificateWith*`, `...IgnoresSuppliedIssuerCertificatesAsync`), `PushTest` (`UpdateCertificate*`) |
 | §7.10.6 | CreateSelfSignedCertificate | ✅ | `...CreateSelfSignedCertificateAsync` (occupied slot → `Bad_InvalidState`; subject/SAN/key-size validation) | `ConfigurationNodeManagerPushValidationTests` (`CreateDefaultApplicationCertificate*`, `ValidateKeySize*`), `ConfigurationNodeManagerPushTests` (`CreateSelfSignedCertificate*`) |
 | §7.10.7 | DeleteCertificate | ✅ | `...DeleteCertificateAsync` — empty slot → `Bad_InvalidState`; endpoint-reference check enforced at `ApplyChanges` | `ConfigurationNodeManagerPushTests` (`DeleteCertificate*`, `DeleteCertificateReferencedByEndpointIsRejectedByApplyChangesAsync`, `RotatedCertificateBecomesEndpointReferenced*`) |
-| §7.10.8 | GetCertificates | ✅ | `...GetCertificates` (occupied slots only, aligned pairs) | `ConfigurationNodeManagerPushValidationTests.SelectOccupiedCertificateSlotsOmitsEmptySlotsAndPreservesOrder`, `ConfigurationNodeManagerPushTests.GetCertificates*`, `PushTest.GetCertificatesAsync` |
+| §7.10.8 | GetCertificates | ✅ | `...GetCertificates` (null group → `DefaultApplicationGroup`; occupied slots only, aligned pairs) | `ConfigurationNodeManagerPushValidationTests.SelectOccupiedCertificateSlotsOmitsEmptySlotsAndPreservesOrder`, `ConfigurationNodeManagerPushTests.GetCertificates*`, `PushTest.GetCertificatesAsync` |
 | §7.10.9 | ApplyChanges | ✅ | `...ApplyChanges` (ordered commit + reverse rollback) | `PushConfigurationTransactionCoordinatorTests` (`ApplyChanges*`), `PushTest` (`ApplyChangesAsync`, `ApplyChangesForcesChannelRenegotiateAsync`) |
 | §7.10.10 | CreateSigningRequest | ✅ | `...CreateSigningRequestAsync` (nonce ≥ 32 bytes genuinely mixed in) | `ConfigurationNodeManagerPushTests` (`CreateSigningRequest*`, `...WithRegenerateAndShortNonceThrowsBadInvalidArgument`), `PushTest.CreateSigningRequest*` |
 | §7.10.11 | CancelChanges | ✅ | `...CancelChanges` (discard; `Bad_RequestCancelledByClient` diagnostics) | `PushConfigurationTransactionCoordinatorTests.CancelChanges*`, `ConfigurationNodeManagerPushTests.CancelChanges*` |
@@ -640,7 +683,7 @@ The following optional Part 12 members are **not** implemented (or only partiall
 | `ManagedApplications` / `ApplicationConfigurationType` proxy (§7.10.14–§7.10.16) | ⚠️ partial | `DefaultManagedApplicationsNodeManager` creates the nodes with an `IConfigurationDataStore`; the full GDS-as-proxy update/confirm flow to *remote* managed applications is not complete. |
 | KeyCredential authentication `ProfileUris` — AMQP SASL Plain / MQTT UserName / UA transport UserName (§8, optional CUs) | 🔲 provider-defined | The push binding is implemented; the concrete ProfileUri set advertised is defined by the credential provider, not fixed by the stack. |
 | A & C CertificateExpiration optional CUs — *Comment* / *Confirm* / *Shelving* | 🔲 inherited | Available through the standard OPC 10000-9 condition model on the alarm instances; not separately exercised by the certificate-alarm tests. |
-| Onboarding / OPC 10000-21 device setup interplay with `ResetToServerDefaults` / `InApplicationSetup` (§7.10.13, Annex G) | 🔲 provider-gated | The stack exposes `InApplicationSetup` and defers the reset to `IServerConfigurationResetProvider`; it does not itself implement an OPC 10000-21 onboarding state machine. |
+| Onboarding / OPC 10000-21 device setup interplay with `ResetToServerDefaults` / `InApplicationSetup` (§7.10.13, Annex G) | 🔲 provider-gated | Registrar ticket administration is implemented through `OnboardingClient`, `ITicketStore`, and `BindToTicketStore`; the stack does not itself implement the complete device-facing onboarding state machine. |
 
 ## LDS / LDS-ME (§4–5)
 

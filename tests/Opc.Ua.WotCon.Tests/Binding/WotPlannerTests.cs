@@ -694,11 +694,23 @@ namespace Opc.Ua.WotCon.Tests.Binding
             Assert.That(result.IsSupported, Is.True);
             WotCompiledForm subscribe = result.Entries.First(
                 e => e.Operation == WoTBindingCapabilityEnum.SubscribeEvent);
-            Assert.That(subscribe.Addressing.Metadata["eventFields"], Is.EqualTo("ActiveState/Id|Severity"));
+            WotEventSelection selection = subscribe.EventSelection!;
+            Assert.Multiple(() =>
+            {
+                Assert.That(selection.Origin, Is.EqualTo(WotEventSelectionOrigin.Legacy));
+                Assert.That(
+                    selection.Clauses.ToList().Select(c => c.BrowsePath),
+                    Does.Contain("ActiveState/Id"),
+                    "The superseded spelling adds to the implicit BaseEventType default.");
+                Assert.That(
+                    selection.Clauses.ToList().Count(c => c.BrowsePath == "Severity"),
+                    Is.EqualTo(1),
+                    "A field the default already selects is not selected twice.");
+            });
         }
 
         [Test]
-        public void OpcUaEventWithoutEventFieldsOmitsMetadataKey()
+        public void OpcUaEventWithoutEventFieldsCompilesTheDocumentedDefault()
         {
             var planner = new OpcUaBindingPlanner();
             WotAffordanceForm form = WotBindingTestSupport.Form(
@@ -713,7 +725,13 @@ namespace Opc.Ua.WotCon.Tests.Binding
             Assert.That(result.IsSupported, Is.True);
             WotCompiledForm subscribe = result.Entries.First(
                 e => e.Operation == WoTBindingCapabilityEnum.SubscribeEvent);
-            Assert.That(subscribe.Addressing.Metadata.ContainsKey("eventFields"), Is.False);
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    subscribe.EventSelection!.Origin,
+                    Is.EqualTo(WotEventSelectionOrigin.Default));
+                Assert.That(subscribe.Addressing.Metadata.ContainsKey("eventFields"), Is.False);
+            });
         }
 
         [Test]

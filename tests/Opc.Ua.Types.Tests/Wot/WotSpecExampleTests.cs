@@ -72,6 +72,123 @@ namespace Opc.Ua.Types.Tests.Wot
             }
         }
 
+        /// <summary>
+        /// Runs every published example through the whole reading pipeline:
+        /// parse, strict conformance validation, conversion where the profile
+        /// the document claims requires one, and then serialize, re-read and
+        /// import.
+        /// </summary>
+        /// <remarks>
+        /// These are the specification's own worked documents, so a
+        /// conformance diagnostic on one of them is either a defect here or
+        /// drift in the vendored copy. Both have to be visible, which is why
+        /// this runs the strict mode rather than the permissive one the
+        /// converter defaults to.
+        /// </remarks>
+        [Test]
+        public void EveryPublishedExamplePassesStrictConformanceAndImports()
+        {
+            IReadOnlyList<string> names = ExampleNames();
+            Assert.That(names, Is.Not.Empty, "The example fixtures should be embedded.");
+
+            var converted = new List<string>();
+            var modelled = new List<string>();
+            Assert.Multiple(() =>
+            {
+                foreach (string resource in names)
+                {
+                    string name = ShortName(resource);
+                    using WotDocument document = WotDocument.Parse(ReadExample(name));
+                    var options = new WotNodeSetConverterOptions
+                    {
+                        ConformanceMode = WotConformanceMode.Strict
+                    };
+                    WotConversionResult<UANodeSet> result =
+                        WotNodeSetConverter.ToNodeSetResult(document, options);
+
+                    Assert.That(
+                        result.Diagnostics.Where(IsConformanceDiagnostic).ToList(),
+                        Is.Empty,
+                        $"Example '{name}' should carry no conformance diagnostic:" +
+                        Environment.NewLine + DescribeErrors(result.Diagnostics));
+
+                    if (ClaimsConversion(document))
+                    {
+                        modelled.Add(name);
+                        Assert.That(
+                            result.Value,
+                            Is.Not.Null,
+                            $"Example '{name}' claims a profile that includes WoT-Modeller, so " +
+                            "it has to convert:" + Environment.NewLine +
+                            DescribeErrors(result.Diagnostics));
+                    }
+
+                    if (result.Value is not null && !result.HasErrors)
+                    {
+                        WotNodeSetImportTests.AssertImportable(result.Value, name);
+                        converted.Add(name);
+                    }
+                }
+            });
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    converted,
+                    Has.Count.GreaterThan(names.Count / 2),
+                    "Most published examples are ordinary documents that convert; if only a " +
+                    "handful still do, the pipeline regressed rather than the examples.");
+                Assert.That(
+                    modelled,
+                    Is.Not.Empty,
+                    "At least one example claims a conversion profile, and that claim is what " +
+                    "makes the conversion mandatory rather than optional.");
+            });
+        }
+
+        /// <summary>
+        /// Determines whether a document claims a profile that includes
+        /// <c>WoT-Modeller</c>, which is the profile that obliges a consumer to
+        /// produce OPC UA nodes rather than merely read the document
+        /// (WoT Binding Section 11).
+        /// </summary>
+        private static bool ClaimsConversion(WotDocument document)
+        {
+            if (!document.RootElement.TryGetProperty(
+                    WotBindingConformance.ProfileTerm, out JsonElement profile) ||
+                profile.ValueKind != JsonValueKind.Array)
+            {
+                return false;
+            }
+            var claims = new List<string>();
+            foreach (JsonElement entry in profile.EnumerateArray())
+            {
+                if (entry.ValueKind == JsonValueKind.String)
+                {
+                    claims.Add(entry.GetString()!);
+                }
+            }
+            return WotBindingConformance.ClaimsSatisfy(claims, "WoT-Modeller");
+        }
+
+        private static bool IsConformanceDiagnostic(WotDiagnostic diagnostic)
+        {
+            return diagnostic.Severity == WotDiagnosticSeverity.Error &&
+                diagnostic.Code is
+                    WotDiagnosticCode.EventSelectClauseInvalid or
+                    WotDiagnosticCode.UnknownVocabularyTerm or
+                    WotDiagnosticCode.InvalidBindingVersion or
+                    WotDiagnosticCode.InvalidConformanceClaim or
+                    WotDiagnosticCode.OpaqueObjectInvalid or
+                    WotDiagnosticCode.InvalidSecurityFloor;
+        }
+
+        private static string ShortName(string resource)
+        {
+            int start = resource.IndexOf(ResourcePrefix, StringComparison.Ordinal);
+            return resource[(start + ResourcePrefix.Length)..];
+        }
+
         [Test]
         public void PredictiveMaintenanceExampleIsRecognisedAsAProjection()
         {
@@ -347,17 +464,43 @@ namespace Opc.Ua.Types.Tests.Wot
         /// The specification's own Condition example must remain an accepted
         /// shape as validation of the actionable-event rules evolves.
         /// </summary>
+        /// <remarks>
+        /// The example's event affordance links to the EventType definitions of
+        /// example 27, so it converts against the local document context of
+        /// WoT Binding Section 5.1.5 that holds them.
+        /// </remarks>
         [Test]
-        public void ConditionExampleConvertsWithoutSection13Diagnostics()
+        public async Task ConditionExampleConvertsWithoutSection13DiagnosticsAsync()
+        {
+            using WotDocument document = WotDocument.Parse(ReadExample(ConditionExample));
+
+            WotConversionResult<UANodeSet> result = await WotNodeSetConverter
+                .ToNodeSetResultAsync(document, null, new EmbeddedExampleResolver())
+                .ConfigureAwait(false);
+
+            Assert.That(
+                result.Diagnostics.Where(d => d.Severity == WotDiagnosticSeverity.Error)
+                    .Select(d => d.Message),
+                Is.Empty);
+            Assert.That(result.Diagnostics.Count(IsSection13Diagnostic), Is.Zero);
+        }
+
+        /// <summary>
+        /// The same example converted without a resolver states a selection
+        /// nothing derived, which the synchronous path reports rather than
+        /// materializing an EventType that quietly lost the linked fields.
+        /// </summary>
+        [Test]
+        public void ConditionExampleWithoutAResolverReportsTheUnresolvedSelection()
         {
             using WotDocument document = WotDocument.Parse(ReadExample(ConditionExample));
 
             WotConversionResult<UANodeSet> result = WotNodeSetConverter.ToNodeSetResult(document);
 
             Assert.That(
-                result.Diagnostics.Count(d => d.Severity == WotDiagnosticSeverity.Error),
-                Is.Zero);
-            Assert.That(result.Diagnostics.Count(IsSection13Diagnostic), Is.Zero);
+                result.Diagnostics.Where(d => d.Severity == WotDiagnosticSeverity.Error)
+                    .Select(d => d.Code),
+                Is.EqualTo(new[] { WotDiagnosticCode.EventSelectionUnresolved }));
         }
 
         /// <summary>
@@ -599,7 +742,7 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(state.DataType, Is.EqualTo(machineState.NodeId));
             Assert.That(state.DataType, Does.Not.EqualTo("i=27"));
         }
-        /// <summary>
+
         /// <summary>
         /// A local context holding exactly one ObjectType, so the example
         /// resolves against the type it names.
