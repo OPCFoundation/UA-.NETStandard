@@ -140,7 +140,7 @@ namespace Opc.Ua.Types.Tests.Wot
         public void RoundtripNullSourceThrows()
         {
             Assert.That(
-                () => NodeSetComparer.Roundtrip(null!),
+                () => WotNodeSetRoundtrip.Run(null!),
                 Throws.TypeOf<System.ArgumentNullException>());
         }
 
@@ -152,7 +152,7 @@ namespace Opc.Ua.Types.Tests.Wot
                 PreservationMode = WotNodeSetPreservationMode.Always
             };
 
-            NodeSetRoundtripReport report = NodeSetComparer.Roundtrip(
+            WotNodeSetRoundtripReport report = WotNodeSetRoundtrip.Run(
                 WotTestData.CreateReconstructableNodeSet(),
                 options);
 

@@ -923,7 +923,7 @@ namespace Opc.Ua
                 }
                 finally
                 {
-                    store?.Close();
+                    store?.Dispose();
                 }
             }
             return crl;
@@ -963,7 +963,7 @@ namespace Opc.Ua
                 }
                 finally
                 {
-                    store?.Close();
+                    store?.Dispose();
                 }
             }
             return certificate;

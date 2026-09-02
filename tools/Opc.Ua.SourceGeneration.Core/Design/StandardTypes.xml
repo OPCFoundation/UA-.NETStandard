@@ -8664,7 +8664,7 @@
 
   <!-- Part 21 -->
 
-  <opc:DataType SymbolicName="EncodedTicket" BaseType="String" PartNo="21" />
+  <opc:DataType SymbolicName="EncodedTicket" BaseType="ByteString" PartNo="21" />
 
   <opc:Method SymbolicName="RequestTicketsMethodType">
     <opc:OutputArguments>

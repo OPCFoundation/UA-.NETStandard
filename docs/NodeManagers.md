@@ -1826,6 +1826,25 @@ pump.CreateChild(SystemContext, someBrowseName);        // CreateOrReplace<Child
 await AddPredefinedNodeAsync(SystemContext, pump, cancellationToken);
 ```
 
+The generated factory intentionally returns a graph whose create lifecycle
+has not completed. Node manager registration completes
+`OnBeforeCreate`/`OnAfterCreate` and clears change masks before the graph is
+indexed. The asynchronous registration path performs any required NodeId
+rebasing first, so lifecycle callbacks see the identifiers which enter the
+address space. Synchronous predefined-node registration preserves the
+caller-assigned NodeIds and expects them to be ready. The behavior hook then
+receives a created node. `NodeState.IsCreated` reports whether an individual
+node has completed that lifecycle.
+
+Most callers should configure the graph and then register it as shown above.
+If code must read state established by `OnAfterCreate`, or write state or
+handlers which an `OnAfterCreate` override would replace, call
+`CreateAsPredefinedNode` after assembling the subtree and before that
+ordering-sensitive code. The call is idempotent per node and still completes
+children added since an earlier call. It does not re-run `OnAfterCreate` on
+ancestors which were already created; assemble parent-wired children before
+the parent's first completion, or wire those late children explicitly.
+
 Notes:
 
 * An explicit `browseName` is what marks a *dynamically materialised
@@ -1839,6 +1858,10 @@ Notes:
   `assignInstanceNodeIds: false`: they build declaration subtrees whose
   NodeIds `CreateInstanceOf<Type>` rebases in a single pass afterwards.
   The same parameter is available to you if you need that behaviour.
+* `CreateInstanceOf<Type>` assigns identity but does not call
+  `CreateAsPredefinedNode`. `AddPredefinedNodeAsync`, `AddNodeAsync`, and the
+  synchronous predefined-node registration paths complete the lifecycle
+  automatically.
 * Assignment only happens when the context carries an
   `ISystemContext.NodeIdFactory`. `AsyncCustomNodeManager` supplies one
   that allocates from the manager's namespace; override `New` to derive

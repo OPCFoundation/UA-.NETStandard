@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  *
@@ -28,20 +28,21 @@
  * ======================================================================*/
 
 using System;
-using System.Threading;
-using System.Threading.Tasks;
 using Opc.Ua.Client;
+using Opc.Ua.Onboarding;
 
 namespace Opc.Ua.Gds.Client
 {
     /// <summary>
-    /// Client-side wrapper for the OPC 10000-100 Part 21
-    /// <c>DeviceRegistrarAdminType</c> facet. Calls
-    /// <c>RegisterTickets</c> / <c>UnregisterTickets</c> on the
-    /// server-side registrar and returns the per-ticket status
-    /// codes.
+    /// Client-side wrapper for the OPC 10000-21
+    /// <c>DeviceRegistrarAdminType</c> facet.
     /// </summary>
-    public sealed class OnboardingClient
+    /// <remarks>
+    /// The specification-native <c>RegisterTickets</c> and
+    /// <c>UnregisterTickets</c> methods are inherited from
+    /// <see cref="DeviceRegistrarAdminTypeClient"/>.
+    /// </remarks>
+    public sealed class OnboardingClient : DeviceRegistrarAdminTypeClient
     {
         /// <summary>
         /// Creates a new onboarding client rooted at the supplied
@@ -51,166 +52,73 @@ namespace Opc.Ua.Gds.Client
             ISession session,
             NodeId registrarNodeId,
             ITelemetryContext telemetry)
+            : base(
+                PrepareSession(session),
+                ValidateRegistrarNodeId(registrarNodeId),
+                telemetry ?? throw new ArgumentNullException(nameof(telemetry)))
         {
-            if (session is null)
-            {
-                throw new ArgumentNullException(nameof(session));
-            }
-            if (registrarNodeId.IsNull)
-            {
-                throw new ArgumentException(
-                    "Registrar NodeId is required.", nameof(registrarNodeId));
-            }
-            if (telemetry is null)
-            {
-                throw new ArgumentNullException(nameof(telemetry));
-            }
-            Session = session;
-            RegistrarNodeId = registrarNodeId;
-            Telemetry = telemetry;
         }
 
         /// <summary>
         /// The owning session.
         /// </summary>
-        public ISession Session { get; }
+        public new ISession Session => (ISession)base.Session;
 
         /// <summary>
-        /// The NodeId of the registrar instance.
+        /// The NodeId of the registrar administration instance.
         /// </summary>
-        public NodeId RegistrarNodeId { get; }
+        public NodeId RegistrarNodeId => ObjectId;
 
-        /// <summary>
-        /// Telemetry context.
-        /// </summary>
-        public ITelemetryContext Telemetry { get; }
-
-        /// <summary>
-        /// Invokes <c>RegisterTickets</c>. Returns the per-ticket
-        /// status array reported by the server.
-        /// </summary>
-        /// <exception cref="ArgumentNullException"><paramref name="tickets"/> is <c>null</c>.</exception>
-        public ValueTask<int[]> RegisterTicketsAsync(
-            byte[][] tickets, CancellationToken ct = default)
+        private static ISession PrepareSession(ISession session)
         {
-            if (tickets == null)
+            if (session is null)
             {
-                throw new ArgumentNullException(nameof(tickets));
+                throw new ArgumentNullException(nameof(session));
             }
-            return CallTicketArrayMethodAsync("RegisterTickets", tickets, ct);
+            NamespaceTable messageContextNamespaces =
+                session.MessageContext.NamespaceUris;
+            NamespaceTable sessionNamespaces = session.NamespaceUris;
+            if (!NamespaceTablesMatch(messageContextNamespaces, sessionNamespaces))
+            {
+                messageContextNamespaces.Update(sessionNamespaces.ToArray());
+            }
+            return session;
         }
 
-        /// <summary>
-        /// Invokes <c>UnregisterTickets</c>. Returns the per-ticket
-        /// status array.
-        /// </summary>
-        /// <exception cref="ArgumentNullException"><paramref name="tickets"/> is <c>null</c>.</exception>
-        public ValueTask<int[]> UnregisterTicketsAsync(
-            byte[][] tickets, CancellationToken ct = default)
+        private static bool NamespaceTablesMatch(
+            NamespaceTable first,
+            NamespaceTable second)
         {
-            if (tickets == null)
+            if (ReferenceEquals(first, second))
             {
-                throw new ArgumentNullException(nameof(tickets));
+                return true;
             }
-            return CallTicketArrayMethodAsync("UnregisterTickets", tickets, ct);
-        }
-
-        private async ValueTask<int[]> CallTicketArrayMethodAsync(
-            string methodBrowseName,
-            byte[][] tickets,
-            CancellationToken ct)
-        {
-            NodeId methodId = await ResolveMethodAsync(methodBrowseName, ct)
-                .ConfigureAwait(false);
-
-            var bs = new ByteString[tickets.Length];
-            for (int i = 0; i < tickets.Length; i++)
+            if (first.Count != second.Count)
             {
-                bs[i] = new ByteString(tickets[i] ?? []);
+                return false;
             }
-
-            var request = new CallMethodRequest
+            for (int i = 0; i < first.Count; i++)
             {
-                ObjectId = RegistrarNodeId,
-                MethodId = methodId,
-                InputArguments =
-                    new Variant[] { new(bs.ToArrayOf()) }.ToArrayOf()
-            };
-
-            CallResponse response = await Session
-                .CallAsync(
-                    requestHeader: null,
-                    methodsToCall: new[] { request }.ToArrayOf(),
-                    ct: ct)
-                .ConfigureAwait(false);
-
-            if (response.Results.Count == 0)
-            {
-                throw new ServiceResultException(
-                    StatusCodes.BadUnexpectedError,
-                    "Registrar call returned no results.");
-            }
-
-            CallMethodResult result = response.Results[0];
-            if (StatusCode.IsBad(result.StatusCode))
-            {
-                throw new ServiceResultException(
-                    result.StatusCode,
-                    $"Registrar call returned bad status {result.StatusCode}.");
-            }
-
-            if (result.OutputArguments.Count == 0)
-
-            {
-                return [];
-            }
-            object? boxed = result.OutputArguments[0].AsBoxedObject();
-            return boxed switch
-            {
-                int[] arr => arr,
-                ArrayOf<int> ai => ai.ToArray() ?? [],
-                _ => []
-            };
-        }
-
-        private async ValueTask<NodeId> ResolveMethodAsync(
-            string browseName, CancellationToken ct)
-        {
-            var path = new BrowsePath
-            {
-                StartingNode = RegistrarNodeId,
-                RelativePath = new RelativePath
+                if (!string.Equals(
+                    first.GetString((uint)i),
+                    second.GetString((uint)i),
+                    StringComparison.Ordinal))
                 {
-                    Elements = new[]
-                    {
-                        new RelativePathElement
-                        {
-                            ReferenceTypeId = ReferenceTypeIds.HasComponent,
-                            IsInverse = false,
-                            IncludeSubtypes = true,
-                            TargetName = new QualifiedName(browseName)
-                        }
-                    }
+                    return false;
                 }
-            };
-
-            TranslateBrowsePathsToNodeIdsResponse translate = await Session
-                .TranslateBrowsePathsToNodeIdsAsync(
-                    null, new[] { path }.ToArrayOf(), ct)
-                .ConfigureAwait(false);
-
-            if (translate.Results.Count == 0 ||
-                StatusCode.IsBad(translate.Results[0].StatusCode) ||
-                translate.Results[0].Targets.Count == 0)
-            {
-                throw new ServiceResultException(
-                    StatusCodes.BadNotFound,
-                    $"Could not resolve method '{browseName}' under registrar.");
             }
+            return true;
+        }
 
-            return ExpandedNodeId.ToNodeId(
-                translate.Results[0].Targets[0].TargetId,
-                Session.NamespaceUris);
+        private static NodeId ValidateRegistrarNodeId(NodeId registrarNodeId)
+        {
+            if (registrarNodeId.IsNull)
+            {
+                throw new ArgumentException(
+                    "Registrar NodeId is required.",
+                    nameof(registrarNodeId));
+            }
+            return registrarNodeId;
         }
     }
 }

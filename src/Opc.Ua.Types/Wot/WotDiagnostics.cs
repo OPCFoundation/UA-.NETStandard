@@ -215,9 +215,12 @@ namespace Opc.Ua.Wot
         NonAbsoluteIri = 6007,
 
         /// <summary>
-        /// A <c>uav:unitProperty</c> value was not a non-empty RFC 6901 JSON
-        /// Pointer resolving, within the same document, to a string-valued
-        /// property (WoT Binding Section 6.5).
+        /// A <c>uav:unitProperty</c> value was not a canonical RFC 6901 JSON
+        /// Pointer of the form <c>/properties/&lt;name&gt;</c> naming a sibling
+        /// string-valued property affordance of the same document (WoT Binding
+        /// Sections 6.4 and 7). The OPC UA fact it records is an
+        /// <c>EngineeringUnits</c> Property Node of its own, so a pointer into
+        /// the annotated affordance names nothing that exists.
         /// </summary>
         InvalidUnitPointer = 6008,
 
@@ -356,7 +359,277 @@ namespace Opc.Ua.Wot
         /// document, an existing AddressSpace Node, or the Thing Model
         /// projection root (WoT Connectivity Section 7.3).
         /// </summary>
-        UnresolvedParentPlacement = 6027
+        UnresolvedParentPlacement = 6027,
+
+        /// <summary>
+        /// A projection document annotates a declared affordance with a member
+        /// outside the closed set WoT Binding Section 12.5 admits. A projection
+        /// <em>declares</em> affordances and does not define them, so an
+        /// annotation may restate presentation and semantics - <c>title</c>,
+        /// <c>titles</c>, <c>description</c>, <c>descriptions</c>, additional
+        /// <c>@type</c> values, <c>uav:semanticId</c> and <c>uav:metadata</c>,
+        /// plus <c>forms</c> and <c>security</c> where the source is routed
+        /// through the projection - but never the source's schema. Merging a
+        /// restated <c>type</c>, <c>unit</c>, <c>minimum</c>, <c>maximum</c> or
+        /// <c>enum</c> would silently override what the source says about the
+        /// Node, which is the one thing the clause forbids.
+        /// </summary>
+        ProjectionAnnotationNotPermitted = 6028,
+
+        /// <summary>
+        /// An affordance carries <c>uav:severity</c> outside the range OPC
+        /// 10000-5 defines for <c>BaseEventType.Severity</c>, or on an
+        /// affordance that is not an event (WoT Binding Sections 6.6 and 7).
+        /// The value is rejected rather than clamped: a clamped severity is a
+        /// number the author never wrote, and no later reader could tell it
+        /// from an authored one.
+        /// </summary>
+        InvalidEventSeverity = 6029,
+
+        /// <summary>
+        /// An action's <c>input</c> or <c>output</c> DataSchema declares more
+        /// than one member but states no order for them. OPC UA Method
+        /// arguments are positional, and RFC 8259 gives JSON object members no
+        /// order, so enumeration order would make the argument list depend on
+        /// how the document happens to be serialized. The schema states
+        /// <c>uav:fieldOrder</c> (WoT Binding Section 6.11.4) or the order has
+        /// to follow from the Condition Method the action invokes; otherwise
+        /// the arguments are left to preservation and reported here.
+        /// </summary>
+        MethodArgumentOrderAmbiguous = 6030,
+
+        /// <summary>
+        /// An action's <c>input</c> or <c>output</c> member is not a DataSchema
+        /// this Binding can map to an <c>Argument</c> list - it is not a JSON
+        /// object, or its <c>uav:fieldOrder</c> and <c>properties</c> disagree.
+        /// The member is carried unchanged by preservation rather than dropped.
+        /// </summary>
+        MethodArgumentSchemaInvalid = 6031,
+
+        /// <summary>
+        /// An event affordance states <c>uav:conditionType</c> and
+        /// <c>uav:conditionTypeId</c> that name different ConditionTypes (WoT
+        /// Binding Section 13.2). The pin is the definitive identity of
+        /// <em>the same</em> type the compact name reads, so a disagreement is
+        /// a contradiction rather than a precedence question: honouring either
+        /// one would silently discard what the other says.
+        /// </summary>
+        ConditionTypeConflict = 6032,
+
+        /// <summary>
+        /// A <c>uav:conditionAction</c> names a Condition Method the
+        /// ConditionType of the event it acts on does not declare - an
+        /// <c>Acknowledge</c> or <c>Confirm</c> against a plain
+        /// <c>ua:ConditionType</c>, which OPC 10000-9 declares on
+        /// <c>AcknowledgeableConditionType</c> instead (WoT Binding Sections
+        /// 13.1 and 13.4). The pairing is rejected rather than materialized
+        /// against a Method the projected type does not have.
+        /// </summary>
+        ConditionActionNotDeclared = 6033,
+
+        /// <summary>
+        /// A member of an event affordance's <c>data</c> object is not a
+        /// DataSchema this Binding can materialize as an EventType field - it
+        /// is not a JSON object, or it collides with the BrowseName of a field
+        /// already declared. The member is carried unchanged by preservation
+        /// rather than dropped.
+        /// </summary>
+        EventFieldInvalid = 6034,
+
+        /// <summary>
+        /// A NodeSet declares a Condition Method - <c>Acknowledge</c>,
+        /// <c>Confirm</c>, <c>AddComment</c>, <c>Enable</c> or
+        /// <c>Disable</c> - but the document projects no single event
+        /// affordance carrying <c>uav:conditionType</c> for it to act on, so
+        /// <c>uav:actsOn</c> cannot be resolved (WoT Binding Section 13.4). The
+        /// Method is still projected as an action; only the Condition pairing
+        /// is left unstated, because naming an arbitrary one of several
+        /// candidate events would invent a relation the source does not have.
+        /// </summary>
+        ConditionActionTargetUnresolved = 6035,
+
+        /// <summary>
+        /// A <c>uav:valueRank</c> is not an integer, or is below <c>-3</c>,
+        /// or a <c>uav:arrayDimensions</c> list contradicts it (WoT Binding
+        /// Section 7). OPC 10000-3 gives ArrayDimensions one bound per
+        /// dimension, so its length is the rank by construction and only a
+        /// fixed rank of at least one admits it at all. The value is rejected
+        /// rather than collapsed to a scalar, because a rank of <c>-2</c>,
+        /// <c>-3</c> or <c>0</c> says something a scalar does not.
+        /// </summary>
+        InvalidValueRank = 6036,
+
+        /// <summary>
+        /// A range is not a range: <c>minimum</c> exceeds <c>maximum</c>, a
+        /// <c>uav:instrumentRange</c> is not an object carrying two numbers,
+        /// or the engineering range the DataSchema states is not contained in
+        /// the instrument range (WoT Binding Sections 6.4.1 and 7). An
+        /// engineering range outside what the instrument can measure is not a
+        /// fact about any instrument, so it is reported rather than narrowed.
+        /// </summary>
+        InvalidRangeValue = 6037,
+
+        /// <summary>
+        /// A <c>uav:engineeringUnits</c> object does not carry the
+        /// <c>namespaceUri</c>, integer <c>unitId</c> and <c>displayName</c>
+        /// that WoT Binding Section 6.4.1 requires of the readable
+        /// <c>EUInformation</c> preservation. A display string alone is lossy,
+        /// because the authority's machine-readable UnitId cannot be recovered
+        /// from it, so an incomplete object is rejected rather than materialized
+        /// as a unit identity it never stated.
+        /// </summary>
+        InvalidEngineeringUnits = 6038,
+
+        /// <summary>
+        /// A document carries <c>titles</c> without <c>title</c>, or
+        /// <c>descriptions</c> without <c>description</c>, or the singular
+        /// member disagrees with the plural member's entry for the document's
+        /// default locale, or that entry is missing (WoT Binding Section
+        /// 9.1.1). Restating one value in two places is only safe while the two
+        /// agree.
+        /// </summary>
+        InvalidLocalizedText = 6039,
+
+        /// <summary>
+        /// A link <c>rel</c> names a ReferenceType the WoT Binding Section
+        /// 5.1.5 local context holds more than once — the same spelling is one
+        /// ReferenceType's BrowseName and another's InverseName, say — and the
+        /// link carries no <c>uav:refId</c> to settle it. Section 6.2 makes
+        /// <c>uav:refId</c> required exactly when lookup is ambiguous, so
+        /// picking one of the candidates would assert a relation the document
+        /// never chose.
+        /// </summary>
+        ReferenceTypeAmbiguous = 6040,
+
+        /// <summary>
+        /// A link <c>rel</c> or <c>uav:refId</c> names a Node the local
+        /// context holds, but that Node is not a ReferenceType (WoT Binding
+        /// Sections 5.1.2 and 6.2). A relation may only be typed by a
+        /// ReferenceType, so the reference is reported rather than created
+        /// with some other type in its place.
+        /// </summary>
+        ReferenceTypeNodeClassInvalid = 6041,
+
+        /// <summary>
+        /// An event field selection violates WoT Binding Sections 6.1 and 7:
+        /// a <c>uav:eventSelectClauses</c> list is empty, sits somewhere other
+        /// than directly on an event affordance, repeats a clause, carries a
+        /// member beyond <c>tm:ref</c> and <c>uav:browsePath</c> — an
+        /// <c>EventFilter</c> <c>WhereClause</c> among them, which this
+        /// Binding deliberately does not express — or anchors a clause with an
+        /// absolute path; or an EventType reference does not resolve, names a
+        /// target that is not an EventType definition, names one that declares
+        /// no portable identity, no object <c>data</c> or no field order, or
+        /// the overlaid selection materializes two clauses into one
+        /// <c>data</c> member.
+        /// </summary>
+        EventSelectClauseInvalid = 6042,
+
+        /// <summary>
+        /// A <c>uav:</c> member is not a term of the vocabulary revision this
+        /// library implements (WoT Binding Sections 4.1 and 7). Permissive
+        /// processing never reports this: an unknown member is carried
+        /// unchanged as residue. Strict conformance reports it, because a term
+        /// added by a later revision and a term an author misspelled look
+        /// identical to a consumer that cannot see the revision.
+        /// </summary>
+        UnknownVocabularyTerm = 6043,
+
+        /// <summary>
+        /// A <c>uav:bindingVersion</c> claim is not a
+        /// <c>&lt;major&gt;.&lt;minor&gt;</c> revision string, does not sit at
+        /// the document root, or — under strict conformance only — names a
+        /// published revision this library does not implement (WoT Binding
+        /// Section 4.1).
+        /// </summary>
+        InvalidBindingVersion = 6044,
+
+        /// <summary>
+        /// A <c>uav:profile</c> claim is not a non-empty array of the
+        /// conformance unit and profile names WoT Binding Section 11 defines,
+        /// does not sit at the document root, or — under strict conformance
+        /// with required claims configured — omits a claim the caller
+        /// requires.
+        /// </summary>
+        InvalidConformanceClaim = 6045,
+
+        /// <summary>
+        /// An opaque object (<c>uav:metadata</c> or one of the three
+        /// configuration members) breaks the structural rules of WoT Binding
+        /// Section 6.6: it is not an object, exceeds the size, depth or
+        /// top-level key bounds, or carries a top-level key that is neither an
+        /// absolute IRI nor a compact IRI whose prefix the document's
+        /// <c>@context</c> binds. The contents stay opaque either way; the
+        /// value is always preserved.
+        /// </summary>
+        OpaqueObjectInvalid = 6046,
+
+        /// <summary>
+        /// A <c>uav:minimumSecurity</c> floor breaks WoT Binding Sections 5.7.1
+        /// and 7: it sits on a scheme other than <c>auto</c> or outside
+        /// <c>securityDefinitions</c> altogether, carries a member beyond
+        /// <c>uav:securityMode</c> and <c>uav:securityPolicy</c>, or states a
+        /// mode or policy this Binding does not name.
+        /// </summary>
+        InvalidSecurityFloor = 6047,
+
+        /// <summary>
+        /// A <c>uav:bindingVersion</c> is a well-formed
+        /// <c>&lt;major&gt;.&lt;minor&gt;</c> revision this Binding does not
+        /// publish (WoT Binding Section 4.1). A consumer reports it as
+        /// unsupported, processes the terms it knows and preserves the claim
+        /// unchanged; an authoring validator, which holds a document to a
+        /// published revision, reports it as an error.
+        /// </summary>
+        UnsupportedBindingRevision = 6048,
+
+        /// <summary>
+        /// A <c>uav:profile</c> entry is a well-formed claim naming a
+        /// conformance unit or profile WoT Binding Section 11 does not define
+        /// (Section 4.1). A consumer reports it as unrecognized and preserves
+        /// it, because a later revision defines further units; an authoring
+        /// validator reports it as an error.
+        /// </summary>
+        UnrecognizedConformanceClaim = 6049,
+
+        /// <summary>
+        /// A DataSchema <c>unit</c> member carries a quantity kind rather than
+        /// an engineering unit (WoT Binding Section 6.4). Revision 1.1 forbids
+        /// it, so authoring rejects it; revision 1.0 permitted it, so a
+        /// consumer reports the value as deprecated, preserves it, and never
+        /// invents an engineering unit in its place.
+        /// </summary>
+        QuantityKindInUnit = 6050,
+
+        /// <summary>
+        /// A Thing or affordance <c>@type</c> carries more than one of the
+        /// NodeClass annotations of WoT Binding Section 5.2, or carries
+        /// <c>uav:referenceType</c> or <c>uav:dataType</c> somewhere other than
+        /// the root of a Thing Model. A Node has exactly one NodeClass.
+        /// </summary>
+        NodeClassAnnotationConflict = 6051,
+
+        /// <summary>
+        /// A <c>uav:inverseName</c> or <c>uav:symmetric</c> term breaks
+        /// WoT Binding Section 6.2.1: it sits on a document that does not
+        /// project a ReferenceType Node, or the document states
+        /// <c>uav:symmetric: true</c> together with an inverse name, which
+        /// names a direction a symmetric Reference does not have.
+        /// </summary>
+        ReferenceTypeProjectionInvalid = 6052,
+
+        /// <summary>
+        /// An event affordance states its field selection with <c>tm:ref</c> or
+        /// <c>uav:eventSelectClauses</c> (WoT Binding Section 6.1), and the
+        /// conversion holds no resolved selection for it. An EventType
+        /// definition is a document, so deriving the selection means following
+        /// a document link, which only the asynchronous conversion does. The
+        /// synchronous conversion reports this rather than materializing an
+        /// EventType without the fields the linked definition declares: a type
+        /// that silently lost its fields is indistinguishable from one that
+        /// never had any.
+        /// </summary>
+        EventSelectionUnresolved = 6053
     }
 
     /// <summary>

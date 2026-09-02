@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Threading;
@@ -60,6 +61,7 @@ namespace Opc.Ua.Server.Tests
         private string m_basePath;
         private CertificateStoreIdentifier m_trustedStore;
         private CertificateStoreIdentifier m_issuerStore;
+        private readonly List<TrustList> m_createdTrustLists = [];
 
         [SetUp]
         public void SetUp()
@@ -76,6 +78,13 @@ namespace Opc.Ua.Server.Tests
         [TearDown]
         public void TearDown()
         {
+            // Dispose the store instances the created TrustLists hold open.
+            foreach (TrustList trustList in m_createdTrustLists)
+            {
+                trustList.Dispose();
+            }
+            m_createdTrustLists.Clear();
+
             if (Directory.Exists(m_basePath))
             {
                 Directory.Delete(m_basePath, true);
@@ -1352,6 +1361,201 @@ namespace Opc.Ua.Server.Tests
                 Is.EqualTo((StatusCode)StatusCodes.BadEncodingLimitsExceeded));
         }
 
+        [Test]
+        public void CloseAndUpdateLegacyNotifiesCertificateChangeForCertificates()
+        {
+            TrustListState node = CreateNode();
+            TrustList trustList = CreateTrustList(node);
+            var notifier = new RecordingTrustListChangeNotifier();
+            trustList.SetTrustListChangeNotifier(notifier, TrustListIdentifier.Peers);
+            ISystemContext context = CreateContext(new NodeId(Guid.NewGuid(), 1));
+
+            using Certificate trustedCert = CreateTestCertificate("CN=TrustList Notify Cert");
+
+            uint fileHandle = 0;
+            node.Open.OnCall(
+                context,
+                node.Open,
+                node.NodeId,
+                (int)OpenFileMode.Write | (int)OpenFileMode.EraseExisting,
+                ref fileHandle);
+
+            var trustListData = new TrustListDataType
+            {
+                SpecifiedLists = (uint)TrustListMasks.TrustedCertificates
+            };
+            ArrayOf<ByteString> trustedCertificates = new ByteString[] { trustedCert.RawData.ToByteString() };
+            trustListData.TrustedCertificates = trustListData.TrustedCertificates.AddItems(trustedCertificates);
+            ByteString payload = EncodeTrustListPayload(context, trustListData);
+            node.Write.OnCall(context, node.Write, node.NodeId, fileHandle, payload);
+
+            bool restartRequired = true;
+            ServiceResult result = node.CloseAndUpdate.OnCall(
+                context,
+                node.CloseAndUpdate,
+                node.NodeId,
+                fileHandle,
+                ref restartRequired);
+
+            Assert.That(ServiceResult.IsGood(result), Is.True);
+            Assert.That(notifier.Notifications, Has.Count.EqualTo(1));
+            Assert.That(notifier.Notifications[0].Scope, Is.EqualTo(TrustListIdentifier.Peers));
+            Assert.That(notifier.Notifications[0].TrustChanged, Is.True);
+            Assert.That(notifier.Notifications[0].CrlChanged, Is.False);
+        }
+
+        [Test]
+        public void CloseAndUpdateLegacyNotifiesCertificateChangeForCrls()
+        {
+            TrustListState node = CreateNode();
+            TrustList trustList = CreateTrustList(node);
+            var notifier = new RecordingTrustListChangeNotifier();
+            trustList.SetTrustListChangeNotifier(notifier, TrustListIdentifier.Peers);
+            ISystemContext context = CreateContext(new NodeId(Guid.NewGuid(), 1));
+
+            using Certificate caCert = CertificateBuilder
+                .Create("CN=TrustList Notify CA")
+                .SetCAConstraint()
+                .SetRSAKeySize(2048)
+                .CreateForRSA();
+            X509CRL crl = DefaultCertificateIssuer.Instance.RevokeCertificates(
+                caCert,
+                null,
+                null);
+
+            uint fileHandle = 0;
+            node.Open.OnCall(
+                context,
+                node.Open,
+                node.NodeId,
+                (int)OpenFileMode.Write | (int)OpenFileMode.EraseExisting,
+                ref fileHandle);
+
+            // The CA certificate must accompany its CRL: the directory store
+            // resolves a CRL's issuer from its own certificates on AddCRL.
+            var trustListData = new TrustListDataType
+            {
+                SpecifiedLists = (uint)(TrustListMasks.TrustedCertificates | TrustListMasks.TrustedCrls)
+            };
+            ArrayOf<ByteString> trustedCertificates = new ByteString[] { caCert.RawData.ToByteString() };
+            trustListData.TrustedCertificates = trustListData.TrustedCertificates.AddItems(trustedCertificates);
+            ArrayOf<ByteString> trustedCrls = new ByteString[] { crl.RawData.ToByteString() };
+            trustListData.TrustedCrls = trustListData.TrustedCrls.AddItems(trustedCrls);
+            ByteString payload = EncodeTrustListPayload(context, trustListData);
+            node.Write.OnCall(context, node.Write, node.NodeId, fileHandle, payload);
+
+            bool restartRequired = true;
+            ServiceResult result = node.CloseAndUpdate.OnCall(
+                context,
+                node.CloseAndUpdate,
+                node.NodeId,
+                fileHandle,
+                ref restartRequired);
+
+            Assert.That(ServiceResult.IsGood(result), Is.True);
+            Assert.That(notifier.Notifications, Has.Count.EqualTo(1));
+            Assert.That(notifier.Notifications[0].TrustChanged, Is.True);
+            Assert.That(notifier.Notifications[0].CrlChanged, Is.True);
+        }
+
+        [Test]
+        public void AddCertificateLegacyNotifiesTrustChangeOnly()
+        {
+            TrustListState node = CreateNode();
+            TrustList trustList = CreateTrustList(node);
+            var notifier = new RecordingTrustListChangeNotifier();
+            trustList.SetTrustListChangeNotifier(notifier, TrustListIdentifier.Users);
+            ISystemContext context = CreateContext(new NodeId(Guid.NewGuid(), 1));
+
+            using Certificate cert = CreateTestCertificate("CN=TrustList Notify Add Cert");
+
+            ServiceResult result = node.AddCertificate.OnCall(
+                context,
+                node.AddCertificate,
+                node.NodeId,
+                cert.RawData.ToByteString(),
+                true);
+
+            Assert.That(ServiceResult.IsGood(result), Is.True);
+            Assert.That(notifier.Notifications, Has.Count.EqualTo(1));
+            Assert.That(notifier.Notifications[0].Scope, Is.EqualTo(TrustListIdentifier.Users));
+            Assert.That(notifier.Notifications[0].TrustChanged, Is.True);
+            Assert.That(notifier.Notifications[0].CrlChanged, Is.False);
+        }
+
+        [Test]
+        public void RemoveCertificateLegacyNotifiesTrustChange()
+        {
+            TrustListState node = CreateNode();
+            TrustList trustList = CreateTrustList(node);
+            var notifier = new RecordingTrustListChangeNotifier();
+            trustList.SetTrustListChangeNotifier(notifier, TrustListIdentifier.Peers);
+            ISystemContext context = CreateContext(new NodeId(Guid.NewGuid(), 1));
+
+            using Certificate cert = CreateTestCertificate("CN=TrustList Notify Remove Cert");
+            ServiceResult addResult = node.AddCertificate.OnCall(
+                context,
+                node.AddCertificate,
+                node.NodeId,
+                cert.RawData.ToByteString(),
+                true);
+            Assert.That(ServiceResult.IsGood(addResult), Is.True);
+            notifier.Notifications.Clear();
+
+            ServiceResult result = node.RemoveCertificate.OnCall(
+                context,
+                node.RemoveCertificate,
+                node.NodeId,
+                cert.Thumbprint,
+                true);
+
+            Assert.That(ServiceResult.IsGood(result), Is.True);
+            Assert.That(notifier.Notifications, Has.Count.EqualTo(1));
+            Assert.That(notifier.Notifications[0].TrustChanged, Is.True);
+            Assert.That(notifier.Notifications[0].CrlChanged, Is.False);
+        }
+
+        private sealed class RecordingTrustListChangeNotifier : ICertificateTrustListManager
+        {
+            public List<(TrustListIdentifier Scope, bool TrustChanged, bool CrlChanged)> Notifications { get; }
+                = [];
+
+            public IReadOnlyCollection<TrustListIdentifier> TrustLists => [];
+
+            public void RegisterTrustList(
+                TrustListIdentifier trustList,
+                string trustedStorePath,
+                string issuerStorePath = null)
+            {
+                throw new NotSupportedException();
+            }
+
+            public ICertificateStore OpenTrustedStore(TrustListIdentifier trustList)
+            {
+                throw new NotSupportedException();
+            }
+
+            public ICertificateStore OpenIssuerStore(TrustListIdentifier trustList)
+            {
+                throw new NotSupportedException();
+            }
+
+            public Task<ITrustListTransaction> BeginUpdateAsync(
+                TrustListIdentifier trustList,
+                CancellationToken ct = default)
+            {
+                throw new NotSupportedException();
+            }
+
+            public void NotifyTrustListChanged(
+                TrustListIdentifier trustList,
+                bool trustChanged,
+                bool crlChanged)
+            {
+                Notifications.Add((trustList, trustChanged, crlChanged));
+            }
+        }
+
         private static Certificate CreateTestCertificate(string subject)
         {
             return CertificateBuilder
@@ -1393,7 +1597,7 @@ namespace Opc.Ua.Server.Tests
 
             if (maxTrustListSizeSafetyCeiling.HasValue)
             {
-                return new TrustList(
+                return Track(new TrustList(
                     node,
                     m_trustedStore,
                     m_issuerStore,
@@ -1402,17 +1606,23 @@ namespace Opc.Ua.Server.Tests
                     m_telemetry,
                     coordinator: null,
                     maxTrustListSize,
-                    maxTrustListSizeSafetyCeiling.Value);
+                    maxTrustListSizeSafetyCeiling.Value));
             }
 
-            return new TrustList(
+            return Track(new TrustList(
                 node,
                 m_trustedStore,
                 m_issuerStore,
                 readAccess,
                 writeAccess,
                 m_telemetry,
-                maxTrustListSize);
+                maxTrustListSize));
+        }
+
+        private TrustList Track(TrustList trustList)
+        {
+            m_createdTrustLists.Add(trustList);
+            return trustList;
         }
 
         private static void AllowAccess(ISystemContext context, CertificateStoreIdentifier store)

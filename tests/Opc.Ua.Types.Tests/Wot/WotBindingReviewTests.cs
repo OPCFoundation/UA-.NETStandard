@@ -28,6 +28,8 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
+using System.Globalization;
 using System.Linq;
 using System.Text;
 using System.Text.Json;
@@ -461,11 +463,18 @@ namespace Opc.Ua.Types.Tests.Wot
             UANodeSet nodeSet = WotNodeSetConverter.ToNodeSet(Encoding.UTF8.GetBytes(json));
 
             UAObjectType root = nodeSet.Items!.OfType<UAObjectType>().Single();
+            Reference reference = root.References!
+                .Single(r => r.Value == "nsu=urn:demo:pump;i=2001" &&
+                    r.ReferenceType != "HasComponent");
+
+            // The relation is recreated with the exact ReferenceType the
+            // uav:refId names, stated in the form a NodeSet may use: a
+            // NodeSet-local NodeId resolved through its own namespace table.
+            int index = Array.IndexOf(nodeSet.NamespaceUris!, "urn:demo:pump") + 1;
             Assert.That(
-                root.References!.Any(r =>
-                    r.ReferenceType == "nsu=urn:demo:pump;i=4001" &&
-                    r.Value == "nsu=urn:demo:pump;i=2001"),
-                Is.True);
+                reference.ReferenceType,
+                Is.EqualTo(
+                    "ns=" + index.ToString(CultureInfo.InvariantCulture) + ";i=4001"));
         }
 
         [Test]

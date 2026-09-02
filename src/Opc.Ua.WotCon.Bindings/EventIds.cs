@@ -44,5 +44,6 @@ namespace Opc.Ua
     internal static class WotConBindingsEventIds
     {
         public const int PollingWotSubscription = 0;
+        public const int OpcUaWotBindingChannel = 10;
     }
 }

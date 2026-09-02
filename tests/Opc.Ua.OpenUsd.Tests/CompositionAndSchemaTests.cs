@@ -30,9 +30,10 @@
 using System.Collections.Generic;
 using System.Linq;
 using NUnit.Framework;
-using Opc.Ua.OpenUsdScene.Scene;
+using Opc.Ua.OpenUsd.Scene;
+using Opc.Ua.OpenUsd.Server.Scene;
 
-namespace Opc.Ua.OpenUsdScene.Tests
+namespace Opc.Ua.OpenUsd.Tests
 {
     /// <summary>
     /// Composition provenance (§5.6) and applied API schemas (§8.2): the arcs that composed a
@@ -41,8 +42,6 @@ namespace Opc.Ua.OpenUsdScene.Tests
     [TestFixture]
     public class CompositionAndSchemaTests
     {
-        // ---- Composition arcs (§5.6) ---------------------------------------------------
-
         [Test]
         public void ReferenceAndInstanceArcs_AreMaterialized_ForReferencedPrim()
         {
@@ -73,8 +72,6 @@ namespace Opc.Ua.OpenUsdScene.Tests
             Assert.That(ms.Prim("/Plant/Pumps/P101/Body").Composition, Is.Null);
             Assert.That(ms.CompositionArcs("/Plant/Pumps/P101/Body"), Is.Empty);
         }
-
-        // ---- Variant sets (§5.6) -------------------------------------------------------
 
         [Test]
         public void VariantSet_IsMaterialized_WhenAuthored()
@@ -110,12 +107,10 @@ namespace Opc.Ua.OpenUsdScene.Tests
         {
             MaterializedScene ms = MaterializationHarness.Materialize(
                 TestAssets.Load("Plant.usda"),
-                new Server.UsdMaterializationOptions { MaterializeComposition = false });
+                new UsdMaterializationOptions { MaterializeComposition = false });
 
             Assert.That(ms.Prim("/Plant/Pumps/P101").Composition, Is.Null);
         }
-
-        // ---- Applied schemas (§8.2) ----------------------------------------------------
 
         [Test]
         [TestCase("/Cell/Robots/R1/Base")]
@@ -146,7 +141,7 @@ namespace Opc.Ua.OpenUsdScene.Tests
         {
             MaterializedScene ms = MaterializationHarness.Materialize(
                 TestAssets.Load("Cell.usda"),
-                new Server.UsdMaterializationOptions { MaterializeAppliedSchemas = false });
+                new UsdMaterializationOptions { MaterializeAppliedSchemas = false });
 
             Assert.That(ms.Prim("/Cell/Robots/R1/Base").AppliedSchemas, Is.Null);
         }

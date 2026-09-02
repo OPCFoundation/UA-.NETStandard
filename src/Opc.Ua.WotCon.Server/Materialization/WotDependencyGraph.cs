@@ -163,6 +163,17 @@ namespace Opc.Ua.WotCon.Server.Materialization
     public static class WotDependencyGraph
     {
         /// <summary>
+        /// The dependency kind of an event affordance's EventType fast path.
+        /// </summary>
+        public const string EventTypeRefType = "uav:eventType";
+
+        /// <summary>
+        /// The dependency kind of the EventType an explicit select clause
+        /// references.
+        /// </summary>
+        public const string EventSelectClauseRefType = "uav:eventSelectClauses";
+
+        /// <summary>
         /// Resolves a WoT reference href to a stored resource, or <c>null</c>.
         /// </summary>
         public static WotResource? Resolve(WotRegistrySnapshot snapshot, string href)
@@ -197,6 +208,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 CollectLinks(root, references);
                 CollectExtends(root, references);
                 CollectProjects(root, references);
+                CollectEventTypeRefs(root, references);
                 CollectTmRefs(root, references, 0, maxJsonDepth);
             }
             catch (JsonException)
@@ -531,6 +543,57 @@ namespace Opc.Ua.WotCon.Server.Materialization
             }
         }
 
+        /// <summary>
+        /// Collects the EventType definitions an event affordance links to,
+        /// both the affordance-level fast path and the reference every explicit
+        /// select clause carries (WoT Binding Section 6.1).
+        /// </summary>
+        /// <remarks>
+        /// A consumer resolves those links against the documents it holds and
+        /// never over the network, so the EventType Thing Model has to be a
+        /// member of the same closure and has to be loaded before the document
+        /// that selects from it. Naming the edges here rather than leaving them
+        /// to the generic <c>tm:ref</c> walk is what makes that dependency
+        /// visible in a closure's dependency list.
+        /// </remarks>
+        private static void CollectEventTypeRefs(
+            JsonElement root, List<(string, string)> references)
+        {
+            if (!root.TryGetProperty("events", out JsonElement events) ||
+                events.ValueKind != JsonValueKind.Object)
+            {
+                return;
+            }
+            foreach (JsonProperty affordance in events.EnumerateObject())
+            {
+                if (affordance.Value.ValueKind != JsonValueKind.Object)
+                {
+                    continue;
+                }
+                if (affordance.Value.TryGetProperty("tm:ref", out JsonElement reference) &&
+                    reference.ValueKind == JsonValueKind.String)
+                {
+                    references.Add((reference.GetString() ?? string.Empty, EventTypeRefType));
+                }
+                if (!affordance.Value.TryGetProperty(
+                        "uav:eventSelectClauses", out JsonElement clauses) ||
+                    clauses.ValueKind != JsonValueKind.Array)
+                {
+                    continue;
+                }
+                foreach (JsonElement clause in clauses.EnumerateArray())
+                {
+                    if (clause.ValueKind == JsonValueKind.Object &&
+                        clause.TryGetProperty("tm:ref", out JsonElement clauseRef) &&
+                        clauseRef.ValueKind == JsonValueKind.String)
+                    {
+                        references.Add((
+                            clauseRef.GetString() ?? string.Empty, EventSelectClauseRefType));
+                    }
+                }
+            }
+        }
+
         private static void CollectTmRefs(
             JsonElement element,
             List<(string, string)> references,
@@ -546,6 +609,14 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 case JsonValueKind.Object:
                     foreach (JsonProperty property in element.EnumerateObject())
                     {
+                        if (depth == 0 &&
+                            string.Equals(property.Name, "events", StringComparison.Ordinal))
+                        {
+                            // CollectEventTypeRefs already named these edges for
+                            // what they are; walking them again would state the
+                            // same dependency twice under a weaker label.
+                            continue;
+                        }
                         if (string.Equals(property.Name, "tm:ref", StringComparison.Ordinal) &&
                             property.Value.ValueKind == JsonValueKind.String)
                         {

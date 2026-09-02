@@ -18,6 +18,8 @@ This document starts with the bindings that ship today and how to register them,
   - [Intentionally unsupported operations](#intentionally-unsupported-operations)
   - [Transport security](#transport-security)
   - [Operation coverage (OPC UA executor)](#operation-coverage-opc-ua-executor)
+  - [Event field selection (`tm:ref` and `uav:eventSelectClauses`)](#event-field-selection-tmref-and-uaveventselectclauses)
+  - [Constraining an `auto` endpoint selection (`uav:minimumSecurity`)](#constraining-an-auto-endpoint-selection-uavminimumsecurity)
 - [Adding your own binding](#adding-your-own-binding)
   - [Architecture and lifecycle](#architecture-and-lifecycle)
   - [Identification and capability](#identification-and-capability)
@@ -39,6 +41,13 @@ This document starts with the bindings that ship today and how to register them,
   - [Contributor checklist](#contributor-checklist)
   - [Testing matrix](#testing-matrix)
 - [Related documentation](#related-documentation)
+- [Conformance to WoT Binding 1.1](#conformance-to-wot-binding-11)
+  - [What the readable mapping does not yet carry](#what-the-readable-mapping-does-not-yet-carry)
+  - [How this is checked](#how-this-is-checked)
+  - [Resolving a type binding: the local context](#resolving-a-type-binding-the-local-context)
+  - [Resolving a relation: companion ReferenceTypes](#resolving-a-relation-companion-referencetypes)
+  - [Alarms and Conditions](#alarms-and-conditions)
+  - [Compatibility switch for non-portable identifiers](#compatibility-switch-for-non-portable-identifiers)
 
 ## Bindings that ship today
 
@@ -194,11 +203,216 @@ The executable bindings fail closed and never downgrade a secure form to an inse
 | `writeproperty` | `Write` service; the mapped `StatusCode` is preserved. |
 | `observeproperty` | A native data-change `MonitoredItem` (`AttributeId = Value`, queue size 1) on a dedicated `Subscription`; no client-side polling. |
 | `invokeaction` | `Call` service; the method NodeId is `uav:id` and its owner object is resolved from `uav:componentOf`. |
-| `subscribeevent` | A native event `MonitoredItem` (`AttributeId = EventNotifier`) selecting `EventId`, `EventType`, `SourceNode`, `SourceName`, `Time`, `ReceiveTime`, `Message` and `Severity`, plus any `uav:eventFields`-authored extra select clauses. Every selected field is delivered in `WotNotification.EventFields`, keyed by its browse path, with the event's own `Time` / `ReceiveTime` as the source / server timestamp. |
+| `subscribeevent` | A native event `MonitoredItem` (`AttributeId = EventNotifier`) whose `EventFilter` select clauses are the compiled `WotEventSelection` of WoT Binding Section 6.1: the eight mandatory `BaseEventType` fields (`EventId`, `EventType`, `SourceNode`, `SourceName`, `Time`, `ReceiveTime`, `Message`, `Severity`) when the affordance states no selection, and otherwise the selection resolved from the EventType definition it links to with `tm:ref`, overlaid by the `uav:eventSelectClauses` it states. Every selected field is delivered in `WotNotification.EventFields`, keyed by its browse path — an empty path supplies `ConditionId` — with the event's own `Time` / `ReceiveTime` as the source / server timestamp. |
 
 Both subscription kinds share one code path: a dedicated `Subscription` is created per channel subscription, its `MonitoredItem` is disposed and the subscription removed from the session (`ISession.RemoveSubscriptionAsync`) when the returned `IWotSubscription` is disposed, so no session or subscription is leaked — including when creation fails partway through.
 
 A compiled form's NodeId (`uav:id`, and `uav:componentOf` for actions) is resolved with `NodeId.Parse` for the plain `ns=` / `i=` / `s=` / `g=` / `b=` forms; a portable NodeId carrying an `nsu=` namespace URI is parsed as an `ExpandedNodeId` and resolved against the connected session's namespace table, since `NodeId.Parse` alone cannot resolve a namespace URI without one.
+
+### Event field selection (`tm:ref` and `uav:eventSelectClauses`)
+
+WoT Binding Section 6.1 states an event's `EventFilter` select clauses on the **event
+affordance** — never on a form — and states them by **linking the EventType definition**
+the fields are selected from. The link is a `tm:ref`: a document URI, optionally
+followed by an RFC 6901 JSON Pointer. It resolves to an *EventType definition* — an
+event affordance, or a Thing Model root, that carries `@type: uav:eventType`, the
+portable `uav:id` of the OPC UA EventType, and the object-valued `data` schema of its
+fields. `uav:eventSelectClauses` is the **refinement** of that baseline: each clause
+carries exactly `tm:ref` and `uav:browsePath` (relative, because the definition the
+clause names anchors it).
+
+```jsonc
+"events": { "highTemperature": {
+  "@type": "uav:eventType", "uav:isEvent": true,
+  "tm:ref": "./event-types.tm.jsonld#/events/highTemperatureAlarm",
+  "uav:eventSelectClauses": [
+    { "tm:ref": "./event-types.tm.jsonld#/events/limitAlarm",
+      "uav:browsePath": "HighHighLimit" },
+    { "tm:ref": "./event-types.tm.jsonld#/events/highTemperatureAlarm",
+      "uav:browsePath": "Severity" }
+  ],
+  "forms": [{ "href": "opc.tcp://server:4840", "uav:id": "i=2253",
+              "op": ["subscribeevent"] }] } }
+```
+
+What the runtime does with it:
+
+* **Resolution happens before planning.** `Opc.Ua.Wot.WotEventSelectionResolver` resolves
+  each `tm:ref` through an `IWotThingResolver` — the sibling documents a caller already
+  holds — and never dereferences a URI over the network. It walks the linked definition's
+  `data` once and turns each **leaf** into one clause: the members of an object are walked
+  in the order its `uav:fieldOrder` states, a member's `uav:browseName` supplies the exact
+  QualifiedName (a bare member name stands for it only where that name is a legal
+  unqualified BrowseName), the `ConditionId` member yields the empty path, and a state
+  Variable's trailing `Name` is dropped because the clause naming the Variable supplies
+  that object's `Name`. Every derived clause carries the definition's `uav:id` as its
+  `TypeDefinitionId`. Derivation is total: a definition the resolver cannot walk — a
+  `data` that is not an object, a walked object with no field order, a member name that is
+  neither legal nor annotated — is reported, and no partial selection is produced.
+* **The explicit clauses overlay that baseline.** The materialized member paths are
+  computed over the baseline and the explicit clauses together, every baseline clause an
+  explicit clause names is removed, and the explicit clauses are appended in the order
+  they are written. There is no *remove* operation: an author who needs a narrower
+  selection links to a definition that declares the narrower field set. Where the
+  affordance carries no `tm:ref`, the baseline is the eight mandatory `BaseEventType`
+  fields (`EventId`, `EventType`, `SourceNode`, `SourceName`, `Time`, `ReceiveTime`,
+  `Message`, `Severity`), stated once in `Opc.Ua.Wot.WotEventSelectClauses.Default`.
+* **Planning stays synchronous.** `IWotBinderRegistry.Prepare` is side-effect free, so the
+  resolved selections are carried into it: build the request with
+  `WotBindingPlanRequest.FromDocumentAsync(..., IWotThingResolver, ...)`, or resolve once
+  with `WotBindingPlanRequest.ResolveEventSelectionsAsync` and pass the resulting
+  `WotEventSelectionCatalog` to `WotBindingPlanRequest.FromDocument`. Inside a server the
+  materialization coordinator does this for every closure member, using the same snapshot
+  resolver the conversion uses. An affordance that states a selection and reaches a
+  planner with no resolved selection fails the form with `EventSelectClauseInvalid`
+  rather than performing I/O during planning.
+* `OpcUaBindingPlanner` compiles the **effective** selection onto
+  `WotCompiledForm.EventSelection` as an ordered list of
+  `Opc.Ua.Wot.WotResolvedEventSelectClause`, each carrying the portable
+  `TypeDefinitionId` its definition declared.
+* A compact path element such as `pump:Temperature` is rewritten to the portable
+  `nsu=<NamespaceUri>;Temperature` form using the prefixes the document's `@context`
+  binds (`WotBindingPlanContext.NamespacePrefixes`). An unbound prefix fails the form
+  with `UnboundNamespacePrefix` rather than guessing a namespace.
+* A browse path is parsed into **elements** once — `PathElements`, produced by
+  `WotEventSelectClauses.SplitBrowsePath` — and every rule below is stated
+  over those elements rather than over the joined string. A NamespaceUri routinely
+  contains `/`, which is also the path separator, so only the separators that follow
+  the delimiter ending a NamespaceUri (`;` for the OPC 10000-6 `nsu=` form, `}` for the
+  OPC 10000-4 `{...}` form) separate elements. `nsu=http://example.org/pump/;Temperature`
+  is therefore **one** element whose member is `data.Temperature`, and not five elements
+  nesting the field under `nsu=http:`, an empty member and `example.org`. Escaping does
+  not solve this — OPC 10000-6 §5.3.1.11 escapes only `;` and `%` — so the elements, and
+  never the joined string, are what the member path, the field name, the collision check,
+  the `SimpleAttributeOperand` browse path and the nested `data` object are all built
+  from. `WotEventSelectClauses.JoinBrowsePath` is the exact inverse.
+* `OpcUaWotBindingChannel` materializes each clause into a `SimpleAttributeOperand`
+  against the connected session's namespace table, using the resolved portable
+  `TypeDefinitionId`. The **empty** browse path selects the `NodeId` Attribute — the
+  OPC 10000-9 `ConditionId` idiom — and every other clause selects `Value`.
+* Two clauses **shall not** materialize the same `data` member, even where they reference
+  different EventTypes and even where their normalized browse paths differ: the
+  **materialized member path** — the sequence of `data` member names the clause fills —
+  is what decides the output, so two clauses that reach it would compete for it and
+  nothing in the document would say which of them filled it. Normalization resolves each
+  element's prefix to the NamespaceUri the document binds it to, so two prefixes for one
+  namespace name one path; but the member name drops the qualification altogether and a
+  state Variable appends `Name`, so an unqualified `Severity` beside a
+  namespace-qualified `Severity`, and `EnabledState` beside `EnabledState/Name`, are each
+  two paths and one member. A collision is an `EventSelectClauseInvalid` error in
+  `WotEventSelectClauses.TryParse`, in the resolver's overlay, and again in the planner,
+  which re-checks the list it rewrote into portable form.
+* An `EventFilter` `WhereClause` / `ContentFilter` is out of scope of the Binding; a
+  clause carrying one is rejected with `EventSelectClauseInvalid` instead of being
+  reinterpreted. The same holds for the NodeId clause form: a clause names its EventType
+  by reference, so `uav:typeDefinitionId` is rejected as an unexpected member.
+
+#### What a notification carries: the nested `data` object and the transport index
+
+A clause materializes into exactly one member of the event affordance's `data`
+object, by a rule that is a function of its browse path and the list the clause
+sits in:
+
+| Clause path | `data` member |
+|---|---|
+| `""` (empty) | `data.ConditionId` |
+| `Severity` | `data.Severity` |
+| `EnabledState/Id` | `data.EnabledState.Id` |
+| `EnabledState` | `data.EnabledState.Name` |
+
+A `data` member name therefore **never** contains the path separator:
+`EnabledState/Id` is two nested members and not one member called
+`EnabledState/Id`. Where the selected Node is an OPC UA state Variable — whose
+own value is the state's localized display text and whose `Id` sub-Variable
+carries the Boolean — the clause naming the field supplies that object's `Name`
+member. `Opc.Ua.Wot.WotEventSelectClauses.StateVariableFieldNames` names the
+states this Binding declares (`EnabledState`, `AckedState`, `ConfirmedState`,
+`ActiveState`), which is exactly the set the Condition `data` schema of
+Section 13.3 writes as an `{ Id, Name }` object; a companion state is recognized
+from the selection itself, because a field another clause of the same list nests
+through is an object whose `Name` member carries the field's own value.
+
+`WotNotification` carries both representations, built together from one
+selection so they cannot disagree:
+
+* **`WotNotification.Data`** is the nested `WotEventData` object above — the
+  shape the Binding describes, and the one to read.
+* **`WotNotification.EventFields`** is the flat index keyed by the *joined*
+  browse path the document authored (`EnabledState/Id`, and `ConditionId` for
+  the empty path). Section 6.1 names this what it is: a transport-side artifact
+  of one implementation, because a `MonitoredItem` returns field values
+  positionally and a runtime naturally keys them by the clause that asked for
+  them. It is kept for compatibility; a document never names a `data` member
+  with a joined browse path.
+
+Where two clauses would fill one `data` member the plan is rejected before a
+subscription exists, so the runtime never has to choose. If a collision still
+reaches `WotEventDataBuilder` — a plan assembled around the planner, or a Server
+field list the selection does not describe — the first stated clause keeps the
+member and the collision is logged as an error rather than silently dropped.
+
+The superseded `uav:eventFields` spelling this implementation minted before the term was
+standardized is still **read** — it is authored on a form, carries bare browse names and
+*adds* to the default selection — and is never **written**. Where a form carries both,
+the standardized term wins and the contradiction is reported (`ConflictingFields`)
+rather than silently merged. New documents should author the standardized terms
+instead: link the EventType definition with `tm:ref` and state only the clauses that
+refine it, as described above.
+
+### Constraining an `auto` endpoint selection (`uav:minimumSecurity`)
+
+WoT Binding Section 5.7.1 lets an `auto` security scheme state a floor:
+
+```jsonc
+"securityDefinitions": {
+  "opcua_auto_sc": {
+    "scheme": "auto",
+    "uav:minimumSecurity": {
+      "uav:securityMode": "Sign",
+      "uav:securityPolicy": "Basic256Sha256"
+    }
+  }
+}
+```
+
+The planner compiles it onto `WotCompiledForm.SecurityFloor`. A floor the Binding cannot
+read — one carried by a scheme other than `auto`, or naming a mode or policy Section 5.7
+does not — fails the form (`InvalidSecurityFloor`) instead of compiling without the
+constraint.
+
+Because endpoint selection needs an application configuration, a certificate store and a
+transport this library is deliberately not given, the choice is made by a delegate — but
+the *rules* are made here, and the executor never opens a session it could not have
+chosen:
+
+* `OpcUaWotBindingOptions.ConstrainedSessionFactory` receives an
+  `OpcUaWotSessionRequest` carrying the floor, so a caller's own factory can discard
+  endpoints before opening a channel.
+* `OpcUaWotBindingOptions.EndpointDiscovery` together with
+  `SelectedEndpointSessionFactory` is the **built-in** path: the executor calls
+  discovery, applies `OpcUaWotEndpointSelector.Select`, and hands the chosen
+  `EndpointDescription` to the factory. The selection is the clause's own — discard
+  everything below the floor, then take the strongest mode, then the strongest policy
+  (ranking a policy the Binding does not name below every policy it does), then the
+  highest `securityLevel`, then the smallest `endpointUrl` in ascending Unicode
+  code-point order (the shared `WotCodePointComparer` of Annex G.3), then the earliest
+  position in the response. Where no endpoint is eligible the activation fails with
+  `BadSecurityModeRejected` and no session is opened: a client **shall** fail and report
+  rather than fall back below a stated floor.
+* The endpoint-blind `SessionFactory` stays exactly as it was where the form states **no**
+  floor. A form that states one and finds only that factory configured fails with
+  `BadConfigurationError` naming what to configure, rather than opening a session through
+  a factory that could not honour the floor and rejecting whatever endpoint it happened
+  to pick — a false negative that reads as "no endpoint is strong enough" even when the
+  Server offers one.
+* Whichever path is used, `OpcUaWotBindingExecutor` verifies the endpoint the returned
+  session reports and **fails closed** (`BadSecurityModeRejected`, session disposed) when
+  it is below the floor, or when the session cannot state its endpoint at all. A floor
+  whose enforcement was merely assumed would be a claim rather than a guarantee.
+
+The clause constrains a choice among the endpoints a Server already offers and nothing
+else: certificate trust, trust-list policy, filtering on any other endpoint attribute and
+transport-profile negotiation stay with the application's own security configuration.
 
 ## Adding your own binding
 
@@ -811,25 +1025,33 @@ Conditionally exclude executor source on older TFMs rather than reducing the bas
 
 ## Conformance to WoT Binding 1.1
 
-The specification defines ten conformance units and four recommended profiles
+The specification defines twelve conformance units and four recommended profiles
 (Section 11). This is where the implementation stands against them.
 
 | Unit | Status | Where |
 |---|---|---|
-| **WoT-ProtocolBinding** | covered | URI/base/href handling, the four service mappings, access levels and the security schemes, in `Opc.Ua.WotCon.Bindings` and its planners |
+| **WoT-ProtocolBinding** | covered | URI/base/href handling, the four service mappings, access levels, the security schemes and the `auto` endpoint-selection constraint of Section 5.7.1, in `Opc.Ua.WotCon.Bindings` and its planners |
 | **WoT-NativeMapping** | covered | `WotNodeSetConverter`, including the proof that `uav:nodes` is omitted when the readable mapping is complete. It descends the whole composition tree (`FromNodeSetDocuments`, §9.1's "Thing / nested Thing"), seeds namespaces from `@context`, and keeps type definitions, DataTypes and scalar values. See *What the readable mapping cannot express* below |
 | **WoT-StructuredFallback** | covered | the structured `uav:nodes` projection in `WotNativeProjection` |
 | **WoT-JsonResidue** | covered | `WotJsonResidue`, pointer-addressed preservation through the NodeSet Extension |
 | **WoT-NodeSetPreservation** | covered | the byte-exact `uav:nodeSet` envelope with digest verification |
 | **WoT-ExactRoundtrip** | covered | the envelope-free roundtrip invariants, including residue |
-| **WoT-EventMapping** | covered | `subscribeevent` / `unsubscribeevent` mapped to event MonitoredItems |
+| **WoT-EventMapping** | covered | `subscribeevent` / `unsubscribeevent` mapped to event MonitoredItems, including the EventType `tm:ref` fast path, the `uav:eventSelectClauses` overlay and the implicit `BaseEventType` default (Section 6.1) |
 | **WoT-ConditionMapping** | covered | Section 13 (`uav:conditionType`, `uav:conditionTypeId`, `uav:conditionAction`, `uav:actsOn`) in `WotNodeSetConverter.Conditions`, with the Condition supertype resolution and the Section 13.3/13.4 conformance rules |
-| **WoT-ModelVocabulary** | covered | `WotNodeSetConverter.ModelVocabulary`, all Section 6 terms with their validation rules |
+| **WoT-ModelVocabulary** | covered | `WotNodeSetConverter.ModelVocabulary` and `WotNodeSetConverter.Conformance`, all Section 6 terms with their validation rules |
+| **WoT-DataTypeDefinition** | covered | `WotNodeSetConverter.DataTypes`, the explicit and inferred DataType definitions of Section 6.11 |
 | **WoT-ExternalResolver** | covered | `WotResolver` for `uav:externalSchema`, `uav:mapToType`, `uav:mapToNodeId` and cross-document links |
 | **WoT-Projection** | covered | `WotProjection`, `WotProjectionResolver` and, for materialization, `WotProjectionViewBuilder` with `LifecycleWotViewProjectionHost` |
 
 All four profiles - **WoT-Reader**, **WoT-Modeller**, **WoT-Converter** and
 **WoT-ArchivalConverter** - are therefore satisfied by the units above.
+
+The unit and profile names themselves are stated once, in
+`Opc.Ua.Wot.WotBindingConformance`, together with the vocabulary revision this
+library implements (`CurrentRevision`, `1.1`) and the profile nesting Section 11
+defines. A document declares what it claims with `uav:profile` and the revision it
+was authored against with `uav:bindingVersion` (Section 4.1); both are validated,
+neither becomes a Node, and both are restated verbatim on a round trip.
 
 ### What the readable mapping does not yet carry
 
@@ -852,19 +1074,61 @@ back. Nothing has to infer a unit's identifier from its symbol.
 One convention is worth knowing when reading a generated document: completeness is
 tested with `NodeSetComparer.CompareEquivalent`, which reads each side through its own
 `Aliases` table, because Section 9.2 asks for an equivalent NodeSet and not an
-identically spelled one. `NodeSetComparer.Compare` keeps the stricter text comparison
-for callers that need to know a document was reproduced as written.
+identically spelled one. A name neither side declares is read through the
+`INodeSetAliasResolver` the caller injects — here `WotNodeSetAliases`, which states
+that the Binding writes the standard base-namespace names — so the comparison itself
+states no policy of its own. `NodeSetComparer.Compare` keeps the stricter text
+comparison for callers that need to know a document was reproduced as written.
 
 ### How this is checked
 
-The specification publishes twenty-two worked examples, and two of them are a
+The specification publishes twenty-six worked examples, and two of them are a
 golden pair: a projection document and the resolved view it is defined to
-resolve to. `WotSpecExampleTests` embeds all twenty-two and runs the pair
+resolve to. `WotSpecExampleTests` embeds all twenty-six and runs the pair
 through the resolver, asserting against the specification's own expected output
 rather than against our reading of the prose. That covers, in one document, all
 three selection forms, the bulk naming rule, the security closure naming and the
 provenance term. Example 22 is additionally converted to check that a document
-binds the node it projects to an existing type (Section 5.2.1).
+binds the node it projects to an existing type (Section 5.2.1) and constrains
+its `auto` endpoint selection with a Section 5.7.1 floor. Three examples were
+added by revision 1.1 and pin the corrections it made: a document whose texts
+are authored in German and French while the default locale is `en`
+(example 24, the code-point-first display fallback of Section 9.1.1), a Thing
+Model that projects a ReferenceType Node with `uav:inverseName` and
+`uav:symmetric` (example 25, Section 6.2.1), and one that projects a DataType
+Node (example 26, Sections 5.2 and 6.11).
+
+`WotSpecExampleTests.EveryPublishedExamplePassesStrictConformanceAndImports`
+runs every one of the twenty-six through the whole reading pipeline — parse,
+**strict** conformance validation, conversion, then serialize, re-read and
+`Import`. A document that claims a profile covering `WoT-Modeller` has to
+convert: the claim is what makes the conversion mandatory rather than optional.
+
+#### Keeping the vendored examples honest
+
+The examples are vendored byte-for-byte from the specification repository into
+`tests/Opc.Ua.Types.Tests/Wot/Assets`, and `.gitattributes` marks `*.jsonld`
+`eol=lf` so the checked-out bytes are the upstream bytes on every platform.
+They used to be copied by hand with no record of the source, and they drifted:
+one example gained a security floor upstream while the copy here kept the
+superseded text, and a later example never arrived at all.
+
+`spec-examples.manifest.json` beside them now records the source repository,
+branch and commit, the vocabulary revision, and the size and SHA-256 of every
+file. `WotSpecFixtureManifestTests` enforces it in three layers:
+
+| Check | Needs | What it catches |
+| --- | --- | --- |
+| manifest set, count, numbering and per-file SHA-256 | nothing — offline, from embedded resources | an edited, replaced, added or dropped example, and a gap in the `NN-` numbering that would hide a missing tail |
+| manifest provenance | nothing | a manifest that names no full source commit, or that records a revision this library does not implement |
+| byte identity against the specification checkout | a sibling `spec-drafts` checkout, or `OPCUA_WOT_SPEC_DRAFTS` | a regeneration made from the wrong source, which would record wrong hashes just as consistently |
+
+The third check is skipped, not failed, where no checkout is present, so CI needs
+neither the network nor a second repository. Re-vendoring is the explicit
+developer step `WotSpecFixtureManifestTests.RegenerateFromSpecCheckout`, which
+copies the published examples over the vendored ones and rewrites the manifest
+from `git` in the source checkout — so the diff a reviewer sees is the
+specification's diff.
 
 ### Resolving a type binding: the local context
 
@@ -954,6 +1218,68 @@ matches more than one node with nothing to settle it, and `InvalidTypeBinding`
 for the rest — a resolved type of the wrong NodeClass, or a name and a link that
 disagree.
 
+### Resolving a relation: companion ReferenceTypes
+
+A link `rel` names the ReferenceType of the relation it states (§5.1.2), and
+`uav:refId` carries that ReferenceType's definitive `ExpandedNodeId` (§6.2).
+Neither is limited to the handful of base-namespace names the library knows:
+any ReferenceType the §5.1.5 local context holds resolves by the same rules.
+
+`IWotReferenceTypeResolver` (in `Opc.Ua.Types`) is the capability that supplies
+them. It is a separate interface rather than a member of `IWotNodeResolver`
+because a local context describing no ReferenceType has none to offer, and the
+library targets frameworks without default interface implementations. The
+converter probes for it, and a part that does not offer it contributes nothing
+rather than ending the walk.
+
+| Implementation | Where the names come from | Assembly |
+| --- | --- | --- |
+| `WotDocumentNodeResolver` | the sibling documents being converted | `Opc.Ua.Types` |
+| `SnapshotWotNodeResolver` | the registry snapshot's ReferenceType documents | `Opc.Ua.WotCon.Server` |
+| `AddressSpaceWotNodeResolver` | the ReferenceTypes the Server has loaded | `Opc.Ua.WotCon.Server` |
+
+`WotCompositeNodeResolver` keeps the §5.1.5 order here too: the first part that
+matches a name settles it, so a set of documents authored together resolves to
+itself and loading an unrelated companion model can never change what an
+existing document projects to.
+
+OPC 10000-3 gives a ReferenceType two names, so the lookup resolves both:
+
+* a match on the **BrowseName** reads the reference forward;
+* a match on the **InverseName** reads the same reference backwards, and the
+  emitted `Reference` has its `IsForward` flag cleared;
+* a **symmetric** ReferenceType has one name for both directions and is
+  therefore offered once, forward. Indexing it under both names would make
+  every use of the name ambiguous.
+
+`ResolveReferenceTypesAsync` returns *every* match rather than one, because one
+namespace may hold a ReferenceType whose BrowseName is the name and another
+whose InverseName is. Each match carries the ReferenceType's canonical NodeId,
+the name that matched it and the direction that name expressed.
+
+Four outcomes are diagnosed rather than guessed at:
+
+| Outcome | Diagnostic |
+| --- | --- |
+| The name resolves to nothing and the link carries no `uav:refId` | `ModelConceptUnresolved` |
+| The name matches more than one ReferenceType and the link carries no `uav:refId` to settle it (§6.2 requires one exactly here) | `ReferenceTypeAmbiguous` |
+| The name, or the `uav:refId`, names a Node the local context holds that is not a ReferenceType | `ReferenceTypeNodeClassInvalid` |
+| The name and the `uav:refId` name different ReferenceTypes, or the `uav:refId` names none of the candidates | `ModelConceptConflict` |
+
+Where the name and the identifier agree, the identifier settles which candidate
+was meant and the candidate carries the direction — so `uav:refId` fixes an
+ambiguous relation without the author having to restate the direction.
+
+A document describing a ReferenceType carries both names, so a local context
+built from documents alone can answer an inverse relation: `uav:inverseName`
+holds the InverseName and `uav:symmetric` the Symmetric flag. Both map onto the
+projected Node's own Attributes and are restored on the reverse conversion.
+
+A resolved relation is written into the NodeSet as a NodeSet-local NodeId, never
+as the portable `ExpandedNodeId` it resolved to: a NodeSet2 document may only
+state a ReferenceType as a local NodeId or as a name it declares in
+`<Aliases>`, and the importer rejects anything else.
+
 ### Alarms and Conditions
 
 Section 13 maps an OPC 10000-9 Condition to a WoT event affordance for the
@@ -984,7 +1310,10 @@ The two forms follow the hint-plus-pin pattern of Section 5.3.
 hint, resolved for the four ConditionTypes Section 13.1 scopes —
 `ConditionType`, `AcknowledgeableConditionType`, `AlarmConditionType` and
 `LimitAlarmType`. A name outside that set must be pinned; an unpinned one is
-reported rather than guessed.
+reported rather than guessed. Where a document states both and they name
+different types, that is a contradiction rather than a precedence question —
+the pin is the definitive identity of *the same* type the compact name reads —
+and it is reported as `ConditionTypeConflict`.
 
 The converter enforces the four Section 13.3/13.4 conformance rules, each
 because breaking it yields a document a consumer can read but cannot act on, and
@@ -997,6 +1326,59 @@ also rejects an unresolvable readable ConditionType name:
 | `uav:actsOn` names a Condition event in the same document | 13.4 | `InvalidConditionTarget` |
 | `Acknowledge` / `Confirm` / `AddComment` declare an `EventId` input | 13.4 | `ConditionActionInputMissing` |
 | `uav:conditionType` names a ConditionType this Binding resolves | 13.2 | `UnresolvedConditionType` |
+| `uav:conditionType` and `uav:conditionTypeId` name the same type | 13.2 | `ConditionTypeConflict` |
+| The ConditionType declares the Method `uav:conditionAction` names | 13.1, 13.4 | `ConditionActionNotDeclared` |
+| A `data` member is a DataSchema naming one field | 13.3 | `EventFieldInvalid` |
+
+#### Condition event data and Condition Methods
+
+The notification's `data` object carries the Condition state (Section 13.3).
+Both directions read one table of the fields OPC 10000-9 declares, so a NodeSet
+that does not itself contain `ConditionType` still projects the complete field
+list and a document that authors it still materializes only the fields its own
+type adds:
+
+- **NodeSet → WoT.** The `data` object is the fields the projected EventType
+  effectively has: the eight mandatory `BaseEventType` fields, then the
+  Condition identity and state fields, then the state each ConditionType
+  subtype adds, then the Variables the projected type declares itself, in the
+  order its References state them. The mandatory base fields and the Condition
+  identity and state fields are `required`; subtype state is present but not
+  required, which is the shape Section 13.5 states. A field the type declares
+  itself also carries `uav:mapToType`, `uav:valueRank`, `uav:arrayDimensions`,
+  `uav:browseName` and `uav:modellingRule`, because nothing outside the
+  document says what it is. `uav:severity` (Section 6.6) and the per-occurrence
+  `Severity` member are two different facts and both are stated.
+- **WoT → NodeSet.** Only the members the projected type *adds* become Nodes:
+  a member naming an inherited field is already declared by the type it comes
+  from, and re-declaring it would leave a Server holding two declarations of one
+  field. `ConditionId` is never materialized at all — it is the NodeId Attribute
+  of the Condition, which is why Section 6.1 selects it with the empty browse
+  path. A member the schema lists in `required` gets the `Mandatory` modelling
+  rule and every other one gets `Optional`.
+
+A Condition Method is the standard Method OPC 10000-9 declares, so an action
+carrying `uav:conditionAction` materializes with that declaration as its
+`MethodDeclarationId` (`Acknowledge` `i=9111`, `Confirm` `i=9113`, `AddComment`
+`i=9029`, `Enable` `i=9027`, `Disable` `i=9028`), takes the base-namespace
+BrowseName the declaration has, and becomes a **component of the EventType**
+the pairing names. That is what records the pairing structurally, so the
+forward direction reads `uav:conditionAction` and `uav:actsOn` back from the
+model rather than guessing at them. A pairing OPC 10000-9 does not admit — an
+`Acknowledge` acting on a plain `ua:ConditionType`, which declares no such
+Method — is reported as `ConditionActionNotDeclared` instead of being
+materialized against a Method that is not there.
+
+Going the other way, a Method whose base-namespace BrowseName is one of the
+five is annotated when the event it acts on can be named without guessing:
+either the EventType holds the Method, or the document projects exactly one
+Condition event. With several candidates and no owning type the annotation is
+left out and `ConditionActionTargetUnresolved` is reported — an `uav:actsOn`
+that names the wrong Condition is worse than one that is absent, because a
+consumer would acknowledge the wrong alarm. The same diagnostic covers an
+occurrence-level Method that neither holds its `EventId` argument nor states
+the standard `MethodDeclarationId`, because a pairing without an `EventId`
+input is one Section 13.4 rejects.
 
 The ConditionType name is a compact model name, so its prefix is resolved
 through the document's `@context` rather than matched literally: an author may
@@ -1005,8 +1387,15 @@ resolves.
 
 `EventId` names the Event occurrence, so without it a consumer can receive a
 notification but can never identify the occurrence to acknowledge, confirm or
-comment on. `Enable` and `Disable` act on the Condition instance rather than one
-occurrence and are deliberately exempt from the input rule.
+comment on. It is the **one** hard requirement of Section 13.3: an affordance
+carrying `uav:conditionType` shall declare `EventId` in its `data` object and,
+where it states a selection, shall select it — the resolved selection is what a
+MonitoredItem is created with, so one that omits the field
+describes a notification that never carries it. Every other Condition field is
+present in `data` *where the affordance selects it* and is not otherwise
+required; both are `ConditionEventIdMissing`. `Enable` and `Disable` act on the
+Condition instance rather than one occurrence and are deliberately exempt from
+the input rule.
 
 Shelving, suppression, dialog conditions and `ConditionRefresh` are outside the
 mapping, as Section 13.1 scopes it.

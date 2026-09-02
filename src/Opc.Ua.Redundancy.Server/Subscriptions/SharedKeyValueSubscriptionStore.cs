@@ -984,7 +984,8 @@ namespace Opc.Ua.Redundancy.Server
                 SourceSamplingInterval = item.SourceSamplingInterval,
                 SubscriptionId = item.SubscriptionId,
                 TimestampsToReturn = item.TimestampsToReturn,
-                TypeMask = item.TypeMask
+                TypeMask = item.TypeMask,
+                FilteredRetainConditionIds = item.FilteredRetainConditionIds
             };
         }
 
@@ -1268,6 +1269,10 @@ namespace Opc.Ua.Redundancy.Server
                 encoder.WriteBoolean(null, item.IsDeleted);
                 encoder.WriteBoolean(null, item.IsDetached);
             }
+            if (version >= FilteredRetainDefinitionFormatVersion)
+            {
+                encoder.WriteStringArray(null, item.FilteredRetainConditionIds);
+            }
         }
 
         private static StoredMonitoredItem DecodeMonitoredItem(BinaryDecoder decoder, int version)
@@ -1308,6 +1313,11 @@ namespace Opc.Ua.Redundancy.Server
             {
                 item.IsDeleted = decoder.ReadBoolean(null);
                 item.IsDetached = decoder.ReadBoolean(null);
+            }
+            if (version >= FilteredRetainDefinitionFormatVersion)
+            {
+                // the keys are written by the monitored item and never null.
+                item.FilteredRetainConditionIds = decoder.ReadStringArray(null)!;
             }
             return item;
         }
@@ -1391,7 +1401,8 @@ namespace Opc.Ua.Redundancy.Server
 
         private const int LegacyDefinitionFormatVersion = 1;
         private const int LifecycleStateDefinitionFormatVersion = 2;
-        private const int DefinitionFormatVersion = LifecycleStateDefinitionFormatVersion;
+        private const int FilteredRetainDefinitionFormatVersion = 3;
+        private const int DefinitionFormatVersion = FilteredRetainDefinitionFormatVersion;
         private const int DefinitionSnapshotManifestFormatVersion = 1;
         private const int ContinuationPointFormatVersion = 1;
         private const int LegacyRetransmissionStateFormatVersion = 1;

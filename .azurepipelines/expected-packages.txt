@@ -50,8 +50,6 @@ OPCFoundation.NetStandard.Opc.Ua.OpenUsd.Client
 OPCFoundation.NetStandard.Opc.Ua.OpenUsd.Connector
 OPCFoundation.NetStandard.Opc.Ua.OpenUsd.Connector.Viewer
 OPCFoundation.NetStandard.Opc.Ua.OpenUsd.Server
-OPCFoundation.NetStandard.Opc.Ua.OpenUsdScene
-OPCFoundation.NetStandard.Opc.Ua.OpenUsdScene.Server
 OPCFoundation.NetStandard.Opc.Ua.Positioning
 OPCFoundation.NetStandard.Opc.Ua.Positioning.Client
 OPCFoundation.NetStandard.Opc.Ua.Positioning.Server

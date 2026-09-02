@@ -31,6 +31,7 @@
 
 using System;
 using System.Net;
+using System.Reflection;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Time.Testing;
 using NUnit.Framework;
@@ -248,6 +249,25 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             await using var listener = new TcpTransportListener(m_telemetry, new FakeTimeProvider());
 
             Assert.That(listener.UriScheme, Is.EqualTo(Utils.UriSchemeOpcTcp));
+        }
+
+        [Test]
+        public async Task DetectInactiveChannelsIsANoOpWhenChannelMapIsNullAsync()
+        {
+            // The channel map is null before OpenAsync and again after CloseAsync
+            // nulls it. The inactivity timer is fire-and-forget, so a callback
+            // dispatched around close can still run in that window. It must return
+            // quietly rather than dereferencing the null map - which previously
+            // surfaced as an unhandled NullReferenceException in the timer callback
+            // that crashed the test host.
+            await using var listener = new TcpTransportListener(m_telemetry, new FakeTimeProvider());
+
+            MethodInfo detect = typeof(TcpTransportListener).GetMethod(
+                "DetectInactiveChannels",
+                BindingFlags.Instance | BindingFlags.NonPublic)!;
+            Assert.That(detect, Is.Not.Null);
+
+            Assert.DoesNotThrow(() => detect.Invoke(listener, [null]));
         }
     }
 }

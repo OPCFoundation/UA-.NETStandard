@@ -2464,6 +2464,15 @@ namespace Opc.Ua
         public bool Initialized { get; set; }
 
         /// <summary>
+        /// True if the node has completed its create lifecycle.
+        /// </summary>
+        /// <remarks>
+        /// <see cref="Delete"/> resets this state. Removing a node from a node
+        /// manager without deleting the instance does not.
+        /// </remarks>
+        public bool IsCreated { get; private set; }
+
+        /// <summary>
         /// True if the node must be validated with the underlying system before use.
         /// </summary>
         public bool ValidationRequired => OnValidate != null;
@@ -3041,7 +3050,7 @@ namespace Opc.Ua
             Initialize(context);
 
             // Call OnBeforeCreate on all children.
-            CallOnBeforeCreate(context);
+            CallOnBeforeCreate(context, true);
 
             // override node id.
             if (!nodeId.IsNull)
@@ -3063,13 +3072,16 @@ namespace Opc.Ua
                 DisplayName = displayName;
             }
 
-            CreateInternal(context, assignNodeIds);
+            CreateInternal(context, assignNodeIds, true);
         }
 
         /// <summary>
         /// Internal create sequence without node assignments
         /// </summary>
-        private void CreateInternal(ISystemContext context, bool assignNodeIds)
+        private void CreateInternal(
+            ISystemContext context,
+            bool assignNodeIds,
+            bool forceCreateLifecycle)
         {
             // get all children.
             var children = new List<BaseInstanceState>();
@@ -3088,24 +3100,62 @@ namespace Opc.Ua
                 UpdateReferenceTargets(context, children, mappingTable);
             }
 
-            CallOnAfterCreate(context, children);
+            CallOnAfterCreate(context, children, forceCreateLifecycle);
+
+            const int maxLifecycleCompletionPasses = 100;
+            for (int pass = 0; HasUncreatedNodes(context); pass++)
+            {
+                if (pass >= maxLifecycleCompletionPasses)
+                {
+                    throw new InvalidOperationException(
+                        "The node create lifecycle did not converge because lifecycle callbacks " +
+                        "kept adding uncreated nodes.");
+                }
+
+                CallOnBeforeCreate(context, false);
+                CallOnAfterCreate(context, null, false);
+            }
 
             ClearChangeMasks(context, true);
         }
 
-        /// <summary>
-        /// Recusivesly calls OnBeforeCreate for the node and its children.
-        /// </summary>
-        private void CallOnBeforeCreate(ISystemContext context)
+        private bool HasUncreatedNodes(ISystemContext context)
         {
-            OnBeforeCreate(context, this);
+            if (!IsCreated)
+            {
+                return true;
+            }
 
             var children = new List<BaseInstanceState>();
             GetChildren(context, children);
 
             for (int ii = 0; ii < children.Count; ii++)
             {
-                children[ii].CallOnBeforeCreate(context);
+                if (children[ii].HasUncreatedNodes(context))
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        /// <summary>
+        /// Recusivesly calls OnBeforeCreate for the node and its children.
+        /// </summary>
+        private void CallOnBeforeCreate(ISystemContext context, bool force)
+        {
+            if (force || !IsCreated)
+            {
+                OnBeforeCreate(context, this);
+            }
+
+            var children = new List<BaseInstanceState>();
+            GetChildren(context, children);
+
+            for (int ii = 0; ii < children.Count; ii++)
+            {
+                children[ii].CallOnBeforeCreate(context, force);
             }
         }
 
@@ -3133,7 +3183,11 @@ namespace Opc.Ua
         /// <summary>
         /// Recusivesly calls OnAfterCreate for the node and its children.
         /// </summary>
-        private void CallOnAfterCreate(ISystemContext context, List<BaseInstanceState>? children, CancellationToken ct = default)
+        private void CallOnAfterCreate(
+            ISystemContext context,
+            List<BaseInstanceState>? children,
+            bool force,
+            CancellationToken ct = default)
         {
             if (children == null)
             {
@@ -3143,10 +3197,14 @@ namespace Opc.Ua
 
             for (int ii = 0; ii < children.Count; ii++)
             {
-                children[ii].CallOnAfterCreate(context, null, ct);
+                children[ii].CallOnAfterCreate(context, null, force, ct);
             }
 
-            OnAfterCreate(context, this, ct);
+            if (force || !IsCreated)
+            {
+                OnAfterCreate(context, this, ct);
+                IsCreated = true;
+            }
         }
 
         /// <summary>
@@ -3155,8 +3213,8 @@ namespace Opc.Ua
         public virtual void Create(ISystemContext context, NodeState source)
         {
             Initialize(context, source);
-            CallOnBeforeCreate(context);
-            CreateInternal(context, false);
+            CallOnBeforeCreate(context, true);
+            CreateInternal(context, false, true);
         }
 
         /// <summary>
@@ -3176,18 +3234,19 @@ namespace Opc.Ua
 
             OnAfterDelete(context);
 
+            IsCreated = false;
             ChangeMasks = NodeStateChangeMasks.Deleted;
             ClearChangeMasks(context, false);
         }
 
         /// <summary>
-        /// Called when the predefined node was fully created. Called
-        /// by generated code after all children have been created.
+        /// Completes the create lifecycle for a predefined node and any
+        /// children which have not already completed it.
         /// </summary>
         public void CreateAsPredefinedNode(ISystemContext context)
         {
-            CallOnBeforeCreate(context);
-            CreateInternal(context, false);
+            CallOnBeforeCreate(context, false);
+            CreateInternal(context, false, false);
         }
 
         /// <summary>

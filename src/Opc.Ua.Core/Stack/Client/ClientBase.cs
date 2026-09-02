@@ -224,7 +224,7 @@ namespace Opc.Ua
             "AttachChannel/DetachChannel. This method remains functional for back-compat.")]
         public virtual void DetachChannel()
         {
-            Interlocked.Exchange(ref m_channel, null);
+            ReleaseChannel();
         }
 
         /// <inheritdoc/>
@@ -302,6 +302,15 @@ namespace Opc.Ua
                     channel.Dispose();
                 }
             }
+        }
+
+        /// <summary>
+        /// Releases the channel from this client without closing or disposing
+        /// it. The caller keeps the ownership of the channel.
+        /// </summary>
+        protected void ReleaseChannel()
+        {
+            Interlocked.Exchange(ref m_channel, null);
         }
 
         /// <summary>

@@ -375,6 +375,101 @@ namespace Opc.Ua.Client.Tests.ManagedSession
         }
 
         [Test]
+        public async Task RequestCloseCancelsReconnectAttemptInFlight()
+        {
+            await using ConnectionStateMachine sm = CreateMachine();
+
+            var attemptStarted = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            var attemptCancelled = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            var closed = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+
+            sm.ConnectAsync = _ => Task.FromResult(ServiceResult.Good);
+
+            // Models a peer that accepts the connection but never answers: the
+            // attempt only ends when its token is cancelled.
+            sm.ReconnectAsync = async ct =>
+            {
+                attemptStarted.TrySetResult(true);
+                try
+                {
+                    await Task.Delay(Timeout.Infinite, ct).ConfigureAwait(false);
+                }
+                catch (OperationCanceledException)
+                {
+                    attemptCancelled.TrySetResult(true);
+                    throw;
+                }
+                return ServiceResult.Good;
+            };
+
+            sm.CloseSessionAsync = _ =>
+            {
+                closed.TrySetResult(true);
+                return Task.CompletedTask;
+            };
+
+            sm.Start();
+            sm.RequestConnect();
+
+            await WaitForStateAsync(sm, ConnectionState.Connected)
+                .ConfigureAwait(false);
+
+            sm.TriggerReconnect();
+
+            await attemptStarted.Task.WaitAsync(TimeSpan.FromSeconds(10))
+                .ConfigureAwait(false);
+
+            sm.RequestClose();
+
+            await attemptCancelled.Task.WaitAsync(TimeSpan.FromSeconds(10))
+                .ConfigureAwait(false);
+            await closed.Task.WaitAsync(TimeSpan.FromSeconds(10))
+                .ConfigureAwait(false);
+
+            using var cts = new CancellationTokenSource(
+                TimeSpan.FromSeconds(10));
+            await sm.WaitForClosedAsync(cts.Token).ConfigureAwait(false);
+
+            Assert.That(sm.State, Is.EqualTo(ConnectionState.Closed));
+        }
+
+        [Test]
+        public async Task RequestCloseDuringConnectDoesNotReportConnected()
+        {
+            await using ConnectionStateMachine sm = CreateMachine();
+
+            var attemptStarted = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+
+            sm.ConnectAsync = async ct =>
+            {
+                attemptStarted.TrySetResult(true);
+                await Task.Delay(Timeout.Infinite, ct).ConfigureAwait(false);
+                return ServiceResult.Good;
+            };
+
+            sm.CloseSessionAsync = _ => Task.CompletedTask;
+
+            sm.Start();
+            sm.RequestConnect();
+
+            await attemptStarted.Task.WaitAsync(TimeSpan.FromSeconds(10))
+                .ConfigureAwait(false);
+
+            sm.RequestClose();
+
+            using var cts = new CancellationTokenSource(
+                TimeSpan.FromSeconds(10));
+            await sm.WaitForClosedAsync(cts.Token).ConfigureAwait(false);
+
+            Assert.That(sm.State, Is.EqualTo(ConnectionState.Closed));
+            Assert.That(sm.IsConnected, Is.False);
+        }
+
+        [Test]
         public async Task DisposeTransitionsToClosed()
         {
             ConnectionStateMachine sm = CreateMachine();

@@ -195,6 +195,123 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         }
 
         [Test]
+        public void ReadAsymmetricMessageHeaderDisposesSenderChainWhenReceiverThumbprintMismatches()
+        {
+            var factory = new RecordingByteTransportFactory();
+            using var channel = new TestClientChannel(
+                m_buffers,
+                factory,
+                m_quotas,
+                null,
+                BuildEndpoint(MessageSecurityMode.None, SecurityPolicies.None),
+                m_telemetry,
+                new FakeTimeProvider());
+
+            using Certificate sender = CreateSmallCertificate();
+            using Certificate receiver = CreateSmallCertificate();
+
+            // A valid sender certificate forces ReadAsymmetricMessageHeader to
+            // parse (and therefore allocate) the sender chain, while the bogus
+            // receiver thumbprint makes the subsequent validation throw after
+            // that allocation.
+            byte[] header = BuildAsymmetricHeader(
+                SecurityPolicies.Basic256Sha256,
+                sender.RawData,
+                new byte[TcpMessageLimits.CertificateThumbprintSize]);
+
+            // Baseline after the sender/receiver handles already exist: only the
+            // chain the header parser allocates internally may move the counters.
+            long createdBefore = Certificate.InstancesCreated;
+            long disposedBefore = Certificate.InstancesDisposed;
+
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(
+                () => channel.CallReadAsymmetricMessageHeader(
+                    new ArraySegment<byte>(header), receiver))!;
+            Assert.That(ex.StatusCode, Is.EqualTo((uint)StatusCodes.BadCertificateInvalid));
+
+            Assert.That(
+                Certificate.InstancesCreated - createdBefore,
+                Is.EqualTo(Certificate.InstancesDisposed - disposedBefore),
+                "the parsed sender certificate chain must be disposed when asymmetric " +
+                "header validation fails instead of being abandoned as a leaked handle.");
+        }
+
+        [Test]
+        public void ReadAsymmetricMessageHeaderDisposesSenderChainWhenReceiverCertificateMissing()
+        {
+            var factory = new RecordingByteTransportFactory();
+            using var channel = new TestClientChannel(
+                m_buffers,
+                factory,
+                m_quotas,
+                null,
+                BuildEndpoint(MessageSecurityMode.None, SecurityPolicies.None),
+                m_telemetry,
+                new FakeTimeProvider());
+
+            using Certificate sender = CreateSmallCertificate();
+
+            byte[] header = BuildAsymmetricHeader(
+                SecurityPolicies.Basic256Sha256,
+                sender.RawData,
+                new byte[TcpMessageLimits.CertificateThumbprintSize]);
+
+            long createdBefore = Certificate.InstancesCreated;
+            long disposedBefore = Certificate.InstancesDisposed;
+
+            // No receiver certificate and no server certificate registry (client
+            // side): the parser reaches the "receiver has no matching certificate"
+            // failure after the sender chain is allocated.
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(
+                () => channel.CallReadAsymmetricMessageHeader(
+                    new ArraySegment<byte>(header), receiverCertificate: null))!;
+            Assert.That(ex.StatusCode, Is.EqualTo((uint)StatusCodes.BadCertificateInvalid));
+
+            Assert.That(
+                Certificate.InstancesCreated - createdBefore,
+                Is.EqualTo(Certificate.InstancesDisposed - disposedBefore),
+                "the parsed sender chain must be disposed when the receiver certificate is missing.");
+        }
+
+        [Test]
+        public void ReadAsymmetricMessageHeaderDisposesSenderChainWhenReceiverThumbprintMissing()
+        {
+            var factory = new RecordingByteTransportFactory();
+            using var channel = new TestClientChannel(
+                m_buffers,
+                factory,
+                m_quotas,
+                null,
+                BuildEndpoint(MessageSecurityMode.None, SecurityPolicies.None),
+                m_telemetry,
+                new FakeTimeProvider());
+
+            using Certificate sender = CreateSmallCertificate();
+            using Certificate receiver = CreateSmallCertificate();
+
+            // A secured policy with no receiver thumbprint on the wire reaches the
+            // "receiver's certificate thumbprint was not specified" failure after
+            // the sender chain is allocated.
+            byte[] header = BuildAsymmetricHeader(
+                SecurityPolicies.Basic256Sha256,
+                sender.RawData,
+                Array.Empty<byte>());
+
+            long createdBefore = Certificate.InstancesCreated;
+            long disposedBefore = Certificate.InstancesDisposed;
+
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(
+                () => channel.CallReadAsymmetricMessageHeader(
+                    new ArraySegment<byte>(header), receiver))!;
+            Assert.That(ex.StatusCode, Is.EqualTo((uint)StatusCodes.BadCertificateInvalid));
+
+            Assert.That(
+                Certificate.InstancesCreated - createdBefore,
+                Is.EqualTo(Certificate.InstancesDisposed - disposedBefore),
+                "the parsed sender chain must be disposed when the receiver thumbprint is absent.");
+        }
+
+        [Test]
         public void VerifyMessageTypeWithWrongTypeThrowsBadTcpMessageTypeInvalid()
         {
             byte[] header = BuildTypeAndSize(TcpMessageType.Error, 8);
@@ -542,6 +659,29 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             return TrimTo(buffer, size);
         }
 
+        private byte[] BuildAsymmetricHeader(
+            string securityPolicyUri, byte[] senderCertificate, byte[] receiverThumbprint)
+        {
+            // Matches the field order ReadAsymmetricMessageHeader decodes: it
+            // first skips the message-type and size UInt32s, then reads the
+            // secure channel id, the security policy uri, the sender
+            // certificate blob, and the receiver certificate thumbprint.
+            byte[] buffer = new byte[senderCertificate.Length + 1024];
+            int size;
+            using (var stream = new MemoryStream(buffer, 0, buffer.Length))
+            using (var encoder = new BinaryEncoder(stream, m_context, false))
+            {
+                encoder.WriteUInt32(null, TcpMessageType.Open); // message type
+                encoder.WriteUInt32(null, 0); // size placeholder
+                encoder.WriteUInt32(null, 0); // secure channel id
+                encoder.WriteString(null, securityPolicyUri);
+                encoder.WriteByteString(null, senderCertificate);
+                encoder.WriteByteString(null, receiverThumbprint);
+                size = encoder.Close();
+            }
+            return TrimTo(buffer, size);
+        }
+
         private byte[] BuildChunk(uint messageType, Action<BinaryEncoder> writeBody)
         {
             byte[] buffer = new byte[256];
@@ -687,6 +827,21 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                 IDecoder decoder, uint expectedMessageType, int count)
             {
                 ReadAndVerifyMessageTypeAndSize(decoder, expectedMessageType, count);
+            }
+
+            public (uint ChannelId, CertificateCollection? SenderChain, string SecurityPolicyUri)
+                CallReadAsymmetricMessageHeader(
+                    ArraySegment<byte> buffer, Certificate? receiverCertificate)
+            {
+                using var decoder = new BinaryDecoder(buffer, Quotas.MessageContext);
+                Certificate? receiver = receiverCertificate;
+                ReadAsymmetricMessageHeader(
+                    decoder,
+                    ref receiver,
+                    out uint channelId,
+                    out CertificateCollection? senderChain,
+                    out string securityPolicyUri);
+                return (channelId, senderChain, securityPolicyUri);
             }
 
             protected override void HandleWriteComplete(

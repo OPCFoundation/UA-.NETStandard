@@ -38,8 +38,8 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Opc.Ua.Client;
 using Opc.Ua.OpenUsd.Client;
-using Opc.Ua.OpenUsdScene.Conversion;
-using Opc.Ua.OpenUsdScene.Scene;
+using Opc.Ua.OpenUsd.Scene.Conversion;
+using Opc.Ua.OpenUsd.Scene;
 
 namespace Opc.Ua.OpenUsd.Connector
 {
