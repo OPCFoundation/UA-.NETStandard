@@ -1,0 +1,97 @@
+{
+  "@context": [
+    "https://www.w3.org/2022/wot/td/v1.1",
+    {
+      "uav": "http://opcfoundation.org/UA/WoT-Binding/",
+      "ua": "http://opcfoundation.org/UA/",
+      "qudt": "http://qudt.org/schema/qudt/",
+      "qudt-quantitykind": "http://qudt.org/vocab/quantitykind/",
+      "pump": "http://example.com/demo/pump",
+      "@language": "en"
+    },
+    "../opc-ua-wot-binding.context.jsonld"
+  ],
+  "@type": "uav:object",
+  "id": "urn:dev:opcua:pump-09-localized",
+  "uav:bindingVersion": "1.1",
+  "uav:profile": ["WoT-Reader", "WoT-ModelVocabulary"],
+  "title": "Pumpe 09",
+  "titles": {
+    "de": "Pumpe 09",
+    "fr": "Pompe 09"
+  },
+  "description": "Eine Pumpe, deren Texte auf Deutsch und Französisch verfasst sind.",
+  "descriptions": {
+    "de": "Eine Pumpe, deren Texte auf Deutsch und Französisch verfasst sind.",
+    "fr": "Une pompe dont les textes sont rédigés en allemand et en français."
+  },
+  "uav:browseName": "pump:Pump",
+  "uav:id": "nsu=http://example.com/demo/pump;s=Pump09",
+  "securityDefinitions": {
+    "opcua_channel_sc": {
+      "scheme": "uav:channelsec",
+      "uav:securityMode": "SignAndEncrypt",
+      "uav:securityPolicy": "Aes256_Sha256_RsaPss"
+    }
+  },
+  "security": "opcua_channel_sc",
+  "base": "opc.tcp://opcuademo.com:4840",
+  "properties": {
+    "pumpSpeed": {
+      "@type": "uav:variable",
+      "title": "Drehzahl",
+      "titles": {
+        "de": "Drehzahl",
+        "fr": "Vitesse de rotation"
+      },
+      "type": "number",
+      "unit": "rpm",
+      "qudt:hasQuantityKind": "qudt-quantitykind:AngularVelocity",
+      "minimum": 0,
+      "maximum": 3600,
+      "readOnly": true,
+      "observable": true,
+      "uav:browseName": "pump:PumpSpeed",
+      "uav:unitProperty": "/properties/pumpSpeedUnit",
+      "forms": [
+        {
+          "href": "/?id=nsu=http://example.com/demo/pump;s=Pump09.PumpSpeed",
+          "contentType": "application/octet-stream",
+          "op": ["readproperty", "observeproperty"]
+        }
+      ]
+    },
+    "pumpSpeedUnit": {
+      "@type": "uav:variable",
+      "title": "Einheit",
+      "titles": {
+        "de": "Einheit",
+        "fr": "Unité"
+      },
+      "type": "string",
+      "readOnly": true,
+      "uav:browseName": "ua:EngineeringUnits",
+      "uav:engineeringUnits": {
+        "namespaceUri": "http://www.opcfoundation.org/UA/units/un/cefact",
+        "unitId": 5340017,
+        "displayName": "rpm",
+        "displayNames": {
+          "de": "rpm",
+          "fr": "tr/min"
+        },
+        "description": "Umdrehungen pro Minute",
+        "descriptions": {
+          "de": "Umdrehungen pro Minute",
+          "fr": "tours par minute"
+        }
+      },
+      "forms": [
+        {
+          "href": "/?id=nsu=http://example.com/demo/pump;s=Pump09.PumpSpeed.EngineeringUnits",
+          "contentType": "application/octet-stream",
+          "op": ["readproperty"]
+        }
+      ]
+    }
+  }
+}

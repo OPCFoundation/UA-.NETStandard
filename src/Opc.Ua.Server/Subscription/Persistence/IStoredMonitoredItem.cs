@@ -167,6 +167,19 @@ namespace Opc.Ua.Server
         int TypeMask { get; set; }
 
         /// <summary>
+        /// The conditions that currently pass the item's event filter and are tracked for
+        /// filtered retain (OPC UA Part 9, B.1.4).
+        /// </summary>
+        /// <remarks>
+        /// Without this state a durable subscription drops the first transition out of
+        /// filter scope after a restart, because the item no longer knows that the client
+        /// had ever been told about the condition. The entries are opaque keys built by the
+        /// monitored item; a store only has to round-trip them. A null or empty array both
+        /// mean nothing is being tracked.
+        /// </remarks>
+        ArrayOf<string> FilteredRetainConditionIds { get; set; }
+
+        /// <summary>
         /// An optional data-change queue pre-hydrated by an asynchronous
         /// <see cref="ISubscriptionStore"/> during restore. Runtime-only; never persisted.
         /// </summary>

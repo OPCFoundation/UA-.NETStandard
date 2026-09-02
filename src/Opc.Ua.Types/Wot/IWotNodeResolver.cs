@@ -52,7 +52,20 @@ namespace Opc.Ua.Wot
         /// <summary>
         /// A VariableType. A name that types a Variable must resolve to one.
         /// </summary>
-        VariableType
+        VariableType,
+
+        /// <summary>
+        /// A ReferenceType. A name a link <c>rel</c> or a <c>uav:refId</c>
+        /// uses must resolve to one.
+        /// </summary>
+        /// <remarks>
+        /// Telling this NodeClass apart from the others is what lets a
+        /// relation naming an ObjectType be reported as naming the wrong kind
+        /// of Node instead of merely being unresolvable, which is the
+        /// difference between "this model does not define that" and "this
+        /// model defines that, but it is not a ReferenceType".
+        /// </remarks>
+        ReferenceType
     }
 
     /// <summary>
@@ -154,6 +167,86 @@ namespace Opc.Ua.Wot
     }
 
     /// <summary>
+    /// One ReferenceType a local context matched, and the direction the name
+    /// that matched it expressed.
+    /// </summary>
+    /// <param name="NodeId">
+    /// The ReferenceType's canonical identity, as a portable ExpandedNodeId
+    /// string.
+    /// </param>
+    /// <param name="Name">
+    /// The unqualified name that matched — the ReferenceType's BrowseName when
+    /// <paramref name="IsForward"/> is <c>true</c>, its InverseName when it is
+    /// <c>false</c>. It is carried back so a caller can report which of the two
+    /// names a document used rather than only the identity behind it.
+    /// </param>
+    /// <param name="IsForward">
+    /// <c>true</c> when the name matched the ReferenceType's BrowseName,
+    /// <c>false</c> when it matched its InverseName. A reference named by an
+    /// InverseName is the same reference read backwards, so it is emitted with
+    /// its <c>IsForward</c> flag cleared. A symmetric ReferenceType has one
+    /// name for both directions and therefore always reads forward.
+    /// </param>
+    public readonly record struct WotResolvedReferenceType(
+        string NodeId,
+        string Name,
+        bool IsForward);
+
+    /// <summary>
+    /// An optional capability an <see cref="IWotNodeResolver"/> may also
+    /// implement to resolve the ReferenceType a WoT Binding Section 5.3 link
+    /// relation names.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// A link relation names a ReferenceType by its <em>model name</em>, and
+    /// OPC 10000-3 gives every ReferenceType two names: the BrowseName reads
+    /// the reference forward and the InverseName reads the same reference
+    /// backwards. <see cref="IWotNodeResolver.ResolveByBrowseNameAsync"/>
+    /// resolves BrowseNames only, so it cannot report the direction and cannot
+    /// see an InverseName at all.
+    /// </para>
+    /// <para>
+    /// This is deliberately a separate interface rather than a member of
+    /// <see cref="IWotNodeResolver"/>: a local context that holds only
+    /// documents describing no ReferenceType has none to offer, and the library
+    /// targets frameworks without default interface implementations, so adding
+    /// the member would break every existing implementation for no gain. The
+    /// converter probes for the capability and falls back to the standard
+    /// base-namespace names when a resolver does not offer it.
+    /// </para>
+    /// </remarks>
+    public interface IWotReferenceTypeResolver
+    {
+        /// <summary>
+        /// Resolves every ReferenceType this part of the local context holds
+        /// whose BrowseName or InverseName is the supplied name.
+        /// </summary>
+        /// <remarks>
+        /// The result is a list rather than a single value because a name is a
+        /// lookup hint: one namespace may hold a ReferenceType whose BrowseName
+        /// is the name and another whose InverseName is, and both are legitimate
+        /// readings of the same spelling. Collapsing them here would pick one
+        /// silently; returning both lets the caller settle the ambiguity with
+        /// the definitive <c>uav:refId</c> of WoT Binding Section 6.2, or report
+        /// it.
+        /// </remarks>
+        /// <param name="namespaceUri">
+        /// The NamespaceUri the relation's prefix resolved to.
+        /// </param>
+        /// <param name="name">The unqualified BrowseName or InverseName.</param>
+        /// <param name="cancellationToken">A cancellation token.</param>
+        /// <returns>
+        /// Every ReferenceType the name matched, which is empty when this part
+        /// of the local context does not hold it.
+        /// </returns>
+        ValueTask<ArrayOf<WotResolvedReferenceType>> ResolveReferenceTypesAsync(
+            string namespaceUri,
+            string name,
+            CancellationToken cancellationToken = default);
+    }
+
+    /// <summary>
     /// The resolver used when a caller supplies none: it holds nothing, so
     /// every name is unresolved.
     /// </summary>
@@ -212,7 +305,7 @@ namespace Opc.Ua.Wot
     /// and loading an unrelated companion model can never change what an
     /// existing document projects to.
     /// </remarks>
-    public sealed class WotCompositeNodeResolver : IWotNodeResolver
+    public sealed class WotCompositeNodeResolver : IWotNodeResolver, IWotReferenceTypeResolver
     {
         /// <summary>
         /// Initializes a composite over the supplied resolvers, in order.
@@ -281,6 +374,41 @@ namespace Opc.Ua.Wot
             }
 
             return null;
+        }
+
+        /// <inheritdoc/>
+        /// <remarks>
+        /// A resolver that does not offer the capability contributes nothing
+        /// rather than ending the walk, so one part of the local context
+        /// holding no ReferenceType declarations never hides another that does.
+        /// The first part that matches the name settles it, which is the same
+        /// precedence <see cref="ResolveByBrowseNameAsync"/> and
+        /// <see cref="ResolveByNodeIdAsync"/> follow: a set of documents
+        /// authored together resolves to itself, and loading an unrelated
+        /// companion model can never change what an existing document projects
+        /// to.
+        /// </remarks>
+        public async ValueTask<ArrayOf<WotResolvedReferenceType>> ResolveReferenceTypesAsync(
+            string namespaceUri,
+            string name,
+            CancellationToken cancellationToken = default)
+        {
+            foreach (IWotNodeResolver resolver in m_resolvers)
+            {
+                if (resolver is not IWotReferenceTypeResolver referenceTypes)
+                {
+                    continue;
+                }
+                ArrayOf<WotResolvedReferenceType> matches = await referenceTypes
+                    .ResolveReferenceTypesAsync(namespaceUri, name, cancellationToken)
+                    .ConfigureAwait(false);
+                if (matches.Count > 0)
+                {
+                    return matches;
+                }
+            }
+
+            return ArrayOf<WotResolvedReferenceType>.Empty;
         }
 
         private readonly IWotNodeResolver[] m_resolvers;

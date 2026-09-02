@@ -50,10 +50,11 @@ namespace Opc.Ua.WotCon.Server.Materialization
     /// <see cref="WotCompositeNodeResolver"/> to get that order.
     /// </para>
     /// <para>
-    /// Only Thing Models are indexed. A Thing Model projects its root as an
-    /// ObjectType and is therefore what a Section 5.2.1 type binding can name;
-    /// a Thing Description projects an instance and is never a type-binding
-    /// target.
+    /// Thing Models are indexed as types, and a document describing a
+    /// ReferenceType additionally as a relation the local context can name. A
+    /// Thing Model projects its root as an ObjectType and is therefore what a
+    /// Section 5.2.1 type binding can name; a Thing Description projects an
+    /// instance and is never a type-binding target.
     /// </para>
     /// <para>
     /// The index is built once, on first use, and is not rebuilt: a snapshot is
@@ -61,7 +62,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
     /// whole run.
     /// </para>
     /// </remarks>
-    public sealed class SnapshotWotNodeResolver : IWotNodeResolver
+    public sealed class SnapshotWotNodeResolver : IWotNodeResolver, IWotReferenceTypeResolver
     {
         /// <summary>
         /// Initializes a resolver over the documents in a registry snapshot.
@@ -116,21 +117,34 @@ namespace Opc.Ua.WotCon.Server.Materialization
         {
             cancellationToken.ThrowIfCancellationRequested();
 
-            // Every indexed sibling projects an ObjectType, so a caller that
-            // requires a VariableType can never be satisfied here.
-            if (expected == WotExpectedNodeClass.VariableType ||
-                string.IsNullOrEmpty(namespaceUri) ||
-                string.IsNullOrEmpty(browseName))
+            if (string.IsNullOrEmpty(namespaceUri) || string.IsNullOrEmpty(browseName))
             {
                 return new ValueTask<ArrayOf<WotResolvedNode>>(ArrayOf<WotResolvedNode>.Empty);
             }
 
-            ArrayOf<WotResolvedNode> matches =
-                Index().ByBrowseName.TryGetValue(
-                    Key(namespaceUri, browseName), out ArrayOf<WotResolvedNode> found)
-                    ? found
-                    : ArrayOf<WotResolvedNode>.Empty;
-            return new ValueTask<ArrayOf<WotResolvedNode>>(matches);
+            if (!Index().ByBrowseName.TryGetValue(
+                Key(namespaceUri, browseName), out ArrayOf<WotResolvedNode> found))
+            {
+                return new ValueTask<ArrayOf<WotResolvedNode>>(ArrayOf<WotResolvedNode>.Empty);
+            }
+            if (expected == WotExpectedNodeClass.Any)
+            {
+                return new ValueTask<ArrayOf<WotResolvedNode>>(found);
+            }
+
+            // Section 5.2.1 makes a resolved type of the wrong NodeClass an
+            // invalid document, so a match of a NodeClass the caller did not
+            // ask for is not offered at all.
+            var accepted = new List<WotResolvedNode>(found.Count);
+            foreach (WotResolvedNode node in found)
+            {
+                if (node.NodeClass == expected)
+                {
+                    accepted.Add(node);
+                }
+            }
+            return new ValueTask<ArrayOf<WotResolvedNode>>(
+                new ArrayOf<WotResolvedNode>(accepted.ToArray()));
         }
 
         /// <inheritdoc/>
@@ -145,6 +159,35 @@ namespace Opc.Ua.WotCon.Server.Materialization
                     ? found
                     : null;
             return new ValueTask<WotResolvedNode?>(match);
+        }
+
+        /// <inheritdoc/>
+        /// <remarks>
+        /// A registry holds the ReferenceTypes of a companion model as
+        /// documents of their own, and a document describing one carries both
+        /// of the names OPC 10000-3 gives it. Reading them here is what lets a
+        /// sibling state a relation of that model in either direction and have
+        /// it resolve against the registry rather than against a loaded
+        /// AddressSpace, which is the precedence Section 5.1.5 fixes.
+        /// </remarks>
+        public ValueTask<ArrayOf<WotResolvedReferenceType>> ResolveReferenceTypesAsync(
+            string namespaceUri,
+            string name,
+            CancellationToken cancellationToken = default)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (string.IsNullOrEmpty(namespaceUri) || string.IsNullOrEmpty(name))
+            {
+                return new ValueTask<ArrayOf<WotResolvedReferenceType>>(
+                    ArrayOf<WotResolvedReferenceType>.Empty);
+            }
+            ArrayOf<WotResolvedReferenceType> matches =
+                Index().ReferenceTypes.TryGetValue(
+                    Key(namespaceUri, name),
+                    out ArrayOf<WotResolvedReferenceType> found)
+                    ? found
+                    : ArrayOf<WotResolvedReferenceType>.Empty;
+            return new ValueTask<ArrayOf<WotResolvedReferenceType>>(matches);
         }
 
         /// <summary>
@@ -167,6 +210,8 @@ namespace Opc.Ua.WotCon.Server.Materialization
 
                 var built = new SnapshotIndex();
                 var buckets = new Dictionary<string, List<WotResolvedNode>>(
+                    StringComparer.Ordinal);
+                var relations = new Dictionary<string, List<WotResolvedReferenceType>>(
                     StringComparer.Ordinal);
                 long budget = 0;
                 int indexed = 0;
@@ -206,6 +251,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
                     {
                         using WotDocument document = WotDocument.Parse(
                             content.Span.ToArray(), m_options);
+                        IndexReferenceType(document, built, relations);
                         if (!WotNodeSetConverter.TryDescribeProjectedType(
                             document,
                             out string namespaceUri,
@@ -217,8 +263,8 @@ namespace Opc.Ua.WotCon.Server.Materialization
                             continue;
                         }
 
-                        var node = new WotResolvedNode(
-                            nodeId, WotExpectedNodeClass.ObjectType);
+                        WotExpectedNodeClass projectedClass = ProjectedNodeClass(document);
+                        var node = new WotResolvedNode(nodeId, projectedClass);
                         built.Namespaces.Add(namespaceUri);
                         built.ByNodeId[nodeId] = node;
 
@@ -252,10 +298,97 @@ namespace Opc.Ua.WotCon.Server.Materialization
                     built.ByBrowseName[bucket.Key] = new ArrayOf<WotResolvedNode>(
                         bucket.Value.ToArray());
                 }
+                foreach (KeyValuePair<string, List<WotResolvedReferenceType>> relation in relations)
+                {
+                    built.ReferenceTypes[relation.Key] =
+                        new ArrayOf<WotResolvedReferenceType>(relation.Value.ToArray());
+                }
 
                 m_index = built;
                 return built;
             }
+        }
+
+        /// <summary>
+        /// Indexes a document describing a ReferenceType under both of the
+        /// names OPC 10000-3 gives it.
+        /// </summary>
+        /// <remarks>
+        /// A symmetric ReferenceType has one name for both directions, so only
+        /// its BrowseName is added: a second entry would make every use of the
+        /// name ambiguous and require a <c>uav:refId</c> to state a relation
+        /// that was never in doubt.
+        /// </remarks>
+        private static void IndexReferenceType(
+            WotDocument document,
+            SnapshotIndex index,
+            Dictionary<string, List<WotResolvedReferenceType>> relations)
+        {
+            if (!WotNodeSetConverter.TryDescribeProjectedReferenceType(
+                document,
+                out string namespaceUri,
+                out string browseName,
+                out string inverseName,
+                out bool isSymmetric,
+                out string nodeId) ||
+                namespaceUri.Length == 0 ||
+                browseName.Length == 0)
+            {
+                return;
+            }
+            index.Namespaces.Add(namespaceUri);
+            AddRelation(relations, namespaceUri, browseName, nodeId, browseName, true);
+            if (!isSymmetric &&
+                inverseName.Length != 0 &&
+                !string.Equals(inverseName, browseName, StringComparison.Ordinal))
+            {
+                AddRelation(relations, namespaceUri, inverseName, nodeId, inverseName, false);
+            }
+        }
+
+        private static void AddRelation(
+            Dictionary<string, List<WotResolvedReferenceType>> relations,
+            string namespaceUri,
+            string name,
+            string nodeId,
+            string matchedName,
+            bool isForward)
+        {
+            string key = Key(namespaceUri, name);
+            if (!relations.TryGetValue(key, out List<WotResolvedReferenceType>? matches))
+            {
+                matches = [];
+                relations[key] = matches;
+            }
+            foreach (WotResolvedReferenceType existing in matches)
+            {
+                if (string.Equals(existing.NodeId, nodeId, StringComparison.Ordinal) &&
+                    existing.IsForward == isForward)
+                {
+                    return;
+                }
+            }
+            matches.Add(new WotResolvedReferenceType(nodeId, matchedName, isForward));
+        }
+
+        /// <summary>
+        /// Gets the NodeClass a document projects, which is what a caller
+        /// requiring a particular one is matched against.
+        /// </summary>
+        private static WotExpectedNodeClass ProjectedNodeClass(WotDocument document)
+        {
+            foreach (string token in document.TypeTokens)
+            {
+                if (string.Equals(token, "uav:referenceType", StringComparison.Ordinal))
+                {
+                    return WotExpectedNodeClass.ReferenceType;
+                }
+                if (string.Equals(token, "uav:variableType", StringComparison.Ordinal))
+                {
+                    return WotExpectedNodeClass.VariableType;
+                }
+            }
+            return WotExpectedNodeClass.ObjectType;
         }
 
         private static string Key(string namespaceUri, string browseName)
@@ -271,6 +404,9 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 new(StringComparer.Ordinal);
 
             public Dictionary<string, WotResolvedNode> ByNodeId { get; } =
+                new(StringComparer.Ordinal);
+
+            public Dictionary<string, ArrayOf<WotResolvedReferenceType>> ReferenceTypes { get; } =
                 new(StringComparer.Ordinal);
         }
 

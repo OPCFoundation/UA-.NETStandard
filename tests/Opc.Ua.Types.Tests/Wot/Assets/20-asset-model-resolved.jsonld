@@ -6,7 +6,9 @@
       "ua": "http://opcfoundation.org/UA/",
       "tm": "https://www.w3.org/2019/wot/tm#",
       "pump": "http://example.com/demo/pump",
-      "qudt-quantitykind": "http://qudt.org/vocab/quantitykind/"
+      "qudt": "http://qudt.org/schema/qudt/",
+      "qudt-quantitykind": "http://qudt.org/vocab/quantitykind/",
+      "@language": "en"
     },
     "../opc-ua-wot-binding.context.jsonld"
   ],

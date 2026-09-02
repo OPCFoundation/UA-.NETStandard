@@ -95,6 +95,36 @@ namespace Opc.Ua.Client.Tests.FileSystem
         }
 
         [Test]
+        public async Task GetDirectoryAsyncCanonicalizesUnqualifiedNamespacedSegmentsAsync()
+        {
+            var harness = FileSystemSessionHarness.Create();
+            NodeId sampleFiles = harness.RegisterDirectory(
+                harness.Root,
+                new QualifiedName("SampleFiles", 2),
+                new NodeId(6001u, 2));
+            NodeId uploads = harness.RegisterDirectory(
+                sampleFiles,
+                new QualifiedName("Uploads", 2),
+                new NodeId(6002u, 2));
+            var client = new FileSystemClient(harness.Session, harness.Root);
+
+            UaDirectoryInfo resolved = await client
+                .GetDirectoryAsync("/2:SampleFiles/Uploads")
+                .ConfigureAwait(false);
+            UaDirectoryInfo cached = await client
+                .GetDirectoryAsync("/2:SampleFiles/Uploads")
+                .ConfigureAwait(false);
+
+            Assert.That(resolved.NodeId, Is.EqualTo(uploads));
+            Assert.That(
+                resolved.FullPath,
+                Is.EqualTo("/2:SampleFiles/2:Uploads"));
+            Assert.That(
+                cached.FullPath,
+                Is.EqualTo("/2:SampleFiles/2:Uploads"));
+        }
+
+        [Test]
         public async Task GetInfoAsyncReturnsNullForMissingPathAsync()
         {
             var harness = FileSystemSessionHarness.Create();

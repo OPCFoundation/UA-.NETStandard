@@ -32,8 +32,8 @@ using System;
 using System.Linq;
 using NUnit.Framework;
 using Opc.Ua.Export;
-using Opc.Ua.Wot;
 using Opc.Ua.Types.Tests.Wot;
+using Opc.Ua.Wot;
 
 namespace Opc.Ua.Types.Tests.Schema
 {
@@ -141,7 +141,7 @@ namespace Opc.Ua.Types.Tests.Schema
         public void RoundtripNullSourceThrows()
         {
             Assert.That(
-                () => NodeSetComparer.Roundtrip(null!),
+                () => WotNodeSetRoundtrip.Run(null!),
                 Throws.TypeOf<System.ArgumentNullException>());
         }
 
@@ -153,7 +153,7 @@ namespace Opc.Ua.Types.Tests.Schema
                 PreservationMode = WotNodeSetPreservationMode.Always
             };
 
-            NodeSetRoundtripReport report = NodeSetComparer.Roundtrip(
+            WotNodeSetRoundtripReport report = WotNodeSetRoundtrip.Run(
                 WotTestData.CreateReconstructableNodeSet(),
                 options);
 

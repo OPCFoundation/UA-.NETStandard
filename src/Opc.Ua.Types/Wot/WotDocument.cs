@@ -142,6 +142,49 @@ namespace Opc.Ua.Wot
             return TryGetRootProperty("@context", out context);
         }
 
+        /// <summary>
+        /// Resolves a compact-IRI prefix to the namespace the document's
+        /// <c>@context</c> binds it to (WoT Binding Section 5.1.2).
+        /// </summary>
+        /// <param name="prefix">The prefix, without the colon.</param>
+        /// <param name="namespaceUri">The namespace it is bound to.</param>
+        /// <returns><c>true</c> when the document binds the prefix.</returns>
+        internal bool TryGetContextPrefix(string prefix, out string namespaceUri)
+        {
+            if (TryGetContext(out JsonElement context))
+            {
+                return TryGetContextPrefix(context, prefix, out namespaceUri);
+            }
+            namespaceUri = string.Empty;
+            return false;
+        }
+
+        private static bool TryGetContextPrefix(
+            JsonElement context,
+            string prefix,
+            out string namespaceUri)
+        {
+            if (context.ValueKind == JsonValueKind.Object &&
+                context.TryGetProperty(prefix, out JsonElement value) &&
+                value.ValueKind == JsonValueKind.String)
+            {
+                namespaceUri = value.GetString()!;
+                return true;
+            }
+            if (context.ValueKind == JsonValueKind.Array)
+            {
+                foreach (JsonElement entry in context.EnumerateArray())
+                {
+                    if (TryGetContextPrefix(entry, prefix, out namespaceUri))
+                    {
+                        return true;
+                    }
+                }
+            }
+            namespaceUri = string.Empty;
+            return false;
+        }
+
         /// <summary>Gets the <c>properties</c> affordance map (name to schema).</summary>
         public IReadOnlyDictionary<string, JsonElement> Properties
         {
@@ -372,35 +415,125 @@ namespace Opc.Ua.Wot
         }
 
         /// <summary>
-        /// Writes a deterministic canonical serialization of the document to
-        /// <paramref name="stream"/>. Object members are ordered by name and
-        /// insignificant whitespace is removed so equivalent documents produce
-        /// byte-identical output. Unlike <see cref="Write(Stream)"/> this does
-        /// not preserve the original byte layout.
+        /// Writes the RFC 8785 (JCS) canonical serialization of the document to
+        /// <paramref name="stream"/>: object members ordered by the UTF-16 code
+        /// units of their names, minimal string escaping, and numbers in the
+        /// ECMAScript form of their IEEE-754 double value. Two documents that
+        /// are the same JSON <em>value</em> produce byte-identical output.
+        /// Unlike <see cref="Write(Stream)"/> this does not preserve the
+        /// original byte layout, and it is not the form anything is digested
+        /// in: the residue digest of WoT Binding Section 10.2 is taken over the
+        /// retained bytes exactly, and the opaque-object bound of Section 6.6
+        /// is measured over the compact received form of Annex G.4.
         /// </summary>
         /// <param name="stream">The destination stream.</param>
+        /// <exception cref="FormatException">
+        /// Thrown when the document holds a number outside the interoperable
+        /// domain of RFC 8259 Section 6, which RFC 8785 cannot canonicalize
+        /// without changing the value.
+        /// </exception>
         public void WriteCanonical(Stream stream)
         {
             if (stream is null)
             {
                 throw new ArgumentNullException(nameof(stream));
             }
-            using var writer = new Utf8JsonWriter(
-                stream,
-                new JsonWriterOptions { Indented = false, SkipValidation = false });
-            WriteCanonical(writer, RootElement);
-            writer.Flush();
+            byte[] canonical = ToCanonicalUtf8();
+            stream.Write(canonical, 0, canonical.Length);
         }
 
         /// <summary>
-        /// Returns the deterministic canonical serialization of the document.
+        /// Returns the RFC 8785 (JCS) canonical serialization of the document.
         /// </summary>
         /// <returns>The canonical UTF-8 bytes.</returns>
+        /// <exception cref="FormatException">
+        /// Thrown when the document holds a number outside the interoperable
+        /// domain of RFC 8259 Section 6.
+        /// </exception>
         public byte[] ToCanonicalUtf8()
         {
-            using var stream = new MemoryStream();
-            WriteCanonical(stream);
-            return stream.ToArray();
+            if (!WotJsonCanonicalizer.TryGetUtf8(
+                RootElement, out byte[] canonical, out string error))
+            {
+                throw new FormatException(error);
+            }
+            return canonical;
+        }
+
+        /// <summary>
+        /// Measures a JSON value in the compact received form of WoT Binding
+        /// Annex G.4, which is the form the opaque-object size bound of
+        /// Section 6.6 is stated in.
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// The measured form is the received text of the value with every
+        /// <em>insignificant</em> whitespace character removed - one of
+        /// U+0009, U+000A, U+000D and U+0020 lying outside a JSON string
+        /// literal - and nothing else changed: member order is the received
+        /// order, numbers keep the lexical form they were written in, and
+        /// strings keep the escapes they were written with. Annex G.4 states it
+        /// that way on purpose. A canonical re-serialization would oblige a
+        /// consumer to produce the reordered, re-escaped, number-normalized
+        /// value that the preservation rule of Section 6.6 forbids it to
+        /// produce, and an "almost-JCS" measurement - compact separators but a
+        /// language's own <c>double</c> formatting - is what two
+        /// implementations disagree about in practice.
+        /// </para>
+        /// <para>
+        /// Whitespace removal outside string literals is decidable by a scanner
+        /// with one bit of state, so two implementations that received the same
+        /// bytes measure the same number.
+        /// </para>
+        /// </remarks>
+        /// <param name="element">The value to measure.</param>
+        /// <returns>The compact received size in octets.</returns>
+        internal static long MeasureCompactUtf8(JsonElement element)
+        {
+            string text = element.GetRawText();
+            long octets = 0;
+            bool inString = false;
+            bool escaped = false;
+            for (int ii = 0; ii < text.Length; ii++)
+            {
+                char unit = text[ii];
+                if (inString)
+                {
+                    if (escaped)
+                    {
+                        escaped = false;
+                    }
+                    else if (unit == '\\')
+                    {
+                        escaped = true;
+                    }
+                    else if (unit == '"')
+                    {
+                        inString = false;
+                    }
+                }
+                else if (unit == '"')
+                {
+                    inString = true;
+                }
+                else if (unit is '\t' or '\n' or '\r' or ' ')
+                {
+                    continue;
+                }
+                if (char.IsHighSurrogate(unit) &&
+                    ii + 1 < text.Length &&
+                    char.IsLowSurrogate(text[ii + 1]))
+                {
+                    // One supplementary scalar is four UTF-8 octets, and its
+                    // low surrogate is part of the same scalar rather than a
+                    // character of its own.
+                    octets += 4;
+                    ii++;
+                    continue;
+                }
+                octets += unit < 0x80 ? 1 : unit < 0x800 ? 2 : 3;
+            }
+            return octets;
         }
 
         /// <inheritdoc/>
@@ -422,53 +555,6 @@ namespace Opc.Ua.Wot
                     MaxDepth = options.MaxJsonDepth
                 });
             return new WotDocument(utf8Json, document);
-        }
-
-        private static void WriteCanonical(Utf8JsonWriter writer, JsonElement element)
-        {
-            switch (element.ValueKind)
-            {
-                case JsonValueKind.Object:
-                    writer.WriteStartObject();
-                    var members = new List<KeyValuePair<string, JsonElement>>();
-                    foreach (JsonProperty property in element.EnumerateObject())
-                    {
-                        members.Add(new KeyValuePair<string, JsonElement>(property.Name, property.Value));
-                    }
-                    members.Sort(static (left, right) =>
-                        string.CompareOrdinal(left.Key, right.Key));
-                    foreach (KeyValuePair<string, JsonElement> member in members)
-                    {
-                        writer.WritePropertyName(member.Key);
-                        WriteCanonical(writer, member.Value);
-                    }
-                    writer.WriteEndObject();
-                    break;
-                case JsonValueKind.Array:
-                    writer.WriteStartArray();
-                    foreach (JsonElement item in element.EnumerateArray())
-                    {
-                        WriteCanonical(writer, item);
-                    }
-                    writer.WriteEndArray();
-                    break;
-                case JsonValueKind.String:
-                    writer.WriteStringValue(element.GetString());
-                    break;
-                case JsonValueKind.Number:
-                    writer.WriteRawValue(element.GetRawText(), skipInputValidation: true);
-                    break;
-                case JsonValueKind.True:
-                case JsonValueKind.False:
-                    writer.WriteBooleanValue(element.GetBoolean());
-                    break;
-                case JsonValueKind.Null:
-                    writer.WriteNullValue();
-                    break;
-                default:
-                    writer.WriteNullValue();
-                    break;
-            }
         }
 
         private static bool TryGetArrayElement(JsonElement array, string token, out JsonElement value)

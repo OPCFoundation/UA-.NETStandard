@@ -445,6 +445,52 @@ namespace Opc.Ua.Server.Tests.Hosting
         }
 
         [Test]
+        public async Task ConfigureRolesCustomRoleIsBrowsableUnderTheRoleSetAsync()
+        {
+            // Part 18 §4.2: the RoleSet describes every role the server
+            // supports, so a role that only exists in the configuration still
+            // needs a node — otherwise it grants access but cannot be browsed,
+            // read or reconfigured by a client.
+            RoleCaptureServer.Reset();
+            await using HostedServerFixture fixture = await HostedServerFixture.StartAsync(
+                services => services.AddOpcUa()
+                    .AddServer<RoleCaptureServer>(
+                        options => ConfigureHostedOptions(options, "CustomRoleServer"))
+                    .ConfigureRoles(options => options.Roles.Add(new RoleDefinitionOptions
+                    {
+                        Name = "Maintenance",
+                        Identities =
+                        {
+                            new RoleIdentityMappingOptions
+                            {
+                                CriteriaType = IdentityCriteriaType.UserName,
+                                Criteria = "maintainer"
+                            }
+                        }
+                    }))).ConfigureAwait(false);
+
+            Assert.That(
+                await WaitForAsync(
+                    () => RoleCaptureServer.BoundServer != null,
+                    TimeSpan.FromSeconds(30)).ConfigureAwait(false),
+                Is.True);
+
+            IServerInternal server = RoleCaptureServer.BoundServer!;
+            IRoleManager roleManager = fixture.Services.GetRequiredService<IRoleManager>();
+            NodeId roleId = roleManager.RoleIds.Single(
+                id => string.Equals(roleManager.GetRole(id)?.BrowseName, "Maintenance",
+                    StringComparison.Ordinal));
+
+            RoleState? roleNode = server.DiagnosticsNodeManager
+                .FindPredefinedNode<RoleState>(roleId);
+            Assert.That(roleNode, Is.Not.Null,
+                "A role created from ConfigureRoles must have a node under the RoleSet.");
+            Assert.That(roleNode!.BrowseName.Name, Is.EqualTo("Maintenance"));
+            Assert.That(HasUserNameRule(roleNode.Identities!.Value, "maintainer"), Is.True,
+                "The node must expose the configured identity mapping.");
+        }
+
+        [Test]
         public async Task AddRoleManagerBindsRoleSetToInjectedRoleManagerAsync()
         {
             RoleCaptureServer.Reset();
@@ -939,14 +985,18 @@ namespace Opc.Ua.Server.Tests.Hosting
 
             public static RoleState? BoundObserverRole { get; private set; }
 
+            public static IServerInternal? BoundServer { get; private set; }
+
             public static void Reset()
             {
                 BoundRoleManager = null;
                 BoundObserverRole = null;
+                BoundServer = null;
             }
 
             protected override void OnNodeManagerStarted(IServerInternal server)
             {
+                BoundServer = server;
                 BoundRoleManager = server.RoleManager;
                 BoundObserverRole = server.DiagnosticsNodeManager.FindPredefinedNode<RoleState>(
                     ObjectIds.WellKnownRole_Observer);

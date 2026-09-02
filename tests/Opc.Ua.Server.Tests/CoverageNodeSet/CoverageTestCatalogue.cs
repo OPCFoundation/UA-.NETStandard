@@ -206,12 +206,14 @@ namespace Opc.Ua.Server.Tests.CoverageNodeSet
             new(5493, ReferenceTypes.HasComponent, 5494, true, true),
         ];
 
-        // Standard modelling-rule object identifiers (namespace 0).
+        // Standard modelling-rule object identifiers (namespace 0). OPC 10000-5
+        // assigns OptionalPlaceholder 11508 and MandatoryPlaceholder 11510; the
+        // two are neither adjacent nor in name order, so they are easy to swap.
         private const uint ObjectIds_ModellingRule_Mandatory = 78;
         private const uint ObjectIds_ModellingRule_Optional = 80;
         private const uint ObjectIds_ModellingRule_ExposesItsArray = 83;
-        private const uint ObjectIds_ModellingRule_MandatoryPlaceholder = 11508;
-        private const uint ObjectIds_ModellingRule_OptionalPlaceholder = 11510;
+        private const uint ObjectIds_ModellingRule_OptionalPlaceholder = 11508;
+        private const uint ObjectIds_ModellingRule_MandatoryPlaceholder = 11510;
 
         /// <summary>
         /// Builds the model-namespace <see cref="NodeId"/> for an owned node.

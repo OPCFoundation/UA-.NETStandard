@@ -663,6 +663,16 @@ Resource bounds (`WotRegistryPersistenceBounds`) cap document size, versions per
 
 Behaviours:
 
+* The NodeSet2 a closure converts to is **loadable by construction**. Step 4 is
+  literally `ConvertAsync` → serialize → `UANodeSet.Read` → `Import`, and the
+  importer rejects any name used where a NodeId is expected that the document
+  does not declare in `<Aliases>`. The converter therefore completes the
+  `<Aliases>` table of everything it returns, on all three restoration paths
+  (readable synthesis, `uav:nodeSet` envelope restore and `uav:nodes` native
+  restore), without rewriting any name a document brought. See
+  [Importable output](WoTNodeSetConversion.md#importable-output). A vendor alias
+  a source document uses but never declares still fails the load, and is
+  reported as a closure diagnostic naming it.
 * Independent closures commit independently; a failed or invalid closure
   **retains its previous active generation**.
 * An **unchanged** closure (same content digest, options and binder
@@ -779,8 +789,9 @@ not by copying the source document. The readable surface tracks the current
   the readable document and omits `uav:nodes` when it is equivalent; it then
   validates the structured projection when fallback is required. Tests that
   prove completeness use `Never` and assert that no opaque envelope exists.
-  `NodeSetRoundtripReport.NativeProjectionPreserved` and
-  `UsedPreservationEnvelope` distinguish the two paths.
+  `WotNodeSetRoundtripReport.NativeProjectionPreserved` and
+  `UsedPreservationEnvelope` distinguish the two paths
+  (`Opc.Ua.Wot.WotNodeSetRoundtrip.Run`).
 
 * **Unknown members survive as residue, not an envelope.** During
   TD/TM-to-NodeSet synthesis, only unrecognized or unmapped JSON values are
@@ -844,6 +855,26 @@ not by copying the source document. The readable surface tracks the current
   Reverse conversion resolves the name, verifies the identifier when both
   are present, recreates the exact subtype, and otherwise falls back to
   plain `HasComponent`.
+
+* **The readable surface carries more than it used to.** Documents this
+  server generates now also carry event severity, `Method` argument
+  schemas, event `data` and the Section 13 Condition terms, engineering
+  units and ranges, `titles` / `descriptions`, `uav:valueRank` /
+  `uav:arrayDimensions`, and typed links for arbitrary companion
+  ReferenceTypes in both directions. Each is stated once, in
+  [WoT / NodeSet conversion](WoTNodeSetConversion.md); the relation and
+  type-binding resolution rules are stated once in
+  [WoT protocol bindings](WotBindings.md#resolving-a-type-binding-the-local-context).
+  Converted NodeSets are also alias-complete, which is what makes the
+  materialization path in §11.3 loadable rather than merely convertible.
+
+* **Conformance strictness is opt-in.** `WotNodeSetConverterOptions.ConformanceMode`
+  defaults to `Permissive`, which is what Sections 4.1, 6.6, 9.4 and 10.2
+  require of a consumer: an unknown `uav:` term is preserved as residue
+  rather than reported. Registry materialization keeps that default, so a
+  document authored against a later revision still loads. `Strict` is for
+  authoring and conformance testing; see
+  [Conformance claims and strict mode](WoTNodeSetConversion.md#conformance-claims-and-strict-mode-sections-41-61-66-and-11).
 
 ### 11.9 Registry client
 
@@ -958,6 +989,40 @@ Every member of `properties`, `actions` and `events` carries `tm:ref`. A member
 without one is defining an affordance, which is the one thing a projection
 document must not do.
 
+An enumerated selection may annotate the affordance it names, but Section 12.5
+closes the set of members it may annotate with. Permitted beside `tm:ref` are
+`title`, `titles`, `description`, `descriptions`, additional `@type` values,
+`uav:semanticId` and `uav:metadata` — presentation and semantics — plus `forms`
+and `security` where `uav:routing` is `projection`. Every other member is
+rejected with `ProjectionAnnotationNotPermitted`, including a restated `type`,
+`unit`, `minimum`, `maximum` or `enum`. Merging one of those would silently
+override what the source says about the Node, which is exactly what a document
+that declares rather than defines must not be able to do. The rule mirrors the
+closed predicate set of `uav:select`: both are decidable by inspection.
+
+A member selected from a **`source`-routed** source carries the source's own
+form, so one that states `forms` or `security` of its own makes the document
+**invalid** — the same `ProjectionAnnotationNotPermitted`, reported at
+resolution time where the routing is known, and the view does not resolve. It is
+not dropped: a dropped form is one the author wrote and the consumer silently
+did not use, which reads at run time as the source endpoint answering a request
+the document appeared to address elsewhere.
+
+Selections are applied in the total order of Section 12.4, and the **first**
+selection of a name wins: by the position of the source in `uav:projects`;
+within one source, every enumerated selection before every bulk one; within each
+group, by affordance kind in the fixed order `properties`, `actions`, `events`;
+within one kind, by ascending Unicode code point of the name the selection takes
+**in the view**; and, where two selections still compare equal, by ascending
+Unicode code point of the affordance's name **in the source**. The last key is
+what makes the order total: `uav:namePrefix` upper-cases the first character of
+the source name, so `serialNumber` and `SerialNumber` in one source both become
+`deviceSerialNumber` in the view and nothing before it separates them. The order
+is stated over names rather than over document order because `properties`,
+`actions` and `events` are JSON objects, which RFC 8259 defines as unordered — a
+rule that ranked selections by member position would let two conforming
+consumers resolve identical bytes into different views.
+
 Materialization produces a `View` Node that `Organizes` the Nodes already
 materialized from the sources. The View creates **no** affordance Node, so
 `MaterializedNodeCount` counts only the View and any organizational Objects, not
@@ -966,10 +1031,26 @@ at it through `HasWoTProjection`, navigable back through `WoTProjectionOf`.
 
 `ViewVersion` is a deterministic function of the resolved membership alone, computed
 exactly as *WoT Binding* §12.6 specifies: each resolved member's ExpandedNodeId in the
-portable `nsu=` form, sorted ascending by Unicode code point, each written as its
-length in UTF-8 octets, a colon, the string and U+000A, UTF-8 encoded, and the first
-four octets of the SHA-256 digest read as a big-endian `UInt32`, with `0` reported as
-`1` because OPC 10000-3 §5.4 requires a value greater than zero.
+portable `nsu=` form, **deduplicated**, sorted ascending by Unicode code point, each
+written as its length in UTF-8 octets, a colon, the string and U+000A, UTF-8 encoded,
+and the first four octets of the SHA-256 digest read as a big-endian `UInt32`, with `0`
+reported as `1` because OPC 10000-3 §5.4 requires a value greater than zero.
+
+The membership is a **set**. A Node the view reaches through more than one organized
+group (§12.7) is one member of the View and contributes once, because a View
+`Organizes` a Node or it does not, and the same `Organizes` Reference is not created
+twice. A server that counted a shared Node twice would compute a different value from
+one that organized it under a single group, for the same View.
+
+The sort is by Unicode **code point**, which on this platform is not the same as
+`StringComparer.Ordinal`: an ordinal comparison orders UTF-16 code *units*, so
+every supplementary character sorts below U+E000..U+FFFF instead of above them.
+A Server that sorted ordinally would compute a different `ViewVersion` from a
+conforming one for the same membership whenever a NodeId string identifier
+carries a character outside the Basic Multilingual Plane. `Opc.Ua.Wot.WotCodePointComparer`
+is the one implementation of that order, shared by this computation, the
+projection selection order of §12.4 and the endpoint tie-break of §5.7.1, so a
+second one cannot drift from the first.
 
 The length prefix is what makes the encoding injective. A NodeId string identifier may
 itself contain U+000A, so joining on the separator alone would let a single member that
@@ -1089,6 +1170,15 @@ for the forms and worked examples.
 The incorporated OPC 10100-1 v1.02 management and upload surface (NodeIds
 `1..172`) is superseded in capability by the registry but is **not** deprecated:
 serving a WoT asset that way is legitimate, and *WoT-Con Minimal* is built on it.
+
+It is also a **separate code path**. `AssetRegistry` reads a v1.02 asset document
+into the POCO shape OPC 10100-1 defines and is governed by that specification;
+`Opc.Ua.Wot.WotNodeSetConverter` implements the WoT Binding draft. The two share
+no vocabulary table, no diagnostics and no conformance mode, so what
+[WoT / NodeSet conversion](WoTNodeSetConversion.md) states about strict mode,
+residue preservation, localization or `uav:severity` describes the generic
+converter only. The legacy reader keeps the narrower term set v1.02 names, which
+is not a defect of the converter and is not fixed by changing it.
 
 It carries its security obligation directly rather than by reference to the
 optional registry backing, so a server implementing only this surface still

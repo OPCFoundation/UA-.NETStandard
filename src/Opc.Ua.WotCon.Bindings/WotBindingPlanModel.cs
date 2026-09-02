@@ -30,6 +30,7 @@
 using System;
 using System.Collections.Immutable;
 using System.Text.Json;
+using Opc.Ua.Wot;
 
 namespace Opc.Ua.WotCon.Bindings
 {
@@ -166,6 +167,92 @@ namespace Opc.Ua.WotCon.Bindings
         /// Gets binding-specific addressing metadata.
         /// </summary>
         public ImmutableDictionary<string, string> Metadata { get; }
+    }
+
+    /// <summary>
+    /// The immutable event field selection compiled for an event affordance:
+    /// the ordered <c>EventFilter</c> select clauses a MonitoredItem is created
+    /// with, and where they came from (WoT Binding Section 6.1).
+    /// </summary>
+    /// <remarks>
+    /// The clauses are the resolved form: each carries the portable
+    /// ExpandedNodeId the linked EventType definition declared as its
+    /// <c>uav:id</c>, and a browse path whose elements name their NamespaceUri,
+    /// because a namespace index only means something to the session that read
+    /// the namespace table. A channel resolves both against its own table when
+    /// it materializes the OPC UA <c>SimpleAttributeOperand</c> list, which is
+    /// the only point at which a table exists.
+    /// </remarks>
+    public sealed class WotEventSelection
+    {
+        /// <summary>
+        /// Initializes a new immutable event selection.
+        /// </summary>
+        /// <param name="clauses">The ordered resolved select clauses.</param>
+        /// <param name="origin">Where the selection came from.</param>
+        /// <exception cref="ArgumentException">
+        /// Thrown when no clause is supplied; an empty selection would request
+        /// an event notification carrying no field at all.
+        /// </exception>
+        public WotEventSelection(
+            ArrayOf<WotResolvedEventSelectClause> clauses, WotEventSelectionOrigin origin)
+        {
+            if (clauses.Count == 0)
+            {
+                throw new ArgumentException(
+                    "An event selection carries at least one select clause.", nameof(clauses));
+            }
+            Clauses = clauses;
+            Origin = origin;
+        }
+
+        /// <summary>
+        /// The implicit <c>BaseEventType</c> selection of WoT Binding
+        /// Section 6.1: the eight mandatory fields, which apply when an
+        /// affordance states no selection of its own.
+        /// </summary>
+        public static WotEventSelection Default { get; } = new WotEventSelection(
+            WotEventSelectClauses.Default, WotEventSelectionOrigin.Default);
+
+        /// <summary>
+        /// Gets the ordered select clauses. The order is the order the fields
+        /// are requested in, so a consumer that reports field values
+        /// positionally reports them in the order the document states.
+        /// </summary>
+        public ArrayOf<WotResolvedEventSelectClause> Clauses { get; }
+
+        /// <summary>
+        /// Gets where the selection came from.
+        /// </summary>
+        public WotEventSelectionOrigin Origin { get; }
+    }
+
+    /// <summary>
+    /// Where a compiled event selection came from.
+    /// </summary>
+    public enum WotEventSelectionOrigin
+    {
+        /// <summary>
+        /// The affordance stated no selection, so the implicit
+        /// <c>BaseEventType</c> default of WoT Binding Section 6.1 applies.
+        /// </summary>
+        Default,
+
+        /// <summary>
+        /// The affordance stated its selection with the standardized terms —
+        /// a <c>tm:ref</c> to its EventType definition, an explicit
+        /// <c>uav:eventSelectClauses</c> overlay, or both — and the selection
+        /// was resolved before planning.
+        /// </summary>
+        Standard,
+
+        /// <summary>
+        /// The form stated extra fields through the superseded
+        /// <c>uav:eventFields</c> spelling this implementation minted before
+        /// the terms were standardized. The extras are appended to the default
+        /// set, which is what that spelling always meant.
+        /// </summary>
+        Legacy
     }
 
     /// <summary>

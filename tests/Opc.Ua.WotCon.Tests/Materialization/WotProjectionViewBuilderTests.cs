@@ -368,6 +368,49 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         }
 
         /// <summary>
+        /// <i>OPC UA — WoT Binding</i> §12.6 computes <c>ViewVersion</c> over
+        /// the membership as a <em>set</em>: a Node the view reaches through
+        /// more than one organized group is one member of the View and
+        /// contributes once, because a View <c>Organizes</c> a Node or it does
+        /// not, and the same <c>Organizes</c> Reference is not created twice. A
+        /// server that counted a shared Node twice would compute a different
+        /// value from one that organized it under a single group, for the same
+        /// View.
+        /// </summary>
+        [Test]
+        public async Task ViewVersionCountsANodeReachedThroughTwoGroupsOnce()
+        {
+            var shared = new NodeId("Shared", 5);
+            var index = new MapNodeIndex(new Dictionary<string, NodeId>(StringComparer.Ordinal)
+            {
+                ["urn:sourceA#alpha"] = s_alphaNode,
+                ["urn:sourceB#gamma"] = shared,
+                ["urn:sourceC#delta"] = shared
+            });
+            (string, string)[] documents =
+            [
+                ("urn:sourceA", SourceA),
+                ("urn:sourceB", SourceB),
+                ("urn:sourceC", SourceC),
+                ("urn:view:inner", InnerGroupProjection),
+                ("urn:view:inner2", SecondInnerGroupProjection)
+            ];
+
+            WotViewProjectionResult twice = await Build(
+                Builder(index, documents), TwoUnnamedGroupsProjection);
+            WotViewProjectionResult once = await Build(
+                Builder(index, documents), OneGroupProjection);
+
+            Assert.That(twice.Success, Is.True);
+            Assert.That(once.Success, Is.True);
+            Assert.That(twice.Plan!.Groups, Has.Count.EqualTo(2));
+            Assert.That(once.Plan!.Groups, Has.Count.EqualTo(1));
+            Assert.That(twice.Plan!.ViewVersion, Is.EqualTo(once.Plan!.ViewVersion),
+                "The membership is a set, so the shared Node contributes once whichever " +
+                "way the groups reach it.");
+        }
+
+        /// <summary>
         /// Pins <c>ViewVersion</c> to the algorithm <i>OPC UA — WoT Binding</i>
         /// §12.6 specifies, not to whatever this code happens to produce. The
         /// expected value is computed independently of the implementation: the
@@ -807,6 +850,38 @@ namespace Opc.Ua.WotCon.Tests.Materialization
           ],
           "links": [
             { "rel": "ua:Organizes", "uav:refName": "outer", "href": "urn:view:outer", "type": "application/td+json" }
+          ]
+        }
+        """;
+
+        /// <summary>
+        /// A projection organizing one group, so a membership that reaches a
+        /// Node once can be compared with one that reaches the same Node
+        /// through two groups.
+        /// </summary>
+        private const string OneGroupProjection = """
+        {
+          "@context": [
+            "https://www.w3.org/2022/wot/td/v1.1",
+            { "uav": "http://opcfoundation.org/UA/WoT-Binding/", "tm": "https://www.w3.org/2019/wot/tm#" }
+          ],
+          "@type": ["Thing", "uav:projection"],
+          "id": "urn:view:one",
+          "title": "One group view",
+          "uav:scenario": "http://example.com/scenario/One",
+          "securityDefinitions": { "nosec_sc": { "scheme": "nosec" } },
+          "security": "nosec_sc",
+          "uav:projects": [
+            {
+              "uav:sourceName": "a",
+              "href": "urn:sourceA",
+              "type": "application/td+json",
+              "uav:routing": "source",
+              "uav:selectAll": true
+            }
+          ],
+          "links": [
+            { "rel": "ua:Organizes", "href": "urn:view:inner", "type": "application/td+json" }
           ]
         }
         """;

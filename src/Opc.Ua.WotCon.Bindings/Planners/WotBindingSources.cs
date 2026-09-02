@@ -27,6 +27,8 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using Opc.Ua.Wot;
+
 namespace Opc.Ua.WotCon.Bindings.Planners
 {
     /// <summary>
@@ -129,7 +131,8 @@ namespace Opc.Ua.WotCon.Bindings.Planners
                 "W3C binding; schema/document-level planning only, reported as non-executable.");
 
         /// <summary>
-        /// The OPC UA WoT Connectivity binding (OPC 10101).
+        /// The OPC UA WoT Connectivity binding (OPC 10101), together with the
+        /// OPC UA WoT Binding vocabulary revision the planner implements.
         /// </summary>
         public static WotBindingSource OpcUa { get; } = new WotBindingSource(
             "https://reference.opcfoundation.org/WoT/v100/docs/",
@@ -138,10 +141,11 @@ namespace Opc.Ua.WotCon.Bindings.Planners
             commit: "OPC-10101-1.00",
             retrieved: Retrieved,
             note: "uav: terms (id, componentOf, mapToNodeId, mapToType, mapByFieldPath) " +
-                "per the official OPC UA WoT Connectivity binding (OPC 10101). " +
-                "uav:eventFields is a non-standard extension of this " +
-                "implementation: release 1.1 Section 8 carries the event's " +
-                "fields in the event data schema and its delivery configuration " +
-                "in uav:eventConfiguration, and defines no eventFields term.");
+                "per the official OPC UA WoT Connectivity binding (OPC 10101), plus the " +
+                "WoT Binding " + WotBindingConformance.CurrentRevision + " terms " +
+                "uav:eventSelectClauses (Section 6.1) and uav:minimumSecurity (Section 5.7.1). " +
+                "The superseded uav:eventFields spelling this implementation minted before " +
+                "Section 6.1 standardized the select-clause list is still read and never " +
+                "written.");
     }
 }
