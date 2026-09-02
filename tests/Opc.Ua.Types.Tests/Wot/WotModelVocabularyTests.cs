@@ -213,8 +213,9 @@ namespace Opc.Ua.Types.Tests.Wot
         {
             WotConversionResult<UANodeSet> result = Convert(
                 "\"properties\":{\"flow\":{\"type\":\"number\",\"unit\":\"rpm\"," +
-                "\"uav:unitProperty\":\"/properties/flow/unit\"," +
-                "\"uav:scaleFactor\":0.1,\"uav:decimalPlaces\":2}}");
+                "\"uav:unitProperty\":\"/properties/flowUnit\"," +
+                "\"uav:scaleFactor\":0.1,\"uav:decimalPlaces\":2}," +
+                "\"flowUnit\":{\"type\":\"string\"}}");
 
             Assert.That(result.Value, Is.Not.Null);
             Assert.That(HasModelVocabularyError(result), Is.False);
@@ -310,7 +311,35 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(
                 result.Diagnostics.Any(d => d.Code == WotDiagnosticCode.InvalidUnitPointer),
                 Is.True,
-                "A uav:unitProperty resolving to a non-string should be reported.");
+                "A uav:unitProperty naming its own affordance should be reported.");
+        }
+
+        [Test]
+        public void UnitPropertyPointingIntoTheAffordanceReportsInvalidUnitPointer()
+        {
+            WotConversionResult<UANodeSet> result = Convert(
+                "\"properties\":{\"flow\":{\"type\":\"number\",\"unit\":\"rpm\"," +
+                "\"uav:unitProperty\":\"/properties/flow/unit\"}}");
+
+            Assert.That(
+                result.Diagnostics.Any(d => d.Code == WotDiagnosticCode.InvalidUnitPointer),
+                Is.True,
+                "The unit is a Property Node of its own, so a pointer at a member " +
+                "inside the annotated affordance names nothing that exists.");
+        }
+
+        [Test]
+        public void UnitPropertyNamingANonStringSiblingReportsInvalidUnitPointer()
+        {
+            WotConversionResult<UANodeSet> result = Convert(
+                "\"properties\":{\"flow\":{\"type\":\"number\"," +
+                "\"uav:unitProperty\":\"/properties/flowUnit\"}," +
+                "\"flowUnit\":{\"type\":\"number\"}}");
+
+            Assert.That(
+                result.Diagnostics.Any(d => d.Code == WotDiagnosticCode.InvalidUnitPointer),
+                Is.True,
+                "The affordance a unit pointer names shall be string-valued.");
         }
 
         [Test]
@@ -318,7 +347,7 @@ namespace Opc.Ua.Types.Tests.Wot
         {
             WotConversionResult<UANodeSet> result = Convert(
                 "\"properties\":{\"flow\":{\"type\":\"number\"," +
-                "\"uav:unitProperty\":\"/properties/flow/missing\"}}");
+                "\"uav:unitProperty\":\"/properties/missing\"}}");
 
             Assert.That(
                 result.Diagnostics.Any(d => d.Code == WotDiagnosticCode.InvalidUnitPointer),
@@ -349,8 +378,8 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(result.Value, Is.Not.Null);
             Assert.That(
                 result.Diagnostics.Any(d =>
-                    d.Code == WotDiagnosticCode.NonPortableIdentity ||
-                    d.Code == WotDiagnosticCode.ValidationError),
+                    d.Code is WotDiagnosticCode.NonPortableIdentity or
+                    WotDiagnosticCode.ValidationError),
                 Is.False);
         }
 
@@ -436,9 +465,10 @@ namespace Opc.Ua.Types.Tests.Wot
         {
             using WotDocument original = ParseThingModel(
                 "\"properties\":{\"flow\":{\"type\":\"number\",\"unit\":\"rpm\"," +
-                "\"uav:unitProperty\":\"/properties/flow/unit\"," +
+                "\"uav:unitProperty\":\"/properties/flowUnit\"," +
                 "\"uav:scaleFactor\":0.1,\"uav:decimalPlaces\":2," +
-                "\"uav:semanticId\":\"http://example.com/ontology/Speed\"}}");
+                "\"uav:semanticId\":\"http://example.com/ontology/Speed\"}," +
+                "\"flowUnit\":{\"type\":\"string\"}}");
 
             UANodeSet nodeSet = WotNodeSetConverter.ToNodeSet(original);
             using WotDocument restored = WotNodeSetConverter.FromNodeSet(nodeSet);
@@ -451,7 +481,7 @@ namespace Opc.Ua.Types.Tests.Wot
                 Assert.That(flow.GetProperty("uav:decimalPlaces").GetInt32(), Is.EqualTo(2));
                 Assert.That(
                     flow.GetProperty("uav:unitProperty").GetString(),
-                    Is.EqualTo("/properties/flow/unit"));
+                    Is.EqualTo("/properties/flowUnit"));
                 Assert.That(flow.GetProperty("unit").GetString(), Is.EqualTo("rpm"));
                 Assert.That(
                     flow.GetProperty("uav:semanticId").GetString(),
@@ -489,7 +519,8 @@ namespace Opc.Ua.Types.Tests.Wot
                 "\"@type\":[\"tm:ThingModel\",\"uav:objectType\"]," +
                 "\"title\":\"Pump\",\"uav:browseName\":\"pump:PumpType\"," +
                 "\"uav:id\":\"nsu=urn:test:pump;i=1001\"," +
-                members + "}");
+                members +
+                "}");
             return WotDocument.Parse(json);
         }
 

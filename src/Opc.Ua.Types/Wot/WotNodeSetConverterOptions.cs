@@ -29,6 +29,7 @@
  * ======================================================================*/
 
 using System;
+using Opc.Ua.Export;
 
 namespace Opc.Ua.Wot
 {
@@ -52,6 +53,35 @@ namespace Opc.Ua.Wot
         /// complete. This mode is intended for conformance and completeness tests.
         /// </summary>
         Never
+    }
+
+    /// <summary>
+    /// How strictly a document is held to the WoT Binding revision this
+    /// library implements.
+    /// </summary>
+    public enum WotConformanceMode
+    {
+        /// <summary>
+        /// Process what is understood and preserve the rest. An unknown
+        /// <c>uav:</c> term is carried unchanged as residue rather than
+        /// reported, a revision this library does not implement is accepted,
+        /// and a revision 1.0 opaque object whose top-level keys are not
+        /// namespaced is preserved with a deprecation warning. This is the
+        /// default and the behaviour WoT Binding Sections 4.1, 6.6, 9.4 and
+        /// 10.2 require of a consumer.
+        /// </summary>
+        Permissive,
+
+        /// <summary>
+        /// Additionally report what the permissive mode tolerates: a
+        /// <c>uav:</c> term this revision does not define, a declared
+        /// vocabulary revision this library does not implement, a missing
+        /// required conformance claim, and an opaque object that breaks the
+        /// key or bound rules of Section 6.6. Intended for authoring and
+        /// conformance testing, where a misspelled term should fail rather
+        /// than travel silently.
+        /// </summary>
+        Strict
     }
 
     /// <summary>
@@ -89,6 +119,54 @@ namespace Opc.Ua.Wot
         /// is then interpreted exactly as v1.00 defined it.
         /// </remarks>
         public bool AllowNonPortableIdentifiers { get; set; }
+
+        /// <summary>
+        /// Gets or sets how strictly a document is held to the WoT Binding
+        /// revision this library implements. The default is
+        /// <see cref="WotConformanceMode.Permissive"/>, which processes what it
+        /// understands and preserves the rest.
+        /// </summary>
+        /// <remarks>
+        /// Strict conformance is opt-in because Sections 4.1 and 6.6 forbid a
+        /// consumer from rejecting a document merely because it declares an
+        /// unimplemented revision or carries a term the consumer does not know:
+        /// the value has to be preserved, not refused. A tool that authors or
+        /// certifies documents wants the opposite, so it asks for it.
+        /// </remarks>
+        public WotConformanceMode ConformanceMode { get; set; } = WotConformanceMode.Permissive;
+
+        /// <summary>
+        /// Gets or sets whether the document is being validated as one
+        /// <em>authored</em> against a published revision of this Binding,
+        /// rather than read as one a consumer did not write
+        /// (WoT Binding Section 4.1). The default is <c>false</c>, the consumer
+        /// rule.
+        /// </summary>
+        /// <remarks>
+        /// Section 4.1 states the two checks side by side and makes them
+        /// deliberately different. An author names a revision this Binding
+        /// publishes and only conformance units Section 11 defines, so an
+        /// authoring validator reports anything else as an error. A consumer
+        /// applies the syntactic rule alone: a well-formed revision it does not
+        /// implement is <em>unsupported</em> and a claim it does not know is
+        /// <em>unrecognized</em>, neither is a reason to reject the document,
+        /// and both are preserved unchanged. A consumer that rejected such a
+        /// document would be refusing to read one that is syntactically valid,
+        /// whose known terms it understands and whose unknown terms it is
+        /// already required to carry - which is the failure that makes a
+        /// vocabulary unextendable.
+        /// </remarks>
+        public bool AuthoringValidation { get; set; }
+
+        /// <summary>
+        /// Gets or sets the WoT Binding Section 11 conformance units and
+        /// profiles a document is required to claim through <c>uav:profile</c>.
+        /// Empty by default, which requires no claim at all. Only
+        /// <see cref="WotConformanceMode.Strict"/> enforces it, because a claim
+        /// is a statement about the producer rather than a property of the
+        /// document.
+        /// </summary>
+        public ArrayOf<string> RequiredConformance { get; set; }
 
         /// <summary>
         /// Gets or sets the maximum accepted WoT JSON document size in bytes.
@@ -166,6 +244,25 @@ namespace Opc.Ua.Wot
                     PreservationMode,
                     "The preservation mode is not defined.");
             }
+            if (ConformanceMode is not (
+                WotConformanceMode.Permissive or WotConformanceMode.Strict))
+            {
+                throw new ArgumentOutOfRangeException(
+                    nameof(ConformanceMode),
+                    ConformanceMode,
+                    "The conformance mode is not defined.");
+            }
+            foreach (string claim in RequiredConformance)
+            {
+                if (!WotBindingConformance.IsConformanceName(claim))
+                {
+                    throw new ArgumentOutOfRangeException(
+                        nameof(RequiredConformance),
+                        claim,
+                        "The required claim is not a conformance unit or profile " +
+                        "of WoT Binding Section 11.");
+                }
+            }
             EnsurePositive(MaxJsonDocumentSize, nameof(MaxJsonDocumentSize));
             EnsurePositive(MaxNodeSetSize, nameof(MaxNodeSetSize));
             EnsurePositive(MaxJsonDepth, nameof(MaxJsonDepth));
@@ -185,9 +282,9 @@ namespace Opc.Ua.Wot
         }
 
         /// <summary>
-        /// Projects the aggregate resolver limits configured on this instance
-        /// onto a <see cref="WotResolverOptions"/> suitable for seeding a
-        /// single <see cref="WotResolutionContext"/> per top-level conversion.
+        /// Projects the resolver limits configured on this instance onto a
+        /// <see cref="WotResolverOptions"/> suitable for seeding a single
+        /// <see cref="WotResolutionContext"/> per top-level conversion.
         /// </summary>
         /// <returns>The equivalent bounded resolution options.</returns>
         public WotResolverOptions ToResolverOptions()
@@ -198,6 +295,31 @@ namespace Opc.Ua.Wot
                 MaxDocuments = MaxResolverDocuments,
                 MaxDocumentBytes = MaxResolverDocumentBytes,
                 MaxTotalBytes = MaxResolverTotalBytes
+            };
+        }
+
+        /// <summary>
+        /// Projects what a NodeSet2 comparison needs from these options onto a
+        /// <see cref="NodeSetComparisonOptions"/>: the one limit that bounds
+        /// it, and the alias policy the WoT Binding conversion writes in.
+        /// </summary>
+        /// <remarks>
+        /// Comparing two NodeSets is not a WoT operation and does not depend
+        /// on any conversion setting, so the comparison is given the one limit
+        /// that applies to it rather than these options. What an undeclared
+        /// standard name means is a WoT question, though - a converted
+        /// document writes <c>HasComponent</c> because the WoT Binding's
+        /// mappings are written that way - so
+        /// <see cref="WotNodeSetAliases"/> is handed in to answer it, and the
+        /// comparison stays free of any knowledge of WoT.
+        /// </remarks>
+        /// <returns>The equivalent bounded comparison options.</returns>
+        public NodeSetComparisonOptions ToComparisonOptions()
+        {
+            return new NodeSetComparisonOptions
+            {
+                MaxXmlDepth = MaxXmlDepth,
+                AliasResolver = WotNodeSetAliases.Instance
             };
         }
 
