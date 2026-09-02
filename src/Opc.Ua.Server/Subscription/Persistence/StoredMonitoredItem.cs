@@ -111,6 +111,9 @@ namespace Opc.Ua.Server
         public NumericRange ParsedIndexRange { get; set; }
 
         /// <inheritdoc/>
+        public ArrayOf<string> FilteredRetainConditionIds { get; set; }
+
+        /// <inheritdoc/>
         public IDataChangeMonitoredItemQueue? RestoredDataChangeQueue { get; set; }
 
         /// <inheritdoc/>
