@@ -394,6 +394,7 @@ namespace Opc.Ua.Sessions.Tests
                 }
                 catch (ServiceResultException sre) when (
                     sre.StatusCode == StatusCodes.BadServerHalted ||
+                    sre.StatusCode == StatusCodes.BadSecureChannelClosed ||
                     sre.InnerException is SocketException)
                 {
                 }
