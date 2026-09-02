@@ -440,13 +440,17 @@ namespace Opc.Ua.History.Tests
             DateTime endTime = DateTime.UtcNow;
             DateTime startTime = endTime.AddMinutes(-10);
 
-            await AssertProcessedReadFailsAsync(
+            HistoryReadResponse response = await ExecuteHistoryReadProcessedAsync(
                 nodeId,
                 startTime,
                 endTime,
                 aggregateId: ObjectIds.AggregateFunction_Average,
-                processingInterval: -1,
-                allowEmptyResults: false).ConfigureAwait(false);
+                processingInterval: -1).ConfigureAwait(false);
+
+            Assert.That(response.Results.Count, Is.EqualTo(1));
+            Assert.That(
+                response.Results[0].StatusCode,
+                Is.EqualTo(StatusCodes.BadInvalidArgument));
         }
 
         [Description("AggregateType list is empty; expect a Bad operation status or service-level rejection.")]
