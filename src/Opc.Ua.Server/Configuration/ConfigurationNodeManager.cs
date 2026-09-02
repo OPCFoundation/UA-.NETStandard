@@ -3828,7 +3828,10 @@ namespace Opc.Ua.Server
             }
 
             ICertificateStore store = GetRejectedStore();
-            using CertificateCollection collection = store.EnumerateAsync().Result;
+            using CertificateCollection collection = store.EnumerateAsync()
+                .ConfigureAwait(false)
+                .GetAwaiter()
+                .GetResult();
             var rawList = new List<ByteString>();
             foreach (Certificate cert in collection)
             {
