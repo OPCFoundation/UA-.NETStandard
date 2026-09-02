@@ -30,6 +30,7 @@
 using System;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua.Client
@@ -235,17 +236,73 @@ namespace Opc.Ua.Client
                 }
             } while (connection == null);
 
-            return await CreateAsync(
-                configuration,
-                connection,
-                endpoint,
-                false,
-                checkDomain,
-                sessionName,
-                sessionTimeout,
-                userIdentity,
-                preferredLocales,
-                ct).ConfigureAwait(false);
+            // A reverse connection the manager delivers can already have been
+            // closed by the server before the secure-channel handshake runs: a
+            // server rotates and times out the outbound connections it offers,
+            // so the one matched here - especially after a discovery round
+            // (updateBeforeConnect) consumed an earlier one - may be stale. That
+            // surfaces as BadConnectionClosed / BadNotConnected on first use.
+            // Rather than failing the whole connect, request a freshly delivered
+            // connection and retry a bounded number of times.
+            for (int attempt = 1; ; attempt++)
+            {
+                try
+                {
+                    return await CreateAsync(
+                        configuration,
+                        connection,
+                        endpoint,
+                        false,
+                        checkDomain,
+                        sessionName,
+                        sessionTimeout,
+                        userIdentity,
+                        preferredLocales,
+                        ct).ConfigureAwait(false);
+                }
+                catch (ServiceResultException sre) when (
+                    attempt < kMaxReverseConnectAttempts &&
+                    !ct.IsCancellationRequested &&
+                    IsStaleReverseConnectionStatus(sre.StatusCode))
+                {
+                    ILogger? logger = Telemetry?.CreateLogger<DefaultSessionFactory>();
+                    if (logger != null)
+                    {
+                        logger.LogWarning(
+                            "Reverse connection to {EndpointUrl} was stale ({StatusCode}); " +
+                            "retrying with a fresh connection (attempt {Attempt} of {Max}).",
+                            endpoint.EndpointUrl,
+                            sre.StatusCode,
+                            attempt,
+                            kMaxReverseConnectAttempts);
+                    }
+
+                    connection = await reverseConnectManager
+                        .WaitForConnectionAsync(
+                            endpoint.EndpointUrl!,
+                            endpoint.ReverseConnect?.ServerUri,
+                            ct)
+                        .ConfigureAwait(false);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Maximum number of reverse-connect attempts (initial plus retries)
+        /// before a stale reverse connection is surfaced as a failure.
+        /// </summary>
+        private const int kMaxReverseConnectAttempts = 3;
+
+        /// <summary>
+        /// Whether a status code from a reverse-connect attempt indicates the
+        /// delivered connection was already closed/dropped by the server and a
+        /// fresh connection should be requested instead of failing.
+        /// </summary>
+        private static bool IsStaleReverseConnectionStatus(StatusCode statusCode)
+        {
+            return statusCode == StatusCodes.BadConnectionClosed
+                || statusCode == StatusCodes.BadNotConnected
+                || statusCode == StatusCodes.BadSecureChannelClosed;
         }
 
         /// <inheritdoc/>
