@@ -581,9 +581,34 @@ namespace Opc.Ua.OpenUsd.Client
                 frame,
                 out TransformComponents existing)
                 ? existing
-                : TransformComponents.Identity;
+                : GetTransformBaseline(samples, frame);
             samples[frame] = transform.With(propertyName, vector);
             return true;
+        }
+
+        private static TransformComponents GetTransformBaseline(
+            SortedList<double, TransformComponents> samples,
+            double frame)
+        {
+            int low = 0;
+            int high = samples.Count - 1;
+            int prior = -1;
+            while (low <= high)
+            {
+                int middle = low + ((high - low) / 2);
+                if (samples.Keys[middle] < frame)
+                {
+                    prior = middle;
+                    low = middle + 1;
+                }
+                else
+                {
+                    high = middle - 1;
+                }
+            }
+            return prior >= 0
+                ? samples.Values[prior]
+                : TransformComponents.Identity;
         }
 
         private static bool IsTransformProperty(string propertyName)

@@ -265,6 +265,34 @@ namespace Opc.Ua.OpenUsd.Client.Tests
         }
 
         [Test]
+        public void TimeSampleTransformUsesLatestPriorComponents()
+        {
+            var sink = new UsdFileSink(m_path);
+            var translationTime = new DateTime(1970, 1, 1, 0, 0, 1, DateTimeKind.Utc);
+            var rotationTime = new DateTime(1970, 1, 1, 0, 0, 2, DateTimeKind.Utc);
+            using (sink.BeginBatch())
+            {
+                sink.SetTimeSample(
+                    "/Pump",
+                    "xformOp:translate",
+                    translationTime,
+                    new Variant((ArrayOf<double>)[1.0, 2.0, 3.0]));
+                sink.SetTimeSample(
+                    "/Pump",
+                    "xformOp:rotateXYZ",
+                    rotationTime,
+                    new Variant((ArrayOf<double>)[0.0, 0.0, 90.0]));
+            }
+
+            string rotationSample = Array.Find(
+                ReadLayer().Split('\n'),
+                line => line.Contains("2.000:", StringComparison.Ordinal))!;
+
+            Assert.That(rotationSample, Does.Contain("(-1.0000, 0.0000, 0.0000, 0.0000)"));
+            Assert.That(rotationSample, Does.Contain("(1.0000, 2.0000, 3.0000, 1.0000)"));
+        }
+
+        [Test]
         public void BatchDefersWriteUntilScopeDisposed()
         {
             var sink = new UsdFileSink(m_path);

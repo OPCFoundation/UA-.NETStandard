@@ -79,11 +79,30 @@ $stageCache = Join-Path $runRoot 'stage'
 $previousCustomTestTarget = $env:CustomTestTarget
 $processes = [Collections.Generic.List[Diagnostics.Process]]::new()
 
-$pumpProject = Join-Path $repoRoot 'samples\DI\PumpDeviceIntegrationServer\PumpDeviceIntegrationServer.csproj'
-$generatorProject = Join-Path $here 'GeneratorServer\GeneratorServer.csproj'
-$siteProject = Join-Path $here 'SiteCompositionServer\SiteCompositionServer.csproj'
-$connectorProject = Join-Path $repoRoot 'tools\Opc.Ua.OpenUsd.Connector\Opc.Ua.OpenUsd.Connector.csproj'
-$viewerProject = Join-Path $repoRoot 'tools\Opc.Ua.OpenUsd.Connector.Viewer\Opc.Ua.OpenUsd.Connector.Viewer.csproj'
+$pumpProject = [IO.Path]::Combine(
+    $repoRoot,
+    'samples',
+    'DI',
+    'PumpDeviceIntegrationServer',
+    'PumpDeviceIntegrationServer.csproj')
+$generatorProject = [IO.Path]::Combine(
+    $here,
+    'GeneratorServer',
+    'GeneratorServer.csproj')
+$siteProject = [IO.Path]::Combine(
+    $here,
+    'SiteCompositionServer',
+    'SiteCompositionServer.csproj')
+$connectorProject = [IO.Path]::Combine(
+    $repoRoot,
+    'tools',
+    'Opc.Ua.OpenUsd.Connector',
+    'Opc.Ua.OpenUsd.Connector.csproj')
+$viewerProject = [IO.Path]::Combine(
+    $repoRoot,
+    'tools',
+    'Opc.Ua.OpenUsd.Connector.Viewer',
+    'Opc.Ua.OpenUsd.Connector.Viewer.csproj')
 
 $pumpEndpoint = "opc.tcp://localhost:$PumpPort/PumpDeviceIntegrationServer"
 $generatorEndpoint = "opc.tcp://localhost:$GeneratorPort/GeneratorServer"
@@ -245,15 +264,24 @@ try {
         throw "The viewer bundle is incomplete: $viewerPublish"
     }
 
-    $pumpDll = Join-Path `
-        (Split-Path $pumpProject -Parent) `
-        "bin\$Configuration\net10.0\PumpDeviceIntegrationServer.dll"
-    $generatorDll = Join-Path `
-        (Split-Path $generatorProject -Parent) `
-        "bin\$Configuration\net10.0\GeneratorServer.dll"
-    $siteDll = Join-Path `
-        (Split-Path $siteProject -Parent) `
-        "bin\$Configuration\net10.0\SiteCompositionServer.dll"
+    $pumpDll = [IO.Path]::Combine(
+        (Split-Path $pumpProject -Parent),
+        'bin',
+        $Configuration,
+        'net10.0',
+        'PumpDeviceIntegrationServer.dll')
+    $generatorDll = [IO.Path]::Combine(
+        (Split-Path $generatorProject -Parent),
+        'bin',
+        $Configuration,
+        'net10.0',
+        'GeneratorServer.dll')
+    $siteDll = [IO.Path]::Combine(
+        (Split-Path $siteProject -Parent),
+        'bin',
+        $Configuration,
+        'net10.0',
+        'SiteCompositionServer.dll')
 
     Step "Starting the pump server at $pumpEndpoint"
     Start-Server -Name 'pump' -Dll $pumpDll -Arguments @(
