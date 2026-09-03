@@ -113,6 +113,29 @@ namespace Opc.Ua.WotCon.Tests.Client
                     });
 
             m_sessionMock
+                .Setup(s => s.ReadAsync(
+                    It.IsAny<RequestHeader>(),
+                    It.IsAny<double>(),
+                    It.IsAny<TimestampsToReturn>(),
+                    It.IsAny<ArrayOf<ReadValueId>>(),
+                    It.IsAny<CancellationToken>()))
+                .Returns<RequestHeader, double, TimestampsToReturn, ArrayOf<ReadValueId>, CancellationToken>(
+                    (_, _, _, requests, _) =>
+                    {
+                        var values = new DataValue[requests.Count];
+                        for (int i = 0; i < requests.Count; i++)
+                        {
+                            values[i] = ResolveRead(requests[i]);
+                        }
+                        return new ValueTask<ReadResponse>(new ReadResponse
+                        {
+                            ResponseHeader = new ResponseHeader(),
+                            Results = values.ToArrayOf(),
+                            DiagnosticInfos = default
+                        });
+                    });
+
+            m_sessionMock
                 .Setup(s => s.CallAsync(
                     It.IsAny<RequestHeader>(),
                     It.IsAny<ArrayOf<CallMethodRequest>>(),
@@ -200,6 +223,16 @@ namespace Opc.Ua.WotCon.Tests.Client
         public bool ReturnNoTypeDefinitionOnce { get; set; }
 
         /// <summary>
+        /// Whether the mock server exposes the additive content-state capability.
+        /// </summary>
+        public bool ExposeContentDigest { get; set; } = true;
+
+        /// <summary>
+        /// Whether the exposed content-state field returns an unknown null value.
+        /// </summary>
+        public bool ReturnNullContentDigest { get; set; }
+
+        /// <summary>
         /// When set, <c>HasTypeDefinition</c> Browse reports this
         /// ObjectType instead of the one matching the group's kind.
         /// </summary>
@@ -267,8 +300,42 @@ namespace Opc.Ua.WotCon.Tests.Client
                 {
                     return resource.NodeId;
                 }
+                foreach (ResourceState versionResource in candidate.Resources.Values)
+                {
+                    if (ExposeContentDigest &&
+                        parent == versionResource.NodeId &&
+                        string.Equals(
+                            name,
+                            Opc.Ua.WotCon.BrowseNames.ContentDigest,
+                            StringComparison.Ordinal))
+                    {
+                        return versionResource.ContentDigestNodeId;
+                    }
+                }
             }
             return NodeId.Null;
+        }
+
+        private DataValue ResolveRead(ReadValueId request)
+        {
+            foreach (GroupState group in m_groups.Values)
+            {
+                foreach (ResourceState resource in group.Resources.Values)
+                {
+                    if (ExposeContentDigest &&
+                        request.NodeId == resource.ContentDigestNodeId &&
+                        request.AttributeId == Attributes.Value)
+                    {
+                        ByteString digest = ReturnNullContentDigest
+                            ? default
+                            : resource.Content.Length == 0
+                                ? ByteString.Empty
+                                : ByteString.From(new byte[] { 1 });
+                        return new DataValue(new Variant(digest), StatusCodes.Good);
+                    }
+                }
+            }
+            return new DataValue(Variant.Null, StatusCodes.BadNodeIdUnknown);
         }
 
         private BrowseResult ResolveBrowse(BrowseDescription description)
@@ -418,6 +485,10 @@ namespace Opc.Ua.WotCon.Tests.Client
                 {
                     NodeId = new NodeId(
                         "WoTRegistry/groups/" + group.GroupId + "/resources/" + resourceId,
+                        group.NodeId.NamespaceIndex),
+                    ContentDigestNodeId = new NodeId(
+                        "WoTRegistry/groups/" + group.GroupId + "/resources/" + resourceId +
+                        "/ContentDigest",
                         group.NodeId.NamespaceIndex),
                     ResourceId = resourceId,
                     VersionId = string.IsNullOrEmpty(versionId) ? "1" : versionId
@@ -619,6 +690,7 @@ namespace Opc.Ua.WotCon.Tests.Client
         private sealed class ResourceState
         {
             public NodeId NodeId;
+            public NodeId ContentDigestNodeId;
             public string ResourceId = string.Empty;
             public string VersionId = string.Empty;
             public byte[] Content = [];

@@ -196,7 +196,7 @@ namespace Opc.Ua.WotCon.Server
                     .ConfigureAwait(false);
             }
             await SafeRefreshAsync("startup").ConfigureAwait(false);
-            await m_projection.ReconcileAsync(cancellationToken).ConfigureAwait(false);
+            await m_projection.ReconcileProjectionAsync(cancellationToken).ConfigureAwait(false);
         }
 
         /// <inheritdoc/>

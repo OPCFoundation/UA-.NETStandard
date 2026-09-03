@@ -109,7 +109,9 @@ namespace Opc.Ua.SourceGeneration
                     "GetEncodeable<global::Opc.Ua.TestEvent.StatusPayload>"));
             Assert.That(generated, Does.Contain("GetNullableUInt32"));
             Assert.That(generated, Does.Contain("GetStringArray"));
-            Assert.That(generated, Does.Contain("public string? SourceUrl"));
+            Assert.That(
+                generated,
+                Does.Contain("public global::Opc.Ua.Variant SourceUrl"));
         }
 
         private const string NodeSet =

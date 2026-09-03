@@ -664,6 +664,8 @@ namespace Opc.Ua.WotCon.Server.Registry
                         version.Epoch ??= 1;
                         version.HasContent ??=
                             !string.IsNullOrEmpty(version.DigestHex);
+                        version.DocumentId ??= resource.ThingId;
+                        version.Title ??= resource.Title;
                         if (version.Validation is null &&
                             string.Equals(
                                 version.VersionId,
@@ -828,6 +830,11 @@ namespace Opc.Ua.WotCon.Server.Registry
             ImmutableArray<WotResourceVersion>.Builder versions =
                 ImmutableArray.CreateBuilder<WotResourceVersion>();
             var versionIds = new HashSet<string>(StringComparer.Ordinal);
+            bool hasPerVersionDocumentMetadata = dto.Versions?.Any(version =>
+                version.DocumentId is not null ||
+                version.Title is not null ||
+                version.BaseUri is not null ||
+                version.ModelVersion is not null) == true;
             if (dto.Versions is not null)
             {
                 foreach (VersionDto version in dto.Versions)
@@ -918,12 +925,42 @@ namespace Opc.Ua.WotCon.Server.Registry
                         Epoch = version.Epoch.GetValueOrDefault(1),
                         Labels = ToLabels(version.Labels),
                         HasContent = hasContent,
-                        Validation = FromDto(version.Validation)
+                        Validation = FromDto(version.Validation),
+                        DocumentId = hasPerVersionDocumentMetadata
+                            ? version.DocumentId
+                            : dto.ThingId,
+                        Title = hasPerVersionDocumentMetadata
+                            ? version.Title
+                            : dto.Title,
+                        BaseUri = version.BaseUri,
+                        ModelVersion = version.ModelVersion
                     });
                 }
             }
 
             ImmutableArray<WotResourceVersion> loadedVersions = versions.ToImmutable();
+            string? documentIdentity = null;
+            foreach (WotResourceVersion version in loadedVersions)
+            {
+                if (string.IsNullOrWhiteSpace(version.DocumentId))
+                {
+                    continue;
+                }
+                if (documentIdentity is null)
+                {
+                    documentIdentity = version.DocumentId;
+                }
+                else if (!string.Equals(
+                    documentIdentity,
+                    version.DocumentId,
+                    StringComparison.Ordinal))
+                {
+                    throw new InvalidDataException(
+                        $"Registry resource '{dto.GroupId}/{dto.ResourceId}' contains " +
+                        $"incompatible document identities '{documentIdentity}' and " +
+                        $"'{version.DocumentId}'.");
+                }
+            }
             DateTime derivedMetaCreatedAt = loadedVersions.IsDefaultOrEmpty
                 ? DateTime.MinValue
                 : loadedVersions.Min(version => version.CreatedAt);
@@ -935,6 +972,11 @@ namespace Opc.Ua.WotCon.Server.Registry
                     version.VersionId,
                     dto.DefaultVersionId ?? dto.DesiredVersionId,
                     StringComparison.Ordinal))?.Validation;
+            WotResourceVersion? selectedVersion = loadedVersions.FirstOrDefault(version =>
+                string.Equals(
+                    version.VersionId,
+                    dto.DefaultVersionId ?? dto.DesiredVersionId,
+                    StringComparison.Ordinal));
             return new WotResource(
                 dto.GroupId,
                 dto.ResourceId,
@@ -956,8 +998,8 @@ namespace Opc.Ua.WotCon.Server.Registry
                 rootNodeId: ParseNodeId(dto.RootNodeId),
                 name: dto.Name,
                 description: dto.Description,
-                thingId: dto.ThingId,
-                title: dto.Title,
+                thingId: selectedVersion?.DocumentId ?? dto.ThingId,
+                title: selectedVersion?.Title ?? dto.Title,
                 labels: ToLabels(dto.Labels))
             {
                 MetaCreatedAt = string.IsNullOrEmpty(dto.MetaCreatedAt)
@@ -1017,7 +1059,11 @@ namespace Opc.Ua.WotCon.Server.Registry
                     Epoch = v.Epoch,
                     Labels = FromLabels(v.Labels),
                     HasContent = v.HasContent,
-                    Validation = ToDto(v.Validation)
+                    Validation = ToDto(v.Validation),
+                    DocumentId = v.DocumentId,
+                    Title = v.Title,
+                    BaseUri = v.BaseUri,
+                    ModelVersion = v.ModelVersion
                 };
             }
             return new ResourceDto
@@ -2642,6 +2688,26 @@ namespace Opc.Ua.WotCon.Server.Registry
             /// Gets or sets validation metadata recorded for this Version.
             /// </summary>
             public ValidationDto? Validation { get; set; }
+
+            /// <summary>
+            /// Gets or sets the document identity parsed from this Version.
+            /// </summary>
+            public string? DocumentId { get; set; }
+
+            /// <summary>
+            /// Gets or sets the document title parsed from this Version.
+            /// </summary>
+            public string? Title { get; set; }
+
+            /// <summary>
+            /// Gets or sets the Thing Description base URI parsed from this Version.
+            /// </summary>
+            public string? BaseUri { get; set; }
+
+            /// <summary>
+            /// Gets or sets the Thing Model <c>version.model</c> value.
+            /// </summary>
+            public string? ModelVersion { get; set; }
         }
 
         /// <summary>

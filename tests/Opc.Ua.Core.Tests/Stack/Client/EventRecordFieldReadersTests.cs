@@ -50,6 +50,17 @@ namespace Opc.Ua.Core.Tests.Stack.Client
         }
 
         [Test]
+        public void CompanionUriStringEventFieldsPreserveVariantAbi()
+        {
+            System.Reflection.PropertyInfo productInstanceUri =
+                typeof(Onboarding.DeviceRegistrationAuditEventTypeRecord)
+                    .GetProperty("ProductInstanceUri");
+
+            Assert.That(productInstanceUri, Is.Not.Null);
+            Assert.That(productInstanceUri!.PropertyType, Is.EqualTo(typeof(Variant)));
+        }
+
+        [Test]
         public void GetNodeIdArrayWhenFieldContainsNodeIdsReturnsValues()
         {
             NodeId[] expected = [new NodeId(1u), new NodeId("Second", 2)];

@@ -98,6 +98,15 @@ namespace Opc.Ua.WotCon.Server
         }
 
         /// <summary>
+        /// Reconciles only the browseable AddressSpace. Registry change
+        /// transitions queued by the NodeManager remain the event authority.
+        /// </summary>
+        public ValueTask ReconcileProjectionAsync(CancellationToken ct)
+        {
+            return m_engine.ReconcileProjectionAsync(ct);
+        }
+
+        /// <summary>
         /// Reconciles the exact immutable registry transition supplied by a change event.
         /// </summary>
         public ValueTask ReconcileAsync(
@@ -233,12 +242,24 @@ namespace Opc.Ua.WotCon.Server
 
             if (node is ThingDescriptionFileState td)
             {
-                XRegistryProjectionEngine.SetValue(td.ThingId, resource.ThingId ?? string.Empty);
-                XRegistryProjectionEngine.SetValue(td.ThingTitle, resource.Title ?? string.Empty);
+                XRegistryProjectionEngine.SetValue(
+                    td.ThingId,
+                    version?.DocumentId ?? string.Empty);
+                XRegistryProjectionEngine.SetValue(
+                    td.ThingTitle,
+                    version?.Title ?? string.Empty);
+                XRegistryProjectionEngine.SetValue(
+                    td.BaseUri,
+                    version?.BaseUri ?? string.Empty);
             }
             else if (node is ThingModelFileState tmNode)
             {
-                XRegistryProjectionEngine.SetValue(tmNode.ModelTitle, resource.Title ?? string.Empty);
+                XRegistryProjectionEngine.SetValue(
+                    tmNode.ModelTitle,
+                    version?.Title ?? string.Empty);
+                XRegistryProjectionEngine.SetValue(
+                    tmNode.ModelVersion,
+                    version?.ModelVersion ?? string.Empty);
                 XRegistryProjectionEngine.SetValue(tmNode.DerivedTypeNodeId, resource.RootNodeId);
             }
         }
@@ -320,7 +341,7 @@ namespace Opc.Ua.WotCon.Server
             {
                 return ex.Result;
             }
-            await ReconcileAsync(ct).ConfigureAwait(false);
+            await ReconcileProjectionAsync(ct).ConfigureAwait(false);
             output.Clear();
 #pragma warning disable CS0618 // Validate generated proxy expects a direct structure Variant.
             output.Add(new Variant(outcome));

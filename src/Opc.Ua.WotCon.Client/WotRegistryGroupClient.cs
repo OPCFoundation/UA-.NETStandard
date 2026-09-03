@@ -137,14 +137,17 @@ namespace Opc.Ua.WotCon.Client
             (NodeId resourceNodeId, string versionIdOut, _, bool created) = await Proxy
                 .GetOrCreateResourceAsync(resourceId, versionId ?? string.Empty, requestFileOpen: false, ct)
                 .ConfigureAwait(false);
-            return (
-                OpenResourceClient(
-                    resourceNodeId,
-                    resourceId,
-                    versionIdOut,
-                    pendingStructuralVersion: created),
+            WotRegistryResourceClient resource = OpenResourceClient(
+                resourceNodeId,
+                resourceId,
                 versionIdOut,
-                created);
+                pendingStructuralVersion: created);
+            if (!created &&
+                await resource.HasContentAsync(ct).ConfigureAwait(false) == false)
+            {
+                resource.MarkPendingStructuralVersion();
+            }
+            return (resource, versionIdOut, created);
         }
 
         /// <summary>

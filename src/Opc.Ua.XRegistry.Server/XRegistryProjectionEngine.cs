@@ -123,6 +123,22 @@ namespace Opc.Ua.XRegistry.Server
                 suppliedGeneration: null,
                 previousEventSnapshot: null,
                 useSuppliedTransition: false,
+                emitEvents: true,
+                ct);
+        }
+
+        /// <summary>
+        /// Reconciles the browseable tree to the latest snapshot without
+        /// advancing or diffing event state. Supplied immutable transitions
+        /// remain the sole authority for event ordering.
+        /// </summary>
+        public ValueTask ReconcileProjectionAsync(CancellationToken ct)
+        {
+            return ReconcileCoreAsync(
+                suppliedGeneration: null,
+                previousEventSnapshot: null,
+                useSuppliedTransition: false,
+                emitEvents: false,
                 ct);
         }
 
@@ -139,6 +155,7 @@ namespace Opc.Ua.XRegistry.Server
                 generation ?? throw new ArgumentNullException(nameof(generation)),
                 previousEventSnapshot,
                 useSuppliedTransition: true,
+                emitEvents: true,
                 ct);
         }
 
@@ -146,6 +163,7 @@ namespace Opc.Ua.XRegistry.Server
             XRegistryProjectionGeneration? suppliedGeneration,
             XRegistryProjectionEventSnapshot? previousEventSnapshot,
             bool useSuppliedTransition,
+            bool emitEvents,
             CancellationToken ct)
         {
             if (m_registryNode is null)
@@ -161,7 +179,9 @@ namespace Opc.Ua.XRegistry.Server
                         : m_generationProvider.CaptureProjectionGeneration());
                 IXRegistryProjectionSnapshot snapshot = generation.Projection;
                 XRegistryProjectionEventSnapshot? eventSnapshot = generation.Events;
-                if (m_eventOptions?.EventsEnabled == true && eventSnapshot is null)
+                if (emitEvents &&
+                    m_eventOptions?.EventsEnabled == true &&
+                    eventSnapshot is null)
                 {
                     throw new InvalidOperationException(
                         "The captured projection generation did not include event metadata.");
@@ -223,7 +243,7 @@ namespace Opc.Ua.XRegistry.Server
                     }
                 }
 
-                if (eventSnapshot is not null)
+                if (emitEvents && eventSnapshot is not null)
                 {
                     XRegistryProjectionEventSnapshot? previous = useSuppliedTransition
                         ? previousEventSnapshot
@@ -693,7 +713,7 @@ namespace Opc.Ua.XRegistry.Server
                 return ServiceResult.Create(
                     StatusCodes.BadNodeIdExists, $"Group '{groupId}' already exists.");
             }
-            await ReconcileAsync(ct).ConfigureAwait(false);
+            await ReconcileProjectionAsync(ct).ConfigureAwait(false);
             output.Clear();
             output.Add(new Variant(GroupNodeId(group.GroupId)));
             return ServiceResult.Good;
@@ -719,7 +739,7 @@ namespace Opc.Ua.XRegistry.Server
             }
             (IXRegistryProjectionGroup group, bool created) = await m_strategy
                 .GetOrCreateGroupAsync(groupId!, ct).ConfigureAwait(false);
-            await ReconcileAsync(ct).ConfigureAwait(false);
+            await ReconcileProjectionAsync(ct).ConfigureAwait(false);
             output.Clear();
             output.Add(new Variant(GroupNodeId(group.GroupId)));
             output.Add(new Variant(created));
@@ -760,7 +780,7 @@ namespace Opc.Ua.XRegistry.Server
                     StatusCodes.BadNodeIdExists,
                     $"Resource '{resourceId}' already exists in group '{groupId}'.");
             }
-            await ReconcileAsync(ct).ConfigureAwait(false);
+            await ReconcileProjectionAsync(ct).ConfigureAwait(false);
             return await CompleteResourceOutputAsync(
                 resource,
                 requestOpen,
@@ -799,7 +819,7 @@ namespace Opc.Ua.XRegistry.Server
                         versionId,
                         ct)
                     .ConfigureAwait(false);
-            await ReconcileAsync(ct).ConfigureAwait(false);
+            await ReconcileProjectionAsync(ct).ConfigureAwait(false);
             return await CompleteResourceOutputAsync(
                 resource,
                 requestOpen,
@@ -869,7 +889,7 @@ namespace Opc.Ua.XRegistry.Server
             }
             ServiceResult result = await m_strategy
                 .DeleteGroupAsync(groupId, OptionalEpoch(input, 0), ct).ConfigureAwait(false);
-            await ReconcileAsync(ct).ConfigureAwait(false);
+            await ReconcileProjectionAsync(ct).ConfigureAwait(false);
             return result;
         }
 
@@ -900,7 +920,7 @@ namespace Opc.Ua.XRegistry.Server
                         OptionalEpoch(input, 0),
                         ct)
                     .ConfigureAwait(false);
-            await ReconcileAsync(ct).ConfigureAwait(false);
+            await ReconcileProjectionAsync(ct).ConfigureAwait(false);
             return result;
         }
 
@@ -983,7 +1003,7 @@ namespace Opc.Ua.XRegistry.Server
                 .AddRegistryLabelAsync(GetString(input, 0) ?? string.Empty, GetString(input, 1) ?? string.Empty,
                     OptionalEpoch(input, 2), ct)
                 .ConfigureAwait(false);
-            await ReconcileAsync(ct).ConfigureAwait(false);
+            await ReconcileProjectionAsync(ct).ConfigureAwait(false);
             return result;
         }
 
@@ -1000,7 +1020,7 @@ namespace Opc.Ua.XRegistry.Server
             ServiceResult result = await m_strategy
                 .RemoveRegistryLabelAsync(GetString(input, 0) ?? string.Empty, OptionalEpoch(input, 1), ct)
                 .ConfigureAwait(false);
-            await ReconcileAsync(ct).ConfigureAwait(false);
+            await ReconcileProjectionAsync(ct).ConfigureAwait(false);
             return result;
         }
 
@@ -1019,7 +1039,7 @@ namespace Opc.Ua.XRegistry.Server
                 .AddGroupLabelAsync(groupId, GetString(input, 0) ?? string.Empty,
                     GetString(input, 1) ?? string.Empty, OptionalEpoch(input, 2), ct)
                 .ConfigureAwait(false);
-            await ReconcileAsync(ct).ConfigureAwait(false);
+            await ReconcileProjectionAsync(ct).ConfigureAwait(false);
             return result;
         }
 
@@ -1038,7 +1058,7 @@ namespace Opc.Ua.XRegistry.Server
                 .RemoveGroupLabelAsync(groupId, GetString(input, 0) ?? string.Empty,
                     OptionalEpoch(input, 1), ct)
                 .ConfigureAwait(false);
-            await ReconcileAsync(ct).ConfigureAwait(false);
+            await ReconcileProjectionAsync(ct).ConfigureAwait(false);
             return result;
         }
 
@@ -1073,7 +1093,7 @@ namespace Opc.Ua.XRegistry.Server
                         OptionalEpoch(input, 2),
                         ct)
                     .ConfigureAwait(false);
-            await ReconcileAsync(ct).ConfigureAwait(false);
+            await ReconcileProjectionAsync(ct).ConfigureAwait(false);
             return result;
         }
 
@@ -1106,7 +1126,7 @@ namespace Opc.Ua.XRegistry.Server
                         OptionalEpoch(input, 1),
                         ct)
                     .ConfigureAwait(false);
-            await ReconcileAsync(ct).ConfigureAwait(false);
+            await ReconcileProjectionAsync(ct).ConfigureAwait(false);
             return result;
         }
 
@@ -1134,7 +1154,7 @@ namespace Opc.Ua.XRegistry.Server
                     OptionalEpoch(input, 2),
                     ct)
                 .ConfigureAwait(false);
-            await ReconcileAsync(ct).ConfigureAwait(false);
+            await ReconcileProjectionAsync(ct).ConfigureAwait(false);
             return result;
         }
 
@@ -1161,7 +1181,7 @@ namespace Opc.Ua.XRegistry.Server
                     OptionalEpoch(input, 1),
                     ct)
                 .ConfigureAwait(false);
-            await ReconcileAsync(ct).ConfigureAwait(false);
+            await ReconcileProjectionAsync(ct).ConfigureAwait(false);
             return result;
         }
 

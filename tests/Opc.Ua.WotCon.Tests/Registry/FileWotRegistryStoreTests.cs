@@ -188,6 +188,240 @@ namespace Opc.Ua.WotCon.Tests.Registry
         }
 
         [Test]
+        public async Task PerVersionDocumentMetadataRoundTripsAcrossDefaultSwitch()
+        {
+            var store = new FileWotRegistryStore(m_root);
+            using (var service = new WotRegistryService(store))
+            {
+                await service.InitializeAsync();
+                foreach ((string VersionId, string Title, string BaseUri) version in new[]
+                {
+                    ("v1", "first", "https://example.test/first/"),
+                    ("v2", "second", "https://example.test/second/")
+                })
+                {
+                    await service.UpsertResourceAsync(new WotUpsertResourceRequest
+                    {
+                        GroupId = WotRegistryGroups.ThingDescriptions,
+                        ResourceId = "metadata",
+                        VersionId = version.VersionId,
+                        Kind = WoTDocumentKindEnum.ThingDescription,
+                        Content = ByteString.From(ThingDescriptionWithMetadata(
+                            "urn:metadata",
+                            "urn:metadata-" + version.Title,
+                            version.BaseUri)),
+                        SetAsDefault = false
+                    });
+                }
+                WotResource before = service.Current.FindResource(
+                    WotRegistryGroups.ThingDescriptions,
+                    "metadata")!;
+                await service.SetDefaultVersionAsync(
+                    WotRegistryGroups.ThingDescriptions,
+                    "metadata",
+                    "v2",
+                    before.MetaEpoch);
+
+                foreach ((string VersionId, string Title, string ModelVersion) version in new[]
+                {
+                    ("v1", "first", "1.0.0"),
+                    ("v2", "second", "2.0.0")
+                })
+                {
+                    await service.UpsertResourceAsync(new WotUpsertResourceRequest
+                    {
+                        GroupId = WotRegistryGroups.ThingModels,
+                        ResourceId = "model-metadata",
+                        VersionId = version.VersionId,
+                        Kind = WoTDocumentKindEnum.ThingModel,
+                        Content = ByteString.From(ThingModelWithMetadata(
+                            "urn:model-metadata",
+                            "urn:model-metadata-" + version.Title,
+                            version.ModelVersion)),
+                        SetAsDefault = false
+                    });
+                }
+                WotResource modelBefore = service.Current.FindResource(
+                    WotRegistryGroups.ThingModels,
+                    "model-metadata")!;
+                await service.SetDefaultVersionAsync(
+                    WotRegistryGroups.ThingModels,
+                    "model-metadata",
+                    "v2",
+                    modelBefore.MetaEpoch);
+            }
+
+            using var reloaded = new WotRegistryService(new FileWotRegistryStore(m_root));
+            await reloaded.InitializeAsync();
+            WotResource restored = reloaded.Current.FindResource(
+                WotRegistryGroups.ThingDescriptions,
+                "metadata")!;
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(restored.DefaultVersionId, Is.EqualTo("v2"));
+                Assert.That(restored.ThingId, Is.EqualTo("urn:metadata"));
+                Assert.That(restored.Title, Is.EqualTo("urn:metadata-second"));
+                Assert.That(
+                    restored.FindVersion("v1")!.DocumentId,
+                    Is.EqualTo("urn:metadata"));
+                Assert.That(
+                    restored.FindVersion("v1")!.Title,
+                    Is.EqualTo("urn:metadata-first"));
+                Assert.That(
+                    restored.FindVersion("v1")!.BaseUri,
+                    Is.EqualTo("https://example.test/first/"));
+                Assert.That(
+                    restored.FindVersion("v2")!.DocumentId,
+                    Is.EqualTo("urn:metadata"));
+                Assert.That(
+                    restored.FindVersion("v2")!.Title,
+                    Is.EqualTo("urn:metadata-second"));
+                Assert.That(
+                    restored.FindVersion("v2")!.BaseUri,
+                    Is.EqualTo("https://example.test/second/"));
+            });
+
+            WotResource restoredModel = reloaded.Current.FindResource(
+                WotRegistryGroups.ThingModels,
+                "model-metadata")!;
+            Assert.Multiple(() =>
+            {
+                Assert.That(restoredModel.Title, Is.EqualTo("urn:model-metadata-second"));
+                Assert.That(
+                    restoredModel.FindVersion("v1")!.ModelVersion,
+                    Is.EqualTo("1.0.0"));
+                Assert.That(
+                    restoredModel.FindVersion("v2")!.ModelVersion,
+                    Is.EqualTo("2.0.0"));
+            });
+
+            await reloaded.SetDefaultVersionAsync(
+                WotRegistryGroups.ThingDescriptions,
+                "metadata",
+                "v1",
+                restored.MetaEpoch);
+            Assert.That(
+                reloaded.Current.FindResource(
+                    WotRegistryGroups.ThingDescriptions,
+                    "metadata")!.Title,
+                Is.EqualTo("urn:metadata-first"));
+        }
+
+        [Test]
+        public async Task ConflictingPerVersionDocumentIdentityFailsClosed()
+        {
+            using (var service = new WotRegistryService(new FileWotRegistryStore(m_root)))
+            {
+                await service.InitializeAsync();
+                foreach (string versionId in new[] { "v1", "v2" })
+                {
+                    await service.UpsertResourceAsync(new WotUpsertResourceRequest
+                    {
+                        GroupId = WotRegistryGroups.ThingDescriptions,
+                        ResourceId = "identity",
+                        VersionId = versionId,
+                        Kind = WoTDocumentKindEnum.ThingDescription,
+                        Content = ByteString.From(
+                            TestMaterialization.Td("urn:identity", versionId)),
+                        SetAsDefault = false
+                    });
+                }
+            }
+
+            JsonObject manifest = JsonNode.Parse(File.ReadAllText(ManifestPath))!.AsObject();
+            JsonObject secondVersion =
+                manifest["Groups"]![0]!["Resources"]![0]!["Versions"]![1]!.AsObject();
+            secondVersion["DocumentId"] = "urn:other";
+            File.WriteAllText(
+                ManifestPath,
+                manifest.ToJsonString(new JsonSerializerOptions { WriteIndented = true }));
+
+            using var reloaded = new WotRegistryService(new FileWotRegistryStore(m_root));
+            InvalidDataException error = Assert.ThrowsAsync<InvalidDataException>(
+                async () => await reloaded.InitializeAsync())!;
+
+            Assert.That(error.Message, Does.Contain("incompatible document identities"));
+        }
+
+        [Test]
+        public async Task RetentionRoundTripKeepsActiveAndDefaultVersionReferences()
+        {
+            var bounds = new WotRegistryPersistenceBounds { MaxVersionsPerResource = 3 };
+            var store = new FileWotRegistryStore(m_root);
+            using (var service = new WotRegistryService(store, bounds))
+            {
+                await service.InitializeAsync();
+                foreach (string versionId in new[] { "v1", "v2", "v3" })
+                {
+                    await service.UpsertResourceAsync(new WotUpsertResourceRequest
+                    {
+                        GroupId = WotRegistryGroups.ThingDescriptions,
+                        ResourceId = "retained",
+                        VersionId = versionId,
+                        Kind = WoTDocumentKindEnum.ThingDescription,
+                        Content = ByteString.From(
+                            TestMaterialization.Td("urn:retained", versionId)),
+                        SetAsDefault = false
+                    });
+                }
+                await service.ApplyProjectionResultsAsync(
+                [
+                    new WotResourceProjection(
+                        WotRegistryGroups.ThingDescriptions,
+                        "retained",
+                        WoTLoadStateEnum.Active,
+                        "v1",
+                        refreshGeneration: 1,
+                        materializedNodeCount: 1,
+                        rootNodeId: new NodeId(1u),
+                        validation: null,
+                        diagnostics: [],
+                        lastRefreshTime: DateTime.UtcNow)
+                    {
+                        VersionId = "v1"
+                    }
+                ]);
+                WotResource beforeSwitch = service.Current.FindResource(
+                    WotRegistryGroups.ThingDescriptions,
+                    "retained")!;
+                await service.SetDefaultVersionAsync(
+                    WotRegistryGroups.ThingDescriptions,
+                    "retained",
+                    "v2",
+                    beforeSwitch.MetaEpoch);
+                await service.UpsertResourceAsync(new WotUpsertResourceRequest
+                {
+                    GroupId = WotRegistryGroups.ThingDescriptions,
+                    ResourceId = "retained",
+                    VersionId = "v4",
+                    Kind = WoTDocumentKindEnum.ThingDescription,
+                    Content = ByteString.From(TestMaterialization.Td("urn:retained", "v4")),
+                    SetAsDefault = false
+                });
+            }
+
+            using var reloaded = new WotRegistryService(
+                new FileWotRegistryStore(m_root),
+                bounds);
+            await reloaded.InitializeAsync();
+            WotResource restored = reloaded.Current.FindResource(
+                WotRegistryGroups.ThingDescriptions,
+                "retained")!;
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(restored.ActiveVersionId, Is.EqualTo("v1"));
+                Assert.That(restored.DefaultVersionId, Is.EqualTo("v2"));
+                Assert.That(restored.FindVersion(restored.ActiveVersionId), Is.Not.Null);
+                Assert.That(restored.FindVersion(restored.DefaultVersionId), Is.Not.Null);
+                Assert.That(
+                    restored.Versions.Select(version => version.VersionId),
+                    Is.EqualTo(new[] { "v1", "v2", "v4" }));
+            });
+        }
+
+        [Test]
         public async Task StructuralVersionWithoutContentRoundTrips()
         {
             var store = new FileWotRegistryStore(m_root);
@@ -245,6 +479,8 @@ namespace Opc.Ua.WotCon.Tests.Registry
             version.Remove("Labels");
             version.Remove("HasContent");
             version.Remove("Validation");
+            version.Remove("DocumentId");
+            version.Remove("Title");
             File.WriteAllText(ManifestPath, manifest.ToJsonString(
                 new JsonSerializerOptions { WriteIndented = true }));
 
@@ -260,6 +496,8 @@ namespace Opc.Ua.WotCon.Tests.Registry
                 Assert.That(migrated.DefaultVersion.HasContent, Is.True);
                 Assert.That(migrated.DefaultVersion.Labels, Is.Empty);
                 Assert.That(migrated.DefaultVersion.Validation, Is.Not.Null);
+                Assert.That(migrated.DefaultVersion.DocumentId, Is.EqualTo("urn:legacy"));
+                Assert.That(migrated.DefaultVersion.Title, Is.EqualTo("urn:legacy-1"));
                 Assert.That(
                     migrated.DefaultVersion.Validation!.FormatOutcome,
                     Is.EqualTo(WoTOutcomeEnum.Success));
@@ -1911,6 +2149,29 @@ namespace Opc.Ua.WotCon.Tests.Registry
                 Kind = WoTDocumentKindEnum.ThingDescription,
                 Content = ByteString.From(TestMaterialization.Td(thingId))
             };
+        }
+
+        private static byte[] ThingDescriptionWithMetadata(
+            string id,
+            string title,
+            string baseUri)
+        {
+            return Encoding.UTF8.GetBytes(
+                "{\"@context\":\"https://www.w3.org/2022/wot/td/v1.1\"," +
+                "\"@type\":\"uav:object\",\"id\":\"" + id + "\"," +
+                "\"title\":\"" + title + "\",\"base\":\"" + baseUri + "\"}");
+        }
+
+        private static byte[] ThingModelWithMetadata(
+            string id,
+            string title,
+            string modelVersion)
+        {
+            return Encoding.UTF8.GetBytes(
+                "{\"@context\":\"https://www.w3.org/2022/wot/td/v1.1\"," +
+                "\"@type\":\"tm:ThingModel\",\"id\":\"" + id + "\"," +
+                "\"title\":\"" + title + "\",\"version\":{\"model\":\"" +
+                modelVersion + "\"}}");
         }
 
         private sealed class CorruptingResourceStore : IXRegistryResourceStore

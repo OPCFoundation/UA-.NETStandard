@@ -198,6 +198,7 @@ namespace Opc.Ua.XRegistry.Tests
                 suppliedStrategy: strategy);
             await harness.Engine.AttachAsync(harness.Registry, CancellationToken.None)
                 .ConfigureAwait(false);
+            XRegistryProjectionEventSnapshot previousEvents = strategy.EventSnapshot;
             var group = (GroupState)harness.Added.Single(node => node is GroupState);
             var output = new List<Variant>();
 
@@ -212,6 +213,13 @@ namespace Opc.Ua.XRegistry.Tests
                 ],
                 output,
                 CancellationToken.None).ConfigureAwait(false);
+            await harness.Engine.ReconcileAsync(
+                    new XRegistryProjectionGeneration(
+                        strategy.Snapshot,
+                        strategy.EventSnapshot),
+                    previousEvents,
+                    CancellationToken.None)
+                .ConfigureAwait(false);
 
             NodeId expectedNodeId = new(
                 $"TestRegistry/groups/schemas/resources/pump/versions/{expectedVersionId}",
@@ -338,6 +346,66 @@ namespace Opc.Ua.XRegistry.Tests
                     Does.Contain(new NodeId(
                         "TestRegistry/groups/schemas/resources/queued",
                         1)));
+            });
+        }
+
+        [Test]
+        public async Task ProjectionOnlyReconcileLeavesFifoTransitionsAsEventAuthorityAsync()
+        {
+            ProjectionHarness harness = ProjectionHarness.Create(eventsEnabled: true);
+            harness.Strategy.Snapshot = new TestSnapshot([]);
+            harness.Strategy.EventSnapshot = EmptyEventSnapshot(0);
+            await harness.Engine.AttachAsync(harness.Registry, CancellationToken.None)
+                .ConfigureAwait(false);
+
+            (IXRegistryProjectionSnapshot firstProjection,
+                XRegistryProjectionEventSnapshot firstEvents) =
+                GenerationWithResources(1, "a");
+            (IXRegistryProjectionSnapshot secondProjection,
+                XRegistryProjectionEventSnapshot secondEvents) =
+                GenerationWithResources(2, "a", "b");
+            harness.Strategy.Snapshot = secondProjection;
+            harness.Strategy.EventSnapshot = secondEvents;
+
+            await harness.Engine.ReconcileProjectionAsync(CancellationToken.None)
+                .ConfigureAwait(false);
+            await harness.Engine.ReconcileAsync(
+                    new XRegistryProjectionGeneration(firstProjection, firstEvents),
+                    EmptyEventSnapshot(0),
+                    CancellationToken.None)
+                .ConfigureAwait(false);
+            await harness.Engine.ReconcileAsync(
+                    new XRegistryProjectionGeneration(secondProjection, secondEvents),
+                    firstEvents,
+                    CancellationToken.None)
+                .ConfigureAwait(false);
+
+            string[] created = harness.Events
+                .OfType<ResourceCreatedEventState>()
+                .Select(evt => evt.Subject!.Value)
+                .ToArray();
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    created,
+                    Is.EqualTo(new[]
+                    {
+                        "/groups/schemas/resources/a",
+                        "/groups/schemas/resources/b"
+                    }));
+                Assert.That(
+                    created.Count(subject =>
+                        string.Equals(
+                            subject,
+                            "/groups/schemas/resources/b",
+                            StringComparison.Ordinal)),
+                    Is.EqualTo(1));
+                Assert.That(
+                    harness.Added.Any(node =>
+                        node.NodeId == new NodeId(
+                            "TestRegistry/groups/schemas/resources/b",
+                            1)),
+                    Is.True);
             });
         }
 
@@ -551,9 +619,20 @@ namespace Opc.Ua.XRegistry.Tests
                 string resourceId,
                 uint epoch)
         {
-            var resource = new TestResource("schemas", resourceId);
+            return GenerationWithResources(epoch, resourceId);
+        }
+
+        private static (
+            IXRegistryProjectionSnapshot Projection,
+            XRegistryProjectionEventSnapshot Events) GenerationWithResources(
+                uint epoch,
+                params string[] resourceIds)
+        {
+            TestResource[] resources = resourceIds
+                .Select(resourceId => new TestResource("schemas", resourceId))
+                .ToArray();
             IXRegistryProjectionSnapshot projection = new TestSnapshot(
-                [new TestGroup("schemas", [resource])]);
+                [new TestGroup("schemas", resources)]);
             var events = new XRegistryProjectionEventSnapshot(
                 "/",
                 epoch,
@@ -565,7 +644,7 @@ namespace Opc.Ua.XRegistry.Tests
                         epoch,
                         ImmutableSortedDictionary<string, string>.Empty,
                         false,
-                        [
+                        resourceIds.Select(resourceId =>
                             new XRegistryProjectionEventResource(
                                 "schemas",
                                 resourceId,
@@ -582,7 +661,7 @@ namespace Opc.Ua.XRegistry.Tests
                                         1,
                                         ImmutableSortedDictionary<string, string>.Empty)
                                 ])
-                        ])
+                        ).ToImmutableArray())
                 ]);
             return (projection, events);
         }

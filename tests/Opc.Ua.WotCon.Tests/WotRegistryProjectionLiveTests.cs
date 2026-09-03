@@ -377,6 +377,197 @@ namespace Opc.Ua.WotCon.Tests
         }
 
         [Test]
+        public async Task RetryingContentlessPlaceholderFillsSameDefaultVersion()
+        {
+            WotRegistryClient client = await OpenClientAsync().ConfigureAwait(false);
+            WotRegistryGroupClient group = await client
+                .CreateThingDescriptionGroupAsync()
+                .ConfigureAwait(false);
+            (WotRegistryResourceClient _, string placeholderId, bool firstCreated) =
+                await group.GetOrCreateResourceAsync("retry-placeholder")
+                    .ConfigureAwait(false);
+            (WotRegistryResourceClient retry, string retryId, bool retryCreated) =
+                await group.GetOrCreateResourceAsync("retry-placeholder")
+                    .ConfigureAwait(false);
+
+            await retry.UploadNewVersionAsync(
+                    ByteString.From(MakeThingDescriptionBytes("retry-placeholder")))
+                .ConfigureAwait(false);
+            WotResource stored = m_registry.Current.FindResource(
+                WotRegistryGroups.ThingDescriptions,
+                "retry-placeholder")!;
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(firstCreated, Is.True);
+                Assert.That(retryCreated, Is.False);
+                Assert.That(retryId, Is.EqualTo(placeholderId));
+                Assert.That(stored.Versions, Has.Length.EqualTo(1));
+                Assert.That(stored.DefaultVersionId, Is.EqualTo(placeholderId));
+                Assert.That(stored.FindVersion(placeholderId)!.HasContent, Is.True);
+            });
+        }
+
+        [Test]
+        public async Task BulkLoadReportsVersionThatActuallyReceivedBytes()
+        {
+            WotRegistryClient client = await OpenClientAsync().ConfigureAwait(false);
+            WotRegistryGroupClient group = await client
+                .CreateThingDescriptionGroupAsync()
+                .ConfigureAwait(false);
+            (WotRegistryResourceClient v1, string v1Id) =
+                await group.CreateResourceAsync("bulk-version", "v1")
+                .ConfigureAwait(false);
+            await v1.Proxy.UploadAsync(
+                    ByteString.From(MakeThingDescriptionBytes("bulk-version")))
+                .ConfigureAwait(false);
+
+            WotRegistryBulkLoadResult result = await client.LoadDocumentsAsync(
+                new[]
+                {
+                    new WotRegistryDocument(
+                        WoTDocumentKindEnum.ThingDescription,
+                        WotRegistryGroups.ThingDescriptions,
+                        "bulk-version",
+                        ByteString.From(Encoding.UTF8.GetBytes(
+                            MakeThingDescriptionStringV2("bulk-version"))))
+                }.ToArrayOf(),
+                refresh: false).ConfigureAwait(false);
+            WotResource stored = m_registry.Current.FindResource(
+                WotRegistryGroups.ThingDescriptions,
+                "bulk-version")!;
+            WotResourceVersion uploaded = stored.Versions.Single(version =>
+                !string.Equals(version.VersionId, v1Id, StringComparison.Ordinal));
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(stored.Versions, Has.Length.EqualTo(2));
+                Assert.That(stored.DefaultVersionId, Is.EqualTo(v1Id));
+                Assert.That(uploaded.HasContent, Is.True);
+                Assert.That(result.Uploaded, Has.Count.EqualTo(1));
+                Assert.That(result.Uploaded[0].VersionId, Is.EqualTo(uploaded.VersionId));
+            });
+        }
+
+        [Test]
+        public async Task DefaultSwitchProjectsEachVersionsOwnDocumentTitle()
+        {
+            WotRegistryClient client = await OpenClientAsync().ConfigureAwait(false);
+            WotRegistryGroupClient group = await client
+                .CreateThingDescriptionGroupAsync()
+                .ConfigureAwait(false);
+            (WotRegistryResourceClient v1, _) =
+                await group.CreateResourceAsync("version-titles", "v1")
+                .ConfigureAwait(false);
+            await v1.Proxy.UploadAsync(
+                    ByteString.From(ThingDescriptionWithMetadata(
+                        "urn:version-titles",
+                        "urn:version-titles-first",
+                        "https://example.test/first/")))
+                .ConfigureAwait(false);
+            (WotRegistryResourceClient v2, _) =
+                await group.CreateResourceAsync("version-titles", "v2")
+                .ConfigureAwait(false);
+            await v2.Proxy.UploadAsync(
+                    ByteString.From(ThingDescriptionWithMetadata(
+                        "urn:version-titles",
+                        "urn:version-titles-second",
+                        "https://example.test/second/")))
+                .ConfigureAwait(false);
+
+            await v2.SetDefaultVersionAsync("v2", expectedEpoch: 0)
+                .ConfigureAwait(false);
+            string v1Title = await ReadWotChildValueAsync<string>(
+                    v1.ResourceNodeId,
+                    BrowseNames.ThingTitle)
+                .ConfigureAwait(false);
+            string v2Title = await ReadWotChildValueAsync<string>(
+                    v2.ResourceNodeId,
+                    BrowseNames.ThingTitle)
+                .ConfigureAwait(false);
+            string v1BaseUri = await ReadWotChildValueAsync<string>(
+                    v1.ResourceNodeId,
+                    BrowseNames.BaseUri)
+                .ConfigureAwait(false);
+            string v2BaseUri = await ReadWotChildValueAsync<string>(
+                    v2.ResourceNodeId,
+                    BrowseNames.BaseUri)
+                .ConfigureAwait(false);
+            WotResource stored = m_registry.Current.FindResource(
+                WotRegistryGroups.ThingDescriptions,
+                "version-titles")!;
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(stored.DefaultVersionId, Is.EqualTo("v2"));
+                Assert.That(stored.Title, Is.EqualTo("urn:version-titles-second"));
+                Assert.That(v1Title, Is.EqualTo("urn:version-titles-first"));
+                Assert.That(v2Title, Is.EqualTo("urn:version-titles-second"));
+                Assert.That(v1BaseUri, Is.EqualTo("https://example.test/first/"));
+                Assert.That(v2BaseUri, Is.EqualTo("https://example.test/second/"));
+            });
+        }
+
+        [Test]
+        public async Task ThingModelVersionsProjectTheirOwnModelTitles()
+        {
+            WotRegistryClient client = await OpenClientAsync().ConfigureAwait(false);
+            WotRegistryGroupClient group = await client
+                .CreateThingModelGroupAsync()
+                .ConfigureAwait(false);
+            (WotRegistryResourceClient v1, _) =
+                await group.CreateResourceAsync("model-titles", "v1")
+                .ConfigureAwait(false);
+            await v1.Proxy.UploadAsync(
+                    ByteString.From(ThingModelWithMetadata(
+                        "urn:model-titles",
+                        "urn:model-titles-first",
+                        "1.0.0")))
+                .ConfigureAwait(false);
+            (WotRegistryResourceClient v2, _) =
+                await group.CreateResourceAsync("model-titles", "v2")
+                .ConfigureAwait(false);
+            await v2.Proxy.UploadAsync(
+                    ByteString.From(ThingModelWithMetadata(
+                        "urn:model-titles",
+                        "urn:model-titles-second",
+                        "2.0.0")))
+                .ConfigureAwait(false);
+
+            await v2.SetDefaultVersionAsync("v2", expectedEpoch: 0)
+                .ConfigureAwait(false);
+            string v1Title = await ReadWotChildValueAsync<string>(
+                    v1.ResourceNodeId,
+                    BrowseNames.ModelTitle)
+                .ConfigureAwait(false);
+            string v2Title = await ReadWotChildValueAsync<string>(
+                    v2.ResourceNodeId,
+                    BrowseNames.ModelTitle)
+                .ConfigureAwait(false);
+            string v1ModelVersion = await ReadWotChildValueAsync<string>(
+                    v1.ResourceNodeId,
+                    BrowseNames.ModelVersion)
+                .ConfigureAwait(false);
+            string v2ModelVersion = await ReadWotChildValueAsync<string>(
+                    v2.ResourceNodeId,
+                    BrowseNames.ModelVersion)
+                .ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(v1Title, Is.EqualTo("urn:model-titles-first"));
+                Assert.That(v2Title, Is.EqualTo("urn:model-titles-second"));
+                Assert.That(v1ModelVersion, Is.EqualTo("1.0.0"));
+                Assert.That(v2ModelVersion, Is.EqualTo("2.0.0"));
+                Assert.That(
+                    m_registry.Current.FindResource(
+                        WotRegistryGroups.ThingModels,
+                        "model-titles")!.Title,
+                    Is.EqualTo("urn:model-titles-second"));
+            });
+        }
+
+        [Test]
         public async Task ConcreteVersionWriteReplacesOnlyThatVersionAndPreservesDefault()
         {
             WotRegistryClient client = await OpenClientAsync().ConfigureAwait(false);
@@ -386,18 +577,17 @@ namespace Opc.Ua.WotCon.Tests
             (WotRegistryResourceClient v1, _) = await group
                 .CreateResourceAsync("replace", "v1")
                 .ConfigureAwait(false);
-            byte[] v1Content = MakeThingDescriptionBytes("replace-v1");
+            byte[] v1Content = TestMaterialization.Td("urn:replace", "v1");
             await v1.Proxy.UploadAsync(ByteString.From(v1Content)).ConfigureAwait(false);
             (WotRegistryResourceClient v2, _) = await group
                 .CreateResourceAsync("replace", "v2")
                 .ConfigureAwait(false);
             await v2.Proxy.UploadAsync(
-                ByteString.From(MakeThingDescriptionBytes("replace-v2")))
+                ByteString.From(TestMaterialization.Td("urn:replace", "v2")))
                 .ConfigureAwait(false);
             await v2.SetDefaultVersionAsync("v1", expectedEpoch: 0).ConfigureAwait(false);
 
-            byte[] replacement = Encoding.UTF8.GetBytes(
-                MakeThingDescriptionStringV2("replace-v2-replaced"));
+            byte[] replacement = TestMaterialization.Td("urn:replace", "v2-replaced");
             await v2.Proxy.UploadAsync(ByteString.From(replacement)).ConfigureAwait(false);
 
             WotResource stored = m_registry.Current.FindResource(
@@ -427,13 +617,13 @@ namespace Opc.Ua.WotCon.Tests
                 .CreateResourceAsync("collision", "collision")
                 .ConfigureAwait(false);
             await collidingVersion.Proxy.UploadAsync(
-                ByteString.From(MakeThingDescriptionBytes("collision-old")))
+                ByteString.From(TestMaterialization.Td("urn:collision", "old")))
                 .ConfigureAwait(false);
             (WotRegistryResourceClient defaultVersion, _) = await group
                 .CreateResourceAsync("collision", "v2")
                 .ConfigureAwait(false);
             await defaultVersion.Proxy.UploadAsync(
-                ByteString.From(MakeThingDescriptionBytes("collision-default")))
+                ByteString.From(TestMaterialization.Td("urn:collision", "default")))
                 .ConfigureAwait(false);
             await defaultVersion.SetDefaultVersionAsync("v2", expectedEpoch: 0)
                 .ConfigureAwait(false);
@@ -1041,6 +1231,29 @@ namespace Opc.Ua.WotCon.Tests
                 "\"description\":\"" + padding + "\"}";
         }
 
+        private static byte[] ThingDescriptionWithMetadata(
+            string id,
+            string title,
+            string baseUri)
+        {
+            return Encoding.UTF8.GetBytes(
+                "{\"@context\":\"https://www.w3.org/2022/wot/td/v1.1\"," +
+                "\"@type\":\"uav:object\",\"id\":\"" + id + "\"," +
+                "\"title\":\"" + title + "\",\"base\":\"" + baseUri + "\"}");
+        }
+
+        private static byte[] ThingModelWithMetadata(
+            string id,
+            string title,
+            string modelVersion)
+        {
+            return Encoding.UTF8.GetBytes(
+                "{\"@context\":\"https://www.w3.org/2022/wot/td/v1.1\"," +
+                "\"@type\":\"tm:ThingModel\",\"id\":\"" + id + "\"," +
+                "\"title\":\"" + title + "\",\"version\":{\"model\":\"" +
+                modelVersion + "\"}}");
+        }
+
         /// <summary>
         /// Resolves the NodeId of a direct <c>HasComponent</c>-referenced child of
         /// <paramref name="parent"/> whose browse name is <paramref name="name"/> in the
@@ -1083,6 +1296,54 @@ namespace Opc.Ua.WotCon.Tests
             }
             return ExpandedNodeId.ToNodeId(
                 response.Results[0].Targets[0].TargetId, m_session.NamespaceUris);
+        }
+
+        private async ValueTask<T> ReadWotChildValueAsync<T>(NodeId parent, string name)
+        {
+            ushort wotNs = m_session.NamespaceUris.GetIndexOrAppend(Namespaces.WotCon);
+            var path = new BrowsePath
+            {
+                StartingNode = parent,
+                RelativePath = new RelativePath
+                {
+                    Elements =
+                    [
+                        new RelativePathElement
+                        {
+                            ReferenceTypeId = Ua.ReferenceTypeIds.HierarchicalReferences,
+                            IsInverse = false,
+                            IncludeSubtypes = true,
+                            TargetName = new QualifiedName(name, wotNs)
+                        }
+                    ]
+                }
+            };
+            TranslateBrowsePathsToNodeIdsResponse response = await m_session
+                .TranslateBrowsePathsToNodeIdsAsync(
+                    null,
+                    new[] { path }.ToArrayOf(),
+                    default)
+                .ConfigureAwait(false);
+            if (response.Results.Count == 0 ||
+                StatusCode.IsBad(response.Results[0].StatusCode) ||
+                response.Results[0].Targets.Count == 0)
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadNoMatch,
+                    $"Child '{name}' was not found below '{parent}'.");
+            }
+            NodeId nodeId = ExpandedNodeId.ToNodeId(
+                response.Results[0].Targets[0].TargetId,
+                m_session.NamespaceUris);
+            DataValue value = await m_session.ReadValueAsync(nodeId).ConfigureAwait(false);
+            if (StatusCode.IsBad(value.StatusCode) ||
+                value.WrappedValue.AsBoxedObject(Variant.BoxingBehavior.Legacy) is not T result)
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadTypeMismatch,
+                    $"Child '{name}' did not return {typeof(T).Name}.");
+            }
+            return result;
         }
 
         private string m_pkiRoot = null!;

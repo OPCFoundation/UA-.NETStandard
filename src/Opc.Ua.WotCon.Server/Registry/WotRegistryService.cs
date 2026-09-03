@@ -497,6 +497,9 @@ namespace Opc.Ua.WotCon.Server.Registry
                             validation: selectedDefault.Validation,
                             clearValidation: selectedDefault.Validation is null,
                             epoch: metaEpoch)
+                        .WithSelectedVersionMetadata(
+                            selectedDefault.DocumentId,
+                            selectedDefault.Title)
                         .WithMeta(metaEpoch, modifiedAt: DateTime.UtcNow);
                     next = ReplaceResource(
                         snapshot,
@@ -738,8 +741,10 @@ namespace Opc.Ua.WotCon.Server.Registry
             // Light parse to derive the kind/id/title and to record a format
             // failure state for a document that cannot even be parsed. Full WoT
             // validation and projection are performed by the coordinator.
-            string? thingId = null;
+            string? documentId = null;
             string? title = null;
+            string? baseUri = null;
+            string? modelVersion = null;
             WoTValidationOutcomeDataType? validation = null;
             ImmutableArray<string>.Builder diagnostics = ImmutableArray.CreateBuilder<string>();
             bool parseFailed = false;
@@ -751,8 +756,16 @@ namespace Opc.Ua.WotCon.Server.Registry
                     MaxJsonDepth = Bounds.MaxJsonDepth
                 };
                 using var document = WotDocument.Parse(content.Span.ToArray(), options);
-                thingId = document.Id;
+                documentId = document.Id;
                 title = document.Title;
+                baseUri = ReadString(document.RootElement, "base");
+                if (document.RootElement.TryGetProperty(
+                        "version",
+                        out JsonElement versionElement) &&
+                    versionElement.ValueKind == JsonValueKind.Object)
+                {
+                    modelVersion = ReadString(versionElement, "model");
+                }
             }
             catch (Exception ex) when (ex is JsonException or FormatException)
             {
@@ -784,7 +797,7 @@ namespace Opc.Ua.WotCon.Server.Registry
                     group = new WotResourceGroup(groupId, request.Kind, epoch: 0);
                 }
 
-                string resourceId = DeriveResourceId(request, thingId, title);
+                string resourceId = DeriveResourceId(request, documentId, title);
                 WotResource? existing = group.Resources.TryGetValue(
                     resourceId, out WotResource? found) ? found : null;
 
@@ -798,6 +811,24 @@ namespace Opc.Ua.WotCon.Server.Registry
                         [$"Group '{groupId}' already holds the maximum of " +
                             $"{Bounds.MaxResourcesPerGroup} resources."],
                         "Too many resources.");
+                }
+
+                string? establishedDocumentId = existing?.Versions
+                    .Select(version => version.DocumentId)
+                    .FirstOrDefault(id => !string.IsNullOrWhiteSpace(id)) ??
+                    existing?.ThingId;
+                if (!parseFailed &&
+                    !string.IsNullOrWhiteSpace(establishedDocumentId) &&
+                    !string.IsNullOrWhiteSpace(documentId) &&
+                    !string.Equals(
+                        establishedDocumentId,
+                        documentId,
+                        StringComparison.Ordinal))
+                {
+                    return Rejected(
+                        snapshot.Generation,
+                        $"Document identity '{documentId}' does not match the Resource identity " +
+                        $"'{establishedDocumentId}'.");
                 }
 
                 ByteString digest = WotContentDigest.Compute(content);
@@ -840,11 +871,6 @@ namespace Opc.Ua.WotCon.Server.Registry
                         "Content digest unchanged.");
                 }
 
-                string digestHex = WotContentDigest.ToHex(digest);
-                await m_resourceStore
-                        .WriteAsync(digestHex, 0, content, cancellationToken)
-                        .ConfigureAwait(false);
-
                 long generation = snapshot.Generation + 1;
                 DateTime now = DateTime.UtcNow;
                 WotResourceVersion version = current is null
@@ -857,7 +883,11 @@ namespace Opc.Ua.WotCon.Server.Registry
                         createdAt: now,
                         modifiedAt: now)
                     {
-                        Validation = validation
+                        Validation = validation,
+                        DocumentId = documentId,
+                        Title = title,
+                        BaseUri = baseUri,
+                        ModelVersion = modelVersion
                     }
                     : current.With(
                         digest: digest,
@@ -868,7 +898,16 @@ namespace Opc.Ua.WotCon.Server.Registry
                         epoch: current.Epoch + 1,
                         hasContent: true,
                         validation: validation,
-                        clearValidation: validation is null);
+                        clearValidation: validation is null)
+                        .WithDocumentMetadata(
+                            documentId,
+                            title,
+                            baseUri,
+                            modelVersion);
+
+                string? defaultVersionId = request.SetAsDefault
+                    ? versionId
+                    : existing?.DefaultVersionId ?? versionId;
 
                 ImmutableArray<WotResourceVersion> versions;
                 if (existing is null)
@@ -877,12 +916,21 @@ namespace Opc.Ua.WotCon.Server.Registry
                 }
                 else if (current is null)
                 {
-                    versions = Trim(
-                        existing.Versions.Add(version),
-                        Bounds.MaxVersionsPerResource,
-                        request.SetAsDefault
-                            ? versionId
-                            : existing.DefaultVersionId);
+                    if (!TryTrim(
+                            existing.Versions.Add(version),
+                            Bounds.MaxVersionsPerResource,
+                            [
+                                existing.ActiveVersionId,
+                                defaultVersionId,
+                                versionId
+                            ],
+                            out versions))
+                    {
+                        return Rejected(
+                            snapshot.Generation,
+                            $"The retention limit of {Bounds.MaxVersionsPerResource} Versions " +
+                            "cannot preserve the active, default, and incoming Versions.");
+                    }
                 }
                 else
                 {
@@ -891,9 +939,11 @@ namespace Opc.Ua.WotCon.Server.Registry
                         version);
                 }
 
-                string? defaultVersionId = request.SetAsDefault
-                    ? versionId
-                    : existing?.DefaultVersionId ?? versionId;
+                string digestHex = WotContentDigest.ToHex(digest);
+                await m_resourceStore
+                        .WriteAsync(digestHex, 0, content, cancellationToken)
+                        .ConfigureAwait(false);
+
                 bool updatesLogicalDefault = string.Equals(
                     defaultVersionId,
                     versionId,
@@ -926,7 +976,7 @@ namespace Opc.Ua.WotCon.Server.Registry
                         epoch: 1,
                         name: request.Name ?? title ?? resourceId,
                         description: request.Description,
-                        thingId: thingId,
+                        thingId: documentId,
                         title: title)
                     {
                         MetaCreatedAt = now,
@@ -950,13 +1000,13 @@ namespace Opc.Ua.WotCon.Server.Registry
                         description: updatesLogicalDefault
                             ? request.Description ?? existing.Description
                             : existing.Description,
-                        thingId: updatesLogicalDefault
-                            ? thingId ?? existing.ThingId
-                            : existing.ThingId,
-                        title: updatesLogicalDefault
-                            ? title ?? existing.Title
-                            : existing.Title,
                         clearValidation: updatesLogicalDefault && validation is null);
+                if (existing is not null && updatesLogicalDefault)
+                {
+                    resource = resource.WithSelectedVersionMetadata(
+                        version.DocumentId,
+                        version.Title);
+                }
                 if (existing is not null && resourceMetaChanged)
                 {
                     resource = resource.WithMeta(resource.MetaEpoch, modifiedAt: now);
@@ -1055,6 +1105,9 @@ namespace Opc.Ua.WotCon.Server.Registry
                         validation: selected.Validation,
                         clearValidation: selected.Validation is null,
                         epoch: resource.MetaEpoch + 1)
+                        .WithSelectedVersionMetadata(
+                            selected.DocumentId,
+                            selected.Title)
                         .WithMeta(resource.MetaEpoch + 1, modifiedAt: DateTime.UtcNow);
                     return (updated, null);
                 },
@@ -1731,30 +1784,47 @@ namespace Opc.Ua.WotCon.Server.Registry
                 new WotRegistryChangedEventArgs(previous, current, changed, projectionOnly));
         }
 
-        private static ImmutableArray<WotResourceVersion> Trim(
+        private static bool TryTrim(
             ImmutableArray<WotResourceVersion> versions,
             int max,
-            string? protectedVersionId)
+            IEnumerable<string?> protectedVersionIds,
+            out ImmutableArray<WotResourceVersion> trimmed)
         {
             if (versions.Length <= max)
             {
-                return versions;
+                trimmed = versions;
+                return true;
             }
+            var protectedIds = new HashSet<string>(
+                protectedVersionIds
+                    .Where(id => !string.IsNullOrEmpty(id))
+                    .Select(id => id!),
+                StringComparer.Ordinal);
+            protectedIds.IntersectWith(versions.Select(version => version.VersionId));
+            if (protectedIds.Count > max)
+            {
+                trimmed = default;
+                return false;
+            }
+
             ImmutableArray<WotResourceVersion>.Builder retained = versions.ToBuilder();
             while (retained.Count > max)
             {
                 int removeAt = 0;
                 while (removeAt < retained.Count &&
-                    string.Equals(
-                        retained[removeAt].VersionId,
-                        protectedVersionId,
-                        StringComparison.Ordinal))
+                    protectedIds.Contains(retained[removeAt].VersionId))
                 {
                     removeAt++;
                 }
-                retained.RemoveAt(removeAt < retained.Count ? removeAt : 0);
+                if (removeAt >= retained.Count)
+                {
+                    trimmed = default;
+                    return false;
+                }
+                retained.RemoveAt(removeAt);
             }
-            return retained.ToImmutable();
+            trimmed = retained.ToImmutable();
+            return true;
         }
 
         private static string NextVersionId(WotResource? existing)
@@ -1776,6 +1846,14 @@ namespace Opc.Ua.WotCon.Server.Registry
                 }
             }
             return WotRegistrySnapshot.FormatVersionId(next);
+        }
+
+        private static string? ReadString(JsonElement element, string propertyName)
+        {
+            return element.TryGetProperty(propertyName, out JsonElement value) &&
+                value.ValueKind == JsonValueKind.String
+                    ? value.GetString()
+                    : null;
         }
 
         private static string DeriveResourceId(

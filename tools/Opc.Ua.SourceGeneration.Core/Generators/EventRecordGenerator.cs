@@ -462,7 +462,11 @@ namespace Opc.Ua.SourceGeneration
 
                 if (child is PropertyDesign property)
                 {
-                    string dotnet = MapDataType(property.DataTypeNode, property.ValueRank);
+                    string dotnet = MapDataType(
+                        property.DataTypeNode,
+                        property.ValueRank,
+                        type,
+                        browseName);
                     fields.Add(new FieldEntry
                     {
                         PropertyName = browseName,
@@ -496,7 +500,11 @@ namespace Opc.Ua.SourceGeneration
                         continue;
                     }
 
-                    string dotnetVar = MapDataType(variable.DataTypeNode, variable.ValueRank);
+                    string dotnetVar = MapDataType(
+                        variable.DataTypeNode,
+                        variable.ValueRank,
+                        type,
+                        browseName);
                     fields.Add(new FieldEntry
                     {
                         PropertyName = browseName,
@@ -560,13 +568,19 @@ namespace Opc.Ua.SourceGeneration
         /// <c>INullable</c>; check <c>.IsNull</c> rather than wrapping
         /// in <c>Nullable&lt;Variant&gt;</c>.
         /// </summary>
-        private string MapDataType(DataTypeDesign dataType, ValueRank rank)
+        private string MapDataType(
+            DataTypeDesign dataType,
+            ValueRank rank,
+            ObjectTypeDesign declaringType,
+            string fieldName)
         {
             if (dataType == null)
             {
                 return "global::Opc.Ua.Variant";
             }
-            string baseType = MapScalarDataType(dataType);
+            string baseType = MapScalarDataType(
+                dataType,
+                IsTypedXRegistrySourceUrl(declaringType, fieldName));
             if (rank == ValueRank.Array)
             {
                 return CoreUtils.Format("{0}[]?", StripNullable(baseType));
@@ -583,7 +597,7 @@ namespace Opc.Ua.SourceGeneration
             return typeName;
         }
 
-        private string MapScalarDataType(DataTypeDesign dataType)
+        private string MapScalarDataType(DataTypeDesign dataType, bool typedUriString)
         {
             switch (dataType.SymbolicId?.Name)
             {
@@ -612,12 +626,9 @@ namespace Opc.Ua.SourceGeneration
                 case "String":
                     return "string?";
                 case "UriString":
-                    return string.Equals(
-                        m_context.ModelDesign.TargetNamespace.Value,
-                        Namespaces.OpcUa,
-                        StringComparison.Ordinal)
-                        ? "global::Opc.Ua.Variant"
-                        : "string?";
+                    return typedUriString
+                        ? "string?"
+                        : "global::Opc.Ua.Variant";
                 case "DateTime":
                 case "UtcTime":
                     return "global::System.DateTime?";
@@ -644,6 +655,25 @@ namespace Opc.Ua.SourceGeneration
                 default:
                     return ResolveCustomDataType(dataType);
             }
+        }
+
+        private bool IsTypedXRegistrySourceUrl(
+            ObjectTypeDesign declaringType,
+            string fieldName)
+        {
+            return string.Equals(
+                    m_context.ModelDesign.TargetNamespace.Value,
+                    kXRegistryNamespaceUri,
+                    StringComparison.Ordinal) &&
+                string.Equals(
+                    declaringType.SymbolicId?.Namespace,
+                    kXRegistryNamespaceUri,
+                    StringComparison.Ordinal) &&
+                string.Equals(
+                    declaringType.SymbolicName?.Name,
+                    "XRegistryEventType",
+                    StringComparison.Ordinal) &&
+                string.Equals(fieldName, "SourceUrl", StringComparison.Ordinal);
         }
 
         /// <summary>
@@ -904,6 +934,8 @@ namespace Opc.Ua.SourceGeneration
 
         private const string kStandardUaNamespaceUri = "http://opcfoundation.org/UA/";
         private const string kStandardUaRecordNamespace = "Opc.Ua";
+        private const string kXRegistryNamespaceUri =
+            "http://opcfoundation.org/UA/xRegistry/";
         private const string kRootBaseRecord = "global::Opc.Ua.EventRecord";
 
         private readonly IGeneratorContext m_context;

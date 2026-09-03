@@ -162,6 +162,45 @@ namespace Opc.Ua.WotCon.Tests.Registry
         }
 
         [Test]
+        public async Task GetOrCreateVersionRetryFillsTheSameContentlessVersion()
+        {
+            using var service = new WotRegistryService();
+            (WotResource _, WotResourceVersion first, bool firstCreated) =
+                await service.GetOrCreateVersionAsync(
+                    WotRegistryGroups.ThingDescriptions,
+                    "retry",
+                    string.Empty,
+                    WoTDocumentKindEnum.ThingDescription);
+            (WotResource _, WotResourceVersion second, bool secondCreated) =
+                await service.GetOrCreateVersionAsync(
+                    WotRegistryGroups.ThingDescriptions,
+                    "retry",
+                    string.Empty,
+                    WoTDocumentKindEnum.ThingDescription);
+
+            WotUpsertResourceRequest upload = TdRequest(
+                "retry",
+                TestMaterialization.Td("urn:retry"));
+            upload.VersionId = second.VersionId;
+            upload.ExpectedVersionDigestHex = string.Empty;
+            WotRegistryMutationResult result = await service.UpsertResourceAsync(upload);
+            WotResource stored = service.Current.FindResource(
+                WotRegistryGroups.ThingDescriptions,
+                "retry")!;
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(firstCreated, Is.True);
+                Assert.That(secondCreated, Is.False);
+                Assert.That(second.VersionId, Is.EqualTo(first.VersionId));
+                Assert.That(result.Outcome, Is.EqualTo(WoTOutcomeEnum.Success));
+                Assert.That(stored.Versions, Has.Length.EqualTo(1));
+                Assert.That(stored.DefaultVersionId, Is.EqualTo(first.VersionId));
+                Assert.That(stored.DefaultVersion!.HasContent, Is.True);
+            });
+        }
+
+        [Test]
         public async Task AdditionalVersionCreationAndReplacementPreserveDefaultVersion()
         {
             using var service = new WotRegistryService();
@@ -565,6 +604,198 @@ namespace Opc.Ua.WotCon.Tests.Registry
         }
 
         [Test]
+        public async Task VersionRetentionProtectsActiveDefaultAndIncomingVersions()
+        {
+            var bounds = new WotRegistryPersistenceBounds { MaxVersionsPerResource = 3 };
+            using var service = new WotRegistryService(bounds: bounds);
+            foreach (string versionId in new[] { "v1", "v2", "v3" })
+            {
+                WotUpsertResourceRequest request = TdRequest(
+                    "a",
+                    TestMaterialization.Td("urn:a", versionId),
+                    setDefault: false);
+                request.VersionId = versionId;
+                await service.UpsertResourceAsync(request);
+            }
+            await SetActiveVersionAsync(service, "a", "v1");
+            WotResource beforeSwitch = service.Current.FindResource(
+                WotRegistryGroups.ThingDescriptions,
+                "a")!;
+            await service.SetDefaultVersionAsync(
+                WotRegistryGroups.ThingDescriptions,
+                "a",
+                "v2",
+                beforeSwitch.MetaEpoch);
+
+            WotUpsertResourceRequest incoming = TdRequest(
+                "a",
+                TestMaterialization.Td("urn:a", "v4"),
+                setDefault: false);
+            incoming.VersionId = "v4";
+            WotRegistryMutationResult result = await service.UpsertResourceAsync(incoming);
+            WotResource resource = service.Current.FindResource(
+                WotRegistryGroups.ThingDescriptions,
+                "a")!;
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(result.Outcome, Is.EqualTo(WoTOutcomeEnum.Success));
+                Assert.That(resource.ActiveVersionId, Is.EqualTo("v1"));
+                Assert.That(resource.DefaultVersionId, Is.EqualTo("v2"));
+                Assert.That(
+                    resource.Versions.Select(version => version.VersionId),
+                    Is.EqualTo(new[] { "v1", "v2", "v4" }));
+            });
+        }
+
+        [Test]
+        public async Task VersionRetentionProtectsIncomingNonDefaultVersionAtLimit()
+        {
+            var bounds = new WotRegistryPersistenceBounds { MaxVersionsPerResource = 2 };
+            using var service = new WotRegistryService(bounds: bounds);
+            foreach (string versionId in new[] { "v1", "v2" })
+            {
+                WotUpsertResourceRequest request = TdRequest(
+                    "a",
+                    TestMaterialization.Td("urn:a", versionId),
+                    setDefault: false);
+                request.VersionId = versionId;
+                await service.UpsertResourceAsync(request);
+            }
+
+            WotUpsertResourceRequest incoming = TdRequest(
+                "a",
+                TestMaterialization.Td("urn:a", "v3"),
+                setDefault: false);
+            incoming.VersionId = "v3";
+            WotRegistryMutationResult result = await service.UpsertResourceAsync(incoming);
+            WotResource resource = service.Current.FindResource(
+                WotRegistryGroups.ThingDescriptions,
+                "a")!;
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(result.Outcome, Is.EqualTo(WoTOutcomeEnum.Success));
+                Assert.That(resource.DefaultVersionId, Is.EqualTo("v1"));
+                Assert.That(
+                    resource.Versions.Select(version => version.VersionId),
+                    Is.EqualTo(new[] { "v1", "v3" }));
+            });
+        }
+
+        [Test]
+        public async Task VersionRetentionRejectsWhenLimitCannotKeepProtectedVersions()
+        {
+            var bounds = new WotRegistryPersistenceBounds { MaxVersionsPerResource = 1 };
+            using var service = new WotRegistryService(bounds: bounds);
+            WotUpsertResourceRequest first = TdRequest(
+                "a",
+                TestMaterialization.Td("urn:a", "v1"),
+                setDefault: false);
+            first.VersionId = "v1";
+            await service.UpsertResourceAsync(first);
+            await SetActiveVersionAsync(service, "a", "v1");
+            long generation = service.Current.Generation;
+
+            WotUpsertResourceRequest incoming = TdRequest(
+                "a",
+                TestMaterialization.Td("urn:a", "v2"),
+                setDefault: false);
+            incoming.VersionId = "v2";
+            WotRegistryMutationResult result = await service.UpsertResourceAsync(incoming);
+            WotResource resource = service.Current.FindResource(
+                WotRegistryGroups.ThingDescriptions,
+                "a")!;
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(result.Outcome, Is.EqualTo(WoTOutcomeEnum.Rejected));
+                Assert.That(result.Message, Does.Contain("retention").IgnoreCase);
+                Assert.That(service.Current.Generation, Is.EqualTo(generation));
+                Assert.That(resource.ActiveVersionId, Is.EqualTo("v1"));
+                Assert.That(resource.DefaultVersionId, Is.EqualTo("v1"));
+                Assert.That(
+                    resource.Versions.Select(version => version.VersionId),
+                    Is.EqualTo(new[] { "v1" }));
+            });
+        }
+
+        [Test]
+        public async Task DefaultSwitchUsesSelectedVersionDocumentMetadata()
+        {
+            using var service = new WotRegistryService();
+            WotUpsertResourceRequest v1 = TdRequest(
+                "a",
+                TestMaterialization.Td("urn:a", "first"),
+                setDefault: false);
+            v1.VersionId = "v1";
+            await service.UpsertResourceAsync(v1);
+            WotUpsertResourceRequest v2 = TdRequest(
+                "a",
+                TestMaterialization.Td("urn:a", "second"),
+                setDefault: false);
+            v2.VersionId = "v2";
+            await service.UpsertResourceAsync(v2);
+            WotResource before = service.Current.FindResource(
+                WotRegistryGroups.ThingDescriptions,
+                "a")!;
+
+            WotRegistryMutationResult result = await service.SetDefaultVersionAsync(
+                WotRegistryGroups.ThingDescriptions,
+                "a",
+                "v2",
+                before.MetaEpoch);
+            WotResource after = service.Current.FindResource(
+                WotRegistryGroups.ThingDescriptions,
+                "a")!;
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(result.Outcome, Is.EqualTo(WoTOutcomeEnum.Success));
+                Assert.That(after.DefaultVersionId, Is.EqualTo("v2"));
+                Assert.That(after.ThingId, Is.EqualTo("urn:a"));
+                Assert.That(after.Title, Is.EqualTo("urn:a-second"));
+                Assert.That(after.FindVersion("v1")!.DocumentId, Is.EqualTo("urn:a"));
+                Assert.That(after.FindVersion("v1")!.Title, Is.EqualTo("urn:a-first"));
+                Assert.That(after.FindVersion("v2")!.DocumentId, Is.EqualTo("urn:a"));
+                Assert.That(after.FindVersion("v2")!.Title, Is.EqualTo("urn:a-second"));
+            });
+        }
+
+        [Test]
+        public async Task NewVersionWithIncompatibleDocumentIdentityIsRejected()
+        {
+            using var service = new WotRegistryService();
+            WotUpsertResourceRequest v1 = TdRequest(
+                "a",
+                TestMaterialization.Td("urn:a", "first"),
+                setDefault: false);
+            v1.VersionId = "v1";
+            await service.UpsertResourceAsync(v1);
+            long generation = service.Current.Generation;
+
+            WotUpsertResourceRequest v2 = TdRequest(
+                "a",
+                TestMaterialization.Td("urn:other", "second"),
+                setDefault: false);
+            v2.VersionId = "v2";
+            WotRegistryMutationResult result = await service.UpsertResourceAsync(v2);
+            WotResource resource = service.Current.FindResource(
+                WotRegistryGroups.ThingDescriptions,
+                "a")!;
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(result.Outcome, Is.EqualTo(WoTOutcomeEnum.Rejected));
+                Assert.That(result.Message, Does.Contain("identity").IgnoreCase);
+                Assert.That(service.Current.Generation, Is.EqualTo(generation));
+                Assert.That(resource.Versions, Has.Length.EqualTo(1));
+                Assert.That(resource.ThingId, Is.EqualTo("urn:a"));
+                Assert.That(resource.Title, Is.EqualTo("urn:a-first"));
+            });
+        }
+
+        [Test]
         public async Task SetDefaultVersionSwitchesActiveDefault()
         {
             using var service = new WotRegistryService();
@@ -638,6 +869,30 @@ namespace Opc.Ua.WotCon.Tests.Registry
             Assert.That(captured, Is.Not.Null);
             Assert.That(captured!.ProjectionOnly, Is.False);
             Assert.That(captured.ChangedResourceXids, Has.Count.EqualTo(1));
+        }
+
+        private static ValueTask SetActiveVersionAsync(
+            WotRegistryService service,
+            string resourceId,
+            string versionId)
+        {
+            return service.ApplyProjectionResultsAsync(
+            [
+                new WotResourceProjection(
+                    WotRegistryGroups.ThingDescriptions,
+                    resourceId,
+                    WoTLoadStateEnum.Active,
+                    versionId,
+                    refreshGeneration: 1,
+                    materializedNodeCount: 1,
+                    rootNodeId: new NodeId(1u),
+                    validation: null,
+                    diagnostics: [],
+                    lastRefreshTime: DateTime.UtcNow)
+                {
+                    VersionId = versionId
+                }
+            ]);
         }
 
         private static readonly string[] s_retentionInputVersionIds = ["v1", "v2", "v3"];

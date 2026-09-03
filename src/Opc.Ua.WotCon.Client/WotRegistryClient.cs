@@ -496,9 +496,11 @@ namespace Opc.Ua.WotCon.Client
                 (WotRegistryResourceClient resource, string versionId, bool created) = await group
                     .GetOrCreateResourceAsync(document.ResourceId, document.VersionId, ct)
                     .ConfigureAwait(false);
+                string uploadedVersionId = versionId;
                 if (string.IsNullOrEmpty(document.VersionId))
                 {
-                    await resource.UploadNewVersionAsync(document.Content, ct: ct)
+                    uploadedVersionId = await resource
+                        .UploadNewVersionAndGetIdAsync(document.Content, ct: ct)
                         .ConfigureAwait(false);
                 }
                 else
@@ -508,7 +510,7 @@ namespace Opc.Ua.WotCon.Client
                 }
 
                 outcomes[i] = new WotRegistryDocumentLoadOutcome(
-                    document, resource.ResourceNodeId, versionId, created);
+                    document, resource.ResourceNodeId, uploadedVersionId, created);
             }
 
             WotRegistryRefreshResult? refreshResult = null;

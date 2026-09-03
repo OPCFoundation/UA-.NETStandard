@@ -234,6 +234,26 @@ namespace Opc.Ua.WotCon.Server.Registry
         public WoTValidationOutcomeDataType? Validation { get; init; }
 
         /// <summary>
+        /// Gets the document identity parsed from this Version's bytes.
+        /// </summary>
+        public string? DocumentId { get; init; }
+
+        /// <summary>
+        /// Gets the document title parsed from this Version's bytes.
+        /// </summary>
+        public string? Title { get; init; }
+
+        /// <summary>
+        /// Gets the Thing Description base URI parsed from this Version.
+        /// </summary>
+        public string? BaseUri { get; init; }
+
+        /// <summary>
+        /// Gets the Thing Model <c>version.model</c> value parsed from this Version.
+        /// </summary>
+        public string? ModelVersion { get; init; }
+
+        /// <summary>
         /// Gets the content digest as a lowercase hexadecimal string.
         /// </summary>
         public string DigestHex => HasContent ? WotContentDigest.ToHex(Digest) : string.Empty;
@@ -265,7 +285,37 @@ namespace Opc.Ua.WotCon.Server.Registry
                 Epoch = epoch ?? Epoch,
                 Labels = labels ?? Labels,
                 HasContent = hasContent ?? HasContent,
-                Validation = clearValidation ? null : (validation ?? Validation)
+                Validation = clearValidation ? null : (validation ?? Validation),
+                DocumentId = DocumentId,
+                Title = Title,
+                BaseUri = BaseUri,
+                ModelVersion = ModelVersion
+            };
+        }
+
+        internal WotResourceVersion WithDocumentMetadata(
+            string? documentId,
+            string? title,
+            string? baseUri,
+            string? modelVersion)
+        {
+            return new WotResourceVersion(
+                VersionId,
+                Digest,
+                ContentLength,
+                ContentType,
+                Format,
+                CreatedAt,
+                ModifiedAt)
+            {
+                Epoch = Epoch,
+                Labels = Labels,
+                HasContent = HasContent,
+                Validation = Validation,
+                DocumentId = documentId,
+                Title = title,
+                BaseUri = baseUri,
+                ModelVersion = modelVersion
             };
         }
     }
@@ -595,6 +645,38 @@ namespace Opc.Ua.WotCon.Server.Registry
             {
                 MetaCreatedAt = MetaCreatedAt,
                 MetaModifiedAt = modifiedAt ?? MetaModifiedAt
+            };
+        }
+
+        internal WotResource WithSelectedVersionMetadata(
+            string? documentId,
+            string? title)
+        {
+            return new WotResource(
+                GroupId,
+                ResourceId,
+                Kind,
+                Versions,
+                DefaultVersionId,
+                DesiredVersionId,
+                ActiveVersionId,
+                Enabled,
+                LoadState,
+                Validation,
+                Diagnostics,
+                Epoch,
+                RefreshGeneration,
+                LastRefreshTime,
+                MaterializedNodeCount,
+                RootNodeId,
+                Name,
+                Description,
+                documentId,
+                title,
+                Labels)
+            {
+                MetaCreatedAt = MetaCreatedAt,
+                MetaModifiedAt = MetaModifiedAt
             };
         }
     }

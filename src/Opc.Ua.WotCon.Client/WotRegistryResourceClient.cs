@@ -74,6 +74,7 @@ namespace Opc.Ua.WotCon.Client
             m_groupProxy = groupProxy;
             Proxy = proxy;
             m_pendingStructuralVersion = pendingStructuralVersion;
+            HasContent = pendingStructuralVersion ? false : null;
             Telemetry = telemetry;
         }
 
@@ -118,6 +119,83 @@ namespace Opc.Ua.WotCon.Client
         /// Telemetry context.
         /// </summary>
         public ITelemetryContext Telemetry { get; }
+
+        /// <summary>
+        /// Gets the last content-state value observed for this Version, or
+        /// <c>null</c> when the connected server does not expose that capability.
+        /// </summary>
+        public bool? HasContent { get; private set; }
+
+        /// <summary>
+        /// Reads the existing <c>ContentDigest</c> field to determine whether
+        /// this Version has committed document bytes. Older servers that do not
+        /// expose the field return <c>null</c>.
+        /// </summary>
+        public async ValueTask<bool?> HasContentAsync(CancellationToken ct = default)
+        {
+            NodeId contentDigestNodeId;
+            try
+            {
+                ushort ns = Session.NamespaceUris.GetIndexOrAppend(Namespaces.WotCon);
+                contentDigestNodeId = await WotConBrowsePathResolver.ResolveChildAsync(
+                        Session,
+                        ResourceNodeId,
+                        Ua.ReferenceTypeIds.HierarchicalReferences,
+                        ns,
+                        BrowseNames.ContentDigest,
+                        StatusCodes.BadNoMatch,
+                        "The server does not expose Version content state.",
+                        ct)
+                    .ConfigureAwait(false);
+            }
+            catch (ServiceResultException ex) when (IsUnavailableContentState(ex.StatusCode))
+            {
+                HasContent = null;
+                return null;
+            }
+
+            ReadResponse response = await Session.ReadAsync(
+                    null,
+                    0,
+                    TimestampsToReturn.Neither,
+                    new[]
+                    {
+                        new ReadValueId
+                        {
+                            NodeId = contentDigestNodeId,
+                            AttributeId = Attributes.Value
+                        }
+                    }.ToArrayOf(),
+                    ct)
+                .ConfigureAwait(false);
+            if (response.Results.Count == 0)
+            {
+                HasContent = null;
+                return null;
+            }
+            DataValue value = response.Results[0];
+            if (StatusCode.IsBad(value.StatusCode))
+            {
+                if (IsUnavailableContentState(value.StatusCode))
+                {
+                    HasContent = null;
+                    return null;
+                }
+                throw new ServiceResultException(value.StatusCode);
+            }
+            if (!value.WrappedValue.TryGetValue(out ByteString digest))
+            {
+                HasContent = null;
+                return null;
+            }
+            if (digest.IsNull)
+            {
+                HasContent = null;
+                return null;
+            }
+            HasContent = digest.Length > 0;
+            return HasContent;
+        }
 
         /// <summary>
         /// Calls <c>Validate</c> on the resource.
@@ -230,6 +308,19 @@ namespace Opc.Ua.WotCon.Client
             int chunkSize = FileTypeClientExtensions.DefaultChunkSize,
             CancellationToken ct = default)
         {
+            _ = await UploadNewVersionAndGetIdAsync(content, chunkSize, ct)
+                .ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Uploads a new Version and returns the Version id that received the bytes.
+        /// A pending structural Version is filled in place.
+        /// </summary>
+        public async ValueTask<string> UploadNewVersionAndGetIdAsync(
+            ByteString content,
+            int chunkSize = FileTypeClientExtensions.DefaultChunkSize,
+            CancellationToken ct = default)
+        {
             if (chunkSize <= 0)
             {
                 throw new ArgumentOutOfRangeException(
@@ -243,11 +334,12 @@ namespace Opc.Ua.WotCon.Client
                 if (content.Length > 0)
                 {
                     m_pendingStructuralVersion = false;
+                    HasContent = true;
                 }
-                return;
+                return VersionId;
             }
 
-            (NodeId nodeId, _, uint fileHandle) = await m_groupProxy
+            (NodeId nodeId, string assignedVersionId, uint fileHandle) = await m_groupProxy
                 .CreateResourceAsync(
                     ResourceId,
                     versionId: string.Empty,
@@ -263,6 +355,7 @@ namespace Opc.Ua.WotCon.Client
             await CreateProxy(nodeId)
                 .WriteDocumentAsync(fileHandle, content, chunkSize, ct)
                 .ConfigureAwait(false);
+            return assignedVersionId;
         }
 
         /// <summary>
@@ -274,6 +367,19 @@ namespace Opc.Ua.WotCon.Client
         /// resource version.
         /// </summary>
         public async ValueTask UploadNewVersionAsync(
+            Stream content,
+            int chunkSize = FileTypeClientExtensions.DefaultChunkSize,
+            CancellationToken ct = default)
+        {
+            _ = await UploadNewVersionAndGetIdAsync(content, chunkSize, ct)
+                .ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Uploads a stream as a new Version and returns the Version id that
+        /// received the bytes. A pending structural Version is filled in place.
+        /// </summary>
+        public async ValueTask<string> UploadNewVersionAndGetIdAsync(
             Stream content,
             int chunkSize = FileTypeClientExtensions.DefaultChunkSize,
             CancellationToken ct = default)
@@ -299,11 +405,12 @@ namespace Opc.Ua.WotCon.Client
                 if (written > 0)
                 {
                     m_pendingStructuralVersion = false;
+                    HasContent = true;
                 }
-                return;
+                return VersionId;
             }
 
-            (NodeId nodeId, _, uint fileHandle) = await m_groupProxy
+            (NodeId nodeId, string assignedVersionId, uint fileHandle) = await m_groupProxy
                 .CreateResourceAsync(
                     ResourceId,
                     versionId: string.Empty,
@@ -333,6 +440,7 @@ namespace Opc.Ua.WotCon.Client
                 await proxy.CloseAsync(fileHandle, CancellationToken.None)
                     .ConfigureAwait(false);
             }
+            return assignedVersionId;
         }
 
         /// <summary>
@@ -402,6 +510,20 @@ namespace Opc.Ua.WotCon.Client
                     .ConfigureAwait(false);
             }
             return written;
+        }
+
+        internal void MarkPendingStructuralVersion()
+        {
+            m_pendingStructuralVersion = true;
+            HasContent = false;
+        }
+
+        private static bool IsUnavailableContentState(StatusCode statusCode)
+        {
+            return statusCode == StatusCodes.BadNoMatch ||
+                statusCode == StatusCodes.BadNodeIdUnknown ||
+                statusCode == StatusCodes.BadAttributeIdInvalid ||
+                statusCode == StatusCodes.BadNotReadable;
         }
 
         private readonly GroupTypeClient m_groupProxy;
