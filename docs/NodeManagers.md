@@ -4,6 +4,7 @@
 
 - [Overview](#overview)
 - [Node sources and node managers](#node-sources-and-node-managers)
+  - [Why separate the layers](#why-separate-the-layers)
   - [Choosing an authoring path](#choosing-an-authoring-path)
 - [Built-in node managers](#built-in-node-managers)
   - [Master node manager](#master-node-manager)
@@ -115,11 +116,23 @@ flowchart LR
     E --> F[Browse, Read, Write, Call, Monitor, History, Events]
 ```
 
-This separation keeps ordinary model authoring small and compositional without pretending that
-specialized manager capabilities have disappeared. A source supplies the graph; a manager serves
-it. When a source is sufficient, applications do not need to inherit the broad node-manager base
-class. When manager-level behavior is required, a node manager remains the correct extension
-point.
+### Why separate the layers
+
+The separation changes the public authoring contract, not the runtime service behavior. A source
+deliberately has less authority than a manager, which provides these concrete benefits:
+
+| Benefit | Effect |
+| --- | --- |
+| Smaller extension surface | An application implements the two-member `INodeSource` contract instead of inheriting manager construction, routing, service, monitoring, and teardown extension points that it does not need. |
+| Application-focused dependencies | A source constructor can take application services directly. The internal adapter, rather than application code, owns `IServerInternal`, `ApplicationConfiguration`, manager indexes, and service plumbing. |
+| Transactional generations | Each `BuildAsync` creates a fresh graph while hidden from clients. The host seals and publishes it as one generation, or rolls it back without exposing a partially built manager. |
+| AOT-friendly hosting | `AddNodeSource<TSource>()` activates the source through its generic type and does not require a generated public manager factory or runtime reflection. |
+| One runtime implementation | The adapter reuses the existing node-manager engine, so the smaller authoring API does not duplicate browse, read, write, call, monitoring, history, event, or cleanup logic. |
+
+This is intentionally not a capability increase. It keeps manager authority away from code that
+only needs to describe a graph. If an implementation needs a protected manager override or a
+manager capability that the source seam does not expose, `[NodeManager]` or a hand-written manager
+is the correct choice.
 
 ### Choosing an authoring path
 
