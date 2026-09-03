@@ -230,9 +230,6 @@ namespace Opc.Ua.Server.Fluent
                 browseName,
                 displayName: new LocalizedText(symbolicName),
                 assignNodeIds: false);
-            FluentNodeRegistration.AssignDescendantNodeIds(
-                parent.Builder,
-                alarm);
             alarm.SetEnableState(parent.Builder.Context, enabled: true);
 
             alarm.ReferenceTypeId = ReferenceTypeIds.HasCondition;

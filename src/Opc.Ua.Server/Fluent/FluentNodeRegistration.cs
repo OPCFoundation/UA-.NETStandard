@@ -53,18 +53,7 @@ namespace Opc.Ua.Server.Fluent
             }
 
             NodeId previousNodeId = node.NodeId;
-            ushort namespaceIndex = parent.NodeId.NamespaceIndex;
-            if (namespaceIndex == 0)
-            {
-                namespaceIndex = builder is NodeManagerBuilder nodeManagerBuilder
-                    ? nodeManagerBuilder.DefaultNamespaceIndex
-                    : node.BrowseName.NamespaceIndex;
-            }
-            node.NodeId = Nodes.NodeSourceNodeIdFactory.CreateChildNodeId(
-                parent.NodeId,
-                node.BrowseName,
-                namespaceIndex,
-                builder.Context.NamespaceUris);
+            AssignNodeIdValue(builder, node, parent);
             if (node.NodeId.IsNull)
             {
                 throw ServiceResultException.Create(
@@ -115,6 +104,13 @@ namespace Opc.Ua.Server.Fluent
             NodeState node,
             NodeState parent)
         {
+            node.NodeId = NodeId.Null;
+            if (builder.Context.NodeIdFactory is { } factory)
+            {
+                node.NodeId = factory.New(builder.Context, node);
+                return;
+            }
+
             ushort namespaceIndex = parent.NodeId.NamespaceIndex;
             if (namespaceIndex == 0)
             {
