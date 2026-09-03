@@ -72,7 +72,12 @@ namespace Opc.Ua.Server.Tests
             return s_baseTime.AddMilliseconds(seconds * 1000.0);
         }
 
-        // Linear ramp: value v at t = v*10 s + 1.234 s, all Good (mirrors the run-14 seed).
+        /// <summary>
+        /// Linear ramp: value v at t = v*10 s + 1.234 s, all Good (mirrors the run-14 seed).
+        /// </summary>
+        /// <param name="type"></param>
+        /// <param name="count"></param>
+        /// <returns></returns>
         private static List<DataValue> CreateRamp(BuiltInType type, int count = 40)
         {
             var raw = new List<DataValue>(count + 1);
@@ -411,13 +416,13 @@ namespace Opc.Ua.Server.Tests
 
                 var nodeId = new NodeId($"run14-aggregate-{Guid.NewGuid():N}", 1);
                 Provider.Register(nodeId);
-                IList<StatusCode> insertResults = await Provider.InsertAsync(
+                HistorianUpdateOutcome<DataValue> insertOutcome = await Provider.InsertAsync(
                     CreateContext(),
                     nodeId,
                     rawValues,
                     CancellationToken.None).ConfigureAwait(false);
-                Assert.That(insertResults, Has.Count.EqualTo(rawValues.Count));
-                Assert.That(insertResults, Has.All.Matches<StatusCode>(StatusCode.IsGood));
+                Assert.That(insertOutcome.OperationResults, Has.Count.EqualTo(rawValues.Count));
+                Assert.That(insertOutcome.OperationResults.ToArray(), Has.All.Matches<StatusCode>(StatusCode.IsGood));
 
                 var node = new BaseDataVariableState(null)
                 {

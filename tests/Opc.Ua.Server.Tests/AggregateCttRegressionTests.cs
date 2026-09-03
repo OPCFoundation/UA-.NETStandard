@@ -651,13 +651,13 @@ namespace Opc.Ua.Server.Tests
                 Provider.Register(nodeId);
                 if (rawValues.Count > 0)
                 {
-                    IList<StatusCode> insertResults = await Provider.InsertAsync(
+                    HistorianUpdateOutcome<DataValue> insertOutcome = await Provider.InsertAsync(
                         CreateContext(),
                         nodeId,
                         rawValues,
                         CancellationToken.None).ConfigureAwait(false);
-                    Assert.That(insertResults, Has.Count.EqualTo(rawValues.Count));
-                    Assert.That(insertResults, Has.All.Matches<StatusCode>(StatusCode.IsGood));
+                    Assert.That(insertOutcome.OperationResults, Has.Count.EqualTo(rawValues.Count));
+                    Assert.That(insertOutcome.OperationResults.ToArray(), Has.All.Matches<StatusCode>(StatusCode.IsGood));
                 }
 
                 var node = new BaseDataVariableState(null)

@@ -27,8 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System.Collections.Generic;
-
 namespace Opc.Ua.Server.Historian
 {
     /// <summary>
@@ -147,7 +145,7 @@ namespace Opc.Ua.Server.Historian
         /// <summary>
         /// The requested timestamps, in the order the client supplied them.
         /// </summary>
-        public required IReadOnlyList<DateTimeUtc> RequestedTimes { get; init; }
+        public required ArrayOf<DateTimeUtc> RequestedTimes { get; init; }
 
         /// <summary>
         /// When true, returns the closest bound rather than interpolating
@@ -194,6 +192,11 @@ namespace Opc.Ua.Server.Historian
         /// Interval length, in milliseconds, between aggregate outputs.
         /// </summary>
         public required double ProcessingInterval { get; init; }
+
+        /// <summary>
+        /// Maximum values returned per page. Zero means no provider limit.
+        /// </summary>
+        public uint MaxValues { get; init; }
 
         /// <summary>
         /// Aggregate configuration overrides (Part 11 §5.2.6.4).

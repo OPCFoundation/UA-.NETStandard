@@ -314,8 +314,7 @@ namespace Opc.Ua.Server.Tests.Historian
             ServiceResult error = await HistorianDispatcher.DispatchUpdateDataAsync(
                 h.SystemContext, h.Provider, node, details, result, CancellationToken.None).ConfigureAwait(false);
 
-            Assert.That(ServiceResult.IsGood(error), Is.True,
-                "Dispatcher returns Good; per-entry status in OperationResults carries the error.");
+            Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadInvalidArgument));
             Assert.That(result.OperationResults, Has.Count.EqualTo(1));
             Assert.That(result.OperationResults[0], Is.EqualTo(StatusCodes.BadInvalidArgument));
         }
@@ -351,6 +350,7 @@ namespace Opc.Ua.Server.Tests.Historian
         {
             Fixture h = CreateFixture();
             var nodeId = new NodeId($"evt-read-{Guid.NewGuid():N}", 1);
+            h.Provider.SetCapabilities(nodeId, HistorianNodeCapabilities.ReadWrite);
             HistorianOperationContext ctx = CreateContext(h.SystemContext);
 
             var evtId = (ByteString)new byte[] { 0x01, 0x02 };
@@ -358,7 +358,10 @@ namespace Opc.Ua.Server.Tests.Historian
             {
                 new(evtId, ObjectTypeIds.BaseEventType,
                     (DateTimeUtc)BaseTime.AddSeconds(1),
-                    new Dictionary<string, Variant> { ["Message"] = new Variant("hello") })
+                    new Dictionary<string, Variant>
+                    {
+                        ["Message"] = new Variant("hello")
+                    }.ToArrayOf())
             };
             await h.Provider.InsertEventsAsync(ctx, nodeId, events, CancellationToken.None).ConfigureAwait(false);
 
@@ -411,8 +414,9 @@ namespace Opc.Ua.Server.Tests.Historian
         {
             Fixture h = CreateFixture();
             var nodeId = new NodeId($"evt-upd-{Guid.NewGuid():N}", 1);
-            BaseDataVariableState node = CreateVariable(nodeId);
-            HistorianOperationContext ctx = CreateContext(h.SystemContext);
+            BaseObjectState node = CreateEventNotifier(nodeId);
+            h.Provider.Register(nodeId);
+            h.Provider.SetCapabilities(nodeId, HistorianNodeCapabilities.ReadWrite);
 
             // Build an event filter with the standard select clauses for round-trip.
             var filter = new EventFilter
@@ -424,14 +428,32 @@ namespace Opc.Ua.Server.Tests.Historian
                         TypeDefinitionId = ObjectTypeIds.BaseEventType,
                         BrowsePath = new QualifiedName[] { new(BrowseNames.EventId) },
                         AttributeId = Attributes.Value
+                    },
+                    new()
+                    {
+                        TypeDefinitionId = ObjectTypeIds.BaseEventType,
+                        BrowsePath = new QualifiedName[] { new(BrowseNames.EventType) },
+                        AttributeId = Attributes.Value
+                    },
+                    new()
+                    {
+                        TypeDefinitionId = ObjectTypeIds.BaseEventType,
+                        BrowsePath = new QualifiedName[] { new(BrowseNames.Time) },
+                        AttributeId = Attributes.Value
                     }
                 }
             };
 
             var evtId = (ByteString)new byte[] { 0xAB, 0xCD };
+            DateTimeUtc eventTime = BaseTime.AddSeconds(1);
             var incoming = new HistoryEventFieldList
             {
-                EventFields = new Variant[] { new(evtId) }
+                EventFields =
+                [
+                    new Variant(evtId),
+                    new Variant(ObjectTypeIds.BaseEventType),
+                    new Variant(eventTime)
+                ]
             };
             var insertDetails = new UpdateEventDetails
             {
@@ -455,7 +477,8 @@ namespace Opc.Ua.Server.Tests.Historian
         {
             Fixture h = CreateFixture();
             var nodeId = new NodeId($"evt-inv-{Guid.NewGuid():N}", 1);
-            BaseDataVariableState node = CreateVariable(nodeId);
+            BaseObjectState node = CreateEventNotifier(nodeId);
+            h.Provider.Register(nodeId);
 
             var filter = new EventFilter
             {
@@ -485,9 +508,79 @@ namespace Opc.Ua.Server.Tests.Historian
             ServiceResult error = await HistorianDispatcher.DispatchUpdateEventAsync(
                 h.SystemContext, h.Provider, node, details, result, CancellationToken.None).ConfigureAwait(false);
 
-            Assert.That(ServiceResult.IsGood(error), Is.True);
+            Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadInvalidArgument));
             Assert.That(result.OperationResults, Has.Count.EqualTo(1));
             Assert.That(result.OperationResults[0], Is.EqualTo(StatusCodes.BadInvalidArgument));
+        }
+
+        [Test]
+        public async Task DispatchUpdateEventAsyncReportsIgnoredFieldDiagnosticsAsync()
+        {
+            Fixture h = CreateFixture(DiagnosticsMasks.OperationAll);
+            var nodeId = new NodeId($"evt-ignored-{Guid.NewGuid():N}", 1);
+            BaseObjectState node = CreateEventNotifier(nodeId);
+            var supportedMessage = new SimpleAttributeOperand
+            {
+                TypeDefinitionId = ObjectTypeIds.BaseEventType,
+                BrowsePath = [new QualifiedName(BrowseNames.Message)],
+                AttributeId = Attributes.Value
+            };
+            h.Provider.Register(nodeId, HistorianNodeCapabilities.ReadWrite with
+            {
+                EventFields = [supportedMessage]
+            });
+            var filter = new EventFilter();
+            filter.AddSelectClause(
+                ObjectTypeIds.BaseEventType,
+                BrowseNames.EventType,
+                Attributes.Value);
+            filter.AddSelectClause(
+                ObjectTypeIds.BaseEventType,
+                BrowseNames.Time,
+                Attributes.Value);
+            filter.SelectClauses = filter.SelectClauses.AddItem(
+                new SimpleAttributeOperand
+                {
+                    TypeDefinitionId = ObjectTypeIds.BaseEventType,
+                    BrowsePath = [new QualifiedName("Unsupported")],
+                    AttributeId = Attributes.Value
+                });
+            var details = new UpdateEventDetails
+            {
+                NodeId = nodeId,
+                PerformInsertReplace = PerformUpdateType.Insert,
+                Filter = filter,
+                EventData =
+                [
+                    new HistoryEventFieldList
+                    {
+                        EventFields =
+                        [
+                            new Variant(ObjectTypeIds.BaseEventType),
+                            new Variant((DateTimeUtc)DateTime.UtcNow),
+                            Variant.From(42)
+                        ]
+                    }
+                ]
+            };
+            var result = new HistoryUpdateResult();
+
+            ServiceResult error = await HistorianDispatcher.DispatchUpdateEventAsync(
+                h.SystemContext,
+                h.Provider,
+                node,
+                details,
+                result,
+                CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(ServiceResult.IsGood(error), Is.True);
+            Assert.That(
+                result.OperationResults[0],
+                Is.EqualTo(StatusCodes.GoodDataIgnored));
+            Assert.That(result.DiagnosticInfos, Has.Count.EqualTo(1));
+            Assert.That(result.DiagnosticInfos[0], Is.Not.Null);
+            Assert.That(result.DiagnosticInfos[0].SymbolicId, Is.GreaterThanOrEqualTo(0));
+            Assert.That(result.DiagnosticInfos[0].LocalizedText, Is.GreaterThanOrEqualTo(0));
         }
 
         // ─── DispatchDeleteEventsAsync ───────────────────────────────────────
@@ -518,6 +611,7 @@ namespace Opc.Ua.Server.Tests.Historian
         {
             Fixture h = CreateFixture();
             var nodeId = new NodeId($"evt-del2-{Guid.NewGuid():N}", 1);
+            h.Provider.SetCapabilities(nodeId, HistorianNodeCapabilities.ReadWrite);
             BaseDataVariableState node = CreateVariable(nodeId);
             HistorianOperationContext ctx = CreateContext(h.SystemContext);
 
@@ -527,7 +621,7 @@ namespace Opc.Ua.Server.Tests.Historian
                 new HistorianEventRecord(
                     evtId, ObjectTypeIds.BaseEventType,
                     (DateTimeUtc)BaseTime.AddSeconds(1),
-                    new Dictionary<string, Variant>())
+                    new Dictionary<string, Variant>().ToArrayOf())
             ], CancellationToken.None).ConfigureAwait(false);
 
             var deleteDetails = new DeleteEventDetails
@@ -563,7 +657,7 @@ namespace Opc.Ua.Server.Tests.Historian
             var record = new HistorianEventRecord(
                 ByteString.Empty, ObjectTypeIds.BaseEventType,
                 (DateTimeUtc)BaseTime,
-                new Dictionary<string, Variant>());
+                new Dictionary<string, Variant>().ToArrayOf());
 
             Assert.That(
                 () => HistorianDispatcher.ProjectEventFields(record, null!),
@@ -579,7 +673,7 @@ namespace Opc.Ua.Server.Tests.Historian
                 new Dictionary<string, Variant>
                 {
                     ["Severity"] = new Variant((ushort)500)
-                });
+                }.ToArrayOf());
 
             var filter = new EventFilter
             {
@@ -608,7 +702,7 @@ namespace Opc.Ua.Server.Tests.Historian
             var record = new HistorianEventRecord(
                 ByteString.Empty, eventType,
                 (DateTimeUtc)BaseTime,
-                new Dictionary<string, Variant>());
+                new Dictionary<string, Variant>().ToArrayOf());
 
             // Select clause with empty BrowsePath + NodeId attribute asks for the EventType.
             var filter = new EventFilter
@@ -637,7 +731,7 @@ namespace Opc.Ua.Server.Tests.Historian
             var record = new HistorianEventRecord(
                 ByteString.Empty, ObjectTypeIds.BaseEventType,
                 (DateTimeUtc)BaseTime,
-                new Dictionary<string, Variant>());
+                new Dictionary<string, Variant>().ToArrayOf());
 
             var filter = new EventFilter
             {
@@ -667,7 +761,7 @@ namespace Opc.Ua.Server.Tests.Historian
                 new Dictionary<string, Variant>
                 {
                     ["Parent/Child"] = new Variant("nested-value")
-                });
+                }.ToArrayOf());
 
             var filter = new EventFilter
             {
@@ -689,11 +783,52 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(val, Is.EqualTo("nested-value"));
         }
 
+        [Test]
+        public void ProjectEventFieldsDoesNotCrossTypeDefinitions()
+        {
+            var key = new HistorianEventFieldKey(
+                ObjectTypeIds.BaseEventType,
+                [new QualifiedName("SharedName", 1)],
+                Attributes.Value,
+                null);
+            var record = new HistorianEventRecord(
+                ByteString.Empty,
+                ObjectTypeIds.BaseEventType,
+                (DateTimeUtc)BaseTime,
+                new Dictionary<string, Variant>().ToArrayOf())
+            {
+                QualifiedFields =
+                    new Dictionary<HistorianEventFieldKey, Variant>
+                    {
+                        [key] = new Variant("base")
+                    }.ToArrayOf()
+            };
+            var filter = new EventFilter
+            {
+                SelectClauses =
+                [
+                    new SimpleAttributeOperand
+                    {
+                        TypeDefinitionId = ObjectTypeIds.ConditionType,
+                        BrowsePath = [new QualifiedName("SharedName", 1)],
+                        AttributeId = Attributes.Value
+                    }
+                ]
+            };
+
+            HistoryEventFieldList fields =
+                HistorianDispatcher.ProjectEventFields(record, filter);
+
+            Assert.That(fields.EventFields, Has.Count.EqualTo(1));
+            Assert.That(fields.EventFields[0], Is.EqualTo(Variant.Null));
+        }
+
         // ─── Helpers ─────────────────────────────────────────────────────────
 
-        private static Fixture CreateFixture()
+        private static Fixture CreateFixture(
+            DiagnosticsMasks diagnosticsMask = DiagnosticsMasks.None)
         {
-            return new();
+            return new(diagnosticsMask);
         }
 
         private static BaseDataVariableState CreateVariable(NodeId nodeId)
@@ -704,6 +839,17 @@ namespace Opc.Ua.Server.Tests.Historian
                 BrowseName = new QualifiedName("TestVar"),
                 AccessLevel = AccessLevels.HistoryReadOrWrite,
                 Historizing = true
+            };
+        }
+
+        private static BaseObjectState CreateEventNotifier(NodeId nodeId)
+        {
+            return new BaseObjectState(null)
+            {
+                NodeId = nodeId,
+                BrowseName = new QualifiedName("TestNotifier"),
+                EventNotifier = EventNotifiers.HistoryRead |
+                    EventNotifiers.HistoryWrite
             };
         }
 
@@ -726,7 +872,8 @@ namespace Opc.Ua.Server.Tests.Historian
             public InMemoryHistorianProvider Provider { get; }
             public ServerSystemContext SystemContext { get; }
 
-            public Fixture()
+            public Fixture(
+                DiagnosticsMasks diagnosticsMask = DiagnosticsMasks.None)
             {
                 Provider = new InMemoryHistorianProvider();
 
@@ -739,7 +886,6 @@ namespace Opc.Ua.Server.Tests.Historian
                     () => NodeId.Null, maxBrowse: 10, maxHistory: 10, store: null);
                 mockSession.Setup(s => s.ContinuationPoints).Returns(continuationPoints);
 
-
                 var mockServer = new Mock<IServerInternal>();
                 mockServer.Setup(s => s.NamespaceUris).Returns(new NamespaceTable());
                 mockServer.Setup(s => s.ServerUris).Returns(new StringTable());
@@ -748,7 +894,12 @@ namespace Opc.Ua.Server.Tests.Historian
                 mockServer.Setup(s => s.Telemetry).Returns(mockTelemetry.Object);
 
                 var opContext = new OperationContext(
-                    new RequestHeader(), null!, RequestType.HistoryRead,
+                    new RequestHeader
+                    {
+                        ReturnDiagnostics = (uint)diagnosticsMask
+                    },
+                    null!,
+                    RequestType.HistoryRead,
                     RequestLifetime.None, mockSession.Object);
                 SystemContext = new ServerSystemContext(mockServer.Object, opContext);
             }

@@ -27,7 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -72,38 +71,38 @@ namespace Opc.Ua.Server.Historian
         /// <summary>
         /// Inserts new annotations.
         /// </summary>
-        ValueTask<IList<StatusCode>> InsertAnnotationsAsync(
+        ValueTask<HistorianUpdateOutcome<Annotation>> InsertAnnotationsAsync(
             HistorianOperationContext context,
             NodeId nodeId,
-            IList<Annotation> annotations,
+            ArrayOf<Annotation> annotations,
             CancellationToken ct);
 
         /// <summary>
         /// Replaces existing annotations matching their
         /// <see cref="Annotation.AnnotationTime"/>.
         /// </summary>
-        ValueTask<IList<StatusCode>> ReplaceAnnotationsAsync(
+        ValueTask<HistorianUpdateOutcome<Annotation>> ReplaceAnnotationsAsync(
             HistorianOperationContext context,
             NodeId nodeId,
-            IList<Annotation> annotations,
+            ArrayOf<Annotation> annotations,
             CancellationToken ct);
 
         /// <summary>
         /// Upserts annotations.
         /// </summary>
-        ValueTask<IList<StatusCode>> UpdateAnnotationsAsync(
+        ValueTask<HistorianUpdateOutcome<Annotation>> UpdateAnnotationsAsync(
             HistorianOperationContext context,
             NodeId nodeId,
-            IList<Annotation> annotations,
+            ArrayOf<Annotation> annotations,
             CancellationToken ct);
 
         /// <summary>
         /// Deletes annotations at the specified annotation timestamps.
         /// </summary>
-        ValueTask<IList<StatusCode>> DeleteAnnotationsAsync(
+        ValueTask<HistorianUpdateOutcome<Annotation>> DeleteAnnotationsAsync(
             HistorianOperationContext context,
             NodeId nodeId,
-            IList<DateTimeUtc> annotationTimes,
+            ArrayOf<DateTimeUtc> annotationTimes,
             CancellationToken ct);
     }
 }

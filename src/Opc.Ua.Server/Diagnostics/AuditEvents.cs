@@ -303,6 +303,69 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Reports an AuditHistoryValueUpdate event for generic
+        /// StructuredHistoryData.
+        /// </summary>
+        /// <param name="server">The server which reports audit events.</param>
+        /// <param name="systemContext">The current system context.</param>
+        /// <param name="updateStructureDataDetails">Structured update details.</param>
+        /// <param name="oldValues">The old values.</param>
+        /// <param name="statusCode">The resulting status code.</param>
+        /// <param name="logger">A contextual logger to log to.</param>
+        public static void ReportAuditHistoryValueUpdateEvent(
+            this IAuditEventServer? server,
+            ISystemContext systemContext,
+            UpdateStructureDataDetails updateStructureDataDetails,
+            ArrayOf<DataValue> oldValues,
+            StatusCode statusCode,
+            ILogger logger)
+        {
+            if (server?.Auditing != true)
+            {
+                return;
+            }
+
+            try
+            {
+                var e = new AuditHistoryValueUpdateEventState(null);
+
+                InitializeAuditHistoryUpdateEvent(
+                    e,
+                    systemContext,
+                    "AuditHistoryValueUpdateEvent",
+                    "Attribute/HistoryValueUpdate",
+                    updateStructureDataDetails,
+                    statusCode);
+
+                e.SetChildValue(
+                    systemContext,
+                    BrowseNames.UpdatedNode,
+                    updateStructureDataDetails.NodeId,
+                    false);
+                e.SetChildValue(
+                    systemContext,
+                    BrowseNames.PerformInsertReplace,
+                    updateStructureDataDetails.PerformInsertReplace);
+                e.SetChildValue(
+                    systemContext,
+                    BrowseNames.NewValues,
+                    updateStructureDataDetails.UpdateValues,
+                    false);
+                e.SetChildValue(
+                    systemContext,
+                    BrowseNames.OldValues,
+                    oldValues,
+                    false);
+
+                server.ReportAuditEvent(systemContext, e);
+            }
+            catch (Exception ex)
+            {
+                logger.ErrorWhileReportingAuditHistoryValueUpdateEvent(ex);
+            }
+        }
+
+        /// <summary>
         /// Reports an AuditHistoryValueUpdate event.
         /// </summary>
         /// <param name="server">The server which reports audit events.</param>
@@ -311,11 +374,53 @@ namespace Opc.Ua.Server
         /// <param name="oldValues">The old values</param>
         /// <param name="statusCode">The resulting status code</param>
         /// <param name="logger">A contextual logger to log to</param>
+        [Obsolete(
+            "Use the overload accepting ArrayOf<Annotation>. " +
+            "This compatibility overload will be removed in a future release.")]
         public static void ReportAuditHistoryAnnotationUpdateEvent(
             this IAuditEventServer? server,
             ISystemContext systemContext,
             UpdateStructureDataDetails updateStructureDataDetails,
             ArrayOf<DataValue> oldValues,
+            StatusCode statusCode,
+            ILogger logger)
+        {
+            var annotations = new Annotation[oldValues.Count];
+            for (int i = 0; i < oldValues.Count; i++)
+            {
+                if (oldValues[i].WrappedValue.TryGetValue(
+                        out ExtensionObject extension) &&
+                    extension.TryGetValue(out Annotation? annotation))
+                {
+                    annotations[i] = annotation;
+                }
+                else
+                {
+                    annotations[i] = null!;
+                }
+            }
+            server.ReportAuditHistoryAnnotationUpdateEvent(
+                systemContext,
+                updateStructureDataDetails,
+                annotations.ToArrayOf(),
+                statusCode,
+                logger);
+        }
+
+        /// <summary>
+        /// Reports an AuditHistoryAnnotationUpdate event.
+        /// </summary>
+        /// <param name="server">The server which reports audit events.</param>
+        /// <param name="systemContext">The current system context.</param>
+        /// <param name="updateStructureDataDetails">Update structure data details</param>
+        /// <param name="oldValues">The old annotation values</param>
+        /// <param name="statusCode">The resulting status code</param>
+        /// <param name="logger">A contextual logger to log to</param>
+        public static void ReportAuditHistoryAnnotationUpdateEvent(
+            this IAuditEventServer? server,
+            ISystemContext systemContext,
+            UpdateStructureDataDetails updateStructureDataDetails,
+            ArrayOf<Annotation> oldValues,
             StatusCode statusCode,
             ILogger logger)
         {
@@ -341,10 +446,27 @@ namespace Opc.Ua.Server
                     systemContext,
                     BrowseNames.PerformInsertReplace,
                     updateStructureDataDetails.PerformInsertReplace);
+                var newValues = new Annotation[
+                    updateStructureDataDetails.UpdateValues.Count];
+                for (int i = 0; i < newValues.Length; i++)
+                {
+                    DataValue value =
+                        updateStructureDataDetails.UpdateValues[i];
+                    if (value.WrappedValue.TryGetValue(
+                            out ExtensionObject extension) &&
+                        extension.TryGetValue(out Annotation? annotation))
+                    {
+                        newValues[i] = annotation;
+                    }
+                    else
+                    {
+                        newValues[i] = null!;
+                    }
+                }
                 e.SetChildValue(
                     systemContext,
                     BrowseNames.NewValues,
-                    updateStructureDataDetails.UpdateValues,
+                    newValues.ToArrayOf(),
                     false);
                 e.SetChildValue(systemContext, BrowseNames.OldValues, oldValues, false);
 
@@ -549,11 +671,47 @@ namespace Opc.Ua.Server
         /// <param name="oldValues">The old values</param>
         /// <param name="statusCode">The resulting status code</param>
         /// <param name="logger">A contextual logger to log to</param>
+        [Obsolete(
+            "Use the overload accepting HistoryEventFieldList. " +
+            "This compatibility overload will be removed in a future release.")]
         public static void ReportAuditHistoryEventDeleteEvent(
             this IAuditEventServer? server,
             ISystemContext systemContext,
             DeleteEventDetails deleteEventDetails,
             DataValue[] oldValues,
+            StatusCode statusCode,
+            ILogger logger)
+        {
+            var eventFields = new Variant[oldValues.Length];
+            for (int i = 0; i < oldValues.Length; i++)
+            {
+                eventFields[i] = oldValues[i].WrappedValue;
+            }
+            server.ReportAuditHistoryEventDeleteEvent(
+                systemContext,
+                deleteEventDetails,
+                new HistoryEventFieldList
+                {
+                    EventFields = eventFields
+                },
+                statusCode,
+                logger);
+        }
+
+        /// <summary>
+        /// Reports an AuditHistoryEventDelete event.
+        /// </summary>
+        /// <param name="server">The server which reports audit events.</param>
+        /// <param name="systemContext">The current system context.</param>
+        /// <param name="deleteEventDetails">History delete event details</param>
+        /// <param name="oldValue">The deleted historical event fields.</param>
+        /// <param name="statusCode">The resulting status code</param>
+        /// <param name="logger">A contextual logger to log to</param>
+        public static void ReportAuditHistoryEventDeleteEvent(
+            this IAuditEventServer? server,
+            ISystemContext systemContext,
+            DeleteEventDetails deleteEventDetails,
+            HistoryEventFieldList? oldValue,
             StatusCode statusCode,
             ILogger logger)
         {
@@ -585,7 +743,11 @@ namespace Opc.Ua.Server
                     BrowseNames.EventIds,
                     Variant.From(deleteEventDetails.EventIds),
                     false);
-                e.SetChildValue(systemContext, BrowseNames.OldValues, Variant.From(oldValues), false);
+                e.SetChildValue(
+                    systemContext,
+                    BrowseNames.OldValues,
+                    oldValue ?? new HistoryEventFieldList(),
+                    false);
 
                 server.ReportAuditEvent(systemContext, e);
             }
@@ -2391,5 +2553,4 @@ namespace Opc.Ua.Server
             this ILogger logger,
             Exception ex);
     }
-
 }

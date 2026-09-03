@@ -111,6 +111,30 @@ bool enableFastReconnect =
 // unlike the default in-memory store, which is private to each container.
 string consistency = (builder.Configuration["HA_CONSISTENCY"] ?? "eventual").Trim().ToLowerInvariant();
 bool useStrongConsistency = consistency is "strong";
+bool enableDistributedHistorian = bool.TryParse(
+    builder.Configuration["HA_HISTORIAN"],
+    out bool configuredHistorian)
+        ? configuredHistorian
+        : useStrongConsistency && !activeActive;
+if (enableDistributedHistorian)
+{
+    if (activeActive || !useStrongConsistency)
+    {
+        Console.Error.WriteLine(
+            "The distributed historian supports only a strongly consistent active/passive topology. " +
+            "Set HA_MODE=ap and HA_CONSISTENCY=strong, or disable HA_HISTORIAN.");
+        Environment.ExitCode = 1;
+        return;
+    }
+    if (recordKey == null)
+    {
+        Console.Error.WriteLine(
+            "The distributed historian requires protected shared records. Set HA_RECORD_KEY to the same " +
+            "base64 32-byte key on every replica; HA_INSECURE cannot be used with HA_HISTORIAN.");
+        Environment.ExitCode = 1;
+        return;
+    }
+}
 
 // Optional GetEndpoints load direction: when HA_BALANCING_URL is set, a GetEndpoints
 // request on that (virtual/load-balancer) discovery URL is answered with the best
@@ -263,6 +287,23 @@ else
             // Mirror session state across replicas; the standby still runs the full
             // ActivateSession signature check on a token-reuse reconnect.
             s.EnableFastReconnect = enableFastReconnect);
+}
+
+if (enableDistributedHistorian)
+{
+    ua.UseDistributedHistorian(options =>
+    {
+        // Keep pages deliberately small so the sample visibly exercises portable
+        // continuation points during active-replica failover.
+        options.MaxValuesPerPage = 2;
+        // Keep the sample's stale-writer fencing window short enough for an
+        // operator-driven failover to demonstrate promoted-writer visibility.
+        options.WriterFenceLeaseDuration = TimeSpan.FromSeconds(5);
+        options.Capabilities = options.Capabilities with
+        {
+            EventTypes = [ObjectTypeIds.BaseEventType]
+        };
+    });
 }
 
 ua.AddServerRedundancy(r =>

@@ -150,23 +150,6 @@ namespace Opc.Ua.Server.Tests.Historian
         }
 
         [Test]
-        public void HistorianBuilderHistorizeInstallConfigOnBrowseAttachesPopulateHandler()
-        {
-            IServerInternal server = CreateServerWithRegistry();
-            var builder = new HistorianBuilder(server);
-            builder.UseInMemory();
-
-            BaseDataVariableState variable = CreateVariable("browse.var");
-            builder.Historize(
-                variable,
-                installConfigurationOnBrowse: true,
-                autoCapture: false);
-
-            Assert.That(variable.OnPopulateBrowser, Is.Not.Null,
-                "installConfigurationOnBrowse should attach an OnPopulateBrowser handler.");
-        }
-
-        [Test]
         public void FluentUseHistorianWithNullBuilderThrowsArgumentNullException()
         {
             INodeManagerBuilder? nullBuilder = null;

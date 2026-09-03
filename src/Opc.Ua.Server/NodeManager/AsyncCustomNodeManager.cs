@@ -522,7 +522,7 @@ namespace Opc.Ua.Server
                 catch (Exception ex) when (ex is not OutOfMemoryException)
                 {
                     var compensationFailures = new List<Exception>();
-                    NodeHandle compensationHandle =
+                    var compensationHandle =
                         (NodeHandle)monitoredItem.ManagerHandle;
                     (ServiceResult restoreResult, bool restored) =
                         lifecycle.AttachMonitoredItem(
@@ -4018,7 +4018,7 @@ namespace Opc.Ua.Server
                 false);
             e.SetChildValue(systemContext, BrowseNames.SourceName, "Server", false);
 
-            e.CreateOrReplaceChanges(systemContext, null!);
+            e.CreateOrReplaceChanges(systemContext, null);
 
             e!.Changes!.Value = new[]
                             {
@@ -4081,7 +4081,7 @@ namespace Opc.Ua.Server
                 false);
             e.SetChildValue(systemContext, BrowseNames.SourceName, "Server", false);
 
-            e.CreateOrReplaceChanges(systemContext, null!);
+            e.CreateOrReplaceChanges(systemContext, null);
             e!.Changes!.Value = changes;
 
             Server.ReportEvent(e);
@@ -4474,7 +4474,7 @@ namespace Opc.Ua.Server
         private static void MaskHistoricalAccessReadCallbacks(BaseVariableState variable)
         {
             NodeAttributeEventHandler<byte>? onReadAccessLevel = variable.OnReadAccessLevel;
-            variable.OnReadAccessLevel = (ISystemContext context, NodeState node, ref byte value) =>
+            variable.OnReadAccessLevel = (context, node, ref value) =>
             {
                 ServiceResult result = onReadAccessLevel?.Invoke(context, node, ref value) ?? ServiceResult.Good;
                 if (ServiceResult.IsGood(result))
@@ -4485,7 +4485,7 @@ namespace Opc.Ua.Server
             };
 
             NodeAttributeEventHandler<byte>? onReadUserAccessLevel = variable.OnReadUserAccessLevel;
-            variable.OnReadUserAccessLevel = (ISystemContext context, NodeState node, ref byte value) =>
+            variable.OnReadUserAccessLevel = (context, node, ref value) =>
             {
                 ServiceResult result = onReadUserAccessLevel?.Invoke(context, node, ref value) ?? ServiceResult.Good;
                 if (ServiceResult.IsGood(result))
@@ -4496,7 +4496,7 @@ namespace Opc.Ua.Server
             };
 
             NodeAttributeEventHandler<uint>? onReadAccessLevelEx = variable.OnReadAccessLevelEx;
-            variable.OnReadAccessLevelEx = (ISystemContext context, NodeState node, ref uint value) =>
+            variable.OnReadAccessLevelEx = (context, node, ref value) =>
             {
                 ServiceResult result = onReadAccessLevelEx?.Invoke(context, node, ref value) ?? ServiceResult.Good;
                 if (ServiceResult.IsGood(result))
@@ -4507,7 +4507,7 @@ namespace Opc.Ua.Server
             };
 
             NodeAttributeEventHandler<bool>? onReadHistorizing = variable.OnReadHistorizing;
-            variable.OnReadHistorizing = (ISystemContext context, NodeState node, ref bool value) =>
+            variable.OnReadHistorizing = (context, node, ref value) =>
             {
                 ServiceResult result = onReadHistorizing?.Invoke(context, node, ref value) ?? ServiceResult.Good;
                 if (ServiceResult.IsGood(result))
@@ -4558,8 +4558,12 @@ namespace Opc.Ua.Server
                     continue;
                 }
 
-                errors[handle.Index] = HistorianDispatcher.ReleaseContinuationPoint(
-                    context, nodesToRead[handle.Index]);
+                errors[handle.Index] = await HistorianDispatcher
+                    .ReleaseContinuationPointAsync(
+                        context,
+                        nodesToRead[handle.Index],
+                        cancellationToken)
+                    .ConfigureAwait(false);
             }
         }
 
@@ -4815,10 +4819,17 @@ namespace Opc.Ua.Server
                 return;
             }
 
-            // check timestamps to return. Neither is not valid for HistoryRead: historical
-            // values always carry a source and/or server timestamp (OPC UA Part 11; CTT
-            // HA Read Raw Err-002).
-            if (timestampsToReturn is < TimestampsToReturn.Source or >= TimestampsToReturn.Neither)
+            // Historical event reads ignore TimestampsToReturn and therefore
+            // accept Neither. Historical data reads require Source, Server or
+            // Both.
+            bool timestampsInvalid = details is ReadEventDetails
+                ? timestampsToReturn is not TimestampsToReturn.Source and
+                    not TimestampsToReturn.Server and
+                    not TimestampsToReturn.Both and
+                    not TimestampsToReturn.Neither
+                : timestampsToReturn is < TimestampsToReturn.Source or
+                    >= TimestampsToReturn.Neither;
+            if (timestampsInvalid)
             {
                 throw new ServiceResultException(StatusCodes.BadTimestampsToReturnInvalid);
             }
@@ -5004,6 +5015,10 @@ namespace Opc.Ua.Server
                     {
                         continue;
                     }
+                    if (nodeToUpdate.GetType() != detailsType)
+                    {
+                        continue;
+                    }
 
                     // check for valid handle.
                     NodeHandle handle = await GetManagerHandleAsync(
@@ -5100,7 +5115,8 @@ namespace Opc.Ua.Server
 
                 for (int ii = 0; ii < details.Length; ii++)
                 {
-                    details[ii] = (UpdateDataDetails)nodesToUpdate[ii];
+                    details[ii] = nodesToUpdate[ii] as UpdateDataDetails ??
+                        new UpdateDataDetails();
                 }
 
                 await HistoryUpdateDataAsync(context,
@@ -5121,7 +5137,9 @@ namespace Opc.Ua.Server
 
                 for (int ii = 0; ii < details.Length; ii++)
                 {
-                    details[ii] = (UpdateStructureDataDetails)nodesToUpdate[ii];
+                    details[ii] = nodesToUpdate[ii] as
+                        UpdateStructureDataDetails ??
+                        new UpdateStructureDataDetails();
                 }
 
                 await HistoryUpdateStructureDataAsync(
@@ -5143,7 +5161,8 @@ namespace Opc.Ua.Server
 
                 for (int ii = 0; ii < details.Length; ii++)
                 {
-                    details[ii] = (UpdateEventDetails)nodesToUpdate[ii];
+                    details[ii] = nodesToUpdate[ii] as UpdateEventDetails ??
+                        new UpdateEventDetails();
                 }
 
                 await HistoryUpdateEventsAsync(context,
@@ -5164,7 +5183,9 @@ namespace Opc.Ua.Server
 
                 for (int ii = 0; ii < details.Length; ii++)
                 {
-                    details[ii] = (DeleteRawModifiedDetails)nodesToUpdate[ii];
+                    details[ii] = nodesToUpdate[ii] as
+                        DeleteRawModifiedDetails ??
+                        new DeleteRawModifiedDetails();
                 }
 
                 await HistoryDeleteRawModifiedAsync(context,
@@ -5185,7 +5206,8 @@ namespace Opc.Ua.Server
 
                 for (int ii = 0; ii < details.Length; ii++)
                 {
-                    details[ii] = (DeleteAtTimeDetails)nodesToUpdate[ii];
+                    details[ii] = nodesToUpdate[ii] as DeleteAtTimeDetails ??
+                        new DeleteAtTimeDetails();
                 }
 
                 await HistoryDeleteAtTimeAsync(context,
@@ -5206,7 +5228,8 @@ namespace Opc.Ua.Server
 
                 for (int ii = 0; ii < details.Length; ii++)
                 {
-                    details[ii] = (DeleteEventDetails)nodesToUpdate[ii];
+                    details[ii] = nodesToUpdate[ii] as DeleteEventDetails ??
+                        new DeleteEventDetails();
                 }
 
                 await HistoryDeleteEventsAsync(context,
@@ -5265,8 +5288,8 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Updates the structured data history (Part 11 §5.2.7
-        /// Annotations) for one or more nodes.
+        /// Updates StructuredHistoryData or Annotations for one or more
+        /// historical nodes.
         /// </summary>
         protected virtual async ValueTask HistoryUpdateStructureDataAsync(
             ServerSystemContext context,
@@ -5287,30 +5310,56 @@ namespace Opc.Ua.Server
                     continue;
                 }
 
-                if (!HistorianDispatcher.IsAnnotationsProperty(source))
+                if (HistorianDispatcher.IsAnnotationsProperty(source))
+                {
+                    BaseVariableState? parent =
+                        HistorianDispatcher.GetAnnotationsParent(source);
+                    if (parent == null)
+                    {
+                        errors[handle.Index] =
+                            StatusCodes.BadHistoryOperationUnsupported;
+                        continue;
+                    }
+
+                    IHistorianProvider? annotationProvider =
+                        ResolveHistorianProvider(parent);
+                    if (annotationProvider == null)
+                    {
+                        errors[handle.Index] =
+                            StatusCodes.BadHistoryOperationUnsupported;
+                        continue;
+                    }
+
+                    errors[handle.Index] =
+                        await HistorianDispatcher.DispatchAnnotationUpdateAsync(
+                            context,
+                            annotationProvider,
+                            parent,
+                            nodesToUpdate[handle.Index],
+                            results[handle.Index],
+                            cancellationToken).ConfigureAwait(false);
+                    continue;
+                }
+
+                if (source is not BaseVariableState)
                 {
                     errors[handle.Index] = StatusCodes.BadHistoryOperationUnsupported;
                     continue;
                 }
 
-                BaseVariableState? parent = HistorianDispatcher.GetAnnotationsParent(source);
-                if (parent == null)
-                {
-                    errors[handle.Index] = StatusCodes.BadHistoryOperationUnsupported;
-                    continue;
-                }
-
-                IHistorianProvider? provider = ResolveHistorianProvider(parent);
+                IHistorianProvider? provider =
+                    ResolveHistorianProvider(source);
                 if (provider == null)
                 {
                     errors[handle.Index] = StatusCodes.BadHistoryOperationUnsupported;
                     continue;
                 }
 
-                errors[handle.Index] = await HistorianDispatcher.DispatchAnnotationUpdateAsync(
+                errors[handle.Index] =
+                    await HistorianDispatcher.DispatchStructuredDataUpdateAsync(
                     context,
                     provider,
-                    parent,
+                    source,
                     nodesToUpdate[handle.Index],
                     results[handle.Index],
                     cancellationToken).ConfigureAwait(false);
@@ -5511,16 +5560,14 @@ namespace Opc.Ua.Server
                 return null!;
             }
 
-            MethodState? method;
-            method = source.FindMethod(systemContext, methodToCall.MethodId);
+            MethodState? method = source.FindMethod(systemContext, methodToCall.MethodId);
 
             if (method != null)
             {
                 return method;
             }
 
-            bool referenceExists;
-            referenceExists = source.ReferenceExists(
+            bool referenceExists = source.ReferenceExists(
                 ReferenceTypeIds.HasComponent,
                 false,
                 methodToCall.MethodId);
@@ -5818,6 +5865,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Synchronously registers a root event notifier owned by this node manager.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="notifier"/> is <c>null</c>.</exception>
         protected internal void AddRootNotifierSynchronously(NodeState notifier)
         {
             if (notifier == null)

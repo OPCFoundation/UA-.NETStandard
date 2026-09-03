@@ -33,6 +33,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Threading;
 using System.Threading.Tasks;
 using Moq;
 using NUnit.Framework;
@@ -175,6 +176,107 @@ namespace Opc.Ua.Server.Tests.Historian
         }
 
         [Test]
+        public async Task ExplicitProviderReceivesAutomaticCaptureAsync()
+        {
+            var builders = new List<HistorianBuilder>();
+            IServerInternal server = CreateServerWithRegistry(builders);
+            (NodeManagerBuilder b, BaseDataVariableState v) =
+                CreateBuilderForServer(server);
+            using var defaultProvider = new InMemoryHistorianProvider(
+                new InMemoryHistorianOptions
+                {
+                    RawDataRetentionPeriod = TimeSpan.Zero
+                });
+            using var perCallProvider = new InMemoryHistorianProvider(
+                new InMemoryHistorianOptions
+                {
+                    RawDataRetentionPeriod = TimeSpan.Zero
+                });
+            b.UseHistorian()
+                .UseProvider(defaultProvider)
+                .RegisterAsDefault();
+            b.Variable<int>(v.NodeId).Historize(
+                provider: perCallProvider,
+                captureOptions: new HistorianCaptureOptions
+                {
+                    BatchTarget = 1,
+                    BatchWindow = TimeSpan.Zero
+                });
+            v.Value = 4387;
+            v.Timestamp = DateTime.UtcNow;
+            v.StatusCode = StatusCodes.Good;
+            v.ClearChangeMasks(b.Context, includeChildren: false);
+            for (int i = 0; i < builders.Count; i++)
+            {
+                await builders[i].DisposeAsync().ConfigureAwait(false);
+            }
+
+            Assert.That(
+                await CountHistoryAsync(
+                    perCallProvider,
+                    b.Context,
+                    v.NodeId).ConfigureAwait(false),
+                Is.EqualTo(1));
+            Assert.That(
+                await CountHistoryAsync(
+                    defaultProvider,
+                    b.Context,
+                    v.NodeId).ConfigureAwait(false),
+                Is.Zero);
+        }
+
+        [Test]
+        public async Task WithHistorianProviderReceivesAutomaticCaptureAsync()
+        {
+            var builders = new List<HistorianBuilder>();
+            IServerInternal server = CreateServerWithRegistry(builders);
+            (NodeManagerBuilder b, BaseDataVariableState v) =
+                CreateBuilderForServer(server);
+            using var defaultProvider = new InMemoryHistorianProvider(
+                new InMemoryHistorianOptions
+                {
+                    RawDataRetentionPeriod = TimeSpan.Zero
+                });
+            using var perNodeProvider = new InMemoryHistorianProvider(
+                new InMemoryHistorianOptions
+                {
+                    RawDataRetentionPeriod = TimeSpan.Zero
+                });
+            b.UseHistorian()
+                .UseProvider(defaultProvider)
+                .RegisterAsDefault();
+            b.Variable<int>(v.NodeId)
+                .WithHistorian(perNodeProvider)
+                .Historize(
+                    captureOptions: new HistorianCaptureOptions
+                    {
+                        BatchTarget = 1,
+                        BatchWindow = TimeSpan.Zero
+                    });
+            v.Value = 4388;
+            v.Timestamp = DateTime.UtcNow;
+            v.StatusCode = StatusCodes.Good;
+            v.ClearChangeMasks(b.Context, includeChildren: false);
+            for (int i = 0; i < builders.Count; i++)
+            {
+                await builders[i].DisposeAsync().ConfigureAwait(false);
+            }
+
+            Assert.That(
+                await CountHistoryAsync(
+                    perNodeProvider,
+                    b.Context,
+                    v.NodeId).ConfigureAwait(false),
+                Is.EqualTo(1));
+            Assert.That(
+                await CountHistoryAsync(
+                    defaultProvider,
+                    b.Context,
+                    v.NodeId).ConfigureAwait(false),
+                Is.Zero);
+        }
+
+        [Test]
         public async Task HistorizeWithCapabilitiesAdvertisedByProvider()
         {
             (NodeManagerBuilder b, BaseDataVariableState v) = CreateBuilderWithVariable();
@@ -258,7 +360,38 @@ namespace Opc.Ua.Server.Tests.Historian
             return (builder, var1);
         }
 
-        private static IServerInternal CreateServerWithRegistry()
+        private static async ValueTask<int> CountHistoryAsync(
+            InMemoryHistorianProvider provider,
+            ISystemContext systemContext,
+            NodeId nodeId)
+        {
+            using var requestContext = new OperationContext(
+                new RequestHeader(),
+                null,
+                RequestType.HistoryRead,
+                RequestLifetime.None);
+            var context = new HistorianOperationContext(
+                (ServerSystemContext)systemContext,
+                requestContext,
+                null,
+                HistoryUpdateType.Insert);
+            HistorianPage<HistoricalDataValue> page =
+                await provider.ReadRawAsync(
+                    context,
+                    new HistorianRawReadRequest
+                    {
+                        NodeId = nodeId,
+                        StartTime = DateTimeUtc.MinValue,
+                        EndTime = DateTimeUtc.MaxValue,
+                        IsForward = true
+                    },
+                    default,
+                    CancellationToken.None).ConfigureAwait(false);
+            return page.Values.Count;
+        }
+
+        private static IServerInternal CreateServerWithRegistry(
+            List<HistorianBuilder>? builders = null)
         {
             var nsTable = new NamespaceTable();
             nsTable.Append("urn:test:fluent-historian");
@@ -274,6 +407,13 @@ namespace Opc.Ua.Server.Tests.Historian
             mockServer.Setup(s => s.Telemetry).Returns(mockTelemetry.Object);
             mockServer.As<IHistorianRegistryProvider>()
                 .Setup(p => p.HistorianRegistry).Returns(registry);
+            if (builders != null)
+            {
+                mockServer.As<IHistorianBuilderRegistry>()
+                    .Setup(value => value.RegisterHistorianBuilder(
+                        It.IsAny<HistorianBuilder>()))
+                    .Callback<HistorianBuilder>(builders.Add);
+            }
 
             return mockServer.Object;
         }

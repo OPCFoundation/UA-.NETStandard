@@ -28,7 +28,6 @@
  * ======================================================================*/
 
 using System;
-using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Moq;
@@ -56,54 +55,66 @@ namespace Opc.Ua.Server.Tests.Historian
             string selectedOperation = string.Empty;
             int bestEffortCalls = 0;
 
+            provider
+                .Setup(p => p.GetCapabilitiesAsync(
+                    It.IsAny<NodeId>(),
+                    It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<HistorianNodeCapabilities>(HistorianNodeCapabilities.ReadWrite));
+
             data
                 .Setup(p => p.InsertAsync(
                     It.IsAny<HistorianOperationContext>(),
                     It.IsAny<NodeId>(),
-                    It.IsAny<IList<DataValue>>(),
+                    It.IsAny<ArrayOf<DataValue>>(),
                     It.IsAny<CancellationToken>()))
                 .Callback(() => bestEffortCalls++)
-                .Returns(new ValueTask<IList<StatusCode>>([StatusCodes.Good]));
+                .Returns(new ValueTask<HistorianUpdateOutcome<DataValue>>(
+                    new HistorianUpdateOutcome<DataValue>([StatusCodes.Good])));
             data
                 .Setup(p => p.ReplaceAsync(
                     It.IsAny<HistorianOperationContext>(),
                     It.IsAny<NodeId>(),
-                    It.IsAny<IList<DataValue>>(),
+                    It.IsAny<ArrayOf<DataValue>>(),
                     It.IsAny<CancellationToken>()))
                 .Callback(() => bestEffortCalls++)
-                .Returns(new ValueTask<IList<StatusCode>>([StatusCodes.Good]));
+                .Returns(new ValueTask<HistorianUpdateOutcome<DataValue>>(
+                    new HistorianUpdateOutcome<DataValue>([StatusCodes.Good])));
             data
                 .Setup(p => p.UpdateAsync(
                     It.IsAny<HistorianOperationContext>(),
                     It.IsAny<NodeId>(),
-                    It.IsAny<IList<DataValue>>(),
+                    It.IsAny<ArrayOf<DataValue>>(),
                     It.IsAny<CancellationToken>()))
                 .Callback(() => bestEffortCalls++)
-                .Returns(new ValueTask<IList<StatusCode>>([StatusCodes.Good]));
+                .Returns(new ValueTask<HistorianUpdateOutcome<DataValue>>(
+                    new HistorianUpdateOutcome<DataValue>([StatusCodes.Good])));
             transactional
                 .Setup(p => p.InsertAtomicAsync(
                     It.IsAny<HistorianOperationContext>(),
                     It.IsAny<NodeId>(),
-                    It.IsAny<IList<DataValue>>(),
+                    It.IsAny<ArrayOf<DataValue>>(),
                     It.IsAny<CancellationToken>()))
                 .Callback(() => selectedOperation = nameof(PerformUpdateType.Insert))
-                .Returns(new ValueTask<IList<StatusCode>>([StatusCodes.Good]));
+                .Returns(new ValueTask<HistorianUpdateOutcome<DataValue>>(
+                    new HistorianUpdateOutcome<DataValue>([StatusCodes.Good])));
             transactional
                 .Setup(p => p.ReplaceAtomicAsync(
                     It.IsAny<HistorianOperationContext>(),
                     It.IsAny<NodeId>(),
-                    It.IsAny<IList<DataValue>>(),
+                    It.IsAny<ArrayOf<DataValue>>(),
                     It.IsAny<CancellationToken>()))
                 .Callback(() => selectedOperation = nameof(PerformUpdateType.Replace))
-                .Returns(new ValueTask<IList<StatusCode>>([StatusCodes.Good]));
+                .Returns(new ValueTask<HistorianUpdateOutcome<DataValue>>(
+                    new HistorianUpdateOutcome<DataValue>([StatusCodes.Good])));
             transactional
                 .Setup(p => p.UpdateAtomicAsync(
                     It.IsAny<HistorianOperationContext>(),
                     It.IsAny<NodeId>(),
-                    It.IsAny<IList<DataValue>>(),
+                    It.IsAny<ArrayOf<DataValue>>(),
                     It.IsAny<CancellationToken>()))
                 .Callback(() => selectedOperation = nameof(PerformUpdateType.Update))
-                .Returns(new ValueTask<IList<StatusCode>>([StatusCodes.Good]));
+                .Returns(new ValueTask<HistorianUpdateOutcome<DataValue>>(
+                    new HistorianUpdateOutcome<DataValue>([StatusCodes.Good])));
 
             var nodeId = new NodeId("transactional-selection", 1);
             var variable = new BaseDataVariableState(null)
@@ -133,7 +144,7 @@ namespace Opc.Ua.Server.Tests.Historian
                 Assert.That(ServiceResult.IsGood(error), Is.True);
                 Assert.That(bestEffortCalls, Is.Zero);
                 Assert.That(selectedOperation, Is.EqualTo(performUpdate.ToString()));
-                Assert.That(result.OperationResults, Is.EqualTo(new[] { StatusCodes.Good }));
+                Assert.That(result.OperationResults, Is.EqualTo([StatusCodes.Good]));
             }
         }
 
@@ -146,8 +157,14 @@ namespace Opc.Ua.Server.Tests.Historian
             var provider = new Mock<IHistorianProvider>();
             Mock<IHistorianDataProvider> data = provider.As<IHistorianDataProvider>();
             string selectedOperation = string.Empty;
-            ValueTask<IList<StatusCode>> success =
-                new([StatusCodes.Good]);
+            ValueTask<HistorianUpdateOutcome<DataValue>> success =
+                new(new HistorianUpdateOutcome<DataValue>([StatusCodes.Good]));
+
+            provider
+                .Setup(p => p.GetCapabilitiesAsync(
+                    It.IsAny<NodeId>(),
+                    It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<HistorianNodeCapabilities>(HistorianNodeCapabilities.ReadWrite));
 
             switch (performUpdate)
             {
@@ -156,7 +173,7 @@ namespace Opc.Ua.Server.Tests.Historian
                         .Setup(p => p.InsertAsync(
                             It.IsAny<HistorianOperationContext>(),
                             It.IsAny<NodeId>(),
-                            It.IsAny<IList<DataValue>>(),
+                            It.IsAny<ArrayOf<DataValue>>(),
                             It.IsAny<CancellationToken>()))
                         .Callback(() => selectedOperation = nameof(PerformUpdateType.Insert))
                         .Returns(success);
@@ -166,7 +183,7 @@ namespace Opc.Ua.Server.Tests.Historian
                         .Setup(p => p.ReplaceAsync(
                             It.IsAny<HistorianOperationContext>(),
                             It.IsAny<NodeId>(),
-                            It.IsAny<IList<DataValue>>(),
+                            It.IsAny<ArrayOf<DataValue>>(),
                             It.IsAny<CancellationToken>()))
                         .Callback(() => selectedOperation = nameof(PerformUpdateType.Replace))
                         .Returns(success);
@@ -176,7 +193,7 @@ namespace Opc.Ua.Server.Tests.Historian
                         .Setup(p => p.UpdateAsync(
                             It.IsAny<HistorianOperationContext>(),
                             It.IsAny<NodeId>(),
-                            It.IsAny<IList<DataValue>>(),
+                            It.IsAny<ArrayOf<DataValue>>(),
                             It.IsAny<CancellationToken>()))
                         .Callback(() => selectedOperation = nameof(PerformUpdateType.Update))
                         .Returns(success);
@@ -210,7 +227,7 @@ namespace Opc.Ua.Server.Tests.Historian
 
                 Assert.That(ServiceResult.IsGood(error), Is.True);
                 Assert.That(selectedOperation, Is.EqualTo(performUpdate.ToString()));
-                Assert.That(result.OperationResults, Is.EqualTo(new[] { StatusCodes.Good }));
+                Assert.That(result.OperationResults, Is.EqualTo([StatusCodes.Good]));
             }
         }
 
@@ -263,15 +280,15 @@ namespace Opc.Ua.Server.Tests.Historian
                     result,
                     CancellationToken.None).ConfigureAwait(false);
 
-                Assert.That(ServiceResult.IsGood(error), Is.True);
+                Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadTransactionFailed));
                 Assert.That(result.OperationResults, Has.Count.EqualTo(3));
                 Assert.That(
                     result.OperationResults[0],
-                    Is.EqualTo(StatusCodes.BadHistoryOperationUnsupported));
+                    Is.EqualTo(StatusCodes.BadTransactionFailed));
                 Assert.That(result.OperationResults[1], Is.EqualTo(StatusCodes.BadEntryExists));
                 Assert.That(
                     result.OperationResults[2],
-                    Is.EqualTo(StatusCodes.BadHistoryOperationUnsupported));
+                    Is.EqualTo(StatusCodes.BadTransactionFailed));
 
                 HistorianPage<HistoricalDataValue> page = await provider.ReadRawAsync(
                     providerContext,

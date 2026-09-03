@@ -28,7 +28,6 @@
  * ======================================================================*/
 
 using System;
-using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Moq;
@@ -162,15 +161,16 @@ namespace Opc.Ua.Server.Tests.Historian
             var nodeId = new NodeId("retention.bulk", NamespaceIndex);
             provider.Register(nodeId);
             HistorianOperationContext context = CreateContext();
-            var batch = new Dictionary<NodeId, IList<DataValue>>
-            {
-                [nodeId] =
+            ArrayOf<HistorianDataBatch> batch =
+            [
+                new(
+                    nodeId,
                 [
                     MakeValue(BaseTime.AddMinutes(20), 3),
                     MakeValue(BaseTime, 1),
                     MakeValue(BaseTime.AddMinutes(10), 2)
-                ]
-            };
+                ])
+            ];
 
             await provider.InsertBatchAsync(
                 context,
@@ -232,7 +232,7 @@ namespace Opc.Ua.Server.Tests.Historian
                 nodeId,
                 [MakeValue(BaseTime.AddMinutes(20), 2)],
                 CancellationToken.None).ConfigureAwait(false);
-            IList<StatusCode> statuses = await provider.InsertAsync(
+            HistorianUpdateOutcome<DataValue> outcome = await provider.InsertAsync(
                 context,
                 nodeId,
                 [MakeValue(BaseTime.AddMinutes(5), 1)],
@@ -241,7 +241,7 @@ namespace Opc.Ua.Server.Tests.Historian
             HistorianPage<HistoricalDataValue> page =
                 await ReadAllAsync(provider, context, nodeId).ConfigureAwait(false);
 
-            Assert.That(statuses[0], Is.EqualTo(StatusCodes.GoodEntryInserted));
+            Assert.That(outcome.OperationResults[0], Is.EqualTo(StatusCodes.GoodEntryInserted));
             Assert.That(page.Values, Has.Count.EqualTo(1));
             Assert.That(
                 page.Values[0].Value.SourceTimestamp.ToDateTime(),
@@ -251,7 +251,7 @@ namespace Opc.Ua.Server.Tests.Historian
         [Test]
         public async Task DeleteAtTimeRefreshesLatestTimestampForRetentionAsync()
         {
-            using var provider = CreateTenMinuteProvider();
+            using InMemoryHistorianProvider provider = CreateTenMinuteProvider();
             var nodeId = new NodeId("retention.deleteattime", NamespaceIndex);
             provider.Register(nodeId);
             HistorianOperationContext context = CreateContext();
@@ -286,7 +286,7 @@ namespace Opc.Ua.Server.Tests.Historian
         [Test]
         public async Task DeleteRawRefreshesLatestTimestampForRetentionAsync()
         {
-            using var provider = CreateTenMinuteProvider();
+            using InMemoryHistorianProvider provider = CreateTenMinuteProvider();
             var nodeId = new NodeId("retention.deleteraw", NamespaceIndex);
             provider.Register(nodeId);
             HistorianOperationContext context = CreateContext();

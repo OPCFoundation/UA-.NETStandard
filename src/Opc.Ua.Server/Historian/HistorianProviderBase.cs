@@ -27,7 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -68,7 +67,9 @@ namespace Opc.Ua.Server.Historian
         /// <summary>
         /// Helper that returns a status list pre-filled with the same value.
         /// </summary>
-        protected static IList<StatusCode> RepeatStatus(StatusCode code, int count)
+        protected static ArrayOf<StatusCode> RepeatStatus(
+            StatusCode code,
+            int count)
         {
             var statuses = new StatusCode[count];
             for (int i = 0; i < count; i++)

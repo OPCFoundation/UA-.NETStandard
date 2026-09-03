@@ -124,24 +124,23 @@ namespace Opc.Ua.History.Tests
         }
 
         [Test]
-        public async Task ReadRaw004ReadWithNumValuesOnlyAsync()
+        public Task ReadRaw004RejectsNumValuesOnlyAsync()
         {
             NodeId nodeId = ToNodeId(Constants.HistoricalDouble);
 
-            try
-            {
-                HistoryReadResponse response = await HistoryReadRawAsync(
-                    nodeId, DateTime.MinValue, DateTime.MinValue, 5, false).ConfigureAwait(false);
+            ServiceResultException exception =
+                Assert.ThrowsAsync<ServiceResultException>(
+                    async () => await HistoryReadRawAsync(
+                        nodeId,
+                        DateTime.MinValue,
+                        DateTime.MinValue,
+                        5,
+                        false).ConfigureAwait(false))!;
 
-                Assert.That(response.Results.Count, Is.EqualTo(1));
-                IgnoreIfNotGood(response.Results[0].StatusCode);
-            }
-            catch (ServiceResultException ex) when (ex.StatusCode == StatusCodes.BadInvalidTimestampArgument ||
-                ex.StatusCode == StatusCodes.BadHistoryOperationInvalid ||
-                ex.StatusCode == StatusCodes.BadHistoryOperationUnsupported)
-            {
-                Assert.Ignore("Historical access not supported or timestamp issue: " + ex.StatusCode);
-            }
+            Assert.That(
+                exception.StatusCode,
+                Is.EqualTo(StatusCodes.BadHistoryOperationInvalid));
+            return Task.CompletedTask;
         }
 
         [Test]
@@ -887,7 +886,7 @@ namespace Opc.Ua.History.Tests
         [Test]
         public async Task ReadRawErr009ReleasedContinuationPointReuseAsync()
         {
-            NodeId nodeId = ToNodeId(Constants.HistoricalDouble);
+            NodeId nodeId = ToNodeId(Constants.HistoricalFloat);
             DateTime endTime = DateTime.UtcNow;
             DateTime startTime = endTime.AddHours(-1);
 
@@ -965,12 +964,6 @@ namespace Opc.Ua.History.Tests
             {
                 Assert.Ignore("Historical access not fully supported: " + ex.StatusCode);
             }
-        }
-
-        [Test]
-        [Ignore("Obsoleted scenario; placeholder retained for ordering continuity with neighbouring tests.")]
-        public void ReadRawErr011Obsoleted()
-        {
         }
 
         [Test]
@@ -1165,26 +1158,23 @@ namespace Opc.Ua.History.Tests
         }
 
         [Test]
-        public async Task ReadRawErr018NoTimeRangeNoNumValuesAsync()
+        public Task ReadRawErr018NoTimeRangeNoNumValuesAsync()
         {
             NodeId nodeId = ToNodeId(Constants.HistoricalDouble);
 
-            try
-            {
-                HistoryReadResponse response = await HistoryReadRawAsync(
-                    nodeId, DateTime.MinValue, DateTime.MinValue, 0, false).ConfigureAwait(false);
+            ServiceResultException exception =
+                Assert.ThrowsAsync<ServiceResultException>(
+                    async () => await HistoryReadRawAsync(
+                        nodeId,
+                        DateTime.MinValue,
+                        DateTime.MinValue,
+                        0,
+                        false).ConfigureAwait(false))!;
 
-                Assert.That(response.Results.Count, Is.EqualTo(1));
-                IgnoreIfNotGood(response.Results[0].StatusCode);
-                IgnoreIfUnsupported(response.Results[0].StatusCode);
-            }
-            catch (ServiceResultException ex) when (
-                ex.StatusCode == StatusCodes.BadInvalidTimestampArgument ||
-                ex.StatusCode == StatusCodes.BadHistoryOperationUnsupported ||
-                ex.StatusCode == StatusCodes.BadHistoryOperationInvalid)
-            {
-                Assert.Ignore("Historical access not fully supported: " + ex.StatusCode);
-            }
+            Assert.That(
+                exception.StatusCode,
+                Is.EqualTo(StatusCodes.BadHistoryOperationInvalid));
+            return Task.CompletedTask;
         }
 
         [Test]
@@ -2530,17 +2520,14 @@ namespace Opc.Ua.History.Tests
                 new(new Variant(1.0), StatusCodes.Good, DateTime.UtcNow.AddHours(-1))
             };
 
-            try
-            {
-                HistoryUpdateResponse response = await HistoryInsertAsync(
-                    MethodIds.Server_GetMonitoredItems, values).ConfigureAwait(false);
-                Assert.That(response.Results.Count, Is.EqualTo(1));
-                IgnoreIfUnsupported(response.Results[0].StatusCode);
-            }
-            catch (ServiceResultException ex) when (IsUnsupported(ex.StatusCode))
-            {
-                Assert.Ignore($"History insert not supported: {ex.StatusCode}");
-            }
+            HistoryUpdateResponse response = await HistoryInsertAsync(
+                MethodIds.Server_GetMonitoredItems,
+                values).ConfigureAwait(false);
+
+            Assert.That(response.Results.Count, Is.EqualTo(1));
+            Assert.That(
+                response.Results[0].StatusCode,
+                Is.EqualTo(StatusCodes.BadHistoryOperationUnsupported));
         }
 
         [Test]
@@ -2563,22 +2550,57 @@ namespace Opc.Ua.History.Tests
         [Test]
         public async Task InsertValueErr009NullExtensionObjectAsync()
         {
-            try
+            HistoryUpdateResponse response = await Session.HistoryUpdateAsync(
+                null,
+                new ExtensionObject[] { new() }.ToArrayOf(),
+                CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(response.Results.Count, Is.EqualTo(1));
+            Assert.That(
+                response.Results[0].StatusCode,
+                Is.EqualTo(StatusCodes.BadStructureMissing));
+        }
+
+        [Test]
+        public async Task HistoryUpdateProcessesMixedDetailTypesAsync()
+        {
+            NodeId nodeId = ToNodeId(Constants.HistoricalDouble);
+            DateTime timestamp = DateTime.UtcNow.AddYears(-30)
+                .AddTicks(DateTime.UtcNow.Ticks % TimeSpan.TicksPerSecond);
+            var update = new UpdateDataDetails
             {
-                HistoryUpdateResponse response = await Session.HistoryUpdateAsync(
-                    null,
-                    new ExtensionObject[] { new() }.ToArrayOf(),
-                    CancellationToken.None).ConfigureAwait(false);
-                if (response.Results.Count == 0)
-                {
-                    Assert.Ignore("HistoryUpdate returned no results; feature may not be supported.");
-                }
-                Assert.That(response.Results.Count, Is.EqualTo(1));
-            }
-            catch (ServiceResultException ex)
+                NodeId = nodeId,
+                PerformInsertReplace = PerformUpdateType.Insert,
+                UpdateValues =
+                [
+                    new DataValue(
+                        Variant.From(1.0),
+                        StatusCodes.Good,
+                        timestamp)
+                ]
+            };
+            var delete = new DeleteAtTimeDetails
             {
-                Assert.That(StatusCode.IsBad(ex.StatusCode), Is.True);
-            }
+                NodeId = nodeId,
+                ReqTimes = [timestamp]
+            };
+
+            HistoryUpdateResponse response = await Session.HistoryUpdateAsync(
+                null,
+                [new ExtensionObject(update), new ExtensionObject(delete)],
+                CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(response.Results, Has.Count.EqualTo(2));
+            Assert.That(StatusCode.IsGood(response.Results[0].StatusCode), Is.True);
+            Assert.That(StatusCode.IsGood(response.Results[1].StatusCode), Is.True);
+            Assert.That(response.Results[0].OperationResults, Has.Count.EqualTo(1));
+            Assert.That(response.Results[1].OperationResults, Has.Count.EqualTo(1));
+            Assert.That(
+                StatusCode.IsNotBad(response.Results[0].OperationResults[0]),
+                Is.True);
+            Assert.That(
+                StatusCode.IsNotBad(response.Results[1].OperationResults[0]),
+                Is.True);
         }
 
         [Test]

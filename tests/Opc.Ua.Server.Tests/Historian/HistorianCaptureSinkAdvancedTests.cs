@@ -135,12 +135,9 @@ namespace Opc.Ua.Server.Tests.Historian
         }
 
         [Test]
-        public async Task ProviderExceptionDoesNotCrashConsumerAndContinuesAsync()
+        public async Task ProviderExceptionFaultsConsumerAndSurfacesOnDisposeAsync()
         {
-            var tcsFirstGoodInsert = new TaskCompletionSource<bool>(
-                TaskCreationOptions.RunContinuationsAsynchronously);
-            var provider = new ThrowThenSucceedProvider(
-                throwCount: 2, onFirstSuccess: tcsFirstGoodInsert);
+            var provider = new ThrowThenSucceedProvider(throwCount: 2);
             ServerSystemContext ctx = CreateSystemContext();
             var options = new HistorianCaptureOptions
             {
@@ -148,27 +145,63 @@ namespace Opc.Ua.Server.Tests.Historian
                 BatchWindow = TimeSpan.FromMilliseconds(5)
             };
 
-            await using (var sink = new HistorianCaptureSink(provider, ctx, options))
+            var sink = new HistorianCaptureSink(provider, ctx, options);
+            sink.Enqueue(
+                new NodeId("retry", kNs),
+                new DataValue(new Variant(0), StatusCodes.Good, DateTime.UtcNow));
+
+            // Give the consumer time to flush and fault on the first provider exception.
+            await Task.Delay(200).ConfigureAwait(false);
+
+            // The provider failure remains observable on disposal, but the
+            // background archive must not break the live value-change path.
+            Assert.DoesNotThrow(() =>
+                sink.Enqueue(
+                    new NodeId("retry", kNs),
+                    new DataValue(new Variant(1), StatusCodes.Good, DateTime.UtcNow)));
+            Assert.That(sink.DroppedSampleCount, Is.EqualTo(1));
+
+            InvalidOperationException disposeEx = Assert.ThrowsAsync<InvalidOperationException>(
+                async () => await sink.DisposeAsync().ConfigureAwait(false))!;
+            Assert.That(disposeEx.Message, Is.EqualTo("Simulated provider failure"));
+
+            Assert.That(provider.TotalCalls, Is.EqualTo(1),
+                "The faulted consumer must not retry after the first provider failure.");
+            Assert.That(provider.SuccessfulInserts, Is.Zero,
+                "No batch should succeed once the consumer has faulted.");
+        }
+
+        [Test]
+        public async Task OperationRejectionDoesNotFaultSharedCapturePipelineAsync()
+        {
+            var provider = new RejectThenSucceedProvider();
+            ServerSystemContext ctx = CreateSystemContext();
+            var options = new HistorianCaptureOptions
             {
-                for (int i = 0; i < 5; i++)
-                {
-                    sink.Enqueue(
-                        new NodeId("retry", kNs),
-                        new DataValue(new Variant(i), StatusCodes.Good, DateTime.UtcNow));
-                    await Task.Delay(15).ConfigureAwait(false);
-                }
+                BatchTarget = 1,
+                BatchWindow = TimeSpan.FromMilliseconds(5)
+            };
+            var nodeId = new NodeId("rejected", kNs);
+            var sink = new HistorianCaptureSink(provider, ctx, options);
 
-                Task completed = await Task.WhenAny(
-                    tcsFirstGoodInsert.Task,
-                    Task.Delay(TimeSpan.FromSeconds(3))).ConfigureAwait(false);
-                Assert.That(completed, Is.EqualTo(tcsFirstGoodInsert.Task),
-                    "Consumer must survive provider exceptions and eventually succeed.");
-            }
+            sink.Enqueue(
+                nodeId,
+                new DataValue(
+                    new Variant(1),
+                    StatusCodes.Good,
+                    DateTime.UtcNow));
+            await provider.FirstCall.Task.ConfigureAwait(false);
+            Assert.DoesNotThrow(() => sink.Enqueue(
+                nodeId,
+                new DataValue(
+                    new Variant(2),
+                    StatusCodes.Good,
+                    DateTime.UtcNow.AddSeconds(1))));
+            await provider.SecondCall.Task.ConfigureAwait(false);
+            await sink.DisposeAsync().ConfigureAwait(false);
 
-            Assert.That(provider.TotalCalls, Is.GreaterThanOrEqualTo(3),
-                "Provider must have been called at least 3 times (2 failures + 1 success).");
-            Assert.That(provider.SuccessfulInserts, Is.GreaterThanOrEqualTo(1),
-                "At least one batch must have been inserted successfully after failures.");
+            Assert.That(sink.RejectedSampleCount, Is.EqualTo(1));
+            Assert.That(provider.TotalCalls, Is.EqualTo(2));
         }
 
         [Test]
@@ -232,34 +265,43 @@ namespace Opc.Ua.Server.Tests.Historian
         {
             private readonly Lock m_lock = new();
 
-            public List<(NodeId NodeId, IList<DataValue> Values)> Inserts { get; } = [];
+            public List<(NodeId NodeId, ArrayOf<DataValue> Values)> Inserts { get; } = [];
             public List<int> BatchSizes { get; } = [];
 
-            public ValueTask<IReadOnlyDictionary<NodeId, IList<StatusCode>>> InsertBatchAsync(
+            public ValueTask<ArrayOf<HistorianUpdateOutcome<DataValue>>> InsertBatchAsync(
                 HistorianOperationContext context,
-                IReadOnlyDictionary<NodeId, IList<DataValue>> batch,
+                ArrayOf<HistorianDataBatch> batch,
                 CancellationToken cancellationToken)
             {
-                var result = new Dictionary<NodeId, IList<StatusCode>>();
+                var result =
+                    new HistorianUpdateOutcome<DataValue>[batch.Count];
                 int batchTotal = 0;
                 lock (m_lock)
                 {
-                    foreach (KeyValuePair<NodeId, IList<DataValue>> kv in batch)
+                    for (int batchIndex = 0;
+                        batchIndex < batch.Count;
+                        batchIndex++)
                     {
-                        Inserts.Add((kv.Key, kv.Value));
-                        batchTotal += kv.Value.Count;
-                        var statuses = new StatusCode[kv.Value.Count];
+                        HistorianDataBatch entry = batch[batchIndex];
+                        Inserts.Add((entry.NodeId, entry.Values));
+                        batchTotal += entry.Values.Count;
+                        var statuses =
+                            new StatusCode[entry.Values.Count];
                         for (int i = 0; i < statuses.Length; i++)
                         {
                             statuses[i] = StatusCodes.Good;
                         }
-                        result[kv.Key] = statuses;
+                        result[batchIndex] =
+                            new HistorianUpdateOutcome<DataValue>(
+                                statuses);
                     }
 
                     BatchSizes.Add(batchTotal);
                 }
 
-                return new ValueTask<IReadOnlyDictionary<NodeId, IList<StatusCode>>>(result);
+                return new ValueTask<
+                    ArrayOf<HistorianUpdateOutcome<DataValue>>>(
+                        result);
             }
         }
 
@@ -288,9 +330,9 @@ namespace Opc.Ua.Server.Tests.Historian
                 m_onFirstSuccess = onFirstSuccess;
             }
 
-            public ValueTask<IReadOnlyDictionary<NodeId, IList<StatusCode>>> InsertBatchAsync(
+            public ValueTask<ArrayOf<HistorianUpdateOutcome<DataValue>>> InsertBatchAsync(
                 HistorianOperationContext context,
-                IReadOnlyDictionary<NodeId, IList<DataValue>> batch,
+                ArrayOf<HistorianDataBatch> batch,
                 CancellationToken cancellationToken)
             {
                 Interlocked.Increment(ref m_totalCalls);
@@ -302,19 +344,79 @@ namespace Opc.Ua.Server.Tests.Historian
                 Interlocked.Increment(ref m_successfulInserts);
                 m_onFirstSuccess?.TrySetResult(true);
 
-                var result = new Dictionary<NodeId, IList<StatusCode>>();
-                foreach (KeyValuePair<NodeId, IList<DataValue>> kv in batch)
+                var result =
+                    new HistorianUpdateOutcome<DataValue>[batch.Count];
+                for (int batchIndex = 0;
+                    batchIndex < batch.Count;
+                    batchIndex++)
                 {
-                    var statuses = new StatusCode[kv.Value.Count];
+                    var statuses =
+                        new StatusCode[batch[batchIndex].Values.Count];
                     for (int i = 0; i < statuses.Length; i++)
                     {
                         statuses[i] = StatusCodes.Good;
                     }
-                    result[kv.Key] = statuses;
+                    result[batchIndex] =
+                        new HistorianUpdateOutcome<DataValue>(
+                            statuses);
                 }
 
-                return new ValueTask<IReadOnlyDictionary<NodeId, IList<StatusCode>>>(result);
+                return new ValueTask<
+                    ArrayOf<HistorianUpdateOutcome<DataValue>>>(
+                        result);
             }
+        }
+
+        private sealed class RejectThenSucceedProvider :
+            HistorianProviderBase,
+            IHistorianBulkInsertProvider
+        {
+            public TaskCompletionSource<bool> FirstCall { get; } = new(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+
+            public TaskCompletionSource<bool> SecondCall { get; } = new(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+
+            public int TotalCalls => Volatile.Read(ref m_totalCalls);
+
+            public ValueTask<ArrayOf<HistorianUpdateOutcome<DataValue>>> InsertBatchAsync(
+                HistorianOperationContext context,
+                ArrayOf<HistorianDataBatch> batch,
+                CancellationToken cancellationToken)
+            {
+                int call = Interlocked.Increment(ref m_totalCalls);
+                var outcomes =
+                    new HistorianUpdateOutcome<DataValue>[batch.Count];
+                for (int batchIndex = 0;
+                    batchIndex < batch.Count;
+                    batchIndex++)
+                {
+                    var statuses =
+                        new StatusCode[batch[batchIndex].Values.Count];
+                    for (int i = 0; i < statuses.Length; i++)
+                    {
+                        statuses[i] = call == 1
+                            ? StatusCodes.BadEntryExists
+                            : StatusCodes.GoodEntryInserted;
+                    }
+                    outcomes[batchIndex] =
+                        new HistorianUpdateOutcome<DataValue>(
+                            statuses);
+                }
+                if (call == 1)
+                {
+                    FirstCall.TrySetResult(true);
+                }
+                else
+                {
+                    SecondCall.TrySetResult(true);
+                }
+                return new ValueTask<
+                    ArrayOf<HistorianUpdateOutcome<DataValue>>>(
+                        outcomes);
+            }
+
+            private int m_totalCalls;
         }
 
         /// <summary>
@@ -337,9 +439,9 @@ namespace Opc.Ua.Server.Tests.Historian
                 m_gate = gate;
             }
 
-            public async ValueTask<IReadOnlyDictionary<NodeId, IList<StatusCode>>> InsertBatchAsync(
+            public async ValueTask<ArrayOf<HistorianUpdateOutcome<DataValue>>> InsertBatchAsync(
                 HistorianOperationContext context,
-                IReadOnlyDictionary<NodeId, IList<DataValue>> batch,
+                ArrayOf<HistorianDataBatch> batch,
                 CancellationToken cancellationToken)
             {
                 if (Interlocked.Exchange(ref m_firstCall, 0) == 1)
@@ -347,16 +449,24 @@ namespace Opc.Ua.Server.Tests.Historian
                     await m_gate.WaitAsync(cancellationToken).ConfigureAwait(false);
                 }
 
-                var result = new Dictionary<NodeId, IList<StatusCode>>();
-                foreach (KeyValuePair<NodeId, IList<DataValue>> kv in batch)
+                var result =
+                    new HistorianUpdateOutcome<DataValue>[batch.Count];
+                for (int batchIndex = 0;
+                    batchIndex < batch.Count;
+                    batchIndex++)
                 {
-                    Interlocked.Add(ref m_totalInsertedSamples, kv.Value.Count);
-                    var statuses = new StatusCode[kv.Value.Count];
+                    HistorianDataBatch entry = batch[batchIndex];
+                    Interlocked.Add(
+                        ref m_totalInsertedSamples,
+                        entry.Values.Count);
+                    var statuses = new StatusCode[entry.Values.Count];
                     for (int i = 0; i < statuses.Length; i++)
                     {
                         statuses[i] = StatusCodes.Good;
                     }
-                    result[kv.Key] = statuses;
+                    result[batchIndex] =
+                        new HistorianUpdateOutcome<DataValue>(
+                            statuses);
                 }
 
                 return result;

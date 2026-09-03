@@ -27,8 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System.Collections.Generic;
-
 namespace Opc.Ua.Server.Historian
 {
     /// <summary>
@@ -52,7 +50,7 @@ namespace Opc.Ua.Server.Historian
     /// </para>
     /// </remarks>
     public readonly record struct HistorianPage<T>(
-        IReadOnlyList<T> Values,
+        ArrayOf<T> Values,
         HistorianResumeToken NextToken = default)
     {
         /// <summary>

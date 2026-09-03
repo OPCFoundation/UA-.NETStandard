@@ -60,8 +60,23 @@ namespace Opc.Ua.Redundancy
     /// (<see cref="WatchAsync"/>) is derived from the same apply stream, so watchers observe changes in commit order.
     /// </para>
     /// </remarks>
-    public sealed class RaftSharedKeyValueStore : ISharedKeyValueStore, IAsyncDisposable
+    public sealed class RaftSharedKeyValueStore :
+        ISharedKeyValueStore,
+        ISharedKeyValueStoreConsistency,
+        IAsyncDisposable
     {
+        /// <inheritdoc/>
+        public bool IsLinearizable(string key)
+        {
+            return key != null;
+        }
+
+        /// <inheritdoc/>
+        public bool IsProcessLocal(string key)
+        {
+            return m_processLocal;
+        }
+
         /// <summary>
         /// Creates a store backed by a private single-node in-process consensus replica (always the leader). Useful
         /// for single-process deployments and tests.
@@ -95,6 +110,7 @@ namespace Opc.Ua.Redundancy
             TimeSpan commitTimeout = default)
         {
             m_consensus = consensus ?? throw new ArgumentNullException(nameof(consensus));
+            m_processLocal = consensus is InProcessRaftConsensus;
             m_ownsConsensus = ownsConsensus;
             m_commitTimeout = commitTimeout == TimeSpan.Zero ? TimeSpan.FromSeconds(30) : commitTimeout;
         }
@@ -564,6 +580,7 @@ namespace Opc.Ua.Redundancy
         private const int s_minCommandLength = 30;
 
         private readonly IRaftConsensus m_consensus;
+        private readonly bool m_processLocal;
         private readonly bool m_ownsConsensus;
         private readonly TimeSpan m_commitTimeout;
         private readonly Guid m_originator = Guid.NewGuid();

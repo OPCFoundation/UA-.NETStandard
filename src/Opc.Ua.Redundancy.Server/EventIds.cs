@@ -55,5 +55,6 @@ namespace Opc.Ua
         public const int SharedKeyValueMonitoredItemQueueFactory = 100;
         public const int SharedKeyValueSubscriptionStore = 110;
         public const int SharedKeyValueSessionStore = 120;
+        public const int SharedHistoryContinuationStore = 130;
     }
 }

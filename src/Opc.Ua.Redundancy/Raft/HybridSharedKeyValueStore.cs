@@ -52,7 +52,10 @@ namespace Opc.Ua.Redundancy
     /// bulk store and then the strong store.
     /// </para>
     /// </remarks>
-    public sealed class HybridSharedKeyValueStore : ISharedKeyValueStore, IAsyncDisposable
+    public sealed class HybridSharedKeyValueStore :
+        ISharedKeyValueStore,
+        ISharedKeyValueStoreConsistency,
+        IAsyncDisposable
     {
         /// <summary>
         /// Creates a hybrid store.
@@ -181,6 +184,22 @@ namespace Opc.Ua.Redundancy
         public bool IsStrongKey(string key)
         {
             return IsStrong(key ?? string.Empty);
+        }
+
+        /// <inheritdoc/>
+        public bool IsLinearizable(string key)
+        {
+            ISharedKeyValueStore store = Route(key);
+            return store is ISharedKeyValueStoreConsistency consistency &&
+                consistency.IsLinearizable(key);
+        }
+
+        /// <inheritdoc/>
+        public bool IsProcessLocal(string key)
+        {
+            ISharedKeyValueStore store = Route(key);
+            return store is not ISharedKeyValueStoreConsistency consistency ||
+                consistency.IsProcessLocal(key);
         }
 
         private bool IsStrong(string keyOrPrefix)

@@ -31,7 +31,6 @@
 
 using System;
 using System.Collections.Concurrent;
-using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Linq;
@@ -170,8 +169,9 @@ namespace Opc.Ua.Server.Tests.Hosting
                 Is.True);
 
             Assert.That(
-                historianRegistryProvider.HistorianRegistry.Providers,
-                Has.Member(historian.Object));
+                historianRegistryProvider.HistorianRegistry.Providers.Contains(
+                    historian.Object),
+                Is.True);
 
             Assert.That(
                 aliasRegistryProvider.AliasNameStoreRegistry.Stores,

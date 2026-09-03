@@ -55,27 +55,28 @@ namespace Opc.Ua.Server.Tests.Historian
         [Test]
         public void ResumeTokenWithBytesIsNotEmpty()
         {
-            var token = new HistorianResumeToken(new byte[] { 0xCA, 0xFE });
+            var token = new HistorianResumeToken(
+                ByteString.From([0xCA, 0xFE]));
 
             Assert.That(token.IsEmpty, Is.False);
             Assert.That(token.State.Length, Is.EqualTo(2));
         }
 
         [Test]
-        public void ResumeTokenRecordEqualityComparesByState()
+        public void ResumeTokenEqualityComparesByteContent()
         {
             byte[] data = [1, 2, 3];
-            var a = new HistorianResumeToken(data.AsMemory());
-            var b = new HistorianResumeToken(data.AsMemory());
+            var a = new HistorianResumeToken(new ByteString(data.AsMemory()));
+            var b = new HistorianResumeToken(new ByteString(data.AsMemory()));
 
-            // record struct uses default memory equality (same underlying array + range)
             Assert.That(a, Is.EqualTo(b));
             Assert.That(a.GetHashCode(), Is.EqualTo(b.GetHashCode()));
 
-            // a token from a different array (even with same content) is NOT equal
-            // because ReadOnlyMemory equality is referential
-            var c = new HistorianResumeToken(new byte[] { 1, 2, 3 });
-            Assert.That(a, Is.Not.EqualTo(c));
+            // ByteString equality is content-based across distinct buffers.
+            var c = new HistorianResumeToken(
+                ByteString.From([1, 2, 3]));
+            Assert.That(a, Is.EqualTo(c));
+            Assert.That(a.GetHashCode(), Is.EqualTo(c.GetHashCode()));
         }
 
         [Test]
@@ -91,7 +92,8 @@ namespace Opc.Ua.Server.Tests.Historian
         [Test]
         public void PageWithNextTokenIsNotFinal()
         {
-            var token = new HistorianResumeToken(new byte[] { 0x01 });
+            var token = new HistorianResumeToken(
+                ByteString.From([0x01]));
             var dv = new DataValue(new Variant(42), StatusCodes.Good, DateTime.UtcNow);
             var page = new HistorianPage<HistoricalDataValue>(
                 [new HistoricalDataValue(dv)],

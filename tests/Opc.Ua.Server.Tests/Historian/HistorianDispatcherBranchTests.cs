@@ -655,6 +655,60 @@ namespace Opc.Ua.Server.Tests.Historian
         }
 
         [Test]
+        public async Task DispatchAtTimeReadRejectsMismatchedProviderCountAsync()
+        {
+            HarnessFixture h = CreateHarness();
+            var nodeId = new NodeId("at-time-count", 1);
+            BaseDataVariableState node = CreateVariable(nodeId);
+            var provider = new Mock<IHistorianProvider>();
+            provider
+                .Setup(value => value.GetCapabilitiesAsync(
+                    nodeId,
+                    It.IsAny<CancellationToken>()))
+                .Returns(() => new ValueTask<HistorianNodeCapabilities>(
+                    HistorianNodeCapabilities.ReadOnly));
+            provider.As<IHistorianAtTimeProvider>()
+                .Setup(value => value.ReadAtTimeAsync(
+                    It.IsAny<HistorianOperationContext>(),
+                    It.IsAny<HistorianAtTimeReadRequest>(),
+                    It.IsAny<CancellationToken>()))
+                .Returns(() => new ValueTask<ArrayOf<DataValue>>(
+                    []));
+            var details = new ReadAtTimeDetails
+            {
+                ReqTimes =
+                [
+                    HarnessFixture.BaseTime,
+                    HarnessFixture.BaseTime.AddSeconds(1)
+                ],
+                UseSimpleBounds = false
+            };
+            var nodeToRead = new HistoryReadValueId
+            {
+                NodeId = nodeId
+            };
+            var result = new HistoryReadResult();
+
+            ServiceResult error =
+                await HistorianDispatcher.DispatchAtTimeReadAsync(
+                    h.SystemContext,
+                    provider.Object,
+                    node,
+                    nodeToRead,
+                    details,
+                    TimestampsToReturn.Source,
+                    result,
+                    CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(
+                error.StatusCode,
+                Is.EqualTo(StatusCodes.BadUnexpectedError));
+            Assert.That(
+                result.StatusCode,
+                Is.EqualTo(StatusCodes.BadUnexpectedError));
+        }
+
+        [Test]
         public void ReleaseContinuationPointWithEmptyContinuationReturnsBadContinuationPointInvalid()
         {
             HarnessFixture h = CreateHarness();
@@ -715,7 +769,6 @@ namespace Opc.Ua.Server.Tests.Historian
                 Provider = new InMemoryHistorianProvider();
 
                 var mockTelemetry = new Mock<ITelemetryContext>();
-                m_continuationStore = [];
 
                 var mockSession = new Mock<ISession>();
 
@@ -724,7 +777,6 @@ namespace Opc.Ua.Server.Tests.Historian
                 var continuationPoints = new SessionContinuationPoints(
                     () => NodeId.Null, maxBrowse: 10, maxHistory: 10, store: null);
                 mockSession.Setup(s => s.ContinuationPoints).Returns(continuationPoints);
-
 
                 MockServer = new Mock<IServerInternal>();
                 MockServer.Setup(s => s.NamespaceUris).Returns(new NamespaceTable());
@@ -780,8 +832,6 @@ namespace Opc.Ua.Server.Tests.Historian
                     null,
                     HistoryUpdateType.Insert);
             }
-
-            private readonly Dictionary<Guid, IHistoryContinuationPoint> m_continuationStore;
         }
     }
 }

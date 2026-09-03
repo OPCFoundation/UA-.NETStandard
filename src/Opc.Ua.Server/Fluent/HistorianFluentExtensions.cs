@@ -111,12 +111,6 @@ namespace Opc.Ua.Server.Fluent
         /// <c>UserAccessLevel</c>. Defaults to
         /// <c>HistoryRead | HistoryWrite</c>.
         /// </param>
-        /// <param name="installConfigurationOnBrowse">
-        /// When <c>true</c>, attaches an
-        /// <see cref="NodeState.OnPopulateBrowser"/> handler that installs
-        /// the <c>HistoricalDataConfigurationType</c> companion lazily on
-        /// the first browse against the variable.
-        /// </param>
         /// <param name="capabilities">
         /// Optional per-node capability set passed to
         /// <c>HistorianBuilder.Historize</c>. Defaults to the underlying
@@ -150,7 +144,6 @@ namespace Opc.Ua.Server.Fluent
         public static IVariableBuilder<TValue> Historize<TValue>(
             this IVariableBuilder<TValue> variable,
             byte historyAccessLevel = AccessLevels.HistoryRead | AccessLevels.HistoryWrite,
-            bool installConfigurationOnBrowse = false,
             HistorianNodeCapabilities? capabilities = null,
             IHistorianProvider? provider = null,
             bool autoCapture = true,
@@ -164,7 +157,6 @@ namespace Opc.Ua.Server.Fluent
                 variable.Builder,
                 variable.Node,
                 historyAccessLevel,
-                installConfigurationOnBrowse,
                 capabilities,
                 provider,
                 autoCapture,
@@ -174,7 +166,7 @@ namespace Opc.Ua.Server.Fluent
 
         /// <summary>
         /// Untyped overload of
-        /// <see cref="Historize{TValue}(IVariableBuilder{TValue}, byte, bool, HistorianNodeCapabilities, IHistorianProvider, bool, HistorianCaptureOptions)"/>
+        /// <see cref="Historize{TValue}(IVariableBuilder{TValue}, byte, HistorianNodeCapabilities, IHistorianProvider, bool, HistorianCaptureOptions)"/>
         /// for callers that already hold an
         /// <see cref="INodeBuilder{TState}"/> view of a
         /// <see cref="BaseVariableState"/>.
@@ -183,7 +175,6 @@ namespace Opc.Ua.Server.Fluent
         public static INodeBuilder<BaseVariableState> Historize(
             this INodeBuilder<BaseVariableState> variable,
             byte historyAccessLevel = AccessLevels.HistoryRead | AccessLevels.HistoryWrite,
-            bool installConfigurationOnBrowse = false,
             HistorianNodeCapabilities? capabilities = null,
             IHistorianProvider? provider = null,
             bool autoCapture = true,
@@ -197,7 +188,6 @@ namespace Opc.Ua.Server.Fluent
                 variable.Builder,
                 variable.Node,
                 historyAccessLevel,
-                installConfigurationOnBrowse,
                 capabilities,
                 provider,
                 autoCapture,
@@ -208,7 +198,7 @@ namespace Opc.Ua.Server.Fluent
         /// <summary>
         /// Binds <paramref name="provider"/> to the wrapped variable's
         /// <c>NodeId</c> in the server-wide registry. The next
-        /// <see cref="Historize{TValue}(IVariableBuilder{TValue}, byte, bool, HistorianNodeCapabilities, IHistorianProvider, bool, HistorianCaptureOptions)"/>
+        /// <see cref="Historize{TValue}(IVariableBuilder{TValue}, byte, HistorianNodeCapabilities, IHistorianProvider, bool, HistorianCaptureOptions)"/>
         /// call without an explicit <c>provider</c> argument will dispatch
         /// through this binding instead of the per-manager default.
         /// </summary>
@@ -241,7 +231,6 @@ namespace Opc.Ua.Server.Fluent
             INodeManagerBuilder nodeManagerBuilder,
             BaseVariableState variable,
             byte historyAccessLevel,
-            bool installConfigurationOnBrowse,
             HistorianNodeCapabilities? capabilities,
             IHistorianProvider? perCallProvider,
             bool autoCapture,
@@ -249,46 +238,57 @@ namespace Opc.Ua.Server.Fluent
         {
             if (perCallProvider != null)
             {
-                // Per-call override path — bypass the cached per-manager
-                // builder so the override doesn't leak into other variables.
                 IServerInternal serverForBinding = GetServer(nodeManagerBuilder);
                 IHistorianRegistryProvider registryHost = RequireRegistryHost(serverForBinding);
 
-                variable.Historizing = true;
-                if (historyAccessLevel != 0)
-                {
-                    variable.AccessLevel = (byte)(variable.AccessLevel | historyAccessLevel);
-                    variable.UserAccessLevel = (byte)(variable.UserAccessLevel | historyAccessLevel);
-                }
-                RegisterVariableOnProvider(perCallProvider, variable.NodeId, capabilities);
-                registryHost.HistorianRegistry.RegisterForNode(variable.NodeId, perCallProvider);
+                // The server lifecycle owns this builder and drains its
+                // capture pipeline during shutdown. A dedicated builder keeps
+                // the per-call provider isolated from the cached manager-wide
+                // default, so reads and automatic capture use the same adapter.
+#pragma warning disable CA2000
+                HistorianBuilder scope =
+                    new HistorianBuilder(serverForBinding)
+                        .UseProvider(perCallProvider);
+#pragma warning restore CA2000
+                scope.Historize(
+                    variable,
+                    historyAccessLevel,
+                    setHistorizing: true,
+                    systemContext: nodeManagerBuilder.Context,
+                    capabilities: capabilities,
+                    autoCapture: autoCapture,
+                    captureOptions: captureOptions);
+                registryHost.HistorianRegistry.RegisterForNode(
+                    variable.NodeId,
+                    perCallProvider);
+                return;
+            }
 
-                if (installConfigurationOnBrowse || autoCapture)
-                {
-                    // Reuse the cached per-manager builder so the
-                    // configuration-install hook and the auto-capture
-                    // sink share infrastructure. Bind the per-call
-                    // provider into the builder if it has no provider
-                    // yet so auto-capture flows samples to the right
-                    // engine.
-                    HistorianBuilder manager = GetOrCreateBuilder(nodeManagerBuilder);
-                    HistorianBuilder scope = manager.Provider != null ? manager : manager.UseProvider(perCallProvider);
-                    scope.Historize(
-                        variable,
-                        historyAccessLevel: 0,
-                        setHistorizing: false,
-                        installConfigurationNode: false,
-                        installConfigurationOnBrowse: installConfigurationOnBrowse,
-                        systemContext: nodeManagerBuilder.Context,
-                        capabilities: capabilities,
-                        autoCapture: autoCapture,
-                        captureOptions: captureOptions);
-                }
+            IServerInternal server = GetServer(nodeManagerBuilder);
+            IHistorianRegistryProvider registry = RequireRegistryHost(server);
+            HistorianBuilder managerBuilder = GetOrCreateBuilder(nodeManagerBuilder);
+            IHistorianProvider? resolved =
+                registry.HistorianRegistry.Resolve(variable.NodeId);
+            if (resolved != null &&
+                !ReferenceEquals(resolved, managerBuilder.Provider))
+            {
+#pragma warning disable CA2000
+                HistorianBuilder scope =
+                    new HistorianBuilder(server)
+                        .UseProvider(resolved);
+#pragma warning restore CA2000
+                scope.Historize(
+                    variable,
+                    historyAccessLevel,
+                    setHistorizing: true,
+                    systemContext: nodeManagerBuilder.Context,
+                    capabilities: capabilities,
+                    autoCapture: autoCapture,
+                    captureOptions: captureOptions);
                 return;
             }
 
             // Default path — share the per-manager HistorianBuilder.
-            HistorianBuilder managerBuilder = GetOrCreateBuilder(nodeManagerBuilder);
             if (managerBuilder.Provider == null)
             {
                 // Lazy default — install an in-memory engine and make it
@@ -301,26 +301,10 @@ namespace Opc.Ua.Server.Fluent
                 variable,
                 historyAccessLevel: historyAccessLevel,
                 setHistorizing: true,
-                installConfigurationNode: false,
-                installConfigurationOnBrowse: installConfigurationOnBrowse,
                 systemContext: nodeManagerBuilder.Context,
                 capabilities: capabilities,
                 autoCapture: autoCapture,
                 captureOptions: captureOptions);
-        }
-
-        private static void RegisterVariableOnProvider(
-            IHistorianProvider provider,
-            NodeId nodeId,
-            HistorianNodeCapabilities? capabilities)
-        {
-            // The bundled InMemory engine exposes a typed Register(NodeId, caps);
-            // other providers are responsible for their own internal mapping
-            // when they observe HistoryRead/HistoryUpdate for the node.
-            if (provider is InMemoryHistorianProvider inMemory)
-            {
-                inMemory.Register(nodeId, capabilities);
-            }
         }
 
         private static HistorianBuilder GetOrCreateBuilder(INodeManagerBuilder builder)
@@ -356,7 +340,11 @@ namespace Opc.Ua.Server.Fluent
                 "the fluent historian extensions require the standard ServerInternalData host.");
         }
 
+        // IDE0028 (collection expression) is suppressed: ConditionalWeakTable does not
+        // support collection-expression construction on net472/net48 (CS9174).
+#pragma warning disable IDE0028
         private static readonly ConditionalWeakTable<INodeManagerBuilder, HistorianBuilder> s_builders
             = new();
+#pragma warning restore IDE0028
     }
 }

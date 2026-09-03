@@ -185,7 +185,7 @@ namespace Opc.Ua.Server.Historian
         }
 
         /// <inheritdoc/>
-        public IReadOnlyCollection<IHistorianProvider> Providers
+        public ArrayOf<IHistorianProvider> Providers
         {
             get
             {

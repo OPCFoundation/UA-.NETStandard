@@ -89,9 +89,9 @@ namespace Opc.Ua.Client.Tests.Historian
                 }));
 
             var client = new HistoryClient(mockSession.Object);
-            var values = new List<ModifiedDataValue>();
+            var values = new List<ModifiedHistoryValue>();
 
-            await foreach (ModifiedDataValue value in client.ReadModifiedAsync(
+            await foreach (ModifiedHistoryValue value in client.ReadModifiedAsync(
                 new NodeId("ModifiedNode", 2),
                 sourceTime.AddHours(-1),
                 sourceTime.AddHours(1),
@@ -150,7 +150,7 @@ namespace Opc.Ua.Client.Tests.Historian
             ServiceResultException exception =
                 Assert.ThrowsAsync<ServiceResultException>(async () =>
                 {
-                    await foreach (ModifiedDataValue value in client.ReadModifiedAsync(
+                    await foreach (ModifiedHistoryValue value in client.ReadModifiedAsync(
                         new NodeId("ModifiedNode", 2),
                         DateTime.UtcNow.AddHours(-1),
                         DateTime.UtcNow).ConfigureAwait(false))
@@ -194,7 +194,7 @@ namespace Opc.Ua.Client.Tests.Historian
             ServiceResultException exception =
                 Assert.ThrowsAsync<ServiceResultException>(async () =>
                 {
-                    await foreach (ModifiedDataValue value in client.ReadModifiedAsync(
+                    await foreach (ModifiedHistoryValue value in client.ReadModifiedAsync(
                         new NodeId("ModifiedNode", 2),
                         DateTime.UtcNow.AddHours(-1),
                         DateTime.UtcNow).ConfigureAwait(false))
@@ -210,9 +210,11 @@ namespace Opc.Ua.Client.Tests.Historian
         [Test]
         public async Task ReadEventsAsyncFollowsContinuationPointsAsync()
         {
-            var continuationPoint = (ByteString)new byte[] { 0x41 };
+            var continuationPoint = (ByteString)"A"u8.ToArray();
             var seenContinuationPoints = new List<ByteString>();
             ExtensionObject? capturedDetails = null;
+            var capturedTimestamps =
+                (TimestampsToReturn)(-1);
             int readCalls = 0;
             var mockSession = new Mock<ISession>();
             mockSession
@@ -225,10 +227,11 @@ namespace Opc.Ua.Client.Tests.Historian
                     It.IsAny<CancellationToken>()))
                 .Returns<RequestHeader, ExtensionObject, TimestampsToReturn, bool,
                     ArrayOf<HistoryReadValueId>, CancellationToken>(
-                    (_, details, _, release, nodes, _) =>
+                    (_, details, timestamps, release, nodes, _) =>
                     {
                         Assert.That(release, Is.False);
                         capturedDetails = details;
+                        capturedTimestamps = timestamps;
                         seenContinuationPoints.Add(nodes[0].ContinuationPoint);
                         string text = readCalls++ == 0 ? "first" : "second";
                         return new ValueTask<HistoryReadResponse>(new HistoryReadResponse
@@ -268,8 +271,7 @@ namespace Opc.Ua.Client.Tests.Historian
                 DateTime.UtcNow.AddHours(-1),
                 DateTime.UtcNow,
                 filter,
-                maxValuesPerNode: 1,
-                timestampsToReturn: TimestampsToReturn.Both).ConfigureAwait(false))
+                maxValuesPerNode: 1).ConfigureAwait(false))
             {
                 events.Add(fields);
             }
@@ -288,12 +290,15 @@ namespace Opc.Ua.Client.Tests.Historian
             Assert.That(eventDetails.TryGetValue(out ReadEventDetails details), Is.True);
             Assert.That(details.Filter, Is.SameAs(filter));
             Assert.That(details.NumValuesPerNode, Is.EqualTo(1u));
+            Assert.That(
+                capturedTimestamps,
+                Is.EqualTo(TimestampsToReturn.Source));
         }
 
         [Test]
         public async Task ReadEventsAsyncReleasesContinuationPointWhenDisposedAsync()
         {
-            var continuationPoint = (ByteString)new byte[] { 0x42 };
+            var continuationPoint = (ByteString)"B"u8.ToArray();
             ByteString releasedContinuationPoint = ByteString.Empty;
             var mockSession = new Mock<ISession>();
             mockSession
@@ -355,6 +360,66 @@ namespace Opc.Ua.Client.Tests.Historian
         }
 
         [Test]
+        public void ReadEventsAsyncRejectsMismatchedFieldCount()
+        {
+            var mockSession = new Mock<ISession>();
+            mockSession
+                .Setup(s => s.HistoryReadAsync(
+                    It.IsAny<RequestHeader>(),
+                    It.IsAny<ExtensionObject>(),
+                    It.IsAny<TimestampsToReturn>(),
+                    It.IsAny<bool>(),
+                    It.IsAny<ArrayOf<HistoryReadValueId>>(),
+                    It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<HistoryReadResponse>(
+                    new HistoryReadResponse
+                    {
+                        Results =
+                        [
+                            new HistoryReadResult
+                            {
+                                StatusCode = StatusCodes.Good,
+                                HistoryData = new ExtensionObject(
+                                    new HistoryEvent
+                                    {
+                                        Events =
+                                        [
+                                            new HistoryEventFieldList
+                                            {
+                                                EventFields = []
+                                            }
+                                        ]
+                                    })
+                            }
+                        ]
+                    }));
+            var filter = new EventFilter();
+            filter.AddSelectClause(
+                ObjectTypeIds.BaseEventType,
+                BrowseNames.Message,
+                Attributes.Value);
+            var client = new HistoryClient(mockSession.Object);
+
+            ServiceResultException exception =
+                Assert.ThrowsAsync<ServiceResultException>(
+                    async () =>
+                    {
+                        await foreach (HistoryEventFieldList _ in
+                            client.ReadEventsAsync(
+                                new NodeId("Notifier", 2),
+                                DateTime.UtcNow.AddHours(-1),
+                                DateTime.UtcNow,
+                                filter).ConfigureAwait(false))
+                        {
+                        }
+                    })!;
+
+            Assert.That(
+                exception.StatusCode,
+                Is.EqualTo(StatusCodes.BadDecodingError));
+        }
+
+        [Test]
         public async Task EventUpdateMethodsBuildMatchingServiceDetailsAsync()
         {
             var capturedDetails = new List<ExtensionObject>();
@@ -382,10 +447,23 @@ namespace Opc.Ua.Client.Tests.Historian
                 ObjectTypeIds.BaseEventType,
                 BrowseNames.EventId,
                 Attributes.Value);
+            filter.AddSelectClause(
+                ObjectTypeIds.BaseEventType,
+                BrowseNames.EventType,
+                Attributes.Value);
+            filter.AddSelectClause(
+                ObjectTypeIds.BaseEventType,
+                BrowseNames.Time,
+                Attributes.Value);
             var eventId = (ByteString)new byte[] { 0x10, 0x20 };
             var fields = new HistoryEventFieldList
             {
-                EventFields = [new Variant(eventId)]
+                EventFields =
+                [
+                    new Variant(eventId),
+                    new Variant(ObjectTypeIds.BaseEventType),
+                    new Variant((DateTimeUtc)DateTime.UtcNow)
+                ]
             };
             var nodeId = new NodeId("Notifier", 2);
             var client = new HistoryClient(mockSession.Object);
@@ -433,7 +511,7 @@ namespace Opc.Ua.Client.Tests.Historian
                 capturedDetails[3].TryGetValue(out DeleteEventDetails deleteDetails),
                 Is.True);
             Assert.That(deleteDetails.NodeId, Is.EqualTo(nodeId));
-            Assert.That(deleteDetails.EventIds, Is.EqualTo(new[] { eventId }));
+            Assert.That(deleteDetails.EventIds, Is.EqualTo([eventId]));
         }
 
         [Test]
@@ -442,7 +520,7 @@ namespace Opc.Ua.Client.Tests.Historian
             var annotationsNodeId = new NodeId("Annotations", 2);
             ExtensionObject? capturedDetails = null;
             int updateCalls = 0;
-            var mockSession = CreateSessionWithNamespaceTable();
+            Mock<ISession> mockSession = CreateSessionWithNamespaceTable();
             SetupBrowsePathResult(mockSession, annotationsNodeId);
             mockSession
                 .Setup(s => s.HistoryUpdateAsync(
@@ -507,6 +585,48 @@ namespace Opc.Ua.Client.Tests.Historian
             Assert.That(details.UpdateValues, Has.Count.EqualTo(2));
             Assert.That(details.UpdateValues[0].SourceTimestamp, Is.EqualTo(firstTime));
             Assert.That(details.UpdateValues[1].SourceTimestamp, Is.EqualTo(secondTime));
+        }
+
+        [Test]
+        public void UpdateStructureDataRejectsUnknownUpdateType()
+        {
+            var client = new HistoryClient(
+                CreateSessionWithNamespaceTable().Object);
+
+            Assert.That(
+                async () => await client.UpdateStructureDataAsync(
+                    new NodeId("Structured", 2),
+                    (PerformUpdateType)byte.MaxValue,
+                    [new DataValue(Variant.From(1))]).ConfigureAwait(false),
+                Throws.TypeOf<ArgumentOutOfRangeException>());
+        }
+
+        [Test]
+        public void ReplaceEventsRejectsEventIdIndexRange()
+        {
+            var client = new HistoryClient(
+                CreateSessionWithNamespaceTable().Object);
+            var filter = new EventFilter();
+            filter.AddSelectClause(
+                ObjectTypeIds.BaseEventType,
+                BrowseNames.EventId,
+                Attributes.Value);
+            filter.SelectClauses[0].IndexRange = "0";
+
+            Assert.That(
+                async () => await client.ReplaceEventsAsync(
+                    new NodeId("Notifier", 2),
+                    filter,
+                    [
+                        new HistoryEventFieldList
+                        {
+                            EventFields =
+                            [
+                                new Variant(ByteString.From([1]))
+                            ]
+                        }
+                    ]).ConfigureAwait(false),
+                Throws.TypeOf<ArgumentException>());
         }
 
         private static Mock<ISession> CreateSessionWithNamespaceTable()

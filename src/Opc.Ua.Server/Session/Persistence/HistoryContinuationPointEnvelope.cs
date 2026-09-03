@@ -27,13 +27,38 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-namespace Opc.Ua.Client.Historian
+using System;
+
+namespace Opc.Ua.Server
 {
     /// <summary>
-    /// A modified historical value and the audit information describing
-    /// how, when, and by whom it was changed.
+    /// Versioned opaque payload for a portable HistoryRead continuation point.
     /// </summary>
-    public readonly record struct ModifiedDataValue(
-        DataValue Value,
-        ModificationInfo Info);
+    public sealed record HistoryContinuationPointEnvelope
+    {
+        /// <summary>
+        /// Continuation point identifier returned to the client.
+        /// </summary>
+        public Guid Id { get; init; }
+
+        /// <summary>
+        /// Session that originally owned the continuation point.
+        /// </summary>
+        public NodeId OwnerSessionId { get; init; }
+
+        /// <summary>
+        /// Codec identifier understood by the server that created the payload.
+        /// </summary>
+        public string CodecId { get; init; } = string.Empty;
+
+        /// <summary>
+        /// Codec-specific payload version.
+        /// </summary>
+        public uint CodecVersion { get; init; }
+
+        /// <summary>
+        /// Protected codec payload.
+        /// </summary>
+        public ByteString Payload { get; init; }
+    }
 }

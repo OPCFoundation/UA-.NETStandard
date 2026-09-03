@@ -77,7 +77,7 @@ namespace Opc.Ua.Client.Tests.ManagedSession
         }
 
         [Test]
-        public void ShouldFailoverStaysWhileCurrentServerIsHealthy()
+        public void HealthyServerDoesNotProactivelyFailOverButRetainsRecoveryTarget()
         {
             var info = new ServerRedundancyInfo
             {
@@ -97,7 +97,10 @@ namespace Opc.Ua.Client.Tests.ManagedSession
                 info, CreateCurrentEndpoint("urn:current"));
 
             Assert.That(decision.IsFailoverWarranted, Is.False);
-            Assert.That(target, Is.Null);
+            Assert.That(target, Is.Not.Null);
+            Assert.That(
+                target!.Description.Server.ApplicationUri,
+                Is.EqualTo("urn:backup"));
         }
 
         [Test]

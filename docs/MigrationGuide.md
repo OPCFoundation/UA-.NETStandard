@@ -51,6 +51,35 @@ Looking for the broader narrative (non-prescriptive overview of what
 changed in a release)? See
 [What's New in 2.0](WhatsNewIn2.0.md).
 
+## Migrating 2.0 historian provider and client collections
+
+The 2.0 Historical Access surface now uses the stack's immutable collection
+and byte types consistently:
+
+- Provider update inputs and client update inputs/results use `ArrayOf<T>`.
+- `HistorianPage<T>.Values` and
+  `HistorianAtTimeReadRequest.RequestedTimes` use `ArrayOf<T>`.
+- `HistorianResumeToken.State` uses `ByteString`.
+- `HistorianEventRecord.Fields` and `QualifiedFields` use
+  `ArrayOf<KeyValuePair<...>>`; use `TryGetField` and
+  `TryGetQualifiedField` for lookup.
+- `IHistorianBulkInsertProvider.InsertBatchAsync` accepts
+  `ArrayOf<HistorianDataBatch>` and returns an aligned
+  `ArrayOf<HistorianUpdateOutcome<DataValue>>`. Result position `i`
+  corresponds to batch entry `i`; public dictionaries are no longer part of
+  the provider interface.
+
+Arrays and `List<T>` convert to `ArrayOf<T>` through the existing conversion
+helpers. Custom providers should return `HistorianUpdateOutcome<T>` directly
+and keep internal mutable dictionaries or lists behind the provider seam.
+
+The history audit helpers also expose correctly typed replacements:
+
+- Use `ReportAuditHistoryAnnotationUpdateEvent(..., ArrayOf<Annotation>, ...)`
+  instead of the obsolete `ArrayOf<DataValue>` overload.
+- Use `ReportAuditHistoryEventDeleteEvent(..., HistoryEventFieldList, ...)`
+  instead of the obsolete `DataValue[]` overload.
+
 ## Migrating Robotics and Vision MCP requests
 
 The Robotics and Vision MCP tool names remain stable, but their request schemas

@@ -1,5 +1,11 @@
 # PumpDeviceIntegrationServer
 
+The pump measurements use the fluent historian with automatic capture enabled.
+The first measurement configures the shared capture sink explicitly with an
+8,192-sample bounded queue, 128-value target batches, a 50 ms batch window, and
+`DropOldest` overload behavior. Subsequent historized pump variables reuse the
+same per-node-manager capture pipeline.
+
 A self-contained, NativeAOT-friendly OPC UA server that demonstrates
 the [OPC 40223 Pumps companion specification](https://reference.opcfoundation.org/specs/OPC-40223)
 with a full live simulation, wired through the fluent

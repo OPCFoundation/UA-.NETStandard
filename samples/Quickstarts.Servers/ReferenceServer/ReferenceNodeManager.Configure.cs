@@ -28,6 +28,8 @@
  * ======================================================================*/
 
 using System;
+using System.Threading;
+using System.Threading.Tasks;
 using Opc.Ua;
 using Opc.Ua.Server.Fluent;
 
@@ -46,6 +48,7 @@ namespace Quickstarts.ReferenceServer
     /// <c>GenericMethodCalledEventHandler</c> callbacks that unpack and
     /// repack <see cref="Opc.Ua.Variant"/> arguments by index.
     /// </remarks>
+#pragma warning disable IDE0001 // "Variant" is ambiguous with System.Variant on net472/net48 (CS0419).
     public partial class ReferenceNodeManager
     {
         partial void Configure(IReferenceNodeManagerBuilder builder)
@@ -86,7 +89,7 @@ namespace Quickstarts.ReferenceServer
             // The node and its value are baked into the NodeSet2 model; only the
             // write behaviour is wired here (Prio 2).
             builder.CTT.Scalar.Scalar_Simulation.Scalar_Simulation_Enabled
-                .OnWrite((ISystemContext context, NodeState node, ref Variant value) =>
+                .OnWrite((context, node, ref value) =>
                 {
                     try
                     {
@@ -104,22 +107,32 @@ namespace Quickstarts.ReferenceServer
 
             // The two event-trigger variables raise a simple event when written.
             builder.CTT.NodeIds.NodeIds_Events.NodeIds_Events_TriggerNode01
-                .OnWrite((ISystemContext context, NodeState node, ref Variant value)
-                    => RaiseTriggerEvent(context, node));
+                .OnWrite(RaiseTriggerEventAsync);
             builder.CTT.NodeIds.NodeIds_Events.NodeIds_Events_TriggerNode02
-                .OnWrite((ISystemContext context, NodeState node, ref Variant value)
-                    => RaiseTriggerEvent(context, node));
+                .OnWrite(RaiseTriggerEventAsync);
 
-            ServiceResult RaiseTriggerEvent(ISystemContext context, NodeState node)
+            async ValueTask<AttributeWriteResult> RaiseTriggerEventAsync(
+                ISystemContext context,
+                NodeState node,
+                Variant value,
+                CancellationToken cancellationToken)
             {
+                _ = value;
                 var e = new BaseEventState(null);
                 e.Initialize(
                     context,
                     node,
                     EventSeverity.Medium,
                     new LocalizedText($"Trigger event from '{node.DisplayName.Text}'"));
-                Server.ReportEvent(context, e);
-                return ServiceResult.Good;
+                BaseObjectState notifier = m_historicalEventNotifier ??
+                    throw new ServiceResultException(
+                        StatusCodes.BadConfigurationError,
+                        "The historical CTT event notifier is not configured.");
+                await notifier.ReportEventAsync(
+                    context,
+                    e,
+                    cancellationToken).ConfigureAwait(false);
+                return new AttributeWriteResult(ServiceResult.Good);
             }
 
             // AccessLevelEx advertises non-atomic read/write on the read/write
@@ -128,11 +141,11 @@ namespace Quickstarts.ReferenceServer
             // here through the fluent .Node escape hatch (Prio 2). The divergent
             // UserAccessLevel values, in contrast, are now baked directly into
             // the NodeSet2 model (Prio 1) and loaded by the source generator.
-            ((BaseVariableState)builder.CTT.Scalar.Scalar_Static
-                .Scalar_Static_NonatomicReadWrite.Node).AccessLevelEx =
-                AccessLevels.CurrentReadOrWrite
-                | (uint)AccessLevelExType.NonatomicRead
-                | (uint)AccessLevelExType.NonatomicWrite;
+            builder.CTT.Scalar.Scalar_Static
+                .Scalar_Static_NonatomicReadWrite.Node.AccessLevelEx =
+                AccessLevels.CurrentReadOrWrite |
+                (uint)AccessLevelExType.NonatomicRead |
+                (uint)AccessLevelExType.NonatomicWrite;
         }
 
         /// <summary>
@@ -153,4 +166,5 @@ namespace Quickstarts.ReferenceServer
                 .OnTick((_, elapsed, cancellationToken) => RunSimulationStepAsync(elapsed, cancellationToken));
         }
     }
+#pragma warning restore IDE0001
 }

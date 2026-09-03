@@ -32,6 +32,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Security.Cryptography;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -177,6 +178,7 @@ namespace Opc.Ua.Redundancy.Samples.Tests
             string pkiRoot = CreateFreshPkiRoot();
             string[] nodeIds = new string[count];
             string[] raftBinds = new string[count];
+            string recordKey = Convert.ToBase64String(RandomNumberGenerator.GetBytes(32));
             for (int i = 0; i < count; i++)
             {
                 nodeIds[i] = "replica-" + (char)('a' + i);
@@ -193,7 +195,9 @@ namespace Opc.Ua.Redundancy.Samples.Tests
                         ["HA_MODE"] = "ap",
                         ["HA_CONSISTENCY"] = "strong",
                         ["REDUNDANCY_MODE"] = "hot",
-                        ["HA_INSECURE"] = "true",
+                        ["HA_HISTORIAN"] = "true",
+                        ["HA_RECORD_KEY"] = recordKey,
+                        ["HA_FAST_RECONNECT"] = "true",
                         ["HA_HOST"] = "127.0.0.1",
                         ["HA_NODE_ID"] = nodeIds[i],
                         ["HA_PKI_ROOT"] = Path.Combine(pkiRoot, nodeIds[i]),
@@ -317,7 +321,9 @@ namespace Opc.Ua.Redundancy.Samples.Tests
         private static string CreateFreshPkiRoot()
         {
             string root = Path.Combine(
-                Path.GetTempPath(), "opcua-ha-sample-tests", Guid.NewGuid().ToString("N"));
+                AppContext.BaseDirectory,
+                "ha-sample-test-state",
+                Guid.NewGuid().ToString("N"));
             Directory.CreateDirectory(root);
             return root;
         }

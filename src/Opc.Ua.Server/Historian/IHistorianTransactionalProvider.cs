@@ -27,7 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -63,28 +62,28 @@ namespace Opc.Ua.Server.Historian
         /// <summary>
         /// Inserts a batch of values atomically.
         /// </summary>
-        ValueTask<IList<StatusCode>> InsertAtomicAsync(
+        ValueTask<HistorianUpdateOutcome<DataValue>> InsertAtomicAsync(
             HistorianOperationContext context,
             NodeId nodeId,
-            IList<DataValue> values,
+            ArrayOf<DataValue> values,
             CancellationToken ct);
 
         /// <summary>
         /// Replaces a batch of values atomically.
         /// </summary>
-        ValueTask<IList<StatusCode>> ReplaceAtomicAsync(
+        ValueTask<HistorianUpdateOutcome<DataValue>> ReplaceAtomicAsync(
             HistorianOperationContext context,
             NodeId nodeId,
-            IList<DataValue> values,
+            ArrayOf<DataValue> values,
             CancellationToken ct);
 
         /// <summary>
         /// Upserts a batch of values atomically.
         /// </summary>
-        ValueTask<IList<StatusCode>> UpdateAtomicAsync(
+        ValueTask<HistorianUpdateOutcome<DataValue>> UpdateAtomicAsync(
             HistorianOperationContext context,
             NodeId nodeId,
-            IList<DataValue> values,
+            ArrayOf<DataValue> values,
             CancellationToken ct);
     }
 }

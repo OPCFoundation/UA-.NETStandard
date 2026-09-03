@@ -29,7 +29,9 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Runtime.CompilerServices;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -42,21 +44,41 @@ namespace Opc.Ua.Client.Historian
             ExtensionObject historyReadDetails,
             TimestampsToReturn timestampsToReturn,
             Func<HistoryReadResult, ArrayOf<T>> decodePage,
+            HistoryReadNodeOptions? nodeOptions,
             [EnumeratorCancellation] CancellationToken cancellationToken)
         {
             ByteString continuationPoint = ByteString.Empty;
             ByteString liveContinuationPoint = ByteString.Empty;
-            int emptyPagesInARow = 0;
+            uint pagesRead = 0;
+            var elapsed = Stopwatch.StartNew();
+            string indexRange = FormatIndexRange(
+                nodeOptions?.IndexRange ?? default);
             try
             {
                 while (true)
                 {
+                    if (Options.MaxPagesPerRead > 0 &&
+                        pagesRead >= Options.MaxPagesPerRead)
+                    {
+                        throw new ServiceResultException(
+                            StatusCodes.BadTimeout,
+                            "HistoryRead exceeded the configured page limit.");
+                    }
+                    if (Options.MaxReadDuration > TimeSpan.Zero &&
+                        elapsed.Elapsed > Options.MaxReadDuration)
+                    {
+                        throw new ServiceResultException(
+                            StatusCodes.BadTimeout,
+                            "HistoryRead exceeded the configured duration limit.");
+                    }
                     var nodesToRead = new HistoryReadValueId[]
                     {
                         new()
                         {
                             NodeId = nodeId,
-                            ContinuationPoint = continuationPoint
+                            ContinuationPoint = continuationPoint,
+                            IndexRange = indexRange,
+                            DataEncoding = nodeOptions?.DataEncoding ?? QualifiedName.Null
                         }
                     };
 
@@ -68,12 +90,24 @@ namespace Opc.Ua.Client.Historian
                         nodesToRead,
                         cancellationToken).ConfigureAwait(false);
 
-                    if (response.Results.Count == 0)
+                    if (response.Results.Count != 1)
                     {
-                        yield break;
+                        throw new ServiceResultException(
+                            StatusCodes.BadUnexpectedError,
+                            "HistoryRead returned a result count that does not match the request.");
                     }
 
                     HistoryReadResult result = response.Results[0];
+                    liveContinuationPoint = result.ContinuationPoint;
+                    pagesRead++;
+                    if (Options.MaxReadDuration > TimeSpan.Zero &&
+                        elapsed.Elapsed > Options.MaxReadDuration)
+                    {
+                        throw new ServiceResultException(
+                            StatusCodes.BadTimeout,
+                            "HistoryRead exceeded the configured duration limit.");
+                    }
+
                     if (StatusCode.IsBad(result.StatusCode))
                     {
                         throw new ServiceResultException(
@@ -81,10 +115,7 @@ namespace Opc.Ua.Client.Historian
                             "HistoryRead returned a bad status.");
                     }
 
-                    liveContinuationPoint = result.ContinuationPoint;
-
                     ArrayOf<T> values = decodePage(result);
-                    bool yieldedSomething = values.Count > 0;
                     for (int i = 0; i < values.Count; i++)
                     {
                         yield return values[i];
@@ -94,22 +125,6 @@ namespace Opc.Ua.Client.Historian
                     {
                         liveContinuationPoint = ByteString.Empty;
                         yield break;
-                    }
-
-                    if (!yieldedSomething)
-                    {
-                        emptyPagesInARow++;
-                        if (emptyPagesInARow >= 3)
-                        {
-                            throw new ServiceResultException(
-                                StatusCodes.BadInternalError,
-                                "Server returned three consecutive empty paginated history pages " +
-                                "with a non-empty continuation point.");
-                        }
-                    }
-                    else
-                    {
-                        emptyPagesInARow = 0;
                     }
 
                     continuationPoint = result.ContinuationPoint;
@@ -126,7 +141,9 @@ namespace Opc.Ua.Client.Historian
                             new()
                             {
                                 NodeId = nodeId,
-                                ContinuationPoint = liveContinuationPoint
+                                ContinuationPoint = liveContinuationPoint,
+                                IndexRange = indexRange,
+                                DataEncoding = nodeOptions?.DataEncoding ?? QualifiedName.Null
                             }
                         };
                         _ = await Session.HistoryReadAsync(
@@ -153,11 +170,35 @@ namespace Opc.Ua.Client.Historian
             }
         }
 
+        private static string FormatIndexRange(NumericRange range)
+        {
+            if (range.IsNull)
+            {
+                return string.Empty;
+            }
+            NumericRange[]? subRanges = range.SubRanges;
+            if (subRanges == null)
+            {
+                return range.ToString();
+            }
+
+            var builder = new StringBuilder();
+            for (int i = 0; i < subRanges.Length; i++)
+            {
+                if (i > 0)
+                {
+                    builder.Append(',');
+                }
+                builder.Append(subRanges[i].ToString());
+            }
+            return builder.ToString();
+        }
+
         private static ArrayOf<DataValue> DecodeHistoryData(HistoryReadResult result)
         {
             if (result.HistoryData.IsNull)
             {
-                return ArrayOf<DataValue>.Empty;
+                return [];
             }
             if (result.HistoryData.TryGetValue(out HistoryData? data) && data != null)
             {
@@ -166,12 +207,12 @@ namespace Opc.Ua.Client.Historian
             throw CreateUnexpectedHistoryPayloadException(nameof(HistoryData));
         }
 
-        private static ArrayOf<ModifiedDataValue> DecodeHistoryModifiedData(
+        private static ArrayOf<ModifiedHistoryValue> DecodeHistoryModifiedData(
             HistoryReadResult result)
         {
             if (result.HistoryData.IsNull)
             {
-                return ArrayOf<ModifiedDataValue>.Empty;
+                return [];
             }
             if (!result.HistoryData.TryGetValue(out HistoryModifiedData? data) || data == null)
             {
@@ -184,17 +225,14 @@ namespace Opc.Ua.Client.Historian
                     "HistoryModifiedData returned different numbers of values and modification infos.");
             }
 
-            var values = new ModifiedDataValue[data.DataValues.Count];
+            var values = new ModifiedHistoryValue[data.DataValues.Count];
             for (int i = 0; i < values.Length; i++)
             {
-                ModificationInfo info = data.ModificationInfos[i];
-                if (info == null)
-                {
+                ModificationInfo info = data.ModificationInfos[i] ??
                     throw new ServiceResultException(
                         StatusCodes.BadDecodingError,
                         "HistoryModifiedData returned a null ModificationInfo.");
-                }
-                values[i] = new ModifiedDataValue(data.DataValues[i], info);
+                values[i] = new ModifiedHistoryValue(data.DataValues[i], info);
             }
             return values.ToArrayOf();
         }
@@ -204,7 +242,7 @@ namespace Opc.Ua.Client.Historian
         {
             if (result.HistoryData.IsNull)
             {
-                return ArrayOf<HistoryEventFieldList>.Empty;
+                return [];
             }
             if (result.HistoryData.TryGetValue(out HistoryEvent? data) && data != null)
             {

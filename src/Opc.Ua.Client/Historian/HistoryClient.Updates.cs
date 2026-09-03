@@ -43,6 +43,8 @@ namespace Opc.Ua.Client.Historian
         /// history such as annotations. Raw values must be deleted with
         /// <see cref="DeleteRawAsync"/> or <see cref="DeleteAtTimeAsync"/>.
         /// </remarks>
+        /// <exception cref="ArgumentNullException"></exception>
+        /// <exception cref="ArgumentOutOfRangeException"></exception>
         public async ValueTask<ArrayOf<StatusCode>> UpdateStructureDataAsync(
             NodeId nodeId,
             PerformUpdateType performUpdate,
@@ -57,6 +59,13 @@ namespace Opc.Ua.Client.Historian
             {
                 throw new ArgumentNullException(nameof(values));
             }
+            if (performUpdate is not PerformUpdateType.Insert and
+                not PerformUpdateType.Replace and
+                not PerformUpdateType.Update and
+                not PerformUpdateType.Remove)
+            {
+                throw new ArgumentOutOfRangeException(nameof(performUpdate));
+            }
 
             var details = new UpdateStructureDataDetails
             {
@@ -69,10 +78,10 @@ namespace Opc.Ua.Client.Historian
                 new ExtensionObject(details),
                 cancellationToken).ConfigureAwait(false);
 
-            return GetOperationResults(result, values.Count, useStatusFallback: true);
+            return GetOperationResults(result, values.Count);
         }
 
-        private async ValueTask<HistoryUpdateResult?> SendHistoryUpdateAsync(
+        private async ValueTask<HistoryUpdateResult> SendHistoryUpdateAsync(
             ExtensionObject details,
             CancellationToken cancellationToken)
         {
@@ -81,43 +90,69 @@ namespace Opc.Ua.Client.Historian
                 [details],
                 cancellationToken).ConfigureAwait(false);
 
-            return response.Results.Count > 0 ? response.Results[0] : null;
+            if (response.Results.Count != 1)
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadUnexpectedError,
+                    "HistoryUpdate returned a result count that does not match the request.");
+            }
+            return response.Results[0];
         }
 
         private static ArrayOf<StatusCode> GetOperationResults(
-            HistoryUpdateResult? result,
-            int expectedCount,
-            bool useStatusFallback)
+            HistoryUpdateResult result,
+            int expectedCount)
         {
-            if (result == null)
+            if (expectedCount == 0)
             {
-                return ArrayOf<StatusCode>.Empty;
+                if (StatusCode.IsBad(result.StatusCode))
+                {
+                    throw new ServiceResultException(
+                        result.StatusCode,
+                        "HistoryUpdate returned a bad node status.");
+                }
+                if (result.OperationResults.Count != 0)
+                {
+                    throw new ServiceResultException(
+                        StatusCodes.BadUnexpectedError,
+                        "HistoryUpdate returned unexpected per-operation results.");
+                }
+                return [];
             }
-            if (result.OperationResults.Count > 0)
+            if (result.OperationResults.Count == 0)
             {
-                return result.OperationResults;
+                if (StatusCode.IsBad(result.StatusCode))
+                {
+                    var statuses = new StatusCode[expectedCount];
+                    for (int i = 0; i < statuses.Length; i++)
+                    {
+                        statuses[i] = result.StatusCode;
+                    }
+                    return statuses.ToArrayOf();
+                }
+                throw new ServiceResultException(
+                    StatusCodes.BadUnexpectedError,
+                    "HistoryUpdate returned no per-operation results.");
             }
-            if (!useStatusFallback || expectedCount == 0)
+            if (result.OperationResults.Count != expectedCount)
             {
-                return ArrayOf<StatusCode>.Empty;
+                throw new ServiceResultException(
+                    StatusCodes.BadUnexpectedError,
+                    "HistoryUpdate returned a per-operation result count that does not match the request.");
             }
-
-            var statuses = new StatusCode[expectedCount];
-            for (int i = 0; i < statuses.Length; i++)
+            if (StatusCode.IsBad(result.StatusCode))
             {
-                statuses[i] = result.StatusCode;
+                for (int i = 0; i < result.OperationResults.Count; i++)
+                {
+                    if (StatusCode.IsGood(result.OperationResults[i]))
+                    {
+                        throw new ServiceResultException(
+                            StatusCodes.BadUnexpectedError,
+                            "HistoryUpdate returned a bad node status with successful operation results.");
+                    }
+                }
             }
-            return statuses.ToArrayOf();
-        }
-
-        private static StatusCode[] ToStatusList(ArrayOf<StatusCode> statuses)
-        {
-            var result = new StatusCode[statuses.Count];
-            for (int i = 0; i < statuses.Count; i++)
-            {
-                result[i] = statuses[i];
-            }
-            return result;
+            return result.OperationResults;
         }
     }
 }

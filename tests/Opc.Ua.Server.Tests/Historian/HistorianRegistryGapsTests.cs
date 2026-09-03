@@ -127,11 +127,11 @@ namespace Opc.Ua.Server.Tests.Historian
             using var p = new InMemoryHistorianProvider();
 
             registry.RegisterDefault(p);
-            Assert.That(registry.Providers, Does.Contain(p));
+            Assert.That(registry.Providers.Contains(p), Is.True);
 
             registry.ClearDefault();
 
-            Assert.That(registry.Providers, Does.Not.Contain(p));
+            Assert.That(registry.Providers.Contains(p), Is.False);
             Assert.That(registry.Resolve(new NodeId("any", 1)), Is.Null);
         }
 
@@ -159,7 +159,7 @@ namespace Opc.Ua.Server.Tests.Historian
             // so it must remain in Providers.
             registry.ClearDefault();
 
-            Assert.That(registry.Providers, Does.Contain(shared),
+            Assert.That(registry.Providers.Contains(shared), Is.True,
                 "Provider still used by node binding must stay in Providers.");
         }
 
@@ -195,7 +195,7 @@ namespace Opc.Ua.Server.Tests.Historian
             bool removed = registry.UnregisterForNode(nodeId);
 
             Assert.That(removed, Is.True);
-            Assert.That(registry.Providers, Does.Not.Contain(p));
+            Assert.That(registry.Providers.Contains(p), Is.False);
             Assert.That(registry.Resolve(nodeId), Is.Null);
         }
 
@@ -211,7 +211,7 @@ namespace Opc.Ua.Server.Tests.Historian
             bool removed = registry.UnregisterForNode(nodeId);
 
             Assert.That(removed, Is.True);
-            Assert.That(registry.Providers, Does.Contain(shared),
+            Assert.That(registry.Providers.Contains(shared), Is.True,
                 "Provider still used as default must stay in Providers.");
         }
 

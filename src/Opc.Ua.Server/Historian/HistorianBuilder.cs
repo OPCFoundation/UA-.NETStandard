@@ -62,6 +62,7 @@ namespace Opc.Ua.Server.Historian
                     "The supplied IServerInternal does not implement IHistorianRegistryProvider; " +
                     "the fluent HistorianBuilder requires the standard ServerInternalData host.");
             }
+            (server as IHistorianBuilderRegistry)?.RegisterHistorianBuilder(this);
         }
 
         /// <summary>
@@ -144,8 +145,6 @@ namespace Opc.Ua.Server.Historian
             BaseVariableState variable,
             byte historyAccessLevel = AccessLevels.HistoryRead | AccessLevels.HistoryWrite,
             bool setHistorizing = true,
-            bool installConfigurationNode = false,
-            bool installConfigurationOnBrowse = false,
             ISystemContext? systemContext = null,
             HistorianNodeCapabilities? capabilities = null,
             bool autoCapture = true,
@@ -176,22 +175,165 @@ namespace Opc.Ua.Server.Historian
                 EnsureAnnotationsProperty(systemContext, variable, capabilities, historyAccessLevel);
             }
 
-            if (installConfigurationNode && Provider != null && systemContext != null)
-            {
-                _ = HistoricalDataConfigurationInstaller
-                    .EnsureInstalledAsync(systemContext, variable, Provider, default)
-                    .AsTask().GetAwaiter().GetResult();
-            }
-            else if (installConfigurationOnBrowse && Provider != null)
-            {
-                AttachConfigurationLazyInstaller(variable, Provider);
-            }
-
             if (autoCapture)
             {
                 AttachAutoCapture(variable, systemContext, captureOptions);
             }
             return this;
+        }
+
+        /// <summary>
+        /// Marks a variable as historizing and installs its historical data
+        /// configuration without blocking on asynchronous provider work.
+        /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="systemContext"/> is <c>null</c>.</exception>
+        public async ValueTask<HistorianBuilder> HistorizeAsync(
+            BaseVariableState variable,
+            ISystemContext systemContext,
+            byte historyAccessLevel = AccessLevels.HistoryRead | AccessLevels.HistoryWrite,
+            bool setHistorizing = true,
+            HistorianNodeCapabilities? capabilities = null,
+            bool autoCapture = true,
+            HistorianCaptureOptions? captureOptions = null,
+            CancellationToken cancellationToken = default)
+        {
+            if (systemContext == null)
+            {
+                throw new ArgumentNullException(nameof(systemContext));
+            }
+            Historize(
+                variable,
+                historyAccessLevel,
+                setHistorizing,
+                systemContext: systemContext,
+                capabilities: capabilities,
+                autoCapture: autoCapture,
+                captureOptions: captureOptions);
+            EnsureProvider();
+            await HistoricalDataConfigurationInstaller.EnsureInstalledAsync(
+                systemContext,
+                variable,
+                Provider!,
+                cancellationToken).ConfigureAwait(false);
+            return this;
+        }
+
+        /// <summary>
+        /// Marks an Object as a historical event notifier and optionally installs
+        /// its <c>HistoricalEventConfigurationType</c> companion. By default,
+        /// events reported through <see cref="NodeState.ReportEvent"/> or
+        /// <see cref="NodeState.ReportEventAsync"/> are snapshotted after live
+        /// forwarding and queued for asynchronous archival.
+        /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="notifier"/> is <c>null</c>.</exception>
+        public async ValueTask<HistoricalEventConfigurationState?> HistorizeEventsAsync(
+            BaseObjectState notifier,
+            ISystemContext systemContext,
+            byte? eventNotifier = null,
+            bool installConfiguration = true,
+            HistorianNodeCapabilities? capabilities = null,
+            bool autoCapture = true,
+            HistorianCaptureOptions? captureOptions = null,
+            CancellationToken cancellationToken = default)
+        {
+            if (notifier == null)
+            {
+                throw new ArgumentNullException(nameof(notifier));
+            }
+            if (systemContext == null)
+            {
+                throw new ArgumentNullException(nameof(systemContext));
+            }
+            EnsureProvider();
+            if (Provider is InMemoryHistorianProvider inMemory)
+            {
+                inMemory.Register(
+                    notifier.NodeId,
+                    capabilities ??
+                    HistorianNodeCapabilities.EventReadWrite);
+            }
+            HistorianNodeCapabilities effectiveCapabilities = capabilities ??
+                await Provider!.GetCapabilitiesAsync(
+                    notifier.NodeId,
+                    cancellationToken).ConfigureAwait(false);
+            byte historyBits = eventNotifier ??
+                (byte)(
+                    (effectiveCapabilities.ReadEventHistory
+                        ? EventNotifiers.HistoryRead
+                        : 0) |
+                    (effectiveCapabilities.SupportsAnyEventUpdate
+                        ? EventNotifiers.HistoryWrite
+                        : 0));
+            notifier.EventNotifier = (byte)(
+                notifier.EventNotifier |
+                historyBits);
+            if (autoCapture)
+            {
+                AttachEventCapture(
+                    notifier,
+                    effectiveCapabilities,
+                    captureOptions);
+            }
+            if (!installConfiguration)
+            {
+                return null;
+            }
+            return await HistoricalEventConfigurationInstaller
+                .EnsureInstalledAsync(
+                    systemContext,
+                    notifier,
+                    Provider!,
+                    cancellationToken)
+                .ConfigureAwait(false);
+        }
+
+        private void AttachEventCapture(
+            BaseObjectState notifier,
+            HistorianNodeCapabilities capabilities,
+            HistorianCaptureOptions? captureOptions)
+        {
+            lock (m_captureSinkLock)
+            {
+                for (int i = 0; i < m_eventCaptureHandlers.Count; i++)
+                {
+                    if (ReferenceEquals(
+                        m_eventCaptureHandlers[i].Notifier,
+                        notifier))
+                    {
+                        return;
+                    }
+                }
+            }
+
+            // Ownership transfers to m_eventCaptureHandlers and is released
+            // by DisposeAsync.
+#pragma warning disable CA2000
+            var capture = new HistorianEventCapture(
+                m_server,
+                Provider!,
+                capabilities,
+                captureOptions);
+#pragma warning restore CA2000
+            void handler(
+                ISystemContext context,
+                NodeState source,
+                IFilterTarget eventInstance)
+            {
+                capture.Enqueue(
+                    context,
+                    source,
+                    eventInstance);
+            }
+
+            notifier.EventReported += handler;
+            lock (m_captureSinkLock)
+            {
+                m_eventCaptureHandlers.Add(
+                    new EventCaptureHandlerRegistration(
+                    notifier,
+                    handler,
+                    capture));
+            }
         }
 
         /// <summary>
@@ -275,27 +417,26 @@ namespace Opc.Ua.Server.Historian
         /// per-builder <see cref="HistorianCaptureSink"/>, detaching the
         /// <see cref="NodeState.StateChanged"/> handlers it installed.
         /// </summary>
+        /// <exception cref="AggregateException"></exception>
         public async ValueTask DisposeAsync()
         {
             CaptureHandlerRegistration[] handlers;
+            EventCaptureHandlerRegistration[] eventHandlers;
             lock (m_captureSinkLock)
             {
                 handlers = [.. m_captureHandlers];
                 m_captureHandlers.Clear();
+                eventHandlers = [.. m_eventCaptureHandlers];
+                m_eventCaptureHandlers.Clear();
             }
             // Detach handlers first so no new samples enqueue while we drain.
             foreach (CaptureHandlerRegistration reg in handlers)
             {
-                try
-                {
-                    reg.Variable.StateChanged -= reg.Handler;
-                }
-#pragma warning disable RCS1075 // intentional best-effort swallow — variable may already be torn down
-                catch (Exception)
-                {
-                    // ignore — variable may already be torn down
-                }
-#pragma warning restore RCS1075
+                reg.Variable.StateChanged -= reg.Handler;
+            }
+            foreach (EventCaptureHandlerRegistration reg in eventHandlers)
+            {
+                reg.Notifier.EventReported -= reg.Handler;
             }
             HistorianCaptureSink? sink;
             lock (m_captureSinkLock)
@@ -303,52 +444,50 @@ namespace Opc.Ua.Server.Historian
                 sink = m_captureSink;
                 m_captureSink = null;
             }
+            List<Exception>? errors = null;
+            foreach (EventCaptureHandlerRegistration reg in eventHandlers)
+            {
+                try
+                {
+                    await reg.Capture.DisposeAsync().ConfigureAwait(false);
+                }
+                catch (Exception exception)
+                {
+                    errors ??= [];
+                    errors.Add(exception);
+                }
+            }
             if (sink != null)
             {
-                await sink.DisposeAsync().ConfigureAwait(false);
+                try
+                {
+                    await sink.DisposeAsync().ConfigureAwait(false);
+                }
+                catch (Exception exception)
+                {
+                    errors ??= [];
+                    errors.Add(exception);
+                }
+            }
+            if (errors != null)
+            {
+                throw new AggregateException(
+                    "One or more historian capture pipelines failed during shutdown.",
+                    errors);
             }
         }
 
         private readonly record struct CaptureHandlerRegistration(BaseVariableState Variable, NodeStateChangedHandler Handler);
+
+        private readonly record struct EventCaptureHandlerRegistration(
+            BaseObjectState Notifier,
+            NodeStateReportEventHandler Handler,
+            HistorianEventCapture Capture);
+
         private readonly List<CaptureHandlerRegistration> m_captureHandlers = [];
+        private readonly List<EventCaptureHandlerRegistration> m_eventCaptureHandlers = [];
         private HistorianCaptureSink? m_captureSink;
         private readonly Lock m_captureSinkLock = new();
-
-        /// <summary>
-        /// Hooks <see cref="NodeState.OnPopulateBrowser"/> on
-        /// <paramref name="variable"/> so the first browse call against
-        /// the variable installs (synchronously) the
-        /// <c>HistoricalDataConfigurationType</c> companion object.
-        /// The handler self-detaches after the install runs.
-        /// </summary>
-        private static void AttachConfigurationLazyInstaller(
-            BaseVariableState variable,
-            IHistorianProvider provider)
-        {
-            void handler(ISystemContext context, NodeState node, NodeBrowser browser)
-            {
-                try
-                {
-                    _ = HistoricalDataConfigurationInstaller
-                        .EnsureInstalledAsync(context, variable, provider, default)
-                        .AsTask().GetAwaiter().GetResult();
-                }
-#pragma warning disable RCS1075 // intentional best-effort install — never break Browse on a config-install failure
-                catch (Exception)
-                {
-                    // Best-effort install: never break Browse on a config-install failure.
-                    // TODO(historian): plumb shared telemetry to log this.
-                }
-#pragma warning restore RCS1075
-                finally
-                {
-                    // Self-detach so subsequent browses don't repeat the work.
-                    variable.OnPopulateBrowser -= handler!;
-                }
-            }
-
-            variable.OnPopulateBrowser += handler;
-        }
 
         /// <summary>
         /// Ensures that <paramref name="variable"/> has an <c>Annotations</c>

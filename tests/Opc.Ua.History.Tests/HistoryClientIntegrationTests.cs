@@ -40,6 +40,7 @@ using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Client.Historian;
 using Opc.Ua.Client.TestFramework;
+using Quickstarts.ConsoleReferenceClient;
 
 namespace Opc.Ua.History.Tests
 {
@@ -317,7 +318,7 @@ namespace Opc.Ua.History.Tests
                 sourceTimestamp: ts,
                 serverTimestamp: ts);
 
-            IList<StatusCode> insertStatuses = await client.InsertAsync(
+            ArrayOf<StatusCode> insertStatuses = await client.InsertAsync(
                 m_doubleNodeId, [insertValue]).ConfigureAwait(false);
             Assert.That(insertStatuses, Has.Count.EqualTo(1));
             Assert.That(StatusCode.IsGood(insertStatuses[0]), Is.True,
@@ -341,7 +342,7 @@ namespace Opc.Ua.History.Tests
                 StatusCodes.Good,
                 sourceTimestamp: ts,
                 serverTimestamp: ts);
-            IList<StatusCode> replaceStatuses = await client.ReplaceAsync(
+            ArrayOf<StatusCode> replaceStatuses = await client.ReplaceAsync(
                 m_doubleNodeId, [replaceValue]).ConfigureAwait(false);
             Assert.That(StatusCode.IsGood(replaceStatuses[0]), Is.True);
 
@@ -373,13 +374,13 @@ namespace Opc.Ua.History.Tests
                     existingTime,
                     existingTime)
             ];
-            IList<StatusCode> seedStatuses = await client.InsertAsync(
+            ArrayOf<StatusCode> seedStatuses = await client.InsertAsync(
                 m_doubleNodeId,
                 existing).ConfigureAwait(false);
             Assert.That(seedStatuses, Has.Count.EqualTo(1));
             Assert.That(StatusCode.IsGood(seedStatuses[0]), Is.True);
 
-            IList<StatusCode> statuses = await client.InsertAsync(
+            ArrayOf<StatusCode> statuses = await client.InsertAsync(
                 m_doubleNodeId,
                 [
                     new DataValue(new Variant(1.0), StatusCodes.Good, firstTime, firstTime),
@@ -388,9 +389,9 @@ namespace Opc.Ua.History.Tests
                 ]).ConfigureAwait(false);
 
             Assert.That(statuses, Has.Count.EqualTo(3));
-            Assert.That(statuses[0], Is.EqualTo(StatusCodes.BadHistoryOperationUnsupported));
+            Assert.That(statuses[0], Is.EqualTo(StatusCodes.BadTransactionFailed));
             Assert.That(statuses[1], Is.EqualTo(StatusCodes.BadEntryExists));
-            Assert.That(statuses[2], Is.EqualTo(StatusCodes.BadHistoryOperationUnsupported));
+            Assert.That(statuses[2], Is.EqualTo(StatusCodes.BadTransactionFailed));
 
             var remaining = new List<DataValue>();
             await foreach (DataValue dataValue in client.ReadRawAsync(
@@ -410,13 +411,19 @@ namespace Opc.Ua.History.Tests
         }
 
         [Test]
+        public Task ReferenceHistorianSampleRunsEndToEndAsync()
+        {
+            return HistorianClientSample.RunAsync(Session);
+        }
+
+        [Test]
         public async Task ReadModifiedReturnsValueAndModificationInfoAsync()
         {
             var client = new HistoryClient(Session);
             DateTime sourceTime = DateTime.UtcNow.AddYears(-10).AddSeconds(1201);
             DateTime beforeReplace = DateTime.UtcNow;
 
-            IList<StatusCode> insertStatuses = await client.InsertAsync(
+            ArrayOf<StatusCode> insertStatuses = await client.InsertAsync(
                 m_doubleNodeId,
                 [
                     new DataValue(
@@ -427,7 +434,7 @@ namespace Opc.Ua.History.Tests
                 ]).ConfigureAwait(false);
             Assert.That(StatusCode.IsGood(insertStatuses[0]), Is.True);
 
-            IList<StatusCode> replaceStatuses = await client.ReplaceAsync(
+            ArrayOf<StatusCode> replaceStatuses = await client.ReplaceAsync(
                 m_doubleNodeId,
                 [
                     new DataValue(
@@ -438,8 +445,8 @@ namespace Opc.Ua.History.Tests
                 ]).ConfigureAwait(false);
             Assert.That(StatusCode.IsGood(replaceStatuses[0]), Is.True);
 
-            var modified = new List<ModifiedDataValue>();
-            await foreach (ModifiedDataValue modifiedValue in client.ReadModifiedAsync(
+            var modified = new List<ModifiedHistoryValue>();
+            await foreach (ModifiedHistoryValue modifiedValue in client.ReadModifiedAsync(
                 m_doubleNodeId,
                 sourceTime.AddMilliseconds(-1),
                 sourceTime.AddMilliseconds(1)).ConfigureAwait(false))
@@ -482,8 +489,8 @@ namespace Opc.Ua.History.Tests
             // it returns BadHistoryOperationUnsupported.
             try
             {
-                var values = new List<ModifiedDataValue>();
-                await foreach (ModifiedDataValue value in client.ReadModifiedAsync(
+                var values = new List<ModifiedHistoryValue>();
+                await foreach (ModifiedHistoryValue value in client.ReadModifiedAsync(
                     m_doubleNodeId, now.AddMinutes(-1), now))
                 {
                     values.Add(value);
@@ -630,7 +637,7 @@ namespace Opc.Ua.History.Tests
                     serverTimestamp: timestamps[i]);
             }
 
-            IList<StatusCode> insertStatuses = await client.InsertAsync(
+            ArrayOf<StatusCode> insertStatuses = await client.InsertAsync(
                 m_doubleNodeId, insertValues).ConfigureAwait(false);
             Assert.That(insertStatuses, Has.Count.EqualTo(3));
 
@@ -671,7 +678,7 @@ namespace Opc.Ua.History.Tests
 
             await client.InsertAsync(m_doubleNodeId, insertValues).ConfigureAwait(false);
 
-            IList<StatusCode> deleteStatuses = await client.DeleteAtTimeAsync(
+            ArrayOf<StatusCode> deleteStatuses = await client.DeleteAtTimeAsync(
                 m_doubleNodeId, [ts0, ts2]).ConfigureAwait(false);
             Assert.That(deleteStatuses, Has.Count.EqualTo(2));
 
@@ -724,7 +731,7 @@ namespace Opc.Ua.History.Tests
 
             // First read: break after first value to exercise the
             // finally-block continuation-point release path.
-            await foreach (DataValue dv in client.ReadRawAsync(
+            await foreach (DataValue _ in client.ReadRawAsync(
                 m_doubleNodeId, now.AddDays(-1), now, maxValuesPerNode: 10))
             {
                 break;

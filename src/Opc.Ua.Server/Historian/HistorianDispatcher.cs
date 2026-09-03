@@ -30,6 +30,8 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
+using System.IO;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -102,7 +104,7 @@ namespace Opc.Ua.Server.Historian
         /// errors slot.
         /// </summary>
         /// <exception cref="ArgumentNullException"><paramref name="systemContext"/> is <c>null</c>.</exception>
-        public static ValueTask<ServiceResult> DispatchRawReadAsync(
+        public static async ValueTask<ServiceResult> DispatchRawReadAsync(
             ServerSystemContext systemContext,
             IHistorianProvider provider,
             NodeState node,
@@ -136,11 +138,24 @@ namespace Opc.Ua.Server.Historian
             {
                 throw new ArgumentNullException(nameof(result));
             }
+            HistorianNodeCapabilities capabilities = await provider
+                .GetCapabilitiesAsync(node.NodeId, cancellationToken)
+                .ConfigureAwait(false);
+            if (details.IsReadModified
+                ? !capabilities.ReadModifiedData
+                : !capabilities.ReadRawData)
+            {
+                return StatusCodes.BadHistoryOperationUnsupported;
+            }
 
-            HistorianContinuationState? state = TryRestoreContinuation(
-                systemContext, nodeToRead, expectedKind: details.IsReadModified
+            HistorianContinuationState? state = await TryRestoreContinuationAsync(
+                systemContext,
+                provider,
+                nodeToRead,
+                details.IsReadModified
                     ? HistorianReadKind.Modified
-                    : HistorianReadKind.Raw);
+                    : HistorianReadKind.Raw,
+                cancellationToken).ConfigureAwait(false);
 
             // A non-empty ContinuationPoint that does not resolve to a saved history
             // continuation (unknown, released, foreign, or a Browse CP) is invalid
@@ -149,7 +164,7 @@ namespace Opc.Ua.Server.Historian
             {
                 result.StatusCode = StatusCodes.BadContinuationPointInvalid;
                 result.ContinuationPoint = ByteString.Empty;
-                return new ValueTask<ServiceResult>(ServiceResult.Good);
+                return ServiceResult.Good;
             }
 
             // Part 11 6.5.3.3: Bounding Values are not defined for modified reads.
@@ -157,7 +172,17 @@ namespace Opc.Ua.Server.Historian
             {
                 result.StatusCode = StatusCodes.BadInvalidArgument;
                 result.ContinuationPoint = ByteString.Empty;
-                return new ValueTask<ServiceResult>(ServiceResult.Good);
+                return ServiceResult.Good;
+            }
+            if (!await SupportsRequestedTimestampsAsync(
+                provider,
+                node.NodeId,
+                timestampsToReturn,
+                cancellationToken).ConfigureAwait(false))
+            {
+                result.StatusCode = StatusCodes.BadTimestampNotSupported;
+                result.ContinuationPoint = ByteString.Empty;
+                return ServiceResult.Good;
             }
 
             HistorianOperationContext opContext = new(
@@ -166,13 +191,17 @@ namespace Opc.Ua.Server.Historian
                 node,
                 HistoryUpdateType.Insert);
 
-            return details.IsReadModified
-                ? ReadModifiedPageAsync(
+            if (details.IsReadModified)
+            {
+                return await ReadModifiedPageAsync(
                     systemContext, provider, node, nodeToRead, details,
                     timestampsToReturn, result, state, opContext, cancellationToken)
-                : ReadRawPageAsync(
-                    systemContext, provider, node, nodeToRead, details,
-                    timestampsToReturn, result, state, opContext, cancellationToken);
+                    .ConfigureAwait(false);
+            }
+            return await ReadRawPageAsync(
+                systemContext, provider, node, nodeToRead, details,
+                timestampsToReturn, result, state, opContext, cancellationToken)
+                .ConfigureAwait(false);
         }
 
         /// <summary>
@@ -211,6 +240,40 @@ namespace Opc.Ua.Server.Historian
 
             if (provider is not IHistorianDataProvider data)
             {
+                HistorianUpdateOutcome<DataValue> failure =
+                    CreateFailureOutcome<DataValue>(
+                        StatusCodes.BadHistoryOperationUnsupported,
+                        details.UpdateValues.Count);
+                result.OperationResults = failure.OperationResults;
+                ReportAuditUpdateData(
+                    systemContext,
+                    details,
+                    failure,
+                    StatusCodes.BadHistoryOperationUnsupported);
+                return StatusCodes.BadHistoryOperationUnsupported;
+            }
+            HistorianNodeCapabilities capabilities = await provider
+                .GetCapabilitiesAsync(node.NodeId, cancellationToken)
+                .ConfigureAwait(false);
+            bool supported = details.PerformInsertReplace switch
+            {
+                PerformUpdateType.Insert => capabilities.InsertData,
+                PerformUpdateType.Replace => capabilities.ReplaceData,
+                PerformUpdateType.Update => capabilities.UpdateData,
+                _ => true
+            };
+            if (!supported)
+            {
+                HistorianUpdateOutcome<DataValue> failure =
+                    CreateFailureOutcome<DataValue>(
+                        StatusCodes.BadHistoryOperationUnsupported,
+                        details.UpdateValues.Count);
+                result.OperationResults = failure.OperationResults;
+                ReportAuditUpdateData(
+                    systemContext,
+                    details,
+                    failure,
+                    StatusCodes.BadHistoryOperationUnsupported);
                 return StatusCodes.BadHistoryOperationUnsupported;
             }
 
@@ -222,51 +285,61 @@ namespace Opc.Ua.Server.Historian
                 updateType);
 
             ArrayOf<DataValue> values = details.UpdateValues;
-            List<DataValue> updateValues = ToList(values);
-            IList<StatusCode> statuses = provider is IHistorianTransactionalProvider transactional
+            HistorianUpdateOutcome<DataValue> outcome =
+                provider is IHistorianTransactionalProvider transactional
                 ? details.PerformInsertReplace switch
                 {
                     PerformUpdateType.Insert => await transactional.InsertAtomicAsync(
                         opContext,
                         node.NodeId,
-                        updateValues,
+                        values,
                         cancellationToken).ConfigureAwait(false),
                     PerformUpdateType.Replace => await transactional.ReplaceAtomicAsync(
                         opContext,
                         node.NodeId,
-                        updateValues,
+                        values,
                         cancellationToken).ConfigureAwait(false),
                     PerformUpdateType.Update => await transactional.UpdateAtomicAsync(
                         opContext,
                         node.NodeId,
-                        updateValues,
+                        values,
                         cancellationToken).ConfigureAwait(false),
-                    _ => RepeatStatus(StatusCodes.BadInvalidArgument, values.Count)
+                    _ => new HistorianUpdateOutcome<DataValue>(
+                        RepeatStatus(StatusCodes.BadInvalidArgument, values.Count).ToArrayOf())
                 }
                 : details.PerformInsertReplace switch
                 {
                     PerformUpdateType.Insert => await data.InsertAsync(
                         opContext,
                         node.NodeId,
-                        updateValues,
+                        values,
                         cancellationToken).ConfigureAwait(false),
                     PerformUpdateType.Replace => await data.ReplaceAsync(
                         opContext,
                         node.NodeId,
-                        updateValues,
+                        values,
                         cancellationToken).ConfigureAwait(false),
                     PerformUpdateType.Update => await data.UpdateAsync(
                         opContext,
                         node.NodeId,
-                        updateValues,
+                        values,
                         cancellationToken).ConfigureAwait(false),
-                    _ => RepeatStatus(StatusCodes.BadInvalidArgument, values.Count)
+                    _ => new HistorianUpdateOutcome<DataValue>(
+                        RepeatStatus(StatusCodes.BadInvalidArgument, values.Count).ToArrayOf())
                 };
+            if (outcome.OperationResults.Count != values.Count)
+            {
+                outcome = CreateFailureOutcome<DataValue>(
+                    StatusCodes.BadUnexpectedError,
+                    values.Count);
+            }
 
-            result.OperationResults = ToStatusArray(statuses);
+            result.OperationResults = outcome.OperationResults;
+            result.DiagnosticInfos = outcome.DiagnosticInfos;
 
-            ReportAuditUpdateData(systemContext, details, statuses);
-            return ServiceResult.Good;
+            ServiceResult operationResult = GetOperationResult(outcome);
+            ReportAuditUpdateData(systemContext, details, outcome, operationResult.StatusCode);
+            return operationResult;
         }
 
         /// <summary>
@@ -304,6 +377,33 @@ namespace Opc.Ua.Server.Historian
 
             if (provider is not IHistorianDataProvider data)
             {
+                HistorianUpdateOutcome<DataValue> failure =
+                    CreateFailureOutcome<DataValue>(
+                        StatusCodes.BadHistoryOperationUnsupported,
+                        1);
+                result.StatusCode = StatusCodes.BadHistoryOperationUnsupported;
+                ReportAuditDeleteRaw(
+                    systemContext,
+                    details,
+                    failure,
+                    StatusCodes.BadHistoryOperationUnsupported);
+                return StatusCodes.BadHistoryOperationUnsupported;
+            }
+            HistorianNodeCapabilities capabilities = await provider
+                .GetCapabilitiesAsync(node.NodeId, cancellationToken)
+                .ConfigureAwait(false);
+            if (!capabilities.DeleteRaw)
+            {
+                HistorianUpdateOutcome<DataValue> failure =
+                    CreateFailureOutcome<DataValue>(
+                        StatusCodes.BadHistoryOperationUnsupported,
+                        1);
+                result.StatusCode = StatusCodes.BadHistoryOperationUnsupported;
+                ReportAuditDeleteRaw(
+                    systemContext,
+                    details,
+                    failure,
+                    StatusCodes.BadHistoryOperationUnsupported);
                 return StatusCodes.BadHistoryOperationUnsupported;
             }
 
@@ -313,17 +413,27 @@ namespace Opc.Ua.Server.Historian
                 node,
                 HistoryUpdateType.Delete);
 
-            StatusCode status = await data.DeleteRawAsync(
+            HistorianUpdateOutcome<DataValue> outcome = await data.DeleteRawAsync(
                 opContext,
                 node.NodeId,
                 details.StartTime,
                 details.EndTime,
                 details.IsDeleteModified,
                 cancellationToken).ConfigureAwait(false);
+            if (outcome.OperationResults.Count != 1)
+            {
+                outcome = CreateFailureOutcome<DataValue>(
+                    StatusCodes.BadUnexpectedError,
+                    1);
+            }
 
+            StatusCode status = outcome.OperationResults.Count > 0
+                ? outcome.OperationResults[0]
+                : StatusCodes.BadUnexpectedError;
             result.StatusCode = status;
-            ReportAuditDeleteRaw(systemContext, details, status);
-            return ServiceResult.Good;
+            result.DiagnosticInfos = outcome.DiagnosticInfos;
+            ReportAuditDeleteRaw(systemContext, details, outcome, status);
+            return StatusCode.IsBad(status) ? status : ServiceResult.Good;
         }
 
         /// <summary>
@@ -361,6 +471,33 @@ namespace Opc.Ua.Server.Historian
 
             if (provider is not IHistorianDataProvider data)
             {
+                HistorianUpdateOutcome<DataValue> failure =
+                    CreateFailureOutcome<DataValue>(
+                        StatusCodes.BadHistoryOperationUnsupported,
+                        details.ReqTimes.Count);
+                result.OperationResults = failure.OperationResults;
+                ReportAuditDeleteAtTime(
+                    systemContext,
+                    details,
+                    failure,
+                    StatusCodes.BadHistoryOperationUnsupported);
+                return StatusCodes.BadHistoryOperationUnsupported;
+            }
+            HistorianNodeCapabilities capabilities = await provider
+                .GetCapabilitiesAsync(node.NodeId, cancellationToken)
+                .ConfigureAwait(false);
+            if (!capabilities.DeleteAtTime)
+            {
+                HistorianUpdateOutcome<DataValue> failure =
+                    CreateFailureOutcome<DataValue>(
+                        StatusCodes.BadHistoryOperationUnsupported,
+                        details.ReqTimes.Count);
+                result.OperationResults = failure.OperationResults;
+                ReportAuditDeleteAtTime(
+                    systemContext,
+                    details,
+                    failure,
+                    StatusCodes.BadHistoryOperationUnsupported);
                 return StatusCodes.BadHistoryOperationUnsupported;
             }
 
@@ -371,18 +508,21 @@ namespace Opc.Ua.Server.Historian
                 HistoryUpdateType.Delete);
 
             ArrayOf<DateTimeUtc> times = details.ReqTimes;
-            var typed = new List<DateTimeUtc>(times.Count);
-            for (int i = 0; i < times.Count; i++)
+
+            HistorianUpdateOutcome<DataValue> outcome = await data.DeleteAtTimeAsync(
+                opContext, node.NodeId, times, cancellationToken).ConfigureAwait(false);
+            if (outcome.OperationResults.Count != times.Count)
             {
-                typed.Add(times[i]);
+                outcome = CreateFailureOutcome<DataValue>(
+                    StatusCodes.BadUnexpectedError,
+                    times.Count);
             }
 
-            IList<StatusCode> statuses = await data.DeleteAtTimeAsync(
-                opContext, node.NodeId, typed, cancellationToken).ConfigureAwait(false);
-
-            result.OperationResults = ToStatusArray(statuses);
-            ReportAuditDeleteAtTime(systemContext, details, statuses);
-            return ServiceResult.Good;
+            result.OperationResults = outcome.OperationResults;
+            result.DiagnosticInfos = outcome.DiagnosticInfos;
+            ServiceResult operationResult = GetOperationResult(outcome);
+            ReportAuditDeleteAtTime(systemContext, details, outcome, operationResult.StatusCode);
+            return operationResult;
         }
 
         /// <summary>
@@ -428,25 +568,79 @@ namespace Opc.Ua.Server.Historian
             {
                 throw new ArgumentNullException(nameof(result));
             }
+            if (aggregateId == ObjectIds.AggregateFunction_AnnotationCount)
+            {
+                if (provider is not IHistorianProcessedProvider and
+                    not IHistorianAnnotationProvider)
+                {
+                    return StatusCodes.BadAggregateNotSupported;
+                }
+            }
+            else if (provider is not IHistorianProcessedProvider and
+                not IHistorianDataProvider)
+            {
+                return StatusCodes.BadHistoryOperationUnsupported;
+            }
+            HistorianNodeCapabilities capabilities = await provider
+                .GetCapabilitiesAsync(node.NodeId, cancellationToken)
+                .ConfigureAwait(false);
+            if (!capabilities.ReadProcessedData)
+            {
+                return StatusCodes.BadHistoryOperationUnsupported;
+            }
+
+            HistorianContinuationState? cont = await TryRestoreContinuationAsync(
+                systemContext,
+                provider,
+                nodeToRead,
+                HistorianReadKind.Processed,
+                cancellationToken).ConfigureAwait(false);
+            if (cont == null && !nodeToRead.ContinuationPoint.IsEmpty)
+            {
+                result.StatusCode = StatusCodes.BadContinuationPointInvalid;
+                result.ContinuationPoint = ByteString.Empty;
+                return ServiceResult.Good;
+            }
+            if (!await SupportsRequestedTimestampsAsync(
+                provider,
+                node.NodeId,
+                timestampsToReturn,
+                cancellationToken).ConfigureAwait(false))
+            {
+                result.StatusCode = StatusCodes.BadTimestampNotSupported;
+                result.ContinuationPoint = ByteString.Empty;
+                return ServiceResult.Good;
+            }
+
+            // Resume from buffered output if a continuation already exists.
+            if (cont?.BufferedProcessedOutputs is { })
+            {
+                await EmitProcessedPageAsync(
+                    cont,
+                    result,
+                    nodeToRead,
+                    timestampsToReturn,
+                    systemContext,
+                    cancellationToken).ConfigureAwait(false);
+                return ServiceResult.Good;
+            }
 
             // Part 11 v1.05.07 §6.5.4.2: the request domain is defined by StartTime, EndTime and
             // ProcessingInterval, all of which shall be specified. If StartTime equals EndTime there
             // is no meaningful way to interpret the (zero-width) time domain, so the Server shall
             // return Bad_InvalidArgument.
-            if (details.StartTime == details.EndTime)
+            if (cont == null && details.StartTime == details.EndTime)
             {
                 result.StatusCode = StatusCodes.BadInvalidArgument;
                 return StatusCodes.BadInvalidArgument;
             }
-
-            HistorianContinuationState? cont = TryRestoreContinuation(
-                systemContext, nodeToRead, HistorianReadKind.Processed);
-
-            // Resume from buffered output if a continuation already exists.
-            if (cont?.BufferedProcessedOutputs is { })
+            if (cont == null &&
+                (double.IsNaN(details.ProcessingInterval) ||
+                    double.IsInfinity(details.ProcessingInterval) ||
+                    details.ProcessingInterval < 0))
             {
-                EmitProcessedPage(cont, result, nodeToRead, timestampsToReturn, systemContext);
-                return ServiceResult.Good;
+                result.StatusCode = StatusCodes.BadInvalidArgument;
+                return StatusCodes.BadInvalidArgument;
             }
 
             HistorianOperationContext opContext = new(
@@ -455,7 +649,8 @@ namespace Opc.Ua.Server.Historian
                 node,
                 HistoryUpdateType.Insert);
 
-            AggregateConfiguration config = details.AggregateConfiguration;
+            AggregateConfiguration config = cont?.ProcessedRequest?.Configuration
+                ?? details.AggregateConfiguration;
             // A default-initialized AggregateConfiguration (all-zero, UseServerCapabilitiesDefaults
             // unset) is the implicit "no override" case from a request that didn't set the field
             // explicitly. Treat it as use-server-defaults rather than as an explicit configuration.
@@ -494,25 +689,57 @@ namespace Opc.Ua.Server.Historian
                 }
             }
 
-            var processedRequest = new HistorianProcessedReadRequest
-            {
-                NodeId = node.NodeId,
-                AggregateId = aggregateId,
-                StartTime = details.StartTime,
-                EndTime = details.EndTime,
-                ProcessingInterval = details.ProcessingInterval,
-                Configuration = config
-            };
+            HistorianNodeCapabilities processedCapabilities = await provider
+                .GetCapabilitiesAsync(node.NodeId, cancellationToken)
+                .ConfigureAwait(false);
+            HistorianProcessedReadRequest processedRequest =
+                cont?.ProcessedRequest ??
+                new HistorianProcessedReadRequest
+                {
+                    NodeId = node.NodeId,
+                    AggregateId = aggregateId,
+                    StartTime = details.StartTime,
+                    EndTime = details.EndTime,
+                    ProcessingInterval = details.ProcessingInterval,
+                    MaxValues = processedCapabilities.MaxReturnDataValues,
+                    Configuration = config
+                };
 
             // Native push-down path
             if (provider is IHistorianProcessedProvider native)
             {
-                HistorianResumeToken token = TryDecodeContinuation(nodeToRead);
+                HistorianResumeToken token = cont?.ResumeToken ?? default;
                 HistorianPage<DataValue> page = await native.ReadProcessedAsync(
                     opContext, processedRequest, token, cancellationToken).ConfigureAwait(false);
 
-                FillHistoryData(result, page.Values, nodeToRead, timestampsToReturn);
-                ApplyContinuation(systemContext, node.NodeId, result, page);
+                FillHistoryData(
+                    systemContext,
+                    result,
+                    page.Values,
+                    nodeToRead,
+                    timestampsToReturn);
+                await SaveOrReleaseContinuationAsync(
+                    systemContext,
+                    nodeToRead,
+                    result,
+                    cont,
+                    page.NextToken,
+                    provider,
+                    node,
+                    processedRequest: processedRequest,
+                    kind: HistorianReadKind.Processed,
+                    timestampsToReturn: timestampsToReturn,
+                    indexRange: nodeToRead.ParsedIndexRange,
+                    dataEncoding: nodeToRead.DataEncoding,
+                    cancellationToken: cancellationToken).ConfigureAwait(false);
+                return ServiceResult.Good;
+            }
+
+            if (cont != null)
+            {
+                cont.Dispose();
+                result.StatusCode = StatusCodes.BadContinuationPointInvalid;
+                result.ContinuationPoint = ByteString.Empty;
                 return ServiceResult.Good;
             }
 
@@ -578,13 +805,14 @@ namespace Opc.Ua.Server.Historian
 
                 foreach (HistoricalDataValue sample in page.Values)
                 {
-                    if (!calculator.QueueRawValue(sample.Value))
+                    if (!calculator.QueueRawValue(sample.Value) &&
+                        !FlushCalculator(
+                            calculator,
+                            values,
+                            partial: false,
+                            kMaxProcessedBufferedOutputs))
                     {
-                        FlushCalculator(calculator, values, partial: false);
-                        if (values.Count > kMaxProcessedBufferedOutputs)
-                        {
-                            return StatusCodes.BadTooManyOperations;
-                        }
+                        return StatusCodes.BadTooManyOperations;
                     }
                 }
 
@@ -595,8 +823,11 @@ namespace Opc.Ua.Server.Historian
                 token2 = page.NextToken;
             }
 
-            FlushCalculator(calculator, values, partial: true);
-            if (values.Count > kMaxProcessedBufferedOutputs)
+            if (!FlushCalculator(
+                calculator,
+                values,
+                partial: true,
+                kMaxProcessedBufferedOutputs))
             {
                 return StatusCodes.BadTooManyOperations;
             }
@@ -616,20 +847,32 @@ namespace Opc.Ua.Server.Historian
                 BufferedProcessedOutputs = values,
                 BufferedProcessedOffset = 0
             };
-            EmitProcessedPage(state, result, nodeToRead, timestampsToReturn, systemContext);
+            await EmitProcessedPageAsync(
+                state,
+                result,
+                nodeToRead,
+                timestampsToReturn,
+                systemContext,
+                cancellationToken).ConfigureAwait(false);
             return ServiceResult.Good;
         }
 
-        private static void EmitProcessedPage(
+        private static async ValueTask EmitProcessedPageAsync(
             HistorianContinuationState state,
             HistoryReadResult result,
             HistoryReadValueId nodeToRead,
             TimestampsToReturn timestampsToReturn,
-            ServerSystemContext systemContext)
+            ServerSystemContext systemContext,
+            CancellationToken cancellationToken)
         {
             List<DataValue> buffered = state.BufferedProcessedOutputs!;
             int remaining = buffered.Count - state.BufferedProcessedOffset;
-            int pageSize = Math.Min(remaining, kProcessedPageSize);
+            int configuredPageSize = state.ProcessedRequest?.MaxValues > 0
+                ? (int)Math.Min(
+                    state.ProcessedRequest.MaxValues,
+                    kProcessedPageSize)
+                : kProcessedPageSize;
+            int pageSize = Math.Min(remaining, configuredPageSize);
 
             var page = new List<DataValue>(pageSize);
             for (int i = 0; i < pageSize; i++)
@@ -637,7 +880,12 @@ namespace Opc.Ua.Server.Historian
                 page.Add(buffered[state.BufferedProcessedOffset + i]);
             }
             state.BufferedProcessedOffset += pageSize;
-            FillHistoryData(result, page, nodeToRead, timestampsToReturn);
+            FillHistoryData(
+                systemContext,
+                result,
+                page,
+                nodeToRead,
+                timestampsToReturn);
 
             if (state.BufferedProcessedOffset >= buffered.Count)
             {
@@ -648,7 +896,23 @@ namespace Opc.Ua.Server.Historian
             }
 
             state.Id = Guid.NewGuid();
-            systemContext.OperationContext?.Session?.ContinuationPoints.SaveHistory(state);
+            ISessionContinuationPoints? continuationPoints =
+                systemContext.OperationContext?.Session?.ContinuationPoints;
+            if (continuationPoints == null)
+            {
+                state.Dispose();
+                result.StatusCode = StatusCodes.BadNoContinuationPoints;
+                result.ContinuationPoint = ByteString.Empty;
+                return;
+            }
+            if (!await TrySaveHistoryContinuationAsync(
+                    continuationPoints,
+                    state,
+                    result,
+                    cancellationToken).ConfigureAwait(false))
+            {
+                return;
+            }
             // Per OPC UA Part 11 6.5.3.2 a HistoryRead that returns a ContinuationPoint
             // (more data available) uses StatusCode Good, not Good_MoreData; the non-empty
             // ContinuationPoint alone signals to the client that more data can be fetched.
@@ -740,7 +1004,13 @@ namespace Opc.Ua.Server.Historian
                 BufferedProcessedOutputs = outputs,
                 BufferedProcessedOffset = 0
             };
-            EmitProcessedPage(state, result, nodeToRead, timestampsToReturn, systemContext);
+            await EmitProcessedPageAsync(
+                state,
+                result,
+                nodeToRead,
+                timestampsToReturn,
+                systemContext,
+                cancellationToken).ConfigureAwait(false);
             return ServiceResult.Good;
         }
 
@@ -891,6 +1161,34 @@ namespace Opc.Ua.Server.Historian
             {
                 throw new ArgumentNullException(nameof(result));
             }
+            if (provider is not IHistorianAtTimeProvider and
+                not IHistorianDataProvider)
+            {
+                return StatusCodes.BadHistoryOperationUnsupported;
+            }
+            HistorianNodeCapabilities capabilities = await provider
+                .GetCapabilitiesAsync(node.NodeId, cancellationToken)
+                .ConfigureAwait(false);
+            if (!capabilities.ReadAtTime)
+            {
+                return StatusCodes.BadHistoryOperationUnsupported;
+            }
+            if (!nodeToRead.ContinuationPoint.IsEmpty)
+            {
+                result.StatusCode = StatusCodes.BadContinuationPointInvalid;
+                result.ContinuationPoint = ByteString.Empty;
+                return ServiceResult.Good;
+            }
+            if (!await SupportsRequestedTimestampsAsync(
+                provider,
+                node.NodeId,
+                timestampsToReturn,
+                cancellationToken).ConfigureAwait(false))
+            {
+                result.StatusCode = StatusCodes.BadTimestampNotSupported;
+                result.ContinuationPoint = ByteString.Empty;
+                return ServiceResult.Good;
+            }
 
             HistorianOperationContext opContext = new(
                 systemContext,
@@ -899,11 +1197,6 @@ namespace Opc.Ua.Server.Historian
                 HistoryUpdateType.Insert);
 
             ArrayOf<DateTimeUtc> reqTimes = details.ReqTimes;
-            var typedTimes = new List<DateTimeUtc>(reqTimes.Count);
-            for (int i = 0; i < reqTimes.Count; i++)
-            {
-                typedTimes.Add(reqTimes[i]);
-            }
 
             // Provider push-down
             if (provider is IHistorianAtTimeProvider atTime)
@@ -911,13 +1204,24 @@ namespace Opc.Ua.Server.Historian
                 var atTimeRequest = new HistorianAtTimeReadRequest
                 {
                     NodeId = node.NodeId,
-                    RequestedTimes = typedTimes,
+                    RequestedTimes = reqTimes,
                     UseSimpleBounds = details.UseSimpleBounds
                 };
-                IList<DataValue> values = await atTime.ReadAtTimeAsync(
+                ArrayOf<DataValue> values = await atTime.ReadAtTimeAsync(
                     opContext, atTimeRequest, cancellationToken).ConfigureAwait(false);
+                if (values.IsNull || values.Count != reqTimes.Count)
+                {
+                    result.StatusCode = StatusCodes.BadUnexpectedError;
+                    result.ContinuationPoint = ByteString.Empty;
+                    return StatusCodes.BadUnexpectedError;
+                }
 
-                FillHistoryData(result, ToReadOnlyList(values), nodeToRead, timestampsToReturn);
+                FillHistoryData(
+                    systemContext,
+                    result,
+                    values,
+                    nodeToRead,
+                    timestampsToReturn);
                 result.StatusCode = StatusCodes.Good;
                 return ServiceResult.Good;
             }
@@ -928,16 +1232,26 @@ namespace Opc.Ua.Server.Historian
                 return StatusCodes.BadHistoryOperationUnsupported;
             }
 
-            List<DataValue> samples = await CollectAllRawAsync(opContext, raw, node.NodeId, typedTimes, cancellationToken)
+            List<DataValue> samples = await CollectAllRawAsync(
+                opContext,
+                raw,
+                node.NodeId,
+                reqTimes,
+                cancellationToken)
                 .ConfigureAwait(false);
 
-            var produced = new List<DataValue>(typedTimes.Count);
-            foreach (DateTimeUtc requestedTime in typedTimes)
+            var produced = new List<DataValue>(reqTimes.Count);
+            foreach (DateTimeUtc requestedTime in reqTimes)
             {
                 produced.Add(InterpolateAtTime(samples, requestedTime, details.UseSimpleBounds));
             }
 
-            FillHistoryData(result, produced, nodeToRead, timestampsToReturn);
+            FillHistoryData(
+                systemContext,
+                result,
+                produced,
+                nodeToRead,
+                timestampsToReturn);
             result.StatusCode = StatusCodes.Good;
             return ServiceResult.Good;
         }
@@ -989,8 +1303,28 @@ namespace Opc.Ua.Server.Historian
                 return StatusCodes.BadHistoryOperationUnsupported;
             }
 
-            HistorianContinuationState? state = TryRestoreContinuation(
-                systemContext, nodeToRead, HistorianReadKind.Annotations);
+            HistorianContinuationState? state = await TryRestoreContinuationAsync(
+                systemContext,
+                provider,
+                nodeToRead,
+                HistorianReadKind.Annotations,
+                cancellationToken).ConfigureAwait(false);
+            if (state == null && !nodeToRead.ContinuationPoint.IsEmpty)
+            {
+                result.StatusCode = StatusCodes.BadContinuationPointInvalid;
+                result.ContinuationPoint = ByteString.Empty;
+                return ServiceResult.Good;
+            }
+            if (!await SupportsRequestedTimestampsAsync(
+                provider,
+                parentVariable.NodeId,
+                timestampsToReturn,
+                cancellationToken).ConfigureAwait(false))
+            {
+                result.StatusCode = StatusCodes.BadTimestampNotSupported;
+                result.ContinuationPoint = ByteString.Empty;
+                return ServiceResult.Good;
+            }
 
             HistorianAnnotationReadRequest request;
             HistorianResumeToken resumeToken;
@@ -1001,19 +1335,21 @@ namespace Opc.Ua.Server.Historian
             }
             else
             {
-                bool isForward = details.StartTime <= details.EndTime;
-                DateTimeUtc start = isForward ? details.StartTime : details.EndTime;
-                DateTimeUtc end = isForward ? details.EndTime : details.StartTime;
-                if (end == DateTimeUtc.MinValue)
-                {
-                    end = DateTimeUtc.MaxValue;
-                }
+                HistorianNodeCapabilities capabilities = await provider
+                    .GetCapabilitiesAsync(parentVariable.NodeId, cancellationToken)
+                    .ConfigureAwait(false);
+                (DateTimeUtc start, DateTimeUtc end, bool isForward) =
+                    NormalizeTimeRange(
+                        details.StartTime,
+                        details.EndTime);
                 request = new HistorianAnnotationReadRequest
                 {
                     NodeId = parentVariable.NodeId,
                     StartTime = start,
                     EndTime = end,
-                    MaxValues = details.NumValuesPerNode,
+                    MaxValues = ApplyHistorianLimit(
+                        details.NumValuesPerNode,
+                        capabilities.MaxReturnDataValues),
                     IsForward = isForward
                 };
                 resumeToken = default;
@@ -1037,12 +1373,18 @@ namespace Opc.Ua.Server.Historian
                     sourceTimestamp: a.AnnotationTime,
                     serverTimestamp: DateTimeUtc.MinValue));
             }
-            FillHistoryData(result, dataValues, nodeToRead, timestampsToReturn);
+            FillHistoryData(
+                systemContext,
+                result,
+                dataValues,
+                nodeToRead,
+                timestampsToReturn);
 
-            SaveOrReleaseAnnotationContinuation(
+            await SaveOrReleaseAnnotationContinuationAsync(
                 systemContext, nodeToRead, result, state, page.NextToken,
                 provider, parentVariable, request, timestampsToReturn,
-                nodeToRead.ParsedIndexRange, nodeToRead.DataEncoding);
+                nodeToRead.ParsedIndexRange, nodeToRead.DataEncoding,
+                cancellationToken).ConfigureAwait(false);
 
             return ServiceResult.Good;
         }
@@ -1084,6 +1426,35 @@ namespace Opc.Ua.Server.Historian
 
             if (provider is not IHistorianAnnotationProvider annotations)
             {
+                HistorianUpdateOutcome<Annotation> failure =
+                    CreateFailureOutcome<Annotation>(
+                        StatusCodes.BadHistoryOperationUnsupported,
+                        details.UpdateValues.Count);
+                result.OperationResults = failure.OperationResults;
+                ReportAuditAnnotationUpdate(
+                    systemContext,
+                    details,
+                    parentVariable,
+                    failure,
+                    StatusCodes.BadHistoryOperationUnsupported);
+                return StatusCodes.BadHistoryOperationUnsupported;
+            }
+            HistorianNodeCapabilities capabilities = await provider
+                .GetCapabilitiesAsync(parentVariable.NodeId, cancellationToken)
+                .ConfigureAwait(false);
+            if (!capabilities.InsertAnnotation)
+            {
+                HistorianUpdateOutcome<Annotation> failure =
+                    CreateFailureOutcome<Annotation>(
+                        StatusCodes.BadHistoryOperationUnsupported,
+                        details.UpdateValues.Count);
+                result.OperationResults = failure.OperationResults;
+                ReportAuditAnnotationUpdate(
+                    systemContext,
+                    details,
+                    parentVariable,
+                    failure,
+                    StatusCodes.BadHistoryOperationUnsupported);
                 return StatusCodes.BadHistoryOperationUnsupported;
             }
 
@@ -1112,7 +1483,7 @@ namespace Opc.Ua.Server.Historian
                 times.Add(annotation != null ? annotation.AnnotationTime : dv.SourceTimestamp);
             }
 
-            IList<StatusCode> statuses = details.PerformInsertReplace switch
+            HistorianUpdateOutcome<Annotation> outcome = details.PerformInsertReplace switch
             {
                 PerformUpdateType.Insert => await annotations.InsertAnnotationsAsync(
                     opContext, parentVariable.NodeId, annotationList, cancellationToken).ConfigureAwait(false),
@@ -1122,12 +1493,162 @@ namespace Opc.Ua.Server.Historian
                     opContext, parentVariable.NodeId, annotationList, cancellationToken).ConfigureAwait(false),
                 PerformUpdateType.Remove => await annotations.DeleteAnnotationsAsync(
                     opContext, parentVariable.NodeId, times, cancellationToken).ConfigureAwait(false),
-                _ => RepeatStatus(StatusCodes.BadInvalidArgument, annotationList.Count)
+                _ => new HistorianUpdateOutcome<Annotation>(
+                    RepeatStatus(
+                        StatusCodes.BadInvalidArgument,
+                        annotationList.Count).ToArrayOf())
             };
+            if (outcome.OperationResults.Count != annotationList.Count)
+            {
+                outcome = CreateFailureOutcome<Annotation>(
+                    StatusCodes.BadUnexpectedError,
+                    annotationList.Count);
+            }
 
-            result.OperationResults = ToStatusArray(statuses);
-            ReportAuditAnnotationUpdate(systemContext, details, parentVariable, statuses);
-            return ServiceResult.Good;
+            result.OperationResults = outcome.OperationResults;
+            result.DiagnosticInfos = outcome.DiagnosticInfos;
+            ServiceResult operationResult = GetOperationResult(outcome);
+            ReportAuditAnnotationUpdate(
+                systemContext,
+                details,
+                parentVariable,
+                outcome,
+                operationResult.StatusCode);
+            return operationResult;
+        }
+
+        /// <summary>
+        /// Dispatches a generic StructuredHistoryData update.
+        /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="systemContext"/> is <c>null</c>.</exception>
+        public static async ValueTask<ServiceResult>
+            DispatchStructuredDataUpdateAsync(
+                ServerSystemContext systemContext,
+                IHistorianProvider provider,
+                NodeState node,
+                UpdateStructureDataDetails details,
+                HistoryUpdateResult result,
+                CancellationToken cancellationToken)
+        {
+            if (systemContext == null)
+            {
+                throw new ArgumentNullException(nameof(systemContext));
+            }
+            if (provider == null)
+            {
+                throw new ArgumentNullException(nameof(provider));
+            }
+            if (node == null)
+            {
+                throw new ArgumentNullException(nameof(node));
+            }
+            if (details == null)
+            {
+                throw new ArgumentNullException(nameof(details));
+            }
+            if (result == null)
+            {
+                throw new ArgumentNullException(nameof(result));
+            }
+
+            if (provider is not IHistorianStructuredDataProvider structured)
+            {
+                HistorianUpdateOutcome<DataValue> failure =
+                    CreateFailureOutcome<DataValue>(
+                        StatusCodes.BadHistoryOperationUnsupported,
+                        details.UpdateValues.Count);
+                result.OperationResults = failure.OperationResults;
+                ReportAuditStructuredUpdate(
+                    systemContext,
+                    details,
+                    failure,
+                    StatusCodes.BadHistoryOperationUnsupported);
+                return StatusCodes.BadHistoryOperationUnsupported;
+            }
+            HistorianNodeCapabilities capabilities = await provider
+                .GetCapabilitiesAsync(node.NodeId, cancellationToken)
+                .ConfigureAwait(false);
+            bool supported = details.PerformInsertReplace switch
+            {
+                PerformUpdateType.Insert =>
+                    capabilities.InsertStructuredData,
+                PerformUpdateType.Replace =>
+                    capabilities.ReplaceStructuredData,
+                PerformUpdateType.Update =>
+                    capabilities.UpdateStructuredData,
+                PerformUpdateType.Remove =>
+                    capabilities.DeleteStructuredData,
+                _ => true
+            };
+            if (!supported)
+            {
+                HistorianUpdateOutcome<DataValue> failure =
+                    CreateFailureOutcome<DataValue>(
+                        StatusCodes.BadHistoryOperationUnsupported,
+                        details.UpdateValues.Count);
+                result.OperationResults = failure.OperationResults;
+                ReportAuditStructuredUpdate(
+                    systemContext,
+                    details,
+                    failure,
+                    StatusCodes.BadHistoryOperationUnsupported);
+                return StatusCodes.BadHistoryOperationUnsupported;
+            }
+
+            var operationContext = new HistorianOperationContext(
+                systemContext,
+                systemContext.OperationContext!,
+                node,
+                MapPerformUpdate(details.PerformInsertReplace));
+            ArrayOf<DataValue> values = details.UpdateValues;
+            HistorianUpdateOutcome<DataValue> outcome =
+                details.PerformInsertReplace switch
+                {
+                    PerformUpdateType.Insert =>
+                        await structured.InsertStructuredDataAsync(
+                            operationContext,
+                            node.NodeId,
+                            values,
+                            cancellationToken).ConfigureAwait(false),
+                    PerformUpdateType.Replace =>
+                        await structured.ReplaceStructuredDataAsync(
+                            operationContext,
+                            node.NodeId,
+                            values,
+                            cancellationToken).ConfigureAwait(false),
+                    PerformUpdateType.Update =>
+                        await structured.UpdateStructuredDataAsync(
+                            operationContext,
+                            node.NodeId,
+                            values,
+                            cancellationToken).ConfigureAwait(false),
+                    PerformUpdateType.Remove =>
+                        await structured.RemoveStructuredDataAsync(
+                            operationContext,
+                            node.NodeId,
+                            values,
+                            cancellationToken).ConfigureAwait(false),
+                    _ => new HistorianUpdateOutcome<DataValue>(
+                        RepeatStatus(
+                            StatusCodes.BadInvalidArgument,
+                            values.Count).ToArrayOf())
+                };
+            if (outcome.OperationResults.Count != values.Count)
+            {
+                outcome = CreateFailureOutcome<DataValue>(
+                    StatusCodes.BadUnexpectedError,
+                    values.Count);
+            }
+
+            result.OperationResults = outcome.OperationResults;
+            result.DiagnosticInfos = outcome.DiagnosticInfos;
+            ServiceResult operationResult = GetOperationResult(outcome);
+            ReportAuditStructuredUpdate(
+                systemContext,
+                details,
+                outcome,
+                operationResult.StatusCode);
+            return operationResult;
         }
 
         private static Annotation? DecodeAnnotation(DataValue dv)
@@ -1143,7 +1664,7 @@ namespace Opc.Ua.Server.Historian
 
         [SuppressMessage("Reliability", "CA2000:Dispose objects before losing scope",
             Justification = "HistorianContinuationState ownership is transferred to the session via ContinuationPoints.SaveHistory.")]
-        private static void SaveOrReleaseAnnotationContinuation(
+        private static async ValueTask SaveOrReleaseAnnotationContinuationAsync(
             ServerSystemContext systemContext,
             HistoryReadValueId nodeToRead,
             HistoryReadResult result,
@@ -1154,7 +1675,8 @@ namespace Opc.Ua.Server.Historian
             HistorianAnnotationReadRequest request,
             TimestampsToReturn timestampsToReturn,
             NumericRange indexRange,
-            QualifiedName dataEncoding)
+            QualifiedName dataEncoding,
+            CancellationToken cancellationToken)
         {
             if (nextToken.IsEmpty)
             {
@@ -1187,7 +1709,23 @@ namespace Opc.Ua.Server.Historian
             }
 
             state.Id = Guid.NewGuid();
-            systemContext.OperationContext?.Session?.ContinuationPoints.SaveHistory(state);
+            ISessionContinuationPoints? continuationPoints =
+                systemContext.OperationContext?.Session?.ContinuationPoints;
+            if (continuationPoints == null)
+            {
+                state.Dispose();
+                result.StatusCode = StatusCodes.BadNoContinuationPoints;
+                result.ContinuationPoint = ByteString.Empty;
+                return;
+            }
+            if (!await TrySaveHistoryContinuationAsync(
+                    continuationPoints,
+                    state,
+                    result,
+                    cancellationToken).ConfigureAwait(false))
+            {
+                return;
+            }
             // Per OPC UA Part 11 6.5.3.2 a HistoryRead that returns a ContinuationPoint
             // (more data available) uses StatusCode Good, not Good_MoreData; the non-empty
             // ContinuationPoint alone signals to the client that more data can be fetched.
@@ -1243,9 +1781,26 @@ namespace Opc.Ua.Server.Historian
             {
                 return StatusCodes.BadHistoryOperationUnsupported;
             }
+            HistorianNodeCapabilities eventCapabilities = await provider
+                .GetCapabilitiesAsync(node.NodeId, cancellationToken)
+                .ConfigureAwait(false);
+            if (!eventCapabilities.ReadEventHistory)
+            {
+                return StatusCodes.BadHistoryOperationUnsupported;
+            }
 
-            HistorianContinuationState? state = TryRestoreContinuation(
-                systemContext, nodeToRead, HistorianReadKind.Events);
+            HistorianContinuationState? state = await TryRestoreContinuationAsync(
+                systemContext,
+                provider,
+                nodeToRead,
+                HistorianReadKind.Events,
+                cancellationToken).ConfigureAwait(false);
+            if (state == null && !nodeToRead.ContinuationPoint.IsEmpty)
+            {
+                result.StatusCode = StatusCodes.BadContinuationPointInvalid;
+                result.ContinuationPoint = ByteString.Empty;
+                return ServiceResult.Good;
+            }
 
             HistorianEventReadRequest request;
             HistorianResumeToken token;
@@ -1256,19 +1811,21 @@ namespace Opc.Ua.Server.Historian
             }
             else
             {
-                bool isForward = details.StartTime <= details.EndTime;
-                DateTimeUtc start = isForward ? details.StartTime : details.EndTime;
-                DateTimeUtc end = isForward ? details.EndTime : details.StartTime;
-                if (end == DateTimeUtc.MinValue)
-                {
-                    end = DateTimeUtc.MaxValue;
-                }
+                HistorianNodeCapabilities capabilities = await provider
+                    .GetCapabilitiesAsync(node.NodeId, cancellationToken)
+                    .ConfigureAwait(false);
+                (DateTimeUtc start, DateTimeUtc end, bool isForward) =
+                    NormalizeTimeRange(
+                        details.StartTime,
+                        details.EndTime);
                 request = new HistorianEventReadRequest
                 {
                     NodeId = node.NodeId,
                     StartTime = start,
                     EndTime = end,
-                    MaxValues = details.NumValuesPerNode,
+                    MaxValues = ApplyHistorianLimit(
+                        details.NumValuesPerNode,
+                        capabilities.MaxReturnEventValues),
                     IsForward = isForward,
                     Filter = details.Filter
                 };
@@ -1284,21 +1841,25 @@ namespace Opc.Ua.Server.Historian
             HistorianPage<HistorianEventRecord> page = await events.ReadEventsAsync(
                 opContext, request, token, cancellationToken).ConfigureAwait(false);
 
+            IServerInternal serverInternal = systemContext.Server;
+            var filterContext = new FilterContext(
+                serverInternal.NamespaceUris,
+                serverInternal.TypeTree,
+                systemContext.OperationContext,
+                serverInternal.Telemetry);
+
             // Evaluate the WhereClause if any elements are present.
-            IReadOnlyList<HistorianEventRecord> filtered = page.Values;
-            if (details.Filter.WhereClause.Elements.Count > 0 &&
-                systemContext.Server is IServerInternal serverInternal)
+            ArrayOf<HistorianEventRecord> filtered = page.Values;
+            if (details.Filter.WhereClause.Elements.Count > 0)
             {
-                var context = new FilterContext(
-                    serverInternal.NamespaceUris,
-                    serverInternal.TypeTree,
-                    systemContext.OperationContext,
-                    serverInternal.Telemetry);
                 var keep = new List<HistorianEventRecord>(page.Values.Count);
                 foreach (HistorianEventRecord record in page.Values)
                 {
                     var target = new HistorianEventFilterTarget(record);
-                    var evaluator = new FilterEvaluator(details.Filter.WhereClause, context, target);
+                    var evaluator = new FilterEvaluator(
+                        details.Filter.WhereClause,
+                        filterContext,
+                        target);
                     if (evaluator.Result)
                     {
                         keep.Add(record);
@@ -1310,7 +1871,10 @@ namespace Opc.Ua.Server.Historian
             var fields = new HistoryEventFieldList[filtered.Count];
             for (int i = 0; i < filtered.Count; i++)
             {
-                fields[i] = ProjectEventFields(filtered[i], details.Filter);
+                fields[i] = ProjectEventFields(
+                    filtered[i],
+                    details.Filter,
+                    filterContext);
             }
 
             result.HistoryData = new ExtensionObject(new HistoryEvent
@@ -1318,9 +1882,9 @@ namespace Opc.Ua.Server.Historian
                 Events = fields
             });
 
-            SaveOrReleaseEventContinuation(
+            await SaveOrReleaseEventContinuationAsync(
                 systemContext, nodeToRead, result, state, page.NextToken,
-                provider, node, request);
+                provider, node, request, cancellationToken).ConfigureAwait(false);
             return ServiceResult.Good;
         }
 
@@ -1359,7 +1923,62 @@ namespace Opc.Ua.Server.Historian
 
             if (provider is not IHistorianEventProvider events)
             {
+                HistorianUpdateOutcome<HistorianEventRecord> failure =
+                    CreateFailureOutcome<HistorianEventRecord>(
+                        StatusCodes.BadHistoryOperationUnsupported,
+                        details.EventData.Count);
+                result.OperationResults = failure.OperationResults;
+                ReportAuditEventUpdate(
+                    systemContext,
+                    details,
+                    failure,
+                    StatusCodes.BadHistoryOperationUnsupported);
                 return StatusCodes.BadHistoryOperationUnsupported;
+            }
+            HistorianNodeCapabilities capabilities = await provider
+                .GetCapabilitiesAsync(node.NodeId, cancellationToken)
+                .ConfigureAwait(false);
+            bool supported = details.PerformInsertReplace switch
+            {
+                PerformUpdateType.Insert => capabilities.InsertEvent,
+                PerformUpdateType.Replace => capabilities.ReplaceEvent,
+                PerformUpdateType.Update => capabilities.UpdateEvent,
+                _ => true
+            };
+            if (!supported)
+            {
+                HistorianUpdateOutcome<HistorianEventRecord> failure =
+                    CreateFailureOutcome<HistorianEventRecord>(
+                        StatusCodes.BadHistoryOperationUnsupported,
+                        details.EventData.Count);
+                result.OperationResults = failure.OperationResults;
+                ReportAuditEventUpdate(
+                    systemContext,
+                    details,
+                    failure,
+                    StatusCodes.BadHistoryOperationUnsupported);
+                return StatusCodes.BadHistoryOperationUnsupported;
+            }
+
+            ServiceResult validation = HistorianEventUpdateValidator.Validate(
+                systemContext,
+                node,
+                details,
+                capabilities,
+                out HistorianEventUpdatePlan plan);
+            if (ServiceResult.IsBad(validation))
+            {
+                HistorianUpdateOutcome<HistorianEventRecord> failure =
+                    CreateFailureOutcome<HistorianEventRecord>(
+                        validation.StatusCode,
+                        details.EventData.Count);
+                result.OperationResults = failure.OperationResults;
+                ReportAuditEventUpdate(
+                    systemContext,
+                    details,
+                    failure,
+                    validation.StatusCode);
+                return validation;
             }
 
             HistorianOperationContext opContext = new(
@@ -1370,25 +1989,105 @@ namespace Opc.Ua.Server.Historian
 
             ArrayOf<HistoryEventFieldList> incoming = details.EventData;
             var decoded = new List<HistorianEventRecord>(incoming.Count);
+            var decodedIndexes = new List<int>(incoming.Count);
+            var decodedStatuses = new List<StatusCode>(incoming.Count);
+            var statuses = new StatusCode[incoming.Count];
+            var diagnostics = new DiagnosticInfo[incoming.Count];
+            bool hasDiagnostics = false;
             for (int i = 0; i < incoming.Count; i++)
             {
-                decoded.Add(DecodeEventRecord(incoming[i], details.Filter, node.NodeId));
+                HistorianEventDecodeResult decodedEvent =
+                    await HistorianEventUpdateValidator.DecodeAsync(
+                    systemContext,
+                    capabilities,
+                    incoming[i],
+                    details.Filter,
+                    plan,
+                    cancellationToken).ConfigureAwait(false);
+                DiagnosticInfo? diagnostic = CreateEventFieldDiagnostic(
+                    systemContext,
+                    decodedEvent.StatusCode,
+                    decodedEvent.FieldIndexes,
+                    decodedEvent.FieldNames);
+                if (diagnostic != null)
+                {
+                    diagnostics[i] = diagnostic;
+                    hasDiagnostics = true;
+                }
+                if (StatusCode.IsBad(decodedEvent.StatusCode))
+                {
+                    statuses[i] = decodedEvent.StatusCode;
+                    continue;
+                }
+                decoded.Add(decodedEvent.Record!);
+                decodedIndexes.Add(i);
+                decodedStatuses.Add(decodedEvent.StatusCode);
             }
 
-            IList<StatusCode> statuses = details.PerformInsertReplace switch
-            {
-                PerformUpdateType.Insert => await events.InsertEventsAsync(
-                    opContext, node.NodeId, decoded, cancellationToken).ConfigureAwait(false),
-                PerformUpdateType.Replace => await events.ReplaceEventsAsync(
-                    opContext, node.NodeId, decoded, cancellationToken).ConfigureAwait(false),
-                PerformUpdateType.Update => await events.UpdateEventsAsync(
-                    opContext, node.NodeId, decoded, cancellationToken).ConfigureAwait(false),
-                _ => RepeatStatus(StatusCodes.BadInvalidArgument, decoded.Count)
-            };
+            HistorianUpdateOutcome<HistorianEventRecord> providerOutcome =
+                decoded.Count == 0
+                ? new HistorianUpdateOutcome<HistorianEventRecord>(
+                    [])
+                : details.PerformInsertReplace switch
+                {
+                    PerformUpdateType.Insert => await events.InsertEventsAsync(
+                        opContext, node.NodeId, decoded, cancellationToken).ConfigureAwait(false),
+                    PerformUpdateType.Replace => await events.ReplaceEventsAsync(
+                        opContext, node.NodeId, decoded, cancellationToken).ConfigureAwait(false),
+                    PerformUpdateType.Update => await events.UpdateEventsAsync(
+                        opContext, node.NodeId, decoded, cancellationToken).ConfigureAwait(false),
+                    _ => new HistorianUpdateOutcome<HistorianEventRecord>(
+                        RepeatStatus(StatusCodes.BadInvalidArgument, decoded.Count).ToArrayOf())
+                };
 
-            result.OperationResults = ToStatusArray(statuses);
-            ReportAuditEventUpdate(systemContext, details, statuses);
-            return ServiceResult.Good;
+            if (providerOutcome.OperationResults.Count != decoded.Count)
+            {
+                HistorianUpdateOutcome<HistorianEventRecord> failure =
+                    CreateFailureOutcome<HistorianEventRecord>(
+                        StatusCodes.BadUnexpectedError,
+                        incoming.Count);
+                result.OperationResults = failure.OperationResults;
+                ReportAuditEventUpdate(
+                    systemContext,
+                    details,
+                    failure,
+                    StatusCodes.BadUnexpectedError);
+                return StatusCodes.BadUnexpectedError;
+            }
+            for (int i = 0; i < decodedIndexes.Count; i++)
+            {
+                int decodedIndex = decodedIndexes[i];
+                StatusCode providerStatus = providerOutcome.OperationResults[i];
+                statuses[decodedIndex] =
+                    StatusCode.IsGood(providerStatus) &&
+                    decodedStatuses[i].Code == StatusCodes.GoodDataIgnored.Code
+                        ? StatusCodes.GoodDataIgnored
+                        : providerStatus;
+                if (diagnostics[decodedIndex] == null &&
+                    !providerOutcome.DiagnosticInfos.IsEmpty &&
+                    providerOutcome.DiagnosticInfos[i] != null)
+                {
+                    diagnostics[decodedIndex] =
+                        providerOutcome.DiagnosticInfos[i];
+                    hasDiagnostics = true;
+                }
+            }
+            var outcome = new HistorianUpdateOutcome<HistorianEventRecord>(
+                statuses.ToArrayOf(),
+                providerOutcome.OldValues,
+                hasDiagnostics
+                    ? diagnostics.ToArrayOf()
+                    : [],
+                providerOutcome.TransactionRolledBack);
+            result.OperationResults = outcome.OperationResults;
+            result.DiagnosticInfos = outcome.DiagnosticInfos;
+            ServiceResult operationResult = GetOperationResult(outcome);
+            ReportAuditEventUpdate(
+                systemContext,
+                details,
+                outcome,
+                operationResult.StatusCode);
+            return operationResult;
         }
 
         /// <summary>
@@ -1426,6 +2125,33 @@ namespace Opc.Ua.Server.Historian
 
             if (provider is not IHistorianEventProvider events)
             {
+                HistorianUpdateOutcome<HistorianEventRecord> failure =
+                    CreateFailureOutcome<HistorianEventRecord>(
+                        StatusCodes.BadHistoryOperationUnsupported,
+                        details.EventIds.Count);
+                result.OperationResults = failure.OperationResults;
+                ReportAuditEventDelete(
+                    systemContext,
+                    details,
+                    failure,
+                    StatusCodes.BadHistoryOperationUnsupported);
+                return StatusCodes.BadHistoryOperationUnsupported;
+            }
+            HistorianNodeCapabilities capabilities = await provider
+                .GetCapabilitiesAsync(node.NodeId, cancellationToken)
+                .ConfigureAwait(false);
+            if (!capabilities.DeleteEvent)
+            {
+                HistorianUpdateOutcome<HistorianEventRecord> failure =
+                    CreateFailureOutcome<HistorianEventRecord>(
+                        StatusCodes.BadHistoryOperationUnsupported,
+                        details.EventIds.Count);
+                result.OperationResults = failure.OperationResults;
+                ReportAuditEventDelete(
+                    systemContext,
+                    details,
+                    failure,
+                    StatusCodes.BadHistoryOperationUnsupported);
                 return StatusCodes.BadHistoryOperationUnsupported;
             }
 
@@ -1436,18 +2162,25 @@ namespace Opc.Ua.Server.Historian
                 HistoryUpdateType.Delete);
 
             ArrayOf<ByteString> ids = details.EventIds;
-            var typed = new List<ByteString>(ids.Count);
-            for (int i = 0; i < ids.Count; i++)
+            HistorianUpdateOutcome<HistorianEventRecord> outcome =
+                await events.DeleteEventsAsync(
+                opContext, node.NodeId, ids, cancellationToken).ConfigureAwait(false);
+            if (outcome.OperationResults.Count != ids.Count)
             {
-                typed.Add(ids[i]);
+                outcome = CreateFailureOutcome<HistorianEventRecord>(
+                    StatusCodes.BadUnexpectedError,
+                    ids.Count);
             }
 
-            IList<StatusCode> statuses = await events.DeleteEventsAsync(
-                opContext, node.NodeId, typed, cancellationToken).ConfigureAwait(false);
-
-            result.OperationResults = ToStatusArray(statuses);
-            ReportAuditEventDelete(systemContext, details, statuses);
-            return ServiceResult.Good;
+            result.OperationResults = outcome.OperationResults;
+            result.DiagnosticInfos = outcome.DiagnosticInfos;
+            ServiceResult operationResult = GetOperationResult(outcome);
+            ReportAuditEventDelete(
+                systemContext,
+                details,
+                outcome,
+                operationResult.StatusCode);
+            return operationResult;
         }
 
         /// <summary>
@@ -1478,7 +2211,9 @@ namespace Opc.Ua.Server.Historian
             return new HistoryEventFieldList { EventFields = fields };
         }
 
-        private static Variant ResolveOperand(HistorianEventRecord record, SimpleAttributeOperand op)
+        private static Variant ResolveOperand(
+            HistorianEventRecord record,
+            SimpleAttributeOperand op)
         {
             if (op.BrowsePath.Count == 0)
             {
@@ -1488,75 +2223,75 @@ namespace Opc.Ua.Server.Historian
                 }
                 return default;
             }
-            string key = BuildOperandKey(op.BrowsePath);
-            return record.Fields.TryGetValue(key, out Variant value) ? value : default;
-        }
-
-        private static string BuildOperandKey(ArrayOf<QualifiedName> path)
-        {
-            if (path.Count == 1)
+            if (!record.TryGetQualifiedField(
+                    HistorianEventFieldKey.FromOperand(op),
+                    out Variant value) &&
+                !record.TryGetQualifiedField(
+                    new HistorianEventFieldKey(
+                        op.TypeDefinitionId,
+                        op.BrowsePath,
+                        op.AttributeId,
+                        null),
+                    out value))
             {
-                return path[0].Name ?? string.Empty;
-            }
-            var sb = new System.Text.StringBuilder();
-            for (int i = 0; i < path.Count; i++)
-            {
-                if (i > 0)
+                if (record.QualifiedFields.Count != 0)
                 {
-                    sb.Append('/');
+                    return default;
                 }
-                sb.Append(path[i].Name);
+                string key = HistorianEventFieldKey.BuildPath(op.BrowsePath);
+                if (!record.TryGetField(key, out value))
+                {
+                    return default;
+                }
             }
-            return sb.ToString();
+            if (!string.IsNullOrEmpty(op.IndexRange))
+            {
+                ServiceResult validation = NumericRange.Validate(
+                    op.IndexRange,
+                    out NumericRange range);
+                if (ServiceResult.IsBad(validation) ||
+                    StatusCode.IsBad(range.ApplyRange(ref value)))
+                {
+                    return default;
+                }
+            }
+            return value;
         }
 
-        private static HistorianEventRecord DecodeEventRecord(
-            HistoryEventFieldList incoming,
+        private static HistoryEventFieldList ProjectEventFields(
+            HistorianEventRecord record,
             EventFilter filter,
-            NodeId notifierNodeId)
+            IFilterContext context)
         {
-            if (filter == null)
+            var target = new HistorianEventFilterTarget(record);
+            var fields = new Variant[filter.SelectClauses.Count];
+            for (int i = 0; i < filter.SelectClauses.Count; i++)
             {
-                throw new ArgumentNullException(nameof(filter));
+                SimpleAttributeOperand operand = filter.SelectClauses[i];
+                ServiceResult validation = NumericRange.Validate(
+                    operand.IndexRange ?? string.Empty,
+                    out NumericRange indexRange);
+                if (ServiceResult.IsBad(validation))
+                {
+                    fields[i] = Variant.Null;
+                    continue;
+                }
+                fields[i] = target.GetAttributeValue(
+                    context,
+                    operand.TypeDefinitionId,
+                    operand.BrowsePath,
+                    operand.AttributeId,
+                    indexRange);
             }
-
-            ByteString eventId = ByteString.Empty;
-            NodeId eventType = notifierNodeId;
-            DateTimeUtc sourceTs = DateTimeUtc.MinValue;
-            var fields = new Dictionary<string, Variant>(StringComparer.Ordinal);
-
-            int count = Math.Min(filter.SelectClauses.Count, incoming.EventFields.Count);
-            for (int i = 0; i < count; i++)
+            return new HistoryEventFieldList
             {
-                SimpleAttributeOperand op = filter.SelectClauses[i];
-                Variant value = incoming.EventFields[i];
-                string key = BuildOperandKey(op.BrowsePath);
-
-                fields[key] = value;
-
-                if (string.Equals(key, BrowseNames.EventId, StringComparison.Ordinal) &&
-                    value.TryGetValue(out ByteString idValue))
-                {
-                    eventId = idValue;
-                }
-                else if (string.Equals(key, BrowseNames.EventType, StringComparison.Ordinal) &&
-                    value.TryGetValue(out NodeId typeValue))
-                {
-                    eventType = typeValue;
-                }
-                else if (string.Equals(key, BrowseNames.Time, StringComparison.Ordinal) &&
-                    value.TryGetValue(out DateTimeUtc tsValue))
-                {
-                    sourceTs = tsValue;
-                }
-            }
-
-            return new HistorianEventRecord(eventId, eventType, sourceTs, fields);
+                EventFields = fields
+            };
         }
 
         [SuppressMessage("Reliability", "CA2000:Dispose objects before losing scope",
             Justification = "HistorianContinuationState ownership is transferred to the session via ContinuationPoints.SaveHistory.")]
-        private static void SaveOrReleaseEventContinuation(
+        private static async ValueTask SaveOrReleaseEventContinuationAsync(
             ServerSystemContext systemContext,
             HistoryReadValueId nodeToRead,
             HistoryReadResult result,
@@ -1564,7 +2299,8 @@ namespace Opc.Ua.Server.Historian
             HistorianResumeToken nextToken,
             IHistorianProvider provider,
             NodeState node,
-            HistorianEventReadRequest request)
+            HistorianEventReadRequest request,
+            CancellationToken cancellationToken)
         {
             if (nextToken.IsEmpty)
             {
@@ -1595,7 +2331,23 @@ namespace Opc.Ua.Server.Historian
             }
 
             state.Id = Guid.NewGuid();
-            systemContext.OperationContext?.Session?.ContinuationPoints.SaveHistory(state);
+            ISessionContinuationPoints? continuationPoints =
+                systemContext.OperationContext?.Session?.ContinuationPoints;
+            if (continuationPoints == null)
+            {
+                state.Dispose();
+                result.StatusCode = StatusCodes.BadNoContinuationPoints;
+                result.ContinuationPoint = ByteString.Empty;
+                return;
+            }
+            if (!await TrySaveHistoryContinuationAsync(
+                    continuationPoints,
+                    state,
+                    result,
+                    cancellationToken).ConfigureAwait(false))
+            {
+                return;
+            }
             // Per OPC UA Part 11 6.5.3.2 a HistoryRead that returns a ContinuationPoint
             // (more data available) uses StatusCode Good, not Good_MoreData; the non-empty
             // ContinuationPoint alone signals to the client that more data can be fetched.
@@ -1627,11 +2379,48 @@ namespace Opc.Ua.Server.Historian
                 return StatusCodes.BadContinuationPointInvalid;
             }
 
-            IHistoryContinuationPoint? state = systemContext.OperationContext?.Session?.ContinuationPoints.RestoreHistory(
-                nodeToRead.ContinuationPoint);
-            if (state is HistorianContinuationState cont)
+            return systemContext.OperationContext?.Session?.ContinuationPoints
+                .ReleaseHistory(nodeToRead.ContinuationPoint) == true
+                ? ServiceResult.Good
+                : StatusCodes.BadContinuationPointInvalid;
+        }
+
+        /// <summary>
+        /// Asynchronously releases a portable continuation point.
+        /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="systemContext"/> is <c>null</c>.</exception>
+        public static async ValueTask<ServiceResult> ReleaseContinuationPointAsync(
+            ServerSystemContext systemContext,
+            HistoryReadValueId nodeToRead,
+            CancellationToken cancellationToken = default)
+        {
+            if (systemContext == null)
             {
-                cont.Dispose();
+                throw new ArgumentNullException(nameof(systemContext));
+            }
+            if (nodeToRead == null)
+            {
+                throw new ArgumentNullException(nameof(nodeToRead));
+            }
+            if (nodeToRead.ContinuationPoint.IsEmpty)
+            {
+                return StatusCodes.BadContinuationPointInvalid;
+            }
+
+            ISessionContinuationPoints? continuationPoints =
+                systemContext.OperationContext?.Session?.ContinuationPoints;
+            if (continuationPoints == null)
+            {
+                return StatusCodes.BadContinuationPointInvalid;
+            }
+            IHistoryContinuationPoint? state = await continuationPoints
+                .RestoreHistoryAsync(
+                    nodeToRead.ContinuationPoint,
+                    cancellationToken)
+                .ConfigureAwait(false);
+            if (state != null)
+            {
+                state.Dispose();
                 return ServiceResult.Good;
             }
             return StatusCodes.BadContinuationPointInvalid;
@@ -1675,35 +2464,22 @@ namespace Opc.Ua.Server.Historian
             }
             else
             {
-                bool startSpecified = details.StartTime != DateTimeUtc.MinValue;
-                bool endSpecified = details.EndTime != DateTimeUtc.MinValue;
-                bool isForward = startSpecified &&
-                    (!endSpecified || details.StartTime <= details.EndTime);
-
-                DateTimeUtc start;
-                DateTimeUtc end;
-                if (!startSpecified)
-                {
-                    start = DateTimeUtc.MinValue;
-                    end = details.EndTime;
-                }
-                else if (!endSpecified)
-                {
-                    start = details.StartTime;
-                    end = DateTimeUtc.MaxValue;
-                }
-                else
-                {
-                    start = isForward ? details.StartTime : details.EndTime;
-                    end = isForward ? details.EndTime : details.StartTime;
-                }
+                HistorianNodeCapabilities capabilities = await provider
+                    .GetCapabilitiesAsync(node.NodeId, cancellationToken)
+                    .ConfigureAwait(false);
+                (DateTimeUtc start, DateTimeUtc end, bool isForward) =
+                    NormalizeTimeRange(
+                        details.StartTime,
+                        details.EndTime);
 
                 request = new HistorianRawReadRequest
                 {
                     NodeId = node.NodeId,
                     StartTime = start,
                     EndTime = end,
-                    MaxValues = details.NumValuesPerNode,
+                    MaxValues = ApplyHistorianLimit(
+                        details.NumValuesPerNode,
+                        capabilities.MaxReturnDataValues),
                     IsForward = isForward,
                     ReturnBounds = details.ReturnBounds
                 };
@@ -1718,14 +2494,20 @@ namespace Opc.Ua.Server.Historian
             {
                 values.Add(v.Value);
             }
-            FillHistoryData(result, values, nodeToRead, timestampsToReturn);
+            FillHistoryData(
+                systemContext,
+                result,
+                values,
+                nodeToRead,
+                timestampsToReturn);
 
-            SaveOrReleaseContinuation(
+            await SaveOrReleaseContinuationAsync(
                 systemContext, nodeToRead, result, state, page.NextToken,
                 provider, node, request, kind: HistorianReadKind.Raw,
                 timestampsToReturn: timestampsToReturn,
                 indexRange: nodeToRead.ParsedIndexRange,
-                dataEncoding: nodeToRead.DataEncoding);
+                dataEncoding: nodeToRead.DataEncoding,
+                cancellationToken: cancellationToken).ConfigureAwait(false);
 
             // Per OPC UA Part 11 6.5.3.2, an interval in which no data exists (and no
             // Bounding Values were requested/returned) is reported with Good_NoData.
@@ -1763,35 +2545,22 @@ namespace Opc.Ua.Server.Historian
             }
             else
             {
-                bool startSpecified = details.StartTime != DateTimeUtc.MinValue;
-                bool endSpecified = details.EndTime != DateTimeUtc.MinValue;
-                bool isForward = startSpecified &&
-                    (!endSpecified || details.StartTime <= details.EndTime);
-
-                DateTimeUtc start;
-                DateTimeUtc end;
-                if (!startSpecified)
-                {
-                    start = DateTimeUtc.MinValue;
-                    end = details.EndTime;
-                }
-                else if (!endSpecified)
-                {
-                    start = details.StartTime;
-                    end = DateTimeUtc.MaxValue;
-                }
-                else
-                {
-                    start = isForward ? details.StartTime : details.EndTime;
-                    end = isForward ? details.EndTime : details.StartTime;
-                }
+                HistorianNodeCapabilities capabilities = await provider
+                    .GetCapabilitiesAsync(node.NodeId, cancellationToken)
+                    .ConfigureAwait(false);
+                (DateTimeUtc start, DateTimeUtc end, bool isForward) =
+                    NormalizeTimeRange(
+                        details.StartTime,
+                        details.EndTime);
 
                 request = new HistorianModifiedReadRequest
                 {
                     NodeId = node.NodeId,
                     StartTime = start,
                     EndTime = end,
-                    MaxValues = details.NumValuesPerNode,
+                    MaxValues = ApplyHistorianLimit(
+                        details.NumValuesPerNode,
+                        capabilities.MaxReturnDataValues),
                     IsForward = isForward
                 };
                 token = default;
@@ -1807,14 +2576,21 @@ namespace Opc.Ua.Server.Historian
                 values.Add(v.Value);
                 infos.Add(v.Info);
             }
-            FillHistoryModifiedData(result, values, infos, nodeToRead, timestampsToReturn);
+            FillHistoryModifiedData(
+                systemContext,
+                result,
+                values,
+                infos,
+                nodeToRead,
+                timestampsToReturn);
 
-            SaveOrReleaseContinuation(
+            await SaveOrReleaseContinuationAsync(
                 systemContext, nodeToRead, result, state, page.NextToken,
                 provider, node, modifiedRequest: request, kind: HistorianReadKind.Modified,
                 timestampsToReturn: timestampsToReturn,
                 indexRange: nodeToRead.ParsedIndexRange,
-                dataEncoding: nodeToRead.DataEncoding);
+                dataEncoding: nodeToRead.DataEncoding,
+                cancellationToken: cancellationToken).ConfigureAwait(false);
 
             // Per OPC UA Part 11 6.5.3.2, an interval in which no data exists is reported
             // with Good_NoData.
@@ -1826,23 +2602,35 @@ namespace Opc.Ua.Server.Historian
             return ServiceResult.Good;
         }
 
-        private static HistorianContinuationState? TryRestoreContinuation(
+        private static async ValueTask<HistorianContinuationState?>
+            TryRestoreContinuationAsync(
             ServerSystemContext systemContext,
+            IHistorianProvider provider,
             HistoryReadValueId nodeToRead,
-            HistorianReadKind expectedKind)
+            HistorianReadKind expectedKind,
+            CancellationToken cancellationToken)
         {
             if (nodeToRead.ContinuationPoint.IsEmpty)
             {
                 return null;
             }
-            IHistoryContinuationPoint? raw = systemContext.OperationContext?.Session?.ContinuationPoints.RestoreHistory(
-                nodeToRead.ContinuationPoint);
+            ISessionContinuationPoints? continuationPoints =
+                systemContext.OperationContext?.Session?.ContinuationPoints;
+            if (continuationPoints == null)
+            {
+                return null;
+            }
+            IHistoryContinuationPoint? raw = await continuationPoints
+                .RestoreHistoryAsync(nodeToRead.ContinuationPoint, cancellationToken)
+                .ConfigureAwait(false);
             if (raw is not HistorianContinuationState state)
             {
+                raw?.Dispose();
                 return null;
             }
             if (state.Kind != expectedKind)
             {
+                state.Dispose();
                 return null;
             }
             // Reject cross-wired continuation points — a client that
@@ -1853,20 +2641,23 @@ namespace Opc.Ua.Server.Historian
                 state.Dispose();
                 return null;
             }
+            if (!ReferenceEquals(state.Provider, provider) &&
+                (state.Provider is not IHistorianProviderIdentity savedIdentity ||
+                    provider is not IHistorianProviderIdentity currentIdentity ||
+                    !string.Equals(
+                        savedIdentity.ProviderId,
+                        currentIdentity.ProviderId,
+                        StringComparison.Ordinal)))
+            {
+                state.Dispose();
+                return null;
+            }
             return state;
-        }
-
-        private static HistorianResumeToken TryDecodeContinuation(HistoryReadValueId nodeToRead)
-        {
-            // Currently we only use the resume-token field for processed reads when
-            // we don't bother with a full HistorianContinuationState; future iterations
-            // may use the full continuation state for these too.
-            return default;
         }
 
         [SuppressMessage("Reliability", "CA2000:Dispose objects before losing scope",
             Justification = "HistorianContinuationState ownership is transferred to the session via ContinuationPoints.SaveHistory.")]
-        private static void SaveOrReleaseContinuation(
+        private static async ValueTask SaveOrReleaseContinuationAsync(
             ServerSystemContext systemContext,
             HistoryReadValueId nodeToRead,
             HistoryReadResult result,
@@ -1876,10 +2667,12 @@ namespace Opc.Ua.Server.Historian
             NodeState? node = null,
             HistorianRawReadRequest? rawRequest = null,
             HistorianModifiedReadRequest? modifiedRequest = null,
+            HistorianProcessedReadRequest? processedRequest = null,
             HistorianReadKind kind = HistorianReadKind.Raw,
             TimestampsToReturn timestampsToReturn = TimestampsToReturn.Source,
             NumericRange indexRange = default,
-            QualifiedName? dataEncoding = null)
+            QualifiedName? dataEncoding = null,
+            CancellationToken cancellationToken = default)
         {
             if (nextToken.IsEmpty)
             {
@@ -1911,6 +2704,7 @@ namespace Opc.Ua.Server.Historian
                     ResumeToken = nextToken,
                     RawRequest = rawRequest,
                     ModifiedRequest = modifiedRequest,
+                    ProcessedRequest = processedRequest,
                     TimestampsToReturn = timestampsToReturn,
                     IndexRange = indexRange,
                     DataEncoding = dataEncoding ?? QualifiedName.Null
@@ -1918,7 +2712,23 @@ namespace Opc.Ua.Server.Historian
             }
 
             state.Id = Guid.NewGuid();
-            systemContext.OperationContext?.Session?.ContinuationPoints.SaveHistory(state);
+            ISessionContinuationPoints? continuationPoints =
+                systemContext.OperationContext?.Session?.ContinuationPoints;
+            if (continuationPoints == null)
+            {
+                state.Dispose();
+                result.StatusCode = StatusCodes.BadNoContinuationPoints;
+                result.ContinuationPoint = ByteString.Empty;
+                return;
+            }
+            if (!await TrySaveHistoryContinuationAsync(
+                    continuationPoints,
+                    state,
+                    result,
+                    cancellationToken).ConfigureAwait(false))
+            {
+                return;
+            }
             // Per OPC UA Part 11 6.5.3.2 a HistoryRead that returns a ContinuationPoint
             // (more data available) uses StatusCode Good, not Good_MoreData; the non-empty
             // ContinuationPoint alone signals to the client that more data can be fetched.
@@ -1926,9 +2736,43 @@ namespace Opc.Ua.Server.Historian
             result.ContinuationPoint = new ByteString(state.Id.ToByteArray());
         }
 
-        private static void FillHistoryData(
+        private static async ValueTask<bool> TrySaveHistoryContinuationAsync(
+            ISessionContinuationPoints continuationPoints,
+            HistorianContinuationState state,
             HistoryReadResult result,
-            IReadOnlyList<DataValue> values,
+            CancellationToken cancellationToken)
+        {
+            try
+            {
+                await continuationPoints.SaveHistoryAsync(
+                    state,
+                    cancellationToken).ConfigureAwait(false);
+                return true;
+            }
+            catch (OperationCanceledException)
+                when (cancellationToken.IsCancellationRequested)
+            {
+                throw;
+            }
+            catch (Exception exception) when (
+                exception is ServiceResultException or
+                InvalidOperationException or
+                IOException or
+                TimeoutException)
+            {
+                result.StatusCode = exception is ServiceResultException serviceException &&
+                    serviceException.StatusCode == StatusCodes.BadSessionClosed
+                        ? StatusCodes.BadSessionClosed
+                        : StatusCodes.BadNoContinuationPoints;
+                result.ContinuationPoint = ByteString.Empty;
+                return false;
+            }
+        }
+
+        private static void FillHistoryData(
+            ISystemContext systemContext,
+            HistoryReadResult result,
+            ArrayOf<DataValue> values,
             HistoryReadValueId nodeToRead,
             TimestampsToReturn timestampsToReturn)
         {
@@ -1937,7 +2781,10 @@ namespace Opc.Ua.Server.Historian
             {
                 DataValue clone = ApplyTimestampFilter(v, timestampsToReturn);
                 clone = ApplyIndexRange(clone, nodeToRead.ParsedIndexRange);
-                clone = ApplyEncoding(clone, nodeToRead.DataEncoding);
+                clone = ApplyEncoding(
+                    systemContext,
+                    clone,
+                    nodeToRead.DataEncoding);
                 filtered.Add(clone);
             }
             var data = new HistoryData { DataValues = filtered };
@@ -1945,6 +2792,7 @@ namespace Opc.Ua.Server.Historian
         }
 
         private static void FillHistoryModifiedData(
+            ISystemContext systemContext,
             HistoryReadResult result,
             List<DataValue> values,
             List<ModificationInfo> infos,
@@ -1956,7 +2804,10 @@ namespace Opc.Ua.Server.Historian
             {
                 DataValue clone = ApplyTimestampFilter(v, timestampsToReturn);
                 clone = ApplyIndexRange(clone, nodeToRead.ParsedIndexRange);
-                clone = ApplyEncoding(clone, nodeToRead.DataEncoding);
+                clone = ApplyEncoding(
+                    systemContext,
+                    clone,
+                    nodeToRead.DataEncoding);
                 filtered.Add(clone);
             }
             var modInfos = new ModificationInfo[infos.Count];
@@ -1970,16 +2821,6 @@ namespace Opc.Ua.Server.Historian
                 ModificationInfos = modInfos
             };
             result.HistoryData = new ExtensionObject(data);
-        }
-
-        private static ArrayOf<StatusCode> ToStatusArray(IList<StatusCode> statuses)
-        {
-            var array = new StatusCode[statuses.Count];
-            for (int i = 0; i < statuses.Count; i++)
-            {
-                array[i] = statuses[i];
-            }
-            return array;
         }
 
         private static DataValue ApplyTimestampFilter(DataValue source, TimestampsToReturn timestampsToReturn)
@@ -2018,52 +2859,49 @@ namespace Opc.Ua.Server.Historian
             return value.WithWrappedValue(variant);
         }
 
-        private static DataValue ApplyEncoding(DataValue value, QualifiedName dataEncoding)
+        private static DataValue ApplyEncoding(
+            ISystemContext systemContext,
+            DataValue value,
+            QualifiedName dataEncoding)
         {
             if (!dataEncoding.IsNull && StatusCode.IsGood(value.StatusCode))
             {
-                return value
-                    .WithWrappedValue(default)
-                    .WithStatus(StatusCodes.BadDataEncodingUnsupported);
+                Variant variant = value.WrappedValue;
+                ServiceResult result = EncodeableObject.ApplyDataEncoding(
+                    systemContext.AsMessageContext(),
+                    dataEncoding,
+                    ref variant);
+                if (ServiceResult.IsBad(result))
+                {
+                    return value.WithWrappedValue(default).WithStatus(result.StatusCode);
+                }
+                return value.WithWrappedValue(variant);
             }
             return value;
         }
 
-        private static void ApplyContinuation(
-            ServerSystemContext systemContext,
-            NodeId nodeId,
-            HistoryReadResult result,
-            HistorianPage<DataValue> page)
-        {
-            if (page.IsFinal)
-            {
-                result.StatusCode = StatusCodes.Good;
-                result.ContinuationPoint = ByteString.Empty;
-            }
-            else
-            {
-                // Native provider continuation — not yet wired through framework state.
-                // TODO(historian): persist provider-side resume token for processed reads.
-                result.StatusCode = StatusCodes.Good;
-                result.ContinuationPoint = ByteString.Empty;
-            }
-            _ = systemContext;
-            _ = nodeId;
-        }
-
-        private static void FlushCalculator(IAggregateCalculator calculator, List<DataValue> output, bool partial)
+        private static bool FlushCalculator(
+            IAggregateCalculator calculator,
+            List<DataValue> output,
+            bool partial,
+            int maxValues)
         {
             while (calculator.TryGetProcessedValue(partial, out DataValue computed))
             {
+                if (output.Count >= maxValues)
+                {
+                    return false;
+                }
                 output.Add(computed);
             }
+            return true;
         }
 
         private static async ValueTask<List<DataValue>> CollectAllRawAsync(
             HistorianOperationContext context,
             IHistorianDataProvider raw,
             NodeId nodeId,
-            List<DateTimeUtc> times,
+            ArrayOf<DateTimeUtc> times,
             CancellationToken cancellationToken)
         {
             if (times.Count == 0)
@@ -2163,22 +3001,8 @@ namespace Opc.Ua.Server.Historian
                     serverTimestamp: DateTimeUtc.MinValue);
             }
 
-            try
-            {
-                double y0 = Convert.ToDouble(before.WrappedValue.AsBoxedObject(), System.Globalization.CultureInfo.InvariantCulture);
-                double y1 = Convert.ToDouble(after.WrappedValue.AsBoxedObject(), System.Globalization.CultureInfo.InvariantCulture);
-                double t0 = before.SourceTimestamp.ToDateTime().Ticks;
-                double t1 = after.SourceTimestamp.ToDateTime().Ticks;
-                double t = requestedTime.ToDateTime().Ticks;
-                double ratio = (t - t0) / (t1 - t0);
-                double y = y0 + ((y1 - y0) * ratio);
-                return new DataValue(
-                    new Variant(y),
-                    StatusCodes.UncertainDataSubNormal,
-                    sourceTimestamp: requestedTime,
-                    serverTimestamp: DateTimeUtc.MinValue);
-            }
-            catch (InvalidCastException)
+            if (!TryGetDouble(before.WrappedValue, out double y0) ||
+                !TryGetDouble(after.WrappedValue, out double y1))
             {
                 return new DataValue(
                     before.WrappedValue,
@@ -2186,7 +3010,9 @@ namespace Opc.Ua.Server.Historian
                     sourceTimestamp: requestedTime,
                     serverTimestamp: DateTimeUtc.MinValue);
             }
-            catch (FormatException)
+            double t0 = before.SourceTimestamp.ToDateTime().Ticks;
+            double t1 = after.SourceTimestamp.ToDateTime().Ticks;
+            if (t1 == t0)
             {
                 return new DataValue(
                     before.WrappedValue,
@@ -2194,6 +3020,70 @@ namespace Opc.Ua.Server.Historian
                     sourceTimestamp: requestedTime,
                     serverTimestamp: DateTimeUtc.MinValue);
             }
+            double t = requestedTime.ToDateTime().Ticks;
+            double ratio = (t - t0) / (t1 - t0);
+            double y = y0 + ((y1 - y0) * ratio);
+            return new DataValue(
+                Variant.From(y),
+                StatusCodes.UncertainDataSubNormal,
+                sourceTimestamp: requestedTime,
+                serverTimestamp: DateTimeUtc.MinValue);
+        }
+
+        private static bool TryGetDouble(Variant value, out double result)
+        {
+            if (value.TryGetValue(out double doubleValue))
+            {
+                result = doubleValue;
+                return true;
+            }
+            if (value.TryGetValue(out float floatValue))
+            {
+                result = floatValue;
+                return true;
+            }
+            if (value.TryGetValue(out long int64Value))
+            {
+                result = int64Value;
+                return true;
+            }
+            if (value.TryGetValue(out ulong uint64Value))
+            {
+                result = uint64Value;
+                return true;
+            }
+            if (value.TryGetValue(out int int32Value))
+            {
+                result = int32Value;
+                return true;
+            }
+            if (value.TryGetValue(out uint uint32Value))
+            {
+                result = uint32Value;
+                return true;
+            }
+            if (value.TryGetValue(out short int16Value))
+            {
+                result = int16Value;
+                return true;
+            }
+            if (value.TryGetValue(out ushort uint16Value))
+            {
+                result = uint16Value;
+                return true;
+            }
+            if (value.TryGetValue(out sbyte sbyteValue))
+            {
+                result = sbyteValue;
+                return true;
+            }
+            if (value.TryGetValue(out byte byteValue))
+            {
+                result = byteValue;
+                return true;
+            }
+            result = 0;
+            return false;
         }
 
         private static HistoryUpdateType MapPerformUpdate(PerformUpdateType performUpdate)
@@ -2207,19 +3097,113 @@ namespace Opc.Ua.Server.Historian
             };
         }
 
-        private static List<DataValue> ToList(ArrayOf<DataValue> values)
+        private static async ValueTask<bool> SupportsRequestedTimestampsAsync(
+            IHistorianProvider provider,
+            NodeId nodeId,
+            TimestampsToReturn timestampsToReturn,
+            CancellationToken cancellationToken)
         {
-            var list = new List<DataValue>(values.Count);
-            for (int i = 0; i < values.Count; i++)
+            if (timestampsToReturn == TimestampsToReturn.Source)
             {
-                list.Add(values[i]);
+                return true;
             }
-            return list;
+            HistorianNodeCapabilities capabilities = await provider
+                .GetCapabilitiesAsync(nodeId, cancellationToken)
+                .ConfigureAwait(false);
+            return capabilities.ServerTimestampSupported;
         }
 
-        private static IReadOnlyList<DataValue> ToReadOnlyList(IList<DataValue> values)
+        private static uint ApplyHistorianLimit(uint requested, uint capabilityLimit)
         {
-            return values is IReadOnlyList<DataValue> rol ? rol : [.. values];
+            if (requested == 0)
+            {
+                return capabilityLimit;
+            }
+            return capabilityLimit == 0
+                ? requested
+                : Math.Min(requested, capabilityLimit);
+        }
+
+        private static (
+            DateTimeUtc Start,
+            DateTimeUtc End,
+            bool IsForward) NormalizeTimeRange(
+                DateTimeUtc requestedStart,
+                DateTimeUtc requestedEnd)
+        {
+            bool startSpecified = requestedStart != DateTimeUtc.MinValue;
+            bool endSpecified = requestedEnd != DateTimeUtc.MinValue;
+            bool isForward = startSpecified &&
+                (!endSpecified || requestedStart <= requestedEnd);
+            if (!startSpecified)
+            {
+                return (
+                    DateTimeUtc.MinValue,
+                    requestedEnd,
+                    isForward);
+            }
+            if (!endSpecified)
+            {
+                return (
+                    requestedStart,
+                    DateTimeUtc.MaxValue,
+                    isForward);
+            }
+            return isForward
+                ? (requestedStart, requestedEnd, true)
+                : (requestedEnd, requestedStart, false);
+        }
+
+        private static HistorianUpdateOutcome<T> CreateFailureOutcome<T>(
+            StatusCode status,
+            int count)
+        {
+            return new HistorianUpdateOutcome<T>(
+                RepeatStatus(status, count).ToArrayOf());
+        }
+
+        private static DiagnosticInfo? CreateEventFieldDiagnostic(
+            ServerSystemContext systemContext,
+            StatusCode statusCode,
+            ArrayOf<int> fieldIndexes,
+            ArrayOf<string> fieldNames)
+        {
+            OperationContext? operationContext =
+                systemContext.OperationContext;
+            if (operationContext == null ||
+                fieldIndexes.IsEmpty ||
+                fieldIndexes.Count != fieldNames.Count ||
+                (operationContext.DiagnosticsMask &
+                    DiagnosticsMasks.OperationAll) == 0)
+            {
+                return null;
+            }
+
+            var indexes = new StringBuilder();
+            var names = new StringBuilder();
+            for (int i = 0; i < fieldIndexes.Count; i++)
+            {
+                if (i > 0)
+                {
+                    indexes.Append(' ');
+                    names.Append(' ');
+                }
+                indexes.Append(
+                    fieldIndexes[i].ToString(
+                        System.Globalization.CultureInfo.InvariantCulture));
+                names.Append(fieldNames[i]);
+            }
+            var serviceResult = new ServiceResult(
+                indexes.ToString(),
+                statusCode,
+                new LocalizedText(names.ToString()));
+            return new DiagnosticInfo(
+                serviceResult,
+                operationContext.DiagnosticsMask,
+                false,
+                operationContext.StringTable,
+                systemContext.Server.Telemetry.CreateLogger(
+                    nameof(HistorianDispatcher)));
         }
 
         private static StatusCode[] RepeatStatus(StatusCode code, int count)
@@ -2232,7 +3216,7 @@ namespace Opc.Ua.Server.Historian
             return statuses;
         }
 
-        private static StatusCode AggregateStatus(IList<StatusCode> statuses)
+        private static StatusCode AggregateStatus(ArrayOf<StatusCode> statuses)
         {
             StatusCode worst = StatusCodes.Good;
             for (int i = 0; i < statuses.Count; i++)
@@ -2262,12 +3246,9 @@ namespace Opc.Ua.Server.Historian
 
         /// <summary>
         /// Returns <c>true</c> when at least one status in <paramref name="statuses"/>
-        /// is <see cref="StatusCode.IsGood(StatusCode)"/>. Audit events are
-        /// only reported when at least one per-value operation succeeded —
-        /// emitting an "Update" event when every value failed would
-        /// misrepresent the outcome.
+        /// is <see cref="StatusCode.IsGood(StatusCode)"/>.
         /// </summary>
-        private static bool HasAnyGood(IList<StatusCode> statuses)
+        private static bool HasAnyGood(ArrayOf<StatusCode> statuses)
         {
             for (int i = 0; i < statuses.Count; i++)
             {
@@ -2279,40 +3260,48 @@ namespace Opc.Ua.Server.Historian
             return false;
         }
 
+        private static ServiceResult GetOperationResult<T>(
+            HistorianUpdateOutcome<T> outcome)
+        {
+            if (outcome.TransactionRolledBack)
+            {
+                return StatusCodes.BadTransactionFailed;
+            }
+            if (outcome.OperationResults.Count > 0 &&
+                !HasAnyGood(outcome.OperationResults))
+            {
+                return AggregateStatus(outcome.OperationResults);
+            }
+            return ServiceResult.Good;
+        }
+
         private static void ReportAuditUpdateData(
             ServerSystemContext systemContext,
             UpdateDataDetails details,
-            IList<StatusCode> statuses)
+            HistorianUpdateOutcome<DataValue> outcome,
+            StatusCode status)
         {
-            if (!HasAnyGood(statuses))
-            {
-                return;
-            }
             IAuditEventServer? server = GetAuditServer(systemContext);
             ILogger? logger = GetAuditLogger(systemContext);
             if (server == null || logger == null)
             {
                 return;
             }
-            // The dispatcher does not currently fetch the previous values
-            // (would require an extra read-before-write per item); pass an
-            // empty array so the audit event still fires but the OldValues
-            // field is empty. Providers that need full audit fidelity may
-            // attach the old values to the input details before calling.
             server.ReportAuditHistoryValueUpdateEvent(
-                systemContext, details, [], AggregateStatus(statuses), logger);
+                systemContext,
+                details,
+                outcome.OldValues.ToArray() ?? [],
+                status,
+                logger);
         }
 
         private static void ReportAuditAnnotationUpdate(
             ServerSystemContext systemContext,
             UpdateStructureDataDetails details,
             BaseVariableState parentVariable,
-            IList<StatusCode> statuses)
+            HistorianUpdateOutcome<Annotation> outcome,
+            StatusCode status)
         {
-            if (!HasAnyGood(statuses))
-            {
-                return;
-            }
             IAuditEventServer? server = GetAuditServer(systemContext);
             ILogger? logger = GetAuditLogger(systemContext);
             if (server == null || logger == null)
@@ -2321,18 +3310,39 @@ namespace Opc.Ua.Server.Historian
             }
             _ = parentVariable;
             server.ReportAuditHistoryAnnotationUpdateEvent(
-                systemContext, details, [], AggregateStatus(statuses), logger);
+                systemContext,
+                details,
+                outcome.OldValues,
+                status,
+                logger);
+        }
+
+        private static void ReportAuditStructuredUpdate(
+            ServerSystemContext systemContext,
+            UpdateStructureDataDetails details,
+            HistorianUpdateOutcome<DataValue> outcome,
+            StatusCode status)
+        {
+            IAuditEventServer? server = GetAuditServer(systemContext);
+            ILogger? logger = GetAuditLogger(systemContext);
+            if (server == null || logger == null)
+            {
+                return;
+            }
+            server.ReportAuditHistoryValueUpdateEvent(
+                systemContext,
+                details,
+                outcome.OldValues,
+                status,
+                logger);
         }
 
         private static void ReportAuditDeleteRaw(
             ServerSystemContext systemContext,
             DeleteRawModifiedDetails details,
+            HistorianUpdateOutcome<DataValue> outcome,
             StatusCode status)
         {
-            if (!StatusCode.IsGood(status))
-            {
-                return;
-            }
             IAuditEventServer? server = GetAuditServer(systemContext);
             ILogger? logger = GetAuditLogger(systemContext);
             if (server == null || logger == null)
@@ -2340,18 +3350,19 @@ namespace Opc.Ua.Server.Historian
                 return;
             }
             server.ReportAuditHistoryRawModifyDeleteEvent(
-                systemContext, details, default, status, logger);
+                systemContext,
+                details,
+                outcome.OldValues,
+                status,
+                logger);
         }
 
         private static void ReportAuditDeleteAtTime(
             ServerSystemContext systemContext,
             DeleteAtTimeDetails details,
-            IList<StatusCode> statuses)
+            HistorianUpdateOutcome<DataValue> outcome,
+            StatusCode status)
         {
-            if (!HasAnyGood(statuses))
-            {
-                return;
-            }
             IAuditEventServer? server = GetAuditServer(systemContext);
             ILogger? logger = GetAuditLogger(systemContext);
             if (server == null || logger == null)
@@ -2359,45 +3370,126 @@ namespace Opc.Ua.Server.Historian
                 return;
             }
             server.ReportAuditHistoryAtTimeDeleteEvent(
-                systemContext, details, [], AggregateStatus(statuses), logger);
+                systemContext,
+                details,
+                outcome.OldValues.ToArray() ?? [],
+                status,
+                logger);
         }
 
         private static void ReportAuditEventUpdate(
             ServerSystemContext systemContext,
             UpdateEventDetails details,
-            IList<StatusCode> statuses)
+            HistorianUpdateOutcome<HistorianEventRecord> outcome,
+            StatusCode status)
         {
-            if (!HasAnyGood(statuses))
-            {
-                return;
-            }
             IAuditEventServer? server = GetAuditServer(systemContext);
             ILogger? logger = GetAuditLogger(systemContext);
             if (server == null || logger == null)
             {
                 return;
             }
+            var oldValues = new HistoryEventFieldList[outcome.OldValues.Count];
+            IServerInternal serverInternal = systemContext.Server;
+            var filterContext = new FilterContext(
+                serverInternal.NamespaceUris,
+                serverInternal.TypeTree,
+                systemContext.OperationContext,
+                serverInternal.Telemetry);
+            for (int i = 0; i < oldValues.Length; i++)
+            {
+                oldValues[i] = ProjectEventFields(
+                    outcome.OldValues[i],
+                    details.Filter,
+                    filterContext);
+            }
             server.ReportAuditHistoryEventUpdateEvent(
-                systemContext, details, [], AggregateStatus(statuses), logger);
+                systemContext,
+                details,
+                oldValues.ToArrayOf(),
+                status,
+                logger);
         }
 
         private static void ReportAuditEventDelete(
             ServerSystemContext systemContext,
             DeleteEventDetails details,
-            IList<StatusCode> statuses)
+            HistorianUpdateOutcome<HistorianEventRecord> outcome,
+            StatusCode status)
         {
-            if (!HasAnyGood(statuses))
-            {
-                return;
-            }
             IAuditEventServer? server = GetAuditServer(systemContext);
             ILogger? logger = GetAuditLogger(systemContext);
             if (server == null || logger == null)
             {
                 return;
             }
-            server.ReportAuditHistoryEventDeleteEvent(
-                systemContext, details, [], AggregateStatus(statuses), logger);
+            if (outcome.OldValues.IsEmpty)
+            {
+                server.ReportAuditHistoryEventDeleteEvent(
+                    systemContext,
+                    details,
+                    oldValue: null,
+                    status,
+                    logger);
+                return;
+            }
+            for (int i = 0; i < outcome.OldValues.Count; i++)
+            {
+                server.ReportAuditHistoryEventDeleteEvent(
+                    systemContext,
+                    details,
+                    ProjectDeletedEvent(outcome.OldValues[i]),
+                    status,
+                    logger);
+            }
+        }
+
+        private static HistoryEventFieldList ProjectDeletedEvent(
+            HistorianEventRecord record)
+        {
+            var fields = new List<KeyValuePair<string, Variant>>();
+            foreach (KeyValuePair<HistorianEventFieldKey, Variant> field in
+                record.QualifiedFields)
+            {
+                HistorianEventFieldKey key = field.Key;
+                StringBuilder identity = new StringBuilder()
+                    .Append(key.TypeDefinitionId)
+                    .Append('|')
+                    .Append(key.AttributeId)
+                    .Append('|')
+                    .Append(key.IndexRange);
+                for (int i = 0; i < key.BrowsePath.Count; i++)
+                {
+                    identity
+                        .Append('|')
+                        .Append(key.BrowsePath[i].NamespaceIndex)
+                        .Append(':')
+                        .Append(key.BrowsePath[i].Name);
+                }
+                fields.Add(new KeyValuePair<string, Variant>(
+                    identity.ToString(),
+                    field.Value));
+            }
+            if (fields.Count == 0)
+            {
+                foreach (KeyValuePair<string, Variant> field in record.Fields)
+                {
+                    fields.Add(field);
+                }
+            }
+            fields.Sort(static (left, right) =>
+                string.CompareOrdinal(
+                    left.Key,
+                    right.Key));
+            var values = new Variant[fields.Count];
+            for (int i = 0; i < fields.Count; i++)
+            {
+                values[i] = fields[i].Value;
+            }
+            return new HistoryEventFieldList
+            {
+                EventFields = values
+            };
         }
     }
 }

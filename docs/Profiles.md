@@ -49,8 +49,27 @@ following profiles in its `ServerProfileArray`:
 - **[Method Server Facet](http://opcfoundation.org/UA-Profile/Server/Methods)** — Method calls on objects in the address space.
 - **[Reverse Connect Facet](http://opcfoundation.org/UA-Profile/Server/ReverseConnect)** — Server-initiated connections to a client (see [Reverse Connect documentation](ReverseConnect.md)).
 - **[Client Redundancy Facet](http://opcfoundation.org/UA-Profile/Server/ClientRedundancy)** — Subscription transfer between sessions/servers; see [Transfer Subscriptions](TransferSubscription.md).
-- **[Historical Raw Data Server Facet (2022)](http://opcfoundation.org/UA-Profile/Server/HistoricalRawData2022)** — Historical read (and insert/replace/update/delete) of raw data values. The reference server historizes the full static scalar type set via `InMemoryHistorianProvider`; see [Historical Access](HistoricalAccess.md).
-- **[Historical Aggregate Server Facet (2022)](http://opcfoundation.org/UA-Profile/Server/AggregateHistorical2022)** — Aggregate (processed) history reads computed from the raw values by `AggregateManager`; see [Aggregates](Aggregates.md).
+- **Historical Access (15 released 2022 Server facets)** — the ReferenceServer
+  capability-gates and advertises
+  [Raw Data](http://opcfoundation.org/UA-Profile/Server/HistoricalRawData2022),
+  [Modified Data](http://opcfoundation.org/UA-Profile/Server/HistoricalModifiedData2022),
+  [AtTime](http://opcfoundation.org/UA-Profile/Server/HistoricalDataAtTime2022),
+  [Aggregate](http://opcfoundation.org/UA-Profile/Server/AggregateHistorical2022),
+  [Annotation](http://opcfoundation.org/UA-Profile/Server/HistoricalAnnotation2022),
+  [Structured Data](http://opcfoundation.org/UA-Profile/Server/HistoricalStructuredData2022),
+  raw-data
+  [Insert](http://opcfoundation.org/UA-Profile/Server/HistoricalDataInsert2022),
+  [Replace](http://opcfoundation.org/UA-Profile/Server/HistoricalDataReplace2022),
+  [Update](http://opcfoundation.org/UA-Profile/Server/HistoricalDataUpdate2022),
+  and [Delete](http://opcfoundation.org/UA-Profile/Server/HistoricalDataDelete2022),
+  plus historical
+  [Event Read](http://opcfoundation.org/UA-Profile/Server/BaseHistoricalEvent2022),
+  [Event Insert](http://opcfoundation.org/UA-Profile/Server/HistoricalEventInsert2022),
+  [Event Replace](http://opcfoundation.org/UA-Profile/Server/HistoricalEventReplace2022),
+  [Event Update](http://opcfoundation.org/UA-Profile/Server/HistoricalEventUpdate2022),
+  and [Event Delete](http://opcfoundation.org/UA-Profile/Server/HistoricalEventDelete2022).
+  See [Historical Access](HistoricalAccess.md) and
+  [Aggregates](Aggregates.md).
 
 ### Local Discovery Server (LDS) Profile
 

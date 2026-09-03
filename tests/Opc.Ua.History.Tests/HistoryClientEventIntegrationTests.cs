@@ -163,6 +163,124 @@ namespace Opc.Ua.History.Tests
         }
 
         [Test]
+        public async Task EventReplaceAppliesIndexRangeAsync()
+        {
+            var client = new HistoryClient(m_session);
+            DateTime eventTime = DateTime.UtcNow.AddYears(-10).AddSeconds(1451);
+            var eventId = ByteString.From([0x43, 0x88]);
+            var tagsName = new QualifiedName(
+                "Tags",
+                m_notifierId.NamespaceIndex);
+            var insertFilter = new EventFilter();
+            insertFilter.AddSelectClause(
+                ObjectTypeIds.BaseEventType,
+                BrowseNames.EventId,
+                Attributes.Value);
+            insertFilter.AddSelectClause(
+                ObjectTypeIds.BaseEventType,
+                BrowseNames.EventType,
+                Attributes.Value);
+            insertFilter.AddSelectClause(
+                ObjectTypeIds.BaseEventType,
+                BrowseNames.Time,
+                Attributes.Value);
+            insertFilter.SelectClauses =
+                insertFilter.SelectClauses.AddItem(
+                    new SimpleAttributeOperand
+                    {
+                        TypeDefinitionId = ObjectTypeIds.BaseEventType,
+                        BrowsePath = [tagsName],
+                        AttributeId = Attributes.Value
+                    });
+            ArrayOf<string> originalTags = ["first", "second", "third"];
+            ArrayOf<StatusCode> insertStatuses =
+                await client.InsertEventsAsync(
+                    m_notifierId,
+                    insertFilter,
+                    [
+                        new HistoryEventFieldList
+                        {
+                            EventFields =
+                            [
+                                new Variant(eventId),
+                                new Variant(ObjectTypeIds.BaseEventType),
+                                new Variant((DateTimeUtc)eventTime),
+                                new Variant(originalTags)
+                            ]
+                        }
+                    ]).ConfigureAwait(false);
+            Assert.That(
+                insertStatuses[0],
+                Is.EqualTo(StatusCodes.GoodEntryInserted));
+
+            var replaceFilter = new EventFilter();
+            replaceFilter.AddSelectClause(
+                ObjectTypeIds.BaseEventType,
+                BrowseNames.EventId,
+                Attributes.Value);
+            replaceFilter.SelectClauses =
+                replaceFilter.SelectClauses.AddItem(
+                    new SimpleAttributeOperand
+                    {
+                        TypeDefinitionId = ObjectTypeIds.BaseEventType,
+                        BrowsePath = [tagsName],
+                        AttributeId = Attributes.Value,
+                        IndexRange = "1"
+                    });
+            ArrayOf<string> replacementTag = ["changed"];
+            ArrayOf<StatusCode> replaceStatuses =
+                await client.ReplaceEventsAsync(
+                    m_notifierId,
+                    replaceFilter,
+                    [
+                        new HistoryEventFieldList
+                        {
+                            EventFields =
+                            [
+                                new Variant(eventId),
+                                new Variant(replacementTag)
+                            ]
+                        }
+                    ]).ConfigureAwait(false);
+            Assert.That(
+                replaceStatuses[0],
+                Is.EqualTo(StatusCodes.GoodEntryReplaced));
+
+            var readFilter = new EventFilter();
+            readFilter.AddSelectClause(
+                ObjectTypeIds.BaseEventType,
+                BrowseNames.EventId,
+                Attributes.Value);
+            readFilter.SelectClauses =
+                readFilter.SelectClauses.AddItem(
+                    new SimpleAttributeOperand
+                    {
+                        TypeDefinitionId = ObjectTypeIds.BaseEventType,
+                        BrowsePath = [tagsName],
+                        AttributeId = Attributes.Value
+                    });
+            List<HistoryEventFieldList> events = await ReadEventsAsync(
+                client,
+                readFilter,
+                eventTime).ConfigureAwait(false);
+            Assert.That(events, Has.Count.EqualTo(1));
+            Assert.That(
+                events[0].EventFields[1].TryGetValue(
+                    out ArrayOf<string> storedTags),
+                Is.True);
+            Assert.That(storedTags, Has.Count.EqualTo(3));
+            Assert.That(storedTags[0], Is.EqualTo("first"));
+            Assert.That(storedTags[1], Is.EqualTo("changed"));
+            Assert.That(storedTags[2], Is.EqualTo("third"));
+
+            ArrayOf<StatusCode> deleteStatuses =
+                await client.DeleteEventsAsync(
+                    m_notifierId,
+                    [eventId]).ConfigureAwait(false);
+            Assert.That(deleteStatuses[0], Is.EqualTo(StatusCodes.Good));
+        }
+
+        [Test]
         public async Task BatchedAnnotationsRoundTripAndRemoveAsync()
         {
             var client = new HistoryClient(m_session);
@@ -348,7 +466,21 @@ namespace Opc.Ua.History.Tests
                 notifier.EventNotifier =
                     EventNotifiers.HistoryRead | EventNotifiers.HistoryWrite;
 
-                m_provider.Register(notifier.NodeId);
+                m_provider.Register(
+                    notifier.NodeId,
+                    new HistorianNodeCapabilities
+                    {
+                        ReadRawData = false,
+                        ReadModifiedData = false,
+                        ReadAtTime = false,
+                        ReadProcessedData = false,
+                        ReadEventHistory = true,
+                        InsertEvent = true,
+                        ReplaceEvent = true,
+                        UpdateEvent = true,
+                        DeleteEvent = true,
+                        EventTypes = [ObjectTypeIds.BaseEventType]
+                    });
                 await AddPredefinedNodeAsync(
                     SystemContext,
                     notifier,
@@ -403,6 +535,7 @@ namespace Opc.Ua.History.Tests
 
         private const string TestNamespaceUri =
             "urn:opcfoundation:history-tests:event-history-client";
+
         private const string NotifierIdentifier = "EventHistoryNotifier";
         private const string AnnotationVariableIdentifier = "AnnotationHistoryVariable";
 
@@ -410,7 +543,7 @@ namespace Opc.Ua.History.Tests
         private ServerFixture<ReferenceServer> m_serverFixture = null!;
         private ClientFixture m_clientFixture = null!;
         private ReferenceServer m_server = null!;
-        private Opc.Ua.Client.ISession m_session = null!;
+        private Client.ISession m_session = null!;
         private ITelemetryContext m_telemetry = null!;
         private NodeId m_notifierId;
         private NodeId m_annotationVariableId;

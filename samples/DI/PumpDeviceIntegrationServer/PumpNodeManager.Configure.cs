@@ -29,13 +29,17 @@
 
 using System;
 using System.Collections.Concurrent;
-using System.Collections.Generic;
 using System.Globalization;
 using System.Threading;
 using Microsoft.Extensions.Logging;
 using Opc.Ua;
+// IDE0005 false positives below: PumpState needs Opc.Ua.Pumps; INodeManagerBuilder /
+// NodeManagerBuilder need Opc.Ua.Server.Fluent (verified: removal causes CS0246).
+#pragma warning disable IDE0005
 using Opc.Ua.Pumps;
 using Opc.Ua.Server.Fluent;
+#pragma warning restore IDE0005
+using Opc.Ua.Server.Historian;
 
 namespace Pumps
 {
@@ -90,6 +94,7 @@ namespace Pumps
         /// </summary>
         /// <param name="builder">The active fluent builder.</param>
         /// <param name="pump">The pump to configure.</param>
+        /// <exception cref="ServiceResultException"></exception>
         private void RegisterPumpSimulation(
             INodeManagerBuilder builder,
             PumpState pump)
@@ -134,7 +139,7 @@ namespace Pumps
         /// Configures the nameplate of one simulated unit with the
         /// identification data published in <c>DATASHEET.md</c>. The
         /// properties themselves are materialised by
-        /// <see cref="PumpNodeManager.MaterialiseNameplate"/>; this method
+        /// <see cref="MaterialiseNameplate"/>; this method
         /// only assigns their values through the fluent builder. Fields
         /// that identify the individual unit rather than the product are
         /// derived from <paramref name="pumpNumber"/>.
@@ -208,10 +213,14 @@ namespace Pumps
 
         private void WithMaintenance(INodeManagerBuilder builder, PumpState pump)
         {
+            // IDE0007 vs IDE0008 disagree on this factory-call shape; keep the
+            // explicit type (matches the pre-existing style at this call site).
+#pragma warning disable IDE0007
             NodeId functionalGroupType = NodeId.Create(
                 Opc.Ua.Di.ObjectTypes.FunctionalGroupType,
                 Opc.Ua.Di.Namespaces.OpcUaDi,
                 Server.NamespaceUris);
+#pragma warning restore IDE0007
             var generalMaintenance = new QualifiedName(
                 "GeneralMaintenance",
                 (ushort)Server.NamespaceUris.GetIndex(Opc.Ua.Pumps.Namespaces.Pumps));
@@ -350,7 +359,10 @@ namespace Pumps
                 .Bind(out updater)
                 .WithEngineeringUnits(units)
                 .WithEURange(min, max)
-                .Historize(historyAccessLevel: AccessLevels.HistoryRead);
+                .Historize(
+                    historyAccessLevel: AccessLevels.HistoryRead,
+                    autoCapture: true,
+                    captureOptions: s_historianCaptureOptions);
         }
 
         private static void WireBoolean(
@@ -379,6 +391,14 @@ namespace Pumps
                 falseStateVariable.WrappedValue = Variant.From(falseState);
             }
         }
+
+        private static readonly HistorianCaptureOptions s_historianCaptureOptions = new()
+        {
+            MaxQueuedSamples = 8192,
+            BatchTarget = 128,
+            BatchWindow = TimeSpan.FromMilliseconds(50),
+            FullMode = CaptureFullMode.DropOldest
+        };
 
         private void AdvanceSimulation()
         {
@@ -520,21 +540,25 @@ namespace Pumps
                 DateTime sourceTimestamp = DateTime.UtcNow;
 
                 double flow = PumpDatasheet.Hydraulics.RatedFlow *
-                    (1.0 + (PumpDatasheet.Simulation.FlowModulation *
-                        Math.Sin(localTick * PumpDatasheet.Simulation.FlowRate)));
+                    (1.0 +
+                        (PumpDatasheet.Simulation.FlowModulation *
+                            Math.Sin(localTick * PumpDatasheet.Simulation.FlowRate)));
                 double head = Head(flow);
                 double efficiency = Efficiency(flow);
                 double massFlow = PumpDatasheet.Hydraulics.FluidDensity *
-                    flow / 3600.0;
+                    flow /
+                    3600.0;
                 double differentialPressure =
                     PumpDatasheet.Hydraulics.FluidDensity *
-                    PumpDatasheet.Hydraulics.GravitationalAcceleration * head;
+                    PumpDatasheet.Hydraulics.GravitationalAcceleration *
+                    head;
                 double shaftPower = differentialPressure * (flow / 3600.0) /
                     (efficiency / 100.0);
                 double bearingTemperature =
                     PumpDatasheet.Simulation.BearingTemperatureBase +
                     (PumpDatasheet.Simulation.BearingTemperatureLoadRise *
-                        shaftPower / PumpDatasheet.Hydraulics.RatedShaftPower) +
+                        shaftPower /
+                        PumpDatasheet.Hydraulics.RatedShaftPower) +
                     CoolingFaultExcursion(localTick);
                 double level = PumpDatasheet.Simulation.LevelNominal +
                     (PumpDatasheet.Simulation.LevelAmplitude *
@@ -625,8 +649,10 @@ namespace Pumps
                     (flow - PumpDatasheet.Hydraulics.RatedFlow) /
                     PumpDatasheet.Hydraulics.RatedFlow;
                 return PumpDatasheet.Hydraulics.RatedEfficiency *
-                    (1.0 - (PumpDatasheet.Hydraulics.EfficiencyCurveFactor *
-                        deviation * deviation));
+                    (1.0 -
+                        (PumpDatasheet.Hydraulics.EfficiencyCurveFactor *
+                            deviation *
+                            deviation));
             }
 
             /// <summary>
@@ -642,7 +668,7 @@ namespace Pumps
                 {
                     return 0.0;
                 }
-                long rampTicks = PumpDatasheet.Simulation.CoolingFaultPeriodTicks -
+                const long rampTicks = PumpDatasheet.Simulation.CoolingFaultPeriodTicks -
                     PumpDatasheet.Simulation.CoolingFaultOnsetTick;
                 return PumpDatasheet.Simulation.CoolingFaultRise *
                     (cycle - PumpDatasheet.Simulation.CoolingFaultOnsetTick) /
