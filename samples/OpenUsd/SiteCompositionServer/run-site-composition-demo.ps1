@@ -43,10 +43,11 @@
     Leaves the three servers running and keeps logs, stage assets, and publish output.
 
 .EXAMPLE
-    pwsh samples/OpenUsd/run-site-composition-demo.ps1
+    pwsh samples/OpenUsd/SiteCompositionServer/run-site-composition-demo.ps1
 
 .EXAMPLE
-    pwsh samples/OpenUsd/run-site-composition-demo.ps1 -Renderer D3D12 -Keep
+    pwsh samples/OpenUsd/SiteCompositionServer/run-site-composition-demo.ps1 `
+        -Renderer D3D12 -Keep
 #>
 [CmdletBinding()]
 param(
@@ -72,7 +73,7 @@ param(
 
 $ErrorActionPreference = 'Stop'
 $here = Split-Path -Parent $MyInvocation.MyCommand.Path
-$repoRoot = (Resolve-Path (Join-Path $here '..' '..')).Path
+$repoRoot = (Resolve-Path ([IO.Path]::Combine($here, '..', '..', '..'))).Path
 $runRoot = Join-Path ([IO.Path]::GetTempPath()) "opcua-openusd-site-demo-$PID"
 $viewerPublish = Join-Path $runRoot 'viewer'
 $stageCache = Join-Path $runRoot 'stage'
@@ -85,13 +86,13 @@ $pumpProject = [IO.Path]::Combine(
     'DI',
     'PumpDeviceIntegrationServer',
     'PumpDeviceIntegrationServer.csproj')
-$generatorProject = [IO.Path]::Combine(
+$generatorProject = [IO.Path]::GetFullPath([IO.Path]::Combine(
     $here,
+    '..',
     'GeneratorServer',
-    'GeneratorServer.csproj')
+    'GeneratorServer.csproj'))
 $siteProject = [IO.Path]::Combine(
     $here,
-    'SiteCompositionServer',
     'SiteCompositionServer.csproj')
 $connectorProject = [IO.Path]::Combine(
     $repoRoot,

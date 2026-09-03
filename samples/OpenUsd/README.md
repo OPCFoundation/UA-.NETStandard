@@ -10,7 +10,7 @@ Runnable samples that publish OpenUSD representations from OPC UA servers.
 Run the complete site demo with:
 
 ```powershell
-pwsh samples/OpenUsd/run-site-composition-demo.ps1
+pwsh samples/OpenUsd/SiteCompositionServer/run-site-composition-demo.ps1
 ```
 
 See [OpenUSD](../../docs/OpenUsd.md) for the binding model, connector tool and viewport.

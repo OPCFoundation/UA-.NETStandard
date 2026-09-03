@@ -42,7 +42,7 @@ The demo script builds the three servers, publishes the connector and viewport
 side by side, waits for every endpoint, and cleans up when the viewer closes:
 
 ```powershell
-pwsh samples/OpenUsd/run-site-composition-demo.ps1
+pwsh samples/OpenUsd/SiteCompositionServer/run-site-composition-demo.ps1
 ```
 
 Use `-Renderer D3D12`, `-PumpCount`, `-GeneratorCount`, or `-Keep` to override

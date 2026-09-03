@@ -74,8 +74,5 @@ instructions.
 Run the complete site demo from the repository root:
 
 ```powershell
-pwsh samples/OpenUsd/run-site-composition-demo.ps1
+pwsh samples/OpenUsd/SiteCompositionServer/run-site-composition-demo.ps1
 ```
-
-More sample projects are maintained in the companion
-[OPC UA .NET Samples repository](https://github.com/OPCFoundation/UA-.NETStandard-Samples).
