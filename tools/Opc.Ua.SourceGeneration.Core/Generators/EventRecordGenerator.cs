@@ -610,8 +610,14 @@ namespace Opc.Ua.SourceGeneration
                 case "Double":
                     return "double?";
                 case "String":
-                case "UriString":
                     return "string?";
+                case "UriString":
+                    return string.Equals(
+                        m_context.ModelDesign.TargetNamespace.Value,
+                        Namespaces.OpcUa,
+                        StringComparison.Ordinal)
+                        ? "global::Opc.Ua.Variant"
+                        : "string?";
                 case "DateTime":
                 case "UtcTime":
                     return "global::System.DateTime?";

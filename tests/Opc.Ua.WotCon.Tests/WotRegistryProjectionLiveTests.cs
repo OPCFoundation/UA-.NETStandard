@@ -344,6 +344,107 @@ namespace Opc.Ua.WotCon.Tests
             Assert.That(downloaded.ToArray(), Is.EqualTo(expected));
         }
 
+        [Test]
+        public async Task UploadNewVersionAllocatesVersionWithoutSwitchingDefault()
+        {
+            WotRegistryClient client = await OpenClientAsync().ConfigureAwait(false);
+            (_, WotRegistryResourceClient resource) = await CreateGroupAndResourceAsync(client)
+                .ConfigureAwait(false);
+            WotResource before = m_registry.Current.FindResource(
+                WotRegistryGroups.ThingDescriptions,
+                "td-01")!;
+            string defaultVersionId = before.DefaultVersionId!;
+
+            byte[] second = Encoding.UTF8.GetBytes(MakeThingDescriptionStringV2("td-01"));
+            await resource.UploadNewVersionAsync(ByteString.From(second)).ConfigureAwait(false);
+
+            WotResource after = m_registry.Current.FindResource(
+                WotRegistryGroups.ThingDescriptions,
+                "td-01")!;
+            WotResourceVersion newVersion = after.Versions.Single(
+                version => !string.Equals(
+                    version.VersionId,
+                    defaultVersionId,
+                    StringComparison.Ordinal));
+            ByteString stored = await m_registry.ReadContentAsync(newVersion).ConfigureAwait(false);
+            Assert.Multiple(() =>
+            {
+                Assert.That(after.Versions, Has.Length.EqualTo(2));
+                Assert.That(after.DefaultVersionId, Is.EqualTo(defaultVersionId));
+                Assert.That(after.DesiredVersionId, Is.EqualTo(defaultVersionId));
+                Assert.That(stored.ToArray(), Is.EqualTo(second));
+            });
+        }
+
+        [Test]
+        public async Task ConcreteVersionWriteReplacesOnlyThatVersionAndPreservesDefault()
+        {
+            WotRegistryClient client = await OpenClientAsync().ConfigureAwait(false);
+            WotRegistryGroupClient group = await client
+                .CreateThingDescriptionGroupAsync()
+                .ConfigureAwait(false);
+            (WotRegistryResourceClient v1, _) = await group
+                .CreateResourceAsync("replace", "v1")
+                .ConfigureAwait(false);
+            byte[] v1Content = MakeThingDescriptionBytes("replace-v1");
+            await v1.Proxy.UploadAsync(ByteString.From(v1Content)).ConfigureAwait(false);
+            (WotRegistryResourceClient v2, _) = await group
+                .CreateResourceAsync("replace", "v2")
+                .ConfigureAwait(false);
+            await v2.Proxy.UploadAsync(
+                ByteString.From(MakeThingDescriptionBytes("replace-v2")))
+                .ConfigureAwait(false);
+            await v2.SetDefaultVersionAsync("v1", expectedEpoch: 0).ConfigureAwait(false);
+
+            byte[] replacement = Encoding.UTF8.GetBytes(
+                MakeThingDescriptionStringV2("replace-v2-replaced"));
+            await v2.Proxy.UploadAsync(ByteString.From(replacement)).ConfigureAwait(false);
+
+            WotResource stored = m_registry.Current.FindResource(
+                WotRegistryGroups.ThingDescriptions,
+                "replace")!;
+            ByteString storedV1 = await m_registry.ReadContentAsync(
+                stored.FindVersion("v1")!).ConfigureAwait(false);
+            ByteString storedV2 = await m_registry.ReadContentAsync(
+                stored.FindVersion("v2")!).ConfigureAwait(false);
+            Assert.Multiple(() =>
+            {
+                Assert.That(stored.Versions, Has.Length.EqualTo(2));
+                Assert.That(stored.DefaultVersionId, Is.EqualTo("v1"));
+                Assert.That(storedV1.ToArray(), Is.EqualTo(v1Content));
+                Assert.That(storedV2.ToArray(), Is.EqualTo(replacement));
+            });
+        }
+
+        [Test]
+        public async Task OpenResourceSelectsDefaultWhenResourceAndVersionBrowseNamesCollide()
+        {
+            WotRegistryClient client = await OpenClientAsync().ConfigureAwait(false);
+            WotRegistryGroupClient group = await client
+                .CreateThingDescriptionGroupAsync()
+                .ConfigureAwait(false);
+            (WotRegistryResourceClient collidingVersion, _) = await group
+                .CreateResourceAsync("collision", "collision")
+                .ConfigureAwait(false);
+            await collidingVersion.Proxy.UploadAsync(
+                ByteString.From(MakeThingDescriptionBytes("collision-old")))
+                .ConfigureAwait(false);
+            (WotRegistryResourceClient defaultVersion, _) = await group
+                .CreateResourceAsync("collision", "v2")
+                .ConfigureAwait(false);
+            await defaultVersion.Proxy.UploadAsync(
+                ByteString.From(MakeThingDescriptionBytes("collision-default")))
+                .ConfigureAwait(false);
+            await defaultVersion.SetDefaultVersionAsync("v2", expectedEpoch: 0)
+                .ConfigureAwait(false);
+
+            WotRegistryResourceClient opened = await group
+                .OpenResourceAsync("collision")
+                .ConfigureAwait(false);
+
+            Assert.That(opened.ResourceNodeId, Is.EqualTo(defaultVersion.ResourceNodeId));
+        }
+
         /// <summary>
         /// Covers <c>OnValidateAsync</c> success path: calling Validate after
         /// uploading content returns a non-null outcome.
@@ -360,6 +461,42 @@ namespace Opc.Ua.WotCon.Tests
                 .ConfigureAwait(false);
 
             Assert.That(outcome, Is.Not.Null);
+        }
+
+        [Test]
+        public async Task ValidateOnConcreteNonDefaultVersionTargetsThatVersion()
+        {
+            WotRegistryClient client = await OpenClientAsync().ConfigureAwait(false);
+            WotRegistryGroupClient group = await client
+                .CreateThingDescriptionGroupAsync()
+                .ConfigureAwait(false);
+            (WotRegistryResourceClient v1, _) = await group
+                .CreateResourceAsync("validate-version", "v1")
+                .ConfigureAwait(false);
+            await v1.Proxy.UploadAsync(
+                ByteString.From(MakeThingDescriptionBytes("validate-version")))
+                .ConfigureAwait(false);
+            (WotRegistryResourceClient v2, _) = await group
+                .CreateResourceAsync("validate-version", "v2")
+                .ConfigureAwait(false);
+            await v2.Proxy.UploadAsync(ByteString.From(TestMaterialization.InvalidJson()))
+                .ConfigureAwait(false);
+            await v2.SetDefaultVersionAsync("v1", expectedEpoch: 0).ConfigureAwait(false);
+
+            WoTValidationOutcomeDataType outcome = await v2.ValidateAsync().ConfigureAwait(false);
+            WotResource stored = m_registry.Current.FindResource(
+                WotRegistryGroups.ThingDescriptions,
+                "validate-version")!;
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(outcome.FormatOutcome, Is.EqualTo(WoTOutcomeEnum.Failed));
+                Assert.That(stored.DefaultVersionId, Is.EqualTo("v1"));
+                Assert.That(stored.FindVersion("v1")!.Validation, Is.Null);
+                Assert.That(
+                    stored.FindVersion("v2")!.Validation!.FormatOutcome,
+                    Is.EqualTo(WoTOutcomeEnum.Failed));
+            });
         }
 
         /// <summary>

@@ -40,6 +40,16 @@ namespace Opc.Ua.Core.Tests.Stack.Client
     public sealed class EventRecordFieldReadersTests
     {
         [Test]
+        public void StandardUriStringEventFieldsPreserveVariantAbi()
+        {
+            System.Reflection.PropertyInfo serverUri =
+                typeof(AuditClientEventTypeRecord).GetProperty("ServerUri");
+
+            Assert.That(serverUri, Is.Not.Null);
+            Assert.That(serverUri!.PropertyType, Is.EqualTo(typeof(Variant)));
+        }
+
+        [Test]
         public void GetNodeIdArrayWhenFieldContainsNodeIdsReturnsValues()
         {
             NodeId[] expected = [new NodeId(1u), new NodeId("Second", 2)];

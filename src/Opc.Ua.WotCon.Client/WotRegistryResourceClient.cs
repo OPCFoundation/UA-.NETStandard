@@ -27,11 +27,13 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using Opc.Ua.Client;
 using Opc.Ua.Encoders;
+using Opc.Ua.XRegistry;
 using Opc.Ua.XRegistry.Client;
 
 namespace Opc.Ua.WotCon.Client
@@ -44,8 +46,10 @@ namespace Opc.Ua.WotCon.Client
     /// subtypes, which in turn inherits the <c>FileType</c>
     /// <c>Open</c>/<c>Read</c>/<c>Write</c>/<c>Close</c> primitives used
     /// here through the existing <see cref="FileTypeClientExtensions"/>.
-    /// Closing a write handle commits the buffered content as a new
-    /// resource version.
+    /// <see cref="UploadNewVersionAsync(ByteString, int, CancellationToken)"/>
+    /// allocates a structural Version before streaming content. Direct writes
+    /// through <see cref="Proxy"/> replace the concrete Version represented by
+    /// that proxy.
     /// </summary>
     public sealed class WotRegistryResourceClient
     {
@@ -54,16 +58,22 @@ namespace Opc.Ua.WotCon.Client
             NodeId resourceNodeId,
             string groupId,
             string resourceId,
+            string versionId,
             WoTDocumentKindEnum kind,
+            GroupTypeClient groupProxy,
             WoTDocumentTypeClient proxy,
+            bool pendingStructuralVersion,
             ITelemetryContext telemetry)
         {
             Session = session;
             ResourceNodeId = resourceNodeId;
             GroupId = groupId;
             ResourceId = resourceId;
+            VersionId = versionId;
             Kind = kind;
+            m_groupProxy = groupProxy;
             Proxy = proxy;
+            m_pendingStructuralVersion = pendingStructuralVersion;
             Telemetry = telemetry;
         }
 
@@ -86,6 +96,12 @@ namespace Opc.Ua.WotCon.Client
         /// Resource id (BrowseName minus namespace prefix).
         /// </summary>
         public string ResourceId { get; }
+
+        /// <summary>
+        /// Version id represented by this client when it was returned from a
+        /// create/get-or-create operation. It is empty for a logical default-resource lookup.
+        /// </summary>
+        public string VersionId { get; }
 
         /// <summary>
         /// Whether this resource is a Thing Description or a Thing Model.
@@ -209,12 +225,44 @@ namespace Opc.Ua.WotCon.Client
         /// <c>Write</c> → <c>Close</c>). Closing the write handle commits
         /// the buffer as a new resource version.
         /// </summary>
-        public ValueTask UploadNewVersionAsync(
+        public async ValueTask UploadNewVersionAsync(
             ByteString content,
             int chunkSize = FileTypeClientExtensions.DefaultChunkSize,
             CancellationToken ct = default)
         {
-            return Proxy.UploadAsync(content, chunkSize: chunkSize, ct: ct);
+            if (chunkSize <= 0)
+            {
+                throw new ArgumentOutOfRangeException(
+                    nameof(chunkSize),
+                    "Chunk size must be positive.");
+            }
+            if (m_pendingStructuralVersion)
+            {
+                await Proxy.UploadAsync(content, chunkSize: chunkSize, ct: ct)
+                    .ConfigureAwait(false);
+                if (content.Length > 0)
+                {
+                    m_pendingStructuralVersion = false;
+                }
+                return;
+            }
+
+            (NodeId nodeId, _, uint fileHandle) = await m_groupProxy
+                .CreateResourceAsync(
+                    ResourceId,
+                    versionId: string.Empty,
+                    requestFileOpen: true,
+                    ct)
+                .ConfigureAwait(false);
+            if (fileHandle == 0)
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadUnexpectedError,
+                    "CreateResource did not return the requested write handle.");
+            }
+            await CreateProxy(nodeId)
+                .WriteDocumentAsync(fileHandle, content, chunkSize, ct)
+                .ConfigureAwait(false);
         }
 
         /// <summary>
@@ -225,12 +273,66 @@ namespace Opc.Ua.WotCon.Client
         /// it. Closing the write handle commits the buffer as a new
         /// resource version.
         /// </summary>
-        public ValueTask UploadNewVersionAsync(
+        public async ValueTask UploadNewVersionAsync(
             Stream content,
             int chunkSize = FileTypeClientExtensions.DefaultChunkSize,
             CancellationToken ct = default)
         {
-            return Proxy.UploadAsync(content, chunkSize: chunkSize, ct: ct);
+            if (content is null)
+            {
+                throw new ArgumentNullException(nameof(content));
+            }
+            if (!content.CanRead)
+            {
+                throw new ArgumentException("Stream must be readable.", nameof(content));
+            }
+            if (chunkSize <= 0)
+            {
+                throw new ArgumentOutOfRangeException(
+                    nameof(chunkSize),
+                    "Chunk size must be positive.");
+            }
+            if (m_pendingStructuralVersion)
+            {
+                long written = await UploadStreamAsync(Proxy, content, chunkSize, ct)
+                    .ConfigureAwait(false);
+                if (written > 0)
+                {
+                    m_pendingStructuralVersion = false;
+                }
+                return;
+            }
+
+            (NodeId nodeId, _, uint fileHandle) = await m_groupProxy
+                .CreateResourceAsync(
+                    ResourceId,
+                    versionId: string.Empty,
+                    requestFileOpen: true,
+                    ct)
+                .ConfigureAwait(false);
+            if (fileHandle == 0)
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadUnexpectedError,
+                    "CreateResource did not return the requested write handle.");
+            }
+            WoTDocumentTypeClient proxy = CreateProxy(nodeId);
+            try
+            {
+                await content.CopyStreamInChunksAsync(
+                        chunkSize,
+                        (chunk, token) => proxy.WriteAsync(
+                            fileHandle,
+                            ByteString.From(chunk),
+                            token),
+                        ct)
+                    .ConfigureAwait(false);
+            }
+            finally
+            {
+                await proxy.CloseAsync(fileHandle, CancellationToken.None)
+                    .ConfigureAwait(false);
+            }
         }
 
         /// <summary>
@@ -262,5 +364,47 @@ namespace Opc.Ua.WotCon.Client
         {
             return Proxy.DownloadToAsync(destination, chunkSize, ct);
         }
+
+        private WoTDocumentTypeClient CreateProxy(NodeId nodeId)
+        {
+            return Kind == WoTDocumentKindEnum.ThingModel
+                ? new ThingModelFileTypeClient(Session, nodeId, Telemetry)
+                : new ThingDescriptionFileTypeClient(Session, nodeId, Telemetry);
+        }
+
+        private static async ValueTask<long> UploadStreamAsync(
+            WoTDocumentTypeClient proxy,
+            Stream content,
+            int chunkSize,
+            CancellationToken ct)
+        {
+            uint fileHandle = await proxy.OpenAsync(6, ct).ConfigureAwait(false);
+            long written = 0;
+            try
+            {
+                await content.CopyStreamInChunksAsync(
+                        chunkSize,
+                        async (chunk, token) =>
+                        {
+                            await proxy.WriteAsync(
+                                    fileHandle,
+                                    ByteString.From(chunk),
+                                    token)
+                                .ConfigureAwait(false);
+                            written += chunk.Length;
+                        },
+                        ct)
+                    .ConfigureAwait(false);
+            }
+            finally
+            {
+                await proxy.CloseAsync(fileHandle, CancellationToken.None)
+                    .ConfigureAwait(false);
+            }
+            return written;
+        }
+
+        private readonly GroupTypeClient m_groupProxy;
+        private bool m_pendingStructuralVersion;
     }
 }

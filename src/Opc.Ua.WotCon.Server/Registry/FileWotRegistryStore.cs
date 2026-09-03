@@ -619,13 +619,16 @@ namespace Opc.Ua.WotCon.Server.Registry
                     "The registry was left unchanged.",
                     ex);
             }
-            if (manifest.SchemaVersion != CurrentSchemaVersion)
+            if (manifest.SchemaVersion < OldestSupportedSchemaVersion ||
+                manifest.SchemaVersion > CurrentSchemaVersion)
             {
                 throw new NotSupportedException(
                     $"WoT registry {manifestRole} '{manifestPath}' uses schema " +
-                    $"{manifest.SchemaVersion}; expected {CurrentSchemaVersion}. " +
+                    $"{manifest.SchemaVersion}; supported schemas are " +
+                    $"{OldestSupportedSchemaVersion} through {CurrentSchemaVersion}. " +
                     "The registry was left unchanged.");
             }
+            manifest = MigrateManifest(manifest);
 
             WotRegistrySnapshot loaded = await LoadSnapshotAsync(
                     manifest,
@@ -641,6 +644,54 @@ namespace Opc.Ua.WotCon.Server.Registry
                     manifest.Generation,
                     WotContentDigest.ToHex(WotContentDigest.Compute(manifestBytes))),
                 manifestBytes);
+        }
+
+        private static ManifestDto MigrateManifest(ManifestDto manifest)
+        {
+            if (manifest.SchemaVersion == CurrentSchemaVersion)
+            {
+                return manifest;
+            }
+
+            foreach (GroupDto group in manifest.Groups ?? [])
+            {
+                foreach (ResourceDto resource in group.Resources ?? [])
+                {
+                    string? defaultVersionId =
+                        resource.DefaultVersionId ?? resource.DesiredVersionId;
+                    foreach (VersionDto version in resource.Versions ?? [])
+                    {
+                        version.Epoch ??= 1;
+                        version.HasContent ??=
+                            !string.IsNullOrEmpty(version.DigestHex);
+                        if (version.Validation is null &&
+                            string.Equals(
+                                version.VersionId,
+                                defaultVersionId,
+                                StringComparison.Ordinal))
+                        {
+                            version.Validation = resource.Validation;
+                        }
+                    }
+
+                    if (string.IsNullOrEmpty(resource.MetaCreatedAt) &&
+                        resource.Versions is { Length: > 0 })
+                    {
+                        resource.MetaCreatedAt = FormatDate(
+                            resource.Versions.Min(
+                                version => ParseDate(version.CreatedAt)));
+                    }
+                    if (string.IsNullOrEmpty(resource.MetaModifiedAt) &&
+                        resource.Versions is { Length: > 0 })
+                    {
+                        resource.MetaModifiedAt = FormatDate(
+                            resource.Versions.Max(
+                                version => ParseDate(version.ModifiedAt)));
+                    }
+                }
+            }
+            manifest.SchemaVersion = CurrentSchemaVersion;
+            return manifest;
         }
 
         /// <summary>
@@ -866,7 +917,8 @@ namespace Opc.Ua.WotCon.Server.Registry
                     {
                         Epoch = version.Epoch.GetValueOrDefault(1),
                         Labels = ToLabels(version.Labels),
-                        HasContent = hasContent
+                        HasContent = hasContent,
+                        Validation = FromDto(version.Validation)
                     });
                 }
             }
@@ -878,6 +930,11 @@ namespace Opc.Ua.WotCon.Server.Registry
             DateTime derivedMetaModifiedAt = loadedVersions.IsDefaultOrEmpty
                 ? derivedMetaCreatedAt
                 : loadedVersions.Max(version => version.ModifiedAt);
+            WoTValidationOutcomeDataType? validation = FromDto(dto.Validation) ??
+                loadedVersions.FirstOrDefault(version => string.Equals(
+                    version.VersionId,
+                    dto.DefaultVersionId ?? dto.DesiredVersionId,
+                    StringComparison.Ordinal))?.Validation;
             return new WotResource(
                 dto.GroupId,
                 dto.ResourceId,
@@ -888,7 +945,7 @@ namespace Opc.Ua.WotCon.Server.Registry
                 activeVersionId: dto.ActiveVersionId,
                 enabled: dto.Enabled,
                 loadState: (WoTLoadStateEnum)dto.LoadState,
-                validation: FromDto(dto.Validation),
+                validation: validation,
                 diagnostics: dto.Diagnostics is null
                     ? []
                     : ImmutableArray.Create(dto.Diagnostics),
@@ -959,7 +1016,8 @@ namespace Opc.Ua.WotCon.Server.Registry
                     ContentLength = v.ContentLength,
                     Epoch = v.Epoch,
                     Labels = FromLabels(v.Labels),
-                    HasContent = v.HasContent
+                    HasContent = v.HasContent,
+                    Validation = ToDto(v.Validation)
                 };
             }
             return new ResourceDto
@@ -984,7 +1042,6 @@ namespace Opc.Ua.WotCon.Server.Registry
                 Diagnostics = resource.Diagnostics.IsDefaultOrEmpty
                     ? null
                     : System.Linq.Enumerable.ToArray(resource.Diagnostics),
-                Validation = ToDto(resource.Validation),
                 Versions = versions.Length == 0 ? null : versions,
                 Labels = FromLabels(resource.MetaLabels),
                 MetaCreatedAt = FormatDate(resource.MetaCreatedAt),
@@ -2176,7 +2233,7 @@ namespace Opc.Ua.WotCon.Server.Registry
         private static extern int CloseUnix(IntPtr file);
 
         /// <summary>
-        /// Identifies the file-system durability barrier reached while committing manifest version 2.
+        /// Identifies the file-system durability barrier reached while committing a manifest.
         /// </summary>
         internal enum DirectorySyncPhase
         {
@@ -2430,7 +2487,8 @@ namespace Opc.Ua.WotCon.Server.Registry
         private const string LockFile = ".wot-registry.lock";
         private const string RegistryXid = "/";
         private const string RegistryNodeIdPath = "WoTRegistry";
-        private const int CurrentSchemaVersion = 3;
+        private const int CurrentSchemaVersion = 4;
+        private const int OldestSupportedSchemaVersion = 3;
         private const int Sha256HexLength = 64;
         private const int BlobVerifyChunkSize = 64 * 1024;
         private const int OpenReadOnly = 0;
@@ -2459,7 +2517,7 @@ namespace Opc.Ua.WotCon.Server.Registry
         private long? m_expectedGeneration;
 
         /// <summary>
-        /// Serializes the manifest version 2 root document for the file-backed WoT registry store.
+        /// Serializes the manifest root document for the file-backed WoT registry store.
         /// </summary>
         internal sealed class ManifestDto
         {
@@ -2485,7 +2543,7 @@ namespace Opc.Ua.WotCon.Server.Registry
         }
 
         /// <summary>
-        /// Serializes one xRegistry group inside a manifest version 2 document.
+        /// Serializes one xRegistry group inside a manifest document.
         /// </summary>
         internal sealed class GroupDto
         {
@@ -2526,7 +2584,7 @@ namespace Opc.Ua.WotCon.Server.Registry
         }
 
         /// <summary>
-        /// Serializes one resource version entry inside a manifest version 2 resource.
+        /// Serializes one resource Version entry inside a manifest resource.
         /// </summary>
         internal sealed class VersionDto
         {
@@ -2579,10 +2637,15 @@ namespace Opc.Ua.WotCon.Server.Registry
             /// Gets or sets whether document bytes have been committed.
             /// </summary>
             public bool? HasContent { get; set; }
+
+            /// <summary>
+            /// Gets or sets validation metadata recorded for this Version.
+            /// </summary>
+            public ValidationDto? Validation { get; set; }
         }
 
         /// <summary>
-        /// Serializes validation metadata for one manifest version 2 resource.
+        /// Serializes validation metadata for one manifest entity.
         /// </summary>
         internal sealed class ValidationDto
         {
@@ -2633,7 +2696,7 @@ namespace Opc.Ua.WotCon.Server.Registry
         }
 
         /// <summary>
-        /// Serializes one xRegistry resource and its materialization state in manifest version 2.
+        /// Serializes one xRegistry resource and its materialization state in a manifest.
         /// </summary>
         internal sealed class ResourceDto
         {
@@ -2728,7 +2791,7 @@ namespace Opc.Ua.WotCon.Server.Registry
             public string[]? Diagnostics { get; set; }
 
             /// <summary>
-            /// Gets or sets validation metadata for the resource.
+            /// Gets or sets legacy schema-3 validation metadata for the default Version.
             /// </summary>
             public ValidationDto? Validation { get; set; }
 

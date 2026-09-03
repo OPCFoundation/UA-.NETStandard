@@ -299,6 +299,49 @@ namespace Opc.Ua.XRegistry.Tests
         }
 
         [Test]
+        public async Task SuppliedTransitionsEmitIntermediateCreateAndDeleteAsync()
+        {
+            ProjectionHarness harness = ProjectionHarness.Create(eventsEnabled: true);
+            harness.Strategy.Snapshot = new TestSnapshot([]);
+            harness.Strategy.EventSnapshot = EmptyEventSnapshot(0);
+            await harness.Engine.AttachAsync(harness.Registry, CancellationToken.None)
+                .ConfigureAwait(false);
+
+            (IXRegistryProjectionSnapshot createdProjection,
+                XRegistryProjectionEventSnapshot createdEvents) =
+                GenerationWithResource("queued", 1);
+            await harness.Engine.ReconcileAsync(
+                    new XRegistryProjectionGeneration(createdProjection, createdEvents),
+                    EmptyEventSnapshot(0),
+                    CancellationToken.None)
+                .ConfigureAwait(false);
+            XRegistryProjectionEventSnapshot deletedEvents = EmptyEventSnapshot(2);
+            await harness.Engine.ReconcileAsync(
+                    new XRegistryProjectionGeneration(new TestSnapshot([]), deletedEvents),
+                    createdEvents,
+                    CancellationToken.None)
+                .ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    harness.Events
+                        .Where(evt => evt is ResourceCreatedEventState or ResourceDeletedEventState)
+                        .Select(evt => evt.GetType()),
+                    Is.EqualTo(new[]
+                    {
+                        typeof(ResourceCreatedEventState),
+                        typeof(ResourceDeletedEventState)
+                    }));
+                Assert.That(
+                    harness.Deleted,
+                    Does.Contain(new NodeId(
+                        "TestRegistry/groups/schemas/resources/queued",
+                        1)));
+            });
+        }
+
+        [Test]
         public async Task DeprecatedObjectValueChangesEmitSpecializedAndUpdatedEventsAsync()
         {
             ProjectionHarness harness = ProjectionHarness.Create(eventsEnabled: true);
@@ -427,6 +470,30 @@ namespace Opc.Ua.XRegistry.Tests
                         "TestRegistry/groups/schemas/resources/pump/versions/v1",
                         1)));
             });
+        }
+
+        [Test]
+        public async Task LogicalResourceEventSourceIsMappedWhenGenericEventsAreDisabled()
+        {
+            var strategy = new VersionedTestStrategy
+            {
+                Snapshot = VersionedProjectionSnapshot("v1"),
+                EventSnapshot = VersionedEventSnapshot("v1", 1, WotLabels())
+            };
+            ProjectionHarness harness = ProjectionHarness.Create(
+                eventsEnabled: false,
+                suppliedStrategy: strategy);
+
+            await harness.Engine.AttachAsync(harness.Registry, CancellationToken.None)
+                .ConfigureAwait(false);
+
+            NodeState source = harness.Engine.EventSourceFor(
+                "/groups/schemas/resources/pump");
+            Assert.That(
+                source.NodeId,
+                Is.EqualTo(new NodeId(
+                    "TestRegistry/groups/schemas/resources/pump/versions/v1",
+                    1)));
         }
 
         private static XRegistryProjectionEventSnapshot EmptyEventSnapshot(uint epoch)

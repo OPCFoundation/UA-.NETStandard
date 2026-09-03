@@ -229,6 +229,11 @@ namespace Opc.Ua.WotCon.Server.Registry
         public bool HasContent { get; init; } = true;
 
         /// <summary>
+        /// Gets the validation outcome recorded for this Version, if any.
+        /// </summary>
+        public WoTValidationOutcomeDataType? Validation { get; init; }
+
+        /// <summary>
         /// Gets the content digest as a lowercase hexadecimal string.
         /// </summary>
         public string DigestHex => HasContent ? WotContentDigest.ToHex(Digest) : string.Empty;
@@ -244,7 +249,9 @@ namespace Opc.Ua.WotCon.Server.Registry
             DateTime? modifiedAt = null,
             long? epoch = null,
             ImmutableSortedDictionary<string, string>? labels = null,
-            bool? hasContent = null)
+            bool? hasContent = null,
+            WoTValidationOutcomeDataType? validation = null,
+            bool clearValidation = false)
         {
             return new WotResourceVersion(
                 VersionId,
@@ -257,7 +264,8 @@ namespace Opc.Ua.WotCon.Server.Registry
             {
                 Epoch = epoch ?? Epoch,
                 Labels = labels ?? Labels,
-                HasContent = hasContent ?? HasContent
+                HasContent = hasContent ?? HasContent,
+                Validation = clearValidation ? null : (validation ?? Validation)
             };
         }
     }

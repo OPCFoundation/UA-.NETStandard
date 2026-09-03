@@ -281,6 +281,11 @@ namespace Opc.Ua.WotCon.Server.Registry
         /// Gets whether the projection failed to keep a previous active generation.
         /// </summary>
         public bool RetainPreviousActiveVersion { get; init; }
+
+        /// <summary>
+        /// Gets or initializes the Version whose validation state this projection records.
+        /// </summary>
+        public string? VersionId { get; init; }
     }
 
     /// <summary>
@@ -302,8 +307,10 @@ namespace Opc.Ua.WotCon.Server.Registry
         WotRegistryPersistenceBounds Bounds { get; }
 
         /// <summary>
-        /// Raised after a content mutation (upsert/delete/set-default/set-enabled)
-        /// or a projection callback. Consumers filter on
+        /// Raised after a registry mutation or a projection callback. Structural
+        /// changes without document content and projection callbacks set
+        /// <see cref="WotRegistryChangedEventArgs.ProjectionOnly"/> so consumers
+        /// can update browseable state without running materialization. Consumers filter on
         /// <see cref="WotRegistryChangedEventArgs.ProjectionOnly"/>.
         /// </summary>
         event EventHandler<WotRegistryChangedEventArgs>? Changed;
@@ -506,10 +513,15 @@ namespace Opc.Ua.WotCon.Server.Registry
     }
 
     /// <summary>
-    /// Additive Version-aware registry operations used by the xRegistry projection.
+    /// Optional additive Version-aware registry operations used by the xRegistry
+    /// projection. Existing <see cref="IWotRegistryService"/> implementations do
+    /// not need to implement this interface.
     /// </summary>
-    internal interface IWotVersionedRegistryService
+    public interface IWotVersionedRegistryService
     {
+        /// <summary>
+        /// Gets or creates an exact Version, assigning a VersionId when none is supplied.
+        /// </summary>
         ValueTask<(WotResource Resource, WotResourceVersion Version, bool Created)>
             GetOrCreateVersionAsync(
                 string groupId,
@@ -518,6 +530,9 @@ namespace Opc.Ua.WotCon.Server.Registry
                 WoTDocumentKindEnum kind,
                 CancellationToken cancellationToken = default);
 
+        /// <summary>
+        /// Creates an exact Version, returning <c>null</c> when it already exists.
+        /// </summary>
         ValueTask<(WotResource Resource, WotResourceVersion Version)?> TryCreateVersionAsync(
             string groupId,
             string resourceId,
@@ -525,6 +540,18 @@ namespace Opc.Ua.WotCon.Server.Registry
             WoTDocumentKindEnum kind,
             CancellationToken cancellationToken = default);
 
+        /// <summary>
+        /// Validates and records the outcome for one exact Version.
+        /// </summary>
+        ValueTask<WoTValidationOutcomeDataType> ValidateVersionAsync(
+            string groupId,
+            string resourceId,
+            string versionId,
+            CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Deletes one exact Version.
+        /// </summary>
         ValueTask<WotRegistryMutationResult> DeleteVersionAsync(
             string groupId,
             string resourceId,
@@ -532,6 +559,9 @@ namespace Opc.Ua.WotCon.Server.Registry
             long? expectedEpoch = null,
             CancellationToken cancellationToken = default);
 
+        /// <summary>
+        /// Adds or updates a label on one exact Version.
+        /// </summary>
         ValueTask<WotRegistryMutationResult> AddVersionLabelAsync(
             string groupId,
             string resourceId,
@@ -541,6 +571,9 @@ namespace Opc.Ua.WotCon.Server.Registry
             long? expectedEpoch = null,
             CancellationToken cancellationToken = default);
 
+        /// <summary>
+        /// Removes a label from one exact Version.
+        /// </summary>
         ValueTask<WotRegistryMutationResult> RemoveVersionLabelAsync(
             string groupId,
             string resourceId,

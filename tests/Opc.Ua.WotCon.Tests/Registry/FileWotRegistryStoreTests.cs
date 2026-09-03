@@ -35,6 +35,7 @@ using System.Linq;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
@@ -153,6 +154,9 @@ namespace Opc.Ua.WotCon.Tests.Registry
                     "owner",
                     "plant-1",
                     createdTd.MetaEpoch);
+                await service.ValidateResourceAsync(
+                    WotRegistryGroups.ThingDescriptions,
+                    "a");
             }
 
             var reloadStore = new FileWotRegistryStore(m_root);
@@ -168,6 +172,9 @@ namespace Opc.Ua.WotCon.Tests.Registry
             {
                 Assert.That(td.DefaultVersion!.Epoch, Is.EqualTo(2));
                 Assert.That(td.DefaultVersion.Labels["version"], Is.EqualTo("one"));
+                Assert.That(
+                    td.DefaultVersion.Validation!.FormatOutcome,
+                    Is.EqualTo(WoTOutcomeEnum.Success));
                 Assert.That(td.MetaLabels["owner"], Is.EqualTo("plant-1"));
                 Assert.That(td.MetaCreatedAt, Is.Not.Default);
                 Assert.That(td.MetaModifiedAt, Is.GreaterThanOrEqualTo(td.MetaCreatedAt));
@@ -202,11 +209,64 @@ namespace Opc.Ua.WotCon.Tests.Registry
 
             Assert.Multiple(() =>
             {
+                using JsonDocument manifest = JsonDocument.Parse(
+                    File.ReadAllBytes(ManifestPath));
+                Assert.That(
+                    manifest.RootElement.GetProperty("SchemaVersion").GetInt32(),
+                    Is.EqualTo(4));
                 Assert.That(resource.DefaultVersionId, Is.EqualTo("v1"));
                 Assert.That(resource.Versions, Has.Length.EqualTo(1));
                 Assert.That(resource.Versions[0].HasContent, Is.False);
                 Assert.That(resource.Versions[0].Epoch, Is.EqualTo(1));
                 Assert.That(resource.MetaEpoch, Is.EqualTo(1));
+            });
+        }
+
+        [Test]
+        public async Task Schema3ManifestMigratesVersionAndResourceMetaDefaults()
+        {
+            using (var service = new WotRegistryService(new FileWotRegistryStore(m_root)))
+            {
+                await service.InitializeAsync();
+                await service.UpsertResourceAsync(TdRequest("legacy", "urn:legacy"));
+                await service.ValidateResourceAsync(
+                    WotRegistryGroups.ThingDescriptions,
+                    "legacy");
+            }
+
+            JsonObject manifest = JsonNode.Parse(File.ReadAllText(ManifestPath))!.AsObject();
+            manifest["SchemaVersion"] = 3;
+            JsonObject resource = manifest["Groups"]![0]!["Resources"]![0]!.AsObject();
+            resource.Remove("MetaCreatedAt");
+            resource.Remove("MetaModifiedAt");
+            JsonObject version = resource["Versions"]![0]!.AsObject();
+            resource["Validation"] = version["Validation"]!.DeepClone();
+            version.Remove("Epoch");
+            version.Remove("Labels");
+            version.Remove("HasContent");
+            version.Remove("Validation");
+            File.WriteAllText(ManifestPath, manifest.ToJsonString(
+                new JsonSerializerOptions { WriteIndented = true }));
+
+            using var reloaded = new WotRegistryService(new FileWotRegistryStore(m_root));
+            await reloaded.InitializeAsync();
+            WotResource migrated = reloaded.Current.FindResource(
+                WotRegistryGroups.ThingDescriptions,
+                "legacy")!;
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(migrated.DefaultVersion!.Epoch, Is.EqualTo(1));
+                Assert.That(migrated.DefaultVersion.HasContent, Is.True);
+                Assert.That(migrated.DefaultVersion.Labels, Is.Empty);
+                Assert.That(migrated.DefaultVersion.Validation, Is.Not.Null);
+                Assert.That(
+                    migrated.DefaultVersion.Validation!.FormatOutcome,
+                    Is.EqualTo(WoTOutcomeEnum.Success));
+                Assert.That(migrated.MetaCreatedAt, Is.Not.Default);
+                Assert.That(
+                    migrated.MetaModifiedAt,
+                    Is.GreaterThanOrEqualTo(migrated.MetaCreatedAt));
             });
         }
 
@@ -446,6 +506,21 @@ namespace Opc.Ua.WotCon.Tests.Registry
 
             Assert.That(error.Message, Does.Contain("schema 1"));
             AssertDataFilesEqual(expected);
+        }
+
+        [Test]
+        public async Task FutureSchemaFailsClosed()
+        {
+            await PersistResourceAsync("a", "urn:a");
+            File.WriteAllBytes(
+                ManifestPath,
+                WithSchemaVersion(File.ReadAllBytes(ManifestPath), schemaVersion: 5));
+            var store = new FileWotRegistryStore(m_root);
+
+            NotSupportedException error = Assert.ThrowsAsync<NotSupportedException>(
+                async () => await store.LoadAsync());
+
+            Assert.That(error.Message, Does.Contain("schema 5"));
         }
 
         [Test]
@@ -1817,7 +1892,7 @@ namespace Opc.Ua.WotCon.Tests.Registry
         private static byte[] WithSchemaVersion(byte[] manifest, int schemaVersion)
         {
             string json = Encoding.UTF8.GetString(manifest);
-            const string current = "\"SchemaVersion\": 3";
+            const string current = "\"SchemaVersion\": 4";
             Assert.That(json, Does.Contain(current));
             int index = json.IndexOf(current, StringComparison.Ordinal);
             return Encoding.UTF8.GetBytes(

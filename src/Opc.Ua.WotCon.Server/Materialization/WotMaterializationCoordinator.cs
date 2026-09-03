@@ -133,7 +133,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
                     HashSet<string> selectedXids = ResolveSelection(snapshot, request.Selection);
 
                     var enabled = snapshot.AllResources()
-                        .Where(r => r.Enabled && r.DefaultVersion is not null)
+                        .Where(r => r.Enabled && r.DefaultVersion is { HasContent: true })
                         .ToList();
                     var contentCache = new Dictionary<string, ByteString>(StringComparer.Ordinal);
                     ImmutableArray<WotDependencyClosure> closures =
@@ -788,7 +788,10 @@ namespace Opc.Ua.WotCon.Server.Materialization
                     projectionWarning.Length == 0
                         ? []
                         : [projectionWarning],
-                    DateTime.UtcNow));
+                    DateTime.UtcNow)
+                {
+                    VersionId = member.DefaultVersionId
+                });
                 RaiseResource(member, generation, memberOutcome, WoTLoadStateEnum.Active);
             }
 
@@ -1108,7 +1111,10 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 viewNodeId,
                 SuccessValidation(),
                 OmissionDiagnostics(plan.Omissions),
-                DateTime.UtcNow));
+                DateTime.UtcNow)
+            {
+                VersionId = member.DefaultVersionId
+            });
             RaiseResource(member, generation, outcome, WoTLoadStateEnum.Active);
         }
 
@@ -1670,7 +1676,8 @@ namespace Opc.Ua.WotCon.Server.Materialization
                         DateTime.UtcNow)
             {
                 // Keep the previous active projection when a refresh fails.
-                RetainPreviousActiveVersion = true
+                RetainPreviousActiveVersion = true,
+                VersionId = resource.DefaultVersionId
             };
         }
 

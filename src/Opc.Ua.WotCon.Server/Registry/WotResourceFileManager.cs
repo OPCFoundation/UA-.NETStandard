@@ -46,9 +46,10 @@ namespace Opc.Ua.WotCon.Server.Registry
     /// document surface: per-session handles, a bounded write buffer, a single
     /// exclusive writer, and commit-on-close semantics. Read handles serve an
     /// immutable snapshot of the resource's active/default version bytes; a write
-    /// handle buffers the upload and, when it is closed, commits the buffer as a
-    /// new version through the injected callback (which stores a validated or an
-    /// invalid version - the bytes are never lost).
+    /// handle buffers the upload and, when it is closed, replaces the projected
+    /// Version through the injected callback (which stores a validated or an
+    /// invalid version - the bytes are never lost). Logical resource clients
+    /// allocate a new structural Version before opening its file.
     /// <para>
     /// Per the xRegistry document model the only supported <c>OpenFileMode</c>
     /// values are <c>Read</c> (1) and <c>Write | EraseExisting</c> (6); other

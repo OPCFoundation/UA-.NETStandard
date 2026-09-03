@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Moq;
@@ -281,6 +282,27 @@ namespace Opc.Ua.WotCon.Tests.Client
             {
                 if (group.NodeId == description.NodeId)
                 {
+                    if (description.ReferenceTypeId != Ua.ReferenceTypeIds.HasTypeDefinition)
+                    {
+                        return new BrowseResult
+                        {
+                            StatusCode = StatusCodes.Good,
+                            References = group.Resources.Values
+                                .Select(resource => new ReferenceDescription
+                                {
+                                    ReferenceTypeId = Ua.ReferenceTypeIds.Organizes,
+                                    IsForward = true,
+                                    NodeId = resource.NodeId,
+                                    BrowseName = new QualifiedName(
+                                        resource.ResourceId,
+                                        WotConNs),
+                                    DisplayName = new LocalizedText(resource.ResourceId),
+                                    NodeClass = NodeClass.Object
+                                })
+                                .ToArray()
+                                .ToArrayOf()
+                        };
+                    }
                     NodeId kindTypeId = group.Kind == WoTDocumentKindEnum.ThingModel
                         ? m_thingModelGroupType
                         : m_thingDescriptionGroupType;

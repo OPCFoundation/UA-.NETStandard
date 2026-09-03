@@ -43,6 +43,16 @@ namespace Opc.Ua.XRegistry.Tests
     [Category("XRegistry")]
     public sealed class XRegistryEventTests
     {
+        [Test]
+        public void XRegistrySourceUrlRemainsTypedAsString()
+        {
+            PropertyInfo? sourceUrl =
+                typeof(ResourceCreatedEventTypeRecord).GetProperty("SourceUrl");
+
+            Assert.That(sourceUrl, Is.Not.Null);
+            Assert.That(sourceUrl!.PropertyType, Is.EqualTo(typeof(string)));
+        }
+
         [TestCaseSource(nameof(EventMappings))]
         public void EmitterBuildsEveryConcreteGeneratedEventState(
             object kindValue,

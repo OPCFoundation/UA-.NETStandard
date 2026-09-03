@@ -316,6 +316,40 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
             await DeleteSubscriptionAsync(services, subscriptionId).ConfigureAwait(false);
         }
 
+        [Test]
+        public async Task StructuralPlaceholderStillEmitsVersionCreatedEvent()
+        {
+            var registryNodeId = ExpandedNodeId.ToNodeId(
+                WotConModel.ObjectIds.WoTRegistry, m_server.CurrentInstance.NamespaceUris);
+            var services = new ServerTestServices(m_server, m_secureChannelContext);
+            EventFilter filter = XRegistryModel.VersionCreatedEventTypeRecord.EventFilters.Build(
+                m_server.CurrentInstance.NamespaceUris,
+                XRegistryModel.xRegistryEventRecordDecoders.RegisterxRegistryDecoders(
+                    new EventRecordDecoderRegistry(),
+                    m_server.CurrentInstance.NamespaceUris));
+            uint subscriptionId = await CreateEventSubscriptionAsync(
+                services,
+                registryNodeId,
+                filter).ConfigureAwait(false);
+
+            await m_registry.GetOrCreateVersionAsync(
+                WotRegistryGroups.ThingDescriptions,
+                "placeholder-event",
+                "v1",
+                WoTDocumentKindEnum.ThingDescription).ConfigureAwait(false);
+
+            NodeId versionCreatedType = ExpandedNodeId.ToNodeId(
+                XRegistryModel.ObjectTypeIds.VersionCreatedEventType,
+                m_server.CurrentInstance.NamespaceUris);
+            EventFieldList? evt = await CollectEventAsync(
+                services,
+                subscriptionId,
+                efl => EventTypeOf(efl, filter) == versionCreatedType).ConfigureAwait(false);
+
+            Assert.That(evt, Is.Not.Null);
+            await DeleteSubscriptionAsync(services, subscriptionId).ConfigureAwait(false);
+        }
+
         private static class Field
         {
             public const int EventType = 0;
