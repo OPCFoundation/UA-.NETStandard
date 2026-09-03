@@ -31,9 +31,9 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Text;
-using Opc.Ua.OpenUsdScene.Scene;
+using Opc.Ua.OpenUsd.Scene;
 
-namespace Opc.Ua.OpenUsdScene.Conversion
+namespace Opc.Ua.OpenUsd.Scene.Conversion
 {
     /// <summary>
     /// Serialises a composed <see cref="UsdStage"/> back to a single flattened <c>.usda</c>

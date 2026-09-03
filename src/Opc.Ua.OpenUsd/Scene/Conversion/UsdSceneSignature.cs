@@ -32,9 +32,9 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
 using System.Text;
-using Opc.Ua.OpenUsdScene.Scene;
+using Opc.Ua.OpenUsd.Scene;
 
-namespace Opc.Ua.OpenUsdScene.Conversion
+namespace Opc.Ua.OpenUsd.Scene.Conversion
 {
     /// <summary>
     /// Computes the normative "composed-scene lossless" signature of a <see cref="UsdStage"/>, the

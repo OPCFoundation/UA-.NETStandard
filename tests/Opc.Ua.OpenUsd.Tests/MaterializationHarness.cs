@@ -28,10 +28,10 @@
  * ======================================================================*/
 
 using System.Collections.Generic;
-using Opc.Ua.OpenUsdScene.Scene;
-using Opc.Ua.OpenUsdScene.Server;
+using Opc.Ua.OpenUsd.Scene;
+using Opc.Ua.OpenUsd.Server.Scene;
 
-namespace Opc.Ua.OpenUsdScene.Tests
+namespace Opc.Ua.OpenUsd.Tests
 {
     /// <summary>
     /// A NodeIdFactory that hands each newly materialized node a fresh, unique numeric
@@ -104,7 +104,7 @@ namespace Opc.Ua.OpenUsdScene.Tests
         public static (SystemContext Context, ushort Namespace, BaseObjectState Root) NewContext()
         {
             var namespaces = new NamespaceTable();
-            var ns = (ushort)namespaces.GetIndexOrAppend(Namespaces.OpenUSDScene);
+            var ns = (ushort)namespaces.GetIndexOrAppend(Opc.Ua.OpenUsd.Scene.Namespaces.OpenUSDScene);
             var instanceNs = (ushort)namespaces.GetIndexOrAppend(InstanceNamespaceUri);
 
             var context = new SystemContext(null!)

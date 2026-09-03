@@ -1397,6 +1397,72 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             }
         }
 
+        [Test]
+        public async Task NotifyTrustListChangedInvalidatesCustomTrustListCoreAsync()
+        {
+            // Regression: NotifyTrustListChanged must not leave the cached
+            // validation core of a CUSTOM trust list validating against
+            // stale trust material - only the three well-known cores were
+            // dropped before.
+            using var manager = new CertificateManager(m_telemetry);
+            var customList = new TrustListIdentifier("NotifyCustomList");
+            string trustedPath = CreateTempDir();
+            manager.RegisterTrustList(customList, trustedPath);
+
+            using Certificate certificate = CertificateBuilder
+                .Create("CN=Custom Core Invalidation Cert")
+                .SetRSAKeySize(2048)
+                .CreateForRSA();
+
+            using (ICertificateStore store = manager.OpenTrustedStore(customList))
+            {
+                await store.AddAsync(certificate).ConfigureAwait(false);
+            }
+
+            // First validation creates and caches the custom core.
+            CertificateValidationResult before = await manager
+                .ValidateAsync(certificate, customList)
+                .ConfigureAwait(false);
+            Assert.That(before.IsValid, Is.True,
+                $"trusted certificate must validate but was {before.StatusCode}");
+
+            // Remove the trust anchor behind the manager's back, then
+            // announce the change: the cached custom core must be dropped so
+            // the next validation observes the updated store.
+            using (ICertificateStore store = manager.OpenTrustedStore(customList))
+            {
+                Assert.That(
+                    await store.DeleteAsync(certificate.Thumbprint).ConfigureAwait(false),
+                    Is.True);
+            }
+
+            // The cached custom core must exist before and be dropped by the
+            // notification (the store's own change detection could mask a
+            // stale core in the behavioral assertion below, so check the
+            // cache directly).
+            System.Collections.IDictionary customCores = GetCustomCores(manager);
+            Assert.That(customCores, Has.Count.EqualTo(1), "validation must have cached the custom core");
+
+            manager.NotifyTrustListChanged(customList, trustChanged: true, crlChanged: false);
+
+            Assert.That(customCores, Has.Count.Zero, "the notification must drop the cached custom core");
+
+            CertificateValidationResult after = await manager
+                .ValidateAsync(certificate, customList)
+                .ConfigureAwait(false);
+            Assert.That(after.IsValid, Is.False,
+                "the removed certificate must no longer validate after the change notification");
+        }
+
+        private static System.Collections.IDictionary GetCustomCores(CertificateManager manager)
+        {
+            System.Reflection.FieldInfo field = typeof(CertificateManager).GetField(
+                "m_customCores",
+                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)
+                ?? throw new InvalidOperationException("Field m_customCores not found.");
+            return (System.Collections.IDictionary)field.GetValue(manager)!;
+        }
+
         private string CreateTempDir()
         {
             string dir = Path.Combine(

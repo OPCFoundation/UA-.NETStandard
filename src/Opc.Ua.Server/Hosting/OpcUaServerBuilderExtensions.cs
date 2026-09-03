@@ -1039,6 +1039,7 @@ namespace Microsoft.Extensions.DependencyInjection
 
         /// <summary>
         /// Registers a fluent node manager built from a namespace URI and configuration callback.
+        /// The callback creates and places every node; no implicit root node is added.
         /// </summary>
         /// <param name="builder">The server builder.</param>
         /// <param name="namespaceUri">Namespace URI owned by the fluent node manager.</param>
@@ -1055,10 +1056,7 @@ namespace Microsoft.Extensions.DependencyInjection
                 throw new ArgumentNullException(nameof(builder));
             }
 
-            var factory = new FluentNodeManagerFactory(namespaceUri, build);
-            builder.Services.AddSingleton<IAsyncNodeManagerFactory>(factory);
-            builder.Services.AddSingleton(new OpcUaServerNodeManagerRegistration(factory));
-            return builder;
+            return RegisterFluentNodeManager(builder, namespaceUri, build);
         }
 
         /// <summary>
@@ -1292,11 +1290,12 @@ namespace Microsoft.Extensions.DependencyInjection
                 options.IncludeUnsecurePolicyNone = false;
                 configure?.Invoke(options);
             });
-            return serverBuilder
-                .AddRoleManager<RoleManager>()
-                .AddNodeManager(
-                    "http://opcfoundation.org/UA/ReferenceServer",
-                    nodeManager => nodeManager.Node("ReferenceServer"));
+            serverBuilder.AddRoleManager<RoleManager>();
+            return RegisterFluentNodeManager(
+                serverBuilder,
+                "http://opcfoundation.org/UA/ReferenceServer",
+                nodeManager => nodeManager.Node("ReferenceServer"),
+                "ReferenceServer");
         }
 
         /// <summary>
@@ -1361,6 +1360,21 @@ namespace Microsoft.Extensions.DependencyInjection
             return builder
                 .AddHistorian(historian)
                 .AddFileSystem(rootDirectory, mountName, isWritable);
+        }
+
+        private static IOpcUaServerBuilder RegisterFluentNodeManager(
+            IOpcUaServerBuilder builder,
+            string namespaceUri,
+            Action<INodeManagerBuilder> build,
+            string? rootBrowseName = null)
+        {
+            var factory = new FluentNodeManagerFactory(
+                namespaceUri,
+                build,
+                rootBrowseName);
+            builder.Services.AddSingleton<IAsyncNodeManagerFactory>(factory);
+            builder.Services.AddSingleton(new OpcUaServerNodeManagerRegistration(factory));
+            return builder;
         }
 
         private static void RegisterDefaultIdentityAuthenticators(
@@ -2146,10 +2160,7 @@ namespace Microsoft.Extensions.DependencyInjection
 
             public IOpcUaServerBuilder AddNodeManager(string namespaceUri, Action<INodeManagerBuilder> build)
             {
-                var factory = new FluentNodeManagerFactory(namespaceUri, build);
-                Services.AddSingleton<IAsyncNodeManagerFactory>(factory);
-                Services.AddSingleton(new OpcUaServerNodeManagerRegistration(factory));
-                return this;
+                return RegisterFluentNodeManager(this, namespaceUri, build);
             }
 
             public IOpcUaServerBuilder AddSyncNodeManager<

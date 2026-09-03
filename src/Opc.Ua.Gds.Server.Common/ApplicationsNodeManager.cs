@@ -2839,7 +2839,7 @@ namespace Opc.Ua.Gds.Server
                     // for reuse across operations; the node manager owns the
                     // node and therefore the handler's lifetime.
                     (certificateGroup.DefaultTrustList?.Handle as IDisposable)?.Dispose();
-                    (certificateGroup as IDisposable)?.Dispose();
+                    certificateGroup.Dispose();
                 }
 
                 m_certificateGroups.Clear();

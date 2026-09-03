@@ -34,9 +34,9 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
-using Opc.Ua.OpenUsdScene.Scene;
+using Opc.Ua.OpenUsd.Scene;
 
-namespace Opc.Ua.OpenUsdScene.Conversion
+namespace Opc.Ua.OpenUsd.Scene.Conversion
 {
     /// <summary>
     /// Parses a <c>.usda</c> text layer into a composed <see cref="UsdStage"/>, per draft

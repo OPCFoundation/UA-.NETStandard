@@ -30,10 +30,10 @@
 using System.Collections.Generic;
 using System.Linq;
 using NUnit.Framework;
-using Opc.Ua.OpenUsdScene.Scene;
-using Opc.Ua.OpenUsdScene.Server;
+using Opc.Ua.OpenUsd.Scene;
+using Opc.Ua.OpenUsd.Server.Scene;
 
-namespace Opc.Ua.OpenUsdScene.Tests
+namespace Opc.Ua.OpenUsd.Tests
 {
     /// <summary>
     /// Georeferencing on a <em>typed</em> Cesium prim (§5.8, Annex B.1): a real Cesium stage
@@ -64,7 +64,7 @@ namespace Opc.Ua.OpenUsdScene.Tests
             UsdGeoreferenceApiState node = portable[0];
             Assert.That(
                 node.BrowseName.Name,
-                Is.EqualTo(Opc.Ua.OpenUsdScene.BrowseNames.UsdGeoreferenceApiType));
+                Is.EqualTo(Opc.Ua.OpenUsd.Scene.BrowseNames.UsdGeoreferenceApiType));
             Assert.That(node.Latitude!.Value, Is.EqualTo(Latitude));
             Assert.That(node.Longitude!.Value, Is.EqualTo(Longitude));
             Assert.That(node.Height!.Value, Is.EqualTo(Height));
@@ -84,7 +84,7 @@ namespace Opc.Ua.OpenUsdScene.Tests
             Assert.That(world.TypeName!.Value, Is.EqualTo("CesiumGeoreferencePrim"));
             Assert.That(
                 world.TypeDefinitionId,
-                Is.EqualTo(new NodeId(Opc.Ua.OpenUsdScene.ObjectTypes.UsdPrimType, ms.Namespace)));
+                Is.EqualTo(new NodeId(Opc.Ua.OpenUsd.Scene.ObjectTypes.UsdPrimType, ms.Namespace)));
             // A typed georeference prim declares no applied apiSchemas, so the only AddIn in the
             // folder is the portable anchor the materializer dual-authored — the vendor schema is
             // *not* invented as a phantom applied schema.
@@ -93,7 +93,7 @@ namespace Opc.Ua.OpenUsdScene.Tests
             Assert.That(all.Any(s => s.SchemaName!.Value == "CesiumGeoreferencePrim"), Is.False);
             Assert.That(
                 all[0].SchemaName!.Value,
-                Is.EqualTo(Opc.Ua.OpenUsdScene.BrowseNames.UsdGeoreferenceApiType));
+                Is.EqualTo(Opc.Ua.OpenUsd.Scene.BrowseNames.UsdGeoreferenceApiType));
         }
 
         [Test]

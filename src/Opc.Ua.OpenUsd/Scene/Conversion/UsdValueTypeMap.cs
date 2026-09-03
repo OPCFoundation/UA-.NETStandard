@@ -30,7 +30,7 @@
 using System;
 using System.Collections.Generic;
 
-namespace Opc.Ua.OpenUsdScene.Conversion
+namespace Opc.Ua.OpenUsd.Scene.Conversion
 {
     /// <summary>
     /// The OPC UA type binding chosen for a USD <c>SdfValueTypeName</c>

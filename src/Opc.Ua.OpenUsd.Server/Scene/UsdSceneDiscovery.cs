@@ -29,8 +29,9 @@
 
 using System;
 using System.Collections.Generic;
+using Opc.Ua.OpenUsd.Scene;
 
-namespace Opc.Ua.OpenUsdScene.Server
+namespace Opc.Ua.OpenUsd.Server.Scene
 {
     /// <summary>
     /// Discovery and Part 1 interoperability helpers for materialized scenes

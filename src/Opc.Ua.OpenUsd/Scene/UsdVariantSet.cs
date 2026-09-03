@@ -29,7 +29,7 @@
 
 using System.Collections.Generic;
 
-namespace Opc.Ua.OpenUsdScene.Scene
+namespace Opc.Ua.OpenUsd.Scene
 {
     /// <summary>
     /// A variant set on a prim together with its resolved selection and the full set of

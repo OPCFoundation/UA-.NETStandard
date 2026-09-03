@@ -199,6 +199,36 @@ namespace Opc.Ua.Server
         internal int EffectiveMaxTrustListSize => m_effectiveMaxTrustListSize;
 
         /// <summary>
+        /// Wires an optional trust-material change notifier for the legacy
+        /// non-transactional (immediate-apply) hosting mode. When set, the
+        /// immediate-apply branches of <c>CloseAndUpdate</c>,
+        /// <c>AddCertificate</c> and <c>RemoveCertificate</c> call
+        /// <see cref="ICertificateTrustListManager.NotifyTrustListChanged"/>
+        /// with the supplied <paramref name="scope"/> as soon as the store
+        /// write succeeds, so the certificate manager drops its cached
+        /// validation state and observers (e.g. the server's live-channel
+        /// enforcement) react without waiting for a token renewal. Hosts on
+        /// the transactional path do not need this: the notification is
+        /// raised by the <c>ApplyChanges</c> deferred apply instead.
+        /// </summary>
+        /// <param name="notifier">The certificate manager to notify.</param>
+        /// <param name="scope">
+        /// The trust-list scope this TrustList's stores validate
+        /// (e.g. <see cref="TrustListIdentifier.Peers"/>).
+        /// </param>
+        /// <exception cref="ArgumentNullException">
+        /// When <paramref name="notifier"/> or <paramref name="scope"/> is
+        /// <see langword="null"/>.
+        /// </exception>
+        public void SetTrustListChangeNotifier(
+            ICertificateTrustListManager notifier,
+            TrustListIdentifier scope)
+        {
+            m_changeNotifier = notifier ?? throw new ArgumentNullException(nameof(notifier));
+            m_changeNotifierScope = scope ?? throw new ArgumentNullException(nameof(scope));
+        }
+
+        /// <summary>
         /// Disposes the trusted and issuer store instances this TrustList
         /// holds open across its operations. The owner of the TrustList
         /// (the node manager hosting the handler) calls this at shutdown;
@@ -220,6 +250,31 @@ namespace Opc.Ua.Server
             {
                 Interlocked.Exchange(ref m_trustedStoreInstance, null)?.Dispose();
                 Interlocked.Exchange(ref m_issuerStoreInstance, null)?.Dispose();
+            }
+        }
+
+        /// <summary>
+        /// Raises the trust-material change notification configured via
+        /// <see cref="SetTrustListChangeNotifier"/>, if any. Failures are
+        /// logged and never propagate into the method result: the store
+        /// write already succeeded and must be reported as such.
+        /// </summary>
+        private void NotifyTrustListChanged(bool trustChanged, bool crlChanged)
+        {
+            ICertificateTrustListManager? notifier = m_changeNotifier;
+            TrustListIdentifier? scope = m_changeNotifierScope;
+            if (notifier == null || scope == null || (!trustChanged && !crlChanged))
+            {
+                return;
+            }
+
+            try
+            {
+                notifier.NotifyTrustListChanged(scope, trustChanged, crlChanged);
+            }
+            catch (Exception ex)
+            {
+                m_logger.TrustListChangeNotifierFailed(ex, scope.ToString());
             }
         }
 
@@ -941,9 +996,16 @@ namespace Opc.Ua.Server
                 // Decode/validation failure, or legacy non-transactional
                 // hosting: apply immediately (or report the failure), as
                 // before.
+                // A failed update helper does not mean the store was left
+                // unchanged: it may have deleted/added several entries before
+                // a later operation failed. Notify for every mask that an
+                // apply was ATTEMPTED for - an extra cache invalidation is
+                // harmless, a missed one is not. (result is reassigned in
+                // the try below, so this must be captured up front.)
+                bool updateAttempted = ServiceResult.IsGood(result);
                 try
                 {
-                    if (ServiceResult.IsGood(result))
+                    if (updateAttempted)
                     {
                         int updateMasks = (int)TrustListMasks.None;
                         if ((masks & (int)TrustListMasks.IssuerCertificates) != 0 &&
@@ -996,6 +1058,15 @@ namespace Opc.Ua.Server
                     }
                     m_coordinator?.SetTrustListWriteOpen(m_node.NodeId, false);
                 }
+
+                // Even a partial or failed apply may have changed the stores;
+                // notify for everything that was attempted so cached
+                // validation state is dropped.
+                NotifyTrustListChanged(
+                    trustChanged: updateAttempted && (masks &
+                        (int)(TrustListMasks.IssuerCertificates | TrustListMasks.TrustedCertificates)) != 0,
+                    crlChanged: updateAttempted && (masks &
+                        (int)(TrustListMasks.IssuerCrls | TrustListMasks.TrustedCrls)) != 0);
 
                 m_node.ReportTrustListUpdatedAuditEvent(
                     context,
@@ -1287,6 +1358,8 @@ namespace Opc.Ua.Server
                         {
                             m_node.LastUpdateTime!.Value = DateTime.UtcNow;
                         }
+
+                        NotifyTrustListChanged(trustChanged: true, crlChanged: false);
                     }
                     else
                     {
@@ -1463,14 +1536,27 @@ namespace Opc.Ua.Server
                             }
                             else
                             {
-                                foreach (X509CRL crl in crlsToDelete)
+                                try
                                 {
-                                    if (!await store.DeleteCRLAsync(crl, cancellationToken)
-                                        .ConfigureAwait(false))
+                                    foreach (X509CRL crl in crlsToDelete)
                                     {
-                                        // intentionally ignore errors, try best effort
-                                        m_logger.RemoveCertificateFailedToDeleteCRLCrl(crl);
+                                        if (!await store.DeleteCRLAsync(crl, cancellationToken)
+                                            .ConfigureAwait(false))
+                                        {
+                                            // intentionally ignore errors, try best effort
+                                            m_logger.RemoveCertificateFailedToDeleteCRLCrl(crl);
+                                        }
                                     }
+                                }
+                                finally
+                                {
+                                    // The certificate is already deleted at this
+                                    // point, so notify even when a CRL delete
+                                    // throws mid-way - cached validation state
+                                    // must never survive a partial update.
+                                    NotifyTrustListChanged(
+                                        trustChanged: true,
+                                        crlChanged: crlsToDelete.Count > 0);
                                 }
                             }
                         }
@@ -1752,6 +1838,8 @@ namespace Opc.Ua.Server
         private readonly IPushConfigurationTransactionCoordinator? m_coordinator;
         private MemoryStream? m_strm;
         private readonly int m_effectiveMaxTrustListSize;
+        private ICertificateTrustListManager? m_changeNotifier;
+        private TrustListIdentifier? m_changeNotifierScope;
         private long m_totalBytesProcessed;
     }
 
@@ -1762,5 +1850,12 @@ namespace Opc.Ua.Server
         public static partial void RemoveCertificateFailedToDeleteCRLCrl(
             this ILogger logger,
             global::Opc.Ua.Security.Certificates.X509CRL crl);
+
+        [LoggerMessage(EventId = ServerEventIds.TrustList + 1, Level = LogLevel.Warning,
+            Message = "Failed to notify the certificate manager of the TrustList change for scope {Scope}.")]
+        public static partial void TrustListChangeNotifierFailed(
+            this ILogger logger,
+            Exception ex,
+            string scope);
     }
 }

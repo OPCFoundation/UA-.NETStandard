@@ -38,14 +38,24 @@ namespace Opc.Ua.Server.Hosting
 {
     internal sealed class FluentNodeManagerFactory : IAsyncNodeManagerFactory
     {
-        public FluentNodeManagerFactory(string namespaceUri, Action<INodeManagerBuilder> build)
+        public FluentNodeManagerFactory(
+            string namespaceUri,
+            Action<INodeManagerBuilder> build,
+            string? rootBrowseName = null)
         {
             if (string.IsNullOrWhiteSpace(namespaceUri))
             {
                 throw new ArgumentException("Namespace URI must not be empty.", nameof(namespaceUri));
             }
+            if (rootBrowseName != null && string.IsNullOrWhiteSpace(rootBrowseName))
+            {
+                throw new ArgumentException(
+                    "Root browse name must not be empty.",
+                    nameof(rootBrowseName));
+            }
             m_namespaceUri = namespaceUri;
             m_build = build ?? throw new ArgumentNullException(nameof(build));
+            m_rootBrowseName = rootBrowseName;
             NamespacesUris = [namespaceUri];
         }
 
@@ -63,13 +73,15 @@ namespace Opc.Ua.Server.Hosting
                 configuration,
                 logger,
                 m_namespaceUri,
-                m_build);
+                m_build,
+                m_rootBrowseName);
 #pragma warning restore CA2000
             return new ValueTask<IAsyncNodeManager>(manager);
         }
 
         private readonly Action<INodeManagerBuilder> m_build;
         private readonly string m_namespaceUri;
+        private readonly string? m_rootBrowseName;
     }
 
     internal sealed class FluentNodeManager : FluentNodeManagerBase
@@ -79,12 +91,14 @@ namespace Opc.Ua.Server.Hosting
             ApplicationConfiguration configuration,
             ILogger logger,
             string namespaceUri,
-            Action<INodeManagerBuilder> build)
+            Action<INodeManagerBuilder> build,
+            string? rootBrowseName)
             : base(server, configuration, logger, namespaceUri)
         {
             m_server = server ?? throw new ArgumentNullException(nameof(server));
             m_namespaceUri = namespaceUri ?? throw new ArgumentNullException(nameof(namespaceUri));
             m_build = build ?? throw new ArgumentNullException(nameof(build));
+            m_rootBrowseName = rootBrowseName;
         }
 
         public override async ValueTask CreateAddressSpaceAsync(
@@ -97,11 +111,12 @@ namespace Opc.Ua.Server.Hosting
             }
             ushort namespaceIndex = (ushort)m_server.NamespaceUris.GetIndex(m_namespaceUri);
 
-            // The root folder's inverse Organizes reference to the Objects
-            // folder is mirrored into externalReferences by the
-            // CompleteConfigureAsync pass below.
-            FolderState root = CreateRootFolder(namespaceIndex);
-            await AddPredefinedNodeAsync(root, cancellationToken).ConfigureAwait(false);
+            if (m_rootBrowseName != null)
+            {
+                FolderState root = CreateRootFolder(namespaceIndex, m_rootBrowseName);
+                await AddPredefinedNodeAsync(root, cancellationToken).ConfigureAwait(false);
+            }
+
             NodeManagerBuilder builder = CreateFluentBuilder(namespaceIndex);
             m_build(builder);
 
@@ -113,9 +128,10 @@ namespace Opc.Ua.Server.Hosting
             builder.Seal();
         }
 
-        private static FolderState CreateRootFolder(ushort namespaceIndex)
+        private static FolderState CreateRootFolder(
+            ushort namespaceIndex,
+            string browseName)
         {
-            const string browseName = "ReferenceServer";
             var root = new FolderState(null)
             {
                 NodeId = new NodeId(browseName, namespaceIndex),
@@ -130,5 +146,6 @@ namespace Opc.Ua.Server.Hosting
         private readonly Action<INodeManagerBuilder> m_build;
         private readonly IServerInternal m_server;
         private readonly string m_namespaceUri;
+        private readonly string? m_rootBrowseName;
     }
 }
