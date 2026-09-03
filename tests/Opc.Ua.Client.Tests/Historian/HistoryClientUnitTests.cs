@@ -759,6 +759,66 @@ namespace Opc.Ua.Client.Tests.Historian
         }
 
         [Test]
+        public async Task ReleaseObjectDisposedDoesNotEscapeEnumeratorDisposalAsync()
+        {
+            var mockSession = new Mock<ISession>();
+            mockSession
+                .Setup(s => s.HistoryReadAsync(
+                    It.IsAny<RequestHeader>(),
+                    It.IsAny<ExtensionObject>(),
+                    It.IsAny<TimestampsToReturn>(),
+                    It.IsAny<bool>(),
+                    It.IsAny<ArrayOf<HistoryReadValueId>>(),
+                    It.IsAny<CancellationToken>()))
+                .Returns<RequestHeader, ExtensionObject, TimestampsToReturn,
+                    bool, ArrayOf<HistoryReadValueId>, CancellationToken>(
+                    (_, _, _, release, _, _) =>
+                    {
+                        if (release)
+                        {
+                            throw new ObjectDisposedException("session");
+                        }
+                        return new ValueTask<HistoryReadResponse>(
+                            new HistoryReadResponse
+                            {
+                                Results =
+                                [
+                                    new HistoryReadResult
+                                    {
+                                        StatusCode = StatusCodes.Good,
+                                        ContinuationPoint =
+                                            (ByteString)"z"u8.ToArray(),
+                                        HistoryData = new ExtensionObject(
+                                            new HistoryData
+                                            {
+                                                DataValues =
+                                                [
+                                                    new DataValue(
+                                                        new Variant("first"),
+                                                        StatusCodes.Good,
+                                                        DateTime.UtcNow)
+                                                ]
+                                            })
+                                    }
+                                ]
+                            });
+                    });
+            var client = new HistoryClient(mockSession.Object);
+            IAsyncEnumerator<DataValue> enumerator = client.ReadRawAsync(
+                new NodeId("TestNode", 2),
+                DateTime.UtcNow.AddHours(-1),
+                DateTime.UtcNow).GetAsyncEnumerator();
+
+            Assert.That(
+                await enumerator.MoveNextAsync().ConfigureAwait(false),
+                Is.True);
+            Assert.That(
+                async () => await enumerator.DisposeAsync()
+                    .ConfigureAwait(false),
+                Throws.Nothing);
+        }
+
+        [Test]
         public async Task DeleteMethodsReturnOperationStatusesAsync()
         {
             ExtensionObject? deleteRawDetails = null;

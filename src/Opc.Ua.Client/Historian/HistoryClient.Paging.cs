@@ -166,6 +166,10 @@ namespace Opc.Ua.Client.Historian
                     {
                         // Best-effort cleanup.
                     }
+                    catch (ObjectDisposedException)
+                    {
+                        // Best-effort cleanup.
+                    }
                 }
             }
         }
