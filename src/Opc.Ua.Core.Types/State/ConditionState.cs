@@ -444,6 +444,14 @@ namespace Opc.Ua
         /// </remarks>
         public ConditionAddCommentEventHandler? OnAddComment;
 
+        /// <inheritdoc/>
+        protected override bool HasAdditionalRuntimeCallbacks()
+        {
+            return OnEnableDisable is not null ||
+                OnAddComment is not null ||
+                base.HasAdditionalRuntimeCallbacks();
+        }
+
         /// <summary>
         /// Handles a condition refresh.
         /// </summary>

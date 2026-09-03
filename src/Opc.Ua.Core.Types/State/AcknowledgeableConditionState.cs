@@ -103,6 +103,14 @@ namespace Opc.Ua
         /// </remarks>
         public ConditionAddCommentEventHandler OnConfirm;
 
+        /// <inheritdoc/>
+        protected override bool HasAdditionalRuntimeCallbacks()
+        {
+            return OnAcknowledge is not null ||
+                OnConfirm is not null ||
+                base.HasAdditionalRuntimeCallbacks();
+        }
+
         /// <summary>
         /// Updates the effective state for the condition.
         /// </summary>

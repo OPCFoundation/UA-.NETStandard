@@ -3098,7 +3098,7 @@ namespace Opc.Ua
                 AssignNodeIds(context, children, mappingTable);
 
                 // update the reference targets.
-                UpdateReferenceTargets(context, children, mappingTable);
+                UpdateReferenceTargets(context, mappingTable);
             }
 
             CallOnAfterCreate(context, children, forceCreateLifecycle, ct);
@@ -3565,18 +3565,19 @@ namespace Opc.Ua
             ISystemContext context,
             Dictionary<NodeId, NodeId> mappingTable)
         {
+            UpdateOwnReferenceTargets(context, mappingTable);
             var children = new List<BaseInstanceState>();
             GetChildren(context, children);
-            UpdateReferenceTargets(context, children, mappingTable);
+            for (int ii = 0; ii < children.Count; ii++)
+            {
+                children[ii].UpdateReferenceTargets(context, mappingTable);
+            }
         }
 
-        /// <summary>
-        /// Recursively updates the targets of references.
-        /// </summary>
-        private void UpdateReferenceTargets(
+        internal void UpdateOwnReferenceTargets(
             ISystemContext context,
-            List<BaseInstanceState> children,
-            Dictionary<NodeId, NodeId> mappingTable)
+            Dictionary<NodeId, NodeId> mappingTable,
+            Func<IReference, bool>? shouldUpdate = null)
         {
             lock (m_referencesLock)
             {
@@ -3588,6 +3589,11 @@ namespace Opc.Ua
 
                     foreach (IReference reference in m_references.Keys)
                     {
+                        if (shouldUpdate is not null &&
+                            !shouldUpdate(reference))
+                        {
+                            continue;
+                        }
                         // check for absolute id.
                         var oldId = ExpandedNodeId.ToNodeId(
                             reference.TargetId,
@@ -3626,12 +3632,6 @@ namespace Opc.Ua
                         m_changeMasks |= NodeStateChangeMasks.References;
                     }
                 }
-            }
-
-            // recursively update targets for children.
-            for (int ii = 0; ii < children.Count; ii++)
-            {
-                children[ii].UpdateReferenceTargets(context, mappingTable);
             }
         }
 
@@ -4903,6 +4903,190 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Replaces a child stored in a generated, explicitly defined slot.
+        /// </summary>
+        /// <remarks>
+        /// Returns <c>false</c> for ordinary children held by the base child
+        /// collection so import linking does not evict application-authored
+        /// children which happen to share a browse name.
+        /// </remarks>
+        /// <param name="context">The system context.</param>
+        /// <param name="replacement">The imported replacement child.</param>
+        /// <param name="replaced">The displaced explicitly defined child.</param>
+        /// <param name="explicitSlotFound">
+        /// Whether the browse name maps to an explicitly defined child slot.
+        /// </param>
+        /// <returns>
+        /// <c>true</c> when an explicitly defined child was replaced.
+        /// </returns>
+        internal bool TryReplaceExplicitlyDefinedChild(
+            ISystemContext context,
+            BaseInstanceState replacement,
+            out BaseInstanceState? replaced,
+            out bool explicitSlotFound)
+        {
+            replaced = null;
+            explicitSlotFound = false;
+            bool materialized = false;
+            BaseInstanceState? existing = FindChild(
+                context,
+                replacement.BrowseName,
+                createOrReplace: false,
+                replacement: null);
+            if (existing is null)
+            {
+                existing = FindChild(
+                    context,
+                    replacement.BrowseName,
+                    createOrReplace: true,
+                    replacement: null,
+                    assignInstanceNodeIds: false);
+                if (existing is null)
+                {
+                    return false;
+                }
+                materialized = true;
+                explicitSlotFound = true;
+            }
+            if (existing.BrowseName != replacement.BrowseName)
+            {
+                if (materialized)
+                {
+                    RemoveExplicitlyDefinedChild(existing);
+                    if (!ReferenceEquals(
+                        FindChild(
+                            context,
+                            replacement.BrowseName,
+                            createOrReplace: false,
+                            replacement: null),
+                        existing))
+                    {
+                        existing.Parent = null;
+                    }
+                }
+                return false;
+            }
+            if (ContainsBaseChildReference(existing))
+            {
+                return false;
+            }
+
+            RemoveExplicitlyDefinedChild(existing);
+            BaseInstanceState? remaining = FindChild(
+                context,
+                replacement.BrowseName,
+                createOrReplace: false,
+                replacement: null);
+            if (ReferenceEquals(remaining, existing))
+            {
+                BaseInstanceState? adopted = FindChild(
+                    context,
+                    replacement.BrowseName,
+                    createOrReplace: true,
+                    replacement);
+                if (!ReferenceEquals(adopted, replacement))
+                {
+                    return false;
+                }
+                existing.Parent = null;
+                replaced = existing;
+                explicitSlotFound = true;
+                return true;
+            }
+            explicitSlotFound = true;
+            if (remaining is not null)
+            {
+                existing.Parent = this;
+                ReplaceChild(context, existing);
+                return false;
+            }
+
+            ReplaceChild(context, replacement);
+            existing.Parent = null;
+            replaced = existing;
+            return true;
+        }
+
+        private bool ContainsBaseChildReference(BaseInstanceState child)
+        {
+            lock (m_childrenLock)
+            {
+                if (m_children is null)
+                {
+                    return false;
+                }
+                for (int i = 0; i < m_children.Count; i++)
+                {
+                    if (ReferenceEquals(m_children[i], child))
+                    {
+                        return true;
+                    }
+                }
+                return false;
+            }
+        }
+
+        internal bool IsExplicitlyDefinedChild(
+            ISystemContext context,
+            BaseInstanceState child)
+        {
+            return !ContainsBaseChildReference(child) &&
+                ReferenceEquals(
+                    FindChild(
+                        context,
+                        child.BrowseName,
+                        createOrReplace: false,
+                        replacement: null),
+                    child);
+        }
+
+        internal bool HasRuntimeCallbacks()
+        {
+            return StateChanged is not null ||
+                StateChangedAsync is not null ||
+                OnValidate is not null ||
+                OnStateChanged is not null ||
+                OnStateChangedAsync is not null ||
+                OnReferenceAdded is not null ||
+                OnReferenceRemoved is not null ||
+                OnConditionRefresh is not null ||
+                OnReportEvent is not null ||
+                OnReportEventAsync is not null ||
+                OnCreateBrowser is not null ||
+                OnPopulateBrowser is not null ||
+                OnReadNodeId is not null ||
+                OnWriteNodeId is not null ||
+                OnReadNodeClass is not null ||
+                OnWriteNodeClass is not null ||
+                OnReadBrowseName is not null ||
+                OnWriteBrowseName is not null ||
+                OnReadDisplayName is not null ||
+                OnWriteDisplayName is not null ||
+                OnReadDescription is not null ||
+                OnWriteDescription is not null ||
+                OnReadWriteMask is not null ||
+                OnWriteWriteMask is not null ||
+                OnReadUserWriteMask is not null ||
+                OnWriteUserWriteMask is not null ||
+                OnReadRolePermissions is not null ||
+                OnWriteRolePermissions is not null ||
+                OnReadUserRolePermissions is not null ||
+                OnWriteUserRolePermissions is not null ||
+                OnReadAccessRestrictions is not null ||
+                OnWriteAccessRestrictions is not null ||
+                HasAdditionalRuntimeCallbacks();
+        }
+
+        /// <summary>
+        /// Returns whether a derived state has runtime callbacks which cannot
+        /// be preserved when the state is replaced.
+        /// </summary>
+        protected virtual bool HasAdditionalRuntimeCallbacks()
+        {
+            return false;
+        }
+
+        /// <summary>
         /// Adds a child to the node.
         /// </summary>
         public void AddChild(BaseInstanceState child)
@@ -4965,6 +5149,17 @@ namespace Opc.Ua
         protected virtual void RemoveExplicitlyDefinedChild(BaseInstanceState child)
         {
             // no explicitly defined children on base type.
+        }
+
+        /// <summary>
+        /// Clears the parent link after an explicitly defined child is removed.
+        /// </summary>
+        protected void DetachExplicitlyDefinedChild(BaseInstanceState child)
+        {
+            if (ReferenceEquals(child.Parent, this))
+            {
+                child.Parent = null;
+            }
         }
 
         /// <summary>

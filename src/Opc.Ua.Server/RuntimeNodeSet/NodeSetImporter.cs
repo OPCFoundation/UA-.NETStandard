@@ -99,7 +99,8 @@ namespace Opc.Ua.Server.RuntimeNodeSet
                     m_parentNodeIds.Add(instance, parentNodeId);
                 }
                 NodeId nodeId = node.NodeId;
-                if (!nodeId.IsNull && !m_nodeIds.Add(nodeId))
+                if (!nodeId.IsNull &&
+                    !m_nodesById.TryAdd(nodeId, node))
                 {
                     throw new InvalidOperationException(
                         $"Duplicate NodeId '{nodeId}' detected across the loaded NodeSet2 " +
@@ -113,10 +114,86 @@ namespace Opc.Ua.Server.RuntimeNodeSet
             return new ArrayOf<NodeState>(result);
         }
 
+        public bool TryGetNode(NodeId nodeId, out NodeState? node)
+        {
+            return m_nodesById.TryGetValue(nodeId, out node);
+        }
+
+        public bool TryGetTypedReplacement(
+            NodeState candidate,
+            Func<NodeState, bool> isFactoryAuthored,
+            out NodeState? replacement)
+        {
+            if (isFactoryAuthored is null)
+            {
+                throw new ArgumentNullException(nameof(isFactoryAuthored));
+            }
+            return TryGetTypedReplacement(
+                candidate,
+                isFactoryAuthored,
+                [],
+                out replacement);
+        }
+
+        private bool TryGetTypedReplacement(
+            NodeState candidate,
+            Func<NodeState, bool> isFactoryAuthored,
+            List<NodeState> visited,
+            out NodeState? replacement)
+        {
+            replacement = null;
+            if (visited.Exists(node => ReferenceEquals(node, candidate)) ||
+                candidate is not BaseInstanceState { Parent: { } parent })
+            {
+                return false;
+            }
+            visited.Add(candidate);
+
+            NodeId replacementParentNodeId = NodeId.Null;
+            if (isFactoryAuthored(parent) &&
+                TryGetTypedReplacement(
+                    parent,
+                    isFactoryAuthored,
+                    visited,
+                    out NodeState? replacementParent))
+            {
+                replacementParentNodeId = replacementParent!.NodeId;
+            }
+            for (int i = 0; i < m_importedNodes.Count; i++)
+            {
+                NodeState imported = m_importedNodes[i];
+                if (imported is BaseInstanceState importedInstance &&
+                    importedInstance.BrowseName == candidate.BrowseName &&
+                    m_parentNodeIds.TryGetValue(
+                        importedInstance,
+                        out NodeId parentNodeId) &&
+                    (parentNodeId == parent.NodeId ||
+                        parentNodeId == replacementParentNodeId) &&
+                    m_factoryRegistry.IsFactoryCreated(imported))
+                {
+                    replacement = imported;
+                    return true;
+                }
+            }
+            return false;
+        }
+
         /// <summary>
         /// Links the complete import batch exactly once.
         /// </summary>
-        public void Complete()
+        /// <param name="availableNodes">
+        /// Additional staged nodes that imported parent identifiers may target.
+        /// </param>
+        /// <param name="isFactoryAuthored">
+        /// Identifies staged parents created through a typed graph factory.
+        /// </param>
+        /// <param name="onTypedReplacement">
+        /// Receives each generated placeholder displaced by an imported child.
+        /// </param>
+        public void Complete(
+            IReadOnlyDictionary<NodeId, NodeState>? availableNodes = null,
+            Func<NodeState, bool>? isFactoryAuthored = null,
+            Action<BaseInstanceState, BaseInstanceState>? onTypedReplacement = null)
         {
             if (m_completed)
             {
@@ -127,9 +204,12 @@ namespace Opc.Ua.Server.RuntimeNodeSet
                 m_context,
                 m_importedNodes,
                 m_parentNodeIds,
+                availableNodes,
                 (parent, child) =>
-                    m_factoryRegistry.IsFactoryCreated(parent) &&
-                    m_factoryRegistry.IsFactoryCreated(child));
+                    m_factoryRegistry.IsFactoryCreated(child) &&
+                    (m_factoryRegistry.IsFactoryCreated(parent) ||
+                        isFactoryAuthored?.Invoke(parent) == true),
+                onTypedReplacement);
             m_completed = true;
         }
 
@@ -153,7 +233,7 @@ namespace Opc.Ua.Server.RuntimeNodeSet
         private readonly ISystemContext m_context;
         private readonly NodeSetImportFactoryRegistry m_factoryRegistry;
         private readonly NodeStateCollection m_importedNodes = [];
-        private readonly HashSet<NodeId> m_nodeIds = [];
+        private readonly Dictionary<NodeId, NodeState> m_nodesById = [];
         private readonly Dictionary<BaseInstanceState, NodeId> m_parentNodeIds =
             new(BaseInstanceStateReferenceComparer.Instance);
         private bool m_completed;

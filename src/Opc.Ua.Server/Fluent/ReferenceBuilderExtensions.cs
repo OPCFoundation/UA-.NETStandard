@@ -291,13 +291,10 @@ namespace Opc.Ua.Server.Fluent
                 TypeDefinitionId = typeDef
             };
 
-            // Generate a NodeId that mirrors the parent's identifier scope.
-            // Pattern matches PumpDeviceIntegrationServer's NodeIdFactory:
-            // "{parentIdentifier}_{childBrowseName}" in the parent's namespace.
-            string parentIdentifier = parent.Node.NodeId.IdentifierAsString;
-            child.NodeId = new NodeId(
-                $"{parentIdentifier}_{symbolicName}",
-                parent.Node.NodeId.NamespaceIndex);
+            FluentNodeRegistration.AssignNodeId(
+                parent.Builder,
+                child,
+                parent.Node);
 
             parent.Node.AddChild(child);
             FluentNodeRegistration.RegisterCreatedNode(parent.Builder, child);

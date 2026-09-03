@@ -2100,6 +2100,8 @@ namespace Opc.Ua.Server
         /// </summary>
         protected virtual async ValueTask AddPredefinedNodeAsync(ISystemContext context, NodeState node, CancellationToken cancellationToken = default)
         {
+            cancellationToken.ThrowIfCancellationRequested();
+
             PrepareInstanceNodeIdsForRegistration(context, node);
             NodeStateLifecycle.CompleteForRegistration(
                 context,
@@ -2116,6 +2118,8 @@ namespace Opc.Ua.Server
                     m_logger,
                     cancellationToken);
             }
+
+            cancellationToken.ThrowIfCancellationRequested();
             IndexPredefinedNode(activeNode);
 
             var children = new List<BaseInstanceState>();
@@ -2296,7 +2300,11 @@ namespace Opc.Ua.Server
 
         private void AddPredefinedNodeSynchronously(ISystemContext context, NodeState node)
         {
-            NodeStateLifecycle.CompleteForRegistration(context, node, m_logger);
+            NodeStateLifecycle.CompleteForRegistration(
+                context,
+                node,
+                m_logger,
+                CancellationToken.None);
             IndexPredefinedNode(node);
 
             var children = new List<BaseInstanceState>();

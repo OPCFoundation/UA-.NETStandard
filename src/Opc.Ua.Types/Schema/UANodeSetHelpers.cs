@@ -544,30 +544,49 @@ namespace Opc.Ua.Export
         /// <param name="parentNodeIds">
         /// The authored parent NodeIds captured by the batched importer.
         /// </param>
+        /// <param name="availableNodes">
+        /// Additional staged nodes that imported parents may resolve to.
+        /// </param>
         /// <param name="useTypedReplacement">
         /// Returns true when the typed replacement hook should be used.
+        /// </param>
+        /// <param name="onTypedReplacement">
+        /// Receives the displaced generated child and its imported replacement.
         /// </param>
         internal static void LinkParentChildRelationships(
             ISystemContext context,
             NodeStateCollection nodes,
             IReadOnlyDictionary<BaseInstanceState, NodeId> parentNodeIds,
-            Func<NodeState, BaseInstanceState, bool> useTypedReplacement)
+            IReadOnlyDictionary<NodeId, NodeState>? availableNodes,
+            Func<NodeState, BaseInstanceState, bool> useTypedReplacement,
+            Action<BaseInstanceState, BaseInstanceState>? onTypedReplacement)
         {
             LinkParentChildRelationshipsCore(
                 context,
                 nodes,
                 parentNodeIds,
-                useTypedReplacement);
+                availableNodes,
+                useTypedReplacement,
+                onTypedReplacement);
         }
 
         private static void LinkParentChildRelationshipsCore(
             ISystemContext? context,
             NodeStateCollection nodes,
             IReadOnlyDictionary<BaseInstanceState, NodeId>? parentNodeIds = null,
-            Func<NodeState, BaseInstanceState, bool>? useTypedReplacement = null)
+            IReadOnlyDictionary<NodeId, NodeState>? availableNodes = null,
+            Func<NodeState, BaseInstanceState, bool>? useTypedReplacement = null,
+            Action<BaseInstanceState, BaseInstanceState>? onTypedReplacement = null)
         {
             // Create a dictionary for fast lookup of nodes by NodeId
             var nodeTable = new Dictionary<NodeId, NodeState>();
+            if (availableNodes is not null)
+            {
+                foreach (KeyValuePair<NodeId, NodeState> entry in availableNodes)
+                {
+                    nodeTable[entry.Key] = entry.Value;
+                }
+            }
             foreach (NodeState node in nodes)
             {
                 if (!node.NodeId.IsNull)
@@ -576,7 +595,7 @@ namespace Opc.Ua.Export
                 }
             }
             var referenceSuperTypes = new Dictionary<NodeId, NodeId>();
-            foreach (NodeState node in nodes)
+            foreach (NodeState node in nodeTable.Values)
             {
                 if (node is ReferenceTypeState referenceType &&
                     !referenceType.NodeId.IsNull)
@@ -618,32 +637,77 @@ namespace Opc.Ua.Export
                         // Set the Parent property to establish the relationship
                         instance.Parent = parent;
 
-                        // Add the child to the parent's children collection
-                        if (context is null ||
-                            useTypedReplacement is null ||
-                            !useTypedReplacement(parent, instance) ||
-                            parent.FindChild(context, instance.BrowseName) is not null)
+                        bool useReplacement =
+                            context is not null &&
+                            useTypedReplacement?.Invoke(parent, instance) == true;
+                        bool replaced = false;
+                        bool attached = false;
+                        if (!useReplacement)
                         {
                             parent.AddChild(instance);
+                            attached = true;
                         }
                         else
                         {
-                            // A generated replacement hook must adopt the imported
-                            // instance directly; copying it would apply import data
-                            // twice and leave the batch indexing the wrong object.
-                            parent.ReplaceChild(context, instance);
-                            if (!ReferenceEquals(
-                                parent.FindChild(context, instance.BrowseName),
-                                instance))
+                            bool explicitSlotFound = false;
+                            BaseInstanceState? existingChild = parent.FindChild(
+                                context!,
+                                instance.BrowseName);
+                            if (existingChild is not null &&
+                                ContainsReference(nodes, existingChild))
                             {
-                                throw ServiceResultException.Create(
-                                    StatusCodes.BadTypeMismatch,
-                                    "Typed parent '{0}' did not retain imported child '{1}'. " +
-                                    "Register the concrete child import factory.",
-                                    parent.NodeId,
-                                    instance.NodeId);
+                                // The generated slot already contains an imported
+                                // child from this batch. Preserve it and attach
+                                // additional same-name children normally.
+                                parent.AddChild(instance);
+                                attached = true;
+                            }
+                            else
+                            {
+                                replaced = parent.TryReplaceExplicitlyDefinedChild(
+                                    context!,
+                                    instance,
+                                    out BaseInstanceState? replacedChild,
+                                    out explicitSlotFound);
+                                if (replaced)
+                                {
+                                    onTypedReplacement?.Invoke(
+                                        replacedChild!,
+                                        instance);
+                                    attached = true;
+                                }
+                            }
+                            if (!attached &&
+                                !explicitSlotFound &&
+                                parent.FindChild(
+                                    context!,
+                                    instance.BrowseName) is null)
+                            {
+                                // An empty imported typed parent has no placeholder
+                                // yet, but its generated replacement hook can still
+                                // adopt the imported child directly.
+                                parent.ReplaceChild(context!, instance);
+                                replaced = true;
+                                attached = true;
+                            }
+                            else if (!attached)
+                            {
+                                parent.AddChild(instance);
                             }
                         }
+                        if (replaced &&
+                            !ReferenceEquals(
+                                parent.FindChild(context!, instance.BrowseName),
+                                instance))
+                        {
+                            throw ServiceResultException.Create(
+                                StatusCodes.BadTypeMismatch,
+                                "Typed parent '{0}' did not retain imported child '{1}'. " +
+                                "Register the concrete child import factory.",
+                                parent.NodeId,
+                                instance.NodeId);
+                        }
+                        s_unresolvedParents.Remove(instance);
                         continue;
                     }
 
@@ -656,6 +720,20 @@ namespace Opc.Ua.Export
                     s_unresolvedParents.Add(instance, new UnresolvedParent(parentNodeId));
                 }
             }
+        }
+
+        private static bool ContainsReference(
+            NodeStateCollection nodes,
+            NodeState candidate)
+        {
+            for (int i = 0; i < nodes.Count; i++)
+            {
+                if (ReferenceEquals(nodes[i], candidate))
+                {
+                    return true;
+                }
+            }
+            return false;
         }
 
         private static bool TryGetImportedParent(

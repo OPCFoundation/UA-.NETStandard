@@ -44,6 +44,7 @@ namespace Opc.Ua.Server.Fluent
         {
             m_parent = parent ?? throw new ArgumentNullException(nameof(parent));
             Node = node ?? throw new ArgumentNullException(nameof(node));
+            m_parent.MarkConfigured(Node);
         }
 
         /// <inheritdoc/>

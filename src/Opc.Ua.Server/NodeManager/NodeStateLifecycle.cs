@@ -46,6 +46,8 @@ namespace Opc.Ua.Server
             ILogger? logger,
             CancellationToken ct = default)
         {
+            ct.ThrowIfCancellationRequested();
+
             if (node.IsCreated)
             {
                 return false;

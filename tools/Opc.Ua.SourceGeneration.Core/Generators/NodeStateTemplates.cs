@@ -266,6 +266,14 @@ namespace Opc.Ua.SourceGeneration
                 {{Tokens.ListOfNonMandatoryChildren}}
 
                 /// <inheritdoc/>
+                protected override bool HasAdditionalRuntimeCallbacks()
+                {
+                    return OnCall != null ||
+                        OnCallAsync != null ||
+                        base.HasAdditionalRuntimeCallbacks();
+                }
+
+                /// <inheritdoc/>
                 public override bool DeepEquals(global::Opc.Ua.NodeState node)
                 {
                     if (!(node is {{Tokens.ClassName}} state) || !base.DeepEquals(state))
@@ -1369,6 +1377,7 @@ namespace Opc.Ua.SourceGeneration
             if (object.ReferenceEquals({{Tokens.FieldName}}, child))
             {
                 {{Tokens.FieldName}} = null;
+                DetachExplicitlyDefinedChild(child);
                 return;
             }
 

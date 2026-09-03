@@ -360,20 +360,18 @@ namespace Opc.Ua.SourceGeneration
                 writer.WriteLine("            }");
                 writer.WriteLine();
                 writer.WriteLine(
-                    "            builder.TryGetNode(parentId, out global::Opc.Ua.NodeState? parent);");
+                    "            global::Opc.Ua.Server.Fluent.INodeBuilder<{0}> result =",
+                    stateType);
+                writer.WriteLine("                builder.Add(");
                 writer.WriteLine(
-                    "            {0} state = global::{1}.{2}.{3}(",
-                    stateType,
+                    "                    parent => global::{0}.{1}.{2}(",
                     m_context.ModelDesign.TargetNamespace.Prefix,
                     nodeStateExtensionsClassName,
                     factoryName);
-                writer.WriteLine("                builder.Context,");
-                writer.WriteLine("                parent,");
-                writer.WriteLine("                browseName);");
-                writer.WriteLine(
-                    "            global::Opc.Ua.Server.Fluent.INodeBuilder<{0}> result =",
-                    stateType);
-                writer.WriteLine("                builder.Add(state, parentId);");
+                writer.WriteLine("                        builder.Context,");
+                writer.WriteLine("                        parent,");
+                writer.WriteLine("                        browseName),");
+                writer.WriteLine("                    parentId);");
                 if (instance is VariableDesign variableInstance)
                 {
                     string valueType = variableInstance.DataTypeNode.GetMethodArgumentTypeAsCode(
@@ -488,20 +486,29 @@ namespace Opc.Ua.SourceGeneration
             writer.WriteLine("        {");
             if (registrations.Count == 0)
             {
-                writer.WriteLine("            return [];");
+                writer.WriteLine(
+                    "            return new global::Opc.Ua.ArrayOf<" +
+                    "global::Opc.Ua.Server.Nodes.INodeSetImportFactory>(");
+                writer.WriteLine(
+                    "                global::System.Array.Empty<" +
+                    "global::Opc.Ua.Server.Nodes.INodeSetImportFactory>());");
             }
             else
             {
-                writer.WriteLine("            return");
-                writer.WriteLine("            [");
+                writer.WriteLine(
+                    "            return new global::Opc.Ua.ArrayOf<" +
+                    "global::Opc.Ua.Server.Nodes.INodeSetImportFactory>(");
+                writer.WriteLine(
+                    "                new global::Opc.Ua.Server.Nodes.INodeSetImportFactory[]");
+                writer.WriteLine("                {");
                 for (int i = 0; i < registrations.Count; i++)
                 {
                     writer.WriteLine(
-                        "                ImportFactory{0:D4}.Instance{1}",
+                        "                    ImportFactory{0:D4}.Instance{1}",
                         i,
                         i + 1 == registrations.Count ? string.Empty : ",");
                 }
-                writer.WriteLine("            ];");
+                writer.WriteLine("                });");
             }
             writer.WriteLine("        }");
 

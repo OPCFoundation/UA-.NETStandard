@@ -97,6 +97,13 @@ namespace Opc.Ua
         /// </remarks>
         public DialogResponseEventHandler OnRespond;
 
+        /// <inheritdoc/>
+        protected override bool HasAdditionalRuntimeCallbacks()
+        {
+            return OnRespond is not null ||
+                base.HasAdditionalRuntimeCallbacks();
+        }
+
         /// <summary>
         /// Updates the effective state for the condition.
         /// </summary>

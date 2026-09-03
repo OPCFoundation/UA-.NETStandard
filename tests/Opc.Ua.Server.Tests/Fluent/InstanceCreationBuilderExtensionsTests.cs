@@ -91,13 +91,78 @@ namespace Opc.Ua.Server.Tests.Fluent
 
             IInstanceBuilder<BaseObjectState> ib = nb.CreateInstance(
                 new QualifiedName("Pump#2", kNs),
-                p => new BaseObjectState(p));
+                _ => new BaseObjectState(null));
 
             Assert.That(ib.Node, Is.Not.Null);
             Assert.That(ib.Node.BrowseName, Is.EqualTo(new QualifiedName("Pump#2", kNs)));
             Assert.That(ib.Node.SymbolicName, Is.EqualTo("Pump#2"));
             Assert.That(ib.Node.Parent, Is.SameAs(root));
-            Assert.That(ib.Node.NodeId.IdentifierAsString, Is.EqualTo("Root_Pump#2"));
+            Assert.That(ib.Node.NodeId.IdentifierAsString, Does.StartWith("v1:"));
+        }
+
+        [Test]
+        public void CreateInstanceRebasesFactoryAssignedNodeIds()
+        {
+            (NodeManagerBuilder b, BaseObjectState root) = CreateBuilder();
+            INodeBuilder nb = b.Node(new NodeId("Root", kNs));
+            var previousRootId = new NodeId(500u, kNs);
+            var previousChildId = new NodeId(501u, kNs);
+
+            IInstanceBuilder<BaseObjectState> result = nb.CreateInstance(
+                new QualifiedName("Generated", kNs),
+                parent =>
+                {
+                    var instance = new BaseObjectState(parent)
+                    {
+                        NodeId = previousRootId
+                    };
+                    var child = new BaseDataVariableState(instance)
+                    {
+                        NodeId = previousChildId,
+                        BrowseName = new QualifiedName("Value", kNs),
+                        DataType = DataTypeIds.Int32
+                    };
+                    instance.AddChild(child);
+                    instance.AddReference(
+                        ReferenceTypeIds.HasComponent,
+                        false,
+                        previousChildId);
+                    return instance;
+                });
+            var children = new List<BaseInstanceState>();
+            result.Node.GetChildren(b.Context, children);
+            var references = new List<IReference>();
+            result.Node.GetReferences(b.Context, references);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(result.Node.NodeId, Is.Not.EqualTo(previousRootId));
+                Assert.That(
+                    result.Node.NodeId.IdentifierAsString,
+                    Does.StartWith("v1:"));
+                Assert.That(children[0].NodeId, Is.Not.EqualTo(previousChildId));
+                Assert.That(
+                    children[0].NodeId.IdentifierAsString,
+                    Does.StartWith("v1:"));
+                Assert.That(
+                    references.Exists(reference =>
+                        reference.TargetId == children[0].NodeId),
+                    Is.True);
+                Assert.That(result.Node.Parent, Is.SameAs(root));
+            });
+        }
+
+        [Test]
+        public void CreateInstanceKeepsNodeIdInParentNamespace()
+        {
+            (NodeManagerBuilder b, _) = CreateBuilder();
+            INodeBuilder nb = b.Node(new NodeId("Root", kNs));
+
+            IInstanceBuilder<BaseObjectState> result = nb.CreateInstance(
+                new QualifiedName("StandardBrowseName"),
+                _ => new BaseObjectState(null));
+
+            Assert.That(result.Node.NodeId.NamespaceIndex, Is.EqualTo(kNs));
         }
 
         [Test]

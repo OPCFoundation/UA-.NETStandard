@@ -250,7 +250,8 @@ namespace Opc.Ua.SourceGeneration
                     {
                         if (dataTypeId == null || dataTypeId.IsNull)
                         {
-                            return [];
+                            return new global::Opc.Ua.ArrayOf<global::Opc.Ua.NodeState>(
+                                global::System.Array.Empty<global::Opc.Ua.NodeState>());
                         }
 
                         var __matches = new global::System.Collections.Generic.List<global::Opc.Ua.NodeState>();

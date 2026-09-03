@@ -236,6 +236,9 @@ namespace Opc.Ua.Server.Tests.Nodes
                 NodeState method = await server.NodeManager
                     .FindNodeInAddressSpaceAsync(source.MethodId)
                     .ConfigureAwait(false);
+                NodeState authoredChild = await server.NodeManager
+                    .FindNodeInAddressSpaceAsync(source.AuthoredChildId)
+                    .ConfigureAwait(false);
                 BrowseResponse objectsBrowse = await BrowseAsync(ObjectIds.ObjectsFolder)
                     .ConfigureAwait(false);
                 BrowseResponse objectBrowse = await BrowseAsync(source.ObjectId)
@@ -251,6 +254,9 @@ namespace Opc.Ua.Server.Tests.Nodes
                     Assert.That(instance, Is.TypeOf<ImportedDeviceState>());
                     Assert.That(variable, Is.TypeOf<ImportedValueState>());
                     Assert.That(method, Is.TypeOf<ImportedResetMethodState>());
+                    Assert.That(
+                        ((BaseInstanceState)authoredChild).Parent,
+                        Is.SameAs(instance));
                     Assert.That(
                         objectsBrowse.Results[0].References.Contains(reference =>
                             reference.BrowseName.Name == "ImportedDevice"),
@@ -304,6 +310,12 @@ namespace Opc.Ua.Server.Tests.Nodes
                     Assert.That(source.BehaviorRegistrationConfigureCount, Is.EqualTo(1));
                     Assert.That(source.MaterializedDevices, Has.Count.EqualTo(1));
                     Assert.That(
+                        source.MaterializedDevices[0].Value!.NodeId,
+                        Is.EqualTo(source.ImportedGeneratedValueId));
+                    Assert.That(
+                        manager.Find(source.ImportedGeneratedValueId),
+                        Is.SameAs(source.MaterializedDevices[0].Value));
+                    Assert.That(
                         source.GetNodeSetImportFactories().Count,
                         Is.GreaterThan(0));
                     Assert.That(
@@ -322,15 +334,13 @@ namespace Opc.Ua.Server.Tests.Nodes
                         Is.TypeOf<GeneratedNodeSourceModel.CalibrateMethodState>());
                     Assert.That(
                         source.AuthoredObjectId.IdentifierAsString,
-                        Is.EqualTo("GeneratedPhase5Root_AuthoredObject"));
+                        Does.StartWith("v1:"));
                     Assert.That(
                         source.AuthoredVariableId.IdentifierAsString,
-                        Is.EqualTo(
-                            "GeneratedPhase5Root_AuthoredObject_AuthoredVariable"));
+                        Does.StartWith("v1:"));
                     Assert.That(
                         source.AuthoredMethodId.IdentifierAsString,
-                        Is.EqualTo(
-                            "GeneratedPhase5Root_AuthoredObject_AuthoredMethod"));
+                        Does.StartWith("v1:"));
                     Assert.That(
                         manager.Find(source.AuthoredObjectId),
                         Is.TypeOf<GeneratedNodeSourceModel.DeviceState>());
@@ -340,10 +350,33 @@ namespace Opc.Ua.Server.Tests.Nodes
                     Assert.That(
                         manager.Find(source.AuthoredMethodId),
                         Is.TypeOf<GeneratedNodeSourceModel.CalibrateMethodState>());
+                    Assert.That(
+                        source.ExternalServerDevice.NodeId,
+                        Is.Not.EqualTo(source.ExternalCapabilitiesDevice.NodeId));
+                    Assert.That(source.ExternalServerDevice.Parent, Is.Null);
+                    Assert.That(source.ExternalCapabilitiesDevice.Parent, Is.Null);
+                    Assert.That(
+                        source.ExternalServerDevice.ReferenceExists(
+                            ReferenceTypeIds.HasComponent,
+                            true,
+                            ObjectIds.Server),
+                        Is.True);
+                    Assert.That(
+                        source.ExternalCapabilitiesDevice.ReferenceExists(
+                            ReferenceTypeIds.HasComponent,
+                            true,
+                            ObjectIds.Server_ServerCapabilities),
+                        Is.True);
                 });
 
                 GeneratedNodeSourceModel.DeviceState firstDevice =
                     source.MaterializedDevices[0];
+                NodeId firstAuthoredObjectId = source.AuthoredObjectId;
+                NodeId firstAuthoredVariableId = source.AuthoredVariableId;
+                NodeId firstAuthoredMethodId = source.AuthoredMethodId;
+                NodeId firstExternalServerId = source.ExternalServerDevice.NodeId;
+                NodeId firstExternalCapabilitiesId =
+                    source.ExternalCapabilitiesDevice.NodeId;
                 registration = await m_server.NodeManagerLifecycle
                     .ReloadNodeSourceAsync(registration, source)
                     .ConfigureAwait(false);
@@ -358,6 +391,198 @@ namespace Opc.Ua.Server.Tests.Nodes
                         source.MaterializedDevices[1],
                         Is.Not.SameAs(firstDevice),
                         "Each BuildAsync invocation must materialize a fresh node graph.");
+                    Assert.That(source.AuthoredObjectId, Is.EqualTo(firstAuthoredObjectId));
+                    Assert.That(source.AuthoredVariableId, Is.EqualTo(firstAuthoredVariableId));
+                    Assert.That(source.AuthoredMethodId, Is.EqualTo(firstAuthoredMethodId));
+                    Assert.That(
+                        source.ExternalServerDevice.NodeId,
+                        Is.EqualTo(firstExternalServerId));
+                    Assert.That(
+                        source.ExternalCapabilitiesDevice.NodeId,
+                        Is.EqualTo(firstExternalCapabilitiesId));
+                });
+            }
+            finally
+            {
+                await m_server.NodeManagerLifecycle
+                    .RemoveAsync(registration, callerContext: null)
+                    .ConfigureAwait(false);
+            }
+        }
+
+        [Test]
+        public async Task ImportedTypedChildLinksToLaterAuthoredTypedParentAsync()
+        {
+            var source = new ImportedChildWithAuthoredParentSource();
+            NodeManagerRegistration registration = await m_server.NodeManagerLifecycle
+                .AddNodeSourceAsync(source)
+                .ConfigureAwait(false);
+            try
+            {
+                var manager = (NodeSourceNodeManager)registration.NodeManager;
+                NodeState imported = manager.Find(source.ImportedChildId);
+                var children = new List<BaseInstanceState>();
+                source.Parent.GetChildren(manager.SystemContext, children);
+
+                Assert.Multiple(() =>
+                {
+                    Assert.That(
+                        imported,
+                        Is.TypeOf<GeneratedNodeSourceModel.CustomValueState>());
+                    Assert.That(imported, Is.SameAs(source.Parent.Value));
+                    Assert.That(
+                        ((BaseInstanceState)imported).Parent,
+                        Is.SameAs(source.Parent));
+                    Assert.That(children, Has.Member(imported));
+                    Assert.That(
+                        children.Count(child => child.BrowseName.Name == "Value"),
+                        Is.EqualTo(1));
+                    Assert.That(
+                        manager.Find(source.ReplacedPlaceholderId),
+                        Is.Null);
+                    Assert.That(
+                        source.ReferenceOwner.ReferenceExists(
+                            ReferenceTypeIds.HasComponent,
+                            false,
+                            source.ImportedChildId),
+                        Is.True);
+                    Assert.That(
+                        source.ReferenceOwner.ReferenceExists(
+                            ReferenceTypeIds.HasComponent,
+                            false,
+                            source.ReplacedPlaceholderId),
+                        Is.False);
+                    Assert.That(
+                        ((NodeState)imported).ReferenceExists(
+                            ReferenceTypeIds.Organizes,
+                            false,
+                            source.ImportedChildId),
+                        Is.True);
+                    Assert.That(
+                        ((NodeState)imported).ReferenceExists(
+                            ReferenceTypeIds.Organizes,
+                            false,
+                            source.ReplacedPlaceholderId),
+                        Is.False);
+                    Assert.That(source.ImportedLookupWonBeforeFinalization, Is.True);
+                });
+            }
+            finally
+            {
+                await m_server.NodeManagerLifecycle
+                    .RemoveAsync(registration, callerContext: null)
+                    .ConfigureAwait(false);
+            }
+        }
+
+        [Test]
+        public async Task ImportedTypedChildCanReplacePlaceholderWithSameNodeIdAsync()
+        {
+            var source = new SameNodeIdImportedChildSource();
+            NodeManagerRegistration registration = await m_server.NodeManagerLifecycle
+                .AddNodeSourceAsync(source)
+                .ConfigureAwait(false);
+            try
+            {
+                var manager = (NodeSourceNodeManager)registration.NodeManager;
+                NodeState imported = manager.Find(source.ImportedChildId);
+
+                Assert.Multiple(() =>
+                {
+                    Assert.That(imported, Is.SameAs(source.Parent.Value));
+                    Assert.That(imported, Is.Not.SameAs(source.OriginalPlaceholder));
+                    Assert.That(
+                        ((BaseInstanceState)imported).Parent,
+                        Is.SameAs(source.Parent));
+                    Assert.That(
+                        ((BaseVariableState)imported).OnSimpleReadValue,
+                        Is.Not.Null);
+                    Assert.That(source.ImportedNodeAddedCount, Is.EqualTo(1));
+                });
+            }
+            finally
+            {
+                await m_server.NodeManagerLifecycle
+                    .RemoveAsync(registration, callerContext: null)
+                    .ConfigureAwait(false);
+            }
+        }
+
+        [Test]
+        public void ImportedMissingOwnedParentFailsBeforeRegistration()
+        {
+            ServiceResultException exception =
+                Assert.ThrowsAsync<ServiceResultException>(
+                    async () => await m_server.NodeManagerLifecycle
+                        .AddNodeSourceAsync(new MissingOwnedImportParentSource())
+                        .ConfigureAwait(false));
+
+            Assert.That(
+                exception.StatusCode,
+                Is.EqualTo((uint)StatusCodes.BadNodeIdUnknown));
+        }
+
+        [Test]
+        public void ImportedReplacementOfConfiguredPlaceholderFailsBeforeRegistration()
+        {
+            ServiceResultException exception =
+                Assert.ThrowsAsync<ServiceResultException>(
+                    async () => await m_server.NodeManagerLifecycle
+                        .AddNodeSourceAsync(
+                            new ConfiguredPlaceholderImportSource())
+                        .ConfigureAwait(false));
+
+            Assert.That(
+                exception.StatusCode,
+                Is.EqualTo((uint)StatusCodes.BadInvalidState));
+        }
+
+        [Test]
+        public void ImportedReplacementWithConfiguredMissingDescendantFailsBeforeRegistration()
+        {
+            ServiceResultException exception =
+                Assert.ThrowsAsync<ServiceResultException>(
+                    async () => await m_server.NodeManagerLifecycle
+                        .AddNodeSourceAsync(
+                            new ConfiguredMissingDescendantImportSource())
+                        .ConfigureAwait(false));
+
+            Assert.That(
+                exception.StatusCode,
+                Is.EqualTo((uint)StatusCodes.BadInvalidState));
+        }
+
+        [Test]
+        public async Task ImportedReplacementRemovesReferencesToOmittedDescendantsAsync()
+        {
+            var source = new OmittedDescendantImportSource();
+            NodeManagerRegistration registration = await m_server.NodeManagerLifecycle
+                .AddNodeSourceAsync(source)
+                .ConfigureAwait(false);
+            try
+            {
+                var manager = (NodeSourceNodeManager)registration.NodeManager;
+                var references = new List<IReference>();
+                source.ReferenceOwner.GetReferences(
+                    manager.SystemContext,
+                    references);
+
+                Assert.Multiple(() =>
+                {
+                    Assert.That(manager.Find(source.OmittedNodeId), Is.Null);
+                    Assert.That(
+                        source.ReferenceOwner.ReferenceExists(
+                            ReferenceTypeIds.HasComponent,
+                            false,
+                            source.OmittedNodeId),
+                        Is.False);
+                    Assert.That(
+                        references.Exists(reference =>
+                            ExpandedNodeId.ToNodeId(
+                                reference.TargetId,
+                                manager.SystemContext.NamespaceUris) ==
+                            source.OmittedNodeId),
+                        Is.False);
                 });
             }
             finally
@@ -899,6 +1124,8 @@ namespace Opc.Ua.Server.Tests.Nodes
 
             public NodeId MethodId { get; private set; }
 
+            public NodeId AuthoredChildId { get; private set; }
+
             public int MethodCallCount { get; private set; }
 
             public bool TypedNodesResolvedDuringBuild { get; private set; }
@@ -915,6 +1142,9 @@ namespace Opc.Ua.Server.Tests.Nodes
                 ObjectId = new NodeId(200u, namespaceIndex);
                 VariableId = new NodeId(201u, namespaceIndex);
                 MethodId = new NodeId(202u, namespaceIndex);
+                AuthoredChildId = builder.AddObject(
+                    "AuthoredChild",
+                    ObjectId).Node.NodeId;
 
                 ImportedDeviceState instance =
                     builder.Node<ImportedDeviceState>(ObjectId).Node;
@@ -935,7 +1165,17 @@ namespace Opc.Ua.Server.Tests.Nodes
                     variable.TypeDefinitionId ==
                         new NodeId(101u, namespaceIndex) &&
                     method.Node.MethodDeclarationId ==
-                        new NodeId(102u, namespaceIndex);
+                        new NodeId(102u, namespaceIndex) &&
+                    ReferenceEquals(
+                        builder.NodeFromTypeId<ImportedDeviceState>(
+                            new NodeId(100u, namespaceIndex),
+                            instance.BrowseName).Node,
+                        instance) &&
+                    ReferenceEquals(
+                        builder.VariableFromDataTypeId<int>(
+                            DataTypeIds.Int32,
+                            variable.BrowseName).Node,
+                        variable);
                 return default;
             }
 
@@ -958,7 +1198,7 @@ namespace Opc.Ua.Server.Tests.Nodes
                 ];
             }
 
-            private static UANodeSet ReadNodeSet()
+            public static UANodeSet ReadNodeSet()
             {
                 string xml =
                     "<?xml version=\"1.0\" encoding=\"utf-8\"?>\r\n" +
@@ -1009,6 +1249,57 @@ namespace Opc.Ua.Server.Tests.Nodes
             }
         }
 
+        private sealed class OmittedDescendantImportSource :
+            INodeSource,
+            INodeSetImportFactoryProvider
+        {
+            public ArrayOf<string> NamespaceUris =>
+                [GeneratedNodeSetImportSource.NamespaceUri];
+
+            public NodeId OmittedNodeId { get; private set; }
+
+            public BaseObjectState ReferenceOwner { get; private set; } = null!;
+
+            public ValueTask BuildAsync(
+                INodeGraphBuilder builder,
+                CancellationToken cancellationToken = default)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                ushort namespaceIndex = (ushort)builder.Context.NamespaceUris.GetIndex(
+                    GeneratedNodeSetImportSource.NamespaceUri);
+                GeneratedNodeSourceModel.DeviceState parent =
+                    GeneratedNodeSourceModel.
+                        GeneratedNodeSourceModelNodeGraphBuilderExtensions.
+                        AddDeviceType(
+                            builder,
+                            new QualifiedName(
+                                "AuthoredTypedParent",
+                                namespaceIndex)).Node;
+                OmittedNodeId = parent.Calibrate!.InputArguments!.NodeId;
+                ReferenceOwner = builder.AddObject("ReferenceOwner").Node;
+                ReferenceOwner.AddReference(
+                    ReferenceTypeIds.HasComponent,
+                    false,
+                    OmittedNodeId);
+                ReferenceOwner.AddReference(
+                    ReferenceTypeIds.HasProperty,
+                    false,
+                    new ExpandedNodeId(
+                        OmittedNodeId.IdentifierAsString,
+                        GeneratedNodeSetImportSource.NamespaceUri));
+                builder.Import(
+                    ConfiguredMissingDescendantImportSource.ReadNodeSet());
+                return default;
+            }
+
+            public ArrayOf<INodeSetImportFactory> GetNodeSetImportFactories()
+            {
+                return GeneratedNodeSourceModel.
+                    GeneratedNodeSourceModelNodeSetImportFactoryProvider.Instance.
+                    GetNodeSetImportFactories();
+            }
+        }
+
         private sealed class GeneratedNodeSetImportSource :
             INodeSource,
             INodeSetImportFactoryProvider
@@ -1031,7 +1322,7 @@ namespace Opc.Ua.Server.Tests.Nodes
                     GetNodeSetImportFactories();
             }
 
-            private static UANodeSet ReadNodeSet()
+            public static UANodeSet ReadNodeSet()
             {
                 using Stream stream = typeof(GeneratedNodeSetImportSource)
                     .Assembly
@@ -1050,6 +1341,286 @@ namespace Opc.Ua.Server.Tests.Nodes
                 "urn:opcfoundation.org:2026-09:GeneratedNodeSource";
             public const string InstanceNamespaceUri =
                 "urn:opcfoundation.org:2026-09:GeneratedNodeSource:Instance";
+        }
+
+        private sealed class ImportedChildWithAuthoredParentSource :
+            INodeSource,
+            INodeSetImportFactoryProvider
+        {
+            public ArrayOf<string> NamespaceUris =>
+                [GeneratedNodeSetImportSource.NamespaceUri];
+
+            public GeneratedNodeSourceModel.DeviceState Parent { get; private set; } = null!;
+
+            public NodeId ImportedChildId { get; private set; }
+
+            public NodeId ReplacedPlaceholderId { get; private set; }
+
+            public BaseObjectState ReferenceOwner { get; private set; } = null!;
+
+            public bool ImportedLookupWonBeforeFinalization { get; private set; }
+
+            public ValueTask BuildAsync(
+                INodeGraphBuilder builder,
+                CancellationToken cancellationToken = default)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                builder.Import(ReadNodeSet());
+                ushort namespaceIndex = (ushort)builder.Context.NamespaceUris.GetIndex(
+                    GeneratedNodeSetImportSource.NamespaceUri);
+                Parent = GeneratedNodeSourceModel.
+                    GeneratedNodeSourceModelNodeGraphBuilderExtensions.
+                    AddDeviceType(
+                        builder,
+                        new QualifiedName(
+                            "AuthoredTypedParent",
+                            namespaceIndex)).Node;
+                ReplacedPlaceholderId = Parent.Value!.NodeId;
+                ReferenceOwner = builder.AddObject("ReferenceOwner").Node;
+                ReferenceOwner.AddReference(
+                    ReferenceTypeIds.HasComponent,
+                    false,
+                    ReplacedPlaceholderId);
+                ImportedChildId = new NodeId(3100u, namespaceIndex);
+                builder.Node(ImportedChildId).Node.AddReference(
+                    ReferenceTypeIds.Organizes,
+                    false,
+                    ReplacedPlaceholderId);
+                ImportedLookupWonBeforeFinalization = ReferenceEquals(
+                    builder.VariableFromDataTypeId<int>(
+                        DataTypeIds.Int32,
+                        new QualifiedName("Value", namespaceIndex)).Node,
+                    builder.Node(ImportedChildId).Node);
+                return default;
+            }
+
+            public ArrayOf<INodeSetImportFactory> GetNodeSetImportFactories()
+            {
+                return GeneratedNodeSourceModel.
+                    GeneratedNodeSourceModelNodeSetImportFactoryProvider.Instance.
+                    GetNodeSetImportFactories();
+            }
+
+            public static UANodeSet ReadNodeSet()
+            {
+                string xml =
+                    "<?xml version=\"1.0\" encoding=\"utf-8\"?>\r\n" +
+                    "<UANodeSet xmlns=\"http://opcfoundation.org/UA/2011/03/UANodeSet.xsd\">\r\n" +
+                    "  <NamespaceUris>\r\n" +
+                    $"    <Uri>{GeneratedNodeSetImportSource.NamespaceUri}</Uri>\r\n" +
+                    "  </NamespaceUris>\r\n" +
+                    "  <UAVariable NodeId=\"ns=1;i=3100\" BrowseName=\"1:Value\" " +
+                    "ParentNodeId=\"ns=1;s=AuthoredTypedParent\" DataType=\"i=6\">\r\n" +
+                    "    <DisplayName>Value</DisplayName>\r\n" +
+                    "    <References>\r\n" +
+                    "      <Reference ReferenceType=\"i=40\">ns=1;i=1001</Reference>\r\n" +
+                    "      <Reference ReferenceType=\"i=47\" IsForward=\"false\">" +
+                    "ns=1;s=AuthoredTypedParent</Reference>\r\n" +
+                    "    </References>\r\n" +
+                    "  </UAVariable>\r\n" +
+                    "</UANodeSet>";
+                using var stream = new MemoryStream(Encoding.UTF8.GetBytes(xml));
+                return UANodeSet.Read(stream);
+            }
+        }
+
+        private sealed class ConfiguredPlaceholderImportSource :
+            INodeSource,
+            INodeSetImportFactoryProvider
+        {
+            public ArrayOf<string> NamespaceUris =>
+                [GeneratedNodeSetImportSource.NamespaceUri];
+
+            public ValueTask BuildAsync(
+                INodeGraphBuilder builder,
+                CancellationToken cancellationToken = default)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                ushort namespaceIndex = (ushort)builder.Context.NamespaceUris.GetIndex(
+                    GeneratedNodeSetImportSource.NamespaceUri);
+                GeneratedNodeSourceModel.DeviceState parent =
+                    GeneratedNodeSourceModel.
+                        GeneratedNodeSourceModelNodeGraphBuilderExtensions.
+                        AddDeviceType(
+                            builder,
+                            new QualifiedName(
+                                "AuthoredTypedParent",
+                                namespaceIndex)).Node;
+                builder.Variable<int>(parent.Value!.NodeId).OnRead(static () => 1);
+                builder.Import(ImportedChildWithAuthoredParentSource.ReadNodeSet());
+                return default;
+            }
+
+            public ArrayOf<INodeSetImportFactory> GetNodeSetImportFactories()
+            {
+                return GeneratedNodeSourceModel.
+                    GeneratedNodeSourceModelNodeSetImportFactoryProvider.Instance.
+                    GetNodeSetImportFactories();
+            }
+        }
+
+        private sealed class ConfiguredMissingDescendantImportSource :
+            INodeSource,
+            INodeSetImportFactoryProvider
+        {
+            public ArrayOf<string> NamespaceUris =>
+                [GeneratedNodeSetImportSource.NamespaceUri];
+
+            public ValueTask BuildAsync(
+                INodeGraphBuilder builder,
+                CancellationToken cancellationToken = default)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                ushort namespaceIndex = (ushort)builder.Context.NamespaceUris.GetIndex(
+                    GeneratedNodeSetImportSource.NamespaceUri);
+                GeneratedNodeSourceModel.DeviceState parent =
+                    GeneratedNodeSourceModel.
+                        GeneratedNodeSourceModelNodeGraphBuilderExtensions.
+                        AddDeviceType(
+                            builder,
+                            new QualifiedName(
+                                "AuthoredTypedParent",
+                                namespaceIndex)).Node;
+                builder.Node(parent.Calibrate!.InputArguments!.NodeId)
+                    .OnNodeAdded(static (_, _) => { });
+                builder.Import(ReadNodeSet());
+                return default;
+            }
+
+            public ArrayOf<INodeSetImportFactory> GetNodeSetImportFactories()
+            {
+                return GeneratedNodeSourceModel.
+                    GeneratedNodeSourceModelNodeSetImportFactoryProvider.Instance.
+                    GetNodeSetImportFactories();
+            }
+
+            public static UANodeSet ReadNodeSet()
+            {
+                string xml =
+                    "<?xml version=\"1.0\" encoding=\"utf-8\"?>\r\n" +
+                    "<UANodeSet xmlns=\"http://opcfoundation.org/UA/2011/03/UANodeSet.xsd\">\r\n" +
+                    "  <NamespaceUris>\r\n" +
+                    $"    <Uri>{GeneratedNodeSetImportSource.NamespaceUri}</Uri>\r\n" +
+                    "  </NamespaceUris>\r\n" +
+                    "  <UAMethod NodeId=\"ns=1;i=3101\" BrowseName=\"1:Calibrate\" " +
+                    "ParentNodeId=\"ns=1;s=AuthoredTypedParent\" " +
+                    "MethodDeclarationId=\"ns=1;i=1010\">\r\n" +
+                    "    <DisplayName>Calibrate</DisplayName>\r\n" +
+                    "    <References>\r\n" +
+                    "      <Reference ReferenceType=\"i=47\" IsForward=\"false\">" +
+                    "ns=1;s=AuthoredTypedParent</Reference>\r\n" +
+                    "    </References>\r\n" +
+                    "  </UAMethod>\r\n" +
+                    "</UANodeSet>";
+                using var stream = new MemoryStream(Encoding.UTF8.GetBytes(xml));
+                return UANodeSet.Read(stream);
+            }
+        }
+
+        private sealed class SameNodeIdImportedChildSource :
+            INodeSource,
+            INodeSetImportFactoryProvider
+        {
+            public ArrayOf<string> NamespaceUris =>
+                [GeneratedNodeSetImportSource.NamespaceUri];
+
+            public GeneratedNodeSourceModel.DeviceState Parent { get; private set; } = null!;
+
+            public BaseVariableState OriginalPlaceholder { get; private set; } = null!;
+
+            public NodeId ImportedChildId { get; private set; }
+
+            public int ImportedNodeAddedCount { get; private set; }
+
+            public ValueTask BuildAsync(
+                INodeGraphBuilder builder,
+                CancellationToken cancellationToken = default)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                ushort namespaceIndex = (ushort)builder.Context.NamespaceUris.GetIndex(
+                    GeneratedNodeSetImportSource.NamespaceUri);
+                Parent = GeneratedNodeSourceModel.
+                    GeneratedNodeSourceModelNodeGraphBuilderExtensions.
+                    AddDeviceType(
+                        builder,
+                        new QualifiedName(
+                            "AuthoredSameIdParent",
+                            namespaceIndex)).Node;
+                OriginalPlaceholder = Parent.Value!;
+                ImportedChildId = OriginalPlaceholder.NodeId;
+                builder.Import(ReadNodeSet());
+                IVariableBuilder<int> imported =
+                    builder.Variable<int>(ImportedChildId);
+                imported.OnRead(static () => 99);
+                imported.OnNodeAdded((_, _) => ImportedNodeAddedCount++);
+                return default;
+            }
+
+            public ArrayOf<INodeSetImportFactory> GetNodeSetImportFactories()
+            {
+                return GeneratedNodeSourceModel.
+                    GeneratedNodeSourceModelNodeSetImportFactoryProvider.Instance.
+                    GetNodeSetImportFactories();
+            }
+
+            private UANodeSet ReadNodeSet()
+            {
+                string xml =
+                    "<?xml version=\"1.0\" encoding=\"utf-8\"?>\r\n" +
+                    "<UANodeSet xmlns=\"http://opcfoundation.org/UA/2011/03/UANodeSet.xsd\">\r\n" +
+                    "  <NamespaceUris>\r\n" +
+                    $"    <Uri>{GeneratedNodeSetImportSource.NamespaceUri}</Uri>\r\n" +
+                    "  </NamespaceUris>\r\n" +
+                    $"  <UAVariable NodeId=\"ns=1;s={ImportedChildId.IdentifierAsString}\" " +
+                    "BrowseName=\"1:Value\" " +
+                    "ParentNodeId=\"ns=1;s=AuthoredSameIdParent\" DataType=\"i=6\">\r\n" +
+                    "    <DisplayName>Value</DisplayName>\r\n" +
+                    "    <References>\r\n" +
+                    "      <Reference ReferenceType=\"i=40\">ns=1;i=1001</Reference>\r\n" +
+                    "      <Reference ReferenceType=\"i=47\" IsForward=\"false\">" +
+                    "ns=1;s=AuthoredSameIdParent</Reference>\r\n" +
+                    "    </References>\r\n" +
+                    "  </UAVariable>\r\n" +
+                    "</UANodeSet>";
+                using var stream = new MemoryStream(Encoding.UTF8.GetBytes(xml));
+                return UANodeSet.Read(stream);
+            }
+        }
+
+        private sealed class MissingOwnedImportParentSource : INodeSource
+        {
+            public ArrayOf<string> NamespaceUris => [kImportedNamespaceUri];
+
+            public ValueTask BuildAsync(
+                INodeGraphBuilder builder,
+                CancellationToken cancellationToken = default)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                builder.Import(ReadNodeSet());
+                return default;
+            }
+
+            private static UANodeSet ReadNodeSet()
+            {
+                const string xml =
+                    "<?xml version=\"1.0\" encoding=\"utf-8\"?>\r\n" +
+                    "<UANodeSet xmlns=\"http://opcfoundation.org/UA/2011/03/UANodeSet.xsd\">\r\n" +
+                    "  <NamespaceUris>\r\n" +
+                    $"    <Uri>{kImportedNamespaceUri}</Uri>\r\n" +
+                    "  </NamespaceUris>\r\n" +
+                    "  <UAObject NodeId=\"ns=1;i=3200\" BrowseName=\"1:Orphan\" " +
+                    "ParentNodeId=\"ns=1;i=3299\">\r\n" +
+                    "    <DisplayName>Orphan</DisplayName>\r\n" +
+                    "    <References>\r\n" +
+                    "      <Reference ReferenceType=\"i=40\">i=58</Reference>\r\n" +
+                    "      <Reference ReferenceType=\"i=47\" IsForward=\"false\">" +
+                    "ns=1;i=3299</Reference>\r\n" +
+                    "    </References>\r\n" +
+                    "  </UAObject>\r\n" +
+                    "</UANodeSet>";
+                using var stream = new MemoryStream(Encoding.UTF8.GetBytes(xml));
+                return UANodeSet.Read(stream);
+            }
         }
 
         private sealed class ImportedNodeFactory : INodeSetImportFactory

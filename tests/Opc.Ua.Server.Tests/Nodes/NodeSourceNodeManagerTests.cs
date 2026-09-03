@@ -208,6 +208,135 @@ namespace Opc.Ua.Server.Tests.Nodes
         }
 
         [Test]
+        public async Task ChildNodeIdsEncodeParentTypeAndSegmentBoundariesAsync()
+        {
+            var source = new IdentifierCollisionSource();
+            IAsyncNodeManager manager = await CreateManagerAsync(source)
+                .ConfigureAwait(false);
+            try
+            {
+                await manager
+                    .CreateAddressSpaceAsync(
+                        new Dictionary<NodeId, IList<IReference>>())
+                    .ConfigureAwait(false);
+
+                Assert.Multiple(() =>
+                {
+                    Assert.That(
+                        source.NumericParentChildId,
+                        Is.Not.EqualTo(source.StringParentChildId));
+                    Assert.That(
+                        source.DelimitedParentChildId,
+                        Is.Not.EqualTo(source.DelimitedBrowseNameChildId));
+                    Assert.That(
+                        source.NumericParentChildId.IdentifierAsString,
+                        Does.StartWith("v1:"));
+                    Assert.That(
+                        ((NodeSourceNodeManager)manager).Find(
+                            source.NumericParentChildId),
+                        Is.Not.Null);
+                    Assert.That(
+                        ((NodeSourceNodeManager)manager).Find(
+                            source.StringParentChildId),
+                        Is.Not.Null);
+                });
+            }
+            finally
+            {
+                ((IDisposable)manager).Dispose();
+            }
+        }
+
+        [Test]
+        public async Task ChildNodeIdentifiersDoNotDependOnNamespaceTableOrderAsync()
+        {
+            var firstSource = new IdentifierCollisionSource();
+            var secondSource = new IdentifierCollisionSource();
+            IAsyncNodeManager firstManager = await CreateManagerAsync(
+                firstSource,
+                IdentifierCollisionSource.ExternalNamespaceUri,
+                kNamespaceUri)
+                .ConfigureAwait(false);
+            IAsyncNodeManager secondManager = await CreateManagerAsync(
+                secondSource,
+                "urn:opcfoundation.org:Tests:Padding",
+                IdentifierCollisionSource.ExternalNamespaceUri,
+                kNamespaceUri).ConfigureAwait(false);
+            try
+            {
+                await firstManager
+                    .CreateAddressSpaceAsync(
+                        new Dictionary<NodeId, IList<IReference>>())
+                    .ConfigureAwait(false);
+                await secondManager
+                    .CreateAddressSpaceAsync(
+                        new Dictionary<NodeId, IList<IReference>>())
+                    .ConfigureAwait(false);
+
+                Assert.Multiple(() =>
+                {
+                    Assert.That(
+                        firstSource.ExternalParentChildId.NamespaceIndex,
+                        Is.Not.EqualTo(
+                            secondSource.ExternalParentChildId.NamespaceIndex));
+                    Assert.That(
+                        firstSource.ExternalParentChildId.IdentifierAsString,
+                        Is.EqualTo(
+                            secondSource.ExternalParentChildId.IdentifierAsString));
+                });
+            }
+            finally
+            {
+                ((IDisposable)firstManager).Dispose();
+                ((IDisposable)secondManager).Dispose();
+            }
+        }
+
+        [Test]
+        public void ChildNodeIdsSeparateNamespaceUriAndIdentifierBoundaries()
+        {
+            var namespaceUris = new NamespaceTable();
+            ushort childNamespaceIndex = namespaceUris.GetIndexOrAppend(
+                "urn:opcfoundation.org:Tests:Child");
+            ushort firstParentNamespaceIndex = namespaceUris.GetIndexOrAppend(
+                "urn:test");
+            ushort secondParentNamespaceIndex = namespaceUris.GetIndexOrAppend(
+                "urn:test;s=a");
+            var browseName = new QualifiedName("Value", childNamespaceIndex);
+
+            NodeId first = NodeSourceNodeIdFactory.CreateChildNodeId(
+                new NodeId("a;s=b", firstParentNamespaceIndex),
+                browseName,
+                childNamespaceIndex,
+                namespaceUris);
+            NodeId second = NodeSourceNodeIdFactory.CreateChildNodeId(
+                new NodeId("b", secondParentNamespaceIndex),
+                browseName,
+                childNamespaceIndex,
+                namespaceUris);
+            NodeId namespaceZeroBrowseName =
+                NodeSourceNodeIdFactory.CreateChildNodeId(
+                    new NodeId("Parent", childNamespaceIndex),
+                    new QualifiedName("Value"),
+                    childNamespaceIndex,
+                    namespaceUris);
+            NodeId childNamespaceBrowseName =
+                NodeSourceNodeIdFactory.CreateChildNodeId(
+                    new NodeId("Parent", childNamespaceIndex),
+                    browseName,
+                    childNamespaceIndex,
+                    namespaceUris);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(first, Is.Not.EqualTo(second));
+                Assert.That(
+                    namespaceZeroBrowseName,
+                    Is.Not.EqualTo(childNamespaceBrowseName));
+            });
+        }
+
+        [Test]
         public async Task NodeIdsAreFinalBeforeReturnedBuilderIsConfiguredAsync()
         {
             var source = new NodeIdCaptureSource();
@@ -386,17 +515,29 @@ namespace Opc.Ua.Server.Tests.Nodes
         }
 
         private static ValueTask<IAsyncNodeManager> CreateManagerAsync(
-            INodeSource source)
+            INodeSource source,
+            params string[] initialNamespaceUris)
         {
-            Mock<IServerInternal> server = BuildMockServer();
+            Mock<IServerInternal> server = BuildMockServer(initialNamespaceUris);
             var factory = new NodeSourceNodeManagerFactory(source);
             return factory.CreateAsync(server.Object, new ApplicationConfiguration());
         }
 
-        private static Mock<IServerInternal> BuildMockServer()
+        private static Mock<IServerInternal> BuildMockServer(
+            params string[] initialNamespaceUris)
         {
             var namespaceTable = new NamespaceTable();
-            namespaceTable.Append(kNamespaceUri);
+            if (initialNamespaceUris.Length == 0)
+            {
+                namespaceTable.Append(kNamespaceUri);
+            }
+            else
+            {
+                for (int i = 0; i < initialNamespaceUris.Length; i++)
+                {
+                    namespaceTable.Append(initialNamespaceUris[i]);
+                }
+            }
 
             var telemetry = new Mock<ITelemetryContext>();
             telemetry
@@ -747,6 +888,82 @@ namespace Opc.Ua.Server.Tests.Nodes
                     "Shared",
                     ObjectIds.Server_ServerCapabilities).Node.NodeId;
                 return default;
+            }
+        }
+
+        private sealed class IdentifierCollisionSource : INodeSource
+        {
+            public const string ExternalNamespaceUri =
+                "urn:opcfoundation.org:Tests:NodeSource:External";
+
+            public ArrayOf<string> NamespaceUris => [kNamespaceUri];
+
+            public NodeId NumericParentChildId { get; private set; }
+
+            public NodeId StringParentChildId { get; private set; }
+
+            public NodeId DelimitedParentChildId { get; private set; }
+
+            public NodeId DelimitedBrowseNameChildId { get; private set; }
+
+            public NodeId ExternalParentChildId { get; private set; }
+
+            public ValueTask BuildAsync(
+                INodeGraphBuilder builder,
+                CancellationToken cancellationToken = default)
+            {
+                ushort namespaceIndex =
+                    builder.Context.NamespaceUris.GetIndexOrAppend(kNamespaceUri);
+                INodeBuilder<BaseObjectState> numericParent = builder.Add(
+                    CreateParent(
+                        new NodeId(1u, namespaceIndex),
+                        new QualifiedName("NumericParent", namespaceIndex)));
+                INodeBuilder<BaseObjectState> stringParent = builder.Add(
+                    CreateParent(
+                        new NodeId("1", namespaceIndex),
+                        new QualifiedName("StringParent", namespaceIndex)));
+                INodeBuilder<BaseObjectState> delimitedParent = builder.Add(
+                    CreateParent(
+                        new NodeId("A_B", namespaceIndex),
+                        new QualifiedName("DelimitedParent", namespaceIndex)));
+                INodeBuilder<BaseObjectState> delimitedBrowseNameParent = builder.Add(
+                    CreateParent(
+                        new NodeId("A", namespaceIndex),
+                        new QualifiedName("DelimitedBrowseNameParent", namespaceIndex)));
+
+                NumericParentChildId = builder
+                    .AddObject("Value", numericParent.Node.NodeId).Node.NodeId;
+                StringParentChildId = builder
+                    .AddObject("Value", stringParent.Node.NodeId).Node.NodeId;
+                DelimitedParentChildId = builder
+                    .AddObject("C", delimitedParent.Node.NodeId).Node.NodeId;
+                DelimitedBrowseNameChildId = builder
+                    .AddObject(
+                        "B_C",
+                        delimitedBrowseNameParent.Node.NodeId).Node.NodeId;
+                int externalNamespaceIndex = builder.Context.NamespaceUris.GetIndex(
+                    ExternalNamespaceUri);
+                if (externalNamespaceIndex >= 0)
+                {
+                    ExternalParentChildId = builder.AddObject(
+                        "ExternalValue",
+                        new NodeId(
+                            "ExternalParent",
+                            (ushort)externalNamespaceIndex)).Node.NodeId;
+                }
+                return default;
+            }
+
+            private static BaseObjectState CreateParent(
+                NodeId nodeId,
+                QualifiedName browseName)
+            {
+                return new BaseObjectState(null)
+                {
+                    NodeId = nodeId,
+                    BrowseName = browseName,
+                    DisplayName = new LocalizedText(browseName.Name)
+                };
             }
         }
 

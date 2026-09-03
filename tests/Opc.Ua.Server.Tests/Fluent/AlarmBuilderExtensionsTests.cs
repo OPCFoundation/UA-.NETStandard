@@ -99,6 +99,19 @@ namespace Opc.Ua.Server.Tests.Fluent
             return (builder, root, src);
         }
 
+        private sealed class RuntimeCallbackProbeAlarm : AlarmConditionState
+        {
+            public RuntimeCallbackProbeAlarm()
+                : base(parent: null)
+            {
+            }
+
+            public bool HasRuntimeConfiguration()
+            {
+                return HasAdditionalRuntimeCallbacks();
+            }
+        }
+
         [Test]
         public void CreateLimitAlarmAttachesToParent()
         {
@@ -111,7 +124,16 @@ namespace Opc.Ua.Server.Tests.Fluent
             Assert.That(ab.Alarm, Is.Not.Null);
             Assert.That(ab.Alarm.BrowseName, Is.EqualTo(new QualifiedName("OverTemp", kNs)));
             Assert.That(ab.Alarm.Parent, Is.SameAs(root));
-            Assert.That(ab.Alarm.NodeId.IdentifierAsString, Is.EqualTo("Root_OverTemp"));
+            Assert.That(ab.Alarm.NodeId.IdentifierAsString, Does.StartWith("v1:"));
+        }
+
+        [Test]
+        public void AlarmShelvingCallbacksAreReportedAsRuntimeConfiguration()
+        {
+            var alarm = new RuntimeCallbackProbeAlarm();
+            alarm.OnShelve = static (_, _, _, _, _) => ServiceResult.Good;
+
+            Assert.That(alarm.HasRuntimeConfiguration(), Is.True);
         }
 
         [Test]

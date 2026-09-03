@@ -59,11 +59,12 @@ namespace Opc.Ua.Server.Tests.Fluent
             INodeBuilder nb = h.Builder.Node(rootId);
             nb.WithProperty("NewProp", 42);
 
-            var createdId = new NodeId("Root_NewProp", ns);
+            PropertyState created = h.Manager.PredefinedNodes.Values
+                .OfType<PropertyState>()
+                .Single(node => node.BrowseName.Name == "NewProp");
+            NodeId createdId = created.NodeId;
             Assert.That(h.Manager.PredefinedNodes.ContainsKey(createdId), Is.True);
-            var created = h.Manager.PredefinedNodes[createdId] as PropertyState;
-            Assert.That(created, Is.Not.Null);
-            Assert.That(created!.WrappedValue.AsBoxedObject(), Is.EqualTo(42));
+            Assert.That(created.WrappedValue.AsBoxedObject(), Is.EqualTo(42));
             Assert.That(created.DataType, Is.EqualTo(DataTypeIds.Int32));
         }
 
@@ -76,12 +77,13 @@ namespace Opc.Ua.Server.Tests.Fluent
             INodeBuilder nb = h.Builder.Node(new NodeId("Root", ns));
             nb.WithProperty("Flag", Variant.From(true), p => p.Writable());
 
-            var createdId = new NodeId("Root_Flag", ns);
+            PropertyState created = h.Manager.PredefinedNodes.Values
+                .OfType<PropertyState>()
+                .Single(node => node.BrowseName.Name == "Flag");
+            NodeId createdId = created.NodeId;
             Assert.That(h.Manager.PredefinedNodes.ContainsKey(createdId), Is.True);
-            var created = h.Manager.PredefinedNodes[createdId] as PropertyState;
-            Assert.That(created, Is.Not.Null);
             Assert.That(
-                created!.AccessLevel & AccessLevels.CurrentWrite,
+                created.AccessLevel & AccessLevels.CurrentWrite,
                 Is.EqualTo(AccessLevels.CurrentWrite));
         }
 

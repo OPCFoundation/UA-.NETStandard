@@ -253,6 +253,56 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
+        public void AddPredefinedNodeDoesNotIndexAlreadyCreatedNodeWhenCanceled()
+        {
+            using ITestNodeManager manager = CreateManager();
+            Assume.That(manager is TestableAsyncCustomNodeManager,
+                "Requires cancellation-aware async registration");
+            ushort namespaceIndex = manager.NamespaceIndexes[0];
+            var node = new LifecycleProbeState(null)
+            {
+                NodeId = new NodeId("CanceledCreatedLifecycle", namespaceIndex),
+                BrowseName = new QualifiedName("CanceledCreatedLifecycle", namespaceIndex),
+                DisplayName = new LocalizedText("CanceledCreatedLifecycle")
+            };
+            node.CreateAsPredefinedNode(manager.SystemContext);
+            using var cts = new CancellationTokenSource();
+            cts.Cancel();
+
+            Assert.That(
+                async () => await manager
+                    .AddPredefinedNodeAsync(manager.SystemContext, node, cts.Token)
+                    .ConfigureAwait(false),
+                Throws.InstanceOf<OperationCanceledException>());
+            Assert.That(node.IsCreated, Is.True);
+            Assert.That(manager.Find(node.NodeId), Is.Null);
+        }
+
+        [Test]
+        public void LifecycleCompletionChecksCancellationBeforeCreatedState()
+        {
+            using ITestNodeManager manager = CreateManager();
+            ushort namespaceIndex = manager.NamespaceIndexes[0];
+            var node = new LifecycleProbeState(null)
+            {
+                NodeId = new NodeId("CanceledLifecycleHelper", namespaceIndex),
+                BrowseName = new QualifiedName("CanceledLifecycleHelper", namespaceIndex),
+                DisplayName = new LocalizedText("CanceledLifecycleHelper")
+            };
+            node.CreateAsPredefinedNode(manager.SystemContext);
+            using var cts = new CancellationTokenSource();
+            cts.Cancel();
+
+            Assert.That(
+                () => NodeStateLifecycle.CompleteForRegistration(
+                    manager.SystemContext,
+                    node,
+                    logger: null,
+                    ct: cts.Token),
+                Throws.InstanceOf<OperationCanceledException>());
+        }
+
+        [Test]
         public async Task PredefinedNodeIdIsAssignedBeforeCreateLifecycleAsync()
         {
             using ITestNodeManager manager = CreateManager();
@@ -304,6 +354,72 @@ namespace Opc.Ua.Server.Tests
             Assert.That(original.IsCreated, Is.True);
             Assert.That(replacement.IsCreated, Is.True);
             Assert.That(manager.Find(original.NodeId), Is.SameAs(replacement));
+        }
+
+        [Test]
+        public void AddPredefinedNodeDoesNotCreateBehaviourReplacementWhenCanceled()
+        {
+            using ITestNodeManager manager = CreateManager();
+            Assume.That(manager is TestableAsyncCustomNodeManager,
+                "Requires cancellation-aware async registration");
+            ushort namespaceIndex = manager.NamespaceIndexes[0];
+            var original = new LifecycleProbeState(null)
+            {
+                NodeId = new NodeId("CanceledBehaviourReplacement", namespaceIndex),
+                BrowseName = new QualifiedName("CanceledBehaviourReplacement", namespaceIndex),
+                DisplayName = new LocalizedText("CanceledBehaviourReplacement")
+            };
+            var replacement = new LifecycleProbeState(null)
+            {
+                NodeId = original.NodeId,
+                BrowseName = original.BrowseName,
+                DisplayName = original.DisplayName
+            };
+            using var cts = new CancellationTokenSource();
+            manager.AddBehaviourCallback = _ =>
+            {
+                cts.Cancel();
+                return replacement;
+            };
+
+            Assert.That(
+                async () => await manager
+                    .AddPredefinedNodeAsync(manager.SystemContext, original, cts.Token)
+                    .ConfigureAwait(false),
+                Throws.InstanceOf<OperationCanceledException>());
+            Assert.That(replacement.IsCreated, Is.False);
+            Assert.That(replacement.BeforeCreateCount, Is.Zero);
+            Assert.That(replacement.AfterCreateCount, Is.Zero);
+            Assert.That(manager.Find(original.NodeId), Is.Null);
+        }
+
+        [Test]
+        public void AddPredefinedNodeChecksCancellationBeforeIndexingSameInstance()
+        {
+            using ITestNodeManager manager = CreateManager();
+            Assume.That(manager is TestableAsyncCustomNodeManager,
+                "Requires cancellation-aware async registration");
+            ushort namespaceIndex = manager.NamespaceIndexes[0];
+            var node = new LifecycleProbeState(null)
+            {
+                NodeId = new NodeId("CanceledSameInstance", namespaceIndex),
+                BrowseName = new QualifiedName("CanceledSameInstance", namespaceIndex),
+                DisplayName = new LocalizedText("CanceledSameInstance")
+            };
+            using var cts = new CancellationTokenSource();
+            manager.AddBehaviourCallback = activeNode =>
+            {
+                cts.Cancel();
+                return activeNode;
+            };
+
+            Assert.That(
+                async () => await manager
+                    .AddPredefinedNodeAsync(manager.SystemContext, node, cts.Token)
+                    .ConfigureAwait(false),
+                Throws.InstanceOf<OperationCanceledException>());
+            Assert.That(node.IsCreated, Is.True);
+            Assert.That(manager.Find(node.NodeId), Is.Null);
         }
 
         [Test]

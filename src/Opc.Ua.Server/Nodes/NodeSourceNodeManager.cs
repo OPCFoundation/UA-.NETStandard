@@ -345,13 +345,11 @@ namespace Opc.Ua.Server
             if (!parentNodeId.IsNull &&
                 parentNodeId != ObjectIds.ObjectsFolder)
             {
-                string parentIdentifier =
-                    parentNodeId.NamespaceIndex == namespaceIndex
-                        ? parentNodeId.IdentifierAsString
-                        : parentNodeId.ToString();
-                return new NodeId(
-                    $"{parentIdentifier}_{browseName}",
-                    namespaceIndex);
+                return NodeSourceNodeIdFactory.CreateChildNodeId(
+                    parentNodeId,
+                    node.BrowseName,
+                    namespaceIndex,
+                    Server.NamespaceUris);
             }
 
             return new NodeId(browseName, namespaceIndex);

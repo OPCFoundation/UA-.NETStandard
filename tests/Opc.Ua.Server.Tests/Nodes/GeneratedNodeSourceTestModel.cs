@@ -28,6 +28,9 @@
  * ======================================================================*/
 
 using System.Collections.Generic;
+using System.IO;
+using System.Text;
+using Opc.Ua.Export;
 using Opc.Ua.Server.Fluent;
 using Opc.Ua.Server.Nodes;
 
@@ -61,6 +64,12 @@ namespace Opc.Ua.Server.Tests.Nodes
 
         public QualifiedName StringNamedBrowseName { get; private set; } = QualifiedName.Null;
 
+        public GeneratedNodeSourceModel.DeviceState ExternalServerDevice { get; private set; } = null!;
+
+        public GeneratedNodeSourceModel.DeviceState ExternalCapabilitiesDevice { get; private set; } = null!;
+
+        public NodeId ImportedGeneratedValueId { get; private set; }
+
         public List<GeneratedNodeSourceModel.DeviceState> MaterializedDevices { get; } = [];
 
         partial void Configure(INodeGraphBuilder builder)
@@ -74,6 +83,8 @@ namespace Opc.Ua.Server.Tests.Nodes
                 builder.Context.NamespaceUris);
             MaterializedDevices.Add(
                 builder.Node<GeneratedNodeSourceModel.DeviceState>(deviceId).Node);
+            builder.Import(ReadGeneratedValueReplacement());
+            ImportedGeneratedValueId = new NodeId(3300u, namespaceIndex);
 
             INodeBuilder<FolderState> root = builder.AddFolder(
                 new QualifiedName("GeneratedPhase5Root", namespaceIndex));
@@ -113,6 +124,18 @@ namespace Opc.Ua.Server.Tests.Nodes
                     builder,
                     new QualifiedName("AuthoredMethod", namespaceIndex),
                     authoredObject.Node.NodeId);
+            ExternalServerDevice =
+                GeneratedNodeSourceModel.GeneratedNodeSourceModelNodeGraphBuilderExtensions.
+                    AddDeviceType(
+                        builder,
+                        "SharedExternal",
+                        ObjectIds.Server).Node;
+            ExternalCapabilitiesDevice =
+                GeneratedNodeSourceModel.GeneratedNodeSourceModelNodeGraphBuilderExtensions.
+                    AddDeviceType(
+                        builder,
+                        "SharedExternal",
+                        ObjectIds.Server_ServerCapabilities).Node;
 
             StringNamedObjectId = stringNamedObject.Node.NodeId;
             StringNamedVariableId = stringNamedVariable.Node.NodeId;
@@ -133,6 +156,27 @@ namespace Opc.Ua.Server.Tests.Nodes
         {
             _ = builder;
             BehaviorRegistrationConfigureCount++;
+        }
+
+        private static UANodeSet ReadGeneratedValueReplacement()
+        {
+            const string xml =
+                "<?xml version=\"1.0\" encoding=\"utf-8\"?>\r\n" +
+                "<UANodeSet xmlns=\"http://opcfoundation.org/UA/2011/03/UANodeSet.xsd\">\r\n" +
+                "  <NamespaceUris>\r\n" +
+                "    <Uri>urn:opcfoundation.org:2026-09:GeneratedNodeSource</Uri>\r\n" +
+                "  </NamespaceUris>\r\n" +
+                "  <UAVariable NodeId=\"ns=1;i=3300\" BrowseName=\"1:Value\" " +
+                "ParentNodeId=\"ns=1;i=2000\" DataType=\"i=6\">\r\n" +
+                "    <DisplayName>Value</DisplayName>\r\n" +
+                "    <References>\r\n" +
+                "      <Reference ReferenceType=\"i=40\">ns=1;i=1001</Reference>\r\n" +
+                "      <Reference ReferenceType=\"i=47\" IsForward=\"false\">ns=1;i=2000</Reference>\r\n" +
+                "    </References>\r\n" +
+                "  </UAVariable>\r\n" +
+                "</UANodeSet>";
+            using var stream = new MemoryStream(Encoding.UTF8.GetBytes(xml));
+            return UANodeSet.Read(stream);
         }
     }
 }

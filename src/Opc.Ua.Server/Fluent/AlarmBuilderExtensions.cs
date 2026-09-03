@@ -217,10 +217,10 @@ namespace Opc.Ua.Server.Fluent
             alarm.BrowseName = browseName;
             alarm.DisplayName = new LocalizedText(symbolicName);
 
-            string parentIdentifier = parent.Node.NodeId.IdentifierAsString;
-            alarm.NodeId = new NodeId(
-                $"{parentIdentifier}_{symbolicName}",
-                parent.Node.NodeId.NamespaceIndex);
+            FluentNodeRegistration.AssignNodeId(
+                parent.Builder,
+                alarm,
+                parent.Node);
 
             // Initialize standard alarm state surface so the alarm is
             // immediately addressable as a valid OPC UA condition.
@@ -230,6 +230,9 @@ namespace Opc.Ua.Server.Fluent
                 browseName,
                 displayName: new LocalizedText(symbolicName),
                 assignNodeIds: false);
+            FluentNodeRegistration.AssignDescendantNodeIds(
+                parent.Builder,
+                alarm);
             alarm.SetEnableState(parent.Builder.Context, enabled: true);
 
             alarm.ReferenceTypeId = ReferenceTypeIds.HasCondition;
@@ -300,6 +303,10 @@ namespace Opc.Ua.Server.Fluent
         {
             Builder = parent ?? throw new ArgumentNullException(nameof(parent));
             Alarm = alarm ?? throw new ArgumentNullException(nameof(alarm));
+            if (parent.Builder is NodeManagerBuilder nodeManagerBuilder)
+            {
+                nodeManagerBuilder.MarkConfigured(alarm);
+            }
         }
 
         public TState Alarm { get; }

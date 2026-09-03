@@ -27,6 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
 using Opc.Ua.Export;
 using Opc.Ua.Server.Fluent;
 
@@ -70,6 +71,29 @@ namespace Opc.Ua.Server.Nodes
         /// <returns>A typed fluent builder for the added node.</returns>
         INodeBuilder<TState> Add<TState>(
             TState node,
+            NodeId parentId = default)
+            where TState : NodeState;
+
+        /// <summary>
+        /// Creates and adds a typed state after resolving the parent identity.
+        /// </summary>
+        /// <remarks>
+        /// Generated type factories use this overload so their NodeId factory
+        /// can observe the final parent identity, including an unresolved
+        /// parent owned by another node manager.
+        /// </remarks>
+        /// <typeparam name="TState">The concrete state type.</typeparam>
+        /// <param name="factory">
+        /// Creates the state with the resolved parent, or an internal
+        /// identity-only parent proxy when the parent is external.
+        /// </param>
+        /// <param name="parentId">
+        /// The parent NodeId. The default places instance nodes below
+        /// <see cref="ObjectIds.ObjectsFolder"/>.
+        /// </param>
+        /// <returns>A typed fluent builder for the added node.</returns>
+        INodeBuilder<TState> Add<TState>(
+            Func<NodeState?, TState> factory,
             NodeId parentId = default)
             where TState : NodeState;
 

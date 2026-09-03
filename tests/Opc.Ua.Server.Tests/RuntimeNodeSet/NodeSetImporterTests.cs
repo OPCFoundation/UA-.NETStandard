@@ -399,6 +399,300 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
         }
 
         [Test]
+        public void CompleteLinksImportedChildToAdditionalAuthoredParent()
+        {
+            SystemContext context = CreateContext();
+            var importer = new NodeSetImporter(context, factoryProvider: null);
+            UANodeSet children = ReadNodeSet(
+                """
+                  <UAObject NodeId="ns=1;i=2" BrowseName="1:Child"
+                            ParentNodeId="ns=1;i=1">
+                    <DisplayName>Child</DisplayName>
+                    <References>
+                      <Reference ReferenceType="i=40">i=58</Reference>
+                      <Reference ReferenceType="i=47" IsForward="false">ns=1;i=1</Reference>
+                    </References>
+                  </UAObject>
+                """);
+            var parent = new BaseObjectState(null)
+            {
+                NodeId = new NodeId(1u, 1),
+                BrowseName = new QualifiedName("Parent", 1),
+                DisplayName = new LocalizedText("Parent")
+            };
+
+            importer.Import(children);
+            importer.Complete(
+                new Dictionary<NodeId, NodeState>
+                {
+                    [parent.NodeId] = parent
+                });
+
+            var child = (BaseInstanceState)Find(importer, 2);
+            var linkedChildren = new List<BaseInstanceState>();
+            parent.GetChildren(context, linkedChildren);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(child.Parent, Is.SameAs(parent));
+                Assert.That(linkedChildren, Is.EqualTo(new[] { child }));
+                Assert.That(
+                    UANodeSet.TryGetUnresolvedParentNodeId(child, out _),
+                    Is.False);
+            });
+        }
+
+        [Test]
+        public void TypedImportedChildDoesNotEvictOrdinaryAuthoredChild()
+        {
+            SystemContext context = CreateContext();
+            var factoryProvider = new ManualFactoryProvider(
+                new ManualImportFactory(
+                    NodeClass.Variable,
+                    new ExpandedNodeId(500u, kNamespaceUri),
+                    static () => new TypedVariableState(null)));
+            var importer = new NodeSetImporter(context, factoryProvider);
+            UANodeSet children = ReadNodeSet(
+                """
+                  <UAVariable NodeId="ns=1;i=2" BrowseName="1:Value"
+                              ParentNodeId="ns=1;i=1" DataType="i=6">
+                    <DisplayName>Value</DisplayName>
+                    <References>
+                      <Reference ReferenceType="i=40">ns=1;i=500</Reference>
+                      <Reference ReferenceType="i=47" IsForward="false">ns=1;i=1</Reference>
+                    </References>
+                  </UAVariable>
+                """);
+            var parent = new BaseObjectState(null)
+            {
+                NodeId = new NodeId(1u, 1),
+                BrowseName = new QualifiedName("Parent", 1),
+                DisplayName = new LocalizedText("Parent")
+            };
+            var existing = new BaseDataVariableState(parent)
+            {
+                NodeId = new NodeId(9u, 1),
+                BrowseName = new QualifiedName("Value", 1),
+                DisplayName = new LocalizedText("Value"),
+                DataType = DataTypeIds.Int32
+            };
+            parent.AddChild(existing);
+
+            importer.Import(children);
+            importer.Complete(
+                new Dictionary<NodeId, NodeState>
+                {
+                    [parent.NodeId] = parent
+                });
+
+            var imported = (BaseInstanceState)Find(importer, 2);
+            var linkedChildren = new List<BaseInstanceState>();
+            parent.GetChildren(context, linkedChildren);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(existing.Parent, Is.SameAs(parent));
+                Assert.That(imported.Parent, Is.SameAs(parent));
+                Assert.That(linkedChildren, Has.Member(existing));
+                Assert.That(linkedChildren, Has.Member(imported));
+            });
+        }
+
+        [Test]
+        public void TypedImportedMethodArgumentReplacesInheritedExplicitSlot()
+        {
+            SystemContext context = CreateContext();
+            var factoryProvider = new ManualFactoryProvider(
+                new ManualImportFactory(
+                    NodeClass.Variable,
+                    new ExpandedNodeId(3u, kNamespaceUri),
+                    static () =>
+                        PropertyState<ArrayOf<Argument>>
+                            .With<StructureBuilder<Argument>>(null),
+                    NodeSetImportDiscriminator.NodeId));
+            var importer = new NodeSetImporter(context, factoryProvider);
+            UANodeSet children = ReadNodeSet(
+                """
+                  <UAVariable NodeId="ns=1;i=3" BrowseName="InputArguments"
+                              ParentNodeId="ns=1;i=1" DataType="i=296"
+                              ValueRank="1">
+                    <DisplayName>InputArguments</DisplayName>
+                    <References>
+                      <Reference ReferenceType="i=40">i=68</Reference>
+                      <Reference ReferenceType="i=46" IsForward="false">ns=1;i=1</Reference>
+                    </References>
+                  </UAVariable>
+                """);
+            var parent = new MethodState(null)
+            {
+                NodeId = new NodeId(1u, 1),
+                BrowseName = new QualifiedName("Method", 1),
+                DisplayName = new LocalizedText("Method")
+            };
+            PropertyState<ArrayOf<Argument>> existing =
+                parent.CreateOrReplaceInputArguments(
+                    context,
+                    replacement: null,
+                    assignInstanceNodeIds: false);
+            existing.NodeId = new NodeId(9u, 1);
+
+            importer.Import(children);
+            importer.Complete(
+                new Dictionary<NodeId, NodeState>
+                {
+                    [parent.NodeId] = parent
+                },
+                _ => true);
+
+            var imported =
+                (PropertyState<ArrayOf<Argument>>)Find(importer, 3);
+            var linkedChildren = new List<BaseInstanceState>();
+            parent.GetChildren(context, linkedChildren);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(parent.InputArguments, Is.SameAs(imported));
+                Assert.That(existing.Parent, Is.Null);
+                Assert.That(
+                    linkedChildren.Count(child =>
+                        child.BrowseName.Name == BrowseNames.InputArguments),
+                    Is.EqualTo(1));
+            });
+        }
+
+        [Test]
+        public void AdditionalTypedMethodArgumentsDoNotDisplaceFirstImportedSlot()
+        {
+            SystemContext context = CreateContext();
+            var factoryProvider = new ManualFactoryProvider(
+                new ManualImportFactory(
+                    NodeClass.Variable,
+                    new ExpandedNodeId(3u, kNamespaceUri),
+                    static () =>
+                        PropertyState<ArrayOf<Argument>>
+                            .With<StructureBuilder<Argument>>(null),
+                    NodeSetImportDiscriminator.NodeId),
+                new ManualImportFactory(
+                    NodeClass.Variable,
+                    new ExpandedNodeId(4u, kNamespaceUri),
+                    static () =>
+                        PropertyState<ArrayOf<Argument>>
+                            .With<StructureBuilder<Argument>>(null),
+                    NodeSetImportDiscriminator.NodeId));
+            var importer = new NodeSetImporter(context, factoryProvider);
+            UANodeSet children = ReadNodeSet(
+                """
+                  <UAVariable NodeId="ns=1;i=3" BrowseName="InputArguments"
+                              ParentNodeId="ns=1;i=1" DataType="i=296"
+                              ValueRank="1">
+                    <DisplayName>InputArguments</DisplayName>
+                    <References>
+                      <Reference ReferenceType="i=40">i=68</Reference>
+                      <Reference ReferenceType="i=46" IsForward="false">ns=1;i=1</Reference>
+                    </References>
+                  </UAVariable>
+                  <UAVariable NodeId="ns=1;i=4" BrowseName="1:InputArguments"
+                              ParentNodeId="ns=1;i=1" DataType="i=296"
+                              ValueRank="1">
+                    <DisplayName>InputArguments</DisplayName>
+                    <References>
+                      <Reference ReferenceType="i=40">i=68</Reference>
+                      <Reference ReferenceType="i=46" IsForward="false">ns=1;i=1</Reference>
+                    </References>
+                  </UAVariable>
+                """);
+            var parent = new MethodState(null)
+            {
+                NodeId = new NodeId(1u, 1),
+                BrowseName = new QualifiedName("Method", 1),
+                DisplayName = new LocalizedText("Method")
+            };
+            PropertyState<ArrayOf<Argument>> placeholder =
+                parent.CreateOrReplaceInputArguments(
+                    context,
+                    replacement: null,
+                    assignInstanceNodeIds: false);
+            placeholder.NodeId = new NodeId(9u, 1);
+
+            importer.Import(children);
+            importer.Complete(
+                new Dictionary<NodeId, NodeState>
+                {
+                    [parent.NodeId] = parent
+                },
+                _ => true);
+
+            var first = (BaseInstanceState)Find(importer, 3);
+            var second = (BaseInstanceState)Find(importer, 4);
+            var linkedChildren = new List<BaseInstanceState>();
+            parent.GetChildren(context, linkedChildren);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(parent.InputArguments, Is.SameAs(first));
+                Assert.That(first.Parent, Is.SameAs(parent));
+                Assert.That(second.Parent, Is.SameAs(parent));
+                Assert.That(second.BrowseName.NamespaceIndex, Is.EqualTo((ushort)1));
+                Assert.That(
+                    linkedChildren.Count(child =>
+                        child.BrowseName.Name == BrowseNames.InputArguments),
+                    Is.EqualTo(2));
+            });
+        }
+
+        [Test]
+        public void NamespaceMismatchedChildDoesNotPopulateEmptyInheritedSlot()
+        {
+            SystemContext context = CreateContext();
+            var factoryProvider = new ManualFactoryProvider(
+                new ManualImportFactory(
+                    NodeClass.Variable,
+                    new ExpandedNodeId(3u, kNamespaceUri),
+                    static () =>
+                        PropertyState<ArrayOf<Argument>>
+                            .With<StructureBuilder<Argument>>(null),
+                    NodeSetImportDiscriminator.NodeId));
+            var importer = new NodeSetImporter(context, factoryProvider);
+            UANodeSet children = ReadNodeSet(
+                """
+                  <UAVariable NodeId="ns=1;i=3" BrowseName="1:InputArguments"
+                              ParentNodeId="ns=1;i=1" DataType="i=296"
+                              ValueRank="1">
+                    <DisplayName>InputArguments</DisplayName>
+                    <References>
+                      <Reference ReferenceType="i=40">i=68</Reference>
+                      <Reference ReferenceType="i=46" IsForward="false">ns=1;i=1</Reference>
+                    </References>
+                  </UAVariable>
+                """);
+            var parent = new MethodState(null)
+            {
+                NodeId = new NodeId(1u, 1),
+                BrowseName = new QualifiedName("Method", 1),
+                DisplayName = new LocalizedText("Method")
+            };
+
+            importer.Import(children);
+            importer.Complete(
+                new Dictionary<NodeId, NodeState>
+                {
+                    [parent.NodeId] = parent
+                },
+                _ => true);
+
+            var imported = (BaseInstanceState)Find(importer, 3);
+            var linkedChildren = new List<BaseInstanceState>();
+            parent.GetChildren(context, linkedChildren);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(parent.InputArguments, Is.Null);
+                Assert.That(imported.Parent, Is.SameAs(parent));
+                Assert.That(linkedChildren, Is.EqualTo(new[] { imported }));
+            });
+        }
+
+        [Test]
         public void DeferredLinkingPreservesApplicationHandle()
         {
             SystemContext context = CreateContext();

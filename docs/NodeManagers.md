@@ -668,8 +668,10 @@ cleanup keep the same implementation as existing NodeManagers.
 ### Authoring a source
 
 `INodeGraphBuilder` extends the existing `INodeManagerBuilder`. All fluent wiring extensions
-therefore remain available, while `Add<TState>`, `AddFolder`, `AddObject`, `AddVariable<T>`,
-`AddMethod`, and `Import` add the missing graph-construction operations.
+therefore remain available, while `Add<TState>`, the factory-aware `Add<TState>` overload,
+`AddFolder`, `AddObject`, `AddVariable<T>`, `AddMethod`, and `Import` add the missing
+graph-construction operations. Generated typed helpers use the factory-aware overload so
+their factories see the final parent identity before assigning NodeIds.
 
 ```csharp
 using Opc.Ua.Server.Fluent;
@@ -717,9 +719,11 @@ NodeIds and returns an `INodeBuilder<TState>`, so custom state types remain
 strongly typed.
 
 The adapter's `INodeIdFactory` assigns missing NodeIds before a returned builder can register
-callbacks keyed by that id. Its default scheme is deterministic by parent and browse name, which
-also gives replacement generations stable ids. The source does not configure or depend on the
-factory directly.
+callbacks keyed by that id. Top-level nodes below `Objects` use their browse name. Child nodes use
+a versioned, length-prefixed identifier containing the parent identifier type/value and browse
+name. Cross-namespace parents are qualified by namespace URI rather than runtime namespace index.
+This avoids identifier-type and delimiter collisions while keeping replacement generations stable
+when namespace-table order changes. The source does not configure or depend on the factory directly.
 
 `BuildAsync` runs exactly once for each manager generation, inside the lifecycle prepare stage
 while the manager is invisible to Clients. When it succeeds, the adapter registers the completed
@@ -1665,9 +1669,9 @@ automatically when `Configure` completes; see
 
 `INodeBuilder.AddObject(browseName, typeDefinitionId)` synthesises a
 new `BaseObjectState` child under the current node and returns a typed
-builder for the new object. NodeIds follow the
-`{parentIdentifier}_{childName}` pattern used by the source generator's
-default factory. The helper registers the created node with the owning
+builder for the new object. NodeIds use the same versioned,
+length-prefixed parent/browse-name format as compositional node sources.
+The helper registers the created node with the owning
 `AsyncCustomNodeManager`, so the object is immediately browseable and
 addressable by NodeId.
 
