@@ -170,7 +170,6 @@ namespace Opc.Ua.Server.Fluent
                 parent.Builder,
                 machine);
 
-            parent.Builder.Context.AssignInstanceChildNodeIds(machine);
             machine.ReferenceTypeId = ReferenceTypeIds.HasComponent;
             parent.Node.AddChild(machine);
             FluentNodeRegistration.RegisterCreatedNode(parent.Builder, machine);
