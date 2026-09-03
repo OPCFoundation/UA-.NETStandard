@@ -32,17 +32,19 @@ using System;
 namespace Opc.Ua.Server.Fluent
 {
     /// <summary>
-    /// Marks a user-authored partial class as a legacy source-generated
-    /// <see cref="CustomNodeManager2"/> target for an OPC UA model design.
+    /// Marks a user-authored partial class as a source-generated
+    /// <see cref="FluentNodeManagerBase"/> for an OPC UA model design.
     /// </summary>
     /// <remarks>
     /// <para>
-    /// The OPC UA source generator scans for this attribute for specialized
-    /// in-repository managers that still require the inheritance interface.
-    /// New model authoring should use <see cref="NodeSourceAttribute"/>.
+    /// Use this path when the generated type must remain a NodeManager and
+    /// needs manager-level overrides or capabilities such as custom NodeIds,
+    /// node management, historian selection, specialized handles, or sampling
+    /// behavior. For compositional graph authoring that does not require the
+    /// manager inheritance interface, use <see cref="NodeSourceAttribute"/>.
     /// When found, it emits a companion <c>partial class</c> in the same namespace
-    /// and with the same name as the attributed class) that derives from
-    /// <see cref="CustomNodeManager2"/>, loads the predefined nodes for
+    /// and with the same name as the attributed class that derives from
+    /// <see cref="FluentNodeManagerBase"/>, loads the predefined nodes for
     /// the matching design, and exposes the
     /// <c>partial void Configure(INodeManagerBuilder builder)</c> hook.
     /// A matching <c>{ClassName}Factory</c> implementing

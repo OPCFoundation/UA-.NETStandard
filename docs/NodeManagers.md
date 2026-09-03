@@ -3,6 +3,8 @@
 ## Table of contents
 
 - [Overview](#overview)
+- [Node sources and node managers](#node-sources-and-node-managers)
+  - [Choosing an authoring path](#choosing-an-authoring-path)
 - [Built-in node managers](#built-in-node-managers)
   - [Master node manager](#master-node-manager)
   - [Core node manager](#core-node-manager)
@@ -89,6 +91,50 @@ managers can be registered by hosting extensions such as `AddNodeManager`, `AddN
 while the server is running. Regardless of how a manager is supplied, it must cooperate with the
 master node manager's routing and reference-merging rules so clients can browse, monitor, and call
 nodes consistently across namespace and manager boundaries.
+
+## Node sources and node managers
+
+A node source and a node manager represent different layers of the server. They are not competing
+names for the same abstraction:
+
+| Concept | Responsibility |
+| --- | --- |
+| **Node source** | Authors a fresh, materialized `NodeState` graph for one lifecycle generation. It declares namespaces, creates or imports nodes, and wires common callbacks through `INodeGraphBuilder`. It does not itself participate in OPC UA service routing. |
+| **Node manager** | Owns a live address-space partition and implements the runtime contract used for service dispatch, handles, browsing, monitoring, history, events, node management, and lifecycle coordination. |
+
+The server hosts every `INodeSource` through an internal sealed node-manager adapter. The adapter
+turns the graph into a normal runtime node manager, so source-authored nodes use the same routing
+and service implementation as nodes from a hand-written or generated manager.
+
+```mermaid
+flowchart LR
+    A[Hand-written INodeSource] --> C[Internal node-source adapter]
+    B[Generated NodeSource] --> C
+    C --> E[MasterNodeManager routing]
+    D[Generated or hand-written NodeManager] --> E
+    E --> F[Browse, Read, Write, Call, Monitor, History, Events]
+```
+
+This separation keeps ordinary model authoring small and compositional without pretending that
+specialized manager capabilities have disappeared. A source supplies the graph; a manager serves
+it. When a source is sufficient, applications do not need to inherit the broad node-manager base
+class. When manager-level behavior is required, a node manager remains the correct extension
+point.
+
+### Choosing an authoring path
+
+| Need | Use | Why |
+| --- | --- | --- |
+| Source-generated model with ordinary callback wiring, imports, reload, and dependency injection | `[NodeSource]` on a partial source class | Generates `INodeSource`, `INodeGraphBuilder` integration, typed import factories, and a typed `I{SourceClass}Builder`; host it with `AddNodeSource<TSource>()`. |
+| Hand-authored graph or a graph combining fluent nodes and runtime NodeSets | A hand-written `INodeSource` | Keeps construction behind the same transactional source lifecycle without generating a manager subclass. |
+| Source-generated model that also needs manager-level overrides or capabilities, such as custom NodeIds, node-management services, historian selection, specialized handles, or sampling behavior | `[NodeManager]` on a partial manager class | Generates a `FluentNodeManagerBase` partial, typed `I{ManagerClass}Builder`, and optionally a factory while preserving the manager inheritance and capability surface. |
+| Fully dynamic or specialized service implementation not centered on a materialized `NodeState` graph | A hand-written `IAsyncNodeManager` or derived node manager | Gives direct control over routing handles and service-set behavior. |
+| Load a NodeSet2 document without application-owned callback wiring | `AddRuntimeNodeSet(...)` | Uses the runtime NodeSet manager directly; no source class is required. |
+
+The generated names deliberately follow the chosen layer. A class named `CalcNodeSource` produces
+`ICalcNodeSourceBuilder`; a class named `ReferenceNodeManager` produces
+`IReferenceNodeManagerBuilder`. Both typed builders expose the same fluent callback concepts, but
+the names make it clear whether user code contributes a graph or implements the runtime manager.
 
 ## Built-in node managers
 
@@ -990,11 +1036,12 @@ completes that class with:
   and exact generated child NodeIds.
 
 `[NodeSource]` does not generate a public NodeManager subclass or factory.
-The existing legacy generator remains only for specialized in-repository
-managers that still require inheritance capabilities not represented by the
-source interface. That transition is tracked in
-[`plans/NodeManagerAnalysis.md`](../plans/NodeManagerAnalysis.md), not as a
-recommended application authoring path.
+`[NodeManager]` remains a supported source-generation path for specialized
+managers that require inheritance capabilities not represented by the source
+interface. Use `[NodeSource]` for graph composition and `[NodeManager]` when
+the generated type must itself participate in manager-level behavior. See
+[Node sources and node managers](#node-sources-and-node-managers) for the
+complete comparison.
 
 ### Opting in
 

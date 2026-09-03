@@ -108,7 +108,7 @@ namespace Opc.Ua.SourceGeneration
         /// the consuming compilation. When supplied, each binding is
         /// matched to a design by <see cref="NodeManagerAttributeBinding.NamespaceUri"/>
         /// (preferred) or, if no URI is given, by single-design fallback.
-        /// Matched bindings select legacy node-manager or node-source
+        /// Matched bindings select node-manager or node-source
         /// generation and override the authoring class name and namespace.
         /// </param>
         /// <param name="reportBindingDiagnostic">
@@ -839,7 +839,7 @@ namespace Opc.Ua.SourceGeneration
         /// matched to a nodeset model by
         /// <see cref="NodeManagerAttributeBinding.NamespaceUri"/> (preferred)
         /// or, if no URI is given, by single-design fallback. Matched
-        /// bindings select legacy node-manager or node-source generation and
+        /// bindings select node-manager or node-source generation and
         /// override the authoring class name and namespace.
         /// </param>
         /// <param name="reportBindingDiagnostic">

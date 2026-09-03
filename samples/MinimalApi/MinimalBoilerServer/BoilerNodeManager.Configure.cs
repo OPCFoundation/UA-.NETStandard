@@ -59,7 +59,7 @@ namespace Boiler
     /// styles — string browse path, absolute <see cref="NodeId"/>,
     /// type-definition lookup, and the new typed
     /// <see cref="IVariableBuilder{TValue}"/> surface — to demonstrate
-    /// that the legacy and source-generator-friendly APIs interoperate.
+    /// that the untyped and typed fluent APIs interoperate.
     /// </para>
     /// </remarks>
     [NodeSource(NamespaceUri = "http://opcfoundation.org/UA/Boiler/")]

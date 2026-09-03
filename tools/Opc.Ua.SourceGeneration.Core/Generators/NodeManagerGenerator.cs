@@ -35,7 +35,7 @@ using Opc.Ua.Schema.Model;
 namespace Opc.Ua.SourceGeneration
 {
     /// <summary>
-    /// Emits legacy node-manager or compositional node-source authoring
+    /// Emits node-manager or compositional node-source authoring
     /// artifacts for a model design.
     /// </summary>
     /// <remarks>

@@ -8,14 +8,15 @@
 
 Analysis performed against commit `e73e71184` on `master`.
 
-> **2.0 transition note (September 2026):** generated application authoring now
-> uses the source-only `[NodeSource]` interface documented in
-> `docs/NodeManagers.md`. The legacy `[NodeManager]` generator remains only for
-> specialized in-repository managers, notably `ReferenceNodeManager`, whose
-> node-management, custom NodeId, history, and sampling capabilities cannot yet
-> be represented by the small source interface without recreating the broad
-> virtual seam. Keep that compatibility path out of public guidance and delete
-> it before the final 2.0 release once those capabilities have narrower modules.
+> **2.0 transition note (September 2026):** generated authoring now has two
+> supported paths documented in `docs/NodeManagers.md`. `[NodeSource]` is the
+> compositional path for applications that contribute a materialized graph.
+> `[NodeManager]` remains the manager path when the generated type needs
+> node-management, custom NodeId, history, sampling, specialized handles, or
+> other manager-level capabilities. `ReferenceNodeManager` is the primary
+> in-repository example. Do not remove the manager generator merely because the
+> source path exists; retire it only if narrower modules eventually cover its
+> remaining use cases and its consumers have migrated.
 
 ## Table of contents
 
