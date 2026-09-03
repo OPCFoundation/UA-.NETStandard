@@ -181,6 +181,54 @@ namespace Opc.Ua
             public ITimer? Timer { get; set; }
             public CancellationTokenRegistration Registration { get; set; }
         }
+
+        private sealed class TimeProviderCancellationTokenSource : CancellationTokenSource
+        {
+            public TimeProviderCancellationTokenSource(
+                TimeProvider timeProvider,
+                TimeSpan delay)
+            {
+                if (delay == Timeout.InfiniteTimeSpan)
+                {
+                    return;
+                }
+
+                ITimer timer = timeProvider.CreateTimer(
+                    static state =>
+                    {
+                        var source = (TimeProviderCancellationTokenSource)state!;
+                        try
+                        {
+                            source.Cancel();
+                        }
+                        catch (ObjectDisposedException)
+                        {
+                        }
+                    },
+                    this,
+                    delay,
+                    Timeout.InfiniteTimeSpan);
+                m_timer = timer;
+                m_timerRegistration = Token.Register(
+                    static state => ((ITimer)state!).Dispose(),
+                    timer);
+            }
+
+            protected override void Dispose(bool disposing)
+            {
+                if (disposing)
+                {
+                    m_timerRegistration.Dispose();
+                    m_timer?.Dispose();
+                    m_timer = null;
+                }
+
+                base.Dispose(disposing);
+            }
+
+            private ITimer? m_timer;
+            private CancellationTokenRegistration m_timerRegistration;
+        }
 #endif
 
         /// <summary>
@@ -195,6 +243,10 @@ namespace Opc.Ua
         /// .NET 8+ this delegates to the built-in BCL constructor; on older
         /// targets it is implemented manually using
         /// <see cref="TimeProvider.CreateTimer"/>.
+        /// Delays greater than the maximum timer interval are clamped to
+        /// <c>uint.MaxValue - 1</c> milliseconds.
+        /// On older targets, <see cref="CancellationTokenSource.CancelAfter(TimeSpan)"/>
+        /// does not replace the initial timer used by the manual implementation.
         /// </remarks>
         /// <exception cref="ArgumentNullException">
         /// <paramref name="timeProvider"/> is <c>null</c>.</exception>
@@ -207,39 +259,24 @@ namespace Opc.Ua
             {
                 throw new ArgumentNullException(nameof(timeProvider));
             }
+            TimeSpan maximumTimerDelay = TimeSpan.FromMilliseconds(uint.MaxValue - 1u);
+            if (delay > maximumTimerDelay)
+            {
+                delay = maximumTimerDelay;
+            }
 #if NET8_0_OR_GREATER
             return new CancellationTokenSource(delay, timeProvider);
 #else
-            if (timeProvider == TimeProvider.System)
-            {
-                return new CancellationTokenSource(delay);
-            }
             if (delay != Timeout.InfiniteTimeSpan && delay < TimeSpan.Zero)
             {
                 throw new ArgumentOutOfRangeException(nameof(delay));
             }
-            var cts = new CancellationTokenSource();
-            if (delay == Timeout.InfiniteTimeSpan)
+            if (timeProvider == TimeProvider.System &&
+                delay.TotalMilliseconds <= int.MaxValue)
             {
-                return cts;
+                return new CancellationTokenSource(delay);
             }
-            ITimer? timer = timeProvider.CreateTimer(
-                static state =>
-                {
-                    var inner = (CancellationTokenSource)state!;
-                    try
-                    {
-                        inner.Cancel();
-                    }
-                    catch (ObjectDisposedException)
-                    {
-                    }
-                },
-                cts,
-                delay,
-                Timeout.InfiniteTimeSpan);
-            cts.Token.Register(static t => ((ITimer)t!).Dispose(), timer);
-            return cts;
+            return new TimeProviderCancellationTokenSource(timeProvider, delay);
 #endif
         }
     }
