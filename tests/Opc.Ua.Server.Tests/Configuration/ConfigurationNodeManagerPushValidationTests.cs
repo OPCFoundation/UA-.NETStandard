@@ -78,7 +78,7 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public void CreateDefaultApplicationCertificateSubjectNameUsesApplicationName()
         {
-            string subjectName = ConfigurationNodeManager
+            string subjectName = PushCertificateValidation
                 .CreateDefaultApplicationCertificateSubjectName("MyTestApplication");
 
             Assert.That(subjectName, Does.Contain("CN=MyTestApplication"));
@@ -89,9 +89,9 @@ namespace Opc.Ua.Server.Tests
         public void CreateDefaultApplicationCertificateSubjectNameFallsBackWhenApplicationNameIsEmpty()
         {
             Assert.That(
-                () => ConfigurationNodeManager.CreateDefaultApplicationCertificateSubjectName(null),
+                () => PushCertificateValidation.CreateDefaultApplicationCertificateSubjectName(null),
                 Throws.Nothing);
-            string subjectName = ConfigurationNodeManager
+            string subjectName = PushCertificateValidation
                 .CreateDefaultApplicationCertificateSubjectName(string.Empty);
 
             Assert.That(subjectName, Does.Contain("CN="));
@@ -100,7 +100,7 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public void CreateDefaultApplicationCertificateSubjectNameSanitizesSeparatorCharacters()
         {
-            string subjectName = ConfigurationNodeManager
+            string subjectName = PushCertificateValidation
                 .CreateDefaultApplicationCertificateSubjectName("My/App,Name;Here");
 
             // The sanitized value must still parse as exactly two RDN
@@ -116,7 +116,7 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public void SubjectCommonNameMatchesDomainReturnsTrueForExactMatch()
         {
-            bool matches = ConfigurationNodeManager.SubjectCommonNameMatchesDomain(
+            bool matches = PushCertificateValidation.SubjectCommonNameMatchesDomain(
                 "CN=my.host.name, O=OPC Foundation",
                 ["other.host", "my.host.name"]);
 
@@ -126,7 +126,7 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public void SubjectCommonNameMatchesDomainIsCaseInsensitive()
         {
-            bool matches = ConfigurationNodeManager.SubjectCommonNameMatchesDomain(
+            bool matches = PushCertificateValidation.SubjectCommonNameMatchesDomain(
                 "CN=MY.HOST.NAME",
                 ["my.host.name"]);
 
@@ -136,7 +136,7 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public void SubjectCommonNameMatchesDomainReturnsFalseWhenNoMatch()
         {
-            bool matches = ConfigurationNodeManager.SubjectCommonNameMatchesDomain(
+            bool matches = PushCertificateValidation.SubjectCommonNameMatchesDomain(
                 "CN=unrelated.host",
                 ["my.host.name", "127.0.0.1"]);
 
@@ -146,7 +146,7 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public void SubjectCommonNameMatchesDomainReturnsFalseWhenSubjectHasNoCommonName()
         {
-            bool matches = ConfigurationNodeManager.SubjectCommonNameMatchesDomain(
+            bool matches = PushCertificateValidation.SubjectCommonNameMatchesDomain(
                 "O=OPC Foundation",
                 ["my.host.name"]);
 
@@ -161,7 +161,7 @@ namespace Opc.Ua.Server.Tests
         [TestCase((ushort)1536, false)]
         public void ValidateKeySizeForGenericApplicationCertificateType(ushort keySize, bool supported)
         {
-            Action action = () => ConfigurationNodeManager.ValidateKeySizeForCertificateType(
+            Action action = () => PushCertificateValidation.ValidateKeySizeForCertificateType(
                 ObjectTypeIds.ApplicationCertificateType,
                 isRsaCertificateType: true,
                 keySize);
@@ -175,7 +175,7 @@ namespace Opc.Ua.Server.Tests
         [TestCase((ushort)4096, false)]
         public void ValidateKeySizeForRsaMinApplicationCertificateType(ushort keySize, bool supported)
         {
-            Action action = () => ConfigurationNodeManager.ValidateKeySizeForCertificateType(
+            Action action = () => PushCertificateValidation.ValidateKeySizeForCertificateType(
                 ObjectTypeIds.RsaMinApplicationCertificateType,
                 isRsaCertificateType: true,
                 keySize);
@@ -189,7 +189,7 @@ namespace Opc.Ua.Server.Tests
         [TestCase((ushort)4096, true)]
         public void ValidateKeySizeForRsaSha256ApplicationCertificateType(ushort keySize, bool supported)
         {
-            Action action = () => ConfigurationNodeManager.ValidateKeySizeForCertificateType(
+            Action action = () => PushCertificateValidation.ValidateKeySizeForCertificateType(
                 ObjectTypeIds.RsaSha256ApplicationCertificateType,
                 isRsaCertificateType: true,
                 keySize);
@@ -201,7 +201,7 @@ namespace Opc.Ua.Server.Tests
         [TestCase((ushort)384, false)]
         public void ValidateKeySizeForEccNistP256ApplicationCertificateType(ushort keySize, bool supported)
         {
-            Action action = () => ConfigurationNodeManager.ValidateKeySizeForCertificateType(
+            Action action = () => PushCertificateValidation.ValidateKeySizeForCertificateType(
                 ObjectTypeIds.EccNistP256ApplicationCertificateType,
                 isRsaCertificateType: false,
                 keySize);
@@ -213,7 +213,7 @@ namespace Opc.Ua.Server.Tests
         [TestCase((ushort)256, false)]
         public void ValidateKeySizeForEccNistP384ApplicationCertificateType(ushort keySize, bool supported)
         {
-            Action action = () => ConfigurationNodeManager.ValidateKeySizeForCertificateType(
+            Action action = () => PushCertificateValidation.ValidateKeySizeForCertificateType(
                 ObjectTypeIds.EccNistP384ApplicationCertificateType,
                 isRsaCertificateType: false,
                 keySize);
@@ -260,7 +260,7 @@ namespace Opc.Ua.Server.Tests
             using var rsaEntry = new CertificateEntry(rsaCert, emptyIssuerChain, rsaType);
             using var httpsEntry = new CertificateEntry(httpsCert, emptyIssuerChain, httpsType);
 
-            (ArrayOf<NodeId> types, ArrayOf<ByteString> certificates) = ConfigurationNodeManager
+            (ArrayOf<NodeId> types, ArrayOf<ByteString> certificates) = PushCertificateValidation
                 .SelectOccupiedCertificateSlots(
                     applicationCertificates,
                     certificateType => certificateType == rsaType
@@ -286,7 +286,7 @@ namespace Opc.Ua.Server.Tests
                 new CertificateIdentifier { CertificateType = ObjectTypeIds.EccNistP256ApplicationCertificateType }
             ];
 
-            (ArrayOf<NodeId> types, ArrayOf<ByteString> certificates) = ConfigurationNodeManager
+            (ArrayOf<NodeId> types, ArrayOf<ByteString> certificates) = PushCertificateValidation
                 .SelectOccupiedCertificateSlots(applicationCertificates, _ => null);
 
             Assert.That(types.Count, Is.Zero);
@@ -297,7 +297,7 @@ namespace Opc.Ua.Server.Tests
         public void SelectOccupiedCertificateSlotsThrowsForNullResolver()
         {
             Assert.Throws<ArgumentNullException>(() =>
-                ConfigurationNodeManager.SelectOccupiedCertificateSlots(
+                PushCertificateValidation.SelectOccupiedCertificateSlots(
                     ArrayOf<CertificateIdentifier>.Empty,
                     null));
         }
@@ -317,7 +317,7 @@ namespace Opc.Ua.Server.Tests
             }
 
             Assert.DoesNotThrowAsync(async () =>
-                await ConfigurationNodeManager.ValidateCertificateAgainstGroupTrustListAsync(
+                await PushCertificateValidation.ValidateCertificateAgainstGroupTrustListAsync(
                         trustedStore,
                         issuerStore,
                         "TestGroup-" + Guid.NewGuid().ToString("N")[..8],
@@ -342,7 +342,7 @@ namespace Opc.Ua.Server.Tests
                 .CreateForRSA();
 
             Assert.DoesNotThrowAsync(async () =>
-                await ConfigurationNodeManager.ValidateCertificateAgainstGroupTrustListAsync(
+                await PushCertificateValidation.ValidateCertificateAgainstGroupTrustListAsync(
                         trustedStore,
                         issuerStore,
                         "TestGroup-" + Guid.NewGuid().ToString("N")[..8],
@@ -362,7 +362,7 @@ namespace Opc.Ua.Server.Tests
                 .CreateForRSA();
 
             Assert.ThrowsAsync<ArgumentNullException>(async () =>
-                await ConfigurationNodeManager.ValidateCertificateAgainstGroupTrustListAsync(
+                await PushCertificateValidation.ValidateCertificateAgainstGroupTrustListAsync(
                         null,
                         null,
                         "TestGroup",
@@ -399,12 +399,12 @@ namespace Opc.Ua.Server.Tests
             });
 
             Assert.That(
-                ConfigurationNodeManager.IsCertificateReferencedByEndpoint(
+                PushCertificateValidation.IsCertificateReferencedByEndpoint(
                     referenced.Thumbprint, endpoints, null, s_telemetry),
                 Is.True,
                 "a certificate presented by an endpoint must be reported as referenced");
             Assert.That(
-                ConfigurationNodeManager.IsCertificateReferencedByEndpoint(
+                PushCertificateValidation.IsCertificateReferencedByEndpoint(
                     other.Thumbprint, endpoints, null, s_telemetry),
                 Is.False,
                 "a certificate not presented by any endpoint must not be reported as referenced");
@@ -419,7 +419,7 @@ namespace Opc.Ua.Server.Tests
                 .CreateForRSA();
 
             Assert.That(
-                ConfigurationNodeManager.IsCertificateReferencedByEndpoint(
+                PushCertificateValidation.IsCertificateReferencedByEndpoint(
                     certificate.Thumbprint, default, null, s_telemetry),
                 Is.False);
         }
@@ -465,12 +465,12 @@ namespace Opc.Ua.Server.Tests
                 .Returns(() => liveEntry.AddRef());
 
             Assert.That(
-                ConfigurationNodeManager.IsCertificateReferencedByEndpoint(
+                PushCertificateValidation.IsCertificateReferencedByEndpoint(
                     rotated.Thumbprint, endpoints, registry.Object, s_telemetry),
                 Is.True,
                 "the certificate currently presented (resolved from the registry) must be protected");
             Assert.That(
-                ConfigurationNodeManager.IsCertificateReferencedByEndpoint(
+                PushCertificateValidation.IsCertificateReferencedByEndpoint(
                     previous.Thumbprint, endpoints, registry.Object, s_telemetry),
                 Is.False,
                 "the stale endpoint blob must not keep a rotated-out certificate referenced");
@@ -507,7 +507,7 @@ namespace Opc.Ua.Server.Tests
                 .Returns(() => liveEntry.AddRef());
 
             Assert.That(
-                ConfigurationNodeManager.IsCertificateReferencedByEndpoint(
+                PushCertificateValidation.IsCertificateReferencedByEndpoint(
                     certificate.Thumbprint, endpoints, registry.Object, s_telemetry),
                 Is.False);
         }

@@ -36,7 +36,7 @@ namespace Opc.Ua.Server.Tests
 
             Assert.DoesNotThrowAsync(
                 async () =>
-                    await ConfigurationNodeManager.ValidatePushCertificateAndIssuerChainAsync(
+                    await PushCertificateValidation.ValidatePushCertificateAndIssuerChainAsync(
                         newCertificate,
                         issuerCertificates,
                         securityConfiguration,
@@ -64,7 +64,7 @@ namespace Opc.Ua.Server.Tests
 
             ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(
                 async () =>
-                    await ConfigurationNodeManager.ValidatePushCertificateAndIssuerChainAsync(
+                    await PushCertificateValidation.ValidatePushCertificateAndIssuerChainAsync(
                         newCertificate,
                         issuerCertificates,
                         securityConfiguration,

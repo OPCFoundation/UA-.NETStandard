@@ -1767,7 +1767,7 @@ namespace Opc.Ua.Server.Tests
             using var issuerCertificates = new CertificateCollection();
 
             Assert.ThrowsAsync<ArgumentNullException>(async () =>
-                await ConfigurationNodeManager.ValidatePushCertificateAndIssuerChainAsync(
+                await PushCertificateValidation.ValidatePushCertificateAndIssuerChainAsync(
                         null,
                         issuerCertificates,
                         m_fixture.Config.SecurityConfiguration,
@@ -1783,7 +1783,7 @@ namespace Opc.Ua.Server.Tests
                 .CreateForRSA();
 
             Assert.ThrowsAsync<ArgumentNullException>(async () =>
-                await ConfigurationNodeManager.ValidatePushCertificateAndIssuerChainAsync(
+                await PushCertificateValidation.ValidatePushCertificateAndIssuerChainAsync(
                         certificate,
                         null,
                         m_fixture.Config.SecurityConfiguration,
@@ -1800,7 +1800,7 @@ namespace Opc.Ua.Server.Tests
             using var issuerCertificates = new CertificateCollection();
 
             Assert.ThrowsAsync<ArgumentNullException>(async () =>
-                await ConfigurationNodeManager.ValidatePushCertificateAndIssuerChainAsync(
+                await PushCertificateValidation.ValidatePushCertificateAndIssuerChainAsync(
                         certificate,
                         issuerCertificates,
                         null,
@@ -1817,7 +1817,7 @@ namespace Opc.Ua.Server.Tests
             using var issuerCertificates = new CertificateCollection();
 
             Assert.ThrowsAsync<ArgumentNullException>(async () =>
-                await ConfigurationNodeManager.ValidatePushCertificateAndIssuerChainAsync(
+                await PushCertificateValidation.ValidatePushCertificateAndIssuerChainAsync(
                         certificate,
                         issuerCertificates,
                         m_fixture.Config.SecurityConfiguration,
