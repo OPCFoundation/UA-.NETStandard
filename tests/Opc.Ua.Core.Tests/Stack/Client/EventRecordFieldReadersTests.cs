@@ -64,6 +64,37 @@ namespace Opc.Ua.Core.Tests.Stack.Client
         }
 
         [Test]
+        public void GetNullableUInt32ReturnsValueOrNull()
+        {
+            Variant[] fields = [new Variant(42u), Variant.From("wrong")];
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(EventRecordFieldReaders.GetNullableUInt32(fields, 0), Is.EqualTo(42u));
+                Assert.That(EventRecordFieldReaders.GetNullableUInt32(fields, 1), Is.Null);
+                Assert.That(EventRecordFieldReaders.GetNullableUInt32(fields, fields.Length), Is.Null);
+            });
+        }
+
+        [Test]
+        public void GetStringArrayReturnsValuesOrNull()
+        {
+            string[] expected = ["a", "b"];
+            Variant[] fields =
+            [
+                new Variant(new ArrayOf<string>(expected)),
+                Variant.From("wrong")
+            ];
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(EventRecordFieldReaders.GetStringArray(fields, 0), Is.EqualTo(expected));
+                Assert.That(EventRecordFieldReaders.GetStringArray(fields, 1), Is.Null);
+                Assert.That(EventRecordFieldReaders.GetStringArray(fields, fields.Length), Is.Null);
+            });
+        }
+
+        [Test]
         public void GetEncodeableWhenFieldContainsRequestedTypeReturnsValue()
         {
             var expected = new Argument { Name = "Input" };

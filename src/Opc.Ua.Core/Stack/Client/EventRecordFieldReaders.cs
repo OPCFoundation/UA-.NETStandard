@@ -94,6 +94,32 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Reads an optional UInt32 event field.
+        /// </summary>
+        public static uint? GetNullableUInt32(IReadOnlyList<Variant> fields, int index)
+        {
+            if (index >= fields.Count || fields[index].IsNull)
+            {
+                return null;
+            }
+            return fields[index].TryGetValue(out uint value) ? value : null;
+        }
+
+        /// <summary>
+        /// Reads an optional String array event field.
+        /// </summary>
+        public static string[]? GetStringArray(IReadOnlyList<Variant> fields, int index)
+        {
+            if (index >= fields.Count || fields[index].IsNull)
+            {
+                return null;
+            }
+            return fields[index].TryGetValue(out ArrayOf<string> values)
+                ? values.ToArray()
+                : null;
+        }
+
+        /// <summary>
         /// Reads a Boolean event field or returns <c>false</c>.
         /// </summary>
         public static bool GetBool(IReadOnlyList<Variant> fields, int index)

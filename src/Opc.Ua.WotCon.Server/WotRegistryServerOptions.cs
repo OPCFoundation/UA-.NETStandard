@@ -102,6 +102,12 @@ namespace Opc.Ua.WotCon.Server
             = new WotManagementAccessPolicy();
 
         /// <summary>
+        /// Gets or sets optional generic xRegistry event configuration. WoT materialization
+        /// events remain available independently and may coexist with these events.
+        /// </summary>
+        public XRegistryServerOptions XRegistryEvents { get; set; } = new XRegistryServerOptions();
+
+        /// <summary>
         /// Gets the WoT binding capabilities advertised by the registry
         /// <c>SupportedBindings</c> object. Empty in this phase (no concrete
         /// protocol binders are registered).

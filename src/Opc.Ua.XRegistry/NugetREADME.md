@@ -8,8 +8,9 @@ This package contains:
 
 - the `http://opcfoundation.org/UA/xRegistry/` abstract base companion model, **compiled into
   the assembly by the OPC UA model source generator** — the ObjectTypes, their Methods and
-  Variables, the generated `NodeState` classes and the `*TypeClient` ObjectType proxies. No
-  NodeSet2 XML is parsed at runtime;
+  Variables, the generated `NodeState` classes, `*TypeClient` ObjectType proxies, and the
+  xRegistry 0.5.0 `*EventTypeRecord` / `EventFilters` client surface. No NodeSet2 XML is parsed
+  at runtime;
 - `XRegistryWellKnown` — the base companion namespace URI and the provisional NodeIds of the
   *instances* a registry materializes at runtime (the registry root, the federation proxy and
   the start of the dynamic instance range). The identifiers of the model itself come from the

@@ -14,6 +14,10 @@ content-addressed resource registry in a server address space:
 - **Federation** — publishes a proxy for a resource hosted by a remote registry as a real
   `ResourceType` instance carrying an `ExternalReference` and `ResourceUrl` plus the
   content-derived id (stable across registries).
+- **Events** — optionally emits the xRegistry 0.5.0 native OPC UA event hierarchy for successful
+  registry interactions and projection reconciliation. Event support is disabled by default and
+  requires an absolute `EventSourceUrl`; generated concrete `EventState` types are reported through
+  the registry/group/resource notifier chain.
 
 Document bytes live behind an injectable `IXRegistryResourceStore`; an in-process and a
 file-backed implementation ship with the package. Registry writes always require a
@@ -22,3 +26,10 @@ file-backed implementation ship with the package. Registry writes always require
 A concrete registry (for example a schema registry) supplies an
 `IResourceContentIdProvider` and its own companion namespace/NodeSet.
 
+```csharp
+options.EventsEnabled = true;
+options.EventSourceUrl = "https://registry.example.com";
+options.GroupsAttributeName = "groups";
+options.ResourcesAttributeName = "resources";
+options.ResourceDocumentAttributeName = "schema";
+```

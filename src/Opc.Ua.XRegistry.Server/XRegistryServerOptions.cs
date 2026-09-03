@@ -38,6 +38,31 @@ namespace Opc.Ua.XRegistry.Server
     public sealed class XRegistryServerOptions
     {
         /// <summary>
+        /// Gets or sets whether native xRegistry change events are emitted.
+        /// </summary>
+        public bool EventsEnabled { get; set; }
+
+        /// <summary>
+        /// Gets or sets the stable absolute URL used as the xRegistry event <c>SourceUrl</c>.
+        /// </summary>
+        public string EventSourceUrl { get; set; } = string.Empty;
+
+        /// <summary>
+        /// Gets or sets the domain registry's groups collection attribute name.
+        /// </summary>
+        public string GroupsAttributeName { get; set; } = "groups";
+
+        /// <summary>
+        /// Gets or sets the domain group's resources collection attribute name.
+        /// </summary>
+        public string ResourcesAttributeName { get; set; } = "resources";
+
+        /// <summary>
+        /// Gets or sets the domain resource's singular document attribute name.
+        /// </summary>
+        public string ResourceDocumentAttributeName { get; set; } = "resource";
+
+        /// <summary>
         /// The registry companion namespace URI the node managers claim. Defaults to the abstract
         /// xRegistry base namespace; a concrete registry overrides it with its own namespace.
         /// </summary>
@@ -156,5 +181,38 @@ namespace Opc.Ua.XRegistry.Server
         /// documents themselves are confidential.
         /// </remarks>
         public bool RequireEncryptionForReads { get; set; }
+
+        /// <summary>
+        /// Validates event configuration when event support is enabled.
+        /// </summary>
+        /// <exception cref="System.ArgumentException">
+        /// The event source URL is not absolute or a domain attribute name is missing.
+        /// </exception>
+        public void Validate()
+        {
+            if (!EventsEnabled)
+            {
+                return;
+            }
+            if (!System.Uri.TryCreate(EventSourceUrl, System.UriKind.Absolute, out _))
+            {
+                throw new System.ArgumentException(
+                    "EventSourceUrl must be an absolute URI when xRegistry events are enabled.",
+                    nameof(EventSourceUrl));
+            }
+            EnsureName(GroupsAttributeName, nameof(GroupsAttributeName));
+            EnsureName(ResourcesAttributeName, nameof(ResourcesAttributeName));
+            EnsureName(ResourceDocumentAttributeName, nameof(ResourceDocumentAttributeName));
+
+            static void EnsureName(string value, string name)
+            {
+                if (string.IsNullOrWhiteSpace(value))
+                {
+                    throw new System.ArgumentException(
+                        $"{name} is required when xRegistry events are enabled.",
+                        name);
+                }
+            }
+        }
     }
 }

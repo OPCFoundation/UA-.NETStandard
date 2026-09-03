@@ -610,6 +610,7 @@ namespace Opc.Ua.SourceGeneration
                 case "Double":
                     return "double?";
                 case "String":
+                case "UriString":
                     return "string?";
                 case "DateTime":
                 case "UtcTime":
@@ -662,6 +663,10 @@ namespace Opc.Ua.SourceGeneration
                     return "GetString";
                 case "ushort?":
                     return "GetUInt16";
+                case "uint?":
+                    return "GetNullableUInt32";
+                case "string[]?":
+                    return "GetStringArray";
                 case "global::Opc.Ua.ByteString":
                     return "GetByteString";
                 case "global::Opc.Ua.NodeId":

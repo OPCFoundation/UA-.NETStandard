@@ -98,6 +98,107 @@ namespace Opc.Ua.XRegistry.Tests
             Assert.That(harness.Deleted, Does.Contain(new NodeId("TestRegistry/groups/schemas", 1)));
         }
 
+        [Test]
+        public async Task EventReconcileIsSilentInitiallyAndSuppressesDuplicateSnapshotsAsync()
+        {
+            ProjectionHarness harness = ProjectionHarness.Create(eventsEnabled: true);
+            harness.Strategy.Snapshot = new TestSnapshot([]);
+            harness.Strategy.EventSnapshot = EmptyEventSnapshot(1);
+            await harness.Engine.AttachAsync(harness.Registry, CancellationToken.None)
+                .ConfigureAwait(false);
+            Assert.That(harness.Events, Is.Empty);
+
+            harness.Strategy.Snapshot = new TestSnapshot(
+            [
+                new TestGroup("schemas", [new TestResource("schemas", "pump")])
+            ]);
+            harness.Strategy.EventSnapshot = SnapshotWithResource(epoch: 2, versionEpoch: 1);
+            await harness.Engine.ReconcileAsync(CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(harness.Events.Select(evt => evt.GetType()), Is.EquivalentTo(new[]
+            {
+                typeof(RegistryUpdatedEventState),
+                typeof(GroupCreatedEventState),
+                typeof(ResourceCreatedEventState),
+                typeof(VersionCreatedEventState)
+            }));
+            int count = harness.Events.Count;
+
+            await harness.Engine.ReconcileAsync(CancellationToken.None).ConfigureAwait(false);
+            Assert.That(harness.Events, Has.Count.EqualTo(count));
+        }
+
+        [Test]
+        public async Task EventReconcileDetectsOutOfBandVersionUpdateOnceAsync()
+        {
+            ProjectionHarness harness = ProjectionHarness.Create(eventsEnabled: true);
+            harness.Strategy.Snapshot = new TestSnapshot(
+            [
+                new TestGroup("schemas", [new TestResource("schemas", "pump")])
+            ]);
+            harness.Strategy.EventSnapshot = SnapshotWithResource(epoch: 2, versionEpoch: 1);
+            await harness.Engine.AttachAsync(harness.Registry, CancellationToken.None)
+                .ConfigureAwait(false);
+
+            harness.Strategy.EventSnapshot = SnapshotWithResource(epoch: 3, versionEpoch: 2);
+            await harness.Engine.ReconcileAsync(CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(harness.Events.Select(evt => evt.GetType()), Is.EquivalentTo(new[]
+            {
+                typeof(ResourceUpdatedEventState),
+                typeof(VersionUpdatedEventState)
+            }));
+        }
+
+        private static XRegistryProjectionEventSnapshot EmptyEventSnapshot(uint epoch)
+        {
+            return new XRegistryProjectionEventSnapshot(
+                "/",
+                epoch,
+                ImmutableSortedDictionary<string, string>.Empty,
+                []);
+        }
+
+        private static XRegistryProjectionEventSnapshot SnapshotWithResource(
+            uint epoch,
+            uint versionEpoch)
+        {
+            return new XRegistryProjectionEventSnapshot(
+                "/",
+                epoch,
+                ImmutableSortedDictionary<string, string>.Empty,
+                [
+                    new XRegistryProjectionEventGroup(
+                        "schemas",
+                        "/groups/schemas",
+                        2,
+                        ImmutableSortedDictionary<string, string>.Empty,
+                        false,
+                        [
+                            new XRegistryProjectionEventResource(
+                                "schemas",
+                                "pump",
+                                "/groups/schemas/resources/pump",
+                                versionEpoch,
+                                epoch,
+                                ImmutableSortedDictionary<string, string>.Empty,
+                                false,
+                                "v1",
+                                [
+                                    new XRegistryProjectionEventVersion(
+                                        "v1",
+                                        "/groups/schemas/resources/pump/versions/v1",
+                                        versionEpoch,
+                                        ImmutableSortedDictionary<string, string>.Empty
+                                            .Add(
+                                                "resource",
+                                                versionEpoch.ToString(
+                                                    System.Globalization.CultureInfo.InvariantCulture)))
+                                ])
+                        ])
+                ]);
+        }
+
         private sealed class ProjectionHarness
         {
             private ProjectionHarness(
@@ -105,13 +206,15 @@ namespace Opc.Ua.XRegistry.Tests
                 RegistryState registry,
                 TestStrategy strategy,
                 List<NodeState> added,
-                List<NodeId> deleted)
+                List<NodeId> deleted,
+                List<BaseEventState> events)
             {
                 Engine = engine;
                 Registry = registry;
                 Strategy = strategy;
                 Added = added;
                 Deleted = deleted;
+                Events = events;
             }
 
             public XRegistryProjectionEngine Engine { get; }
@@ -119,8 +222,9 @@ namespace Opc.Ua.XRegistry.Tests
             public TestStrategy Strategy { get; }
             public List<NodeState> Added { get; }
             public List<NodeId> Deleted { get; }
+            public List<BaseEventState> Events { get; }
 
-            public static ProjectionHarness Create()
+            public static ProjectionHarness Create(bool eventsEnabled = false)
             {
                 Mock<IServerInternal> server =
                     XRegistryServerTestHarness.CreateServer(XRegistryWellKnown.XRegistryNamespaceUri);
@@ -137,6 +241,14 @@ namespace Opc.Ua.XRegistry.Tests
                     .AddLabels(context);
                 var added = new List<NodeState>();
                 var deleted = new List<NodeId>();
+                var events = new List<BaseEventState>();
+                registry.OnReportEvent = (_, _, target) =>
+                {
+                    if (target is BaseEventState evt)
+                    {
+                        events.Add(evt);
+                    }
+                };
                 var strategy = new TestStrategy();
                 var projectionContext = new XRegistryProjectionContext(
                     context,
@@ -152,21 +264,35 @@ namespace Opc.Ua.XRegistry.Tests
                         deleted.Add(nodeId);
                         return default;
                     },
-                    (ctx, operation) => ServiceResult.Good);
+                    (ctx, operation) => ServiceResult.Good,
+                    eventsEnabled
+                        ? new XRegistryServerOptions
+                        {
+                            EventsEnabled = true,
+                            EventSourceUrl = "https://registry.example.test"
+                        }
+                        : null);
                 return new ProjectionHarness(
                     new XRegistryProjectionEngine(projectionContext, strategy, "TestRegistry"),
                     registry,
                     strategy,
                     added,
-                    deleted);
+                    deleted,
+                    events);
             }
         }
 
-        private sealed class TestStrategy : IXRegistryProjectionStrategy
+        private sealed class TestStrategy :
+            IXRegistryProjectionStrategy,
+            IXRegistryProjectionEventMetadataProvider
         {
             public IXRegistryProjectionSnapshot Snapshot { get; set; } = new TestSnapshot([]);
+            public XRegistryProjectionEventSnapshot EventSnapshot { get; set; } =
+                EmptyEventSnapshot(0);
 
             public IXRegistryProjectionSnapshot Current => Snapshot;
+
+            public XRegistryProjectionEventSnapshot CaptureEventSnapshot() => EventSnapshot;
 
             public GroupState CreateGroupNode(BaseObjectState registryNode, IXRegistryProjectionGroup group)
             {

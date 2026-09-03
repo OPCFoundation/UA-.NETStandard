@@ -917,13 +917,13 @@ adopted verbatim rather than maintained by hand.
 
 | Model | Version | PublicationDate |
 |---|---|---|
-| WoT Connectivity | `1.1` | 2026-08-05 |
+| WoT Connectivity | `1.1.1` | 2026-09-03 |
 | WoT Binding | `1.1` | 2026-07-29 |
-| xRegistry (`RequiredModel`) | `0.3.0` | 2026-07-31 |
+| xRegistry (`RequiredModel`) | `0.5.0` | 2026-09-03 |
 
-xRegistry contributes 66 nodes and two behavioural rules the registry honours: a
-reverse-authority construction algorithm for `GroupId` and `ResourceId`
-(§ 11.4), and `SignAndEncrypt` on every mutating operation.
+xRegistry contributes 114 nodes, including its native event hierarchy. The registry honours its
+reverse-authority construction algorithm for `GroupId` and `ResourceId` (§ 11.4),
+`SignAndEncrypt` on every mutating operation, and optional generic event semantics.
 
 ### 12.2 Conformance units and profiles
 

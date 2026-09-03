@@ -176,6 +176,60 @@ namespace Opc.Ua.XRegistry.Server
     }
 
     /// <summary>
+    /// Supplies the immutable entity metadata needed to derive xRegistry events during reconciliation.
+    /// </summary>
+    public interface IXRegistryProjectionEventMetadataProvider
+    {
+        /// <summary>
+        /// Captures the current registry, group, resource and version metadata.
+        /// </summary>
+        XRegistryProjectionEventSnapshot CaptureEventSnapshot();
+    }
+
+    /// <summary>
+    /// Immutable event-relevant registry snapshot.
+    /// </summary>
+    public sealed record XRegistryProjectionEventSnapshot(
+        string Xid,
+        uint Epoch,
+        ImmutableSortedDictionary<string, string> Labels,
+        ImmutableArray<XRegistryProjectionEventGroup> Groups);
+
+    /// <summary>
+    /// Immutable event-relevant group snapshot.
+    /// </summary>
+    public sealed record XRegistryProjectionEventGroup(
+        string GroupId,
+        string Xid,
+        uint Epoch,
+        ImmutableSortedDictionary<string, string> Labels,
+        bool Deprecated,
+        ImmutableArray<XRegistryProjectionEventResource> Resources);
+
+    /// <summary>
+    /// Immutable event-relevant resource snapshot.
+    /// </summary>
+    public sealed record XRegistryProjectionEventResource(
+        string GroupId,
+        string ResourceId,
+        string Xid,
+        uint Epoch,
+        uint MetaEpoch,
+        ImmutableSortedDictionary<string, string> Labels,
+        bool Deprecated,
+        string? DefaultVersionId,
+        ImmutableArray<XRegistryProjectionEventVersion> Versions);
+
+    /// <summary>
+    /// Immutable event-relevant version snapshot.
+    /// </summary>
+    public sealed record XRegistryProjectionEventVersion(
+        string VersionId,
+        string Xid,
+        uint Epoch,
+        ImmutableSortedDictionary<string, string> Attributes);
+
+    /// <summary>
     /// Supplies domain-specific node creation, mutation and metadata behavior to the shared engine.
     /// </summary>
     public interface IXRegistryProjectionStrategy
@@ -329,7 +383,8 @@ namespace Opc.Ua.XRegistry.Server
             ushort modelNamespaceIndex,
             Func<NodeState, CancellationToken, ValueTask> addNodeAsync,
             Func<NodeId, CancellationToken, ValueTask> deleteNodeAsync,
-            Func<ISystemContext, string, ServiceResult> checkManagementAccess)
+            Func<ISystemContext, string, ServiceResult> checkManagementAccess,
+            XRegistryServerOptions? eventOptions = null)
         {
             SystemContext = systemContext ?? throw new ArgumentNullException(nameof(systemContext));
             NamespaceUris = namespaceUris ?? throw new ArgumentNullException(nameof(namespaceUris));
@@ -338,6 +393,8 @@ namespace Opc.Ua.XRegistry.Server
             DeleteNodeAsync = deleteNodeAsync ?? throw new ArgumentNullException(nameof(deleteNodeAsync));
             CheckManagementAccess = checkManagementAccess ??
                 throw new ArgumentNullException(nameof(checkManagementAccess));
+            EventOptions = eventOptions;
+            EventOptions?.Validate();
         }
 
         /// <summary>
@@ -369,5 +426,10 @@ namespace Opc.Ua.XRegistry.Server
         /// Gets the access check callback for management methods.
         /// </summary>
         public Func<ISystemContext, string, ServiceResult> CheckManagementAccess { get; }
+
+        /// <summary>
+        /// Gets optional generic xRegistry event configuration.
+        /// </summary>
+        public XRegistryServerOptions? EventOptions { get; }
     }
 }

@@ -40,8 +40,10 @@ using Opc.Ua.WotCon;
 using Opc.Ua.WotCon.Server;
 using Opc.Ua.WotCon.Server.Materialization;
 using Opc.Ua.WotCon.Server.Registry;
+using Opc.Ua.XRegistry.Server;
 using Quickstarts.ReferenceServer;
 using WotConModel = Opc.Ua.WotCon;
+using XRegistryModel = Opc.Ua.XRegistry;
 using UaBrowseNames = global::Opc.Ua.BrowseNames;
 using UaObjectIds = global::Opc.Ua.ObjectIds;
 using UaObjectTypeIds = global::Opc.Ua.ObjectTypeIds;
@@ -106,6 +108,12 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
                     MinimumSecurityMode = MessageSecurityMode.None,
                     AllowAnonymous = true,
                     RequiredRoleId = UaObjectIds.WellKnownRole_Anonymous
+                },
+                XRegistryEvents = new XRegistryServerOptions
+                {
+                    EventsEnabled = true,
+                    EventSourceUrl = "https://wot-registry.example.test",
+                    ResourceDocumentAttributeName = "thing"
                 }
             };
             m_registry = new WotRegistryService();
@@ -268,6 +276,46 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
             await DeleteSubscriptionAsync(services, subscriptionId).ConfigureAwait(false);
         }
 
+        [Test]
+        public async Task GenericXRegistryAndWotEventsCoexistOnTheRegistryNotifier()
+        {
+            var registryNodeId = ExpandedNodeId.ToNodeId(
+                WotConModel.ObjectIds.WoTRegistry, m_server.CurrentInstance.NamespaceUris);
+            var services = new ServerTestServices(m_server, m_secureChannelContext);
+            EventFilter filter = XRegistryModel.ResourceCreatedEventTypeRecord.EventFilters.Build(
+                m_server.CurrentInstance.NamespaceUris,
+                XRegistryModel.xRegistryEventRecordDecoders.RegisterxRegistryDecoders(
+                    new EventRecordDecoderRegistry(),
+                    m_server.CurrentInstance.NamespaceUris));
+            uint subscriptionId = await CreateEventSubscriptionAsync(
+                services,
+                registryNodeId,
+                filter).ConfigureAwait(false);
+
+            await m_registry.UpsertResourceAsync(new WotUpsertResourceRequest
+            {
+                GroupId = WotRegistryGroups.ThingDescriptions,
+                ResourceId = "generic-event",
+                Kind = WoTDocumentKindEnum.ThingDescription,
+                Content = ByteString.From(SelectiveConverter.ValidTd("generic-event"))
+            }).ConfigureAwait(false);
+
+            NodeId resourceCreatedType = ExpandedNodeId.ToNodeId(
+                Opc.Ua.XRegistry.ObjectTypeIds.ResourceCreatedEventType,
+                m_server.CurrentInstance.NamespaceUris);
+            EventFieldList? evt = await CollectEventAsync(
+                services,
+                subscriptionId,
+                efl => EventTypeOf(efl, filter) == resourceCreatedType).ConfigureAwait(false);
+
+            Assert.That(evt, Is.Not.Null);
+            Assert.That(
+                FieldByBrowseName(evt!, filter, Opc.Ua.XRegistry.BrowseNames.SourceUrl)
+                    .TryGetValue(out string sourceUrl) ? sourceUrl : string.Empty,
+                Is.EqualTo("https://wot-registry.example.test"));
+            await DeleteSubscriptionAsync(services, subscriptionId).ConfigureAwait(false);
+        }
+
         private static class Field
         {
             public const int EventType = 0;
@@ -333,7 +381,9 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
         }
 
         private async Task<uint> CreateEventSubscriptionAsync(
-            ServerTestServices services, NodeId sourceNodeId)
+            ServerTestServices services,
+            NodeId sourceNodeId,
+            EventFilter? filter = null)
         {
             RequestHeader requestHeader = m_requestHeader;
             requestHeader.Timestamp = DateTimeUtc.Now;
@@ -358,7 +408,7 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
                         SamplingInterval = 0,
                         QueueSize = 100,
                         DiscardOldest = true,
-                        Filter = new ExtensionObject(BuildWotEventFilter())
+                        Filter = new ExtensionObject(filter ?? BuildWotEventFilter())
                     }
                 }
             ];
@@ -425,6 +475,32 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
         private static NodeId EventTypeOf(EventFieldList efl)
         {
             return efl.EventFields[Field.EventType].TryGetValue(out NodeId n) ? n : NodeId.Null;
+        }
+
+        private static NodeId EventTypeOf(EventFieldList efl, EventFilter filter)
+        {
+            Variant field = FieldByBrowseName(efl, filter, UaBrowseNames.EventType);
+            return field.TryGetValue(out NodeId nodeId) ? nodeId : NodeId.Null;
+        }
+
+        private static Variant FieldByBrowseName(
+            EventFieldList efl,
+            EventFilter filter,
+            string browseName)
+        {
+            for (int index = 0; index < filter.SelectClauses.Count; index++)
+            {
+                SimpleAttributeOperand clause = filter.SelectClauses[index];
+                if (clause.BrowsePath.Count > 0 &&
+                    string.Equals(
+                        clause.BrowsePath[^1].Name,
+                        browseName,
+                        StringComparison.Ordinal))
+                {
+                    return efl.EventFields[index];
+                }
+            }
+            return Variant.Null;
         }
 
         private static string AsString(Variant variant)

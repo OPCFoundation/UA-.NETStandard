@@ -32,6 +32,8 @@
     <ProjectReference Include="..\..\src\Opc.Ua.XRegistry\Opc.Ua.XRegistry.csproj" />
     <ProjectReference Include="..\..\src\Opc.Ua.XRegistry.Client\Opc.Ua.XRegistry.Client.csproj" />
     <ProjectReference Include="..\..\src\Opc.Ua.XRegistry.Server\Opc.Ua.XRegistry.Server.csproj" />
+    <ProjectReference Include="..\..\samples\Quickstarts.Servers\Quickstarts.Servers.csproj" />
+    <ProjectReference Include="..\Opc.Ua.Server.TestFramework\Opc.Ua.Server.TestFramework.csproj" />
     <ProjectReference Include="..\Opc.Ua.Test.Common\Opc.Ua.Test.Common.csproj" />
   </ItemGroup>
 </Project>

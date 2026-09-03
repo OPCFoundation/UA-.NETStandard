@@ -17,3 +17,6 @@ registry client (for example a schema registry client) derives from `XRegistryCl
 domain-specific naming and defaults; because a domain model subtypes the base types, the
 generated proxy chain mirrors the OPC UA hierarchy automatically.
 
+The xRegistry 0.5.0 NodeSet also source-generates all 19 concrete `*EventTypeRecord` decoders and
+their `EventFilters.Build(...)` factories. Use them with the standard OPC UA subscription APIs;
+the package intentionally adds no parallel convenience subscription API.

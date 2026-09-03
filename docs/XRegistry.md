@@ -4,7 +4,7 @@ The **xRegistry** libraries implement the generic, registry-agnostic *abstract r
 for OPC UA. They provide the substrate a concrete registry builds on: a **content-addressed
 resource identity**, an **Opaque-NodeId fast path** that resolves a resource in a single `Read`, a
 **model-driven registration lifecycle** with auto-bootstrap, and a **federation** model for resources
-hosted by another registry.
+hosted by another registry, and optional native OPC UA events for registry mutations.
 
 The libraries are deliberately domain-neutral: they know nothing about what a *resource* contains.
 A concrete registry supplies its own companion namespace and a fingerprinting strategy, and reuses
@@ -261,6 +261,45 @@ with `AddAttribute(Key, Value, ExpectedEpoch)` and `RemoveAttribute(Key, Expecte
 published as addressable `String` Properties in the registry namespace, so a client can read them with
 a plain Read. Both mutations take the owning node's epoch and advance it on success, which makes a
 concurrent update visible instead of silently lost; `0` disables the check.
+
+### Native xRegistry events
+
+The xRegistry 0.5.0 model includes `XRegistryEventType` and the 19 concrete registry, model,
+capabilities, group, resource and version event types. The model source generator emits the typed
+`*EventState`, `*EventTypeRecord` and `EventFilters.Build(...)` surfaces directly from the NodeSet.
+Applications subscribe with the standard OPC UA event APIs; there is no separate xRegistry
+subscription protocol and no CloudEvents document is serialized into a Variable or Method.
+
+Generic event publication is disabled by default. Enable it only with a stable absolute source URL
+and the concrete registry's canonical collection/document attribute names:
+
+```csharp
+var options = new XRegistryServerOptions
+{
+    EventsEnabled = true,
+    EventSourceUrl = "https://registry.example.com",
+    GroupsAttributeName = "groups",
+    ResourcesAttributeName = "resources",
+    ResourceDocumentAttributeName = "schema"
+};
+```
+
+Incomplete enabled configuration throws during node-manager construction. `SourceUrl` is the
+configured registry URL, independently of the OPC UA endpoint and event `SourceNode`; `Subject` is
+the changed entity xid. The generic stack leaves `CorrelationId` absent because its Method responses
+do not return a corresponding correlation value.
+
+One successful Method mutation, dirty file `Close`, or post-startup projection reconciliation is
+coalesced into one logical event batch. Events in a batch share one `Time`; duplicate
+type-and-subject changes are merged; `Changed` names are ordinally sorted and de-duplicated; and
+deleted/created/updated precedence is applied per subject. Initial projection is a silent baseline,
+and failed, stale, idempotent, clean-close and no-op interactions emit nothing. Recursive deletion
+reports version leaves before resources, groups and their surviving parent update.
+
+For projected domain registries, enabling generic events also requires the projection strategy to
+implement `IXRegistryProjectionEventMetadataProvider`. This preserves source compatibility for
+existing strategies when events remain disabled while giving the engine immutable version and
+metadata snapshots for out-of-band reconciliation diffs.
 
 ## Server-side usage
 

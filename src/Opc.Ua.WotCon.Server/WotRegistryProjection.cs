@@ -65,7 +65,8 @@ namespace Opc.Ua.WotCon.Server
                 {
                     await manager.DeleteNodeAsync(manager.SystemContext, nodeId, ct).ConfigureAwait(false);
                 },
-                manager.CheckManagementAccess);
+                manager.CheckManagementAccess,
+                options.XRegistryEvents);
             m_engine = new XRegistryProjectionEngine(context, new Strategy(this), RegistryNodeIdPath);
         }
 
@@ -375,7 +376,9 @@ namespace Opc.Ua.WotCon.Server
 
         private const string RegistryNodeIdPath = "WoTRegistry";
 
-        private sealed class Strategy : IXRegistryProjectionStrategy
+        private sealed class Strategy :
+            IXRegistryProjectionStrategy,
+            IXRegistryProjectionEventMetadataProvider
         {
             public Strategy(WotRegistryProjection projection)
             {
@@ -383,6 +386,58 @@ namespace Opc.Ua.WotCon.Server
             }
 
             public IXRegistryProjectionSnapshot Current => new SnapshotAdapter(m_projection.m_registry.Current);
+
+            public XRegistryProjectionEventSnapshot CaptureEventSnapshot()
+            {
+                WotRegistrySnapshot snapshot = m_projection.m_registry.Current;
+                ImmutableArray<XRegistryProjectionEventGroup> groups = snapshot.Groups.Values
+                    .OrderBy(group => group.GroupId, StringComparer.Ordinal)
+                    .Select(group => new XRegistryProjectionEventGroup(
+                        group.GroupId,
+                        group.Xid,
+                        checked((uint)group.Epoch),
+                        group.Labels,
+                        Deprecated: false,
+                        group.Resources.Values
+                            .OrderBy(resource => resource.ResourceId, StringComparer.Ordinal)
+                            .Select(resource => new XRegistryProjectionEventResource(
+                                resource.GroupId,
+                                resource.ResourceId,
+                                resource.Xid,
+                                checked((uint)resource.Epoch),
+                                checked((uint)resource.Epoch),
+                                resource.Labels,
+                                Deprecated: false,
+                                resource.DefaultVersionId,
+                                resource.Versions.Select(version =>
+                                    new XRegistryProjectionEventVersion(
+                                        version.VersionId,
+                                        $"{resource.Xid}/versions/{version.VersionId}",
+                                        checked((uint)resource.Epoch),
+                                        ImmutableSortedDictionary.CreateRange(
+                                            StringComparer.Ordinal,
+                                            new[]
+                                            {
+                                                new KeyValuePair<string, string>(
+                                                    m_projection.m_options.XRegistryEvents
+                                                        .ResourceDocumentAttributeName,
+                                                    version.DigestHex),
+                                                new KeyValuePair<string, string>(
+                                                    "contenttype",
+                                                    version.ContentType),
+                                                new KeyValuePair<string, string>(
+                                                    "format",
+                                                    version.Format)
+                                            })))
+                                    .ToImmutableArray()))
+                            .ToImmutableArray()))
+                    .ToImmutableArray();
+                return new XRegistryProjectionEventSnapshot(
+                    "/",
+                    checked((uint)snapshot.Generation),
+                    snapshot.Labels,
+                    groups);
+            }
 
             public GroupState CreateGroupNode(
                 BaseObjectState registryNode,

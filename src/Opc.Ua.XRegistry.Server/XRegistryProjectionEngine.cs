@@ -56,6 +56,14 @@ namespace Opc.Ua.XRegistry.Server
             m_registryNodeIdPath = string.IsNullOrEmpty(registryNodeIdPath)
                 ? throw new ArgumentException("The registry NodeId path is required.", nameof(registryNodeIdPath))
                 : registryNodeIdPath;
+            m_eventOptions = context.EventOptions;
+            if (m_eventOptions?.EventsEnabled == true)
+            {
+                m_eventMetadata = strategy as IXRegistryProjectionEventMetadataProvider ??
+                    throw new ArgumentException(
+                        "An event metadata provider is required when xRegistry events are enabled.",
+                        nameof(strategy));
+            }
         }
 
         /// <summary>
@@ -65,6 +73,17 @@ namespace Opc.Ua.XRegistry.Server
         {
             m_registryNode = registryNode ?? throw new ArgumentNullException(nameof(registryNode));
             registryNode.EventNotifier = EventNotifiers.SubscribeToEvents;
+            if (m_eventOptions?.EventsEnabled == true)
+            {
+                m_eventEmitter = new XRegistryEventEmitter(
+                    m_context.SystemContext,
+                    m_eventOptions.EventSourceUrl);
+                if (registryNode is RegistryState eventRegistry)
+                {
+                    eventRegistry.AddEventSourceUrl(m_context.SystemContext);
+                    SetValue(eventRegistry.EventSourceUrl, m_eventOptions.EventSourceUrl);
+                }
+            }
             WireMethod(registryNode, BrowseNames.CreateGroup, OnCreateGroupAsync);
             WireMethod(registryNode, BrowseNames.GetOrCreateGroup, OnGetOrCreateGroupAsync);
             if (registryNode is RegistryState registryTyped)
@@ -105,6 +124,8 @@ namespace Opc.Ua.XRegistry.Server
             try
             {
                 IXRegistryProjectionSnapshot snapshot = m_strategy.Current;
+                XRegistryProjectionEventSnapshot? eventSnapshot =
+                    m_eventMetadata?.CaptureEventSnapshot();
                 if (m_registryNode is RegistryState registryTyped && registryTyped.Labels is not null)
                 {
                     await SyncLabelPropertiesAsync(
@@ -144,6 +165,17 @@ namespace Opc.Ua.XRegistry.Server
                 foreach (string groupId in m_groups.Keys.Where(id => !seenGroups.Contains(id)).ToList())
                 {
                     await RemoveGroupNodeAsync(groupId, ct).ConfigureAwait(false);
+                }
+
+                if (eventSnapshot is not null)
+                {
+                    if (m_previousEventSnapshot is not null && m_eventEmitter is not null)
+                    {
+                        m_eventEmitter.Report(
+                            m_registryNode,
+                            DiffEventSnapshots(m_previousEventSnapshot, eventSnapshot));
+                    }
+                    m_previousEventSnapshot = eventSnapshot;
                 }
             }
             finally
@@ -361,6 +393,11 @@ namespace Opc.Ua.XRegistry.Server
                 .AddDescription(m_context.SystemContext)
                 .AddCreatedAt(m_context.SystemContext)
                 .AddModifiedAt(m_context.SystemContext);
+            if (m_eventOptions?.EventsEnabled == true)
+            {
+                node.AddMetaEpoch(m_context.SystemContext)
+                    .AddMetaModifiedAt(m_context.SystemContext);
+            }
             node.AddDelete(m_context.SystemContext);
             node.AddLabels(m_context.SystemContext);
             node.EventNotifier = EventNotifiers.SubscribeToEvents;
@@ -410,7 +447,33 @@ namespace Opc.Ua.XRegistry.Server
                 SetValue(entry.Node.CreatedAt, (DateTimeUtc)resource.CreatedAt);
             }
             SetValue(entry.Node.ModifiedAt, (DateTimeUtc)resource.ModifiedAt);
+            if (FindEventResource(resource.GroupId, resource.ResourceId) is { } eventResource)
+            {
+                SetValue(entry.Node.MetaEpoch, eventResource.MetaEpoch);
+                SetValue(entry.Node.MetaModifiedAt, (DateTimeUtc)resource.ModifiedAt);
+            }
             entry.File?.ApplyResource(resource);
+        }
+
+        private XRegistryProjectionEventResource? FindEventResource(
+            string groupId,
+            string resourceId)
+        {
+            if (m_eventMetadata is null)
+            {
+                return null;
+            }
+            foreach (XRegistryProjectionEventGroup group in
+                m_eventMetadata.CaptureEventSnapshot().Groups)
+            {
+                if (!string.Equals(group.GroupId, groupId, StringComparison.Ordinal))
+                {
+                    continue;
+                }
+                return group.Resources.FirstOrDefault(resource =>
+                    string.Equals(resource.ResourceId, resourceId, StringComparison.Ordinal));
+            }
+            return null;
         }
 
         private async ValueTask RemoveResourceNodeAsync(
@@ -888,6 +951,326 @@ namespace Opc.Ua.XRegistry.Server
             };
         }
 
+        private List<XRegistryEventChange> DiffEventSnapshots(
+            XRegistryProjectionEventSnapshot previous,
+            XRegistryProjectionEventSnapshot current)
+        {
+            var changes = new List<XRegistryEventChange>();
+            NodeId registryNodeId = m_registryNode!.NodeId;
+            if (!previous.Labels.SequenceEqual(current.Labels))
+            {
+                changes.Add(new XRegistryEventChange(
+                    XRegistryEventKind.RegistryUpdated,
+                    current.Xid,
+                    registryNodeId,
+                    current.Epoch,
+                    Changed: ImmutableArray.Create("epoch", "labels", "modifiedat")));
+            }
+
+            Dictionary<string, XRegistryProjectionEventGroup> oldGroups =
+                previous.Groups.ToDictionary(group => group.GroupId, StringComparer.Ordinal);
+            Dictionary<string, XRegistryProjectionEventGroup> newGroups =
+                current.Groups.ToDictionary(group => group.GroupId, StringComparer.Ordinal);
+
+            foreach (XRegistryProjectionEventGroup oldGroup in previous.Groups
+                .Where(group => !newGroups.ContainsKey(group.GroupId)))
+            {
+                foreach (XRegistryProjectionEventResource resource in oldGroup.Resources)
+                {
+                    foreach (XRegistryProjectionEventVersion version in resource.Versions)
+                    {
+                        changes.Add(new XRegistryEventChange(
+                            XRegistryEventKind.VersionDeleted,
+                            version.Xid,
+                            ResourceNodeId(resource.GroupId, resource.ResourceId)));
+                    }
+                    changes.Add(new XRegistryEventChange(
+                        XRegistryEventKind.ResourceDeleted,
+                        resource.Xid,
+                        ResourceNodeId(resource.GroupId, resource.ResourceId)));
+                }
+                changes.Add(new XRegistryEventChange(
+                    XRegistryEventKind.GroupDeleted,
+                    oldGroup.Xid,
+                    GroupNodeId(oldGroup.GroupId)));
+                AddRegistryCollectionUpdated(changes, current);
+            }
+
+            foreach (XRegistryProjectionEventGroup newGroup in current.Groups)
+            {
+                if (!oldGroups.TryGetValue(newGroup.GroupId, out XRegistryProjectionEventGroup? oldGroup))
+                {
+                    changes.Add(new XRegistryEventChange(
+                        XRegistryEventKind.GroupCreated,
+                        newGroup.Xid,
+                        GroupNodeId(newGroup.GroupId),
+                        newGroup.Epoch));
+                    AddRegistryCollectionUpdated(changes, current);
+                    foreach (XRegistryProjectionEventResource resource in newGroup.Resources)
+                    {
+                        AddCreatedResource(changes, newGroup, resource);
+                    }
+                    continue;
+                }
+                DiffGroup(changes, oldGroup, newGroup);
+            }
+            return changes;
+        }
+
+        private void DiffGroup(
+            List<XRegistryEventChange> changes,
+            XRegistryProjectionEventGroup previous,
+            XRegistryProjectionEventGroup current)
+        {
+            var groupChanged = new List<string>();
+            if (!previous.Labels.SequenceEqual(current.Labels))
+            {
+                groupChanged.Add("labels");
+            }
+            if (previous.Epoch != current.Epoch)
+            {
+                groupChanged.Add("epoch");
+                groupChanged.Add("modifiedat");
+            }
+            if (previous.Deprecated != current.Deprecated)
+            {
+                groupChanged.Add("deprecated");
+                changes.Add(new XRegistryEventChange(
+                    current.Deprecated
+                        ? XRegistryEventKind.GroupDeprecated
+                        : XRegistryEventKind.GroupUndeprecated,
+                    current.Xid,
+                    GroupNodeId(current.GroupId)));
+            }
+
+            Dictionary<string, XRegistryProjectionEventResource> oldResources =
+                previous.Resources.ToDictionary(resource => resource.ResourceId, StringComparer.Ordinal);
+            Dictionary<string, XRegistryProjectionEventResource> newResources =
+                current.Resources.ToDictionary(resource => resource.ResourceId, StringComparer.Ordinal);
+            foreach (XRegistryProjectionEventResource oldResource in previous.Resources
+                .Where(resource => !newResources.ContainsKey(resource.ResourceId)))
+            {
+                foreach (XRegistryProjectionEventVersion version in oldResource.Versions)
+                {
+                    changes.Add(new XRegistryEventChange(
+                        XRegistryEventKind.VersionDeleted,
+                        version.Xid,
+                        ResourceNodeId(oldResource.GroupId, oldResource.ResourceId)));
+                }
+                changes.Add(new XRegistryEventChange(
+                    XRegistryEventKind.ResourceDeleted,
+                    oldResource.Xid,
+                    ResourceNodeId(oldResource.GroupId, oldResource.ResourceId)));
+                AddCollectionChanged(groupChanged, m_eventOptions!.ResourcesAttributeName);
+            }
+            foreach (XRegistryProjectionEventResource newResource in current.Resources)
+            {
+                if (!oldResources.TryGetValue(
+                        newResource.ResourceId,
+                        out XRegistryProjectionEventResource? oldResource))
+                {
+                    AddCreatedResource(changes, current, newResource);
+                    AddCollectionChanged(groupChanged, m_eventOptions!.ResourcesAttributeName);
+                }
+                else
+                {
+                    DiffResource(changes, oldResource, newResource);
+                }
+            }
+            if (groupChanged.Count > 0)
+            {
+                changes.Add(new XRegistryEventChange(
+                    XRegistryEventKind.GroupUpdated,
+                    current.Xid,
+                    GroupNodeId(current.GroupId),
+                    current.Epoch,
+                    Changed: groupChanged.ToImmutableArray()));
+            }
+        }
+
+        private void AddCreatedResource(
+            List<XRegistryEventChange> changes,
+            XRegistryProjectionEventGroup group,
+            XRegistryProjectionEventResource resource)
+        {
+            changes.Add(new XRegistryEventChange(
+                XRegistryEventKind.ResourceCreated,
+                resource.Xid,
+                ResourceNodeId(resource.GroupId, resource.ResourceId),
+                resource.Epoch,
+                resource.MetaEpoch));
+            foreach (XRegistryProjectionEventVersion version in resource.Versions)
+            {
+                changes.Add(new XRegistryEventChange(
+                    XRegistryEventKind.VersionCreated,
+                    version.Xid,
+                    ResourceNodeId(resource.GroupId, resource.ResourceId),
+                    version.Epoch));
+            }
+        }
+
+        private void DiffResource(
+            List<XRegistryEventChange> changes,
+            XRegistryProjectionEventResource previous,
+            XRegistryProjectionEventResource current)
+        {
+            var resourceChanged = new List<string>();
+            if (!previous.Labels.SequenceEqual(current.Labels))
+            {
+                resourceChanged.Add("meta.labels");
+            }
+            if (previous.MetaEpoch != current.MetaEpoch)
+            {
+                resourceChanged.Add("meta.epoch");
+                resourceChanged.Add("meta.modifiedat");
+            }
+            if (previous.Deprecated != current.Deprecated)
+            {
+                resourceChanged.Add("meta.deprecated");
+                changes.Add(new XRegistryEventChange(
+                    current.Deprecated
+                        ? XRegistryEventKind.ResourceDeprecated
+                        : XRegistryEventKind.ResourceUndeprecated,
+                    current.Xid,
+                    ResourceNodeId(current.GroupId, current.ResourceId)));
+            }
+
+            Dictionary<string, XRegistryProjectionEventVersion> oldVersions =
+                previous.Versions.ToDictionary(version => version.VersionId, StringComparer.Ordinal);
+            Dictionary<string, XRegistryProjectionEventVersion> newVersions =
+                current.Versions.ToDictionary(version => version.VersionId, StringComparer.Ordinal);
+            foreach (XRegistryProjectionEventVersion oldVersion in previous.Versions
+                .Where(version => !newVersions.ContainsKey(version.VersionId)))
+            {
+                changes.Add(new XRegistryEventChange(
+                    XRegistryEventKind.VersionDeleted,
+                    oldVersion.Xid,
+                    ResourceNodeId(current.GroupId, current.ResourceId)));
+                AddVersionCollectionChanged(resourceChanged);
+            }
+            foreach (XRegistryProjectionEventVersion newVersion in current.Versions)
+            {
+                if (!oldVersions.TryGetValue(
+                        newVersion.VersionId,
+                        out XRegistryProjectionEventVersion? oldVersion))
+                {
+                    changes.Add(new XRegistryEventChange(
+                        XRegistryEventKind.VersionCreated,
+                        newVersion.Xid,
+                        ResourceNodeId(current.GroupId, current.ResourceId),
+                        newVersion.Epoch));
+                    AddVersionCollectionChanged(resourceChanged);
+                    continue;
+                }
+                List<string> versionChanged = ChangedKeys(
+                    oldVersion.Attributes,
+                    newVersion.Attributes);
+                if (oldVersion.Epoch != newVersion.Epoch)
+                {
+                    versionChanged.Add("epoch");
+                    versionChanged.Add("modifiedat");
+                }
+                if (versionChanged.Count > 0)
+                {
+                    changes.Add(new XRegistryEventChange(
+                        XRegistryEventKind.VersionUpdated,
+                        newVersion.Xid,
+                        ResourceNodeId(current.GroupId, current.ResourceId),
+                        newVersion.Epoch,
+                        Changed: versionChanged.ToImmutableArray()));
+                    if (string.Equals(
+                            current.DefaultVersionId,
+                            newVersion.VersionId,
+                            StringComparison.Ordinal))
+                    {
+                        resourceChanged.AddRange(versionChanged);
+                    }
+                }
+            }
+
+            if (!string.Equals(
+                    previous.DefaultVersionId,
+                    current.DefaultVersionId,
+                    StringComparison.Ordinal))
+            {
+                resourceChanged.Add("meta.defaultversionid");
+                AddDefaultVersionAttributes(resourceChanged, previous, previous.DefaultVersionId);
+                AddDefaultVersionAttributes(resourceChanged, current, current.DefaultVersionId);
+            }
+
+            if (resourceChanged.Count > 0)
+            {
+                changes.Add(new XRegistryEventChange(
+                    XRegistryEventKind.ResourceUpdated,
+                    current.Xid,
+                    ResourceNodeId(current.GroupId, current.ResourceId),
+                    current.Epoch,
+                    current.MetaEpoch,
+                    resourceChanged.ToImmutableArray()));
+            }
+        }
+
+        private void AddRegistryCollectionUpdated(
+            List<XRegistryEventChange> changes,
+            XRegistryProjectionEventSnapshot current)
+        {
+            string attribute = m_eventOptions!.GroupsAttributeName;
+            changes.Add(new XRegistryEventChange(
+                XRegistryEventKind.RegistryUpdated,
+                current.Xid,
+                m_registryNode!.NodeId,
+                current.Epoch,
+                Changed: ImmutableArray.Create(
+                    attribute,
+                    attribute + "count",
+                    "epoch",
+                    "modifiedat")));
+        }
+
+        private static List<string> ChangedKeys(
+            ImmutableSortedDictionary<string, string> previous,
+            ImmutableSortedDictionary<string, string> current)
+        {
+            return previous.Keys.Concat(current.Keys)
+                .Distinct(StringComparer.Ordinal)
+                .Where(key =>
+                    !previous.TryGetValue(key, out string? oldValue) ||
+                    !current.TryGetValue(key, out string? newValue) ||
+                    !string.Equals(oldValue, newValue, StringComparison.Ordinal))
+                .ToList();
+        }
+
+        private static void AddCollectionChanged(List<string> changed, string attribute)
+        {
+            changed.Add(attribute);
+            changed.Add(attribute + "count");
+            changed.Add("epoch");
+            changed.Add("modifiedat");
+        }
+
+        private static void AddVersionCollectionChanged(List<string> changed)
+        {
+            changed.Add("meta.epoch");
+            changed.Add("meta.modifiedat");
+            changed.Add("versions");
+            changed.Add("versionscount");
+        }
+
+        private static void AddDefaultVersionAttributes(
+            List<string> changed,
+            XRegistryProjectionEventResource resource,
+            string? versionId)
+        {
+            XRegistryProjectionEventVersion? version = resource.Versions
+                .FirstOrDefault(candidate =>
+                    string.Equals(candidate.VersionId, versionId, StringComparison.Ordinal));
+            if (version is not null)
+            {
+                changed.Add("versionid");
+                changed.AddRange(version.Attributes.Keys);
+            }
+        }
+
         private sealed class GroupEntry
         {
             public GroupEntry(GroupState node)
@@ -922,11 +1305,15 @@ namespace Opc.Ua.XRegistry.Server
 
         private readonly XRegistryProjectionContext m_context;
         private readonly IXRegistryProjectionStrategy m_strategy;
+        private readonly XRegistryServerOptions? m_eventOptions;
+        private readonly IXRegistryProjectionEventMetadataProvider? m_eventMetadata;
         private readonly string m_registryNodeIdPath;
         private readonly SemaphoreSlim m_gate = new(1, 1);
         private readonly Dictionary<string, GroupEntry> m_groups = new(StringComparer.Ordinal);
         private readonly ConcurrentDictionary<string, ResourceState> m_resourcesByXid = new(StringComparer.Ordinal);
         private BaseObjectState? m_registryNode;
+        private XRegistryEventEmitter? m_eventEmitter;
+        private XRegistryProjectionEventSnapshot? m_previousEventSnapshot;
         private bool m_disposed;
     }
 }

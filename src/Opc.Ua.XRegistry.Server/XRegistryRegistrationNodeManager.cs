@@ -29,7 +29,9 @@
 
 using System;
 using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.Diagnostics.CodeAnalysis;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Opc.Ua.Server;
@@ -63,6 +65,7 @@ namespace Opc.Ua.XRegistry.Server
             : base(server, configuration, (options ?? new XRegistryServerOptions()).RegistryNamespaceUri)
         {
             XRegistryServerOptions opts = options ?? new XRegistryServerOptions();
+            opts.Validate();
             m_namespaceUri = opts.RegistryNamespaceUri;
             m_contentIdProvider = opts.ContentIdProvider;
             m_resourceStore = opts.ResourceStore;
@@ -77,6 +80,11 @@ namespace Opc.Ua.XRegistry.Server
             m_maxResourceBytes = opts.MaxResourceBytes;
             m_maxRegisteredResources = opts.MaxRegisteredResources;
             m_requireEncryptionForReads = opts.RequireEncryptionForReads;
+            m_eventsEnabled = opts.EventsEnabled;
+            m_eventSourceUrl = opts.EventSourceUrl;
+            m_groupsAttributeName = opts.GroupsAttributeName;
+            m_resourcesAttributeName = opts.ResourcesAttributeName;
+            m_resourceDocumentAttributeName = opts.ResourceDocumentAttributeName;
         }
 
         /// <summary>
@@ -103,6 +111,26 @@ namespace Opc.Ua.XRegistry.Server
             ushort ns = (ushort)Server.NamespaceUris.GetIndex(m_namespaceUri);
 
             CreateRegistryRoot(ns);
+            if (m_eventsEnabled && m_registry is not null)
+            {
+                m_eventEmitter = new XRegistryEventEmitter(SystemContext, m_eventSourceUrl);
+                m_registry.EventNotifier = EventNotifiers.SubscribeToEvents;
+                if (!externalReferences.TryGetValue(
+                        Opc.Ua.ObjectIds.Server,
+                        out IList<IReference>? serverReferences))
+                {
+                    externalReferences[Opc.Ua.ObjectIds.Server] =
+                        serverReferences = new List<IReference>();
+                }
+                serverReferences.Add(new NodeStateReference(
+                    Opc.Ua.ReferenceTypeIds.HasNotifier,
+                    false,
+                    m_registry.NodeId));
+                m_registry.AddReference(
+                    Opc.Ua.ReferenceTypeIds.HasNotifier,
+                    true,
+                    Opc.Ua.ObjectIds.Server);
+            }
         }
 
         /// <summary>
@@ -131,7 +159,14 @@ namespace Opc.Ua.XRegistry.Server
             registry.AddCreateGroup(SystemContext);
             registry.AddGetOrCreateGroup(SystemContext);
             registry.AddLabels(SystemContext);
-            BindAttributeMethods(registry.Labels, () => registry.Epoch);
+            BindAttributeMethods(
+                registry.Labels,
+                () => registry.Epoch,
+                PublishRegistryLabelsUpdated);
+            if (m_eventsEnabled)
+            {
+                registry.AddEventSourceUrl(SystemContext);
+            }
 
             SetValue(registry.RegistryId, m_registryId);
             SetValue(registry.SpecVersion, m_specVersion);
@@ -139,6 +174,7 @@ namespace Opc.Ua.XRegistry.Server
             SetValue(registry.Epoch, 1u);
             SetValue(registry.CreatedAt, DateTimeUtc.Now);
             SetValue(registry.ModifiedAt, DateTimeUtc.Now);
+            SetValue(registry.EventSourceUrl, m_eventSourceUrl);
 
             if (registry.CreateGroup != null)
             {
@@ -181,6 +217,7 @@ namespace Opc.Ua.XRegistry.Server
                     });
             }
 
+            GroupState created;
             lock (m_gate)
             {
                 if (m_groups.ContainsKey(groupId))
@@ -192,14 +229,15 @@ namespace Opc.Ua.XRegistry.Server
                         });
                 }
 
-                GroupState group = CreateGroupNode(groupId);
-                return new ValueTask<CreateGroupMethodStateResult>(
-                    new CreateGroupMethodStateResult
-                    {
-                        ServiceResult = ServiceResult.Good,
-                        GroupNodeId = group.NodeId
-                    });
+                created = CreateGroupNode(groupId);
             }
+            PublishGroupCreated(created);
+            return new ValueTask<CreateGroupMethodStateResult>(
+                new CreateGroupMethodStateResult
+                {
+                    ServiceResult = ServiceResult.Good,
+                    GroupNodeId = created.NodeId
+                });
         }
 
         /// <summary>
@@ -230,6 +268,7 @@ namespace Opc.Ua.XRegistry.Server
                     });
             }
 
+            GroupState created;
             lock (m_gate)
             {
                 if (m_groups.TryGetValue(groupId, out GroupState? existing))
@@ -243,15 +282,16 @@ namespace Opc.Ua.XRegistry.Server
                         });
                 }
 
-                GroupState group = CreateGroupNode(groupId);
-                return new ValueTask<GetOrCreateGroupMethodStateResult>(
-                    new GetOrCreateGroupMethodStateResult
-                    {
-                        ServiceResult = ServiceResult.Good,
-                        GroupNodeId = group.NodeId,
-                        Created = true
-                    });
+                created = CreateGroupNode(groupId);
             }
+            PublishGroupCreated(created);
+            return new ValueTask<GetOrCreateGroupMethodStateResult>(
+                new GetOrCreateGroupMethodStateResult
+                {
+                    ServiceResult = ServiceResult.Good,
+                    GroupNodeId = created.NodeId,
+                    Created = true
+                });
         }
 
         /// <summary>
@@ -281,15 +321,33 @@ namespace Opc.Ua.XRegistry.Server
             group.AddGetOrCreateResource(SystemContext);
             group.AddDelete(SystemContext);
             group.AddLabels(SystemContext);
-            BindAttributeMethods(group.Labels, () => group.Epoch);
+            BindAttributeMethods(
+                group.Labels,
+                () => group.Epoch,
+                () => PublishGroupLabelsUpdated(group));
 
             SetValue(group.GroupId, groupId);
             SetValue(group.Xid, groupId);
             SetValue(group.Epoch, 1u);
             SetValue(group.CreatedAt, DateTimeUtc.Now);
             SetValue(group.ModifiedAt, DateTimeUtc.Now);
+            if (m_eventsEnabled)
+            {
+                group.EventNotifier = EventNotifiers.SubscribeToEvents;
+            }
 
             m_registry?.AddChild(group);
+            if (m_eventsEnabled && m_registry is not null)
+            {
+                m_registry.AddReference(
+                    Opc.Ua.ReferenceTypeIds.HasNotifier,
+                    false,
+                    group.NodeId);
+                group.AddReference(
+                    Opc.Ua.ReferenceTypeIds.HasNotifier,
+                    true,
+                    m_registry.NodeId);
+            }
             AddPredefinedNode(SystemContext, group);
             m_groups[groupId] = group;
 
@@ -397,6 +455,11 @@ namespace Opc.Ua.XRegistry.Server
                 return Failed(StatusCodes.BadInvalidArgument);
             }
 
+            ResourceState? createdResource = null;
+            GroupState? owningGroup = null;
+            string assignedVersion = string.Empty;
+            uint createdHandle = 0;
+            bool firstVersion = false;
             lock (m_gate)
             {
                 if (!m_groupsByNodeId.TryGetValue(groupNodeId, out GroupState? group))
@@ -407,6 +470,7 @@ namespace Opc.Ua.XRegistry.Server
                 string assigned = string.IsNullOrEmpty(versionId)
                     ? NextVersionId(group.NodeId, resourceId)
                     : versionId;
+                assignedVersion = assigned;
                 var key = new ResourceKey(group.NodeId, resourceId, assigned);
 
                 // The upload bound applies to every path that hands out a write handle, not just to
@@ -433,14 +497,24 @@ namespace Opc.Ua.XRegistry.Server
                     return Failed(StatusCodes.BadTooManyOperations);
                 }
 
-                ResourceState resource = CreateResourceNode(group, resourceId, assigned);
+                var logicalKey = new ResourceIdentityKey(group.NodeId, resourceId);
+                firstVersion = !m_resourceMetaEpochs.TryGetValue(logicalKey, out uint metaEpoch);
+                metaEpoch = firstVersion ? 1u : metaEpoch + 1u;
+                m_resourceMetaEpochs[logicalKey] = metaEpoch;
+
+                ResourceState resource = CreateResourceNode(group, resourceId, assigned, metaEpoch);
                 m_resources[key] = resource;
+                m_defaultVersions[logicalKey] = assigned;
+                ApplyMetaEpochLocked(logicalKey, metaEpoch);
                 Interlocked.Increment(ref m_registeredResourceCount);
 
-                uint handle = requestFileOpen ? OpenWriteHandle(resource) : 0;
-                return new ValueTask<(ServiceResult, ResourceState?, uint, string, bool)>(
-                    (ServiceResult.Good, resource, handle, assigned, true));
+                createdHandle = requestFileOpen ? OpenWriteHandle(resource) : 0;
+                createdResource = resource;
+                owningGroup = group;
             }
+            PublishResourceCreated(owningGroup!, createdResource!, firstVersion);
+            return new ValueTask<(ServiceResult, ResourceState?, uint, string, bool)>(
+                (ServiceResult.Good, createdResource, createdHandle, assignedVersion, true));
 
             static ValueTask<(ServiceResult, ResourceState?, uint, string, bool)> Failed(StatusCode code)
             {
@@ -454,7 +528,11 @@ namespace Opc.Ua.XRegistry.Server
         /// <c>ResourceType</c> is a <c>FileType</c>, the document is transferred through the
         /// inherited file Methods. The caller holds <see cref="m_gate"/>.
         /// </summary>
-        private ResourceState CreateResourceNode(GroupState group, string resourceId, string versionId)
+        private ResourceState CreateResourceNode(
+            GroupState group,
+            string resourceId,
+            string versionId,
+            uint metaEpoch)
         {
             ushort ns = (ushort)Server.NamespaceUris.GetIndex(m_namespaceUri);
             string browseName = resourceId + ":" + versionId;
@@ -474,13 +552,27 @@ namespace Opc.Ua.XRegistry.Server
             resource.AddModifiedAt(SystemContext);
             resource.AddDelete(SystemContext);
             resource.AddLabels(SystemContext);
-            BindAttributeMethods(resource.Labels, () => resource.Epoch);
+            if (m_eventsEnabled)
+            {
+                resource.AddMetaEpoch(SystemContext);
+                resource.AddMetaModifiedAt(SystemContext);
+            }
+            BindAttributeMethods(
+                resource.Labels,
+                () => m_eventsEnabled ? resource.MetaEpoch : resource.Epoch,
+                () => PublishResourceLabelsUpdated(resource));
 
             SetValue(resource.ResourceId, resourceId);
             SetValue(resource.VersionId, versionId);
             SetValue(resource.Epoch, 1u);
             SetValue(resource.CreatedAt, DateTimeUtc.Now);
             SetValue(resource.ModifiedAt, DateTimeUtc.Now);
+            SetValue(resource.MetaEpoch, metaEpoch);
+            SetValue(resource.MetaModifiedAt, DateTimeUtc.Now);
+            if (m_eventsEnabled)
+            {
+                resource.EventNotifier = EventNotifiers.SubscribeToEvents;
+            }
 
             BindFileMethods(resource);
             if (resource.Delete != null)
@@ -491,6 +583,17 @@ namespace Opc.Ua.XRegistry.Server
             }
 
             group.AddChild(resource);
+            if (m_eventsEnabled)
+            {
+                group.AddReference(
+                    Opc.Ua.ReferenceTypeIds.HasNotifier,
+                    false,
+                    resource.NodeId);
+                resource.AddReference(
+                    Opc.Ua.ReferenceTypeIds.HasNotifier,
+                    true,
+                    group.NodeId);
+            }
             AddPredefinedNode(SystemContext, resource);
             return resource;
         }
@@ -505,6 +608,7 @@ namespace Opc.Ua.XRegistry.Server
             uint expectedEpoch)
         {
             string storeKey;
+            List<XRegistryEventChange>? changes = null;
             lock (m_gate)
             {
                 if (!IsEpochCurrent(resource.Epoch, expectedEpoch))
@@ -513,15 +617,33 @@ namespace Opc.Ua.XRegistry.Server
                 }
 
                 storeKey = StoreKeyOf(resource);
+                ResourceKey eventKey = default;
+                GroupState? eventGroup = null;
+                bool hasEventIdentity = m_eventsEnabled &&
+                    TryGetResourceKeyLocked(resource, out eventKey) &&
+                    m_groupsByNodeId.TryGetValue(eventKey.GroupNodeId, out eventGroup);
                 if (!RemoveResourceLocked(resource))
                 {
                     // A concurrent Delete already removed it; nothing left to do and nothing to
                     // release a second time.
                     return new DeleteMethodStateResult { ServiceResult = ServiceResult.Good };
                 }
+
+                if (hasEventIdentity)
+                {
+                    var logicalKey = new ResourceIdentityKey(
+                        eventKey.GroupNodeId,
+                        eventKey.ResourceId);
+                    changes = BuildResourceDeletionChangesLocked(
+                        eventGroup!,
+                        eventKey,
+                        resource,
+                        logicalKey);
+                }
             }
 
             _ = await m_resourceStore.DeleteAsync(storeKey).ConfigureAwait(false);
+            ReportChanges(changes);
             return new DeleteMethodStateResult { ServiceResult = ServiceResult.Good };
         }
 
@@ -534,6 +656,7 @@ namespace Opc.Ua.XRegistry.Server
             uint expectedEpoch)
         {
             var storeKeys = new List<string>();
+            List<XRegistryEventChange>? changes = null;
             lock (m_gate)
             {
                 if (!IsEpochCurrent(group.Epoch, expectedEpoch))
@@ -541,20 +664,64 @@ namespace Opc.Ua.XRegistry.Server
                     return new DeleteMethodStateResult { ServiceResult = StatusCodes.BadInvalidState };
                 }
 
-                foreach (KeyValuePair<ResourceKey, ResourceState> entry in new List<KeyValuePair<ResourceKey, ResourceState>>(m_resources))
+                if (m_eventsEnabled)
                 {
-                    if (entry.Key.GroupNodeId == group.NodeId)
+                    changes = [];
+                }
+                var resources = new List<KeyValuePair<ResourceKey, ResourceState>>(m_resources);
+                foreach (KeyValuePair<ResourceKey, ResourceState> entry in resources
+                    .Where(entry => entry.Key.GroupNodeId == group.NodeId)
+                    .OrderBy(entry => entry.Key.ResourceId, StringComparer.Ordinal)
+                    .ThenBy(entry => entry.Key.VersionId, StringComparer.Ordinal))
+                {
+                    storeKeys.Add(StoreKeyOf(entry.Value));
+                    if (changes is not null)
                     {
-                        storeKeys.Add(StoreKeyOf(entry.Value));
-                        RemoveResourceLocked(entry.Value);
+                        changes.Add(new XRegistryEventChange(
+                            XRegistryEventKind.VersionDeleted,
+                            VersionSubject(entry.Key),
+                            entry.Value.NodeId));
+                    }
+                    RemoveResourceLocked(entry.Value);
+                }
+                if (changes is not null)
+                {
+                    foreach (IGrouping<string, KeyValuePair<ResourceKey, ResourceState>> logical in
+                        resources.Where(entry => entry.Key.GroupNodeId == group.NodeId)
+                            .GroupBy(entry => entry.Key.ResourceId, StringComparer.Ordinal))
+                    {
+                        KeyValuePair<ResourceKey, ResourceState> first = logical.First();
+                        changes.Add(new XRegistryEventChange(
+                            XRegistryEventKind.ResourceDeleted,
+                            ResourceSubject(first.Key),
+                            first.Value.NodeId));
                     }
                 }
 
+                string deletedGroupId = group.GroupId?.Value ?? string.Empty;
                 if (group.GroupId?.Value is string groupId)
                 {
                     m_groups.Remove(groupId);
                 }
                 m_groupsByNodeId.Remove(group.NodeId);
+                if (m_eventsEnabled && m_registry is not null)
+                {
+                    m_registry.RemoveReference(
+                        Opc.Ua.ReferenceTypeIds.HasNotifier,
+                        false,
+                        group.NodeId);
+                    uint registryEpoch = BumpEntity(m_registry.Epoch, m_registry.ModifiedAt);
+                    changes!.Add(new XRegistryEventChange(
+                        XRegistryEventKind.GroupDeleted,
+                        GroupSubject(deletedGroupId),
+                        group.NodeId));
+                    changes.Add(new XRegistryEventChange(
+                        XRegistryEventKind.RegistryUpdated,
+                        RegistrySubject(),
+                        m_registry.NodeId,
+                        registryEpoch,
+                        Changed: CollectionChanged(m_groupsAttributeName)));
+                }
                 DeleteNode(SystemContext, group.NodeId);
             }
 
@@ -562,6 +729,7 @@ namespace Opc.Ua.XRegistry.Server
             {
                 _ = await m_resourceStore.DeleteAsync(storeKey).ConfigureAwait(false);
             }
+            ReportChanges(changes);
             return new DeleteMethodStateResult { ServiceResult = ServiceResult.Good };
         }
 
@@ -611,6 +779,9 @@ namespace Opc.Ua.XRegistry.Server
                 if (!anyLeft)
                 {
                     m_versionCounters.Remove(counterKey);
+                    var logicalKey = new ResourceIdentityKey(key.GroupNodeId, key.ResourceId);
+                    m_resourceMetaEpochs.Remove(logicalKey);
+                    m_defaultVersions.Remove(logicalKey);
                 }
             }
 
@@ -636,6 +807,13 @@ namespace Opc.Ua.XRegistry.Server
                 m_fileHandles.Remove(handle);
             }
 
+            if (m_eventsEnabled && resource.Parent is GroupState group)
+            {
+                group.RemoveReference(
+                    Opc.Ua.ReferenceTypeIds.HasNotifier,
+                    false,
+                    resource.NodeId);
+            }
             DeleteNode(SystemContext, resource.NodeId);
             Interlocked.Decrement(ref m_registeredResourceCount);
             return true;
@@ -982,6 +1160,7 @@ namespace Opc.Ua.XRegistry.Server
                 .ConfigureAwait(false);
 
             bool stillRegistered;
+            List<XRegistryEventChange>? changes = null;
             lock (m_gate)
             {
                 // The resource can have been deleted while the store call was in flight. Its
@@ -1011,6 +1190,39 @@ namespace Opc.Ua.XRegistry.Server
                     {
                         resource.Epoch.Value++;
                     }
+                    if (m_eventsEnabled &&
+                        TryGetResourceKeyLocked(resource, out ResourceKey key))
+                    {
+                        var logicalKey = new ResourceIdentityKey(key.GroupNodeId, key.ResourceId);
+                        uint epoch = resource.Epoch?.Value ?? 0;
+                        uint metaEpoch = m_resourceMetaEpochs.GetValueOrDefault(logicalKey);
+                        ImmutableArray<string> changed =
+                        [
+                            "epoch",
+                            "modifiedat",
+                            m_resourceDocumentAttributeName
+                        ];
+                        changes =
+                        [
+                            new XRegistryEventChange(
+                                XRegistryEventKind.VersionUpdated,
+                                VersionSubject(key),
+                                resource.NodeId,
+                                epoch,
+                                Changed: changed)
+                        ];
+                        if (m_defaultVersions.TryGetValue(logicalKey, out string? defaultVersion) &&
+                            string.Equals(defaultVersion, key.VersionId, StringComparison.Ordinal))
+                        {
+                            changes.Add(new XRegistryEventChange(
+                                XRegistryEventKind.ResourceUpdated,
+                                ResourceSubject(key),
+                                resource.NodeId,
+                                epoch,
+                                metaEpoch,
+                                changed));
+                        }
+                    }
                 }
             }
 
@@ -1024,6 +1236,7 @@ namespace Opc.Ua.XRegistry.Server
             }
 
             UpdateFileProperties(resource);
+            ReportChanges(changes);
             return new CloseMethodStateResult { ServiceResult = ServiceResult.Good };
         }
 
@@ -1236,12 +1449,316 @@ namespace Opc.Ua.XRegistry.Server
             return candidate;
         }
 
+        private void PublishGroupCreated(GroupState group)
+        {
+            if (!m_eventsEnabled || m_registry is null)
+            {
+                return;
+            }
+            List<XRegistryEventChange> changes;
+            lock (m_gate)
+            {
+                uint registryEpoch = BumpEntity(m_registry.Epoch, m_registry.ModifiedAt);
+                changes =
+                [
+                    new XRegistryEventChange(
+                        XRegistryEventKind.GroupCreated,
+                        GroupSubject(group.GroupId?.Value ?? string.Empty),
+                        group.NodeId,
+                        group.Epoch?.Value),
+                    new XRegistryEventChange(
+                        XRegistryEventKind.RegistryUpdated,
+                        RegistrySubject(),
+                        m_registry.NodeId,
+                        registryEpoch,
+                        Changed: CollectionChanged(m_groupsAttributeName))
+                ];
+            }
+            ReportChanges(changes);
+        }
+
+        private void PublishResourceCreated(
+            GroupState group,
+            ResourceState resource,
+            bool firstVersion)
+        {
+            if (!m_eventsEnabled)
+            {
+                return;
+            }
+            List<XRegistryEventChange> changes;
+            lock (m_gate)
+            {
+                if (!TryGetResourceKeyLocked(resource, out ResourceKey key))
+                {
+                    return;
+                }
+                uint epoch = resource.Epoch?.Value ?? 0;
+                uint metaEpoch = resource.MetaEpoch?.Value ?? 0;
+                changes =
+                [
+                    new XRegistryEventChange(
+                        XRegistryEventKind.VersionCreated,
+                        VersionSubject(key),
+                        resource.NodeId,
+                        epoch)
+                ];
+                if (firstVersion)
+                {
+                    uint groupEpoch = BumpEntity(group.Epoch, group.ModifiedAt);
+                    changes.Add(new XRegistryEventChange(
+                        XRegistryEventKind.ResourceCreated,
+                        ResourceSubject(key),
+                        resource.NodeId,
+                        epoch,
+                        metaEpoch));
+                    changes.Add(new XRegistryEventChange(
+                        XRegistryEventKind.GroupUpdated,
+                        GroupSubject(group.GroupId?.Value ?? string.Empty),
+                        group.NodeId,
+                        groupEpoch,
+                        Changed: CollectionChanged(m_resourcesAttributeName)));
+                }
+                else
+                {
+                    changes.Add(new XRegistryEventChange(
+                        XRegistryEventKind.ResourceUpdated,
+                        ResourceSubject(key),
+                        resource.NodeId,
+                        epoch,
+                        metaEpoch,
+                        VersionCollectionChanged()));
+                }
+            }
+            ReportChanges(changes);
+        }
+
+        private void PublishRegistryLabelsUpdated()
+        {
+            if (!m_eventsEnabled || m_registry is null)
+            {
+                return;
+            }
+            SetValue(m_registry.ModifiedAt, DateTimeUtc.Now);
+            ReportChanges(
+            [
+                new XRegistryEventChange(
+                    XRegistryEventKind.RegistryUpdated,
+                    RegistrySubject(),
+                    m_registry.NodeId,
+                    m_registry.Epoch?.Value,
+                    Changed: ImmutableArray.Create("epoch", "labels", "modifiedat"))
+            ]);
+        }
+
+        private void PublishGroupLabelsUpdated(GroupState group)
+        {
+            if (!m_eventsEnabled)
+            {
+                return;
+            }
+            SetValue(group.ModifiedAt, DateTimeUtc.Now);
+            ReportChanges(
+            [
+                new XRegistryEventChange(
+                    XRegistryEventKind.GroupUpdated,
+                    GroupSubject(group.GroupId?.Value ?? string.Empty),
+                    group.NodeId,
+                    group.Epoch?.Value,
+                    Changed: ImmutableArray.Create("epoch", "labels", "modifiedat"))
+            ]);
+        }
+
+        private void PublishResourceLabelsUpdated(ResourceState resource)
+        {
+            if (!m_eventsEnabled)
+            {
+                return;
+            }
+            XRegistryEventChange? change = null;
+            lock (m_gate)
+            {
+                if (TryGetResourceKeyLocked(resource, out ResourceKey key))
+                {
+                    var logicalKey = new ResourceIdentityKey(key.GroupNodeId, key.ResourceId);
+                    uint metaEpoch = resource.MetaEpoch?.Value ?? 0;
+                    m_resourceMetaEpochs[logicalKey] = metaEpoch;
+                    ApplyMetaEpochLocked(logicalKey, metaEpoch);
+                    SetValue(resource.MetaModifiedAt, DateTimeUtc.Now);
+                    change = new XRegistryEventChange(
+                        XRegistryEventKind.ResourceUpdated,
+                        ResourceSubject(key),
+                        resource.NodeId,
+                        resource.Epoch?.Value,
+                        metaEpoch,
+                        ImmutableArray.Create("meta.epoch", "meta.labels", "meta.modifiedat"));
+                }
+            }
+            if (change is not null)
+            {
+                ReportChanges([change]);
+            }
+        }
+
+        private List<XRegistryEventChange> BuildResourceDeletionChangesLocked(
+            GroupState group,
+            ResourceKey deletedKey,
+            ResourceState deleted,
+            ResourceIdentityKey logicalKey)
+        {
+            var changes = new List<XRegistryEventChange>
+            {
+                new(
+                    XRegistryEventKind.VersionDeleted,
+                    VersionSubject(deletedKey),
+                    deleted.NodeId)
+            };
+            List<KeyValuePair<ResourceKey, ResourceState>> remaining = m_resources
+                .Where(entry =>
+                    entry.Key.GroupNodeId == deletedKey.GroupNodeId &&
+                    string.Equals(entry.Key.ResourceId, deletedKey.ResourceId, StringComparison.Ordinal))
+                .ToList();
+            if (remaining.Count == 0)
+            {
+                uint groupEpoch = BumpEntity(group.Epoch, group.ModifiedAt);
+                changes.Add(new XRegistryEventChange(
+                    XRegistryEventKind.ResourceDeleted,
+                    ResourceSubject(deletedKey),
+                    deleted.NodeId));
+                changes.Add(new XRegistryEventChange(
+                    XRegistryEventKind.GroupUpdated,
+                    GroupSubject(group.GroupId?.Value ?? string.Empty),
+                    group.NodeId,
+                    groupEpoch,
+                    Changed: CollectionChanged(m_resourcesAttributeName)));
+                return changes;
+            }
+
+            uint metaEpoch = m_resourceMetaEpochs.GetValueOrDefault(logicalKey) + 1u;
+            m_resourceMetaEpochs[logicalKey] = metaEpoch;
+            if (!m_defaultVersions.TryGetValue(logicalKey, out string? defaultVersion) ||
+                string.Equals(defaultVersion, deletedKey.VersionId, StringComparison.Ordinal))
+            {
+                defaultVersion = remaining
+                    .OrderBy(entry => entry.Key.VersionId, StringComparer.Ordinal)
+                    .Last().Key.VersionId;
+                m_defaultVersions[logicalKey] = defaultVersion;
+            }
+            ApplyMetaEpochLocked(logicalKey, metaEpoch);
+            KeyValuePair<ResourceKey, ResourceState> current =
+                remaining.First(entry => entry.Key.VersionId == defaultVersion);
+            changes.Add(new XRegistryEventChange(
+                XRegistryEventKind.ResourceUpdated,
+                ResourceSubject(deletedKey),
+                current.Value.NodeId,
+                current.Value.Epoch?.Value,
+                metaEpoch,
+                VersionCollectionChanged()));
+            return changes;
+        }
+
+        private void ApplyMetaEpochLocked(ResourceIdentityKey key, uint metaEpoch)
+        {
+            DateTimeUtc now = DateTimeUtc.Now;
+            foreach (KeyValuePair<ResourceKey, ResourceState> entry in m_resources)
+            {
+                if (entry.Key.GroupNodeId == key.GroupNodeId &&
+                    string.Equals(entry.Key.ResourceId, key.ResourceId, StringComparison.Ordinal))
+                {
+                    SetValue(entry.Value.MetaEpoch, metaEpoch);
+                    SetValue(entry.Value.MetaModifiedAt, now);
+                }
+            }
+        }
+
+        private bool TryGetResourceKeyLocked(ResourceState resource, out ResourceKey key)
+        {
+            foreach (KeyValuePair<ResourceKey, ResourceState> entry in m_resources)
+            {
+                if (ReferenceEquals(entry.Value, resource))
+                {
+                    key = entry.Key;
+                    return true;
+                }
+            }
+            key = default;
+            return false;
+        }
+
+        private uint BumpEntity(
+            PropertyState<uint>? epoch,
+            PropertyState<DateTimeUtc>? modifiedAt)
+        {
+            BumpEpoch(epoch);
+            SetValue(modifiedAt, DateTimeUtc.Now);
+            return epoch?.Value ?? 0;
+        }
+
+        private ImmutableArray<string> CollectionChanged(string collection)
+        {
+            return
+            [
+                collection,
+                collection + "count",
+                "epoch",
+                "modifiedat"
+            ];
+        }
+
+        private ImmutableArray<string> VersionCollectionChanged()
+        {
+            return
+            [
+                "meta.epoch",
+                "meta.modifiedat",
+                "versions",
+                "versionscount"
+            ];
+        }
+
+        private string RegistrySubject()
+        {
+            return m_registry?.Xid?.Value ?? m_registryId;
+        }
+
+        private string GroupSubject(string groupId)
+        {
+            return $"/{m_groupsAttributeName}/{groupId}";
+        }
+
+        private string ResourceSubject(ResourceKey key)
+        {
+            return $"{GroupSubject(GroupIdOf(key.GroupNodeId))}/{m_resourcesAttributeName}/{key.ResourceId}";
+        }
+
+        private string VersionSubject(ResourceKey key)
+        {
+            return $"{ResourceSubject(key)}/versions/{key.VersionId}";
+        }
+
+        private string GroupIdOf(NodeId groupNodeId)
+        {
+            return m_groupsByNodeId.TryGetValue(groupNodeId, out GroupState? group)
+                ? group.GroupId?.Value ?? string.Empty
+                : string.Empty;
+        }
+
+        private void ReportChanges(IEnumerable<XRegistryEventChange>? changes)
+        {
+            if (m_eventEmitter is not null && m_registry is not null && changes is not null)
+            {
+                m_eventEmitter.Report(m_registry, changes);
+            }
+        }
+
         /// <summary>
         /// Identity of a version counter: the counter is per resource within a group, not global.
         /// </summary>
         /// <param name="GroupNodeId">The group that owns the resource.</param>
         /// <param name="ResourceId">The resource id.</param>
         private readonly record struct VersionCounterKey(NodeId GroupNodeId, string ResourceId);
+
+        private readonly record struct ResourceIdentityKey(NodeId GroupNodeId, string ResourceId);
 
         /// <summary>
         /// Identity of a resource version within a group.
@@ -1356,7 +1873,11 @@ namespace Opc.Ua.XRegistry.Server
         /// </summary>
         /// <param name="labels">The Labels Object, when the owner exposes one.</param>
         /// <param name="epoch">Accessor for the owning node's epoch.</param>
-        private void BindAttributeMethods(AttributesState? labels, Func<PropertyState<uint>?> epoch)
+        /// <param name="changed">Callback invoked after a successful effective mutation.</param>
+        private void BindAttributeMethods(
+            AttributesState? labels,
+            Func<PropertyState<uint>?> epoch,
+            Action? changed = null)
         {
             if (labels == null)
             {
@@ -1370,7 +1891,7 @@ namespace Opc.Ua.XRegistry.Server
             {
                 labels.AddAttribute.OnCallAsync = (ctx, m, id, key, value, expectedEpoch, ct) =>
                     IsWriteChannelSecure(ctx)
-                        ? OnAddAttributeAsync(labels, epoch(), key, value, expectedEpoch)
+                        ? OnAddAttributeAsync(labels, epoch(), key, value, expectedEpoch, changed)
                         : new ValueTask<AddAttributeMethodStateResult>(
                             new AddAttributeMethodStateResult
                             {
@@ -1381,7 +1902,7 @@ namespace Opc.Ua.XRegistry.Server
             {
                 labels.RemoveAttribute.OnCallAsync = (ctx, m, id, key, expectedEpoch, ct) =>
                     IsWriteChannelSecure(ctx)
-                        ? OnRemoveAttributeAsync(labels, epoch(), key, expectedEpoch)
+                        ? OnRemoveAttributeAsync(labels, epoch(), key, expectedEpoch, changed)
                         : new ValueTask<RemoveAttributeMethodStateResult>(
                             new RemoveAttributeMethodStateResult
                             {
@@ -1399,7 +1920,8 @@ namespace Opc.Ua.XRegistry.Server
             PropertyState<uint>? epoch,
             string key,
             string value,
-            uint expectedEpoch)
+            uint expectedEpoch,
+            Action? changed = null)
         {
             if (string.IsNullOrEmpty(key))
             {
@@ -1419,6 +1941,11 @@ namespace Opc.Ua.XRegistry.Server
                 var browseName = new QualifiedName(key, ns);
                 if (labels.FindChild(SystemContext, browseName) is PropertyState<string> existing)
                 {
+                    if (string.Equals(existing.Value, value, StringComparison.Ordinal))
+                    {
+                        return new ValueTask<AddAttributeMethodStateResult>(
+                            new AddAttributeMethodStateResult { ServiceResult = ServiceResult.Good });
+                    }
                     existing.Value = value;
                 }
                 else
@@ -1438,9 +1965,10 @@ namespace Opc.Ua.XRegistry.Server
                 }
 
                 BumpEpoch(epoch);
-                return new ValueTask<AddAttributeMethodStateResult>(
-                    new AddAttributeMethodStateResult { ServiceResult = ServiceResult.Good });
             }
+            changed?.Invoke();
+            return new ValueTask<AddAttributeMethodStateResult>(
+                new AddAttributeMethodStateResult { ServiceResult = ServiceResult.Good });
         }
 
         /// <summary>
@@ -1450,7 +1978,8 @@ namespace Opc.Ua.XRegistry.Server
             AttributesState labels,
             PropertyState<uint>? epoch,
             string key,
-            uint expectedEpoch)
+            uint expectedEpoch,
+            Action? changed = null)
         {
             lock (m_gate)
             {
@@ -1473,9 +2002,10 @@ namespace Opc.Ua.XRegistry.Server
                 labels.RemoveChild(attribute);
                 DeleteNode(SystemContext, attribute.NodeId);
                 BumpEpoch(epoch);
-                return new ValueTask<RemoveAttributeMethodStateResult>(
-                    new RemoveAttributeMethodStateResult { ServiceResult = ServiceResult.Good });
             }
+            changed?.Invoke();
+            return new ValueTask<RemoveAttributeMethodStateResult>(
+                new RemoveAttributeMethodStateResult { ServiceResult = ServiceResult.Good });
         }
 
         private static void BumpEpoch(PropertyState<uint>? epoch)
@@ -1493,6 +2023,8 @@ namespace Opc.Ua.XRegistry.Server
         private readonly Dictionary<ResourceKey, ResourceState> m_resources = [];
         private readonly Dictionary<uint, ResourceFileHandle> m_fileHandles = [];
         private readonly Dictionary<VersionCounterKey, uint> m_versionCounters = [];
+        private readonly Dictionary<ResourceIdentityKey, uint> m_resourceMetaEpochs = [];
+        private readonly Dictionary<ResourceIdentityKey, string> m_defaultVersions = [];
         private readonly Dictionary<string, int> m_fastPathReferences = [];
         private readonly string m_namespaceUri;
         private readonly string m_registryBrowseName;
@@ -1504,6 +2036,12 @@ namespace Opc.Ua.XRegistry.Server
         private readonly int m_maxResourceBytes;
         private readonly int m_maxRegisteredResources;
         private readonly bool m_requireEncryptionForReads;
+        private readonly bool m_eventsEnabled;
+        private readonly string m_eventSourceUrl;
+        private readonly string m_groupsAttributeName;
+        private readonly string m_resourcesAttributeName;
+        private readonly string m_resourceDocumentAttributeName;
+        private XRegistryEventEmitter? m_eventEmitter;
         private RegistryState? m_registry;
         private uint m_nextInstanceId = XRegistryWellKnown.FirstDynamicInstance;
         private uint m_nextFileHandle;
