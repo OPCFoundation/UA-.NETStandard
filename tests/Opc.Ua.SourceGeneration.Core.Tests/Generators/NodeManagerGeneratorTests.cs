@@ -181,6 +181,10 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
                     support,
                     Does.Contain(
                         "A QualifiedName browse name must specify a nonzero namespace index."));
+                Assert.That(support, Does.Contain("parent => global::"));
+                Assert.That(
+                    support,
+                    Does.Not.Contain("builder.TryGetNode(parentId"));
                 Assert.That(
                     support,
                     Does.Contain(
@@ -226,6 +230,12 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
                         "global::Opc.Ua.StructureBuilder<global::Opc.Ua.Argument>>(null)"));
                 Assert.That(support, Does.Not.Contain("Activator.CreateInstance"));
                 Assert.That(support, Does.Not.Contain("System.Reflection"));
+                Assert.That(
+                    support,
+                    Does.Contain(
+                        "new global::Opc.Ua.ArrayOf<" +
+                        "global::Opc.Ua.Server.Nodes.INodeSetImportFactory>"));
+                Assert.That(support, Does.Not.Contain("return [];"));
             });
         }
 
@@ -294,6 +304,10 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             Assert.That(mgr, Does.Contain("partial void Configure("));
             Assert.That(mgr, Does.Contain("global::Opc.Ua.Server.Fluent.NodeManagerBuilder"));
             Assert.That(mgr, Does.Contain("global::Opc.Ua.Server.Fluent.INodeManagerBuilder"));
+            Assert.That(mgr, Does.Not.Contain("return [];"));
+            Assert.That(
+                mgr,
+                Does.Contain("global::System.Array.Empty<global::Opc.Ua.NodeState>()"));
 
             // The Configure/CompleteConfigure/Seal sequence inside
             // CreateAddressSpace must be wired before any NotifyNodeAdded

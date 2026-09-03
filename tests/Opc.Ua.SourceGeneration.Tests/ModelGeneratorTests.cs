@@ -1296,10 +1296,10 @@ namespace Opc.Ua.SourceGeneration
         /// Run the model generator over the shared cross-model NodeSet2 +
         /// ModelDesign fixture plus a user-supplied source containing a
         /// <c>[NodeManager]</c> attribute, and return the generator
-        /// diagnostics and run result. The output is intentionally not
-        /// strictly compiled: a matched <c>[NodeManager]</c> emits Fluent
-        /// node-manager code that references <c>Opc.Ua.Server</c> types not
-        /// present in this model-only test compilation.
+        /// diagnostics and run result. The output is parsed at the requested
+        /// language version but is not semantically compiled: generated
+        /// authoring code references <c>Opc.Ua.Server</c> types not present in
+        /// this model-only test compilation.
         /// </summary>
         private static (ImmutableArray<Diagnostic> Diagnostics, GeneratorDriverRunResult RunResult)
             RunMixedModelGenerator(LanguageVersion languageVersion, string bindingSource)
@@ -1345,10 +1345,29 @@ namespace Opc.Ua.SourceGeneration
 
             driver = driver.RunGeneratorsAndUpdateCompilation(
                 compilation,
-                out Compilation _,
+                out Compilation outputCompilation,
                 out ImmutableArray<Diagnostic> diagnostics);
+            ImmutableArray<Diagnostic> parseDiagnostics =
+                [.. outputCompilation.GetParseDiagnostics()];
+            Assert.That(
+                parseDiagnostics.Where(diagnostic =>
+                    diagnostic.Severity == DiagnosticSeverity.Error),
+                Is.Empty,
+                "Generated sources must parse at the requested language version.");
+            Diagnostic[] languageVersionErrors =
+            [
+                .. outputCompilation.GetDiagnostics().Where(diagnostic =>
+                    diagnostic.Severity == DiagnosticSeverity.Error &&
+                    diagnostic.GetMessage(CultureInfo.InvariantCulture).Contains(
+                        "not available in C#",
+                        StringComparison.Ordinal))
+            ];
+            Assert.That(
+                languageVersionErrors,
+                Is.Empty,
+                "Generated sources must not use features newer than the requested language version.");
 
-            return (diagnostics, driver.GetRunResult());
+            return (diagnostics.AddRange(parseDiagnostics), driver.GetRunResult());
         }
 
         /// <summary>
