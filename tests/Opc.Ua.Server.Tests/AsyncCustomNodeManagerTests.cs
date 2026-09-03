@@ -39,6 +39,7 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Moq;
 using NUnit.Framework;
+using Opc.Ua.Server.StateMachines;
 
 namespace Opc.Ua.Server.Tests
 {
@@ -166,6 +167,313 @@ namespace Opc.Ua.Server.Tests
                 Assert.That(nodeId.NamespaceIndex, Is.EqualTo(manager.NamespaceIndexes[0]));
                 Assert.That(generatedNodeIds.Add(nodeId), Is.True, "Duplicate NodeId generated");
             }
+        }
+
+        [Test]
+        public async Task AddPredefinedNodeCompletesCreateLifecycleAsync()
+        {
+            using ITestNodeManager manager = CreateManager();
+            ushort namespaceIndex = manager.NamespaceIndexes[0];
+            var node = new LifecycleProbeState(null)
+            {
+                NodeId = new NodeId("Lifecycle", namespaceIndex),
+                BrowseName = new QualifiedName("Lifecycle", namespaceIndex),
+                DisplayName = new LocalizedText("Lifecycle")
+            };
+            node.UpdateChangeMasks(NodeStateChangeMasks.Children);
+            m_mockLogger
+                .Setup(logger => logger.IsEnabled(LogLevel.Debug))
+                .Returns(true);
+
+            await manager.AddPredefinedNodeAsync(manager.SystemContext, node).ConfigureAwait(false);
+            await manager.AddPredefinedNodeAsync(manager.SystemContext, node).ConfigureAwait(false);
+
+            Assert.That(node.IsCreated, Is.True);
+            Assert.That(node.BeforeCreateCount, Is.EqualTo(1));
+            Assert.That(node.AfterCreateCount, Is.EqualTo(1));
+            Assert.That(node.ChangeMasks, Is.EqualTo(NodeStateChangeMasks.None));
+            Assert.That(manager.Find(node.NodeId), Is.SameAs(node));
+#pragma warning disable CA1873 // Expression tree in Moq Verify is not an executed logging call
+            m_mockLogger.Verify(
+                logger => logger.Log(
+                    LogLevel.Debug,
+                    It.Is<EventId>(eventId =>
+                        eventId.Name == "PredefinedNodeLifecycleCompletedAtRegistration"),
+                    It.IsAny<It.IsAnyType>(),
+                    It.IsAny<Exception>(),
+                    (Func<It.IsAnyType, Exception, string>)It.IsAny<object>()),
+                Times.Once);
+#pragma warning restore CA1873
+        }
+
+        [Test]
+        public async Task AddNodeCompletesCreateLifecycleAsync()
+        {
+            using ITestNodeManager manager = CreateManager();
+            ushort namespaceIndex = manager.NamespaceIndexes[0];
+            var node = new LifecycleProbeState(null)
+            {
+                NodeId = new NodeId("RuntimeLifecycle", namespaceIndex),
+                BrowseName = new QualifiedName("RuntimeLifecycle", namespaceIndex),
+                DisplayName = new LocalizedText("RuntimeLifecycle")
+            };
+
+            await manager
+                .AddNodeAsync(manager.SystemContext, NodeId.Null, node)
+                .ConfigureAwait(false);
+
+            Assert.That(node.IsCreated, Is.True);
+            Assert.That(node.BeforeCreateCount, Is.EqualTo(1));
+            Assert.That(node.AfterCreateCount, Is.EqualTo(1));
+        }
+
+        [Test]
+        public async Task PredefinedNodeIdIsAssignedBeforeCreateLifecycleAsync()
+        {
+            using ITestNodeManager manager = CreateManager();
+            Assume.That(manager is TestableAsyncCustomNodeManager,
+                "Requires AsyncCustomNodeManager NodeId preparation");
+            var node = new LifecycleProbeState(null)
+            {
+                BrowseName = new QualifiedName("AssignedBeforeLifecycle", manager.NamespaceIndexes[0]),
+                DisplayName = new LocalizedText("AssignedBeforeLifecycle")
+            };
+
+            await manager
+                .AddPredefinedNodeAsync(manager.SystemContext, node)
+                .ConfigureAwait(false);
+
+            Assert.That(node.NodeId.IsNull, Is.False);
+            Assert.That(node.NodeIdAtAfterCreate, Is.EqualTo(node.NodeId));
+        }
+
+        [Test]
+        public async Task BehaviourReplacementIsCompletedAfterOriginalAsync()
+        {
+            using ITestNodeManager manager = CreateManager();
+            ushort namespaceIndex = manager.NamespaceIndexes[0];
+            var original = new LifecycleProbeState(null)
+            {
+                NodeId = new NodeId("BehaviourReplacement", namespaceIndex),
+                BrowseName = new QualifiedName("BehaviourReplacement", namespaceIndex),
+                DisplayName = new LocalizedText("BehaviourReplacement")
+            };
+            var replacement = new LifecycleProbeState(null)
+            {
+                NodeId = original.NodeId,
+                BrowseName = original.BrowseName,
+                DisplayName = original.DisplayName
+            };
+            bool hookSawCreatedNode = false;
+            manager.AddBehaviourCallback = node =>
+            {
+                hookSawCreatedNode = node.IsCreated;
+                return replacement;
+            };
+
+            await manager
+                .AddPredefinedNodeAsync(manager.SystemContext, original)
+                .ConfigureAwait(false);
+
+            Assert.That(hookSawCreatedNode, Is.True);
+            Assert.That(original.IsCreated, Is.True);
+            Assert.That(replacement.IsCreated, Is.True);
+            Assert.That(manager.Find(original.NodeId), Is.SameAs(replacement));
+        }
+
+        [Test]
+        public async Task RegisteringGeneratedConditionBindsMethodsAsync()
+        {
+            using ITestNodeManager manager = CreateManager();
+            ushort namespaceIndex = manager.NamespaceIndexes[0];
+            ConditionState condition = manager.SystemContext.CreateInstanceOfConditionType(
+                null,
+                new QualifiedName("Condition", namespaceIndex));
+
+            Assert.That(condition.IsCreated, Is.False);
+            Assert.That(condition.Enable!.OnCallMethod, Is.Null);
+            Assert.That(condition.Disable!.OnCallMethod, Is.Null);
+            Assert.That(condition.AddComment!.OnCall, Is.Null);
+
+            await manager
+                .AddPredefinedNodeAsync(manager.SystemContext, condition)
+                .ConfigureAwait(false);
+
+            Assert.That(condition.IsCreated, Is.True);
+            Assert.That(condition.Enable.OnCallMethod, Is.Not.Null);
+            Assert.That(condition.Disable.OnCallMethod, Is.Not.Null);
+            Assert.That(condition.AddComment.OnCall, Is.Not.Null);
+        }
+
+        [Test]
+        public async Task RegisteringStateMachineResolvesElementNamespaceAsync()
+        {
+            using ITestNodeManager manager = CreateManager();
+            ushort instanceNamespaceIndex = manager.NamespaceIndexes[0];
+            ushort elementNamespaceIndex = (ushort)manager.SystemContext.NamespaceUris
+                .GetIndexOrAppend(NamespaceFiniteStateMachineState.ElementsNamespaceUri);
+            var machine = new NamespaceFiniteStateMachineState(null)
+            {
+                NodeId = new NodeId("StateMachine", instanceNamespaceIndex),
+                BrowseName = new QualifiedName("StateMachine", instanceNamespaceIndex),
+                DisplayName = new LocalizedText("StateMachine")
+            };
+
+            Assert.That(machine.GetStateNodeId(123), Is.EqualTo(new NodeId(123)));
+
+            await manager
+                .AddPredefinedNodeAsync(manager.SystemContext, machine)
+                .ConfigureAwait(false);
+
+            Assert.That(machine.IsCreated, Is.True);
+            Assert.That(
+                machine.GetStateNodeId(123),
+                Is.EqualTo(new NodeId(123, elementNamespaceIndex)));
+        }
+
+        [Test]
+        public async Task RegistrationRebasesLifecycleMaterializedStateNodesAsync()
+        {
+            using ITestNodeManager manager = CreateManager();
+            Assume.That(manager is TestableAsyncCustomNodeManager,
+                "Requires AsyncCustomNodeManager NodeId preparation");
+            StateMachineDefinition definition = StateMachineBuilder
+                .Create(
+                    null,
+                    manager.SystemContext,
+                    new NodeId("DefinitionSource", manager.NamespaceIndexes[0]),
+                    new QualifiedName("DefinitionSource", manager.NamespaceIndexes[0]))
+                .AddState(1, "Off", isInitial: true)
+                .AddState(2, "On")
+                .StateMachine
+                .Definition;
+            var machine = new FluentFiniteStateMachineState(null, definition)
+            {
+                BrowseName = new QualifiedName("RuntimeMachine", manager.NamespaceIndexes[0]),
+                DisplayName = new LocalizedText("RuntimeMachine")
+            };
+
+            await manager
+                .AddPredefinedNodeAsync(manager.SystemContext, machine)
+                .ConfigureAwait(false);
+
+            var children = new List<BaseInstanceState>();
+            machine.GetChildren(manager.SystemContext, children);
+            BaseInstanceState off = children.Single(child => child.BrowseName.Name == "Off");
+
+            Assert.That(machine.NodeId.IsNull, Is.False);
+            Assert.That(off.NodeId.IsNull, Is.False);
+            Assert.That(
+                off.NodeId.IdentifierAsString,
+                Is.EqualTo($"{machine.NodeId}_Off"));
+            Assert.That(machine.GetStateNodeId(1), Is.EqualTo(off.NodeId));
+            Assert.That(manager.Find(off.NodeId), Is.SameAs(off));
+        }
+
+        [Test]
+        public async Task RegistrationRebasesTypedChildrenAndPreservesExplicitIdsAsync()
+        {
+            using ITestNodeManager manager = CreateManager();
+            Assume.That(manager is TestableAsyncCustomNodeManager,
+                "Requires AsyncCustomNodeManager NodeId preparation");
+            ushort namespaceIndex = manager.NamespaceIndexes[0];
+            var program = new ProgramStateMachineState(null);
+            program.Create(
+                manager.SystemContext,
+                new NodeId("Program", namespaceIndex),
+                new QualifiedName("Program", namespaceIndex),
+                default,
+                assignNodeIds: false);
+            var explicitChildId = new NodeId("Program_Explicit", namespaceIndex);
+            var explicitChild = new BaseDataVariableState(program)
+            {
+                NodeId = explicitChildId,
+                BrowseName = new QualifiedName("Explicit", namespaceIndex),
+                DisplayName = new LocalizedText("Explicit"),
+                DataType = DataTypeIds.UInt32,
+                ValueRank = ValueRanks.Scalar
+            };
+            program.AddChild(explicitChild);
+
+            Assert.That(program.CurrentState, Is.Not.Null);
+            Assert.That(program.CurrentState!.Id, Is.Not.Null);
+            Assert.That(program.CurrentState.NodeId.NamespaceIndex, Is.Zero);
+            Assert.That(program.CurrentState.Id!.NodeId.NamespaceIndex, Is.Zero);
+
+            await manager
+                .AddPredefinedNodeAsync(manager.SystemContext, program)
+                .ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    program.CurrentState.NodeId.NamespaceIndex,
+                    Is.EqualTo(namespaceIndex));
+                Assert.That(
+                    program.CurrentState.Id.NodeId.NamespaceIndex,
+                    Is.EqualTo(namespaceIndex));
+                Assert.That(explicitChild.NodeId, Is.EqualTo(explicitChildId));
+                Assert.That(manager.Find(program.CurrentState.NodeId), Is.SameAs(program.CurrentState));
+                Assert.That(manager.Find(program.CurrentState.Id.NodeId), Is.SameAs(program.CurrentState.Id));
+                Assert.That(manager.Find(explicitChildId), Is.SameAs(explicitChild));
+            });
+            Assert.That(
+                await manager.GetManagerHandleAsync(program.CurrentState.NodeId).ConfigureAwait(false),
+                Is.Not.Null);
+            Assert.That(
+                await manager.GetManagerHandleAsync(program.CurrentState.Id.NodeId).ConfigureAwait(false),
+                Is.Not.Null);
+        }
+
+        [Test]
+        public async Task RegistrationPreservesNamespaceZeroRootIdsAsync()
+        {
+            using ITestNodeManager manager = CreateManager();
+            Assume.That(manager is TestableAsyncCustomNodeManager,
+                "Requires AsyncCustomNodeManager NodeId preparation");
+            var root = new BaseObjectState(null)
+            {
+                NodeId = ObjectIds.Server,
+                BrowseName = new QualifiedName(BrowseNames.Server)
+            };
+            var child = new BaseObjectState(root)
+            {
+                NodeId = ObjectIds.Server_ServerCapabilities,
+                BrowseName = new QualifiedName(BrowseNames.ServerCapabilities)
+            };
+            root.AddChild(child);
+
+            await manager
+                .AddPredefinedNodeAsync(manager.SystemContext, root)
+                .ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(root.NodeId, Is.EqualTo(ObjectIds.Server));
+                Assert.That(child.NodeId, Is.EqualTo(ObjectIds.Server_ServerCapabilities));
+            });
+        }
+
+        [Test]
+        public void SynchronousPredefinedNodeRegistrationCompletesCreateLifecycle()
+        {
+            using ITestNodeManager manager = CreateManager();
+            Assume.That(manager is TestableAsyncCustomNodeManager,
+                "Requires AsyncCustomNodeManager synchronous registration");
+            var asyncManager = (TestableAsyncCustomNodeManager)manager;
+            ushort namespaceIndex = manager.NamespaceIndexes[0];
+            var node = new LifecycleProbeState(null)
+            {
+                NodeId = new NodeId("SynchronousLifecycle", namespaceIndex),
+                BrowseName = new QualifiedName("SynchronousLifecycle", namespaceIndex),
+                DisplayName = new LocalizedText("SynchronousLifecycle")
+            };
+
+            asyncManager.AddPredefinedNodeSynchronouslyPublic(node);
+
+            Assert.That(node.IsCreated, Is.True);
+            Assert.That(node.BeforeCreateCount, Is.EqualTo(1));
+            Assert.That(node.AfterCreateCount, Is.EqualTo(1));
         }
 
         [Test]
@@ -4868,6 +5176,50 @@ namespace Opc.Ua.Server.Tests
                 disposable.Dispose();
             }
         }
+
+        private sealed class LifecycleProbeState : BaseObjectState
+        {
+            public LifecycleProbeState(NodeState parent)
+                : base(parent)
+            {
+            }
+
+            public int BeforeCreateCount { get; private set; }
+
+            public int AfterCreateCount { get; private set; }
+
+            public NodeId NodeIdAtAfterCreate { get; private set; }
+
+            protected override void OnBeforeCreate(ISystemContext context, NodeState node)
+            {
+                BeforeCreateCount++;
+                base.OnBeforeCreate(context, node);
+            }
+
+            protected override void OnAfterCreate(
+                ISystemContext context,
+                NodeState node,
+                CancellationToken ct = default)
+            {
+                AfterCreateCount++;
+                NodeIdAtAfterCreate = NodeId;
+                base.OnAfterCreate(context, node, ct);
+            }
+        }
+
+        private sealed class NamespaceFiniteStateMachineState : FiniteStateMachineState
+        {
+            public const string ElementsNamespaceUri =
+                "http://test.org/UA/FiniteStateMachineElements/";
+
+            public NamespaceFiniteStateMachineState(NodeState parent)
+                : base(parent)
+            {
+            }
+
+            protected override string ElementNamespaceUri =>
+                ElementsNamespaceUri;
+        }
     }
 
     public sealed class TestableAsyncCustomNodeManager : AsyncCustomNodeManager, ITestNodeManager
@@ -4907,6 +5259,8 @@ namespace Opc.Ua.Server.Tests
 
         public Func<NodeState, CancellationToken, ValueTask> NodeRemovedCallback { get; set; } = null!;
 
+        public Func<NodeState, NodeState> AddBehaviourCallback { get; set; } = null!;
+
         public Func<ServerSystemContext, NodeId, NodeState, bool> IsNodeInViewOverride { get; set; }
 
         protected override bool IsNodeInView(ServerSystemContext context, NodeId viewId, NodeState node)
@@ -4934,6 +5288,19 @@ namespace Opc.Ua.Server.Tests
             CancellationToken cancellationToken = default)
         {
             return NodeRemovedCallback?.Invoke(node, cancellationToken) ?? default;
+        }
+
+        protected override ValueTask<NodeState> AddBehaviourToPredefinedNodeAsync(
+            ISystemContext context,
+            NodeState predefinedNode,
+            CancellationToken cancellationToken = default)
+        {
+            return AddBehaviourCallback != null
+                ? new ValueTask<NodeState>(AddBehaviourCallback(predefinedNode))
+                : base.AddBehaviourToPredefinedNodeAsync(
+                    context,
+                    predefinedNode,
+                    cancellationToken);
         }
 
         public ValueTask AddPredefinedNodeWithExternalReferencesAsync(
@@ -5037,6 +5404,11 @@ namespace Opc.Ua.Server.Tests
             CancellationToken cancellationToken = default)
         {
             return AddPredefinedNodeAsync(context, node, cancellationToken);
+        }
+
+        public void AddPredefinedNodeSynchronouslyPublic(NodeState node)
+        {
+            AddPredefinedNodeSynchronously(node);
         }
 
         ValueTask ITestNodeManager.AddPredefinedNodeAsync(
@@ -5273,6 +5645,8 @@ namespace Opc.Ua.Server.Tests
         /// </summary>
         Func<ServerSystemContext, NodeId, NodeState, bool>? IsNodeInViewOverride { get; set; }
 
+        Func<NodeState, NodeState>? AddBehaviourCallback { get; set; }
+
         /// <summary>
         /// Tests whether a NodeId belongs to a managed namespace.
         /// </summary>
@@ -5398,10 +5772,20 @@ namespace Opc.Ua.Server.Tests
 
         public Func<ServerSystemContext, NodeId, NodeState, bool>? IsNodeInViewOverride { get; set; }
 
+        public Func<NodeState, NodeState>? AddBehaviourCallback { get; set; }
+
         protected override bool IsNodeInView(ServerSystemContext context, NodeId viewId, NodeState node)
         {
             return IsNodeInViewOverride?.Invoke(context, viewId, node)
                 ?? base.IsNodeInView(context, viewId, node);
+        }
+
+        protected override NodeState AddBehaviourToPredefinedNode(
+            ISystemContext context,
+            NodeState predefinedNode)
+        {
+            return AddBehaviourCallback?.Invoke(predefinedNode)
+                ?? base.AddBehaviourToPredefinedNode(context, predefinedNode);
         }
 
         public void AddPredefinedNodePublic(ISystemContext context, NodeState node)
@@ -5573,6 +5957,12 @@ namespace Opc.Ua.Server.Tests
         {
             get => m_cnm2.IsNodeInViewOverride;
             set => m_cnm2.IsNodeInViewOverride = value;
+        }
+
+        public Func<NodeState, NodeState>? AddBehaviourCallback
+        {
+            get => m_cnm2.AddBehaviourCallback;
+            set => m_cnm2.AddBehaviourCallback = value;
         }
 
         public bool IsNodeIdInNamespacePublic(NodeId nodeId)

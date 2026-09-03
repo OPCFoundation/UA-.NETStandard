@@ -1093,7 +1093,8 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Recursively indexes the node and its children.
+        /// Completes the create lifecycle and recursively indexes the node and
+        /// its children.
         /// </summary>
         protected virtual void AddPredefinedNode(ISystemContext context, NodeState node)
         {
@@ -1108,7 +1109,12 @@ namespace Opc.Ua.Server
                     Server.TypeTree);
             }
 
+            CompleteCreateLifecycleForRegistration(context, node);
             NodeState activeNode = AddBehaviourToPredefinedNode(context, node);
+            if (!ReferenceEquals(activeNode, node))
+            {
+                CompleteCreateLifecycleForRegistration(context, activeNode);
+            }
             PredefinedNodes.AddOrUpdate(activeNode.NodeId, activeNode, (key, _) => activeNode);
 
             if (activeNode is BaseTypeState type)
@@ -1168,6 +1174,24 @@ namespace Opc.Ua.Server
                 recovery.RecoverDetachedMonitoredItems(
                     m_asyncNodeManager,
                     [activeNode.NodeId]);
+            }
+        }
+
+        private void CompleteCreateLifecycleForRegistration(
+            ISystemContext context,
+            NodeState node)
+        {
+            if (node.IsCreated)
+            {
+                return;
+            }
+
+            node.CreateAsPredefinedNode(context);
+            if (m_logger != null)
+            {
+                m_logger.PredefinedNodeLifecycleCompletedAtRegistration(
+                    node.NodeId,
+                    node.BrowseName);
             }
         }
 

@@ -28,9 +28,9 @@
  * ======================================================================*/
 
 using System.Collections.Generic;
-using Opc.Ua.OpenUsdScene;
+using Opc.Ua.OpenUsd.Scene;
 
-namespace Opc.Ua.OpenUsdScene.Tests
+namespace Opc.Ua.OpenUsd.Tests
 {
     /// <summary>
     /// Small query helpers over a <see cref="MaterializedScene"/>, so the assertions in the

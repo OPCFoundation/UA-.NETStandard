@@ -432,7 +432,8 @@ namespace Opc.Ua.Types.Tests.State
         }
 
         [Test]
-        public void AddChildSetsParentAndAddsToChildren()        {
+        public void AddChildSetsParentAndAddsToChildren()
+        {
             BaseObjectState parent = CreateObjectNode();
             PropertyState child = CreatePropertyChild(parent, "Child1");
             parent.AddChild(child);
@@ -2652,15 +2653,105 @@ namespace Opc.Ua.Types.Tests.State
         }
 
         [Test]
-        public void CreateAsPredefinedNodeSucceeds()
+        public void CreateAsPredefinedNodeCompletesLifecycleOnce()
         {
-            var node = new BaseObjectState(null)
-            {
-                NodeId = new NodeId(100, 0),
-                BrowseName = QualifiedName.From("Predefined"),
-                DisplayName = LocalizedText.From("Predefined")
-            };
-            Assert.DoesNotThrow(() => node.CreateAsPredefinedNode(m_context));
+            var node = new LifecycleProbeState(null);
+
+            Assert.That(node.IsCreated, Is.False);
+
+            node.CreateAsPredefinedNode(m_context);
+            node.CreateAsPredefinedNode(m_context);
+
+            Assert.That(node.IsCreated, Is.True);
+            Assert.That(node.BeforeCreateCount, Is.EqualTo(1));
+            Assert.That(node.AfterCreateCount, Is.EqualTo(1));
+        }
+
+        [Test]
+        public void CreateAsPredefinedNodeCompletesLateChild()
+        {
+            var parent = new LifecycleProbeState(null);
+            parent.CreateAsPredefinedNode(m_context);
+
+            var child = new LifecycleProbeState(parent);
+            parent.AddChild(child);
+
+            parent.CreateAsPredefinedNode(m_context);
+
+            Assert.That(parent.BeforeCreateCount, Is.EqualTo(1));
+            Assert.That(parent.AfterCreateCount, Is.EqualTo(1));
+            Assert.That(child.IsCreated, Is.True);
+            Assert.That(child.BeforeCreateCount, Is.EqualTo(1));
+            Assert.That(child.AfterCreateCount, Is.EqualTo(1));
+        }
+
+        [Test]
+        public void CreateAsPredefinedNodeCompletesChildAddedByOnAfterCreate()
+        {
+            var parent = new ChildCreatingState(null);
+
+            parent.CreateAsPredefinedNode(m_context);
+
+            Assert.That(parent.AddedChild, Is.Not.Null);
+            Assert.That(parent.AddedChild.IsCreated, Is.True);
+            Assert.That(parent.AddedChild.BeforeCreateCount, Is.EqualTo(1));
+            Assert.That(parent.AddedChild.AfterCreateCount, Is.EqualTo(1));
+        }
+
+        [Test]
+        public void CreateAsPredefinedNodeRejectsNonConvergingLifecycle()
+        {
+            var node = new NonConvergingState(null);
+
+            Assert.That(
+                () => node.CreateAsPredefinedNode(m_context),
+                Throws.TypeOf<InvalidOperationException>()
+                    .With.Message.Contains("did not converge"));
+        }
+
+        [Test]
+        public void DeleteResetsCreatedState()
+        {
+            var node = new LifecycleProbeState(null);
+            node.CreateAsPredefinedNode(m_context);
+
+            node.Delete(m_context);
+
+            Assert.That(node.IsCreated, Is.False);
+        }
+
+        [Test]
+        public void CloneDoesNotCopyCreatedState()
+        {
+            BaseObjectState node = CreateObjectNode();
+            node.CreateAsPredefinedNode(m_context);
+
+            var clone = (BaseObjectState)node.Clone();
+
+            Assert.That(node.IsCreated, Is.True);
+            Assert.That(clone.IsCreated, Is.False);
+        }
+
+        [Test]
+        public void CreateAlwaysRunsLifecycle()
+        {
+            var node = new LifecycleProbeState(null);
+
+            node.Create(
+                m_context,
+                NodeId.Null,
+                QualifiedName.Null,
+                LocalizedText.Null,
+                false);
+            node.Create(
+                m_context,
+                NodeId.Null,
+                QualifiedName.Null,
+                LocalizedText.Null,
+                false);
+
+            Assert.That(node.BeforeCreateCount, Is.EqualTo(2));
+            Assert.That(node.AfterCreateCount, Is.EqualTo(2));
         }
 
         [Test]
@@ -2710,6 +2801,73 @@ namespace Opc.Ua.Types.Tests.State
             {
                 Count++;
                 return new NodeId((uint)(90000 + Count), 0);
+            }
+        }
+
+        private sealed class LifecycleProbeState : BaseObjectState
+        {
+            public LifecycleProbeState(NodeState parent)
+                : base(parent)
+            {
+            }
+
+            public int BeforeCreateCount { get; private set; }
+
+            public int AfterCreateCount { get; private set; }
+
+            protected override void OnBeforeCreate(ISystemContext context, NodeState node)
+            {
+                BeforeCreateCount++;
+                base.OnBeforeCreate(context, node);
+            }
+
+            protected override void OnAfterCreate(
+                ISystemContext context,
+                NodeState node,
+                System.Threading.CancellationToken ct = default)
+            {
+                AfterCreateCount++;
+                base.OnAfterCreate(context, node, ct);
+            }
+        }
+
+        private sealed class ChildCreatingState : BaseObjectState
+        {
+            public ChildCreatingState(NodeState parent)
+                : base(parent)
+            {
+            }
+
+            public LifecycleProbeState AddedChild { get; private set; } = null!;
+
+            protected override void OnAfterCreate(
+                ISystemContext context,
+                NodeState node,
+                System.Threading.CancellationToken ct = default)
+            {
+                base.OnAfterCreate(context, node, ct);
+                if (AddedChild == null)
+                {
+                    AddedChild = new LifecycleProbeState(this);
+                    AddChild(AddedChild);
+                }
+            }
+        }
+
+        private sealed class NonConvergingState : BaseObjectState
+        {
+            public NonConvergingState(NodeState parent)
+                : base(parent)
+            {
+            }
+
+            protected override void OnAfterCreate(
+                ISystemContext context,
+                NodeState node,
+                System.Threading.CancellationToken ct = default)
+            {
+                base.OnAfterCreate(context, node, ct);
+                AddChild(new NonConvergingState(this));
             }
         }
     }

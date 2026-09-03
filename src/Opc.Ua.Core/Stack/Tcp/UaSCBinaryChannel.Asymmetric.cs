@@ -1162,79 +1162,92 @@ namespace Opc.Ua.Bindings
                     "The asymmetric security header could not be parsed.");
             }
 
-            // verify sender certificate chain.
-            if (certificateData.Length > 0)
+            // Once the sender chain is parsed below it owns freshly allocated
+            // certificate handles. Every remaining validation can throw, and an
+            // out parameter is not handed back to the caller's using-block when
+            // the method throws - so dispose the chain here on any failure
+            // instead of abandoning its certificate handles.
+            try
             {
-                senderCertificateChain = Utils.ParseCertificateChainBlob(
-                    certificateData,
-                    Telemetry);
+                // verify sender certificate chain.
+                if (certificateData.Length > 0)
+                {
+                    senderCertificateChain = Utils.ParseCertificateChainBlob(
+                        certificateData,
+                        Telemetry);
 
-                try
-                {
-                    string thumbprint =
-                        senderCertificateChain[0].Thumbprint
-                        ?? throw ServiceResultException.Create(
-                            StatusCodes.BadCertificateInvalid,
-                            "Invalid certificate thumbprint.");
-                }
-                catch (Exception e)
-                {
-                    throw ServiceResultException.Create(
-                        StatusCodes.BadCertificateInvalid,
-                        e,
-                        "The sender's certificate could not be parsed.");
-                }
-            }
-            else if (securityPolicyUri != SecurityPolicies.None)
-            {
-                throw ServiceResultException.Create(
-                    StatusCodes.BadCertificateInvalid,
-                    "The sender's certificate was not specified.");
-            }
-
-            // verify receiver thumbprint.
-            if (thumbprintData.Length > 0)
-            {
-                // TODO: client should use the proider too!
-                if (m_serverCertificates != null)
-                {
-                    // Replace the channel-owned instance certificate (and its
-                    // issuer chain) with independent handles on the registry's
-                    // current entry.
-                    using (CertificateEntry? receiverEntry =
-                        m_serverCertificates.AcquireApplicationCertificateBySecurityPolicy(securityPolicyUri))
+                    try
                     {
-                        ServerCertificate?.Dispose();
-                        ServerCertificate = receiverEntry?.Certificate.AddRef();
-                        ServerCertificateChain?.Dispose();
-                        ServerCertificateChain = receiverEntry == null
-                            ? null
-                            : BuildServerCertificateChain(receiverEntry);
+                        _ = senderCertificateChain[0].Thumbprint
+                            ?? throw ServiceResultException.Create(
+                                StatusCodes.BadCertificateInvalid,
+                                "Invalid certificate thumbprint.");
                     }
-                    receiverCertificate = ServerCertificate;
+                    catch (Exception e)
+                    {
+                        throw ServiceResultException.Create(
+                            StatusCodes.BadCertificateInvalid,
+                            e,
+                            "The sender's certificate could not be parsed.");
+                    }
                 }
-
-                if (receiverCertificate == null)
+                else if (securityPolicyUri != SecurityPolicies.None)
                 {
                     throw ServiceResultException.Create(
                         StatusCodes.BadCertificateInvalid,
-                        "The receiver has no matching certificate for the selected profile.");
+                        "The sender's certificate was not specified.");
                 }
 
-                if (!receiverCertificate.Thumbprint.Equals(
-                        GetThumbprintString(thumbprintData),
-                        StringComparison.OrdinalIgnoreCase))
+                // verify receiver thumbprint.
+                if (thumbprintData.Length > 0)
+                {
+                    // TODO: client should use the provider too!
+                    if (m_serverCertificates != null)
+                    {
+                        // Replace the channel-owned instance certificate (and its
+                        // issuer chain) with independent handles on the registry's
+                        // current entry.
+                        using (CertificateEntry? receiverEntry =
+                            m_serverCertificates.AcquireApplicationCertificateBySecurityPolicy(securityPolicyUri))
+                        {
+                            ServerCertificate?.Dispose();
+                            ServerCertificate = receiverEntry?.Certificate.AddRef();
+                            ServerCertificateChain?.Dispose();
+                            ServerCertificateChain = receiverEntry == null
+                                ? null
+                                : BuildServerCertificateChain(receiverEntry);
+                        }
+                        receiverCertificate = ServerCertificate;
+                    }
+
+                    if (receiverCertificate == null)
+                    {
+                        throw ServiceResultException.Create(
+                            StatusCodes.BadCertificateInvalid,
+                            "The receiver has no matching certificate for the selected profile.");
+                    }
+
+                    if (!receiverCertificate.Thumbprint.Equals(
+                            GetThumbprintString(thumbprintData),
+                            StringComparison.OrdinalIgnoreCase))
+                    {
+                        throw ServiceResultException.Create(
+                            StatusCodes.BadCertificateInvalid,
+                            "The receiver's certificate thumbprint is not valid.");
+                    }
+                }
+                else if (securityPolicyUri != SecurityPolicies.None)
                 {
                     throw ServiceResultException.Create(
                         StatusCodes.BadCertificateInvalid,
-                        "The receiver's certificate thumbprint is not valid.");
+                        "The receiver's certificate thumbprint was not specified.");
                 }
             }
-            else if (securityPolicyUri != SecurityPolicies.None)
+            catch
             {
-                throw ServiceResultException.Create(
-                    StatusCodes.BadCertificateInvalid,
-                    "The receiver's certificate thumbprint was not specified.");
+                senderCertificateChain?.Dispose();
+                senderCertificateChain = null;
+                throw;
             }
         }
 

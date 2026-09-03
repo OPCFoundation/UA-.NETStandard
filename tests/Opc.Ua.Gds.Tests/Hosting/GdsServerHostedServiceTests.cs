@@ -685,6 +685,11 @@ namespace Opc.Ua.Gds.Tests.Hosting
 
         private sealed class StubCertificateGroup : ICertificateGroup
         {
+            public void Dispose()
+            {
+                // Nothing owned by the stub.
+            }
+
             public NodeId Id { get; set; } = NodeId.Null;
 
             public ArrayOf<NodeId> CertificateTypes { get; set; } = [];

@@ -1063,7 +1063,7 @@ namespace Opc.Ua
             }
 
             m_shutdownCts.Cancel();
-            DisposeCertificateRotation();
+            m_certRotation.Dispose();
 
             Certificate? clientCertificate;
             CertificateCollection? clientCertificateChain;
@@ -1170,11 +1170,6 @@ namespace Opc.Ua
         private void WireCertificateRotation()
         {
             m_certRotation.WireCertificateRotation();
-        }
-
-        private void DisposeCertificateRotation()
-        {
-            m_certRotation.DisposeCertificateRotation();
         }
 
         ApplicationConfiguration IChannelCertRotationHost.Configuration => Configuration;

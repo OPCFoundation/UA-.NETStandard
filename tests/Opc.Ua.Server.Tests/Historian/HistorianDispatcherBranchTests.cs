@@ -544,6 +544,67 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadInvalidArgument));
         }
 
+        [TestCase(-1d)]
+        [TestCase(double.NaN)]
+        [TestCase(double.NegativeInfinity)]
+        [TestCase(double.PositiveInfinity)]
+        public async Task DispatchProcessedReadWithInvalidProcessingIntervalReturnsBadInvalidArgumentAsync(
+            double processingInterval)
+        {
+            HarnessFixture h = CreateHarness();
+            var nodeId = new NodeId($"negative-interval-{Guid.NewGuid():N}", 1);
+            BaseDataVariableState node = CreateVariable(nodeId);
+            var provider = new Mock<IHistorianProvider>();
+            Mock<IHistorianProcessedProvider> processedProvider =
+                provider.As<IHistorianProcessedProvider>();
+            processedProvider
+                .Setup(p => p.ReadProcessedAsync(
+                    It.IsAny<HistorianOperationContext>(),
+                    It.IsAny<HistorianProcessedReadRequest>(),
+                    It.IsAny<HistorianResumeToken>(),
+                    It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<HistorianPage<DataValue>>(HistorianPage<DataValue>.Empty));
+
+            var details = new ReadProcessedDetails
+            {
+                StartTime = HarnessFixture.BaseTime,
+                EndTime = HarnessFixture.BaseTime.AddMinutes(1),
+                ProcessingInterval = processingInterval,
+                AggregateConfiguration = new AggregateConfiguration
+                {
+                    PercentDataBad = 100,
+                    PercentDataGood = 100
+                }
+            };
+            var nodeToRead = new HistoryReadValueId
+            {
+                NodeId = nodeId,
+                ContinuationPoint = ByteString.Empty
+            };
+
+            var result = new HistoryReadResult();
+            ServiceResult error = await HistorianDispatcher.DispatchProcessedReadAsync(
+                h.SystemContext,
+                provider.Object,
+                node,
+                nodeToRead,
+                details,
+                ObjectIds.AggregateFunction_Average,
+                TimestampsToReturn.Source,
+                result,
+                CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadInvalidArgument));
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadInvalidArgument));
+            processedProvider.Verify(
+                p => p.ReadProcessedAsync(
+                    It.IsAny<HistorianOperationContext>(),
+                    It.IsAny<HistorianProcessedReadRequest>(),
+                    It.IsAny<HistorianResumeToken>(),
+                    It.IsAny<CancellationToken>()),
+                Times.Never);
+        }
+
         [Test]
         public async Task DispatchProcessedReadWithReverseTimeRangeIsNotRejectedAsInvalidArgumentAsync()
         {

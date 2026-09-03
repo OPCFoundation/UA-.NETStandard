@@ -31,7 +31,8 @@ If you are migrating an existing application, the companion
   `IEncodeable` data types from model design XML**, removing hand-written
   boilerplate while staying AOT-clean.
 - **GDS is now Part 12 full-compliance**, with arbitrary certificate groups,
-  custom group support, and modernised Push/Pull APIs.
+  custom group support, modernised Push/Pull APIs, and OPC 10000-21
+  registrar ticket administration backed by the generated Onboarding model.
 - **OPC UA Part 4 §6.6 redundancy plus opt-in distributed high availability.**
   Server and client redundancy (`Server.ServerRedundancy` / `ServiceLevel`,
   `ManagedSession.WithServerRedundancy()`) ship in the box, and new

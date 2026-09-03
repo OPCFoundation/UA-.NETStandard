@@ -586,7 +586,7 @@ namespace Opc.Ua.Server.Tests.Hosting
         public void AddNodeManagerRegistersFluentNodeManagerFactory()
         {
             using ServiceProvider sp = CreateServerBuilder()
-                .AddNodeManager("urn:tests:fluent", builder => builder.Node("ReferenceServer"))
+                .AddNodeManager("urn:tests:fluent", _ => { })
                 .Services.BuildServiceProvider();
 
             OpcUaServerNodeManagerRegistration registration = sp

@@ -15,6 +15,13 @@ applications-database provider ships an in-process LINQ
 implementation; production deployments usually plug a real database
 back-end behind the same `IApplicationsDatabase` surface.
 
+The package also provides the OPC 10000-21 registrar administration
+surface. Load the generated `Opc.Ua.Onboarding` nodes from
+`Opc.Ua.Gds.Common`, then bind `DeviceRegistrarAdminState` to an
+`ITicketStore` with `BindToTicketStore`. `MemoryTicketStore` is provided
+for samples and tests; production hosts should inject a persistent,
+concurrency-safe implementation.
+
 ## Target frameworks
 
 `net472`, `net48`, `netstandard2.1`, `net8.0`, `net9.0`,

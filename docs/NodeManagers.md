@@ -381,6 +381,25 @@ services.AddOpcUa()
     .AddNodeManager(sp => new MyNodeManager(sp.GetRequiredService<ITelemetryContext>()));
 ```
 
+For a one-shot fluent node manager, the callback creates and places the
+complete contributed graph. The hosting API does not add an implicit root:
+
+```csharp
+const string namespaceUri = "urn:example:line";
+
+services.AddOpcUa()
+    .AddServer(o => { /* … */ })
+    .AddNodeManager(namespaceUri, builder =>
+    {
+        ushort namespaceIndex =
+            (ushort)builder.Context.NamespaceUris.GetIndex(namespaceUri);
+        builder.CreateInstance(
+                new QualifiedName("Line", namespaceIndex),
+                parent => new FolderState(parent))
+            .Configure(node => node.UnderObjectsFolder());
+    });
+```
+
 ### Runtime registration
 
 A running server exposes `INodeManagerLifecycle`. Resolve it from dependency injection in a hosted
@@ -1826,6 +1845,29 @@ pump.CreateChild(SystemContext, someBrowseName);        // CreateOrReplace<Child
 await AddPredefinedNodeAsync(SystemContext, pump, cancellationToken);
 ```
 
+The generated factory intentionally returns a graph whose create lifecycle
+has not completed. Node manager registration completes
+`OnBeforeCreate`/`OnAfterCreate` and clears change masks before the graph is
+indexed. Asynchronous predefined-node registration repairs typed instance
+subtrees which still carry null, foreign-namespace, or
+type-declaration-colliding NodeIds first, so lifecycle callbacks see the
+identifiers which enter the address space. NodeIds explicitly assigned in a
+namespace owned by the manager are preserved. Synchronous registration keeps
+the caller's identifiers; fluent helpers which materialise typed subtrees,
+such as the state-machine creators, assign their instance child NodeIds before
+registration. The behavior hook then receives a created node.
+`NodeState.IsCreated` reports whether an individual node has completed that
+lifecycle.
+
+Most callers should configure the graph and then register it as shown above.
+If code must read state established by `OnAfterCreate`, or write state or
+handlers which an `OnAfterCreate` override would replace, call
+`CreateAsPredefinedNode` after assembling the subtree and before that
+ordering-sensitive code. The call is idempotent per node and still completes
+children added since an earlier call. It does not re-run `OnAfterCreate` on
+ancestors which were already created; assemble parent-wired children before
+the parent's first completion, or wire those late children explicitly.
+
 Notes:
 
 * An explicit `browseName` is what marks a *dynamically materialised
@@ -1839,10 +1881,19 @@ Notes:
   `assignInstanceNodeIds: false`: they build declaration subtrees whose
   NodeIds `CreateInstanceOf<Type>` rebases in a single pass afterwards.
   The same parameter is available to you if you need that behaviour.
+* `CreateInstanceOf<Type>` assigns identity but does not call
+  `CreateAsPredefinedNode`. `AddPredefinedNodeAsync`, `AddNodeAsync`, and the
+  synchronous predefined-node registration paths complete the lifecycle
+  automatically.
 * Assignment only happens when the context carries an
   `ISystemContext.NodeIdFactory`. `AsyncCustomNodeManager` supplies one
-  that allocates from the manager's namespace; override `New` to derive
-  ids from the parent chain instead.
+  that allocates null IDs in the manager's default namespace. Registration
+  selectively retries descendants when an asynchronously registered,
+  manager-owned instance subtree still carries foreign declaration IDs, while
+  preserving explicitly assigned IDs in an owned namespace and well-known
+  namespace-zero roots. Synchronous creators must assign typed child IDs before
+  registration. Override `New` only when the address space needs a different
+  stable naming strategy, such as deriving IDs from the parent chain.
 * **A node copy never assigns.** `NodeState.Create(context, source)`
   initialises each child from its source right after creating it, which
   overwrites any NodeId minted along the way — so minting one would only

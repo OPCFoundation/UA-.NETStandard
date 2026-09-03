@@ -568,6 +568,23 @@ namespace Opc.Ua.Server.Historian
             {
                 throw new ArgumentNullException(nameof(result));
             }
+            bool hasContinuationPoint =
+                !nodeToRead.ContinuationPoint.IsEmpty;
+            // Part 11 v1.05.07 §6.5.4.2: the request domain is defined by StartTime, EndTime and
+            // ProcessingInterval, all of which shall be specified. A zero ProcessingInterval is
+            // valid and requests one aggregate over the entire range; negative or non-finite
+            // durations are invalid. If StartTime equals EndTime there is no meaningful way to
+            // interpret the zero-width time domain. A continuation resumes its persisted request,
+            // so validate these wire details only for the initial request.
+            if (!hasContinuationPoint &&
+                (details.StartTime == details.EndTime ||
+                    details.ProcessingInterval < 0 ||
+                    double.IsNaN(details.ProcessingInterval) ||
+                    double.IsInfinity(details.ProcessingInterval)))
+            {
+                result.StatusCode = StatusCodes.BadInvalidArgument;
+                return StatusCodes.BadInvalidArgument;
+            }
             if (aggregateId == ObjectIds.AggregateFunction_AnnotationCount)
             {
                 if (provider is not IHistorianProcessedProvider and
@@ -623,24 +640,6 @@ namespace Opc.Ua.Server.Historian
                     systemContext,
                     cancellationToken).ConfigureAwait(false);
                 return ServiceResult.Good;
-            }
-
-            // Part 11 v1.05.07 §6.5.4.2: the request domain is defined by StartTime, EndTime and
-            // ProcessingInterval, all of which shall be specified. If StartTime equals EndTime there
-            // is no meaningful way to interpret the (zero-width) time domain, so the Server shall
-            // return Bad_InvalidArgument.
-            if (cont == null && details.StartTime == details.EndTime)
-            {
-                result.StatusCode = StatusCodes.BadInvalidArgument;
-                return StatusCodes.BadInvalidArgument;
-            }
-            if (cont == null &&
-                (double.IsNaN(details.ProcessingInterval) ||
-                    double.IsInfinity(details.ProcessingInterval) ||
-                    details.ProcessingInterval < 0))
-            {
-                result.StatusCode = StatusCodes.BadInvalidArgument;
-                return StatusCodes.BadInvalidArgument;
             }
 
             HistorianOperationContext opContext = new(

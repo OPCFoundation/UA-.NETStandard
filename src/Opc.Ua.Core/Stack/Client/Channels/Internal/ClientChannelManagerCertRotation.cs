@@ -29,7 +29,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -38,11 +37,19 @@ using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua
 {
-    internal sealed class ClientChannelManagerCertRotation
+    internal sealed class ClientChannelManagerCertRotation : IDisposable
     {
         public ClientChannelManagerCertRotation(IChannelCertRotationHost host)
         {
             m_host = host;
+            m_pump = new CertificateChangePump<CertificateChangeEvent>(
+                evt => IsApplicationCertificateUpdate(evt) && !m_host.IsDisposed,
+                // Latest-wins debounce: a burst of rotation events collapses
+                // into one reconnect pass over the newest certificate state.
+                (_, evt) => evt,
+                ProcessCertificateChangeAsync,
+                ex => m_host.Logger?.CertRotationLog0(ex),
+                task => m_host.SetCertificateRotationTask(task));
         }
 
         public void UpdateClientCertificate(
@@ -73,93 +80,42 @@ namespace Opc.Ua
                 return;
             }
 
-            m_certificateChangeSubscription = certificateManager.CertificateChanges.Subscribe(
-                new CertificateChangeObserver(this));
+            m_pump.Subscribe(certificateManager.CertificateChanges);
         }
 
-        public void DisposeCertificateRotation()
+        /// <inheritdoc/>
+        public void Dispose()
         {
-            IDisposable? subscription = Interlocked.Exchange(
-                ref m_certificateChangeSubscription,
-                null);
-            subscription?.Dispose();
-
-            lock (m_certificateRotationLock)
-            {
-                m_pendingCertificateChange = null;
-            }
+            m_pump.Dispose();
         }
 
-        private void OnCertificateChanged(CertificateChangeEvent evt)
+        private async ValueTask ProcessCertificateChangeAsync(
+            CertificateChangeEvent evt,
+            CancellationToken ct)
         {
-            if (!IsApplicationCertificateUpdate(evt) ||
-                m_host.IsDisposed)
+            if (m_host.IsDisposed)
             {
                 return;
             }
 
-            lock (m_certificateRotationLock)
+            (Certificate? certificate, CertificateCollection? chain) =
+                await LoadChangedApplicationCertificateAsync(evt, ct)
+                    .ConfigureAwait(false);
+
+            if (certificate == null)
             {
-                m_pendingCertificateChange = evt;
-                if (m_certificateRotationTask != null)
-                {
-                    return;
-                }
-
-                var task = Task.Run(ProcessCertificateChangesAsync, CancellationToken.None);
-                m_certificateRotationTask = task;
-                m_host.SetCertificateRotationTask(task);
+                return;
             }
-        }
 
-        private async Task ProcessCertificateChangesAsync()
-        {
-            while (true)
+            if (m_host.IsDisposed)
             {
-                CertificateChangeEvent? evt;
-                lock (m_certificateRotationLock)
-                {
-                    evt = m_pendingCertificateChange;
-                    m_pendingCertificateChange = null;
-                    if (evt == null)
-                    {
-                        m_certificateRotationTask = null;
-                        m_host.SetCertificateRotationTask(null);
-                        return;
-                    }
-                }
-
-                if (m_host.IsDisposed)
-                {
-                    continue;
-                }
-
-                try
-                {
-                    (Certificate? certificate, CertificateCollection? chain) =
-                        await LoadChangedApplicationCertificateAsync(evt, CancellationToken.None)
-                            .ConfigureAwait(false);
-
-                    if (certificate == null)
-                    {
-                        continue;
-                    }
-
-                    if (m_host.IsDisposed)
-                    {
-                        certificate.Dispose();
-                        chain?.Dispose();
-                        continue;
-                    }
-
-                    UpdateClientCertificate(certificate, chain);
-                    await ReconnectAllAsync(CancellationToken.None).ConfigureAwait(false);
-                }
-                catch (Exception ex)
-                {
-                    m_host.Logger?.CertRotationLog0(ex);
-                }
+                certificate.Dispose();
+                chain?.Dispose();
+                return;
             }
+
+            UpdateClientCertificate(certificate, chain);
+            await ReconnectAllAsync(ct).ConfigureAwait(false);
         }
 
         private async Task<(Certificate? Certificate, CertificateCollection? Chain)>
@@ -384,40 +340,7 @@ namespace Opc.Ua
             return configuredType == effectiveChangedType;
         }
 
-        private sealed class CertificateChangeObserver : IObserver<CertificateChangeEvent>
-        {
-            public CertificateChangeObserver(ClientChannelManagerCertRotation owner)
-            {
-                m_owner = owner;
-            }
-
-            public void OnCompleted()
-            {
-            }
-
-            public void OnError(Exception error)
-            {
-            }
-
-            public void OnNext(CertificateChangeEvent value)
-            {
-                m_owner.OnCertificateChanged(value);
-            }
-
-            private readonly ClientChannelManagerCertRotation m_owner;
-        }
-
-        private readonly Lock m_certificateRotationLock = new();
-
-        [SuppressMessage(
-            "Usage",
-            "CA2213:Disposable fields should be disposed",
-            Justification = "Disposed by DisposeCertificateRotation; " +
-                "TODO: inline if CA2213 learns Interlocked.Exchange disposal tracking.")]
-        private IDisposable? m_certificateChangeSubscription;
-
-        private CertificateChangeEvent? m_pendingCertificateChange;
-        private Task? m_certificateRotationTask;
+        private readonly CertificateChangePump<CertificateChangeEvent> m_pump;
 
         private readonly IChannelCertRotationHost m_host;
     }

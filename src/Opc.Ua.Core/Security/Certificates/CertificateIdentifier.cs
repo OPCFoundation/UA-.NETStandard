@@ -727,7 +727,10 @@ namespace Opc.Ua
 
             for (int ii = 0; ii < m_certificates.Count; ii++)
             {
-                collection.Add(m_certificates[ii].AddRef());
+                // CertificateCollection.Add takes its own independent handle
+                // (AddRef); passing an explicitly AddRef'd wrapper here would
+                // orphan it.
+                collection.Add(m_certificates[ii]);
             }
 
             return Task.FromResult(collection);
@@ -755,7 +758,9 @@ namespace Opc.Ua
                 }
             }
 
-            m_certificates.Add(certificate.AddRef());
+            // CertificateCollection.Add takes its own independent handle
+            // (AddRef); an explicit AddRef here would orphan a wrapper.
+            m_certificates.Add(certificate);
             return Task.CompletedTask;
         }
 
@@ -795,7 +800,9 @@ namespace Opc.Ua
             {
                 if (m_certificates[ii].Thumbprint == thumbprint)
                 {
-                    return Task.FromResult<CertificateCollection>([m_certificates[ii].AddRef()]);
+                    // The collection expression routes through
+                    // CertificateCollection.Add, which AddRefs on its own.
+                    return Task.FromResult<CertificateCollection>([m_certificates[ii]]);
                 }
             }
 

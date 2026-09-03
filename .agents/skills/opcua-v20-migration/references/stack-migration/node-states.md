@@ -113,6 +113,50 @@ protected override void OnAfterCreate(ISystemContext context, NodeState node, Ca
 }
 ```
 
+#### Generated instance factories and the create lifecycle
+
+Source-generated `CreateInstanceOf<Type>` factories materialise the typed node
+graph and assign per-instance NodeIds, but intentionally leave the create
+lifecycle open so callers can finish assembling and configuring the subtree.
+In 2.0, registering the graph through `AddPredefinedNodeAsync`,
+`AddNodeAsync`, or the synchronous predefined-node registration path
+automatically runs `OnBeforeCreate`/`OnAfterCreate` and clears change masks
+before indexing. Asynchronous predefined-node registration repairs typed
+instance subtrees which still carry null, foreign-namespace, or
+type-declaration-colliding NodeIds before the callbacks, so they see the
+identifiers which enter the address space. Explicit NodeIds in a namespace
+owned by the node manager are preserved. Synchronous registration keeps the
+caller's identifiers; fluent helpers which materialise typed subtrees assign
+their instance child NodeIds before registration. `NodeState.IsCreated`
+exposes whether an individual node has completed that lifecycle.
+
+`AddBehaviourToPredefinedNode` and its asynchronous equivalent receive the
+created node. An override which replaces a passive node may therefore observe
+the passive node's lifecycle before returning the active replacement; the
+replacement is also completed before indexing. Keep external lifecycle side
+effects idempotent when using that legacy replacement pattern.
+
+If pre-registration code depends on values established by `OnAfterCreate`, or
+sets state or handlers which an `OnAfterCreate` override would replace, call
+`CreateAsPredefinedNode` first:
+
+```csharp
+MyMachineState machine =
+    context.CreateInstanceOfMyMachineType(parent, browseName);
+
+machine.CreateAsPredefinedNode(context);
+SeedInitialState(machine);
+
+await AddPredefinedNodeAsync(context, machine, cancellationToken);
+```
+
+`CreateAsPredefinedNode` is idempotent per node and still completes newly
+added children. It does not re-run `OnAfterCreate` on an ancestor which was
+already created, so add children whose handlers are wired by a parent callback
+before the parent's first completion, or wire those late children explicitly.
+This prevents duplicate callback execution when an explicitly completed
+subtree is later registered.
+
 #### NodeState FindChild and CreateChild state NodeId assignment
 
 `NodeState.FindChild` and `NodeState.CreateChild` now take

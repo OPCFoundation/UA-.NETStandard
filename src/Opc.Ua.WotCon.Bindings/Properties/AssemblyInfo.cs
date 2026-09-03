@@ -28,13 +28,5 @@
  * ======================================================================*/
 
 using System;
-using System.Runtime.CompilerServices;
 
 [assembly: CLSCompliant(false)]
-
-// The event data builder of WoT Binding Section 6.1 is an implementation
-// detail of the OPC UA channel, and its rules - the nesting, the state
-// Variable's Name member and the collision handling - are exactly what a test
-// has to pin. Exposing it publicly to test it would make an internal shape
-// part of the API.
-[assembly: InternalsVisibleTo("Opc.Ua.WotCon.Bindings.Tests")]

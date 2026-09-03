@@ -453,6 +453,18 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
+        /// Disposes the session but leaves the underlying transport channel
+        /// open: the caller keeps the ownership of the channel and is
+        /// responsible for closing it. Used to honor a close that was
+        /// requested with <c>closeChannel: false</c>.
+        /// </summary>
+        internal async ValueTask DisposeKeepingChannelAsync()
+        {
+            ReleaseChannel();
+            await DisposeAsync().ConfigureAwait(false);
+        }
+
+        /// <summary>
         /// Core async dispose logic for the session.
         /// </summary>
         /// <param name="disposing">True if called from dispose, false otherwise.</param>
@@ -4053,95 +4065,107 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
+        /// Returns true while the transport can still deliver a response for a
+        /// request in flight. <see cref="SessionClient.Connected"/> alone is not
+        /// a transport-health check: it only reports that a session id exists,
+        /// which is still the case while the peer is unreachable and the session
+        /// is reconnecting or its keep alive has stopped.
+        /// </summary>
+        private bool CanReceiveResponses()
+        {
+            if (!Connected || Reconnecting || KeepAliveStopped)
+            {
+                return false;
+            }
+
+            ChannelState? channelState = ManagedChannel?.State;
+
+            return channelState is null or
+                ChannelState.Ready or
+                ChannelState.TransportConnectedSessionReactivating;
+        }
+
+        /// <summary>
         /// Waits for outstanding publish requests to complete or cancels them.
         /// </summary>
         private async Task WaitForOrCancelOutstandingPublishRequestsAsync(CancellationToken ct)
         {
-            // Get outstanding publish requests
-            List<uint> publishRequestHandles = [];
+            // Snapshot the publish requests that are in flight right now. Only
+            // these are waited for: the subscription engine keeps refilling the
+            // publish pipeline, so counting the requests queued after the close
+            // started would keep the wait running to the full timeout even
+            // though everything pending at close time has long completed.
+            int outstandingCount = 0;
+            List<Task> pending = [];
             lock (m_outstandingRequests)
             {
                 foreach (AsyncRequestState state in m_outstandingRequests)
                 {
                     if (state.RequestTypeId == DataTypes.PublishRequest && !state.Defunct)
                     {
-                        publishRequestHandles.Add(state.RequestId);
+                        outstandingCount++;
+
+                        // A response can only still arrive for a request whose
+                        // task has not completed yet.
+                        if (!state.Result.IsCompleted)
+                        {
+                            pending.Add(state.Result);
+                        }
                     }
                 }
             }
 
-            if (publishRequestHandles.Count == 0)
+            if (outstandingCount == 0)
             {
                 m_logger.NoOutstandingPublishRequestsCancel();
                 return;
             }
 
-            m_logger.WaitingCountOutstandingPublishRequestsComplete(publishRequestHandles.Count);
+            m_logger.WaitingCountOutstandingPublishRequestsComplete(outstandingCount);
 
-            // Wait for outstanding requests with timeout
-            if (PublishRequestCancelDelayOnCloseSession != 0)
+            // Wait for the requests in flight, but only while a response can
+            // still arrive: without a live transport the wait would just delay
+            // the close by the full timeout.
+            if (pending.Count > 0 && CanReceiveResponses() &&
+                PublishRequestCancelDelayOnCloseSession != 0)
             {
-                int waitTimeout = PublishRequestCancelDelayOnCloseSession < 0
-                    ? int.MaxValue
-                    : PublishRequestCancelDelayOnCloseSession;
+                TimeSpan waitTimeout = PublishRequestCancelDelayOnCloseSession < 0
+                    ? Timeout.InfiniteTimeSpan
+                    : TimeSpan.FromMilliseconds(PublishRequestCancelDelayOnCloseSession);
 
-                long startTimestamp = m_timeProvider.GetTimestamp();
-                while (true)
+                using var timeoutCancellation = CancellationTokenSource
+                    .CreateLinkedTokenSource(ct);
+                Task completion = WhenAllCompletedAsync(pending);
+                Task timeout = m_timeProvider.Delay(waitTimeout, timeoutCancellation.Token);
+
+                Task completed = await Task.WhenAny(completion, timeout).ConfigureAwait(false);
+
+                await timeoutCancellation.CancelAsync().ConfigureAwait(false);
+
+                if (completed == completion)
                 {
-                    // Check if all publish requests completed
-                    int remainingCount = 0;
-                    lock (m_outstandingRequests)
-                    {
-                        foreach (AsyncRequestState state in m_outstandingRequests)
-                        {
-                            if (state.RequestTypeId == DataTypes.PublishRequest && !state.Defunct)
-                            {
-                                remainingCount++;
-                            }
-                        }
-                    }
-
-                    if (remainingCount == 0)
-                    {
-                        m_logger.AllOutstandingPublishRequestsCompleted();
-                        return;
-                    }
-
-                    // Check timeout
-                    int elapsed = (int)m_timeProvider.GetElapsedTime(startTimestamp).TotalMilliseconds;
-                    if (elapsed >= waitTimeout)
-                    {
-                        m_logger.TimeoutWaitingCountPublishRequestsComplete(remainingCount);
-                        break;
-                    }
-
-                    // Check cancellation
-                    if (ct.IsCancellationRequested)
-                    {
-                        m_logger.CancellationRequestedWhileWaitingPublishRequests();
-                        break;
-                    }
-
-                    // Wait a bit before checking again
-                    try
-                    {
-                        await m_timeProvider.Delay(TimeSpan.FromMilliseconds(100), ct).ConfigureAwait(false);
-                    }
-                    catch (OperationCanceledException)
-                    {
-                        m_logger.CancellationRequestedWhileWaitingPublishRequests();
-                        break;
-                    }
+                    m_logger.AllOutstandingPublishRequestsCompleted();
+                }
+                else if (ct.IsCancellationRequested)
+                {
+                    m_logger.CancellationRequestedWhileWaitingPublishRequests();
+                }
+                else
+                {
+                    m_logger.TimeoutWaitingCountPublishRequestsComplete(pending.Count);
                 }
             }
 
-            // Cancel remaining outstanding publish requests
+            // Cancel the publish requests that are still in flight. A request
+            // whose task already completed needs no Cancel round trip.
             List<uint> requestsToCancel = [];
             lock (m_outstandingRequests)
             {
                 foreach (AsyncRequestState state in m_outstandingRequests)
                 {
-                    if (state.RequestTypeId == DataTypes.PublishRequest && !state.Defunct)
+                    if (state.RequestTypeId == DataTypes.PublishRequest &&
+                        !state.Defunct &&
+                        !state.Result.IsCompleted)
                     {
                         requestsToCancel.Add(state.RequestId);
                     }
@@ -4174,6 +4198,25 @@ namespace Opc.Ua.Client
                             requestHandle,
                             SessionId);
                     }
+                }
+            }
+        }
+
+        /// <summary>
+        /// Completes once all of the supplied tasks completed, ignoring their
+        /// outcome. The publish completion handler reports the failures.
+        /// </summary>
+        private static async Task WhenAllCompletedAsync(List<Task> tasks)
+        {
+            foreach (Task task in tasks)
+            {
+                try
+                {
+                    await task.ConfigureAwait(false);
+                }
+                catch (Exception)
+                {
+                    // Observed by the publish completion handler.
                 }
             }
         }
