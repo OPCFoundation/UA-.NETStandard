@@ -266,6 +266,62 @@ namespace Opc.Ua.XRegistry.Tests
         }
 
         [Test]
+        public async Task DuplicateCreateCanAtomicallyClaimOnlyAContentlessVersionAsync()
+        {
+            var strategy = new ContentlessClaimStrategy();
+            ProjectionHarness harness = ProjectionHarness.Create(suppliedStrategy: strategy);
+            await harness.Engine.AttachAsync(harness.Registry, CancellationToken.None)
+                .ConfigureAwait(false);
+            var group = (GroupState)harness.Added.Single(node => node is GroupState);
+            var output = new List<Variant>();
+
+            ServiceResult claimed = await group.CreateResource!.OnCallMethod2Async!(
+                harness.Context,
+                group.CreateResource,
+                group.NodeId,
+                [
+                    new Variant("pump"),
+                    new Variant("v1"),
+                    new Variant(true)
+                ],
+                output,
+                CancellationToken.None).ConfigureAwait(false);
+            NodeId claimedNodeId = output[0].TryGetValue(out NodeId nodeId)
+                ? nodeId
+                : NodeId.Null;
+            uint claimedFileHandle = output[2].TryGetValue(out uint fileHandle)
+                ? fileHandle
+                : 0;
+
+            strategy.File.HasContent = true;
+            output.Clear();
+            ServiceResult filled = await group.CreateResource.OnCallMethod2Async!(
+                harness.Context,
+                group.CreateResource,
+                group.NodeId,
+                [
+                    new Variant("pump"),
+                    new Variant("v1"),
+                    new Variant(true)
+                ],
+                output,
+                CancellationToken.None).ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(ServiceResult.IsGood(claimed), Is.True);
+                Assert.That(
+                    claimedNodeId,
+                    Is.EqualTo(new NodeId(
+                        "TestRegistry/groups/schemas/resources/pump/versions/v1",
+                        1)));
+                Assert.That(claimedFileHandle, Is.EqualTo(42));
+                Assert.That(strategy.File.ContentlessOpenCount, Is.EqualTo(2));
+                Assert.That(filled.StatusCode, Is.EqualTo(StatusCodes.BadNodeIdExists));
+            });
+        }
+
+        [Test]
         public async Task GenerationCaptureCannotMixProjectionAndEventSnapshotsAsync()
         {
             var strategy = new AdvancingGenerationStrategy(
@@ -1015,7 +1071,7 @@ namespace Opc.Ua.XRegistry.Tests
             {
             }
 
-            public IXRegistryProjectedResourceFile? CreateResourceFile(
+            public virtual IXRegistryProjectedResourceFile? CreateResourceFile(
                 ResourceState node,
                 IXRegistryProjectionResource resource)
             {
@@ -1148,7 +1204,7 @@ namespace Opc.Ua.XRegistry.Tests
             private readonly Queue<XRegistryProjectionGeneration> m_generations;
         }
 
-        private sealed class VersionedTestStrategy :
+        private class VersionedTestStrategy :
             TestStrategy,
             IXRegistryVersionedProjectionStrategy
         {
@@ -1170,7 +1226,7 @@ namespace Opc.Ua.XRegistry.Tests
                     ]);
             }
 
-            public ValueTask<IXRegistryProjectionResource?> CreateResourceAsync(
+            public virtual ValueTask<IXRegistryProjectionResource?> CreateResourceAsync(
                 string groupId,
                 string resourceId,
                 string versionId,
@@ -1317,6 +1373,71 @@ namespace Opc.Ua.XRegistry.Tests
             }
 
             private int m_nextVersion;
+        }
+
+        private sealed class ContentlessClaimStrategy : VersionedTestStrategy
+        {
+            public ContentlessClaimStrategy()
+            {
+                Snapshot = new TestSnapshot(
+                [
+                    new TestGroup(
+                        "schemas",
+                        [new VersionedTestResource("schemas", "pump", "v1")])
+                ]);
+            }
+
+            public ContentlessResourceFile File { get; } = new();
+
+            public override IXRegistryProjectedResourceFile CreateResourceFile(
+                ResourceState node,
+                IXRegistryProjectionResource resource)
+            {
+                return File;
+            }
+
+            public override ValueTask<IXRegistryProjectionResource?> CreateResourceAsync(
+                string groupId,
+                string resourceId,
+                string versionId,
+                CancellationToken ct)
+            {
+                return new ValueTask<IXRegistryProjectionResource?>(
+                    (IXRegistryProjectionResource?)null);
+            }
+        }
+
+        private sealed class ContentlessResourceFile :
+            IXRegistryProjectedResourceFile,
+            IXRegistryProjectedContentlessResourceFile
+        {
+            public bool HasContent { get; set; }
+            public int ContentlessOpenCount { get; private set; }
+
+            public ServiceResult TryOpenWriteHandle(
+                ISystemContext context,
+                out uint fileHandle)
+            {
+                fileHandle = 0;
+                return StatusCodes.BadNotSupported;
+            }
+
+            public ServiceResult TryOpenContentlessWriteHandle(
+                ISystemContext context,
+                out uint fileHandle)
+            {
+                ContentlessOpenCount++;
+                fileHandle = HasContent ? 0u : 42u;
+                return HasContent ? StatusCodes.BadInvalidState : ServiceResult.Good;
+            }
+
+            public void ApplyResource(IXRegistryProjectionResource resource)
+            {
+            }
+
+            public void Dispose()
+            {
+            }
         }
 
         private sealed class TestSnapshot : IXRegistryProjectionSnapshot

@@ -409,6 +409,62 @@ namespace Opc.Ua.WotCon.Tests
         }
 
         [Test]
+        public async Task StalePlaceholderRetryPreservesConcurrentFillAndAllocatesNewVersion()
+        {
+            WotRegistryClient client = await OpenClientAsync().ConfigureAwait(false);
+            WotRegistryGroupClient group = await client
+                .CreateThingDescriptionGroupAsync()
+                .ConfigureAwait(false);
+            (WotRegistryResourceClient clientB, string placeholderId, bool created) =
+                await group.GetOrCreateResourceAsync("atomic-retry")
+                    .ConfigureAwait(false);
+            (WotRegistryResourceClient clientA, string observedId, bool observedCreated) =
+                await group.GetOrCreateResourceAsync("atomic-retry")
+                    .ConfigureAwait(false);
+            byte[] contentB = TestMaterialization.Td("urn:atomic-retry", "client-b");
+            byte[] contentA = TestMaterialization.Td("urn:atomic-retry", "client-a");
+
+            WotRegistryUploadResult uploadB = await clientB
+                .UploadNewVersionAndGetResultAsync(ByteString.From(contentB))
+                .ConfigureAwait(false);
+            WotRegistryUploadResult uploadA = await clientA
+                .UploadNewVersionAndGetResultAsync(ByteString.From(contentA))
+                .ConfigureAwait(false);
+
+            WotResource stored = m_registry.Current.FindResource(
+                WotRegistryGroups.ThingDescriptions,
+                "atomic-retry")!;
+            WotResourceVersion placeholder = stored.FindVersion(placeholderId)!;
+            WotResourceVersion allocated = stored.FindVersion(uploadA.VersionId)!;
+            ByteString storedB = await m_registry.ReadContentAsync(placeholder)
+                .ConfigureAwait(false);
+            ByteString storedA = await m_registry.ReadContentAsync(allocated)
+                .ConfigureAwait(false);
+            ushort ns = m_session.NamespaceUris.GetIndexOrAppend(Namespaces.WotCon);
+            var expectedAllocatedNodeId = new NodeId(
+                $"WoTRegistry/groups/{WotRegistryGroups.ThingDescriptions}/resources/" +
+                $"atomic-retry/versions/{uploadA.VersionId}",
+                ns);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(created, Is.True);
+                Assert.That(observedCreated, Is.False);
+                Assert.That(observedId, Is.EqualTo(placeholderId));
+                Assert.That(uploadB.VersionId, Is.EqualTo(placeholderId));
+                Assert.That(uploadB.ResourceNodeId, Is.EqualTo(clientB.ResourceNodeId));
+                Assert.That(uploadA.VersionId, Is.Not.EqualTo(placeholderId));
+                Assert.That(uploadA.ResourceNodeId, Is.EqualTo(expectedAllocatedNodeId));
+                Assert.That(uploadA.ResourceNodeId, Is.Not.EqualTo(clientA.ResourceNodeId));
+                Assert.That(stored.Versions, Has.Length.EqualTo(2));
+                Assert.That(stored.DefaultVersionId, Is.EqualTo(placeholderId));
+                Assert.That(stored.DesiredVersionId, Is.EqualTo(placeholderId));
+                Assert.That(storedB.ToArray(), Is.EqualTo(contentB));
+                Assert.That(storedA.ToArray(), Is.EqualTo(contentA));
+            });
+        }
+
+        [Test]
         public async Task BulkLoadReportsVersionThatActuallyReceivedBytes()
         {
             WotRegistryClient client = await OpenClientAsync().ConfigureAwait(false);
@@ -438,6 +494,11 @@ namespace Opc.Ua.WotCon.Tests
                 "bulk-version")!;
             WotResourceVersion uploaded = stored.Versions.Single(version =>
                 !string.Equals(version.VersionId, v1Id, StringComparison.Ordinal));
+            ushort ns = m_session.NamespaceUris.GetIndexOrAppend(Namespaces.WotCon);
+            var expectedNodeId = new NodeId(
+                $"WoTRegistry/groups/{WotRegistryGroups.ThingDescriptions}/resources/" +
+                $"bulk-version/versions/{uploaded.VersionId}",
+                ns);
 
             Assert.Multiple(() =>
             {
@@ -446,6 +507,8 @@ namespace Opc.Ua.WotCon.Tests
                 Assert.That(uploaded.HasContent, Is.True);
                 Assert.That(result.Uploaded, Has.Count.EqualTo(1));
                 Assert.That(result.Uploaded[0].VersionId, Is.EqualTo(uploaded.VersionId));
+                Assert.That(result.Uploaded[0].ResourceNodeId, Is.EqualTo(expectedNodeId));
+                Assert.That(result.Uploaded[0].ResourceNodeId, Is.Not.EqualTo(v1.ResourceNodeId));
             });
         }
 

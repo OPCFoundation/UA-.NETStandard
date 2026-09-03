@@ -176,6 +176,22 @@ namespace Opc.Ua.XRegistry.Server
     }
 
     /// <summary>
+    /// Optional additive capability for projections that can atomically claim
+    /// an existing content-less resource for its first write.
+    /// </summary>
+    public interface IXRegistryProjectedContentlessResourceFile
+    {
+        /// <summary>
+        /// Opens a write handle only when the projected resource still has no
+        /// committed content. Returns <see cref="StatusCodes.BadInvalidState"/>
+        /// when another writer has already claimed or filled it.
+        /// </summary>
+        ServiceResult TryOpenContentlessWriteHandle(
+            ISystemContext context,
+            out uint fileHandle);
+    }
+
+    /// <summary>
     /// Supplies the immutable entity metadata needed to derive xRegistry events during reconciliation.
     /// </summary>
     public interface IXRegistryProjectionEventMetadataProvider

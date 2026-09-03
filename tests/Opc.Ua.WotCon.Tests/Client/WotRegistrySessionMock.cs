@@ -233,6 +233,12 @@ namespace Opc.Ua.WotCon.Tests.Client
         public bool ReturnNullContentDigest { get; set; }
 
         /// <summary>
+        /// Whether duplicate <c>CreateResource</c> calls can atomically claim
+        /// an existing content-less Version for writing.
+        /// </summary>
+        public bool SupportsAtomicContentlessFill { get; set; } = true;
+
+        /// <summary>
         /// When set, <c>HasTypeDefinition</c> Browse reports this
         /// ObjectType instead of the one matching the group's kind.
         /// </summary>
@@ -255,6 +261,12 @@ namespace Opc.Ua.WotCon.Tests.Client
         public NodeId ResolveMethodId(ExpandedNodeId methodId)
         {
             return ExpandedNodeId.ToNodeId(methodId, Session.NamespaceUris);
+        }
+
+        public ByteString ContentFor(NodeId resourceNodeId)
+        {
+            (_, ResourceState resource) = FindResource(resourceNodeId);
+            return ByteString.From(resource.Content);
         }
 
         private BrowsePathResult ResolvePath(BrowsePath path)
@@ -300,7 +312,7 @@ namespace Opc.Ua.WotCon.Tests.Client
                 {
                     return resource.NodeId;
                 }
-                foreach (ResourceState versionResource in candidate.Resources.Values)
+                foreach (ResourceState versionResource in candidate.Versions)
                 {
                     if (ExposeContentDigest &&
                         parent == versionResource.NodeId &&
@@ -320,7 +332,7 @@ namespace Opc.Ua.WotCon.Tests.Client
         {
             foreach (GroupState group in m_groups.Values)
             {
-                foreach (ResourceState resource in group.Resources.Values)
+                foreach (ResourceState resource in group.Versions)
                 {
                     if (ExposeContentDigest &&
                         request.NodeId == resource.ContentDigestNodeId &&
@@ -406,7 +418,20 @@ namespace Opc.Ua.WotCon.Tests.Client
                 throw new InvalidOperationException(
                     $"WotRegistrySessionMock: no handler registered for method id {req.MethodId}.");
             }
-            Variant[] outputs = handler(req);
+            Variant[] outputs;
+            try
+            {
+                outputs = handler(req);
+            }
+            catch (ServiceResultException ex)
+            {
+                return new CallMethodResult
+                {
+                    StatusCode = ex.StatusCode,
+                    InputArgumentResults = [],
+                    OutputArguments = []
+                };
+            }
             return new CallMethodResult
             {
                 StatusCode = StatusCodes.Good,
@@ -454,7 +479,29 @@ namespace Opc.Ua.WotCon.Tests.Client
             req.InputArguments[0].TryGetValue(out string resourceId);
             req.InputArguments[1].TryGetValue(out string versionId);
             req.InputArguments[2].TryGetValue(out bool requestFileOpen);
-            ResourceState resource = EnsureResource(group, resourceId, versionId);
+            ResourceState? existing = string.IsNullOrEmpty(versionId)
+                ? null
+                : FindVersion(group, resourceId, versionId);
+            if (existing is not null)
+            {
+                if (!requestFileOpen ||
+                    !SupportsAtomicContentlessFill ||
+                    existing.Content.Length != 0)
+                {
+                    throw new ServiceResultException(StatusCodes.BadNodeIdExists);
+                }
+                uint existingHandle = OpenWriteHandle(existing);
+                return
+                [
+                    new Variant(existing.NodeId),
+                    new Variant(existing.VersionId),
+                    new Variant(existingHandle)
+                ];
+            }
+            string assignedVersionId = string.IsNullOrEmpty(versionId)
+                ? NextVersionId(group, resourceId)
+                : versionId;
+            ResourceState resource = CreateResource(group, resourceId, assignedVersionId);
             uint fileHandle = requestFileOpen ? OpenWriteHandle(resource) : 0;
             return [new Variant(resource.NodeId), new Variant(resource.VersionId), new Variant(fileHandle)];
         }
@@ -465,8 +512,17 @@ namespace Opc.Ua.WotCon.Tests.Client
             req.InputArguments[0].TryGetValue(out string resourceId);
             req.InputArguments[1].TryGetValue(out string versionId);
             req.InputArguments[2].TryGetValue(out bool requestFileOpen);
-            bool existed = group.Resources.ContainsKey(resourceId);
-            ResourceState resource = EnsureResource(group, resourceId, versionId);
+            ResourceState? resource = string.IsNullOrEmpty(versionId)
+                ? group.Resources.GetValueOrDefault(resourceId)
+                : FindVersion(group, resourceId, versionId);
+            bool existed = resource is not null;
+            if (resource is null)
+            {
+                string assignedVersionId = string.IsNullOrEmpty(versionId)
+                    ? NextVersionId(group, resourceId)
+                    : versionId;
+                resource = CreateResource(group, resourceId, assignedVersionId);
+            }
             uint fileHandle = requestFileOpen ? OpenWriteHandle(resource) : 0;
             return
             [
@@ -477,25 +533,54 @@ namespace Opc.Ua.WotCon.Tests.Client
             ];
         }
 
-        private static ResourceState EnsureResource(GroupState group, string resourceId, string versionId)
+        private ResourceState CreateResource(
+            GroupState group,
+            string resourceId,
+            string versionId)
         {
-            if (!group.Resources.TryGetValue(resourceId, out ResourceState? resource))
+            var resource = new ResourceState
             {
-                resource = new ResourceState
-                {
-                    NodeId = new NodeId(
-                        "WoTRegistry/groups/" + group.GroupId + "/resources/" + resourceId,
-                        group.NodeId.NamespaceIndex),
-                    ContentDigestNodeId = new NodeId(
-                        "WoTRegistry/groups/" + group.GroupId + "/resources/" + resourceId +
-                        "/ContentDigest",
-                        group.NodeId.NamespaceIndex),
-                    ResourceId = resourceId,
-                    VersionId = string.IsNullOrEmpty(versionId) ? "1" : versionId
-                };
+                NodeId = new NodeId(
+                    "WoTRegistry/groups/" + group.GroupId + "/resources/" + resourceId +
+                    "/versions/" + versionId,
+                    group.NodeId.NamespaceIndex),
+                ContentDigestNodeId = new NodeId(
+                    "WoTRegistry/groups/" + group.GroupId + "/resources/" + resourceId +
+                    "/versions/" + versionId + "/ContentDigest",
+                    group.NodeId.NamespaceIndex),
+                ResourceId = resourceId,
+                VersionId = versionId
+            };
+            group.Versions.Add(resource);
+            if (!group.Resources.ContainsKey(resourceId))
+            {
                 group.Resources[resourceId] = resource;
             }
             return resource;
+        }
+
+        private static ResourceState? FindVersion(
+            GroupState group,
+            string resourceId,
+            string versionId)
+        {
+            return group.Versions.FirstOrDefault(candidate =>
+                string.Equals(candidate.ResourceId, resourceId, StringComparison.Ordinal) &&
+                string.Equals(candidate.VersionId, versionId, StringComparison.Ordinal));
+        }
+
+        private static string NextVersionId(GroupState group, string resourceId)
+        {
+            int next = 1;
+            foreach (ResourceState candidate in group.Versions)
+            {
+                if (string.Equals(candidate.ResourceId, resourceId, StringComparison.Ordinal) &&
+                    int.TryParse(candidate.VersionId, out int value))
+                {
+                    next = Math.Max(next, value + 1);
+                }
+            }
+            return next.ToString(System.Globalization.CultureInfo.InvariantCulture);
         }
 
         private GroupState FindGroup(NodeId groupNodeId)
@@ -521,6 +606,11 @@ namespace Opc.Ua.WotCon.Tests.Client
         {
             (GroupState group, ResourceState resource) = FindResource(req.ObjectId);
             group.Resources.Remove(resource.ResourceId);
+            group.Versions.RemoveAll(candidate =>
+                string.Equals(
+                    candidate.ResourceId,
+                    resource.ResourceId,
+                    StringComparison.Ordinal));
             return [];
         }
 
@@ -549,9 +639,13 @@ namespace Opc.Ua.WotCon.Tests.Client
 
         private Variant[] OnSetDefaultVersion(CallMethodRequest req)
         {
-            (_, ResourceState resource) = FindResource(req.ObjectId);
+            (GroupState group, ResourceState resource) = FindResource(req.ObjectId);
             req.InputArguments[0].TryGetValue(out string versionId);
-            resource.VersionId = versionId;
+            ResourceState? selected = FindVersion(group, resource.ResourceId, versionId);
+            if (selected is not null)
+            {
+                group.Resources[resource.ResourceId] = selected;
+            }
             return [];
         }
 
@@ -559,7 +653,7 @@ namespace Opc.Ua.WotCon.Tests.Client
         {
             foreach (GroupState group in m_groups.Values)
             {
-                foreach (ResourceState resource in group.Resources.Values)
+                foreach (ResourceState resource in group.Versions)
                 {
                     if (resource.NodeId == resourceNodeId)
                     {
@@ -685,6 +779,7 @@ namespace Opc.Ua.WotCon.Tests.Client
             public string GroupId = string.Empty;
             public WoTDocumentKindEnum Kind;
             public readonly Dictionary<string, ResourceState> Resources = new(StringComparer.Ordinal);
+            public readonly List<ResourceState> Versions = [];
         }
 
         private sealed class ResourceState

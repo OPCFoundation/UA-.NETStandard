@@ -242,26 +242,53 @@ namespace Opc.Ua.WotCon.Server
 
             if (node is ThingDescriptionFileState td)
             {
+                bool useResourceDocumentId =
+                    m_registry is not IWotVersionedRegistryService ||
+                    resource.Versions.All(candidate =>
+                        string.IsNullOrWhiteSpace(candidate.DocumentId));
+                bool useResourceTitle =
+                    m_registry is not IWotVersionedRegistryService ||
+                    resource.Versions.All(candidate =>
+                        string.IsNullOrWhiteSpace(candidate.Title));
                 XRegistryProjectionEngine.SetValue(
                     td.ThingId,
-                    version?.DocumentId ?? string.Empty);
+                    SelectVersionMetadata(
+                        version?.DocumentId,
+                        useResourceDocumentId ? resource.ThingId : null));
                 XRegistryProjectionEngine.SetValue(
                     td.ThingTitle,
-                    version?.Title ?? string.Empty);
+                    SelectVersionMetadata(
+                        version?.Title,
+                        useResourceTitle ? resource.Title : null));
                 XRegistryProjectionEngine.SetValue(
                     td.BaseUri,
                     version?.BaseUri ?? string.Empty);
             }
             else if (node is ThingModelFileState tmNode)
             {
+                bool useResourceTitle =
+                    m_registry is not IWotVersionedRegistryService ||
+                    resource.Versions.All(candidate =>
+                        string.IsNullOrWhiteSpace(candidate.Title));
                 XRegistryProjectionEngine.SetValue(
                     tmNode.ModelTitle,
-                    version?.Title ?? string.Empty);
+                    SelectVersionMetadata(
+                        version?.Title,
+                        useResourceTitle ? resource.Title : null));
                 XRegistryProjectionEngine.SetValue(
                     tmNode.ModelVersion,
                     version?.ModelVersion ?? string.Empty);
                 XRegistryProjectionEngine.SetValue(tmNode.DerivedTypeNodeId, resource.RootNodeId);
             }
+        }
+
+        private static string SelectVersionMetadata(string? value, string? fallback)
+        {
+            return !string.IsNullOrWhiteSpace(value)
+                ? value!
+                : !string.IsNullOrWhiteSpace(fallback)
+                    ? fallback!
+                    : string.Empty;
         }
 
         private WotResourceFileManager CreateResourceFile(WoTDocumentState node, WotResource resource)
@@ -1162,7 +1189,9 @@ namespace Opc.Ua.WotCon.Server
             public bool IsDefaultVersion => true;
         }
 
-        private sealed class ResourceFileAdapter : IXRegistryProjectedResourceFile
+        private sealed class ResourceFileAdapter :
+            IXRegistryProjectedResourceFile,
+            IXRegistryProjectedContentlessResourceFile
         {
             public ResourceFileAdapter(
                 WotResourceFileManager file,
@@ -1183,6 +1212,16 @@ namespace Opc.Ua.WotCon.Server
                     ? sessionContext.SessionId.GetValueOrDefault()
                     : NodeId.Null;
                 return m_file.TryOpenWriteHandle(sessionId, out fileHandle);
+            }
+
+            public ServiceResult TryOpenContentlessWriteHandle(
+                ISystemContext context,
+                out uint fileHandle)
+            {
+                NodeId sessionId = context is ISessionSystemContext sessionContext
+                    ? sessionContext.SessionId.GetValueOrDefault()
+                    : NodeId.Null;
+                return m_file.TryOpenContentlessWriteHandle(sessionId, out fileHandle);
             }
 
             public void ApplyResource(IXRegistryProjectionResource resource)

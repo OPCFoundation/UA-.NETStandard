@@ -165,19 +165,22 @@ namespace Opc.Ua.WotCon.Server.Registry
         /// </summary>
         public void UpdatePersistedContent(WotResourceVersion? version, string? mimeType)
         {
-            CurrentContentKey = version?.DigestHex ?? string.Empty;
-            CurrentContentLength = version?.ContentLength ?? 0;
-            if (m_file.Size is not null)
+            lock (m_handlesLock)
             {
-                m_file.Size.Value = (ulong)CurrentContentLength;
-            }
-            if (m_file.LastModifiedTime is not null)
-            {
-                m_file.LastModifiedTime.Value = version?.ModifiedAt ?? DateTime.UtcNow;
-            }
-            if (mimeType is not null && m_file.MimeType is not null)
-            {
-                m_file.MimeType.Value = mimeType;
+                CurrentContentKey = version?.DigestHex ?? string.Empty;
+                CurrentContentLength = version?.ContentLength ?? 0;
+                if (m_file.Size is not null)
+                {
+                    m_file.Size.Value = (ulong)CurrentContentLength;
+                }
+                if (m_file.LastModifiedTime is not null)
+                {
+                    m_file.LastModifiedTime.Value = version?.ModifiedAt ?? DateTime.UtcNow;
+                }
+                if (mimeType is not null && m_file.MimeType is not null)
+                {
+                    m_file.MimeType.Value = mimeType;
+                }
             }
         }
 
@@ -208,29 +211,31 @@ namespace Opc.Ua.WotCon.Server.Registry
         /// </summary>
         public ServiceResult TryOpenWriteHandle(NodeId sessionId, out uint fileHandle)
         {
-            fileHandle = 0;
             lock (m_handlesLock)
             {
-                if (m_handles.Count >= m_maxHandles)
-                {
-                    return StatusCodes.BadTooManyOperations;
-                }
-                if (m_writingHandle != 0)
-                {
-                    return ServiceResult.Create(
-                        StatusCodes.BadNotWritable, "Another writer is already open on this file.");
-                }
-                fileHandle = ++m_nextHandle;
-                m_handles.Add(
-                    fileHandle,
-                    Handle.OpenWrite(sessionId, CurrentContentKey, CurrentContentLength));
-                m_writingHandle = fileHandle;
-                if (m_file.OpenCount is not null)
-                {
-                    m_file.OpenCount.Value = (ushort)m_handles.Count;
-                }
+                return TryOpenWriteHandleLocked(sessionId, out fileHandle);
             }
-            return ServiceResult.Good;
+        }
+
+        /// <summary>
+        /// Opens a write handle only while this Version is still content-less.
+        /// The content check and writer reservation use the same lock.
+        /// </summary>
+        public ServiceResult TryOpenContentlessWriteHandle(
+            NodeId sessionId,
+            out uint fileHandle)
+        {
+            lock (m_handlesLock)
+            {
+                if (!string.IsNullOrEmpty(CurrentContentKey) || m_writingHandle != 0)
+                {
+                    fileHandle = 0;
+                    return ServiceResult.Create(
+                        StatusCodes.BadInvalidState,
+                        "The Version already contains content or is being filled.");
+                }
+                return TryOpenWriteHandleLocked(sessionId, out fileHandle);
+            }
         }
 
         public void Dispose()
@@ -254,6 +259,32 @@ namespace Opc.Ua.WotCon.Server.Registry
             => context is ISessionSystemContext sessionContext
                 ? sessionContext.SessionId.GetValueOrDefault()
                 : NodeId.Null;
+
+        private ServiceResult TryOpenWriteHandleLocked(
+            NodeId sessionId,
+            out uint fileHandle)
+        {
+            fileHandle = 0;
+            if (m_handles.Count >= m_maxHandles)
+            {
+                return StatusCodes.BadTooManyOperations;
+            }
+            if (m_writingHandle != 0)
+            {
+                return ServiceResult.Create(
+                    StatusCodes.BadNotWritable, "Another writer is already open on this file.");
+            }
+            fileHandle = ++m_nextHandle;
+            m_handles.Add(
+                fileHandle,
+                Handle.OpenWrite(sessionId, CurrentContentKey, CurrentContentLength));
+            m_writingHandle = fileHandle;
+            if (m_file.OpenCount is not null)
+            {
+                m_file.OpenCount.Value = (ushort)m_handles.Count;
+            }
+            return ServiceResult.Good;
+        }
 
         private ServiceResult OnOpen(
             ISystemContext context, MethodState method, NodeId objectId, byte mode, ref uint fileHandle)

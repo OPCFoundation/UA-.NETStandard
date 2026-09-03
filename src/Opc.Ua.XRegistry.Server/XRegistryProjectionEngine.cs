@@ -776,6 +776,22 @@ namespace Opc.Ua.XRegistry.Server
                     .ConfigureAwait(false);
             if (resource is null)
             {
+                if (requestOpen)
+                {
+                    (bool handled, ServiceResult result) =
+                        await TryOpenExistingContentlessResourceAsync(
+                                groupId,
+                                resourceId!,
+                                versionId,
+                                context,
+                                output,
+                                ct)
+                            .ConfigureAwait(false);
+                    if (handled)
+                    {
+                        return result;
+                    }
+                }
                 return ServiceResult.Create(
                     StatusCodes.BadNodeIdExists,
                     $"Resource '{resourceId}' already exists in group '{groupId}'.");
@@ -789,6 +805,56 @@ namespace Opc.Ua.XRegistry.Server
                 created: null,
                 ct)
                 .ConfigureAwait(false);
+        }
+
+        private async ValueTask<(bool Handled, ServiceResult Result)>
+            TryOpenExistingContentlessResourceAsync(
+            string groupId,
+            string resourceId,
+            string versionId,
+            ISystemContext context,
+            List<Variant> output,
+            CancellationToken ct)
+        {
+            await m_gate.WaitAsync(ct).ConfigureAwait(false);
+            try
+            {
+                var key = new ResourceEntryKey(
+                    resourceId,
+                    m_versionedStrategy is null ? string.Empty : versionId);
+                if (!m_groups.TryGetValue(groupId, out GroupEntry? group) ||
+                    !group.Resources.TryGetValue(key, out ResourceEntry? entry) ||
+                    entry.File is not IXRegistryProjectedContentlessResourceFile contentlessFile)
+                {
+                    return (false, ServiceResult.Good);
+                }
+
+                ServiceResult open = contentlessFile.TryOpenContentlessWriteHandle(
+                    context,
+                    out uint fileHandle);
+                if (ServiceResult.IsBad(open))
+                {
+                    if (open.StatusCode == StatusCodes.BadInvalidState)
+                    {
+                        return (
+                            true,
+                            ServiceResult.Create(
+                                StatusCodes.BadNodeIdExists,
+                                $"Resource '{resourceId}' already contains document content."));
+                    }
+                    return (true, open);
+                }
+
+                output.Clear();
+                output.Add(new Variant(entry.Node.NodeId));
+                output.Add(new Variant(entry.VersionId));
+                output.Add(new Variant(fileHandle));
+                return (true, ServiceResult.Good);
+            }
+            finally
+            {
+                m_gate.Release();
+            }
         }
 
         private async ValueTask<ServiceResult> OnGetOrCreateResourceAsync(

@@ -142,6 +142,8 @@ namespace Opc.Ua.WotCon.Client
                 resourceId,
                 versionIdOut,
                 pendingStructuralVersion: created);
+            // This read only selects the conditional-fill path. The server
+            // rechecks content state atomically before returning a write handle.
             if (!created &&
                 await resource.HasContentAsync(ct).ConfigureAwait(false) == false)
             {

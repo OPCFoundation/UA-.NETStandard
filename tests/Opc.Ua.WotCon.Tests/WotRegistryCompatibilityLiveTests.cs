@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.IO;
 using System.Linq;
 using System.Threading;
@@ -54,7 +55,7 @@ namespace Opc.Ua.WotCon.Tests
     public sealed class WotRegistryCompatibilityLiveTests
     {
         [Test]
-        public async Task RegistryWithoutOptionalVersionCapabilitySupportsDefaultLifecycle()
+        public async Task RegistryWithoutOptionalVersionCapabilityPreservesLifecycleAndLegacyMetadata()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             string pkiRoot = Path.Combine(
@@ -145,6 +146,31 @@ namespace Opc.Ua.WotCon.Tests
                 WotResource stored = inner.Current.FindResource(
                     WotRegistryGroups.ThingDescriptions,
                     "legacy")!;
+                var projectedTd = (ThingDescriptionFileState)projectedResource;
+                bool tdMetadataProjected = await WaitForAsync(() =>
+                    string.Equals(projectedTd.ThingId?.Value, "urn:legacy", StringComparison.Ordinal) &&
+                    string.Equals(
+                        projectedTd.ThingTitle?.Value,
+                        "urn:legacy-1",
+                        StringComparison.Ordinal)).ConfigureAwait(false);
+
+                WotRegistryGroupClient modelGroup = await client
+                    .CreateThingModelGroupAsync()
+                    .ConfigureAwait(false);
+                (WotRegistryResourceClient model, _) = await modelGroup
+                    .CreateResourceAsync("legacy-model")
+                    .ConfigureAwait(false);
+                await model.UploadNewVersionAsync(
+                        ByteString.From(TestMaterialization.Tm("urn:legacy-model")))
+                    .ConfigureAwait(false);
+                var projectedModel = nodeManager.FindPredefinedNode<ThingModelFileState>(
+                    model.ResourceNodeId)!;
+                bool modelMetadataProjected = await WaitForAsync(() =>
+                    string.Equals(
+                        projectedModel.ModelTitle?.Value,
+                        "urn:legacy-model-1",
+                        StringComparison.Ordinal)).ConfigureAwait(false);
+
                 await resource.SetEnabledAsync(false, expectedEpoch: 0).ConfigureAwait(false);
                 await resource.SetDefaultVersionAsync(
                         stored.DefaultVersionId!,
@@ -158,6 +184,10 @@ namespace Opc.Ua.WotCon.Tests
                     Assert.That(materialized, Is.True);
                     Assert.That(validation.FormatOutcome, Is.EqualTo(WoTOutcomeEnum.Success));
                     Assert.That(stored.DefaultVersion, Is.Not.Null);
+                    Assert.That(stored.ThingId, Is.EqualTo("urn:legacy"));
+                    Assert.That(stored.Title, Is.EqualTo("urn:legacy-1"));
+                    Assert.That(tdMetadataProjected, Is.True);
+                    Assert.That(modelMetadataProjected, Is.True);
                     Assert.That(
                         reportedEvents.Any(evt =>
                             evt is WoTResourceEventState &&
@@ -200,16 +230,13 @@ namespace Opc.Ua.WotCon.Tests
             public LegacyOnlyRegistryService(IWotRegistryService inner)
             {
                 m_inner = inner;
+                m_inner.Changed += OnInnerChanged;
             }
 
-            public WotRegistrySnapshot Current => m_inner.Current;
+            public WotRegistrySnapshot Current => WithoutVersionMetadata(m_inner.Current);
             public WotRegistryPersistenceBounds Bounds => m_inner.Bounds;
 
-            public event EventHandler<WotRegistryChangedEventArgs>? Changed
-            {
-                add => m_inner.Changed += value;
-                remove => m_inner.Changed -= value;
-            }
+            public event EventHandler<WotRegistryChangedEventArgs>? Changed;
 
             public ValueTask InitializeAsync(CancellationToken cancellationToken = default)
                 => m_inner.InitializeAsync(cancellationToken);
@@ -393,6 +420,56 @@ namespace Opc.Ua.WotCon.Tests
                 IReadOnlyList<WotResourceProjection> projections,
                 CancellationToken cancellationToken = default)
                 => m_inner.ApplyProjectionResultsAsync(projections, cancellationToken);
+
+            private void OnInnerChanged(object? sender, WotRegistryChangedEventArgs e)
+            {
+                Changed?.Invoke(
+                    this,
+                    new WotRegistryChangedEventArgs(
+                        WithoutVersionMetadata(e.Previous),
+                        WithoutVersionMetadata(e.Current),
+                        e.ChangedResourceXids,
+                        e.ProjectionOnly));
+            }
+
+            private static WotRegistrySnapshot WithoutVersionMetadata(
+                WotRegistrySnapshot snapshot)
+            {
+                ImmutableDictionary<string, WotResourceGroup> groups = snapshot.Groups
+                    .ToImmutableDictionary(
+                        pair => pair.Key,
+                        pair =>
+                        {
+                            ImmutableDictionary<string, WotResource> resources =
+                                pair.Value.Resources.ToImmutableDictionary(
+                                    resource => resource.Key,
+                                    resource => resource.Value.With(
+                                        versions: resource.Value.Versions
+                                            .Select(WithoutVersionMetadata)
+                                            .ToImmutableArray()));
+                            return pair.Value.WithResources(resources, pair.Value.Epoch);
+                        });
+                return new WotRegistrySnapshot(snapshot.Generation, groups, snapshot.Labels);
+            }
+
+            private static WotResourceVersion WithoutVersionMetadata(
+                WotResourceVersion version)
+            {
+                return new WotResourceVersion(
+                    version.VersionId,
+                    version.Digest,
+                    version.ContentLength,
+                    version.ContentType,
+                    version.Format,
+                    version.CreatedAt,
+                    version.ModifiedAt)
+                {
+                    Epoch = version.Epoch,
+                    Labels = version.Labels,
+                    HasContent = version.HasContent,
+                    Validation = version.Validation
+                };
+            }
 
             private readonly IWotRegistryService m_inner;
         }

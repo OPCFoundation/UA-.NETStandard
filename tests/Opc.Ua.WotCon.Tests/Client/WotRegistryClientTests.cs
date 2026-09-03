@@ -299,10 +299,39 @@ namespace Opc.Ua.WotCon.Tests.Client
                 Assert.That(retryVersionId, Is.EqualTo(firstVersionId));
                 Assert.That(
                     mock.Capture.Count(request => request.MethodId == createResourceMethodId),
-                    Is.Zero,
-                    "The retry must fill the returned placeholder rather than allocate a Version.");
+                    Is.EqualTo(1),
+                    "The retry must atomically claim the returned placeholder.");
                 Assert.That(first.ResourceNodeId, Is.EqualTo(retry.ResourceNodeId));
                 Assert.That(retry.HasContent, Is.True);
+            });
+        }
+
+        [Test]
+        public async Task PendingPlaceholderAllocatesNewVersionWhenAtomicClaimIsUnavailableAsync()
+        {
+            var mock = new WotRegistrySessionMock
+            {
+                SupportsAtomicContentlessFill = false
+            };
+            WotRegistryClient client = await WotRegistryClient
+                .ForServerAsync(mock.Session, CreateTelemetry())
+                .ConfigureAwait(false);
+            WotRegistryGroupClient group = await client
+                .CreateThingDescriptionGroupAsync().ConfigureAwait(false);
+            (WotRegistryResourceClient placeholder, string placeholderVersionId, _) =
+                await group.GetOrCreateResourceAsync("legacy-claim").ConfigureAwait(false);
+
+            byte[] content = Encoding.UTF8.GetBytes("new-version");
+            WotRegistryUploadResult upload = await placeholder
+                .UploadNewVersionAndGetResultAsync(ByteString.From(content))
+                .ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(upload.VersionId, Is.Not.EqualTo(placeholderVersionId));
+                Assert.That(upload.ResourceNodeId, Is.Not.EqualTo(placeholder.ResourceNodeId));
+                Assert.That(mock.ContentFor(placeholder.ResourceNodeId).Length, Is.Zero);
+                Assert.That(mock.ContentFor(upload.ResourceNodeId).ToArray(), Is.EqualTo(content));
             });
         }
 
