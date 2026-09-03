@@ -122,6 +122,33 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
+        public void PublishWithMaximumTimeoutQueuesRequest()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            var subscriptionManager = new Mock<ISubscriptionManager>();
+            var server = new Mock<IServerInternal>();
+            server.Setup(s => s.Telemetry).Returns(telemetry);
+            server.Setup(s => s.SubscriptionManager).Returns(subscriptionManager.Object);
+
+            var session = new Mock<ISession>();
+            session.Setup(s => s.Id).Returns(new NodeId(Guid.NewGuid()));
+            session.Setup(s => s.IsSecureChannelValid(It.IsAny<string>())).Returns(true);
+
+            using var queue = new SessionPublishQueue(server.Object, session.Object, 10);
+            var subscription = new Mock<ISubscription>();
+            subscription.Setup(s => s.Id).Returns(1);
+            queue.Add(subscription.Object);
+
+            Task<ISubscription> publishTask = queue.PublishAsync(
+                "channel1",
+                DateTime.UtcNow.AddMilliseconds(uint.MaxValue),
+                false,
+                CancellationToken.None);
+
+            Assert.That(publishTask.IsCompleted, Is.False);
+        }
+
+        [Test]
         [CancelAfter(10000)]
         public async Task PublishTimerPreservesReadySubscriptionTimestampOrderAsync()
         {

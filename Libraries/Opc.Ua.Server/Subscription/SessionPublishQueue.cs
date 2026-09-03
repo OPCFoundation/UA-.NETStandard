@@ -573,10 +573,70 @@ namespace Opc.Ua.Server
                 TimeSpan timeOut = operationTimeout < DateTime.MaxValue ? operationTimeout.AddMilliseconds(500) - DateTime.UtcNow : TimeSpan.Zero;
                 if (operationTimeout < DateTime.MaxValue && timeOut.TotalMilliseconds > 0)
                 {
-                    m_cancellationTokenSource = new CancellationTokenSource(timeOut);
+                    m_cancellationTokenSource = CreateCancellationTokenSource(timeOut);
                     m_cancellationTokenRegistration2 = m_cancellationTokenSource.Token.Register(
                     () => Tcs.TrySetException(new ServiceResultException(StatusCodes.BadTimeout)));
                 }
+            }
+
+            private static CancellationTokenSource CreateCancellationTokenSource(TimeSpan delay)
+            {
+                // uint.MaxValue is reserved by the underlying timer for an infinite delay.
+                TimeSpan maximumTimerDelay = TimeSpan.FromMilliseconds(uint.MaxValue - 1u);
+                if (delay > maximumTimerDelay)
+                {
+                    delay = maximumTimerDelay;
+                }
+
+                // The .NET Framework CancellationTokenSource constructor only accepts
+                // delays up to int.MaxValue milliseconds. Timer supports the full range.
+                if (delay.TotalMilliseconds > int.MaxValue)
+                {
+                    return new TimerCancellationTokenSource(delay);
+                }
+
+                return new CancellationTokenSource(delay);
+            }
+
+            private sealed class TimerCancellationTokenSource : CancellationTokenSource
+            {
+                public TimerCancellationTokenSource(TimeSpan delay)
+                {
+                    Timer timer = new Timer(
+                        state =>
+                        {
+                            var source = (TimerCancellationTokenSource)state;
+                            try
+                            {
+                                source.Cancel();
+                            }
+                            catch (ObjectDisposedException)
+                            {
+                            }
+                        },
+                        this,
+                        delay,
+                        Timeout.InfiniteTimeSpan);
+                    m_timer = timer;
+                    m_timerRegistration = Token.Register(
+                        state => ((Timer)state).Dispose(),
+                        timer);
+                }
+
+                protected override void Dispose(bool disposing)
+                {
+                    if (disposing)
+                    {
+                        m_timerRegistration.Dispose();
+                        m_timer?.Dispose();
+                        m_timer = null;
+                    }
+
+                    base.Dispose(disposing);
+                }
+
+                private Timer m_timer;
+                private CancellationTokenRegistration m_timerRegistration;
             }
 
             public void Dispose()
