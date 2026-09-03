@@ -187,6 +187,52 @@ namespace Opc.Ua.XRegistry.Server
     }
 
     /// <summary>
+    /// Captures the browseable projection and event metadata from one immutable generation.
+    /// </summary>
+    public interface IXRegistryProjectionGenerationProvider
+    {
+        /// <summary>
+        /// Captures one generation-bound projection bundle.
+        /// </summary>
+        XRegistryProjectionGeneration CaptureProjectionGeneration();
+    }
+
+    /// <summary>
+    /// One immutable projection generation.
+    /// </summary>
+    public sealed record XRegistryProjectionGeneration(
+        IXRegistryProjectionSnapshot Projection,
+        XRegistryProjectionEventSnapshot? Events);
+
+    /// <summary>
+    /// Supplies Resource Meta independently from the projected Version properties.
+    /// </summary>
+    public interface IXRegistryProjectionResourceMeta
+    {
+        /// <summary>Gets the logical Resource Meta epoch.</summary>
+        long MetaEpoch { get; }
+
+        /// <summary>Gets the logical Resource Meta labels.</summary>
+        ImmutableSortedDictionary<string, string> MetaLabels { get; }
+
+        /// <summary>Gets the logical Resource Meta creation time.</summary>
+        DateTime MetaCreatedAt { get; }
+
+        /// <summary>Gets the logical Resource Meta modification time.</summary>
+        DateTime MetaModifiedAt { get; }
+
+        /// <summary>Gets whether this Version is the committed default Version.</summary>
+        bool IsDefaultVersion { get; }
+    }
+
+    /// <summary>
+    /// Canonical snapshot of an optional xRegistry deprecated object.
+    /// </summary>
+    public sealed record XRegistryProjectionDeprecation(
+        string CanonicalValue,
+        ImmutableSortedDictionary<string, string> Details);
+
+    /// <summary>
     /// Immutable event-relevant registry snapshot.
     /// </summary>
     public sealed record XRegistryProjectionEventSnapshot(
@@ -204,7 +250,20 @@ namespace Opc.Ua.XRegistry.Server
         uint Epoch,
         ImmutableSortedDictionary<string, string> Labels,
         bool Deprecated,
-        ImmutableArray<XRegistryProjectionEventResource> Resources);
+        ImmutableArray<XRegistryProjectionEventResource> Resources)
+    {
+        /// <summary>Gets the materialized group node used as the event source.</summary>
+        public NodeId SourceNodeId { get; init; }
+
+        /// <summary>Gets the source name retained for deleted events.</summary>
+        public string? SourceName { get; init; }
+
+        /// <summary>
+        /// Gets the canonical deprecated object. When absent, <see cref="Deprecated"/> is used as
+        /// the compatibility representation.
+        /// </summary>
+        public XRegistryProjectionDeprecation? Deprecation { get; init; }
+    }
 
     /// <summary>
     /// Immutable event-relevant resource snapshot.
@@ -218,7 +277,26 @@ namespace Opc.Ua.XRegistry.Server
         ImmutableSortedDictionary<string, string> Labels,
         bool Deprecated,
         string? DefaultVersionId,
-        ImmutableArray<XRegistryProjectionEventVersion> Versions);
+        ImmutableArray<XRegistryProjectionEventVersion> Versions)
+    {
+        /// <summary>Gets the default Version file used as the Resource event source.</summary>
+        public NodeId SourceNodeId { get; init; }
+
+        /// <summary>Gets the source name retained for deleted events.</summary>
+        public string? SourceName { get; init; }
+
+        /// <summary>Gets the Resource Meta creation time.</summary>
+        public DateTime MetaCreatedAt { get; init; }
+
+        /// <summary>Gets the Resource Meta modification time.</summary>
+        public DateTime MetaModifiedAt { get; init; }
+
+        /// <summary>
+        /// Gets the canonical Resource Meta deprecated object. When absent,
+        /// <see cref="Deprecated"/> is used as the compatibility representation.
+        /// </summary>
+        public XRegistryProjectionDeprecation? Deprecation { get; init; }
+    }
 
     /// <summary>
     /// Immutable event-relevant version snapshot.
@@ -227,7 +305,24 @@ namespace Opc.Ua.XRegistry.Server
         string VersionId,
         string Xid,
         uint Epoch,
-        ImmutableSortedDictionary<string, string> Attributes);
+        ImmutableSortedDictionary<string, string> Attributes)
+    {
+        /// <summary>Gets the materialized Version file used as the event source.</summary>
+        public NodeId SourceNodeId { get; init; }
+
+        /// <summary>Gets the source name retained for deleted events.</summary>
+        public string? SourceName { get; init; }
+
+        /// <summary>Gets the Version labels.</summary>
+        public ImmutableSortedDictionary<string, string> Labels { get; init; } =
+            ImmutableSortedDictionary<string, string>.Empty;
+
+        /// <summary>Gets the Version creation time.</summary>
+        public DateTime CreatedAt { get; init; }
+
+        /// <summary>Gets the Version modification time.</summary>
+        public DateTime ModifiedAt { get; init; }
+    }
 
     /// <summary>
     /// Supplies domain-specific node creation, mutation and metadata behavior to the shared engine.
@@ -370,6 +465,70 @@ namespace Opc.Ua.XRegistry.Server
     }
 
     /// <summary>
+    /// Additive strategy contract for projections that materialize one file per Version.
+    /// </summary>
+    public interface IXRegistryVersionedProjectionStrategy : IXRegistryProjectionStrategy
+    {
+        /// <summary>Creates an explicit or server-assigned Version.</summary>
+        ValueTask<IXRegistryProjectionResource?> CreateResourceAsync(
+            string groupId,
+            string resourceId,
+            string versionId,
+            CancellationToken ct);
+
+        /// <summary>Gets or creates an explicit or server-assigned Version.</summary>
+        ValueTask<(IXRegistryProjectionResource Resource, bool Created)> GetOrCreateResourceAsync(
+            string groupId,
+            string resourceId,
+            string versionId,
+            CancellationToken ct);
+
+        /// <summary>Deletes one Version, deleting the Resource when it was the last Version.</summary>
+        ValueTask<ServiceResult> DeleteVersionAsync(
+            string groupId,
+            string resourceId,
+            string versionId,
+            long? epoch,
+            CancellationToken ct);
+
+        /// <summary>Adds or replaces a Version label.</summary>
+        ValueTask<ServiceResult> AddVersionLabelAsync(
+            string groupId,
+            string resourceId,
+            string versionId,
+            string key,
+            string value,
+            long? epoch,
+            CancellationToken ct);
+
+        /// <summary>Removes a Version label.</summary>
+        ValueTask<ServiceResult> RemoveVersionLabelAsync(
+            string groupId,
+            string resourceId,
+            string versionId,
+            string key,
+            long? epoch,
+            CancellationToken ct);
+
+        /// <summary>Adds or replaces a Resource Meta label.</summary>
+        ValueTask<ServiceResult> AddResourceMetaLabelAsync(
+            string groupId,
+            string resourceId,
+            string key,
+            string value,
+            long? epoch,
+            CancellationToken ct);
+
+        /// <summary>Removes a Resource Meta label.</summary>
+        ValueTask<ServiceResult> RemoveResourceMetaLabelAsync(
+            string groupId,
+            string resourceId,
+            string key,
+            long? epoch,
+            CancellationToken ct);
+    }
+
+    /// <summary>
     /// Carries the server seams required by <see cref="XRegistryProjectionEngine"/>.
     /// </summary>
     public sealed class XRegistryProjectionContext
@@ -383,8 +542,29 @@ namespace Opc.Ua.XRegistry.Server
             ushort modelNamespaceIndex,
             Func<NodeState, CancellationToken, ValueTask> addNodeAsync,
             Func<NodeId, CancellationToken, ValueTask> deleteNodeAsync,
+            Func<ISystemContext, string, ServiceResult> checkManagementAccess)
+            : this(
+                systemContext,
+                namespaceUris,
+                modelNamespaceIndex,
+                addNodeAsync,
+                deleteNodeAsync,
+                checkManagementAccess,
+                null)
+        {
+        }
+
+        /// <summary>
+        /// Initializes a new projection context with optional xRegistry event configuration.
+        /// </summary>
+        public XRegistryProjectionContext(
+            ISystemContext systemContext,
+            NamespaceTable namespaceUris,
+            ushort modelNamespaceIndex,
+            Func<NodeState, CancellationToken, ValueTask> addNodeAsync,
+            Func<NodeId, CancellationToken, ValueTask> deleteNodeAsync,
             Func<ISystemContext, string, ServiceResult> checkManagementAccess,
-            XRegistryServerOptions? eventOptions = null)
+            XRegistryServerOptions? eventOptions)
         {
             SystemContext = systemContext ?? throw new ArgumentNullException(nameof(systemContext));
             NamespaceUris = namespaceUris ?? throw new ArgumentNullException(nameof(namespaceUris));

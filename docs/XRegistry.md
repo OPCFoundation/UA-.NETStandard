@@ -1,8 +1,8 @@
 # xRegistry — abstract registry base model
 
 The **xRegistry** libraries implement the generic, registry-agnostic *abstract registry base model*
-for OPC UA. They provide the substrate a concrete registry builds on: a **content-addressed
-resource identity**, an **Opaque-NodeId fast path** that resolves a resource in a single `Read`, a
+for OPC UA. They provide the substrate a concrete registry builds on: **structural xRegistry
+identity**, an **Opaque-NodeId content fast path** that resolves a document in a single `Read`, a
 **model-driven registration lifecycle** with auto-bootstrap, and a **federation** model for resources
 hosted by another registry, and optional native OPC UA events for registry mutations.
 
@@ -25,10 +25,15 @@ reference the identity abstraction without pulling in the client or the server.
 
 ## Core concepts
 
-### Content-derived resource identity
+### Structural identity and content lookup
 
-A resource's identity is **derived from its bytes**, not assigned by the server. Every registry
-supplies an `IResourceContentIdProvider` that maps a document plus its format to a fingerprint:
+`Xid` is always the stable structural path relative to the registry root: `/` for the registry,
+`/groups/{group}` for a group, `/groups/{group}/resources/{resource}` for a Resource, and that
+Resource path plus `/versions/{version}` for a materialized Version file. Replacing document bytes
+never changes `Xid`, `ResourceId`, `VersionId`, AddressSpace placement, or event `Subject`.
+
+Every registry may separately supply an `IResourceContentIdProvider` that maps a document plus its
+format to an opaque content key:
 
 ```csharp
 public interface IResourceContentIdProvider
@@ -40,9 +45,9 @@ public interface IResourceContentIdProvider
 ```
 
 `GetAlgorithm` names the (canonicalization, hash) pair used for a format and returns `null` for
-formats the registry does not handle. Because the identity is content-derived it is **stable across
-registries**: the same document registered in two different servers yields the same id, which is what
-makes de-duplication and federation work.
+formats the registry does not handle. This key is an implementation fast path, not entity identity.
+It is tracked per Version and reference-counted, so equal bytes in different Versions share one
+Opaque node while replacing or deleting one Version releases only that Version's reference.
 
 ### Opaque-NodeId fast path
 
@@ -74,17 +79,19 @@ the compiled model, and groups and resource versions are created beneath it at r
    lets the server assign the next one; `GetOrCreateResource` additionally reports `Created`.
 3. Because `ResourceType` **is a `FileType`**, the document is streamed with the standard
    `Write`/`Read` file Methods against the handle — there is no registry-specific transfer.
-4. **`Close`** finalizes the upload. The server computes the content-id from the accumulated bytes
-   through the configured `IResourceContentIdProvider`, commits the document to the
-   [resource store](#resource-storage), bumps the resource's `Epoch`, and — this is the
-   *auto-bootstrap* — publishes the Opaque fast-path node.
+4. **`Close`** compares the staged bytes with the committed bytes captured immediately before
+   `Open`. Only a successful Close with an accepted, byte-different write commits the document,
+   increments that Version's `Epoch`, updates its `ModifiedAt`, and publishes or updates the
+   reference-counted Opaque fast-path node. Clean, aborted, rejected, empty, and byte-identical
+   closes perform no store rewrite and change no metadata.
 5. **`Delete(ExpectedEpoch)`** on a resource or a group removes it. The epoch is an
    optimistic-concurrency check: a caller holding a stale epoch is rejected with
    `Bad_InvalidState` rather than deleting a newer version. Passing `0` disables the check, which
    is how a caller deliberately forces the operation without having read the entity first.
 
-Registration is idempotent by construction: re-registering identical bytes produces the same
-content-id, so the existing fast-path node is reused rather than duplicated.
+Registration commits Resource and Version structural identity before the create Method returns.
+When `RequestFileOpen` is true, a later dirty `Close` is a separate mutation; it updates the Version
+but does not repeat the create operation or its events.
 
 ### File open modes
 
@@ -105,8 +112,11 @@ Read = 1, Write = 2, EraseExisting = 4, Append = 8):
 | `Write` | Start from the stored bytes with the cursor at 0 — writes replace only the range they cover and **do not** truncate the remainder. |
 
 A mode requesting neither read nor write, both together, or `EraseExisting`/`Append` without `Write`
-is rejected with `Bad_InvalidArgument`. A handle is valid only on the resource *and* the session that
-opened it, and a session's handles are released when it closes.
+is rejected with `Bad_InvalidArgument`. Each Version permits one writer; a second write open fails
+with `Bad_NotWritable`, and a read open while that writer is active fails with `Bad_NotReadable`.
+A handle is valid only on the resource *and* the session that opened it, and a session's handles are
+released when it closes. `EraseExisting` stages an empty buffer but does not mutate the committed
+file until a dirty `Close`.
 
 ### Resource storage
 
@@ -226,7 +236,7 @@ the shared byte layer without an on-disk migration. See
 ### Transport security
 
 Registry **writes always require a `SignAndEncrypt` secure channel**. A document and its
-content-derived identity are integrity-critical, so `CreateGroup`, `GetOrCreateGroup`,
+content lookup are integrity-critical, so `CreateGroup`, `GetOrCreateGroup`,
 `CreateResource`, `GetOrCreateResource`, `Delete`, `AddAttribute`, `RemoveAttribute`, opening a file
 for writing, `Write` and `Close` are all rejected with `BadSecurityModeInsufficient` on a channel that
 is merely signed or unprotected. This is not configurable.
@@ -250,17 +260,19 @@ allowed.
 proxy is itself a `ResourceType` instance, so a generic xRegistry client drives it through exactly the
 same generated proxy as a locally hosted resource. It carries an `ExternalReference` — an
 `ExpandedNodeId` whose `ServerIndex` names the remote server through the local `ServerArray`, and whose
-`NamespaceUri` and `Identifier` are the remote resource node's identity — and/or a plain `ResourceUrl`,
-with the content-id in `Xid`. Since the content-id is stable across registries, the same resource
-federated from several endpoints keeps **one** identity and can be de-duplicated by consumers.
+`NamespaceUri` and `Identifier` locate the remote resource node — and/or a plain `ResourceUrl`.
+`ResourceId`, `VersionId`, and `Xid` retain the remote structural xRegistry identity. A content
+digest may still be used by the remote NodeId or a local cache, but it never replaces `Xid`.
 
 ### Labels
 
-`RegistryType`, `GroupType` and `ResourceType` each expose a `Labels` Object of type `AttributesType`
-with `AddAttribute(Key, Value, ExpectedEpoch)` and `RemoveAttribute(Key, ExpectedEpoch)`. Labels are
-published as addressable `String` Properties in the registry namespace, so a client can read them with
-a plain Read. Both mutations take the owning node's epoch and advance it on success, which makes a
-concurrent update visible instead of silently lost; `0` disables the check.
+`RegistryType`, `GroupType` and each Version `ResourceType` expose a `Labels` Object of type
+`AttributesType`. Version label Methods use that Version's `Epoch`, increment it, update Version
+`ModifiedAt`, and emit `VersionUpdated` when events are enabled. Resource Meta is distinct:
+`MetaEpoch`, `MetaLabels`, `MetaCreatedAt`, and `MetaModifiedAt` are synchronized across the
+Resource's Version files. Meta label Methods use `MetaEpoch`, update only Resource Meta, and emit
+`ResourceUpdated`. Adding or removing a Version advances Resource Meta; modifying Version bytes or
+Version labels does not.
 
 ### Native xRegistry events
 
@@ -289,6 +301,14 @@ configured registry URL, independently of the OPC UA endpoint and event `SourceN
 the changed entity xid. The generic stack leaves `CorrelationId` absent because its Method responses
 do not return a corresponding correlation value.
 
+`SourceNode` identifies the native AddressSpace source rather than the registry URL. A version event
+uses that version's `ResourceType` file. A resource event uses the committed default-version file,
+including the new default after a switch; consequently `ResourceCreated` and the first
+`VersionCreated` share the first/default file. Registry, model, modelsource, and capabilities events
+always use the registry root. A deleted event retains the removed source's former `SourceNode` and
+`SourceName`, but is reported through the nearest surviving notifier so subscriptions continue to
+receive it.
+
 One successful Method mutation, dirty file `Close`, or post-startup projection reconciliation is
 coalesced into one logical event batch. Events in a batch share one `Time`; duplicate
 type-and-subject changes are merged; `Changed` names are ordinally sorted and de-duplicated; and
@@ -296,10 +316,27 @@ deleted/created/updated precedence is applied per subject. Initial projection is
 and failed, stale, idempotent, clean-close and no-op interactions emit nothing. Recursive deletion
 reports version leaves before resources, groups and their surviving parent update.
 
-For projected domain registries, enabling generic events also requires the projection strategy to
-implement `IXRegistryProjectionEventMetadataProvider`. This preserves source compatibility for
-existing strategies when events remain disabled while giving the engine immutable version and
-metadata snapshots for out-of-band reconciliation diffs.
+The registration manager registers its registry root with the node manager's root-notifier API.
+Consequently a MonitoredItem on `ObjectIds.Server` receives descendant group, Resource, and Version
+events, while monitoring the registry or a narrower notifier remains supported.
+
+Enabling XREG-Events commits the implementation to every event marked MUST by the xRegistry event
+specification for each supported mutation mechanism. `RegistryCreated`, `RegistryDeleted`, and
+descendant events caused by deleting an entire registry are recommendations because registry
+creation/deletion is outside the core mutation API. Descendant events produced by recursive group or
+resource deletion are required and are never suppressed.
+
+The stack publishes native OPC UA events only. If an application separately serializes one of these
+events as CloudEvents JSON, it maps the opaque `BaseEventType.EventId` bytes to the CloudEvents `id`
+using standard Base64 encoding.
+
+For projected domain registries, existing `IXRegistryProjectionStrategy` implementations and the
+original six-parameter `XRegistryProjectionContext` constructor remain supported when events are
+disabled. Event-enabled strategies additionally implement
+`IXRegistryProjectionGenerationProvider`, which captures projection data and event metadata from one
+immutable generation. `IXRegistryVersionedProjectionStrategy` is additive and lets a domain honor
+explicit/server-assigned Version ids, materialize stable per-Version NodeIds, and separate Version
+labels from Resource Meta without breaking existing strategies.
 
 ## Server-side usage
 

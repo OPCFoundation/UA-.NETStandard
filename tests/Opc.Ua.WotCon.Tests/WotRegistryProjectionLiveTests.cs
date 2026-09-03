@@ -185,29 +185,28 @@ namespace Opc.Ua.WotCon.Tests
         }
 
         /// <summary>
-        /// Covers <c>OnCreateResourceAsync</c> duplicate-id branch:
-        /// creating the same resource id twice returns <c>BadNodeIdExists</c>.
+        /// Covers <c>OnCreateResourceAsync</c> duplicate-Version branch.
         /// </summary>
         [Test]
-        public async Task CreateResourceWithDuplicateIdReturnsBadNodeIdExists()
+        public async Task CreateResourceWithDuplicateVersionReturnsBadNodeIdExists()
         {
             WotRegistryClient client = await OpenClientAsync().ConfigureAwait(false);
             WotRegistryGroupClient group = await client
                 .CreateThingDescriptionGroupAsync()
                 .ConfigureAwait(false);
-            _ = await group.CreateResourceAsync("dup-res").ConfigureAwait(false);
+            _ = await group.CreateResourceAsync("dup-res", "v1").ConfigureAwait(false);
 
             ServiceResultException? ex = null;
             try
             {
-                _ = await group.CreateResourceAsync("dup-res").ConfigureAwait(false);
+                _ = await group.CreateResourceAsync("dup-res", "v1").ConfigureAwait(false);
             }
             catch (ServiceResultException sre)
             {
                 ex = sre;
             }
 
-            Assert.That(ex, Is.Not.Null, "Duplicate resource id must be rejected.");
+            Assert.That(ex, Is.Not.Null, "A duplicate (ResourceId, VersionId) must be rejected.");
             Assert.That(ex!.StatusCode, Is.EqualTo(StatusCodes.BadNodeIdExists));
         }
 
@@ -228,6 +227,44 @@ namespace Opc.Ua.WotCon.Tests
                 .ConfigureAwait(false);
 
             Assert.That(created, Is.True, "First call must report the resource as newly created.");
+        }
+
+        [Test]
+        public async Task ExplicitVersionsHaveDistinctStableProjectedNodeIds()
+        {
+            WotRegistryClient client = await OpenClientAsync().ConfigureAwait(false);
+            WotRegistryGroupClient group = await client
+                .CreateThingDescriptionGroupAsync()
+                .ConfigureAwait(false);
+
+            (WotRegistryResourceClient v1, string v1Id) =
+                await group.CreateResourceAsync("multi", "v1").ConfigureAwait(false);
+            (WotRegistryResourceClient v2, string v2Id) =
+                await group.CreateResourceAsync("multi", "v2").ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(v1Id, Is.EqualTo("v1"));
+                Assert.That(v2Id, Is.EqualTo("v2"));
+                Assert.That(v1.ResourceNodeId, Is.Not.EqualTo(v2.ResourceNodeId));
+                Assert.That(
+                    v1.ResourceNodeId.TryGetValue(out string v1NodeId)
+                        ? v1NodeId
+                        : string.Empty,
+                    Is.EqualTo(
+                        "WoTRegistry/groups/thingdescriptions/resources/multi/versions/v1"));
+                Assert.That(
+                    v2.ResourceNodeId.TryGetValue(out string v2NodeId)
+                        ? v2NodeId
+                        : string.Empty,
+                    Is.EqualTo(
+                        "WoTRegistry/groups/thingdescriptions/resources/multi/versions/v2"));
+                WotResource stored = m_registry.Current.FindResource(
+                    WotRegistryGroups.ThingDescriptions,
+                    "multi")!;
+                Assert.That(stored.Versions.Select(version => version.VersionId),
+                    Is.EquivalentTo(s_expectedVersionIds));
+            });
         }
 
         /// <summary>
@@ -364,14 +401,14 @@ namespace Opc.Ua.WotCon.Tests
         }
 
         /// <summary>
-        /// Covers <c>OnAddResourceLabelAsync</c> success path and the
+        /// Covers the Version-label success path and the
         /// <c>ToServiceResult(Success)</c> arm. Uses direct session Call so that
         /// the xRegistry namespace index is resolved from the session namespace table
         /// (populated by <c>FetchNamespaceTablesAsync</c>) rather than the transport
         /// channel's message context (which may not have been updated).
         /// </summary>
         [Test]
-        public async Task AddResourceLabelOverOpcUaSucceeds()
+        public async Task AddVersionLabelOverOpcUaSucceeds()
         {
             WotRegistryClient client = await OpenClientAsync().ConfigureAwait(false);
             (_, WotRegistryResourceClient resource) = await CreateGroupAndResourceAsync(client)
@@ -401,8 +438,38 @@ namespace Opc.Ua.WotCon.Tests
             WotResource? stored = m_registry.Current.FindResource(
                 WotRegistryGroups.ThingDescriptions, "td-01");
             Assert.That(stored, Is.Not.Null);
-            Assert.That(stored!.Labels.ContainsKey("env"), Is.True);
-            Assert.That(stored.Labels["env"], Is.EqualTo("prod"));
+            WotResourceVersion version = stored!.DefaultVersion!;
+            Assert.That(version.Labels.ContainsKey("env"), Is.True);
+            Assert.That(version.Labels["env"], Is.EqualTo("prod"));
+        }
+
+        [Test]
+        public async Task AddResourceMetaLabelOverOpcUaSucceeds()
+        {
+            WotRegistryClient client = await OpenClientAsync().ConfigureAwait(false);
+            (_, WotRegistryResourceClient resource) = await CreateGroupAndResourceAsync(client)
+                .ConfigureAwait(false);
+
+            NodeId labelsNodeId = await BrowseForChildNodeIdAsync(
+                resource.ResourceNodeId,
+                "MetaLabels").ConfigureAwait(false);
+            Assert.That(labelsNodeId.IsNull, Is.False);
+
+            ushort xNs = m_session.NamespaceUris.GetIndexOrAppend(
+                XRegistryWellKnown.XRegistryNamespaceUri);
+            await m_session.CallAsync(
+                labelsNodeId,
+                new NodeId(63501u, xNs),
+                default,
+                new Variant("owner"),
+                new Variant("plant-1"),
+                new Variant(0u)).ConfigureAwait(false);
+
+            WotResource stored = m_registry.Current.FindResource(
+                WotRegistryGroups.ThingDescriptions,
+                "td-01")!;
+            Assert.That(stored.MetaLabels["owner"], Is.EqualTo("plant-1"));
+            Assert.That(stored.DefaultVersion!.Labels.ContainsKey("owner"), Is.False);
         }
 
         /// <summary>
@@ -891,6 +958,7 @@ namespace Opc.Ua.WotCon.Tests
         private WotMaterializationCoordinator m_coordinator = null!;
         private FakeWotDocumentConverter m_converter = null!;
         private PausableProjectionHost m_projectionHost = null!;
+        private static readonly string[] s_expectedVersionIds = ["v1", "v2"];
 
         /// <summary>
         /// A pausing wrapper around <see cref="IWotProjectionHost"/> that can optionally

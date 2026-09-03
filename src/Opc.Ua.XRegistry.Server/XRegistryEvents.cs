@@ -70,7 +70,18 @@ namespace Opc.Ua.XRegistry.Server
         NodeId SourceNodeId,
         uint? Epoch = null,
         uint? MetaEpoch = null,
-        ImmutableArray<string> Changed = default);
+        ImmutableArray<string> Changed = default)
+    {
+        /// <summary>
+        /// Gets the event SourceName. Deleted entities retain their former display name.
+        /// </summary>
+        public string? SourceName { get; init; }
+
+        /// <summary>
+        /// Gets the surviving node through which this event is reported.
+        /// </summary>
+        public NodeState? Notifier { get; init; }
+    }
 
     /// <summary>
     /// Coalesces all changes produced by one logical registry interaction.
@@ -228,7 +239,8 @@ namespace Opc.Ua.XRegistry.Server
             DateTimeUtc commonTime = DateTimeUtc.Now;
             foreach (XRegistryEventChange change in batch)
             {
-                notifier.ReportEvent(m_context, BuildEvent(notifier, change, commonTime));
+                NodeState reporter = change.Notifier ?? notifier;
+                reporter.ReportEvent(m_context, BuildEvent(reporter, change, commonTime));
             }
         }
 
@@ -286,7 +298,7 @@ namespace Opc.Ua.XRegistry.Server
                 EventSeverity.Medium,
                 new LocalizedText(change.Kind.ToString()));
             evt.SourceNode!.Value = change.SourceNodeId;
-            evt.SourceName!.Value = change.Subject;
+            evt.SourceName!.Value = change.SourceName ?? change.Subject;
             evt.Time!.Value = time;
             evt.ReceiveTime!.Value = time;
 

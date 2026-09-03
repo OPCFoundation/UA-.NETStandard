@@ -67,7 +67,10 @@ namespace Opc.Ua.XRegistry.Tests
                 MetaEpoch: RequiresMetaEpoch(kind) ? 3u : null,
                 Changed: AllowsChanged(kind)
                     ? ImmutableArray.Create("z", "a", "a")
-                    : ImmutableArray<string>.Empty);
+                    : ImmutableArray<string>.Empty)
+            {
+                SourceName = "former-source"
+            };
 
             BaseEventState evt = emitter.BuildEvent(
                 source,
@@ -82,6 +85,7 @@ namespace Opc.Ua.XRegistry.Tests
                 Assert.That(((XRegistryEventState)evt).Subject!.Value,
                     Is.EqualTo(change.Subject));
                 Assert.That(evt.SourceNode!.Value, Is.EqualTo(source.NodeId));
+                Assert.That(evt.SourceName!.Value, Is.EqualTo("former-source"));
             });
         }
 

@@ -27,6 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.WotCon.Server.Registry;
@@ -103,6 +104,202 @@ namespace Opc.Ua.WotCon.Tests.Registry
                 WotRegistryGroups.ThingDescriptions, "a")!;
             Assert.That(resource.Versions, Has.Length.EqualTo(2));
             Assert.That(resource.DefaultVersionId, Is.EqualTo(resource.Versions[1].VersionId));
+        }
+
+        [TestCase("v7", "v7")]
+        [TestCase("", "0000000000000000001")]
+        public async Task VersionAwareCreateCommitsIdentityBeforeContent(
+            string requestedVersionId,
+            string expectedVersionId)
+        {
+            using var service = new WotRegistryService();
+
+            (WotResource resource, WotResourceVersion version, bool created) =
+                await service.GetOrCreateVersionAsync(
+                    WotRegistryGroups.ThingDescriptions,
+                    "a",
+                    requestedVersionId,
+                    WoTDocumentKindEnum.ThingDescription);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(created, Is.True);
+                Assert.That(version.VersionId, Is.EqualTo(expectedVersionId));
+                Assert.That(version.HasContent, Is.False);
+                Assert.That(resource.DefaultVersionId, Is.EqualTo(expectedVersionId));
+                Assert.That(resource.MetaEpoch, Is.EqualTo(1));
+                Assert.That(resource.MetaCreatedAt, Is.EqualTo(resource.MetaModifiedAt));
+            });
+
+            DateTime createdAt = version.CreatedAt;
+            WotRegistryMutationResult close = await service.UpsertResourceAsync(
+                new WotUpsertResourceRequest
+                {
+                    GroupId = WotRegistryGroups.ThingDescriptions,
+                    ResourceId = "a",
+                    VersionId = expectedVersionId,
+                    ExpectedVersionDigestHex = string.Empty,
+                    Kind = WoTDocumentKindEnum.ThingDescription,
+                    Content = ByteString.From(TestMaterialization.Td("urn:a"))
+                });
+            WotResource committed = service.Current.FindResource(
+                WotRegistryGroups.ThingDescriptions,
+                "a")!;
+            WotResourceVersion committedVersion = committed.FindVersion(expectedVersionId)!;
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(close.Outcome, Is.EqualTo(WoTOutcomeEnum.Success));
+                Assert.That(committed.Versions, Has.Length.EqualTo(1));
+                Assert.That(committedVersion.HasContent, Is.True);
+                Assert.That(committedVersion.Epoch, Is.EqualTo(2));
+                Assert.That(committedVersion.CreatedAt, Is.EqualTo(createdAt));
+                Assert.That(committedVersion.ModifiedAt, Is.GreaterThanOrEqualTo(createdAt));
+                Assert.That(committed.MetaEpoch, Is.EqualTo(1),
+                    "Updating Version content must not mutate Resource Meta.");
+            });
+        }
+
+        [Test]
+        public async Task VersionLabelsAndResourceMetaHaveIndependentEpochs()
+        {
+            using var service = new WotRegistryService();
+            await service.GetOrCreateVersionAsync(
+                WotRegistryGroups.ThingDescriptions,
+                "a",
+                "v1",
+                WoTDocumentKindEnum.ThingDescription);
+            await service.GetOrCreateVersionAsync(
+                WotRegistryGroups.ThingDescriptions,
+                "a",
+                "v2",
+                WoTDocumentKindEnum.ThingDescription);
+            WotResource before = service.Current.FindResource(
+                WotRegistryGroups.ThingDescriptions,
+                "a")!;
+            DateTime metaCreatedAt = before.MetaCreatedAt;
+            long metaEpoch = before.MetaEpoch;
+
+            WotRegistryMutationResult versionResult = await service.AddVersionLabelAsync(
+                WotRegistryGroups.ThingDescriptions,
+                "a",
+                "v1",
+                "version",
+                "one",
+                expectedEpoch: 1);
+            WotResource afterVersion = service.Current.FindResource(
+                WotRegistryGroups.ThingDescriptions,
+                "a")!;
+            WotRegistryMutationResult metaResult = await service.AddResourceLabelAsync(
+                WotRegistryGroups.ThingDescriptions,
+                "a",
+                "owner",
+                "plant-1",
+                expectedEpoch: metaEpoch);
+            WotResource afterMeta = service.Current.FindResource(
+                WotRegistryGroups.ThingDescriptions,
+                "a")!;
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(versionResult.Outcome, Is.EqualTo(WoTOutcomeEnum.Success));
+                Assert.That(afterVersion.FindVersion("v1")!.Epoch, Is.EqualTo(2));
+                Assert.That(afterVersion.FindVersion("v2")!.Epoch, Is.EqualTo(1));
+                Assert.That(afterVersion.MetaEpoch, Is.EqualTo(metaEpoch));
+                Assert.That(metaResult.Outcome, Is.EqualTo(WoTOutcomeEnum.Success));
+                Assert.That(afterMeta.MetaEpoch, Is.EqualTo(metaEpoch + 1));
+                Assert.That(afterMeta.MetaCreatedAt, Is.EqualTo(metaCreatedAt));
+                Assert.That(afterMeta.MetaLabels["owner"], Is.EqualTo("plant-1"));
+                Assert.That(afterMeta.FindVersion("v1")!.Labels["version"], Is.EqualTo("one"));
+                Assert.That(afterMeta.FindVersion("v1")!.Epoch, Is.EqualTo(2));
+                Assert.That(afterMeta.FindVersion("v2")!.Epoch, Is.EqualTo(1));
+            });
+        }
+
+        [Test]
+        public async Task DefaultSwitchChangesOnlyResourceMeta()
+        {
+            using var service = new WotRegistryService();
+            await service.GetOrCreateVersionAsync(
+                WotRegistryGroups.ThingDescriptions,
+                "a",
+                "v1",
+                WoTDocumentKindEnum.ThingDescription);
+            await service.GetOrCreateVersionAsync(
+                WotRegistryGroups.ThingDescriptions,
+                "a",
+                "v2",
+                WoTDocumentKindEnum.ThingDescription);
+            WotResource before = service.Current.FindResource(
+                WotRegistryGroups.ThingDescriptions,
+                "a")!;
+            long v1Epoch = before.FindVersion("v1")!.Epoch;
+            long v2Epoch = before.FindVersion("v2")!.Epoch;
+
+            WotRegistryMutationResult result = await service.SetDefaultVersionAsync(
+                WotRegistryGroups.ThingDescriptions,
+                "a",
+                "v1",
+                before.MetaEpoch);
+            WotResource after = service.Current.FindResource(
+                WotRegistryGroups.ThingDescriptions,
+                "a")!;
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(result.Outcome, Is.EqualTo(WoTOutcomeEnum.Success));
+                Assert.That(after.DefaultVersionId, Is.EqualTo("v1"));
+                Assert.That(after.MetaEpoch, Is.EqualTo(before.MetaEpoch + 1));
+                Assert.That(after.FindVersion("v1")!.Epoch, Is.EqualTo(v1Epoch));
+                Assert.That(after.FindVersion("v2")!.Epoch, Is.EqualTo(v2Epoch));
+            });
+        }
+
+        [Test]
+        public async Task StaleVersionWriterCannotReplaceNewerCommittedContent()
+        {
+            using var service = new WotRegistryService();
+            await service.GetOrCreateVersionAsync(
+                WotRegistryGroups.ThingDescriptions,
+                "a",
+                "v1",
+                WoTDocumentKindEnum.ThingDescription);
+            WotUpsertResourceRequest first = TdRequest(
+                "a",
+                TestMaterialization.Td("urn:a", "v1"));
+            first.VersionId = "v1";
+            first.ExpectedVersionDigestHex = string.Empty;
+            await service.UpsertResourceAsync(first);
+            WotResourceVersion baseline = service.Current.FindResource(
+                WotRegistryGroups.ThingDescriptions,
+                "a")!.FindVersion("v1")!;
+
+            WotUpsertResourceRequest newer = TdRequest(
+                "a",
+                TestMaterialization.Td("urn:a", "v2"));
+            newer.VersionId = "v1";
+            newer.ExpectedVersionDigestHex = baseline.DigestHex;
+            await service.UpsertResourceAsync(newer);
+            WotResourceVersion committed = service.Current.FindResource(
+                WotRegistryGroups.ThingDescriptions,
+                "a")!.FindVersion("v1")!;
+
+            WotUpsertResourceRequest stale = TdRequest(
+                "a",
+                TestMaterialization.Td("urn:a", "stale"));
+            stale.VersionId = "v1";
+            stale.ExpectedVersionDigestHex = baseline.DigestHex;
+            WotRegistryMutationResult result = await service.UpsertResourceAsync(stale);
+            WotResourceVersion after = service.Current.FindResource(
+                WotRegistryGroups.ThingDescriptions,
+                "a")!.FindVersion("v1")!;
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(result.Outcome, Is.EqualTo(WoTOutcomeEnum.Rejected));
+                Assert.That(after.DigestHex, Is.EqualTo(committed.DigestHex));
+                Assert.That(after.Epoch, Is.EqualTo(committed.Epoch));
+            });
         }
 
         [Test]

@@ -82,6 +82,10 @@ namespace Opc.Ua.XRegistry.Tests
                 Assert.That(groupState.Labels!.RemoveAttribute, Is.Not.Null);
                 Assert.That(resourceState!.Labels!.AddAttribute, Is.Not.Null);
                 Assert.That(resourceState.Labels!.RemoveAttribute, Is.Not.Null);
+                Assert.That(resourceState.MetaLabels!.AddAttribute, Is.Not.Null);
+                Assert.That(resourceState.MetaLabels!.RemoveAttribute, Is.Not.Null);
+                Assert.That(resourceState.MetaCreatedAt, Is.Not.Null);
+                Assert.That(resourceState.MetaModifiedAt, Is.Not.Null);
             });
         }
 

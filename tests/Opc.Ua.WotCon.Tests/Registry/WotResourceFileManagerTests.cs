@@ -137,7 +137,7 @@ namespace Opc.Ua.WotCon.Tests.Registry
         }
 
         [Test]
-        public void OpenSecondWriterWhileFirstOpenReturnsBadInvalidState()
+        public void OpenSecondWriterWhileFirstOpenReturnsBadNotWritable()
         {
             using var harness = new Harness();
             uint first = 0;
@@ -145,7 +145,7 @@ namespace Opc.Ua.WotCon.Tests.Registry
             uint second = 0;
             ServiceResult result = harness.Open(ModeWriteErase, ref second);
 
-            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadNotWritable));
             Assert.That(second, Is.Zero);
         }
 
@@ -284,13 +284,24 @@ namespace Opc.Ua.WotCon.Tests.Registry
         [Test]
         public async Task WriteBeyondMaxSizeReturnsBadOutOfMemory()
         {
-            using var harness = new Harness(maxDocumentSize: 4);
+            bool committed = false;
+            using var harness = new Harness(
+                maxDocumentSize: 4,
+                onCommit: (_, _, _) =>
+                {
+                    committed = true;
+                    return new ValueTask<ServiceResult>(ServiceResult.Good);
+                });
             uint handle = 0;
             harness.Open(ModeWriteErase, ref handle);
             ServiceResult result = harness.Write(handle, ByteString.From(new byte[] { 1, 2, 3, 4, 5 }));
             await harness.CloseAsync(handle).ConfigureAwait(false);
 
-            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadOutOfMemory));
+            Assert.Multiple(() =>
+            {
+                Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadOutOfMemory));
+                Assert.That(committed, Is.False);
+            });
         }
 
         [Test]
@@ -324,13 +335,46 @@ namespace Opc.Ua.WotCon.Tests.Registry
         [Test]
         public async Task WriteEmptyByteStringIsNoOp()
         {
-            using var harness = new Harness();
+            bool committed = false;
+            using var harness = new Harness(onCommit: (_, _, _) =>
+            {
+                committed = true;
+                return new ValueTask<ServiceResult>(ServiceResult.Good);
+            });
             uint handle = 0;
             harness.Open(ModeWriteErase, ref handle);
             ServiceResult result = harness.Write(handle, ByteString.Empty);
             await harness.CloseAsync(handle).ConfigureAwait(false);
 
-            Assert.That(ServiceResult.IsGood(result), Is.True);
+            Assert.Multiple(() =>
+            {
+                Assert.That(ServiceResult.IsGood(result), Is.True);
+                Assert.That(committed, Is.False);
+            });
+        }
+
+        [Test]
+        public async Task ByteIdenticalCloseDoesNotInvokeCommit()
+        {
+            byte[] document = [1, 2, 3];
+            bool committed = false;
+            using var harness = new Harness(onCommit: (_, _, _) =>
+            {
+                committed = true;
+                return new ValueTask<ServiceResult>(ServiceResult.Good);
+            });
+            harness.Manager.UpdatePersistedContent(document, "application/json");
+            uint handle = 0;
+            harness.Open(ModeWriteErase, ref handle);
+            harness.Write(handle, ByteString.From(document));
+
+            ServiceResult close = await harness.CloseAsync(handle).ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(ServiceResult.IsGood(close), Is.True);
+                Assert.That(committed, Is.False);
+            });
         }
 
         [Test]
@@ -629,14 +673,14 @@ namespace Opc.Ua.WotCon.Tests.Registry
         }
 
         [Test]
-        public void TryOpenWriteHandleWhenWriterAlreadyOpenReturnsBadInvalidState()
+        public void TryOpenWriteHandleWhenWriterAlreadyOpenReturnsBadNotWritable()
         {
             using var harness = new Harness();
             harness.Manager.TryOpenWriteHandle(NodeId.Null, out uint _);
 
             ServiceResult second = harness.Manager.TryOpenWriteHandle(NodeId.Null, out uint fileHandle);
 
-            Assert.That(second.StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
+            Assert.That(second.StatusCode, Is.EqualTo(StatusCodes.BadNotWritable));
             Assert.That(fileHandle, Is.Zero);
         }
 

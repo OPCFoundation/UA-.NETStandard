@@ -47,8 +47,10 @@ namespace Opc.Ua.XRegistry.Tests
     [NonParallelizable]
     public sealed class XRegistryEventIntegrationTests
     {
-        [Test]
-        public async Task GeneratedFilterReceivesNativeGroupEventThroughServerNotifier()
+        [TestCase(true)]
+        [TestCase(false)]
+        public async Task GeneratedFilterReceivesNativeGroupEventThroughNotifierChain(
+            bool monitorServer)
         {
             string pkiRoot = Path.Combine(
                 TestContext.CurrentContext.WorkDirectory,
@@ -87,7 +89,7 @@ namespace Opc.Ua.XRegistry.Tests
                     uint subscriptionId = await CreateSubscriptionAsync(
                         services,
                         requestHeader,
-                        registryNodeId,
+                        monitorServer ? global::Opc.Ua.ObjectIds.Server : registryNodeId,
                         filter).ConfigureAwait(false);
 
                     XRegistryRegistrationNodeManager manager = factory.Manager!;
@@ -123,6 +125,15 @@ namespace Opc.Ua.XRegistry.Tests
                                 ? epoch
                                 : 0u,
                             Is.EqualTo(1u));
+                        Assert.That(
+                            Field(
+                                evt!,
+                                filter,
+                                global::Opc.Ua.BrowseNames.SourceNode)
+                                .TryGetValue(out NodeId sourceNode)
+                                    ? sourceNode
+                                    : NodeId.Null,
+                            Is.EqualTo(created.GroupNodeId));
                     });
                     await services.DeleteSubscriptionsAsync(
                         Stamp(requestHeader),

@@ -40,7 +40,7 @@ namespace Opc.Ua.XRegistry.Tests
     /// <summary>
     /// Verifies the lifetime of the content-addressed fast-path node. The node is <b>shared</b> by
     /// every resource whose document has the same bytes — that sharing is the whole point of a
-    /// content-derived identity — so it must outlive any single resource that references it and must
+    /// content key — so it must outlive any single Version that references it and must
     /// not linger once the last one is gone.
     /// </summary>
     [TestFixture]
@@ -90,6 +90,33 @@ namespace Opc.Ua.XRegistry.Tests
         }
 
         [Test]
+        public async Task IdenticalBytesAcrossVersionsShareOneFastPathReferenceAsync()
+        {
+            using XRegistryRegistrationNodeManager nm = CreateAddressSpace();
+            NodeId group = await CreateGroupAsync(nm).ConfigureAwait(false);
+
+            ResourceState first = await RegisterAsync(
+                nm,
+                group,
+                "a",
+                "1",
+                s_document).ConfigureAwait(false);
+            ResourceState second = await RegisterAsync(
+                nm,
+                group,
+                "a",
+                "2",
+                s_document).ConfigureAwait(false);
+            NodeId fastPath = FastPathNodeId(nm, s_document);
+
+            await nm.OnDeleteResourceAsync(first, first.Epoch!.Value).ConfigureAwait(false);
+            Assert.That(nm.Find(fastPath), Is.Not.Null);
+
+            await nm.OnDeleteResourceAsync(second, second.Epoch!.Value).ConfigureAwait(false);
+            Assert.That(nm.Find(fastPath), Is.Null);
+        }
+
+        [Test]
         public async Task DeletingAGroupReleasesEveryFastPathReferenceAsync()
         {
             using XRegistryRegistrationNodeManager nm = CreateAddressSpace();
@@ -126,7 +153,7 @@ namespace Opc.Ua.XRegistry.Tests
                 Assert.That(nm.Find(original), Is.Null,
                     "The superseded content id must not stay published forever.");
                 Assert.That(resource.Xid!.Value,
-                    Is.EqualTo(ByteString.From(revised).ToHexString()));
+                    Is.EqualTo("/groups/schemas/resources/a/versions/1"));
             });
         }
 
@@ -168,14 +195,30 @@ namespace Opc.Ua.XRegistry.Tests
         /// <summary>
         /// Creates a resource, streams <paramref name="document"/> into it and commits it.
         /// </summary>
-        private static async Task<ResourceState> RegisterAsync(
+        private static Task<ResourceState> RegisterAsync(
             XRegistryRegistrationNodeManager nm,
             NodeId group,
             string resourceId,
             byte[] document)
         {
+            return RegisterAsync(nm, group, resourceId, "1", document);
+        }
+
+        private static async Task<ResourceState> RegisterAsync(
+            XRegistryRegistrationNodeManager nm,
+            NodeId group,
+            string resourceId,
+            string versionId,
+            byte[] document)
+        {
             CreateResourceMethodStateResult created = await nm.OnCreateResourceAsync(
-                nm.SystemContext, null!, group, resourceId, "1", true, CancellationToken.None)
+                nm.SystemContext,
+                null!,
+                group,
+                resourceId,
+                versionId,
+                true,
+                CancellationToken.None)
                 .ConfigureAwait(false);
             var resource = (ResourceState)nm.Find(created.ResourceNodeId)!;
 

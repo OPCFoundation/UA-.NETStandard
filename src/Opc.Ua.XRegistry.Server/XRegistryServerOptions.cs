@@ -69,8 +69,8 @@ namespace Opc.Ua.XRegistry.Server
         public string RegistryNamespaceUri { get; set; } = XRegistryWellKnown.XRegistryNamespaceUri;
 
         /// <summary>
-        /// The provider that computes a resource's content-derived id and algorithm. Required when a
-        /// seed/federation resource is published or a resource is registered.
+        /// The provider that computes an opaque document content key and algorithm. Required when a
+        /// seed/federation lookup is published or registered Version content is committed.
         /// </summary>
         public IResourceContentIdProvider? ContentIdProvider { get; set; }
 
@@ -151,6 +151,21 @@ namespace Opc.Ua.XRegistry.Server
         public string FederationProxyBrowseName { get; set; } = "FederatedResourceProxy";
 
         /// <summary>
+        /// The structural group id used for the federated proxy's xRegistry identity.
+        /// </summary>
+        public string FederationProxyGroupId { get; set; } = "federated";
+
+        /// <summary>
+        /// The structural resource id retained by the federated proxy.
+        /// </summary>
+        public string FederationProxyResourceId { get; set; } = "federated-resource";
+
+        /// <summary>
+        /// The structural version id retained by the federated proxy.
+        /// </summary>
+        public string FederationProxyVersionId { get; set; } = "1";
+
+        /// <summary>
         /// The maximum number of concurrently open upload handles (CreateResource without Close).
         /// A safety valve against memory exhaustion from a remote caller; CreateResource is rejected
         /// with <c>BadTooManyOperations</c> when the limit is reached.
@@ -174,7 +189,7 @@ namespace Opc.Ua.XRegistry.Server
         /// </summary>
         /// <remarks>
         /// Registry <b>writes</b> always require <c>SignAndEncrypt</c> and this option cannot relax
-        /// that: a resource document and its content-derived identity are integrity-critical, so a
+        /// that: a resource document and its content lookup are integrity-critical, so a
         /// mutation over a channel that is only signed — or not protected at all — is rejected with
         /// <c>BadSecurityModeInsufficient</c>. Reads are permitted on any secure channel by default,
         /// because a registry is usually a public catalogue; set this to <c>true</c> when the

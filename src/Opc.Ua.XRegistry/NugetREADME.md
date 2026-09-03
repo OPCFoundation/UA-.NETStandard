@@ -1,7 +1,7 @@
 # Opc.Ua.XRegistry
 
-The abstract **xRegistry** registry base model for OPC UA: a content-addressed
-resource-registry companion namespace plus the shared abstractions a concrete registry
+The abstract **xRegistry** registry base model for OPC UA: structurally identified registry
+entities, an independent content-addressed document fast path, and shared abstractions a concrete registry
 (for example a schema registry) builds on.
 
 This package contains:
@@ -16,8 +16,8 @@ This package contains:
   the start of the dynamic instance range). The identifiers of the model itself come from the
   generated `ObjectTypeIds`, `MethodIds` and `VariableIds` classes;
 - `IResourceContentIdProvider` — the seam that maps a resource document + format to its
-  content-derived identity (the fingerprint that makes a resource addressable by an Opaque
-  NodeId, stable across registries).
+  opaque content key. The key makes document bytes addressable by an Opaque NodeId but never
+  replaces the entity's structural `Xid`, `ResourceId`, or `VersionId`.
 
 It has no dependency on the OPC UA server or client SDKs; the generic client and server
 pieces live in `Opc.Ua.XRegistry.Client` and `Opc.Ua.XRegistry.Server`.

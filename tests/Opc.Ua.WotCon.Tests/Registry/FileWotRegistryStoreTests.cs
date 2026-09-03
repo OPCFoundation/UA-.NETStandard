@@ -137,6 +137,22 @@ namespace Opc.Ua.WotCon.Tests.Registry
                     Kind = WoTDocumentKindEnum.ThingModel,
                     Content = ByteString.From(TestMaterialization.Tm("urn:m"))
                 });
+                WotResource createdTd = service.Current.FindResource(
+                    WotRegistryGroups.ThingDescriptions,
+                    "a")!;
+                await service.AddVersionLabelAsync(
+                    WotRegistryGroups.ThingDescriptions,
+                    "a",
+                    createdTd.DefaultVersionId!,
+                    "version",
+                    "one",
+                    createdTd.DefaultVersion!.Epoch);
+                await service.AddResourceLabelAsync(
+                    WotRegistryGroups.ThingDescriptions,
+                    "a",
+                    "owner",
+                    "plant-1",
+                    createdTd.MetaEpoch);
             }
 
             var reloadStore = new FileWotRegistryStore(m_root);
@@ -148,12 +164,50 @@ namespace Opc.Ua.WotCon.Tests.Registry
             Assert.That(td, Is.Not.Null);
             Assert.That(td!.Kind, Is.EqualTo(WoTDocumentKindEnum.ThingDescription));
             Assert.That(td.Versions, Has.Length.EqualTo(1));
+            Assert.Multiple(() =>
+            {
+                Assert.That(td.DefaultVersion!.Epoch, Is.EqualTo(2));
+                Assert.That(td.DefaultVersion.Labels["version"], Is.EqualTo("one"));
+                Assert.That(td.MetaLabels["owner"], Is.EqualTo("plant-1"));
+                Assert.That(td.MetaCreatedAt, Is.Not.Default);
+                Assert.That(td.MetaModifiedAt, Is.GreaterThanOrEqualTo(td.MetaCreatedAt));
+            });
             ByteString tdContent = await reloaded.ReadContentAsync(td.Versions[0]);
             Assert.That(
                 Encoding.UTF8.GetString(tdContent.Span.ToArray()),
                 Does.Contain("urn:a"));
             Assert.That(
                 reloaded.Current.FindResource(WotRegistryGroups.ThingModels, "m"), Is.Not.Null);
+        }
+
+        [Test]
+        public async Task StructuralVersionWithoutContentRoundTrips()
+        {
+            var store = new FileWotRegistryStore(m_root);
+            using (var service = new WotRegistryService(store))
+            {
+                await service.InitializeAsync();
+                await service.GetOrCreateVersionAsync(
+                    WotRegistryGroups.ThingDescriptions,
+                    "placeholder",
+                    "v1",
+                    WoTDocumentKindEnum.ThingDescription);
+            }
+
+            using var reloaded = new WotRegistryService(new FileWotRegistryStore(m_root));
+            await reloaded.InitializeAsync();
+            WotResource resource = reloaded.Current.FindResource(
+                WotRegistryGroups.ThingDescriptions,
+                "placeholder")!;
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(resource.DefaultVersionId, Is.EqualTo("v1"));
+                Assert.That(resource.Versions, Has.Length.EqualTo(1));
+                Assert.That(resource.Versions[0].HasContent, Is.False);
+                Assert.That(resource.Versions[0].Epoch, Is.EqualTo(1));
+                Assert.That(resource.MetaEpoch, Is.EqualTo(1));
+            });
         }
 
         [Test]

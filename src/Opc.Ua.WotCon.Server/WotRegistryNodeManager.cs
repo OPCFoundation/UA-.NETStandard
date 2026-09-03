@@ -168,12 +168,12 @@ namespace Opc.Ua.WotCon.Server
             await base.CreateAddressSpaceAsync(externalReferences, cancellationToken)
                 .ConfigureAwait(false);
 
-            // Chain WoTRegistry into the Server's notifier tree so its events
-            // reach subscribing clients. The generated WoTRegistry Object already
-            // declares the inverse HasNotifier to the Server object, so only the
-            // forward reference on the Server side is added here.
+            // Register WoTRegistry as a root notifier so Server event MonitoredItems subscribe to
+            // it, and publish the forward HasNotifier reference for browseability.
             if (m_registryNode is not null)
             {
+                await AddRootNotifierAsync(m_registryNode, cancellationToken)
+                    .ConfigureAwait(false);
                 if (externalReferences.TryGetValue(
                         Ua.ObjectIds.Server, out IList<IReference>? serverRefs) ||
                     (serverRefs = EnsureList(externalReferences, Ua.ObjectIds.Server)) != null)

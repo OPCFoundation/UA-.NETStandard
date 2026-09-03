@@ -244,7 +244,7 @@ namespace Opc.Ua.XRegistry.Client
         /// Registers a resource document in a group through the model's own lifecycle: the group's
         /// <c>CreateResource</c> creates the resource version and opens it for writing, the document
         /// is streamed through the inherited <c>FileType</c> Write, and Close finalizes it. On close
-        /// the server bootstraps the resource's content-derived identity.
+        /// the server publishes the Version's independent content-addressed fast path.
         /// </summary>
         /// <param name="groupNodeId">The NodeId of the group that owns the resource.</param>
         /// <param name="resourceId">The resource id to create or version.</param>

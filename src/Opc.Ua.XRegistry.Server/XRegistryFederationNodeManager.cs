@@ -38,9 +38,9 @@ namespace Opc.Ua.XRegistry.Server
     /// is represented locally by a proxy carrying an <c>ExternalReference</c> (an
     /// <see cref="ExpandedNodeId"/> whose <c>ServerIndex</c> names the remote OPC UA server via the
     /// <c>ServerArray</c>, and whose <c>NamespaceUri</c> + <c>Identifier</c> are the remote resource
-    /// node's identity) and/or a <c>ResourceUrl</c>. Because a resource's identity (its content-id)
-    /// is content-derived and therefore stable across registries, the same resource federated from
-    /// several endpoints keeps <b>one</b> identity and can be de-duplicated by content-id.
+    /// node's identity) and/or a <c>ResourceUrl</c>. The proxy retains the remote resource's
+    /// structural xRegistry identity while the opaque content id remains an independent lookup
+    /// target carried by <c>ExternalReference</c>.
     /// </summary>
     public class XRegistryFederationNodeManager : CustomNodeManager2
     {
@@ -66,6 +66,11 @@ namespace Opc.Ua.XRegistry.Server
             m_remoteEndpointUrl = opts.RemoteEndpointUrl;
             m_remoteServerIndex = opts.RemoteServerIndex;
             m_proxyBrowseName = opts.FederationProxyBrowseName;
+            m_groupsAttributeName = opts.GroupsAttributeName;
+            m_resourcesAttributeName = opts.ResourcesAttributeName;
+            m_proxyGroupId = opts.FederationProxyGroupId;
+            m_proxyResourceId = opts.FederationProxyResourceId;
+            m_proxyVersionId = opts.FederationProxyVersionId;
         }
 
         /// <summary>
@@ -119,14 +124,18 @@ namespace Opc.Ua.XRegistry.Server
             proxy.AddXid(SystemContext);
             proxy.AddFormat(SystemContext);
             proxy.AddEpoch(SystemContext);
+            proxy.AddVersionId(SystemContext);
 
             // The federation link: ServerIndex -> remote ServerUri (via ServerArray),
             // NamespaceUri + Identifier -> the remote resource node (content-addressed by content-id).
             proxy.ExternalReference!.Value = new ExpandedNodeId(
                 contentId, m_remoteRegistryNamespaceUri, m_remoteServerIndex);
             proxy.ResourceUrl!.Value = m_remoteEndpointUrl;
-            proxy.ResourceId!.Value = contentId.ToHexString();
-            proxy.Xid!.Value = contentId.ToHexString();
+            proxy.ResourceId!.Value = m_proxyResourceId;
+            proxy.VersionId!.Value = m_proxyVersionId;
+            proxy.Xid!.Value =
+                $"/{m_groupsAttributeName}/{m_proxyGroupId}/" +
+                $"{m_resourcesAttributeName}/{m_proxyResourceId}/versions/{m_proxyVersionId}";
             proxy.Format!.Value = m_federatedFormat;
             proxy.Epoch!.Value = 1;
 
@@ -142,5 +151,10 @@ namespace Opc.Ua.XRegistry.Server
         private readonly string m_remoteEndpointUrl;
         private readonly uint m_remoteServerIndex;
         private readonly string m_proxyBrowseName;
+        private readonly string m_groupsAttributeName;
+        private readonly string m_resourcesAttributeName;
+        private readonly string m_proxyGroupId;
+        private readonly string m_proxyResourceId;
+        private readonly string m_proxyVersionId;
     }
 }

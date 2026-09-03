@@ -54,6 +54,17 @@ namespace Opc.Ua.WotCon.Server.Registry
         public string? ResourceId { get; set; }
 
         /// <summary>
+        /// Gets or sets an explicit Version id. When omitted, the registry assigns the next id.
+        /// </summary>
+        public string? VersionId { get; set; }
+
+        /// <summary>
+        /// Gets or sets the digest observed when the Version write handle opened. The update is
+        /// rejected if the committed Version changed before Close.
+        /// </summary>
+        public string? ExpectedVersionDigestHex { get; set; }
+
+        /// <summary>
         /// Gets or sets the document kind.
         /// </summary>
         public WoTDocumentKindEnum Kind { get; set; } = WoTDocumentKindEnum.ThingDescription;
@@ -491,6 +502,51 @@ namespace Opc.Ua.WotCon.Server.Registry
         /// </summary>
         ValueTask ApplyProjectionResultsAsync(
             IReadOnlyList<WotResourceProjection> projections,
+            CancellationToken cancellationToken = default);
+    }
+
+    /// <summary>
+    /// Additive Version-aware registry operations used by the xRegistry projection.
+    /// </summary>
+    internal interface IWotVersionedRegistryService
+    {
+        ValueTask<(WotResource Resource, WotResourceVersion Version, bool Created)>
+            GetOrCreateVersionAsync(
+                string groupId,
+                string resourceId,
+                string versionId,
+                WoTDocumentKindEnum kind,
+                CancellationToken cancellationToken = default);
+
+        ValueTask<(WotResource Resource, WotResourceVersion Version)?> TryCreateVersionAsync(
+            string groupId,
+            string resourceId,
+            string versionId,
+            WoTDocumentKindEnum kind,
+            CancellationToken cancellationToken = default);
+
+        ValueTask<WotRegistryMutationResult> DeleteVersionAsync(
+            string groupId,
+            string resourceId,
+            string versionId,
+            long? expectedEpoch = null,
+            CancellationToken cancellationToken = default);
+
+        ValueTask<WotRegistryMutationResult> AddVersionLabelAsync(
+            string groupId,
+            string resourceId,
+            string versionId,
+            string key,
+            string value,
+            long? expectedEpoch = null,
+            CancellationToken cancellationToken = default);
+
+        ValueTask<WotRegistryMutationResult> RemoveVersionLabelAsync(
+            string groupId,
+            string resourceId,
+            string versionId,
+            string key,
+            long? expectedEpoch = null,
             CancellationToken cancellationToken = default);
     }
 }

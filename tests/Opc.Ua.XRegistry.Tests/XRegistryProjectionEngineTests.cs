@@ -122,6 +122,22 @@ namespace Opc.Ua.XRegistry.Tests
                 typeof(ResourceCreatedEventState),
                 typeof(VersionCreatedEventState)
             }));
+            Assert.Multiple(() =>
+            {
+                Assert.That(harness.Events.OfType<GroupCreatedEventState>()
+                    .Single().SourceNode!.Value,
+                    Is.EqualTo(new NodeId("TestRegistry/groups/schemas", 1)));
+                Assert.That(harness.Events.OfType<ResourceCreatedEventState>()
+                    .Single().SourceNode!.Value,
+                    Is.EqualTo(new NodeId(
+                        "TestRegistry/groups/schemas/resources/pump",
+                        1)));
+                Assert.That(harness.Events.OfType<VersionCreatedEventState>()
+                    .Single().SourceNode!.Value,
+                    Is.EqualTo(new NodeId(
+                        "TestRegistry/groups/schemas/resources/pump",
+                        1)));
+            });
             int count = harness.Events.Count;
 
             await harness.Engine.ReconcileAsync(CancellationToken.None).ConfigureAwait(false);
@@ -148,6 +164,269 @@ namespace Opc.Ua.XRegistry.Tests
                 typeof(ResourceUpdatedEventState),
                 typeof(VersionUpdatedEventState)
             }));
+            Assert.That(harness.Events.Select(evt => evt.SourceNode!.Value).Distinct().Single(),
+                Is.EqualTo(new NodeId("TestRegistry/groups/schemas/resources/pump", 1)));
+        }
+
+        [Test]
+        public void SixParameterProjectionContextConstructorRemainsAvailable()
+        {
+            Type contextType = typeof(XRegistryProjectionContext);
+            Assert.That(
+                contextType.GetConstructor(
+                [
+                    typeof(ISystemContext),
+                    typeof(NamespaceTable),
+                    typeof(ushort),
+                    typeof(Func<NodeState, CancellationToken, ValueTask>),
+                    typeof(Func<NodeId, CancellationToken, ValueTask>),
+                    typeof(Func<ISystemContext, string, ServiceResult>)
+                ]),
+                Is.Not.Null);
+        }
+
+        [TestCase("v7", "v7")]
+        [TestCase("", "generated-1")]
+        public async Task VersionAwareCreateHonorsExplicitAndAssignedVersionIdsAsync(
+            string requestedVersionId,
+            string expectedVersionId)
+        {
+            var strategy = new VersionedTestStrategy();
+            strategy.SetInitialGroup("schemas");
+            ProjectionHarness harness = ProjectionHarness.Create(
+                eventsEnabled: true,
+                suppliedStrategy: strategy);
+            await harness.Engine.AttachAsync(harness.Registry, CancellationToken.None)
+                .ConfigureAwait(false);
+            var group = (GroupState)harness.Added.Single(node => node is GroupState);
+            var output = new List<Variant>();
+
+            ServiceResult result = await group.CreateResource!.OnCallMethod2Async!(
+                harness.Context,
+                group.CreateResource,
+                group.NodeId,
+                [
+                    new Variant("pump"),
+                    new Variant(requestedVersionId),
+                    new Variant(false)
+                ],
+                output,
+                CancellationToken.None).ConfigureAwait(false);
+
+            NodeId expectedNodeId = new(
+                $"TestRegistry/groups/schemas/resources/pump/versions/{expectedVersionId}",
+                1);
+            Assert.Multiple(() =>
+            {
+                Assert.That(ServiceResult.IsGood(result), Is.True);
+                Assert.That(output[0].TryGetValue(out NodeId nodeId) ? nodeId : NodeId.Null,
+                    Is.EqualTo(expectedNodeId));
+                Assert.That(output[1].TryGetValue(out string versionId) ? versionId : string.Empty,
+                    Is.EqualTo(expectedVersionId));
+                Assert.That(harness.Added.Any(node => node.NodeId == expectedNodeId), Is.True);
+                Assert.That(harness.Events.Select(evt => evt.GetType()), Is.EquivalentTo(new[]
+                {
+                    typeof(ResourceCreatedEventState),
+                    typeof(VersionCreatedEventState),
+                    typeof(GroupUpdatedEventState)
+                }));
+            });
+
+            harness.Events.Clear();
+            var updated = new VersionedTestResource(
+                "schemas",
+                "pump",
+                expectedVersionId,
+                isDefaultVersion: true,
+                epoch: 2);
+            strategy.Snapshot = new TestSnapshot(
+                [new TestGroup("schemas", [updated])]);
+            strategy.EventSnapshot = SingleVersionEventSnapshot(
+                expectedVersionId,
+                versionEpoch: 2);
+            await harness.Engine.ReconcileAsync(CancellationToken.None).ConfigureAwait(false);
+            Assert.Multiple(() =>
+            {
+                Assert.That(harness.Events.Select(evt => evt.GetType()), Is.EquivalentTo(new[]
+                {
+                    typeof(VersionUpdatedEventState),
+                    typeof(ResourceUpdatedEventState)
+                }));
+                Assert.That(harness.Events.Any(evt =>
+                    evt is ResourceCreatedEventState or VersionCreatedEventState), Is.False);
+            });
+        }
+
+        [Test]
+        public async Task GenerationCaptureCannotMixProjectionAndEventSnapshotsAsync()
+        {
+            var strategy = new AdvancingGenerationStrategy(
+                (new TestSnapshot([]), EmptyEventSnapshot(0)),
+                GenerationWithResource("a", 1),
+                GenerationWithResource("b", 2));
+            ProjectionHarness harness = ProjectionHarness.Create(
+                eventsEnabled: true,
+                suppliedStrategy: strategy);
+            await harness.Engine.AttachAsync(harness.Registry, CancellationToken.None)
+                .ConfigureAwait(false);
+
+            await harness.Engine.ReconcileAsync(CancellationToken.None).ConfigureAwait(false);
+            Assert.Multiple(() =>
+            {
+                Assert.That(harness.Added.Any(node =>
+                    node.NodeId == new NodeId("TestRegistry/groups/schemas/resources/a", 1)),
+                    Is.True);
+                Assert.That(harness.Events.OfType<ResourceCreatedEventState>()
+                    .Single().Subject!.Value,
+                    Is.EqualTo("/groups/schemas/resources/a"));
+                Assert.That(harness.Events.Any(evt =>
+                    evt is XRegistryEventState xregistry &&
+                    xregistry.Subject!.Value.EndsWith("/b", StringComparison.Ordinal)),
+                    Is.False);
+            });
+
+            harness.Events.Clear();
+            await harness.Engine.ReconcileAsync(CancellationToken.None).ConfigureAwait(false);
+            Assert.Multiple(() =>
+            {
+                Assert.That(harness.Added.Any(node =>
+                    node.NodeId == new NodeId("TestRegistry/groups/schemas/resources/b", 1)),
+                    Is.True);
+                Assert.That(harness.Events.OfType<ResourceCreatedEventState>()
+                    .Single().Subject!.Value,
+                    Is.EqualTo("/groups/schemas/resources/b"));
+            });
+        }
+
+        [Test]
+        public async Task DeprecatedObjectValueChangesEmitSpecializedAndUpdatedEventsAsync()
+        {
+            ProjectionHarness harness = ProjectionHarness.Create(eventsEnabled: true);
+            harness.Strategy.Snapshot = new TestSnapshot([new TestGroup("schemas", [])]);
+            harness.Strategy.EventSnapshot = SnapshotWithDeprecatedGroup(null, 1);
+            await harness.Engine.AttachAsync(harness.Registry, CancellationToken.None)
+                .ConfigureAwait(false);
+
+            harness.Strategy.EventSnapshot = SnapshotWithDeprecatedGroup("reason=a", 2);
+            await harness.Engine.ReconcileAsync(CancellationToken.None).ConfigureAwait(false);
+            Assert.That(harness.Events.Select(evt => evt.GetType()), Is.EquivalentTo(new[]
+            {
+                typeof(GroupDeprecatedEventState),
+                typeof(GroupUpdatedEventState)
+            }));
+
+            harness.Events.Clear();
+            harness.Strategy.EventSnapshot = SnapshotWithDeprecatedGroup("reason=b", 3);
+            await harness.Engine.ReconcileAsync(CancellationToken.None).ConfigureAwait(false);
+            Assert.That(harness.Events.Select(evt => evt.GetType()), Is.EquivalentTo(new[]
+            {
+                typeof(GroupDeprecatedEventState),
+                typeof(GroupUpdatedEventState)
+            }));
+
+            harness.Events.Clear();
+            harness.Strategy.EventSnapshot = SnapshotWithDeprecatedGroup(null, 4);
+            await harness.Engine.ReconcileAsync(CancellationToken.None).ConfigureAwait(false);
+            Assert.That(harness.Events.Select(evt => evt.GetType()), Is.EquivalentTo(new[]
+            {
+                typeof(GroupUndeprecatedEventState),
+                typeof(GroupUpdatedEventState)
+            }));
+        }
+
+        [Test]
+        public async Task ResourceDeprecatedObjectUsesCreateChangeAndRemovalErrataAsync()
+        {
+            ProjectionHarness harness = ProjectionHarness.Create(eventsEnabled: true);
+            harness.Strategy.Snapshot = new TestSnapshot(
+                [new TestGroup("schemas", [new TestResource("schemas", "pump")])]);
+            harness.Strategy.EventSnapshot = SnapshotWithDeprecatedResource(null, 1);
+            await harness.Engine.AttachAsync(harness.Registry, CancellationToken.None)
+                .ConfigureAwait(false);
+
+            foreach ((string? value, Type specialized) in new[]
+            {
+                ("reason=a", typeof(ResourceDeprecatedEventState)),
+                ("reason=b", typeof(ResourceDeprecatedEventState)),
+                (null, typeof(ResourceUndeprecatedEventState))
+            })
+            {
+                harness.Events.Clear();
+                harness.Strategy.EventSnapshot = SnapshotWithDeprecatedResource(
+                    value,
+                    (uint)(2 + (value == "reason=b" ? 1 : value is null ? 2 : 0)));
+                await harness.Engine.ReconcileAsync(CancellationToken.None).ConfigureAwait(false);
+                Assert.Multiple(() =>
+                {
+                    Assert.That(harness.Events.Any(evt => evt.GetType() == specialized), Is.True);
+                    ResourceUpdatedEventState updated =
+                        harness.Events.OfType<ResourceUpdatedEventState>().Single();
+                    Assert.That(updated.Changed!.Value.ToArray(), Does.Contain("meta.deprecated"));
+                });
+            }
+        }
+
+        [Test]
+        public async Task VersionSourcesMetaAndDefaultSwitchAreDiffedIndependentlyAsync()
+        {
+            var strategy = new VersionedTestStrategy
+            {
+                Snapshot = VersionedProjectionSnapshot("v1"),
+                EventSnapshot = VersionedEventSnapshot("v1", 1, WotLabels())
+            };
+            ProjectionHarness harness = ProjectionHarness.Create(
+                eventsEnabled: true,
+                suppliedStrategy: strategy);
+            await harness.Engine.AttachAsync(harness.Registry, CancellationToken.None)
+                .ConfigureAwait(false);
+
+            strategy.Snapshot = VersionedProjectionSnapshot("v2");
+            strategy.EventSnapshot = VersionedEventSnapshot("v2", 2, WotLabels());
+            await harness.Engine.ReconcileAsync(CancellationToken.None).ConfigureAwait(false);
+            Assert.Multiple(() =>
+            {
+                Assert.That(harness.Events.Select(evt => evt.GetType()),
+                    Is.EquivalentTo(new[] { typeof(ResourceUpdatedEventState) }));
+                Assert.That(
+                    harness.Events.OfType<ResourceUpdatedEventState>().Single().SourceNode!.Value,
+                    Is.EqualTo(new NodeId(
+                        "TestRegistry/groups/schemas/resources/pump/versions/v2",
+                        1)));
+            });
+
+            harness.Events.Clear();
+            strategy.EventSnapshot = VersionedEventSnapshot(
+                "v2",
+                3,
+                WotLabels().Add("owner", "plant-1"));
+            await harness.Engine.ReconcileAsync(CancellationToken.None).ConfigureAwait(false);
+            Assert.Multiple(() =>
+            {
+                Assert.That(harness.Events.Select(evt => evt.GetType()),
+                    Is.EquivalentTo(new[] { typeof(ResourceUpdatedEventState) }));
+                Assert.That(
+                    harness.Events.OfType<ResourceUpdatedEventState>()
+                        .Single().Changed!.Value.ToArray(),
+                    Does.Contain("meta.labels"));
+            });
+
+            harness.Events.Clear();
+            strategy.EventSnapshot = VersionedEventSnapshot(
+                "v2",
+                3,
+                WotLabels().Add("owner", "plant-1"),
+                v1Epoch: 2);
+            await harness.Engine.ReconcileAsync(CancellationToken.None).ConfigureAwait(false);
+            Assert.Multiple(() =>
+            {
+                Assert.That(harness.Events.Select(evt => evt.GetType()),
+                    Is.EquivalentTo(new[] { typeof(VersionUpdatedEventState) }));
+                Assert.That(
+                    harness.Events.OfType<VersionUpdatedEventState>().Single().SourceNode!.Value,
+                    Is.EqualTo(new NodeId(
+                        "TestRegistry/groups/schemas/resources/pump/versions/v1",
+                        1)));
+            });
         }
 
         private static XRegistryProjectionEventSnapshot EmptyEventSnapshot(uint epoch)
@@ -199,10 +478,271 @@ namespace Opc.Ua.XRegistry.Tests
                 ]);
         }
 
+        private static (
+            IXRegistryProjectionSnapshot Projection,
+            XRegistryProjectionEventSnapshot Events) GenerationWithResource(
+                string resourceId,
+                uint epoch)
+        {
+            var resource = new TestResource("schemas", resourceId);
+            IXRegistryProjectionSnapshot projection = new TestSnapshot(
+                [new TestGroup("schemas", [resource])]);
+            var events = new XRegistryProjectionEventSnapshot(
+                "/",
+                epoch,
+                ImmutableSortedDictionary<string, string>.Empty,
+                [
+                    new XRegistryProjectionEventGroup(
+                        "schemas",
+                        "/groups/schemas",
+                        epoch,
+                        ImmutableSortedDictionary<string, string>.Empty,
+                        false,
+                        [
+                            new XRegistryProjectionEventResource(
+                                "schemas",
+                                resourceId,
+                                $"/groups/schemas/resources/{resourceId}",
+                                1,
+                                1,
+                                ImmutableSortedDictionary<string, string>.Empty,
+                                false,
+                                "v1",
+                                [
+                                    new XRegistryProjectionEventVersion(
+                                        "v1",
+                                        $"/groups/schemas/resources/{resourceId}/versions/v1",
+                                        1,
+                                        ImmutableSortedDictionary<string, string>.Empty)
+                                ])
+                        ])
+                ]);
+            return (projection, events);
+        }
+
+        private static XRegistryProjectionEventSnapshot SnapshotWithDeprecatedGroup(
+            string? canonicalDeprecated,
+            uint epoch)
+        {
+            var group = new XRegistryProjectionEventGroup(
+                "schemas",
+                "/groups/schemas",
+                epoch,
+                ImmutableSortedDictionary<string, string>.Empty,
+                false,
+                [])
+            {
+                Deprecation = canonicalDeprecated is null
+                    ? null
+                    : new XRegistryProjectionDeprecation(
+                        canonicalDeprecated,
+                        ImmutableSortedDictionary<string, string>.Empty)
+            };
+            return new XRegistryProjectionEventSnapshot(
+                "/",
+                epoch,
+                ImmutableSortedDictionary<string, string>.Empty,
+                [group]);
+        }
+
+        private static XRegistryProjectionEventSnapshot SnapshotWithDeprecatedResource(
+            string? canonicalDeprecated,
+            uint epoch)
+        {
+            var resource = new XRegistryProjectionEventResource(
+                "schemas",
+                "pump",
+                "/groups/schemas/resources/pump",
+                1,
+                epoch,
+                ImmutableSortedDictionary<string, string>.Empty,
+                false,
+                "v1",
+                [
+                    new XRegistryProjectionEventVersion(
+                        "v1",
+                        "/groups/schemas/resources/pump/versions/v1",
+                        1,
+                        ImmutableSortedDictionary<string, string>.Empty)
+                ])
+            {
+                Deprecation = canonicalDeprecated is null
+                    ? null
+                    : new XRegistryProjectionDeprecation(
+                        canonicalDeprecated,
+                        ImmutableSortedDictionary<string, string>.Empty)
+            };
+            return new XRegistryProjectionEventSnapshot(
+                "/",
+                epoch,
+                ImmutableSortedDictionary<string, string>.Empty,
+                [
+                    new XRegistryProjectionEventGroup(
+                        "schemas",
+                        "/groups/schemas",
+                        1,
+                        ImmutableSortedDictionary<string, string>.Empty,
+                        false,
+                        [resource])
+                ]);
+        }
+
+        private static ImmutableSortedDictionary<string, string> WotLabels()
+        {
+            return ImmutableSortedDictionary<string, string>.Empty;
+        }
+
+        private static TestSnapshot VersionedProjectionSnapshot(
+            string defaultVersionId)
+        {
+            return new TestSnapshot(
+            [
+                new TestGroup(
+                    "schemas",
+                    [
+                        new VersionedTestResource(
+                            "schemas",
+                            "pump",
+                            "v1",
+                            defaultVersionId == "v1"),
+                        new VersionedTestResource(
+                            "schemas",
+                            "pump",
+                            "v2",
+                            defaultVersionId == "v2")
+                    ])
+            ]);
+        }
+
+        private static XRegistryProjectionEventSnapshot VersionedEventSnapshot(
+            string defaultVersionId,
+            uint metaEpoch,
+            ImmutableSortedDictionary<string, string> metaLabels,
+            uint v1Epoch = 1,
+            uint v2Epoch = 1)
+        {
+            NodeId v1Node = new(
+                "TestRegistry/groups/schemas/resources/pump/versions/v1",
+                1);
+            NodeId v2Node = new(
+                "TestRegistry/groups/schemas/resources/pump/versions/v2",
+                1);
+            XRegistryProjectionEventVersion V(string id, uint epoch, NodeId source)
+            {
+                return new XRegistryProjectionEventVersion(
+                    id,
+                    $"/groups/schemas/resources/pump/versions/{id}",
+                    epoch,
+                    ImmutableSortedDictionary<string, string>.Empty.Add(
+                        "resource",
+                        epoch.ToString(
+                            System.Globalization.CultureInfo.InvariantCulture)))
+                {
+                    SourceNodeId = source,
+                    SourceName = id,
+                    CreatedAt = DateTime.UnixEpoch,
+                    ModifiedAt = DateTime.UnixEpoch.AddSeconds(epoch)
+                };
+            }
+
+            return new XRegistryProjectionEventSnapshot(
+                "/",
+                metaEpoch,
+                ImmutableSortedDictionary<string, string>.Empty,
+                [
+                    new XRegistryProjectionEventGroup(
+                        "schemas",
+                        "/groups/schemas",
+                        1,
+                        ImmutableSortedDictionary<string, string>.Empty,
+                        false,
+                        [
+                            new XRegistryProjectionEventResource(
+                                "schemas",
+                                "pump",
+                                "/groups/schemas/resources/pump",
+                                defaultVersionId == "v1" ? v1Epoch : v2Epoch,
+                                metaEpoch,
+                                metaLabels,
+                                false,
+                                defaultVersionId,
+                                [V("v1", v1Epoch, v1Node), V("v2", v2Epoch, v2Node)])
+                            {
+                                SourceNodeId = defaultVersionId == "v1" ? v1Node : v2Node,
+                                SourceName = "pump",
+                                MetaCreatedAt = DateTime.UnixEpoch,
+                                MetaModifiedAt = DateTime.UnixEpoch.AddSeconds(metaEpoch)
+                            }
+                        ])
+                    {
+                        SourceNodeId = new NodeId("TestRegistry/groups/schemas", 1),
+                        SourceName = "schemas"
+                    }
+                ]);
+        }
+
+        private static XRegistryProjectionEventSnapshot SingleVersionEventSnapshot(
+            string versionId,
+            uint versionEpoch)
+        {
+            NodeId source = new(
+                $"TestRegistry/groups/schemas/resources/pump/versions/{versionId}",
+                1);
+            return new XRegistryProjectionEventSnapshot(
+                "/",
+                2,
+                ImmutableSortedDictionary<string, string>.Empty,
+                [
+                    new XRegistryProjectionEventGroup(
+                        "schemas",
+                        "/groups/schemas",
+                        2,
+                        ImmutableSortedDictionary<string, string>.Empty,
+                        false,
+                        [
+                            new XRegistryProjectionEventResource(
+                                "schemas",
+                                "pump",
+                                "/groups/schemas/resources/pump",
+                                versionEpoch,
+                                1,
+                                ImmutableSortedDictionary<string, string>.Empty,
+                                false,
+                                versionId,
+                                [
+                                    new XRegistryProjectionEventVersion(
+                                        versionId,
+                                        $"/groups/schemas/resources/pump/versions/{versionId}",
+                                        versionEpoch,
+                                        ImmutableSortedDictionary<string, string>.Empty.Add(
+                                            "resource",
+                                            versionEpoch.ToString(
+                                                System.Globalization.CultureInfo.InvariantCulture)))
+                                    {
+                                        SourceNodeId = source,
+                                        SourceName = versionId,
+                                        ModifiedAt = DateTime.UnixEpoch.AddSeconds(versionEpoch)
+                                    }
+                                ])
+                            {
+                                SourceNodeId = source,
+                                SourceName = "pump",
+                                MetaCreatedAt = DateTime.UnixEpoch,
+                                MetaModifiedAt = DateTime.UnixEpoch
+                            }
+                        ])
+                    {
+                        SourceNodeId = new NodeId("TestRegistry/groups/schemas", 1),
+                        SourceName = "schemas"
+                    }
+                ]);
+        }
+
         private sealed class ProjectionHarness
         {
             private ProjectionHarness(
                 XRegistryProjectionEngine engine,
+                ServerSystemContext context,
                 RegistryState registry,
                 TestStrategy strategy,
                 List<NodeState> added,
@@ -210,6 +750,7 @@ namespace Opc.Ua.XRegistry.Tests
                 List<BaseEventState> events)
             {
                 Engine = engine;
+                Context = context;
                 Registry = registry;
                 Strategy = strategy;
                 Added = added;
@@ -218,13 +759,16 @@ namespace Opc.Ua.XRegistry.Tests
             }
 
             public XRegistryProjectionEngine Engine { get; }
+            public ServerSystemContext Context { get; }
             public RegistryState Registry { get; }
             public TestStrategy Strategy { get; }
             public List<NodeState> Added { get; }
             public List<NodeId> Deleted { get; }
             public List<BaseEventState> Events { get; }
 
-            public static ProjectionHarness Create(bool eventsEnabled = false)
+            public static ProjectionHarness Create(
+                bool eventsEnabled = false,
+                TestStrategy? suppliedStrategy = null)
             {
                 Mock<IServerInternal> server =
                     XRegistryServerTestHarness.CreateServer(XRegistryWellKnown.XRegistryNamespaceUri);
@@ -249,7 +793,7 @@ namespace Opc.Ua.XRegistry.Tests
                         events.Add(evt);
                     }
                 };
-                var strategy = new TestStrategy();
+                TestStrategy strategy = suppliedStrategy ?? new TestStrategy();
                 var projectionContext = new XRegistryProjectionContext(
                     context,
                     context.NamespaceUris,
@@ -274,6 +818,7 @@ namespace Opc.Ua.XRegistry.Tests
                         : null);
                 return new ProjectionHarness(
                     new XRegistryProjectionEngine(projectionContext, strategy, "TestRegistry"),
+                    context,
                     registry,
                     strategy,
                     added,
@@ -282,17 +827,23 @@ namespace Opc.Ua.XRegistry.Tests
             }
         }
 
-        private sealed class TestStrategy :
+        private class TestStrategy :
             IXRegistryProjectionStrategy,
-            IXRegistryProjectionEventMetadataProvider
+            IXRegistryProjectionEventMetadataProvider,
+            IXRegistryProjectionGenerationProvider
         {
             public IXRegistryProjectionSnapshot Snapshot { get; set; } = new TestSnapshot([]);
             public XRegistryProjectionEventSnapshot EventSnapshot { get; set; } =
                 EmptyEventSnapshot(0);
 
-            public IXRegistryProjectionSnapshot Current => Snapshot;
+            public virtual IXRegistryProjectionSnapshot Current => Snapshot;
 
             public XRegistryProjectionEventSnapshot CaptureEventSnapshot() => EventSnapshot;
+
+            public virtual XRegistryProjectionGeneration CaptureProjectionGeneration()
+            {
+                return new XRegistryProjectionGeneration(Snapshot, EventSnapshot);
+            }
 
             public GroupState CreateGroupNode(BaseObjectState registryNode, IXRegistryProjectionGroup group)
             {
@@ -431,6 +982,197 @@ namespace Opc.Ua.XRegistry.Tests
             }
         }
 
+        private sealed class AdvancingGenerationStrategy : TestStrategy
+        {
+            public AdvancingGenerationStrategy(
+                params (IXRegistryProjectionSnapshot Projection,
+                    XRegistryProjectionEventSnapshot Events)[] generations)
+            {
+                m_generations = new Queue<XRegistryProjectionGeneration>(
+                    generations.Select(generation => new XRegistryProjectionGeneration(
+                        generation.Projection,
+                        generation.Events)));
+            }
+
+            public override XRegistryProjectionGeneration CaptureProjectionGeneration()
+            {
+                return m_generations.Dequeue();
+            }
+
+            private readonly Queue<XRegistryProjectionGeneration> m_generations;
+        }
+
+        private sealed class VersionedTestStrategy :
+            TestStrategy,
+            IXRegistryVersionedProjectionStrategy
+        {
+            public void SetInitialGroup(string groupId)
+            {
+                Snapshot = new TestSnapshot([new TestGroup(groupId, [])]);
+                EventSnapshot = new XRegistryProjectionEventSnapshot(
+                    "/",
+                    1,
+                    ImmutableSortedDictionary<string, string>.Empty,
+                    [
+                        new XRegistryProjectionEventGroup(
+                            groupId,
+                            $"/groups/{groupId}",
+                            1,
+                            ImmutableSortedDictionary<string, string>.Empty,
+                            false,
+                            [])
+                    ]);
+            }
+
+            public ValueTask<IXRegistryProjectionResource?> CreateResourceAsync(
+                string groupId,
+                string resourceId,
+                string versionId,
+                CancellationToken ct)
+            {
+                IXRegistryProjectionResource resource = Create(
+                    groupId,
+                    resourceId,
+                    versionId);
+                return new ValueTask<IXRegistryProjectionResource?>(resource);
+            }
+
+            public ValueTask<(IXRegistryProjectionResource Resource, bool Created)>
+                GetOrCreateResourceAsync(
+                    string groupId,
+                    string resourceId,
+                    string versionId,
+                    CancellationToken ct)
+            {
+                IXRegistryProjectionResource resource = Create(
+                    groupId,
+                    resourceId,
+                    versionId);
+                return new ValueTask<(IXRegistryProjectionResource, bool)>((resource, true));
+            }
+
+            public ValueTask<ServiceResult> DeleteVersionAsync(
+                string groupId,
+                string resourceId,
+                string versionId,
+                long? epoch,
+                CancellationToken ct)
+            {
+                return new ValueTask<ServiceResult>(ServiceResult.Good);
+            }
+
+            public ValueTask<ServiceResult> AddVersionLabelAsync(
+                string groupId,
+                string resourceId,
+                string versionId,
+                string key,
+                string value,
+                long? epoch,
+                CancellationToken ct)
+            {
+                return new ValueTask<ServiceResult>(ServiceResult.Good);
+            }
+
+            public ValueTask<ServiceResult> RemoveVersionLabelAsync(
+                string groupId,
+                string resourceId,
+                string versionId,
+                string key,
+                long? epoch,
+                CancellationToken ct)
+            {
+                return new ValueTask<ServiceResult>(ServiceResult.Good);
+            }
+
+            public ValueTask<ServiceResult> AddResourceMetaLabelAsync(
+                string groupId,
+                string resourceId,
+                string key,
+                string value,
+                long? epoch,
+                CancellationToken ct)
+            {
+                return new ValueTask<ServiceResult>(ServiceResult.Good);
+            }
+
+            public ValueTask<ServiceResult> RemoveResourceMetaLabelAsync(
+                string groupId,
+                string resourceId,
+                string key,
+                long? epoch,
+                CancellationToken ct)
+            {
+                return new ValueTask<ServiceResult>(ServiceResult.Good);
+            }
+
+            private VersionedTestResource Create(
+                string groupId,
+                string resourceId,
+                string requestedVersionId)
+            {
+                string versionId = string.IsNullOrEmpty(requestedVersionId)
+                    ? $"generated-{++m_nextVersion}"
+                    : requestedVersionId;
+                var resource = new VersionedTestResource(
+                    groupId,
+                    resourceId,
+                    versionId);
+                Snapshot = new TestSnapshot([new TestGroup(groupId, [resource])]);
+                NodeId versionNodeId = new(
+                    $"TestRegistry/groups/{groupId}/resources/{resourceId}/versions/{versionId}",
+                    1);
+                EventSnapshot = new XRegistryProjectionEventSnapshot(
+                    "/",
+                    2,
+                    ImmutableSortedDictionary<string, string>.Empty,
+                    [
+                        new XRegistryProjectionEventGroup(
+                            groupId,
+                            $"/groups/{groupId}",
+                            2,
+                            ImmutableSortedDictionary<string, string>.Empty,
+                            false,
+                            [
+                                new XRegistryProjectionEventResource(
+                                    groupId,
+                                    resourceId,
+                                    $"/groups/{groupId}/resources/{resourceId}",
+                                    1,
+                                    1,
+                                    ImmutableSortedDictionary<string, string>.Empty,
+                                    false,
+                                    versionId,
+                                    [
+                                        new XRegistryProjectionEventVersion(
+                                            versionId,
+                                            resource.Xid,
+                                            1,
+                                            ImmutableSortedDictionary<string, string>.Empty)
+                                        {
+                                            SourceNodeId = versionNodeId,
+                                            SourceName = versionId
+                                        }
+                                    ])
+                                {
+                                    SourceNodeId = versionNodeId,
+                                    SourceName = resourceId,
+                                    MetaCreatedAt = DateTime.UnixEpoch,
+                                    MetaModifiedAt = DateTime.UnixEpoch
+                                }
+                            ])
+                        {
+                            SourceNodeId = new NodeId(
+                                $"TestRegistry/groups/{groupId}",
+                                1),
+                            SourceName = groupId
+                        }
+                    ]);
+                return resource;
+            }
+
+            private int m_nextVersion;
+        }
+
         private sealed class TestSnapshot : IXRegistryProjectionSnapshot
         {
             public TestSnapshot(IEnumerable<IXRegistryProjectionGroup> groups)
@@ -484,6 +1226,46 @@ namespace Opc.Ua.XRegistry.Tests
             public DateTime ModifiedAt => new(2026, 1, 2, 0, 0, 0, DateTimeKind.Utc);
             public ImmutableSortedDictionary<string, string> Labels { get; }
                 = ImmutableSortedDictionary<string, string>.Empty;
+        }
+
+        private sealed class VersionedTestResource :
+            IXRegistryProjectionResource,
+            IXRegistryProjectionResourceMeta
+        {
+            public VersionedTestResource(
+                string groupId,
+                string resourceId,
+                string versionId,
+                bool isDefaultVersion = true,
+                long epoch = 1)
+            {
+                GroupId = groupId;
+                ResourceId = resourceId;
+                VersionId = versionId;
+                IsDefaultVersion = isDefaultVersion;
+                Epoch = epoch;
+            }
+
+            public string GroupId { get; }
+            public string ResourceId { get; }
+            public string VersionId { get; }
+            public string Xid =>
+                $"/groups/{GroupId}/resources/{ResourceId}/versions/{VersionId}";
+            public string Name => ResourceId;
+            public string Description => string.Empty;
+            public string Format => "json";
+            public string ContentType => "application/json";
+            public long Epoch { get; }
+            public DateTime CreatedAt => DateTime.UnixEpoch;
+            public DateTime ModifiedAt => DateTime.UnixEpoch;
+            public ImmutableSortedDictionary<string, string> Labels { get; } =
+                ImmutableSortedDictionary<string, string>.Empty;
+            public long MetaEpoch => 1;
+            public ImmutableSortedDictionary<string, string> MetaLabels { get; } =
+                ImmutableSortedDictionary<string, string>.Empty;
+            public DateTime MetaCreatedAt => DateTime.UnixEpoch;
+            public DateTime MetaModifiedAt => DateTime.UnixEpoch;
+            public bool IsDefaultVersion { get; }
         }
     }
 }

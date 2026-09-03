@@ -422,6 +422,16 @@ namespace Opc.Ua.WotCon.Server.Registry
 
                     foreach (WotResourceVersion version in resource.Versions)
                     {
+                        if (!version.HasContent)
+                        {
+                            if (version.ContentLength != 0)
+                            {
+                                throw new InvalidDataException(
+                                    $"Registry snapshot placeholder version " +
+                                    $"'{version.VersionId}' has a non-zero content length.");
+                            }
+                            continue;
+                        }
                         string digestHex = version.DigestHex;
                         if (!IsSha256Hex(digestHex))
                         {
@@ -780,20 +790,26 @@ namespace Opc.Ua.WotCon.Server.Registry
                             $"'{version.VersionId}'.");
                     }
                     ValidateSegment(version.VersionId, "version id");
-                    if (!IsSha256Hex(version.DigestHex))
+                    bool hasContent = version.HasContent ??
+                        !string.IsNullOrEmpty(version.DigestHex);
+                    if (hasContent && !IsSha256Hex(version.DigestHex))
                     {
                         throw new InvalidDataException(
                             $"Registry resource '{dto.GroupId}/{dto.ResourceId}' version " +
                             $"'{version.VersionId}' has an invalid SHA-256 DigestHex.");
                     }
-                    string digestHex = version.DigestHex!.ToLowerInvariant();
+                    string digestHex = hasContent
+                        ? version.DigestHex!.ToLowerInvariant()
+                        : string.Empty;
                     if (version.ContentLength < 0)
                     {
                         throw new InvalidDataException(
                             $"Registry resource '{dto.GroupId}/{dto.ResourceId}' version " +
                             $"'{version.VersionId}' has an invalid ContentLength.");
                     }
-                    if (!loadedBlobs.TryGetValue(digestHex, out long contentLength))
+                    long contentLength = version.ContentLength;
+                    if (hasContent &&
+                        !loadedBlobs.TryGetValue(digestHex, out contentLength))
                     {
                         if (suppliedBlobs is not null)
                         {
@@ -841,20 +857,32 @@ namespace Opc.Ua.WotCon.Server.Registry
                     }
                     versions.Add(new WotResourceVersion(
                         version.VersionId,
-                        FromHexDigest(digestHex),
+                        hasContent ? FromHexDigest(digestHex) : ByteString.Empty,
                         contentLength,
                         version.ContentType ?? string.Empty,
                         version.Format ?? string.Empty,
                         ParseDate(version.CreatedAt),
-                        ParseDate(version.ModifiedAt)));
+                        ParseDate(version.ModifiedAt))
+                    {
+                        Epoch = version.Epoch.GetValueOrDefault(1),
+                        Labels = ToLabels(version.Labels),
+                        HasContent = hasContent
+                    });
                 }
             }
 
+            ImmutableArray<WotResourceVersion> loadedVersions = versions.ToImmutable();
+            DateTime derivedMetaCreatedAt = loadedVersions.IsDefaultOrEmpty
+                ? DateTime.MinValue
+                : loadedVersions.Min(version => version.CreatedAt);
+            DateTime derivedMetaModifiedAt = loadedVersions.IsDefaultOrEmpty
+                ? derivedMetaCreatedAt
+                : loadedVersions.Max(version => version.ModifiedAt);
             return new WotResource(
                 dto.GroupId,
                 dto.ResourceId,
                 (WoTDocumentKindEnum)dto.Kind,
-                versions.ToImmutable(),
+                loadedVersions,
                 defaultVersionId: dto.DefaultVersionId,
                 desiredVersionId: dto.DesiredVersionId,
                 activeVersionId: dto.ActiveVersionId,
@@ -873,7 +901,15 @@ namespace Opc.Ua.WotCon.Server.Registry
                 description: dto.Description,
                 thingId: dto.ThingId,
                 title: dto.Title,
-                labels: ToLabels(dto.Labels));
+                labels: ToLabels(dto.Labels))
+            {
+                MetaCreatedAt = string.IsNullOrEmpty(dto.MetaCreatedAt)
+                    ? derivedMetaCreatedAt
+                    : ParseDate(dto.MetaCreatedAt),
+                MetaModifiedAt = string.IsNullOrEmpty(dto.MetaModifiedAt)
+                    ? derivedMetaModifiedAt
+                    : ParseDate(dto.MetaModifiedAt)
+            };
         }
 
         private static ManifestDto ToManifest(WotRegistrySnapshot snapshot)
@@ -920,7 +956,10 @@ namespace Opc.Ua.WotCon.Server.Registry
                     CreatedAt = FormatDate(v.CreatedAt),
                     ModifiedAt = FormatDate(v.ModifiedAt),
                     DigestHex = v.DigestHex,
-                    ContentLength = v.ContentLength
+                    ContentLength = v.ContentLength,
+                    Epoch = v.Epoch,
+                    Labels = FromLabels(v.Labels),
+                    HasContent = v.HasContent
                 };
             }
             return new ResourceDto
@@ -947,7 +986,9 @@ namespace Opc.Ua.WotCon.Server.Registry
                     : System.Linq.Enumerable.ToArray(resource.Diagnostics),
                 Validation = ToDto(resource.Validation),
                 Versions = versions.Length == 0 ? null : versions,
-                Labels = FromLabels(resource.Labels)
+                Labels = FromLabels(resource.MetaLabels),
+                MetaCreatedAt = FormatDate(resource.MetaCreatedAt),
+                MetaModifiedAt = FormatDate(resource.MetaModifiedAt)
             };
         }
 
@@ -1568,6 +1609,10 @@ namespace Opc.Ua.WotCon.Server.Registry
             {
                 foreach (WotResourceVersion version in resource.Versions)
                 {
+                    if (!version.HasContent)
+                    {
+                        continue;
+                    }
                     string digestHex = version.DigestHex;
                     if (!seen.Add(digestHex))
                     {
@@ -2519,6 +2564,21 @@ namespace Opc.Ua.WotCon.Server.Registry
             /// Gets or sets the version blob length in bytes.
             /// </summary>
             public long ContentLength { get; set; }
+
+            /// <summary>
+            /// Gets or sets the independently versioned epoch.
+            /// </summary>
+            public long? Epoch { get; set; }
+
+            /// <summary>
+            /// Gets or sets Version labels.
+            /// </summary>
+            public Dictionary<string, string>? Labels { get; set; }
+
+            /// <summary>
+            /// Gets or sets whether document bytes have been committed.
+            /// </summary>
+            public bool? HasContent { get; set; }
         }
 
         /// <summary>
@@ -2681,6 +2741,16 @@ namespace Opc.Ua.WotCon.Server.Registry
             /// Gets or sets resource-level labels persisted with the manifest.
             /// </summary>
             public Dictionary<string, string>? Labels { get; set; }
+
+            /// <summary>
+            /// Gets or sets the Resource Meta creation timestamp.
+            /// </summary>
+            public string? MetaCreatedAt { get; set; }
+
+            /// <summary>
+            /// Gets or sets the Resource Meta modification timestamp.
+            /// </summary>
+            public string? MetaModifiedAt { get; set; }
         }
     }
 

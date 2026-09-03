@@ -55,7 +55,10 @@ namespace Opc.Ua.WotCon.Server.Registry
     /// retryable. An indeterminate commit blocks mutation until
     /// <see cref="InitializeAsync"/> reloads a known generation.
     /// </summary>
-    public sealed class WotRegistryService : IWotRegistryService, IDisposable
+    public sealed class WotRegistryService :
+        IWotRegistryService,
+        IWotVersionedRegistryService,
+        IDisposable
     {
         /// <summary>
         /// Initializes a new registry service over the supplied store.
@@ -270,6 +273,245 @@ namespace Opc.Ua.WotCon.Server.Registry
         }
 
         /// <inheritdoc/>
+        public async ValueTask<(WotResource Resource, WotResourceVersion Version, bool Created)>
+            GetOrCreateVersionAsync(
+                string groupId,
+                string resourceId,
+                string versionId,
+                WoTDocumentKindEnum kind,
+                CancellationToken cancellationToken = default)
+        {
+            VersionCreateResult result = await CreateVersionAsync(
+                    groupId,
+                    resourceId,
+                    versionId,
+                    kind,
+                    getOrCreate: true,
+                    cancellationToken)
+                .ConfigureAwait(false);
+            return (result.Resource!, result.Version!, result.Created);
+        }
+
+        /// <inheritdoc/>
+        public async ValueTask<(WotResource Resource, WotResourceVersion Version)?>
+            TryCreateVersionAsync(
+                string groupId,
+                string resourceId,
+                string versionId,
+                WoTDocumentKindEnum kind,
+                CancellationToken cancellationToken = default)
+        {
+            VersionCreateResult result = await CreateVersionAsync(
+                    groupId,
+                    resourceId,
+                    versionId,
+                    kind,
+                    getOrCreate: false,
+                    cancellationToken)
+                .ConfigureAwait(false);
+            return result.Created ? (result.Resource!, result.Version!) : null;
+        }
+
+        private async ValueTask<VersionCreateResult> CreateVersionAsync(
+            string groupId,
+            string resourceId,
+            string versionId,
+            WoTDocumentKindEnum kind,
+            bool getOrCreate,
+            CancellationToken cancellationToken)
+        {
+            groupId = NormalizeSegment(groupId, nameof(groupId));
+            resourceId = NormalizeSegment(resourceId, nameof(resourceId));
+            await m_mutex.WaitAsync(cancellationToken).ConfigureAwait(false);
+            try
+            {
+                EnsureMutationAllowed();
+                WotRegistrySnapshot snapshot = m_snapshot;
+                WotResourceGroup? group = snapshot.FindGroup(groupId);
+                WotResource? existing = group?.Resources.GetValueOrDefault(resourceId);
+                if (getOrCreate &&
+                    string.IsNullOrWhiteSpace(versionId) &&
+                    existing?.DefaultVersion is { } defaultVersion)
+                {
+                    return new VersionCreateResult(existing, defaultVersion, false);
+                }
+                string assignedVersionId = string.IsNullOrWhiteSpace(versionId)
+                    ? NextVersionId(existing)
+                    : NormalizeSegment(versionId, nameof(versionId));
+                if (existing?.FindVersion(assignedVersionId) is { } existingVersion)
+                {
+                    return getOrCreate
+                        ? new VersionCreateResult(existing, existingVersion, false)
+                        : default;
+                }
+
+                if (group is null)
+                {
+                    if (snapshot.Groups.Count >= Bounds.MaxGroups)
+                    {
+                        throw new ServiceResultException(
+                            StatusCodes.BadTooManyOperations,
+                            $"The registry already holds the maximum of {Bounds.MaxGroups} groups.");
+                    }
+                    group = new WotResourceGroup(groupId, kind, epoch: 0);
+                }
+                if (existing is null &&
+                    group.Resources.Count >= Bounds.MaxResourcesPerGroup)
+                {
+                    throw new ServiceResultException(
+                        StatusCodes.BadTooManyOperations,
+                        $"Group '{groupId}' already holds the maximum of " +
+                        $"{Bounds.MaxResourcesPerGroup} resources.");
+                }
+                if (existing is not null &&
+                    existing.Versions.Length >= Bounds.MaxVersionsPerResource)
+                {
+                    throw new ServiceResultException(
+                        StatusCodes.BadTooManyOperations,
+                        $"Resource '{resourceId}' already holds the maximum of " +
+                        $"{Bounds.MaxVersionsPerResource} versions.");
+                }
+
+                DateTime now = DateTime.UtcNow;
+                WotResourceVersion version =
+                    WotResourceVersion.CreatePlaceholder(assignedVersionId, now);
+                WotResource resource;
+                bool resourceCreated = existing is null;
+                if (resourceCreated)
+                {
+                    resource = new WotResource(
+                        groupId,
+                        resourceId,
+                        kind,
+                        [version],
+                        defaultVersionId: assignedVersionId,
+                        desiredVersionId: assignedVersionId,
+                        enabled: true,
+                        loadState: WoTLoadStateEnum.Unloaded,
+                        epoch: 1,
+                        name: resourceId)
+                    {
+                        MetaCreatedAt = now,
+                        MetaModifiedAt = now
+                    };
+                }
+                else
+                {
+                    long metaEpoch = existing!.MetaEpoch + 1;
+                    resource = existing.With(
+                            versions: existing.Versions.Add(version),
+                            defaultVersionId: assignedVersionId,
+                            desiredVersionId: assignedVersionId,
+                            epoch: metaEpoch)
+                        .WithMeta(metaEpoch, modifiedAt: now);
+                }
+
+                long generation = snapshot.Generation + 1;
+                WotRegistrySnapshot next = ReplaceResource(
+                    snapshot,
+                    group,
+                    resource,
+                    generation,
+                    bumpGroupEpoch: resourceCreated);
+                await CommitAndPublishAsync(
+                        snapshot,
+                        next,
+                        [resource.Xid],
+                        projectionOnly: false,
+                        cancellationToken)
+                    .ConfigureAwait(false);
+                return new VersionCreateResult(resource, version, true);
+            }
+            finally
+            {
+                m_mutex.Release();
+            }
+        }
+
+        /// <inheritdoc/>
+        public async ValueTask<WotRegistryMutationResult> DeleteVersionAsync(
+            string groupId,
+            string resourceId,
+            string versionId,
+            long? expectedEpoch = null,
+            CancellationToken cancellationToken = default)
+        {
+            await m_mutex.WaitAsync(cancellationToken).ConfigureAwait(false);
+            try
+            {
+                EnsureMutationAllowed();
+                WotRegistrySnapshot snapshot = m_snapshot;
+                WotResourceGroup? group = snapshot.FindGroup(groupId);
+                WotResource? resource = group?.Resources.GetValueOrDefault(resourceId);
+                WotResourceVersion? version = resource?.FindVersion(versionId);
+                if (group is null || resource is null || version is null)
+                {
+                    return Failed(snapshot.Generation, "Version not found.");
+                }
+                if (expectedEpoch is { } epoch && epoch != version.Epoch)
+                {
+                    return Rejected(snapshot.Generation, "Epoch mismatch.");
+                }
+
+                long generation = snapshot.Generation + 1;
+                WotRegistrySnapshot next;
+                WotResource? resultResource;
+                if (resource.Versions.Length == 1)
+                {
+                    WotResourceGroup nextGroup = group.WithResources(
+                        group.Resources.Remove(resourceId),
+                        group.Epoch + 1);
+                    next = snapshot.WithGroup(nextGroup, generation);
+                    resultResource = resource;
+                }
+                else
+                {
+                    ImmutableArray<WotResourceVersion> versions =
+                        resource.Versions.Remove(version);
+                    string defaultVersionId = string.Equals(
+                        resource.DefaultVersionId,
+                        versionId,
+                        StringComparison.Ordinal)
+                            ? versions[^1].VersionId
+                            : resource.DefaultVersionId!;
+                    string? desiredVersionId = string.Equals(
+                        resource.DesiredVersionId,
+                        versionId,
+                        StringComparison.Ordinal)
+                            ? defaultVersionId
+                            : resource.DesiredVersionId;
+                    long metaEpoch = resource.MetaEpoch + 1;
+                    WotResource updated = resource.With(
+                            versions: versions,
+                            defaultVersionId: defaultVersionId,
+                            desiredVersionId: desiredVersionId,
+                            epoch: metaEpoch)
+                        .WithMeta(metaEpoch, modifiedAt: DateTime.UtcNow);
+                    next = ReplaceResource(
+                        snapshot,
+                        group,
+                        updated,
+                        generation,
+                        bumpGroupEpoch: false);
+                    resultResource = updated;
+                }
+                await CommitAndPublishAsync(
+                        snapshot,
+                        next,
+                        [resource.Xid],
+                        projectionOnly: false,
+                        cancellationToken)
+                    .ConfigureAwait(false);
+                return new WotRegistryMutationResult(
+                    WoTOutcomeEnum.Success, resultResource, generation, []);
+            }
+            finally
+            {
+                m_mutex.Release();
+            }
+        }
+
+        /// <inheritdoc/>
         public async ValueTask<WoTValidationOutcomeDataType> ValidateResourceAsync(
             string groupId,
             string resourceId,
@@ -303,6 +545,10 @@ namespace Opc.Ua.WotCon.Server.Registry
             if (version is null)
             {
                 throw new ArgumentNullException(nameof(version));
+            }
+            if (!version.HasContent)
+            {
+                return ByteString.Empty;
             }
             if (version.ContentLength > int.MaxValue)
             {
@@ -364,7 +610,7 @@ namespace Opc.Ua.WotCon.Server.Registry
                         StatusCodes.BadTooManyOperations,
                         $"The registry already holds the maximum of {Bounds.MaxGroups} groups.");
                 }
-                group = new WotResourceGroup(groupId, kind, epoch: snapshot.Generation + 1);
+                group = new WotResourceGroup(groupId, kind, epoch: 0);
             }
             if (group.Resources.Count >= Bounds.MaxResourcesPerGroup)
             {
@@ -374,6 +620,7 @@ namespace Opc.Ua.WotCon.Server.Registry
                     $"{Bounds.MaxResourcesPerGroup} resources.");
             }
             long generation = snapshot.Generation + 1;
+            DateTime now = DateTime.UtcNow;
             var resource = new WotResource(
                 groupId,
                 resourceId,
@@ -381,9 +628,18 @@ namespace Opc.Ua.WotCon.Server.Registry
                 [],
                 enabled: true,
                 loadState: WoTLoadStateEnum.Unloaded,
-                epoch: generation,
-                name: resourceId);
-            WotRegistrySnapshot next = ReplaceResource(snapshot, group, resource, generation);
+                epoch: 1,
+                name: resourceId)
+            {
+                MetaCreatedAt = now,
+                MetaModifiedAt = now
+            };
+            WotRegistrySnapshot next = ReplaceResource(
+                snapshot,
+                group,
+                resource,
+                generation,
+                bumpGroupEpoch: true);
             await CommitAndPublishAsync(
                     snapshot, next, [resource.Xid], projectionOnly: false, cancellationToken)
                 .ConfigureAwait(false);
@@ -487,7 +743,7 @@ namespace Opc.Ua.WotCon.Server.Registry
                             [$"The registry already holds the maximum of {Bounds.MaxGroups} groups."],
                             "Too many groups.");
                     }
-                    group = new WotResourceGroup(groupId, request.Kind, epoch: snapshot.Generation + 1);
+                    group = new WotResourceGroup(groupId, request.Kind, epoch: 0);
                 }
 
                 string resourceId = DeriveResourceId(request, thingId, title);
@@ -507,10 +763,34 @@ namespace Opc.Ua.WotCon.Server.Registry
                 }
 
                 ByteString digest = WotContentDigest.Compute(content);
+                if (string.IsNullOrWhiteSpace(request.VersionId) &&
+                    existing?.DefaultVersion is { HasContent: true } defaultVersion &&
+                    WotContentDigest.Equal(defaultVersion.Digest, digest) &&
+                    !parseFailed)
+                {
+                    return new WotRegistryMutationResult(
+                        WoTOutcomeEnum.Unchanged,
+                        existing,
+                        snapshot.Generation,
+                        [],
+                        "Content digest unchanged.");
+                }
+                string versionId = string.IsNullOrWhiteSpace(request.VersionId)
+                    ? NextVersionId(existing)
+                    : NormalizeSegment(request.VersionId!, nameof(request.VersionId));
+                WotResourceVersion? current = existing?.FindVersion(versionId);
+                if (request.ExpectedVersionDigestHex is not null &&
+                    !string.Equals(
+                        current?.DigestHex ?? string.Empty,
+                        request.ExpectedVersionDigestHex,
+                        StringComparison.Ordinal))
+                {
+                    return Rejected(
+                        snapshot.Generation,
+                        "The committed Version changed while the writer was open.");
+                }
 
-                // Idempotency: an unchanged default document returns Unchanged
-                // and produces no new version and no model change.
-                if (existing?.DefaultVersion is { } current &&
+                if (current?.HasContent == true &&
                     WotContentDigest.Equal(current.Digest, digest) &&
                     !parseFailed)
                 {
@@ -529,23 +809,51 @@ namespace Opc.Ua.WotCon.Server.Registry
 
                 long generation = snapshot.Generation + 1;
                 DateTime now = DateTime.UtcNow;
-                string versionId = NextVersionId(existing);
-                var version = new WotResourceVersion(
+                WotResourceVersion version = current is null
+                    ? new WotResourceVersion(
                         versionId,
                         digest,
                         content.Length,
                         request.ContentType,
                         request.Format,
                         createdAt: now,
-                        modifiedAt: now);
+                        modifiedAt: now)
+                    : current.With(
+                        digest: digest,
+                        contentLength: content.Length,
+                        contentType: request.ContentType,
+                        format: request.Format,
+                        modifiedAt: now,
+                        epoch: current.Epoch + 1,
+                        hasContent: true);
 
-                ImmutableArray<WotResourceVersion> versions = existing is null
-                    ? [version]
-                    : Trim(existing.Versions.Add(version), Bounds.MaxVersionsPerResource);
+                ImmutableArray<WotResourceVersion> versions;
+                if (existing is null)
+                {
+                    versions = [version];
+                }
+                else if (current is null)
+                {
+                    versions = Trim(
+                        existing.Versions.Add(version),
+                        Bounds.MaxVersionsPerResource);
+                }
+                else
+                {
+                    versions = existing.Versions.SetItem(
+                        existing.Versions.IndexOf(current),
+                        version);
+                }
 
                 string? defaultVersionId = request.SetAsDefault
                     ? versionId
                     : existing?.DefaultVersionId ?? versionId;
+                bool resourceMetaChanged = existing is null ||
+                    current is null ||
+                    !string.Equals(
+                        existing.DefaultVersionId,
+                        defaultVersionId,
+                        StringComparison.Ordinal);
 
                 WoTLoadStateEnum loadState = parseFailed
                     ? WoTLoadStateEnum.Failed
@@ -563,11 +871,15 @@ namespace Opc.Ua.WotCon.Server.Registry
                         loadState: loadState,
                         validation: validation,
                         diagnostics: diagnostics.ToImmutable(),
-                        epoch: generation,
+                        epoch: 1,
                         name: request.Name ?? title ?? resourceId,
                         description: request.Description,
                         thingId: thingId,
                         title: title)
+                    {
+                        MetaCreatedAt = now,
+                        MetaModifiedAt = now
+                    }
                     : existing.With(
                         versions: versions,
                         defaultVersionId: defaultVersionId,
@@ -575,14 +887,25 @@ namespace Opc.Ua.WotCon.Server.Registry
                         loadState: loadState,
                         validation: validation,
                         diagnostics: diagnostics.ToImmutable(),
-                        epoch: generation,
+                        epoch: resourceMetaChanged
+                            ? existing.MetaEpoch + 1
+                            : existing.MetaEpoch,
                         name: request.Name ?? existing.Name,
                         description: request.Description ?? existing.Description,
                         thingId: thingId ?? existing.ThingId,
                         title: title ?? existing.Title,
                         clearValidation: validation is null);
+                if (existing is not null && resourceMetaChanged)
+                {
+                    resource = resource.WithMeta(resource.MetaEpoch, modifiedAt: now);
+                }
 
-                WotRegistrySnapshot next = ReplaceResource(snapshot, group, resource, generation);
+                WotRegistrySnapshot next = ReplaceResource(
+                    snapshot,
+                    group,
+                    resource,
+                    generation,
+                    bumpGroupEpoch: existing is null);
                 await CommitAndPublishAsync(
                         snapshot, next, [resource.Xid], projectionOnly: false, cancellationToken)
                     .ConfigureAwait(false);
@@ -624,7 +947,7 @@ namespace Opc.Ua.WotCon.Server.Registry
                 long generation = snapshot.Generation + 1;
                 WotResourceGroup group = snapshot.FindGroup(groupId)!;
                 WotResourceGroup nextGroup = group.WithResources(
-                    group.Resources.Remove(resourceId), generation);
+                    group.Resources.Remove(resourceId), group.Epoch + 1);
                 WotRegistrySnapshot next = snapshot.WithGroup(nextGroup, generation);
                 await CommitAndPublishAsync(
                         snapshot, next, [resource.Xid], projectionOnly: false, cancellationToken)
@@ -656,10 +979,18 @@ namespace Opc.Ua.WotCon.Server.Registry
                     {
                         return (null, Rejected(generation - 1, $"Version '{versionId}' not found."));
                     }
+                    if (string.Equals(
+                            resource.DefaultVersionId,
+                            versionId,
+                            StringComparison.Ordinal))
+                    {
+                        return (resource, null);
+                    }
                     WotResource updated = resource.With(
                         defaultVersionId: versionId,
                         desiredVersionId: versionId,
-                        epoch: generation);
+                        epoch: resource.MetaEpoch + 1)
+                        .WithMeta(resource.MetaEpoch + 1, modifiedAt: DateTime.UtcNow);
                     return (updated, null);
                 },
                 cancellationToken);
@@ -681,9 +1012,12 @@ namespace Opc.Ua.WotCon.Server.Registry
                 {
                     if (resource.Enabled == enabled)
                     {
-                        return (resource.With(epoch: generation), null);
+                        return (resource, null);
                     }
-                    WotResource updated = resource.With(enabled: enabled, epoch: generation);
+                    WotResource updated = resource.With(
+                            enabled: enabled,
+                            epoch: resource.MetaEpoch + 1)
+                        .WithMeta(resource.MetaEpoch + 1, modifiedAt: DateTime.UtcNow);
                     return (updated, null);
                 },
                 cancellationToken);
@@ -851,8 +1185,10 @@ namespace Opc.Ua.WotCon.Server.Registry
                             $"Resource '{resourceId}' already holds the maximum of " +
                             $"{Bounds.MaxLabelsPerEntity} labels.");
                     }
-                    WotResource updated = resource.With(
-epoch: generation, labels: resource.Labels.SetItem(key, value));
+                    WotResource updated = resource.WithMeta(
+                        resource.MetaEpoch + 1,
+                        resource.MetaLabels.SetItem(key, value),
+                        DateTime.UtcNow);
                     return (updated, null);
                 },
                 cancellationToken,
@@ -882,12 +1218,76 @@ epoch: generation, labels: resource.Labels.SetItem(key, value));
                     {
                         return (null, Failed(generation - 1, $"Label '{key}' not found."));
                     }
-                    WotResource updated = resource.With(
-epoch: generation, labels: resource.Labels.Remove(key));
+                    WotResource updated = resource.WithMeta(
+                        resource.MetaEpoch + 1,
+                        resource.MetaLabels.Remove(key),
+                        DateTime.UtcNow);
                     return (updated, null);
                 },
                 cancellationToken,
                 projectionOnly: true);
+        }
+
+        /// <inheritdoc/>
+        public ValueTask<WotRegistryMutationResult> AddVersionLabelAsync(
+            string groupId,
+            string resourceId,
+            string versionId,
+            string key,
+            string value,
+            long? expectedEpoch = null,
+            CancellationToken cancellationToken = default)
+        {
+            WotLabelValidator.Validate(key, value, Bounds);
+            return MutateVersionAsync(
+                groupId,
+                resourceId,
+                versionId,
+                expectedEpoch,
+                version =>
+                {
+                    if (!version.Labels.ContainsKey(key) &&
+                        version.Labels.Count >= Bounds.MaxLabelsPerEntity)
+                    {
+                        throw new ServiceResultException(
+                            StatusCodes.BadTooManyOperations,
+                            $"Version '{versionId}' already holds the maximum of " +
+                            $"{Bounds.MaxLabelsPerEntity} labels.");
+                    }
+                    return version.With(
+                        labels: version.Labels.SetItem(key, value),
+                        epoch: version.Epoch + 1,
+                        modifiedAt: DateTime.UtcNow);
+                },
+                cancellationToken);
+        }
+
+        /// <inheritdoc/>
+        public ValueTask<WotRegistryMutationResult> RemoveVersionLabelAsync(
+            string groupId,
+            string resourceId,
+            string versionId,
+            string key,
+            long? expectedEpoch = null,
+            CancellationToken cancellationToken = default)
+        {
+            if (string.IsNullOrEmpty(key))
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadInvalidArgument, "The Key argument is required.");
+            }
+            return MutateVersionAsync(
+                groupId,
+                resourceId,
+                versionId,
+                expectedEpoch,
+                version => version.Labels.ContainsKey(key)
+                    ? version.With(
+                        labels: version.Labels.Remove(key),
+                        epoch: version.Epoch + 1,
+                        modifiedAt: DateTime.UtcNow)
+                    : null,
+                cancellationToken);
         }
 
         /// <inheritdoc/>
@@ -932,7 +1332,12 @@ epoch: generation, labels: resource.Labels.Remove(key));
                         clearValidation: projection.Validation is null,
                         clearRootNodeId: projection.RootNodeId.IsNull);
                     WotResourceGroup group = next.FindGroup(projection.GroupId)!;
-                    next = ReplaceResource(next, group, updated, generation);
+                    next = ReplaceResource(
+                        next,
+                        group,
+                        updated,
+                        generation,
+                        bumpGroupEpoch: false);
                     changed.Add(updated.Xid);
                 }
                 if (changed.Count == 0)
@@ -987,10 +1392,79 @@ epoch: generation, labels: resource.Labels.Remove(key));
                 {
                     return Failed(snapshot.Generation, "Mutation produced no result.");
                 }
+                if (ReferenceEquals(updated, resource))
+                {
+                    return new WotRegistryMutationResult(
+                        WoTOutcomeEnum.Unchanged,
+                        resource,
+                        snapshot.Generation,
+                        []);
+                }
                 WotResourceGroup group = snapshot.FindGroup(groupId)!;
-                WotRegistrySnapshot next = ReplaceResource(snapshot, group, updated, generation);
+                WotRegistrySnapshot next = ReplaceResource(
+                    snapshot,
+                    group,
+                    updated,
+                    generation,
+                    bumpGroupEpoch: false);
                 await CommitAndPublishAsync(
                         snapshot, next, [updated.Xid], projectionOnly, cancellationToken)
+                    .ConfigureAwait(false);
+                return new WotRegistryMutationResult(
+                    WoTOutcomeEnum.Success, updated, generation, []);
+            }
+            finally
+            {
+                m_mutex.Release();
+            }
+        }
+
+        private async ValueTask<WotRegistryMutationResult> MutateVersionAsync(
+            string groupId,
+            string resourceId,
+            string versionId,
+            long? expectedEpoch,
+            Func<WotResourceVersion, WotResourceVersion?> mutate,
+            CancellationToken cancellationToken)
+        {
+            await m_mutex.WaitAsync(cancellationToken).ConfigureAwait(false);
+            try
+            {
+                EnsureMutationAllowed();
+                WotRegistrySnapshot snapshot = m_snapshot;
+                WotResource? resource = snapshot.FindResource(groupId, resourceId);
+                WotResourceVersion? version = resource?.FindVersion(versionId);
+                if (resource is null || version is null)
+                {
+                    return Failed(snapshot.Generation, "Version not found.");
+                }
+                if (expectedEpoch is { } epoch && epoch != version.Epoch)
+                {
+                    return Rejected(snapshot.Generation, "Epoch mismatch.");
+                }
+                WotResourceVersion? updatedVersion = mutate(version);
+                if (updatedVersion is null)
+                {
+                    return Failed(snapshot.Generation, "Version mutation produced no result.");
+                }
+                int index = resource.Versions.IndexOf(version);
+                WotResource updated = resource.With(
+                    versions: resource.Versions.SetItem(index, updatedVersion),
+                    epoch: resource.MetaEpoch);
+                long generation = snapshot.Generation + 1;
+                WotResourceGroup group = snapshot.FindGroup(groupId)!;
+                WotRegistrySnapshot next = ReplaceResource(
+                    snapshot,
+                    group,
+                    updated,
+                    generation,
+                    bumpGroupEpoch: false);
+                await CommitAndPublishAsync(
+                        snapshot,
+                        next,
+                        [updated.Xid],
+                        projectionOnly: false,
+                        cancellationToken)
                     .ConfigureAwait(false);
                 return new WotRegistryMutationResult(
                     WoTOutcomeEnum.Success, updated, generation, []);
@@ -1049,10 +1523,12 @@ epoch: generation, labels: resource.Labels.Remove(key));
             WotRegistrySnapshot snapshot,
             WotResourceGroup group,
             WotResource resource,
-            long generation)
+            long generation,
+            bool bumpGroupEpoch)
         {
             WotResourceGroup nextGroup = group.WithResources(
-                group.Resources.SetItem(resource.ResourceId, resource), generation);
+                group.Resources.SetItem(resource.ResourceId, resource),
+                bumpGroupEpoch ? group.Epoch + 1 : group.Epoch);
             return snapshot.WithGroup(nextGroup, generation);
         }
 
@@ -1232,6 +1708,11 @@ epoch: generation, labels: resource.Labels.Remove(key));
                         WoTOutcomeEnum.Rejected, null, generation,
                         [message], message);
         }
+
+        private readonly record struct VersionCreateResult(
+            WotResource? Resource,
+            WotResourceVersion? Version,
+            bool Created);
 
         private readonly IWotRegistryStore m_store;
         private readonly IXRegistryResourceStore m_resourceStore;

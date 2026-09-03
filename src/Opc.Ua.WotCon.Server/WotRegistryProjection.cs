@@ -175,7 +175,14 @@ namespace Opc.Ua.WotCon.Server
 
         private void ApplyWotResourceProperties(WoTDocumentState node, WotResource resource)
         {
-            WotResourceVersion? version = resource.DefaultVersion;
+            ApplyWotResourceProperties(node, resource, resource.DefaultVersion);
+        }
+
+        private void ApplyWotResourceProperties(
+            WoTDocumentState node,
+            WotResource resource,
+            WotResourceVersion? version)
+        {
 
             XRegistryProjectionEngine.SetValue(node.DocumentKind, resource.Kind);
             XRegistryProjectionEngine.SetValue(node.Enabled, resource.Enabled);
@@ -208,8 +215,17 @@ namespace Opc.Ua.WotCon.Server
 
         private WotResourceFileManager CreateResourceFile(WoTDocumentState node, WotResource resource)
         {
+            return CreateResourceFile(node, resource, resource.DefaultVersion);
+        }
+
+        private WotResourceFileManager CreateResourceFile(
+            WoTDocumentState node,
+            WotResource resource,
+            WotResourceVersion? version)
+        {
             string groupId = resource.GroupId;
             string resourceId = resource.ResourceId;
+            string versionId = version?.VersionId ?? string.Empty;
             WoTDocumentKindEnum kind = resource.Kind;
             return new WotResourceFileManager(
                 node,
@@ -217,7 +233,14 @@ namespace Opc.Ua.WotCon.Server
                 m_options.Bounds.MaxDocumentBytes,
                 m_manager.CheckManagementAccess,
                 (key, offset, count, token) => m_registry.ReadContentChunkAsync(key, offset, count, token),
-                (bytes, session, token) => CommitDocumentAsync(groupId, resourceId, kind, bytes, token));
+                (bytes, baseline, session, token) => CommitDocumentAsync(
+                    groupId,
+                    resourceId,
+                    versionId,
+                    kind,
+                    bytes,
+                    baseline,
+                    token));
         }
 
         private async ValueTask<ServiceResult> OnValidateAsync(
@@ -300,14 +323,18 @@ namespace Opc.Ua.WotCon.Server
         private async ValueTask<ServiceResult> CommitDocumentAsync(
             string groupId,
             string resourceId,
+            string versionId,
             WoTDocumentKindEnum kind,
             byte[] content,
+            string baselineContentKey,
             CancellationToken ct)
         {
             var request = new WotUpsertResourceRequest
             {
                 GroupId = groupId,
                 ResourceId = resourceId,
+                VersionId = versionId,
+                ExpectedVersionDigestHex = baselineContentKey,
                 Kind = kind,
                 Content = ByteString.From(content),
                 ContentType = kind == WoTDocumentKindEnum.ThingModel
@@ -377,7 +404,8 @@ namespace Opc.Ua.WotCon.Server
         private const string RegistryNodeIdPath = "WoTRegistry";
 
         private sealed class Strategy :
-            IXRegistryProjectionStrategy,
+            IXRegistryVersionedProjectionStrategy,
+            IXRegistryProjectionGenerationProvider,
             IXRegistryProjectionEventMetadataProvider
         {
             public Strategy(WotRegistryProjection projection)
@@ -387,56 +415,108 @@ namespace Opc.Ua.WotCon.Server
 
             public IXRegistryProjectionSnapshot Current => new SnapshotAdapter(m_projection.m_registry.Current);
 
-            public XRegistryProjectionEventSnapshot CaptureEventSnapshot()
+            public XRegistryProjectionGeneration CaptureProjectionGeneration()
             {
                 WotRegistrySnapshot snapshot = m_projection.m_registry.Current;
+                return new XRegistryProjectionGeneration(
+                    new SnapshotAdapter(snapshot),
+                    CreateEventSnapshot(snapshot));
+            }
+
+            public XRegistryProjectionEventSnapshot CaptureEventSnapshot()
+            {
+                return CreateEventSnapshot(m_projection.m_registry.Current);
+            }
+
+            private XRegistryProjectionEventSnapshot CreateEventSnapshot(
+                WotRegistrySnapshot snapshot)
+            {
                 ImmutableArray<XRegistryProjectionEventGroup> groups = snapshot.Groups.Values
                     .OrderBy(group => group.GroupId, StringComparer.Ordinal)
-                    .Select(group => new XRegistryProjectionEventGroup(
-                        group.GroupId,
-                        group.Xid,
-                        checked((uint)group.Epoch),
-                        group.Labels,
-                        Deprecated: false,
-                        group.Resources.Values
-                            .OrderBy(resource => resource.ResourceId, StringComparer.Ordinal)
-                            .Select(resource => new XRegistryProjectionEventResource(
-                                resource.GroupId,
-                                resource.ResourceId,
-                                resource.Xid,
-                                checked((uint)resource.Epoch),
-                                checked((uint)resource.Epoch),
-                                resource.Labels,
-                                Deprecated: false,
-                                resource.DefaultVersionId,
-                                resource.Versions.Select(version =>
-                                    new XRegistryProjectionEventVersion(
-                                        version.VersionId,
-                                        $"{resource.Xid}/versions/{version.VersionId}",
-                                        checked((uint)resource.Epoch),
-                                        ImmutableSortedDictionary.CreateRange(
-                                            StringComparer.Ordinal,
-                                            new[]
-                                            {
-                                                new KeyValuePair<string, string>(
-                                                    m_projection.m_options.XRegistryEvents
-                                                        .ResourceDocumentAttributeName,
-                                                    version.DigestHex),
-                                                new KeyValuePair<string, string>(
-                                                    "contenttype",
-                                                    version.ContentType),
-                                                new KeyValuePair<string, string>(
-                                                    "format",
-                                                    version.Format)
-                                            })))
-                                    .ToImmutableArray()))
-                            .ToImmutableArray()))
+                    .Select(CreateEventGroup)
                     .ToImmutableArray();
                 return new XRegistryProjectionEventSnapshot(
                     "/",
                     checked((uint)snapshot.Generation),
                     snapshot.Labels,
                     groups);
+            }
+
+            private XRegistryProjectionEventGroup CreateEventGroup(WotResourceGroup group)
+            {
+                return new XRegistryProjectionEventGroup(
+                    group.GroupId,
+                    group.Xid,
+                    checked((uint)group.Epoch),
+                    group.Labels,
+                    false,
+                    group.Resources.Values
+                        .OrderBy(resource => resource.ResourceId, StringComparer.Ordinal)
+                        .Select(CreateEventResource)
+                        .ToImmutableArray())
+                {
+                    SourceNodeId = m_projection.GroupNodeId(group.GroupId),
+                    SourceName = group.Name
+                };
+            }
+
+            private XRegistryProjectionEventResource CreateEventResource(WotResource resource)
+            {
+                WotResourceVersion? defaultVersion = resource.DefaultVersion;
+                return new XRegistryProjectionEventResource(
+                    resource.GroupId,
+                    resource.ResourceId,
+                    resource.Xid,
+                    checked((uint)(defaultVersion?.Epoch ?? 0)),
+                    checked((uint)resource.MetaEpoch),
+                    resource.MetaLabels,
+                    false,
+                    resource.DefaultVersionId,
+                    resource.Versions
+                        .Select(version => CreateEventVersion(resource, version))
+                        .ToImmutableArray())
+                {
+                    SourceNodeId = defaultVersion is null
+                        ? NodeId.Null
+                        : m_projection.ResourceNodeId(
+                            resource.GroupId,
+                            resource.ResourceId,
+                            defaultVersion.VersionId),
+                    SourceName = resource.Name,
+                    MetaCreatedAt = resource.MetaCreatedAt,
+                    MetaModifiedAt = resource.MetaModifiedAt
+                };
+            }
+
+            private XRegistryProjectionEventVersion CreateEventVersion(
+                WotResource resource,
+                WotResourceVersion version)
+            {
+                return new XRegistryProjectionEventVersion(
+                    version.VersionId,
+                    $"{resource.Xid}/versions/{version.VersionId}",
+                    checked((uint)version.Epoch),
+                    ImmutableSortedDictionary.CreateRange(
+                        StringComparer.Ordinal,
+                        new[]
+                        {
+                            new KeyValuePair<string, string>(
+                                m_projection.m_options.XRegistryEvents
+                                    .ResourceDocumentAttributeName,
+                                version.DigestHex),
+                            new KeyValuePair<string, string>("contenttype", version.ContentType),
+                            new KeyValuePair<string, string>("format", version.Format)
+                        }))
+                {
+                    SourceNodeId = m_projection.ResourceNodeId(
+                        resource.GroupId,
+                        resource.ResourceId,
+                        version.VersionId),
+                    SourceName = version.VersionId,
+                    Labels = version.Labels,
+                    CreatedAt = version.CreatedAt,
+                    ModifiedAt = version.ModifiedAt
+                };
             }
 
             public GroupState CreateGroupNode(
@@ -450,7 +530,9 @@ namespace Opc.Ua.WotCon.Server
                 GroupState groupNode,
                 IXRegistryProjectionResource resource)
             {
-                return m_projection.CreateResourceNode(groupNode, ((ResourceAdapter)resource).Resource);
+                return m_projection.CreateResourceNode(
+                    groupNode,
+                    ((ResourceAdapter)resource).Resource);
             }
 
             public void ConfigureGroupNode(GroupState node, IXRegistryProjectionGroup group)
@@ -459,7 +541,15 @@ namespace Opc.Ua.WotCon.Server
 
             public void ConfigureResourceNode(ResourceState node, IXRegistryProjectionResource resource)
             {
-                m_projection.ConfigureResourceNode(node, ((ResourceAdapter)resource).Resource);
+                var adapter = (ResourceAdapter)resource;
+                m_projection.ConfigureResourceNode(node, adapter.Resource);
+                if (node is WoTDocumentState document)
+                {
+                    m_projection.ApplyWotResourceProperties(
+                        document,
+                        adapter.Resource,
+                        adapter.Version);
+                }
             }
 
             public IXRegistryProjectedResourceFile? CreateResourceFile(
@@ -470,10 +560,14 @@ namespace Opc.Ua.WotCon.Server
                 {
                     return null;
                 }
-                WotResource wotResource = ((ResourceAdapter)resource).Resource;
+                var adapter = (ResourceAdapter)resource;
                 return new ResourceFileAdapter(
-                    m_projection.CreateResourceFile(document, wotResource),
-                    wotResource);
+                    m_projection.CreateResourceFile(
+                        document,
+                        adapter.Resource,
+                        adapter.Version),
+                    adapter.Resource,
+                    adapter.Version.VersionId);
             }
 
             public async ValueTask<IXRegistryProjectionGroup?> CreateGroupAsync(
@@ -497,30 +591,69 @@ namespace Opc.Ua.WotCon.Server
                 return (new GroupAdapter(group), !existed);
             }
 
+            public ValueTask<IXRegistryProjectionResource?> CreateResourceAsync(
+                string groupId,
+                string resourceId,
+                CancellationToken ct)
+            {
+                return CreateResourceAsync(groupId, resourceId, string.Empty, ct);
+            }
+
             public async ValueTask<IXRegistryProjectionResource?> CreateResourceAsync(
                 string groupId,
                 string resourceId,
+                string versionId,
                 CancellationToken ct)
             {
                 WotResourceGroup? group = m_projection.m_registry.Current.FindGroup(groupId);
-                WotResource? resource = await m_projection.m_registry
-                    .TryCreateResourceAsync(groupId, resourceId,
-                        group?.Kind ?? m_projection.KindForGroup(groupId), ct)
+                if (m_projection.m_registry is not IWotVersionedRegistryService versioned)
+                {
+                    return null;
+                }
+                (WotResource Resource, WotResourceVersion Version)? created =
+                    await versioned.TryCreateVersionAsync(
+                        groupId,
+                        resourceId,
+                        versionId,
+                        group?.Kind ?? m_projection.KindForGroup(groupId),
+                        ct)
                     .ConfigureAwait(false);
-                return resource is null ? null : new ResourceAdapter(resource);
+                return created is null
+                    ? null
+                    : new ResourceAdapter(created.Value.Resource, created.Value.Version);
             }
 
-            public async ValueTask<(IXRegistryProjectionResource Resource, bool Created)> GetOrCreateResourceAsync(
+            public ValueTask<(IXRegistryProjectionResource Resource, bool Created)> GetOrCreateResourceAsync(
                 string groupId,
                 string resourceId,
                 CancellationToken ct)
             {
+                return GetOrCreateResourceAsync(groupId, resourceId, string.Empty, ct);
+            }
+
+            public async ValueTask<(IXRegistryProjectionResource Resource, bool Created)>
+                GetOrCreateResourceAsync(
+                    string groupId,
+                    string resourceId,
+                    string versionId,
+                    CancellationToken ct)
+            {
                 WotResourceGroup? group = m_projection.m_registry.Current.FindGroup(groupId);
-                (WotResource resource, bool created) = await m_projection.m_registry
-                    .GetOrCreateResourceAsync(groupId, resourceId,
-                        group?.Kind ?? m_projection.KindForGroup(groupId), ct)
+                if (m_projection.m_registry is not IWotVersionedRegistryService versioned)
+                {
+                    throw new ServiceResultException(
+                        StatusCodes.BadNotSupported,
+                        "The registry service does not support Version-aware creation.");
+                }
+                (WotResource resource, WotResourceVersion version, bool created) =
+                    await versioned.GetOrCreateVersionAsync(
+                        groupId,
+                        resourceId,
+                        versionId,
+                        group?.Kind ?? m_projection.KindForGroup(groupId),
+                        ct)
                     .ConfigureAwait(false);
-                return (new ResourceAdapter(resource), created);
+                return (new ResourceAdapter(resource, version), created);
             }
 
             public async ValueTask<ServiceResult> DeleteGroupAsync(
@@ -541,6 +674,27 @@ namespace Opc.Ua.WotCon.Server
             {
                 WotRegistryMutationResult result = await m_projection.m_registry
                     .DeleteResourceAsync(groupId, resourceId, epoch, ct).ConfigureAwait(false);
+                return ToServiceResult(result);
+            }
+
+            public async ValueTask<ServiceResult> DeleteVersionAsync(
+                string groupId,
+                string resourceId,
+                string versionId,
+                long? epoch,
+                CancellationToken ct)
+            {
+                if (m_projection.m_registry is not IWotVersionedRegistryService versioned)
+                {
+                    return StatusCodes.BadNotSupported;
+                }
+                WotRegistryMutationResult result = await versioned.DeleteVersionAsync(
+                        groupId,
+                        resourceId,
+                        versionId,
+                        epoch,
+                        ct)
+                    .ConfigureAwait(false);
                 return ToServiceResult(result);
             }
 
@@ -651,7 +805,106 @@ namespace Opc.Ua.WotCon.Server
                 }
             }
 
+            public async ValueTask<ServiceResult> AddVersionLabelAsync(
+                string groupId,
+                string resourceId,
+                string versionId,
+                string key,
+                string value,
+                long? epoch,
+                CancellationToken ct)
+            {
+                if (m_projection.m_registry is not IWotVersionedRegistryService versioned)
+                {
+                    return StatusCodes.BadNotSupported;
+                }
+                try
+                {
+                    return ToServiceResult(await versioned.AddVersionLabelAsync(
+                            groupId,
+                            resourceId,
+                            versionId,
+                            key,
+                            value,
+                            epoch,
+                            ct)
+                        .ConfigureAwait(false));
+                }
+                catch (ServiceResultException ex)
+                {
+                    return ex.Result;
+                }
+            }
+
+            public async ValueTask<ServiceResult> RemoveVersionLabelAsync(
+                string groupId,
+                string resourceId,
+                string versionId,
+                string key,
+                long? epoch,
+                CancellationToken ct)
+            {
+                if (m_projection.m_registry is not IWotVersionedRegistryService versioned)
+                {
+                    return StatusCodes.BadNotSupported;
+                }
+                try
+                {
+                    return ToServiceResult(await versioned.RemoveVersionLabelAsync(
+                            groupId,
+                            resourceId,
+                            versionId,
+                            key,
+                            epoch,
+                            ct)
+                        .ConfigureAwait(false));
+                }
+                catch (ServiceResultException ex)
+                {
+                    return ex.Result;
+                }
+            }
+
+            public ValueTask<ServiceResult> AddResourceMetaLabelAsync(
+                string groupId,
+                string resourceId,
+                string key,
+                string value,
+                long? epoch,
+                CancellationToken ct)
+            {
+                return AddResourceLabelAsync(groupId, resourceId, key, value, epoch, ct);
+            }
+
+            public ValueTask<ServiceResult> RemoveResourceMetaLabelAsync(
+                string groupId,
+                string resourceId,
+                string key,
+                long? epoch,
+                CancellationToken ct)
+            {
+                return RemoveResourceLabelAsync(groupId, resourceId, key, epoch, ct);
+            }
+
             private readonly WotRegistryProjection m_projection;
+        }
+
+        private NodeId GroupNodeId(string groupId)
+        {
+            return new NodeId(
+                $"{RegistryNodeIdPath}/groups/{groupId}",
+                m_modelNs);
+        }
+
+        private NodeId ResourceNodeId(
+            string groupId,
+            string resourceId,
+            string versionId)
+        {
+            return new NodeId(
+                $"{RegistryNodeIdPath}/groups/{groupId}/resources/{resourceId}/" +
+                $"versions/{versionId}",
+                m_modelNs);
         }
 
         private sealed class SnapshotAdapter : IXRegistryProjectionSnapshot
@@ -685,37 +938,57 @@ namespace Opc.Ua.WotCon.Server
             public ImmutableSortedDictionary<string, string> Labels => Group.Labels;
 
             public IEnumerable<IXRegistryProjectionResource> Resources
-                => Group.Resources.Values.Select(resource => new ResourceAdapter(resource));
+                => Group.Resources.Values
+                    .OrderBy(resource => resource.ResourceId, StringComparer.Ordinal)
+                    .SelectMany(resource => resource.Versions.Select(
+                        version => new ResourceAdapter(resource, version)));
         }
 
-        private sealed class ResourceAdapter : IXRegistryProjectionResource
+        private sealed class ResourceAdapter :
+            IXRegistryProjectionResource,
+            IXRegistryProjectionResourceMeta
         {
-            public ResourceAdapter(WotResource resource)
+            public ResourceAdapter(WotResource resource, WotResourceVersion version)
             {
                 Resource = resource;
+                Version = version;
             }
 
             public WotResource Resource { get; }
+            public WotResourceVersion Version { get; }
             public string GroupId => Resource.GroupId;
             public string ResourceId => Resource.ResourceId;
-            public string Xid => Resource.Xid;
+            public string Xid => $"{Resource.Xid}/versions/{Version.VersionId}";
             public string Name => Resource.Name;
             public string Description => Resource.Description;
-            public string VersionId => Resource.DefaultVersionId ?? string.Empty;
-            public string Format => Resource.DefaultVersion?.Format ?? string.Empty;
-            public string ContentType => Resource.DefaultVersion?.ContentType ?? "application/td+json";
-            public long Epoch => Resource.Epoch;
-            public DateTime CreatedAt => Resource.DefaultVersion?.CreatedAt ?? default;
-            public DateTime ModifiedAt => Resource.DefaultVersion?.ModifiedAt ?? DateTime.UtcNow;
-            public ImmutableSortedDictionary<string, string> Labels => Resource.Labels;
+            public string VersionId => Version.VersionId;
+            public string Format => Version.Format;
+            public string ContentType => Version.ContentType;
+            public long Epoch => Version.Epoch;
+            public DateTime CreatedAt => Version.CreatedAt;
+            public DateTime ModifiedAt => Version.ModifiedAt;
+            public ImmutableSortedDictionary<string, string> Labels => Version.Labels;
+            public long MetaEpoch => Resource.MetaEpoch;
+            public ImmutableSortedDictionary<string, string> MetaLabels => Resource.MetaLabels;
+            public DateTime MetaCreatedAt => Resource.MetaCreatedAt;
+            public DateTime MetaModifiedAt => Resource.MetaModifiedAt;
+            public bool IsDefaultVersion => string.Equals(
+                Resource.DefaultVersionId,
+                Version.VersionId,
+                StringComparison.Ordinal);
         }
 
         private sealed class ResourceFileAdapter : IXRegistryProjectedResourceFile
         {
-            public ResourceFileAdapter(WotResourceFileManager file, WotResource resource)
+            public ResourceFileAdapter(
+                WotResourceFileManager file,
+                WotResource resource,
+                string versionId)
             {
                 m_file = file;
-                ApplyResource(new ResourceAdapter(resource));
+                m_versionId = versionId;
+                WotResourceVersion version = resource.FindVersion(versionId)!;
+                ApplyResource(new ResourceAdapter(resource, version));
             }
 
             public ServiceResult TryOpenWriteHandle(ISystemContext context, out uint fileHandle)
@@ -728,10 +1001,9 @@ namespace Opc.Ua.WotCon.Server
 
             public void ApplyResource(IXRegistryProjectionResource resource)
             {
-                WotResource wotResource = ((ResourceAdapter)resource).Resource;
-                WotResourceVersion? version = wotResource.DefaultVersion;
-                WotResourceVersion? active = wotResource.ActiveVersion ?? version;
-                m_file.UpdatePersistedContent(active, version?.ContentType);
+                var adapter = (ResourceAdapter)resource;
+                WotResourceVersion? version = adapter.Resource.FindVersion(m_versionId);
+                m_file.UpdatePersistedContent(version, version?.ContentType);
             }
 
             public void Dispose()
@@ -740,6 +1012,7 @@ namespace Opc.Ua.WotCon.Server
             }
 
             private readonly WotResourceFileManager m_file;
+            private readonly string m_versionId;
         }
 
         private readonly WotRegistryNodeManager m_manager;
