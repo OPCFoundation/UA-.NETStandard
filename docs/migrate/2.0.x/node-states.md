@@ -121,12 +121,14 @@ lifecycle open so callers can finish assembling and configuring the subtree.
 In 2.0, registering the graph through `AddPredefinedNodeAsync`,
 `AddNodeAsync`, or the synchronous predefined-node registration path
 automatically runs `OnBeforeCreate`/`OnAfterCreate` and clears change masks
-before indexing. Both asynchronous and synchronous predefined-node
-registration repair null, foreign-namespace, or type-declaration-colliding
-instance NodeIds before the callbacks, so they see the identifiers which
-enter the address space. Explicit NodeIds in a namespace owned by the node
-manager are preserved. `NodeState.IsCreated` exposes whether an individual
-node has completed that lifecycle.
+before indexing. Asynchronous predefined-node registration repairs typed
+instance subtrees which still carry null, foreign-namespace, or
+type-declaration-colliding NodeIds before the callbacks, so they see the
+identifiers which enter the address space. Explicit NodeIds in a namespace
+owned by the node manager are preserved. Synchronous registration keeps the
+caller's identifiers; fluent helpers which materialise typed subtrees assign
+their instance child NodeIds before registration. `NodeState.IsCreated`
+exposes whether an individual node has completed that lifecycle.
 
 `AddBehaviourToPredefinedNode` and its asynchronous equivalent receive the
 created node. An override which replaces a passive node may therefore observe

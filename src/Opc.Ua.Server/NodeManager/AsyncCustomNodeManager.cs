@@ -2117,8 +2117,13 @@ namespace Opc.Ua.Server
 
             var children = new List<BaseInstanceState>();
             node.GetChildren(context, children);
-            bool requiresRebase = RequiresInstanceNodeIdRepair(node) ||
-                children.Any(RequiresInstanceNodeIdRepair);
+            bool requiresRebase = rootCollision ||
+                node.NodeId.IsNull ||
+                children.Any(child =>
+                    child.NodeId.IsNull ||
+                    (IsNodeIdInNamespace(node.NodeId) &&
+                        !IsNodeIdInNamespace(child.NodeId)) ||
+                    HasDeclarationNodeIdCollision(child));
             if (!requiresRebase)
             {
                 return;
@@ -2254,7 +2259,6 @@ namespace Opc.Ua.Server
 
         private void AddPredefinedNodeSynchronously(ISystemContext context, NodeState node)
         {
-            PrepareInstanceNodeIdsForRegistration(context, node);
             CompleteCreateLifecycleForRegistration(context, node);
             IndexPredefinedNode(node);
 

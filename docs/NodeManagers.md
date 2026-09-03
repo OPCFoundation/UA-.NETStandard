@@ -1829,11 +1829,14 @@ await AddPredefinedNodeAsync(SystemContext, pump, cancellationToken);
 The generated factory intentionally returns a graph whose create lifecycle
 has not completed. Node manager registration completes
 `OnBeforeCreate`/`OnAfterCreate` and clears change masks before the graph is
-indexed. Both asynchronous and synchronous predefined-node registration
-repair null, foreign-namespace, or type-declaration-colliding instance
-NodeIds first, so lifecycle callbacks see the identifiers which enter the
-address space. NodeIds explicitly assigned in a namespace owned by the
-manager are preserved. The behavior hook then receives a created node.
+indexed. Asynchronous predefined-node registration repairs typed instance
+subtrees which still carry null, foreign-namespace, or
+type-declaration-colliding NodeIds first, so lifecycle callbacks see the
+identifiers which enter the address space. NodeIds explicitly assigned in a
+namespace owned by the manager are preserved. Synchronous registration keeps
+the caller's identifiers; fluent helpers which materialise typed subtrees,
+such as the state-machine creators, assign their instance child NodeIds before
+registration. The behavior hook then receives a created node.
 `NodeState.IsCreated` reports whether an individual node has completed that
 lifecycle.
 
@@ -1866,11 +1869,12 @@ Notes:
 * Assignment only happens when the context carries an
   `ISystemContext.NodeIdFactory`. `AsyncCustomNodeManager` supplies one
   that allocates null IDs in the manager's default namespace. Registration
-  selectively retries typed-instance descendants which still carry foreign
-  declaration IDs, while preserving explicitly assigned IDs in an owned
-  namespace and well-known namespace-zero roots. Override `New` only when the
-  address space needs a different stable naming strategy, such as deriving
-  IDs from the parent chain.
+  selectively retries descendants when an asynchronously registered,
+  manager-owned instance subtree still carries foreign declaration IDs, while
+  preserving explicitly assigned IDs in an owned namespace and well-known
+  namespace-zero roots. Synchronous creators must assign typed child IDs before
+  registration. Override `New` only when the address space needs a different
+  stable naming strategy, such as deriving IDs from the parent chain.
 * **A node copy never assigns.** `NodeState.Create(context, source)`
   initialises each child from its source right after creating it, which
   overwrites any NodeId minted along the way — so minting one would only

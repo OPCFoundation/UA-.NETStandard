@@ -315,7 +315,7 @@ namespace Opc.Ua.Server.Tests.Fluent
             manager.AddPredefinedNodeSynchronouslyPublic(root);
 
             var builder = new NodeManagerBuilder(
-                serverSystemContext,
+                manager.SystemContext,
                 nodeManager: manager,
                 defaultNamespaceIndex: ns,
                 rootResolver: q => manager.PredefinedNodes.Values

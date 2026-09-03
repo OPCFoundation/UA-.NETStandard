@@ -433,15 +433,13 @@ namespace Opc.Ua.Server.Tests
                 "Requires AsyncCustomNodeManager NodeId preparation");
             var root = new BaseObjectState(null)
             {
-                NodeId = ObjectIds.ServerConfiguration,
-                BrowseName = new QualifiedName(BrowseNames.ServerConfiguration)
+                NodeId = ObjectIds.Server,
+                BrowseName = new QualifiedName(BrowseNames.Server)
             };
-            var childNodeId = new NodeId(11715u);
-            var child = new BaseDataVariableState(root)
+            var child = new BaseObjectState(root)
             {
-                NodeId = childNodeId,
-                BrowseName = new QualifiedName(BrowseNames.ServerCapabilities),
-                DataType = DataTypeIds.BaseDataType
+                NodeId = ObjectIds.Server_ServerCapabilities,
+                BrowseName = new QualifiedName(BrowseNames.ServerCapabilities)
             };
             root.AddChild(child);
 
@@ -451,8 +449,8 @@ namespace Opc.Ua.Server.Tests
 
             Assert.Multiple(() =>
             {
-                Assert.That(root.NodeId, Is.EqualTo(ObjectIds.ServerConfiguration));
-                Assert.That(child.NodeId, Is.EqualTo(childNodeId));
+                Assert.That(root.NodeId, Is.EqualTo(ObjectIds.Server));
+                Assert.That(child.NodeId, Is.EqualTo(ObjectIds.Server_ServerCapabilities));
             });
         }
 
@@ -476,31 +474,6 @@ namespace Opc.Ua.Server.Tests
             Assert.That(node.IsCreated, Is.True);
             Assert.That(node.BeforeCreateCount, Is.EqualTo(1));
             Assert.That(node.AfterCreateCount, Is.EqualTo(1));
-        }
-
-        [Test]
-        public void SynchronousRegistrationRebasesTypedChildren()
-        {
-            using ITestNodeManager manager = CreateManager();
-            Assume.That(manager is TestableAsyncCustomNodeManager,
-                "Requires AsyncCustomNodeManager synchronous registration");
-            var asyncManager = (TestableAsyncCustomNodeManager)manager;
-            ushort namespaceIndex = manager.NamespaceIndex;
-            var program = new ProgramStateMachineState(null);
-            program.Create(
-                manager.SystemContext,
-                new NodeId("SynchronousProgram", namespaceIndex),
-                new QualifiedName("SynchronousProgram", namespaceIndex),
-                default,
-                assignNodeIds: false);
-
-            asyncManager.AddPredefinedNodeSynchronouslyPublic(program);
-
-            Assert.That(program.CurrentState, Is.Not.Null);
-            Assert.That(
-                program.CurrentState!.NodeId.NamespaceIndex,
-                Is.EqualTo(namespaceIndex));
-            Assert.That(manager.Find(program.CurrentState.NodeId), Is.SameAs(program.CurrentState));
         }
 
         [Test]
