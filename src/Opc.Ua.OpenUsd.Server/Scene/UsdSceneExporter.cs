@@ -29,10 +29,10 @@
 
 using System;
 using System.Collections.Generic;
-using Opc.Ua.OpenUsdScene.Conversion;
-using Opc.Ua.OpenUsdScene.Scene;
+using Opc.Ua.OpenUsd.Scene.Conversion;
+using Opc.Ua.OpenUsd.Scene;
 
-namespace Opc.Ua.OpenUsdScene.Server
+namespace Opc.Ua.OpenUsd.Server.Scene
 {
     /// <summary>
     /// Reads a materialized address space back into a scene document, the inverse of
@@ -236,7 +236,7 @@ namespace Opc.Ua.OpenUsdScene.Server
             IReadOnlyDictionary<UsdAttributeState, IReadOnlyList<string>>? connectionPaths)
         {
             NodeId connectionTypeId = ExpandedNodeId.ToNodeId(
-                Opc.Ua.OpenUsdScene.ReferenceTypeIds.UsdConnection, context.NamespaceUris);
+                Opc.Ua.OpenUsd.Scene.ReferenceTypeIds.UsdConnection, context.NamespaceUris);
             var references = new List<IReference>();
             foreach ((UsdAttribute attribute, UsdAttributeState node) in pending)
             {

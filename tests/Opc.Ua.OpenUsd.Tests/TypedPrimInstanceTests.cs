@@ -31,10 +31,10 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using NUnit.Framework;
-using Opc.Ua.OpenUsdScene.Scene;
-using Opc.Ua.OpenUsdScene.Server;
+using Opc.Ua.OpenUsd.Scene;
+using Opc.Ua.OpenUsd.Server.Scene;
 
-namespace Opc.Ua.OpenUsdScene.Tests
+namespace Opc.Ua.OpenUsd.Tests
 {
     /// <summary>
     /// Typed schemas (§5.3): a prim of a known typed schema is instantiated as the generated
@@ -133,7 +133,7 @@ namespace Opc.Ua.OpenUsdScene.Tests
             Assert.That(node.GetType(), Is.EqualTo(typeof(UsdPrimState)));
             Assert.That(
                 node.TypeDefinitionId,
-                Is.EqualTo(new NodeId(Opc.Ua.OpenUsdScene.ObjectTypes.UsdPrimType, ms.Namespace)));
+                Is.EqualTo(new NodeId(Opc.Ua.OpenUsd.Scene.ObjectTypes.UsdPrimType, ms.Namespace)));
             Assert.That(node.TypeName!.Value, Is.EqualTo("MyVendorThing"));
         }
 
@@ -148,7 +148,7 @@ namespace Opc.Ua.OpenUsdScene.Tests
             Assert.That(node.GetType(), Is.EqualTo(typeof(UsdPrimState)));
             Assert.That(
                 node.TypeDefinitionId,
-                Is.EqualTo(new NodeId(Opc.Ua.OpenUsdScene.ObjectTypes.UsdPrimType, ms.Namespace)));
+                Is.EqualTo(new NodeId(Opc.Ua.OpenUsd.Scene.ObjectTypes.UsdPrimType, ms.Namespace)));
             // An untyped prim authors no TypeName at all.
             Assert.That(node.TypeName, Is.Null);
         }

@@ -30,9 +30,10 @@
 using System.Collections.Generic;
 using System.Linq;
 using NUnit.Framework;
-using Opc.Ua.OpenUsdScene.Server;
+using Opc.Ua.OpenUsd.Scene;
+using Opc.Ua.OpenUsd.Server.Scene;
 
-namespace Opc.Ua.OpenUsdScene.Tests
+namespace Opc.Ua.OpenUsd.Tests
 {
     /// <summary>
     /// Discovery and Part 1 interoperability (§4.3, §10): a well-known stages folder is created
@@ -41,8 +42,6 @@ namespace Opc.Ua.OpenUsdScene.Tests
     [TestFixture]
     public class DiscoveryInteropTests
     {
-        // ---- EnsureStagesFolder (§4.3) -------------------------------------------------
-
         [Test]
         public void EnsureStagesFolder_CreatesStandaloneRoot_WhenNoPart1Folder()
         {
@@ -105,8 +104,6 @@ namespace Opc.Ua.OpenUsdScene.Tests
                 roots.Count(f => f.BrowseName.Name == UsdSceneDiscovery.OpenUsdSceneRootName),
                 Is.EqualTo(1));
         }
-
-        // ---- Binding target resolution (§10) -------------------------------------------
 
         [Test]
         public void TryResolveBindingTarget_ResolvesRealAttribute()

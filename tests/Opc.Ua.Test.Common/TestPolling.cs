@@ -27,32 +27,49 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System;
-using System.IO;
-using Opc.Ua.OpenUsd.Scene.Conversion;
-using Opc.Ua.OpenUsd.Scene;
+#nullable enable
 
-namespace Opc.Ua.OpenUsd.Tests
+using System;
+using System.Threading.Tasks;
+using NUnit.Framework;
+
+namespace Opc.Ua.Tests
 {
     /// <summary>
-    /// Locates and loads the bundled <c>.usda</c> example layers that are copied next to the test
-    /// assembly. The layers are self-contained so the tests never read from another repository.
+    /// Shared deadline-based polling helpers for tests that await a
+    /// condition produced by background work. Use this instead of adding
+    /// another private <c>WaitUntilAsync</c> copy so CI timeout tuning
+    /// happens in one place.
     /// </summary>
-    internal static class TestAssets
+    public static class TestPolling
     {
         /// <summary>
-        /// Gets the directory containing the copied example layers.
+        /// Polls <paramref name="condition"/> until it returns
+        /// <see langword="true"/> or the timeout elapses, failing the test
+        /// with <paramref name="timeoutMessage"/> on expiry.
         /// </summary>
-        public static string Directory => Path.Combine(AppContext.BaseDirectory, "Assets");
+        /// <param name="condition">The condition to await.</param>
+        /// <param name="timeout">
+        /// Maximum time to wait; defaults to 10 seconds.
+        /// </param>
+        /// <param name="timeoutMessage">
+        /// The assertion message used when the deadline expires.
+        /// </param>
+        public static async Task WaitUntilAsync(
+            Func<bool> condition,
+            TimeSpan? timeout = null,
+            string timeoutMessage = "Timed out waiting for the condition.")
+        {
+            DateTime deadline = DateTime.UtcNow + (timeout ?? TimeSpan.FromSeconds(10));
+            while (!condition())
+            {
+                if (DateTime.UtcNow > deadline)
+                {
+                    Assert.Fail(timeoutMessage);
+                }
 
-        /// <summary>
-        /// Resolves the full path to a named example layer.
-        /// </summary>
-        public static string PathTo(string name) => Path.Combine(Directory, name);
-
-        /// <summary>
-        /// Parses a named example layer into a composed stage (example overlays applied).
-        /// </summary>
-        public static UsdStage Load(string name) => UsdaReader.ParseFile(PathTo(name));
+                await Task.Delay(10).ConfigureAwait(false);
+            }
+        }
     }
 }

@@ -27,7 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-namespace Opc.Ua.OpenUsdScene.Scene
+namespace Opc.Ua.OpenUsd.Scene
 {
     /// <summary>
     /// The shape a <see cref="UsdValue"/> carries.

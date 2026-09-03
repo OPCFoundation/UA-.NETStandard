@@ -27,40 +27,51 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System.Collections.Generic;
+using System;
+using Opc.Ua.OpenUsd.Client;
 
-namespace Opc.Ua.OpenUsdScene.Scene
+namespace Opc.Ua.OpenUsd.Connector
 {
     /// <summary>
-    /// A materialized USD relationship — an ordered set of target paths
-    /// (draft OPC UA — OpenUSD Scene Materialization §5.5).
+    /// Forwards live values to a viewport stage whose structural composition was
+    /// prepared before its retained renderer was created.
     /// </summary>
-    public sealed class UsdRelationship
+    internal sealed class UsdViewportValueSink : IUsdSink
     {
-        /// <summary>
-        /// Creates a relationship.
-        /// </summary>
-        /// <param name="name">The relationship name (for example <c>material:binding</c>).</param>
-        public UsdRelationship(string name)
+        public UsdViewportValueSink(IUsdSink inner)
         {
-            Name = name ?? string.Empty;
+            m_inner = inner ?? throw new ArgumentNullException(nameof(inner));
         }
 
-        /// <summary>
-        /// The relationship name.
-        /// </summary>
-        public string Name { get; }
+        public void SetAttribute(string primPath, string propertyName, Variant value)
+        {
+            m_inner.SetAttribute(primPath, propertyName, value);
+        }
 
-        /// <summary>
-        /// The ordered target SdfPath strings. Materialized both as the <c>TargetPaths</c>
-        /// property (for fidelity when a target lies outside the materialized subtree) and,
-        /// for each resolved target, as a <c>UsdRelationshipTarget</c> reference.
-        /// </summary>
-        public IList<string> Targets { get; } = new List<string>();
+        public void SetTimeSample(
+            string primPath,
+            string propertyName,
+            DateTime time,
+            Variant value)
+        {
+            m_inner.SetTimeSample(primPath, propertyName, time, value);
+        }
 
-        /// <summary>
-        /// Whether the relationship is a custom (non-schema) property.
-        /// </summary>
-        public bool Custom { get; set; }
+        public void ComposePrim(
+            string primPath,
+            OpenUsdCompositionArc arc,
+            string? assetReference,
+            bool active)
+        {
+            // OpenUSD 0.12 retained renderers do not rebuild reliably after live
+            // composition edits. The file sink still persists these changes.
+        }
+
+        public IDisposable BeginBatch()
+        {
+            return m_inner.BeginBatch();
+        }
+
+        private readonly IUsdSink m_inner;
     }
 }

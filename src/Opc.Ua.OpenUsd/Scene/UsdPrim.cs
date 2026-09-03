@@ -31,7 +31,7 @@ using System;
 using System.Collections.Generic;
 using System.Text;
 
-namespace Opc.Ua.OpenUsdScene.Scene
+namespace Opc.Ua.OpenUsd.Scene
 {
     /// <summary>
     /// A prim in a composed USD stage — the unit that becomes an OPC UA Object in the

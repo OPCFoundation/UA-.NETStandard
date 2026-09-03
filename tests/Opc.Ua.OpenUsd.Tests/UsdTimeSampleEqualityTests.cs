@@ -28,10 +28,10 @@
  * ======================================================================*/
 
 using NUnit.Framework;
-using Opc.Ua.OpenUsdScene.Scene;
-using Opc.Ua.OpenUsdScene.Server;
+using Opc.Ua.OpenUsd.Scene;
+using Opc.Ua.OpenUsd.Server.Scene;
 
-namespace Opc.Ua.OpenUsdScene.Tests
+namespace Opc.Ua.OpenUsd.Tests
 {
     /// <summary>
     /// Unit tests for the value semantics of <see cref="UsdTimeSample"/>. Samples are compared

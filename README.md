@@ -73,72 +73,14 @@ Official public 2.0 preview releases are also on nuget.org. Enable prerelease
 packages and use `2.0.0-preview.*` to float to the latest published
 `2.0.0-preview.N` release.
 
-### Sample applications
+### Samples
 
-Each sample has its own `README.md` with build and run instructions.
-
-**Reference applications**
-
-- [Console Reference Server](samples/Reference/ConsoleReferenceServer/README.md) —
-  the certified reference server (with Quickstarts, CTT, and Mono
-  configs). Also ships as a
-  [Docker container](docs/ContainerReferenceServer.md).
-- [Console Reference Client](samples/Reference/ConsoleReferenceClient/README.md) —
-  cross-platform reference client demonstrating sessions, subscriptions,
-  browsing, and method calls.
-- [Console LDS Server](samples/Lds/ConsoleLdsServer) — a standalone
-  Local Discovery Server built on `Opc.Ua.Lds.Server`.
-
-**PubSub samples**
-
-- [Console Reference PubSub Client](samples/PubSub/ConsoleReferencePubSubClient/README.md) —
-  one executable with `publisher`, `subscriber`, and `external` (external-server
-  adapter) modes across the supported transport profiles.
-
-**Minimal / Device-Integration samples**
-
-- [Minimal Calc Server](samples/MinimalApi/MinimalCalcServer) — minimal
-  server built on the source-generated NodeManager pipeline (Calc
-  model).
-- [Minimal Boiler Server](samples/MinimalApi/MinimalBoilerServer) — minimal
-  Boiler-model server with the fluent state-machine builder;
-  Native-AOT publishable.
-- [Pump Device Integration Server](samples/DI/PumpDeviceIntegrationServer/README.md) —
-  minimal Device Integration (Part 100) server using
-  `Opc.Ua.Di.Server`'s fluent builder.
-- [Minimal Robot Server](samples/Robotics/MinimalRobotServer/README.md) — OPC 40010
-  Robotics with independently configurable RSL/GPOS motion and live OpenUSD
-  transforms.
-- [Intent Enabled Robot](samples/Robotics/IntentEnabledRobot/README.md) —
-  one collaborative arm exposing the Robot Intent command surface: task-level
-  motion verbs tracked on a Part 10 program lifecycle, with missions, command
-  authority and safety-aware refusal.
-- [Intent Viewer Client](samples/Robotics/IntentViewerClient/README.md) — click a
-  target in an OpenUSD viewport and watch the arm execute the resulting intent;
-  also runs headless.
-- [Bin Picking Cell](samples/Robotics/BinPickingCell/README.md) — Robot Intent,
-  Vision, an eye-in-hand camera, and an in-address-space OpenUSD scene in one
-  reference cell.
-- [Bin Picking Client](samples/Robotics/BinPickingClient/README.md) — closes the
-  Vision-to-Robot-Intent loop, with optional MCP hosting and an OpenUSD viewport.
-- [Visual Inspection Cell](samples/Vision/VisualInspectionCell/README.md) — hosts
-  Vision, AI Model Management, ISA-95 Job Control V2, and an operator dialog for
-  deterministic machined-bracket inspection.
-- [Visual Inspection Agent](samples/Vision/VisualInspectionAgent/README.md) — drives
-  the inspection loop with typed clients, routes inference through deployment
-  `Invoke`, applies recipe verdicts, schedules allowlisted jobs, and records
-  operator ground truth.
-- [AI Model Management sample](samples/AI/README.md) — `ModelManagementServer`
-  publishes the draft AI Model Management catalogue and routes inference;
-  `ModelManagementClient` discovers deployments and exercises the Methods.
-- [Minimal ISA-95 Server](samples/Isa95/MinimalIsa95Server/README.md) —
-  minimal server hosting the OPC-10030 ISA-95 Common Model together
-  with OPC-10031-4 Job Control V1 and V2, using the typed common-model
-  builder and the in-memory Job Control provider.
-
-More sample projects are maintained in the companion
-[OPC UA .NET Samples](https://github.com/OPCFoundation/UA-.NETStandard-Samples)
-repository.
+The stack also includes a large collection of
+[platform-independent sample applications](docs/samples.md) that turn its
+core services and companion models into runnable client/server workflows.
+More applications, including platform-specific examples, are available in
+the companion
+[OPC UA .NET Samples repository](https://github.com/OPCFoundation/UA-.NETStandard-Samples).
 
 ### Developer tools
 
@@ -206,7 +148,5 @@ vulnerabilities via the process documented in
   [`docs/migrate/2.0.x/`](docs/migrate/2.0.x/README.md)).
 - [OPC UA Online Reference](https://reference.opcfoundation.org/) —
   the official OPC 10000 series specification index.
-- [OPC UA .NET Samples](https://github.com/OPCFoundation/UA-.NETStandard-Samples) —
-  companion repository with more sample applications.
 - [Preview Nuget package feed](https://nuget.pkg.github.com/OPCFoundation/index.json) —
   prerelease builds from every successful `master` build.

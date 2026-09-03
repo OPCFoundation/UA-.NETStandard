@@ -27,54 +27,52 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System;
-
-namespace Opc.Ua.OpenUsdScene.Scene
+namespace Opc.Ua.OpenUsd.Scene
 {
     /// <summary>
-    /// An applied USD API schema, materialized as an AddIn under a prim's
-    /// <c>AppliedSchemas</c> folder (draft OPC UA — OpenUSD Scene Materialization §5.6, §8.2).
-    /// An unknown API schema is never dropped: it degrades to a generic
-    /// <c>UsdApiSchemaType</c> AddIn carrying <see cref="SchemaName"/> (§8.4).
+    /// A recorded composition arc — how a composed prim came to be
+    /// (draft OPC UA — OpenUSD Scene Materialization §5.6). Preserving the arc list is
+    /// what makes the §7.4 round-trip contract provenance-aware.
     /// </summary>
-    public sealed class UsdApiSchema
+    public sealed class UsdCompositionArc
     {
-        private static readonly char[] s_colon = [':'];
-
         /// <summary>
-        /// Creates an applied API schema.
+        /// Creates a composition arc.
         /// </summary>
-        /// <param name="schemaName">The schema token as authored, for example
-        /// <c>CollectionAPI:lights</c> or <c>CesiumGlobeAnchorAPI</c>.</param>
-        public UsdApiSchema(string schemaName)
+        /// <param name="arcKind">The kind of arc.</param>
+        public UsdCompositionArc(UsdArcKindEnum arcKind)
         {
-            SchemaName = schemaName ?? string.Empty;
-            string[] parts = SchemaName.Split(s_colon, 2);
-            FamilyName = parts[0];
-            InstanceName = parts.Length > 1 ? parts[1] : string.Empty;
+            ArcKind = arcKind;
         }
 
         /// <summary>
-        /// The applied schema token exactly as authored.
+        /// The kind of composition arc.
         /// </summary>
-        public string SchemaName { get; }
+        public UsdArcKindEnum ArcKind { get; }
 
         /// <summary>
-        /// The instance name of a multiple-apply schema — the portion after the colon
-        /// (for example <c>lights</c> in <c>CollectionAPI:lights</c>), or an empty string
-        /// for a single-apply schema.
+        /// The referenced asset path, when the arc names one.
         /// </summary>
-        public string InstanceName { get; }
+        public string AssetPath { get; set; } = string.Empty;
 
         /// <summary>
-        /// The schema family name — the portion before the colon (for example
-        /// <c>CollectionAPI</c>), which selects the materialized AddIn ObjectType.
+        /// The target prim path within the referenced asset, when authored.
         /// </summary>
-        public string FamilyName { get; }
+        public string PrimPath { get; set; } = string.Empty;
 
         /// <summary>
-        /// The expansion rule of a collection-style schema, when authored.
+        /// The list-edit position the arc was authored with.
         /// </summary>
-        public string ExpansionRule { get; set; } = string.Empty;
+        public UsdListOpTypeEnum ListPosition { get; set; } = UsdListOpTypeEnum.Explicit;
+
+        /// <summary>
+        /// The variant set name, for a <see cref="UsdArcKindEnum.VariantSet"/> arc.
+        /// </summary>
+        public string VariantSet { get; set; } = string.Empty;
+
+        /// <summary>
+        /// The selected variant, for a <see cref="UsdArcKindEnum.VariantSet"/> arc.
+        /// </summary>
+        public string VariantSelection { get; set; } = string.Empty;
     }
 }

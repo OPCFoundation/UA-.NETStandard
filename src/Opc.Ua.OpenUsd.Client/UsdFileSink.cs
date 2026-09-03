@@ -45,6 +45,10 @@ namespace Opc.Ua.OpenUsd.Client
     /// </summary>
     public sealed class UsdFileSink : IUsdSink
     {
+        private const string TranslateOp = "xformOp:translate";
+        private const string RotateOp = "xformOp:rotateXYZ";
+        private const string ScaleOp = "xformOp:scale";
+
         private static readonly char[] s_pathSeparator = ['/'];
 
         private static readonly DateTime s_epoch =
@@ -54,11 +58,17 @@ namespace Opc.Ua.OpenUsd.Client
         private readonly Lock m_gate = new();
         private readonly Dictionary<string, Variant> m_values = new(StringComparer.Ordinal);
         private readonly List<(string Prim, string Prop)> m_order = [];
+        private readonly Dictionary<string, TransformComponents> m_transforms =
+            new(StringComparer.Ordinal);
+        private readonly List<string> m_transformOrder = [];
 
         private readonly Dictionary<string, SortedList<double, Variant>> m_timeSamples =
             new(StringComparer.Ordinal);
 
         private readonly List<(string Prim, string Prop)> m_tsOrder = [];
+        private readonly Dictionary<string, SortedList<double, TransformComponents>>
+            m_transformTimeSamples = new(StringComparer.Ordinal);
+        private readonly List<string> m_transformTsOrder = [];
 
         private readonly Dictionary<string, (OpenUsdCompositionArc Arc, string? Asset, bool Active)> m_prims =
             new(StringComparer.Ordinal);
@@ -105,6 +115,11 @@ namespace Opc.Ua.OpenUsd.Client
             }
             lock (m_gate)
             {
+                if (TrySetTransform(m_transforms, m_transformOrder, primPath, propertyName, value))
+                {
+                    WriteOrDefer();
+                    return;
+                }
                 string key = primPath + "|" + propertyName;
                 if (!m_values.ContainsKey(key))
                 {
@@ -125,6 +140,11 @@ namespace Opc.Ua.OpenUsd.Client
             double frame = (time.ToUniversalTime() - s_epoch).TotalSeconds;
             lock (m_gate)
             {
+                if (TrySetTransformTimeSample(primPath, propertyName, frame, value))
+                {
+                    WriteOrDefer();
+                    return;
+                }
                 string key = primPath + "|" + propertyName;
                 if (!m_timeSamples.TryGetValue(key, out SortedList<double, Variant>? samples))
                 {
@@ -314,6 +334,11 @@ namespace Opc.Ua.OpenUsd.Client
                 (string usdType, string formatted) = FormatValue(prop, value);
                 node.Props.Add((prop, usdType, formatted));
             }
+            foreach (string prim in m_transformOrder)
+            {
+                Node node = NavigateTo(root, rootOrder, prim);
+                node.Props.Add(("xformOp:transform", "matrix4d", FormatTransform(m_transforms[prim])));
+            }
             foreach ((string prim, string prop) in m_tsOrder)
             {
                 SortedList<double, Variant> samples = m_timeSamples[prim + "|" + prop];
@@ -331,6 +356,23 @@ namespace Opc.Ua.OpenUsd.Client
                 }
                 block.Append("            }");
                 node.TimeSamples.Add((prop, usdType, block.ToString()));
+            }
+            foreach (string prim in m_transformTsOrder)
+            {
+                SortedList<double, TransformComponents> samples = m_transformTimeSamples[prim];
+                Node node = NavigateTo(root, rootOrder, prim);
+                var block = new StringBuilder();
+                block.Append("{\n");
+                foreach (KeyValuePair<double, TransformComponents> sample in samples)
+                {
+                    block.Append("                ")
+                        .Append(sample.Key.ToString("0.000", CultureInfo.InvariantCulture))
+                        .Append(": ")
+                        .Append(FormatTransform(sample.Value))
+                        .Append(",\n");
+                }
+                block.Append("            }");
+                node.TimeSamples.Add(("xformOp:transform", "matrix4d", block.ToString()));
             }
             foreach (string prim in m_primOrder)
             {
@@ -493,6 +535,161 @@ namespace Opc.Ua.OpenUsd.Client
                 return ("double", F(d));
             }
             return ("double", F(0.0));
+        }
+
+        private static bool TrySetTransform(
+            Dictionary<string, TransformComponents> transforms,
+            List<string> order,
+            string primPath,
+            string propertyName,
+            in Variant value)
+        {
+            if (!IsTransformProperty(propertyName) ||
+                !TryGetVector3(value, out Vector3 vector))
+            {
+                return false;
+            }
+            if (!transforms.TryGetValue(primPath, out TransformComponents transform))
+            {
+                transform = TransformComponents.Identity;
+                order.Add(primPath);
+            }
+            transforms[primPath] = transform.With(propertyName, vector);
+            return true;
+        }
+
+        private bool TrySetTransformTimeSample(
+            string primPath,
+            string propertyName,
+            double frame,
+            in Variant value)
+        {
+            if (!IsTransformProperty(propertyName) ||
+                !TryGetVector3(value, out Vector3 vector))
+            {
+                return false;
+            }
+            if (!m_transformTimeSamples.TryGetValue(
+                    primPath,
+                    out SortedList<double, TransformComponents>? samples))
+            {
+                samples = [];
+                m_transformTimeSamples[primPath] = samples;
+                m_transformTsOrder.Add(primPath);
+            }
+            TransformComponents transform = samples.TryGetValue(
+                frame,
+                out TransformComponents existing)
+                ? existing
+                : GetTransformBaseline(samples, frame);
+            samples[frame] = transform.With(propertyName, vector);
+            return true;
+        }
+
+        private static TransformComponents GetTransformBaseline(
+            SortedList<double, TransformComponents> samples,
+            double frame)
+        {
+            int low = 0;
+            int high = samples.Count - 1;
+            int prior = -1;
+            while (low <= high)
+            {
+                int middle = low + ((high - low) / 2);
+                if (samples.Keys[middle] < frame)
+                {
+                    prior = middle;
+                    low = middle + 1;
+                }
+                else
+                {
+                    high = middle - 1;
+                }
+            }
+            return prior >= 0
+                ? samples.Values[prior]
+                : TransformComponents.Identity;
+        }
+
+        private static bool IsTransformProperty(string propertyName)
+        {
+            return string.Equals(propertyName, TranslateOp, StringComparison.Ordinal) ||
+                string.Equals(propertyName, RotateOp, StringComparison.Ordinal) ||
+                string.Equals(propertyName, ScaleOp, StringComparison.Ordinal);
+        }
+
+        private static bool TryGetVector3(in Variant value, out Vector3 vector)
+        {
+            if (value.TryGetValue(out ArrayOf<double> doubles) && doubles.Count == 3)
+            {
+                vector = new Vector3(doubles[0], doubles[1], doubles[2]);
+                return true;
+            }
+            if (value.TryGetValue(out ArrayOf<float> floats) && floats.Count == 3)
+            {
+                vector = new Vector3(floats[0], floats[1], floats[2]);
+                return true;
+            }
+            vector = default;
+            return false;
+        }
+
+        private static string FormatTransform(in TransformComponents transform)
+        {
+            const double toRadians = Math.PI / 180.0;
+            double cx = Math.Cos(transform.Rotation.X * toRadians);
+            double sx = Math.Sin(transform.Rotation.X * toRadians);
+            double cy = Math.Cos(transform.Rotation.Y * toRadians);
+            double sy = Math.Sin(transform.Rotation.Y * toRadians);
+            double cz = Math.Cos(transform.Rotation.Z * toRadians);
+            double sz = Math.Sin(transform.Rotation.Z * toRadians);
+
+            double r00 = cy * cz;
+            double r01 = cy * sz;
+            double r02 = -sy;
+            double r10 = (sx * sy * cz) - (cx * sz);
+            double r11 = (sx * sy * sz) + (cx * cz);
+            double r12 = sx * cy;
+            double r20 = (cx * sy * cz) + (sx * sz);
+            double r21 = (cx * sy * sz) - (sx * cz);
+            double r22 = cx * cy;
+
+            var result = new StringBuilder();
+            result.Append("( (")
+                .Append(F(transform.Scale.X * r00)).Append(", ")
+                .Append(F(transform.Scale.X * r01)).Append(", ")
+                .Append(F(transform.Scale.X * r02)).Append(", 0.0000), (")
+                .Append(F(transform.Scale.Y * r10)).Append(", ")
+                .Append(F(transform.Scale.Y * r11)).Append(", ")
+                .Append(F(transform.Scale.Y * r12)).Append(", 0.0000), (")
+                .Append(F(transform.Scale.Z * r20)).Append(", ")
+                .Append(F(transform.Scale.Z * r21)).Append(", ")
+                .Append(F(transform.Scale.Z * r22)).Append(", 0.0000), (")
+                .Append(F(transform.Translation.X)).Append(", ")
+                .Append(F(transform.Translation.Y)).Append(", ")
+                .Append(F(transform.Translation.Z)).Append(", 1.0000) )");
+            return result.ToString();
+        }
+
+        private readonly record struct Vector3(double X, double Y, double Z);
+
+        private readonly record struct TransformComponents(
+            Vector3 Translation,
+            Vector3 Rotation,
+            Vector3 Scale)
+        {
+            public static TransformComponents Identity =>
+                new(default, default, new Vector3(1, 1, 1));
+
+            public TransformComponents With(string propertyName, Vector3 value)
+            {
+                return propertyName switch
+                {
+                    TranslateOp => this with { Translation = value },
+                    RotateOp => this with { Rotation = value },
+                    _ => this with { Scale = value }
+                };
+            }
         }
     }
 }

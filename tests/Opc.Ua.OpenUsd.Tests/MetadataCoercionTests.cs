@@ -31,9 +31,9 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using NUnit.Framework;
-using Opc.Ua.OpenUsdScene.Scene;
+using Opc.Ua.OpenUsd.Scene;
 
-namespace Opc.Ua.OpenUsdScene.Tests
+namespace Opc.Ua.OpenUsd.Tests
 {
     /// <summary>
     /// Unit tests for the §6.3 metadata coercion rules of the materializer: every USD scalar

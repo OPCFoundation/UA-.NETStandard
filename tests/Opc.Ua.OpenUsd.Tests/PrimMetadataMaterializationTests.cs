@@ -32,10 +32,10 @@ using System.Collections.Generic;
 using System.Linq;
 using NUnit.Framework;
 using Opc.Ua;
-using Opc.Ua.OpenUsdScene.Scene;
-using Opc.Ua.OpenUsdScene.Server;
+using Opc.Ua.OpenUsd.Scene;
+using Opc.Ua.OpenUsd.Server.Scene;
 
-namespace Opc.Ua.OpenUsdScene.Tests
+namespace Opc.Ua.OpenUsd.Tests
 {
     /// <summary>
     /// Custom prim metadata materialization and export (§6.3). Each authored metadata entry is

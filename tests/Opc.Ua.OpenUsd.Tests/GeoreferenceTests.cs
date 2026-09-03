@@ -30,10 +30,10 @@
 using System.Collections.Generic;
 using System.Linq;
 using NUnit.Framework;
-using Opc.Ua.OpenUsdScene.Scene;
-using Opc.Ua.OpenUsdScene.Server;
+using Opc.Ua.OpenUsd.Scene;
+using Opc.Ua.OpenUsd.Server.Scene;
 
-namespace Opc.Ua.OpenUsdScene.Tests
+namespace Opc.Ua.OpenUsd.Tests
 {
     /// <summary>
     /// Georeferencing tests (§5.8, Annex B): a recognised Cesium anchor is dual-authored into
@@ -63,7 +63,7 @@ namespace Opc.Ua.OpenUsdScene.Tests
             UsdGeoreferenceApiState node = portable[0];
             Assert.That(
                 node.BrowseName.Name,
-                Is.EqualTo(Opc.Ua.OpenUsdScene.BrowseNames.UsdGeoreferenceApiType));
+                Is.EqualTo(Opc.Ua.OpenUsd.Scene.BrowseNames.UsdGeoreferenceApiType));
             Assert.That(node.Latitude!.Value, Is.EqualTo(Latitude));
             Assert.That(node.Longitude!.Value, Is.EqualTo(Longitude));
             Assert.That(node.Height!.Value, Is.EqualTo(Height));
@@ -87,7 +87,7 @@ namespace Opc.Ua.OpenUsdScene.Tests
             UsdGlobeAnchorApiState node = portable[0];
             Assert.That(
                 node.BrowseName.Name,
-                Is.EqualTo(Opc.Ua.OpenUsdScene.BrowseNames.UsdGlobeAnchorApiType));
+                Is.EqualTo(Opc.Ua.OpenUsd.Scene.BrowseNames.UsdGlobeAnchorApiType));
             Assert.That(node.Latitude!.Value, Is.EqualTo(AnchorLatitude));
             Assert.That(node.Longitude!.Value, Is.EqualTo(AnchorLongitude));
             Assert.That(node.Height!.Value, Is.EqualTo(AnchorHeight));

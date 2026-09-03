@@ -762,13 +762,23 @@ Custom server types that need session, subscription, or durable-subscription DI 
 Fluent node managers can be registered without a factory class:
 
 ```csharp
+const string namespaceUri = "urn:example:line";
+
 services.AddOpcUa()
-    .AddReferenceServer()
-    .AddNodeManager("urn:example:line", nodes =>
+    .AddServer(options => { /* endpoint and application options */ })
+    .AddNodeManager(namespaceUri, nodes =>
     {
-        nodes.Node("ReferenceServer");
+        ushort namespaceIndex =
+            (ushort)nodes.Context.NamespaceUris.GetIndex(namespaceUri);
+        nodes.CreateInstance(
+                new QualifiedName("Line", namespaceIndex),
+                parent => new FolderState(parent))
+            .Configure(node => node.UnderObjectsFolder());
     });
 ```
+
+The callback owns the complete address space contributed by this node manager.
+`AddNodeManager(namespaceUri, build)` does not create an implicit root folder.
 
 `AddHistorianFileStore(provider, path)` combines the historian provider registration with a Part 20
 file-system mount for demo and lab servers.

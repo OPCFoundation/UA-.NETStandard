@@ -29,9 +29,9 @@
 
 using System.Collections.Generic;
 using NUnit.Framework;
-using Opc.Ua.OpenUsdScene.Scene;
+using Opc.Ua.OpenUsd.Scene;
 
-namespace Opc.Ua.OpenUsdScene.Tests
+namespace Opc.Ua.OpenUsd.Tests
 {
     /// <summary>
     /// Unit tests for the numeric coercion the portable georeference dual-authoring applies to

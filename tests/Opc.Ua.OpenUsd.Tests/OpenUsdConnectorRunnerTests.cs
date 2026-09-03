@@ -148,7 +148,7 @@ namespace Opc.Ua.OpenUsd.Client.Tests
         }
 
         [Test]
-        public void WriteStageUsdaComposesLiveLayerBeforeFetchedRootLayer()
+        public void WriteStageUsdaComposesLiveLayerBeforeEveryFetchedRootLayer()
         {
             string cacheDir = Path.Combine(
                 Environment.CurrentDirectory,
@@ -171,6 +171,12 @@ namespace Opc.Ua.OpenUsd.Client.Tests
                         Identifier = "robot.usda",
                         Kind = OpenUsdAssetKind.RootLayer,
                         LocalPath = Path.Combine(cacheDir, "robot.usda")
+                    },
+                    new()
+                    {
+                        Identifier = "plant.usda",
+                        Kind = OpenUsdAssetKind.RootLayer,
+                        LocalPath = Path.Combine(cacheDir, "plant.usda")
                     }
                 };
 
@@ -178,16 +184,69 @@ namespace Opc.Ua.OpenUsd.Client.Tests
 
                 string stage = File.ReadAllText(Path.Combine(cacheDir, "stage.usda"));
                 int liveIndex = stage.IndexOf("@./live.usda@", StringComparison.Ordinal);
-                int rootIndex = stage.IndexOf("@./robot.usda@", StringComparison.Ordinal);
+                int robotIndex = stage.IndexOf("@./robot.usda@", StringComparison.Ordinal);
+                int plantIndex = stage.IndexOf("@./plant.usda@", StringComparison.Ordinal);
 
                 Assert.That(liveIndex, Is.GreaterThanOrEqualTo(0));
-                Assert.That(rootIndex, Is.GreaterThan(liveIndex));
+                Assert.That(robotIndex, Is.GreaterThan(liveIndex));
+                Assert.That(plantIndex, Is.GreaterThan(robotIndex));
                 Assert.That(File.Exists(Path.Combine(cacheDir, "live.usda")), Is.True);
             }
             finally
             {
                 Directory.Delete(cacheDir, recursive: true);
             }
+        }
+
+        [Test]
+        public void ViewportValueSinkForwardsValuesButNotComposition()
+        {
+            var inner = new MockUsdSink();
+            var sink = new UsdViewportValueSink(inner);
+
+            sink.SetAttribute("/Plant/Pump", "speed", Variant.From(42.0));
+            sink.SetTimeSample(
+                "/Plant/Pump",
+                "speed",
+                DateTime.UtcNow,
+                Variant.From(43.0));
+            sink.ComposePrim(
+                "/Plant/Pump",
+                OpenUsdCompositionArc.Reference,
+                "@pump.usda@</Pump>",
+                active: true);
+
+            Assert.That(inner.TotalWrites, Is.EqualTo(1));
+            Assert.That(inner.TimeSampleWrites, Is.EqualTo(1));
+            Assert.That(inner.ComposedPrimCount, Is.Zero);
+        }
+
+        [Test]
+        public void ViewportValueSinkRejectsNullInnerSink()
+        {
+            Assert.That(
+                () => new UsdViewportValueSink(null!),
+                Throws.ArgumentNullException);
+        }
+
+        [Test]
+        public void SiteCameraUsesProvenThreeQuarterFraming()
+        {
+            string stagePath = Path.Combine(
+                FindRepositoryRoot(),
+                "samples",
+                "OpenUsd",
+                "SiteCompositionServer",
+                "Assets",
+                "Site.usda");
+            string stage = File.ReadAllText(stagePath);
+
+            Assert.That(
+                stage,
+                Does.Contain("double3 xformOp:translate = (-22, -24, 14)"));
+            Assert.That(
+                stage,
+                Does.Contain("double3 xformOp:rotateXYZ = (71, 0, -35)"));
         }
 
         [Test]
@@ -245,6 +304,21 @@ namespace Opc.Ua.OpenUsd.Client.Tests
             await canceled.CancelAsync();
 
             await wait;
+        }
+
+        private static string FindRepositoryRoot()
+        {
+            DirectoryInfo? directory = new(TestContext.CurrentContext.WorkDirectory);
+            while (directory is not null)
+            {
+                if (File.Exists(Path.Combine(directory.FullName, "UA.slnx")))
+                {
+                    return directory.FullName;
+                }
+                directory = directory.Parent;
+            }
+            throw new DirectoryNotFoundException(
+                "Could not locate the repository root from the test directory.");
         }
     }
 }

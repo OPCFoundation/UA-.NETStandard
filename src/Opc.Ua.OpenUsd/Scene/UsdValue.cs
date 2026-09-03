@@ -31,7 +31,7 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 
-namespace Opc.Ua.OpenUsdScene.Scene
+namespace Opc.Ua.OpenUsd.Scene
 {
     /// <summary>
     /// A value authored on a USD attribute, scoped to the shapes a <c>.usda</c>

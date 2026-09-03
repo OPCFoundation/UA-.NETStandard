@@ -2182,8 +2182,8 @@ namespace Opc.Ua.Server
                 node.NodeId.IsNull ||
                 children.Any(child =>
                     child.NodeId.IsNull ||
-                    (node.NodeId.NamespaceIndex != 0 &&
-                        child.NodeId.NamespaceIndex == 0) ||
+                    (IsNodeIdInNamespace(node.NodeId) &&
+                        !IsNodeIdInNamespace(child.NodeId)) ||
                     HasDeclarationNodeIdCollision(child));
             if (!requiresRebase)
             {
@@ -2191,32 +2191,52 @@ namespace Opc.Ua.Server
             }
 
             var subtree = new List<NodeState> { node };
+            var mappingTable = new Dictionary<NodeId, NodeId>();
             for (int ii = 0; ii < subtree.Count; ii++)
             {
+                NodeState candidate = subtree[ii];
+                if (candidate.IsPartOfTypeHierarchy)
+                {
+                    continue;
+                }
+
+                if (RequiresInstanceNodeIdRepair(candidate))
+                {
+                    if (!candidate.NodeId.IsNull &&
+                        PredefinedNodes.TryGetValue(
+                            candidate.NodeId,
+                            out NodeState? indexedNode) &&
+                        ReferenceEquals(indexedNode, candidate))
+                    {
+                        PredefinedNodes.TryRemove(candidate.NodeId, out _);
+                    }
+
+                    NodeId previousNodeId = context.AssignInstanceNodeId(candidate);
+                    if (!previousNodeId.IsNull &&
+                        !candidate.NodeId.IsNull &&
+                        !previousNodeId.Equals(candidate.NodeId))
+                    {
+                        mappingTable[previousNodeId] = candidate.NodeId;
+                    }
+                }
+
                 children.Clear();
-                subtree[ii].GetChildren(context, children);
+                candidate.GetChildren(context, children);
                 subtree.AddRange(children);
             }
 
-            foreach (NodeState candidate in subtree)
+            if (mappingTable.Count > 0)
             {
-                if (!candidate.NodeId.IsNull &&
-                    PredefinedNodes.TryGetValue(
-                        candidate.NodeId,
-                        out NodeState? indexedNode) &&
-                    ReferenceEquals(indexedNode, candidate))
-                {
-                    PredefinedNodes.TryRemove(candidate.NodeId, out _);
-                }
+                (instance.Parent ?? node).UpdateReferenceTargets(context, mappingTable);
             }
+        }
 
-            NodeId previousNodeId = node.NodeId.IsNull || rootCollision
-                ? context.AssignInstanceNodeId(node)
-                : NodeId.Null;
-            context.AssignInstanceChildNodeIds(
-                node,
-                previousNodeId,
-                instance.Parent ?? node);
+        private bool RequiresInstanceNodeIdRepair(NodeState node)
+        {
+            return !node.IsPartOfTypeHierarchy &&
+                (node.NodeId.IsNull ||
+                    !IsNodeIdInNamespace(node.NodeId) ||
+                    HasDeclarationNodeIdCollision(node));
         }
 
         private bool HasDeclarationNodeIdCollision(NodeState node)
