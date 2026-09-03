@@ -253,6 +253,10 @@ dotnet run --project tools/Opc.Ua.OpenUsd.Connector -- \
 Without `--fetch-assets` or `--stage`, `--view` fetches the asset closure into a temporary directory, because a
 renderer needs geometry it can resolve. Closing the window stops the session; `--seconds` closes it automatically.
 
+For fetched stages, the connector resolves and writes structural component composition before the viewport opens.
+Live streaming then updates values in the rendered stage while continuing to persist later structural changes in
+`live.usda`; reload the viewport to apply a structural model change that occurs after startup.
+
 The renderer itself lives in a separate, optional assembly, `Opc.Ua.OpenUsd.Connector.Viewer`
 (`OPCFoundation.NetStandard.Opc.Ua.OpenUsd.Connector.Viewer`), which the connector loads on demand from its own
 directory. That keeps the connector package free of a UI framework and a native OpenUSD payload, and lets it keep
