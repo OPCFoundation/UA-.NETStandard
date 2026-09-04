@@ -605,6 +605,8 @@ namespace Opc.Ua.Tools.Tests
             process.StartInfo.WorkingDirectory = repositoryRoot;
             process.StartInfo.RedirectStandardOutput = true;
             process.StartInfo.RedirectStandardError = true;
+            process.StartInfo.Environment["NO_COLOR"] = "1";
+            process.StartInfo.Environment["TERM"] = "dumb";
             process.StartInfo.ArgumentList.Add("-NoProfile");
             process.StartInfo.ArgumentList.Add("-File");
             process.StartInfo.ArgumentList.Add(Path.Combine(
@@ -622,7 +624,50 @@ namespace Opc.Ua.Tools.Tests
 
             string output = await standardOutput.ConfigureAwait(false);
             string error = await standardError.ConfigureAwait(false);
-            return new ScriptResult(process.ExitCode, output + error);
+            return new ScriptResult(
+                process.ExitCode,
+                NormalizePowerShellOutput(output + error));
+        }
+
+        private static string NormalizePowerShellOutput(string value)
+        {
+            var normalized = new StringBuilder(value.Length);
+            bool previousWasWhitespace = false;
+            for (int ii = 0; ii < value.Length; ii++)
+            {
+                char character = value[ii];
+                if (character == '\u001b' &&
+                    ii + 1 < value.Length &&
+                    value[ii + 1] == '[')
+                {
+                    ii += 2;
+                    while (ii < value.Length &&
+                        (value[ii] < '@' || value[ii] > '~'))
+                    {
+                        ii++;
+                    }
+                    continue;
+                }
+
+                if (char.IsWhiteSpace(character))
+                {
+                    if (normalized.Length > 0 && !previousWasWhitespace)
+                    {
+                        normalized.Append(' ');
+                    }
+                    previousWasWhitespace = true;
+                    continue;
+                }
+
+                normalized.Append(character);
+                previousWasWhitespace = false;
+            }
+
+            if (normalized.Length > 0 && normalized[^1] == ' ')
+            {
+                normalized.Length--;
+            }
+            return normalized.ToString();
         }
 
         private sealed record ScriptResult(int ExitCode, string Output);
