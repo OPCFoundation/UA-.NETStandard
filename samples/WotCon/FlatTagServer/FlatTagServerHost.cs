@@ -125,6 +125,7 @@ namespace FlatTagServer
                 SourceNamespaceUri = configuration["namespace"] ??
                     FlatTagServerOptions.SourceANamespaceUri,
                 ApplicationName = configuration["applicationName"] ?? "FlatTagServer",
+                PkiRoot = configuration["pkiRoot"],
                 InstanceName = configuration["instanceName"] ?? "SourceA"
             };
 
