@@ -934,31 +934,6 @@ parameters, which an asynchronous method cannot have. Use
 `WriteAsymmetricMessageAsync` in place of the removed synchronous
 overload.
 
-## Migrating documents that relied on generated WoT NodeIds
-
-A WoT document that authors no `uav:id` gets a **generated** NodeId, and the
-generation now follows OPC 99009-1 Annex G.1 exactly. The shape changed:
-
-| Before | After |
-| --- | --- |
-| `ns=1;s=PumpType/PumpSpeed` | `ns=1;s=/nsu=http%3A%2F%2Fexample.com%2Fdemo%2Fpump;PumpType/nsu=http%3A%2F%2Fexample.com%2Fdemo%2Fpump;PumpSpeed` |
-| `nsu=urn:t;s=TankType/Reset` | `nsu=urn:t;s=/nsu=urn%3At;TankType/nsu=urn%3At;Reset` |
-
-The old form joined names with `/` and nothing else, so it was **not
-injective**: a member named `A/B` of `Root` and a member named `B` of `Root/A`
-produced one identifier and one of the two Nodes was unreachable, and a
-base-namespace `InputArguments` could not be told from a model member of the
-same name. Annex G.1's leading separator, per-element namespace qualification
-and Annex A.2 escaping are what remove both collisions, so the change is
-required rather than cosmetic.
-
-**What to do.** A document that authors `uav:id` is unaffected — an authored
-identity always wins over generation. Where a stable identifier matters across
-this change (a Client that pinned a generated NodeId, a NodeSet checked in as an
-expected artefact), author `uav:id` explicitly, or regenerate the artefact.
-`Opc.Ua.Wot.WotPortableIdentity.GenerateNodeId` and `GenerateBrowsePath` are
-public, so the new identifier can be computed without running a conversion.
-
 ## Migrating from 1.05.377 to 1.05.378
 
 ### Asynchronous as default
