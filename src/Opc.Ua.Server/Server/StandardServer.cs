@@ -3596,7 +3596,7 @@ namespace Opc.Ua.Server
             ArrayOf<string> baseAddresses = configuration.ServerConfiguration.BaseAddresses;
             foreach (
                 string scheme in Utils.DefaultUriSchemes.Where(scheme =>
-                    baseAddresses.Contains(a => a.StartsWith(scheme, StringComparison.Ordinal))))
+                    baseAddresses.Contains(a => a.StartsWith(scheme, StringComparison.OrdinalIgnoreCase))))
             {
                 ITransportListenerFactory binding = bindingFactory.GetListenerFactory(scheme) ??
                     throw new InvalidOperationException(
