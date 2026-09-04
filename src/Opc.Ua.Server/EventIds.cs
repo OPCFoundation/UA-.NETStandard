@@ -47,6 +47,7 @@ namespace Opc.Ua
         public const int AliasNameNodeManager = 10;
         public const int ApplicationConfigurationFile = 20;
         public const int AuditEvents = 30;
+        public const int CertificateAlarmScheduler = 580;
         public const int CertificateGroupAlarmMonitor = 60;
         public const int ConfigurationNodeManager = 70;
         public const int DataChangeMonitoredItemQueue = 110;
@@ -62,6 +63,7 @@ namespace Opc.Ua
         public const int MonitoredItemQueue = 250;
         public const int MonitoredNode = 260;
         public const int NamespaceMetadataPublisher = 270;
+        public const int NamespaceMetadataRegistry = 570;
         public const int NodeManager = 280;
         public const int OpcUaServerHostedService = 290;
         public const int PushConfigurationTransactionCoordinator = 300;
