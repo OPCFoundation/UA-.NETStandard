@@ -255,6 +255,41 @@ namespace Opc.Ua.Server.Tests.Roles
                 Is.EqualTo(StatusCodes.BadInvalidArgument));
         }
 
+        [Test]
+        public async Task AddEndpointHandlerAuthorisedCallerAcceptsSecurityModeOnlyRule()
+        {
+            ISystemContext ctx = BuildAdminContext(MessageSecurityMode.SignAndEncrypt);
+            var endpoint = new EndpointType
+            {
+                SecurityMode = MessageSecurityMode.SignAndEncrypt
+            };
+
+            ServiceResult? result = await InvokeAddEndpointAsync(ctx, endpoint)
+                .ConfigureAwait(false);
+
+            Assert.That(ServiceResult.IsGood(result), Is.True);
+            RoleEntry? entry = m_roleManager.GetRole(ObjectIds.WellKnownRole_Observer);
+            Assert.That(entry, Is.Not.Null);
+            Assert.That(entry!.Endpoints, Has.Count.EqualTo(1));
+            Assert.That(
+                entry.Endpoints[0].SecurityMode,
+                Is.EqualTo(MessageSecurityMode.SignAndEncrypt));
+            Assert.That(string.IsNullOrEmpty(entry.Endpoints[0].EndpointUrl), Is.True);
+
+            Assume.That(m_roleState.Endpoints, Is.Not.Null);
+            ArrayOf<EndpointType> syncedEndpoints = m_roleState.Endpoints!.Value;
+            Assert.That(syncedEndpoints, Has.Count.EqualTo(1));
+            Assert.That(
+                syncedEndpoints[0].SecurityMode,
+                Is.EqualTo(MessageSecurityMode.SignAndEncrypt));
+            Assert.That(string.IsNullOrEmpty(syncedEndpoints[0].EndpointUrl), Is.True);
+
+            m_auditServer.Verify(a => a.ReportAuditEvent(
+                It.IsAny<ISystemContext>(),
+                It.IsAny<AuditEventState>()),
+                Times.Once);
+        }
+
         // ----------------------------------------------------------------
         // Audit-event firing (Part 18 §4.5)
         // ----------------------------------------------------------------
@@ -1085,6 +1120,23 @@ namespace Opc.Ua.Server.Tests.Roles
             AddIdentityMethodStateResult result = await method.OnCallAsync!(
                 context, method, m_roleState.NodeId, rule, CancellationToken.None)
                 .ConfigureAwait(false);
+            return result.ServiceResult;
+        }
+
+        private async ValueTask<ServiceResult?> InvokeAddEndpointAsync(
+            ISystemContext context, EndpointType endpoint)
+        {
+            AddEndpointMethodState? method = m_roleState.AddEndpoint;
+            Assume.That(method, Is.Not.Null, "AddEndpoint method state should be attached.");
+            Assume.That(method!.OnCallAsync, Is.Not.Null,
+                "Binding should have wired the typed OnCallAsync delegate.");
+
+            AddEndpointMethodStateResult result = await method.OnCallAsync!(
+                context,
+                method,
+                m_roleState.NodeId,
+                endpoint,
+                CancellationToken.None).ConfigureAwait(false);
             return result.ServiceResult;
         }
 

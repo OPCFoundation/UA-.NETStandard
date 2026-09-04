@@ -181,7 +181,7 @@ The default configuration and diagnostics manager is a single object. `MainNodeM
 
 As a diagnostics manager, it loads the standard diagnostics and server-support nodes generated for the stack, manages session and subscription diagnostics, diagnostics enable/disable state, aggregate functions, event notifier updates, and the well-known OPC UA Part 17 alias-name methods that dispatch through the server-wide alias-name registry. It registers namespace URIs for the OPC UA namespace and the diagnostics namespace.
 
-As a configuration manager, the same instance exposes push certificate-management and server-configuration functionality from OPC UA Part 12. It owns the server-configuration methods and state that interact with trust lists, certificate groups, transaction coordination, pending regenerated keys, endpoint and listener registries, and post-`ApplyChanges` effects.
+As a configuration manager, the same instance exposes push certificate-management and server-configuration functionality from OPC UA Part 12. It owns the server-configuration methods and state that interact with trust lists, certificate groups, transaction coordination, pending regenerated keys, endpoint and listener registries, and post-`ApplyChanges` effects. The class is a partial split by concern (`ConfigurationNodeManager.PushMethods.cs`, `.PushValidation.cs`, `.CertificateSlots.cs`, `.ApplyChanges.cs`, `.TrustMaterial.cs`, `.CertificateAlarms.cs`, `.NamespaceMetadata.cs`) over one core file, and delegates namespace-metadata tracking and alarm scheduling to the internal `NamespaceMetadataRegistry` and `CertificateAlarmScheduler` collaborators.
 
 ### Managers supplied by server features
 
