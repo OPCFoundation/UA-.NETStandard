@@ -30,7 +30,9 @@
 namespace Opc.Ua.Server
 {
     /// <inheritdoc/>
-    public class StoredMonitoredItem : IStoredMonitoredItem
+    public class StoredMonitoredItem :
+        IStoredMonitoredItem,
+        IStoredMonitoredItemNotificationState
     {
         /// <inheritdoc/>
         public bool IsRestored { get; set; }
@@ -106,6 +108,15 @@ namespace Opc.Ua.Server
 
         /// <inheritdoc/>
         public ServiceResult LastError { get; set; } = null!;
+
+        /// <inheritdoc/>
+        public bool RequiredValuePending { get; set; }
+
+        /// <inheritdoc/>
+        public DataValue RequiredValue { get; set; }
+
+        /// <inheritdoc/>
+        public ServiceResult RequiredError { get; set; } = null!;
 
         /// <inheritdoc/>
         public NumericRange ParsedIndexRange { get; set; }

@@ -97,7 +97,7 @@ namespace Opc.Ua.Server.Fluent
         }
 
         /// <summary>
-        /// Marks the wrapped variable as historizing and registers it
+        /// Registers the wrapped variable for historical access
         /// with the per-manager <see cref="HistorianBuilder"/>. When no
         /// builder has been bound yet (and no <paramref name="provider"/>
         /// is supplied) the call lazily creates an
@@ -142,26 +142,21 @@ namespace Opc.Ua.Server.Fluent
         /// </param>
         /// <exception cref="ArgumentNullException"><paramref name="variable"/> is <c>null</c>.</exception>
         public static IVariableBuilder<TValue> Historize<TValue>(
-            this IVariableBuilder<TValue> variable,
+            IVariableBuilder<TValue> variable,
             byte historyAccessLevel = AccessLevels.HistoryRead | AccessLevels.HistoryWrite,
             HistorianNodeCapabilities? capabilities = null,
             IHistorianProvider? provider = null,
             bool autoCapture = true,
             HistorianCaptureOptions? captureOptions = null)
         {
-            if (variable == null)
-            {
-                throw new ArgumentNullException(nameof(variable));
-            }
-            ApplyHistorization(
-                variable.Builder,
-                variable.Node,
+            return HistorianStateFluentExtensions.Historize(
+                variable,
                 historyAccessLevel,
                 capabilities,
                 provider,
                 autoCapture,
-                captureOptions);
-            return variable;
+                captureOptions,
+                historizing: true);
         }
 
         /// <summary>
@@ -171,28 +166,31 @@ namespace Opc.Ua.Server.Fluent
         /// <see cref="INodeBuilder{TState}"/> view of a
         /// <see cref="BaseVariableState"/>.
         /// </summary>
+        /// <param name="variable">The variable builder to register.</param>
+        /// <param name="historyAccessLevel">
+        /// History access bits added to the variable.
+        /// </param>
+        /// <param name="capabilities">Optional per-node capabilities.</param>
+        /// <param name="provider">Optional per-node provider.</param>
+        /// <param name="autoCapture">Whether live values are captured.</param>
+        /// <param name="captureOptions">Optional capture tuning.</param>
         /// <exception cref="ArgumentNullException"><paramref name="variable"/> is <c>null</c>.</exception>
         public static INodeBuilder<BaseVariableState> Historize(
-            this INodeBuilder<BaseVariableState> variable,
+            INodeBuilder<BaseVariableState> variable,
             byte historyAccessLevel = AccessLevels.HistoryRead | AccessLevels.HistoryWrite,
             HistorianNodeCapabilities? capabilities = null,
             IHistorianProvider? provider = null,
             bool autoCapture = true,
             HistorianCaptureOptions? captureOptions = null)
         {
-            if (variable == null)
-            {
-                throw new ArgumentNullException(nameof(variable));
-            }
-            ApplyHistorization(
-                variable.Builder,
-                variable.Node,
+            return HistorianStateFluentExtensions.Historize(
+                variable,
                 historyAccessLevel,
                 capabilities,
                 provider,
                 autoCapture,
-                captureOptions);
-            return variable;
+                captureOptions,
+                historizing: true);
         }
 
         /// <summary>
@@ -227,15 +225,21 @@ namespace Opc.Ua.Server.Fluent
             return variable;
         }
 
-        private static void ApplyHistorization(
+        internal static void ApplyHistorization(
             INodeManagerBuilder nodeManagerBuilder,
             BaseVariableState variable,
             byte historyAccessLevel,
             HistorianNodeCapabilities? capabilities,
             IHistorianProvider? perCallProvider,
             bool autoCapture,
-            HistorianCaptureOptions? captureOptions)
+            HistorianCaptureOptions? captureOptions,
+            bool? historizing)
         {
+            if (historizing == false)
+            {
+                variable.Historizing = false;
+            }
+
             if (perCallProvider != null)
             {
                 IServerInternal serverForBinding = GetServer(nodeManagerBuilder);
@@ -253,7 +257,7 @@ namespace Opc.Ua.Server.Fluent
                 scope.Historize(
                     variable,
                     historyAccessLevel,
-                    setHistorizing: true,
+                    setHistorizing: historizing == true,
                     systemContext: nodeManagerBuilder.Context,
                     capabilities: capabilities,
                     autoCapture: autoCapture,
@@ -280,7 +284,7 @@ namespace Opc.Ua.Server.Fluent
                 scope.Historize(
                     variable,
                     historyAccessLevel,
-                    setHistorizing: true,
+                    setHistorizing: historizing == true,
                     systemContext: nodeManagerBuilder.Context,
                     capabilities: capabilities,
                     autoCapture: autoCapture,
@@ -300,7 +304,7 @@ namespace Opc.Ua.Server.Fluent
             managerBuilder.Historize(
                 variable,
                 historyAccessLevel: historyAccessLevel,
-                setHistorizing: true,
+                setHistorizing: historizing == true,
                 systemContext: nodeManagerBuilder.Context,
                 capabilities: capabilities,
                 autoCapture: autoCapture,
@@ -346,5 +350,93 @@ namespace Opc.Ua.Server.Fluent
         private static readonly ConditionalWeakTable<INodeManagerBuilder, HistorianBuilder> s_builders
             = new();
 #pragma warning restore IDE0028
+    }
+
+    /// <summary>
+    /// Adds provider-aware control of the <see cref="BaseVariableState.Historizing"/>
+    /// attribute without changing the legacy fluent method signatures.
+    /// </summary>
+    public static class HistorianStateFluentExtensions
+    {
+        /// <summary>
+        /// Registers the wrapped variable for historical access and controls
+        /// the <see cref="BaseVariableState.Historizing"/> attribute.
+        /// </summary>
+        /// <typeparam name="TValue">CLR value type carried by the variable.</typeparam>
+        /// <param name="variable">The variable builder to register.</param>
+        /// <param name="historyAccessLevel">History access bits added to the variable.</param>
+        /// <param name="capabilities">Optional per-node capabilities.</param>
+        /// <param name="provider">Optional per-node provider.</param>
+        /// <param name="autoCapture">Whether live values are captured.</param>
+        /// <param name="captureOptions">Optional capture tuning.</param>
+        /// <param name="historizing">
+        /// <c>true</c> sets the attribute, <c>false</c> clears it, and
+        /// <c>null</c> preserves the existing provider- or application-owned value.
+        /// </param>
+        /// <returns>The same variable builder.</returns>
+        public static IVariableBuilder<TValue> Historize<TValue>(
+            this IVariableBuilder<TValue> variable,
+            byte historyAccessLevel = AccessLevels.HistoryRead | AccessLevels.HistoryWrite,
+            HistorianNodeCapabilities? capabilities = null,
+            IHistorianProvider? provider = null,
+            bool autoCapture = true,
+            HistorianCaptureOptions? captureOptions = null,
+            bool? historizing = true)
+        {
+            if (variable == null)
+            {
+                throw new ArgumentNullException(nameof(variable));
+            }
+            HistorianFluentExtensions.ApplyHistorization(
+                variable.Builder,
+                variable.Node,
+                historyAccessLevel,
+                capabilities,
+                provider,
+                autoCapture,
+                captureOptions,
+                historizing);
+            return variable;
+        }
+
+        /// <summary>
+        /// Registers an untyped variable builder for historical access and
+        /// controls the <see cref="BaseVariableState.Historizing"/> attribute.
+        /// </summary>
+        /// <param name="variable">The variable builder to register.</param>
+        /// <param name="historyAccessLevel">History access bits added to the variable.</param>
+        /// <param name="capabilities">Optional per-node capabilities.</param>
+        /// <param name="provider">Optional per-node provider.</param>
+        /// <param name="autoCapture">Whether live values are captured.</param>
+        /// <param name="captureOptions">Optional capture tuning.</param>
+        /// <param name="historizing">
+        /// <c>true</c> sets the attribute, <c>false</c> clears it, and
+        /// <c>null</c> preserves the existing value.
+        /// </param>
+        /// <returns>The same variable builder.</returns>
+        public static INodeBuilder<BaseVariableState> Historize(
+            this INodeBuilder<BaseVariableState> variable,
+            byte historyAccessLevel = AccessLevels.HistoryRead | AccessLevels.HistoryWrite,
+            HistorianNodeCapabilities? capabilities = null,
+            IHistorianProvider? provider = null,
+            bool autoCapture = true,
+            HistorianCaptureOptions? captureOptions = null,
+            bool? historizing = true)
+        {
+            if (variable == null)
+            {
+                throw new ArgumentNullException(nameof(variable));
+            }
+            HistorianFluentExtensions.ApplyHistorization(
+                variable.Builder,
+                variable.Node,
+                historyAccessLevel,
+                capabilities,
+                provider,
+                autoCapture,
+                captureOptions,
+                historizing);
+            return variable;
+        }
     }
 }

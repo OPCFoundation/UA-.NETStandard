@@ -33,6 +33,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Moq;
@@ -76,6 +77,42 @@ namespace Opc.Ua.Server.Tests.Historian
         }
 
         [Test]
+        public void HistorizeRetainsOriginalBinarySignatures()
+        {
+            var methods = typeof(HistorianFluentExtensions)
+                .GetMethods()
+                .Where(value => value.Name == nameof(HistorianFluentExtensions.Historize))
+                .ToArray();
+
+            Assert.That(
+                methods.Count(value =>
+                    value.IsGenericMethodDefinition &&
+                    value.GetParameters().Length == 6),
+                Is.EqualTo(1));
+            Assert.That(
+                methods.Count(value =>
+                    !value.IsGenericMethodDefinition &&
+                    value.GetParameters().Length == 6),
+                Is.EqualTo(1));
+
+            var stateMethods = typeof(HistorianStateFluentExtensions)
+                .GetMethods()
+                .Where(value =>
+                    value.Name == nameof(HistorianStateFluentExtensions.Historize))
+                .ToArray();
+            Assert.That(
+                stateMethods.Count(value =>
+                    value.IsGenericMethodDefinition &&
+                    value.GetParameters().Length == 7),
+                Is.EqualTo(1));
+            Assert.That(
+                stateMethods.Count(value =>
+                    !value.IsGenericMethodDefinition &&
+                    value.GetParameters().Length == 7),
+                Is.EqualTo(1));
+        }
+
+        [Test]
         public void HistorizeWithoutPriorUseHistorianLazilyCreatesInMemoryProvider()
         {
             (NodeManagerBuilder b, BaseDataVariableState v) = CreateBuilderWithVariable();
@@ -110,6 +147,56 @@ namespace Opc.Ua.Server.Tests.Historian
                 Is.EqualTo(AccessLevels.HistoryWrite));
             Assert.That((byte)(v.UserAccessLevel & AccessLevels.HistoryRead),
                 Is.EqualTo(AccessLevels.HistoryRead));
+        }
+
+        [Test]
+        public void HistorizeDefaultLiteralUsesLegacyTypedOverload()
+        {
+            (NodeManagerBuilder b, BaseDataVariableState v) =
+                CreateBuilderWithVariable();
+
+            b.Variable<int>(v.NodeId).Historize(default);
+
+            Assert.That(v.Historizing, Is.True);
+        }
+
+        [Test]
+        public void HistorizeCanExplicitlyLeaveHistorizingFalse()
+        {
+            (NodeManagerBuilder b, BaseDataVariableState v) = CreateBuilderWithVariable();
+            IServerInternal server = ((ServerSystemContext)b.Context).Server;
+            IHistorianProviderRegistry registry =
+                ((IHistorianRegistryProvider)server).HistorianRegistry;
+            v.AccessLevel = AccessLevels.CurrentRead;
+            v.UserAccessLevel = AccessLevels.CurrentRead;
+            v.Historizing = true;
+
+            b.Variable<int>(v.NodeId).Historize(
+                autoCapture: false,
+                historizing: false);
+
+            Assert.That(v.Historizing, Is.False);
+            Assert.That(
+                (byte)(v.AccessLevel & AccessLevels.HistoryRead),
+                Is.EqualTo(AccessLevels.HistoryRead));
+            Assert.That(
+                (byte)(v.UserAccessLevel & AccessLevels.HistoryWrite),
+                Is.EqualTo(AccessLevels.HistoryWrite));
+            Assert.That(registry.Resolve(v.NodeId), Is.Not.Null);
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public void HistorizeCanPreserveProviderOwnedHistorizing(bool initialValue)
+        {
+            (NodeManagerBuilder b, BaseDataVariableState v) = CreateBuilderWithVariable();
+            v.Historizing = initialValue;
+
+            b.Variable<int>(v.NodeId).Historize(
+                autoCapture: false,
+                historizing: null);
+
+            Assert.That(v.Historizing, Is.EqualTo(initialValue));
         }
 
         [Test]
@@ -311,6 +398,39 @@ namespace Opc.Ua.Server.Tests.Historian
             view.Historize();
 
             Assert.That(v.Historizing, Is.True);
+        }
+
+        [Test]
+        public void HistorizeDefaultLiteralUsesLegacyUntypedOverload()
+        {
+            (NodeManagerBuilder b, BaseDataVariableState v) =
+                CreateBuilderWithVariable();
+            INodeBuilder<BaseVariableState> view =
+                b.Node<BaseVariableState>(v.NodeId);
+
+            view.Historize(default);
+
+            Assert.That(v.Historizing, Is.True);
+        }
+
+        [Test]
+        public void UntypedHistorizeHonorsHistorizingControl()
+        {
+            (NodeManagerBuilder b, BaseDataVariableState v) = CreateBuilderWithVariable();
+            INodeBuilder<BaseVariableState> view = b.Node<BaseVariableState>(v.NodeId);
+            v.Historizing = true;
+
+            view.Historize(
+                autoCapture: false,
+                historizing: false);
+
+            Assert.That(v.Historizing, Is.False);
+
+            view.Historize(
+                autoCapture: false,
+                historizing: null);
+
+            Assert.That(v.Historizing, Is.False);
         }
 
         [Test]

@@ -191,4 +191,26 @@ namespace Opc.Ua.Server
         /// </summary>
         IEventMonitoredItemQueue? RestoredEventQueue { get; set; }
     }
+
+    /// <summary>
+    /// Optional persisted state for a monitored item notification that must
+    /// survive queue overflow and sampling coalescing.
+    /// </summary>
+    public interface IStoredMonitoredItemNotificationState
+    {
+        /// <summary>
+        /// Whether a required notification is awaiting publication.
+        /// </summary>
+        bool RequiredValuePending { get; set; }
+
+        /// <summary>
+        /// The required notification value.
+        /// </summary>
+        DataValue RequiredValue { get; set; }
+
+        /// <summary>
+        /// The error associated with the required notification.
+        /// </summary>
+        ServiceResult RequiredError { get; set; }
+    }
 }

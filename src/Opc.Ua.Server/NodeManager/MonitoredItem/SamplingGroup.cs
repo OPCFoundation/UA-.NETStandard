@@ -256,6 +256,11 @@ namespace Opc.Ua.Server
         {
             lock (m_lock)
             {
+                if (m_itemsToAdd.Remove(monitoredItem))
+                {
+                    return true;
+                }
+
                 if (m_items.ContainsKey(monitoredItem.Id))
                 {
                     m_itemsToRemove.Add(monitoredItem);

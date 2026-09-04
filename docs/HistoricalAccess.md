@@ -65,7 +65,7 @@ This release ships the following Part 11 capabilities:
 | -------------------------------------- | ---------- |
 | Read raw history                       | ✅ Shipped |
 | Read modified history                  | ✅ Shipped — `HistoryClient.ReadModifiedAsync` returns each `DataValue` with its `ModificationInfo`. |
-| Read processed (aggregates)            | ✅ Shipped — streaming `AggregateManager` fallback (paginated via buffered output) or provider push-down. All 37 Part 13 v1.05.07 functions; see the [Aggregates (Part 13)](Aggregates.md) guide. |
+| Read processed (aggregates)            | ✅ Shipped — the server rejects aggregate identifiers not registered with `AggregateManager` before provider execution, then uses native provider push-down or the streaming calculator fallback. All 37 Part 13 v1.05.07 functions; see the [Aggregates (Part 13)](Aggregates.md) guide. |
 | Read at-time                           | ✅ Shipped via interpolation fallback or provider push-down |
 | Insert / Replace / Update raw values   | ✅ Shipped — per-value best-effort by default, atomic via `IHistorianTransactionalProvider` |
 | Delete raw / Delete at-time            | ✅ Shipped |
@@ -220,7 +220,27 @@ builder.Variable<double>("ReadOnlySensor")
            InsertData = false, ReplaceData = false,
            DeleteRaw = false, DeleteAtTime = false,
        });
+
+// The archive owns the live Historizing state. Register history access and
+// provider routing without overwriting the current attribute value.
+builder.Variable<double>("ArchiveControlled")
+       .Historize(
+           historizing: null,
+           autoCapture: false);
 ```
+
+The nullable `historizing` argument controls only the OPC UA
+`BaseVariableState.Historizing` attribute:
+
+| Value | Behavior |
+| --- | --- |
+| `true` (default) | Sets `Historizing = true`, preserving existing fluent behavior. |
+| `false` | Explicitly sets `Historizing = false`. |
+| `null` | Leaves the current provider- or application-owned value unchanged. |
+
+Provider registration, requested `HistoryRead` / `HistoryWrite` access bits,
+historical configuration installation, and automatic capture are independent
+from this attribute choice.
 
 Source-generated typed traversal works the same way — the trailing `.Historize()` attaches to any `IVariableBuilder<T>`:
 
@@ -324,6 +344,44 @@ The Part 11 §5.2.3 companion object is installed asynchronously:
 | Off | `builder.Historize(variable, ...)` | No companion object. Clients see only the historical value. |
 
 The companion's property values are populated from `HistorianNodeCapabilities.Stepped / Definition / MaxTimeInterval / MinTimeInterval / ExceptionDeviation / StartOfArchive` — populate these on the capability set you pass to `Historize(...)`.
+
+### Aggregate-filtered monitored items
+
+`AsyncCustomNodeManager` resolves the node's historian when it validates an
+`AggregateFilter`. When a historian resolves, the revised processing interval
+honors the monitored-item sampling interval, the server-wide minimum, and the
+provider's
+`MinTimeInterval` (or `MaxTimeInterval` when no minimum is supplied).
+`ServerAggregateFilter.Stepped` and server-default
+`AggregateConfiguration` values come from the same per-node
+`HistorianNodeCapabilities`. The returned `AggregateFilterResult` contains
+these revised values. If the queue window requires advancing `StartTime`, it is
+clamped directly to the earliest time retained by the queue.
+
+Without a resolved historian, the existing aggregate revision behavior is
+preserved: the processing interval is at least the monitored-item sampling
+interval and the start time is clamped directly to the retained queue window.
+
+When the revised aggregate `StartTime` is in the past and the provider
+implements `IHistorianDataProvider`, the async node-manager path pages raw
+history from `StartTime` to one captured server time and queues it
+oldest-to-newest before live delivery begins. Live values arriving while the
+provider is being read are buffered and delivered after the historical window;
+the current value is never queued ahead of that history. Future start times,
+non-Value attributes, and nodes without a raw historian retain the normal
+current-value initialization. Provider read failures queue a visible error
+notification and leave the monitored item active for later live values rather
+than silently falling back. A live-value buffer overflow fails creation because
+the history-to-live ordering can no longer be guaranteed. Required priming-error
+notifications remain protected across queue resizing and durable subscription
+restore.
+
+Custom monitored-item implementations can preserve the same ordering by
+implementing `IInitialValueMonitoredItem`.
+
+The synchronous `CustomNodeManager` path retains its synchronous aggregate
+revision and current-value initialization behavior; it does not block on
+asynchronous provider capabilities.
 
 ### `ServerSystemContext.Server`
 

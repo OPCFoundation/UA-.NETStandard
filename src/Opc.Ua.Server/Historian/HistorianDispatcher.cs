@@ -585,26 +585,6 @@ namespace Opc.Ua.Server.Historian
                 result.StatusCode = StatusCodes.BadInvalidArgument;
                 return StatusCodes.BadInvalidArgument;
             }
-            if (aggregateId == ObjectIds.AggregateFunction_AnnotationCount)
-            {
-                if (provider is not IHistorianProcessedProvider and
-                    not IHistorianAnnotationProvider)
-                {
-                    return StatusCodes.BadAggregateNotSupported;
-                }
-            }
-            else if (provider is not IHistorianProcessedProvider and
-                not IHistorianDataProvider)
-            {
-                return StatusCodes.BadHistoryOperationUnsupported;
-            }
-            HistorianNodeCapabilities capabilities = await provider
-                .GetCapabilitiesAsync(node.NodeId, cancellationToken)
-                .ConfigureAwait(false);
-            if (!capabilities.ReadProcessedData)
-            {
-                return StatusCodes.BadHistoryOperationUnsupported;
-            }
 
             HistorianContinuationState? cont = await TryRestoreContinuationAsync(
                 systemContext,
@@ -612,18 +592,69 @@ namespace Opc.Ua.Server.Historian
                 nodeToRead,
                 HistorianReadKind.Processed,
                 cancellationToken).ConfigureAwait(false);
-            if (cont == null && !nodeToRead.ContinuationPoint.IsEmpty)
+            if (cont == null && hasContinuationPoint)
             {
                 result.StatusCode = StatusCodes.BadContinuationPointInvalid;
                 result.ContinuationPoint = ByteString.Empty;
                 return ServiceResult.Good;
             }
-            if (!await SupportsRequestedTimestampsAsync(
-                provider,
-                node.NodeId,
-                timestampsToReturn,
-                cancellationToken).ConfigureAwait(false))
+
+            aggregateId = cont?.ProcessedRequest?.AggregateId ?? aggregateId;
+            if (systemContext.Server?.AggregateManager is { } aggregateManager &&
+                !aggregateManager.IsSupported(aggregateId))
             {
+                cont?.Dispose();
+                result.ContinuationPoint = ByteString.Empty;
+                return StatusCodes.BadAggregateNotSupported;
+            }
+
+            if (aggregateId == ObjectIds.AggregateFunction_AnnotationCount)
+            {
+                if (provider is not IHistorianProcessedProvider and
+                    not IHistorianAnnotationProvider)
+                {
+                    cont?.Dispose();
+                    return StatusCodes.BadAggregateNotSupported;
+                }
+            }
+            else if (provider is not IHistorianProcessedProvider and
+                not IHistorianDataProvider)
+            {
+                cont?.Dispose();
+                return StatusCodes.BadHistoryOperationUnsupported;
+            }
+            HistorianNodeCapabilities capabilities;
+            bool timestampsSupported;
+            try
+            {
+                capabilities = await provider
+                    .GetCapabilitiesAsync(node.NodeId, cancellationToken)
+                    .ConfigureAwait(false);
+                timestampsSupported = await SupportsRequestedTimestampsAsync(
+                    provider,
+                    node.NodeId,
+                    timestampsToReturn,
+                    cancellationToken).ConfigureAwait(false);
+            }
+            catch
+            {
+                if (cont != null)
+                {
+                    await RestoreClaimedContinuationAsync(
+                        systemContext,
+                        cont).ConfigureAwait(false);
+                }
+                throw;
+            }
+            if (!capabilities.ReadProcessedData)
+            {
+                cont?.Dispose();
+                return StatusCodes.BadHistoryOperationUnsupported;
+            }
+
+            if (!timestampsSupported)
+            {
+                cont?.Dispose();
                 result.StatusCode = StatusCodes.BadTimestampNotSupported;
                 result.ContinuationPoint = ByteString.Empty;
                 return ServiceResult.Good;
@@ -683,14 +714,12 @@ namespace Opc.Ua.Server.Historian
                     config.PercentDataBad > 100 ||
                     config.PercentDataGood < 100 - config.PercentDataBad)
                 {
+                    cont?.Dispose();
                     result.StatusCode = StatusCodes.BadAggregateInvalidInputs;
                     return StatusCodes.BadAggregateInvalidInputs;
                 }
             }
 
-            HistorianNodeCapabilities processedCapabilities = await provider
-                .GetCapabilitiesAsync(node.NodeId, cancellationToken)
-                .ConfigureAwait(false);
             HistorianProcessedReadRequest processedRequest =
                 cont?.ProcessedRequest ??
                 new HistorianProcessedReadRequest
@@ -700,7 +729,7 @@ namespace Opc.Ua.Server.Historian
                     StartTime = details.StartTime,
                     EndTime = details.EndTime,
                     ProcessingInterval = details.ProcessingInterval,
-                    MaxValues = processedCapabilities.MaxReturnDataValues,
+                    MaxValues = capabilities.MaxReturnDataValues,
                     Configuration = config
                 };
 
@@ -708,8 +737,25 @@ namespace Opc.Ua.Server.Historian
             if (provider is IHistorianProcessedProvider native)
             {
                 HistorianResumeToken token = cont?.ResumeToken ?? default;
-                HistorianPage<DataValue> page = await native.ReadProcessedAsync(
-                    opContext, processedRequest, token, cancellationToken).ConfigureAwait(false);
+                HistorianPage<DataValue> page;
+                try
+                {
+                    page = await native.ReadProcessedAsync(
+                        opContext,
+                        processedRequest,
+                        token,
+                        cancellationToken).ConfigureAwait(false);
+                }
+                catch
+                {
+                    if (cont != null)
+                    {
+                        await RestoreClaimedContinuationAsync(
+                            systemContext,
+                            cont).ConfigureAwait(false);
+                    }
+                    throw;
+                }
 
                 FillHistoryData(
                     systemContext,
@@ -2652,6 +2698,29 @@ namespace Opc.Ua.Server.Historian
                 return null;
             }
             return state;
+        }
+
+        private static async ValueTask RestoreClaimedContinuationAsync(
+            ServerSystemContext systemContext,
+            HistorianContinuationState state)
+        {
+            ISessionContinuationPoints? continuationPoints =
+                systemContext.OperationContext?.Session?.ContinuationPoints;
+            if (continuationPoints == null)
+            {
+                state.Dispose();
+                return;
+            }
+            try
+            {
+                await continuationPoints.SaveHistoryAsync(
+                    state,
+                    CancellationToken.None).ConfigureAwait(false);
+            }
+            catch
+            {
+                state.Dispose();
+            }
         }
 
         [SuppressMessage("Reliability", "CA2000:Dispose objects before losing scope",

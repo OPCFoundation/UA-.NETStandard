@@ -148,6 +148,39 @@ namespace Opc.Ua.Server.Tests.Redundancy
         }
 
         [Test]
+        public async Task StoreAndRestoreRoundTripsRequiredNotificationAsync()
+        {
+            using var kv = new InMemorySharedKeyValueStore();
+            SharedKeyValueSubscriptionStore active = CreateStore(kv);
+            SharedKeyValueSubscriptionStore backup = CreateStore(kv);
+            StoredSubscription expected = NewSubscription(106, 16);
+            var expectedItem =
+                (StoredMonitoredItem)expected.MonitoredItems.Single();
+            expectedItem.RequiredValuePending = true;
+            expectedItem.RequiredValue = new DataValue(
+                Variant.Null,
+                StatusCodes.BadCommunicationError);
+            expectedItem.RequiredError =
+                new ServiceResult(StatusCodes.BadCommunicationError);
+
+            await active.StoreSubscriptionsAsync([expected])
+                .ConfigureAwait(false);
+            RestoreSubscriptionResult result =
+                await backup.RestoreSubscriptionsAsync().ConfigureAwait(false);
+
+            Assert.That(result.Success, Is.True);
+            var actual = (StoredMonitoredItem)result.Subscriptions!
+                .Single().MonitoredItems.Single();
+            Assert.That(actual.RequiredValuePending, Is.True);
+            Assert.That(
+                actual.RequiredValue.StatusCode.Code,
+                Is.EqualTo(StatusCodes.BadCommunicationError));
+            Assert.That(
+                actual.RequiredError.StatusCode,
+                Is.EqualTo(StatusCodes.BadCommunicationError));
+        }
+
+        [Test]
         public void CloneMonitoredItemPreservesFilteredRetainConditionIds()
         {
             StoredMonitoredItem item = NewItem(105, 15);
