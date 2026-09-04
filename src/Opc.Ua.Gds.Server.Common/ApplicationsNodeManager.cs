@@ -2230,6 +2230,9 @@ namespace Opc.Ua.Gds.Server
                         ObjectIds.Directory_CertificateGroups_DefaultHttpsGroup_TrustList,
                         Server.NamespaceUris
                     ))!;
+                SetPredefinedCertificateTypes(
+                    certificateGroup,
+                    ObjectIds.Directory_CertificateGroups_DefaultHttpsGroup);
             }
             else if (string.Equals(groupId, "DefaultUserTokenGroup", StringComparison.OrdinalIgnoreCase))
             {
@@ -2239,6 +2242,9 @@ namespace Opc.Ua.Gds.Server
                         ObjectIds.Directory_CertificateGroups_DefaultUserTokenGroup_TrustList,
                         Server.NamespaceUris
                     ))!;
+                SetPredefinedCertificateTypes(
+                    certificateGroup,
+                    ObjectIds.Directory_CertificateGroups_DefaultUserTokenGroup);
             }
             else if (string.Equals(groupId, "Default", StringComparison.OrdinalIgnoreCase) ||
                 string.Equals(groupId, "DefaultApplicationGroup", StringComparison.OrdinalIgnoreCase))
@@ -2249,6 +2255,9 @@ namespace Opc.Ua.Gds.Server
                         ObjectIds.Directory_CertificateGroups_DefaultApplicationGroup_TrustList,
                         Server.NamespaceUris
                     ))!;
+                SetPredefinedCertificateTypes(
+                    certificateGroup,
+                    ObjectIds.Directory_CertificateGroups_DefaultApplicationGroup);
             }
             else
             {
@@ -2288,6 +2297,39 @@ namespace Opc.Ua.Gds.Server
                     new TrustList.SecureAccess(HasTrustListAccess),
                     new TrustList.SecureAccess(HasTrustListAccess),
                     Server.Telemetry);
+        }
+
+        /// <summary>
+        /// Publishes the concrete certificate types of a configured certificate group on the
+        /// CertificateTypes property of the corresponding predefined certificate group node.
+        /// </summary>
+        /// <remarks>
+        /// The predefined nodes are loaded before the configured certificate groups are created,
+        /// so the property initially carries the fallback type of the group. OPC 10000-12 requires
+        /// the property to list the concrete types which can be requested through the group.
+        /// </remarks>
+        private void SetPredefinedCertificateTypes(
+            ICertificateGroup certificateGroup,
+            ExpandedNodeId certificateGroupNodeId)
+        {
+            CertificateGroupState certificateGroupNode = FindPredefinedNode<CertificateGroupState>(
+                ExpandedNodeId.ToNodeId(certificateGroupNodeId, Server.NamespaceUris))
+                ?? throw new ServiceResultException(
+                    StatusCodes.BadNodeIdUnknown,
+                    Utils.Format(
+                        "The predefined CertificateGroup node {0} could not be found in the address space.",
+                        certificateGroupNodeId));
+
+            if (certificateGroupNode.CertificateTypes == null)
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadNodeIdUnknown,
+                    Utils.Format(
+                        "The predefined CertificateGroup node {0} does not expose a CertificateTypes property.",
+                        certificateGroupNodeId));
+            }
+
+            certificateGroupNode.CertificateTypes.Value = [.. certificateGroup.CertificateTypes];
         }
 
         private void HasTrustListAccess(

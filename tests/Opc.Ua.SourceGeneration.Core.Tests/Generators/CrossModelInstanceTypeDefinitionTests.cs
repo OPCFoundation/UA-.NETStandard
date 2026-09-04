@@ -128,6 +128,10 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
                 Assert.That(code, Does.Contain("Unlabeled"),
                     "The property value must carry the DefaultValue " +
                     "declared on the dependency type.");
+                Assert.That(
+                    code,
+                    Does.Contain("global::Opc.Ua.AccessLevels.CurrentReadOrWrite"),
+                    "The dependency variable AccessLevel must flow into the instance.");
             });
         }
 
@@ -226,6 +230,26 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
                 // decoded like ValidateInstance does for a local property.
                 Assert.That(label.DecodedValue?.ToString(), Is.EqualTo("Unlabeled"),
                     "Label's DefaultValue must be decoded.");
+                Assert.That(label.AccessLevel, Is.EqualTo(AccessLevel.ReadWrite));
+                Assert.That(label.AccessLevelSpecified, Is.True);
+                Assert.That(label.MinimumSamplingInterval, Is.EqualTo(250));
+                Assert.That(label.MinimumSamplingIntervalSpecified, Is.True);
+                Assert.That(label.Historizing, Is.True);
+                Assert.That(label.HistorizingSpecified, Is.True);
+            });
+
+            var ownedLabels =
+                widget.Hierarchy.Nodes["OwnedLabels"].Instance as VariableDesign;
+            Assert.That(ownedLabels, Is.Not.Null);
+            var decodedLabels = (string[])ownedLabels.DecodedValue;
+            Assert.Multiple(() =>
+            {
+                Assert.That(ownedLabels.DefaultValue, Is.Not.Null);
+                Assert.That(ownedLabels.DefaultValue.OuterXml, Does.Contain("First"));
+                Assert.That(ownedLabels.DefaultValue.OuterXml, Does.Contain("Second"));
+                Assert.That(decodedLabels, Has.Length.EqualTo(2));
+                Assert.That(decodedLabels[0], Is.EqualTo("First"));
+                Assert.That(decodedLabels[1], Is.EqualTo("Second"));
             });
 
             var level = widget.Hierarchy.Nodes["Level"].Instance as VariableDesign;
@@ -361,11 +385,21 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
               </opc:VariableType>
               <opc:ObjectType SymbolicName="WidgetType" BaseType="ua:BaseObjectType">
                 <opc:Children>
-                  <opc:Property SymbolicName="Label" DataType="ua:String" ValueRank="Scalar">
+                  <opc:Property SymbolicName="Label" DataType="ua:String" ValueRank="Scalar"
+                    AccessLevel="ReadWrite" MinimumSamplingInterval="250" Historizing="true">
                     <opc:DefaultValue>
                       <uax:String>Unlabeled</uax:String>
                     </opc:DefaultValue>
                   </opc:Property>
+                  <opc:Variable SymbolicName="OwnedLabels" DataType="ua:String" ValueRank="Array"
+                    AccessLevel="ReadWrite">
+                    <opc:DefaultValue>
+                      <uax:ListOfString>
+                        <uax:String>First</uax:String>
+                        <uax:String>Second</uax:String>
+                      </uax:ListOfString>
+                    </opc:DefaultValue>
+                  </opc:Variable>
                   <opc:Variable SymbolicName="Level" TypeDefinition="WidgetLevelType" />
                   <opc:Method SymbolicName="Reset">
                     <opc:InputArguments>
@@ -440,11 +474,21 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
               </opc:VariableType>
               <opc:ObjectType SymbolicName="WidgetType" BaseType="ua:BaseObjectType">
                 <opc:Children>
-                  <opc:Property SymbolicName="Label" DataType="ua:String" ValueRank="Scalar">
+                  <opc:Property SymbolicName="Label" DataType="ua:String" ValueRank="Scalar"
+                    AccessLevel="ReadWrite" MinimumSamplingInterval="250" Historizing="true">
                     <opc:DefaultValue>
                       <uax:String>Unlabeled</uax:String>
                     </opc:DefaultValue>
                   </opc:Property>
+                  <opc:Variable SymbolicName="OwnedLabels" DataType="ua:String" ValueRank="Array"
+                    AccessLevel="ReadWrite">
+                    <opc:DefaultValue>
+                      <uax:ListOfString>
+                        <uax:String>First</uax:String>
+                        <uax:String>Second</uax:String>
+                      </uax:ListOfString>
+                    </opc:DefaultValue>
+                  </opc:Variable>
                   <opc:Variable SymbolicName="Level" TypeDefinition="WidgetLevelType" />
                   <opc:Method SymbolicName="Reset">
                     <opc:InputArguments>
