@@ -170,6 +170,27 @@ namespace Opc.Ua.Server.Fluent
         INodeBuilder OnMonitoredItemCreated(MonitoredItemCreatedHandler handler);
 
         /// <summary>
+        /// Participates in monitored-item creation before the default sampled
+        /// item is allocated.
+        /// </summary>
+        INodeBuilder OnCreateMonitoredItem(MonitoredItemCreatingHandler handler);
+
+        /// <summary>
+        /// Invoked after a monitored item has been modified successfully.
+        /// </summary>
+        INodeBuilder OnMonitoredItemModified(MonitoredItemModifiedHandler handler);
+
+        /// <summary>
+        /// Invoked after a monitored item has been deleted successfully.
+        /// </summary>
+        INodeBuilder OnMonitoredItemDeleted(MonitoredItemDeletedHandler handler);
+
+        /// <summary>
+        /// Invoked after a monitored item's monitoring mode changes.
+        /// </summary>
+        INodeBuilder OnMonitoringModeChanged(MonitoringModeChangedHandler handler);
+
+        /// <summary>
         /// Wires the resolved node's <see cref="NodeState.OnReportEvent"/>
         /// hook to forward events to <paramref name="handler"/>.
         /// </summary>

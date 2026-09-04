@@ -28,3 +28,4 @@ MODELGEN031 | ModelSourceGenerator | Error | WoT model could not be converted to
 MODELGEN032 | ModelSourceGenerator | Warning | WoT model conversion produced a warning
 MODELGEN033 | ModelSourceGenerator | Info | WoT model conversion note
 MODELGEN034 | ModelSourceGenerator | Error | WoT model virtual NodeSet2 path collides with another input
+MODELGEN035 | ModelSourceGenerator | Error | [NodeManager] namespace URI could not be resolved
