@@ -143,6 +143,27 @@ namespace Opc.Ua.Tools.Tests
             });
         }
 
+        [Test]
+        public void PowerShellErrorPresentationIsNormalized()
+        {
+            const string rendered =
+                "\u001b[31;1mException:\u001b[0m script.ps1:316\n" +
+                "\u001b[36;1mLine |\u001b[0m\n" +
+                " 316 | throw ...\n" +
+                "     | The stack ledger records 'sec-alpha#009', which the specification does |\n" +
+                "     | not state.";
+
+            string normalized = NormalizePowerShellOutput(rendered);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(normalized, Does.Not.Contain('\u001b'));
+                Assert.That(
+                    normalized,
+                    Does.Contain("which the specification does not state"));
+            });
+        }
+
         /// <summary>
         /// -Verify reproduces the inventory and compares it, so a maintainer
         /// holding the draft can prove the vendored file is what the pinned
@@ -667,7 +688,12 @@ namespace Opc.Ua.Tools.Tests
             {
                 normalized.Length--;
             }
-            return normalized.ToString();
+            string result = normalized.ToString();
+            while (result.Contains(" | ", StringComparison.Ordinal))
+            {
+                result = result.Replace(" | ", " ", StringComparison.Ordinal);
+            }
+            return result;
         }
 
         private sealed record ScriptResult(int ExitCode, string Output);
