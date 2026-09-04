@@ -28,8 +28,11 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
+using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using Opc.Ua.Bindings;
 using Opc.Ua.Tests;
 
 namespace Opc.Ua.Server.Tests
@@ -84,6 +87,13 @@ namespace Opc.Ua.Server.Tests
             public void OnApplicationCertificateErrorPublic(ByteString clientCertificate, ServiceResult result)
             {
                 OnApplicationCertificateError(clientCertificate, result);
+            }
+
+            public async Task InitializeAndDiscardServiceHostsAsync(
+                ApplicationConfiguration configuration,
+                ITransportBindingRegistry registry)
+            {
+                await InitializeServiceHostsAsync(configuration, registry).ConfigureAwait(false);
             }
         }
 
@@ -275,6 +285,79 @@ namespace Opc.Ua.Server.Tests
                     ByteString.Empty,
                     new ServiceResult(StatusCodes.BadCertificateTimeInvalid)));
             Assert.That(ex.StatusCode, Is.EqualTo((uint)StatusCodes.BadCertificateTimeInvalid));
+        }
+
+        [Test]
+        public void InitializeServiceHostsThrowsForUnregisteredScheme()
+        {
+            using TestableStandardServer server = CreateServer();
+            ApplicationConfiguration configuration = CreateConfiguration(
+                "opc.https://localhost:62540/TestServer");
+            var registry = new DefaultTransportBindingRegistry();
+
+            InvalidOperationException ex = Assert.ThrowsAsync<InvalidOperationException>(
+                async () => await server.InitializeAndDiscardServiceHostsAsync(configuration, registry)
+                    .ConfigureAwait(false))!;
+
+            Assert.That(ex.Message, Does.Contain("opc.https"));
+            Assert.That(ex.Message, Does.Contain("AddHttpsTransport"));
+        }
+
+        [Test]
+        public async Task InitializeServiceHostsUsesRegisteredFactoryAsync()
+        {
+            using TestableStandardServer server = CreateServer();
+            ApplicationConfiguration configuration = CreateConfiguration(
+                "opc.tcp://localhost:62541/TestServer");
+            var registry = new DefaultTransportBindingRegistry();
+            var factory = new FakeTcpListenerFactory();
+            registry.RegisterListenerFactory(factory);
+
+            await server.InitializeAndDiscardServiceHostsAsync(configuration, registry)
+                .ConfigureAwait(false);
+
+            Assert.That(factory.CreateServiceHostCallCount, Is.EqualTo(1));
+        }
+
+        private static ApplicationConfiguration CreateConfiguration(string endpointUrl)
+        {
+            return new ApplicationConfiguration
+            {
+                ApplicationName = "TestServer",
+                ApplicationUri = "urn:localhost:UA:TestServer",
+                ProductUri = "uri:opcfoundation.org:TestServer",
+                ServerConfiguration = new ServerConfiguration
+                {
+                    BaseAddresses = [endpointUrl]
+                }
+            };
+        }
+
+        private sealed class FakeTcpListenerFactory : ITransportListenerFactory
+        {
+            public string UriScheme => Utils.UriSchemeOpcTcp;
+
+            public int CreateServiceHostCallCount { get; private set; }
+
+            public ITransportListener Create(ITelemetryContext telemetry)
+            {
+                throw new NotSupportedException();
+            }
+
+            public ValueTask<List<EndpointDescription>> CreateServiceHostAsync(
+                ServerBase serverBase,
+                IDictionary<string, ServiceHost> hosts,
+                ApplicationConfiguration configuration,
+                ArrayOf<string> baseAddresses,
+                ApplicationDescription serverDescription,
+                ArrayOf<ServerSecurityPolicy> securityPolicies,
+                ICertificateRegistry serverCertificates,
+                ICertificateValidatorEx clientCertificateValidator,
+                CancellationToken ct = default)
+            {
+                CreateServiceHostCallCount++;
+                return new ValueTask<List<EndpointDescription>>([]);
+            }
         }
     }
 }
