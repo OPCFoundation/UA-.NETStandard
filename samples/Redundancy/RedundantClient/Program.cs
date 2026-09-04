@@ -814,9 +814,8 @@ namespace RedundantClient
             var reconnected = new TaskCompletionSource<bool>(
                 TaskCreationOptions.RunContinuationsAsynchronously);
             int connectionInterrupted = 0;
-            void OnConnectionStateChanged(object? sender, ConnectionStateChangedEventArgs args)
+            void OnConnectionStateChanged(object? _, ConnectionStateChangedEventArgs args)
             {
-                _ = sender;
                 if (args.NewState is ConnectionState.Reconnecting or ConnectionState.Failover)
                 {
                     Interlocked.Exchange(ref connectionInterrupted, 1);

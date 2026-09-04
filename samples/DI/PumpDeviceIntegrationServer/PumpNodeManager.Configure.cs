@@ -33,12 +33,8 @@ using System.Globalization;
 using System.Threading;
 using Microsoft.Extensions.Logging;
 using Opc.Ua;
-// IDE0005 false positives below: PumpState needs Opc.Ua.Pumps; INodeManagerBuilder /
-// NodeManagerBuilder need Opc.Ua.Server.Fluent (verified: removal causes CS0246).
-#pragma warning disable IDE0005
 using Opc.Ua.Pumps;
 using Opc.Ua.Server.Fluent;
-#pragma warning restore IDE0005
 using Opc.Ua.Server.Historian;
 
 namespace Pumps
@@ -213,14 +209,10 @@ namespace Pumps
 
         private void WithMaintenance(INodeManagerBuilder builder, PumpState pump)
         {
-            // IDE0007 vs IDE0008 disagree on this factory-call shape; keep the
-            // explicit type (matches the pre-existing style at this call site).
-#pragma warning disable IDE0007
-            NodeId functionalGroupType = NodeId.Create(
+            var functionalGroupType = NodeId.Create(
                 Opc.Ua.Di.ObjectTypes.FunctionalGroupType,
                 Opc.Ua.Di.Namespaces.OpcUaDi,
                 Server.NamespaceUris);
-#pragma warning restore IDE0007
             var generalMaintenance = new QualifiedName(
                 "GeneralMaintenance",
                 (ushort)Server.NamespaceUris.GetIndex(Opc.Ua.Pumps.Namespaces.Pumps));

@@ -46,9 +46,8 @@ namespace Quickstarts.ReferenceServer
     /// typed <c>OnCall</c> overload for every method, so the call handlers
     /// can be expressed as plain lambdas instead of hand-written
     /// <c>GenericMethodCalledEventHandler</c> callbacks that unpack and
-    /// repack <see cref="Opc.Ua.Variant"/> arguments by index.
+    /// repack <c>Variant</c> arguments by index.
     /// </remarks>
-#pragma warning disable IDE0001 // "Variant" is ambiguous with System.Variant on net472/net48 (CS0419).
     public partial class ReferenceNodeManager
     {
         partial void Configure(IReferenceNodeManagerBuilder builder)
@@ -166,5 +165,4 @@ namespace Quickstarts.ReferenceServer
                 .OnTick((_, elapsed, cancellationToken) => RunSimulationStepAsync(elapsed, cancellationToken));
         }
     }
-#pragma warning restore IDE0001
 }

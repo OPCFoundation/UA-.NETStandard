@@ -1120,9 +1120,6 @@ the in-repository reference samples.
 
 ## Limitations and roadmap
 
-- **Formal CTT certification is external** — repository tests mirror the
-  required conformance units and the ReferenceServer is CTT-ready, but the
-  licensed UACTT run is not performed or claimed by this repository.
 - **Eventual active/active history is unsupported** — ordered history,
   modification chains, deletes, events, and atomic batches have no CRDT merge
   contract. `UseDistributedHistorian` therefore requires a linearizable

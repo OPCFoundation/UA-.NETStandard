@@ -35,6 +35,16 @@ using System.Threading.Tasks;
 
 namespace Opc.Ua.Server.Historian
 {
+    /// <summary>
+    /// Serializes portable historian continuation state into the durable
+    /// continuation envelope used by replicated sessions.
+    /// </summary>
+    /// <remarks>
+    /// Only historians with a stable provider identity and portable resume
+    /// tokens are encoded. Namespace/server mappings and the original request
+    /// are preserved so an active/passive peer can safely resume the same
+    /// HistoryRead after failover and reject incompatible providers or formats.
+    /// </remarks>
     internal sealed class HistorianContinuationPointCodec :
         IHistoryContinuationPointCodec
     {

@@ -43,6 +43,7 @@ using Opc.Ua.Server.Historian.InMemory;
 using Opc.Ua.Test;
 using Quickstarts.Servers;
 using UaBrowseNames = Opc.Ua.BrowseNames;
+using UaKeyValuePair = Opc.Ua.KeyValuePair;
 
 namespace Quickstarts.ReferenceServer
 {
@@ -87,6 +88,8 @@ namespace Quickstarts.ReferenceServer
         /// </summary>
         public ArrayOf<string> ServerProfiles =>
             m_historicalProfiles;
+
+        private HistorianBuilder? EventHistorianBuilder { get; set; }
 
         /// <summary>
         /// An overrideable version of the Dispose.
@@ -777,14 +780,12 @@ namespace Quickstarts.ReferenceServer
                 StartOfOnlineArchive = startOfArchive
             };
 
-            // Ownership transfers to ServerInternalData, which drains and
-            // detaches registered historian pipelines during server shutdown.
-#pragma warning disable CA2000
-            var eventHistorian = new HistorianBuilder(Server);
-#pragma warning restore CA2000
-            eventHistorian.UseProvider(m_historian!);
+            // ServerInternalData owns registered builders and disposes their
+            // capture pipelines during shutdown.
+            EventHistorianBuilder ??= new HistorianBuilder(Server);
+            EventHistorianBuilder.UseProvider(m_historian!);
             HistoricalEventConfigurationState? configuration =
-                await eventHistorian.HistorizeEventsAsync(
+                await EventHistorianBuilder.HistorizeEventsAsync(
                     notifier,
                     SystemContext,
                     capabilities: capabilities,
@@ -801,12 +802,12 @@ namespace Quickstarts.ReferenceServer
             var eventId = ByteString.From(Guid.NewGuid().ToByteArray());
             var fields = new Dictionary<string, Variant>(StringComparer.Ordinal)
             {
-                [UaBrowseNames.EventId] = new Variant(eventId),
-                [UaBrowseNames.EventType] = new Variant(ObjectTypeIds.BaseEventType),
-                [UaBrowseNames.SourceNode] = new Variant(notifier.NodeId),
-                [UaBrowseNames.SourceName] = new Variant("ReferenceServer"),
-                [UaBrowseNames.Time] = new Variant(eventTime),
-                [UaBrowseNames.Message] = new Variant(
+                [UaBrowseNames.EventId] = Variant.From(eventId),
+                [UaBrowseNames.EventType] = Variant.From(ObjectTypeIds.BaseEventType),
+                [UaBrowseNames.SourceNode] = Variant.From(notifier.NodeId),
+                [UaBrowseNames.SourceName] = Variant.From("ReferenceServer"),
+                [UaBrowseNames.Time] = Variant.From(eventTime),
+                [UaBrowseNames.Message] = Variant.From(
                     new LocalizedText("ReferenceServer historical event")),
                 [UaBrowseNames.Severity] = Variant.From(EventSeverity.Medium)
             };
@@ -842,16 +843,11 @@ namespace Quickstarts.ReferenceServer
                 throw new ServiceResultException(
                     StatusCodes.BadNodeIdUnknown,
                     "The ReferenceServer CTT object was not loaded.");
-            // IDE0001 is suppressed: "KeyValuePair" is ambiguous between Opc.Ua.KeyValuePair
-            // and System.Collections.Generic.KeyValuePair in this file (CS0104), so the
-            // qualification cannot be simplified away.
-#pragma warning disable IDE0001
-            var initialPair = new Opc.Ua.KeyValuePair
+            var initialPair = new UaKeyValuePair
             {
                 Key = new QualifiedName("Pressure", NamespaceIndex),
                 Value = Variant.From(0.0)
             };
-#pragma warning restore IDE0001
             var variable = new BaseDataVariableState(parent)
             {
                 SymbolicName = StructuredHistoryNodeName,
@@ -877,7 +873,7 @@ namespace Quickstarts.ReferenceServer
                     AccessLevels.HistoryRead |
                     AccessLevels.HistoryWrite,
                 Historizing = true,
-                Value = new Variant(
+                Value = Variant.From(
                     new ExtensionObject(initialPair)),
                 StatusCode = StatusCodes.Good,
                 Timestamp = DateTime.UtcNow
@@ -947,23 +943,18 @@ namespace Quickstarts.ReferenceServer
             }
         }
 
-        // IDE0001 is suppressed: "KeyValuePair" is ambiguous between Opc.Ua.KeyValuePair
-        // and System.Collections.Generic.KeyValuePair in this file (CS0104), so the
-        // qualification cannot be simplified away.
-#pragma warning disable IDE0001
         private DataValue CreateStructuredHistoryValue(
             string key,
             DateTimeUtc sourceTimestamp,
             double value)
         {
-            var pair = new Opc.Ua.KeyValuePair
+            var pair = new UaKeyValuePair
             {
                 Key = new QualifiedName(key, NamespaceIndex),
                 Value = Variant.From(value)
             };
-#pragma warning restore IDE0001
             return new DataValue(
-                new Variant(new ExtensionObject(pair)),
+                Variant.From(new ExtensionObject(pair)),
                 StatusCodes.Good,
                 sourceTimestamp,
                 sourceTimestamp);
@@ -1104,22 +1095,26 @@ namespace Quickstarts.ReferenceServer
         {
             return dataType switch
             {
-                BuiltInType.Boolean => new Variant((value & 1) == 0),
-                BuiltInType.SByte => new Variant((sbyte)(value % 100)),
-                BuiltInType.Byte => new Variant((byte)(value % 200)),
-                BuiltInType.Int16 => new Variant((short)value),
-                BuiltInType.UInt16 => new Variant((ushort)value),
-                BuiltInType.Int32 => new Variant(value),
-                BuiltInType.UInt32 => new Variant((uint)value),
-                BuiltInType.Int64 => new Variant((long)value),
-                BuiltInType.UInt64 => new Variant((ulong)value),
-                BuiltInType.Float => new Variant((float)value),
-                BuiltInType.Double => new Variant((double)value),
-                BuiltInType.String => new Variant(value.ToString(CultureInfo.InvariantCulture)),
-                BuiltInType.DateTime => new Variant(new DateTimeUtc(now.AddSeconds(value))),
-                BuiltInType.Guid => new Variant(new Uuid(new Guid(value, 0, 0, new byte[8]))),
-                BuiltInType.ByteString => new Variant(new ByteString(BitConverter.GetBytes(value))),
-                _ => new Variant(value)
+                BuiltInType.Boolean => Variant.From((value & 1) == 0),
+                BuiltInType.SByte => Variant.From((sbyte)(value % 100)),
+                BuiltInType.Byte => Variant.From((byte)(value % 200)),
+                BuiltInType.Int16 => Variant.From((short)value),
+                BuiltInType.UInt16 => Variant.From((ushort)value),
+                BuiltInType.Int32 => Variant.From(value),
+                BuiltInType.UInt32 => Variant.From((uint)value),
+                BuiltInType.Int64 => Variant.From((long)value),
+                BuiltInType.UInt64 => Variant.From((ulong)value),
+                BuiltInType.Float => Variant.From((float)value),
+                BuiltInType.Double => Variant.From((double)value),
+                BuiltInType.String => Variant.From(
+                    value.ToString(CultureInfo.InvariantCulture)),
+                BuiltInType.DateTime => Variant.From(
+                    new DateTimeUtc(now.AddSeconds(value))),
+                BuiltInType.Guid => Variant.From(
+                    new Uuid(new Guid(value, 0, 0, new byte[8]))),
+                BuiltInType.ByteString => Variant.From(
+                    new ByteString(BitConverter.GetBytes(value))),
+                _ => Variant.From(value)
             };
         }
 
