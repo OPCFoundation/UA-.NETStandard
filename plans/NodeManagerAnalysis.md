@@ -8,15 +8,14 @@
 
 Analysis performed against commit `e73e71184` on `master`.
 
-> **2.0 transition note (September 2026):** generated authoring now has two
-> supported paths documented in `docs/NodeManagers.md`. `[NodeSource]` is the
-> compositional path for applications that contribute a materialized graph.
-> `[NodeManager]` remains the manager path when the generated type needs
-> node-management, custom NodeId, history, sampling, specialized handles, or
-> other manager-level capabilities. `ReferenceNodeManager` is the primary
-> in-repository example. Do not remove the manager generator merely because the
-> source path exists; retire it only if narrower modules eventually cover its
-> remaining use cases and its consumers have migrated.
+> **2.0 transition note (September 2026):** `[NodeManager]` is the single
+> generated-authoring binding documented in `docs/NodeManagers.md`. An exact
+> `Configure(INodeGraphBuilder)` implementation selects the compositional
+> `INodeSource` output; `Configure(INodeManagerBuilder)` or no untyped hook
+> selects the generated-manager output. The runtime distinction remains:
+> applications use sources for materialized graphs, while specialized managers
+> such as `ReferenceNodeManager` retain node-management, custom NodeId, history,
+> sampling, and other manager-level capabilities.
 
 ## Table of contents
 

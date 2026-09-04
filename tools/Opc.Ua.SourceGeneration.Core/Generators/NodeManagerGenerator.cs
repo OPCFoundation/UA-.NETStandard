@@ -77,7 +77,7 @@ namespace Opc.Ua.SourceGeneration
         public bool EmitFactory { get; init; } = true;
 
         /// <summary>
-        /// When <c>true</c>, emits the legacy generated node manager.
+        /// When <c>true</c>, emits the generated node manager.
         /// </summary>
         public bool EmitNodeManager { get; init; } = true;
 

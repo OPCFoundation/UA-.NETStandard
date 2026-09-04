@@ -36,9 +36,8 @@ using Microsoft.CodeAnalysis.CSharp.Syntax;
 namespace Opc.Ua.SourceGeneration
 {
     /// <summary>
-    /// Discovered node-manager or node-source binding plus
-    /// the source location of the attribute, used to report friendly
-    /// diagnostics back at the user's class.
+    /// Discovered node-authoring binding plus the source locations used to
+    /// infer its runtime kind and report diagnostics at the user's class.
     /// </summary>
     internal sealed record class NodeManagerAttributeDiscovery
     {
@@ -60,6 +59,22 @@ namespace Opc.Ua.SourceGeneration
         public bool IsPartial { get; init; }
 
         /// <summary>
+        /// Location of the user-authored graph Configure implementation.
+        /// </summary>
+        public Location GraphConfigureLocation { get; init; }
+
+        /// <summary>
+        /// Location of the user-authored manager Configure implementation.
+        /// </summary>
+        public Location ManagerConfigureLocation { get; init; }
+
+        /// <summary>
+        /// Whether both canonical untyped Configure implementations exist.
+        /// </summary>
+        public bool HasConflictingConfigureMethods =>
+            GraphConfigureLocation != null && ManagerConfigureLocation != null;
+
+        /// <summary>
         /// Predicate used by <see cref="SyntaxProvider.ForAttributeWithMetadataName"/>.
         /// </summary>
         public static bool Handles(SyntaxNode node, CancellationToken ct)
@@ -73,18 +88,33 @@ namespace Opc.Ua.SourceGeneration
         /// </summary>
         public static NodeManagerAttributeDiscovery Create(
             GeneratorAttributeSyntaxContext context,
-            bool generateNodeSource,
             CancellationToken cancellationToken)
         {
             var symbol = (INamedTypeSymbol)context.TargetSymbol;
             AttributeData attr = context.Attributes.FirstOrDefault();
+            Compilation compilation = context.SemanticModel.Compilation;
 
             string namespaceUri = attr.GetValue(nameof(NodeManagerAttributeBinding.NamespaceUri));
             string design = attr.GetValue(nameof(NodeManagerAttributeBinding.Design));
             string[] additionalNamespaceUris = attr.GetStringArray(
                 nameof(NodeManagerAttributeBinding.AdditionalNamespaceUris));
-            bool generateNodeManager = !generateNodeSource;
-            bool generateFactory = generateNodeManager &&
+            Location graphConfigureLocation = FindConfigureImplementation(
+                symbol,
+                compilation,
+                kGraphBuilderMetadataName,
+                cancellationToken);
+            Location managerConfigureLocation = FindConfigureImplementation(
+                symbol,
+                compilation,
+                kManagerBuilderMetadataName,
+                cancellationToken);
+            NodeAuthoringKind authoringKind =
+                graphConfigureLocation != null && managerConfigureLocation != null
+                    ? NodeAuthoringKind.None
+                    : graphConfigureLocation != null
+                        ? NodeAuthoringKind.NodeSource
+                        : NodeAuthoringKind.NodeManager;
+            bool generateFactory = authoringKind == NodeAuthoringKind.NodeManager &&
                 (attr == null ||
                 !attr.NamedArguments
                     .Any(p => p.Key == nameof(NodeManagerAttributeBinding.GenerateFactory) &&
@@ -107,17 +137,73 @@ namespace Opc.Ua.SourceGeneration
                 {
                     TargetNamespace = targetNamespace,
                     TargetClassName = targetClassName,
-                    AttributeName = generateNodeSource ? "NodeSource" : "NodeManager",
                     NamespaceUri = namespaceUri,
                     Design = design,
                     GenerateFactory = generateFactory,
-                    GenerateNodeManager = generateNodeManager,
-                    GenerateNodeSource = generateNodeSource,
+                    AuthoringKind = authoringKind,
                     AdditionalNamespaceUris = additionalNamespaceUris
                 },
                 Location = location,
-                IsPartial = isPartial
+                IsPartial = isPartial,
+                GraphConfigureLocation = graphConfigureLocation,
+                ManagerConfigureLocation = managerConfigureLocation
             };
         }
+
+        private static Location FindConfigureImplementation(
+            INamedTypeSymbol type,
+            Compilation compilation,
+            string parameterTypeMetadataName,
+            CancellationToken cancellationToken)
+        {
+            INamedTypeSymbol parameterType =
+                compilation.GetTypeByMetadataName(parameterTypeMetadataName);
+            if (parameterType == null)
+            {
+                return null;
+            }
+
+            foreach (SyntaxReference reference in type.DeclaringSyntaxReferences)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                if (reference.GetSyntax(cancellationToken) is not TypeDeclarationSyntax declaration)
+                {
+                    continue;
+                }
+
+                SemanticModel semanticModel = compilation.GetSemanticModel(declaration.SyntaxTree);
+                foreach (MethodDeclarationSyntax method in declaration.Members
+                    .OfType<MethodDeclarationSyntax>())
+                {
+                    if (method.Identifier.ValueText != "Configure" ||
+                        !method.Modifiers.Any(SyntaxKind.PartialKeyword) ||
+                        method.Modifiers.Any(SyntaxKind.StaticKeyword) ||
+                        method.TypeParameterList != null ||
+                        method.ParameterList.Parameters.Count != 1 ||
+                        method.ParameterList.Parameters[0].Modifiers.Count != 0 ||
+                        (method.Body == null && method.ExpressionBody == null))
+                    {
+                        continue;
+                    }
+
+                    if (semanticModel.GetDeclaredSymbol(method, cancellationToken)
+                            is IMethodSymbol methodSymbol &&
+                        methodSymbol.ReturnsVoid &&
+                        SymbolEqualityComparer.Default.Equals(
+                            methodSymbol.Parameters[0].Type,
+                            parameterType))
+                    {
+                        return method.Identifier.GetLocation();
+                    }
+                }
+            }
+
+            return null;
+        }
+
+        private const string kGraphBuilderMetadataName =
+            "Opc.Ua.Server.Nodes.INodeGraphBuilder";
+        private const string kManagerBuilderMetadataName =
+            "Opc.Ua.Server.Fluent.INodeManagerBuilder";
     }
 }

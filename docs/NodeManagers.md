@@ -47,7 +47,7 @@
 - [Source-generated node sources](#source-generated-node-sources)
   - [What the generator produces](#what-the-generator-produces)
   - [Opting in](#opting-in)
-    - [Per-class opt-in via [NodeSource]](#per-class-opt-in-via-nodesource)
+    - [Per-class source selection via [NodeManager]](#per-class-source-selection-via-nodemanager)
   - [Wiring callbacks: the Configure partial](#wiring-callbacks-the-configure-partial)
     - [Addressing modes](#addressing-modes)
     - [Creating nodes under other managers' nodes (Objects folder)](#creating-nodes-under-other-managers-nodes-objects-folder)
@@ -138,13 +138,15 @@ is the correct choice.
 
 | Need | Use | Why |
 | --- | --- | --- |
-| Source-generated model with ordinary callback wiring, imports, reload, and dependency injection | `[NodeSource]` on a partial source class | Generates `INodeSource`, `INodeGraphBuilder` integration, typed import factories, and a typed `I{SourceClass}Builder`; host it with `AddNodeSource<TSource>()`. |
+| Source-generated model with ordinary callback wiring, imports, reload, and dependency injection | `[NodeManager]` on a partial source class that implements `Configure(INodeGraphBuilder)` | Generates `INodeSource`, `INodeGraphBuilder` integration, typed import factories, and a typed `I{SourceClass}Builder`; host it with `AddNodeSource<TSource>()`. |
 | Hand-authored graph or a graph combining fluent nodes and runtime NodeSets | A hand-written `INodeSource` | Keeps construction behind the same transactional source lifecycle without generating a manager subclass. |
-| Source-generated model that also needs manager-level overrides or capabilities, such as custom NodeIds, node-management services, historian selection, specialized handles, or sampling behavior | `[NodeManager]` on a partial manager class | Generates a `FluentNodeManagerBase` partial, typed `I{ManagerClass}Builder`, and optionally a factory while preserving the manager inheritance and capability surface. |
+| Source-generated model that also needs manager-level overrides or capabilities, such as custom NodeIds, node-management services, historian selection, specialized handles, or sampling behavior | `[NodeManager]` on a partial manager class that implements `Configure(INodeManagerBuilder)`, or no untyped `Configure` overload | Generates a `FluentNodeManagerBase` partial, typed `I{ManagerClass}Builder`, and optionally a factory while preserving the manager inheritance and capability surface. |
 | Fully dynamic or specialized service implementation not centered on a materialized `NodeState` graph | A hand-written `IAsyncNodeManager` or derived node manager | Gives direct control over routing handles and service-set behavior. |
 | Load a NodeSet2 document without application-owned callback wiring | `AddRuntimeNodeSet(...)` | Uses the runtime NodeSet manager directly; no source class is required. |
 
-The generated names deliberately follow the chosen layer. A class named `CalcNodeSource` produces
+`[NodeManager]` binds the authored class to a model; the exact untyped `Configure`
+implementation selects which runtime layer is generated. The generated names deliberately follow
+the chosen layer. A class named `CalcNodeSource` produces
 `ICalcNodeSourceBuilder`; a class named `ReferenceNodeManager` produces
 `IReferenceNodeManagerBuilder`. Both typed builders expose the same fluent callback concepts, but
 the names make it clear whether user code contributes a graph or implements the runtime manager.
@@ -836,7 +838,8 @@ documents. Import factories can select instances by TypeDefinition, methods by
 MethodDeclarationId, or an exact node by NodeId. Exact-node registrations are
 used for generated child slots such as method arguments.
 
-Models using `[NodeSource]` receive a generated `INodeSource`, typed
+Models whose `[NodeManager]` binding implements
+`Configure(INodeGraphBuilder)` receive a generated `INodeSource`, typed
 graph-creation helpers, and a generated import-factory provider. See
 [Source-generated node sources](#source-generated-node-sources).
 
@@ -1034,8 +1037,9 @@ The base source generator already emits, for each model design:
 - `Add{Ns}DataTypes(IEncodeableFactoryBuilder)` — registers encodeables.
 
 When a partial class is annotated with
-`[Opc.Ua.Server.Fluent.NodeSourceAttribute]`, generation additionally
-completes that class with:
+`[Opc.Ua.Server.Fluent.NodeManagerAttribute]` and implements
+`Configure(INodeGraphBuilder)`, generation additionally completes that class
+with:
 
 - `INodeSource` and `INodeSetImportFactoryProvider`;
 - `NamespaceUris` containing the model namespace and any declared additional
@@ -1048,13 +1052,23 @@ completes that class with:
   factories for type definitions, method declarations, declaration NodeIds,
   and exact generated child NodeIds.
 
-`[NodeSource]` does not generate a public NodeManager subclass or factory.
-`[NodeManager]` remains a supported source-generation path for specialized
-managers that require inheritance capabilities not represented by the source
-interface. Use `[NodeSource]` for graph composition and `[NodeManager]` when
-the generated type must itself participate in manager-level behavior. See
-[Node sources and node managers](#node-sources-and-node-managers) for the
-complete comparison.
+The same `[NodeManager]` attribute selects one of two outputs from the
+user-authored untyped `Configure` implementation:
+
+| Untyped partial implementation | Output |
+| --- | --- |
+| `Configure(INodeGraphBuilder)` | A public, sealed `INodeSource`; no public NodeManager subclass or factory |
+| `Configure(INodeManagerBuilder)` | A `FluentNodeManagerBase` partial and, by default, a matching factory |
+| Neither | NodeManager output for compatibility |
+| Both | `MODELGEN016` error |
+
+The typed `Configure(I{ClassName}Builder)` overload does not select the output,
+because the same typed traversal shape is useful for both authoring layers. A
+typed-only source therefore adds an empty `Configure(INodeGraphBuilder)`
+implementation. Exact parameter types are required; aliases and fully
+qualified names work, but a derived builder interface does not select a mode.
+See [Node sources and node managers](#node-sources-and-node-managers) for the
+runtime distinction.
 
 ### Opting in
 
@@ -1062,7 +1076,7 @@ Add the generator analyzer to your project (this is what
 `OPCFoundation.Opc.Ua.SourceGeneration.props` is for) and annotate the
 user-authored partial source class.
 
-#### Per-class opt-in via `[NodeSource]`
+#### Per-class source selection via `[NodeManager]`
 
 ```csharp
 using Opc.Ua.Server.Fluent;
@@ -1071,7 +1085,7 @@ using MyModel;
 
 namespace MyCompany.MyServer;
 
-[NodeSource(NamespaceUri = MyModel.Namespaces.MyModel)]
+[NodeManager(NamespaceUri = MyModel.Namespaces.MyModel)]
 public sealed partial class MyDeviceNodeSource
 {
     partial void Configure(INodeGraphBuilder builder)
@@ -1096,13 +1110,13 @@ When a project carries multiple model designs, disambiguate which
 design the attribute targets via either:
 
 ```csharp
-[NodeSource(NamespaceUri = "http://opcfoundation.org/UA/Boiler/")]
+[NodeManager(NamespaceUri = "http://opcfoundation.org/UA/Boiler/")]
 ```
 
 or by file stem:
 
 ```csharp
-[NodeSource(Design = "BoilerDesign")]
+[NodeManager(Design = "BoilerDesign")]
 ```
 
 `BuildAsync` creates a new `NodeStateCollection`, calls the existing generated
@@ -1162,7 +1176,7 @@ commonly a separate *instance* namespace for nodes created at runtime —
 declare them on the attribute:
 
 ```csharp
-[NodeSource(
+[NodeManager(
     NamespaceUri = Namespaces.Boiler,
     AdditionalNamespaceUris = new[] { Namespaces.Boiler + "Instance" })]
 ```
@@ -1170,8 +1184,10 @@ declare them on the attribute:
 `NamespaceUris` includes them from construction, so the master node manager
 routes those namespaces to the source adapter immediately.
 
-Without `[NodeSource]`, only the existing model/state/data-type extensions and
-the default fluent accessor extensions are emitted.
+Without `[NodeManager]`, only the existing model/state/data-type extensions and
+the default fluent accessor extensions are emitted. With `[NodeManager]` but
+without an untyped `Configure` implementation, the compatibility default is a
+generated NodeManager.
 
 ### Wiring callbacks: the `Configure` partial
 
@@ -1325,10 +1341,12 @@ public sealed partial class BoilerNodeSource
 }
 ```
 
-Both partials are optional and both run; wiring the same node from
-both is illegal and throws at startup. Choose whichever shape best fits
-each call site — typed for everything declared in the model, untyped
-for everything else.
+The graph partial is the required node-source discriminator, but its body may
+be empty when all wiring uses the typed view. Once source mode is selected, the
+generator invokes the graph partial and the optional typed partial. Wiring the
+same node from both is illegal and throws at startup. Use the typed view for
+everything declared in the model and the graph view for dynamic or imported
+nodes.
 
 #### What the generator emits per model
 
@@ -1395,9 +1413,14 @@ This means **instance methods imported from a NodeSet2** (whose
 the same typed `OnCall` overloads as methods authored in a ModelDesign.
 
 ```csharp
-[NodeSource(NamespaceUri = "http://opcfoundation.org/UA/Calc/")]
+[NodeManager(NamespaceUri = "http://opcfoundation.org/UA/Calc/")]
 public sealed partial class CalcNodeSource
 {
+    partial void Configure(INodeGraphBuilder builder)
+    {
+        // Selects node-source generation. All wiring below uses the typed view.
+    }
+
     partial void Configure(ICalcNodeSourceBuilder builder)
     {
         // Sync int+int → int. The generator unpacks each Variant
@@ -2025,8 +2048,9 @@ The generator resolves the cross-model reference automatically — every
 input is supplied to the others as a resolution dependency (both
 `ModelDesign → NodeSet2` and `ModelDesign → ModelDesign`).
 
-> **Binding a `[NodeSource]` in a mixed project.** A `[NodeSource]`
-> may target the namespace of *either* input — the NodeSet2 type model
+> **Binding a generated node source in a mixed project.** A `[NodeManager]`
+> class with `Configure(INodeGraphBuilder)` may target the namespace of
+> *either* input — the NodeSet2 type model
 > or the ModelDesign instance model — by setting its `NamespaceUri` to
 > that model's URI. Binding is resolved across both the NodeSet2 and the
 > ModelDesign generation passes, so a source bound to the NodeSet2 types

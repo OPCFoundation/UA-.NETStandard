@@ -32,24 +32,30 @@ using System;
 namespace Opc.Ua.Server.Fluent
 {
     /// <summary>
-    /// Marks a user-authored partial class as a source-generated
-    /// <see cref="FluentNodeManagerBase"/> for an OPC UA model design.
+    /// Binds a user-authored partial class to an OPC UA model design for
+    /// source-generated node authoring.
     /// </summary>
     /// <remarks>
     /// <para>
-    /// Use this path when the generated type must remain a NodeManager and
-    /// needs manager-level overrides or capabilities such as custom NodeIds,
-    /// node management, historian selection, specialized handles, or sampling
-    /// behavior. For compositional graph authoring that does not require the
-    /// manager inheritance interface, use <see cref="NodeSourceAttribute"/>.
-    /// When found, it emits a companion <c>partial class</c> in the same namespace
-    /// and with the same name as the attributed class that derives from
-    /// <see cref="FluentNodeManagerBase"/>, loads the predefined nodes for
-    /// the matching design, and exposes the
-    /// <c>partial void Configure(INodeManagerBuilder builder)</c> hook.
-    /// A matching <c>{ClassName}Factory</c> implementing
-    /// <see cref="INodeManagerFactory"/> is also emitted unless
-    /// <see cref="GenerateFactory"/> is set to <c>false</c>.
+    /// The user-authored untyped <c>Configure</c> implementation selects the
+    /// generated runtime type:
+    /// </para>
+    /// <list type="bullet">
+    ///   <item><description>
+    ///   <c>Configure(INodeGraphBuilder)</c> generates a compositional
+    ///   <see cref="Nodes.INodeSource"/>.
+    ///   </description></item>
+    ///   <item><description>
+    ///   <c>Configure(INodeManagerBuilder)</c> generates a
+    ///   <see cref="FluentNodeManagerBase"/> and, by default, a matching
+    ///   <see cref="INodeManagerFactory"/>.
+    ///   </description></item>
+    /// </list>
+    /// <para>
+    /// If neither untyped overload is implemented, node-manager generation is
+    /// selected for compatibility. Implementing both overloads is invalid.
+    /// The generated typed <c>Configure(I{ClassName}Builder)</c> overload does
+    /// not select the runtime type.
     /// The MSBuild property
     /// <c>ModelSourceGeneratorGenerateNodeManager</c> remains as a
     /// project-wide fallback that produces conventionally-named managers
@@ -80,25 +86,23 @@ namespace Opc.Ua.Server.Fluent
         /// <summary>
         /// When <c>true</c> (default) the generator also emits a
         /// <c>{ClassName}Factory</c> sibling implementing
-        /// <see cref="INodeManagerFactory"/>. Set to <c>false</c> to
-        /// author the factory by hand.
+        /// <see cref="INodeManagerFactory"/> when node-manager generation is
+        /// selected. Set to <c>false</c> to author the factory by hand.
+        /// This setting has no effect for node-source generation.
         /// </summary>
         public bool GenerateFactory { get; set; } = true;
 
         /// <summary>
-        /// Additional namespace URIs the manager owns beyond the model's
-        /// own namespace — typically a separate instance namespace (e.g.
+        /// Additional namespace URIs the generated authoring type owns beyond
+        /// the model's own namespace — typically a separate instance namespace (e.g.
         /// <c>"http://opcfoundation.org/UA/Boiler/Instance"</c>).
         /// </summary>
         /// <remarks>
-        /// The generated constructor passes these to the base node
-        /// manager together with the model namespace, so the master node
-        /// manager routes requests for them to this manager from the
-        /// moment it is built. Reporting an extra namespace later via
-        /// <c>SetNamespaces</c> is not sufficient, because the master
-        /// builds its namespace routing from what the manager reported
-        /// at construction. The generated factory advertises the same
-        /// set through <c>NamespacesUris</c>.
+        /// A generated node manager passes these to its base constructor and
+        /// advertises them from its factory. A generated node source includes
+        /// them in <see cref="Nodes.INodeSource.NamespaceUris"/>. In both cases
+        /// the master node manager can route the namespaces from initial
+        /// registration.
         /// </remarks>
         public string[] AdditionalNamespaceUris { get; set; } = null!;
     }

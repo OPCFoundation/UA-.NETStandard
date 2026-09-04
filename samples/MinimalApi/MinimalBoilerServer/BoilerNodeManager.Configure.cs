@@ -45,8 +45,9 @@ namespace Boiler
     /// builder.
     /// </summary>
     /// <remarks>
-    /// The <c>[NodeSource]</c> attribute opts this partial class in to
-    /// source generation: the generator completes it with graph
+    /// The <c>[NodeManager]</c> attribute and
+    /// <c>Configure(INodeGraphBuilder)</c> overload opt this partial class in
+    /// to node-source generation: the generator completes it with graph
     /// materialization and calls back into <see cref="Configure"/> below. No
     /// MSBuild flag is required; the attribute alone selects the class
     /// and (since this project carries a single design) the single
@@ -62,7 +63,7 @@ namespace Boiler
     /// that the untyped and typed fluent APIs interoperate.
     /// </para>
     /// </remarks>
-    [NodeSource(NamespaceUri = "http://opcfoundation.org/UA/Boiler/")]
+    [NodeManager(NamespaceUri = "http://opcfoundation.org/UA/Boiler/")]
     public sealed partial class BoilerNodeSource
     {
         /// <summary>

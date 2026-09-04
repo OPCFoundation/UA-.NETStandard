@@ -36,7 +36,7 @@ using Opc.Ua.Server.Nodes;
 
 namespace Opc.Ua.Server.Tests.Nodes
 {
-    [NodeSource(
+    [NodeManager(
         NamespaceUri = "urn:opcfoundation.org:2026-09:GeneratedNodeSource",
         AdditionalNamespaceUris =
         [

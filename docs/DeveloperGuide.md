@@ -215,8 +215,9 @@ logger.ReadArrayZeroDimension(index, dimensions);
 - **Compositional node authoring** — implement `INodeSource`, create nodes through
   `INodeGraphBuilder`, and register it with `AddNodeSource<TSource>()`; see
   [NodeManagers.md](NodeManagers.md#compositional-node-sources).
-- **Source-generated node sources / data types** — use `[NodeSource]` to
-  generate an `INodeSource`, typed graph helpers, and direct import factories;
+- **Source-generated node sources / data types** — use `[NodeManager]` with
+  `Configure(INodeGraphBuilder)` to generate an `INodeSource`, typed graph
+  helpers, and direct import factories;
   see [NodeManagers.md](NodeManagers.md#source-generated-node-sources) and
   [SourceGeneratedDataTypes.md](SourceGeneratedDataTypes.md).
 - **Server namespace metadata / history advertisement** — see [NodeManagers.md](NodeManagers.md#server-address-space-metadata).

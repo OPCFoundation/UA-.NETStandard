@@ -142,6 +142,24 @@ namespace Opc.Ua.SourceGeneration
             customTags: ["opcua"]);
 
         /// <summary>
+        /// A node-authoring class implements both canonical untyped
+        /// <c>Configure</c> overloads and therefore does not select one
+        /// generated runtime type.
+        /// </summary>
+        public static readonly DiagnosticDescriptor NodeAuthoringKindAmbiguous = new(
+            id: "MODELGEN016",
+            title: "Generated node authoring kind is ambiguous",
+            messageFormat: (LocalizableString)(
+                "Class '{0}' declares both Configure(INodeGraphBuilder) and " +
+                "Configure(INodeManagerBuilder). Implement exactly one untyped " +
+                "Configure overload to select node-source or node-manager generation."),
+            category: Name,
+            DiagnosticSeverity.Error,
+            isEnabledByDefault: true,
+            helpLinkUri: "www.opcfoundation.org",
+            customTags: ["opcua"]);
+
+        /// <summary>
         /// A BrowseName from the design model contained characters that
         /// required escaping when interpolated into a generated C# string
         /// literal (e.g. <c>"</c>, <c>\</c>, or a control character). The

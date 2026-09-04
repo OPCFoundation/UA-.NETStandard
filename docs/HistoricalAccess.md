@@ -178,7 +178,7 @@ using Opc.Ua.Server.Fluent;       // exposes UseHistorian/Historize/WithHistoria
 using Opc.Ua.Server.Historian;
 using Opc.Ua.Server.Nodes;
 
-[NodeSource(NamespaceUri = "http://example.com/Plant/")]
+[NodeManager(NamespaceUri = "http://example.com/Plant/")]
 public sealed partial class PlantNodeSource
 {
     partial void Configure(INodeGraphBuilder builder)

@@ -126,14 +126,12 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
         {
             NodeManagerAttributeBinding manager = CreateBinding(
                 namespaceUri: "urn:model",
-                className: "LegacyManager");
+                className: "ModelManager");
             NodeManagerAttributeBinding source = CreateBinding(
                 namespaceUri: "urn:model",
                 className: "ModelSource") with
             {
-                AttributeName = "NodeSource",
-                GenerateNodeManager = false,
-                GenerateNodeSource = true
+                AuthoringKind = NodeAuthoringKind.NodeSource
             };
             var reports = new List<string>();
 
@@ -146,20 +144,19 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             Assert.That(reports, Has.Count.EqualTo(1));
             Assert.That(reports[0], Does.Contain("targets the same model"));
             Assert.That(reports[0], Does.Contain("[NodeManager]"));
-            Assert.That(reports[0], Does.Contain("[NodeSource]"));
+            Assert.That(reports[0], Does.Contain("node-manager binding"));
+            Assert.That(reports[0], Does.Contain("node-source binding"));
         }
 
         [Test]
         public void DuplicateSelectorlessBindingsReportConflictForSingleModel()
         {
             NodeManagerAttributeBinding manager = CreateBinding(
-                className: "LegacyManager");
+                className: "ModelManager");
             NodeManagerAttributeBinding source = CreateBinding(
                 className: "ModelSource") with
             {
-                AttributeName = "NodeSource",
-                GenerateNodeManager = false,
-                GenerateNodeSource = true
+                AuthoringKind = NodeAuthoringKind.NodeSource
             };
             var reports = new List<string>();
 

@@ -35,7 +35,8 @@ namespace Calc
 {
     /// <summary>
     /// Source-generated compositional node source for the calculator
-    /// sample. The <c>[NodeSource]</c> attribute opts this partial class
+    /// sample. The <c>[NodeManager]</c> attribute and
+    /// <c>Configure(INodeGraphBuilder)</c> overload opt this partial class
     /// in to source generation: the generator completes this class with
     /// graph materialization and calls back into the
     /// <c>Configure</c> partials in this file.
@@ -47,10 +48,10 @@ namespace Calc
     /// <c>OnCall</c> input-unpack and output-box code paths end-to-end.
     /// The wiring lives in the second partial; this file holds only the
     /// attribute-bearing class declaration so that the source generator
-    /// pipeline (<c>[NodeSource]</c> + <c>AdditionalFiles</c> NodeSet2)
+    /// pipeline (<c>[NodeManager]</c> + <c>AdditionalFiles</c> NodeSet2)
     /// can be reasoned about in one glance.
     /// </remarks>
-    [NodeSource(NamespaceUri = "http://opcfoundation.org/UA/Calc/")]
+    [NodeManager(NamespaceUri = "http://opcfoundation.org/UA/Calc/")]
     public sealed partial class CalcNodeSource
     {
         partial void Configure(INodeGraphBuilder builder)

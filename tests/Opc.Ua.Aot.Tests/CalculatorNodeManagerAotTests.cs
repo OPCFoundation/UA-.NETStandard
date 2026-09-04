@@ -40,8 +40,8 @@ namespace Opc.Ua.Aot.Tests
     /// <summary>
     /// AOT smoke tests that verify the source-generated
     /// <c>Calc.CalcNodeSource</c> emitted by the
-    /// <c>[NodeSource]</c> attribute (in the MinimalCalcServer
-    /// sample) loads the calculator address space, registers its
+    /// <c>[NodeManager]</c> attribute and graph Configure overload in the
+    /// MinimalCalcServer sample loads the calculator address space, registers its
     /// namespace, and dispatches each of the three typed fluent
     /// <c>OnCall(...)</c> overloads — sync int+int→int, async
     /// double+double→double, and sync string+string→string — wired in

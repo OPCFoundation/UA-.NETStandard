@@ -40,7 +40,7 @@ namespace Opc.Ua.Aot.Tests
     /// <summary>
     /// AOT smoke tests that verify the source-generated
     /// <c>Boiler.BoilerNodeSource</c> emitted by the
-    /// <c>[NodeSource]</c> attribute
+    /// <c>[NodeManager]</c> attribute and graph Configure overload
     /// (in the MinimalBoilerServer sample) actually loads the boiler
     /// address space, registers its namespace, and dispatches the
     /// fluent <c>OnRead</c> callback wired in

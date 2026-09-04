@@ -94,9 +94,10 @@ decoded.
 
 | ID            | Severity | Meaning                                                            |
 | ------------- | -------- | ------------------------------------------------------------------ |
-| `MODELGEN010` | Warning  | A `[NodeSource]` or `[NodeManager]` attribute could not be bound to a model, or conflicts with another authoring binding. |
+| `MODELGEN010` | Warning  | A `[NodeManager]` attribute could not be bound to a model, or conflicts with another authoring binding. |
 | `MODELGEN012` | Info     | Multiple referenced assemblies provide the same model URI.         |
 | `MODELGEN013` | Info     | Local model skipped because a referenced assembly provides it.     |
+| `MODELGEN016` | Error    | A `[NodeManager]` class implements both untyped `Configure` overloads and therefore selects conflicting authoring kinds. |
 
 ## Implementation
 

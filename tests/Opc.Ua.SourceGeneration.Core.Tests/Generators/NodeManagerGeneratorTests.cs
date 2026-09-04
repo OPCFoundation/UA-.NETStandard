@@ -80,7 +80,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
         }
 
         [Test]
-        public void Emit_WithNodeSourceOptIn_ProducesSourceWithoutLegacyManager()
+        public void Emit_WithNodeSourceOptIn_ProducesSourceWithoutNodeManager()
         {
             Dictionary<string, string> files = GenerateForTestModel(
                 generateNodeManager: false,
@@ -93,6 +93,17 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
                 Assert.That(files.Keys, Has.Some.EndsWith(".NodeSource.g.cs"));
                 Assert.That(files.Keys, Has.Some.EndsWith(".NodeSourceSupport.g.cs"));
             });
+        }
+
+        [Test]
+        public void Emit_WithBothAuthoringKinds_ThrowsInvalidOperationException()
+        {
+            Assert.That(
+                () => GenerateForTestModel(
+                    generateNodeManager: true,
+                    generateNodeSource: true),
+                Throws.InvalidOperationException.With.Message.EqualTo(
+                    "GenerateNodeManager and GenerateNodeSource cannot both be enabled."));
         }
 
         [Test]

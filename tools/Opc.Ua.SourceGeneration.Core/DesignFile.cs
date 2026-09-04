@@ -68,7 +68,7 @@ namespace Opc.Ua.SourceGeneration
         /// <summary>
         /// When <c>true</c>, also emits a <c>{Namespace}NodeManager</c>
         /// (a <c>partial class</c> deriving from
-        /// <c>Opc.Ua.Server.AsyncCustomNodeManager</c>) and a matching
+        /// <c>Opc.Ua.Server.Fluent.FluentNodeManagerBase</c>) and a matching
         /// <c>{Namespace}NodeManagerFactory</c> implementing
         /// <c>Opc.Ua.Server.INodeManagerFactory</c>.
         /// <para>
@@ -107,15 +107,15 @@ namespace Opc.Ua.SourceGeneration
 
         /// <summary>
         /// When <c>true</c>, emits a compositional node source and typed
-        /// graph/import support. It can be enabled independently of legacy
-        /// node-manager generation.
+        /// graph/import support. It is mutually exclusive with
+        /// <see cref="GenerateNodeManager"/>.
         /// </summary>
         public bool GenerateNodeSource { get; init; }
 
         /// <summary>
         /// Additional namespace URIs beyond the model namespace. Used by
         /// generated node managers and node sources through their respective
-        /// authoring attributes
+        /// authoring binding
         /// (<c>AdditionalNamespaceUris</c> named argument).
         /// </summary>
         public IReadOnlyList<string> NodeManagerAdditionalNamespaceUris { get; init; }

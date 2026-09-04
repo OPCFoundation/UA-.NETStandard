@@ -228,17 +228,17 @@ For a complete description of the server-side complex type system, see [ComplexT
 
 ## Comparison with source-generated node sources
 
-| Aspect | Runtime NodeSet (`AddRuntimeNodeSet`) | Source-generated (`[NodeSource]`) |
+| Aspect | Runtime NodeSet (`AddRuntimeNodeSet`) | Source-generated (`[NodeManager]` + `Configure(INodeGraphBuilder)`) |
 |--------|--------------------------------------|-------------------------------------|
 | Node access in callbacks | Generic `NodeState` / `BaseVariableState` via untyped browse paths | Strongly typed, compiler-checked fluent accessors per node |
 | Compilation required on model change | No — reload through `INodeManagerLifecycle` | Yes — regenerate and rebuild |
 | AOT / trimming compatibility | Full (uses the existing `UANodeSet.Read` XmlSerializer path) | Full (generated code is static) |
 | Named NodeId constants | Not generated | Generated (`Variables.*`, `Objects.*`, etc.) |
 | Multiple namespaces in one manager | Yes — group multiple sources | One namespace per generator run |
-| DI registration | `AddRuntimeNodeSet(...)` | `AddNodeManager<TFactory>()` |
+| DI registration | `AddRuntimeNodeSet(...)` | `AddNodeSource<TSource>()` |
 | Stream / file input | Files and custom stream factories | MSBuild `AdditionalFiles` only |
 
-Source-generated managers are the recommended path for production code where type safety and compile-time validation matter. Runtime NodeSets are the recommended path for rapid prototyping, model-file delivery scenarios, and cases where the XML content changes independently of the server binary.
+Source-generated node sources are the recommended path for production code where type safety and compile-time validation matter. Runtime NodeSets are the recommended path for rapid prototyping, model-file delivery scenarios, and cases where the XML content changes independently of the server binary.
 
 ## Related documentation
 

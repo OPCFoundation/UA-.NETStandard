@@ -13,6 +13,7 @@ MODELGEN012 | ModelSourceGenerator | Info | Multiple referenced assemblies expos
 MODELGEN013 | ModelSourceGenerator | Info | Model already provided by referenced assembly
 MODELGEN014 | ModelSourceGenerator | Error | Fluent-accessors-only model cannot be generated
 MODELGEN015 | ModelSourceGenerator | Error | Invalid fluent-accessors-only configuration
+MODELGEN016 | ModelSourceGenerator | Error | [NodeManager] Configure overloads select conflicting authoring kinds
 MODELGEN020 | ModelSourceGenerator | Warning | BrowseName requires C# string-literal escaping (UASG_BROWSENAME_UNSAFE)
 MODELGEN021 | ModelSourceGenerator | Error | [DataType] namespace could not be resolved
 MODELGEN022 | ModelSourceGenerator | Error | NodeSet identifier file is missing

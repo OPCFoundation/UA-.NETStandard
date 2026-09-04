@@ -32,6 +32,28 @@ using System.Collections.Generic;
 namespace Opc.Ua.SourceGeneration
 {
     /// <summary>
+    /// The runtime authoring type selected for an attributed model binding.
+    /// </summary>
+    public enum NodeAuthoringKind
+    {
+        /// <summary>
+        /// Generate a fluent node manager and optional factory.
+        /// </summary>
+        NodeManager,
+
+        /// <summary>
+        /// Generate a compositional node source.
+        /// </summary>
+        NodeSource,
+
+        /// <summary>
+        /// Generate no authoring type. Reserved for a binding that has already
+        /// produced an error diagnostic.
+        /// </summary>
+        None
+    }
+
+    /// <summary>
     /// A discovered node-authoring attribute binding from user code.
     /// Carries the user-chosen class identity and the selector
     /// (namespace URI or design file name) used to bind it to one of the
@@ -47,15 +69,11 @@ namespace Opc.Ua.SourceGeneration
 
         /// <summary>
         /// The name of the user partial class. Used as the class name
-        /// of the generated companion partial. The matching factory is
-        /// emitted as <c>{TargetClassName}Factory</c>.
+        /// of the generated companion partial. For node-manager generation,
+        /// the matching factory is emitted as
+        /// <c>{TargetClassName}Factory</c>.
         /// </summary>
         public string TargetClassName { get; init; }
-
-        /// <summary>
-        /// The short attribute name used for diagnostics.
-        /// </summary>
-        public string AttributeName { get; init; } = "NodeManager";
 
         /// <summary>
         /// Optional model namespace URI selector. When set, the binding
@@ -77,14 +95,11 @@ namespace Opc.Ua.SourceGeneration
         public bool GenerateFactory { get; init; } = true;
 
         /// <summary>
-        /// Whether to emit the legacy generated node manager.
+        /// The runtime authoring type selected by the user-authored
+        /// <c>Configure</c> implementation.
         /// </summary>
-        public bool GenerateNodeManager { get; init; } = true;
-
-        /// <summary>
-        /// Whether to emit the compositional node source.
-        /// </summary>
-        public bool GenerateNodeSource { get; init; }
+        public NodeAuthoringKind AuthoringKind { get; init; } =
+            NodeAuthoringKind.NodeManager;
 
         /// <summary>
         /// Additional namespace URIs (beyond the model namespace) that

@@ -135,26 +135,9 @@ namespace Opc.Ua.SourceGeneration
                 context.SyntaxProvider.ForAttributeWithMetadataName(
                     "Opc.Ua.Server.Fluent.NodeManagerAttribute",
                     static (node, ct) => NodeManagerAttributeDiscovery.Handles(node, ct),
-                    static (ctx, ct) => NodeManagerAttributeDiscovery.Create(
-                        ctx,
-                        generateNodeSource: false,
-                        cancellationToken: ct))
+                    static (ctx, ct) => NodeManagerAttributeDiscovery.Create(ctx, ct))
                 .Where(static m => m is not null)
                 .Collect();
-            IncrementalValueProvider<ImmutableArray<NodeManagerAttributeDiscovery>> nodeSourceBindings =
-                context.SyntaxProvider.ForAttributeWithMetadataName(
-                    "Opc.Ua.Server.Fluent.NodeSourceAttribute",
-                    static (node, ct) => NodeManagerAttributeDiscovery.Handles(node, ct),
-                    static (ctx, ct) => NodeManagerAttributeDiscovery.Create(
-                        ctx,
-                        generateNodeSource: true,
-                        cancellationToken: ct))
-                .Where(static m => m is not null)
-                .Collect();
-            IncrementalValueProvider<ImmutableArray<NodeManagerAttributeDiscovery>>
-                nodeAuthoringBindings = nodeManagerBindings
-                    .Combine(nodeSourceBindings)
-                    .Select(static (pair, _) => pair.Left.AddRange(pair.Right));
 
             IncrementalValueProvider<
                 (
@@ -184,7 +167,7 @@ namespace Opc.Ua.SourceGeneration
                 .Select(static (pair, _) => (
                     ReferencedModels: pair.Left,
                     ReferencedAccessorProviders: pair.Right))
-                .Combine(nodeAuthoringBindings)
+                .Combine(nodeManagerBindings)
                 .Select(static (pair, _) => (
                     ReferencedModels: pair.Left.ReferencedModels,
                     ReferencedAccessorProviders: pair.Left.ReferencedAccessorProviders,
