@@ -30,6 +30,7 @@
 using System;
 using System.IO;
 using System.Runtime.Serialization;
+using System.Text;
 using System.Xml;
 using Moq;
 using NUnit.Framework;
@@ -1692,6 +1693,81 @@ namespace Opc.Ua.Types.Tests.Encoders
         }
 
         [Test]
+        public void VariantFromXmlWithoutTypeIdResolvesEncodeableByXmlName()
+        {
+            ServiceMessageContext messageContext = CreateMockContext();
+            var xmlName = new XmlQualifiedName(
+                "TestEncodeableWithXmlEncodingId",
+                "urn:opcfoundation.org:tests");
+            var encodeableType = new Mock<IEncodeableType>();
+            encodeableType.SetupGet(type => type.Type)
+                .Returns(typeof(TestEncodeableWithXmlEncodingId));
+            encodeableType.SetupGet(type => type.XmlName).Returns(xmlName);
+            encodeableType.Setup(type => type.CreateInstance())
+                .Returns(new TestEncodeableWithXmlEncodingId());
+            messageContext.Factory.Builder
+                .AddEncodeableType(encodeableType.Object)
+                .Commit();
+            Assert.That(
+                messageContext.Factory.TryGetType(xmlName, out IType registeredType),
+                Is.True);
+            Assert.That(registeredType, Is.InstanceOf<IEncodeableType>());
+            const string xml = """
+                <ExtensionObject xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">
+                    <Body>
+                        <TestEncodeableWithXmlEncodingId xmlns="urn:opcfoundation.org:tests">
+                            <Value>99</Value>
+                        </TestEncodeableWithXmlEncodingId>
+                    </Body>
+                </ExtensionObject>
+                """;
+            using var stream = new MemoryStream(Encoding.UTF8.GetBytes(xml));
+
+            Variant variant = Variant.FromXml(stream, messageContext);
+            ExtensionObject result = variant.GetExtensionObject();
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    result.TypeId,
+                    Is.EqualTo(new ExpandedNodeId(12347, "urn:opcfoundation.org:tests")));
+                Assert.That(
+                    result.TryGetValue(out TestEncodeableWithXmlEncodingId encodeable),
+                    Is.True);
+                Assert.That(encodeable.Value, Is.EqualTo(99));
+            });
+        }
+
+        [Test]
+        public void VariantFromXmlWithoutTypeIdPreservesUnknownBodyAsXml()
+        {
+            ServiceMessageContext messageContext = CreateMockContext();
+            const string xml = """
+                <ExtensionObject xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">
+                    <Body>
+                        <UnknownStructure xmlns="urn:opcfoundation.org:tests">
+                            <Value>99</Value>
+                        </UnknownStructure>
+                    </Body>
+                </ExtensionObject>
+                """;
+            using var stream = new MemoryStream(Encoding.UTF8.GetBytes(xml));
+
+            Variant variant = Variant.FromXml(stream, messageContext);
+            ExtensionObject result = variant.GetExtensionObject();
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(result.TypeId.IsNull, Is.True);
+                Assert.That(result.TryGetAsXml(out XmlElement body), Is.True);
+                Assert.That(body.OuterXml, Does.Contain("UnknownStructure"));
+                Assert.That(
+                    body.OuterXml,
+                    Does.Contain("xmlns=\"urn:opcfoundation.org:tests\""));
+            });
+        }
+
+        [Test]
         public void ReadEncodeableReturnsDecodedValue()
         {
             // Arrange
@@ -2536,6 +2612,44 @@ namespace Opc.Ua.Types.Tests.Encoders
             public object Clone()
             {
                 return new TestEncodeableWithData { Value = Value };
+            }
+        }
+
+        [DataContract(
+            Name = "TestEncodeableWithXmlEncodingId",
+            Namespace = "urn:opcfoundation.org:tests")]
+        private sealed class TestEncodeableWithXmlEncodingId : IEncodeable
+        {
+            public ExpandedNodeId TypeId =>
+                new(12345, "urn:opcfoundation.org:tests");
+
+            public ExpandedNodeId BinaryEncodingId =>
+                new(12346, "urn:opcfoundation.org:tests");
+
+            public ExpandedNodeId XmlEncodingId =>
+                new(12347, "urn:opcfoundation.org:tests");
+
+            public int Value { get; private set; }
+
+            public void Encode(IEncoder encoder)
+            {
+                encoder.WriteInt32("Value", Value);
+            }
+
+            public void Decode(IDecoder decoder)
+            {
+                Value = decoder.ReadInt32("Value");
+            }
+
+            public bool IsEqual(IEncodeable encodeable)
+            {
+                return encodeable is TestEncodeableWithXmlEncodingId other &&
+                    other.Value == Value;
+            }
+
+            public object Clone()
+            {
+                return new TestEncodeableWithXmlEncodingId { Value = Value };
             }
         }
 

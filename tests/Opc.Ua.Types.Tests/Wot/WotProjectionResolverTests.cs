@@ -211,6 +211,124 @@ namespace Opc.Ua.Types.Tests.Wot
                 Is.True);
         }
 
+        /// <summary>
+        /// A group two organized branches both reach is one group, and the
+        /// acyclicity walk visits it once. Meeting a group that has already
+        /// been walked is not a cycle - a cycle is meeting one that is still
+        /// on the current path - so a diamond resolves rather than being
+        /// refused.
+        /// </summary>
+        [Test]
+        public async Task AGroupReachedByTwoBranchesIsNotACycleAsync()
+        {
+            var resolver = Resolver(
+                ("urn:pump", MinimalPumpJson),
+                ("urn:group-a", Group("urn:group-a", "urn:group-c")),
+                ("urn:group-b", Group("urn:group-b", "urn:group-c")),
+                ("urn:group-c", Group("urn:group-c", string.Empty)));
+            using WotDocument doc =
+                WotDocument.Parse(Encoding.UTF8.GetBytes(DiamondProjectionJson));
+
+            WotConversionResult<WotDocument> result = await resolver.ResolveAsync(doc);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(result.Value, Is.Not.Null, Reasons(result));
+                Assert.That(
+                    result.Diagnostics.Any(d => d.Code == WotDiagnosticCode.ProjectionCycle),
+                    Is.False,
+                    Reasons(result));
+            });
+        }
+
+        /// <summary>
+        /// A group that organizes itself through another group is a cycle, and
+        /// the same walk that tolerates a diamond refuses it.
+        /// </summary>
+        [Test]
+        public async Task AGroupThatOrganizesItsOwnOrganizerIsACycleAsync()
+        {
+            var resolver = Resolver(
+                ("urn:pump", MinimalPumpJson),
+                ("urn:group-a", Group("urn:group-a", "urn:group-c")),
+                ("urn:group-b", Group("urn:group-b", "urn:group-c")),
+                ("urn:group-c", Group("urn:group-c", "urn:group-a")));
+            using WotDocument doc =
+                WotDocument.Parse(Encoding.UTF8.GetBytes(DiamondProjectionJson));
+
+            WotConversionResult<WotDocument> result = await resolver.ResolveAsync(doc);
+
+            Assert.That(
+                result.Diagnostics.Any(d => d.Code == WotDiagnosticCode.ProjectionCycle),
+                Is.True,
+                Reasons(result));
+        }
+
+        private static string Reasons(WotConversionResult<WotDocument> result)
+        {
+            return string.Join("; ", result.Diagnostics.Select(d => d.Message));
+        }
+
+        /// <summary>
+        /// A Thing that organizes at most one other group, used to build an
+        /// <c>ua:Organizes</c> graph a walk has to traverse.
+        /// </summary>
+        private static string Group(string id, string organizes)
+        {
+            string links = organizes.Length == 0
+                ? string.Empty
+                : ",\"links\":[{\"rel\":\"ua:Organizes\",\"href\":\"" + organizes +
+                    "\",\"type\":\"application/td+json\"}]";
+            return "{\"@context\":[\"https://www.w3.org/2022/wot/td/v1.1\"," +
+                "{\"uav\":\"http://opcfoundation.org/UA/WoT-Binding/\"," +
+                "\"ua\":\"http://opcfoundation.org/UA/\"}]," +
+                "\"@type\":\"uav:object\",\"id\":\"" + id + "\",\"title\":\"Group\"," +
+                "\"securityDefinitions\":{\"nosec_sc\":{\"scheme\":\"nosec\"}}," +
+                "\"security\":\"nosec_sc\"" + links + "}";
+        }
+
+        private const string DiamondProjectionJson = """
+        {
+          "@context": [
+            "https://www.w3.org/2022/wot/td/v1.1",
+            {
+              "uav": "http://opcfoundation.org/UA/WoT-Binding/",
+              "ua": "http://opcfoundation.org/UA/",
+              "tm": "https://www.w3.org/2019/wot/tm#"
+            }
+          ],
+          "@type": ["Thing", "uav:projection"],
+          "id": "urn:diamond",
+          "title": "Diamond",
+          "uav:scenario": "http://example.com/scenario/Diamond",
+          "securityDefinitions": { "nosec_sc": { "scheme": "nosec" } },
+          "security": "nosec_sc",
+          "uav:projects": [
+            {
+              "uav:sourceName": "pump",
+              "href": "urn:pump",
+              "type": "application/td+json",
+              "uav:routing": "source",
+              "uav:selectAll": true
+            }
+          ],
+          "links": [
+            {
+              "rel": "ua:Organizes",
+              "href": "urn:group-a",
+              "uav:refName": "GroupA",
+              "type": "application/td+json"
+            },
+            {
+              "rel": "ua:Organizes",
+              "href": "urn:group-b",
+              "uav:refName": "GroupB",
+              "type": "application/td+json"
+            }
+          ]
+        }
+        """;
+
         [Test]
         public async Task DigestMismatchReportsError()
         {
@@ -377,6 +495,165 @@ namespace Opc.Ua.Types.Tests.Wot
             JsonElement speed = Property(result.Value!, "pumpSpeed");
             Assert.That(speed.TryGetProperty("uav:browsePathAnchor", out _), Is.False);
         }
+
+        /// <summary>
+        /// Section 12.4 carries the source's <em>effective</em> anchor, which
+        /// Section 5.1.4 defines as the nearest enclosing
+        /// <c>uav:browsePathAnchor</c> and, failing that, the nearest enclosing
+        /// <c>uav:id</c>. A source that identifies the Node it describes
+        /// therefore anchors its carried paths just as one that states an
+        /// anchor does - and it has to be written down, because the view's own
+        /// root identifies a different Node.
+        /// </summary>
+        [Test]
+        public async Task ASourceIdentityBecomesTheCarriedAnchorAsync()
+        {
+            JsonElement speed = await CarryAsync(
+                rootTerms: "\"uav:id\": \"nsu=urn:anchor;s=Source\",",
+                affordanceTerms: string.Empty).ConfigureAwait(false);
+
+            Assert.That(
+                speed.GetProperty("uav:browsePathAnchor").GetString(),
+                Is.EqualTo("nsu=urn:anchor;s=Source"));
+        }
+
+        /// <summary>
+        /// The two sources are ordered by kind, not by depth, so an anchor at
+        /// the source root outranks an identity the affordance states and is
+        /// the value that has to be carried. Carrying the affordance's own
+        /// identity instead would resolve the path beneath a different Node
+        /// than the one it resolved beneath in the source.
+        /// </summary>
+        [Test]
+        public async Task ARootAnchorOutranksTheAffordancesOwnIdentityAsync()
+        {
+            JsonElement speed = await CarryAsync(
+                rootTerms:
+                    "\"uav:id\": \"nsu=urn:anchor;s=Source\"," +
+                    "\"uav:browsePathAnchor\": \"nsu=urn:anchor;s=Anchor\",",
+                affordanceTerms: "\"uav:id\": \"nsu=urn:anchor;s=Member\",")
+                .ConfigureAwait(false);
+
+            Assert.That(
+                speed.GetProperty("uav:browsePathAnchor").GetString(),
+                Is.EqualTo("nsu=urn:anchor;s=Anchor"));
+        }
+
+        /// <summary>
+        /// Where the source states no anchor, the affordance's own identity is
+        /// what its relative path resolved against, and that identity travels
+        /// with the affordance. Writing an anchor as well would state a second
+        /// answer to a question the carried document already answers.
+        /// </summary>
+        [Test]
+        public async Task AnAffordanceThatCarriesItsOwnIdentityNeedsNoAnchorAsync()
+        {
+            JsonElement speed = await CarryAsync(
+                rootTerms: "\"uav:id\": \"nsu=urn:anchor;s=Source\",",
+                affordanceTerms: "\"uav:id\": \"nsu=urn:anchor;s=Member\",")
+                .ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(speed.TryGetProperty("uav:browsePathAnchor", out _), Is.False);
+                Assert.That(
+                    speed.GetProperty("uav:id").GetString(),
+                    Is.EqualTo("nsu=urn:anchor;s=Member"));
+            });
+        }
+
+        /// <summary>
+        /// An anchor the affordance stated itself is already the nearest one,
+        /// so it is carried unchanged rather than replaced by the source root's.
+        /// </summary>
+        [Test]
+        public async Task AnAffordancesOwnAnchorIsKeptAsync()
+        {
+            JsonElement speed = await CarryAsync(
+                rootTerms: "\"uav:browsePathAnchor\": \"nsu=urn:anchor;s=Anchor\",",
+                affordanceTerms: "\"uav:browsePathAnchor\": \"nsu=urn:anchor;s=Own\",")
+                .ConfigureAwait(false);
+
+            Assert.That(
+                speed.GetProperty("uav:browsePathAnchor").GetString(),
+                Is.EqualTo("nsu=urn:anchor;s=Own"));
+        }
+
+        /// <summary>
+        /// A source that anchors nothing has nothing to carry: the path did not
+        /// resolve there either, and inventing an anchor for the view would
+        /// make it resolve against a Node the source never named.
+        /// </summary>
+        [Test]
+        public async Task ASourceThatAnchorsNothingCarriesNothingAsync()
+        {
+            JsonElement speed = await CarryAsync(
+                rootTerms: string.Empty, affordanceTerms: string.Empty)
+                .ConfigureAwait(false);
+
+            Assert.That(speed.TryGetProperty("uav:browsePathAnchor", out _), Is.False);
+        }
+
+        private static async Task<JsonElement> CarryAsync(
+            string rootTerms, string affordanceTerms)
+        {
+            var resolver = Resolver(
+                ("urn:anchor-source", AnchorSourceJson(rootTerms, affordanceTerms)));
+            using WotDocument doc =
+                WotDocument.Parse(Encoding.UTF8.GetBytes(AnchorProjectionJson));
+
+            WotConversionResult<WotDocument> result = await resolver.ResolveAsync(doc);
+
+            Assert.That(
+                result.Value,
+                Is.Not.Null,
+                string.Join("; ", result.Diagnostics.Select(d => d.Message)));
+            return Property(result.Value!, "speed");
+        }
+
+        private static string AnchorSourceJson(string rootTerms, string affordanceTerms)
+        {
+            return "{\"@context\":[\"https://www.w3.org/2022/wot/td/v1.1\"," +
+                "{\"uav\":\"http://opcfoundation.org/UA/WoT-Binding/\"," +
+                "\"pump\":\"http://example.com/demo/pump\"}]," +
+                "\"@type\":[\"Thing\",\"uav:object\"],\"id\":\"urn:anchor-source\"," +
+                "\"title\":\"Source\"," + rootTerms +
+                "\"securityDefinitions\":{\"nosec_sc\":{\"scheme\":\"nosec\"}}," +
+                "\"security\":\"nosec_sc\",\"base\":\"opc.tcp://opcuademo.com:4840\"," +
+                "\"properties\":{\"speed\":{\"@type\":\"uav:variable\"," +
+                "\"title\":\"Speed\",\"type\":\"number\"," + affordanceTerms +
+                "\"uav:browsePath\":\"pump:Speed\"," +
+                "\"forms\":[{\"href\":\"/?id=nsu=urn:anchor;s=Speed\"," +
+                "\"contentType\":\"application/octet-stream\"," +
+                "\"op\":[\"readproperty\"]}]}}}";
+        }
+
+        private const string AnchorProjectionJson = """
+        {
+          "@context": [
+            "https://www.w3.org/2022/wot/td/v1.1",
+            {
+              "uav": "http://opcfoundation.org/UA/WoT-Binding/",
+              "tm": "https://www.w3.org/2019/wot/tm#"
+            }
+          ],
+          "@type": ["Thing", "uav:projection"],
+          "id": "urn:anchor-view",
+          "title": "Anchor view",
+          "uav:scenario": "http://example.com/scenario/Anchors",
+          "securityDefinitions": { "nosec_sc": { "scheme": "nosec" } },
+          "security": "nosec_sc",
+          "uav:projects": [
+            {
+              "uav:sourceName": "source",
+              "href": "urn:anchor-source",
+              "type": "application/td+json",
+              "uav:routing": "source",
+              "uav:selectAll": true
+            }
+          ]
+        }
+        """;
 
         [Test]
         public async Task SourceWithoutBaseUsesSourceUriAsBase()
@@ -1007,7 +1284,6 @@ namespace Opc.Ua.Types.Tests.Wot
             "overTemperature": {
               "@type": "uav:eventType",
               "title": "Over Temperature",
-              "uav:isEvent": true,
               "uav:browseName": "pump:OverTemperatureEventType",
               "forms": [
                 {

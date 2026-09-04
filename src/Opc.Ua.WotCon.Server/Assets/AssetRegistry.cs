@@ -949,22 +949,13 @@ namespace Opc.Ua.WotCon.Server.Assets
             m_manager.AddEventTypeNode(eventType);
 
             JsonElement? form = evt.Forms?.Count > 0 ? evt.Forms[0] : null;
-            ushort? severity = ValidateSeverity(evt.Severity);
-            if (severity is null)
-            {
-                m_logger.SkippingTd(
-                    "event",
-                    WotChildNameValidator.SanitiseForLog(name),
-                    entry.Name,
-                    $"uav:severity {evt.Severity} is outside the OPC 10000-5 range 1..1000");
-                m_manager.RemoveEventTypeNode(eventTypeId);
-                entry.Asset.RemoveReference(
-                    Ua.ReferenceTypeIds.GeneratesEvent, isInverse: false, eventTypeId);
-                return false;
-            }
-
             var tag = new WotEventTag(
-                name, eventTypeId, entry.Asset.NodeId, fields, severity.Value, form);
+                name,
+                eventTypeId,
+                entry.Asset.NodeId,
+                fields,
+                (ushort)EventSeverity.Medium,
+                form);
 
             entry.Events[eventTypeId] = (eventType, tag);
             return true;
@@ -1050,40 +1041,15 @@ namespace Opc.Ua.WotCon.Server.Assets
         }
 
         /// <summary>
-        /// Validates an authored severity against the OPC 10000-5 1..1000
-        /// range and supplies the default when the Thing Description omits it.
-        /// </summary>
-        /// <remarks>
-        /// WoT Binding "Event severity range" makes an out-of-range value
-        /// invalid and forbids silently clamping it: a document asking for
-        /// severity 5000 has a mistake in it, and rewriting the number would
-        /// hide the mistake while changing what the author asked for. The
-        /// affordance carrying it is therefore skipped, which keeps the rest of
-        /// the asset usable without accepting the bad definition.
-        /// </remarks>
-        /// <returns>
-        /// The severity to publish, or <c>null</c> when the authored value is
-        /// out of range.
-        /// </returns>
-        private static ushort? ValidateSeverity(ushort? severity)
-        {
-            if (severity is null)
-            {
-                return 500;
-            }
-            return severity.Value is >= 1 and <= 1000 ? severity.Value : null;
-        }
-
-        /// <summary>
         /// Chooses the severity to publish for one occurrence: the value the
-        /// provider supplied when it is in the OPC 10000-5 range, otherwise the
-        /// affordance's authored default.
+        /// provider supplied when it is in the OPC 10000-5 range, otherwise
+        /// the server's fallback.
         /// </summary>
         /// <remarks>
-        /// The tag's severity was already validated when the affordance was
-        /// built, so it is always a usable fallback. A provider that supplies
-        /// nothing, or an out-of-range value, gets that default rather than an
-        /// invalid Severity on the wire.
+        /// The fallback is implementation configuration, not Thing Description
+        /// metadata. A provider that supplies nothing, or an out-of-range
+        /// value, gets that fallback rather than an invalid Severity on the
+        /// wire.
         /// </remarks>
         private static ushort EffectiveSeverity(ushort? severity, WotEventTag tag)
         {

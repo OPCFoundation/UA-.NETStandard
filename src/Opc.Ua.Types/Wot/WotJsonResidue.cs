@@ -239,7 +239,6 @@ namespace Opc.Ua.Wot
                     case "description":
                     case "uav:browseName":
                     case "uav:id":
-                    case "uav:isEvent":
                     case "uav:hasComponent":
                     case "uav:componentOf":
                     case "uav:nodeSet":
@@ -302,11 +301,17 @@ namespace Opc.Ua.Wot
             foreach (JsonElement item in context.EnumerateArray())
             {
                 if (item.ValueKind == JsonValueKind.String &&
-                    string.Equals(
-                        item.GetString(),
-                        WotVocabulary.WotContext,
-                        StringComparison.Ordinal))
+                    (string.Equals(
+                            item.GetString(),
+                            WotVocabulary.WotContext,
+                            StringComparison.Ordinal) ||
+                        string.Equals(
+                            item.GetString(),
+                            WotVocabulary.BindingContext,
+                            StringComparison.Ordinal)))
                 {
+                    // Both context identities are re-derived by the forward
+                    // direction, which names them on every document it writes.
                     continue;
                 }
                 if (item.ValueKind == JsonValueKind.Object &&
@@ -327,6 +332,15 @@ namespace Opc.Ua.Wot
                                 property.Value);
                         }
                     }
+                    continue;
+                }
+                if (item.ValueKind == JsonValueKind.Object &&
+                    WotNodeSetConverter.IsGeneratedLocalizedTextOverride(item))
+                {
+                    // The override is derived from the projected Nodes' own
+                    // LocalizedText - it is written exactly where some text
+                    // states no entry for the document's default locale - so
+                    // carrying it as residue as well would state it twice.
                     continue;
                 }
                 Add(entries, pointer + "/-", item);
@@ -409,7 +423,6 @@ namespace Opc.Ua.Wot
                         case "description":
                         case "uav:browseName":
                         case "uav:id":
-                        case "uav:isEvent":
                         case "uav:modellingRule":
                         case "uav:mapToType":
                         case "uav:dataTypeDefinition":
@@ -542,22 +555,6 @@ namespace Opc.Ua.Wot
                             // from that value.
                             if (!isProperty ||
                                 !WotNodeSetConverter.MapsEngineeringUnits(affordance.Value))
-                            {
-                                Add(
-                                    entries,
-                                    affordancePointer + "/" + Escape(property.Name),
-                                    property.Value);
-                            }
-                            break;
-                        case WotNodeSetConverter.SeverityTerm:
-                            // Section 6.6 maps a severity in range onto the
-                            // EventType's own Severity Property, so carrying it
-                            // here as well would state the same default twice.
-                            // One out of range is not mapped and is kept, so an
-                            // invalid document is reported without losing what
-                            // it said.
-                            if (!isEvent ||
-                                !WotNodeSetConverter.TryReadSeverity(affordance.Value, out _))
                             {
                                 Add(
                                     entries,

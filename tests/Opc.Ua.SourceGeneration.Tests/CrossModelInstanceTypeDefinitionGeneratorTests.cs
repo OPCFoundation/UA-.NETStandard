@@ -115,12 +115,99 @@ namespace Opc.Ua.SourceGeneration
             Assert.That(errors, Is.Zero, $"Compilation produced {errors} errors");
         }
 
+        /// <summary>
+        /// The upstream model is available only through the generated
+        /// ModelDependencyV1 metadata on a referenced assembly. Variable
+        /// metadata and defaults must be identical to the AdditionalFiles path.
+        /// </summary>
+        [Test]
+        public void InstanceMetadataAcrossReferencedAssemblyPayload()
+        {
+            var generator = new ModelSourceGenerator();
+            var options = new AnalyzerOptionsProvider(
+                new Dictionary<string, string>
+                {
+                    ["build_property.ModelSourceGeneratorOmitFluentApi"] = "true",
+                    ["build_property.ModelSourceGeneratorOmitEventRecords"] = "true"
+                });
+            var parseOptions = new CSharpParseOptions()
+                .WithKind(SourceCodeKind.Regular)
+                .WithLanguageVersion(LanguageVersion.CSharp11);
+
+            CSharpCompilation producer = OptimizationLevel.Release
+                .CreateCompilation("ModelAProducer")
+                .AddCode(
+                    new Dictionary<string, string>().WithOpcUaGeneratedStack(),
+                    LanguageVersion.CSharp11);
+            GeneratorDriver producerDriver = CSharpGeneratorDriver.Create(generator)
+                .WithUpdatedParseOptions(parseOptions)
+                .AddAdditionalTexts([EmbeddedText.Create("A/ModelA.xml", ModelADesign)])
+                .WithUpdatedAnalyzerConfigOptions(options);
+
+            producerDriver.RunGeneratorsAndUpdateCompilation(
+                producer,
+                out Compilation producerOutput,
+                out ImmutableArray<Diagnostic> producerDiagnostics);
+
+            Assert.That(
+                producerDiagnostics,
+                Is.Empty,
+                string.Join("\n", producerDiagnostics.Select(d => d.ToString())));
+
+            CSharpCompilation consumer = OptimizationLevel.Release
+                .CreateCompilation("ModelBConsumer")
+                .AddCode(
+                    new Dictionary<string, string>().WithOpcUaGeneratedStack(),
+                    LanguageVersion.CSharp11)
+                .AddReferences(((CSharpCompilation)producerOutput).ToMetadataReference());
+            GeneratorDriver consumerDriver = CSharpGeneratorDriver.Create(generator)
+                .WithUpdatedParseOptions(parseOptions)
+                .AddAdditionalTexts([EmbeddedText.Create("B/ModelB.xml", ModelBDesign)])
+                .WithUpdatedAnalyzerConfigOptions(options);
+
+            consumerDriver = consumerDriver.RunGeneratorsAndUpdateCompilation(
+                consumer,
+                out _,
+                out ImmutableArray<Diagnostic> consumerDiagnostics);
+
+            Assert.That(
+                consumerDiagnostics,
+                Is.Empty,
+                string.Join("\n", consumerDiagnostics.Select(d => d.ToString())));
+
+            string generated = string.Join(
+                "\n",
+                consumerDriver.GetRunResult().Results[0].GeneratedSources
+                    .Select(s => s.SourceText.ToString()));
+            Assert.Multiple(() =>
+            {
+                Assert.That(generated, Does.Contain("CreateWidget1_Label("));
+                Assert.That(generated, Does.Contain("CreateWidget1_OwnedLabels("));
+                Assert.That(
+                    generated,
+                    Does.Contain(
+                        "state.AccessLevel = global::Opc.Ua.AccessLevels.CurrentReadOrWrite;"));
+                Assert.That(
+                    generated,
+                    Does.Contain(
+                        "state.UserAccessLevel = global::Opc.Ua.AccessLevels.CurrentReadOrWrite;"));
+                Assert.That(
+                    generated,
+                    Does.Contain("state.MinimumSamplingInterval = 250;"));
+                Assert.That(generated, Does.Contain("state.Historizing = true;"));
+                Assert.That(generated, Does.Contain("Unlabeled"));
+                Assert.That(generated, Does.Contain("First"));
+                Assert.That(generated, Does.Contain("Second"));
+            });
+        }
+
         private const string ModelADesign =
             """
             <?xml version="1.0" encoding="utf-8" ?>
             <opc:ModelDesign
               xmlns:opc="http://opcfoundation.org/UA/ModelDesign.xsd"
               xmlns:ua="http://opcfoundation.org/UA/"
+              xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd"
               xmlns="http://test.org/UA/ModelA/"
               TargetNamespace="http://test.org/UA/ModelA/">
               <opc:Namespaces>
@@ -129,7 +216,21 @@ namespace Opc.Ua.SourceGeneration
               </opc:Namespaces>
               <opc:ObjectType SymbolicName="WidgetType" BaseType="ua:BaseObjectType">
                 <opc:Children>
-                  <opc:Property SymbolicName="Label" DataType="ua:String" ValueRank="Scalar" />
+                  <opc:Property SymbolicName="Label" DataType="ua:String" ValueRank="Scalar"
+                    AccessLevel="ReadWrite" MinimumSamplingInterval="250" Historizing="true">
+                    <opc:DefaultValue>
+                      <uax:String>Unlabeled</uax:String>
+                    </opc:DefaultValue>
+                  </opc:Property>
+                  <opc:Variable SymbolicName="OwnedLabels" DataType="ua:String" ValueRank="Array"
+                    AccessLevel="ReadWrite">
+                    <opc:DefaultValue>
+                      <uax:ListOfString>
+                        <uax:String>First</uax:String>
+                        <uax:String>Second</uax:String>
+                      </uax:ListOfString>
+                    </opc:DefaultValue>
+                  </opc:Variable>
                 </opc:Children>
               </opc:ObjectType>
             </opc:ModelDesign>

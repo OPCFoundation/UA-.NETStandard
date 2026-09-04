@@ -272,6 +272,43 @@ namespace Opc.Ua.Wot
             CancellationToken cancellationToken)
         {
             string href = source.Href;
+
+            // Every source counts against the conversion's own bounds, not only
+            // the nested-projection ones. An ordinary source is still a document
+            // this resolver fetched, and a manifest naming ten thousand of them
+            // is exactly the shape a bound exists to refuse.
+            if (!context.TryEnter(WotResolutionKind.Thing, href, out WotDiagnostic? blocked))
+            {
+                AddError(
+                    diagnostics,
+                    blocked!.Code == WotDiagnosticCode.ResolverCycle
+                        ? WotDiagnosticCode.ProjectionCycle
+                        : blocked.Code,
+                    blocked.Message,
+                    href);
+                return null;
+            }
+            try
+            {
+                return await ResolveSourceBoundedAsync(
+                    source, resolving, context, diagnostics, openDocuments, cancellationToken)
+                    .ConfigureAwait(false);
+            }
+            finally
+            {
+                context.Leave(href);
+            }
+        }
+
+        private async ValueTask<ResolvedSource?> ResolveSourceBoundedAsync(
+            WotProjectionManifestSource source,
+            HashSet<string> resolving,
+            WotResolutionContext context,
+            List<WotDiagnostic> diagnostics,
+            List<WotDocument> openDocuments,
+            CancellationToken cancellationToken)
+        {
+            string href = source.Href;
             WotResolverResult result = await m_thingResolver.ResolveThingAsync(
                 href, context, cancellationToken).ConfigureAwait(false);
             if (!result.Found)
@@ -413,7 +450,7 @@ namespace Opc.Ua.Wot
             }
             var path = new HashSet<string>(StringComparer.Ordinal);
             var completed = new HashSet<string>(StringComparer.Ordinal);
-            var budget = new int[] { context.Options.MaxDocuments };
+            var budget = new int[] { context.Options.MaxDocuments, 0 };
             for (int ii = 0; ii < projection.OrganizingLinks.Count; ii++)
             {
                 await WalkOrganizesAsync(
@@ -427,6 +464,17 @@ namespace Opc.Ua.Wot
             }
         }
 
+        /// <summary>
+        /// Walks the <c>ua:Organizes</c> graph, bounded by the same document
+        /// budget the rest of the conversion runs under.
+        /// </summary>
+        /// <remarks>
+        /// Exhausting the budget stops the walk on a <em>partial</em> graph, so
+        /// it is reported. Returning silently would leave the acyclicity check
+        /// answering "no cycle found" for a graph it never finished reading,
+        /// which is the one answer that cannot be told apart from "no cycle".
+        /// The report is emitted once, however many branches run out.
+        /// </remarks>
         private async ValueTask WalkOrganizesAsync(
             string href,
             HashSet<string> path,
@@ -446,8 +494,24 @@ namespace Opc.Ua.Wot
                     href);
                 return;
             }
-            if (completed.Contains(href) || budget[0]-- <= 0)
+            if (completed.Contains(href))
             {
+                return;
+            }
+            if (budget[0]-- <= 0)
+            {
+                if (budget[1] == 0)
+                {
+                    budget[1] = 1;
+                    AddError(
+                        diagnostics,
+                        WotDiagnosticCode.TraversalBudgetExhausted,
+                        "The ua:Organizes traversal stopped at " +
+                        $"'{href}' after the configured maximum of " +
+                        $"{context.Options.MaxDocuments} documents, so the graph was " +
+                        "only partly read and cannot be reported acyclic.",
+                        href);
+                }
                 return;
             }
             path.Add(href);
@@ -904,6 +968,23 @@ namespace Opc.Ua.Wot
             return [];
         }
 
+        /// <summary>
+        /// Carries the anchor a relative <c>uav:browsePath</c> resolved against
+        /// in its source, so the path resolves in the view exactly where it
+        /// resolved there (WoT Binding Sections 5.1.4 and 12.4).
+        /// </summary>
+        /// <remarks>
+        /// The source's effective anchor is the nearest enclosing
+        /// <c>uav:browsePathAnchor</c> and, failing that, the nearest enclosing
+        /// <c>uav:id</c>. For a carried affordance the enclosing scopes are the
+        /// affordance itself and the source document's root, so an anchor the
+        /// affordance stated needs no carrying - it travels in the clone - while
+        /// the source root's anchor outranks the affordance's own identity and
+        /// has to be written down. Where the source stated no anchor at all, the
+        /// affordance's own <c>uav:id</c> travels with it and only a root
+        /// identity has to be carried; without either the path did not resolve
+        /// in the source, so nothing is invented for the view.
+        /// </remarks>
         private static void CarryAnchor(JsonObject target, WotDocument sourceDocument)
         {
             if (!target.TryGetPropertyValue("uav:browsePath", out JsonNode? pathNode) ||
@@ -914,15 +995,22 @@ namespace Opc.Ua.Wot
             {
                 return;
             }
-            if (target.ContainsKey("uav:browsePathAnchor"))
+            if (target.ContainsKey(WotAnchorScope.AnchorTerm))
             {
                 return;
             }
-            if (sourceDocument.RootElement.TryGetProperty(
-                    "uav:browsePathAnchor", out JsonElement anchor) &&
-                anchor.ValueKind == JsonValueKind.String)
+            string? rootAnchor = WotAnchorScope.ReadTerm(
+                sourceDocument.RootElement, WotAnchorScope.AnchorTerm);
+            if (rootAnchor is null &&
+                WotAnchorScope.ReadTerm(target, WotAnchorScope.IdentityTerm) is not null)
             {
-                target["uav:browsePathAnchor"] = anchor.GetString();
+                return;
+            }
+            string? carried = rootAnchor ?? WotAnchorScope.ReadTerm(
+                sourceDocument.RootElement, WotAnchorScope.IdentityTerm);
+            if (carried is not null)
+            {
+                target[WotAnchorScope.AnchorTerm] = carried;
             }
         }
 

@@ -474,7 +474,7 @@ namespace Opc.Ua.SourceGeneration
         }
 
         [Test]
-        public void CorruptLowerVersionCandidateDoesNotAbortNormalGeneration()
+        public void CorruptCandidateDoesNotAbortNormalGeneration()
         {
             string validPayload = new ModelDependencyV1
             {
@@ -533,21 +533,21 @@ namespace Opc.Ua.SourceGeneration
         }
 
         [Test]
-        public void MultipleActualProducersRejectUnknownLegacyCapability()
+        public void MultipleActualProducersRejectUnknownAccessorCapability()
         {
-            string legacyPayload = new ModelDependencyV1
+            string unknownCapabilityPayload = new ModelDependencyV1
             {
                 ModelUri = DemoModelUri
             }.ToBase64Payload();
-            CSharpCompilation legacyProducer = CreateModelMetadataAssembly(
-                "LegacyProducer",
+            CSharpCompilation unknownCapabilityProducer = CreateModelMetadataAssembly(
+                "UnknownCapabilityProducer",
                 prefix: "DemoModel",
                 version: "999.0",
-                payload: legacyPayload);
+                payload: unknownCapabilityPayload);
 
             (GeneratorRunResult result, _, ImmutableArray<Diagnostic> diagnostics) = RunFluentAccessorsOnly(
                 s_producerWithoutAccessors.Value,
-                additionalReferences: [legacyProducer.ToMetadataReference()],
+                additionalReferences: [unknownCapabilityProducer.ToMetadataReference()],
                 assemblyName: "ConservativeConsumer");
 
             Diagnostic diagnostic = diagnostics.Single(d => d.Id == "MODELGEN014");

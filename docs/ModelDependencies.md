@@ -42,7 +42,8 @@ attributes on referenced assemblies and uses them to:
    diagnostics.
 5. **Import the type-table payload** on self-declaration entries so the
    validator's node table is pre-populated with the upstream's types,
-   children, method arguments, and DataType fields. Cross-namespace
+   children, method arguments, DataType fields, and effective variable
+   metadata. Cross-namespace
    `BaseType` / `TypeDefinition` / `DataType` references in the consumer's
    own models then resolve against the imported types without needing the
    upstream NodeSet2/ModelDesign XML in `AdditionalFiles`.
@@ -82,7 +83,11 @@ Encoding lives in
 - Body (compressed): `ModelUri` string + node array, each carrying symbolic
   name/namespace, class name, kind, base-type chain, numeric/string NodeId,
   abstract / enumeration flags, DataType fields, and declared instance
-  children (with method-argument lists). Deterministically sorted by
+  children. Variable children also carry access and explicit user-access
+  bitmasks, minimum sampling interval, historizing state, the corresponding
+  presence flags, and serialized default-value XML. Method children carry
+  their argument lists and effective method identity. The payload is
+  deterministically sorted by
   `(SymbolicNamespace, SymbolicName)` so the produced base64 string is
   byte-reproducible across builds.
 
@@ -153,6 +158,7 @@ variable-type data type restrictions, and method arguments including the
 `InputArguments` / `OutputArguments` argument properties. A target
 `ModelDesign` can therefore declare an `Object` or `Variable` whose
 `TypeDefinition` is a type from another design file and have its inherited
-children generate exactly as if the type were declared locally.
-
-
+children generate exactly as if the type were declared locally. Access level,
+explicit user access, minimum sampling interval, historizing state, and
+default values are retained when those inherited children come only from a
+referenced assembly's payload.

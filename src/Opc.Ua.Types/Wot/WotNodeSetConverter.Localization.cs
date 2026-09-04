@@ -89,6 +89,57 @@ namespace Opc.Ua.Wot
         /// all leaves the choice unstated, and Section 9.1.1's <c>en</c> then
         /// applies without the document having to claim it.
         /// </remarks>
+        /// <summary>
+        /// Gets whether any text the document projects states no entry for the
+        /// document's default locale.
+        /// </summary>
+        /// <remarks>
+        /// That is the case Section 9.1.1 admits and a JSON-LD reader would
+        /// otherwise get wrong: the singular member falls back to the
+        /// code-point-first entry, which is a text in some other language, and
+        /// a context declaring <c>@language</c> would tag it as the default
+        /// language all the same.
+        /// </remarks>
+        private static bool RequiresLocalizedTextOverride(
+            UANodeSet nodeSet, string defaultLocale)
+        {
+            // Reached only where a default locale was derived, which means a
+            // root Node was selected, which means the set has Nodes.
+            foreach (UANode node in nodeSet.Items!)
+            {
+                if (LacksDefaultLocale(node.DisplayName, defaultLocale) ||
+                    LacksDefaultLocale(node.Description, defaultLocale))
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        private static bool LacksDefaultLocale(
+            Opc.Ua.Export.LocalizedText[]? texts, string defaultLocale)
+        {
+            List<KeyValuePair<string, string>> entries =
+                CollectLocales(texts, defaultLocale);
+            if (entries.Count == 0)
+            {
+                return false;
+            }
+            // A locale-free NodeSet text is the document's own language by
+            // definition, and CollectLocales has already keyed it that way, so
+            // what remains is text every entry of which states some other
+            // language. That is the text the singular member falls back to, and
+            // the one a context declaring @language would mis-tag.
+            foreach (KeyValuePair<string, string> entry in entries)
+            {
+                if (string.Equals(entry.Key, defaultLocale, StringComparison.Ordinal))
+                {
+                    return false;
+                }
+            }
+            return true;
+        }
+
         private static string? SelectDocumentLocale(UANode? root)
         {
             return FirstLocale(root?.DisplayName) ?? FirstLocale(root?.Description);

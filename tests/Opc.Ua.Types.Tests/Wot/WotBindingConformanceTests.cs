@@ -342,7 +342,7 @@ namespace Opc.Ua.Types.Tests.Wot
             {
                 Assert.That(
                     WotBindingConformance.SupportedRevisions.ToArray(),
-                    Is.EqualTo(new[] { "1.0", "1.1" }).AsCollection);
+                    Is.EqualTo(s_publishedBindingRevisions).AsCollection);
                 Assert.That(
                     previous.Diagnostics.Any(d =>
                         d.Code == WotDiagnosticCode.UnsupportedBindingRevision),
@@ -571,7 +571,7 @@ namespace Opc.Ua.Types.Tests.Wot
         public void TheSupersededEventFieldsSpellingIsUnknownToStrictConformance()
         {
             WotConversionResult<UANodeSet> strict = Convert(
-                "\"events\":{\"alarm\":{\"uav:isEvent\":true," +
+                "\"events\":{\"alarm\":{" +
                 "\"uav:eventFields\":[\"LocalTime\"]}}",
                 Strict());
 
@@ -674,7 +674,7 @@ namespace Opc.Ua.Types.Tests.Wot
             builder.Append('}');
 
             WotConversionResult<UANodeSet> result = Convert(
-                "\"events\":{\"alarm\":{\"uav:isEvent\":true," + builder + "}}", Strict());
+                "\"events\":{\"alarm\":{" + builder + "}}", Strict());
 
             Assert.That(
                 result.Diagnostics.Any(d =>
@@ -896,7 +896,7 @@ namespace Opc.Ua.Types.Tests.Wot
         private static string EventWithClauses(string clauses)
         {
             return "\"events\":{\"overTemperature\":{\"@type\":\"uav:eventType\"," +
-                "\"uav:isEvent\":true,\"uav:browseName\":\"pump:OverTemperatureEventType\"," +
+                "\"uav:browseName\":\"pump:OverTemperatureEventType\"," +
                 "\"uav:eventSelectClauses\":[" + clauses + "]}}";
         }
 
@@ -984,5 +984,11 @@ namespace Opc.Ua.Types.Tests.Wot
             using WotDocument document = WotDocument.Parse(json);
             return WotNodeSetConverter.ToNodeSetResult(document, options);
         }
+
+        /// <summary>
+        /// Both published revisions of the WoT Binding, in the order the
+        /// specification lists them.
+        /// </summary>
+        private static readonly string[] s_publishedBindingRevisions = ["1.0", "1.1"];
     }
 }

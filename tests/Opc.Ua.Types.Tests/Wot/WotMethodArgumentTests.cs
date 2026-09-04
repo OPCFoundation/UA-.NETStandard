@@ -374,7 +374,7 @@ namespace Opc.Ua.Types.Tests.Wot
         {
             WotConversionResult<UANodeSet> result = Convert(
                 "\"events\":{\"highTemperature\":{\"@type\":\"uav:eventType\"," +
-                "\"uav:isEvent\":true,\"uav:conditionType\":\"ua:LimitAlarmType\"," +
+                "\"uav:conditionType\":\"ua:LimitAlarmType\"," +
                 "\"data\":{\"type\":\"object\",\"properties\":" +
                 "{\"EventId\":{\"type\":\"string\",\"contentEncoding\":\"base64\"}}}}}," +
                 "\"actions\":{\"act\":{\"@type\":\"uav:method\"," +

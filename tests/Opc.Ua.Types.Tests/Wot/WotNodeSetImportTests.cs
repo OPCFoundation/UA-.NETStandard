@@ -32,6 +32,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Export;
 using Opc.Ua.Wot;
@@ -87,14 +88,20 @@ namespace Opc.Ua.Types.Tests.Wot
         }
 
         [Test]
-        public void SynthesizedNodeSetCanBeImported()
+        public async Task SynthesizedNodeSetCanBeImportedAsync()
         {
             using WotDocument document = WotDocument.Parse(
                 ReadExample("01-opcua-td-pump.jsonld"));
 
-            UANodeSet nodeSet = WotNodeSetConverter.ToNodeSet(document);
+            WotConversionResult<UANodeSet> result =
+                await WotSpecExampleResolver.ConvertAsync(document).ConfigureAwait(false);
 
-            NodeStateCollection nodes = AssertImportable(nodeSet, "readable synthesis");
+            Assert.That(
+                result.Diagnostics.Where(d => d.Severity == WotDiagnosticSeverity.Error)
+                    .Select(d => d.Message),
+                Is.Empty);
+
+            NodeStateCollection nodes = AssertImportable(result.Value!, "readable synthesis");
             Assert.That(nodes, Is.Not.Empty);
         }
 
