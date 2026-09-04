@@ -51,6 +51,8 @@ namespace Opc.Ua.WotCon.Tests.Registry
     [TestFixture]
     public sealed class FileWotRegistryStoreTests
     {
+        private static readonly string[] s_expectedProtectedVersionIds = ["v1", "v2", "v4"];
+
         private string m_root = null!;
 
         [SetUp]
@@ -185,6 +187,44 @@ namespace Opc.Ua.WotCon.Tests.Registry
                 Does.Contain("urn:a"));
             Assert.That(
                 reloaded.Current.FindResource(WotRegistryGroups.ThingModels, "m"), Is.Not.Null);
+        }
+
+        [Test]
+        public async Task ExplicitVersionIdsRoundTripPreservingCaseAndPunctuation()
+        {
+            string[] versionIds = ["V1@prod", "a:b", "release~1"];
+            using (var service = new WotRegistryService(new FileWotRegistryStore(m_root)))
+            {
+                await service.InitializeAsync();
+                foreach (string versionId in versionIds)
+                {
+                    await service.UpsertResourceAsync(new WotUpsertResourceRequest
+                    {
+                        GroupId = WotRegistryGroups.ThingDescriptions,
+                        ResourceId = "explicit-versions",
+                        VersionId = versionId,
+                        Kind = WoTDocumentKindEnum.ThingDescription,
+                        Content = ByteString.From(
+                            TestMaterialization.Td("urn:explicit-versions", versionId)),
+                        SetAsDefault = false
+                    });
+                }
+            }
+
+            using var reloaded = new WotRegistryService(new FileWotRegistryStore(m_root));
+            await reloaded.InitializeAsync();
+            WotResource resource = reloaded.Current.FindResource(
+                WotRegistryGroups.ThingDescriptions,
+                "explicit-versions")!;
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    resource.Versions.Select(version => version.VersionId),
+                    Is.EqualTo(versionIds));
+                Assert.That(resource.FindVersion("V1@prod"), Is.Not.Null);
+                Assert.That(resource.FindVersion("v1@prod"), Is.Null);
+            });
         }
 
         [Test]
@@ -417,7 +457,7 @@ namespace Opc.Ua.WotCon.Tests.Registry
                 Assert.That(restored.FindVersion(restored.DefaultVersionId), Is.Not.Null);
                 Assert.That(
                     restored.Versions.Select(version => version.VersionId),
-                    Is.EqualTo(new[] { "v1", "v2", "v4" }));
+                    Is.EqualTo(s_expectedProtectedVersionIds));
             });
         }
 
@@ -943,6 +983,42 @@ namespace Opc.Ua.WotCon.Tests.Registry
                     resource.Versions = [version, version];
                 },
                 "version id");
+        }
+
+        [Test]
+        public Task CaseCollidingVersionIdsFailClosedWithoutChangingFiles()
+        {
+            return AssertDuplicateManifestRejected(
+                manifest =>
+                {
+                    FileWotRegistryStore.ResourceDto resource =
+                        manifest.Groups![0].Resources![0];
+                    FileWotRegistryStore.VersionDto first = resource.Versions![0];
+                    FileWotRegistryStore.VersionDto second = CloneVersion(first);
+                    first.VersionId = "V1@prod";
+                    second.VersionId = "v1@prod";
+                    resource.DefaultVersionId = first.VersionId;
+                    resource.DesiredVersionId = first.VersionId;
+                    resource.Versions = [first, second];
+                },
+                "version id");
+        }
+
+        [Test]
+        public Task OverlongVersionIdFailsClosedWithoutChangingFiles()
+        {
+            return AssertInvalidManifestRejected(
+                manifest =>
+                {
+                    FileWotRegistryStore.ResourceDto resource =
+                        manifest.Groups![0].Resources![0];
+                    string versionId = new('a', 129);
+                    resource.Versions![0].VersionId = versionId;
+                    resource.DefaultVersionId = versionId;
+                    resource.DesiredVersionId = versionId;
+                },
+                "version id",
+                "not segment-safe");
         }
 
         [Test]
@@ -2030,6 +2106,17 @@ namespace Opc.Ua.WotCon.Tests.Registry
                         WotRegistryStoreJson.Default.GroupDto),
                     WotRegistryStoreJson.Default.GroupDto) ??
                 throw new InvalidDataException("The cloned test group was null.");
+        }
+
+        private static FileWotRegistryStore.VersionDto CloneVersion(
+            FileWotRegistryStore.VersionDto version)
+        {
+            return JsonSerializer.Deserialize(
+                    JsonSerializer.SerializeToUtf8Bytes(
+                        version,
+                        WotRegistryStoreJson.Default.VersionDto),
+                    WotRegistryStoreJson.Default.VersionDto) ??
+                throw new InvalidDataException("The cloned test Version was null.");
         }
 
         private void CreateBackup()

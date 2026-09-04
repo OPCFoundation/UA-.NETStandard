@@ -323,6 +323,9 @@ namespace Opc.Ua.WotCon.Server.Registry
         {
             groupId = NormalizeSegment(groupId, nameof(groupId));
             resourceId = NormalizeSegment(resourceId, nameof(resourceId));
+            string? explicitVersionId = string.IsNullOrEmpty(versionId)
+                ? null
+                : ValidateExplicitVersionId(versionId, nameof(versionId));
             await m_mutex.WaitAsync(cancellationToken).ConfigureAwait(false);
             try
             {
@@ -331,19 +334,27 @@ namespace Opc.Ua.WotCon.Server.Registry
                 WotResourceGroup? group = snapshot.FindGroup(groupId);
                 WotResource? existing = group?.Resources.GetValueOrDefault(resourceId);
                 if (getOrCreate &&
-                    string.IsNullOrWhiteSpace(versionId) &&
+                    explicitVersionId is null &&
                     existing?.DefaultVersion is { } defaultVersion)
                 {
                     return new VersionCreateResult(existing, defaultVersion, false);
                 }
-                string assignedVersionId = string.IsNullOrWhiteSpace(versionId)
-                    ? NextVersionId(existing)
-                    : NormalizeSegment(versionId, nameof(versionId));
+                string assignedVersionId = explicitVersionId ?? NextVersionId(existing);
                 if (existing?.FindVersion(assignedVersionId) is { } existingVersion)
                 {
                     return getOrCreate
                         ? new VersionCreateResult(existing, existingVersion, false)
                         : default;
+                }
+                if (existing?.Versions.Any(version => string.Equals(
+                        version.VersionId,
+                        assignedVersionId,
+                        StringComparison.OrdinalIgnoreCase)) == true)
+                {
+                    throw new ServiceResultException(
+                        StatusCodes.BadNodeIdExists,
+                        $"Version '{assignedVersionId}' differs only by case from an " +
+                        "existing sibling Version.");
                 }
 
                 if (group is null)
@@ -363,14 +374,6 @@ namespace Opc.Ua.WotCon.Server.Registry
                         StatusCodes.BadTooManyOperations,
                         $"Group '{groupId}' already holds the maximum of " +
                         $"{Bounds.MaxResourcesPerGroup} resources.");
-                }
-                if (existing is not null &&
-                    existing.Versions.Length >= Bounds.MaxVersionsPerResource)
-                {
-                    throw new ServiceResultException(
-                        StatusCodes.BadTooManyOperations,
-                        $"Resource '{resourceId}' already holds the maximum of " +
-                        $"{Bounds.MaxVersionsPerResource} versions.");
                 }
 
                 DateTime now = DateTime.UtcNow;
@@ -398,11 +401,26 @@ namespace Opc.Ua.WotCon.Server.Registry
                 }
                 else
                 {
+                    if (!TryTrim(
+                            existing!.Versions.Add(version),
+                            Bounds.MaxVersionsPerResource,
+                            [
+                                existing.ActiveVersionId,
+                                existing.DefaultVersionId,
+                                assignedVersionId
+                            ],
+                            out ImmutableArray<WotResourceVersion> versions))
+                    {
+                        throw new ServiceResultException(
+                            StatusCodes.BadTooManyOperations,
+                            $"The retention limit of {Bounds.MaxVersionsPerResource} Versions " +
+                            "cannot preserve the active, default, and incoming Versions.");
+                    }
                     long metaEpoch = existing!.MetaEpoch + 1;
                     string defaultVersionId =
                         existing.DefaultVersionId ?? assignedVersionId;
                     resource = existing.With(
-                            versions: existing.Versions.Add(version),
+                            versions: versions,
                             defaultVersionId: defaultVersionId,
                             desiredVersionId:
                                 existing.DesiredVersionId ?? defaultVersionId,
@@ -735,6 +753,9 @@ namespace Opc.Ua.WotCon.Server.Registry
             string groupId = string.IsNullOrWhiteSpace(request.GroupId)
                 ? DefaultGroupFor(request.Kind)
                 : NormalizeSegment(request.GroupId!, nameof(request.GroupId));
+            string? explicitVersionId = string.IsNullOrEmpty(request.VersionId)
+                ? null
+                : ValidateExplicitVersionId(request.VersionId, nameof(request.VersionId));
 
             ByteString content = ByteString.From(request.Content.Span.ToArray());
 
@@ -832,22 +853,33 @@ namespace Opc.Ua.WotCon.Server.Registry
                 }
 
                 ByteString digest = WotContentDigest.Compute(content);
-                if (string.IsNullOrWhiteSpace(request.VersionId) &&
-                    existing?.DefaultVersion is { HasContent: true } defaultVersion &&
-                    WotContentDigest.Equal(defaultVersion.Digest, digest) &&
-                    !parseFailed)
+                WotResourceVersion? current;
+                string versionId;
+                if (explicitVersionId is null)
                 {
-                    return new WotRegistryMutationResult(
-                        WoTOutcomeEnum.Unchanged,
-                        existing,
-                        snapshot.Generation,
-                        [],
-                        "Content digest unchanged.");
+                    WotResourceVersion? defaultVersion = existing?.DefaultVersion;
+                    current = defaultVersion?.HasContent == true &&
+                        WotContentDigest.Equal(defaultVersion.Digest, digest)
+                            ? defaultVersion
+                            : null;
+                    versionId = current?.VersionId ?? NextVersionId(existing);
                 }
-                string versionId = string.IsNullOrWhiteSpace(request.VersionId)
-                    ? NextVersionId(existing)
-                    : NormalizeSegment(request.VersionId!, nameof(request.VersionId));
-                WotResourceVersion? current = existing?.FindVersion(versionId);
+                else
+                {
+                    versionId = explicitVersionId;
+                    current = existing?.FindVersion(versionId);
+                    if (current is null &&
+                        existing?.Versions.Any(version => string.Equals(
+                            version.VersionId,
+                            versionId,
+                            StringComparison.OrdinalIgnoreCase)) == true)
+                    {
+                        return Rejected(
+                            snapshot.Generation,
+                            $"Version '{versionId}' differs only by case from an " +
+                            "existing sibling Version.");
+                    }
+                }
                 if (request.ExpectedVersionDigestHex is not null &&
                     !string.Equals(
                         current?.DigestHex ?? string.Empty,
@@ -859,9 +891,71 @@ namespace Opc.Ua.WotCon.Server.Registry
                         "The committed Version changed while the writer was open.");
                 }
 
-                if (current?.HasContent == true &&
-                    WotContentDigest.Equal(current.Digest, digest) &&
-                    !parseFailed)
+                string defaultVersionId = request.SetAsDefault
+                    ? versionId
+                    : existing?.DefaultVersionId ?? versionId;
+                string desiredVersionId = request.SetAsDefault
+                    ? versionId
+                    : existing?.DesiredVersionId ?? defaultVersionId;
+                bool updatesLogicalDefault = string.Equals(
+                    defaultVersionId,
+                    versionId,
+                    StringComparison.Ordinal);
+                string resourceName = existing is null
+                    ? request.Name ?? title ?? resourceId
+                    : updatesLogicalDefault
+                        ? request.Name ?? existing.Name
+                        : existing.Name;
+                string resourceDescription = existing is null
+                    ? request.Description ?? string.Empty
+                    : updatesLogicalDefault
+                        ? request.Description ?? existing.Description
+                        : existing.Description;
+                string? selectedDocumentId = updatesLogicalDefault
+                    ? documentId
+                    : existing?.ThingId;
+                string? selectedTitle = updatesLogicalDefault
+                    ? title
+                    : existing?.Title;
+                bool contentChanged = current is null ||
+                    !current.HasContent ||
+                    current.ContentLength != content.Length ||
+                    !WotContentDigest.Equal(current.Digest, digest);
+                bool versionChanged = current is null ||
+                    contentChanged ||
+                    !string.Equals(
+                        current.ContentType,
+                        request.ContentType,
+                        StringComparison.Ordinal) ||
+                    !string.Equals(current.Format, request.Format, StringComparison.Ordinal) ||
+                    !string.Equals(current.DocumentId, documentId, StringComparison.Ordinal) ||
+                    !string.Equals(current.Title, title, StringComparison.Ordinal) ||
+                    !string.Equals(current.BaseUri, baseUri, StringComparison.Ordinal) ||
+                    !string.Equals(current.ModelVersion, modelVersion, StringComparison.Ordinal);
+                bool defaultChanged = existing is null ||
+                    !string.Equals(
+                        existing.DefaultVersionId,
+                        defaultVersionId,
+                        StringComparison.Ordinal);
+                bool desiredChanged = existing is null ||
+                    !string.Equals(
+                        existing.DesiredVersionId,
+                        desiredVersionId,
+                        StringComparison.Ordinal);
+                bool resourceMetaChanged = existing is null ||
+                    defaultChanged ||
+                    desiredChanged ||
+                    !string.Equals(existing.Name, resourceName, StringComparison.Ordinal) ||
+                    !string.Equals(
+                        existing.Description,
+                        resourceDescription,
+                        StringComparison.Ordinal) ||
+                    !string.Equals(
+                        existing.ThingId,
+                        selectedDocumentId,
+                        StringComparison.Ordinal) ||
+                    !string.Equals(existing.Title, selectedTitle, StringComparison.Ordinal);
+                if (existing is not null && !versionChanged && !resourceMetaChanged)
                 {
                     return new WotRegistryMutationResult(
                         WoTOutcomeEnum.Unchanged,
@@ -873,8 +967,10 @@ namespace Opc.Ua.WotCon.Server.Registry
 
                 long generation = snapshot.Generation + 1;
                 DateTime now = DateTime.UtcNow;
-                WotResourceVersion version = current is null
-                    ? new WotResourceVersion(
+                WotResourceVersion version;
+                if (current is null)
+                {
+                    version = new WotResourceVersion(
                         versionId,
                         digest,
                         content.Length,
@@ -888,8 +984,11 @@ namespace Opc.Ua.WotCon.Server.Registry
                         Title = title,
                         BaseUri = baseUri,
                         ModelVersion = modelVersion
-                    }
-                    : current.With(
+                    };
+                }
+                else if (versionChanged)
+                {
+                    version = current.With(
                         digest: digest,
                         contentLength: content.Length,
                         contentType: request.ContentType,
@@ -904,10 +1003,11 @@ namespace Opc.Ua.WotCon.Server.Registry
                             title,
                             baseUri,
                             modelVersion);
-
-                string? defaultVersionId = request.SetAsDefault
-                    ? versionId
-                    : existing?.DefaultVersionId ?? versionId;
+                }
+                else
+                {
+                    version = current;
+                }
 
                 ImmutableArray<WotResourceVersion> versions;
                 if (existing is null)
@@ -939,27 +1039,30 @@ namespace Opc.Ua.WotCon.Server.Registry
                         version);
                 }
 
-                string digestHex = WotContentDigest.ToHex(digest);
-                await m_resourceStore
-                        .WriteAsync(digestHex, 0, content, cancellationToken)
-                        .ConfigureAwait(false);
+                if (contentChanged)
+                {
+                    string digestHex = WotContentDigest.ToHex(digest);
+                    await m_resourceStore
+                            .WriteAsync(digestHex, 0, content, cancellationToken)
+                            .ConfigureAwait(false);
+                }
 
-                bool updatesLogicalDefault = string.Equals(
-                    defaultVersionId,
-                    versionId,
-                    StringComparison.Ordinal);
-                bool resourceMetaChanged = existing is null ||
-                    current is null ||
-                    !string.Equals(
-                        existing.DefaultVersionId,
-                        defaultVersionId,
-                        StringComparison.Ordinal);
-
-                WoTLoadStateEnum loadState = updatesLogicalDefault
+                bool defaultMaterializationChanged = updatesLogicalDefault &&
+                    (existing is null || versionChanged || defaultChanged || desiredChanged);
+                WoTLoadStateEnum loadState = defaultMaterializationChanged
                     ? (parseFailed
                         ? WoTLoadStateEnum.Failed
                         : WoTLoadStateEnum.Unloaded)
-                    : existing!.LoadState;
+                    : existing?.LoadState ?? WoTLoadStateEnum.Unloaded;
+                WoTValidationOutcomeDataType? resourceValidation =
+                    defaultMaterializationChanged
+                        ? version.Validation
+                        : existing?.Validation;
+                ImmutableArray<string> resourceDiagnostics =
+                    existing is null ||
+                    (updatesLogicalDefault && (versionChanged || defaultChanged))
+                        ? diagnostics.ToImmutable()
+                        : existing.Diagnostics;
 
                 WotResource resource = existing is null
                     ? new WotResource(
@@ -968,16 +1071,16 @@ namespace Opc.Ua.WotCon.Server.Registry
                         request.Kind,
                         versions,
                         defaultVersionId: defaultVersionId,
-                        desiredVersionId: request.SetAsDefault ? versionId : null,
+                        desiredVersionId: desiredVersionId,
                         enabled: true,
                         loadState: loadState,
-                        validation: updatesLogicalDefault ? validation : null,
-                        diagnostics: diagnostics.ToImmutable(),
+                        validation: resourceValidation,
+                        diagnostics: resourceDiagnostics,
                         epoch: 1,
-                        name: request.Name ?? title ?? resourceId,
-                        description: request.Description,
-                        thingId: documentId,
-                        title: title)
+                        name: resourceName,
+                        description: resourceDescription,
+                        thingId: selectedDocumentId,
+                        title: selectedTitle)
                     {
                         MetaCreatedAt = now,
                         MetaModifiedAt = now
@@ -985,27 +1088,22 @@ namespace Opc.Ua.WotCon.Server.Registry
                     : existing.With(
                         versions: versions,
                         defaultVersionId: defaultVersionId,
-                        desiredVersionId: request.SetAsDefault ? versionId : existing.DesiredVersionId,
+                        desiredVersionId: desiredVersionId,
                         loadState: loadState,
-                        validation: updatesLogicalDefault ? validation : existing.Validation,
-                        diagnostics: updatesLogicalDefault
-                            ? diagnostics.ToImmutable()
-                            : existing.Diagnostics,
+                        validation: resourceValidation,
+                        diagnostics: resourceDiagnostics,
                         epoch: resourceMetaChanged
                             ? existing.MetaEpoch + 1
                             : existing.MetaEpoch,
-                        name: updatesLogicalDefault
-                            ? request.Name ?? existing.Name
-                            : existing.Name,
-                        description: updatesLogicalDefault
-                            ? request.Description ?? existing.Description
-                            : existing.Description,
-                        clearValidation: updatesLogicalDefault && validation is null);
+                        name: resourceName,
+                        description: resourceDescription,
+                        clearValidation: defaultMaterializationChanged &&
+                            resourceValidation is null);
                 if (existing is not null && updatesLogicalDefault)
                 {
                     resource = resource.WithSelectedVersionMetadata(
-                        version.DocumentId,
-                        version.Title);
+                        selectedDocumentId,
+                        selectedTitle);
                 }
                 if (existing is not null && resourceMetaChanged)
                 {
@@ -1658,7 +1756,7 @@ namespace Opc.Ua.WotCon.Server.Registry
                         snapshot,
                         next,
                         [updated.Xid],
-                        projectionOnly: false,
+                        projectionOnly: true,
                         cancellationToken)
                     .ConfigureAwait(false);
                 return new WotRegistryMutationResult(
@@ -1889,6 +1987,48 @@ namespace Opc.Ua.WotCon.Server.Registry
                     $"'{value}' does not contain any identifier-safe characters.", paramName);
             }
             return slug;
+        }
+
+        internal static bool IsValidExplicitVersionId(string value)
+        {
+            if (string.IsNullOrEmpty(value) || value.Length > 128)
+            {
+                return false;
+            }
+            if (!IsAsciiAlphaNumeric(value[0]) && value[0] != '_')
+            {
+                return false;
+            }
+            for (int i = 1; i < value.Length; i++)
+            {
+                char c = value[i];
+                if (!IsAsciiAlphaNumeric(c) &&
+                    c is not ('-' or '.' or '_' or '~' or ':' or '@'))
+                {
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        private static string ValidateExplicitVersionId(string value, string paramName)
+        {
+            if (!IsValidExplicitVersionId(value))
+            {
+                throw new ArgumentException(
+                    "A Version identifier must be 1-128 characters, start with an ASCII " +
+                    "letter, digit, or '_', and contain only ASCII letters, digits, " +
+                    "'-', '.', '_', '~', ':', or '@'.",
+                    paramName);
+            }
+            return value;
+        }
+
+        private static bool IsAsciiAlphaNumeric(char value)
+        {
+            return value is (>= 'A' and <= 'Z') or
+                (>= 'a' and <= 'z') or
+                (>= '0' and <= '9');
         }
 
         private static string Slugify(string value)

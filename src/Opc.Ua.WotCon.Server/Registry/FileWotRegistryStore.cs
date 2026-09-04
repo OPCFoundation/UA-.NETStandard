@@ -829,7 +829,7 @@ namespace Opc.Ua.WotCon.Server.Registry
         {
             ImmutableArray<WotResourceVersion>.Builder versions =
                 ImmutableArray.CreateBuilder<WotResourceVersion>();
-            var versionIds = new HashSet<string>(StringComparer.Ordinal);
+            var versionIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             bool hasPerVersionDocumentMetadata = dto.Versions?.Any(version =>
                 version.DocumentId is not null ||
                 version.Title is not null ||
@@ -847,7 +847,7 @@ namespace Opc.Ua.WotCon.Server.Registry
                             $"contains a duplicate or empty version id " +
                             $"'{version.VersionId}'.");
                     }
-                    ValidateSegment(version.VersionId, "version id");
+                    ValidateVersionId(version.VersionId);
                     bool hasContent = version.HasContent ??
                         !string.IsNullOrEmpty(version.DigestHex);
                     if (hasContent && !IsSha256Hex(version.DigestHex))
@@ -1449,6 +1449,15 @@ namespace Opc.Ua.WotCon.Server.Registry
             {
                 throw new InvalidDataException(
                     $"WoT registry {description} '{value}' is not segment-safe.");
+            }
+        }
+
+        private static void ValidateVersionId(string value)
+        {
+            if (!WotRegistryService.IsValidExplicitVersionId(value))
+            {
+                throw new InvalidDataException(
+                    $"WoT registry version id '{value}' is not segment-safe.");
             }
         }
 

@@ -29,6 +29,8 @@
 
 using System;
 using System.Collections.Immutable;
+using System.Linq;
+using System.Reflection;
 using System.Text;
 using NUnit.Framework;
 using Opc.Ua.WotCon.Server.Registry;
@@ -184,6 +186,72 @@ namespace Opc.Ua.WotCon.Tests.Registry
                 contentType: "ct", format: "f", createdAt: default, modifiedAt: default);
 
             Assert.That(version.Digest.Span[0], Is.EqualTo(42));
+        }
+
+        [Test]
+        public void WotResourceVersionWithRetainsOrReplacesDigest()
+        {
+            ByteString originalDigest = WotContentDigest.Compute(
+                Encoding.UTF8.GetBytes("original"));
+            ByteString replacementDigest = WotContentDigest.Compute(
+                Encoding.UTF8.GetBytes("replacement"));
+            var version = new WotResourceVersion(
+                versionId: "v1",
+                digest: originalDigest,
+                contentLength: 8,
+                contentType: "ct",
+                format: "f",
+                createdAt: default,
+                modifiedAt: default);
+
+            WotResourceVersion retained = version.With(contentType: "updated");
+            WotResourceVersion replaced = version.With(
+                digest: replacementDigest,
+                contentLength: 11);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(WotContentDigest.Equal(retained.Digest, originalDigest), Is.True);
+                Assert.That(retained.ContentType, Is.EqualTo("updated"));
+                Assert.That(WotContentDigest.Equal(replaced.Digest, replacementDigest), Is.True);
+                Assert.That(replaced.ContentLength, Is.EqualTo(11));
+            });
+        }
+
+        [Test]
+        public void WotResourceVersionWithCannotCommitPlaceholderWithoutDigest()
+        {
+            WotResourceVersion placeholder = WotResourceVersion.CreatePlaceholder(
+                "v1",
+                DateTime.UtcNow);
+
+            Assert.That(
+                () => placeholder.With(hasContent: true),
+                Throws.TypeOf<ArgumentException>());
+        }
+
+        [Test]
+        public void WotResourceVersionPublicMethodsDoNotExposeNullableByteString()
+        {
+            MethodInfo[] publicMethods = typeof(WotResourceVersion).GetMethods(
+                BindingFlags.Public | BindingFlags.Instance | BindingFlags.Static);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    publicMethods.Any(method =>
+                        Nullable.GetUnderlyingType(method.ReturnType) == typeof(ByteString)),
+                    Is.False);
+                Assert.That(
+                    publicMethods.SelectMany(method => method.GetParameters()).Any(parameter =>
+                        Nullable.GetUnderlyingType(parameter.ParameterType) == typeof(ByteString)),
+                    Is.False);
+                Assert.That(
+                    typeof(WotResourceVersion).GetMethod(
+                        "With",
+                        BindingFlags.Public | BindingFlags.Instance),
+                    Is.Null);
+            });
         }
 
         [Test]

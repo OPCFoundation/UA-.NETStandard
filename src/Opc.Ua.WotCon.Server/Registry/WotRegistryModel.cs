@@ -261,8 +261,8 @@ namespace Opc.Ua.WotCon.Server.Registry
         /// <summary>
         /// Creates a copy with selected Version state replaced.
         /// </summary>
-        public WotResourceVersion With(
-            ByteString? digest = null,
+        internal WotResourceVersion With(
+            ByteString digest = default,
             long? contentLength = null,
             string? contentType = null,
             string? format = null,
@@ -273,9 +273,23 @@ namespace Opc.Ua.WotCon.Server.Registry
             WoTValidationOutcomeDataType? validation = null,
             bool clearValidation = false)
         {
+            ByteString updatedDigest = digest.IsNull ? Digest : digest;
+            bool updatedHasContent = hasContent ?? HasContent;
+            if (updatedHasContent && (updatedDigest.IsNull || updatedDigest.Length == 0))
+            {
+                throw new ArgumentException(
+                    "A non-empty digest is required for a Version with content.",
+                    nameof(digest));
+            }
+            if (!updatedHasContent && (HasContent || !digest.IsNull))
+            {
+                throw new ArgumentException(
+                    "Contentless Versions must be created with CreatePlaceholder.",
+                    nameof(hasContent));
+            }
             return new WotResourceVersion(
                 VersionId,
-                digest ?? Digest,
+                updatedDigest,
                 contentLength ?? ContentLength,
                 contentType ?? ContentType,
                 format ?? Format,
@@ -284,7 +298,7 @@ namespace Opc.Ua.WotCon.Server.Registry
             {
                 Epoch = epoch ?? Epoch,
                 Labels = labels ?? Labels,
-                HasContent = hasContent ?? HasContent,
+                HasContent = updatedHasContent,
                 Validation = clearValidation ? null : (validation ?? Validation),
                 DocumentId = DocumentId,
                 Title = Title,

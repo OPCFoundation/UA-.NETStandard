@@ -77,6 +77,10 @@ the compiled model, and groups and resource versions are created beneath it at r
 2. **`GroupType.CreateResource(ResourceId, VersionId, RequestFileOpen)`** creates a resource
    version and returns `(ResourceNodeId, AssignedVersionId, FileHandle)`. An empty `VersionId`
    lets the server assign the next one; `GetOrCreateResource` additionally reports `Created`.
+   A non-empty `VersionId` is preserved exactly and must be 1-128 characters: the first
+   character is an ASCII letter, digit, or `_`, and subsequent characters may additionally use
+   `-`, `.`, `~`, `:`, or `@`. Lookup is case-sensitive, while sibling Version ids must be unique
+   without regard to case.
 3. Because `ResourceType` **is a `FileType`**, the document is streamed with the standard
    `Write`/`Read` file Methods against the handle — there is no registry-specific transfer.
 4. **`Close`** compares the staged bytes with the committed bytes captured immediately before

@@ -778,6 +778,48 @@ namespace Opc.Ua.WotCon.Tests
         }
 
         [Test]
+        public async Task ClientUploadContinuesPastVersionRetentionLimit()
+        {
+            m_registry.Bounds.MaxVersionsPerResource = 2;
+            WotRegistryClient client = await OpenClientAsync().ConfigureAwait(false);
+            WotRegistryGroupClient group = await client
+                .CreateThingDescriptionGroupAsync()
+                .ConfigureAwait(false);
+            (WotRegistryResourceClient first, _) = await group
+                .CreateResourceAsync("retained-client", "v1")
+                .ConfigureAwait(false);
+            await first.Proxy.UploadAsync(
+                ByteString.From(TestMaterialization.Td("urn:retained-client", "first")))
+                .ConfigureAwait(false);
+            (WotRegistryResourceClient second, _) = await group
+                .CreateResourceAsync("retained-client", "v2")
+                .ConfigureAwait(false);
+            await second.Proxy.UploadAsync(
+                ByteString.From(TestMaterialization.Td("urn:retained-client", "second")))
+                .ConfigureAwait(false);
+
+            byte[] thirdContent = TestMaterialization.Td("urn:retained-client", "third");
+            WotRegistryUploadResult uploaded = await second
+                .UploadNewVersionAndGetResultAsync(ByteString.From(thirdContent))
+                .ConfigureAwait(false);
+            WotResource stored = m_registry.Current.FindResource(
+                WotRegistryGroups.ThingDescriptions,
+                "retained-client")!;
+            ByteString storedContent = await m_registry
+                .ReadContentAsync(stored.FindVersion(uploaded.VersionId)!)
+                .ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(stored.Versions, Has.Length.EqualTo(2));
+                Assert.That(stored.FindVersion("v1"), Is.Not.Null);
+                Assert.That(stored.FindVersion("v2"), Is.Null);
+                Assert.That(stored.FindVersion(uploaded.VersionId), Is.Not.Null);
+                Assert.That(storedContent.ToArray(), Is.EqualTo(thirdContent));
+            });
+        }
+
+        [Test]
         public async Task OpenResourceSelectsDefaultWhenResourceAndVersionBrowseNamesCollide()
         {
             WotRegistryClient client = await OpenClientAsync().ConfigureAwait(false);
