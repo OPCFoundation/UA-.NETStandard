@@ -94,7 +94,10 @@ namespace Opc.Ua.XRegistry.Server
         public static ImmutableArray<XRegistryEventChange> Coalesce(
             IEnumerable<XRegistryEventChange> changes)
         {
-            ArgumentNullException.ThrowIfNull(changes);
+            if (changes is null)
+            {
+                throw new ArgumentNullException(nameof(changes));
+            }
 
             var selected = new Dictionary<(string Family, string Subject), XRegistryEventChange>();
             foreach (XRegistryEventChange change in changes)
@@ -234,7 +237,11 @@ namespace Opc.Ua.XRegistry.Server
         /// </summary>
         public void Report(NodeState notifier, IEnumerable<XRegistryEventChange> changes)
         {
-            ArgumentNullException.ThrowIfNull(notifier);
+            if (notifier is null)
+            {
+                throw new ArgumentNullException(nameof(notifier));
+            }
+
             ImmutableArray<XRegistryEventChange> batch = XRegistryEventCoalescer.Coalesce(changes);
             DateTimeUtc commonTime = DateTimeUtc.Now;
             foreach (XRegistryEventChange change in batch)

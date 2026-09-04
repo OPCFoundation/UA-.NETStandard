@@ -769,7 +769,7 @@ namespace Opc.Ua.XRegistry.Server
                         var logicalKey = new ResourceIdentityKey(
                             first.Key.GroupNodeId,
                             first.Key.ResourceId);
-                        string? defaultVersion = defaultVersions.GetValueOrDefault(logicalKey);
+                        defaultVersions.TryGetValue(logicalKey, out string? defaultVersion);
                         KeyValuePair<ResourceKey, ResourceState> source = logical.FirstOrDefault(
                             entry => string.Equals(
                                 entry.Key.VersionId,
@@ -1236,7 +1236,11 @@ namespace Opc.Ua.XRegistry.Server
                 if (dirty &&
                     (!TryGetResourceKeyLocked(resource, out ResourceKey baselineKey) ||
                     !string.Equals(
-                        m_versionContentKeys.GetValueOrDefault(baselineKey) ?? string.Empty,
+                        m_versionContentKeys.TryGetValue(
+                            baselineKey,
+                            out string? currentContentKey)
+                            ? currentContentKey
+                            : string.Empty,
                         entry.BaselineContentKey,
                         StringComparison.Ordinal)))
                 {
@@ -1300,8 +1304,11 @@ namespace Opc.Ua.XRegistry.Server
                     TryGetResourceKeyLocked(resource, out ResourceKey key))
                 {
                     string contentKey = contentId.ToHexString();
-                    string previousContentKey =
-                        m_versionContentKeys.GetValueOrDefault(key) ?? string.Empty;
+                    string previousContentKey = m_versionContentKeys.TryGetValue(
+                        key,
+                        out string? storedContentKey)
+                            ? storedContentKey
+                            : string.Empty;
                     if (!string.Equals(previousContentKey, contentKey, StringComparison.Ordinal))
                     {
                         if (previousContentKey.Length > 0)
@@ -1518,8 +1525,11 @@ namespace Opc.Ua.XRegistry.Server
             };
             if (TryGetResourceKeyLocked(resource, out ResourceKey key))
             {
-                entry.BaselineContentKey =
-                    m_versionContentKeys.GetValueOrDefault(key) ?? string.Empty;
+                entry.BaselineContentKey = m_versionContentKeys.TryGetValue(
+                    key,
+                    out string? contentKey)
+                        ? contentKey
+                        : string.Empty;
             }
             if (entry.BaselineContentKey.Length == 0)
             {
@@ -1811,7 +1821,7 @@ namespace Opc.Ua.XRegistry.Server
             if (m_defaultVersions.TryGetValue(logicalKey, out string? defaultVersion) &&
                 string.Equals(defaultVersion, key.VersionId, StringComparison.Ordinal))
             {
-                ResourceMetaState? meta = m_resourceMeta.GetValueOrDefault(logicalKey);
+                m_resourceMeta.TryGetValue(logicalKey, out ResourceMetaState? meta);
                 changes.Add(FromSource(
                     new XRegistryEventChange(
                         XRegistryEventKind.ResourceUpdated,
