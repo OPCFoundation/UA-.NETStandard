@@ -285,7 +285,14 @@ namespace Opc.Ua.Server.Tests.Diagnostics
             yield return server => server.ReportAuditHistoryAnnotationUpdateEvent(
                 CreateSystemContext(RequestType.HistoryUpdate),
                 CreateUpdateStructureDataDetails(),
-                new[] { new DataValue(new Variant("old-annotation")) }.ToArrayOf(),
+                [
+                    new Annotation
+                    {
+                        AnnotationTime = DateTime.UtcNow,
+                        Message = "old-annotation",
+                        UserName = "operator"
+                    }
+                ],
                 StatusCodes.Good,
                 s_logger);
             yield return server => server.ReportAuditHistoryEventUpdateEvent(
@@ -309,7 +316,7 @@ namespace Opc.Ua.Server.Tests.Diagnostics
             yield return server => server.ReportAuditHistoryEventDeleteEvent(
                 CreateSystemContext(RequestType.HistoryUpdate),
                 CreateDeleteEventDetails(),
-                [new DataValue(new Variant("old-event-delete"))],
+                CreateHistoryEventFieldList("old-event-delete"),
                 StatusCodes.Good,
                 s_logger);
             yield return server => server.ReportAuditCertificateEvent(
@@ -439,11 +446,29 @@ namespace Opc.Ua.Server.Tests.Diagnostics
                 "Attribute/HistoryValueUpdate",
                 true);
             yield return new AuditEventExpectation(
+                "ReportAuditHistoryStructuredValueUpdateEvent",
+                server => server.ReportAuditHistoryValueUpdateEvent(
+                    CreateSystemContext(RequestType.HistoryUpdate),
+                    CreateUpdateStructureDataDetails(),
+                    [new DataValue(new Variant("old-structured"))],
+                    StatusCodes.Good,
+                    s_logger),
+                typeof(AuditHistoryValueUpdateEventState),
+                "Attribute/HistoryValueUpdate",
+                true);
+            yield return new AuditEventExpectation(
                 "ReportAuditHistoryAnnotationUpdateEvent",
                 server => server.ReportAuditHistoryAnnotationUpdateEvent(
                     CreateSystemContext(RequestType.HistoryUpdate),
                     CreateUpdateStructureDataDetails(),
-                    new[] { new DataValue(new Variant("old-annotation")) }.ToArrayOf(),
+                    [
+                        new Annotation
+                        {
+                            AnnotationTime = DateTime.UtcNow,
+                            Message = "old-annotation",
+                            UserName = "operator"
+                        }
+                    ],
                     StatusCodes.BadHistoryOperationInvalid,
                     s_logger),
                 typeof(AuditHistoryAnnotationUpdateEventState),
@@ -487,7 +512,7 @@ namespace Opc.Ua.Server.Tests.Diagnostics
                 server => server.ReportAuditHistoryEventDeleteEvent(
                     CreateSystemContext(RequestType.HistoryUpdate),
                     CreateDeleteEventDetails(),
-                    [new DataValue(new Variant("old-event-delete"))],
+                    CreateHistoryEventFieldList("old-event-delete"),
                     StatusCodes.Good,
                     s_logger),
                 typeof(AuditHistoryEventDeleteEventState),

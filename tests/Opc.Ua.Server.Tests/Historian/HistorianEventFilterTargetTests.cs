@@ -50,7 +50,7 @@ namespace Opc.Ua.Server.Tests.Historian
                 new Dictionary<string, Variant>(System.StringComparer.Ordinal)
                 {
                     [BrowseNames.Severity] = new Variant((ushort)500)
-                });
+                }.ToArrayOf());
 
             var target = new HistorianEventFilterTarget(record);
             ArrayOf<QualifiedName> path = new QualifiedName[] { new(BrowseNames.Severity) };
@@ -66,7 +66,8 @@ namespace Opc.Ua.Server.Tests.Historian
                 ByteString.Empty,
                 ObjectTypeIds.BaseEventType,
                 new System.DateTime(2025, 1, 1, 0, 0, 0, System.DateTimeKind.Utc),
-                new Dictionary<string, Variant>(System.StringComparer.Ordinal));
+                new Dictionary<string, Variant>(
+                    System.StringComparer.Ordinal).ToArrayOf());
 
             var target = new HistorianEventFilterTarget(record);
             ArrayOf<QualifiedName> path = new QualifiedName[] { new("DoesNotExist") };
@@ -81,7 +82,8 @@ namespace Opc.Ua.Server.Tests.Historian
                 ByteString.Empty,
                 ObjectTypeIds.BaseEventType,
                 new System.DateTime(2025, 1, 1, 0, 0, 0, System.DateTimeKind.Utc),
-                new Dictionary<string, Variant>(System.StringComparer.Ordinal));
+                new Dictionary<string, Variant>(
+                    System.StringComparer.Ordinal).ToArrayOf());
 
             var target = new HistorianEventFilterTarget(record);
             Assert.That(target.IsTypeOf(null!, ObjectTypeIds.BaseEventType), Is.True);
@@ -95,7 +97,8 @@ namespace Opc.Ua.Server.Tests.Historian
                 ByteString.Empty,
                 ObjectTypeIds.AuditEventType,
                 new System.DateTime(2025, 1, 1, 0, 0, 0, System.DateTimeKind.Utc),
-                new Dictionary<string, Variant>(System.StringComparer.Ordinal));
+                new Dictionary<string, Variant>(
+                    System.StringComparer.Ordinal).ToArrayOf());
 
             // Build a TypeTable with the AuditEventType -> BaseEventType subtype
             // relationship pre-registered (mirrors what a real server's TypeTable

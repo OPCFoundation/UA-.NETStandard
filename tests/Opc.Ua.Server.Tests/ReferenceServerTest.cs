@@ -58,8 +58,10 @@ namespace Opc.Ua.Server.Tests
         private const double kMaxAge = 10000;
         private const uint kTimeoutHint = 10000;
         private const uint kQueueSize = 5;
+
         private const string kClientApplicationUri =
             "urn:localhost:opcfoundation.org:ReferenceServerTests";
+
         private ITelemetryContext m_telemetry;
         private ServerFixture<ReferenceServer> m_fixture;
         private ReferenceServer m_server;
@@ -1829,10 +1831,11 @@ namespace Opc.Ua.Server.Tests
         }
 
         /// <summary>
-        /// Test that Server object EventNotifier has HistoryRead bit set when history capabilities are enabled.
+        /// Test that historical EventNotifier bits are set on the actual
+        /// historical notifier rather than inferred on the Server object.
         /// </summary>
         [Test]
-        public async Task ServerEventNotifierHistoryReadBitAsync()
+        public async Task HistoricalEventNotifierBitsAreNodeSpecificAsync()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             ILogger logger = telemetry.CreateLogger<ReferenceServerTests>();
@@ -1899,12 +1902,32 @@ namespace Opc.Ua.Server.Tests
                 logger.LogInformation("AccessHistoryDataCapability: {AccessHistoryDataCapability}", accessHistoryDataCapability);
             }
 
-            // If either history capability is enabled, the HistoryRead bit should be set
-            if (accessHistoryEventsCapability || accessHistoryDataCapability)
+            Assert.That(
+                eventNotifier & EventNotifiers.HistoryRead,
+                Is.Zero,
+                "The Server object is not itself configured as a historical event notifier.");
+            if (accessHistoryEventsCapability)
             {
-                Assert.That(eventNotifier & EventNotifiers.HistoryRead,
+                ArrayOf<ReadValueId> notifierRead =
+                [
+                    new ReadValueId
+                    {
+                        AttributeId = Attributes.EventNotifier,
+                        NodeId = new NodeId("CTT", 2)
+                    }
+                ];
+                ReadResponse notifierResponse = await m_server.ReadAsync(
+                    m_secureChannelContext,
+                    m_requestHeader,
+                    0,
+                    TimestampsToReturn.Neither,
+                    notifierRead,
+                    RequestLifetime.None).ConfigureAwait(false);
+                Assert.That(
+                    (byte)notifierResponse.Results[0].WrappedValue &
+                    EventNotifiers.HistoryRead,
                     Is.Not.Zero,
-                    "Server EventNotifier should have HistoryRead bit set when history capabilities are enabled");
+                    "The configured CTT historical event notifier must expose HistoryRead.");
             }
 
             // Verify SubscribeToEvents bit is set (Server object should always support events)
@@ -2287,6 +2310,7 @@ namespace Opc.Ua.Server.Tests
         {
             var triggerNode01 = new NodeId("NodeIds_Events_TriggerNode01", 2);
             var triggerNode02 = new NodeId("NodeIds_Events_TriggerNode02", 2);
+            DateTimeUtc eventWindowStart = DateTime.UtcNow.AddSeconds(-1);
 
             // Verify both nodes exist and are readable
             foreach (NodeId nodeId in new[] { triggerNode01, triggerNode02 })
@@ -2332,6 +2356,62 @@ namespace Opc.Ua.Server.Tests
                 Assert.That(writeResponse.Results[0], Is.EqualTo(StatusCodes.Good),
                     $"Write to trigger node {nodeId} should succeed and fire an event");
             }
+
+            var filter = new EventFilter();
+            filter.AddSelectClause(
+                ObjectTypeIds.BaseEventType,
+                BrowseNames.Message,
+                Attributes.Value);
+            bool captured = false;
+            for (int attempt = 0; attempt < 20 && !captured; attempt++)
+            {
+                m_requestHeader.Timestamp = DateTimeUtc.Now;
+                HistoryReadResponse response = await m_server.HistoryReadAsync(
+                    m_secureChannelContext,
+                    m_requestHeader,
+                    new ExtensionObject(new ReadEventDetails
+                    {
+                        StartTime = eventWindowStart,
+                        EndTime = DateTime.UtcNow.AddSeconds(1),
+                        NumValuesPerNode = 100,
+                        Filter = filter
+                    }),
+                    TimestampsToReturn.Neither,
+                    false,
+                    [new HistoryReadValueId { NodeId = new NodeId("CTT", 2) }],
+                    RequestLifetime.None).ConfigureAwait(false);
+                if (response.Results.Count == 1 &&
+                    StatusCode.IsGood(response.Results[0].StatusCode))
+                {
+                    if (ExtensionObject.ToEncodeable(
+                        response.Results[0].HistoryData) is not HistoryEvent historyEvent)
+                    {
+                        continue;
+                    }
+                    foreach (HistoryEventFieldList historicalEvent in
+                        historyEvent.Events)
+                    {
+                        if (historicalEvent.EventFields.Count == 1 &&
+                            historicalEvent.EventFields[0].TryGetValue(
+                                out LocalizedText message) &&
+                            message.Text?.Contains(
+                                "Trigger event",
+                                StringComparison.Ordinal) == true)
+                        {
+                            captured = true;
+                            break;
+                        }
+                    }
+                }
+                if (!captured)
+                {
+                    await Task.Delay(50).ConfigureAwait(false);
+                }
+            }
+            Assert.That(
+                captured,
+                Is.True,
+                "Writing a trigger node must publish and archive the event on the CTT notifier.");
         }
 
         /// <summary>

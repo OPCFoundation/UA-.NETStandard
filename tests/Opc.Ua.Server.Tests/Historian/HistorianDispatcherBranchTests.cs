@@ -274,9 +274,325 @@ namespace Opc.Ua.Server.Tests.Historian
         }
 
         [Test]
+        public async Task DispatchProcessedReadUnsupportedAggregateDoesNotInvokeNativeProviderAsync()
+        {
+            HarnessFixture h = CreateHarnessWithAggregateManager();
+            var nodeId = new NodeId("native-unsupported", 1);
+            BaseDataVariableState node = CreateVariable(nodeId);
+            var provider = new Mock<IHistorianProvider>();
+            provider
+                .Setup(value => value.GetCapabilitiesAsync(
+                    nodeId,
+                    It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<HistorianNodeCapabilities>(
+                    HistorianNodeCapabilities.ReadOnly));
+            Mock<IHistorianProcessedProvider> processedProvider =
+                provider.As<IHistorianProcessedProvider>();
+            processedProvider
+                .Setup(value => value.ReadProcessedAsync(
+                    It.IsAny<HistorianOperationContext>(),
+                    It.IsAny<HistorianProcessedReadRequest>(),
+                    It.IsAny<HistorianResumeToken>(),
+                    It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<HistorianPage<DataValue>>(
+                    HistorianPage<DataValue>.Empty));
+            var details = new ReadProcessedDetails
+            {
+                StartTime = HarnessFixture.BaseTime,
+                EndTime = HarnessFixture.BaseTime.AddMinutes(1),
+                ProcessingInterval = 10000
+            };
+            var nodeToRead = new HistoryReadValueId
+            {
+                NodeId = nodeId
+            };
+            var result = new HistoryReadResult();
+
+            ServiceResult error = await HistorianDispatcher.DispatchProcessedReadAsync(
+                h.SystemContext,
+                provider.Object,
+                node,
+                nodeToRead,
+                details,
+                new NodeId("unsupported", 1),
+                TimestampsToReturn.Source,
+                result,
+                CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(
+                error.StatusCode,
+                Is.EqualTo(StatusCodes.BadAggregateNotSupported));
+            processedProvider.Verify(
+                value => value.ReadProcessedAsync(
+                    It.IsAny<HistorianOperationContext>(),
+                    It.IsAny<HistorianProcessedReadRequest>(),
+                    It.IsAny<HistorianResumeToken>(),
+                    It.IsAny<CancellationToken>()),
+                Times.Never);
+        }
+
+        [Test]
+        public async Task DispatchProcessedReadSupportedAggregateInvokesNativeProviderAsync()
+        {
+            HarnessFixture h = CreateHarnessWithAggregateManager();
+            var aggregateId = new NodeId("native-supported", 1);
+            await h.RegisterAggregateAsync(aggregateId).ConfigureAwait(false);
+            var nodeId = new NodeId("native-supported-node", 1);
+            BaseDataVariableState node = CreateVariable(nodeId);
+            var provider = new Mock<IHistorianProvider>();
+            provider
+                .Setup(value => value.GetCapabilitiesAsync(
+                    nodeId,
+                    It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<HistorianNodeCapabilities>(
+                    HistorianNodeCapabilities.ReadOnly));
+            Mock<IHistorianProcessedProvider> processedProvider =
+                provider.As<IHistorianProcessedProvider>();
+            processedProvider
+                .Setup(value => value.ReadProcessedAsync(
+                    It.IsAny<HistorianOperationContext>(),
+                    It.Is<HistorianProcessedReadRequest>(
+                        request => request.AggregateId == aggregateId),
+                    It.IsAny<HistorianResumeToken>(),
+                    It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<HistorianPage<DataValue>>(
+                    HistorianPage<DataValue>.Empty));
+            var details = new ReadProcessedDetails
+            {
+                StartTime = HarnessFixture.BaseTime,
+                EndTime = HarnessFixture.BaseTime.AddMinutes(1),
+                ProcessingInterval = 10000
+            };
+            var nodeToRead = new HistoryReadValueId
+            {
+                NodeId = nodeId
+            };
+            var result = new HistoryReadResult();
+
+            ServiceResult error = await HistorianDispatcher.DispatchProcessedReadAsync(
+                h.SystemContext,
+                provider.Object,
+                node,
+                nodeToRead,
+                details,
+                aggregateId,
+                TimestampsToReturn.Source,
+                result,
+                CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(ServiceResult.IsGood(error), Is.True);
+            processedProvider.Verify(
+                value => value.ReadProcessedAsync(
+                    It.IsAny<HistorianOperationContext>(),
+                    It.Is<HistorianProcessedReadRequest>(
+                        request => request.AggregateId == aggregateId),
+                    It.IsAny<HistorianResumeToken>(),
+                    It.IsAny<CancellationToken>()),
+                Times.Once);
+        }
+
+        [Test]
+        public async Task DispatchProcessedReadContinuationUsesPersistedAggregateForSupportGateAsync()
+        {
+            HarnessFixture h = CreateHarnessWithAggregateManager();
+            var aggregateId = new NodeId("continued-supported", 1);
+            await h.RegisterAggregateAsync(aggregateId).ConfigureAwait(false);
+            var nodeId = new NodeId("continued-node", 1);
+            BaseDataVariableState node = CreateVariable(nodeId);
+            var provider = new Mock<IHistorianProvider>();
+            provider
+                .Setup(value => value.GetCapabilitiesAsync(
+                    nodeId,
+                    It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<HistorianNodeCapabilities>(
+                    HistorianNodeCapabilities.ReadOnly));
+            Mock<IHistorianProcessedProvider> processedProvider =
+                provider.As<IHistorianProcessedProvider>();
+            var token = new HistorianResumeToken(
+                ByteString.From(new byte[] { 1 }));
+            processedProvider
+                .SetupSequence(value => value.ReadProcessedAsync(
+                    It.IsAny<HistorianOperationContext>(),
+                    It.IsAny<HistorianProcessedReadRequest>(),
+                    It.IsAny<HistorianResumeToken>(),
+                    It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<HistorianPage<DataValue>>(
+                    new HistorianPage<DataValue>(
+                        [new DataValue(new Variant(1), StatusCodes.Good)],
+                        token)))
+                .Returns(new ValueTask<HistorianPage<DataValue>>(
+                    HistorianPage<DataValue>.Empty));
+            var details = new ReadProcessedDetails
+            {
+                StartTime = HarnessFixture.BaseTime,
+                EndTime = HarnessFixture.BaseTime.AddMinutes(1),
+                ProcessingInterval = 10000
+            };
+            var firstNodeToRead = new HistoryReadValueId
+            {
+                NodeId = nodeId
+            };
+            var firstResult = new HistoryReadResult();
+
+            ServiceResult firstError =
+                await HistorianDispatcher.DispatchProcessedReadAsync(
+                    h.SystemContext,
+                    provider.Object,
+                    node,
+                    firstNodeToRead,
+                    details,
+                    aggregateId,
+                    TimestampsToReturn.Source,
+                    firstResult,
+                    CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(ServiceResult.IsGood(firstError), Is.True);
+            Assert.That(firstResult.ContinuationPoint.IsEmpty, Is.False);
+
+            var continuedNodeToRead = new HistoryReadValueId
+            {
+                NodeId = nodeId,
+                ContinuationPoint = firstResult.ContinuationPoint
+            };
+            var continuedResult = new HistoryReadResult();
+            ServiceResult continuedError =
+                await HistorianDispatcher.DispatchProcessedReadAsync(
+                    h.SystemContext,
+                    provider.Object,
+                    node,
+                    continuedNodeToRead,
+                    details,
+                    new NodeId("wire-unsupported", 1),
+                    TimestampsToReturn.Source,
+                    continuedResult,
+                    CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(ServiceResult.IsGood(continuedError), Is.True);
+            processedProvider.Verify(
+                value => value.ReadProcessedAsync(
+                    It.IsAny<HistorianOperationContext>(),
+                    It.Is<HistorianProcessedReadRequest>(
+                        request => request.AggregateId == aggregateId),
+                    It.IsAny<HistorianResumeToken>(),
+                    It.IsAny<CancellationToken>()),
+                Times.Exactly(2));
+        }
+
+        [Test]
+        public async Task DispatchProcessedReadRestoresClaimedContinuationWhenCapabilityLookupFailsAsync()
+        {
+            HarnessFixture h = CreateHarnessWithAggregateManager();
+            var aggregateId = new NodeId("continued-capability", 1);
+            await h.RegisterAggregateAsync(aggregateId).ConfigureAwait(false);
+            var nodeId = new NodeId("continued-capability-node", 1);
+            BaseDataVariableState node = CreateVariable(nodeId);
+            var provider = new Mock<IHistorianProvider>();
+            provider
+                .SetupSequence(value => value.GetCapabilitiesAsync(
+                    nodeId,
+                    It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<HistorianNodeCapabilities>(
+                    HistorianNodeCapabilities.ReadOnly))
+                .Throws(new ServiceResultException(
+                    StatusCodes.BadCommunicationError))
+                .Returns(new ValueTask<HistorianNodeCapabilities>(
+                    HistorianNodeCapabilities.ReadOnly));
+            Mock<IHistorianProcessedProvider> processedProvider =
+                provider.As<IHistorianProcessedProvider>();
+            var token = new HistorianResumeToken(
+                ByteString.From([1]));
+            processedProvider
+                .SetupSequence(value => value.ReadProcessedAsync(
+                    It.IsAny<HistorianOperationContext>(),
+                    It.IsAny<HistorianProcessedReadRequest>(),
+                    It.IsAny<HistorianResumeToken>(),
+                    It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<HistorianPage<DataValue>>(
+                    new HistorianPage<DataValue>(
+                    [
+                        new DataValue(
+                            new Variant(1),
+                            StatusCodes.Good)
+                    ],
+                    token)))
+                .Returns(new ValueTask<HistorianPage<DataValue>>(
+                    HistorianPage<DataValue>.Empty));
+            var details = new ReadProcessedDetails
+            {
+                StartTime = HarnessFixture.BaseTime,
+                EndTime = HarnessFixture.BaseTime.AddMinutes(1),
+                ProcessingInterval = 10000
+            };
+            var firstNodeToRead = new HistoryReadValueId
+            {
+                NodeId = nodeId
+            };
+            var firstResult = new HistoryReadResult();
+            ServiceResult firstError =
+                await HistorianDispatcher.DispatchProcessedReadAsync(
+                    h.SystemContext,
+                    provider.Object,
+                    node,
+                    firstNodeToRead,
+                    details,
+                    aggregateId,
+                    TimestampsToReturn.Source,
+                    firstResult,
+                    CancellationToken.None).ConfigureAwait(false);
+            Assert.That(ServiceResult.IsGood(firstError), Is.True);
+            Assert.That(firstResult.ContinuationPoint.IsEmpty, Is.False);
+            var continuedNodeToRead = new HistoryReadValueId
+            {
+                NodeId = nodeId,
+                ContinuationPoint = firstResult.ContinuationPoint
+            };
+
+            ServiceResultException exception = Assert.ThrowsAsync<
+                ServiceResultException>(
+                async () => await HistorianDispatcher.DispatchProcessedReadAsync(
+                    h.SystemContext,
+                    provider.Object,
+                    node,
+                    continuedNodeToRead,
+                    details,
+                    aggregateId,
+                    TimestampsToReturn.Source,
+                    new HistoryReadResult(),
+                    CancellationToken.None).ConfigureAwait(false));
+            Assert.That(
+                exception.StatusCode,
+                Is.EqualTo(StatusCodes.BadCommunicationError));
+
+            var retryResult = new HistoryReadResult();
+            ServiceResult retryError =
+                await HistorianDispatcher.DispatchProcessedReadAsync(
+                    h.SystemContext,
+                    provider.Object,
+                    node,
+                    continuedNodeToRead,
+                    details,
+                    aggregateId,
+                    TimestampsToReturn.Source,
+                    retryResult,
+                    CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(ServiceResult.IsGood(retryError), Is.True);
+            Assert.That(retryResult.ContinuationPoint.IsEmpty, Is.True);
+            processedProvider.Verify(
+                value => value.ReadProcessedAsync(
+                    It.IsAny<HistorianOperationContext>(),
+                    It.IsAny<HistorianProcessedReadRequest>(),
+                    It.IsAny<HistorianResumeToken>(),
+                    It.IsAny<CancellationToken>()),
+                Times.Exactly(2));
+        }
+
+        [Test]
         public async Task DispatchProcessedReadAnnotationCountCountsAnnotationsPerIntervalAsync()
         {
             HarnessFixture h = CreateHarnessWithAggregateManager();
+            await h.RegisterAggregateAsync(
+                ObjectIds.AggregateFunction_AnnotationCount).ConfigureAwait(false);
             var nodeId = new NodeId($"anncount-{Guid.NewGuid():N}", 1);
             h.Provider.Register(nodeId);
 
@@ -380,6 +696,8 @@ namespace Opc.Ua.Server.Tests.Historian
         {
             // §5.4.3.1: ProcessingInterval == 0 → one aggregate over the entire range.
             HarnessFixture h = CreateHarnessWithAggregateManager();
+            await h.RegisterAggregateAsync(
+                ObjectIds.AggregateFunction_AnnotationCount).ConfigureAwait(false);
             var nodeId = new NodeId($"anncount-zero-{Guid.NewGuid():N}", 1);
             h.Provider.Register(nodeId);
 
@@ -425,6 +743,8 @@ namespace Opc.Ua.Server.Tests.Historian
             // §5.4.3.1: reverse time (start > end). Result is timestamped with each interval's
             // (later) start time and walks backward toward end.
             HarnessFixture h = CreateHarnessWithAggregateManager();
+            await h.RegisterAggregateAsync(
+                ObjectIds.AggregateFunction_AnnotationCount).ConfigureAwait(false);
             var nodeId = new NodeId($"anncount-reverse-{Guid.NewGuid():N}", 1);
             h.Provider.Register(nodeId);
 
@@ -476,6 +796,8 @@ namespace Opc.Ua.Server.Tests.Historian
         public async Task DispatchProcessedReadAnnotationCountWithNoAnnotationsReturnsZerosAsync()
         {
             HarnessFixture h = CreateHarnessWithAggregateManager();
+            await h.RegisterAggregateAsync(
+                ObjectIds.AggregateFunction_AnnotationCount).ConfigureAwait(false);
             var nodeId = new NodeId($"anncount-empty-{Guid.NewGuid():N}", 1);
             h.Provider.Register(nodeId);
 
@@ -716,6 +1038,60 @@ namespace Opc.Ua.Server.Tests.Historian
         }
 
         [Test]
+        public async Task DispatchAtTimeReadRejectsMismatchedProviderCountAsync()
+        {
+            HarnessFixture h = CreateHarness();
+            var nodeId = new NodeId("at-time-count", 1);
+            BaseDataVariableState node = CreateVariable(nodeId);
+            var provider = new Mock<IHistorianProvider>();
+            provider
+                .Setup(value => value.GetCapabilitiesAsync(
+                    nodeId,
+                    It.IsAny<CancellationToken>()))
+                .Returns(() => new ValueTask<HistorianNodeCapabilities>(
+                    HistorianNodeCapabilities.ReadOnly));
+            provider.As<IHistorianAtTimeProvider>()
+                .Setup(value => value.ReadAtTimeAsync(
+                    It.IsAny<HistorianOperationContext>(),
+                    It.IsAny<HistorianAtTimeReadRequest>(),
+                    It.IsAny<CancellationToken>()))
+                .Returns(() => new ValueTask<ArrayOf<DataValue>>(
+                    []));
+            var details = new ReadAtTimeDetails
+            {
+                ReqTimes =
+                [
+                    HarnessFixture.BaseTime,
+                    HarnessFixture.BaseTime.AddSeconds(1)
+                ],
+                UseSimpleBounds = false
+            };
+            var nodeToRead = new HistoryReadValueId
+            {
+                NodeId = nodeId
+            };
+            var result = new HistoryReadResult();
+
+            ServiceResult error =
+                await HistorianDispatcher.DispatchAtTimeReadAsync(
+                    h.SystemContext,
+                    provider.Object,
+                    node,
+                    nodeToRead,
+                    details,
+                    TimestampsToReturn.Source,
+                    result,
+                    CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(
+                error.StatusCode,
+                Is.EqualTo(StatusCodes.BadUnexpectedError));
+            Assert.That(
+                result.StatusCode,
+                Is.EqualTo(StatusCodes.BadUnexpectedError));
+        }
+
+        [Test]
         public void ReleaseContinuationPointWithEmptyContinuationReturnsBadContinuationPointInvalid()
         {
             HarnessFixture h = CreateHarness();
@@ -776,7 +1152,6 @@ namespace Opc.Ua.Server.Tests.Historian
                 Provider = new InMemoryHistorianProvider();
 
                 var mockTelemetry = new Mock<ITelemetryContext>();
-                m_continuationStore = [];
 
                 var mockSession = new Mock<ISession>();
 
@@ -785,7 +1160,6 @@ namespace Opc.Ua.Server.Tests.Historian
                 var continuationPoints = new SessionContinuationPoints(
                     () => NodeId.Null, maxBrowse: 10, maxHistory: 10, store: null);
                 mockSession.Setup(s => s.ContinuationPoints).Returns(continuationPoints);
-
 
                 MockServer = new Mock<IServerInternal>();
                 MockServer.Setup(s => s.NamespaceUris).Returns(new NamespaceTable());
@@ -796,8 +1170,15 @@ namespace Opc.Ua.Server.Tests.Historian
 
                 if (withAggregateManager)
                 {
-                    var aggMgr = new AggregateManager(MockServer.Object);
-                    MockServer.Setup(s => s.AggregateManager).Returns(aggMgr);
+                    var diagnosticsNodeManager =
+                        new Mock<IDiagnosticsNodeManager>();
+                    MockServer
+                        .Setup(s => s.DiagnosticsNodeManager)
+                        .Returns(diagnosticsNodeManager.Object);
+                    AggregateManager = new AggregateManager(MockServer.Object);
+                    MockServer
+                        .Setup(s => s.AggregateManager)
+                        .Returns(AggregateManager);
                 }
 
                 var opContext = new OperationContext(
@@ -812,6 +1193,20 @@ namespace Opc.Ua.Server.Tests.Historian
             public InMemoryHistorianProvider Provider { get; }
             public ServerSystemContext SystemContext { get; }
             public Mock<IServerInternal> MockServer { get; }
+            public AggregateManager? AggregateManager { get; }
+
+            public ValueTask RegisterAggregateAsync(NodeId aggregateId)
+            {
+                if (AggregateManager == null)
+                {
+                    throw new InvalidOperationException(
+                        "The harness does not have an aggregate manager.");
+                }
+                return AggregateManager.RegisterFactoryAsync(
+                    aggregateId,
+                    aggregateId.ToString(),
+                    static (_, _, _, _, _, _, _) => null);
+            }
 
             public NodeId SeedSamples(int count)
             {
@@ -841,8 +1236,6 @@ namespace Opc.Ua.Server.Tests.Historian
                     null,
                     HistoryUpdateType.Insert);
             }
-
-            private readonly Dictionary<Guid, IHistoryContinuationPoint> m_continuationStore;
         }
     }
 }

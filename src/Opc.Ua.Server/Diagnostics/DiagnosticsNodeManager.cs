@@ -393,18 +393,15 @@ namespace Opc.Ua.Server
                 AddServerCapabilitiesSdkOptionalChildren(
                     context, serverObject.ServerCapabilities);
             }
-            if (serverObject.ServerRedundancy != null)
-            {
-                // The base ServerRedundancyType only declares the optional
-                // RedundantServerArray. The mode-specific subtype
-                // (TransparentRedundancyType / NonTransparentRedundancyType) and
-                // its generated children (CurrentServerId / ServerUriArray) are
-                // materialised from the configured RedundancySupport mode at
-                // server startup by Opc.Ua.Redundancy.Server, which promotes this
-                // node to the correct subtype while preserving the well-known
-                // RedundantServerArray NodeId assigned here.
-                serverObject.ServerRedundancy.AddRedundantServerArray(context);
-            }
+            // The base ServerRedundancyType only declares the optional
+            // RedundantServerArray. The mode-specific subtype
+            // (TransparentRedundancyType / NonTransparentRedundancyType) and
+            // its generated children (CurrentServerId / ServerUriArray) are
+            // materialised from the configured RedundancySupport mode at
+            // server startup by Opc.Ua.Redundancy.Server, which promotes this
+            // node to the correct subtype while preserving the well-known
+            // RedundantServerArray NodeId assigned here.
+            serverObject.ServerRedundancy?.AddRedundantServerArray(context);
         }
 
         private static void AddServerCapabilitiesSdkOptionalChildren(
@@ -1189,15 +1186,11 @@ namespace Opc.Ua.Server
             await m_modifyAddressSpaceSemaphoreSlim.WaitAsync(cancellationToken).ConfigureAwait(false);
             try
             {
-                if (m_historyCapabilities != null)
-                {
-                    return m_historyCapabilities;
-                }
-
                 // search the Node in PredefinedNodes.
                 HistoryServerCapabilitiesState historyServerCapabilitiesNode
-                    = FindPredefinedNode<HistoryServerCapabilitiesState>(
-                    ObjectIds.HistoryServerCapabilities);
+                    = m_historyCapabilities ??
+                        FindPredefinedNode<HistoryServerCapabilitiesState>(
+                            ObjectIds.HistoryServerCapabilities);
 
                 if (historyServerCapabilitiesNode == null)
                 {
@@ -1242,13 +1235,30 @@ namespace Opc.Ua.Server
                     .ConfigureAwait(false);
                 if (rolled != null)
                 {
-                    historyServerCapabilitiesNode.AccessHistoryDataCapability!.Value = rolled.ReadRawData;
+                    historyServerCapabilitiesNode.AccessHistoryDataCapability!.Value =
+                        rolled.ReadRawData ||
+                        rolled.ReadModifiedData ||
+                        rolled.ReadAtTime ||
+                        rolled.ReadProcessedData ||
+                        rolled.ReadStructuredData ||
+                        rolled.ReadModifiedStructuredData ||
+                        rolled.ReadAtTimeStructuredData;
+                    historyServerCapabilitiesNode.AccessHistoryEventsCapability!.Value =
+                        rolled.ReadEventHistory;
+                    historyServerCapabilitiesNode.MaxReturnDataValues!.Value =
+                        rolled.MaxReturnDataValues;
+                    historyServerCapabilitiesNode.MaxReturnEventValues!.Value =
+                        rolled.MaxReturnEventValues;
                     historyServerCapabilitiesNode.ReplaceDataCapability!.Value = rolled.ReplaceData;
                     historyServerCapabilitiesNode.UpdateDataCapability!.Value = rolled.UpdateData;
                     historyServerCapabilitiesNode.InsertAnnotationCapability!.Value = rolled.InsertAnnotation;
                     historyServerCapabilitiesNode.InsertDataCapability!.Value = rolled.InsertData;
                     historyServerCapabilitiesNode.DeleteRawCapability!.Value = rolled.DeleteRaw;
                     historyServerCapabilitiesNode.DeleteAtTimeCapability!.Value = rolled.DeleteAtTime;
+                    historyServerCapabilitiesNode.InsertEventCapability!.Value = rolled.InsertEvent;
+                    historyServerCapabilitiesNode.ReplaceEventCapability!.Value = rolled.ReplaceEvent;
+                    historyServerCapabilitiesNode.UpdateEventCapability!.Value = rolled.UpdateEvent;
+                    historyServerCapabilitiesNode.DeleteEventCapability!.Value = rolled.DeleteEvent;
                     historyServerCapabilitiesNode.ServerTimestampSupported!.Value = rolled.ServerTimestampSupported;
                 }
 
@@ -1264,8 +1274,24 @@ namespace Opc.Ua.Server
         /// <inheritdoc/>
         public virtual async ValueTask UpdateServerEventNotifierAsync(CancellationToken cancellationToken = default)
         {
-            // Get or create the history capabilities
-            HistoryServerCapabilitiesState historyCapabilities = await GetDefaultHistoryCapabilitiesAsync(cancellationToken).ConfigureAwait(false);
+            // Refresh the server-wide capability object first.
+            _ = await GetDefaultHistoryCapabilitiesAsync(cancellationToken)
+                .ConfigureAwait(false);
+            Historian.HistorianNodeCapabilities? serverHistory = null;
+            if (Server is Historian.IHistorianRegistryProvider registry)
+            {
+                Historian.IHistorianProvider? provider =
+                    registry.HistorianRegistry.Resolve(ObjectIds.Server);
+                if (provider != null &&
+                    await provider.IsHistorizingAsync(
+                        ObjectIds.Server,
+                        cancellationToken).ConfigureAwait(false))
+                {
+                    serverHistory = await provider.GetCapabilitiesAsync(
+                        ObjectIds.Server,
+                        cancellationToken).ConfigureAwait(false);
+                }
+            }
 
             await m_modifyAddressSpaceSemaphoreSlim.WaitAsync(cancellationToken).ConfigureAwait(false);
             try
@@ -1274,14 +1300,14 @@ namespace Opc.Ua.Server
                 ServerObjectState serverObject = FindPredefinedNode<ServerObjectState>(
                     ObjectIds.Server);
 
-                if (serverObject != null && historyCapabilities != null)
+                if (serverObject != null)
                 {
                     // Update EventNotifier based on history capabilities
                     byte eventNotifier = serverObject.EventNotifier;
 
-                    // Set HistoryRead bit if history events or data capabilities are enabled
-                    if (historyCapabilities.AccessHistoryEventsCapability?.Value == true ||
-                        historyCapabilities.AccessHistoryDataCapability?.Value == true)
+                    // EventNotifier history bits describe historical events,
+                    // not historical variable data.
+                    if (serverHistory?.ReadEventHistory == true)
                     {
                         eventNotifier |= EventNotifiers.HistoryRead;
                     }
@@ -1291,12 +1317,7 @@ namespace Opc.Ua.Server
                     }
 
                     // Set HistoryWrite bit if history update capabilities are enabled
-                    if (historyCapabilities.InsertEventCapability?.Value == true ||
-                        historyCapabilities.ReplaceEventCapability?.Value == true ||
-                        historyCapabilities.UpdateEventCapability?.Value == true ||
-                        historyCapabilities.InsertDataCapability?.Value == true ||
-                        historyCapabilities.UpdateDataCapability?.Value == true ||
-                        historyCapabilities.ReplaceDataCapability?.Value == true)
+                    if (serverHistory?.SupportsAnyEventUpdate == true)
                     {
                         eventNotifier |= EventNotifiers.HistoryWrite;
                     }
@@ -2346,7 +2367,8 @@ namespace Opc.Ua.Server
                 return null;
             }
 
-            IReadOnlyCollection<Historian.IHistorianProvider> providers = registry.HistorianRegistry.Providers;
+            ArrayOf<Historian.IHistorianProvider> providers =
+                registry.HistorianRegistry.Providers;
             if (providers.Count == 0)
             {
                 return null;
@@ -2354,55 +2376,176 @@ namespace Opc.Ua.Server
 
             var rolled = new Historian.HistorianNodeCapabilities
             {
-                ReadRawData = true,
+                ReadRawData = false,
                 ReadModifiedData = false,
                 ReadAtTime = false,
                 ReadProcessedData = false
             };
+            bool readRawData = false;
+            bool readModifiedData = false;
+            bool readAtTime = false;
+            bool readProcessedData = false;
             bool insertData = false;
             bool replaceData = false;
             bool updateData = false;
             bool deleteRaw = false;
             bool deleteAtTime = false;
             bool insertAnnotation = false;
+            bool readEventHistory = false;
+            bool insertEvent = false;
+            bool replaceEvent = false;
+            bool updateEvent = false;
+            bool deleteEvent = false;
+            bool readStructuredData = false;
+            bool readModifiedStructuredData = false;
+            bool readAtTimeStructuredData = false;
+            bool insertStructuredData = false;
+            bool replaceStructuredData = false;
+            bool updateStructuredData = false;
+            bool deleteStructuredData = false;
+            uint maxReturnDataValues = 0;
+            uint maxReturnEventValues = 0;
             bool serverTimestampSupported = false;
+            bool portableResumeTokens = false;
 
-            foreach (Historian.IHistorianProvider provider in providers)
+            for (int providerIndex = 0;
+                providerIndex < providers.Count;
+                providerIndex++)
             {
+                Historian.IHistorianProvider provider =
+                    providers[providerIndex];
                 Historian.HistorianNodeCapabilities caps;
                 try
                 {
                     caps = await provider.GetCapabilitiesAsync(NodeId.Null, cancellationToken)
                         .ConfigureAwait(false);
                 }
-                catch (NotSupportedException)
+                catch (Exception exception) when (
+                    exception is NotSupportedException or
+                        InvalidOperationException)
                 {
-                    continue;
-                }
-                catch (InvalidOperationException)
-                {
+                    m_logger.HistorianCapabilityRollupFailed(
+                        provider.GetType().FullName ??
+                        provider.GetType().Name,
+                        exception);
                     continue;
                 }
 
-                insertData |= caps.InsertData;
-                replaceData |= caps.ReplaceData;
-                updateData |= caps.UpdateData;
-                deleteRaw |= caps.DeleteRaw;
-                deleteAtTime |= caps.DeleteAtTime;
-                insertAnnotation |= caps.InsertAnnotation;
-                serverTimestampSupported |= caps.ServerTimestampSupported;
+                bool hasData = provider is Historian.IHistorianDataProvider;
+                bool hasModified =
+                    provider is Historian.IHistorianModifiedProvider;
+                bool hasAtTime =
+                    provider is Historian.IHistorianAtTimeProvider ||
+                    hasData;
+                bool hasProcessed =
+                    provider is Historian.IHistorianProcessedProvider ||
+                    hasData;
+                bool hasAnnotations =
+                    provider is Historian.IHistorianAnnotationProvider;
+                bool hasEvents =
+                    provider is Historian.IHistorianEventProvider;
+                bool hasStructured =
+                    provider is Historian.IHistorianStructuredDataProvider;
+
+                readRawData |= hasData && caps.ReadRawData;
+                readModifiedData |= hasModified && caps.ReadModifiedData;
+                readAtTime |= hasAtTime && caps.ReadAtTime;
+                readProcessedData |= hasProcessed && caps.ReadProcessedData;
+                insertData |= hasData && caps.InsertData;
+                replaceData |= hasData && caps.ReplaceData;
+                updateData |= hasData && caps.UpdateData;
+                deleteRaw |= hasData && caps.DeleteRaw;
+                deleteAtTime |= hasData && caps.DeleteAtTime;
+                insertAnnotation |= hasAnnotations && caps.InsertAnnotation;
+                readEventHistory |= hasEvents && caps.ReadEventHistory;
+                insertEvent |= hasEvents && caps.InsertEvent;
+                replaceEvent |= hasEvents && caps.ReplaceEvent;
+                updateEvent |= hasEvents && caps.UpdateEvent;
+                deleteEvent |= hasEvents && caps.DeleteEvent;
+                readStructuredData |=
+                    hasStructured && hasData && caps.ReadStructuredData;
+                readModifiedStructuredData |=
+                    hasStructured &&
+                    hasModified &&
+                    caps.ReadModifiedStructuredData;
+                readAtTimeStructuredData |=
+                    hasStructured &&
+                    hasAtTime &&
+                    caps.ReadAtTimeStructuredData;
+                insertStructuredData |=
+                    hasStructured && caps.InsertStructuredData;
+                replaceStructuredData |=
+                    hasStructured && caps.ReplaceStructuredData;
+                updateStructuredData |=
+                    hasStructured && caps.UpdateStructuredData;
+                deleteStructuredData |=
+                    hasStructured && caps.DeleteStructuredData;
+                if ((hasData &&
+                    (caps.ReadRawData ||
+                        caps.ReadModifiedData ||
+                        caps.ReadAtTime ||
+                        caps.ReadProcessedData)) ||
+                    (hasStructured &&
+                        (caps.ReadStructuredData ||
+                            caps.ReadModifiedStructuredData ||
+                            caps.ReadAtTimeStructuredData)))
+                {
+                    maxReturnDataValues = MergeHistorianLimit(
+                        maxReturnDataValues,
+                        caps.MaxReturnDataValues);
+                }
+                if (hasEvents && caps.ReadEventHistory)
+                {
+                    maxReturnEventValues = MergeHistorianLimit(
+                        maxReturnEventValues,
+                        caps.MaxReturnEventValues);
+                }
+                serverTimestampSupported |=
+                    (hasData || hasStructured) &&
+                    caps.ServerTimestampSupported;
+                portableResumeTokens |=
+                    provider is Historian.IHistorianProviderIdentity &&
+                    caps.PortableResumeTokens;
             }
 
             return rolled with
             {
+                ReadRawData = readRawData,
+                ReadModifiedData = readModifiedData,
+                ReadAtTime = readAtTime,
+                ReadProcessedData = readProcessedData,
                 InsertData = insertData,
                 ReplaceData = replaceData,
                 UpdateData = updateData,
                 DeleteRaw = deleteRaw,
                 DeleteAtTime = deleteAtTime,
                 InsertAnnotation = insertAnnotation,
+                ReadEventHistory = readEventHistory,
+                InsertEvent = insertEvent,
+                ReplaceEvent = replaceEvent,
+                UpdateEvent = updateEvent,
+                DeleteEvent = deleteEvent,
+                ReadStructuredData = readStructuredData,
+                ReadModifiedStructuredData = readModifiedStructuredData,
+                ReadAtTimeStructuredData = readAtTimeStructuredData,
+                InsertStructuredData = insertStructuredData,
+                ReplaceStructuredData = replaceStructuredData,
+                UpdateStructuredData = updateStructuredData,
+                DeleteStructuredData = deleteStructuredData,
+                MaxReturnDataValues = maxReturnDataValues,
+                MaxReturnEventValues = maxReturnEventValues,
                 ServerTimestampSupported = serverTimestampSupported,
+                PortableResumeTokens = portableResumeTokens
             };
+        }
+
+        private static uint MergeHistorianLimit(uint current, uint candidate)
+        {
+            if (candidate == 0)
+            {
+                return current;
+            }
+            return current == 0 ? candidate : Math.Min(current, candidate);
         }
 
         private static readonly NodeId[] s_kWellKnownRoles =
@@ -2427,6 +2570,14 @@ namespace Opc.Ua.Server
         [LoggerMessage(EventId = ServerEventIds.DiagnosticsNodeManager + 0, Level = LogLevel.Error,
             Message = "Unexpected error during diagnostics scan.")]
         public static partial void UnexpectedErrorDuringDiagnosticsScan(this ILogger logger, Exception ex);
-    }
 
+        [LoggerMessage(
+            EventId = ServerEventIds.DiagnosticsNodeManager + 1,
+            Level = LogLevel.Warning,
+            Message = "Historian capability rollup skipped provider {ProviderType}.")]
+        public static partial void HistorianCapabilityRollupFailed(
+            this ILogger logger,
+            string providerType,
+            Exception exception);
+    }
 }

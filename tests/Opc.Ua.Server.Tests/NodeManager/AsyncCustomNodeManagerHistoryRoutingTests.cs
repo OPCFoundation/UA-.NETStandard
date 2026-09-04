@@ -240,6 +240,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
 
             var provider = new InMemoryHistorianProvider();
             h.RegisterProvider(notifier.NodeId, provider);
+            provider.Register(
+                notifier.NodeId,
+                CreateEventCapabilities());
 
             var eventId = new ByteString(Encoding.UTF8.GetBytes("evt-1"));
             var record = new HistorianEventRecord(
@@ -252,7 +255,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     [BrowseNames.EventType] = new Variant(ObjectTypeIds.BaseEventType),
                     [BrowseNames.Time] = new Variant((DateTimeUtc)BaseTime.AddSeconds(10)),
                     [BrowseNames.Message] = new Variant(new LocalizedText("test event"))
-                });
+                }.ToArrayOf());
 
             await provider.InsertEventsAsync(
                 h.CreateHistorianOpContext(),
@@ -550,6 +553,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
 
             var provider = new InMemoryHistorianProvider();
             h.RegisterProvider(notifier.NodeId, provider);
+            provider.Register(
+                notifier.NodeId,
+                CreateEventCapabilities());
 
             var eventId = new ByteString(Encoding.UTF8.GetBytes("upd-evt-1"));
             var filter = new EventFilter();
@@ -638,6 +644,29 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 nodesToUpdate, results, errors).ConfigureAwait(false);
 
             Assert.That(errors[0].StatusCode, Is.EqualTo(StatusCodes.BadHistoryOperationUnsupported));
+        }
+
+        private static HistorianNodeCapabilities CreateEventCapabilities()
+        {
+            return HistorianNodeCapabilities.EventReadWrite with
+            {
+                EventTypes = [ObjectTypeIds.BaseEventType],
+                MandatoryEventFields =
+                [
+                    new SimpleAttributeOperand
+                    {
+                        TypeDefinitionId = ObjectTypeIds.BaseEventType,
+                        BrowsePath = [new QualifiedName(BrowseNames.EventType)],
+                        AttributeId = Attributes.Value
+                    },
+                    new SimpleAttributeOperand
+                    {
+                        TypeDefinitionId = ObjectTypeIds.BaseEventType,
+                        BrowsePath = [new QualifiedName(BrowseNames.Time)],
+                        AttributeId = Attributes.Value
+                    }
+                ]
+            };
         }
 
         private static BaseDataVariableState CreateHistoryReadVariable(Harness h, string name)

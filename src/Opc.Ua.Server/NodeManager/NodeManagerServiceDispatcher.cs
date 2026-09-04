@@ -35,7 +35,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using NotificationDispatchLease = Opc.Ua.Server.MasterNodeManager.NotificationDispatchLease;
-using RetiredGenerationNotifications = Opc.Ua.Server.MasterNodeManager.RetiredGenerationNotifications;
 
 namespace Opc.Ua.Server
 {
@@ -1536,23 +1535,34 @@ namespace Opc.Ua.Server
                 ArrayOf<ExtensionObject> historyUpdateDetails,
                 CancellationToken cancellationToken = default)
         {
-            Type? detailsType = null;
+            var detailTypes = new List<Type>();
             var nodesToUpdate = new List<HistoryUpdateDetails>();
+            var inputErrors = new List<ServiceResult?>();
 
             // verify that all extension objects in the list have the same type.
             foreach (ExtensionObject details in historyUpdateDetails)
             {
                 if (details.IsNull)
                 {
+                    nodesToUpdate.Add(new UpdateDataDetails());
+                    inputErrors.Add(new ServiceResult(
+                        StatusCodes.BadStructureMissing));
                     continue;
                 }
                 if (!details.TryGetValue(out HistoryUpdateDetails? historyUpdateDetail))
                 {
-                    nodesToUpdate.Add(null!); // Retain old behavior
+                    nodesToUpdate.Add(new UpdateDataDetails());
+                    inputErrors.Add(new ServiceResult(
+                        StatusCodes.BadHistoryOperationInvalid));
                     continue;
                 }
-                detailsType = historyUpdateDetail!.GetType();
+                Type currentType = historyUpdateDetail!.GetType();
+                if (!detailTypes.Contains(currentType))
+                {
+                    detailTypes.Add(currentType);
+                }
                 nodesToUpdate.Add(historyUpdateDetail);
+                inputErrors.Add(null);
             }
 
             // create result lists.
@@ -1577,9 +1587,9 @@ namespace Opc.Ua.Server
 
                 // check the type of details parameter.
                 ServiceResult? error;
-                if (nodesToUpdate[ii].GetType() != detailsType)
+                if (inputErrors[ii] != null)
                 {
-                    error = StatusCodes.BadHistoryOperationInvalid;
+                    error = inputErrors[ii];
                 }
                 // pre-validate and pre-parse parameter.
                 else
@@ -1615,15 +1625,18 @@ namespace Opc.Ua.Server
             // call each node manager.
             if (validItems)
             {
-                foreach (IAsyncNodeManager nodeManager in m_nodeManagers)
+                foreach (Type detailsType in detailTypes)
                 {
-                    await nodeManager.HistoryUpdateAsync(
-                        context,
-                        detailsType!,
-                        nodesToUpdate,
-                        results,
-                        errors,
-                        cancellationToken).ConfigureAwait(false);
+                    foreach (IAsyncNodeManager nodeManager in m_nodeManagers)
+                    {
+                        await nodeManager.HistoryUpdateAsync(
+                            context,
+                            detailsType,
+                            nodesToUpdate,
+                            results,
+                            errors,
+                            cancellationToken).ConfigureAwait(false);
+                    }
                 }
 
                 for (int ii = 0; ii < nodesToUpdate.Count; ii++)

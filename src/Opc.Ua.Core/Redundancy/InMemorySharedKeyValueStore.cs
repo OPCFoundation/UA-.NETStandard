@@ -44,8 +44,23 @@ namespace Opc.Ua.Redundancy
     /// deployments. Redis / external stores are drop-in replacements of the
     /// same contract.
     /// </summary>
-    public sealed class InMemorySharedKeyValueStore : ISharedKeyValueStore, IDisposable
+    public sealed class InMemorySharedKeyValueStore :
+        ISharedKeyValueStore,
+        ISharedKeyValueStoreConsistency,
+        IDisposable
     {
+        /// <inheritdoc/>
+        public bool IsLinearizable(string key)
+        {
+            return key != null;
+        }
+
+        /// <inheritdoc/>
+        public bool IsProcessLocal(string key)
+        {
+            return key != null;
+        }
+
         /// <summary>
         /// Reads the value stored under <paramref name="key"/>.
         /// </summary>

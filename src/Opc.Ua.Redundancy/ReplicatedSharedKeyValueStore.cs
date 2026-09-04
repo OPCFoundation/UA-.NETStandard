@@ -48,8 +48,23 @@ namespace Opc.Ua.Redundancy
     /// Use a strongly-consistent store for primitives that require exactly-once
     /// semantics (for example the single-use session nonce registry).
     /// </remarks>
-    public sealed class ReplicatedSharedKeyValueStore : ISharedKeyValueStore, IAsyncDisposable
+    public sealed class ReplicatedSharedKeyValueStore :
+        ISharedKeyValueStore,
+        ISharedKeyValueStoreConsistency,
+        IAsyncDisposable
     {
+        /// <inheritdoc/>
+        public bool IsLinearizable(string key)
+        {
+            return false;
+        }
+
+        /// <inheritdoc/>
+        public bool IsProcessLocal(string key)
+        {
+            return false;
+        }
+
         /// <summary>
         /// Creates a CRDT key/value store.
         /// </summary>

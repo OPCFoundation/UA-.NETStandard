@@ -251,7 +251,9 @@ namespace Opc.Ua.Server.Tests.Hosting
 
             InvokeProtected(server, "OnNodeManagerStarted", serverInternal.Object);
 
-            Assert.That(historianRegistry.Providers, Does.Contain(historian.Object));
+            Assert.That(
+                historianRegistry.Providers.Contains(historian.Object),
+                Is.True);
             Assert.That(aliasRegistry.Stores, Does.Contain(aliasStore.Object));
         }
 
@@ -372,9 +374,9 @@ namespace Opc.Ua.Server.Tests.Hosting
             // manager override. Every other hosted-server test in this fixture starts
             // without one, which covers the default null path.
             UserManagementCaptureServer.Reset();
-            var userManagement = new Mock<Opc.Ua.Server.UserManagement.IUserManagement>();
+            var userManagement = new Mock<UserManagement.IUserManagement>();
             userManagement.Setup(u => u.SnapshotUsers()).Returns([]);
-            userManagement.Setup(u => u.PasswordLength).Returns(new Opc.Ua.Range(256, 1));
+            userManagement.Setup(u => u.PasswordLength).Returns(new Range(256, 1));
             userManagement.Setup(u => u.PasswordOptions).Returns(PasswordOptionsMask.None);
             userManagement.Setup(u => u.PasswordRestrictions).Returns((LocalizedText?)null);
             UserManagementCaptureServer.Supplied = userManagement.Object;
@@ -1014,9 +1016,9 @@ namespace Opc.Ua.Server.Tests.Hosting
             {
             }
 
-            public static Opc.Ua.Server.UserManagement.IUserManagement? Supplied { get; set; }
+            public static UserManagement.IUserManagement? Supplied { get; set; }
 
-            public static Opc.Ua.Server.UserManagement.IUserManagement? BoundUserManagement { get; private set; }
+            public static UserManagement.IUserManagement? BoundUserManagement { get; private set; }
 
             public static bool NodeManagerStarted { get; private set; }
 
@@ -1027,7 +1029,7 @@ namespace Opc.Ua.Server.Tests.Hosting
                 NodeManagerStarted = false;
             }
 
-            protected override Opc.Ua.Server.UserManagement.IUserManagement? CreateUserManagement(
+            protected override UserManagement.IUserManagement? CreateUserManagement(
                 IServerInternal server,
                 ApplicationConfiguration configuration)
             {

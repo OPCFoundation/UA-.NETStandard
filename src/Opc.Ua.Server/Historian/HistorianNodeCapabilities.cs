@@ -48,13 +48,60 @@ namespace Opc.Ua.Server.Historian
     public sealed record HistorianNodeCapabilities
     {
         /// <summary>
-        /// Default capabilities: read-only raw and modified history,
-        /// no updates, no annotations, source-timestamp only.
+        /// Default capabilities: read-only raw, modified, at-time, and
+        /// processed data history; no updates, annotations, events, structured
+        /// data, or server timestamps.
         /// </summary>
         public static HistorianNodeCapabilities ReadOnly { get; } = new();
 
         /// <summary>
-        /// All capabilities enabled. Intended for in-memory engines and tests.
+        /// Read/write capabilities for an ordinary historical data variable.
+        /// </summary>
+        public static HistorianNodeCapabilities DataReadWrite { get; } = new()
+        {
+            InsertData = true,
+            ReplaceData = true,
+            UpdateData = true,
+            DeleteRaw = true,
+            DeleteAtTime = true,
+            ServerTimestampSupported = true
+        };
+
+        /// <summary>
+        /// Read/write capabilities for a StructuredHistoryData variable.
+        /// </summary>
+        public static HistorianNodeCapabilities StructuredReadWrite { get; } =
+            new()
+            {
+                ReadProcessedData = false,
+                ReadStructuredData = true,
+                ReadModifiedStructuredData = true,
+                ReadAtTimeStructuredData = true,
+                InsertStructuredData = true,
+                ReplaceStructuredData = true,
+                UpdateStructuredData = true,
+                DeleteStructuredData = true,
+                ServerTimestampSupported = true
+            };
+
+        /// <summary>
+        /// Read/write capabilities for a historical event notifier.
+        /// </summary>
+        public static HistorianNodeCapabilities EventReadWrite { get; } = new()
+        {
+            ReadRawData = false,
+            ReadModifiedData = false,
+            ReadAtTime = false,
+            ReadProcessedData = false,
+            ReadEventHistory = true,
+            InsertEvent = true,
+            ReplaceEvent = true,
+            UpdateEvent = true,
+            DeleteEvent = true
+        };
+
+        /// <summary>
+        /// All capabilities enabled. Intended for combined adapters and tests.
         /// </summary>
         public static HistorianNodeCapabilities ReadWrite { get; } = new()
         {
@@ -64,7 +111,38 @@ namespace Opc.Ua.Server.Historian
             DeleteRaw = true,
             DeleteAtTime = true,
             InsertAnnotation = true,
+            ReadEventHistory = true,
+            InsertEvent = true,
+            ReplaceEvent = true,
+            UpdateEvent = true,
+            DeleteEvent = true,
+            ReadStructuredData = true,
+            ReadModifiedStructuredData = true,
+            ReadAtTimeStructuredData = true,
+            InsertStructuredData = true,
+            ReplaceStructuredData = true,
+            UpdateStructuredData = true,
+            DeleteStructuredData = true,
             ServerTimestampSupported = true
+        };
+
+        /// <summary>
+        /// No capabilities enabled at all — including the read flags that
+        /// otherwise default to <see langword="true"/> on a bare
+        /// <c>new()</c>. This is the conservative baseline for rolling up
+        /// "what does this provider actually support right now" across
+        /// zero or more explicitly registered nodes (see
+        /// <see cref="IHistorianProvider.GetCapabilitiesAsync"/> called
+        /// with <see cref="NodeId.Null"/>), as opposed to
+        /// <see cref="ReadOnly"/>, which is the default template handed
+        /// to a newly historized node.
+        /// </summary>
+        public static HistorianNodeCapabilities None { get; } = new()
+        {
+            ReadRawData = false,
+            ReadModifiedData = false,
+            ReadAtTime = false,
+            ReadProcessedData = false
         };
 
         /// <summary>
@@ -117,6 +195,106 @@ namespace Opc.Ua.Server.Historian
         /// </summary>
         public bool InsertAnnotation { get; init; }
 
+        /// <summary>
+        /// True if the node supports event-history reads.
+        /// </summary>
+        public bool ReadEventHistory { get; init; }
+
+        /// <summary>
+        /// True if the node supports inserting historical events.
+        /// </summary>
+        public bool InsertEvent { get; init; }
+
+        /// <summary>
+        /// True if the node supports replacing historical events.
+        /// </summary>
+        public bool ReplaceEvent { get; init; }
+
+        /// <summary>
+        /// True if the node supports updating historical events.
+        /// </summary>
+        public bool UpdateEvent { get; init; }
+
+        /// <summary>
+        /// True if the node supports deleting historical events.
+        /// </summary>
+        public bool DeleteEvent { get; init; }
+
+        /// <summary>
+        /// True if the node supports raw StructuredHistoryData reads.
+        /// </summary>
+        public bool ReadStructuredData { get; init; }
+
+        /// <summary>
+        /// True if the node supports modified StructuredHistoryData reads.
+        /// </summary>
+        public bool ReadModifiedStructuredData { get; init; }
+
+        /// <summary>
+        /// True if the node supports at-time StructuredHistoryData reads.
+        /// </summary>
+        public bool ReadAtTimeStructuredData { get; init; }
+
+        /// <summary>
+        /// True if the node supports inserting StructuredHistoryData.
+        /// </summary>
+        public bool InsertStructuredData { get; init; }
+
+        /// <summary>
+        /// True if the node supports replacing StructuredHistoryData.
+        /// </summary>
+        public bool ReplaceStructuredData { get; init; }
+
+        /// <summary>
+        /// True if the node supports updating StructuredHistoryData.
+        /// </summary>
+        public bool UpdateStructuredData { get; init; }
+
+        /// <summary>
+        /// True if the node supports deleting StructuredHistoryData.
+        /// </summary>
+        public bool DeleteStructuredData { get; init; }
+
+        /// <summary>
+        /// Maximum raw data values returned per page. Zero means no provider limit.
+        /// </summary>
+        public uint MaxReturnDataValues { get; init; }
+
+        /// <summary>
+        /// Maximum historical events returned per page. Zero means no provider limit.
+        /// </summary>
+        public uint MaxReturnEventValues { get; init; }
+
+        /// <summary>
+        /// Whether provider resume tokens can be replayed on another replica.
+        /// </summary>
+        public bool PortableResumeTokens { get; init; }
+
+        /// <summary>
+        /// Event types the provider is configured to historize.
+        /// </summary>
+        public ArrayOf<NodeId> EventTypes { get; init; } = [];
+
+        /// <summary>
+        /// Event fields retained when server-reported events are captured.
+        /// Mandatory BaseEventType fields are always retained.
+        /// </summary>
+        public ArrayOf<SimpleAttributeOperand> EventFields { get; init; }
+            = [];
+
+        /// <summary>
+        /// Additional event fields that Insert and Update requests must supply.
+        /// EventType and Time are always mandatory under Part 11.
+        /// </summary>
+        public ArrayOf<SimpleAttributeOperand> MandatoryEventFields { get; init; }
+            = [];
+
+        /// <summary>
+        /// Event fields used to sort historical events.
+        /// </summary>
+        public ArrayOf<SimpleAttributeOperand> SortByEventFields { get; init; }
+            = [];
+
         /// <summary>True if the storage backend persists <see cref="DataValue.ServerTimestamp"/>.</summary>
         public bool ServerTimestampSupported { get; init; }
 
@@ -143,6 +321,16 @@ namespace Opc.Ua.Server.Historian
         public double MinTimeInterval { get; init; }
 
         /// <summary>
+        /// Exception deviation used by the historian, when configured.
+        /// </summary>
+        public double? ExceptionDeviation { get; init; }
+
+        /// <summary>
+        /// Format of <see cref="ExceptionDeviation"/>, when configured.
+        /// </summary>
+        public ExceptionDeviationFormat? ExceptionDeviationFormat { get; init; }
+
+        /// <summary>
         /// Time, in milliseconds, that values may be retained in the archive.
         /// Zero means no limit.
         /// </summary>
@@ -164,7 +352,7 @@ namespace Opc.Ua.Server.Historian
         public DateTimeUtc StartOfOnlineArchive { get; init; } = DateTimeUtc.MinValue;
 
         /// <summary>
-        /// The default <see cref="Opc.Ua.AggregateConfiguration"/> advertised on
+        /// The default <see cref="AggregateConfiguration"/> advertised on
         /// the node's <c>HistoricalDataConfiguration</c> companion object
         /// (Part 11 §5.2.3) and used by the server when a client requests
         /// aggregates with <c>UseServerCapabilitiesDefaults=true</c>. A client
@@ -187,6 +375,28 @@ namespace Opc.Ua.Server.Historian
         /// Returns <c>true</c> if any update capability is enabled.
         /// </summary>
         public bool SupportsAnyUpdate
-            => InsertData || ReplaceData || UpdateData || DeleteRaw || DeleteAtTime || InsertAnnotation;
+            => InsertData ||
+                ReplaceData ||
+                UpdateData ||
+                DeleteRaw ||
+                DeleteAtTime ||
+                InsertAnnotation ||
+                SupportsAnyEventUpdate ||
+                SupportsAnyStructuredUpdate;
+
+        /// <summary>
+        /// Returns <c>true</c> if any event update capability is enabled.
+        /// </summary>
+        public bool SupportsAnyEventUpdate
+            => InsertEvent || ReplaceEvent || UpdateEvent || DeleteEvent;
+
+        /// <summary>
+        /// Returns <c>true</c> if any structured update capability is enabled.
+        /// </summary>
+        public bool SupportsAnyStructuredUpdate
+            => InsertStructuredData ||
+                ReplaceStructuredData ||
+                UpdateStructuredData ||
+                DeleteStructuredData;
     }
 }

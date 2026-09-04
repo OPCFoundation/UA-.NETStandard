@@ -32,7 +32,6 @@
 #pragma warning disable CA2007
 
 using System;
-using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Moq;
@@ -70,16 +69,18 @@ namespace Opc.Ua.Server.Tests.Historian
             provider.Register(nodeId);
 
             HistorianOperationContext ctx = CreateContext();
-            var batch = new Dictionary<NodeId, IList<DataValue>>
-            {
-                [nodeId] = null!       // null values → empty StatusCode array
-            };
+            ArrayOf<HistorianDataBatch> batch =
+            [
+                new(
+                    nodeId,
+                    ArrayOf<DataValue>.Null)
+            ];
 
-            IReadOnlyDictionary<NodeId, IList<StatusCode>> result =
+            ArrayOf<HistorianUpdateOutcome<DataValue>> result =
                 await provider.InsertBatchAsync(ctx, batch, CancellationToken.None).ConfigureAwait(false);
 
-            Assert.That(result, Contains.Key(nodeId));
-            Assert.That(result[nodeId], Is.Empty);
+            Assert.That(result, Has.Count.EqualTo(1));
+            Assert.That(result[0].OperationResults, Is.Empty);
         }
 
         // ─── DeleteRawAsync – no archive ────────────────────────────────────
@@ -91,14 +92,14 @@ namespace Opc.Ua.Server.Tests.Historian
             var nodeId = new NodeId($"del-raw-noarch-{Guid.NewGuid():N}", Ns);
 
             HistorianOperationContext ctx = CreateContext();
-            StatusCode status = await provider.DeleteRawAsync(
+            HistorianUpdateOutcome<DataValue> outcome = await provider.DeleteRawAsync(
                 ctx, nodeId,
                 (DateTimeUtc)BaseTime,
                 (DateTimeUtc)BaseTime.AddMinutes(1),
                 isDeleteModified: false,
                 CancellationToken.None).ConfigureAwait(false);
 
-            Assert.That(status, Is.EqualTo(StatusCodes.GoodNoData));
+            Assert.That(outcome.OperationResults[0], Is.EqualTo(StatusCodes.GoodNoData));
         }
 
         // ─── DeleteRawAsync – isDeleteModified=true ──────────────────────────
@@ -121,11 +122,13 @@ namespace Opc.Ua.Server.Tests.Historian
                 isDeleteModified: false, CancellationToken.None).ConfigureAwait(false);
 
             // Now delete from the modified log.
-            StatusCode status = await provider.DeleteRawAsync(ctx, nodeId,
+            HistorianUpdateOutcome<DataValue> outcome = await provider.DeleteRawAsync(ctx, nodeId,
                 (DateTimeUtc)BaseTime, (DateTimeUtc)BaseTime.AddMinutes(1),
                 isDeleteModified: true, CancellationToken.None).ConfigureAwait(false);
 
-            Assert.That(StatusCode.IsGood(status), Is.True);
+            Assert.That(StatusCode.IsGood(outcome.OperationResults[0]), Is.True);
+            Assert.That(outcome.OldValues, Has.Count.EqualTo(1));
+            Assert.That(outcome.OldValues[0].SourceTimestamp, Is.EqualTo((DateTimeUtc)t1));
         }
 
         [Test]
@@ -139,11 +142,11 @@ namespace Opc.Ua.Server.Tests.Historian
             // Seed a raw value but never delete it (no modified-log entries).
             await provider.InsertAsync(ctx, nodeId, [MakeValue(BaseTime.AddSeconds(1), 1.0)], CancellationToken.None).ConfigureAwait(false);
 
-            StatusCode status = await provider.DeleteRawAsync(ctx, nodeId,
+            HistorianUpdateOutcome<DataValue> outcome = await provider.DeleteRawAsync(ctx, nodeId,
                 (DateTimeUtc)BaseTime, (DateTimeUtc)BaseTime.AddMinutes(1),
                 isDeleteModified: true, CancellationToken.None).ConfigureAwait(false);
 
-            Assert.That(status, Is.EqualTo(StatusCodes.GoodNoData));
+            Assert.That(outcome.OperationResults[0], Is.EqualTo(StatusCodes.GoodNoData));
         }
 
         // ─── DeleteRawAsync – start > end swap ──────────────────────────────
@@ -160,13 +163,13 @@ namespace Opc.Ua.Server.Tests.Historian
             await provider.InsertAsync(ctx, nodeId, [MakeValue(ts, 99.0)], CancellationToken.None).ConfigureAwait(false);
 
             // Pass end < start; the dispatcher should swap them internally.
-            StatusCode status = await provider.DeleteRawAsync(ctx, nodeId,
+            HistorianUpdateOutcome<DataValue> outcome = await provider.DeleteRawAsync(ctx, nodeId,
                 startTime: (DateTimeUtc)BaseTime.AddMinutes(1),
                 endTime: (DateTimeUtc)BaseTime,
                 isDeleteModified: false,
                 CancellationToken.None).ConfigureAwait(false);
 
-            Assert.That(StatusCode.IsGood(status), Is.True);
+            Assert.That(StatusCode.IsGood(outcome.OperationResults[0]), Is.True);
         }
 
         // ─── DeleteAtTimeAsync – no archive ─────────────────────────────────
@@ -178,14 +181,14 @@ namespace Opc.Ua.Server.Tests.Historian
             var nodeId = new NodeId($"del-at-noarch-{Guid.NewGuid():N}", Ns);
 
             HistorianOperationContext ctx = CreateContext();
-            IList<StatusCode> statuses = await provider.DeleteAtTimeAsync(
+            HistorianUpdateOutcome<DataValue> outcome = await provider.DeleteAtTimeAsync(
                 ctx, nodeId,
                 [(DateTimeUtc)BaseTime, (DateTimeUtc)BaseTime.AddSeconds(1)],
                 CancellationToken.None).ConfigureAwait(false);
 
-            Assert.That(statuses, Has.Count.EqualTo(2));
-            Assert.That(statuses[0], Is.EqualTo(StatusCodes.BadNoEntryExists));
-            Assert.That(statuses[1], Is.EqualTo(StatusCodes.BadNoEntryExists));
+            Assert.That(outcome.OperationResults, Has.Count.EqualTo(2));
+            Assert.That(outcome.OperationResults[0], Is.EqualTo(StatusCodes.BadNoEntryExists));
+            Assert.That(outcome.OperationResults[1], Is.EqualTo(StatusCodes.BadNoEntryExists));
         }
 
         // ─── DeleteAnnotationsAsync – no archive ─────────────────────────────
@@ -197,13 +200,13 @@ namespace Opc.Ua.Server.Tests.Historian
             var nodeId = new NodeId($"del-ann-noarch-{Guid.NewGuid():N}", Ns);
 
             HistorianOperationContext ctx = CreateContext();
-            IList<StatusCode> statuses = await provider.DeleteAnnotationsAsync(
+            HistorianUpdateOutcome<Annotation> outcome = await provider.DeleteAnnotationsAsync(
                 ctx, nodeId,
                 [(DateTimeUtc)BaseTime],
                 CancellationToken.None).ConfigureAwait(false);
 
-            Assert.That(statuses, Has.Count.EqualTo(1));
-            Assert.That(statuses[0], Is.EqualTo(StatusCodes.BadNoEntryExists));
+            Assert.That(outcome.OperationResults, Has.Count.EqualTo(1));
+            Assert.That(outcome.OperationResults[0], Is.EqualTo(StatusCodes.BadNoEntryExists));
         }
 
         // ─── Annotation paths ────────────────────────────────────────────────
@@ -221,10 +224,10 @@ namespace Opc.Ua.Server.Tests.Historian
             await provider.InsertAnnotationsAsync(ctx, nodeId, [annotation], CancellationToken.None).ConfigureAwait(false);
 
             // Second insert at same timestamp → BadEntryExists
-            IList<StatusCode> statuses =
+            HistorianUpdateOutcome<Annotation> outcome =
                 await provider.InsertAnnotationsAsync(ctx, nodeId, [annotation], CancellationToken.None).ConfigureAwait(false);
 
-            Assert.That(statuses[0], Is.EqualTo(StatusCodes.BadEntryExists));
+            Assert.That(outcome.OperationResults[0], Is.EqualTo(StatusCodes.BadEntryExists));
         }
 
         [Test]
@@ -241,10 +244,10 @@ namespace Opc.Ua.Server.Tests.Historian
                 Message = "not-there"
             };
 
-            IList<StatusCode> statuses =
+            HistorianUpdateOutcome<Annotation> outcome =
                 await provider.ReplaceAnnotationsAsync(ctx, nodeId, [annotation], CancellationToken.None).ConfigureAwait(false);
 
-            Assert.That(statuses[0], Is.EqualTo(StatusCodes.BadNoEntryExists));
+            Assert.That(outcome.OperationResults[0], Is.EqualTo(StatusCodes.BadNoEntryExists));
         }
 
         [Test]
@@ -260,10 +263,12 @@ namespace Opc.Ua.Server.Tests.Historian
             await provider.InsertAnnotationsAsync(ctx, nodeId, [original], CancellationToken.None).ConfigureAwait(false);
 
             var replacement = new Annotation { AnnotationTime = (DateTimeUtc)ts, Message = "replaced" };
-            IList<StatusCode> statuses =
+            HistorianUpdateOutcome<Annotation> outcome =
                 await provider.ReplaceAnnotationsAsync(ctx, nodeId, [replacement], CancellationToken.None).ConfigureAwait(false);
 
-            Assert.That(statuses[0], Is.EqualTo(StatusCodes.GoodEntryReplaced));
+            Assert.That(outcome.OperationResults[0], Is.EqualTo(StatusCodes.GoodEntryReplaced));
+            Assert.That(outcome.OldValues, Has.Count.EqualTo(1));
+            Assert.That(outcome.OldValues[0].Message, Is.EqualTo("original"));
         }
 
         [Test]
@@ -278,15 +283,15 @@ namespace Opc.Ua.Server.Tests.Historian
             var annotation = new Annotation { AnnotationTime = (DateTimeUtc)ts, Message = "v1" };
 
             // Update on non-existing → GoodEntryInserted
-            IList<StatusCode> statuses1 =
+            HistorianUpdateOutcome<Annotation> outcome1 =
                 await provider.UpdateAnnotationsAsync(ctx, nodeId, [annotation], CancellationToken.None).ConfigureAwait(false);
-            Assert.That(statuses1[0], Is.EqualTo(StatusCodes.GoodEntryInserted));
+            Assert.That(outcome1.OperationResults[0], Is.EqualTo(StatusCodes.GoodEntryInserted));
 
             // Update on existing → GoodEntryReplaced
             var updated = new Annotation { AnnotationTime = (DateTimeUtc)ts, Message = "v2" };
-            IList<StatusCode> statuses2 =
+            HistorianUpdateOutcome<Annotation> outcome2 =
                 await provider.UpdateAnnotationsAsync(ctx, nodeId, [updated], CancellationToken.None).ConfigureAwait(false);
-            Assert.That(statuses2[0], Is.EqualTo(StatusCodes.GoodEntryReplaced));
+            Assert.That(outcome2.OperationResults[0], Is.EqualTo(StatusCodes.GoodEntryReplaced));
         }
 
         // ─── Backward raw read (exercises lo/hi swap and ReturnBounds) ────────

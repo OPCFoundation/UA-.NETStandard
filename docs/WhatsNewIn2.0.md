@@ -153,9 +153,12 @@ server- and client-side implementations:
   [Alarms and Conditions](AlarmsAndConditions.md).
 - **Part 11 — Historical Access** + **Part 13 — Aggregates**: a provider
   model with an in-memory historian and a `HistoryClient` for raw,
-  modified, at-time, processed, and annotation reads/updates. All 37
-  standard v1.05.07 aggregate functions, with native push-down where
-  available and a framework fallback otherwise. See
+  modified, at-time, processed, annotation, and event reads/updates.
+  Client modified reads return `ModifiedHistoryValue`, pairing each prior
+  `DataValue` with its `ModificationInfo`; event reads and updates preserve
+  the supplied `EventFilter` select-clause order. All 37 standard v1.05.07
+  aggregate functions are available, with native push-down where available
+  and a framework fallback otherwise. See
   [Historical Access](HistoricalAccess.md) and
   [Aggregates](Aggregates.md).
 - **Part 16 — State Machines**: a unified fluent

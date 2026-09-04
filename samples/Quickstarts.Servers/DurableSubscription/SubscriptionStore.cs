@@ -47,7 +47,8 @@ namespace Quickstarts.Servers
 
         private const string kFilename = "subscriptionsStore.bin";
         private const uint kStoreMagic = 0x44535541;
-        private const uint kStoreVersion = 1;
+        private const uint kLegacyStoreVersion = 1;
+        private const uint kStoreVersion = 2;
         private readonly DurableMonitoredItemQueueFactory? m_durableMonitoredItemQueueFactory;
         private readonly ILogger m_logger;
         private readonly IServiceMessageContext m_messageContext;
@@ -135,7 +136,7 @@ namespace Quickstarts.Servers
                     using (var decoder = new BinaryDecoder(
                         fileStream, m_messageContext, true))
                     {
-                        ValidateStoreHeader(decoder);
+                        uint version = ValidateStoreHeader(decoder);
                         ArrayOf<string> nsUris = decoder.ReadStringArray(null)!;
                         ArrayOf<string> serverUris = decoder.ReadStringArray(null)!;
                         decoder.SetMappingTables(
@@ -146,7 +147,7 @@ namespace Quickstarts.Servers
                         result = new List<IStoredSubscription>(count);
                         for (int i = 0; i < count; i++)
                         {
-                            result.Add(DecodeSubscription(decoder));
+                            result.Add(DecodeSubscription(decoder, version));
                         }
                     }
 
@@ -226,7 +227,7 @@ namespace Quickstarts.Servers
             encoder.WriteUInt32(null, kStoreVersion);
         }
 
-        internal static void ValidateStoreHeader(BinaryDecoder decoder)
+        internal static uint ValidateStoreHeader(BinaryDecoder decoder)
         {
             uint magic = decoder.ReadUInt32(null);
             if (magic != kStoreMagic)
@@ -237,11 +238,12 @@ namespace Quickstarts.Servers
             }
 
             uint version = decoder.ReadUInt32(null);
-            if (version != kStoreVersion)
+            if (version < kLegacyStoreVersion || version > kStoreVersion)
             {
                 throw new InvalidDataException(
                     $"Unsupported durable subscription store version {version}.");
             }
+            return version;
         }
 
         public static void EncodeSubscription(
@@ -316,9 +318,16 @@ namespace Quickstarts.Servers
             encoder.WriteStatusCode(null,
                 item.LastError?.StatusCode ?? StatusCodes.Good);
             encoder.WriteString(null, item.ParsedIndexRange.ToString());
+            encoder.WriteBoolean(null, item.RequiredValuePending);
+            encoder.WriteDataValue(null, item.RequiredValue);
+            encoder.WriteStatusCode(
+                null,
+                item.RequiredError?.StatusCode ?? StatusCodes.Good);
         }
 
-        public static StoredSubscription DecodeSubscription(BinaryDecoder decoder)
+        public static StoredSubscription DecodeSubscription(
+            BinaryDecoder decoder,
+            uint version = kStoreVersion)
         {
             var subscription = new StoredSubscription
             {
@@ -362,7 +371,7 @@ namespace Quickstarts.Servers
             var items = new List<IStoredMonitoredItem>(itemCount);
             for (int i = 0; i < itemCount; i++)
             {
-                items.Add(DecodeMonitoredItem(decoder));
+                items.Add(DecodeMonitoredItem(decoder, version));
             }
             subscription.MonitoredItems = items;
             return subscription;
@@ -399,7 +408,9 @@ namespace Quickstarts.Servers
             };
         }
 
-        internal static StoredMonitoredItem DecodeMonitoredItem(BinaryDecoder decoder)
+        internal static StoredMonitoredItem DecodeMonitoredItem(
+            BinaryDecoder decoder,
+            uint version = kStoreVersion)
         {
             var item = new StoredMonitoredItem
             {
@@ -449,6 +460,17 @@ namespace Quickstarts.Servers
             string? rangeStr = decoder.ReadString(null);
             item.ParsedIndexRange = string.IsNullOrEmpty(rangeStr)
                 ? NumericRange.Null : NumericRange.Parse(rangeStr!);
+            if (version >= 2)
+            {
+                item.RequiredValuePending = decoder.ReadBoolean(null);
+                item.RequiredValue = decoder.ReadDataValue(null)!;
+                StatusCode requiredErrorStatus =
+                    decoder.ReadStatusCode(null);
+                item.RequiredError =
+                    requiredErrorStatus == StatusCodes.Good
+                        ? null!
+                        : new ServiceResult(requiredErrorStatus);
+            }
 
             return item;
         }

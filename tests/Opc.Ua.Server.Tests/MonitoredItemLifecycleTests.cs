@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using Microsoft.Extensions.Logging;
 using Moq;
 using NUnit.Framework;
@@ -490,6 +491,115 @@ namespace Opc.Ua.Server.Tests
             });
         }
 
+        [TestCase(true)]
+        [TestCase(false)]
+        public void ReplacementRequiredMarkerSupersedesPendingMarker(
+            bool discardOldest)
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            using var queueFactory = new MonitoredItemQueueFactory(telemetry);
+            using DataChangeQueueHandler handler = CreateQueueHandler(
+                telemetry,
+                queueFactory,
+                queueSize: 2,
+                discardOldest: discardOldest);
+            DateTime timestamp = DateTime.UtcNow;
+            var historyError = new DataValue(
+                Variant.Null,
+                StatusCodes.BadCommunicationError,
+                timestamp,
+                timestamp);
+            var nodeDeleted = new DataValue(
+                Variant.Null,
+                StatusCodes.BadNodeIdUnknown,
+                timestamp.AddMilliseconds(1),
+                timestamp.AddMilliseconds(1));
+
+            handler.QueueRequiredValue(
+                historyError,
+                new ServiceResult(StatusCodes.BadCommunicationError));
+            handler.QueueValue(
+                new DataValue(new Variant(1), StatusCodes.Good),
+                ServiceResult.Good);
+            handler.QueueValue(
+                new DataValue(new Variant(2), StatusCodes.Good),
+                ServiceResult.Good);
+            handler.QueueRequiredValue(
+                nodeDeleted,
+                new ServiceResult(StatusCodes.BadNodeIdUnknown),
+                replaceExisting: true);
+            handler.QueueValue(
+                new DataValue(new Variant(3), StatusCodes.Good),
+                ServiceResult.Good);
+
+            List<DataValue> published = DrainHandler(handler);
+            DataValue deletionNotification = published.Single(value =>
+                value.StatusCode.Code == StatusCodes.BadNodeIdUnknown);
+
+            Assert.That(
+                published.Count(value =>
+                    value.StatusCode.Code == StatusCodes.BadNodeIdUnknown),
+                Is.EqualTo(1));
+            Assert.That(deletionNotification.StatusCode.Overflow, Is.True);
+            Assert.That(
+                published.Any(value =>
+                    value.StatusCode == StatusCodes.BadCommunicationError),
+                Is.False);
+            Assert.That(handler.HasRequiredValues, Is.False);
+        }
+
+        [Test]
+        public void RequiredQueueRebuildsRetryTransientDurableDequeues()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            var queue = new TransientDequeueQueue(
+                new DataChangeMonitoredItemQueue(
+                    createDurable: false,
+                    monitoredItemId: 1,
+                    telemetry));
+            queue.ResetQueue(2, queueErrors: true);
+            using var handler = new DataChangeQueueHandler(
+                queue,
+                discardOldest: true,
+                samplingInterval: 0,
+                telemetry,
+                discardedValueHandler: null);
+            DateTime timestamp = DateTime.UtcNow;
+            handler.QueueRequiredValue(
+                new DataValue(
+                    Variant.Null,
+                    StatusCodes.BadCommunicationError,
+                    timestamp,
+                    timestamp),
+                new ServiceResult(StatusCodes.BadCommunicationError));
+            handler.QueueValue(
+                new DataValue(new Variant(1), StatusCodes.Good),
+                ServiceResult.Good);
+
+            queue.FailuresRemaining = 1;
+            handler.SetQueueSize(2, true, DiagnosticsMasks.OperationAll);
+            queue.FailuresRemaining = 1;
+            handler.QueueRequiredValue(
+                new DataValue(
+                    Variant.Null,
+                    StatusCodes.BadNodeIdUnknown,
+                    timestamp.AddMilliseconds(1),
+                    timestamp.AddMilliseconds(1)),
+                new ServiceResult(StatusCodes.BadNodeIdUnknown),
+                replaceExisting: true);
+
+            List<DataValue> published = DrainHandler(handler);
+
+            Assert.That(
+                published.Any(value =>
+                    value.StatusCode.Code == StatusCodes.BadNodeIdUnknown),
+                Is.True);
+            Assert.That(
+                published.Any(value =>
+                    value.StatusCode.Code == StatusCodes.BadCommunicationError),
+                Is.False);
+        }
+
         [Test]
         public void QueueSizeOneDropsIncomingValuesWhileTheMarkerIsPending()
         {
@@ -538,30 +648,27 @@ namespace Opc.Ua.Server.Tests
             using DataChangeQueueHandler handler = CreateQueueHandler(
                 telemetry,
                 queueFactory,
-                queueSize: 4,
+                queueSize: 2,
                 discardOldest: true);
 
             handler.QueueRequiredValue(
                 new DataValue(Variant.Null, StatusCodes.BadNodeIdUnknown),
                 new ServiceResult(StatusCodes.BadNodeIdUnknown));
             handler.QueueValue(new DataValue(new Variant(1), StatusCodes.Good), ServiceResult.Good);
-            handler.QueueValue(
-                CreateBadNodeIdUnknownValue(),
-                new ServiceResult(StatusCodes.BadNodeIdUnknown));
-
-            handler.SetQueueSize(4, true, DiagnosticsMasks.None);
             handler.QueueValue(new DataValue(new Variant(2), StatusCodes.Good), ServiceResult.Good);
+
+            handler.SetQueueSize(2, true, DiagnosticsMasks.None);
+            handler.QueueValue(new DataValue(new Variant(3), StatusCodes.Good), ServiceResult.Good);
 
             List<DataValue> published = DrainHandler(handler);
 
             Assert.Multiple(() =>
             {
                 Assert.That(handler.HasRequiredValues, Is.False);
-                Assert.That(published, Has.Count.EqualTo(4));
+                Assert.That(published, Has.Count.EqualTo(2));
                 Assert.That(published[0].StatusCode.Code, Is.EqualTo(StatusCodes.BadNodeIdUnknown));
+                Assert.That(published[0].StatusCode.Overflow, Is.True);
                 Assert.That(published[1].WrappedValue, Is.EqualTo(new Variant(1)));
-                Assert.That(published[2].StatusCode.Code, Is.EqualTo(StatusCodes.BadNodeIdUnknown));
-                Assert.That(published[3].WrappedValue, Is.EqualTo(new Variant(2)));
             });
         }
 

@@ -105,9 +105,9 @@ namespace Opc.Ua.Server.Tests.Historian
             registry.RegisterForNamespace("urn:test:ns2", p3);
 
             Assert.That(registry.Providers, Has.Count.EqualTo(3));
-            Assert.That(registry.Providers, Does.Contain(p1));
-            Assert.That(registry.Providers, Does.Contain(p2));
-            Assert.That(registry.Providers, Does.Contain(p3));
+            Assert.That(registry.Providers.Contains(p1), Is.True);
+            Assert.That(registry.Providers.Contains(p2), Is.True);
+            Assert.That(registry.Providers.Contains(p3), Is.True);
         }
 
         [Test]

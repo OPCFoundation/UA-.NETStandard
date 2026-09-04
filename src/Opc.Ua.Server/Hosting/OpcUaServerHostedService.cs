@@ -213,6 +213,8 @@ namespace Opc.Ua.Server.Hosting
             m_server.RedundantServerSetProvider = m_services.GetService<IRedundantServerSetProvider>();
             m_server.GetEndpointsDirector = m_services.GetService<IGetEndpointsDirector>();
             m_server.SubscriptionStore = m_services.GetService<ISubscriptionStore>();
+            m_server.HistoryContinuationPointStore =
+                m_services.GetService<IHistoryContinuationPointStore>();
             m_server.MonitoredItemQueueFactory = m_services.GetService<IMonitoredItemQueueFactory>();
             if (m_services.GetService<ITransportBindingRegistry>() is { } transportBindings)
             {

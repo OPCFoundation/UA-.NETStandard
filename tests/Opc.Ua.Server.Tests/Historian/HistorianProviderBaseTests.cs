@@ -31,7 +31,6 @@
 // adds noise without a behavioural benefit. Disabled file-level for the suite.
 #pragma warning disable CA2007
 
-using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
@@ -75,7 +74,10 @@ namespace Opc.Ua.Server.Tests.Historian
         [Test]
         public void RepeatStatusReturnsArrayFilledWithGivenCode()
         {
-            IList<StatusCode> result = ConcreteProvider.RepeatStatusPublic(StatusCodes.Good, 5);
+            ArrayOf<StatusCode> result =
+                ConcreteProvider.RepeatStatusPublic(
+                    StatusCodes.Good,
+                    5);
 
             Assert.That(result, Has.Count.EqualTo(5));
             foreach (StatusCode sc in result)
@@ -87,7 +89,10 @@ namespace Opc.Ua.Server.Tests.Historian
         [Test]
         public void RepeatStatusReturnsEmptyListForCountZero()
         {
-            IList<StatusCode> result = ConcreteProvider.RepeatStatusPublic(StatusCodes.BadInvalidArgument, 0);
+            ArrayOf<StatusCode> result =
+                ConcreteProvider.RepeatStatusPublic(
+                    StatusCodes.BadInvalidArgument,
+                    0);
 
             Assert.That(result, Is.Empty);
         }
@@ -95,7 +100,10 @@ namespace Opc.Ua.Server.Tests.Historian
         [Test]
         public void RepeatStatusPreservesSpecificCode()
         {
-            IList<StatusCode> result = ConcreteProvider.RepeatStatusPublic(StatusCodes.BadHistoryOperationUnsupported, 3);
+            ArrayOf<StatusCode> result =
+                ConcreteProvider.RepeatStatusPublic(
+                    StatusCodes.BadHistoryOperationUnsupported,
+                    3);
 
             Assert.That(result, Has.Count.EqualTo(3));
             Assert.That(result[0], Is.EqualTo(StatusCodes.BadHistoryOperationUnsupported));
@@ -108,7 +116,9 @@ namespace Opc.Ua.Server.Tests.Historian
         /// </summary>
         private sealed class ConcreteProvider : HistorianProviderBase
         {
-            public static IList<StatusCode> RepeatStatusPublic(StatusCode code, int count)
+            public static ArrayOf<StatusCode> RepeatStatusPublic(
+                StatusCode code,
+                int count)
             {
                 return RepeatStatus(code, count);
             }

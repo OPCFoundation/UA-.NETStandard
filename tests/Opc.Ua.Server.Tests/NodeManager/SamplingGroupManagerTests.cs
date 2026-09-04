@@ -63,10 +63,29 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 samplingRates ?? []);
         }
 
+        private static TrackingSamplingGroupManager CreateTrackingManager()
+        {
+            Mock<IServerInternal> mockServer =
+                DeterministicServerMock.Create(out _);
+            return new TrackingSamplingGroupManager(
+                mockServer.Object,
+                new Mock<IAsyncNodeManager>().Object);
+        }
+
         private static OperationContext SessionlessContext()
         {
             return new OperationContext(
                 new RequestHeader(), null, RequestType.CreateMonitoredItems, RequestLifetime.None);
+        }
+
+        private static OperationContext SessionContext()
+        {
+            return new OperationContext(
+                new RequestHeader(),
+                null,
+                RequestType.CreateMonitoredItems,
+                RequestLifetime.None,
+                new Mock<ISession>().Object);
         }
 
         [Test]
@@ -128,7 +147,6 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     Filter = new ExtensionObject(new EventFilter())
                 }
             };
-
             ISampledDataChangeMonitoredItem item = manager.CreateMonitoredItem(
                 SessionlessContext(),
                 1,
@@ -164,7 +182,6 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     Filter = new ExtensionObject(new EventFilter())
                 }
             };
-
             ISampledDataChangeMonitoredItem item = manager.CreateMonitoredItem(
                 SessionlessContext(),
                 1,
@@ -196,6 +213,151 @@ namespace Opc.Ua.Server.Tests.NodeManager
             using SamplingGroupManager manager = CreateManager(out _);
 
             Assert.DoesNotThrow(manager.ApplyChanges);
+        }
+
+        [Test]
+        public void RevisedFiltersUseExistingVirtualCreateAndModifySeams()
+        {
+            using TrackingSamplingGroupManager manager =
+                CreateTrackingManager();
+            var originalCreateFilter = new DataChangeFilter
+            {
+                DeadbandType = (uint)DeadbandType.Absolute,
+                DeadbandValue = 1
+            };
+            var revisedCreateFilter = new DataChangeFilter
+            {
+                DeadbandType = (uint)DeadbandType.Absolute,
+                DeadbandValue = 2
+            };
+            var itemToCreate = new MonitoredItemCreateRequest
+            {
+                ItemToMonitor = new ReadValueId
+                {
+                    NodeId = new NodeId("V", 1),
+                    AttributeId = Attributes.Value
+                },
+                MonitoringMode = MonitoringMode.Reporting,
+                RequestedParameters = new MonitoringParameters
+                {
+                    ClientHandle = 1,
+                    SamplingInterval = 1000,
+                    QueueSize = 5,
+                    DiscardOldest = true,
+                    Filter = new ExtensionObject(originalCreateFilter)
+                }
+            };
+            OperationContext context = SessionContext();
+
+            ISampledDataChangeMonitoredItem item = manager.CreateMonitoredItem(
+                context,
+                1,
+                1000,
+                TimestampsToReturn.Both,
+                9,
+                null!,
+                itemToCreate,
+                revisedCreateFilter,
+                new Range(),
+                0,
+                false);
+
+            Assert.That(manager.CreateOverrideCalled, Is.True);
+            IStoredMonitoredItem stored = item.ToStorableMonitoredItem();
+            Assert.That(stored.OriginalFilter, Is.SameAs(originalCreateFilter));
+            Assert.That(stored.FilterToUse, Is.SameAs(revisedCreateFilter));
+
+            var originalModifyFilter = new DataChangeFilter
+            {
+                DeadbandType = (uint)DeadbandType.Absolute,
+                DeadbandValue = 3
+            };
+            var revisedModifyFilter = new DataChangeFilter
+            {
+                DeadbandType = (uint)DeadbandType.Absolute,
+                DeadbandValue = 4
+            };
+            var itemToModify = new MonitoredItemModifyRequest
+            {
+                RequestedParameters = new MonitoringParameters
+                {
+                    ClientHandle = 2,
+                    SamplingInterval = 1000,
+                    QueueSize = 5,
+                    DiscardOldest = true,
+                    Filter = new ExtensionObject(originalModifyFilter)
+                }
+            };
+
+            ServiceResult result = manager.ModifyMonitoredItem(
+                context,
+                TimestampsToReturn.Both,
+                item,
+                itemToModify,
+                revisedModifyFilter,
+                new Range());
+
+            Assert.That(ServiceResult.IsGood(result), Is.True);
+            Assert.That(manager.ModifyOverrideCalled, Is.True);
+            stored = item.ToStorableMonitoredItem();
+            Assert.That(stored.OriginalFilter, Is.SameAs(originalModifyFilter));
+            Assert.That(stored.FilterToUse, Is.SameAs(revisedModifyFilter));
+        }
+
+        private sealed class TrackingSamplingGroupManager : SamplingGroupManager
+        {
+            public TrackingSamplingGroupManager(
+                IServerInternal server,
+                IAsyncNodeManager nodeManager)
+                : base(server, nodeManager, 100, 200, [])
+            {
+            }
+
+            public bool CreateOverrideCalled { get; private set; }
+
+            public bool ModifyOverrideCalled { get; private set; }
+
+            public override ISampledDataChangeMonitoredItem CreateMonitoredItem(
+                OperationContext context,
+                uint subscriptionId,
+                double publishingInterval,
+                TimestampsToReturn timestampsToReturn,
+                uint monitoredItemId,
+                object managerHandle,
+                MonitoredItemCreateRequest itemToCreate,
+                Range range,
+                double minimumSamplingInterval,
+                bool createDurable)
+            {
+                CreateOverrideCalled = true;
+                return base.CreateMonitoredItem(
+                    context,
+                    subscriptionId,
+                    publishingInterval,
+                    timestampsToReturn,
+                    monitoredItemId,
+                    managerHandle,
+                    itemToCreate,
+                    range,
+                    minimumSamplingInterval,
+                    createDurable);
+            }
+
+            public override ServiceResult ModifyMonitoredItem(
+                OperationContext context,
+                TimestampsToReturn timestampsToReturn,
+                ISampledDataChangeMonitoredItem monitoredItem,
+                MonitoredItemModifyRequest itemToModify,
+                Range range)
+            {
+                ModifyOverrideCalled = true;
+                return base.ModifyMonitoredItem(
+                    context,
+                    timestampsToReturn,
+                    monitoredItem,
+                    itemToModify,
+                    range);
+            }
         }
     }
 }

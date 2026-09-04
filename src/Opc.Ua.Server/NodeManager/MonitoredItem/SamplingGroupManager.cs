@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Runtime.CompilerServices;
 using System.Threading;
 
 namespace Opc.Ua.Server
@@ -176,6 +177,81 @@ namespace Opc.Ua.Server
             double minimumSamplingInterval,
             bool createDurable)
         {
+            _ = itemToCreate.RequestedParameters.Filter.TryGetValue(
+                out MonitoringFilter? originalFilter);
+            MonitoringFilter filterToUse =
+                m_revisedCreateFilters.TryGetValue(
+                    itemToCreate,
+                    out MonitoringFilter? revisedFilter)
+                    ? revisedFilter
+                    : originalFilter!;
+            return CreateMonitoredItemCore(
+                context,
+                subscriptionId,
+                publishingInterval,
+                timestampsToReturn,
+                monitoredItemId,
+                managerHandle,
+                itemToCreate,
+                originalFilter!,
+                filterToUse,
+                range,
+                minimumSamplingInterval,
+                createDurable);
+        }
+
+        /// <summary>
+        /// Invokes the compatible virtual creation seam while supplying the
+        /// separately revised filter to the base implementation.
+        /// </summary>
+        internal ISampledDataChangeMonitoredItem CreateMonitoredItem(
+            OperationContext context,
+            uint subscriptionId,
+            double publishingInterval,
+            TimestampsToReturn timestampsToReturn,
+            uint monitoredItemId,
+            object managerHandle,
+            MonitoredItemCreateRequest itemToCreate,
+            MonitoringFilter filterToUse,
+            Range range,
+            double minimumSamplingInterval,
+            bool createDurable)
+        {
+            m_revisedCreateFilters.Add(itemToCreate, filterToUse);
+            try
+            {
+                return CreateMonitoredItem(
+                    context,
+                    subscriptionId,
+                    publishingInterval,
+                    timestampsToReturn,
+                    monitoredItemId,
+                    managerHandle,
+                    itemToCreate,
+                    range,
+                    minimumSamplingInterval,
+                    createDurable);
+            }
+            finally
+            {
+                m_revisedCreateFilters.Remove(itemToCreate);
+            }
+        }
+
+        private ISampledDataChangeMonitoredItem CreateMonitoredItemCore(
+            OperationContext context,
+            uint subscriptionId,
+            double publishingInterval,
+            TimestampsToReturn timestampsToReturn,
+            uint monitoredItemId,
+            object managerHandle,
+            MonitoredItemCreateRequest itemToCreate,
+            MonitoringFilter originalFilter,
+            MonitoringFilter filterToUse,
+            Range range,
+            double minimumSamplingInterval,
+            bool createDurable)
+        {
             // use publishing interval as sampling interval.
             double samplingInterval = itemToCreate.RequestedParameters.SamplingInterval;
 
@@ -197,10 +273,7 @@ namespace Opc.Ua.Server
                 m_maxQueueSize,
                 m_maxDurableQueueSize);
 
-            // get filter.
-            if (itemToCreate.RequestedParameters.Filter.TryGetValue(
-                out MonitoringFilter? filter) &&
-                filter is EventFilter)
+            if (originalFilter is EventFilter)
             {
                 // update limits for event filters.
                 if (revisedQueueSize == 0)
@@ -230,8 +303,8 @@ namespace Opc.Ua.Server
                 timestampsToReturn,
                 itemToCreate.MonitoringMode,
                 itemToCreate.RequestedParameters.ClientHandle,
-                filter!,
-                filter!,
+                originalFilter,
+                filterToUse,
                 range,
                 samplingInterval,
                 revisedQueueSize,
@@ -346,6 +419,61 @@ namespace Opc.Ua.Server
             MonitoredItemModifyRequest itemToModify,
             Range range)
         {
+            _ = itemToModify.RequestedParameters.Filter.TryGetValue(
+                out MonitoringFilter? originalFilter);
+            MonitoringFilter filterToUse =
+                m_revisedModifyFilters.TryGetValue(
+                    itemToModify,
+                    out MonitoringFilter? revisedFilter)
+                    ? revisedFilter
+                    : originalFilter!;
+            return ModifyMonitoredItemCore(
+                context,
+                timestampsToReturn,
+                monitoredItem,
+                itemToModify,
+                originalFilter!,
+                filterToUse,
+                range);
+        }
+
+        /// <summary>
+        /// Invokes the compatible virtual modification seam while supplying
+        /// the separately revised filter to the base implementation.
+        /// </summary>
+        internal ServiceResult? ModifyMonitoredItem(
+            OperationContext context,
+            TimestampsToReturn timestampsToReturn,
+            ISampledDataChangeMonitoredItem monitoredItem,
+            MonitoredItemModifyRequest itemToModify,
+            MonitoringFilter filterToUse,
+            Range range)
+        {
+            m_revisedModifyFilters.Add(itemToModify, filterToUse);
+            try
+            {
+                return ModifyMonitoredItem(
+                    context,
+                    timestampsToReturn,
+                    monitoredItem,
+                    itemToModify,
+                    range);
+            }
+            finally
+            {
+                m_revisedModifyFilters.Remove(itemToModify);
+            }
+        }
+
+        private ServiceResult? ModifyMonitoredItemCore(
+            OperationContext context,
+            TimestampsToReturn timestampsToReturn,
+            ISampledDataChangeMonitoredItem monitoredItem,
+            MonitoredItemModifyRequest itemToModify,
+            MonitoringFilter originalFilter,
+            MonitoringFilter filterToUse,
+            Range range)
+        {
             // use existing interval as sampling interval.
             double samplingInterval = itemToModify.RequestedParameters.SamplingInterval;
 
@@ -374,9 +502,7 @@ namespace Opc.Ua.Server
                 revisedQueueSize = monitoredItem.QueueSize;
             }
 
-            // get filter.
-            if (itemToModify.RequestedParameters.Filter.TryGetValue(out MonitoringFilter? filter) &&
-                filter is EventFilter)
+            if (originalFilter is EventFilter)
             {
                 // update limits for event filters.
                 samplingInterval = 0;
@@ -387,8 +513,8 @@ namespace Opc.Ua.Server
                 context.DiagnosticsMask,
                 timestampsToReturn,
                 itemToModify.RequestedParameters.ClientHandle,
-                filter!,
-                filter!,
+                originalFilter,
+                filterToUse,
                 range,
                 samplingInterval,
                 revisedQueueSize,
@@ -547,6 +673,10 @@ namespace Opc.Ua.Server
             }
         }
 
+        private readonly ConditionalWeakTable<MonitoredItemCreateRequest, MonitoringFilter>
+            m_revisedCreateFilters = new();
+        private readonly ConditionalWeakTable<MonitoredItemModifyRequest, MonitoringFilter>
+            m_revisedModifyFilters = new();
         private readonly Lock m_lock = new();
         private readonly IServerInternal m_server;
         private readonly TimeProvider m_timeProvider;

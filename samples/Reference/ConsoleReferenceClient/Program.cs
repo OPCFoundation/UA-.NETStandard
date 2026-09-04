@@ -166,6 +166,10 @@ namespace Quickstarts.ConsoleReferenceClient
             {
                 Description = "SetDurableSubscription example"
             };
+            var historianOption = new Option<bool>("--historian")
+            {
+                Description = "Run the complete OPC UA Historical Access client workflow"
+            };
             var serverUrlArgument = new Argument<string>("serverUrl")
             {
                 Description = "The OPC UA server URL to connect to",
@@ -201,6 +205,7 @@ namespace Quickstarts.ConsoleReferenceClient
                 foreverOption,
                 leakChannelsOption,
                 durableSubscriptionOption,
+                historianOption,
                 serverUrlArgument
             };
 
@@ -249,6 +254,7 @@ namespace Quickstarts.ConsoleReferenceClient
                 bool leakChannels = parseResult.GetValue(leakChannelsOption);
                 bool enableDurableSubscriptions =
                     parseResult.GetValue(durableSubscriptionOption);
+                bool runHistorian = parseResult.GetValue(historianOption);
                 // serverUrlArgument has DefaultValueFactory so GetValue returns non-null at runtime.
                 var serverUrl = new Uri(parseResult.GetValue(serverUrlArgument)!);
                 bool testallEndpoints = parseResult.GetValue(testallEndpointsOption);
@@ -470,7 +476,14 @@ namespace Quickstarts.ConsoleReferenceClient
                                 await samples.LoadTypeSystemAsync(complexTypeSystem, ct).ConfigureAwait(false);
                             }
 
-                            if (browseall || fetchall || jsonvalues || managedbrowseall)
+                            if (runHistorian)
+                            {
+                                await HistorianClientSample.RunAsync(
+                                    uaClient.Session,
+                                    ct).ConfigureAwait(false);
+                                quit = true;
+                            }
+                            else if (browseall || fetchall || jsonvalues || managedbrowseall)
                             {
                                 List<NodeId>? variableIds = null;
                                 List<NodeId>? variableIdsManagedBrowse = null;
@@ -759,7 +772,8 @@ namespace Quickstarts.ConsoleReferenceClient
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine($"{ex.Message}");
+                    Console.Error.WriteLine(ex.Message);
+                    throw;
                 }
                 finally
                 {

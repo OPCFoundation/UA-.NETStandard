@@ -37,6 +37,7 @@ using Opc.Ua;
 using Opc.Ua.Redundancy;
 using Opc.Ua.Redundancy.Server;
 using Opc.Ua.Server;
+using Opc.Ua.Server.Historian;
 
 namespace RedundantServer
 {
@@ -49,6 +50,7 @@ namespace RedundantServer
         private readonly ILeaderElection m_leaderElection;
         private readonly HaSampleReplicaInfo m_replicaInfo;
         private readonly IDistributedValueCache? m_valueCache;
+        private readonly SharedKeyValueHistorianProvider? m_historian;
 
         /// <summary>
         /// Creates a factory using the distributed leader-election service registered by the host.
@@ -62,11 +64,13 @@ namespace RedundantServer
         public HaSampleNodeManagerFactory(
             ILeaderElection leaderElection,
             HaSampleReplicaInfo replicaInfo,
-            IEnumerable<IDistributedValueCache> valueCaches)
+            IEnumerable<IDistributedValueCache> valueCaches,
+            IEnumerable<SharedKeyValueHistorianProvider> historians)
         {
             m_leaderElection = leaderElection ?? throw new ArgumentNullException(nameof(leaderElection));
             m_replicaInfo = replicaInfo ?? throw new ArgumentNullException(nameof(replicaInfo));
             m_valueCache = valueCaches?.FirstOrDefault();
+            m_historian = historians?.FirstOrDefault();
         }
 
         /// <inheritdoc/>
@@ -83,7 +87,12 @@ namespace RedundantServer
 
 #pragma warning disable CA2000 // ownership transfers to the server
             var manager = new HaSampleNodeManager(
-                server, m_leaderElection, m_replicaInfo, m_valueCache, [.. NamespacesUris]);
+                server,
+                m_leaderElection,
+                m_replicaInfo,
+                m_valueCache,
+                m_historian,
+                [.. NamespacesUris]);
 #pragma warning restore CA2000
             return new ValueTask<IAsyncNodeManager>(manager);
         }
@@ -117,11 +126,13 @@ namespace RedundantServer
         private readonly ILeaderElection m_leaderElection;
         private readonly HaSampleReplicaInfo m_replicaInfo;
         private readonly IDistributedValueCache? m_valueCache;
+        private readonly SharedKeyValueHistorianProvider? m_historian;
         private readonly CancellationTokenSource m_simulationCts = new();
         private readonly Lock m_updateLock = new();
         private static readonly TimeSpan s_valueFreshness = TimeSpan.FromSeconds(10);
         private BaseDataVariableState? m_counter;
         private BaseDataVariableState? m_activeReplica;
+        private BaseObjectState? m_historyEvents;
         private Task? m_simulationTask;
         private int m_counterValue;
 
@@ -135,18 +146,23 @@ namespace RedundantServer
         /// The distributed value cache used to share the Counter value across the replica set, or <c>null</c> when
         /// the topology registers none (active/active and single-instance).
         /// </param>
+        /// <param name="historian">
+        /// The shared historian used by strong active/passive deployments, or <c>null</c> for other topologies.
+        /// </param>
         /// <param name="namespaceUris">The namespace URIs exposed by this node manager.</param>
         public HaSampleNodeManager(
             IServerInternal server,
             ILeaderElection leaderElection,
             HaSampleReplicaInfo replicaInfo,
             IDistributedValueCache? valueCache,
+            SharedKeyValueHistorianProvider? historian,
             params string[] namespaceUris)
             : base(server, namespaceUris)
         {
             m_leaderElection = leaderElection ?? throw new ArgumentNullException(nameof(leaderElection));
             m_replicaInfo = replicaInfo ?? throw new ArgumentNullException(nameof(replicaInfo));
             m_valueCache = valueCache;
+            m_historian = historian;
         }
 
         /// <inheritdoc/>
@@ -187,6 +203,42 @@ namespace RedundantServer
                 DataTypeIds.String,
                 Variant.From("unknown"));
 
+            m_historyEvents = new BaseObjectState(folder)
+            {
+                SymbolicName = "HistoryEvents",
+                ReferenceTypeId = ReferenceTypeIds.Organizes,
+                TypeDefinitionId = ObjectTypeIds.BaseObjectType,
+                NodeId = new NodeId("HistoryEvents", namespaceIndex),
+                BrowseName = new QualifiedName("HistoryEvents", namespaceIndex),
+                DisplayName = new LocalizedText("en", "History Events"),
+                WriteMask = AttributeWriteMask.None,
+                UserWriteMask = AttributeWriteMask.None,
+                EventNotifier = EventNotifiers.SubscribeToEvents
+            };
+            folder.AddChild(m_historyEvents);
+
+            if (m_historian != null)
+            {
+#pragma warning disable CA2000 // ownership transfers to the server's historian-builder registry
+                HistorianBuilder historian = new HistorianBuilder(Server)
+                    .UseProvider(m_historian);
+#pragma warning restore CA2000
+                await historian.HistorizeAsync(
+                    m_counter,
+                    SystemContext,
+                    capabilities: HistorianNodeCapabilities.DataReadWrite,
+                    autoCapture: false,
+                    cancellationToken: cancellationToken).ConfigureAwait(false);
+                await historian.HistorizeEventsAsync(
+                    m_historyEvents,
+                    SystemContext,
+                    capabilities: HistorianNodeCapabilities.EventReadWrite with
+                    {
+                        EventTypes = [ObjectTypeIds.BaseEventType]
+                    },
+                    cancellationToken: cancellationToken).ConfigureAwait(false);
+            }
+
             await AddPredefinedNodeAsync(SystemContext, folder, cancellationToken).ConfigureAwait(false);
             StartSimulation();
         }
@@ -200,6 +252,12 @@ namespace RedundantServer
                 m_simulationCts.Dispose();
             }
             base.Dispose(disposing);
+        }
+
+        /// <inheritdoc/>
+        protected override IHistorianProvider? GetHistorianProvider(NodeState node)
+        {
+            return m_historian ?? base.GetHistorianProvider(node);
         }
 
         private static FolderState CreateFolder(NodeState? parent, ushort namespaceIndex, string path, string name)
@@ -321,10 +379,16 @@ namespace RedundantServer
             }
 
             int value = Interlocked.Increment(ref m_counterValue);
+            DateTimeUtc timestamp = DateTimeUtc.Now;
+            var sample = new DataValue(
+                Variant.From(value),
+                StatusCodes.Good,
+                timestamp,
+                timestamp);
             lock (m_updateLock)
             {
                 counter.Value = value;
-                counter.Timestamp = DateTime.UtcNow;
+                counter.Timestamp = timestamp.ToDateTime();
                 counter.ClearChangeMasks(SystemContext, false);
             }
 
@@ -337,7 +401,7 @@ namespace RedundantServer
                     await m_valueCache
                         .CacheAsync(
                             counter.NodeId,
-                            new DataValue(Variant.From(value), StatusCodes.Good, DateTimeUtc.Now),
+                            sample,
                             cancellationToken)
                         .ConfigureAwait(false);
                 }
@@ -346,6 +410,89 @@ namespace RedundantServer
                     // The distributed store is not ready yet (the server is
                     // still starting); the value is shared on the next tick.
                 }
+            }
+
+            bool historyReady = m_historian == null ||
+                await ArchiveCounterAsync(
+                    counter,
+                    sample,
+                    cancellationToken).ConfigureAwait(false);
+
+            BaseObjectState? historyEvents = m_historyEvents;
+            if (historyEvents != null && historyReady)
+            {
+                var e = new BaseEventState(historyEvents);
+                e.Initialize(
+                    SystemContext,
+                    historyEvents,
+                    EventSeverity.Low,
+                    new LocalizedText(
+                        $"Replica '{m_replicaInfo.NodeId}' archived counter {value}."));
+                try
+                {
+                    await historyEvents.ReportEventAsync(
+                        SystemContext,
+                        e,
+                        cancellationToken).ConfigureAwait(false);
+                }
+                catch (ServiceResultException exception)
+                {
+                    m_logger.EventHistoryWriteFailed(
+                        exception,
+                        m_replicaInfo.NodeId);
+                }
+            }
+        }
+
+        private async Task<bool> ArchiveCounterAsync(
+            BaseDataVariableState counter,
+            DataValue sample,
+            CancellationToken cancellationToken)
+        {
+            SharedKeyValueHistorianProvider? historian = m_historian;
+            if (historian == null || !m_leaderElection.IsLeader)
+            {
+                return false;
+            }
+
+            try
+            {
+                using var operationContext = new OperationContext(
+                    new RequestHeader(),
+                    null,
+                    RequestType.HistoryUpdate,
+                    RequestLifetime.None);
+                var historianContext = new HistorianOperationContext(
+                    SystemContext,
+                    operationContext,
+                    counter,
+                    HistoryUpdateType.Insert);
+                HistorianUpdateOutcome<DataValue> outcome = await historian.InsertAsync(
+                    historianContext,
+                    counter.NodeId,
+                    [sample],
+                    cancellationToken).ConfigureAwait(false);
+                StatusCode status = outcome.OperationResults.Count == 1
+                    ? outcome.OperationResults[0]
+                    : StatusCodes.BadUnexpectedError;
+                if (StatusCode.IsBad(status))
+                {
+                    m_logger.CounterHistoryWriteRejected(
+                        m_replicaInfo.NodeId,
+                        status);
+                    return false;
+                }
+                return true;
+            }
+            catch (Exception exception) when (
+                exception is ServiceResultException or
+                TimeoutException or
+                InvalidOperationException)
+            {
+                m_logger.CounterHistoryWriteFailed(
+                    exception,
+                    m_replicaInfo.NodeId);
+                return false;
             }
         }
 
@@ -418,5 +565,26 @@ namespace RedundantServer
         [LoggerMessage(EventId = RedundantServerEventIds.HaSampleNodeManager + 2, Level = LogLevel.Information,
             Message = "HA: replica {ReplicaId} ACTIVE, Counter={Counter}.")]
         public static partial void ReplicaActive(this ILogger logger, string replicaId, int counter);
+
+        [LoggerMessage(EventId = RedundantServerEventIds.HaSampleNodeManager + 3, Level = LogLevel.Warning,
+            Message = "HA: replica {ReplicaId} could not archive the Counter sample ({StatusCode}).")]
+        public static partial void CounterHistoryWriteRejected(
+            this ILogger logger,
+            string replicaId,
+            StatusCode statusCode);
+
+        [LoggerMessage(EventId = RedundantServerEventIds.HaSampleNodeManager + 4, Level = LogLevel.Warning,
+            Message = "HA: replica {ReplicaId} failed to archive the Counter sample.")]
+        public static partial void CounterHistoryWriteFailed(
+            this ILogger logger,
+            Exception exception,
+            string replicaId);
+
+        [LoggerMessage(EventId = RedundantServerEventIds.HaSampleNodeManager + 5, Level = LogLevel.Warning,
+            Message = "HA: replica {ReplicaId} failed to archive the history event.")]
+        public static partial void EventHistoryWriteFailed(
+            this ILogger logger,
+            Exception exception,
+            string replicaId);
     }
 }

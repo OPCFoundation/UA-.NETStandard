@@ -27,6 +27,9 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System.Threading;
+using System.Threading.Tasks;
+
 namespace Opc.Ua.Server
 {
     /// <summary>
@@ -68,11 +71,31 @@ namespace Opc.Ua.Server
         void SaveHistory(IHistoryContinuationPoint continuationPoint);
 
         /// <summary>
+        /// Saves and durably mirrors a portable history continuation point.
+        /// </summary>
+        ValueTask SaveHistoryAsync(
+            IHistoryContinuationPoint continuationPoint,
+            CancellationToken cancellationToken = default);
+
+        /// <summary>
         /// Restores and removes a history continuation point.
         /// </summary>
         /// <param name="continuationPoint">The identifier the client returned.</param>
         /// <returns>The continuation point, or <c>null</c> when it is not held.</returns>
         IHistoryContinuationPoint? RestoreHistory(ByteString continuationPoint);
+
+        /// <summary>
+        /// Releases and disposes a history continuation point without resuming it.
+        /// Portable records are scheduled for durable removal.
+        /// </summary>
+        bool ReleaseHistory(ByteString continuationPoint);
+
+        /// <summary>
+        /// Atomically claims and restores a portable history continuation point.
+        /// </summary>
+        ValueTask<IHistoryContinuationPoint?> RestoreHistoryAsync(
+            ByteString continuationPoint,
+            CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Drops every point issued by a node manager that is going away, so nothing

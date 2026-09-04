@@ -126,7 +126,7 @@ namespace Opc.Ua.Server.Tests.Historian
                 new Dictionary<string, Variant>(StringComparer.Ordinal)
                 {
                     ["Root/Child"] = new Variant("found-it")
-                });
+                }.ToArrayOf());
 
             var target = new HistorianEventFilterTarget(record);
             ArrayOf<QualifiedName> path = new QualifiedName[] { new("Root"), new("Child") };
@@ -159,7 +159,8 @@ namespace Opc.Ua.Server.Tests.Historian
                 ByteString.Empty,
                 eventType,
                 (DateTimeUtc)BaseTime,
-                new Dictionary<string, Variant>(StringComparer.Ordinal));
+                new Dictionary<string, Variant>(
+                    StringComparer.Ordinal).ToArrayOf());
         }
     }
 }

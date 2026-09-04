@@ -292,6 +292,28 @@ namespace Opc.Ua.Server
     }
 
     /// <summary>
+    /// Supports ordering asynchronously primed initial values ahead of live
+    /// values received while priming is in progress.
+    /// </summary>
+    public interface IInitialValueMonitoredItem
+    {
+        /// <summary>
+        /// Queues an initial value without placing it behind buffered live
+        /// values.
+        /// </summary>
+        void QueueInitialValue(
+            in DataValue value,
+            ServiceResult? error,
+            bool ignoreFilters);
+
+        /// <summary>
+        /// Completes initial-value priming and releases buffered live values.
+        /// </summary>
+        /// <returns>An error if buffered live values could not be retained.</returns>
+        ServiceResult CompleteInitialValue();
+    }
+
+    /// <summary>
     /// Manages a monitored item created by a client.
     /// </summary>
     public interface ISampledDataChangeMonitoredItem : IDataChangeMonitoredItem2

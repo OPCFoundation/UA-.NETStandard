@@ -124,6 +124,11 @@ namespace Opc.Ua.Server
         public ISubscriptionStore? SubscriptionStore { get; set; }
 
         /// <summary>
+        /// Optional durable store for portable HistoryRead continuation points.
+        /// </summary>
+        public IHistoryContinuationPointStore? HistoryContinuationPointStore { get; set; }
+
+        /// <summary>
         /// An optional monitored-item queue factory. When <c>null</c> (the default) the
         /// built-in <see cref="Server.MonitoredItemQueueFactory"/> is used unless a
         /// subclass overrides <see cref="CreateMonitoredItemQueueFactory"/>. Set this before
@@ -3190,7 +3195,6 @@ namespace Opc.Ua.Server
             return default;
         }
 
-
         /// <summary>
         /// Validate operation limits.
         /// </summary>
@@ -3405,7 +3409,6 @@ namespace Opc.Ua.Server
                             cancellationToken)
                         .ConfigureAwait(false);
                 }
-
             }
             catch (Exception e)
             {
@@ -3763,6 +3766,15 @@ namespace Opc.Ua.Server
                 //add the SubscriptionStore to the datastore
                 m_serverInternal.SetSubscriptionStore(subscriptionStore!);
 
+                IHistoryContinuationPointStore? historyContinuationPointStore =
+                    HistoryContinuationPointStore ??
+                    subscriptionStore as IHistoryContinuationPointStore;
+                if (historyContinuationPointStore != null)
+                {
+                    m_serverInternal.SetHistoryContinuationPointStore(
+                        historyContinuationPointStore);
+                }
+
                 // start the subscription manager.
                 m_logger.ServerCreateSubscriptionManager();
                 ISubscriptionManager subscriptionManager = CreateSubscriptionManager(
@@ -3982,6 +3994,7 @@ namespace Opc.Ua.Server
         /// <see cref="ServerBase.StartAsync(ApplicationConfiguration, CancellationToken, System.Uri[])"/>
         /// re-creates the request queue and server internals.
         /// </remarks>
+        /// <exception cref="AggregateException"></exception>
         private async Task TearDownServerInternalAsync(
             ServerInternalData serverInternal,
             CancellationToken cancellationToken)
@@ -4790,16 +4803,19 @@ namespace Opc.Ua.Server
 
         private readonly Lock m_registrationLock = new();
         private readonly Lock m_shutdownStateLock = new();
+
         [SuppressMessage(
             "Usage",
             "CA2213:Disposable fields should be disposed",
             Justification = "Disposed exactly once by DisposeBaseResources.")]
         private readonly SemaphoreSlim m_semaphoreSlim = new(1, 1);
+
         [SuppressMessage(
             "Usage",
             "CA2213:Disposable fields should be disposed",
             Justification = "Disposed by OnServerStoppingAsync while the server is stopped.")]
         private ServerInternalData? m_serverInternal;
+
         private Task? m_disposeTask;
 
         internal bool BaseResourcesDisposedForTest

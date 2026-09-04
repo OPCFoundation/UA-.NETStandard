@@ -41,6 +41,7 @@ namespace Opc.Ua.Server
     public class MonitoredItem :
         IEventMonitoredItem,
         ISampledDataChangeMonitoredItem,
+        IInitialValueMonitoredItem,
         ITriggeredMonitoredItem,
         IDetachableMonitoredItem,
         IMonitoredItemTransferState
@@ -196,6 +197,8 @@ namespace Opc.Ua.Server
             m_discardOldest = discardOldest;
             m_sourceSamplingInterval = (int)sourceSamplingInterval;
             m_calculator = null;
+            m_initialValuePending =
+                filterToUse is ServerAggregateFilter { PrimeInitialValue: true };
             m_nextSamplingTime = m_timeProvider.GetTimestampMilliseconds();
             AlwaysReportUpdates = false;
             m_monitoredItemQueueFactory = m_server.MonitoredItemQueueFactory;
@@ -319,6 +322,8 @@ namespace Opc.Ua.Server
             m_lastError = storedMonitoredItem.LastError;
             m_lastValue = storedMonitoredItem.LastValue;
             MonitoredItemType = storedMonitoredItem.TypeMask;
+            IStoredMonitoredItemNotificationState? notificationState =
+                storedMonitoredItem as IStoredMonitoredItemNotificationState;
 
             // without this the first transition out of filter scope after a restart is
             // dropped, because the item would not know the client had been told about the
@@ -355,6 +360,30 @@ namespace Opc.Ua.Server
 
             RestoreQueue();
 
+            if (notificationState?.RequiredValuePending == true)
+            {
+                ServiceResult requiredError =
+                    notificationState.RequiredError ??
+                    new ServiceResult(
+                        notificationState.RequiredValue.StatusCode);
+                if (m_dataChangeQueueHandler != null)
+                {
+                    m_dataChangeQueueHandler.EnsureRequiredValue(
+                        notificationState.RequiredValue,
+                        requiredError);
+                }
+                else
+                {
+                    m_requiredLastValue = notificationState.RequiredValue;
+                    m_requiredLastError = requiredError;
+                    m_requiredLastValuePending = true;
+                    m_lastValue = notificationState.RequiredValue;
+                    m_lastError = requiredError;
+                }
+                m_readyToPublish = true;
+                m_readyToTrigger = true;
+            }
+
             m_isDeleted = storedMonitoredItem.IsDeleted;
             m_isDetached = storedMonitoredItem.IsDetached;
         }
@@ -382,6 +411,9 @@ namespace Opc.Ua.Server
             Filter = null!;
             m_lastValue = default;
             m_lastError = null;
+            m_requiredLastValue = default;
+            m_requiredLastError = null;
+            m_requiredLastValuePending = false;
             m_readyToPublish = false;
             m_readyToTrigger = false;
             m_sourceSamplingInterval = 0;
@@ -954,28 +986,39 @@ namespace Opc.Ua.Server
                 // check if aggregate filter has been updated.
                 if (filterToUse is ServerAggregateFilter aggregateFilter)
                 {
-                    ServerAggregateFilter existingFilter = aggregateFilter;
+                    var existingFilter =
+                        previousFilterToUse as ServerAggregateFilter;
+                    bool match = existingFilter != null &&
+                        m_calculator != null;
 
-                    bool match = true;
-
-                    if (match && existingFilter.AggregateType != aggregateFilter.AggregateType)
+                    if (match &&
+                        existingFilter!.AggregateType !=
+                            aggregateFilter.AggregateType)
                     {
                         match = false;
                     }
 
                     if (match &&
-                        existingFilter.ProcessingInterval != aggregateFilter.ProcessingInterval)
-                    {
-                        match = false;
-                    }
-
-                    if (match && existingFilter.StartTime != aggregateFilter.StartTime)
+                        existingFilter!.ProcessingInterval !=
+                            aggregateFilter.ProcessingInterval)
                     {
                         match = false;
                     }
 
                     if (match &&
-                        !existingFilter.AggregateConfiguration
+                        existingFilter!.StartTime != aggregateFilter.StartTime)
+                    {
+                        match = false;
+                    }
+
+                    if (match &&
+                        existingFilter!.Stepped != aggregateFilter.Stepped)
+                    {
+                        match = false;
+                    }
+
+                    if (match &&
+                        !existingFilter!.AggregateConfiguration
                             .IsEqual(aggregateFilter.AggregateConfiguration))
                     {
                         match = false;
@@ -991,6 +1034,10 @@ namespace Opc.Ua.Server
                             aggregateFilter.Stepped,
                             aggregateFilter.AggregateConfiguration);
                     }
+                }
+                else
+                {
+                    m_calculator = null;
                 }
 
                 // report change to item state.
@@ -1111,6 +1158,51 @@ namespace Opc.Ua.Server
         /// <exception cref="ServiceResultException"></exception>
         public virtual void QueueValue(in DataValue value, ServiceResult? error, bool ignoreFilters)
         {
+            QueueValueCore(in value, error, ignoreFilters, initialValue: false);
+        }
+
+        void IInitialValueMonitoredItem.QueueInitialValue(
+            in DataValue value,
+            ServiceResult? error,
+            bool ignoreFilters)
+        {
+            QueueValueCore(in value, error, ignoreFilters, initialValue: true);
+        }
+
+        ServiceResult IInitialValueMonitoredItem.CompleteInitialValue()
+        {
+            lock (m_lock)
+            {
+                if (m_initialValueOverflowed)
+                {
+                    m_pendingValues = null;
+                    m_initialValuePending = false;
+                    return StatusCodes.BadTooManyOperations;
+                }
+
+                if (m_pendingValues != null)
+                {
+                    foreach (PendingValue pending in m_pendingValues)
+                    {
+                        QueueValueLocked(
+                            pending.Value,
+                            pending.Error,
+                            pending.IgnoreFilters,
+                            required: false);
+                    }
+                    m_pendingValues = null;
+                }
+                m_initialValuePending = false;
+                return ServiceResult.Good;
+            }
+        }
+
+        private void QueueValueCore(
+            in DataValue value,
+            ServiceResult? error,
+            bool ignoreFilters,
+            bool initialValue)
+        {
             lock (m_lock)
             {
                 // this method should only be called for variables.
@@ -1125,77 +1217,160 @@ namespace Opc.Ua.Server
                     return;
                 }
 
-                DataValue current = value;
-
-                // make a shallow copy of the value.
-                if (!current.IsNull)
+                if (m_initialValuePending && !initialValue)
                 {
-                    m_logger.RECEIVEDVALUEMonitoredItemIdValueValue(
-                        Id,
-                        current.WrappedValue,
-                        SubscriptionId);
-
-                    current = current.Copy();
-
-                    // ensure the data value matches the error status code.
-                    if (error != null && error.StatusCode.Code != 0)
+                    if ((m_pendingValues?.Count ?? 0) >=
+                        kMaxPendingInitialValues)
                     {
-                        current = current.WithStatus(error.StatusCode);
+                        m_initialValueOverflowed = true;
+                        return;
                     }
-                }
-
-                // create empty value if none provided.
-                if (ServiceResult.IsBad(error) && current.IsNull)
-                {
-                    DateTime utcNow = m_timeProvider.GetUtcNow().UtcDateTime;
-                    current = new DataValue(
-                        Variant.Null,
-                        error!.StatusCode,
-                        utcNow,
-                        utcNow);
-                }
-
-                // this should never happen.
-                if (current.IsNull)
-                {
+                    DataValue pendingValue = value.IsNull
+                        ? DataValue.Null
+                        : value.Copy();
+                    (m_pendingValues ??= []).Add(
+                        new PendingValue(
+                            pendingValue,
+                            error,
+                            ignoreFilters));
                     return;
                 }
 
-                // apply aggregate filter.
-                if (m_calculator != null)
-                {
-                    if (!m_calculator.QueueRawValue(current) &&
-                        m_logger.IsEnabled(LogLevel.Trace))
-                    {
-                        m_logger.ValueReceivedOutOfOrderSourceTimestampServerHandle(
-                            current.SourceTimestamp
-                                .ToLocalTime()
-                                .ToString("HH:mm:ss.fff", CultureInfo.InvariantCulture),
-                            Id,
-                            SubscriptionId);
-                    }
-
-                    while (m_calculator.TryGetProcessedValue(false, out DataValue processedValue))
-                    {
-                        AddValueToQueue(processedValue, null!);
-                    }
-
-                    return;
-                }
-
-                // apply filter to incoming item.
-                if (!ignoreFilters && !AlwaysReportUpdates && !ApplyFilter(current, error!))
-                {
-                    ServerUtils.ReportFilteredValue(NodeId, Id, current);
-                    return;
-                }
-
-                ServerUtils.ReportQueuedValue(NodeId, Id, current);
-
-                // add the value to the queue.
-                AddValueToQueue(current, error!);
+                QueueValueLocked(
+                    value,
+                    error,
+                    ignoreFilters,
+                    required: initialValue && ServiceResult.IsBad(error));
             }
         }
+
+        private void QueueValueLocked(
+            in DataValue value,
+            ServiceResult? error,
+            bool ignoreFilters,
+            bool required)
+        {
+            DataValue current = value;
+
+            // make a shallow copy of the value.
+            if (!current.IsNull)
+            {
+                m_logger.RECEIVEDVALUEMonitoredItemIdValueValue(
+                    Id,
+                    current.WrappedValue,
+                    SubscriptionId);
+
+                current = current.Copy();
+
+                // ensure the data value matches the error status code.
+                if (error != null && error.StatusCode.Code != 0)
+                {
+                    current = current.WithStatus(error.StatusCode);
+                }
+            }
+
+            // create empty value if none provided.
+            if (ServiceResult.IsBad(error) && current.IsNull)
+            {
+                DateTime utcNow = m_timeProvider.GetUtcNow().UtcDateTime;
+                current = new DataValue(
+                    Variant.Null,
+                    error!.StatusCode,
+                    utcNow,
+                    utcNow);
+            }
+
+            // this should never happen.
+            if (current.IsNull)
+            {
+                return;
+            }
+
+            if (m_requiredLastValuePending && !required)
+            {
+                return;
+            }
+
+            if (required)
+            {
+                ServerUtils.ReportQueuedValue(NodeId, Id, current);
+                AddRequiredValueToQueue(
+                    current,
+                    error!,
+                    replaceExisting: false);
+                return;
+            }
+
+            // apply aggregate filter.
+            if (m_calculator != null && !ServiceResult.IsBad(error))
+            {
+                if (!m_calculator.QueueRawValue(current) &&
+                    m_logger.IsEnabled(LogLevel.Trace))
+                {
+                    m_logger.ValueReceivedOutOfOrderSourceTimestampServerHandle(
+                        current.SourceTimestamp
+                            .ToLocalTime()
+                            .ToString("HH:mm:ss.fff", CultureInfo.InvariantCulture),
+                        Id,
+                        SubscriptionId);
+                }
+
+                while (m_calculator.TryGetProcessedValue(false, out DataValue processedValue))
+                {
+                    AddValueToQueue(processedValue, null!);
+                }
+
+                return;
+            }
+
+            // apply filter to incoming item.
+            if (!ignoreFilters && !AlwaysReportUpdates && !ApplyFilter(current, error!))
+            {
+                ServerUtils.ReportFilteredValue(NodeId, Id, current);
+                return;
+            }
+
+            ServerUtils.ReportQueuedValue(NodeId, Id, current);
+
+            // add the value to the queue.
+            AddValueToQueue(current, error!);
+        }
+
+        private void AddRequiredValueToQueue(
+            DataValue value,
+            ServiceResult error,
+            bool replaceExisting)
+        {
+            if (QueueSize > 1)
+            {
+                m_dataChangeQueueHandler!.QueueRequiredValue(
+                    value,
+                    error,
+                    replaceExisting);
+            }
+            else
+            {
+                if (m_requiredLastValuePending &&
+                    (m_requiredLastValue.StatusCode == value.StatusCode ||
+                        !replaceExisting))
+                {
+                    return;
+                }
+                m_requiredLastValue = value;
+                m_requiredLastError = error;
+                m_requiredLastValuePending = true;
+            }
+
+            m_lastValue = value;
+            m_lastError = error;
+            m_readyToPublish = true;
+            m_readyToTrigger = true;
+        }
+
+        private readonly record struct PendingValue(
+            DataValue Value,
+            ServiceResult? Error,
+            bool IgnoreFilters);
 
         /// <summary>
         /// Adds a value to the queue.
@@ -1744,6 +1919,13 @@ namespace Opc.Ua.Server
                         m_lastValue.StatusCode.Overflow,
                         Id);
                     Publish(context, notifications, diagnostics, m_lastValue, m_lastError!);
+                    if (m_requiredLastValuePending &&
+                        m_requiredLastValue == m_lastValue)
+                    {
+                        m_requiredLastValue = default;
+                        m_requiredLastError = null;
+                        m_requiredLastValuePending = false;
+                    }
                 }
 
                 bool moreValuesToPublish = m_dataChangeQueueHandler?.ItemsInQueue > 0;
@@ -1903,6 +2085,18 @@ namespace Opc.Ua.Server
         {
             lock (m_lock)
             {
+                DataValue requiredValue = default;
+                ServiceResult? requiredError = null;
+                bool requiredValuePending =
+                    m_dataChangeQueueHandler?.TryGetRequiredValue(
+                        out requiredValue,
+                        out requiredError) == true;
+                if (!requiredValuePending && m_requiredLastValuePending)
+                {
+                    requiredValuePending = true;
+                    requiredValue = m_requiredLastValue;
+                    requiredError = m_requiredLastError!;
+                }
                 return new StoredMonitoredItem
                 {
                     SamplingInterval = m_samplingInterval,
@@ -1923,6 +2117,9 @@ namespace Opc.Ua.Server
                     IndexRange = m_indexRange!,
                     LastError = m_lastError!,
                     LastValue = m_lastValue,
+                    RequiredValuePending = requiredValuePending,
+                    RequiredValue = requiredValue,
+                    RequiredError = requiredError!,
                     MonitoringMode = MonitoringMode,
                     NodeId = NodeId,
                     OriginalFilter = Filter!,
@@ -1947,17 +2144,10 @@ namespace Opc.Ua.Server
             DataValue value = CreateNodeIdUnknownValue();
             var error = new ServiceResult(StatusCodes.BadNodeIdUnknown);
 
-            // With queueing disabled the last value is what the Client is served, so there is
-            // nothing to protect and the notification simply becomes that value.
-            if (QueueSize > 1)
-            {
-                m_dataChangeQueueHandler?.QueueRequiredValue(value, error);
-            }
-
-            m_lastValue = value;
-            m_lastError = error;
-            m_readyToPublish = true;
-            m_readyToTrigger = true;
+            AddRequiredValueToQueue(
+                value,
+                error,
+                replaceExisting: true);
         }
 
         private DataValue CreateNodeIdUnknownValue()
@@ -2134,6 +2324,16 @@ namespace Opc.Ua.Server
                     {
                         if (QueueSize <= 1)
                         {
+                            if (m_dataChangeQueueHandler?.TryGetRequiredValue(
+                                out DataValue requiredValue,
+                                out ServiceResult requiredError) == true)
+                            {
+                                m_requiredLastValue = requiredValue;
+                                m_requiredLastError = requiredError;
+                                m_requiredLastValuePending = true;
+                                m_lastValue = requiredValue;
+                                m_lastError = requiredError;
+                            }
                             m_dataChangeQueueHandler?.Dispose();
                             m_dataChangeQueueHandler = null;
                             break; // queueing is disabled
@@ -2160,7 +2360,21 @@ namespace Opc.Ua.Server
 
                         if (queueLastValue && !m_lastValue.IsNull)
                         {
-                            m_dataChangeQueueHandler.QueueValue(m_lastValue, m_lastError!);
+                            if (m_requiredLastValuePending)
+                            {
+                                m_dataChangeQueueHandler.QueueRequiredValue(
+                                    m_requiredLastValue,
+                                    m_requiredLastError!);
+                                m_requiredLastValue = default;
+                                m_requiredLastError = null;
+                                m_requiredLastValuePending = false;
+                            }
+                            else
+                            {
+                                m_dataChangeQueueHandler.QueueValue(
+                                    m_lastValue,
+                                    m_lastError!);
+                            }
                         }
                     }
                     else // create event queue.
@@ -2178,6 +2392,9 @@ namespace Opc.Ua.Server
                     m_eventQueueHandler = null;
                     m_dataChangeQueueHandler?.Dispose();
                     m_dataChangeQueueHandler = null;
+                    m_requiredLastValue = default;
+                    m_requiredLastError = null;
+                    m_requiredLastValuePending = false;
                     break;
                 default:
                     throw ServiceResultException.Unexpected(
@@ -2379,6 +2596,9 @@ namespace Opc.Ua.Server
         private int m_sourceSamplingInterval;
         private DataValue m_lastValue;
         private ServiceResult? m_lastError;
+        private DataValue m_requiredLastValue;
+        private ServiceResult? m_requiredLastError;
+        private bool m_requiredLastValuePending;
         private long m_nextSamplingTime;
         private readonly IMonitoredItemQueueFactory m_monitoredItemQueueFactory;
         private DataChangeQueueHandler? m_dataChangeQueueHandler;
@@ -2393,6 +2613,9 @@ namespace Opc.Ua.Server
         private ISubscription? m_subscription;
         private ServiceResult? m_samplingError;
         private IAggregateCalculator? m_calculator;
+        private bool m_initialValuePending;
+        private List<PendingValue>? m_pendingValues;
+        private bool m_initialValueOverflowed;
         private bool m_triggered;
         private bool m_resendData;
         private HashSet<string>? m_filteredRetainConditionIds;
@@ -2404,6 +2627,8 @@ namespace Opc.Ua.Server
         /// </summary>
         private static readonly object s_detachedHandle = new();
         private bool m_isDeleted;
+
+        private const int kMaxPendingInitialValues = 100_000;
     }
 
     /// <summary>

@@ -27,7 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -51,7 +50,7 @@ namespace Opc.Ua.Server.Historian
         /// <param name="context">Operation context.</param>
         /// <param name="request">Normalised at-time read request.</param>
         /// <param name="ct">Cancellation token.</param>
-        ValueTask<IList<DataValue>> ReadAtTimeAsync(
+        ValueTask<ArrayOf<DataValue>> ReadAtTimeAsync(
             HistorianOperationContext context,
             HistorianAtTimeReadRequest request,
             CancellationToken ct);

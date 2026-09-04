@@ -32,6 +32,23 @@ using System;
 namespace Opc.Ua.Client.Historian
 {
     /// <summary>
+    /// Historical profile and conformance-unit claims published by a server.
+    /// </summary>
+    public sealed record HistoricalConformanceInfo
+    {
+        /// <summary>
+        /// Historical Server facet URIs present in ServerProfileArray.
+        /// </summary>
+        public ArrayOf<string> ServerProfiles { get; init; } = [];
+
+        /// <summary>
+        /// Historical conformance units published by the server.
+        /// </summary>
+        public ArrayOf<QualifiedName> ConformanceUnits { get; init; }
+            = [];
+    }
+
+    /// <summary>
     /// Snapshot of <c>Server.ServerCapabilities.HistoryServerCapabilities</c>
     /// returned by <see cref="HistoryClient.GetServerCapabilitiesAsync"/>.
     /// </summary>
@@ -88,6 +105,26 @@ namespace Opc.Ua.Client.Historian
         public bool InsertAnnotation { get; init; }
 
         /// <summary>
+        /// Whether the server supports inserting historical events.
+        /// </summary>
+        public bool InsertEvent { get; init; }
+
+        /// <summary>
+        /// Whether the server supports replacing historical events.
+        /// </summary>
+        public bool ReplaceEvent { get; init; }
+
+        /// <summary>
+        /// Whether the server supports updating historical events.
+        /// </summary>
+        public bool UpdateEvent { get; init; }
+
+        /// <summary>
+        /// Whether the server supports deleting historical events.
+        /// </summary>
+        public bool DeleteEvent { get; init; }
+
+        /// <summary>
         /// Whether the server persists ServerTimestamp on history.
         /// </summary>
         public bool ServerTimestampSupported { get; init; }
@@ -137,6 +174,11 @@ namespace Opc.Ua.Client.Historian
         public double? ExceptionDeviation { get; init; }
 
         /// <summary>
+        /// Format of <see cref="ExceptionDeviation"/>.
+        /// </summary>
+        public ExceptionDeviationFormat? ExceptionDeviationFormat { get; init; }
+
+        /// <summary>
         /// Start of the archive window (oldest available).
         /// </summary>
         public DateTime? StartOfArchive { get; init; }
@@ -147,7 +189,22 @@ namespace Opc.Ua.Client.Historian
         public DateTime? StartOfOnlineArchive { get; init; }
 
         /// <summary>
-        /// The node's advertised default <see cref="Opc.Ua.AggregateConfiguration"/>
+        /// Whether ServerTimestamp is retained for this historical node.
+        /// </summary>
+        public bool? ServerTimestampSupported { get; init; }
+
+        /// <summary>
+        /// Maximum retained time window in milliseconds.
+        /// </summary>
+        public double? MaxTimeStoredValues { get; init; }
+
+        /// <summary>
+        /// Maximum retained sample count.
+        /// </summary>
+        public uint? MaxCountStoredValues { get; init; }
+
+        /// <summary>
+        /// The node's advertised default <see cref="Ua.AggregateConfiguration"/>
         /// (PercentDataGood, PercentDataBad, TreatUncertainAsBad,
         /// UseSlopedExtrapolation), read from the <c>AggregateConfiguration</c>
         /// object of the <c>HistoricalDataConfiguration</c> companion. A client
@@ -156,5 +213,37 @@ namespace Opc.Ua.Client.Historian
         /// <c>null</c> when the server does not expose the object.
         /// </summary>
         public AggregateConfiguration? AggregateConfiguration { get; init; }
+    }
+
+    /// <summary>
+    /// Snapshot of <c>HistoricalEventConfigurationType</c> for an event notifier.
+    /// </summary>
+    public sealed record HistoricalEventConfigurationInfo
+    {
+        /// <summary>
+        /// Whether the notifier exposes a historical event configuration.
+        /// </summary>
+        public bool HasConfiguration { get; init; }
+
+        /// <summary>
+        /// Event types the historian can store with all mandatory fields.
+        /// </summary>
+        public ArrayOf<NodeId> EventTypes { get; init; } = [];
+
+        /// <summary>
+        /// Start of the complete event archive.
+        /// </summary>
+        public DateTime? StartOfArchive { get; init; }
+
+        /// <summary>
+        /// Start of the online event archive.
+        /// </summary>
+        public DateTime? StartOfOnlineArchive { get; init; }
+
+        /// <summary>
+        /// Event fields supported for sorted historical reads.
+        /// </summary>
+        public ArrayOf<SimpleAttributeOperand> SortByEventFields { get; init; }
+            = [];
     }
 }

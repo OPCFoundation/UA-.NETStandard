@@ -957,7 +957,7 @@ namespace Opc.Ua.Redundancy.Server
 
         private static StoredMonitoredItem CloneMonitoredItem(IStoredMonitoredItem item)
         {
-            return new StoredMonitoredItem
+            var clone = new StoredMonitoredItem
             {
                 IsRestored = item.IsRestored,
                 IsDeleted = item.IsDeleted,
@@ -987,6 +987,14 @@ namespace Opc.Ua.Redundancy.Server
                 TypeMask = item.TypeMask,
                 FilteredRetainConditionIds = item.FilteredRetainConditionIds
             };
+            if (item is IStoredMonitoredItemNotificationState notificationState)
+            {
+                clone.RequiredValuePending =
+                    notificationState.RequiredValuePending;
+                clone.RequiredValue = notificationState.RequiredValue;
+                clone.RequiredError = notificationState.RequiredError;
+            }
+            return clone;
         }
 
         private static async ValueTask RunBatchOperationsAsync(List<Task> operations)
@@ -1273,6 +1281,14 @@ namespace Opc.Ua.Redundancy.Server
             {
                 encoder.WriteStringArray(null, item.FilteredRetainConditionIds);
             }
+            if (version >= RequiredNotificationDefinitionFormatVersion)
+            {
+                encoder.WriteBoolean(null, item.RequiredValuePending);
+                encoder.WriteDataValue(null, item.RequiredValue);
+                encoder.WriteStatusCode(
+                    null,
+                    item.RequiredError?.StatusCode ?? StatusCodes.Good);
+            }
         }
 
         private static StoredMonitoredItem DecodeMonitoredItem(BinaryDecoder decoder, int version)
@@ -1318,6 +1334,15 @@ namespace Opc.Ua.Redundancy.Server
             {
                 // the keys are written by the monitored item and never null.
                 item.FilteredRetainConditionIds = decoder.ReadStringArray(null)!;
+            }
+            if (version >= RequiredNotificationDefinitionFormatVersion)
+            {
+                item.RequiredValuePending = decoder.ReadBoolean(null);
+                item.RequiredValue = decoder.ReadDataValue(null);
+                StatusCode requiredError = decoder.ReadStatusCode(null);
+                item.RequiredError = requiredError == StatusCodes.Good
+                    ? null!
+                    : new ServiceResult(requiredError);
             }
             return item;
         }
@@ -1402,7 +1427,9 @@ namespace Opc.Ua.Redundancy.Server
         private const int LegacyDefinitionFormatVersion = 1;
         private const int LifecycleStateDefinitionFormatVersion = 2;
         private const int FilteredRetainDefinitionFormatVersion = 3;
-        private const int DefinitionFormatVersion = FilteredRetainDefinitionFormatVersion;
+        private const int RequiredNotificationDefinitionFormatVersion = 4;
+        private const int DefinitionFormatVersion =
+            RequiredNotificationDefinitionFormatVersion;
         private const int DefinitionSnapshotManifestFormatVersion = 1;
         private const int ContinuationPointFormatVersion = 1;
         private const int LegacyRetransmissionStateFormatVersion = 1;

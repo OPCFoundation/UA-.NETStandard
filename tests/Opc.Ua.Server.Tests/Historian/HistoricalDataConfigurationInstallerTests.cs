@@ -178,17 +178,15 @@ namespace Opc.Ua.Server.Tests.Historian
 
             BaseDataVariableState variable = CreateVariable("v-builder-cfg");
 
-            // installConfigurationNode: true triggers EnsureInstalledAsync synchronously.
-            builder.Historize(
+            await builder.HistorizeAsync(
                 variable,
-                installConfigurationNode: true,
                 systemContext: ctx,
-                autoCapture: false);
+                autoCapture: false).ConfigureAwait(false);
 
             var browseName = new QualifiedName(BrowseNames.HAConfiguration);
             BaseInstanceState? found = variable.FindChild(ctx, browseName);
             Assert.That(found, Is.Not.Null,
-                "installConfigurationNode: true must attach HAConfiguration as child.");
+                "HistorizeAsync must attach HAConfiguration as a child.");
             Assert.That(found, Is.InstanceOf<HistoricalDataConfigurationState>());
 
             // Dispose is part of the API contract.

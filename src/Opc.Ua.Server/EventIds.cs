@@ -85,6 +85,7 @@ namespace Opc.Ua
         public const int TrustList = 540;
         public const int UserManagementBinding = 550;
         public const int RuntimeNodeSetNodeManager = 560;
+        public const int HistorianEventCapture = 570;
     }
 
     /// <summary>

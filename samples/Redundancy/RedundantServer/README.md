@@ -116,12 +116,15 @@ The Redis placeholder above is one way to get a shared `ISharedKeyValueStore`. T
 | Setting | Example | Description |
 | --- | --- | --- |
 | `HA_CONSISTENCY` | `strong`, `eventual` | `strong` backs the shared store with a Raft cluster; `eventual` (default) keeps today's behaviour. |
+| `HA_HISTORIAN` | `true`, `false` | Enables the protected shared historian. It is valid only with `HA_MODE=ap` and `HA_CONSISTENCY=strong`; strong active/passive defaults to enabled. |
 | `HA_RAFT_ID` | `1` | This replica's unique Raft node id (`1..N`). |
 | `HA_RAFT_MEMBERS` | `3` | Static cluster size (odd `3`/`5` for a fault-tolerant quorum). |
 | `HA_RAFT_BIND` | `tcp://0.0.0.0:6560` | Local Raft transport bind address. |
 | `HA_RAFT_PEERS` | `tcp://server-b:6560,tcp://server-c:6560` | The other members' Raft transport addresses. |
 
-See `docker-compose.yml` with the `active-passive.env` env file for a runnable 3-node Raft cluster (real cross-container active/passive HA). For Kubernetes, `UseKubernetesRaftConsensus` in `Opc.Ua.Redundancy.Kubernetes` derives the same wiring from the StatefulSet ordinal and headless-Service DNS, with a file WAL on a PersistentVolume; see `docs/Kubernetes.md`.
+See `docker-compose.yml` with the `active-passive.env` env file for a runnable 3-node Raft cluster (real cross-container active/passive HA). Set `HA_RECORD_KEY` to one shared base64 32-byte key before starting it. The topology calls `UseDistributedHistorian`, historizes `HighAvailability.Counter` and `HighAvailability.HistoryEvents`, and keeps history writes plus raw, event, and processed HistoryRead continuation points visible across session takeover. The historian deliberately rejects `HA_INSECURE`, eventual storage, and active/active multi-writer topology because ordered values, deletes, modification chains, events, and atomic batches have no conflict-free merge contract.
+
+For Kubernetes, `UseKubernetesRaftConsensus` in `Opc.Ua.Redundancy.Kubernetes` derives the same wiring from the StatefulSet ordinal and headless-Service DNS, with a file WAL on a PersistentVolume; see `docs/Kubernetes.md`.
 
 ## Redundancy mode and discovery settings
 
@@ -135,6 +138,7 @@ See `docker-compose.yml` with the `active-passive.env` env file for a runnable 3
 | `HA_PEER_DISCOVERY` | `static`, `dns`, `lds`, `k8s` | Peer-discovery mechanism for the client-facing `RedundantServerSet` (`FindServers`) and, for active/active, the gossip fabric. `static` (default) uses the configured peers; `dns` resolves `HA_SERVICE_NAME` (one record per replica) and updates both dynamically. `lds`/`k8s` are wired via `UseLdsPeerDiscovery` / `UseKubernetesPeerDiscovery`. Static configuration is the fallback until discovery finds peers. |
 | `HA_SERVICE_NAME` | a DNS name | The headless-service DNS name resolved by `HA_PEER_DISCOVERY=dns` (defaults to `server`). |
 | `HA_CONSISTENCY` | `strong`, `eventual` | Selects the shared-store consistency model; `strong` backs it with a Raft cluster (see *Strong consistency with Raft*). |
+| `HA_HISTORIAN` | `true`, `false` | Enables the shared historian and durable HistoryRead continuation store. Supported only by strong active/passive topology; defaults to `true` there and `false` elsewhere. |
 | `HA_FAST_RECONNECT` | `true`, `false` | Allows token-reuse reconnect for mirrored sessions. The default requires full `ActivateSession` re-authentication after failover. |
 | `HA_RECORD_KEY` | base64 32-byte key | Shared record-protection key for the distributed topologies. When set, every mirrored record (session secrets, identity tokens, notifications) is encrypted + integrity-protected at rest with `AesCbcHmacRecordProtector`. Use the **same** value on every replica; provision from a Kubernetes Secret / KMS in production. |
 | `HA_INSECURE` | `true`, `false` | Explicit, auditable opt-out that runs an **isolated demo** without record protection or gossip authentication (prints a warning). Secure by default: without `HA_RECORD_KEY` and without this flag, a distributed topology fails closed at startup. Never set in production. |
@@ -175,8 +179,8 @@ Each replica advertises the *virtual* endpoint URL (`HA_HOST` = the load-balance
 
 The sample selects its redundancy topology with the `HA_MODE` environment variable — `ap` (active/passive, the default) or `aa` (active/active) — and references both `Opc.Ua.Redundancy.Server` and `Opc.Ua.Redundancy.Server`:
 
-- **Active/passive (`HA_MODE=ap`)** — `UseDistributedAddressSpace` + `UseDistributedSessions` with leader election. One replica is the active writer; standbys hydrate from the shared store and take over on failover. Redundancy is reported as `RedundancySupport.Hot`, and clients follow `Server.ServiceLevel` / `Server.ServerRedundancy` to find the active replica.
-- **Active/active (`HA_MODE=aa`)** — `UseActiveActiveRedundancy` (which wires `UseReplicatedAddressSpace` + `UseReplicatedSessions` from one set of gossip options; the individual methods remain for advanced setups). Every replica accepts writes and converges without a leader; redundancy is reported as `RedundancySupport.HotAndMirrored`. Replicas gossip over TCP: set `HA_GOSSIP_PORT` (default `4840`; session entries gossip on `port + 1`) and `HA_GOSSIP_PEERS` (a comma/semicolon list of `host:port` for the other replicas' address-space gossip). A session created on one replica can be resumed on another with `ManagedSessionBuilder.WithTokenReuseFailover()` on the client.
+- **Active/passive (`HA_MODE=ap`)** — `UseDistributedAddressSpace` + `UseDistributedSessions` with leader election. With `HA_CONSISTENCY=strong`, `UseDistributedHistorian` adds one protected, leader-write archive with writer epochs and durable portable HistoryRead continuations. One replica is the active writer; standbys hydrate from the shared store and take over on failover. Redundancy is reported as `RedundancySupport.Hot`, and clients follow `Server.ServiceLevel` / `Server.ServerRedundancy` to find the active replica.
+- **Active/active (`HA_MODE=aa`)** — `UseActiveActiveRedundancy` (which wires `UseReplicatedAddressSpace` + `UseReplicatedSessions` from one set of gossip options; the individual methods remain for advanced setups). Every replica accepts writes and converges without a leader; redundancy is reported as `RedundancySupport.HotAndMirrored`. Replicas gossip over TCP: set `HA_GOSSIP_PORT` (default `4840`; session entries gossip on `port + 1`) and `HA_GOSSIP_PEERS` (a comma/semicolon list of `host:port` for the other replicas' address-space gossip). A session created on one replica can be resumed on another with `ManagedSessionBuilder.WithTokenReuseFailover()` on the client. Distributed Historical Access is not supported in this multi-writer mode and fails closed when requested.
 
 Set `HA_PEER_DISCOVERY=dns` (with `HA_SERVICE_NAME`) to discover peers dynamically instead of a static `HA_GOSSIP_PEERS` list: the sample registers `UseDnsPeerDiscovery`, which keeps the client-facing `RedundantServerSet` (`FindServers`) and the active/active gossip fabric current as replicas scale up and down. Static configuration (`AddServerRedundancy` / `HA_REDUNDANT_PEERS`) is the fallback. `HA_PEER_DISCOVERY=lds` (`UseLdsPeerDiscovery`) and Kubernetes EndpointSlice discovery (`UseKubernetesPeerDiscovery`) are also available — see [docs/HighAvailability.md → Dynamic peer discovery](../../../docs/HighAvailability.md#dynamic-peer-discovery-beyond-66-opt-in).
 
@@ -318,7 +322,7 @@ await valueCache.CacheAsync(counter.NodeId,
 
 On the strong-consistency (Raft) topology this makes the `Counter` genuinely shared: standby replicas serve the active replica's value, and after a failover the promoted replica resumes from the last value the former leader wrote (verified end-to-end). Monitored items keep reading through the normal pipeline, so a client that monitors a standby observes the shared value only through the participating read path — consistent with OPC UA monitored-item semantics.
 
-Value sharing uses the shared store, which is protected: supply `HA_RECORD_KEY` (secure by default) or set `HA_INSECURE=true` for an isolated demo — see the settings table above.
+Value sharing uses the shared store, which is protected: supply `HA_RECORD_KEY` (secure by default) or set `HA_INSECURE=true` for an isolated non-historian demo — see the settings table above. The distributed historian and its portable continuation records always require `HA_RECORD_KEY`; they never accept the no-op protector.
 
 ## Notes
 

@@ -2308,6 +2308,13 @@ namespace Opc.Ua
         public NodeStateReportEventAsyncHandler? OnReportEventAsync;
 
         /// <summary>
+        /// Additive observers invoked after live event forwarding completes.
+        /// Use this for independent consumers that must not replace
+        /// <see cref="OnReportEvent"/> or <see cref="OnReportEventAsync"/>.
+        /// </summary>
+        public event NodeStateReportEventHandler? EventReported;
+
+        /// <summary>
         /// Called when ClearChangeMasks is called and the ChangeMask is not None.
         /// </summary>
         public NodeStateConditionRefreshEventHandler? OnConditionRefresh;
@@ -2591,6 +2598,7 @@ namespace Opc.Ua
                     }
                 }
             }
+            EventReported?.Invoke(context, this, e);
         }
 
         /// <summary>
@@ -2634,6 +2642,7 @@ namespace Opc.Ua
                     }
                 }
             }
+            EventReported?.Invoke(context, this, e);
         }
 
         /// <summary>

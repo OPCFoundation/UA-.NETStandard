@@ -41,6 +41,7 @@ using Crdt.Transport;
 using Microsoft.Extensions.Logging;
 using Opc.Ua;
 using Opc.Ua.Client;
+using Opc.Ua.Client.Historian;
 using Opc.Ua.Client.Redundancy;
 using Opc.Ua.Configuration;
 using Opc.Ua.Redundancy;
@@ -86,6 +87,17 @@ namespace RedundantClient
             {
                 Description = "Run a browse/read/subscribe workload against the redundant session."
             };
+            var historyOption = new Option<bool>("--history")
+            {
+                Description =
+                    "Exercise raw, event, and processed history continuations across an active-server failover."
+            };
+            var historyFailoverDelayOption = new Option<TimeSpan>("--history-failover-delay")
+            {
+                Description =
+                    "How long the history scenario pauses after opening continuations so an active replica can fail.",
+                DefaultValueFactory = _ => TimeSpan.FromSeconds(15)
+            };
 
             var rootCommand = new RootCommand(
                 "OPC UA managed client sample that transparently handles server redundancy")
@@ -94,7 +106,9 @@ namespace RedundantClient
                 noSecurityOption,
                 autoAcceptOption,
                 durationOption,
-                suiteOption
+                suiteOption,
+                historyOption,
+                historyFailoverDelayOption
             };
 
             rootCommand.SetAction(async (parseResult, cancellationToken) => await RunAsync(
@@ -103,6 +117,8 @@ namespace RedundantClient
                     parseResult.GetValue(autoAcceptOption),
                     parseResult.GetValue(durationOption),
                     parseResult.GetValue(suiteOption),
+                    parseResult.GetValue(historyOption),
+                    parseResult.GetValue(historyFailoverDelayOption),
                     cancellationToken).ConfigureAwait(false));
 
             ParseResult parseResult = rootCommand.Parse(args);
@@ -115,6 +131,8 @@ namespace RedundantClient
             bool autoAccept,
             TimeSpan duration,
             bool suite,
+            bool history,
+            TimeSpan historyFailoverDelay,
             CancellationToken ct)
         {
             ITelemetryContext telemetry = DefaultTelemetry.Create(builder => builder.SetMinimumLevel(LogLevel.Information));
@@ -171,6 +189,12 @@ namespace RedundantClient
                     .Trim().ToLowerInvariant();
                 if (clientMode is "eventual" or "strong")
                 {
+                    if (history)
+                    {
+                        throw new InvalidOperationException(
+                            "The --history scenario requires CLIENT_MODE=independent so one managed session can " +
+                            "retain and resume its HistoryRead continuations across server failover.");
+                    }
                     await RunCoordinatedClientAsync(
                             clientMode, configuration, endpoint, telemetry, serverUrl, suite, duration, ct)
                         .ConfigureAwait(false);
@@ -189,7 +213,15 @@ namespace RedundantClient
                     .UseEndpoint(endpoint)
                     .WithSessionName(kApplicationName)
                     .WithUserIdentity(new UserIdentity())
+                    .WithReconnectPolicy(options => options with
+                    {
+                        Strategy = BackoffStrategy.Constant,
+                        InitialDelay = TimeSpan.FromMilliseconds(500),
+                        MaxDelay = TimeSpan.FromMilliseconds(500),
+                        MaxRetries = 3
+                    })
                     .WithServerRedundancy()
+                    .WithTokenReuseFailover()
                     .ConnectAsync(ct)
                     .ConfigureAwait(false);
 
@@ -209,6 +241,16 @@ namespace RedundantClient
                     else
                     {
                         await SubscribeToCurrentTimeAsync(session, haMonitor, ct).ConfigureAwait(false);
+                    }
+
+                    if (history)
+                    {
+                        await RunHistorianFailoverScenarioAsync(
+                            session,
+                            historyFailoverDelay,
+                            ct).ConfigureAwait(false);
+                        session.ConnectionStateChanged -= OnConnState;
+                        return;
                     }
 
                     Console.WriteLine(
@@ -352,7 +394,15 @@ namespace RedundantClient
                         .UseEndpoint(endpoint)
                         .WithSessionName(kApplicationName)
                         .WithUserIdentity(new UserIdentity())
+                        .WithReconnectPolicy(options => options with
+                        {
+                            Strategy = BackoffStrategy.Constant,
+                            InitialDelay = TimeSpan.FromMilliseconds(500),
+                            MaxDelay = TimeSpan.FromMilliseconds(500),
+                            MaxRetries = 3
+                        })
                         .WithServerRedundancy()
+                        .WithTokenReuseFailover()
                         .ConnectAsync(ct)
                         .ConfigureAwait(false);
                 }
@@ -681,6 +731,658 @@ namespace RedundantClient
             }
         }
 
+        private static async Task RunHistorianFailoverScenarioAsync(
+            ManagedSession session,
+            TimeSpan failoverDelay,
+            CancellationToken ct)
+        {
+            if (failoverDelay < TimeSpan.Zero)
+            {
+                throw new ArgumentOutOfRangeException(
+                    nameof(failoverDelay),
+                    "The history failover delay cannot be negative.");
+            }
+
+            int namespaceIndex = session.NamespaceUris.GetIndex(kHighAvailabilityNamespaceUri);
+            if (namespaceIndex < 0)
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadNodeIdUnknown,
+                    $"The server does not expose '{kHighAvailabilityNamespaceUri}'.");
+            }
+
+            var counterNodeId = new NodeId("Counter", (ushort)namespaceIndex);
+            var eventNotifierId = new NodeId("HistoryEvents", (ushort)namespaceIndex);
+            var client = new HistoryClient(session);
+            EventFilter eventFilter = CreateHistoryEventFilter();
+
+            DateTime startTime = DateTime.UtcNow.AddMinutes(-5);
+            DateTime endTime = DateTime.UtcNow.AddSeconds(1);
+            await WaitForHistoricalDepthAsync(
+                client,
+                counterNodeId,
+                eventNotifierId,
+                eventFilter,
+                startTime,
+                endTime,
+                ct).ConfigureAwait(false);
+            DateTime visibilityMarkerTime = DateTime.UtcNow.AddMinutes(-4);
+            await InsertAndVerifyVisibilityMarkerAsync(
+                client,
+                counterNodeId,
+                visibilityMarkerTime,
+                "active",
+                ct).ConfigureAwait(false);
+            endTime = DateTime.UtcNow.AddSeconds(1);
+            startTime = endTime.AddSeconds(-30);
+            (
+                DateTime processedStartTime,
+                DateTime processedEndTime,
+                double processingInterval) = await GetProcessedWindowAsync(
+                    client,
+                    counterNodeId,
+                    startTime,
+                    endTime,
+                    ct).ConfigureAwait(false);
+            var expectedProcessingInterval =
+                TimeSpan.FromMilliseconds(processingInterval);
+
+            IAsyncEnumerator<DataValue> raw = client.ReadRawAsync(
+                counterNodeId,
+                startTime,
+                endTime,
+                maxValuesPerNode: 1,
+                timestampsToReturn: TimestampsToReturn.Both,
+                cancellationToken: ct).GetAsyncEnumerator(ct);
+            IAsyncEnumerator<HistoryEventFieldList> events = client.ReadEventsAsync(
+                eventNotifierId,
+                startTime,
+                endTime,
+                eventFilter,
+                maxValuesPerNode: 1,
+                timestampsToReturn: TimestampsToReturn.Both,
+                cancellationToken: ct).GetAsyncEnumerator(ct);
+            IAsyncEnumerator<DataValue> processed = client.ReadProcessedAsync(
+                counterNodeId,
+                ObjectIds.AggregateFunction_Average,
+                processedStartTime,
+                processedEndTime,
+                processingInterval,
+                timestampsToReturn: TimestampsToReturn.Both,
+                cancellationToken: ct).GetAsyncEnumerator(ct);
+
+            var reconnected = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            int connectionInterrupted = 0;
+            void OnConnectionStateChanged(object? _, ConnectionStateChangedEventArgs args)
+            {
+                if (args.NewState is ConnectionState.Reconnecting or ConnectionState.Failover)
+                {
+                    Interlocked.Exchange(ref connectionInterrupted, 1);
+                }
+                else if (args.NewState == ConnectionState.Connected &&
+                    Volatile.Read(ref connectionInterrupted) != 0)
+                {
+                    reconnected.TrySetResult(true);
+                }
+            }
+            session.ConnectionStateChanged += OnConnectionStateChanged;
+
+            try
+            {
+                await using (raw.ConfigureAwait(false))
+                await using (events.ConfigureAwait(false))
+                await using (processed.ConfigureAwait(false))
+                {
+                    if (!await raw.MoveNextAsync().ConfigureAwait(false) ||
+                        !await events.MoveNextAsync().ConfigureAwait(false) ||
+                        !await processed.MoveNextAsync().ConfigureAwait(false))
+                    {
+                        throw new ServiceResultException(
+                            StatusCodes.BadNoData,
+                            "The server did not return the first page for every historical read.");
+                    }
+
+                    int rawCount = 0;
+                    int eventCount = 0;
+                    int processedCount = 0;
+                    DateTime lastRawTime = DateTime.MinValue;
+                    DateTime lastEventTime = DateTime.MinValue;
+                    DateTime lastProcessedTime = DateTime.MinValue;
+                    int lastRawCounter = 0;
+                    int lastEventCounter = 0;
+                    var eventIds = new HashSet<ByteString>();
+                    ObserveRawValue(
+                        raw.Current,
+                        ref lastRawTime,
+                        ref lastRawCounter,
+                        ref rawCount);
+                    ObserveHistoryEvent(
+                        events.Current,
+                        eventIds,
+                        ref lastEventTime,
+                        ref lastEventCounter,
+                        ref eventCount);
+                    ObserveProcessedValue(
+                        processed.Current,
+                        expectedProcessingInterval,
+                        ref lastProcessedTime,
+                        ref processedCount);
+
+                    Console.WriteLine(
+                        "HISTORY: portable continuations ready (raw, event, processed); " +
+                        "remove the active server now.");
+                    await Task.Delay(failoverDelay, ct).ConfigureAwait(false);
+                    if (Volatile.Read(ref connectionInterrupted) != 0)
+                    {
+                        await reconnected.Task
+                            .WaitAsync(TimeSpan.FromSeconds(90), ct)
+                            .ConfigureAwait(false);
+                    }
+
+                    while (await raw.MoveNextAsync().ConfigureAwait(false))
+                    {
+                        ObserveRawValue(
+                            raw.Current,
+                            ref lastRawTime,
+                            ref lastRawCounter,
+                            ref rawCount);
+                    }
+                    while (await events.MoveNextAsync().ConfigureAwait(false))
+                    {
+                        ObserveHistoryEvent(
+                            events.Current,
+                            eventIds,
+                            ref lastEventTime,
+                            ref lastEventCounter,
+                            ref eventCount);
+                    }
+                    while (await processed.MoveNextAsync().ConfigureAwait(false))
+                    {
+                        ObserveProcessedValue(
+                            processed.Current,
+                            expectedProcessingInterval,
+                            ref lastProcessedTime,
+                            ref processedCount);
+                    }
+
+                    if (rawCount < 5 || eventCount < 5 || processedCount < 3)
+                    {
+                        throw new ServiceResultException(
+                            StatusCodes.BadNoData,
+                            $"Insufficient resumed history: raw={rawCount}, event={eventCount}, " +
+                            $"processed={processedCount}.");
+                    }
+
+                    await WaitForVisibilityMarkerAsync(
+                        client,
+                        counterNodeId,
+                        visibilityMarkerTime,
+                        "promoted",
+                        ct).ConfigureAwait(false);
+                    await WaitForPromotedWriterHistoryAsync(
+                        client,
+                        counterNodeId,
+                        eventNotifierId,
+                        eventFilter,
+                        lastRawCounter,
+                        lastEventCounter,
+                        ct).ConfigureAwait(false);
+
+                    Console.WriteLine(
+                        "HISTORY HA OK: raw={0}, event={1}, processed={2}; portable continuations resumed " +
+                        "without duplicates or gaps.",
+                        rawCount,
+                        eventCount,
+                        processedCount);
+                }
+            }
+            finally
+            {
+                session.ConnectionStateChanged -= OnConnectionStateChanged;
+            }
+        }
+
+        private static async Task InsertAndVerifyVisibilityMarkerAsync(
+            HistoryClient client,
+            NodeId counterNodeId,
+            DateTime markerTime,
+            string replicaRole,
+            CancellationToken ct)
+        {
+            var marker = new DataValue(
+                Variant.From(kHistoryVisibilityMarker),
+                StatusCodes.Good,
+                markerTime,
+                markerTime);
+            ArrayOf<StatusCode> statuses = await client.InsertAsync(
+                counterNodeId,
+                [marker],
+                ct).ConfigureAwait(false);
+            if (statuses.Count != 1 || StatusCode.IsBad(statuses[0]))
+            {
+                StatusCode status = statuses.Count == 1
+                    ? statuses[0]
+                    : StatusCodes.BadUnexpectedError;
+                throw new ServiceResultException(
+                    status,
+                    "The historical visibility marker write was rejected.");
+            }
+
+            await VerifyVisibilityMarkerAsync(
+                client,
+                counterNodeId,
+                markerTime,
+                replicaRole,
+                ct).ConfigureAwait(false);
+        }
+
+        private static async Task WaitForVisibilityMarkerAsync(
+            HistoryClient client,
+            NodeId counterNodeId,
+            DateTime markerTime,
+            string replicaRole,
+            CancellationToken ct)
+        {
+            ServiceResultException? lastError = null;
+            for (int attempt = 0; attempt < 60; attempt++)
+            {
+                try
+                {
+                    await VerifyVisibilityMarkerAsync(
+                        client,
+                        counterNodeId,
+                        markerTime,
+                        replicaRole,
+                        ct).ConfigureAwait(false);
+                    return;
+                }
+                catch (ServiceResultException exception)
+                {
+                    lastError = exception;
+                }
+
+                await Task.Delay(TimeSpan.FromMilliseconds(500), ct).ConfigureAwait(false);
+            }
+
+            throw new ServiceResultException(
+                lastError?.StatusCode ?? StatusCodes.BadNoData,
+                $"The historical visibility marker was not readable from the {replicaRole} replica.");
+        }
+
+        private static async Task VerifyVisibilityMarkerAsync(
+            HistoryClient client,
+            NodeId counterNodeId,
+            DateTime markerTime,
+            string replicaRole,
+            CancellationToken ct)
+        {
+            int count = 0;
+            await foreach (DataValue value in client.ReadRawAsync(
+                counterNodeId,
+                markerTime.AddMilliseconds(-1),
+                markerTime.AddMilliseconds(1),
+                maxValuesPerNode: 1,
+                cancellationToken: ct).ConfigureAwait(false))
+            {
+                if (!value.WrappedValue.TryGetValue(out int marker) ||
+                    marker != kHistoryVisibilityMarker ||
+                    value.SourceTimestamp.ToDateTime() != markerTime)
+                {
+                    throw new ServiceResultException(
+                        StatusCodes.BadUnexpectedError,
+                        "The historical visibility marker read returned an unknown value.");
+                }
+                count++;
+            }
+
+            if (count != 1)
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadNoData,
+                    $"Expected one historical visibility marker but received {count}.");
+            }
+
+            Console.WriteLine(
+                "HISTORY: write/read marker {0} visible on {1} replica.",
+                kHistoryVisibilityMarker,
+                replicaRole);
+        }
+
+        private static async Task WaitForPromotedWriterHistoryAsync(
+            HistoryClient client,
+            NodeId counterNodeId,
+            NodeId eventNotifierId,
+            EventFilter eventFilter,
+            int previousRawCounter,
+            int previousEventCounter,
+            CancellationToken ct)
+        {
+            for (int attempt = 0; attempt < 60; attempt++)
+            {
+                int newestRawCounter = previousRawCounter;
+                int newestEventCounter = previousEventCounter;
+                DateTime endTime = DateTime.UtcNow.AddSeconds(1);
+                DateTime startTime = endTime.AddSeconds(-30);
+
+                await foreach (DataValue value in client.ReadRawAsync(
+                    counterNodeId,
+                    startTime,
+                    endTime,
+                    maxValuesPerNode: 2,
+                    cancellationToken: ct).ConfigureAwait(false))
+                {
+                    if (!StatusCode.IsGood(value.StatusCode) ||
+                        !value.WrappedValue.TryGetValue(out int counter))
+                    {
+                        throw new ServiceResultException(
+                            StatusCodes.BadDecodingError,
+                            "Promoted-writer raw history returned an unknown value.");
+                    }
+                    newestRawCounter = Math.Max(newestRawCounter, counter);
+                }
+                await foreach (HistoryEventFieldList historicalEvent in
+                    client.ReadEventsAsync(
+                        eventNotifierId,
+                        startTime,
+                        endTime,
+                        eventFilter,
+                        maxValuesPerNode: 2,
+                        cancellationToken: ct).ConfigureAwait(false))
+                {
+                    if (!TryGetHistoryEventCounter(
+                        historicalEvent,
+                        out int counter))
+                    {
+                        throw new ServiceResultException(
+                            StatusCodes.BadDecodingError,
+                            "Promoted-writer event history returned an unknown event.");
+                    }
+                    newestEventCounter = Math.Max(
+                        newestEventCounter,
+                        counter);
+                }
+
+                if (newestRawCounter > previousRawCounter &&
+                    newestEventCounter > previousEventCounter)
+                {
+                    Console.WriteLine(
+                        "HISTORY: promoted writer added shared raw and event history " +
+                        "(counter {0}, event {1}).",
+                        newestRawCounter,
+                        newestEventCounter);
+                    return;
+                }
+
+                await Task.Delay(TimeSpan.FromMilliseconds(500), ct).ConfigureAwait(false);
+            }
+
+            throw new ServiceResultException(
+                StatusCodes.BadNoData,
+                "The promoted replica did not add new raw and event history within 30 seconds.");
+        }
+
+        private static async Task WaitForHistoricalDepthAsync(
+            HistoryClient client,
+            NodeId counterNodeId,
+            NodeId eventNotifierId,
+            EventFilter eventFilter,
+            DateTime startTime,
+            DateTime endTime,
+            CancellationToken ct)
+        {
+            for (int attempt = 0; attempt < 60; attempt++)
+            {
+                int rawCount = await CountAtLeastAsync(
+                    client.ReadRawAsync(
+                        counterNodeId,
+                        startTime,
+                        endTime,
+                        maxValuesPerNode: 1,
+                        cancellationToken: ct),
+                    minimum: 5,
+                    ct).ConfigureAwait(false);
+                int eventCount = await CountAtLeastAsync(
+                    client.ReadEventsAsync(
+                        eventNotifierId,
+                        startTime,
+                        endTime,
+                        eventFilter,
+                        maxValuesPerNode: 1,
+                        cancellationToken: ct),
+                    minimum: 5,
+                    ct).ConfigureAwait(false);
+                if (rawCount >= 5 && eventCount >= 5)
+                {
+                    return;
+                }
+
+                await Task.Delay(TimeSpan.FromMilliseconds(500), ct).ConfigureAwait(false);
+                endTime = DateTime.UtcNow.AddSeconds(1);
+            }
+
+            throw new ServiceResultException(
+                StatusCodes.BadNoData,
+                "The active server did not produce enough raw and event history within 30 seconds.");
+        }
+
+        private static async Task<(
+            DateTime StartTime,
+            DateTime EndTime,
+            double ProcessingInterval)> GetProcessedWindowAsync(
+                HistoryClient client,
+                NodeId counterNodeId,
+                DateTime startTime,
+                DateTime endTime,
+                CancellationToken ct)
+        {
+            var timestamps = new List<DateTime>();
+            await foreach (DataValue value in client.ReadRawAsync(
+                counterNodeId,
+                startTime,
+                endTime,
+                maxValuesPerNode: 2,
+                cancellationToken: ct).ConfigureAwait(false))
+            {
+                if (!StatusCode.IsGood(value.StatusCode) ||
+                    !value.WrappedValue.TryGetValue(out int _))
+                {
+                    throw new ServiceResultException(
+                        StatusCodes.BadDecodingError,
+                        "Raw history used to derive the processed window is invalid.");
+                }
+                timestamps.Add(value.SourceTimestamp.ToDateTime());
+            }
+            if (timestamps.Count < 5)
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadNoData,
+                    "At least five raw values are required to exercise processed paging.");
+            }
+
+            DateTime processedStart = timestamps[0];
+            DateTime processedEnd = timestamps[^1].AddTicks(1);
+            double interval =
+                (processedEnd - processedStart).TotalMilliseconds / 3;
+            if (interval <= 0 || !double.IsFinite(interval))
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadUnexpectedError,
+                    "The processed history window is invalid.");
+            }
+            return (processedStart, processedEnd, interval);
+        }
+
+        private static async Task<int> CountAtLeastAsync<T>(
+            IAsyncEnumerable<T> values,
+            int minimum,
+            CancellationToken ct)
+        {
+            int count = 0;
+            await foreach (T _ in values.WithCancellation(ct).ConfigureAwait(false))
+            {
+                count++;
+                if (count >= minimum)
+                {
+                    break;
+                }
+            }
+            return count;
+        }
+
+        private static void ObserveRawValue(
+            DataValue value,
+            ref DateTime lastTimestamp,
+            ref int lastCounter,
+            ref int count)
+        {
+            if (!value.WrappedValue.TryGetValue(out int counter))
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadTypeMismatch,
+                    "A raw history value did not contain an Int32 counter.");
+            }
+
+            var timestamp = value.SourceTimestamp.ToDateTime();
+            if (count > 0 &&
+                (timestamp <= lastTimestamp || counter != lastCounter + 1))
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadUnexpectedError,
+                    $"Raw history has a duplicate or gap after counter {lastCounter} at {lastTimestamp:O}.");
+            }
+
+            lastTimestamp = timestamp;
+            lastCounter = counter;
+            count++;
+        }
+
+        private static void ObserveHistoryEvent(
+            HistoryEventFieldList historicalEvent,
+            HashSet<ByteString> eventIds,
+            ref DateTime lastTimestamp,
+            ref int lastCounter,
+            ref int count)
+        {
+            if (historicalEvent.EventFields.Count != 3 ||
+                !historicalEvent.EventFields[0].TryGetValue(out ByteString eventId) ||
+                eventId.IsEmpty ||
+                !historicalEvent.EventFields[1].TryGetValue(out DateTimeUtc eventTime) ||
+                !historicalEvent.EventFields[2].TryGetValue(out LocalizedText message) ||
+                string.IsNullOrWhiteSpace(message.Text))
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadDecodingError,
+                    "A historical event did not contain EventId, Time, and Message.");
+            }
+            if (!eventIds.Add(eventId))
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadUnexpectedError,
+                    "Historical event paging returned a duplicate EventId.");
+            }
+
+            if (!TryParseHistoryEventCounter(message.Text, out int counter))
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadDecodingError,
+                    $"Historical event message '{message.Text}' did not contain a counter.");
+            }
+
+            var timestamp = eventTime.ToDateTime();
+            if (count > 0 &&
+                (timestamp <= lastTimestamp || counter != lastCounter + 1))
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadUnexpectedError,
+                    $"Event history has a duplicate or gap after counter {lastCounter} at {lastTimestamp:O}.");
+            }
+
+            lastTimestamp = timestamp;
+            lastCounter = counter;
+            count++;
+        }
+
+        private static bool TryGetHistoryEventCounter(
+            HistoryEventFieldList historicalEvent,
+            out int counter)
+        {
+            counter = 0;
+            return historicalEvent.EventFields.Count == 3 &&
+                historicalEvent.EventFields[2].TryGetValue(
+                    out LocalizedText message) &&
+                TryParseHistoryEventCounter(message.Text, out counter);
+        }
+
+        private static bool TryParseHistoryEventCounter(
+            string? message,
+            out int counter)
+        {
+            counter = 0;
+            if (string.IsNullOrWhiteSpace(message))
+            {
+                return false;
+            }
+
+            const string marker = "archived counter ";
+            int markerIndex = message.LastIndexOf(marker, StringComparison.Ordinal);
+            return markerIndex >= 0 &&
+                int.TryParse(
+                    message.AsSpan(markerIndex + marker.Length).TrimEnd('.'),
+                    NumberStyles.Integer,
+                    CultureInfo.InvariantCulture,
+                    out counter);
+        }
+
+        private static void ObserveProcessedValue(
+            DataValue value,
+            TimeSpan expectedInterval,
+            ref DateTime lastTimestamp,
+            ref int count)
+        {
+            if (!StatusCode.IsGood(value.StatusCode) ||
+                !value.WrappedValue.TryGetValue(out double aggregate) ||
+                !double.IsFinite(aggregate))
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadDecodingError,
+                    "Processed history returned a bad status or non-numeric aggregate.");
+            }
+            var timestamp = value.SourceTimestamp.ToDateTime();
+            if (count > 0)
+            {
+                TimeSpan interval = timestamp - lastTimestamp;
+                if (Math.Abs(
+                    (interval - expectedInterval).TotalMilliseconds) > 1)
+                {
+                    throw new ServiceResultException(
+                        StatusCodes.BadUnexpectedError,
+                        $"Processed history interval changed from {expectedInterval} to {interval}.");
+                }
+            }
+
+            lastTimestamp = timestamp;
+            count++;
+        }
+
+        private static EventFilter CreateHistoryEventFilter()
+        {
+            var filter = new EventFilter();
+            filter.AddSelectClause(
+                ObjectTypeIds.BaseEventType,
+                BrowseNames.EventId,
+                Attributes.Value);
+            filter.AddSelectClause(
+                ObjectTypeIds.BaseEventType,
+                BrowseNames.Time,
+                Attributes.Value);
+            filter.AddSelectClause(
+                ObjectTypeIds.BaseEventType,
+                BrowseNames.Message,
+                Attributes.Value);
+            return filter;
+        }
+
         /// <summary>
         /// V2 subscription notification handler that logs data changes for the
         /// monitored CurrentTime and replicated Counter values and forwards each
@@ -777,6 +1479,13 @@ namespace RedundantClient
             public void OnConnectionStateChanged(ConnectionStateChangedEventArgs e, string? endpoint)
             {
                 Console.WriteLine("Connection state: {0} -> {1}", e.PreviousState, e.NewState);
+                if (e.Error != null && ServiceResult.IsBad(e.Error))
+                {
+                    Console.WriteLine(
+                        "FAILOVER DETAIL: {0} ({1})",
+                        e.Error.StatusCode,
+                        e.Error.LocalizedText);
+                }
                 if (e.NewState is ConnectionState.Reconnecting or ConnectionState.Failover)
                 {
                     Console.WriteLine("FAILOVER: connection lost, selecting a healthy replica...");
@@ -952,5 +1661,10 @@ namespace RedundantClient
 
         private const string kApplicationName = "RedundantClient";
         private const string kConfigSectionName = "RedundantClient";
+
+        private const string kHighAvailabilityNamespaceUri =
+            "http://opcfoundation.org/UA/Samples/HighAvailability";
+
+        private const int kHistoryVisibilityMarker = -4390;
     }
 }

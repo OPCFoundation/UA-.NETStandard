@@ -284,46 +284,52 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
-        public void SaveHistoryEvictsOldestAndNotifiesStore()
+        public async Task SaveHistoryAsyncEvictsOldestAndSchedulesRemovalAsync()
         {
-            var store = new Mock<IContinuationPointStore>(MockBehavior.Loose);
-            SessionContinuationPoints holder = NewHolder(maxHistory: 1, store: store.Object);
+            (Mock<IHistoryContinuationPointStore> historyStore, Mock<IHistoryContinuationPointCodec> historyCodec) =
+                NewPersistingHistoryMocks();
+            SessionContinuationPoints holder = NewHolder(
+                maxHistory: 1,
+                historyStore: historyStore.Object,
+                historyCodec: historyCodec.Object);
 
             var id1 = Guid.NewGuid();
             var id2 = Guid.NewGuid();
             var evicted = new TrackingDisposable(id1);
 
-            holder.SaveHistory(evicted);
-            holder.SaveHistory(new TrackingDisposable(id2));
+            await holder.SaveHistoryAsync(evicted).ConfigureAwait(false);
+            await holder.SaveHistoryAsync(new TrackingDisposable(id2)).ConfigureAwait(false);
 
             Assert.That(evicted.Disposed, Is.True);
             Assert.That(holder.RestoreHistory(ToByteString(id1)), Is.Null);
-            Assert.That(holder.RestoreHistory(ToByteString(id2)), Is.Not.Null);
-            store.Verify(
-                s => s.RemoveContinuationPoint(s_sessionId, ContinuationPointKind.History, id1),
+            Assert.That(
+                await holder.RestoreHistoryAsync(ToByteString(id2)).ConfigureAwait(false),
+                Is.Not.Null);
+            historyStore.Verify(
+                s => s.ScheduleRemove(s_sessionId, id1),
                 Times.Once);
         }
 
         [Test]
-        public void SaveHistoryStoresEnvelope()
+        public async Task SaveHistoryAsyncStoresEnvelopeAsync()
         {
-            var store = new Mock<IContinuationPointStore>(MockBehavior.Loose);
-            ContinuationPointEnvelope? captured = null;
-            store
-                .Setup(s => s.StoreContinuationPoint(It.IsAny<ContinuationPointEnvelope>()))
-                .Callback<ContinuationPointEnvelope>(envelope => captured = envelope);
+            (Mock<IHistoryContinuationPointStore> historyStore, Mock<IHistoryContinuationPointCodec> historyCodec) =
+                NewPersistingHistoryMocks();
+            HistoryContinuationPointEnvelope? captured = null;
+            historyStore
+                .Setup(s => s.StoreAsync(It.IsAny<HistoryContinuationPointEnvelope>(), It.IsAny<CancellationToken>()))
+                .Callback<HistoryContinuationPointEnvelope, CancellationToken>((envelope, _) => captured = envelope)
+                .Returns(default(ValueTask));
 
-            SessionContinuationPoints holder = NewHolder(store: store.Object);
+            SessionContinuationPoints holder = NewHolder(
+                historyStore: historyStore.Object, historyCodec: historyCodec.Object);
             var id = Guid.NewGuid();
 
-            holder.SaveHistory(new TrackingDisposable(id));
+            await holder.SaveHistoryAsync(new TrackingDisposable(id)).ConfigureAwait(false);
 
             Assert.That(captured, Is.Not.Null);
             Assert.That(captured!.Id, Is.EqualTo(id));
             Assert.That(captured.OwnerSessionId, Is.EqualTo(s_sessionId));
-            Assert.That(captured.Kind, Is.EqualTo(ContinuationPointKind.History));
-            Assert.That(captured.BrowseNodeId.IsNull, Is.True);
-            Assert.That(captured.ReferenceTypeId.IsNull, Is.True);
         }
 
         [Test]
@@ -478,7 +484,7 @@ namespace Opc.Ua.Server.Tests
         public void RemoveHistoryForManagerLeavesPointsOfOtherOwners()
         {
             SessionContinuationPoints holder = NewHolder();
-            Guid id = Guid.NewGuid();
+            var id = Guid.NewGuid();
 
             // A continuation point that does not record a provider cannot be attributed to a
             // NodeManager, so it is left alone rather than dropped on a guess.
@@ -488,12 +494,64 @@ namespace Opc.Ua.Server.Tests
 
             Assert.That(holder.RestoreHistory(ToByteString(id)), Is.Not.Null);
         }
+
         private static SessionContinuationPoints NewHolder(
             int maxBrowse = 10,
             int maxHistory = 10,
-            IContinuationPointStore? store = null)
+            IContinuationPointStore? store = null,
+            IHistoryContinuationPointStore? historyStore = null,
+            IHistoryContinuationPointCodec? historyCodec = null)
         {
-            return new SessionContinuationPoints(() => s_sessionId, maxBrowse, maxHistory, store);
+            return new SessionContinuationPoints(
+                () => s_sessionId,
+                maxBrowse,
+                maxHistory,
+                store,
+                historyStore,
+                historyCodec,
+                new NamespaceTable());
+        }
+
+        /// <summary>
+        /// Creates a loose <see cref="IHistoryContinuationPointStore"/>/<see cref="IHistoryContinuationPointCodec"/>
+        /// pair that round-trips a history continuation point through a no-op envelope, so
+        /// <see cref="SessionContinuationPoints.SaveHistoryAsync"/> completes the point as portable.
+        /// </summary>
+        private static (Mock<IHistoryContinuationPointStore> Store, Mock<IHistoryContinuationPointCodec> Codec)
+            NewPersistingHistoryMocks()
+        {
+            var historyCodec = new Mock<IHistoryContinuationPointCodec>(MockBehavior.Loose);
+            historyCodec
+                .Setup(c => c.EncodeAsync(
+                    It.IsAny<NodeId>(),
+                    It.IsAny<IHistoryContinuationPoint>(),
+                    It.IsAny<CancellationToken>()))
+                .Returns<NodeId, IHistoryContinuationPoint, CancellationToken>(
+                    (ownerSessionId, continuationPoint, _) =>
+                        new ValueTask<HistoryContinuationPointEnvelope?>(
+                            new HistoryContinuationPointEnvelope
+                            {
+                                Id = continuationPoint.Id,
+                                OwnerSessionId = ownerSessionId,
+                                CodecId = "test",
+                                CodecVersion = 1,
+                                Payload = ByteString.Empty
+                            }));
+
+            var historyStore = new Mock<IHistoryContinuationPointStore>(MockBehavior.Loose);
+            historyStore
+                .Setup(s => s.StoreAsync(
+                    It.IsAny<HistoryContinuationPointEnvelope>(),
+                    It.IsAny<CancellationToken>()))
+                .Returns(default(ValueTask));
+            historyStore
+                .Setup(s => s.TryTakeAsync(
+                    It.IsAny<NodeId>(),
+                    It.IsAny<Guid>(),
+                    It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<bool>(true));
+
+            return (historyStore, historyCodec);
         }
 
         private static IAsyncNodeManager NewNodeManager(INodeManager syncNodeManager)

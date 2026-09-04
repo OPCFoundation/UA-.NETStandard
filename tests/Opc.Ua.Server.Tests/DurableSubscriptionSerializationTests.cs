@@ -112,6 +112,13 @@ namespace Opc.Ua.Server.Tests
             mi.IsDurable = true;
             mi.LastValue = new DataValue(
                 new Variant(42), StatusCodes.Good, DateTime.UtcNow);
+            mi.RequiredValuePending = true;
+            mi.RequiredValue = new DataValue(
+                Variant.Null,
+                StatusCodes.BadCommunicationError,
+                DateTime.UtcNow);
+            mi.RequiredError =
+                new ServiceResult(StatusCodes.BadCommunicationError);
             original.MonitoredItems =
                 [mi];
 
@@ -133,6 +140,13 @@ namespace Opc.Ua.Server.Tests
             Assert.That(restored.LastValue.IsNull, Is.False);
             Assert.That((int)restored.LastValue.WrappedValue,
                 Is.EqualTo(42));
+            Assert.That(restored.RequiredValuePending, Is.True);
+            Assert.That(
+                restored.RequiredValue.StatusCode.Code,
+                Is.EqualTo(StatusCodes.BadCommunicationError));
+            Assert.That(
+                restored.RequiredError.StatusCode,
+                Is.EqualTo(StatusCodes.BadCommunicationError));
         }
 
         [Test]

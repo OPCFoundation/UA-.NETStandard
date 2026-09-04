@@ -153,12 +153,11 @@ namespace Opc.Ua.Server
             m_securityPolicies =
                 (server as ISecurityPolicyRegistryProvider)?.SecurityPolicyRegistry
                 ?? SecurityPolicies.Default;
-            m_logger = server.Telemetry.CreateLogger<Session>();
             m_eventLogger = server.Telemetry.CreateLogger(
                 ServerCompatibilityEventIds.CategoryName);
             ClientNonce = clientNonce;
             m_serverNonce = serverNonce;
-            m_sessionName = sessionName;
+            SessionName = sessionName;
             // The session owns an independent ref-counted handle on the server
             // certificate so it stays valid for the whole session lifetime even
             // if the certificate registry is updated.
@@ -172,7 +171,11 @@ namespace Opc.Ua.Server
                 () => Id,
                 maxBrowseContinuationPoints,
                 maxHistoryContinuationPoints,
-                server.SubscriptionStore as IContinuationPointStore);
+                server.SubscriptionStore as IContinuationPointStore,
+                (server as IHistoryContinuationPointStoreProvider)?
+                    .HistoryContinuationPointStore,
+                new Historian.HistorianContinuationPointCodec(server),
+                server.NamespaceUris);
             EndpointDescription = context.ChannelContext.EndpointDescription!;
 
             // use anonymous the default identity.
@@ -396,7 +399,7 @@ namespace Opc.Ua.Server
         /// Read from the field rather than from the diagnostics: it is assigned once during
         /// construction and never changes, so no lock is involved.
         /// </remarks>
-        public string SessionName => m_sessionName;
+        public string SessionName { get; }
 
         /// <inheritdoc/>
         public string? ClientApplicationUri
@@ -871,7 +874,7 @@ namespace Opc.Ua.Server
             m_eventLogger.CompatibilitySessionState(
                 context,
                 sessionId,
-                m_sessionName,
+                SessionName,
                 SecureChannelId,
                 Identity?.DisplayName ?? "(none)");
         }
@@ -914,146 +917,6 @@ namespace Opc.Ua.Server
             }
 
             return ServiceResult.Good;
-        }
-
-        /// <summary>
-        /// Validates the identity token supplied by the client.
-        /// </summary>
-        /// <exception cref="ServiceResultException"></exception>
-        private IUserIdentityTokenHandler ValidateUserIdentityToken(
-            ExtensionObject identityToken,
-            out UserTokenPolicy? policy)
-        {
-            policy = null!;
-
-            // check for anonymous (same as empty) token.
-            if (identityToken.IsNull ||
-                identityToken.TryGetValue(out AnonymousIdentityToken? _))
-            {
-                // check if an anonymous login is permitted.
-                if (!EndpointDescription.UserIdentityTokens.IsEmpty)
-                {
-                    bool found = false;
-
-                    for (int ii = 0; ii < EndpointDescription.UserIdentityTokens.Count; ii++)
-                    {
-                        if (EndpointDescription.UserIdentityTokens[ii]
-                            .TokenType == UserTokenType.Anonymous)
-                        {
-                            found = true;
-                            policy = EndpointDescription.UserIdentityTokens[ii];
-                            break;
-                        }
-                    }
-
-                    if (!found)
-                    {
-                        throw ServiceResultException.Create(
-                            StatusCodes.BadIdentityTokenRejected,
-                            "Anonymous user token policy not supported.");
-                    }
-                }
-
-                // create an anonymous token to use for subsequent validation.
-                return AnonymousIdentityTokenHandler.Create(policy!);
-            }
-
-            IUserIdentityTokenHandler token;
-            // check for unrecognized token.
-            if (identityToken.TryGetValue(out UserIdentityToken? decodedToken))
-            {
-                // get the token.
-                token = decodedToken.AsTokenHandler(m_securityPolicies);
-            }
-            else
-            {
-                //handle the use case when the UserIdentityToken is binary encoded over xml message encoding
-                if (identityToken.Encoding != ExtensionObjectEncoding.Binary ||
-                    !identityToken.TryGetAsBinary(out ByteString _))
-                {
-                    throw ServiceResultException.Create(
-                        StatusCodes.BadUserAccessDenied,
-                        "Invalid user identity token provided.");
-                }
-                if (BaseVariableState.DecodeExtensionObject(
-                        null!,
-                        typeof(UserIdentityToken),
-                        identityToken,
-                        false)
-                    is not UserIdentityToken newToken)
-                {
-                    throw ServiceResultException.Create(
-                        StatusCodes.BadUserAccessDenied,
-                        "Invalid user identity token provided.");
-                }
-
-                policy = EndpointDescription.FindUserTokenPolicy(
-                    newToken.PolicyId!,
-                    EndpointDescription.SecurityPolicyUri!) ??
-                    throw ServiceResultException.Create(
-                        StatusCodes.BadUserAccessDenied,
-                        "User token policy not supported.",
-                        "Opc.Ua.Server.Session.ValidateUserIdentityToken");
-
-                UserIdentityToken? userToken;
-                switch (policy.TokenType)
-                {
-                    case UserTokenType.Anonymous:
-                        userToken = (AnonymousIdentityToken)BaseVariableState.DecodeExtensionObject(
-                            null!,
-                            typeof(AnonymousIdentityToken),
-                            identityToken,
-                            true)!;
-                        break;
-                    case UserTokenType.UserName:
-                        userToken = (UserNameIdentityToken)BaseVariableState.DecodeExtensionObject(
-                            null!,
-                            typeof(UserNameIdentityToken),
-                            identityToken,
-                            true)!;
-                        break;
-                    case UserTokenType.Certificate:
-                        userToken = (X509IdentityToken)BaseVariableState.DecodeExtensionObject(
-                            null!,
-                            typeof(X509IdentityToken),
-                            identityToken,
-                            true)!;
-                        break;
-                    case UserTokenType.IssuedToken:
-                        userToken = (IssuedIdentityToken)BaseVariableState.DecodeExtensionObject(
-                            null!,
-                            typeof(IssuedIdentityToken),
-                            identityToken,
-                            true)!;
-                        break;
-                    default:
-                        throw ServiceResultException.Create(
-                            StatusCodes.BadUserAccessDenied,
-                            "Invalid user identity token provided.");
-                }
-
-                token = userToken.AsTokenHandler(m_securityPolicies)!;
-            }
-
-            // find the user token policy.
-            policy = EndpointDescription.FindUserTokenPolicy(
-                token.Token.PolicyId!,
-                EndpointDescription.SecurityPolicyUri!) ??
-                throw ServiceResultException.Create(
-                    StatusCodes.BadIdentityTokenInvalid,
-                    "User token policy not supported.");
-
-            token.UpdatePolicy(policy);
-
-            if (ServerBase.RequireEncryption(EndpointDescription))
-            {
-                throw new ServiceResultException(
-                    StatusCodes.BadNotSupported,
-                    "Secure user identity validation requires the asynchronous activation path.");
-            }
-
-            // validate user identity token.
-            return token;
         }
 
         private async ValueTask<(
@@ -1495,12 +1358,10 @@ namespace Opc.Ua.Server
         /// </summary>
         private readonly Lock m_diagnosticsLock = new();
         private int m_closing;
-        private readonly ILogger m_logger;
         private readonly ILogger m_eventLogger;
         private readonly IServerInternal m_server;
         private readonly TimeProvider m_timeProvider;
         private readonly ISecurityPolicyRegistry m_securityPolicies;
-        private readonly string m_sessionName;
         private Certificate m_serverCertificate;
         private Nonce m_serverNonce;
         private string? m_userTokenSecurityPolicyUri;
@@ -1531,5 +1392,4 @@ namespace Opc.Ua.Server
             string secureChannelId,
             string identity);
     }
-
 }

@@ -120,6 +120,7 @@ namespace Opc.Ua.Server
                     monitoredItemId,
                     handle,
                     itemToCreate,
+                    filterToUse,
                     euRange,
                     samplingInterval,
                     createDurable);
@@ -217,6 +218,7 @@ namespace Opc.Ua.Server
                 timestampsToReturn,
                 monitoredItem,
                 itemToModify,
+                filterToUse,
                 euRange);
         }
 

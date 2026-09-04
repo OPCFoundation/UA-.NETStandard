@@ -27,6 +27,8 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using Opc.Ua.Server.Historian;
+
 namespace Opc.Ua.Server
 {
     /// <summary>
@@ -38,5 +40,11 @@ namespace Opc.Ua.Server
         /// Whether the variable requires stepped interpolation.
         /// </summary>
         public bool Stepped { get; set; }
+
+        internal bool PrimeInitialValue { get; set; }
+
+        internal IHistorianProvider? HistorianProvider { get; set; }
+
+        internal HistorianNodeCapabilities? HistorianCapabilities { get; set; }
     }
 }

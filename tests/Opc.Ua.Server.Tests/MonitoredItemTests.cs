@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading.Tasks;
 using BenchmarkDotNet.Attributes;
 using Microsoft.Extensions.Logging;
 using Moq;
@@ -20,6 +21,9 @@ namespace Opc.Ua.Server.Tests
     [MemoryDiagnoser]
     public class MonitoredItemTests
     {
+        private static readonly int[] s_initialThenLive = [1, 2];
+        private static readonly int[] s_liveThenInitial = [2, 1];
+
         [Test]
         public void CreateMI()
         {
@@ -99,6 +103,377 @@ namespace Opc.Ua.Server.Tests
             Assert.That(
                 publishErrorResult.InnerStatusCode,
                 Is.EqualTo(StatusCodes.Good));
+        }
+
+        [TestCase(true)]
+        [TestCase(false)]
+        public void AggregateInitialValueBufferingHonorsPrimeFlag(bool prime)
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            ILogger logger = telemetry.CreateLogger<MonitoredItemTests>();
+            using var queueFactory = new MonitoredItemQueueFactory(telemetry);
+            Mock<IServerInternal> serverMock =
+                CreateServerMock(telemetry, queueFactory);
+            using var aggregateManager = new AggregateManager(serverMock.Object);
+            serverMock
+                .Setup(value => value.AggregateManager)
+                .Returns(aggregateManager);
+            var filter = new ServerAggregateFilter
+            {
+                AggregateType = new NodeId("unsupported", 1),
+                StartTime = DateTime.UtcNow.AddSeconds(-10),
+                ProcessingInterval = 1000,
+                AggregateConfiguration = new AggregateConfiguration(),
+                PrimeInitialValue = prime
+            };
+            using var monitoredItem = new MonitoredItem(
+                serverMock.Object,
+                new Mock<IAsyncNodeManager>().Object,
+                null,
+                1,
+                2,
+                new ReadValueId
+                {
+                    NodeId = new NodeId("V", 1),
+                    AttributeId = Attributes.Value
+                },
+                DiagnosticsMasks.All,
+                TimestampsToReturn.Both,
+                MonitoringMode.Reporting,
+                3,
+                filter,
+                filter,
+                null,
+                0,
+                10,
+                discardOldest: false,
+                sourceSamplingInterval: 0);
+            DateTime historyTime = DateTime.UtcNow.AddSeconds(-2);
+            DateTime liveTime = historyTime.AddSeconds(1);
+            var history = new DataValue(
+                new Variant(1),
+                StatusCodes.Good,
+                historyTime,
+                historyTime);
+            var live = new DataValue(
+                new Variant(2),
+                StatusCodes.Good,
+                liveTime,
+                liveTime);
+
+            monitoredItem.QueueValue(live, ServiceResult.Good);
+            ((IInitialValueMonitoredItem)monitoredItem).QueueInitialValue(
+                history,
+                ServiceResult.Good,
+                ignoreFilters: false);
+            ((IInitialValueMonitoredItem)monitoredItem).CompleteInitialValue();
+
+            var notifications = new Queue<MonitoredItemNotification>();
+            var diagnostics = new Queue<DiagnosticInfo>();
+            _ = monitoredItem.Publish(
+                new OperationContext(monitoredItem),
+                notifications,
+                diagnostics,
+                10,
+                logger);
+
+            Assert.That(
+                notifications.Select(value => (int)value.Value.WrappedValue),
+                Is.EqualTo(prime ? s_initialThenLive : s_liveThenInitial));
+        }
+
+        [Test]
+        public void QueueSizeOneProtectsInitialHistoryFailureUntilPublish()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            ILogger logger = telemetry.CreateLogger<MonitoredItemTests>();
+            using var queueFactory = new MonitoredItemQueueFactory(telemetry);
+            Mock<IServerInternal> serverMock =
+                CreateServerMock(telemetry, queueFactory);
+            using var aggregateManager = new AggregateManager(serverMock.Object);
+            serverMock
+                .Setup(value => value.AggregateManager)
+                .Returns(aggregateManager);
+            var filter = new ServerAggregateFilter
+            {
+                AggregateType = new NodeId("unsupported", 1),
+                StartTime = DateTime.UtcNow.AddSeconds(-10),
+                ProcessingInterval = 1000,
+                AggregateConfiguration = new AggregateConfiguration(),
+                PrimeInitialValue = true
+            };
+            using var monitoredItem = new MonitoredItem(
+                serverMock.Object,
+                new Mock<IAsyncNodeManager>().Object,
+                null,
+                1,
+                2,
+                new ReadValueId
+                {
+                    NodeId = new NodeId("V", 1),
+                    AttributeId = Attributes.Value
+                },
+                DiagnosticsMasks.All,
+                TimestampsToReturn.Both,
+                MonitoringMode.Reporting,
+                3,
+                filter,
+                filter,
+                null,
+                0,
+                1,
+                discardOldest: false,
+                sourceSamplingInterval: 0);
+            DateTime timestamp = DateTime.UtcNow;
+            var live = new DataValue(
+                new Variant(1),
+                StatusCodes.Good,
+                timestamp,
+                timestamp);
+            var historyError = new DataValue(
+                Variant.Null,
+                StatusCodes.BadCommunicationError,
+                timestamp,
+                timestamp);
+
+            monitoredItem.QueueValue(live, ServiceResult.Good);
+            ((IInitialValueMonitoredItem)monitoredItem).QueueInitialValue(
+                historyError,
+                new ServiceResult(StatusCodes.BadCommunicationError),
+                ignoreFilters: true);
+            Assert.That(
+                ((IInitialValueMonitoredItem)monitoredItem)
+                    .CompleteInitialValue(),
+                Is.EqualTo(ServiceResult.Good));
+            monitoredItem.QueueValue(live, ServiceResult.Good);
+
+            var notifications = new Queue<MonitoredItemNotification>();
+            var diagnostics = new Queue<DiagnosticInfo>();
+            _ = monitoredItem.Publish(
+                new OperationContext(monitoredItem),
+                notifications,
+                diagnostics,
+                10,
+                logger);
+            Assert.That(notifications, Has.Count.EqualTo(1));
+            Assert.That(
+                notifications.Dequeue().Value.StatusCode,
+                Is.EqualTo(StatusCodes.BadCommunicationError));
+
+            monitoredItem.QueueValue(live, ServiceResult.Good);
+            _ = monitoredItem.Publish(
+                new OperationContext(monitoredItem),
+                notifications,
+                diagnostics,
+                10,
+                logger);
+            Assert.That(notifications, Has.Count.EqualTo(1));
+            Assert.That(
+                notifications.Dequeue().Value.WrappedValue,
+                Is.EqualTo(new Variant(1)));
+        }
+
+        [Test]
+        public void ShrinkingToQueueSizeOnePreservesRequiredOverflow()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            ILogger logger = telemetry.CreateLogger<MonitoredItemTests>();
+            using var queueFactory = new MonitoredItemQueueFactory(telemetry);
+            Mock<IServerInternal> serverMock =
+                CreateServerMock(telemetry, queueFactory);
+            using var aggregateManager = new AggregateManager(serverMock.Object);
+            serverMock
+                .Setup(value => value.AggregateManager)
+                .Returns(aggregateManager);
+            var filter = new ServerAggregateFilter
+            {
+                AggregateType = new NodeId("unsupported", 1),
+                StartTime = DateTime.UtcNow.AddSeconds(-10),
+                ProcessingInterval = 1000,
+                AggregateConfiguration = new AggregateConfiguration(),
+                PrimeInitialValue = true
+            };
+            using var monitoredItem = new MonitoredItem(
+                serverMock.Object,
+                new Mock<IAsyncNodeManager>().Object,
+                null,
+                1,
+                2,
+                new ReadValueId
+                {
+                    NodeId = new NodeId("V", 1),
+                    AttributeId = Attributes.Value
+                },
+                DiagnosticsMasks.All,
+                TimestampsToReturn.Both,
+                MonitoringMode.Reporting,
+                3,
+                filter,
+                filter,
+                null,
+                0,
+                2,
+                discardOldest: true,
+                sourceSamplingInterval: 0);
+            DateTime timestamp = DateTime.UtcNow;
+            var historyError = new DataValue(
+                Variant.Null,
+                StatusCodes.BadCommunicationError,
+                timestamp,
+                timestamp);
+            ((IInitialValueMonitoredItem)monitoredItem).QueueInitialValue(
+                historyError,
+                new ServiceResult(StatusCodes.BadCommunicationError),
+                ignoreFilters: true);
+            Assert.That(
+                ((IInitialValueMonitoredItem)monitoredItem)
+                    .CompleteInitialValue(),
+                Is.EqualTo(ServiceResult.Good));
+            monitoredItem.QueueValue(
+                new DataValue(new Variant(1), StatusCodes.Good),
+                ServiceResult.Good);
+            monitoredItem.QueueValue(
+                new DataValue(new Variant(2), StatusCodes.Good),
+                ServiceResult.Good);
+
+            ServiceResult result = monitoredItem.ModifyAttributes(
+                DiagnosticsMasks.All,
+                TimestampsToReturn.Both,
+                3,
+                filter,
+                filter,
+                null,
+                0,
+                1,
+                discardOldest: true);
+            Assert.That(ServiceResult.IsGood(result), Is.True);
+            monitoredItem.QueueValue(
+                new DataValue(new Variant(3), StatusCodes.Good),
+                ServiceResult.Good);
+            var notifications = new Queue<MonitoredItemNotification>();
+            var diagnostics = new Queue<DiagnosticInfo>();
+
+            _ = monitoredItem.Publish(
+                new OperationContext(monitoredItem),
+                notifications,
+                diagnostics,
+                10,
+                logger);
+
+            Assert.That(notifications, Has.Count.EqualTo(1));
+            Assert.That(
+                notifications.Peek().Value.StatusCode.Code,
+                Is.EqualTo(StatusCodes.BadCommunicationError));
+            Assert.That(notifications.Peek().Value.StatusCode.Overflow, Is.True);
+        }
+
+        [Test]
+        public async Task ModifyAttributesRebuildsAndClearsAggregateCalculatorAsync()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            using var queueFactory = new MonitoredItemQueueFactory(telemetry);
+            Mock<IServerInternal> serverMock =
+                CreateServerMock(telemetry, queueFactory);
+            using var aggregateManager = new AggregateManager(serverMock.Object);
+            serverMock
+                .Setup(value => value.AggregateManager)
+                .Returns(aggregateManager);
+            serverMock
+                .Setup(value => value.DiagnosticsNodeManager)
+                .Returns(new Mock<IDiagnosticsNodeManager>().Object);
+            var calculator = new Mock<IAggregateCalculator>();
+            calculator
+                .Setup(value => value.QueueRawValue(
+                    It.IsAny<DataValue>()))
+                .Returns(true);
+            var aggregateId = new NodeId("TestAggregate", 1);
+            int calculatorCalls = 0;
+            await aggregateManager.RegisterFactoryAsync(
+                aggregateId,
+                "TestAggregate",
+                (id, start, end, interval, stepped, configuration, context) =>
+                {
+                    calculatorCalls++;
+                    return calculator.Object;
+                }).ConfigureAwait(false);
+            var initialFilter = new ServerAggregateFilter
+            {
+                AggregateType = aggregateId,
+                StartTime = DateTime.UtcNow.AddSeconds(-10),
+                ProcessingInterval = 1000,
+                Stepped = false,
+                AggregateConfiguration = new AggregateConfiguration()
+            };
+            using var monitoredItem = new MonitoredItem(
+                serverMock.Object,
+                new Mock<IAsyncNodeManager>().Object,
+                null,
+                1,
+                2,
+                new ReadValueId
+                {
+                    NodeId = new NodeId("V", 1),
+                    AttributeId = Attributes.Value
+                },
+                DiagnosticsMasks.All,
+                TimestampsToReturn.Both,
+                MonitoringMode.Reporting,
+                3,
+                initialFilter,
+                initialFilter,
+                null,
+                0,
+                10,
+                discardOldest: false,
+                sourceSamplingInterval: 0);
+            Assert.That(calculatorCalls, Is.EqualTo(1));
+            var revisedFilter = new ServerAggregateFilter
+            {
+                AggregateType = aggregateId,
+                StartTime = initialFilter.StartTime,
+                ProcessingInterval = initialFilter.ProcessingInterval,
+                Stepped = true,
+                AggregateConfiguration = new AggregateConfiguration()
+            };
+
+            ServiceResult result = monitoredItem.ModifyAttributes(
+                DiagnosticsMasks.All,
+                TimestampsToReturn.Both,
+                3,
+                revisedFilter,
+                revisedFilter,
+                null,
+                0,
+                10,
+                discardOldest: false);
+
+            Assert.That(ServiceResult.IsGood(result), Is.True);
+            Assert.That(calculatorCalls, Is.EqualTo(2));
+
+            result = monitoredItem.ModifyAttributes(
+                DiagnosticsMasks.All,
+                TimestampsToReturn.Both,
+                3,
+                null,
+                null,
+                null,
+                0,
+                10,
+                discardOldest: false);
+            Assert.That(ServiceResult.IsGood(result), Is.True);
+            calculator.Invocations.Clear();
+            var liveValue = new DataValue(
+                new Variant(42),
+                StatusCodes.Good,
+                DateTime.UtcNow,
+                DateTime.UtcNow);
+
+            monitoredItem.QueueValue(liveValue, ServiceResult.Good);
+
+            calculator.Verify(
+                value => value.QueueRawValue(
+                    It.IsAny<DataValue>()),
+                Times.Never);
         }
 
         [Test]

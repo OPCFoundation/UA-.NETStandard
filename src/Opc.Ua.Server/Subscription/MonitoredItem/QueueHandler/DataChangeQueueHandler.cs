@@ -166,40 +166,65 @@ namespace Opc.Ua.Server
             // copy existing values.
             List<DataValue>? existingValues = null;
             List<ServiceResult>? existingErrors = null;
+            ServiceResult? requiredError = m_requiredError;
+            int requiredIndex = -1;
 
             if (ItemsInQueue > 0)
             {
                 existingValues = new List<DataValue>((int)queueSize);
                 existingErrors = new List<ServiceResult>((int)queueSize);
 
-                while (PublishSingleValue(out DataValue value, out ServiceResult error, true))
+                while (PublishSingleValue(
+                    out DataValue value,
+                    out ServiceResult error,
+                    out bool wasRequired,
+                    noEventLog: true,
+                    retryOnEmpty: true))
                 {
+                    if (wasRequired)
+                    {
+                        requiredIndex = existingValues.Count;
+                    }
                     existingValues.Add(value);
                     existingErrors.Add(error);
                 }
             }
 
-            // The marker keeps its identity across the resize, so draining it here must not clear
-            // the flag that protects it from being discarded once it is put back.
-            DataValue required = m_required;
-            bool requiredPending = m_requiredPending;
-
             m_dataValueQueue.ResetQueue(queueSize, queueErrors);
 
             m_overflow = default;
             m_overflowPending = false;
+            m_required = default;
+            m_requiredError = null;
+            m_requiredPending = false;
 
             // requeue the data.
             if (existingValues != null)
             {
                 for (int ii = 0; ii < existingValues.Count; ii++)
                 {
-                    Enqueue(existingValues[ii], existingErrors![ii]);
+                    if (ii == requiredIndex)
+                    {
+                        DataValue requiredValue = existingValues[ii];
+                        ServiceResult requeueError =
+                            requiredError ?? existingErrors![ii];
+                        if (requiredValue.StatusCode.Overflow)
+                        {
+                            SetOverflowBit(
+                                ref requiredValue,
+                                ref requeueError);
+                        }
+                        EnqueueRequired(
+                            requiredValue,
+                            requeueError,
+                            replaceExisting: false);
+                    }
+                    else
+                    {
+                        Enqueue(existingValues[ii], existingErrors![ii]);
+                    }
                 }
             }
-
-            m_required = required;
-            m_requiredPending = requiredPending;
         }
 
         /// <summary>
@@ -291,17 +316,102 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Queues a required missing-node marker without sampling or overflow replacement.
+        /// Queues a required notification without sampling or overflow replacement.
         /// </summary>
-        internal void QueueRequiredValue(in DataValue value, ServiceResult error)
+        /// <param name="value">The required notification value.</param>
+        /// <param name="error">The required notification error.</param>
+        /// <param name="replaceExisting">
+        /// Whether a different pending required notification is superseded.
+        /// </param>
+        internal void QueueRequiredValue(
+            in DataValue value,
+            ServiceResult error,
+            bool replaceExisting = false)
         {
-            EnqueueRequired(value, error);
+            EnqueueRequired(value, error, replaceExisting);
         }
 
         /// <summary>
         /// Gets whether a required missing-node marker is pending.
         /// </summary>
         internal bool HasRequiredValues => m_requiredPending;
+
+        /// <summary>
+        /// Gets the required notification currently protected by the queue.
+        /// </summary>
+        internal bool TryGetRequiredValue(
+            out DataValue value,
+            out ServiceResult error)
+        {
+            value = m_required;
+            error = m_requiredError ?? ServiceResult.Good;
+            if (m_requiredPending &&
+                m_overflowPending &&
+                m_overflow == m_required)
+            {
+                SetOverflowBit(ref value, ref error);
+            }
+            return m_requiredPending;
+        }
+
+        /// <summary>
+        /// Restores a required notification and its protection, adding the
+        /// notification when a restored queue snapshot does not contain it.
+        /// </summary>
+        internal void EnsureRequiredValue(
+            in DataValue value,
+            ServiceResult error)
+        {
+            var existingValues = new List<DataValue>(
+                m_dataValueQueue.ItemsInQueue);
+            var existingErrors = new List<ServiceResult>(
+                existingValues.Capacity);
+            int requiredIndex = -1;
+            while (PublishSingleValue(
+                out DataValue existingValue,
+                out ServiceResult existingError,
+                out _,
+                noEventLog: true,
+                retryOnEmpty: true))
+            {
+                if (requiredIndex < 0 &&
+                    AreEquivalentRequiredValues(existingValue, value))
+                {
+                    requiredIndex = existingValues.Count;
+                }
+                existingValues.Add(existingValue);
+                existingErrors.Add(existingError);
+            }
+
+            for (int ii = 0; ii < existingValues.Count; ii++)
+            {
+                if (ii == requiredIndex)
+                {
+                    DataValue requiredValue = value;
+                    ServiceResult requiredError = error;
+                    if (existingValues[ii].StatusCode.Overflow ||
+                        requiredValue.StatusCode.Overflow)
+                    {
+                        SetOverflowBit(
+                            ref requiredValue,
+                            ref requiredError);
+                    }
+                    EnqueueRequired(
+                        requiredValue,
+                        requiredError,
+                        replaceExisting: false);
+                }
+                else
+                {
+                    Enqueue(existingValues[ii], existingErrors[ii]);
+                }
+            }
+
+            if (requiredIndex < 0)
+            {
+                EnqueueRequired(value, error, replaceExisting: false);
+            }
+        }
 
         /// <summary>
         /// Deques the last item
@@ -311,11 +421,37 @@ namespace Opc.Ua.Server
             out ServiceResult error,
             bool noEventLog = false)
         {
-            if (m_dataValueQueue.Dequeue(out value, out error))
+            return PublishSingleValue(
+                out value,
+                out error,
+                out _,
+                noEventLog,
+                retryOnEmpty: false);
+        }
+
+        private bool PublishSingleValue(
+            out DataValue value,
+            out ServiceResult error,
+            out bool wasRequired,
+            bool noEventLog,
+            bool retryOnEmpty)
+        {
+            bool dequeued = retryOnEmpty
+                ? DequeueWithRetry(out value, out error)
+                : m_dataValueQueue.Dequeue(out value, out error);
+            if (dequeued)
             {
-                if (IsRequiredMarker(value))
+                wasRequired = IsRequiredMarker(value);
+                if (wasRequired)
                 {
+                    if (m_required.StatusCode.Overflow &&
+                        !value.StatusCode.Overflow)
+                    {
+                        value = m_required;
+                        error = m_requiredError ?? error;
+                    }
                     m_required = default;
+                    m_requiredError = null;
                     m_requiredPending = false;
                 }
 
@@ -338,6 +474,7 @@ namespace Opc.Ua.Server
                 return true;
             }
 
+            wasRequired = false;
             return false;
         }
 
@@ -449,18 +586,67 @@ namespace Opc.Ua.Server
         /// </summary>
         /// <param name="value">The marker value.</param>
         /// <param name="error">The marker error.</param>
-        private void EnqueueRequired(DataValue value, ServiceResult error)
+        /// <param name="replaceExisting">
+        /// Whether a different pending marker is superseded.
+        /// </param>
+        private void EnqueueRequired(
+            DataValue value,
+            ServiceResult error,
+            bool replaceExisting)
         {
             if (m_requiredPending)
             {
-                // A marker is already queued and says the same thing, so a second one adds
-                // nothing and would only displace a real value.
+                if (m_required.StatusCode == value.StatusCode ||
+                    !replaceExisting)
+                {
+                    return;
+                }
+                ReplaceRequired(value, error);
                 return;
             }
 
-            // No marker is queued yet, so the rule that protects it cannot reject this one.
             Enqueue(value, error);
             m_required = value;
+            m_requiredError = error;
+            m_requiredPending = true;
+        }
+
+        private void ReplaceRequired(
+            DataValue value,
+            ServiceResult error)
+        {
+            var existingValues = new List<DataValue>(
+                Math.Max(m_dataValueQueue.ItemsInQueue - 1, 0));
+            var existingErrors = new List<ServiceResult>(
+                existingValues.Capacity);
+            while (PublishSingleValue(
+                out DataValue existingValue,
+                out ServiceResult existingError,
+                out bool wasRequired,
+                noEventLog: true,
+                retryOnEmpty: true))
+            {
+                if (wasRequired)
+                {
+                    if (existingValue.StatusCode.Overflow)
+                    {
+                        SetOverflowBit(ref value, ref error);
+                    }
+                }
+                else
+                {
+                    existingValues.Add(existingValue);
+                    existingErrors.Add(existingError);
+                }
+            }
+
+            for (int ii = 0; ii < existingValues.Count; ii++)
+            {
+                Enqueue(existingValues[ii], existingErrors[ii]);
+            }
+            Enqueue(value, error);
+            m_required = value;
+            m_requiredError = error;
             m_requiredPending = true;
         }
 
@@ -470,7 +656,16 @@ namespace Opc.Ua.Server
         /// <param name="value">The queued value.</param>
         private bool IsRequiredMarker(in DataValue value)
         {
-            return m_requiredPending && m_required == value;
+            return m_requiredPending &&
+                AreEquivalentRequiredValues(m_required, value);
+        }
+
+        private static bool AreEquivalentRequiredValues(
+            in DataValue left,
+            in DataValue right)
+        {
+            return left.WithStatus(left.StatusCode.SetOverflow(false)) ==
+                right.WithStatus(right.StatusCode.SetOverflow(false));
         }
 
         /// <summary>
@@ -576,6 +771,7 @@ namespace Opc.Ua.Server
         private DataValue m_overflow;
         private bool m_overflowPending;
         private DataValue m_required;
+        private ServiceResult? m_requiredError;
         private bool m_requiredPending;
     }
 

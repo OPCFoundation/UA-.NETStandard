@@ -260,6 +260,23 @@ namespace Opc.Ua.Server.Tests.NodeManager
         }
 
         [Test]
+        public void StopMonitoringRemovesItemPendingAddition()
+        {
+            var identity = new Mock<IUserIdentity>();
+            using SamplingGroup group = CreateGroup(identity.Object);
+            Mock<ISampledDataChangeMonitoredItem> item = CreateItem();
+
+            Assert.That(
+                group.StartMonitoring(
+                    SessionlessContext(),
+                    item.Object,
+                    identity.Object),
+                Is.True);
+            Assert.That(group.StopMonitoring(item.Object), Is.True);
+            Assert.That(group.ApplyChanges(), Is.True);
+        }
+
+        [Test]
         public void ModifyMonitoringReturnsFalseForUnknownItem()
         {
             var identity = new Mock<IUserIdentity>();

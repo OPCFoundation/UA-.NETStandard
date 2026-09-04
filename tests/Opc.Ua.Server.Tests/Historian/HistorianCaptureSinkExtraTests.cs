@@ -46,9 +46,7 @@ namespace Opc.Ua.Server.Tests.Historian
 {
     /// <summary>
     /// Extra gap-coverage tests for <see cref="HistorianCaptureSink"/>
-    /// targeting the <see cref="CaptureFullMode.Wait"/> enqueue path and
-    /// the <see cref="CaptureFullMode"/> default/invalid-enum path in
-    /// <c>MapFullMode</c>.
+    /// targeting non-blocking queue modes and invalid configuration.
     /// </summary>
     [TestFixture]
     [Category("Historian")]
@@ -57,23 +55,21 @@ namespace Opc.Ua.Server.Tests.Historian
     {
         private const ushort Ns = 2;
 
-        // ─── CaptureFullMode.Wait enqueue path ──────────────────────────────
-
         [Test]
-        public async Task EnqueueWithWaitModeDeliversSamplesToProviderAsync()
+        public async Task EnqueueWithDropNewestDeliversSamplesToProviderAsync()
         {
             var provider = new RecordingProvider();
             ServerSystemContext ctx = CreateSystemContext();
 
             var options = new HistorianCaptureOptions
             {
-                FullMode = CaptureFullMode.Wait,
+                FullMode = CaptureFullMode.DropNewest,
                 MaxQueuedSamples = 64,
                 BatchTarget = 10,
                 BatchWindow = TimeSpan.FromMilliseconds(10)
             };
 
-            var nodeId = new NodeId("wait-mode-node", Ns);
+            var nodeId = new NodeId("drop-newest-node", Ns);
 
             await using var sink = new HistorianCaptureSink(provider, ctx, options);
 
@@ -94,19 +90,19 @@ namespace Opc.Ua.Server.Tests.Historian
                 total += b;
             }
             Assert.That(total, Is.EqualTo(4),
-                "All 4 enqueued samples must reach the provider via the Wait-mode path.");
+                "All samples below queue capacity must reach the provider.");
             Assert.That(sink.DroppedSampleCount, Is.Zero);
         }
 
         [Test]
-        public async Task EnqueueWithWaitModeAfterDisposeIsSilentAsync()
+        public async Task EnqueueAfterDisposeIsSilentAsync()
         {
             var provider = new RecordingProvider();
             ServerSystemContext ctx = CreateSystemContext();
 
             var options = new HistorianCaptureOptions
             {
-                FullMode = CaptureFullMode.Wait,
+                FullMode = CaptureFullMode.DropNewest,
                 MaxQueuedSamples = 64,
                 BatchTarget = 10,
                 BatchWindow = TimeSpan.FromMilliseconds(5)
@@ -137,14 +133,9 @@ namespace Opc.Ua.Server.Tests.Historian
                 "No new samples must be inserted after dispose.");
         }
 
-        // ─── MapFullMode default/invalid enum path ───────────────────────────
-
         [Test]
-        public async Task SinkWithInvalidFullModeEnumFallsBackToDropOldestAsync()
+        public void SinkWithInvalidFullModeEnumThrows()
         {
-            // Passing an out-of-range CaptureFullMode triggers MapFullMode's
-            // default arm (BoundedChannelFullMode.DropOldest). The sink
-            // must construct without error and process samples normally.
             var provider = new RecordingProvider();
             ServerSystemContext ctx = CreateSystemContext();
 
@@ -156,26 +147,10 @@ namespace Opc.Ua.Server.Tests.Historian
                 BatchWindow = TimeSpan.FromMilliseconds(10)
             };
 
-            var nodeId = new NodeId("invalid-enum-node", Ns);
-
-            await using var sink = new HistorianCaptureSink(provider, ctx, options);
-
-            sink.Enqueue(
-                nodeId,
-                new DataValue(new Variant(1.0), StatusCodes.Good, DateTime.UtcNow));
-
-            await sink.DisposeAsync().ConfigureAwait(false);
-
-            int total = 0;
-            foreach (int b in provider.BatchSizes)
-            {
-                total += b;
-            }
-            Assert.That(total, Is.EqualTo(1),
-                "One sample must be flushed even when FullMode is an invalid enum.");
+            Assert.That(
+                () => new HistorianCaptureSink(provider, ctx, options),
+                Throws.TypeOf<ArgumentOutOfRangeException>());
         }
-
-        // ─── Helpers ─────────────────────────────────────────────────────────
 
         private static ServerSystemContext CreateSystemContext()
         {
@@ -199,28 +174,37 @@ namespace Opc.Ua.Server.Tests.Historian
 
             public List<int> BatchSizes { get; } = [];
 
-            public ValueTask<IReadOnlyDictionary<NodeId, IList<StatusCode>>> InsertBatchAsync(
+            public ValueTask<ArrayOf<HistorianUpdateOutcome<DataValue>>> InsertBatchAsync(
                 HistorianOperationContext context,
-                IReadOnlyDictionary<NodeId, IList<DataValue>> batch,
+                ArrayOf<HistorianDataBatch> batch,
                 CancellationToken cancellationToken)
             {
-                var result = new Dictionary<NodeId, IList<StatusCode>>();
+                var result =
+                    new HistorianUpdateOutcome<DataValue>[batch.Count];
                 int batchTotal = 0;
                 lock (m_lock)
                 {
-                    foreach (KeyValuePair<NodeId, IList<DataValue>> kv in batch)
+                    for (int batchIndex = 0;
+                        batchIndex < batch.Count;
+                        batchIndex++)
                     {
-                        batchTotal += kv.Value.Count;
-                        var statuses = new StatusCode[kv.Value.Count];
+                        HistorianDataBatch entry = batch[batchIndex];
+                        batchTotal += entry.Values.Count;
+                        var statuses =
+                            new StatusCode[entry.Values.Count];
                         for (int i = 0; i < statuses.Length; i++)
                         {
                             statuses[i] = StatusCodes.Good;
                         }
-                        result[kv.Key] = statuses;
+                        result[batchIndex] =
+                            new HistorianUpdateOutcome<DataValue>(
+                                statuses);
                     }
                     BatchSizes.Add(batchTotal);
                 }
-                return new ValueTask<IReadOnlyDictionary<NodeId, IList<StatusCode>>>(result);
+                return new ValueTask<
+                    ArrayOf<HistorianUpdateOutcome<DataValue>>>(
+                        result);
             }
         }
     }

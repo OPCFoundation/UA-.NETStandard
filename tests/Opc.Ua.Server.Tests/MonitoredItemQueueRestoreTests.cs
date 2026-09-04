@@ -34,6 +34,7 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Diagnostics.Metrics;
+using System.Linq;
 using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
@@ -103,6 +104,76 @@ namespace Opc.Ua.Server.Tests
             storeMock.Verify(
                 s => s.RestoreDataChangeMonitoredItemQueue(stored.Id),
                 Times.Once);
+        }
+
+        [TestCase(1u, false, false)]
+        [TestCase(2u, false, false)]
+        [TestCase(2u, true, false)]
+        [TestCase(2u, true, true)]
+        public void RestorePreservesRequiredNotificationProtection(
+            uint queueSize,
+            bool restoreQueue,
+            bool queueContainsRequired)
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            ILogger logger =
+                telemetry.CreateLogger<MonitoredItemQueueRestoreTests>();
+            var storeMock = new Mock<ISubscriptionStore>();
+            using var queueFactory = new MonitoredItemQueueFactory(telemetry);
+            Mock<IServerInternal> serverMock =
+                CreateServerMock(telemetry, queueFactory, storeMock.Object);
+            DateTime timestamp = DateTime.UtcNow;
+            var requiredValue = new DataValue(
+                Variant.Null,
+                StatusCodes.BadCommunicationError,
+                timestamp,
+                timestamp);
+            StoredMonitoredItem stored = CreateStoredItem(
+                queueSize: queueSize);
+            stored.LastValue = requiredValue;
+            stored.LastError =
+                new ServiceResult(StatusCodes.BadCommunicationError);
+            stored.RequiredValuePending = true;
+            stored.RequiredValue = requiredValue;
+            stored.RequiredError = stored.LastError;
+            if (restoreQueue)
+            {
+                IDataChangeMonitoredItemQueue preHydrated =
+                    queueFactory.CreateDataChangeQueue(false, stored.Id);
+                preHydrated.ResetQueue(queueSize, false);
+                preHydrated.Enqueue(
+                    queueContainsRequired
+                        ? requiredValue
+                        : new DataValue(new Variant(7), StatusCodes.Good),
+                    queueContainsRequired
+                        ? stored.RequiredError
+                        : ServiceResult.Good);
+                stored.RestoredDataChangeQueue = preHydrated;
+            }
+
+            using var item = new MonitoredItem(
+                serverMock.Object,
+                new Mock<IAsyncNodeManager>().Object,
+                new object(),
+                stored);
+            item.QueueValue(
+                new DataValue(new Variant(42), StatusCodes.Good),
+                ServiceResult.Good);
+            var notifications = new Queue<MonitoredItemNotification>();
+            var diagnostics = new Queue<DiagnosticInfo>();
+
+            _ = item.Publish(
+                new OperationContext(item),
+                notifications,
+                diagnostics,
+                10,
+                logger);
+
+            Assert.That(
+                notifications.Any(value =>
+                    value.Value.StatusCode.Code ==
+                        StatusCodes.BadCommunicationError),
+                Is.True);
         }
 
         [Test]
