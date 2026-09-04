@@ -32,13 +32,14 @@ using System.Collections.Generic;
 using System.IO;
 using System.IO.Compression;
 using System.Text;
+using System.Xml;
 
 #nullable enable
 
 namespace Opc.Ua.SourceGeneration.Dependency
 {
     /// <summary>
-    /// Kind of node carried in a <see cref="ModelDependencyV1"/>.
+    /// Kind of node carried in a <see cref="ModelDependencyV2"/>.
     /// </summary>
     public enum DependencyNodeKind : byte
     {
@@ -198,6 +199,51 @@ namespace Opc.Ua.SourceGeneration.Dependency
         public byte InstanceKind { get; set; }
 
         /// <summary>
+        /// ModelDesign access level value (variables only).
+        /// </summary>
+        public byte AccessLevel { get; set; }
+
+        /// <summary>
+        /// Whether <see cref="AccessLevel"/> was explicitly specified.
+        /// </summary>
+        public bool AccessLevelSpecified { get; set; }
+
+        /// <summary>
+        /// Exact OPC UA AccessLevel bitmask imported from NodeSet2.
+        /// </summary>
+        public uint? RawAccessLevel { get; set; }
+
+        /// <summary>
+        /// Exact OPC UA UserAccessLevel bitmask imported from NodeSet2.
+        /// </summary>
+        public uint? RawUserAccessLevel { get; set; }
+
+        /// <summary>
+        /// Minimum sampling interval (variables only).
+        /// </summary>
+        public int MinimumSamplingInterval { get; set; }
+
+        /// <summary>
+        /// Whether <see cref="MinimumSamplingInterval"/> was explicitly specified.
+        /// </summary>
+        public bool MinimumSamplingIntervalSpecified { get; set; }
+
+        /// <summary>
+        /// Whether historical data is collected (variables only).
+        /// </summary>
+        public bool Historizing { get; set; }
+
+        /// <summary>
+        /// Whether <see cref="Historizing"/> was explicitly specified.
+        /// </summary>
+        public bool HistorizingSpecified { get; set; }
+
+        /// <summary>
+        /// Serialized ModelDesign default value XML (variables only).
+        /// </summary>
+        public string? DefaultValueXml { get; set; }
+
+        /// <summary>
         /// Input arguments (methods only).
         /// </summary>
         public IReadOnlyList<DependencyMethodArg> InputArguments { get; set; } = [];
@@ -209,7 +255,7 @@ namespace Opc.Ua.SourceGeneration.Dependency
 
         /// <summary>
         /// Qualified method state identity used by the producing assembly.
-        /// Empty for legacy payloads and non-method children.
+        /// Empty for payloads without method identity and non-method children.
         /// </summary>
         public string MethodStateName { get; set; } = string.Empty;
 
@@ -220,7 +266,7 @@ namespace Opc.Ua.SourceGeneration.Dependency
 
         /// <summary>
         /// Qualified method declaration identity used on the wire.
-        /// Empty for legacy payloads and non-method children.
+        /// Empty for payloads without method identity and non-method children.
         /// </summary>
         public string MethodDeclarationName { get; set; } = string.Empty;
 
@@ -310,9 +356,9 @@ namespace Opc.Ua.SourceGeneration.Dependency
     }
 
     /// <summary>
-    /// In-memory representation of a <c>ModelDependencyV1</c> payload.
+    /// In-memory representation of a <c>ModelDependencyV2</c> payload.
     /// </summary>
-    public sealed class ModelDependencyV1
+    public sealed class ModelDependencyV2
     {
         /// <summary>
         /// The magic byte sequence.
@@ -320,9 +366,9 @@ namespace Opc.Ua.SourceGeneration.Dependency
         public static readonly byte[] Magic = [0xAA, 0xC7];
 
         /// <summary>
-        /// The version byte for V1.
+        /// The version byte for V2.
         /// </summary>
-        public const byte Version = 1;
+        public const byte Version = 2;
 
         /// <summary>
         /// Compression scheme: 1 = Deflate.
@@ -333,6 +379,11 @@ namespace Opc.Ua.SourceGeneration.Dependency
         private const byte kFluentAccessorsKnown = 0x40;
         private const byte kMethodIdentityTrailer = 0x80;
         private const byte kMethodIdentityTrailerVersion = 1;
+        private const byte kAccessLevelSpecified = 0x01;
+        private const byte kRawAccessLevel = 0x02;
+        private const byte kRawUserAccessLevel = 0x04;
+        private const byte kMinimumSamplingIntervalSpecified = 0x08;
+        private const byte kHistorizingSpecified = 0x10;
 
         /// <summary>
         /// The model URI this dependency payload describes.
@@ -342,7 +393,7 @@ namespace Opc.Ua.SourceGeneration.Dependency
         /// <summary>
         /// Whether the producing assembly emitted the per-ObjectType typed
         /// fluent accessor extension classes. <c>null</c> means the payload
-        /// predates this capability and cannot prove whether accessors exist.
+        /// does not declare whether accessors exist.
         /// </summary>
         public bool? FluentAccessorsEmitted { get; set; }
 
@@ -381,7 +432,7 @@ namespace Opc.Ua.SourceGeneration.Dependency
         /// </summary>
         /// <returns>Null when the payload version is unrecognised or the
         /// magic does not match.</returns>
-        public static ModelDependencyV1? FromBase64Payload(string base64)
+        public static ModelDependencyV2? FromBase64Payload(string base64)
         {
             if (string.IsNullOrEmpty(base64))
             {
@@ -418,7 +469,7 @@ namespace Opc.Ua.SourceGeneration.Dependency
             deflate.CopyTo(inflated);
             inflated.Position = 0;
 
-            var result = new ModelDependencyV1();
+            var result = new ModelDependencyV2();
             result.ReadUncompressed(inflated);
             return result;
         }
@@ -468,6 +519,34 @@ namespace Opc.Ua.SourceGeneration.Dependency
                     writer.Write(child.ValueRank);
                     writer.Write(child.ModellingRule);
                     writer.Write(child.InstanceKind);
+                    byte variableFlags = 0;
+                    if (child.AccessLevelSpecified)
+                    {
+                        variableFlags |= kAccessLevelSpecified;
+                    }
+                    if (child.RawAccessLevel.HasValue)
+                    {
+                        variableFlags |= kRawAccessLevel;
+                    }
+                    if (child.RawUserAccessLevel.HasValue)
+                    {
+                        variableFlags |= kRawUserAccessLevel;
+                    }
+                    if (child.MinimumSamplingIntervalSpecified)
+                    {
+                        variableFlags |= kMinimumSamplingIntervalSpecified;
+                    }
+                    if (child.HistorizingSpecified)
+                    {
+                        variableFlags |= kHistorizingSpecified;
+                    }
+                    writer.Write(variableFlags);
+                    writer.Write(child.AccessLevel);
+                    writer.Write(child.RawAccessLevel.GetValueOrDefault());
+                    writer.Write(child.RawUserAccessLevel.GetValueOrDefault());
+                    writer.Write(child.MinimumSamplingInterval);
+                    writer.Write(child.Historizing);
+                    WriteNullableString(writer, child.DefaultValueXml);
                     writer.Write(child.InputArguments.Count);
                     foreach (DependencyMethodArg a in child.InputArguments)
                     {
@@ -518,7 +597,7 @@ namespace Opc.Ua.SourceGeneration.Dependency
             if (typeCount is < 0 or > 1_000_000)
             {
                 throw new InvalidDataException(
-                    "ModelDependencyV1: invalid type count " + typeCount);
+                    "ModelDependencyV2: invalid type count " + typeCount);
             }
             Nodes.Capacity = typeCount;
             for (int i = 0; i < typeCount; i++)
@@ -541,7 +620,7 @@ namespace Opc.Ua.SourceGeneration.Dependency
                 if (fieldCount is < 0 or > 100_000)
                 {
                     throw new InvalidDataException(
-                        "ModelDependencyV1: invalid field count " + fieldCount);
+                        "ModelDependencyV2: invalid field count " + fieldCount);
                 }
                 if (fieldCount > 0)
                 {
@@ -560,7 +639,7 @@ namespace Opc.Ua.SourceGeneration.Dependency
                 if (childCount is < 0 or > 100_000)
                 {
                     throw new InvalidDataException(
-                        "ModelDependencyV1: invalid child count " + childCount);
+                        "ModelDependencyV2: invalid child count " + childCount);
                 }
                 if (childCount > 0)
                 {
@@ -579,11 +658,36 @@ namespace Opc.Ua.SourceGeneration.Dependency
                             ModellingRule = reader.ReadByte(),
                             InstanceKind = reader.ReadByte()
                         };
+                        byte variableFlags = reader.ReadByte();
+                        c.AccessLevelSpecified =
+                            (variableFlags & kAccessLevelSpecified) != 0;
+                        c.AccessLevel = reader.ReadByte();
+                        uint rawAccessLevel = reader.ReadUInt32();
+                        if ((variableFlags & kRawAccessLevel) != 0)
+                        {
+                            c.RawAccessLevel = rawAccessLevel;
+                        }
+                        uint rawUserAccessLevel = reader.ReadUInt32();
+                        if ((variableFlags & kRawUserAccessLevel) != 0)
+                        {
+                            c.RawUserAccessLevel = rawUserAccessLevel;
+                        }
+                        c.MinimumSamplingInterval = reader.ReadInt32();
+                        c.MinimumSamplingIntervalSpecified =
+                            (variableFlags & kMinimumSamplingIntervalSpecified) != 0;
+                        c.Historizing = reader.ReadBoolean();
+                        c.HistorizingSpecified =
+                            (variableFlags & kHistorizingSpecified) != 0;
+                        c.DefaultValueXml = ReadNullableString(reader);
+                        if (c.DefaultValueXml != null)
+                        {
+                            ValidateDefaultValueXml(c.DefaultValueXml);
+                        }
                         int inCount = reader.ReadInt32();
                         if (inCount is < 0 or > 100)
                         {
                             throw new InvalidDataException(
-                                "ModelDependencyV1: invalid input arg count " + inCount);
+                                "ModelDependencyV2: invalid input arg count " + inCount);
                         }
                         if (inCount > 0)
                         {
@@ -602,7 +706,7 @@ namespace Opc.Ua.SourceGeneration.Dependency
                         if (outCount is < 0 or > 100)
                         {
                             throw new InvalidDataException(
-                                "ModelDependencyV1: invalid output arg count " + outCount);
+                                "ModelDependencyV2: invalid output arg count " + outCount);
                         }
                         if (outCount > 0)
                         {
@@ -697,7 +801,7 @@ namespace Opc.Ua.SourceGeneration.Dependency
             if (nodeCount != Nodes.Count)
             {
                 throw new InvalidDataException(
-                    "ModelDependencyV1: invalid method identity node count " + nodeCount);
+                    "ModelDependencyV2: invalid method identity node count " + nodeCount);
             }
             for (int i = 0; i < nodeCount; i++)
             {
@@ -706,7 +810,7 @@ namespace Opc.Ua.SourceGeneration.Dependency
                 if (childCount != node.Children.Count)
                 {
                     throw new InvalidDataException(
-                        "ModelDependencyV1: invalid method identity child count " + childCount);
+                        "ModelDependencyV2: invalid method identity child count " + childCount);
                 }
                 for (int j = 0; j < childCount; j++)
                 {
@@ -724,6 +828,29 @@ namespace Opc.Ua.SourceGeneration.Dependency
         private static void WriteString(BinaryWriter writer, string value)
         {
             writer.Write(value ?? string.Empty);
+        }
+
+        private static void ValidateDefaultValueXml(string value)
+        {
+            try
+            {
+                using var textReader = new StringReader(value);
+                using XmlReader reader = XmlReader.Create(
+                    textReader,
+                    CoreUtils.DefaultXmlReaderSettings());
+                var document = new XmlDocument();
+                document.Load(reader);
+                if (document.DocumentElement == null)
+                {
+                    throw new XmlException("Default value XML has no document element.");
+                }
+            }
+            catch (XmlException ex)
+            {
+                throw new InvalidDataException(
+                    "ModelDependencyV2: invalid default value XML.",
+                    ex);
+            }
         }
 
         private static void WriteNullableString(BinaryWriter writer, string? value)

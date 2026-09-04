@@ -13,7 +13,7 @@ assembly emits or transitively consumes:
 - (when known) the version and publication date,
 - the C# identifier of the assembly's `Namespaces` class entry for the model,
 - and — on self-declaration entries only — a base64-encoded Deflate-compressed
-  `ModelDependencyV1` type-table payload.
+  `ModelDependencyV2` type-table payload.
 
 Downstream consumers that reference such an assembly do not need to re-add
 those upstream nodesets to their own `<AdditionalFiles>`. The generator scans the
@@ -42,7 +42,8 @@ attributes on referenced assemblies and uses them to:
    diagnostics.
 5. **Import the type-table payload** on self-declaration entries so the
    validator's node table is pre-populated with the upstream's types,
-   children, method arguments, and DataType fields. Cross-namespace
+   children, method arguments, DataType fields, and effective variable
+   metadata. Cross-namespace
    `BaseType` / `TypeDefinition` / `DataType` references in the consumer's
    own models then resolve against the imported types without needing the
    upstream NodeSet2/ModelDesign XML in `AdditionalFiles`.
@@ -59,7 +60,7 @@ optional):
     version:         "1.05.0",
     publicationDate: "2025-11-15T00:00:00Z",
     name:            "OpcUaDi",
-    payload:         "qscBA…<base64 ModelDependencyV1>…AAA=")]
+    payload:         "qscCA…<base64 ModelDependencyV2>…AAA=")]
 ```
 
 The `name` parameter records the C# identifier the assembly used inside its
@@ -71,24 +72,34 @@ self-declaration entry. Transitive-dependency entries (the one-per-referenced-
 model rows the generator re-emits) carry `null`. The producing assembly is the
 canonical source of its type-table description.
 
-## Payload wire format (`ModelDependencyV1`)
+## Payload wire format (`ModelDependencyV2`)
 
 Encoding lives in
-`tools/Opc.Ua.SourceGeneration.Core/Dependency/ModelDependencyV1.cs`:
+`tools/Opc.Ua.SourceGeneration.Core/Dependency/ModelDependencyV2.cs`:
 
 - Magic header: `0xAA 0xC7`
-- Version byte: `0x01`
+- Version byte: `0x02`
 - Compression byte: `0x01` (Deflate)
 - Body (compressed): `ModelUri` string + node array, each carrying symbolic
   name/namespace, class name, kind, base-type chain, numeric/string NodeId,
   abstract / enumeration flags, DataType fields, and declared instance
-  children (with method-argument lists). Deterministically sorted by
+  children. Variable children also carry access and explicit user-access
+  bitmasks, minimum sampling interval, historizing state, the corresponding
+  presence flags, and serialized default-value XML. Method children carry
+  their argument lists and effective method identity. The payload is
+  deterministically sorted by
   `(SymbolicNamespace, SymbolicName)` so the produced base64 string is
   byte-reproducible across builds.
 
 Readers reject unknown versions cleanly and the downstream pipeline falls
 back to explicit `AdditionalFiles` resolution when a payload cannot be
 decoded.
+
+`ModelDependencyV2` intentionally replaces the preview V1 format rather than
+supporting mixed-version payloads. Producer and consumer projects must use the
+same source-generator preview. A V2 consumer ignores a V1 payload; add the
+upstream design to the consumer's `AdditionalFiles` only when temporarily
+bridging projects that cannot yet upgrade together.
 
 ## Diagnostics
 
@@ -113,7 +124,7 @@ The emitter lives in
 `tools/Opc.Ua.SourceGeneration.Core/Generators/ModelDependencyGenerator.cs`
 and produces one `{prefix}.ModelDependencies.g.cs` per generated model
 containing assembly-attribute lines for the model itself (with the
-`ModelDependencyV1` payload) and every model it consumes (with a `null`
+`ModelDependencyV2` payload) and every model it consumes (with a `null`
 payload). The template lives in `ModelDependencyTemplates.cs` and uses the
 shared `Token` infrastructure for replacement.
 
@@ -133,7 +144,7 @@ The payload-import surface lives directly on
 `tools/Opc.Ua.SourceGeneration.Core/Schema/ModelDesignValidator.cs` (the
 former `ModelDesignValidator.SnapshotImport.cs` partial was folded into the
 main file). The validator's `ImportDependency(dependency, prefix, name)` API
-queues a `ModelDependencyV1` for ingestion; `ApplyPendingDependencies()`
+queues a `ModelDependencyV2` for ingestion; `ApplyPendingDependencies()`
 materialises the carried types into the validator's node table before the
 dependency-loading pass walks `AdditionalFiles`, so consumer types can
 resolve `BaseType` / `TypeDefinition` / `DataType` references against the
@@ -153,6 +164,8 @@ variable-type data type restrictions, and method arguments including the
 `InputArguments` / `OutputArguments` argument properties. A target
 `ModelDesign` can therefore declare an `Object` or `Variable` whose
 `TypeDefinition` is a type from another design file and have its inherited
-children generate exactly as if the type were declared locally.
-
+children generate exactly as if the type were declared locally. Access level,
+explicit user access, minimum sampling interval, historizing state, and
+default values are retained when those inherited children come only from a
+referenced assembly's payload.
 

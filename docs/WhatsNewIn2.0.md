@@ -141,6 +141,15 @@ conditional configure, `Func<TChild, TChild>` replace, conditional
 replace) so opt-in extensions of singleton instances collapse into a
 single fluent chain.
 
+Structured ModelDesign defaults whose XML `ExtensionObject` omits a `TypeId`
+are now resolved through the generated encodeable factory's XML qualified-name
+registration, decoded to the generated structure, and tagged with its XML
+encoding id. Cross-assembly model dependencies now use the preview
+`ModelDependencyV2` payload, which also preserves inherited variable access,
+explicit user access, sampling interval, historizing state, and default-value
+XML. V2 intentionally replaces the preview V1 wire format, so producer and
+consumer projects must upgrade the source-generator package together.
+
 ### OPC UA companion-spec coverage
 
 This release substantially extends companion-spec coverage with full

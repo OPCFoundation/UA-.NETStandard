@@ -20,5 +20,7 @@ pipeline.
 ## Additional documentation
 
 See the [main repository README](https://github.com/OPCFoundation/UA-.NETStandard)
-and the
-[Source-Generated Data Types guide](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/SourceGeneratedDataTypes.md).
+and the guides for
+[Source-Generated Data Types](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/SourceGeneratedDataTypes.md)
+and
+[Cross-Assembly Model Dependencies](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/ModelDependencies.md).

@@ -97,7 +97,7 @@ namespace Opc.Ua.SourceGeneration
         public string Name { get; }
 
         /// <summary>
-        /// Base64-encoded Deflate-compressed <c>ModelDependencyV1</c>
+        /// Base64-encoded Deflate-compressed <c>ModelDependencyV2</c>
         /// payload. Empty on transitive-dependency entries; non-empty
         /// only on the producing assembly's self-declaration entry.
         /// </summary>
@@ -105,7 +105,7 @@ namespace Opc.Ua.SourceGeneration
 
         /// <summary>
         /// Decodes and memoises the <see cref="Payload"/> as a
-        /// <see cref="ModelDependencyV1"/>. Returns <c>null</c> when the
+        /// <see cref="ModelDependencyV2"/>. Returns <c>null</c> when the
         /// payload is empty, malformed, or carries an unknown version.
         /// </summary>
         /// <remarks>
@@ -113,7 +113,7 @@ namespace Opc.Ua.SourceGeneration
         /// the same multi-kilobyte byte block when the same dependency
         /// flows through Roslyn's incremental cache multiple times.
         /// </remarks>
-        public ModelDependencyV1 GetDependency()
+        public ModelDependencyV2 GetDependency()
         {
             if (string.IsNullOrEmpty(Payload))
             {
@@ -126,7 +126,7 @@ namespace Opc.Ua.SourceGeneration
         {
             try
             {
-                return new DecodedDependency(ModelDependencyV1.FromBase64Payload(payload));
+                return new DecodedDependency(ModelDependencyV2.FromBase64Payload(payload));
             }
             catch (Exception ex) when (
                 ex is InvalidDataException ||
@@ -141,12 +141,12 @@ namespace Opc.Ua.SourceGeneration
 
         private sealed class DecodedDependency
         {
-            public DecodedDependency(ModelDependencyV1 value)
+            public DecodedDependency(ModelDependencyV2 value)
             {
                 Value = value;
             }
 
-            public ModelDependencyV1 Value { get; }
+            public ModelDependencyV2 Value { get; }
         }
 
         private static readonly ConditionalWeakTable<string, DecodedDependency> s_decoded

@@ -283,7 +283,7 @@ namespace Opc.Ua.SourceGeneration
             IReadOnlyList<string> exclusions,
             ITelemetryContext telemetry,
             bool useAllowSubtypes,
-            IReadOnlyDictionary<string, Dependency.ModelDependencyV1> referencedDependencies)
+            IReadOnlyDictionary<string, Dependency.ModelDependencyV2> referencedDependencies)
         {
             DesignFileOptions options = designFiles.Options ?? new DesignFileOptions();
             var validator = new ModelDesignValidator(
@@ -301,7 +301,7 @@ namespace Opc.Ua.SourceGeneration
 
             if (referencedDependencies != null)
             {
-                foreach (KeyValuePair<string, Dependency.ModelDependencyV1> entry in referencedDependencies)
+                foreach (KeyValuePair<string, Dependency.ModelDependencyV2> entry in referencedDependencies)
                 {
                     if (entry.Value == null)
                     {

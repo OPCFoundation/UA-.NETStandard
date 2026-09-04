@@ -476,7 +476,7 @@ namespace Opc.Ua.SourceGeneration
         [Test]
         public void CorruptLowerVersionCandidateDoesNotAbortNormalGeneration()
         {
-            string validPayload = new ModelDependencyV1
+            string validPayload = new ModelDependencyV2
             {
                 ModelUri = DemoModelUri,
                 FluentAccessorsEmitted = false
@@ -490,7 +490,7 @@ namespace Opc.Ua.SourceGeneration
                 "CorruptCandidate",
                 prefix: "DemoModel",
                 version: "0.0",
-                payload: Convert.ToBase64String([0xAA, 0xC7, 0x01, 0x01, 0xFF]));
+                payload: Convert.ToBase64String([0xAA, 0xC7, 0x02, 0x01, 0xFF]));
 
             (GeneratorRunResult result, _, ImmutableArray<Diagnostic> diagnostics) = RunFluentAccessorsOnly(
                 validProducer,
@@ -533,21 +533,21 @@ namespace Opc.Ua.SourceGeneration
         }
 
         [Test]
-        public void MultipleActualProducersRejectUnknownLegacyCapability()
+        public void MultipleActualProducersRejectUnknownAccessorCapability()
         {
-            string legacyPayload = new ModelDependencyV1
+            string unknownCapabilityPayload = new ModelDependencyV2
             {
                 ModelUri = DemoModelUri
             }.ToBase64Payload();
-            CSharpCompilation legacyProducer = CreateModelMetadataAssembly(
-                "LegacyProducer",
+            CSharpCompilation unknownCapabilityProducer = CreateModelMetadataAssembly(
+                "UnknownCapabilityProducer",
                 prefix: "DemoModel",
                 version: "999.0",
-                payload: legacyPayload);
+                payload: unknownCapabilityPayload);
 
             (GeneratorRunResult result, _, ImmutableArray<Diagnostic> diagnostics) = RunFluentAccessorsOnly(
                 s_producerWithoutAccessors.Value,
-                additionalReferences: [legacyProducer.ToMetadataReference()],
+                additionalReferences: [unknownCapabilityProducer.ToMetadataReference()],
                 assemblyName: "ConservativeConsumer");
 
             Diagnostic diagnostic = diagnostics.Single(d => d.Id == "MODELGEN014");

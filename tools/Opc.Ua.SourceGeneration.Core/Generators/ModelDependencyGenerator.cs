@@ -42,7 +42,7 @@ namespace Opc.Ua.SourceGeneration
     /// per model the generated assembly emits (self-declaration) and one per
     /// dependency model declared by the <see cref="IModelDesign"/>. The
     /// self-declaration entry additionally carries a base64-encoded
-    /// Deflate-compressed <see cref="ModelDependencyV1"/> payload that
+    /// Deflate-compressed <see cref="ModelDependencyV2"/> payload that
     /// downstream source generators can decode to resolve cross-assembly
     /// type references without re-walking <c>AdditionalFiles</c>.
     /// </summary>
@@ -99,7 +99,7 @@ namespace Opc.Ua.SourceGeneration
             // generator-resolved target version / publication date so that
             // downstream tie-breaks have authoritative metadata. This is the
             // only entry that carries a payload — the compact type-table
-            // ModelDependencyV1 blob.
+            // ModelDependencyV2 blob.
             string selfVersion = m_context.ModelDesign.TargetVersion ?? target.Version;
             string selfPubDate = FormatDate(m_context.ModelDesign.TargetPublicationDate)
                 ?? target.PublicationDate;
@@ -166,7 +166,7 @@ namespace Opc.Ua.SourceGeneration
             {
                 return null;
             }
-            ModelDependencyV1 payload = BuildPayload(target);
+            ModelDependencyV2 payload = BuildPayload(target);
             if (payload.Nodes.Count == 0 && !payload.FluentAccessorsEmitted.HasValue)
             {
                 return null;
@@ -174,9 +174,9 @@ namespace Opc.Ua.SourceGeneration
             return payload.ToBase64Payload();
         }
 
-        private ModelDependencyV1 BuildPayload(Namespace target)
+        private ModelDependencyV2 BuildPayload(Namespace target)
         {
-            var payload = new ModelDependencyV1
+            var payload = new ModelDependencyV2
             {
                 ModelUri = target.Value,
                 FluentAccessorsEmitted = m_fluentAccessorsEmitted
@@ -284,9 +284,35 @@ namespace Opc.Ua.SourceGeneration
                             };
                             if (child is VariableDesign variable)
                             {
-                                entryChild.DataTypeName = variable.DataType?.Name ?? string.Empty;
-                                entryChild.DataTypeNamespace = variable.DataType?.Namespace ?? string.Empty;
-                                entryChild.ValueRank = (int)variable.ValueRank;
+                                var effectiveVariable =
+                                    (VariableDesign)variable.GetMergedInstance();
+                                entryChild.TypeDefinitionName =
+                                    effectiveVariable.TypeDefinition?.Name ?? string.Empty;
+                                entryChild.TypeDefinitionNamespace =
+                                    effectiveVariable.TypeDefinition?.Namespace ?? string.Empty;
+                                entryChild.DataTypeName =
+                                    effectiveVariable.DataType?.Name ?? string.Empty;
+                                entryChild.DataTypeNamespace =
+                                    effectiveVariable.DataType?.Namespace ?? string.Empty;
+                                entryChild.ValueRank = (int)effectiveVariable.ValueRank;
+                                entryChild.AccessLevel =
+                                    (byte)effectiveVariable.AccessLevel;
+                                entryChild.AccessLevelSpecified =
+                                    effectiveVariable.AccessLevelSpecified;
+                                entryChild.RawAccessLevel =
+                                    effectiveVariable.RawAccessLevel;
+                                entryChild.RawUserAccessLevel =
+                                    effectiveVariable.RawUserAccessLevel;
+                                entryChild.MinimumSamplingInterval =
+                                    effectiveVariable.MinimumSamplingInterval;
+                                entryChild.MinimumSamplingIntervalSpecified =
+                                    effectiveVariable.MinimumSamplingIntervalSpecified;
+                                entryChild.Historizing =
+                                    effectiveVariable.Historizing;
+                                entryChild.HistorizingSpecified =
+                                    effectiveVariable.HistorizingSpecified;
+                                entryChild.DefaultValueXml =
+                                    effectiveVariable.DefaultValue?.OuterXml;
                             }
                             else if (child is MethodDesign method)
                             {

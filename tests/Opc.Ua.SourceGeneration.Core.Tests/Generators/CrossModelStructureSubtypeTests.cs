@@ -46,7 +46,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
     /// Covers the design-file dependency flow (dependency supplied via
     /// AdditionalFiles), the reversed flow (the dependency list contains a
     /// downstream model that imports the target), and the cross-assembly
-    /// flow (dependency supplied as a ModelDependencyV1 payload).
+    /// flow (dependency supplied as a ModelDependencyV2 payload).
     /// </summary>
     [TestFixture]
     [Category("Generator")]
@@ -131,7 +131,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
         /// <summary>
         /// Cross-assembly flow of docs/ModelDependencies.md: the dependency
         /// model is not part of the compilation's design files but supplied
-        /// as a ModelDependencyV1 payload recovered from a referenced
+        /// as a ModelDependencyV2 payload recovered from a referenced
         /// assembly. Payload-materialised structures must be able to serve
         /// as the BaseType of a local structure.
         /// </summary>
@@ -187,7 +187,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
         public void StructureSubtypeOfPayloadWithDesignFileBaseGenerates()
         {
             const string modelCUri = "http://test.org/UA/ModelC/";
-            var payload = new ModelDependencyV1 { ModelUri = modelCUri };
+            var payload = new ModelDependencyV2 { ModelUri = modelCUri };
             payload.Nodes.Add(new DependencyNode
             {
                 SymbolicName = "MidStruct",
@@ -248,7 +248,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
                 exclusions: null,
                 telemetry,
                 useAllowSubtypes: false,
-                referencedDependencies: new Dictionary<string, ModelDependencyV1>
+                referencedDependencies: new Dictionary<string, ModelDependencyV2>
                 {
                     [ModelAUri] = CreateModelAPayload()
                 });
@@ -409,7 +409,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             string modelUri,
             string prefix,
             string name,
-            ModelDependencyV1 payload)
+            ModelDependencyV2 payload)
         {
             return new Dictionary<string, ModelDependencyReference>
             {
@@ -429,9 +429,9 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
         /// would carry in its [assembly: ModelDependency] attribute (see
         /// ModelDependencyGenerator).
         /// </summary>
-        private static ModelDependencyV1 CreateModelAPayload()
+        private static ModelDependencyV2 CreateModelAPayload()
         {
-            var payload = new ModelDependencyV1 { ModelUri = ModelAUri };
+            var payload = new ModelDependencyV2 { ModelUri = ModelAUri };
             payload.Nodes.Add(new DependencyNode
             {
                 SymbolicName = "BaseStruct",
