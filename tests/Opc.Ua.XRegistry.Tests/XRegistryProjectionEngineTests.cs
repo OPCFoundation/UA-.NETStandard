@@ -842,8 +842,8 @@ namespace Opc.Ua.XRegistry.Tests
                 {
                     SourceNodeId = source,
                     SourceName = id,
-                    CreatedAt = DateTime.UnixEpoch,
-                    ModifiedAt = DateTime.UnixEpoch.AddSeconds(epoch)
+                    CreatedAt = s_unixEpoch,
+                    ModifiedAt = s_unixEpoch.AddSeconds(epoch)
                 };
             }
 
@@ -872,8 +872,8 @@ namespace Opc.Ua.XRegistry.Tests
                             {
                                 SourceNodeId = defaultVersionId == "v1" ? v1Node : v2Node,
                                 SourceName = "pump",
-                                MetaCreatedAt = DateTime.UnixEpoch,
-                                MetaModifiedAt = DateTime.UnixEpoch.AddSeconds(metaEpoch)
+                                MetaCreatedAt = s_unixEpoch,
+                                MetaModifiedAt = s_unixEpoch.AddSeconds(metaEpoch)
                             }
                         ])
                     {
@@ -923,14 +923,14 @@ namespace Opc.Ua.XRegistry.Tests
                                     {
                                         SourceNodeId = source,
                                         SourceName = versionId,
-                                        ModifiedAt = DateTime.UnixEpoch.AddSeconds(versionEpoch)
+                                        ModifiedAt = s_unixEpoch.AddSeconds(versionEpoch)
                                     }
                                 ])
                             {
                                 SourceNodeId = source,
                                 SourceName = "pump",
-                                MetaCreatedAt = DateTime.UnixEpoch,
-                                MetaModifiedAt = DateTime.UnixEpoch
+                                MetaCreatedAt = s_unixEpoch,
+                                MetaModifiedAt = s_unixEpoch
                             }
                         ])
                     {
@@ -1358,8 +1358,8 @@ namespace Opc.Ua.XRegistry.Tests
                                 {
                                     SourceNodeId = versionNodeId,
                                     SourceName = resourceId,
-                                    MetaCreatedAt = DateTime.UnixEpoch,
-                                    MetaModifiedAt = DateTime.UnixEpoch
+                                    MetaCreatedAt = s_unixEpoch,
+                                    MetaModifiedAt = s_unixEpoch
                                 }
                             ])
                         {
@@ -1523,16 +1523,19 @@ namespace Opc.Ua.XRegistry.Tests
             public string Format => "json";
             public string ContentType => "application/json";
             public long Epoch { get; }
-            public DateTime CreatedAt => DateTime.UnixEpoch;
-            public DateTime ModifiedAt => DateTime.UnixEpoch;
+            public DateTime CreatedAt => s_unixEpoch;
+            public DateTime ModifiedAt => s_unixEpoch;
             public ImmutableSortedDictionary<string, string> Labels { get; } =
                 ImmutableSortedDictionary<string, string>.Empty;
             public long MetaEpoch => 1;
             public ImmutableSortedDictionary<string, string> MetaLabels { get; } =
                 ImmutableSortedDictionary<string, string>.Empty;
-            public DateTime MetaCreatedAt => DateTime.UnixEpoch;
-            public DateTime MetaModifiedAt => DateTime.UnixEpoch;
+            public DateTime MetaCreatedAt => s_unixEpoch;
+            public DateTime MetaModifiedAt => s_unixEpoch;
             public bool IsDefaultVersion { get; }
         }
+
+        private static readonly DateTime s_unixEpoch =
+            new(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc);
     }
 }

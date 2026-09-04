@@ -390,7 +390,7 @@ namespace Opc.Ua.WotCon.Server.Registry
             Title = title;
             Labels = labels ?? WotLabels.Empty;
             DateTime fallback = Versions.IsDefaultOrEmpty
-                ? DateTime.UnixEpoch
+                ? s_unixEpoch
                 : Versions.Min(version => version.CreatedAt);
             MetaCreatedAt = fallback;
             MetaModifiedAt = Versions.IsDefaultOrEmpty
@@ -679,6 +679,9 @@ namespace Opc.Ua.WotCon.Server.Registry
                 MetaModifiedAt = MetaModifiedAt
             };
         }
+
+        private static readonly DateTime s_unixEpoch =
+            new(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc);
     }
 
     /// <summary>
