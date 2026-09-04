@@ -261,6 +261,106 @@ namespace Opc.Ua.WotCon.Server.Materialization
         }
 
         /// <summary>
+        /// Deletes one registry document under a WoT Connectivity delete
+        /// policy and reconciles the projections the policy affected.
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// The registry decides what the policy does to stored state - which
+        /// documents remain, which are disabled, and which are marked
+        /// <c>Failed</c>. This method is what makes that decision visible in
+        /// the AddressSpace: once the registry has committed, the projections
+        /// that are no longer wanted are taken down and the operation is
+        /// reported with the same summary and events a refresh produces, so a
+        /// Client sees one story rather than two.
+        /// </para>
+        /// <para>
+        /// A rejected delete reconciles nothing. <c>Reject</c> exists to leave
+        /// state untouched, and a reconciliation pass that removed a projection
+        /// would defeat exactly that.
+        /// </para>
+        /// </remarks>
+        /// <param name="request">What to delete and under which policy.</param>
+        /// <param name="cancellationToken">A cancellation token.</param>
+        /// <returns>The delete result and the projection summary.</returns>
+        /// <exception cref="ArgumentNullException">
+        /// <paramref name="request"/> is <c>null</c>.
+        /// </exception>
+        /// <exception cref="ObjectDisposedException">
+        /// The coordinator has been disposed.
+        /// </exception>
+        public async ValueTask<WotDeleteOutcome> DeleteAsync(
+            WotDeleteRequest request,
+            CancellationToken cancellationToken = default)
+        {
+            if (request is null)
+            {
+                throw new ArgumentNullException(nameof(request));
+            }
+            if (!TryBeginOperation(allowDisposed: false))
+            {
+                throw new ObjectDisposedException(nameof(WotMaterializationCoordinator));
+            }
+
+            WotDeleteResult delete;
+            try
+            {
+                DateTime start = DateTime.UtcNow;
+                delete = await m_registry.DeleteResourceAsync(
+                    request.GroupId,
+                    request.ResourceId,
+                    request.Policy,
+                    request.ExpectedEpoch,
+                    cancellationToken).ConfigureAwait(false);
+                if (delete.Outcome != WoTOutcomeEnum.Success)
+                {
+                    var refused = new WoTRefreshSummaryDataType
+                    {
+                        RequestId = request.RequestId,
+                        Generation = m_generation,
+                        Outcome = delete.Outcome,
+                        Atomicity = WoTAtomicityEnum.PerClosure,
+                        StartTime = start,
+                        EndTime = DateTime.UtcNow,
+                        Total = 0,
+                        Succeeded = 0,
+                        Unchanged = 0,
+                        Failed = 0,
+                        Skipped = 0,
+                        Retired = 0
+                    };
+                    RaiseEvent(new WotMaterializationEventArgs(
+                        WotMaterializationEventKind.RefreshCompleted)
+                    {
+                        Generation = m_generation,
+                        RequestId = request.RequestId,
+                        Outcome = delete.Outcome,
+                        Summary = refused,
+                        Reason = delete.Message
+                    });
+                    return new WotDeleteOutcome(delete, refused, [], m_generation);
+                }
+            }
+            finally
+            {
+                EndOperation();
+            }
+
+            WotRefreshResult reconciled = await RefreshAsync(
+                new WotRefreshRequest
+                {
+                    RequestId = request.RequestId,
+                    Options = new WoTRefreshOptionsDataType
+                    {
+                        DeletePolicy = request.Policy
+                    }
+                },
+                cancellationToken).ConfigureAwait(false);
+            return new WotDeleteOutcome(
+                delete, reconciled.Summary, reconciled.Results, reconciled.NewGeneration);
+        }
+
+        /// <summary>
         /// Removes all live projections (used during NodeManager shutdown).
         /// </summary>
         public async ValueTask RemoveAllAsync(CancellationToken cancellationToken = default)

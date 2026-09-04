@@ -1,0 +1,203 @@
+{
+  "$comment": [
+    "Clause-level stack-side traceability for the OPC UA WoT Binding: it maps the",
+    "Binding clauses this repository implements onto the tests that hold them, by",
+    "test name, so a reviewer can ask 'what proves this clause?' and get an answer",
+    "that a test run can check.",
+    "",
+    "The statement-level map is wot-spec-requirements.json, which answers the",
+    "specification's own requirement identifiers. This file is the coarser view:",
+    "it names the tests that hold a whole clause, including the clauses the",
+    "specification does not leave to an implementation and so does not list there.",
+    "",
+    "It is deliberately not a coverage report: a clause with tests here may still",
+    "be incompletely implemented. What it does guarantee is that every mapping",
+    "names a test that exists, is discoverable, and is not excluded from a normal",
+    "run - which is what WotBindingTraceabilityTests enforces, and what keeps a",
+    "renamed or deleted test from silently emptying a clause.",
+    "",
+    "'pinnedTo' records the specification commit the clause numbering was read",
+    "from. Re-pin it, and re-read the clause titles, when the specification lands",
+    "its published revision; the fixture manifest beside this file pins the same",
+    "commit and the two are checked against each other."
+  ],
+  "pinnedTo": {
+    "repository": "https://github.com/OPCF-Members/spec-drafts.git",
+    "commit": "25db507121b503fd31c8816fbfae67a6822e813b",
+    "bindingRevision": "1.1"
+  },
+  "clauses": [
+    {
+      "clause": "12",
+      "title": "Exact preservation and the native projection",
+      "tests": [
+        "Opc.Ua.Types.Tests.Wot.WotEnvelopeFailClosedTests",
+        "Opc.Ua.Types.Tests.Wot.WotNativeProjectionScalarKindTests"
+      ],
+      "assembly": "Opc.Ua.Types.Tests"
+    },
+    {
+      "clause": "13.3",
+      "title": "Notification data schema",
+      "tests": [
+        "Opc.Ua.Types.Tests.Wot.WotEventDataTests",
+        "Opc.Ua.Types.Tests.Wot.WotConditionMappingTests"
+      ],
+      "assembly": "Opc.Ua.Types.Tests"
+    },
+    {
+      "clause": "4.1",
+      "title": "Revision and conformance claims",
+      "tests": [
+        "Opc.Ua.Types.Tests.Wot.WotBindingConformanceTests",
+        "Opc.Ua.Types.Tests.Wot.WotDocumentContextTests.AGeneratedDocumentNamesBothContextIdentities",
+        "Opc.Ua.Types.Tests.Wot.WotDocumentContextTests.TheBindingContextIdentityIsVersionPinned"
+      ],
+      "assembly": "Opc.Ua.Types.Tests"
+    },
+    {
+      "clause": "5.2",
+      "title": "NodeClass annotations and event identity",
+      "tests": [
+        "Opc.Ua.Types.Tests.Wot.WotRetiredEventVocabularyTests.AnEventAffordanceStatesItsIdentityWithTheTypeAnnotationAlone",
+        "Opc.Ua.Types.Tests.Wot.WotRetiredEventVocabularyTests.AnEventTypeRootStatesNoRetiredFlag",
+        "Opc.Ua.Types.Tests.Wot.WotRetiredEventVocabularyTests.AContradictoryLegacyFlagNoLongerChangesTheMapping"
+      ],
+      "assembly": "Opc.Ua.Types.Tests"
+    },
+    {
+      "clause": "5.4",
+      "title": "Transmitted URI encoding",
+      "tests": [
+        "Opc.Ua.WotCon.Bindings.Tests.WotTransmittedUriTests"
+      ],
+      "assembly": "Opc.Ua.WotCon.Bindings.Tests"
+    },
+    {
+      "clause": "5.7.1",
+      "title": "Binder and executor selection",
+      "tests": [
+        "Opc.Ua.WotCon.Bindings.Tests.WotBinderSelectionTests",
+        "Opc.Ua.WotCon.Bindings.Tests.OpcUaWotBindingTermsTests.EndpointSelectionDiscardsEverythingBelowTheFloor",
+        "Opc.Ua.WotCon.Bindings.Tests.OpcUaWotBindingTermsTests.EndpointSelectionTakesTheStrongestModeThenPolicy",
+        "Opc.Ua.WotCon.Bindings.Tests.OpcUaWotBindingTermsTests.EndpointSelectionBreaksATieBySecurityLevelThenUrlThenPosition",
+        "Opc.Ua.WotCon.Bindings.Tests.OpcUaWotBindingTermsTests.AnUnnamedPolicyRanksBelowEveryNamedOne",
+        "Opc.Ua.WotCon.Bindings.Tests.OpcUaWotBindingTermsTests.ActivateFailsClosedWhenTheSelectedEndpointIsBelowTheFloor"
+      ],
+      "assembly": "Opc.Ua.WotCon.Bindings.Tests"
+    },
+    {
+      "clause": "6.1",
+      "title": "EventType definitions and select clauses",
+      "tests": [
+        "Opc.Ua.Types.Tests.Wot.WotEventSelectionResolverTests",
+        "Opc.Ua.Types.Tests.Wot.WotEventTypeReferenceResolutionTests",
+        "Opc.Ua.Types.Tests.Wot.WotEventTypeDefinitionTests"
+      ],
+      "assembly": "Opc.Ua.Types.Tests"
+    },
+    {
+      "clause": "6.1/logical-identity",
+      "title": "Definitions named by logical identifier",
+      "tests": [
+        "Opc.Ua.Types.Tests.Wot.WotEventTypeReferenceResolutionTests.ANestedDefinitionResolvesByItsLogicalIdentifierAsync",
+        "Opc.Ua.Types.Tests.Wot.WotEventTypeReferenceResolutionTests.ARootDefinitionResolvesByItsLogicalIdentifierAsync",
+        "Opc.Ua.Types.Tests.Wot.WotEventTypeReferenceResolutionTests.ARootDefinitionResolvesByItsThingIdentifierAsync",
+        "Opc.Ua.Types.Tests.Wot.WotEventTypeReferenceResolutionTests.AnExpandedIriNamesTheSameDefinitionAsItsCompactFormAsync",
+        "Opc.Ua.Types.Tests.Wot.WotEventTypeReferenceResolutionTests.ADifferentlyBoundPrefixNamesADifferentDefinitionAsync",
+        "Opc.Ua.Types.Tests.Wot.WotEventTypeReferenceResolutionTests.AUavIdAloneDoesNotMakeAnAffordanceADefinitionAsync"
+      ],
+      "assembly": "Opc.Ua.Types.Tests"
+    },
+    {
+      "clause": "6.1/selection",
+      "title": "Baseline derivation and explicit selection",
+      "tests": [
+        "Opc.Ua.Types.Tests.Wot.WotEventTypeReferenceResolutionTests.ExplicitClausesWithoutALinkAreTheCompleteSelectionAsync",
+        "Opc.Ua.Types.Tests.Wot.WotEventTypeReferenceResolutionTests.ExplicitClausesWithALinkOverlayTheDerivedBaselineAsync",
+        "Opc.Ua.Types.Tests.Wot.WotEventTypeReferenceResolutionTests.TheImplicitDefaultRemainsTheEightMandatoryFields",
+        "Opc.Ua.Types.Tests.Wot.WotBindingCorrectionTests.AConditionAffordanceThatRefinesAwayEventIdIsReportedAsync"
+      ],
+      "assembly": "Opc.Ua.Types.Tests"
+    },
+    {
+      "clause": "6.1/source-order",
+      "title": "Ordered definition sources and ambiguity",
+      "tests": [
+        "Opc.Ua.Types.Tests.Wot.WotEventTypeReferenceResolutionTests.ADuplicateIdentifierAcrossDocumentsIsAmbiguousAsync",
+        "Opc.Ua.Types.Tests.Wot.WotEventTypeReferenceResolutionTests.ADuplicateIdentifierWithinOneDocumentIsAmbiguousAsync",
+        "Opc.Ua.Types.Tests.Wot.WotEventTypeReferenceResolutionTests.AnAmbiguityInvolvingTheHeldDocumentNamesItByPointerAsync",
+        "Opc.Ua.Types.Tests.Wot.WotEventTypeReferenceResolutionTests.AnAmbiguityInvolvingTheHeldRootNamesTheDocumentItselfAsync",
+        "Opc.Ua.Types.Tests.Wot.WotEventTypeReferenceResolutionTests.TheWellKnownBaseEventTypeIsTheLastSourceConsultedAsync",
+        "Opc.Ua.Types.Tests.Wot.WotEventTypeReferenceResolutionTests.AnAuthoredDefinitionShadowsTheWellKnownOneAsync",
+        "Opc.Ua.Types.Tests.Wot.WotEventTypeReferenceResolutionTests.AResolverAnsweringAnIdentifierIsCheckedAgainstItAsync",
+        "Opc.Ua.Types.Tests.Wot.WotEventTypeReferenceResolutionTests.AResolverAnswerThatDeclaresAnotherIdentityIsRejectedAsync"
+      ],
+      "assembly": "Opc.Ua.Types.Tests"
+    },
+    {
+      "clause": "6.11.3",
+      "title": "DataType field dimensions and authority",
+      "tests": [
+        "Opc.Ua.Types.Tests.Wot.WotDataTypeDimensionTests",
+        "Opc.Ua.Types.Tests.Wot.WotDataTypeAuthorityTests"
+      ],
+      "assembly": "Opc.Ua.Types.Tests"
+    },
+    {
+      "clause": "6.11.7",
+      "title": "Default encodings and nested-only types",
+      "tests": [
+        "Opc.Ua.Types.Tests.Wot.WotDataTypeEncodingTests",
+        "Opc.Ua.Types.Tests.Wot.WotNestedOnlyDataTypeTests"
+      ],
+      "assembly": "Opc.Ua.Types.Tests"
+    },
+    {
+      "clause": "6.4.1",
+      "title": "Engineering units",
+      "tests": [
+        "Opc.Ua.Types.Tests.Wot.WotDocumentContextTests.EngineeringUnitsCarryTheirOwnNodeLocalOverride",
+        "Opc.Ua.Types.Tests.Wot.WotDocumentContextTests.EngineeringUnitsInTheDefaultLocaleCarryNoOverride"
+      ],
+      "assembly": "Opc.Ua.Types.Tests"
+    },
+    {
+      "clause": "7",
+      "title": "Unknown and retired vocabulary",
+      "tests": [
+        "Opc.Ua.Types.Tests.Wot.WotRetiredEventVocabularyTests.ALegacyTermIsCarriedAsOrdinaryResidue",
+        "Opc.Ua.Types.Tests.Wot.WotRetiredEventVocabularyTests.ALegacyTermSurvivesTheRoundTripUnchanged",
+        "Opc.Ua.Types.Tests.Wot.WotRetiredEventVocabularyTests.StrictAuthoringReportsARetiredTermAsUnknown",
+        "Opc.Ua.Types.Tests.Wot.WotRetiredEventVocabularyTests.ARetiredTermIsNotAKnownTerm",
+        "Opc.Ua.Types.Tests.Wot.WotRetiredEventVocabularyTests.TheRetiredDiagnosticCodesKeepTheirNumbers",
+        "Opc.Ua.Types.Tests.Wot.WotRetiredEventVocabularyTests.NoDiagnosticCarriesAReservedCode"
+      ],
+      "assembly": "Opc.Ua.Types.Tests"
+    },
+    {
+      "clause": "9.1.1",
+      "title": "Localized text and the document default locale",
+      "tests": [
+        "Opc.Ua.Types.Tests.Wot.WotLocalizationTests",
+        "Opc.Ua.Types.Tests.Wot.WotDocumentContextTests.ADocumentWithoutTextInItsDefaultLocaleCarriesOneOverride",
+        "Opc.Ua.Types.Tests.Wot.WotDocumentContextTests.ADocumentWhoseTextIsInItsDefaultLocaleCarriesNoOverride",
+        "Opc.Ua.Types.Tests.Wot.WotDocumentContextTests.ASingleLocaleNeedsNoOverride",
+        "Opc.Ua.Types.Tests.Wot.WotDocumentContextTests.TheGeneratedOverrideIsNotAlsoResidue",
+        "Opc.Ua.Types.Tests.Wot.WotDocumentContextTests.AnAuthoredContextEntryIsPreserved",
+        "Opc.Ua.Types.Tests.Wot.WotDocumentContextTests.TheGeneratedContextIsDeterministic"
+      ],
+      "assembly": "Opc.Ua.Types.Tests"
+    },
+    {
+      "clause": "examples",
+      "title": "Published specification examples",
+      "tests": [
+        "Opc.Ua.Types.Tests.Wot.WotSpecExampleTests",
+        "Opc.Ua.Types.Tests.Wot.WotSpecFixtureManifestTests.ManifestPinsEveryEmbeddedExample",
+        "Opc.Ua.Types.Tests.Wot.WotSpecFixtureManifestTests.EveryEmbeddedExampleMatchesItsRecordedHash"
+      ],
+      "assembly": "Opc.Ua.Types.Tests"
+    }
+  ]
+}

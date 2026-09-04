@@ -319,7 +319,7 @@ namespace Opc.Ua.Types.Tests.Wot
         {
             using WotDocument original = WotUnitsAndRangesTests.ParseThingModel(
                 "\"events\":{\"trace\":{\"@type\":\"uav:eventType\"," +
-                "\"uav:isEvent\":true,\"title\":\"Trace\"," +
+                "\"title\":\"Trace\"," +
                 "\"uav:browseName\":\"pump:TraceEventType\"," +
                 "\"data\":{\"type\":\"object\",\"properties\":{" +
                 "\"Samples\":{\"type\":\"number\",\"uav:mapToType\":\"i=11\"," +
