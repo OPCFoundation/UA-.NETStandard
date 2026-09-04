@@ -241,7 +241,10 @@ namespace Opc.Ua.Server.Tests.Fluent
             await DrainAsync().ConfigureAwait(false);
             Assert.That(samples, Is.EqualTo(1));
             harness.Time.Advance(TimeSpan.FromMilliseconds(1));
-            await DrainAsync().ConfigureAwait(false);
+            await WaitForAsync(
+                () => Volatile.Read(ref samples) == 2,
+                "The 300 ms poll must run after fake time reaches its due time.")
+                .ConfigureAwait(false);
             Assert.That(samples, Is.EqualTo(2));
 
             (_, IMonitoredItem? fastItem) = await harness.CreateAsync(
@@ -249,7 +252,10 @@ namespace Opc.Ua.Server.Tests.Fluent
             await DrainAsync().ConfigureAwait(false);
             int afterFastActivation = samples;
             harness.Time.Advance(TimeSpan.FromMilliseconds(100));
-            await DrainAsync().ConfigureAwait(false);
+            await WaitForAsync(
+                () => Volatile.Read(ref samples) == afterFastActivation + 1,
+                "The fastest active 100 ms poll must run after its due time.")
+                .ConfigureAwait(false);
             Assert.That(samples, Is.EqualTo(afterFastActivation + 1));
             Assert.That(firstSubscribers, Is.EqualTo(1));
 
@@ -464,6 +470,23 @@ namespace Opc.Ua.Server.Tests.Fluent
             for (int ii = 0; ii < 10; ii++)
             {
                 await Task.Yield();
+            }
+        }
+
+        private static async ValueTask WaitForAsync(
+            Func<bool> condition,
+            string message,
+            int timeoutMilliseconds = 5000)
+        {
+            DateTime deadline = DateTime.UtcNow.AddMilliseconds(
+                timeoutMilliseconds);
+            while (!condition())
+            {
+                if (DateTime.UtcNow >= deadline)
+                {
+                    Assert.Fail(message);
+                }
+                await Task.Delay(10).ConfigureAwait(false);
             }
         }
 
