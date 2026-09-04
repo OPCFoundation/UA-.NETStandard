@@ -657,15 +657,11 @@ namespace Opc.Ua.SourceGeneration
             }
         }
 
-        private bool IsTypedXRegistrySourceUrl(
+        private static bool IsTypedXRegistrySourceUrl(
             ObjectTypeDesign declaringType,
             string fieldName)
         {
             return string.Equals(
-                    m_context.ModelDesign.TargetNamespace.Value,
-                    kXRegistryNamespaceUri,
-                    StringComparison.Ordinal) &&
-                string.Equals(
                     declaringType.SymbolicId?.Namespace,
                     kXRegistryNamespaceUri,
                     StringComparison.Ordinal) &&
