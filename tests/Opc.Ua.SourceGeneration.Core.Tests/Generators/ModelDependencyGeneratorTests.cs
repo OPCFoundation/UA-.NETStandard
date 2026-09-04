@@ -321,7 +321,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             var generator = new ModelDependencyGenerator(BuildContext());
             generator.Emit();
 
-            ModelDependencyV2 payload = ReadSelfPayload();
+            ModelDependencyV1 payload = ReadSelfPayload();
             Assert.That(payload, Is.Not.Null);
             DependencyChild child = payload.Nodes
                 .Single(node => node.SymbolicName == "ControllerType")
@@ -400,7 +400,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             var generator = new ModelDependencyGenerator(BuildContext());
             generator.Emit();
 
-            ModelDependencyV2 payload = ReadSelfPayload();
+            ModelDependencyV1 payload = ReadSelfPayload();
             Assert.That(payload, Is.Not.Null);
             DependencyChild child = payload.Nodes
                 .Single(node => node.SymbolicName == "ControllerType")
@@ -425,7 +425,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
         [Test]
         public void PayloadWithoutMethodIdentityRemainsReadable()
         {
-            var payload = new ModelDependencyV2
+            var payload = new ModelDependencyV1
             {
                 ModelUri = TestUri,
                 FluentAccessorsEmitted = false
@@ -455,8 +455,8 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
                 ]
             });
 
-            ModelDependencyV2 decoded =
-                ModelDependencyV2.FromBase64Payload(payload.ToBase64Payload());
+            ModelDependencyV1 decoded =
+                ModelDependencyV1.FromBase64Payload(payload.ToBase64Payload());
 
             Assert.That(decoded, Is.Not.Null);
             DependencyChild child = decoded.Nodes.Single().Children.Single();
@@ -513,7 +513,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             return Encoding.UTF8.GetString(m_memoryStream.ToArray());
         }
 
-        private ModelDependencyV2 ReadSelfPayload()
+        private ModelDependencyV1 ReadSelfPayload()
         {
             string output = ReadOutput();
             int payloadEnd = output.IndexOf("\")]", StringComparison.Ordinal);
@@ -521,7 +521,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             int payloadStart = output.LastIndexOf('"', payloadEnd - 1);
             Assert.That(payloadStart, Is.GreaterThanOrEqualTo(0));
             string encodedPayload = output[(payloadStart + 1)..payloadEnd];
-            return ModelDependencyV2.FromBase64Payload(encodedPayload);
+            return ModelDependencyV1.FromBase64Payload(encodedPayload);
         }
     }
 }

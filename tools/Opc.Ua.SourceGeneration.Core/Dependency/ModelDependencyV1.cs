@@ -39,7 +39,7 @@ using System.Xml;
 namespace Opc.Ua.SourceGeneration.Dependency
 {
     /// <summary>
-    /// Kind of node carried in a <see cref="ModelDependencyV2"/>.
+    /// Kind of node carried in a <see cref="ModelDependencyV1"/>.
     /// </summary>
     public enum DependencyNodeKind : byte
     {
@@ -356,9 +356,9 @@ namespace Opc.Ua.SourceGeneration.Dependency
     }
 
     /// <summary>
-    /// In-memory representation of a <c>ModelDependencyV2</c> payload.
+    /// In-memory representation of a <c>ModelDependencyV1</c> payload.
     /// </summary>
-    public sealed class ModelDependencyV2
+    public sealed class ModelDependencyV1
     {
         /// <summary>
         /// The magic byte sequence.
@@ -366,9 +366,9 @@ namespace Opc.Ua.SourceGeneration.Dependency
         public static readonly byte[] Magic = [0xAA, 0xC7];
 
         /// <summary>
-        /// The version byte for V2.
+        /// The version byte for V1.
         /// </summary>
-        public const byte Version = 2;
+        public const byte Version = 1;
 
         /// <summary>
         /// Compression scheme: 1 = Deflate.
@@ -432,7 +432,7 @@ namespace Opc.Ua.SourceGeneration.Dependency
         /// </summary>
         /// <returns>Null when the payload version is unrecognised or the
         /// magic does not match.</returns>
-        public static ModelDependencyV2? FromBase64Payload(string base64)
+        public static ModelDependencyV1? FromBase64Payload(string base64)
         {
             if (string.IsNullOrEmpty(base64))
             {
@@ -469,7 +469,7 @@ namespace Opc.Ua.SourceGeneration.Dependency
             deflate.CopyTo(inflated);
             inflated.Position = 0;
 
-            var result = new ModelDependencyV2();
+            var result = new ModelDependencyV1();
             result.ReadUncompressed(inflated);
             return result;
         }
@@ -597,7 +597,7 @@ namespace Opc.Ua.SourceGeneration.Dependency
             if (typeCount is < 0 or > 1_000_000)
             {
                 throw new InvalidDataException(
-                    "ModelDependencyV2: invalid type count " + typeCount);
+                    "ModelDependencyV1: invalid type count " + typeCount);
             }
             Nodes.Capacity = typeCount;
             for (int i = 0; i < typeCount; i++)
@@ -620,7 +620,7 @@ namespace Opc.Ua.SourceGeneration.Dependency
                 if (fieldCount is < 0 or > 100_000)
                 {
                     throw new InvalidDataException(
-                        "ModelDependencyV2: invalid field count " + fieldCount);
+                        "ModelDependencyV1: invalid field count " + fieldCount);
                 }
                 if (fieldCount > 0)
                 {
@@ -639,7 +639,7 @@ namespace Opc.Ua.SourceGeneration.Dependency
                 if (childCount is < 0 or > 100_000)
                 {
                     throw new InvalidDataException(
-                        "ModelDependencyV2: invalid child count " + childCount);
+                        "ModelDependencyV1: invalid child count " + childCount);
                 }
                 if (childCount > 0)
                 {
@@ -687,7 +687,7 @@ namespace Opc.Ua.SourceGeneration.Dependency
                         if (inCount is < 0 or > 100)
                         {
                             throw new InvalidDataException(
-                                "ModelDependencyV2: invalid input arg count " + inCount);
+                                "ModelDependencyV1: invalid input arg count " + inCount);
                         }
                         if (inCount > 0)
                         {
@@ -706,7 +706,7 @@ namespace Opc.Ua.SourceGeneration.Dependency
                         if (outCount is < 0 or > 100)
                         {
                             throw new InvalidDataException(
-                                "ModelDependencyV2: invalid output arg count " + outCount);
+                                "ModelDependencyV1: invalid output arg count " + outCount);
                         }
                         if (outCount > 0)
                         {
@@ -801,7 +801,7 @@ namespace Opc.Ua.SourceGeneration.Dependency
             if (nodeCount != Nodes.Count)
             {
                 throw new InvalidDataException(
-                    "ModelDependencyV2: invalid method identity node count " + nodeCount);
+                    "ModelDependencyV1: invalid method identity node count " + nodeCount);
             }
             for (int i = 0; i < nodeCount; i++)
             {
@@ -810,7 +810,7 @@ namespace Opc.Ua.SourceGeneration.Dependency
                 if (childCount != node.Children.Count)
                 {
                     throw new InvalidDataException(
-                        "ModelDependencyV2: invalid method identity child count " + childCount);
+                        "ModelDependencyV1: invalid method identity child count " + childCount);
                 }
                 for (int j = 0; j < childCount; j++)
                 {
@@ -848,7 +848,7 @@ namespace Opc.Ua.SourceGeneration.Dependency
             catch (XmlException ex)
             {
                 throw new InvalidDataException(
-                    "ModelDependencyV2: invalid default value XML.",
+                    "ModelDependencyV1: invalid default value XML.",
                     ex);
             }
         }

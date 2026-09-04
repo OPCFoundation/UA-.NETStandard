@@ -57,7 +57,7 @@ namespace Opc.Ua.SourceGeneration
         /// either the literal token <c>null</c> or a quoted string, so that
         /// the template itself does not need to encode that decision. The
         /// Payload is non-null only on the self-declaration entry — it
-        /// carries the base64 <c>ModelDependencyV2</c> blob downstream
+        /// carries the base64 <c>ModelDependencyV1</c> blob downstream
         /// generators can use to resolve cross-assembly type references
         /// without re-adding upstream NodeSet2/ModelDesign XML.
         /// </summary>

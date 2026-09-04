@@ -172,7 +172,7 @@ namespace Opc.Ua.SourceGeneration
             // model attributes; decode them here so a design file can
             // resolve upstream types (e.g. subtype a structure) without an
             // AdditionalFiles entry for the upstream model.
-            IReadOnlyDictionary<string, Dependency.ModelDependencyV2> referencedDependencies =
+            IReadOnlyDictionary<string, Dependency.ModelDependencyV1> referencedDependencies =
                 BuildReferencedDependencyMap(referencedModels);
 
             // Combine with embedded resources in this assembly.
@@ -461,13 +461,13 @@ namespace Opc.Ua.SourceGeneration
 
             var producers =
                 new List<(ModelDependencyReference Reference,
-                    Dependency.ModelDependencyV2 Dependency)>();
+                    Dependency.ModelDependencyV1 Dependency)>();
             foreach (ModelDependencyReference reference in referencedModelProviders.Where(
                 reference =>
                     reference.IsValid &&
                     string.Equals(reference.ModelUri, modelUri, StringComparison.Ordinal)))
             {
-                Dependency.ModelDependencyV2 dependency = reference.GetDependency();
+                Dependency.ModelDependencyV1 dependency = reference.GetDependency();
                 if (string.Equals(reference.Prefix, prefix, StringComparison.Ordinal) &&
                     !string.IsNullOrEmpty(reference.Payload) &&
                     (dependency == null ||
@@ -490,7 +490,7 @@ namespace Opc.Ua.SourceGeneration
                     producers.Add((reference, dependency));
                 }
             }
-            List<(ModelDependencyReference Reference, Dependency.ModelDependencyV2 Dependency)>
+            List<(ModelDependencyReference Reference, Dependency.ModelDependencyV1 Dependency)>
                 matchingProducers = [.. producers.Where(entry =>
                     string.Equals(entry.Reference.Prefix, prefix, StringComparison.Ordinal))];
             if (matchingProducers.Count == 0)
@@ -508,7 +508,7 @@ namespace Opc.Ua.SourceGeneration
             }
 
             foreach ((ModelDependencyReference reference,
-                Dependency.ModelDependencyV2 dependency) in matchingProducers)
+                Dependency.ModelDependencyV1 dependency) in matchingProducers)
             {
                 if (!dependency.FluentAccessorsEmitted.HasValue)
                 {
@@ -721,7 +721,7 @@ namespace Opc.Ua.SourceGeneration
             IReadOnlyDictionary<string, ModelDependencyReference> referencedModels = null,
             IReadOnlyList<NodeManagerAttributeBinding> nodeManagerBindings = null,
             Action<NodeManagerAttributeBinding, string> reportBindingDiagnostic = null,
-            IReadOnlyDictionary<string, Dependency.ModelDependencyV2> referencedDependencies = null,
+            IReadOnlyDictionary<string, Dependency.ModelDependencyV1> referencedDependencies = null,
             HashSet<NodeManagerAttributeBinding> sharedUsedBindings = null,
             int bindingModelCount = 0)
         {
@@ -817,7 +817,7 @@ namespace Opc.Ua.SourceGeneration
             IReadOnlyDictionary<string, ModelDependencyReference> referencedModels,
             IReadOnlyList<NodeManagerAttributeBinding> nodeManagerBindings,
             Action<NodeManagerAttributeBinding, string> reportBindingDiagnostic,
-            IReadOnlyDictionary<string, Dependency.ModelDependencyV2> referencedDependencies,
+            IReadOnlyDictionary<string, Dependency.ModelDependencyV1> referencedDependencies,
             HashSet<NodeManagerAttributeBinding> sharedUsedBindings,
             int bindingModelCount,
             Action<string, string, string, string> reportFluentAccessorsOnlyDiagnostic,
@@ -878,12 +878,12 @@ namespace Opc.Ua.SourceGeneration
                 {
                     Targets = designFilesForModel
                 };
-                IReadOnlyDictionary<string, Dependency.ModelDependencyV2>
+                IReadOnlyDictionary<string, Dependency.ModelDependencyV1>
                     validationDependencies = referencedDependencies;
                 if (options.FluentAccessorsOnly &&
                     referencedDependencies.ContainsKey(modelUri))
                 {
-                    Dictionary<string, Dependency.ModelDependencyV2> dependenciesWithoutTarget =
+                    Dictionary<string, Dependency.ModelDependencyV1> dependenciesWithoutTarget =
                         referencedDependencies.ToDictionary(
                             entry => entry.Key,
                             entry => entry.Value,
@@ -972,19 +972,19 @@ namespace Opc.Ua.SourceGeneration
         /// dropped (the validator then falls back to explicit
         /// AdditionalFiles resolution).
         /// </summary>
-        private static IReadOnlyDictionary<string, Dependency.ModelDependencyV2>
+        private static IReadOnlyDictionary<string, Dependency.ModelDependencyV1>
             BuildReferencedDependencyMap(
                 IReadOnlyDictionary<string, ModelDependencyReference> referencedModels)
         {
             if (referencedModels.Count == 0)
             {
-                return ImmutableDictionary<string, Dependency.ModelDependencyV2>.Empty;
+                return ImmutableDictionary<string, Dependency.ModelDependencyV1>.Empty;
             }
-            var map = new Dictionary<string, Dependency.ModelDependencyV2>(
+            var map = new Dictionary<string, Dependency.ModelDependencyV1>(
                 StringComparer.Ordinal);
             foreach (KeyValuePair<string, ModelDependencyReference> entry in referencedModels)
             {
-                Dependency.ModelDependencyV2 decoded = entry.Value.GetDependency();
+                Dependency.ModelDependencyV1 decoded = entry.Value.GetDependency();
                 if (decoded == null ||
                     !string.Equals(decoded.ModelUri, entry.Key, StringComparison.Ordinal))
                 {

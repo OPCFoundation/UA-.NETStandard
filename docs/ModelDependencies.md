@@ -13,7 +13,7 @@ assembly emits or transitively consumes:
 - (when known) the version and publication date,
 - the C# identifier of the assembly's `Namespaces` class entry for the model,
 - and — on self-declaration entries only — a base64-encoded Deflate-compressed
-  `ModelDependencyV2` type-table payload.
+  `ModelDependencyV1` type-table payload.
 
 Downstream consumers that reference such an assembly do not need to re-add
 those upstream nodesets to their own `<AdditionalFiles>`. The generator scans the
@@ -60,7 +60,7 @@ optional):
     version:         "1.05.0",
     publicationDate: "2025-11-15T00:00:00Z",
     name:            "OpcUaDi",
-    payload:         "qscCA…<base64 ModelDependencyV2>…AAA=")]
+    payload:         "qscBA…<base64 ModelDependencyV1>…AAA=")]
 ```
 
 The `name` parameter records the C# identifier the assembly used inside its
@@ -72,13 +72,13 @@ self-declaration entry. Transitive-dependency entries (the one-per-referenced-
 model rows the generator re-emits) carry `null`. The producing assembly is the
 canonical source of its type-table description.
 
-## Payload wire format (`ModelDependencyV2`)
+## Payload wire format (`ModelDependencyV1`)
 
 Encoding lives in
-`tools/Opc.Ua.SourceGeneration.Core/Dependency/ModelDependencyV2.cs`:
+`tools/Opc.Ua.SourceGeneration.Core/Dependency/ModelDependencyV1.cs`:
 
 - Magic header: `0xAA 0xC7`
-- Version byte: `0x02`
+- Version byte: `0x01`
 - Compression byte: `0x01` (Deflate)
 - Body (compressed): `ModelUri` string + node array, each carrying symbolic
   name/namespace, class name, kind, base-type chain, numeric/string NodeId,
@@ -94,12 +94,6 @@ Encoding lives in
 Readers reject unknown versions cleanly and the downstream pipeline falls
 back to explicit `AdditionalFiles` resolution when a payload cannot be
 decoded.
-
-`ModelDependencyV2` intentionally replaces the preview V1 format rather than
-supporting mixed-version payloads. Producer and consumer projects must use the
-same source-generator preview. A V2 consumer ignores a V1 payload; add the
-upstream design to the consumer's `AdditionalFiles` only when temporarily
-bridging projects that cannot yet upgrade together.
 
 ## Diagnostics
 
@@ -124,7 +118,7 @@ The emitter lives in
 `tools/Opc.Ua.SourceGeneration.Core/Generators/ModelDependencyGenerator.cs`
 and produces one `{prefix}.ModelDependencies.g.cs` per generated model
 containing assembly-attribute lines for the model itself (with the
-`ModelDependencyV2` payload) and every model it consumes (with a `null`
+`ModelDependencyV1` payload) and every model it consumes (with a `null`
 payload). The template lives in `ModelDependencyTemplates.cs` and uses the
 shared `Token` infrastructure for replacement.
 
@@ -144,7 +138,7 @@ The payload-import surface lives directly on
 `tools/Opc.Ua.SourceGeneration.Core/Schema/ModelDesignValidator.cs` (the
 former `ModelDesignValidator.SnapshotImport.cs` partial was folded into the
 main file). The validator's `ImportDependency(dependency, prefix, name)` API
-queues a `ModelDependencyV2` for ingestion; `ApplyPendingDependencies()`
+queues a `ModelDependencyV1` for ingestion; `ApplyPendingDependencies()`
 materialises the carried types into the validator's node table before the
 dependency-loading pass walks `AdditionalFiles`, so consumer types can
 resolve `BaseType` / `TypeDefinition` / `DataType` references against the
@@ -168,4 +162,3 @@ children generate exactly as if the type were declared locally. Access level,
 explicit user access, minimum sampling interval, historizing state, and
 default values are retained when those inherited children come only from a
 referenced assembly's payload.
-

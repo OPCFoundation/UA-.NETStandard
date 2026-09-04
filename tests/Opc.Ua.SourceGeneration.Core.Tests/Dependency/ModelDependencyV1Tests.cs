@@ -36,7 +36,7 @@ using Opc.Ua.SourceGeneration.Dependency;
 namespace Opc.Ua.SourceGeneration.Generator.Tests
 {
     /// <summary>
-    /// Round-trip and validation tests for the <see cref="ModelDependencyV2"/>
+    /// Round-trip and validation tests for the <see cref="ModelDependencyV1"/>
     /// wire format consumed by the cross-assembly model dependency machinery.
     /// </summary>
     [TestFixture]
@@ -44,12 +44,12 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
     [SetCulture("en-us")]
     [SetUICulture("en-us")]
     [Parallelizable]
-    public class ModelDependencyV2Tests
+    public class ModelDependencyV1Tests
     {
         [Test]
         public void WriteThenRead_RoundTripsExactly()
         {
-            var dependency = new ModelDependencyV2 { ModelUri = "http://example.org/UA/Demo/" };
+            var dependency = new ModelDependencyV1 { ModelUri = "http://example.org/UA/Demo/" };
             dependency.Nodes.Add(new DependencyNode
             {
                 SymbolicName = "PumpType",
@@ -82,7 +82,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             string payload = dependency.ToBase64Payload();
             Assert.That(payload, Is.Not.Null.And.Not.Empty);
 
-            var decoded = ModelDependencyV2.FromBase64Payload(payload);
+            var decoded = ModelDependencyV1.FromBase64Payload(payload);
             Assert.That(decoded, Is.Not.Null);
             Assert.That(decoded.ModelUri, Is.EqualTo("http://example.org/UA/Demo/"));
             Assert.That(decoded.Nodes, Has.Count.EqualTo(2));
@@ -107,7 +107,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
         [Test]
         public void WriteThenRead_PreservesUnicodeBrowseNames()
         {
-            var dependency = new ModelDependencyV2 { ModelUri = "http://example.org/UA/Unicode/" };
+            var dependency = new ModelDependencyV1 { ModelUri = "http://example.org/UA/Unicode/" };
             dependency.Nodes.Add(new DependencyNode
             {
                 SymbolicName = "Größentyp",
@@ -117,7 +117,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             });
 
             string payload = dependency.ToBase64Payload();
-            var decoded = ModelDependencyV2.FromBase64Payload(payload);
+            var decoded = ModelDependencyV1.FromBase64Payload(payload);
             Assert.That(decoded, Is.Not.Null);
             Assert.That(decoded.Nodes[0].SymbolicName, Is.EqualTo("Größentyp"));
             Assert.That(decoded.Nodes[0].ClassName, Is.EqualTo("Größentyp"));
@@ -127,13 +127,13 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
         [TestCase(false)]
         public void WriteThenRead_RoundTripsFluentAccessorCapability(bool emitted)
         {
-            var dependency = new ModelDependencyV2
+            var dependency = new ModelDependencyV1
             {
                 ModelUri = "http://example.org/UA/Capabilities/",
                 FluentAccessorsEmitted = emitted
             };
 
-            var decoded = ModelDependencyV2.FromBase64Payload(dependency.ToBase64Payload());
+            var decoded = ModelDependencyV1.FromBase64Payload(dependency.ToBase64Payload());
 
             Assert.That(decoded, Is.Not.Null);
             Assert.That(decoded.FluentAccessorsEmitted, Is.EqualTo(emitted));
@@ -142,12 +142,12 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
         [Test]
         public void WriteThenRead_OmittedCapabilityRemainsUnknown()
         {
-            var dependency = new ModelDependencyV2
+            var dependency = new ModelDependencyV1
             {
                 ModelUri = "http://example.org/UA/Legacy/"
             };
 
-            var decoded = ModelDependencyV2.FromBase64Payload(dependency.ToBase64Payload());
+            var decoded = ModelDependencyV1.FromBase64Payload(dependency.ToBase64Payload());
 
             Assert.That(decoded, Is.Not.Null);
             Assert.That(decoded.FluentAccessorsEmitted, Is.Null);
@@ -158,53 +158,44 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
         {
             byte[] bogus = [0x00, 0x00, 0x01, 0x01];
             string payload = Convert.ToBase64String(bogus);
-            var result = ModelDependencyV2.FromBase64Payload(payload);
-            Assert.That(result, Is.Null);
-        }
-
-        [Test]
-        public void Read_ReturnsNullForLegacyVersion()
-        {
-            byte[] bogus = [0xAA, 0xC7, 0x01, 0x01];
-            string payload = Convert.ToBase64String(bogus);
-            var result = ModelDependencyV2.FromBase64Payload(payload);
+            var result = ModelDependencyV1.FromBase64Payload(payload);
             Assert.That(result, Is.Null);
         }
 
         [Test]
         public void Read_ReturnsNullForFutureVersion()
         {
-            byte[] bogus = [0xAA, 0xC7, 0x03, 0x01];
+            byte[] bogus = [0xAA, 0xC7, 0x02, 0x01];
             string payload = Convert.ToBase64String(bogus);
-            var result = ModelDependencyV2.FromBase64Payload(payload);
+            var result = ModelDependencyV1.FromBase64Payload(payload);
             Assert.That(result, Is.Null);
         }
 
         [Test]
         public void Read_ReturnsNullForEmptyString()
         {
-            Assert.That(ModelDependencyV2.FromBase64Payload(string.Empty), Is.Null);
-            Assert.That(ModelDependencyV2.FromBase64Payload(null), Is.Null);
+            Assert.That(ModelDependencyV1.FromBase64Payload(string.Empty), Is.Null);
+            Assert.That(ModelDependencyV1.FromBase64Payload(null), Is.Null);
         }
 
         [Test]
         public void Read_ReturnsNullForBadBase64()
         {
-            Assert.That(ModelDependencyV2.FromBase64Payload("not!valid!base64!@@"), Is.Null);
+            Assert.That(ModelDependencyV1.FromBase64Payload("not!valid!base64!@@"), Is.Null);
         }
 
         [Test]
         public void Write_DeterministicByteForByte()
         {
-            ModelDependencyV2 s1 = BuildSampleSnapshot();
-            ModelDependencyV2 s2 = BuildSampleSnapshot();
+            ModelDependencyV1 s1 = BuildSampleSnapshot();
+            ModelDependencyV1 s2 = BuildSampleSnapshot();
             Assert.That(s1.ToBase64Payload(), Is.EqualTo(s2.ToBase64Payload()));
         }
 
         [Test]
         public void Read_HandlesNullBaseType()
         {
-            var dependency = new ModelDependencyV2 { ModelUri = "http://example.org/UA/Root/" };
+            var dependency = new ModelDependencyV1 { ModelUri = "http://example.org/UA/Root/" };
             dependency.Nodes.Add(new DependencyNode
             {
                 SymbolicName = "Foo",
@@ -215,7 +206,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
                 BaseTypeNamespace = null
             });
             string payload = dependency.ToBase64Payload();
-            var decoded = ModelDependencyV2.FromBase64Payload(payload);
+            var decoded = ModelDependencyV1.FromBase64Payload(payload);
             Assert.That(decoded, Is.Not.Null);
             Assert.That(decoded.Nodes[0].BaseTypeName, Is.Null);
             Assert.That(decoded.Nodes[0].BaseTypeNamespace, Is.Null);
@@ -224,7 +215,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
         [Test]
         public void WriteThenRead_RoundTripsChildren()
         {
-            var dependency = new ModelDependencyV2 { ModelUri = "http://example.org/UA/WithChildren/" };
+            var dependency = new ModelDependencyV1 { ModelUri = "http://example.org/UA/WithChildren/" };
             dependency.Nodes.Add(new DependencyNode
             {
                 SymbolicName = "DeviceType",
@@ -270,7 +261,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             });
 
             string payload = dependency.ToBase64Payload();
-            var decoded = ModelDependencyV2.FromBase64Payload(payload);
+            var decoded = ModelDependencyV1.FromBase64Payload(payload);
             Assert.That(decoded, Is.Not.Null);
             Assert.That(decoded.Nodes, Has.Count.EqualTo(1));
             Assert.That(decoded.Nodes[0].Children, Has.Count.EqualTo(3));
@@ -300,7 +291,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
                     <uax:String>Second</uax:String>
                 </uax:ListOfString>
                 """;
-            var dependency = new ModelDependencyV2
+            var dependency = new ModelDependencyV1
             {
                 ModelUri = "http://example.org/UA/VariableMetadata/"
             };
@@ -330,8 +321,8 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
                 ]
             });
 
-            ModelDependencyV2 decoded =
-                ModelDependencyV2.FromBase64Payload(
+            ModelDependencyV1 decoded =
+                ModelDependencyV1.FromBase64Payload(
                     dependency.ToBase64Payload());
 
             Assert.That(decoded, Is.Not.Null);
@@ -355,7 +346,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
         [Test]
         public void WriteThenRead_RoundTripsMethodArgs()
         {
-            var dependency = new ModelDependencyV2 { ModelUri = "http://example.org/UA/WithMethod/" };
+            var dependency = new ModelDependencyV1 { ModelUri = "http://example.org/UA/WithMethod/" };
             dependency.Nodes.Add(new DependencyNode
             {
                 SymbolicName = "ServiceType",
@@ -386,7 +377,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             });
 
             string payload = dependency.ToBase64Payload();
-            var decoded = ModelDependencyV2.FromBase64Payload(payload);
+            var decoded = ModelDependencyV1.FromBase64Payload(payload);
             Assert.That(decoded, Is.Not.Null);
             DependencyChild method = decoded.Nodes[0].Children[0];
             Assert.That(method.InstanceKind, Is.EqualTo((byte)4));
@@ -397,9 +388,9 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             Assert.That(method.OutputArguments[0].Name, Is.EqualTo("InitLockStatus"));
         }
 
-        private static ModelDependencyV2 BuildSampleSnapshot()
+        private static ModelDependencyV1 BuildSampleSnapshot()
         {
-            var s = new ModelDependencyV2 { ModelUri = "http://example.org/UA/Demo/" };
+            var s = new ModelDependencyV1 { ModelUri = "http://example.org/UA/Demo/" };
             s.Nodes.Add(new DependencyNode
             {
                 SymbolicName = "TypeA",

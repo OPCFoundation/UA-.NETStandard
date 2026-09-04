@@ -205,7 +205,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             bool? fluentAccessorsEmitted,
             string prefix = Prefix)
         {
-            var dependency = new ModelDependencyV2
+            var dependency = new ModelDependencyV1
             {
                 ModelUri = ModelUri,
                 FluentAccessorsEmitted = fluentAccessorsEmitted

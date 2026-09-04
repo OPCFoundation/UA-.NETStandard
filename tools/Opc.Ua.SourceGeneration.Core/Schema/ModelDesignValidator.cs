@@ -6259,7 +6259,7 @@ namespace Opc.Ua.Schema.Model
         /// <exception cref="ArgumentNullException"><paramref name="dependency"/> is <c>null</c>.</exception>
         /// <exception cref="ArgumentException"></exception>
         public void ImportDependency(
-            ModelDependencyV2 dependency,
+            ModelDependencyV1 dependency,
             string prefix,
             string name)
         {
@@ -6308,7 +6308,7 @@ namespace Opc.Ua.Schema.Model
             LinkDependencyChildren();
         }
 
-        private void ApplyDependency(ModelDependencyV2 dependency)
+        private void ApplyDependency(ModelDependencyV1 dependency)
         {
             // Mark the dependency's namespace as "resolved without a backing
             // file" so dependency-missing errors do not fire.
@@ -6991,6 +6991,6 @@ namespace Opc.Ua.Schema.Model
         private List<PendingDependency> m_pendingDependencies;
         private readonly List<DataTypeDesign> m_payloadDataTypes = [];
 
-        private sealed record PendingDependency(ModelDependencyV2 Dependency, string Prefix, string Name);
+        private sealed record PendingDependency(ModelDependencyV1 Dependency, string Prefix, string Name);
     }
 }

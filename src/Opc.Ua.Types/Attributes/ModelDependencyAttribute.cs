@@ -60,7 +60,7 @@ namespace Opc.Ua
     /// own self-declaration entry. Transitive-dependency entries carry no
     /// payload (the assembly that emits a model is the canonical source of
     /// its type-table description). The payload's wire format is
-    /// <c>ModelDependencyV2</c> (magic <c>0xAA 0xC7</c>, version byte <c>2</c>,
+    /// <c>ModelDependencyV1</c> (magic <c>0xAA 0xC7</c>, version byte <c>1</c>,
     /// Deflate-compressed); readers reject unknown versions cleanly and fall
     /// back to explicit <c>AdditionalFiles</c> resolution.
     /// </para>
@@ -87,7 +87,7 @@ namespace Opc.Ua
         /// <c>global::{Prefix}.Namespaces.{Name}</c>; when null they
         /// fall back to a name derived from the model URI.</param>
         /// <param name="payload">Base64-encoded Deflate-compressed
-        /// <c>ModelDependencyV2</c> type-table payload. Non-null only on the
+        /// <c>ModelDependencyV1</c> type-table payload. Non-null only on the
         /// assembly's own self-declaration entry; null on transitive
         /// dependency entries.</param>
         public ModelDependencyAttribute(
@@ -141,7 +141,7 @@ namespace Opc.Ua
         public string? Name { get; }
 
         /// <summary>
-        /// Base64-encoded Deflate-compressed <c>ModelDependencyV2</c>
+        /// Base64-encoded Deflate-compressed <c>ModelDependencyV1</c>
         /// type-table payload. Non-null only on the assembly's
         /// self-declaration entry; transitive-dependency entries carry
         /// null. The payload encodes enough information for a downstream

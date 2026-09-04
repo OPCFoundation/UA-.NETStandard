@@ -117,7 +117,7 @@ namespace Opc.Ua.SourceGeneration
 
         /// <summary>
         /// The upstream model is available only through the generated
-        /// ModelDependencyV2 metadata on a referenced assembly. Variable
+        /// ModelDependencyV1 metadata on a referenced assembly. Variable
         /// metadata and defaults must be identical to the AdditionalFiles path.
         /// </summary>
         [Test]

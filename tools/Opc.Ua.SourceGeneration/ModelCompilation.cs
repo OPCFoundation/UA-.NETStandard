@@ -443,7 +443,7 @@ namespace Opc.Ua.SourceGeneration
 
         private static bool IsModelProducer(ModelDependencyReference reference)
         {
-            ModelDependencyV2 dependency = reference.GetDependency();
+            ModelDependencyV1 dependency = reference.GetDependency();
             return dependency != null &&
                 string.Equals(dependency.ModelUri, reference.ModelUri, StringComparison.Ordinal);
         }

@@ -42,7 +42,7 @@ namespace Opc.Ua.SourceGeneration
     /// per model the generated assembly emits (self-declaration) and one per
     /// dependency model declared by the <see cref="IModelDesign"/>. The
     /// self-declaration entry additionally carries a base64-encoded
-    /// Deflate-compressed <see cref="ModelDependencyV2"/> payload that
+    /// Deflate-compressed <see cref="ModelDependencyV1"/> payload that
     /// downstream source generators can decode to resolve cross-assembly
     /// type references without re-walking <c>AdditionalFiles</c>.
     /// </summary>
@@ -99,7 +99,7 @@ namespace Opc.Ua.SourceGeneration
             // generator-resolved target version / publication date so that
             // downstream tie-breaks have authoritative metadata. This is the
             // only entry that carries a payload — the compact type-table
-            // ModelDependencyV2 blob.
+            // ModelDependencyV1 blob.
             string selfVersion = m_context.ModelDesign.TargetVersion ?? target.Version;
             string selfPubDate = FormatDate(m_context.ModelDesign.TargetPublicationDate)
                 ?? target.PublicationDate;
@@ -166,7 +166,7 @@ namespace Opc.Ua.SourceGeneration
             {
                 return null;
             }
-            ModelDependencyV2 payload = BuildPayload(target);
+            ModelDependencyV1 payload = BuildPayload(target);
             if (payload.Nodes.Count == 0 && !payload.FluentAccessorsEmitted.HasValue)
             {
                 return null;
@@ -174,9 +174,9 @@ namespace Opc.Ua.SourceGeneration
             return payload.ToBase64Payload();
         }
 
-        private ModelDependencyV2 BuildPayload(Namespace target)
+        private ModelDependencyV1 BuildPayload(Namespace target)
         {
-            var payload = new ModelDependencyV2
+            var payload = new ModelDependencyV1
             {
                 ModelUri = target.Value,
                 FluentAccessorsEmitted = m_fluentAccessorsEmitted

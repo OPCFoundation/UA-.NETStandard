@@ -474,9 +474,9 @@ namespace Opc.Ua.SourceGeneration
         }
 
         [Test]
-        public void CorruptLowerVersionCandidateDoesNotAbortNormalGeneration()
+        public void CorruptCandidateDoesNotAbortNormalGeneration()
         {
-            string validPayload = new ModelDependencyV2
+            string validPayload = new ModelDependencyV1
             {
                 ModelUri = DemoModelUri,
                 FluentAccessorsEmitted = false
@@ -490,7 +490,7 @@ namespace Opc.Ua.SourceGeneration
                 "CorruptCandidate",
                 prefix: "DemoModel",
                 version: "0.0",
-                payload: Convert.ToBase64String([0xAA, 0xC7, 0x02, 0x01, 0xFF]));
+                payload: Convert.ToBase64String([0xAA, 0xC7, 0x01, 0x01, 0xFF]));
 
             (GeneratorRunResult result, _, ImmutableArray<Diagnostic> diagnostics) = RunFluentAccessorsOnly(
                 validProducer,
@@ -535,7 +535,7 @@ namespace Opc.Ua.SourceGeneration
         [Test]
         public void MultipleActualProducersRejectUnknownAccessorCapability()
         {
-            string unknownCapabilityPayload = new ModelDependencyV2
+            string unknownCapabilityPayload = new ModelDependencyV1
             {
                 ModelUri = DemoModelUri
             }.ToBase64Payload();

@@ -350,7 +350,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
                 typeof(IReadOnlyDictionary<string, ModelDependencyReference>),
                 typeof(IReadOnlyList<NodeManagerAttributeBinding>),
                 typeof(Action<NodeManagerAttributeBinding, string>),
-                typeof(IReadOnlyDictionary<string, Dependency.ModelDependencyV2>),
+                typeof(IReadOnlyDictionary<string, Dependency.ModelDependencyV1>),
                 typeof(HashSet<NodeManagerAttributeBinding>),
                 typeof(int)
             ]);
