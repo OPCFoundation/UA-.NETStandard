@@ -41,4 +41,17 @@
     <ProjectReference Include="..\Opc.Ua.Client.TestFramework\Opc.Ua.Client.TestFramework.csproj" />
     <ProjectReference Include="..\Opc.Ua.Test.Common\Opc.Ua.Test.Common.csproj" />
   </ItemGroup>
+  <ItemGroup>
+    <!-- The stack-side evidence for the WoT specification requirements the
+         specification leaves to an implementation. One file, embedded in every
+         assembly that carries some of that evidence, because no test assembly
+         can see another and a per-assembly copy would drift. -->
+    <Compile Include="..\Opc.Ua.Types.Tests\Wot\WotSpecRequirementLedger.cs">
+      <Link>Wot\WotSpecRequirementLedger.cs</Link>
+    </Compile>
+    <EmbeddedResource Include="..\Opc.Ua.Types.Tests\Wot\Assets\wot-spec-requirements.json">
+      <Link>Wot\Assets\wot-spec-requirements.json</Link>
+      <LogicalName>wot-spec-requirements.json</LogicalName>
+    </EmbeddedResource>
+  </ItemGroup>
 </Project>

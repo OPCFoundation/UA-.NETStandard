@@ -598,40 +598,11 @@ namespace Opc.Ua.WotCon.Server.Materialization
             var collected = new List<string>();
             CollectPortableMembers(root, collected);
 
-            // §12.6 computes over the membership as a set, so a Node organized
-            // through two groups contributes one entry and not two.
-            var distinct = new HashSet<string>(StringComparer.Ordinal);
-            var members = new List<string>(collected.Count);
-            for (int i = 0; i < collected.Count; i++)
-            {
-                if (distinct.Add(collected[i]))
-                {
-                    members.Add(collected[i]);
-                }
-            }
-
-            // §12.6 sorts by Unicode code point, which is not UTF-16 code-unit
-            // order: an ordinal sort places every supplementary character below
-            // U+E000..U+FFFF and would make this Server compute a different
-            // ViewVersion from a conforming one for the same membership.
-            members.Sort(WotCodePointComparer.Instance);
-
-            var builder = new StringBuilder();
-            foreach (string member in members)
-            {
-                builder
-                    .Append(Encoding.UTF8.GetByteCount(member).ToString(CultureInfo.InvariantCulture))
-                    .Append(':')
-                    .Append(member)
-                    .Append('\n');
-            }
-
-            byte[] digest = Sha256(Encoding.UTF8.GetBytes(builder.ToString()));
-            uint value = ((uint)digest[0] << 24) |
-                ((uint)digest[1] << 16) |
-                ((uint)digest[2] << 8) |
-                digest[3];
-            return value == 0 ? 1u : value;
+            // The set/sort/encode/digest algorithm itself is the shared one in
+            // Opc.Ua.Types, which the published Annex G.3 and Section 12.6
+            // vectors are run against directly. Recomputing it here would be a
+            // second implementation of one formula, and the two would drift.
+            return WotPortableIdentity.ComputeViewVersion(collected.ToArrayOf());
         }
 
         /// <summary>

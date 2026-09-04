@@ -1,0 +1,1539 @@
+{
+  "$comment": [
+    "Pinned statement-digest inventory for the WoT specification requirements this stack",
+    "answers for. Every record is copied from the specification's own requirement",
+    "ledgers at the pinned commit - not re-derived from the prose - and verified against",
+    "them: the statement is re-hashed and the digest, clause, specification and",
+    "applicability are checked against wot-spec-requirements.json.",
+    "",
+    "This file exists so those statementHash values are checked rather than merely",
+    "carried. The stack ledger pins this file by digest, so a statementHash edited in one",
+    "file and not the other fails; this file pins the commit, its tree, and the blob id",
+    "and SHA-256 of each upstream ledger, so a re-vendor from another revision is a",
+    "visible edit.",
+    "",
+    "The statements themselves are the normative prose of a members-only draft and are",
+    "not republished here; their digests and lengths are. Regenerate or check with",
+    "tools/wot-spec/Get-WotStatementDigests.ps1 against a spec-drafts checkout holding",
+    "the pinned commit; -Verify reproduces this file and fails on any byte that moved."
+  ],
+  "schemaVersion": 2,
+  "pinnedTo": {
+    "repository": "https://github.com/OPCF-Members/spec-drafts.git",
+    "commit": "25db507121b503fd31c8816fbfae67a6822e813b",
+    "tree": "87d0636f594ec394958ec7bb62dfc942c9c8424b",
+    "selection": "every upstream requirement marked pendingStackTests",
+    "normalization": "sha256 of the statement as the specification's tools/normative.py normalizes it; the generator recomputes it from the upstream statement and refuses a record whose text and digest disagree",
+    "ledgers": [
+      {
+        "path": "source/wot-specs/WoT-Binding/tools/requirements.json",
+        "specification": "WoT Binding",
+        "blob": "b8bb73d4214bc83f103433d83734666f3eabea8e",
+        "sha256": "372a5bd5d58e326b9b7c3269ec49b033cb39ee8890197ced164496e6b6f3595b",
+        "requirementCount": 311
+      },
+      {
+        "path": "source/wot-specs/WoT-Connectivity/tools/requirements.json",
+        "specification": "WoT Connectivity",
+        "blob": "1c6a7db51dafbe5ec815d30550666e563f6a1ca4",
+        "sha256": "5140bb35d37bd00d48344686c0261630a4ae2314c9896bf9f6bcdf8af7b5c0b3",
+        "requirementCount": 91
+      }
+    ]
+  },
+  "statementCount": 97,
+  "statements": [
+    {
+      "specId": "sec-binding-an-existing-type#001",
+      "specification": "WoT Binding",
+      "clause": "sec-binding-an-existing-type",
+      "ordinal": 1,
+      "keywords": [
+        "shall"
+      ],
+      "applicability": "converter",
+      "evidence": [
+        "stack"
+      ],
+      "statementLength": 357,
+      "statementHash": "sha256:a956c775a7013c7e52563cd18ff4686ca2d78ac8c2b260d742329fabcdd9525d"
+    },
+    {
+      "specId": "sec-document-identifiers-and-names#003",
+      "specification": "WoT Connectivity",
+      "clause": "sec-document-identifiers-and-names",
+      "ordinal": 3,
+      "keywords": [
+        "shall"
+      ],
+      "applicability": "runtime",
+      "evidence": [
+        "stack"
+      ],
+      "statementLength": 179,
+      "statementHash": "sha256:3b9759ed166f059237c3f51882b3858af149cee722f7806b06a4c1cbbcc78337"
+    },
+    {
+      "specId": "sec-document-identifiers-and-names#002",
+      "specification": "WoT Connectivity",
+      "clause": "sec-document-identifiers-and-names",
+      "ordinal": 2,
+      "keywords": [
+        "shall"
+      ],
+      "applicability": "runtime",
+      "evidence": [
+        "stack"
+      ],
+      "statementLength": 299,
+      "statementHash": "sha256:81914174d2934307b0b528d24b677f6d3334559e4b21dde2ff7d61ad4a71e5d8"
+    },
+    {
+      "specId": "sec-document-identifiers-and-names#001",
+      "specification": "WoT Connectivity",
+      "clause": "sec-document-identifiers-and-names",
+      "ordinal": 1,
+      "keywords": [
+        "shall",
+        "shall not"
+      ],
+      "applicability": "runtime",
+      "evidence": [
+        "stack"
+      ],
+      "statementLength": 419,
+      "statementHash": "sha256:e647d11cb2aadd5cef0e140ba323c07c766be33d9a91ab646315c693f687b3f3"
+    },
+    {
+      "specId": "sec-version-switch-unload-delete-and-federation#008",
+      "specification": "WoT Connectivity",
+      "clause": "sec-version-switch-unload-delete-and-federation",
+      "ordinal": 8,
+      "keywords": [
+        "shall"
+      ],
+      "applicability": "runtime",
+      "evidence": [
+        "stack"
+      ],
+      "statementLength": 139,
+      "statementHash": "sha256:121074b1f667cb0e1d7c3f1ed89ae3a6d78027d5c98c47383792db83358615c7"
+    },
+    {
+      "specId": "sec-version-switch-unload-delete-and-federation#007",
+      "specification": "WoT Connectivity",
+      "clause": "sec-version-switch-unload-delete-and-federation",
+      "ordinal": 7,
+      "keywords": [
+        "may"
+      ],
+      "applicability": "runtime",
+      "evidence": [
+        "stack"
+      ],
+      "statementLength": 152,
+      "statementHash": "sha256:a6b7b7111f3d88a8e0b98fa70fe978f641180b3cb1e536c1dd12a1800a78b684"
+    },
+    {
+      "specId": "sec-version-switch-unload-delete-and-federation#006",
+      "specification": "WoT Connectivity",
+      "clause": "sec-version-switch-unload-delete-and-federation",
+      "ordinal": 6,
+      "keywords": [
+        "shall"
+      ],
+      "applicability": "runtime",
+      "evidence": [
+        "stack"
+      ],
+      "statementLength": 164,
+      "statementHash": "sha256:cd7cf75dde8f829d26e524cc2bf774a4c33d246361dfe5992974806522240308"
+    },
+    {
+      "specId": "sec-version-switch-unload-delete-and-federation#005",
+      "specification": "WoT Connectivity",
+      "clause": "sec-version-switch-unload-delete-and-federation",
+      "ordinal": 5,
+      "keywords": [
+        "may"
+      ],
+      "applicability": "runtime",
+      "evidence": [
+        "stack"
+      ],
+      "statementLength": 145,
+      "statementHash": "sha256:8c1d95acf09753e4d46add060b9b826cd899afe4b58ec6bb12546d4b661b0757"
+    },
+    {
+      "specId": "sec-version-switch-unload-delete-and-federation#004",
+      "specification": "WoT Connectivity",
+      "clause": "sec-version-switch-unload-delete-and-federation",
+      "ordinal": 4,
+      "keywords": [
+        "shall",
+        "shall"
+      ],
+      "applicability": "runtime",
+      "evidence": [
+        "stack"
+      ],
+      "statementLength": 169,
+      "statementHash": "sha256:4b215e5af55b3790e43904da1022f85a83fe9515a06c69436d645129aa114595"
+    },
+    {
+      "specId": "sec-version-switch-unload-delete-and-federation#003",
+      "specification": "WoT Connectivity",
+      "clause": "sec-version-switch-unload-delete-and-federation",
+      "ordinal": 3,
+      "keywords": [
+        "shall",
+        "shall",
+        "shall",
+        "shall",
+        "shall"
+      ],
+      "applicability": "runtime",
+      "evidence": [
+        "stack"
+      ],
+      "statementLength": 436,
+      "statementHash": "sha256:a095bfed93ae6982c1c5fc6ec8c6658328695588e21309e17044617a3ef2f7fa"
+    },
+    {
+      "specId": "sec-projection-documents#001",
+      "specification": "WoT Connectivity",
+      "clause": "sec-projection-documents",
+      "ordinal": 1,
+      "keywords": [
+        "shall not"
+      ],
+      "applicability": "runtime",
+      "evidence": [
+        "stack"
+      ],
+      "statementLength": 239,
+      "statementHash": "sha256:adbf37a70d2aeae2421a6eeb1fe847d37fb9573e1170f19641aef99a8b4335ab"
+    },
+    {
+      "specId": "sec-version-switch-unload-delete-and-federation#002",
+      "specification": "WoT Connectivity",
+      "clause": "sec-version-switch-unload-delete-and-federation",
+      "ordinal": 2,
+      "keywords": [
+        "shall"
+      ],
+      "applicability": "runtime",
+      "evidence": [
+        "stack"
+      ],
+      "statementLength": 109,
+      "statementHash": "sha256:a8c7d5661f460517e124729d33ae1d3a1e7051d9afaf2d945ff781e111298954"
+    },
+    {
+      "specId": "sec-automatic-and-explicit-refresh-idempotence#006",
+      "specification": "WoT Connectivity",
+      "clause": "sec-automatic-and-explicit-refresh-idempotence",
+      "ordinal": 6,
+      "keywords": [
+        "should"
+      ],
+      "applicability": "runtime",
+      "evidence": [
+        "stack"
+      ],
+      "statementLength": 155,
+      "statementHash": "sha256:6cedb255ee22cc1b1f931f8e2b58348b71dd9527b7c2714e0dd50737ed083558"
+    },
+    {
+      "specId": "sec-automatic-and-explicit-refresh-idempotence#005",
+      "specification": "WoT Connectivity",
+      "clause": "sec-automatic-and-explicit-refresh-idempotence",
+      "ordinal": 5,
+      "keywords": [
+        "shall"
+      ],
+      "applicability": "runtime",
+      "evidence": [
+        "stack"
+      ],
+      "statementLength": 151,
+      "statementHash": "sha256:ddb5e4a2ab49e716779004a4671f78f8903271d947631fb84a3f2d3afe728348"
+    },
+    {
+      "specId": "sec-automatic-and-explicit-refresh-idempotence#004",
+      "specification": "WoT Connectivity",
+      "clause": "sec-automatic-and-explicit-refresh-idempotence",
+      "ordinal": 4,
+      "keywords": [
+        "shall",
+        "shall",
+        "shall not"
+      ],
+      "applicability": "runtime",
+      "evidence": [
+        "stack"
+      ],
+      "statementLength": 244,
+      "statementHash": "sha256:54aea2950f2e6b5df8afaaa9415d3f3eab40e670d03b3ca36ed165638d591fd8"
+    },
+    {
+      "specId": "sec-automatic-and-explicit-refresh-idempotence#003",
+      "specification": "WoT Connectivity",
+      "clause": "sec-automatic-and-explicit-refresh-idempotence",
+      "ordinal": 3,
+      "keywords": [
+        "shall"
+      ],
+      "applicability": "runtime",
+      "evidence": [
+        "stack"
+      ],
+      "statementLength": 98,
+      "statementHash": "sha256:e766f47a0427e1c159b09ccbc7e0391e727ea015102534406d6667c15522b9d8"
+    },
+    {
+      "specId": "sec-automatic-and-explicit-refresh-idempotence#002",
+      "specification": "WoT Connectivity",
+      "clause": "sec-automatic-and-explicit-refresh-idempotence",
+      "ordinal": 2,
+      "keywords": [
+        "shall"
+      ],
+      "applicability": "runtime",
+      "evidence": [
+        "stack"
+      ],
+      "statementLength": 266,
+      "statementHash": "sha256:9c5098612ef035a2c836872b94303414d2109e262a7ae688af109b3e99755c4a"
+    },
+    {
+      "specId": "sec-automatic-and-explicit-refresh-idempotence#001",
+      "specification": "WoT Connectivity",
+      "clause": "sec-automatic-and-explicit-refresh-idempotence",
+      "ordinal": 1,
+      "keywords": [
+        "shall"
+      ],
+      "applicability": "runtime",
+      "evidence": [
+        "stack"
+      ],
+      "statementLength": 67,
+      "statementHash": "sha256:e406f885f2000e2804f81e22b318de8d268ce84431e025393896e1d21fc8940d"
+    },
+    {
+      "specId": "sec-shadow-prepare-switch-and-retirement#003",
+      "specification": "WoT Connectivity",
+      "clause": "sec-shadow-prepare-switch-and-retirement",
+      "ordinal": 3,
+      "keywords": [
+        "shall"
+      ],
+      "applicability": "runtime",
+      "evidence": [
+        "stack"
+      ],
+      "statementLength": 117,
+      "statementHash": "sha256:13edbf68cb8a7c5df1c9e5eb0090aa2c619b5ee02359988955fb3d93985d69fd"
+    },
+    {
+      "specId": "sec-shadow-prepare-switch-and-retirement#002",
+      "specification": "WoT Connectivity",
+      "clause": "sec-shadow-prepare-switch-and-retirement",
+      "ordinal": 2,
+      "keywords": [
+        "shall"
+      ],
+      "applicability": "runtime",
+      "evidence": [
+        "stack"
+      ],
+      "statementLength": 304,
+      "statementHash": "sha256:70f431771cba293f03ab527f864bbd2e7bc1bd79248b4ddcc08fd5a7f1136a54"
+    },
+    {
+      "specId": "sec-shadow-prepare-switch-and-retirement#001",
+      "specification": "WoT Connectivity",
+      "clause": "sec-shadow-prepare-switch-and-retirement",
+      "ordinal": 1,
+      "keywords": [
+        "shall"
+      ],
+      "applicability": "runtime",
+      "evidence": [
+        "stack"
+      ],
+      "statementLength": 123,
+      "statementHash": "sha256:4f13888e657f0133bb2cd2d1e059107d02f5c55ac7cbbdc01436c75e04c11fda"
+    },
+    {
+      "specId": "sec-version-switch-unload-delete-and-federation#001",
+      "specification": "WoT Connectivity",
+      "clause": "sec-version-switch-unload-delete-and-federation",
+      "ordinal": 1,
+      "keywords": [
+        "shall"
+      ],
+      "applicability": "runtime",
+      "evidence": [
+        "stack"
+      ],
+      "statementLength": 179,
+      "statementHash": "sha256:9a56e3419447d23c5d74f41bc11b861039ae5a56b7d1afdc0553e8de535e93f4"
+    },
+    {
+      "specId": "sec-projection-documents#002",
+      "specification": "WoT Connectivity",
+      "clause": "sec-projection-documents",
+      "ordinal": 2,
+      "keywords": [
+        "shall"
+      ],
+      "applicability": "runtime",
+      "evidence": [
+        "stack"
+      ],
+      "statementLength": 193,
+      "statementHash": "sha256:f1caf791938009167cbce087f687f30ecda281e77c5c9ce440457830bd0b3b4e"
+    },
+    {
+      "specId": "sec-projection-documents#003",
+      "specification": "WoT Connectivity",
+      "clause": "sec-projection-documents",
+      "ordinal": 3,
+      "keywords": [
+        "shall",
+        "shall"
+      ],
+      "applicability": "runtime",
+      "evidence": [
+        "stack"
+      ],
+      "statementLength": 264,
+      "statementHash": "sha256:8c08c44268a4e155864994fc6a5ab7d3a8f7667cf8acf57c1b947f68ff05b495"
+    },
+    {
+      "specId": "sec-projection-documents#004",
+      "specification": "WoT Connectivity",
+      "clause": "sec-projection-documents",
+      "ordinal": 4,
+      "keywords": [
+        "shall",
+        "shall"
+      ],
+      "applicability": "runtime",
+      "evidence": [
+        "stack"
+      ],
+      "statementLength": 238,
+      "statementHash": "sha256:1c62ff5f3f553f5f67dc4fb1ee32a9f820749ff21cd68ae0705d9bdb6f967c1e"
+    },
+    {
+      "specId": "sec-type-binding#001",
+      "specification": "WoT Connectivity",
+      "clause": "sec-type-binding",
+      "ordinal": 1,
+      "keywords": [
+        "shall not"
+      ],
+      "applicability": "runtime",
+      "evidence": [
+        "stack"
+      ],
+      "statementLength": 154,
+      "statementHash": "sha256:e3f4087b587a768c1cc5dcc2401058070c2f1030f51319cb81bc580072f5a292"
+    },
+    {
+      "specId": "sec-identity-and-the-root#001",
+      "specification": "WoT Connectivity",
+      "clause": "sec-identity-and-the-root",
+      "ordinal": 1,
+      "keywords": [
+        "should"
+      ],
+      "applicability": "runtime",
+      "evidence": [
+        "stack"
+      ],
+      "statementLength": 215,
+      "statementHash": "sha256:074571cff7649c7f66f4cb25bd36eab2d12bb4e52e9e35ea50d51622f1246261"
+    },
+    {
+      "specId": "sec-security-normative#007",
+      "specification": "WoT Connectivity",
+      "clause": "sec-security-normative",
+      "ordinal": 7,
+      "keywords": [
+        "shall",
+        "shall"
+      ],
+      "applicability": "runtime",
+      "evidence": [
+        "stack"
+      ],
+      "statementLength": 429,
+      "statementHash": "sha256:dce128eb1cf21eed942bcde1ea433d4973cf8fcbc0c2e185aee87bc4e35f6e80"
+    },
+    {
+      "specId": "sec-security-normative#006",
+      "specification": "WoT Connectivity",
+      "clause": "sec-security-normative",
+      "ordinal": 6,
+      "keywords": [
+        "shall",
+        "shall"
+      ],
+      "applicability": "runtime",
+      "evidence": [
+        "stack"
+      ],
+      "statementLength": 605,
+      "statementHash": "sha256:95ad02a8bbb0c8d7f438a2f6b654d3da339e634a8505b536ccc7a054212f2f8d"
+    },
+    {
+      "specId": "sec-security-normative#005",
+      "specification": "WoT Connectivity",
+      "clause": "sec-security-normative",
+      "ordinal": 5,
+      "keywords": [
+        "should"
+      ],
+      "applicability": "runtime",
+      "evidence": [
+        "stack"
+      ],
+      "statementLength": 57,
+      "statementHash": "sha256:f698ecb058924f155b04c850250b61861fb2648a661724e32c8c287c2e79378c"
+    },
+    {
+      "specId": "sec-security-normative#004",
+      "specification": "WoT Connectivity",
+      "clause": "sec-security-normative",
+      "ordinal": 4,
+      "keywords": [
+        "should"
+      ],
+      "applicability": "runtime",
+      "evidence": [
+        "stack"
+      ],
+      "statementLength": 150,
+      "statementHash": "sha256:cf2c2b825905e079c884c819ba68762dcaae670235be9c796b72575e3ac4525d"
+    },
+    {
+      "specId": "sec-security-normative#003",
+      "specification": "WoT Connectivity",
+      "clause": "sec-security-normative",
+      "ordinal": 3,
+      "keywords": [
+        "should",
+        "may"
+      ],
+      "applicability": "runtime",
+      "evidence": [
+        "stack"
+      ],
+      "statementLength": 133,
+      "statementHash": "sha256:a348e4984839b5c28f03df07e6fe01e9a803395130b1846d54879d24729abe7f"
+    },
+    {
+      "specId": "sec-security-normative#002",
+      "specification": "WoT Connectivity",
+      "clause": "sec-security-normative",
+      "ordinal": 2,
+      "keywords": [
+        "shall",
+        "shall"
+      ],
+      "applicability": "runtime",
+      "evidence": [
+        "stack"
+      ],
+      "statementLength": 269,
+      "statementHash": "sha256:2c627d33646ad5b442aee60d8d5ed9299d3f2d5efaa939dc11388014085daeab"
+    },
+    {
+      "specId": "sec-security-normative#001",
+      "specification": "WoT Connectivity",
+      "clause": "sec-security-normative",
+      "ordinal": 1,
+      "keywords": [
+        "shall not"
+      ],
+      "applicability": "runtime",
+      "evidence": [
+        "stack"
+      ],
+      "statementLength": 328,
+      "statementHash": "sha256:38d055f56091046117ffd75374a943030a0a1817224c84641d42f3be9572aca3"
+    },
+    {
+      "specId": "sec-events-and-change-notifications-normative#004",
+      "specification": "WoT Connectivity",
+      "clause": "sec-events-and-change-notifications-normative",
+      "ordinal": 4,
+      "keywords": [
+        "shall"
+      ],
+      "applicability": "runtime",
+      "evidence": [
+        "stack"
+      ],
+      "statementLength": 115,
+      "statementHash": "sha256:d4bc0173eb1dc1482ac88ebe174cdca2f546590b92174f99615bdf4902465c04"
+    },
+    {
+      "specId": "sec-events-and-change-notifications-normative#003",
+      "specification": "WoT Connectivity",
+      "clause": "sec-events-and-change-notifications-normative",
+      "ordinal": 3,
+      "keywords": [
+        "shall"
+      ],
+      "applicability": "runtime",
+      "evidence": [
+        "stack"
+      ],
+      "statementLength": 250,
+      "statementHash": "sha256:08f5b56a7f8f9d6f5294d6037153d99f6a9de22139fe24a3cae056e05e852498"
+    },
+    {
+      "specId": "sec-events-and-change-notifications-normative#002",
+      "specification": "WoT Connectivity",
+      "clause": "sec-events-and-change-notifications-normative",
+      "ordinal": 2,
+      "keywords": [
+        "shall",
+        "shall"
+      ],
+      "applicability": "runtime",
+      "evidence": [
+        "stack"
+      ],
+      "statementLength": 237,
+      "statementHash": "sha256:7f9edc38e52902fbf122636b656b0cde27e3313d175ea24d0f3f9d181ace2072"
+    },
+    {
+      "specId": "sec-events-and-change-notifications-normative#001",
+      "specification": "WoT Connectivity",
+      "clause": "sec-events-and-change-notifications-normative",
+      "ordinal": 1,
+      "keywords": [
+        "shall"
+      ],
+      "applicability": "runtime",
+      "evidence": [
+        "stack"
+      ],
+      "statementLength": 415,
+      "statementHash": "sha256:23160627b31878d5abfbdc2c629c5073fdd5f51a9d81d1b18f8becbfc9ef3086"
+    },
+    {
+      "specId": "sec-outcomes-errors-and-implementer-responsibilities#003",
+      "specification": "WoT Connectivity",
+      "clause": "sec-outcomes-errors-and-implementer-responsibilities",
+      "ordinal": 3,
+      "keywords": [
+        "shall",
+        "shall"
+      ],
+      "applicability": "runtime",
+      "evidence": [
+        "stack"
+      ],
+      "statementLength": 239,
+      "statementHash": "sha256:554d88ab0ae9107f44dec3eb1e470efc9fbb658d5f68b44d1482fdf9e9f1faf4"
+    },
+    {
+      "specId": "sec-outcomes-errors-and-implementer-responsibilities#002",
+      "specification": "WoT Connectivity",
+      "clause": "sec-outcomes-errors-and-implementer-responsibilities",
+      "ordinal": 2,
+      "keywords": [
+        "shall"
+      ],
+      "applicability": "runtime",
+      "evidence": [
+        "stack"
+      ],
+      "statementLength": 194,
+      "statementHash": "sha256:71456f7114ac432c0c3a9d72e4d8f48b73a34530e5c9e9789a317823f8f121d1"
+    },
+    {
+      "specId": "sec-outcomes-errors-and-implementer-responsibilities#001",
+      "specification": "WoT Connectivity",
+      "clause": "sec-outcomes-errors-and-implementer-responsibilities",
+      "ordinal": 1,
+      "keywords": [
+        "shall"
+      ],
+      "applicability": "runtime",
+      "evidence": [
+        "stack"
+      ],
+      "statementLength": 220,
+      "statementHash": "sha256:2a2bdb17a47fa1ae96f854d432e9c0c7a1f00bab181ee441774ea42f728de70d"
+    },
+    {
+      "specId": "sec-concurrency-and-generation-behaviour#001",
+      "specification": "WoT Connectivity",
+      "clause": "sec-concurrency-and-generation-behaviour",
+      "ordinal": 1,
+      "keywords": [
+        "shall",
+        "shall",
+        "shall not"
+      ],
+      "applicability": "runtime",
+      "evidence": [
+        "stack",
+        "boundary"
+      ],
+      "statementLength": 307,
+      "statementHash": "sha256:911d968db44a1be4c661fe5af965819e8ebde4d11137c8dcc4ffbf86a6a00cb5"
+    },
+    {
+      "specId": "sec-validation-planning-and-apply-algorithm#001",
+      "specification": "WoT Connectivity",
+      "clause": "sec-validation-planning-and-apply-algorithm",
+      "ordinal": 1,
+      "keywords": [
+        "shall"
+      ],
+      "applicability": "runtime",
+      "evidence": [
+        "stack"
+      ],
+      "statementLength": 40,
+      "statementHash": "sha256:d23eb465a4a6cb0558c73c127589fcedaa8ca77b4993c9be90ddba894ce58dc1"
+    },
+    {
+      "specId": "sec-signature#001",
+      "specification": "WoT Connectivity",
+      "clause": "sec-signature",
+      "ordinal": 1,
+      "keywords": [
+        "shall"
+      ],
+      "applicability": "runtime",
+      "evidence": [
+        "stack"
+      ],
+      "statementLength": 161,
+      "statementHash": "sha256:54a0985ed55f0e65530649405034fb366bc4b7a47f34c7ea967e43b3d930e791"
+    },
+    {
+      "specId": "sec-projection-documents#006",
+      "specification": "WoT Connectivity",
+      "clause": "sec-projection-documents",
+      "ordinal": 6,
+      "keywords": [
+        "may"
+      ],
+      "applicability": "runtime",
+      "evidence": [
+        "stack"
+      ],
+      "statementLength": 132,
+      "statementHash": "sha256:75c08051060433f5739ff5063bf423a861fc9a948253a4332fdc34f522269b0c"
+    },
+    {
+      "specId": "sec-projection-documents#005",
+      "specification": "WoT Connectivity",
+      "clause": "sec-projection-documents",
+      "ordinal": 5,
+      "keywords": [
+        "shall",
+        "shall not"
+      ],
+      "applicability": "runtime",
+      "evidence": [
+        "stack"
+      ],
+      "statementLength": 328,
+      "statementHash": "sha256:47a57422be80abaeb4963615c9d75f088618d6ed9fb0a975dac4ae072a08c092"
+    },
+    {
+      "specId": "sec-invalid-documents-and-desired-versus-active-divergence#006",
+      "specification": "WoT Connectivity",
+      "clause": "sec-invalid-documents-and-desired-versus-active-divergence",
+      "ordinal": 6,
+      "keywords": [
+        "shall not"
+      ],
+      "applicability": "runtime",
+      "evidence": [
+        "stack"
+      ],
+      "statementLength": 81,
+      "statementHash": "sha256:caed02c87ad56a3af2b7c057ef7d07a313e7c8f2fd3b6d2ca58f242bedff9205"
+    },
+    {
+      "specId": "sec-affordances#001",
+      "specification": "WoT Connectivity",
+      "clause": "sec-affordances",
+      "ordinal": 1,
+      "keywords": [
+        "should not"
+      ],
+      "applicability": "runtime",
+      "evidence": [
+        "stack"
+      ],
+      "statementLength": 122,
+      "statementHash": "sha256:636608db53d032f559a2a09e64f9ce235df749e11009b87e70d53daf895f2eab"
+    },
+    {
+      "specId": "sec-invalid-documents-and-desired-versus-active-divergence#005",
+      "specification": "WoT Connectivity",
+      "clause": "sec-invalid-documents-and-desired-versus-active-divergence",
+      "ordinal": 5,
+      "keywords": [
+        "shall",
+        "shall"
+      ],
+      "applicability": "runtime",
+      "evidence": [
+        "stack"
+      ],
+      "statementLength": 260,
+      "statementHash": "sha256:2ad4c19c0e73a8e40733f2f4d11900f8c5af64532fbc7a9fef5e260a9f717e34"
+    },
+    {
+      "specId": "sec-invalid-documents-and-desired-versus-active-divergence#003",
+      "specification": "WoT Connectivity",
+      "clause": "sec-invalid-documents-and-desired-versus-active-divergence",
+      "ordinal": 3,
+      "keywords": [
+        "shall"
+      ],
+      "applicability": "runtime",
+      "evidence": [
+        "stack"
+      ],
+      "statementLength": 223,
+      "statementHash": "sha256:28fc7ee61352dfe392232a043ebc7d778003423717f204d6944e952beeae8cdc"
+    },
+    {
+      "specId": "sec-synthesis-from-an-authored-td-or-tm#002",
+      "specification": "WoT Binding",
+      "clause": "sec-synthesis-from-an-authored-td-or-tm",
+      "ordinal": 2,
+      "keywords": [
+        "shall",
+        "shall"
+      ],
+      "applicability": "converter",
+      "evidence": [
+        "stack"
+      ],
+      "statementLength": 202,
+      "statementHash": "sha256:51129c6357e1488edf4dca2928e25822e20ec453147c29e29eba9927a289a7f8"
+    },
+    {
+      "specId": "sec-synthesis-from-an-authored-td-or-tm#001",
+      "specification": "WoT Binding",
+      "clause": "sec-synthesis-from-an-authored-td-or-tm",
+      "ordinal": 1,
+      "keywords": [
+        "shall not"
+      ],
+      "applicability": "converter",
+      "evidence": [
+        "stack"
+      ],
+      "statementLength": 56,
+      "statementHash": "sha256:afaae079849fa3680abba1ec15fd9078d0f443f1dcaef80adc861017c75027f1"
+    },
+    {
+      "specId": "sec-constraining-an-auto-endpoint-selection#006",
+      "specification": "WoT Binding",
+      "clause": "sec-constraining-an-auto-endpoint-selection",
+      "ordinal": 6,
+      "keywords": [
+        "shall"
+      ],
+      "applicability": "runtime",
+      "evidence": [
+        "stack"
+      ],
+      "statementLength": 79,
+      "statementHash": "sha256:75b048f61bd94de2d059c0b4158b2f6ae5bc4643434e18d02465638f3e56fa81"
+    },
+    {
+      "specId": "sec-constraining-an-auto-endpoint-selection#005",
+      "specification": "WoT Binding",
+      "clause": "sec-constraining-an-auto-endpoint-selection",
+      "ordinal": 5,
+      "keywords": [
+        "shall not"
+      ],
+      "applicability": "runtime",
+      "evidence": [
+        "stack"
+      ],
+      "statementLength": 118,
+      "statementHash": "sha256:b1902622ca31f7e661fc688de3359f7a1cb5f73e104efd066055e3506c9e5b29"
+    },
+    {
+      "specId": "sec-constraining-an-auto-endpoint-selection#004",
+      "specification": "WoT Binding",
+      "clause": "sec-constraining-an-auto-endpoint-selection",
+      "ordinal": 4,
+      "keywords": [
+        "shall",
+        "shall"
+      ],
+      "applicability": "runtime",
+      "evidence": [
+        "stack"
+      ],
+      "statementLength": 196,
+      "statementHash": "sha256:fed280e4b0314d2af3089c59ed959b348a13a0ab70cf72a788172c3693308214"
+    },
+    {
+      "specId": "sec-constraining-an-auto-endpoint-selection#003",
+      "specification": "WoT Binding",
+      "clause": "sec-constraining-an-auto-endpoint-selection",
+      "ordinal": 3,
+      "keywords": [
+        "may"
+      ],
+      "applicability": "runtime",
+      "evidence": [
+        "stack"
+      ],
+      "statementLength": 53,
+      "statementHash": "sha256:749bf808dbd648011b58533cc81b533710bf622f123ebba5ff1e42b49bb01611"
+    },
+    {
+      "specId": "sec-constraining-an-auto-endpoint-selection#002",
+      "specification": "WoT Binding",
+      "clause": "sec-constraining-an-auto-endpoint-selection",
+      "ordinal": 2,
+      "keywords": [
+        "may"
+      ],
+      "applicability": "runtime",
+      "evidence": [
+        "stack"
+      ],
+      "statementLength": 59,
+      "statementHash": "sha256:ef322fba36fa3782735299ae71ca58145f7840c011b65fd8bc60bad7811cc56e"
+    },
+    {
+      "specId": "sec-constraining-an-auto-endpoint-selection#001",
+      "specification": "WoT Binding",
+      "clause": "sec-constraining-an-auto-endpoint-selection",
+      "ordinal": 1,
+      "keywords": [
+        "may"
+      ],
+      "applicability": "runtime",
+      "evidence": [
+        "stack"
+      ],
+      "statementLength": 88,
+      "statementHash": "sha256:f1ff5784728c6a47c95e8a96f0f2a35909f9aa308378c6a010a8769d6c17aa5a"
+    },
+    {
+      "specId": "sec-service-mappings-read-write-observe-call#001",
+      "specification": "WoT Binding",
+      "clause": "sec-service-mappings-read-write-observe-call",
+      "ordinal": 1,
+      "keywords": [
+        "should"
+      ],
+      "applicability": "runtime",
+      "evidence": [
+        "stack"
+      ],
+      "statementLength": 113,
+      "statementHash": "sha256:a36ee6c17370d8d75c5588342ca9f409b0a7822c984ba7ddcd8676c726671e47"
+    },
+    {
+      "specId": "sec-projection-mapping#001",
+      "specification": "WoT Connectivity",
+      "clause": "sec-projection-mapping",
+      "ordinal": 1,
+      "keywords": [
+        "shall",
+        "shall"
+      ],
+      "applicability": "runtime",
+      "evidence": [
+        "stack"
+      ],
+      "statementLength": 303,
+      "statementHash": "sha256:5b483662f3f0acebaaa5ce71ced9b7c667943c8c82e5c6683ee69e6ce3d94e75"
+    },
+    {
+      "specId": "sec-uri-base-and-href-rules#004",
+      "specification": "WoT Binding",
+      "clause": "sec-uri-base-and-href-rules",
+      "ordinal": 4,
+      "keywords": [
+        "may"
+      ],
+      "applicability": "runtime",
+      "evidence": [
+        "stack"
+      ],
+      "statementLength": 76,
+      "statementHash": "sha256:9379a364033044a8b14052cd20f28aa3f35644845f5a55b9b9a40631f88243df"
+    },
+    {
+      "specId": "sec-uri-base-and-href-rules#002",
+      "specification": "WoT Binding",
+      "clause": "sec-uri-base-and-href-rules",
+      "ordinal": 2,
+      "keywords": [
+        "shall"
+      ],
+      "applicability": "runtime",
+      "evidence": [
+        "stack",
+        "boundary"
+      ],
+      "statementLength": 137,
+      "statementHash": "sha256:9e0203ac45a1b07ded2bfe34586f9d680fee5601c87ac6c5d9ac3a59940a2947"
+    },
+    {
+      "specId": "sec-uri-base-and-href-rules#001",
+      "specification": "WoT Binding",
+      "clause": "sec-uri-base-and-href-rules",
+      "ordinal": 1,
+      "keywords": [
+        "shall",
+        "shall",
+        "shall"
+      ],
+      "applicability": "runtime",
+      "evidence": [
+        "stack"
+      ],
+      "statementLength": 200,
+      "statementHash": "sha256:1010698485cad8059c85583926eabf787ae53b5929088bfe0cc7a7ee8a250b44"
+    },
+    {
+      "specId": "sec-binding-an-existing-type#008",
+      "specification": "WoT Binding",
+      "clause": "sec-binding-an-existing-type",
+      "ordinal": 8,
+      "keywords": [
+        "shall"
+      ],
+      "applicability": "converter",
+      "evidence": [
+        "stack"
+      ],
+      "statementLength": 160,
+      "statementHash": "sha256:58f1051104f5ba9cfd4bc2f6e64b10fb3d781500a68ad6971e2afbb92f8e04ba"
+    },
+    {
+      "specId": "sec-binding-an-existing-type#007",
+      "specification": "WoT Binding",
+      "clause": "sec-binding-an-existing-type",
+      "ordinal": 7,
+      "keywords": [
+        "shall not"
+      ],
+      "applicability": "converter",
+      "evidence": [
+        "stack"
+      ],
+      "statementLength": 270,
+      "statementHash": "sha256:a4b112cf1cd84e7116b2587c29ffeb91e4cc2e735034beff78ac067f70871528"
+    },
+    {
+      "specId": "sec-binding-an-existing-type#006",
+      "specification": "WoT Binding",
+      "clause": "sec-binding-an-existing-type",
+      "ordinal": 6,
+      "keywords": [
+        "shall"
+      ],
+      "applicability": "converter",
+      "evidence": [
+        "stack"
+      ],
+      "statementLength": 24,
+      "statementHash": "sha256:fca0bbae0f3b6edea0bd02f4e01e371be5c39719734cb12ecc80af0c89b9bb04"
+    },
+    {
+      "specId": "sec-binding-an-existing-type#005",
+      "specification": "WoT Binding",
+      "clause": "sec-binding-an-existing-type",
+      "ordinal": 5,
+      "keywords": [
+        "shall not"
+      ],
+      "applicability": "converter",
+      "evidence": [
+        "stack"
+      ],
+      "statementLength": 124,
+      "statementHash": "sha256:a26a90c76ac8b8c9595b99a4edbede1ae4c0f55eec02c2427831b172bf112a88"
+    },
+    {
+      "specId": "sec-binding-an-existing-type#004",
+      "specification": "WoT Binding",
+      "clause": "sec-binding-an-existing-type",
+      "ordinal": 4,
+      "keywords": [
+        "shall not"
+      ],
+      "applicability": "converter",
+      "evidence": [
+        "stack"
+      ],
+      "statementLength": 272,
+      "statementHash": "sha256:ebd06dc6e39ecb614d5b63798bcac16446e02108a8d0742f156b7ed1f14c89b7"
+    },
+    {
+      "specId": "sec-binding-an-existing-type#003",
+      "specification": "WoT Binding",
+      "clause": "sec-binding-an-existing-type",
+      "ordinal": 3,
+      "keywords": [
+        "shall not"
+      ],
+      "applicability": "converter",
+      "evidence": [
+        "stack"
+      ],
+      "statementLength": 87,
+      "statementHash": "sha256:779eb8a3898c2444495385b919ca5610e68592f043f539723695d77dc00811ec"
+    },
+    {
+      "specId": "sec-binding-an-existing-type#002",
+      "specification": "WoT Binding",
+      "clause": "sec-binding-an-existing-type",
+      "ordinal": 2,
+      "keywords": [
+        "may"
+      ],
+      "applicability": "converter",
+      "evidence": [
+        "stack"
+      ],
+      "statementLength": 70,
+      "statementHash": "sha256:41a27bbe35b9e1fe49082c3e3ba88754938de8dbfa9d753d64fa6dbab32bc48f"
+    },
+    {
+      "specId": "sec-uri-base-and-href-rules#003",
+      "specification": "WoT Binding",
+      "clause": "sec-uri-base-and-href-rules",
+      "ordinal": 3,
+      "keywords": [
+        "shall",
+        "shall not"
+      ],
+      "applicability": "runtime",
+      "evidence": [
+        "stack"
+      ],
+      "statementLength": 246,
+      "statementHash": "sha256:7aeef4573ac8706d6ba87c27dc9fe6decfa8ffc7c4ab053684019371b330ed3d"
+    },
+    {
+      "specId": "sec-projection-mapping#002",
+      "specification": "WoT Connectivity",
+      "clause": "sec-projection-mapping",
+      "ordinal": 2,
+      "keywords": [
+        "shall",
+        "shall not"
+      ],
+      "applicability": "runtime",
+      "evidence": [
+        "stack"
+      ],
+      "statementLength": 205,
+      "statementHash": "sha256:354b9204a7f02428b75676a96f6faa3f1ff548fbc0a4f9323fe1e1890b397609"
+    },
+    {
+      "specId": "sec-projection-mapping#003",
+      "specification": "WoT Connectivity",
+      "clause": "sec-projection-mapping",
+      "ordinal": 3,
+      "keywords": [
+        "shall"
+      ],
+      "applicability": "runtime",
+      "evidence": [
+        "stack"
+      ],
+      "statementLength": 436,
+      "statementHash": "sha256:f4ff8e09d227ffe5554fc5337c08c43a6acbc4e12c2f327ca957d8742895339b"
+    },
+    {
+      "specId": "sec-projection-mapping#004",
+      "specification": "WoT Connectivity",
+      "clause": "sec-projection-mapping",
+      "ordinal": 4,
+      "keywords": [
+        "shall"
+      ],
+      "applicability": "runtime",
+      "evidence": [
+        "stack"
+      ],
+      "statementLength": 97,
+      "statementHash": "sha256:650dd423ab33e9da5d8e9fff1ebd0d69b63edd677a802089b2b9fc4b7dec5eda"
+    },
+    {
+      "specId": "sec-invalid-documents-and-desired-versus-active-divergence#002",
+      "specification": "WoT Connectivity",
+      "clause": "sec-invalid-documents-and-desired-versus-active-divergence",
+      "ordinal": 2,
+      "keywords": [
+        "shall",
+        "shall",
+        "shall",
+        "shall"
+      ],
+      "applicability": "runtime",
+      "evidence": [
+        "stack"
+      ],
+      "statementLength": 261,
+      "statementHash": "sha256:19f03aa042b7b2d2fca2895dfd39c351ee547aad429c9ef7abd2d728c3ae3eff"
+    },
+    {
+      "specId": "sec-invalid-documents-and-desired-versus-active-divergence#001",
+      "specification": "WoT Connectivity",
+      "clause": "sec-invalid-documents-and-desired-versus-active-divergence",
+      "ordinal": 1,
+      "keywords": [
+        "shall not"
+      ],
+      "applicability": "runtime",
+      "evidence": [
+        "stack"
+      ],
+      "statementLength": 46,
+      "statementHash": "sha256:d95ca230d9b49f1422a6eadaf68a91c297b5ba150e713b7d30894e261aa507f1"
+    },
+    {
+      "specId": "sec-placement-and-parent-selection-no-mandatory-flat-root#006",
+      "specification": "WoT Connectivity",
+      "clause": "sec-placement-and-parent-selection-no-mandatory-flat-root",
+      "ordinal": 6,
+      "keywords": [
+        "shall not",
+        "shall not"
+      ],
+      "applicability": "runtime",
+      "evidence": [
+        "stack"
+      ],
+      "statementLength": 103,
+      "statementHash": "sha256:911289c2dec46c3426e617af320171b1f22a12704199c72422480c1e88497782"
+    },
+    {
+      "specId": "sec-placement-and-parent-selection-no-mandatory-flat-root#005",
+      "specification": "WoT Connectivity",
+      "clause": "sec-placement-and-parent-selection-no-mandatory-flat-root",
+      "ordinal": 5,
+      "keywords": [
+        "shall"
+      ],
+      "applicability": "runtime",
+      "evidence": [
+        "stack"
+      ],
+      "statementLength": 126,
+      "statementHash": "sha256:cba86b3376d8e281cdfc5343f858aae6d64880ded5241a3ce391bd1250dbac4d"
+    },
+    {
+      "specId": "sec-placement-and-parent-selection-no-mandatory-flat-root#004",
+      "specification": "WoT Connectivity",
+      "clause": "sec-placement-and-parent-selection-no-mandatory-flat-root",
+      "ordinal": 4,
+      "keywords": [
+        "shall"
+      ],
+      "applicability": "runtime",
+      "evidence": [
+        "stack"
+      ],
+      "statementLength": 255,
+      "statementHash": "sha256:1063052dc36ea1376f462be78955ecc178b03a4f0095aa4c3f6188e271f37338"
+    },
+    {
+      "specId": "sec-placement-and-parent-selection-no-mandatory-flat-root#003",
+      "specification": "WoT Connectivity",
+      "clause": "sec-placement-and-parent-selection-no-mandatory-flat-root",
+      "ordinal": 3,
+      "keywords": [
+        "shall"
+      ],
+      "applicability": "runtime",
+      "evidence": [
+        "stack"
+      ],
+      "statementLength": 227,
+      "statementHash": "sha256:306d8a0954e959b49355905d0ea108a4a3ae3eb79fcf1f71348fd48faab99c5c"
+    },
+    {
+      "specId": "sec-placement-and-parent-selection-no-mandatory-flat-root#002",
+      "specification": "WoT Connectivity",
+      "clause": "sec-placement-and-parent-selection-no-mandatory-flat-root",
+      "ordinal": 2,
+      "keywords": [
+        "shall",
+        "shall"
+      ],
+      "applicability": "runtime",
+      "evidence": [
+        "stack",
+        "precedence"
+      ],
+      "statementLength": 124,
+      "statementHash": "sha256:c7af6cfd7931602906acd89b3b0486bdb5762e642e1fbde4bbeaa1ebc23a9460"
+    },
+    {
+      "specId": "sec-placement-and-parent-selection-no-mandatory-flat-root#001",
+      "specification": "WoT Connectivity",
+      "clause": "sec-placement-and-parent-selection-no-mandatory-flat-root",
+      "ordinal": 1,
+      "keywords": [
+        "shall not"
+      ],
+      "applicability": "runtime",
+      "evidence": [
+        "stack"
+      ],
+      "statementLength": 213,
+      "statementHash": "sha256:3b42e0de63f463ebb9c37494b24b55332a5f7acff01c3ad8e14a404434d33520"
+    },
+    {
+      "specId": "sec-projection-mapping#017",
+      "specification": "WoT Connectivity",
+      "clause": "sec-projection-mapping",
+      "ordinal": 17,
+      "keywords": [
+        "shall not"
+      ],
+      "applicability": "runtime",
+      "evidence": [
+        "stack"
+      ],
+      "statementLength": 231,
+      "statementHash": "sha256:f4f6eed4a94fe555ca75cc90ba3dc66b832a89d0bd3f568d95d5f242a47257a9"
+    },
+    {
+      "specId": "sec-projection-mapping#016",
+      "specification": "WoT Connectivity",
+      "clause": "sec-projection-mapping",
+      "ordinal": 16,
+      "keywords": [
+        "shall"
+      ],
+      "applicability": "runtime",
+      "evidence": [
+        "stack"
+      ],
+      "statementLength": 265,
+      "statementHash": "sha256:b82db9364e108ed01613d4f7246ef9825d88f39bdf8341420a000f1fb5884370"
+    },
+    {
+      "specId": "sec-projection-mapping#015",
+      "specification": "WoT Connectivity",
+      "clause": "sec-projection-mapping",
+      "ordinal": 15,
+      "keywords": [
+        "shall"
+      ],
+      "applicability": "runtime",
+      "evidence": [
+        "stack"
+      ],
+      "statementLength": 283,
+      "statementHash": "sha256:729a14a3cefd4c392400d5ce021f3b8b245bb62f3a8e6f52b7552cff34c008e6"
+    },
+    {
+      "specId": "sec-projection-mapping#014",
+      "specification": "WoT Connectivity",
+      "clause": "sec-projection-mapping",
+      "ordinal": 14,
+      "keywords": [
+        "shall not"
+      ],
+      "applicability": "runtime",
+      "evidence": [
+        "stack"
+      ],
+      "statementLength": 53,
+      "statementHash": "sha256:999288774a656ef1e2901527bdbef82d8c780419532fd48b5e966cfb20ffe6d1"
+    },
+    {
+      "specId": "sec-projection-mapping#013",
+      "specification": "WoT Connectivity",
+      "clause": "sec-projection-mapping",
+      "ordinal": 13,
+      "keywords": [
+        "shall"
+      ],
+      "applicability": "runtime",
+      "evidence": [
+        "stack",
+        "precedence"
+      ],
+      "statementLength": 204,
+      "statementHash": "sha256:144997c2872c77164c5b8dbeab8b45da71e30712e9f81204809fe97842ad3f20"
+    },
+    {
+      "specId": "sec-projection-mapping#012",
+      "specification": "WoT Connectivity",
+      "clause": "sec-projection-mapping",
+      "ordinal": 12,
+      "keywords": [
+        "shall not"
+      ],
+      "applicability": "runtime",
+      "evidence": [
+        "stack"
+      ],
+      "statementLength": 128,
+      "statementHash": "sha256:76aa9d857dcbcced36fb2b34726189fa9ddb9b8c9259e1d76f1bc55b8bb15162"
+    },
+    {
+      "specId": "sec-projection-mapping#011",
+      "specification": "WoT Connectivity",
+      "clause": "sec-projection-mapping",
+      "ordinal": 11,
+      "keywords": [
+        "shall",
+        "shall"
+      ],
+      "applicability": "runtime",
+      "evidence": [
+        "stack"
+      ],
+      "statementLength": 292,
+      "statementHash": "sha256:81a22fc36b3d7f96012fdc737a7b03c7588c07468471d8e5300494476d1a550f"
+    },
+    {
+      "specId": "sec-projection-mapping#010",
+      "specification": "WoT Connectivity",
+      "clause": "sec-projection-mapping",
+      "ordinal": 10,
+      "keywords": [
+        "shall"
+      ],
+      "applicability": "runtime",
+      "evidence": [
+        "stack"
+      ],
+      "statementLength": 129,
+      "statementHash": "sha256:ea352e250dbabdf4b61e071ccb0ed66af5238a26695b67b6c6739c8226394568"
+    },
+    {
+      "specId": "sec-projection-mapping#009",
+      "specification": "WoT Connectivity",
+      "clause": "sec-projection-mapping",
+      "ordinal": 9,
+      "keywords": [
+        "shall"
+      ],
+      "applicability": "runtime",
+      "evidence": [
+        "stack"
+      ],
+      "statementLength": 284,
+      "statementHash": "sha256:8dcb08bf262b020dfae3e313beeb34ba43962da5803556d3e8445f43c0935973"
+    },
+    {
+      "specId": "sec-projection-mapping#008",
+      "specification": "WoT Connectivity",
+      "clause": "sec-projection-mapping",
+      "ordinal": 8,
+      "keywords": [
+        "shall"
+      ],
+      "applicability": "runtime",
+      "evidence": [
+        "stack"
+      ],
+      "statementLength": 135,
+      "statementHash": "sha256:27adef85d7e30b4ff147ae51d0e2c22cc9ce3be4191cf93ee414c4fd00c18928"
+    },
+    {
+      "specId": "sec-projection-mapping#007",
+      "specification": "WoT Connectivity",
+      "clause": "sec-projection-mapping",
+      "ordinal": 7,
+      "keywords": [
+        "shall"
+      ],
+      "applicability": "runtime",
+      "evidence": [
+        "stack"
+      ],
+      "statementLength": 199,
+      "statementHash": "sha256:6d8141f51bf646a3f3be98c8d5940666a727e07def05aeb7f2e8c5a5247ca5e4"
+    },
+    {
+      "specId": "sec-projection-mapping#006",
+      "specification": "WoT Connectivity",
+      "clause": "sec-projection-mapping",
+      "ordinal": 6,
+      "keywords": [
+        "shall"
+      ],
+      "applicability": "runtime",
+      "evidence": [
+        "stack"
+      ],
+      "statementLength": 268,
+      "statementHash": "sha256:593cf4b9881cf1c711e9cf661e36a872c0b228d255ed4dcb0896433093c06183"
+    },
+    {
+      "specId": "sec-projection-mapping#005",
+      "specification": "WoT Connectivity",
+      "clause": "sec-projection-mapping",
+      "ordinal": 5,
+      "keywords": [
+        "shall"
+      ],
+      "applicability": "runtime",
+      "evidence": [
+        "stack"
+      ],
+      "statementLength": 400,
+      "statementHash": "sha256:3ceb750de28e349a0a90c6f76b44d4000e211520821789f85d19253dd3dcf656"
+    },
+    {
+      "specId": "sec-invalid-documents-and-desired-versus-active-divergence#004",
+      "specification": "WoT Connectivity",
+      "clause": "sec-invalid-documents-and-desired-versus-active-divergence",
+      "ordinal": 4,
+      "keywords": [
+        "may"
+      ],
+      "applicability": "runtime",
+      "evidence": [
+        "stack"
+      ],
+      "statementLength": 48,
+      "statementHash": "sha256:8f9c271170f1d65c8bc6ae9e81f9b02be48a413d72dccae888503254868d3f94"
+    },
+    {
+      "specId": "sec-references#001",
+      "specification": "WoT Connectivity",
+      "clause": "sec-references",
+      "ordinal": 1,
+      "keywords": [
+        "shall not"
+      ],
+      "applicability": "runtime",
+      "evidence": [
+        "stack"
+      ],
+      "statementLength": 208,
+      "statementHash": "sha256:5cd9e2ba67d9914002240594a6880233da128c53dc7634beb4d0ddf37515a09e"
+    }
+  ]
+}

@@ -238,6 +238,294 @@ function Test-PathIgnored([string] $relativePath, [string[]] $ignoreRegexes) {
 
 <#
  .SYNOPSIS
+    Replaces everything a C# file says that cannot become an executable
+    statement - comments, literals and preprocessor directives - with blanks.
+
+ .DESCRIPTION
+    The residue is what the classification below reads. Blanking rather than
+    deleting keeps the surrounding tokens apart, so 'a/*x*/b' does not become
+    the single identifier 'ab'.
+#>
+function Remove-CSharpNonCode([string] $text) {
+    $text = [regex]::Replace($text, '(?m)^[ \t]*#.*$', '')
+    $builder = New-Object System.Text.StringBuilder
+    $index = 0
+    while ($index -lt $text.Length) {
+        $ch = $text[$index]
+        $next = if ($index + 1 -lt $text.Length) { $text[$index + 1] } else { [char]0 }
+        if ($ch -eq '/' -and $next -eq '/') {
+            while ($index -lt $text.Length -and $text[$index] -ne "`n") { $index++ }
+            continue
+        }
+        if ($ch -eq '/' -and $next -eq '*') {
+            $index += 2
+            while ($index + 1 -lt $text.Length -and
+                -not ($text[$index] -eq '*' -and $text[$index + 1] -eq '/')) { $index++ }
+            $index += 2
+            $null = $builder.Append(' ')
+            continue
+        }
+        if ($ch -eq '"') {
+            # A raw string literal opens and closes with the same run of quotes.
+            $quotes = 0
+            while ($index + $quotes -lt $text.Length -and $text[$index + $quotes] -eq '"') { $quotes++ }
+            if ($quotes -ge 3) {
+                $index += $quotes
+                $run = 0
+                while ($index -lt $text.Length -and $run -lt $quotes) {
+                    $run = if ($text[$index] -eq '"') { $run + 1 } else { 0 }
+                    $index++
+                }
+                $null = $builder.Append(' ')
+                continue
+            }
+            $index++
+            while ($index -lt $text.Length -and $text[$index] -ne '"') {
+                if ($text[$index] -eq '\') { $index++ }
+                $index++
+            }
+            $index++
+            $null = $builder.Append(' ')
+            continue
+        }
+        if ($ch -eq '@' -and $next -eq '"') {
+            $index += 2
+            while ($index -lt $text.Length) {
+                if ($text[$index] -eq '"') {
+                    if ($index + 1 -lt $text.Length -and $text[$index + 1] -eq '"') {
+                        $index += 2
+                        continue
+                    }
+                    $index++
+                    break
+                }
+                $index++
+            }
+            $null = $builder.Append(' ')
+            continue
+        }
+        if ($ch -eq "'") {
+            $index++
+            while ($index -lt $text.Length -and $text[$index] -ne "'") {
+                if ($text[$index] -eq '\') { $index++ }
+                $index++
+            }
+            $index++
+            $null = $builder.Append(' ')
+            continue
+        }
+        $null = $builder.Append($ch)
+        $index++
+    }
+
+    # Attribute sections and array-rank specifiers cannot become statements, and
+    # a named argument inside one would otherwise read as an initializer.
+    $residue = $builder.ToString()
+    for ($pass = 0; $pass -lt 8; $pass++) {
+        $reduced = [regex]::Replace($residue, '\[[^\[\]\{\}]*\]', ' ')
+        if ($reduced -eq $residue) { break }
+        $residue = $reduced
+    }
+    return $residue
+}
+
+<#
+ .SYNOPSIS
+    Names the kind of declaration a block header opens.
+#>
+function Get-CSharpBlockKind([string] $header) {
+    if ($header -cmatch '\bnamespace\b') { return 'Namespace' }
+    if ($header -cmatch '\benum\b') { return 'Enum' }
+    if ($header -cmatch '\binterface\b') { return 'Interface' }
+    if ($header -cmatch '\b(class|struct|record)\b') { return 'Type' }
+    return 'Member'
+}
+
+<#
+ .SYNOPSIS
+    Gets whether a declaration assigns a value that runs, as opposed to one the
+    compiler folds.
+#>
+function Test-CSharpInitializes([string] $statement) {
+    if ($statement -cmatch '\bconst\b') { return $false }
+    $depth = 0
+    for ($ii = 0; $ii -lt $statement.Length; $ii++) {
+        $ch = $statement[$ii]
+        if ($ch -eq '(') { $depth++; continue }
+        if ($ch -eq ')') { $depth--; continue }
+        if ($ch -ne '=' -or $depth -ne 0) { continue }
+        $before = if ($ii -gt 0) { $statement[$ii - 1] } else { [char]0 }
+        $after = if ($ii + 1 -lt $statement.Length) { $statement[$ii + 1] } else { [char]0 }
+        if ($after -eq '=' -or $before -eq '=' -or $after -eq '>') { continue }
+        if ('!<>+-*/%&|^'.Contains($before)) { continue }
+        return $true
+    }
+    return $false
+}
+
+<#
+ .SYNOPSIS
+    Finds the index of the brace that closes the one at the given index.
+#>
+function Find-CSharpMatchingBrace([string] $text, [int] $open) {
+    $depth = 0
+    for ($ii = $open; $ii -lt $text.Length; $ii++) {
+        if ($text[$ii] -eq '{') { $depth++ }
+        elseif ($text[$ii] -eq '}') {
+            $depth--
+            if ($depth -eq 0) { return $ii }
+        }
+    }
+    return -1
+}
+
+<#
+ .SYNOPSIS
+    Names the first construct in a C# source that produces an executable
+    statement, or returns $null when the source provably produces none.
+
+ .DESCRIPTION
+    A sequence point comes from a member body, an expression-bodied member, a
+    primary constructor or a field initializer, and from nothing else. A file
+    that declares only interfaces, enumerations, delegates and constants
+    therefore has no line a coverage collector can measure, and no report will
+    ever mention it.
+
+    The classification is deliberately biased towards reporting evidence: every
+    construct it does not recognize is read as executable, so an unrecognized
+    file makes the gate fail rather than pass.
+#>
+function Get-CSharpExecutableEvidence([string] $source) {
+    $text = Remove-CSharpNonCode $source
+    $kinds = New-Object System.Collections.Generic.Stack[string]
+    $header = New-Object System.Text.StringBuilder
+    $index = 0
+    while ($index -lt $text.Length) {
+        $ch = $text[$index]
+        if ($ch -eq '{') {
+            $head = $header.ToString()
+            $null = $header.Clear()
+            $kind = Get-CSharpBlockKind $head
+            if ($kind -eq 'Member') {
+                $enclosing = if ($kinds.Count -gt 0) { $kinds.Peek() } else { 'Namespace' }
+                $close = Find-CSharpMatchingBrace $text $index
+                $body = if ($close -gt $index) {
+                    $text.Substring($index + 1, $close - $index - 1)
+                } else { 'x' }
+
+                # An accessor list that states no bodies is a declaration, not
+                # code - but only where the member itself has none, which is
+                # what an interface member is. The same shape on a class is an
+                # auto-property, whose accessors a collector does measure.
+                if ($enclosing -eq 'Interface' -and
+                    $body -cmatch '^[\s;]*((public|protected|internal|private|get|set|init|add|remove)\b[\s;]*)*$') {
+                    $index = $close + 1
+                    continue
+                }
+                return 'a member body'
+            }
+            if ($kind -ne 'Namespace' -and $kind -ne 'Enum' -and $head.Contains('(')) {
+                return 'a primary constructor'
+            }
+            $kinds.Push($kind)
+            $index++
+            continue
+        }
+        if ($ch -eq '}') {
+            $null = $header.Clear()
+            if ($kinds.Count -gt 0) { $null = $kinds.Pop() }
+            $index++
+            continue
+        }
+        if ($ch -eq ';') {
+            $statement = $header.ToString()
+            $null = $header.Clear()
+            $enclosing = if ($kinds.Count -gt 0) { $kinds.Peek() } else { 'Namespace' }
+            if ($enclosing -ne 'Enum') {
+                if ($statement.Contains('=>')) { return 'an expression-bodied member' }
+                if ($statement -cmatch '\b(class|struct|record)\b' -and $statement.Contains('(')) {
+                    return 'a primary constructor'
+                }
+                if (Test-CSharpInitializes $statement) { return 'a field initializer' }
+            }
+            $index++
+            continue
+        }
+        $null = $header.Append($ch)
+        $index++
+    }
+    return $null
+}
+
+<#
+ .SYNOPSIS
+    Names the project directory that builds a repository-relative source file.
+#>
+function Get-OwningProjectDirectory([string] $relativePath, [string] $repoRoot) {
+    $directory = Split-Path -Parent $relativePath
+    while (-not [string]::IsNullOrEmpty($directory)) {
+        $full = Join-Path $repoRoot $directory
+        if ((Test-Path -LiteralPath $full -PathType Container) -and
+            @(Get-ChildItem -LiteralPath $full -Filter '*.csproj' -File `
+                -ErrorAction SilentlyContinue).Count -gt 0) {
+            return $directory.Replace('\', '/')
+        }
+        $parent = Split-Path -Parent $directory
+        if ($parent -eq $directory) { break }
+        $directory = $parent
+    }
+    return $null
+}
+
+<#
+ .SYNOPSIS
+    Explains why a governed changed file is legitimately absent from the
+    coverage report, or returns $null when its absence is unexplained.
+
+ .DESCRIPTION
+    A file the report never mentions is normally the vacuous pass this gate
+    exists to stop: the assembly was not collected, or the diff and the report
+    disagree about path shape. A file that declares only interfaces,
+    enumerations, delegates or constants is the one honest exception - it
+    produces no sequence point, so no report can ever mention it, and failing
+    the rule for it would make the rule impossible to satisfy.
+
+    Two independent proofs are required before the absence is excused, so an
+    arbitrary absent file is never skipped:
+
+      1. the assembly evidence - some other file of the same project IS in the
+         report, so the assembly was collected; and
+      2. the source evidence - the file provably contains no construct that
+         produces an executable statement.
+#>
+function Get-NonCoverableReason([string] $file, $report, [string] $repoRoot) {
+    $project = Get-OwningProjectDirectory -relativePath $file -repoRoot $repoRoot
+    if ($null -eq $project) {
+        return $null
+    }
+    $prefix = "$project/"
+    $collected = $false
+    foreach ($measured in $report.FileLines.Keys) {
+        if ($measured.StartsWith($prefix, [System.StringComparison]::OrdinalIgnoreCase)) {
+            $collected = $true
+            break
+        }
+    }
+    if (-not $collected) {
+        return $null
+    }
+    $source = Get-Content -LiteralPath (Join-Path $repoRoot $file) -Raw -ErrorAction SilentlyContinue
+    if ($null -eq $source) {
+        return $null
+    }
+    if ($null -ne (Get-CSharpExecutableEvidence $source)) {
+        return $null
+    }
+    return "declares no executable statement, and '$project' was collected"
+}
+
+<#
+ .SYNOPSIS
     Normalizes a Cobertura filename into a repository-relative forward-slash path.
 #>
 function ConvertTo-RelativePath([string] $path, [string[]] $sourceRoots, [string] $repoRoot) {
@@ -692,6 +980,204 @@ else {
                         ' Advisory at this patch size - add a test if the change deserves one.')
                 }
             }
+        }
+    }
+}
+
+# 2b. Path-scoped changed-code rules (blocking).
+#
+# The graduated patch band is right for the repository as a whole: over a
+# handful of lines a percentage is noise, and a gate that fails a two-line fix
+# teaches authors to ignore it. It is wrong for a small number of areas where
+# every changed line is meant to be exercised - a protocol mapping whose
+# untested branch is a wire-format bug nobody sees until interop. Those areas
+# state their own floor here, applied to the same changed lines, and the floor
+# is not graduated: it is the rule for the path, whatever the patch size.
+#
+# A rule matches a changed file when one of its 'include' globs matches and none
+# of its 'exclude' globs does. Exclusions are explicit rather than inherited so
+# that reading the rule tells you what it covers.
+if (-not [string]::IsNullOrWhiteSpace($BaseRef) -and $null -ne $thresholds.pathRules) {
+    $ruleChanged = Get-ChangedLines -baseRef $BaseRef -repoRoot $RepoRoot -skipFetch:$SkipFetch.IsPresent
+
+    foreach ($rule in @($thresholds.pathRules)) {
+        $ruleName = $rule.name
+        $includeGlobs = @($rule.include | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
+        if ($includeGlobs.Count -eq 0) {
+            # An empty or mistyped include list matches nothing, so every rule
+            # built on it passes without ever looking at a file. That is a
+            # configuration fault, not a clean patch.
+            $message = (("Path rule '{0}' declares no usable 'include' globs, so it can never " +
+                'match a changed file. Fix the rule rather than letting it pass vacuously.') -f $ruleName)
+            $failures += $message
+            Write-Host $message
+            Add-SummaryRow ('Changed code: {0}' -f $ruleName) 'rule declares no include globs' '-' 'fail'
+            continue
+        }
+
+        $includeRegexes = @()
+        foreach ($glob in $includeGlobs) { $includeRegexes += ConvertTo-GlobRegex $glob }
+        $excludeRegexes = @()
+        foreach ($glob in @($rule.exclude)) { $excludeRegexes += ConvertTo-GlobRegex $glob }
+
+        $ruleLines = 0
+        $ruleCovered = 0
+        $ruleBranches = 0
+        $ruleCoveredBranches = 0
+        $ruleUncovered = [ordered]@{}
+        $rulePartial = [ordered]@{}
+        $ruleScopedFiles = [System.Collections.Generic.List[string]]::new()
+        $ruleMatchedFiles = [System.Collections.Generic.List[string]]::new()
+        $ruleUnmatchedExisting = [System.Collections.Generic.List[string]]::new()
+        $ruleNonCoverableFiles = [System.Collections.Generic.List[string]]::new()
+        $ruleNoCoverableLines = [System.Collections.Generic.List[string]]::new()
+
+        foreach ($entry in $ruleChanged.GetEnumerator()) {
+            $file = $entry.Key
+            if (Test-PathIgnored -relativePath $file -ignoreRegexes $ignoreRegexes) { continue }
+            if (-not (Test-PathIgnored -relativePath $file -ignoreRegexes $includeRegexes)) { continue }
+            if ($excludeRegexes.Count -gt 0 -and
+                (Test-PathIgnored -relativePath $file -ignoreRegexes $excludeRegexes)) { continue }
+            $ruleScopedFiles.Add($file)
+            if (-not $report.FileLines.ContainsKey($file)) {
+                # A file the rule governs that the report never mentions is the
+                # vacuous pass this gate exists to stop: the assembly was not
+                # collected, or the diff and the report disagree on path shape.
+                # A file that no longer exists on disk was deleted by the patch
+                # and is correctly absent. A file that declares no executable
+                # statement at all produces no sequence point, so no report can
+                # mention it - that one is excused, but only on the evidence
+                # Get-NonCoverableReason requires.
+                if (Test-Path -LiteralPath (Join-Path $RepoRoot $file)) {
+                    $reason = Get-NonCoverableReason -file $file -report $report -repoRoot $RepoRoot
+                    if ($null -eq $reason) {
+                        $ruleUnmatchedExisting.Add($file)
+                    }
+                    else {
+                        $ruleNonCoverableFiles.Add("$file ($reason)")
+                    }
+                }
+                continue
+            }
+            $ruleMatchedFiles.Add($file)
+
+            $lineHits = $report.FileLines[$file]
+            $branchHits = $report.FileBranches[$file]
+            $uncovered = @()
+            $partial = @()
+            $coverableInFile = 0
+            foreach ($number in ($entry.Value | Sort-Object)) {
+                if (-not $lineHits.ContainsKey($number)) { continue }
+                $coverableInFile++
+                $ruleLines++
+                if ([int]$lineHits[$number] -gt 0) { $ruleCovered++ } else { $uncovered += $number }
+                if ($null -ne $branchHits -and $branchHits.ContainsKey($number)) {
+                    $pair = $branchHits[$number]
+                    $ruleCoveredBranches += [int]$pair[0]
+                    $ruleBranches += [int]$pair[1]
+                    if ([int]$pair[0] -lt [int]$pair[1]) { $partial += $number }
+                }
+            }
+            if ($coverableInFile -eq 0) { $ruleNoCoverableLines.Add($file) }
+            if ($uncovered.Count -gt 0) { $ruleUncovered[$file] = $uncovered }
+            if ($partial.Count -gt 0) { $rulePartial[$file] = $partial }
+        }
+
+        if ($ruleUnmatchedExisting.Count -gt 0) {
+            $message = (("Path rule '{0}' governs {1} changed file(s) that exist on disk but are absent " +
+                'from the coverage report, so the rule would pass without measuring them: {2}. ' +
+                'Collect coverage for the assemblies that build these files, or fix the path shape.') -f `
+                $ruleName,
+                $ruleUnmatchedExisting.Count,
+                (($ruleUnmatchedExisting | Sort-Object) -join ', '))
+            $failures += $message
+            Write-Host $message
+            Add-SummaryRow ('Changed code: {0}' -f $ruleName) `
+                ('{0} changed file(s) missing from the report' -f $ruleUnmatchedExisting.Count) '-' 'fail'
+            continue
+        }
+
+        if ($ruleNonCoverableFiles.Count -gt 0) {
+            # Never silent: the reader has to be able to see which files were
+            # excused and why, or the exception becomes the hiding place the
+            # unmatched-file check exists to close.
+            Write-Host (("Rule '{0}': {1} changed file(s) produce no sequence point and are " +
+                'correctly absent from the report: {2}.') -f `
+                $ruleName,
+                $ruleNonCoverableFiles.Count,
+                (($ruleNonCoverableFiles | Sort-Object) -join ', '))
+        }
+
+        if ($ruleScopedFiles.Count -gt 0 -and $ruleNoCoverableLines.Count -gt 0) {
+            # A file the report knows about but whose changed lines are all
+            # non-coverable (comments, braces, declarations) is legitimate; say
+            # so rather than leaving the reader to guess why it is not counted.
+            Write-Host ("Rule '{0}': {1} changed file(s) contributed no coverable line: {2}." -f `
+                $ruleName,
+                $ruleNoCoverableLines.Count,
+                (($ruleNoCoverableLines | Sort-Object) -join ', '))
+        }
+
+        if ($ruleLines -eq 0) {
+            if ($ruleScopedFiles.Count -eq 0) {
+                Add-SummaryRow ('Changed code: {0}' -f $ruleName) 'no changed lines in scope' '-' 'info'
+            }
+            else {
+                Add-SummaryRow ('Changed code: {0}' -f $ruleName) `
+                    ('{0} changed file(s), no coverable lines' -f $ruleScopedFiles.Count) '-' 'info'
+            }
+            continue
+        }
+
+        $lineFloor = [double]$rule.minimumChangedLineRate
+        $lineRate = 100.0 * $ruleCovered / $ruleLines
+        Write-Host ("Rule '{0}': line {1:N2}% ({2}/{3} changed lines)" -f `
+            $ruleName, $lineRate, $ruleCovered, $ruleLines)
+        if ($ruleUncovered.Count -gt 0) {
+            Write-Host '  Uncovered changed lines:'
+            foreach ($file in $ruleUncovered.Keys) {
+                Write-Host ("    {0}: {1}" -f $file, ($ruleUncovered[$file] -join ', '))
+            }
+        }
+        if ($lineRate -lt $lineFloor) {
+            $failures += ("Changed-line coverage {0:N2}% for '{1}' is below the required {2:N2}% ({3} of {4} changed lines are uncovered)." -f `
+                $lineRate, $ruleName, $lineFloor, ($ruleLines - $ruleCovered), $ruleLines)
+            Add-SummaryRow ('Changed lines: {0}' -f $ruleName) `
+                ('**{0:N2}%** ({1}/{2})' -f $lineRate, $ruleCovered, $ruleLines) `
+                ('>= {0:N2}%' -f $lineFloor) 'fail'
+        }
+        else {
+            Add-SummaryRow ('Changed lines: {0}' -f $ruleName) `
+                ('**{0:N2}%** ({1}/{2})' -f $lineRate, $ruleCovered, $ruleLines) `
+                ('>= {0:N2}%' -f $lineFloor) 'pass'
+        }
+
+        if ($null -eq $rule.minimumChangedBranchRate) { continue }
+        $branchFloor = [double]$rule.minimumChangedBranchRate
+        if ($ruleBranches -eq 0) {
+            Add-SummaryRow ('Changed branches: {0}' -f $ruleName) 'no branches in scope' '-' 'info'
+            continue
+        }
+        $branchRate = 100.0 * $ruleCoveredBranches / $ruleBranches
+        Write-Host ("Rule '{0}': branch {1:N2}% ({2}/{3} changed branches)" -f `
+            $ruleName, $branchRate, $ruleCoveredBranches, $ruleBranches)
+        if ($rulePartial.Count -gt 0) {
+            Write-Host '  Partially covered changed branches:'
+            foreach ($file in $rulePartial.Keys) {
+                Write-Host ("    {0}: {1}" -f $file, ($rulePartial[$file] -join ', '))
+            }
+        }
+        if ($branchRate -lt $branchFloor) {
+            $failures += ("Changed-branch coverage {0:N2}% for '{1}' is below the required {2:N2}% ({3} of {4} changed branches are unexercised)." -f `
+                $branchRate, $ruleName, $branchFloor, ($ruleBranches - $ruleCoveredBranches), $ruleBranches)
+            Add-SummaryRow ('Changed branches: {0}' -f $ruleName) `
+                ('**{0:N2}%** ({1}/{2})' -f $branchRate, $ruleCoveredBranches, $ruleBranches) `
+                ('>= {0:N2}%' -f $branchFloor) 'fail'
+        }
+        else {
+            Add-SummaryRow ('Changed branches: {0}' -f $ruleName) `
+                ('**{0:N2}%** ({1}/{2})' -f $branchRate, $ruleCoveredBranches, $ruleBranches) `
+                ('>= {0:N2}%' -f $branchFloor) 'pass'
         }
     }
 }
