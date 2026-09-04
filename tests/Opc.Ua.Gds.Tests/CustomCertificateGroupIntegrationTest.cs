@@ -219,6 +219,11 @@ namespace Opc.Ua.Gds.Tests
                     .ConfigureAwait(false);
 
                 Assert.That(
+                    StatusCode.IsGood(value.StatusCode),
+                    Is.True,
+                    $"Reading CertificateTypes failed with status {value.StatusCode}.");
+
+                Assert.That(
                     value.WrappedValue.TryGetValue(out ArrayOf<NodeId> certificateTypes),
                     Is.True,
                     "CertificateTypes is not a NodeId array.");
@@ -226,12 +231,12 @@ namespace Opc.Ua.Gds.Tests
                 // OPC 10000-12 requires the DefaultApplicationGroup to advertise the concrete
                 // subtypes of ApplicationCertificateType which the group supports.
                 Assert.That(
-                    certificateTypes.Contains(t => t == Ua.ObjectTypeIds.ApplicationCertificateType),
+                    certificateTypes.Contains(t => t == Opc.Ua.ObjectTypeIds.ApplicationCertificateType),
                     Is.False,
                     "The abstract ApplicationCertificateType must not be advertised.");
                 Assert.That(
                     certificateTypes.Contains(
-                        t => t == Ua.ObjectTypeIds.RsaSha256ApplicationCertificateType),
+                        t => t == Opc.Ua.ObjectTypeIds.RsaSha256ApplicationCertificateType),
                     Is.True,
                     "The configured RsaSha256ApplicationCertificateType must be advertised.");
             }

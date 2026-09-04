@@ -2312,10 +2312,24 @@ namespace Opc.Ua.Gds.Server
             ICertificateGroup certificateGroup,
             ExpandedNodeId certificateGroupNodeId)
         {
-            CertificateGroupState? certificateGroupNode = FindPredefinedNode<CertificateGroupState>(
-                ExpandedNodeId.ToNodeId(certificateGroupNodeId, Server.NamespaceUris));
+            CertificateGroupState certificateGroupNode = FindPredefinedNode<CertificateGroupState>(
+                ExpandedNodeId.ToNodeId(certificateGroupNodeId, Server.NamespaceUris))
+                ?? throw new ServiceResultException(
+                    StatusCodes.BadNodeIdUnknown,
+                    Utils.Format(
+                        "The predefined CertificateGroup node {0} could not be found in the address space.",
+                        certificateGroupNodeId));
 
-            certificateGroupNode?.CertificateTypes?.Value = [.. certificateGroup.CertificateTypes];
+            if (certificateGroupNode.CertificateTypes == null)
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadNodeIdUnknown,
+                    Utils.Format(
+                        "The predefined CertificateGroup node {0} does not expose a CertificateTypes property.",
+                        certificateGroupNodeId));
+            }
+
+            certificateGroupNode.CertificateTypes.Value = [.. certificateGroup.CertificateTypes];
         }
 
         private void HasTrustListAccess(
