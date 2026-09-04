@@ -377,6 +377,36 @@ namespace Opc.Ua.Server.Fluent
             return match;
         }
 
+        internal bool HasMonitoredItemCreatingHandler(NodeId nodeId)
+        {
+            return m_monitoredItemCreating.ContainsKey(nodeId) ||
+                FindVirtualNodeRegistration(nodeId)?.MonitoredItemCreating != null;
+        }
+
+        internal bool HasMonitoredItemCreatedHandler(NodeId nodeId)
+        {
+            return m_monitoredItemCreated.ContainsKey(nodeId) ||
+                FindVirtualNodeRegistration(nodeId)?.MonitoredItemCreated != null;
+        }
+
+        internal bool HasMonitoredItemModifiedHandler(NodeId nodeId)
+        {
+            return m_monitoredItemModified.ContainsKey(nodeId) ||
+                FindVirtualNodeRegistration(nodeId)?.MonitoredItemModified != null;
+        }
+
+        internal bool HasMonitoredItemDeletedHandler(NodeId nodeId)
+        {
+            return m_monitoredItemDeleted.ContainsKey(nodeId) ||
+                FindVirtualNodeRegistration(nodeId)?.MonitoredItemDeleted != null;
+        }
+
+        internal bool HasMonitoringModeChangedHandler(NodeId nodeId)
+        {
+            return m_monitoringModeChanged.ContainsKey(nodeId) ||
+                FindVirtualNodeRegistration(nodeId)?.MonitoringModeChanged != null;
+        }
+
         /// <summary>
         /// Event-source registry owned by the
         /// <see cref="FluentNodeManagerBase"/>; populated via

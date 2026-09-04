@@ -453,6 +453,50 @@ namespace Opc.Ua.Server.Tests.Fluent
                 secondItem.Object).ConfigureAwait(false);
         }
 
+        [Test]
+        public async Task MultipleAttachedBuildersKeepTheirRegistrationsAsync()
+        {
+            using var manager = new TestVirtualManager();
+            NodeId firstId = manager.VirtualId("FirstBuilder");
+            NodeId secondId = manager.VirtualId("SecondBuilder");
+
+            manager.Builder.ResolveNodes(
+                id => id == firstId,
+                (context, id, cancellationToken) =>
+                    new ValueTask<NodeState?>(
+                        new BaseObjectState(null)
+                        {
+                            NodeId = id,
+                            BrowseName = new QualifiedName("FirstBuilder")
+                        }));
+            manager.Builder.Seal();
+
+            NodeManagerBuilder secondBuilder = manager.CreateAdditionalBuilder();
+            secondBuilder.ResolveNodes(
+                id => id == secondId,
+                (context, id, cancellationToken) =>
+                    new ValueTask<NodeState?>(
+                        new BaseObjectState(null)
+                        {
+                            NodeId = id,
+                            BrowseName = new QualifiedName("SecondBuilder")
+                        }));
+            secondBuilder.Seal();
+
+            (_, NodeState? first) = await manager.ResolveAsync(
+                firstId,
+                new Dictionary<NodeId, NodeState>()).ConfigureAwait(false);
+            (_, NodeState? second) = await manager.ResolveAsync(
+                secondId,
+                new Dictionary<NodeId, NodeState>()).ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(first?.NodeId, Is.EqualTo(firstId));
+                Assert.That(second?.NodeId, Is.EqualTo(secondId));
+            });
+        }
+
         private static Mock<ISampledDataChangeMonitoredItem> CreateMonitoredItem(
             uint id,
             NodeId nodeId)
@@ -494,6 +538,11 @@ namespace Opc.Ua.Server.Tests.Fluent
             public bool ContainsPredefined(NodeId nodeId)
             {
                 return PredefinedNodes.ContainsKey(nodeId);
+            }
+
+            public NodeManagerBuilder CreateAdditionalBuilder()
+            {
+                return CreateFluentBuilder(TestNamespaceIndex);
             }
 
             public async ValueTask<(NodeHandle? Handle, NodeState? Node)> ResolveAsync(

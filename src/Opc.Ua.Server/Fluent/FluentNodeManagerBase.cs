@@ -255,24 +255,23 @@ namespace Opc.Ua.Server.Fluent
                 throw new System.ArgumentNullException(nameof(builder));
             }
 
-            if (AttachedBuilder != null)
+            lock (m_attachedBuildersLock)
             {
-                if (ReferenceEquals(AttachedBuilder, builder))
+                foreach (NodeManagerBuilder attached in m_attachedBuilders)
                 {
-                    return;
+                    if (ReferenceEquals(attached, builder))
+                    {
+                        return;
+                    }
                 }
 
-                throw ServiceResultException.Create(
-                    StatusCodes.BadInvalidState,
-                    "A different fluent builder is already attached to node manager '{0}'.",
-                    GetType().FullName ?? GetType().Name);
+                builder.AttachEventSources(EventSources);
+                builder.AttachSimulations(Simulations);
+                builder.AttachMonitoredSources(MonitoredSources);
+                builder.AttachOwner(this);
+                m_attachedBuilders.Add(builder);
+                AttachedBuilder = builder;
             }
-
-            builder.AttachEventSources(EventSources);
-            builder.AttachSimulations(Simulations);
-            builder.AttachMonitoredSources(MonitoredSources);
-            builder.AttachOwner(this);
-            AttachedBuilder = builder;
         }
 
         /// <summary>
@@ -289,7 +288,7 @@ namespace Opc.Ua.Server.Fluent
             }
 
             if (builder is NodeManagerBuilder concreteBuilder &&
-                concreteBuilder.FluentOwner?.AttachedBuilder == concreteBuilder)
+                concreteBuilder.FluentOwner != null)
             {
                 return concreteBuilder;
             }
@@ -306,6 +305,31 @@ namespace Opc.Ua.Server.Fluent
                 "and attach its builder before Configure runs. Manager type '{1}' does not opt in.",
                 feature,
                 builder.NodeManager?.GetType().FullName ?? "(unknown)");
+        }
+
+        internal VirtualNodeRegistration? FindVirtualNodeRegistration(
+            NodeId nodeId)
+        {
+            VirtualNodeRegistration? match = null;
+            foreach (NodeManagerBuilder builder in GetAttachedBuilders())
+            {
+                VirtualNodeRegistration? registration =
+                    builder.FindVirtualNodeRegistration(nodeId);
+                if (registration == null)
+                {
+                    continue;
+                }
+                if (match != null)
+                {
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadConfigurationError,
+                        "NodeId '{0}' matches virtual-node families registered " +
+                        "on more than one fluent builder.",
+                        nodeId);
+                }
+                match = registration;
+            }
+            return match;
         }
 
         /// <summary>
@@ -355,14 +379,21 @@ namespace Opc.Ua.Server.Fluent
                 nodeId,
                 cache,
                 cancellationToken).ConfigureAwait(false);
-            if (handle != null ||
-                AttachedBuilder == null ||
-                !IsNodeIdInNamespace(nodeId))
+            if (handle != null || !IsNodeIdInNamespace(nodeId))
             {
                 return handle!;
             }
 
-            return AttachedBuilder.CreateVirtualNodeHandle(nodeId)!;
+            VirtualNodeRegistration? registration =
+                FindVirtualNodeRegistration(nodeId);
+            return registration == null
+                ? null!
+                : new NodeHandle
+                {
+                    NodeId = nodeId,
+                    ParsedNodeId = registration,
+                    Validated = false
+                };
         }
 
         /// <inheritdoc/>
@@ -431,8 +462,10 @@ namespace Opc.Ua.Server.Fluent
             HistoryReadResult result,
             out ServiceResult status)
         {
-            if (AttachedBuilder != null &&
-                AttachedBuilder.Dispatcher.TryHandleHistoryRead(
+            NodeManagerBuilder[] builders = GetAttachedBuilders();
+            for (int ii = builders.Length - 1; ii >= 0; ii--)
+            {
+                if (builders[ii].Dispatcher.TryHandleHistoryRead(
                     context,
                     source,
                     details,
@@ -441,8 +474,9 @@ namespace Opc.Ua.Server.Fluent
                     nodeToRead,
                     result,
                     out status))
-            {
-                return true;
+                {
+                    return true;
+                }
             }
 
             return base.TryHandleHistoryRead(
@@ -464,15 +498,18 @@ namespace Opc.Ua.Server.Fluent
             HistoryUpdateResult result,
             out ServiceResult status)
         {
-            if (AttachedBuilder != null &&
-                AttachedBuilder.Dispatcher.TryHandleHistoryUpdate(
+            NodeManagerBuilder[] builders = GetAttachedBuilders();
+            for (int ii = builders.Length - 1; ii >= 0; ii--)
+            {
+                if (builders[ii].Dispatcher.TryHandleHistoryUpdate(
                     context,
                     source,
                     nodeToUpdate,
                     result,
                     out status))
-            {
-                return true;
+                {
+                    return true;
+                }
             }
 
             return base.TryHandleHistoryUpdate(
@@ -508,9 +545,22 @@ namespace Opc.Ua.Server.Fluent
         {
             base.OnMonitoredItemCreated(context, handle, monitoredItem);
 
-            if (AttachedBuilder is { } builder && handle?.Node is { } node)
+            if (handle?.Node is not { } node)
             {
-                builder.Dispatcher.NotifyMonitoredItemCreated(context, node, monitoredItem);
+                return;
+            }
+
+            NodeManagerBuilder[] builders = GetAttachedBuilders();
+            for (int ii = builders.Length - 1; ii >= 0; ii--)
+            {
+                if (builders[ii].HasMonitoredItemCreatedHandler(node.NodeId))
+                {
+                    builders[ii].Dispatcher.NotifyMonitoredItemCreated(
+                        context,
+                        node,
+                        monitoredItem);
+                    break;
+                }
             }
         }
 
@@ -524,16 +574,24 @@ namespace Opc.Ua.Server.Fluent
                 await base.OnCreatingMonitoredItemAsync(
                     context,
                     cancellationToken).ConfigureAwait(false);
-            if (decision.Kind != MonitoredItemCreateDecisionKind.Default ||
-                AttachedBuilder == null)
+            if (decision.Kind != MonitoredItemCreateDecisionKind.Default)
             {
                 return decision;
             }
 
-            return await AttachedBuilder.Dispatcher
-                .GetMonitoredItemCreateDecisionAsync(
-                    context,
-                    cancellationToken).ConfigureAwait(false);
+            NodeManagerBuilder[] builders = GetAttachedBuilders();
+            for (int ii = builders.Length - 1; ii >= 0; ii--)
+            {
+                if (builders[ii].HasMonitoredItemCreatingHandler(
+                    context.Source.NodeId))
+                {
+                    return await builders[ii].Dispatcher
+                        .GetMonitoredItemCreateDecisionAsync(
+                            context,
+                            cancellationToken).ConfigureAwait(false);
+                }
+            }
+            return decision;
         }
 
         /// <inheritdoc/>
@@ -549,13 +607,23 @@ namespace Opc.Ua.Server.Fluent
                 monitoredItem,
                 cancellationToken).ConfigureAwait(false);
 
-            if (AttachedBuilder is { } builder && handle?.Node is { } node)
+            if (handle?.Node is not { } node)
             {
-                await builder.Dispatcher.NotifyMonitoredItemModifiedAsync(
-                    context,
-                    node,
-                    monitoredItem,
-                    cancellationToken).ConfigureAwait(false);
+                return;
+            }
+
+            NodeManagerBuilder[] builders = GetAttachedBuilders();
+            for (int ii = builders.Length - 1; ii >= 0; ii--)
+            {
+                if (builders[ii].HasMonitoredItemModifiedHandler(node.NodeId))
+                {
+                    await builders[ii].Dispatcher.NotifyMonitoredItemModifiedAsync(
+                        context,
+                        node,
+                        monitoredItem,
+                        cancellationToken).ConfigureAwait(false);
+                    break;
+                }
             }
 
         }
@@ -573,13 +641,23 @@ namespace Opc.Ua.Server.Fluent
                 monitoredItem,
                 cancellationToken).ConfigureAwait(false);
 
-            if (AttachedBuilder is { } builder && handle?.Node is { } node)
+            if (handle?.Node is not { } node)
             {
-                await builder.Dispatcher.NotifyMonitoredItemDeletedAsync(
-                    context,
-                    node,
-                    monitoredItem,
-                    cancellationToken).ConfigureAwait(false);
+                return;
+            }
+
+            NodeManagerBuilder[] builders = GetAttachedBuilders();
+            for (int ii = builders.Length - 1; ii >= 0; ii--)
+            {
+                if (builders[ii].HasMonitoredItemDeletedHandler(node.NodeId))
+                {
+                    await builders[ii].Dispatcher.NotifyMonitoredItemDeletedAsync(
+                        context,
+                        node,
+                        monitoredItem,
+                        cancellationToken).ConfigureAwait(false);
+                    break;
+                }
             }
 
         }
@@ -601,15 +679,25 @@ namespace Opc.Ua.Server.Fluent
                 monitoringMode,
                 cancellationToken).ConfigureAwait(false);
 
-            if (AttachedBuilder is { } builder && handle?.Node is { } node)
+            if (handle?.Node is not { } node)
             {
-                await builder.Dispatcher.NotifyMonitoringModeChangedAsync(
-                    context,
-                    node,
-                    monitoredItem,
-                    previousMode,
-                    monitoringMode,
-                    cancellationToken).ConfigureAwait(false);
+                return;
+            }
+
+            NodeManagerBuilder[] builders = GetAttachedBuilders();
+            for (int ii = builders.Length - 1; ii >= 0; ii--)
+            {
+                if (builders[ii].HasMonitoringModeChangedHandler(node.NodeId))
+                {
+                    await builders[ii].Dispatcher.NotifyMonitoringModeChangedAsync(
+                        context,
+                        node,
+                        monitoredItem,
+                        previousMode,
+                        monitoringMode,
+                        cancellationToken).ConfigureAwait(false);
+                    break;
+                }
             }
 
         }
@@ -681,10 +769,10 @@ namespace Opc.Ua.Server.Fluent
                 }
             }
 
-            if (AttachedBuilder is { } builder)
+            ArrayOf<IMonitoredItem> snapshot =
+                new List<IMonitoredItem>(monitoredItems);
+            foreach (NodeManagerBuilder builder in GetAttachedBuilders())
             {
-                ArrayOf<IMonitoredItem> snapshot =
-                    new List<IMonitoredItem>(monitoredItems);
                 await builder.Dispatcher.NotifyMonitoredItemsCreatedAsync(
                     context,
                     snapshot,
@@ -715,10 +803,10 @@ namespace Opc.Ua.Server.Fluent
                 }
             }
 
-            if (AttachedBuilder is { } builder)
+            ArrayOf<IMonitoredItem> snapshot =
+                new List<IMonitoredItem>(monitoredItems);
+            foreach (NodeManagerBuilder builder in GetAttachedBuilders())
             {
-                ArrayOf<IMonitoredItem> snapshot =
-                    new List<IMonitoredItem>(monitoredItems);
                 await builder.Dispatcher.NotifyMonitoredItemsDeletedAsync(
                     context,
                     snapshot,
@@ -807,5 +895,16 @@ namespace Opc.Ua.Server.Fluent
         {
             return AddRootNotifierAsync(notifier, cancellationToken).AsTask();
         }
+
+        private NodeManagerBuilder[] GetAttachedBuilders()
+        {
+            lock (m_attachedBuildersLock)
+            {
+                return [.. m_attachedBuilders];
+            }
+        }
+
+        private readonly Lock m_attachedBuildersLock = new();
+        private readonly List<NodeManagerBuilder> m_attachedBuilders = [];
     }
 }

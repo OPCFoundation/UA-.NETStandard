@@ -212,7 +212,7 @@ namespace Opc.Ua.Server.Fluent
                 }
 
                 virtualNodes =
-                    m_owner.AttachedBuilder?.FindVirtualNodeRegistration(nodeId);
+                    m_owner.FindVirtualNodeRegistration(nodeId);
                 if (virtualNodes == null ||
                     !m_virtualTemplates.TryGetValue(
                         virtualNodes,
