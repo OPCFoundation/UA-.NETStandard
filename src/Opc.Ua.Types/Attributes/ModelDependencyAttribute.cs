@@ -145,8 +145,8 @@ namespace Opc.Ua
         /// type-table payload. Non-null only on the assembly's
         /// self-declaration entry; transitive-dependency entries carry
         /// null. The payload encodes enough information for a downstream
-        /// source generator to walk the dependency tree without re-parsing
-        /// the upstream NodeSet2.
+        /// source generator to walk the dependency tree and preserve inherited
+        /// variable metadata without re-parsing the upstream NodeSet2.
         /// </summary>
         public string? Payload { get; }
     }

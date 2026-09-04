@@ -2307,6 +2307,32 @@ namespace Opc.Ua
                 return new ExtensionObject(typeId, encodeable);
             }
 
+            if (typeId.IsNull)
+            {
+                var xmlName = new XmlQualifiedName(
+                    m_reader.LocalName,
+                    m_reader.NamespaceURI);
+                if (Context.Factory.TryGetType(xmlName, out IType? type) &&
+                    type is IEncodeableType encodeableType)
+                {
+                    IEncodeable encodeable;
+                    PushNamespace(m_reader.NamespaceURI);
+                    try
+                    {
+                        encodeable = ReadEncodeable(
+                            m_reader.LocalName,
+                            encodeableType.CreateInstance());
+                    }
+                    finally
+                    {
+                        PopNamespace();
+                    }
+                    return new ExtensionObject(
+                        GetXmlEncodingIdOrTypeId(encodeable),
+                        encodeable);
+                }
+            }
+
             try
             {
                 var xmlElement = XmlElement.From(m_reader.ReadOuterXml());
@@ -2326,6 +2352,23 @@ namespace Opc.Ua
                     "Failed to decode xml extension object body: {0}",
                     ae.Message);
             }
+        }
+
+        private static ExpandedNodeId GetXmlEncodingIdOrTypeId(IEncodeable encodeable)
+        {
+            try
+            {
+                ExpandedNodeId xmlEncodingId = encodeable.XmlEncodingId;
+                if (!xmlEncodingId.IsNull)
+                {
+                    return xmlEncodingId;
+                }
+            }
+            catch (NotSupportedException)
+            {
+                return encodeable.TypeId;
+            }
+            return encodeable.TypeId;
         }
 
         /// <summary>
