@@ -527,8 +527,7 @@ namespace Opc.Ua.WotCon.Tests.Samples
                 },
                 ["title"] = title,
                 ["uav:conditionType"] = "ua:AlarmConditionType",
-                ["uav:conditionTypeId"] = "i=2915",
-                ["uav:isEvent"] = true
+                ["uav:conditionTypeId"] = "i=2915"
             };
         }
 

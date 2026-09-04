@@ -599,8 +599,8 @@ namespace Opc.Ua.Wot
                 }
             }
 
-            string nodeId = GenerateNodeId(
-                rootLocal + "/" + methodLocal + "/" + browseName);
+            string nodeId = GenerateBaseChildNodeId(
+                nodeSet, rootLocal, methodLocal, browseName);
             items.Add(new UAVariable
             {
                 NodeId = nodeId,
@@ -788,7 +788,7 @@ namespace Opc.Ua.Wot
                 name,
                 MapJsonSchemaToDataType(document, schema, nodeSet, diagnostics),
                 GetElementInt32(schema, "uav:valueRank") ?? -1,
-                ReadArrayDimensions(schema),
+                ReadArrayDimensions(schema, name, diagnostics),
                 ReadDescription(schema, GetDeclaredLocale(document)));
         }
 

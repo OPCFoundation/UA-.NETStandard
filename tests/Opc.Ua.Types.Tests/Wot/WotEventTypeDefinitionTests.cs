@@ -94,7 +94,7 @@ namespace Opc.Ua.Types.Tests.Wot
 
             Assert.That(
                 ReadFieldOrder(enabledState),
-                Is.EqualTo(new[] { "Id", "Name" }).AsCollection,
+                Is.EqualTo(s_enabledStateFieldOrder).AsCollection,
                 "A nested object the derivation walks states its order too, so the two " +
                 "clauses it yields are derived in a stated order.");
         }
@@ -306,7 +306,7 @@ namespace Opc.Ua.Types.Tests.Wot
         {
             using WotDocument document = Parse(
                 ThingModel(
-                    "\"events\":{\"alarm\":{\"@type\":\"uav:eventType\",\"uav:isEvent\":true," +
+                    "\"events\":{\"alarm\":{\"@type\":\"uav:eventType\"," +
                     "\"uav:browseName\":\"pump:AlarmType\"," +
                     "\"data\":{\"type\":\"object\",\"properties\":{" +
                     "\"Temperature\":{\"type\":\"number\"}}}}}"));
@@ -348,7 +348,7 @@ namespace Opc.Ua.Types.Tests.Wot
         private static string FastPathDocument()
         {
             return ThingModel(
-                "\"events\":{\"alarm\":{\"@type\":\"uav:eventType\",\"uav:isEvent\":true," +
+                "\"events\":{\"alarm\":{\"@type\":\"uav:eventType\"," +
                 "\"uav:browseName\":\"pump:AlarmType\"," +
                 "\"tm:ref\":\"./alarm.tm.jsonld\"}}");
         }
@@ -356,7 +356,7 @@ namespace Opc.Ua.Types.Tests.Wot
         private static string ExplicitClauseDocument()
         {
             return ThingModel(
-                "\"events\":{\"alarm\":{\"@type\":\"uav:eventType\",\"uav:isEvent\":true," +
+                "\"events\":{\"alarm\":{\"@type\":\"uav:eventType\"," +
                 "\"uav:browseName\":\"pump:AlarmType\"," +
                 "\"uav:eventSelectClauses\":[{\"tm:ref\":\"./alarm.tm.jsonld\"," +
                 "\"uav:browsePath\":\"Temperature\"}]}}");
@@ -538,5 +538,11 @@ namespace Opc.Ua.Types.Tests.Wot
             private readonly string m_href;
             private readonly string m_json;
         }
+
+        /// <summary>
+        /// The field order the EnabledState StateVariable schema states, which
+        /// is the order its References declare the two members in.
+        /// </summary>
+        private static readonly string[] s_enabledStateFieldOrder = ["Id", "Name"];
     }
 }

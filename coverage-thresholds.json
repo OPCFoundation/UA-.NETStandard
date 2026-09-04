@@ -43,7 +43,16 @@
     "",
     "'ignore' mirrors the exclusion list in codecov.yml so both report on the same",
     "code - change the two together - and is applied to BOTH the project floor and",
-    "the changed-lines check."
+    "the changed-lines check.",
+    "",
+    "'pathRules' states stricter, NON-graduated floors for a small number of areas",
+    "where every changed line is meant to be exercised. The graduated patch band is",
+    "right for the repository as a whole - over a handful of lines a percentage is",
+    "noise - and wrong for a protocol mapping, whose untested branch is a wire-format",
+    "bug nobody sees until interop. Each rule states its own 'include' globs and its",
+    "own 'exclude' globs; exclusions are explicit rather than inherited so that",
+    "reading a rule tells you what it covers. The repository-wide floors above are",
+    "unchanged by a rule: a rule adds a requirement, it never relaxes one."
   ],
   "project": {
     "minimumLineRate": 70.0,
@@ -59,6 +68,27 @@
       { "maxChangedLines": 100, "target": 60.0, "enforced": false }
     ]
   },
+  "pathRules": [
+    {
+      "name": "WoT Binding production paths",
+      "include": [
+        "src/Opc.Ua.Types/Wot/**",
+        "src/Opc.Ua.WotCon/**",
+        "src/Opc.Ua.WotCon.Bindings/**",
+        "src/Opc.Ua.WotCon.Bindings.Mqtt/**",
+        "src/Opc.Ua.WotCon.Client/**",
+        "src/Opc.Ua.WotCon.Server/**"
+      ],
+      "exclude": [
+        "**/*.g.cs",
+        "**/Design/**",
+        "src/Opc.Ua.WotCon.Server/Assets/**",
+        "src/Opc.Ua.WotCon.Server/ThingDescriptions/**"
+      ],
+      "minimumChangedLineRate": 100.0,
+      "minimumChangedBranchRate": 100.0
+    }
+  ],
   "ignore": [
     "tests/**",
     "samples/**",

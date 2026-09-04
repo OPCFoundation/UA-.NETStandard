@@ -33,6 +33,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.Json;
+using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Export;
 using Opc.Ua.Wot;
@@ -567,13 +568,13 @@ namespace Opc.Ua.Types.Tests.Wot
         }
 
         [Test]
-        public void ThePublishedThingModelProjectsItsUnitPointerAndRanges()
+        public async Task ThePublishedThingModelProjectsItsUnitPointerAndRangesAsync()
         {
             using var document = WotDocument.Parse(
                 ReadExample("02-thing-model-pump.jsonld"));
 
             WotConversionResult<UANodeSet> result =
-                WotNodeSetConverter.ToNodeSetResult(document);
+                await WotSpecExampleResolver.ConvertAsync(document).ConfigureAwait(false);
 
             Assert.That(
                 result.Diagnostics.Where(d => d.Severity == WotDiagnosticSeverity.Error),
@@ -603,12 +604,23 @@ namespace Opc.Ua.Types.Tests.Wot
         }
 
         [Test]
-        public void ThePublishedThingModelImportsAsANodeSet()
+        public async Task ThePublishedThingModelImportsAsANodeSetAsync()
         {
             using var document = WotDocument.Parse(
                 ReadExample("02-thing-model-pump.jsonld"));
-            UANodeSet nodeSet = WotNodeSetConverter.ToNodeSet(document);
 
+            // The example links its event affordances to the definitions
+            // example 27 declares, so converting it is converting a document
+            // set: the resolver is the set, and nothing is fetched.
+            WotConversionResult<UANodeSet> result =
+                await WotSpecExampleResolver.ConvertAsync(document).ConfigureAwait(false);
+
+            Assert.That(
+                result.Diagnostics.Where(d => d.Severity == WotDiagnosticSeverity.Error),
+                Is.Empty,
+                WotAnalogTestData.Describe(result.Diagnostics));
+
+            UANodeSet nodeSet = result.Value!;
             using var stream = new System.IO.MemoryStream();
             nodeSet.Write(stream);
             stream.Position = 0;

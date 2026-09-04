@@ -305,7 +305,8 @@ namespace Opc.Ua.Wot
     /// and loading an unrelated companion model can never change what an
     /// existing document projects to.
     /// </remarks>
-    public sealed class WotCompositeNodeResolver : IWotNodeResolver, IWotReferenceTypeResolver
+    public sealed class WotCompositeNodeResolver
+        : IWotNodeResolver, IWotReferenceTypeResolver, IWotTypeDeclarationResolver
     {
         /// <summary>
         /// Initializes a composite over the supplied resolvers, in order.
@@ -409,6 +410,61 @@ namespace Opc.Ua.Wot
             }
 
             return ArrayOf<WotResolvedReferenceType>.Empty;
+        }
+
+        /// <inheritdoc/>
+        /// <remarks>
+        /// The first part of the local context that holds the type answers for
+        /// it, which is the same first-source precedence node resolution
+        /// follows. Anything else would let a loaded AddressSpace contribute
+        /// declarations to a type a sibling document already defines, and the
+        /// merged answer would describe a type neither source states.
+        /// </remarks>
+        public async ValueTask<WotTypeDeclarationSet?> ResolveDeclarationsAsync(
+            string typeNodeId,
+            WotDeclarationScope scope,
+            CancellationToken cancellationToken = default)
+        {
+            foreach (IWotNodeResolver resolver in m_resolvers)
+            {
+                if (resolver is not IWotTypeDeclarationResolver declarations)
+                {
+                    continue;
+                }
+                WotTypeDeclarationSet? set = await declarations
+                    .ResolveDeclarationsAsync(typeNodeId, scope, cancellationToken)
+                    .ConfigureAwait(false);
+                if (set is not null)
+                {
+                    return set;
+                }
+            }
+
+            return null;
+        }
+
+        /// <summary>
+        /// Gets whether any part of the local context can report instance
+        /// declarations at all.
+        /// </summary>
+        /// <remarks>
+        /// A rule that depends on declarations - <c>uav:additionalProperties</c>
+        /// with the value <c>false</c>, for instance - must fail explicitly
+        /// where nothing can evaluate it, rather than pass because no
+        /// declaration contradicted it. Telling "no part offers the capability"
+        /// apart from "every part offers it and none holds the type" is what
+        /// makes that distinction possible.
+        /// </remarks>
+        public bool OffersDeclarations()
+        {
+            foreach (IWotNodeResolver resolver in m_resolvers)
+            {
+                if (resolver is IWotTypeDeclarationResolver)
+                {
+                    return true;
+                }
+            }
+            return false;
         }
 
         private readonly IWotNodeResolver[] m_resolvers;

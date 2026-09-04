@@ -91,6 +91,110 @@ namespace Opc.Ua.WotCon.Server.Registry
     }
 
     /// <summary>
+    /// What a policy-driven delete did to the target and to the documents that
+    /// depended on it.
+    /// </summary>
+    public sealed class WotDeleteResult
+    {
+        /// <summary>
+        /// Initializes a new delete result.
+        /// </summary>
+        /// <param name="outcome">The outcome.</param>
+        /// <param name="policy">The policy that was applied.</param>
+        /// <param name="generation">The registry generation afterwards.</param>
+        /// <param name="deleted">Whether the target was removed from the registry.</param>
+        /// <param name="retired">Whether the target's projection was taken down.</param>
+        /// <param name="dependents">Every dependent the graph found, by xid.</param>
+        /// <param name="unloaded">The dependents whose projections were unloaded.</param>
+        /// <param name="failed">The dependents marked <c>Failed</c>.</param>
+        /// <param name="unreadable">
+        /// The documents whose content could not be read, so whether they
+        /// depended on the target is unknown.
+        /// </param>
+        /// <param name="message">A human-readable message.</param>
+        internal WotDeleteResult(
+            WoTOutcomeEnum outcome,
+            WoTDeletePolicyEnum policy,
+            long generation,
+            bool deleted,
+            bool retired,
+            ImmutableArray<string> dependents,
+            ImmutableArray<string> unloaded,
+            ImmutableArray<string> failed,
+            ImmutableArray<string> unreadable,
+            string message)
+        {
+            Outcome = outcome;
+            Policy = policy;
+            Generation = generation;
+            Deleted = deleted;
+            Retired = retired;
+            Dependents = dependents.IsDefault ? [] : dependents;
+            Unloaded = unloaded.IsDefault ? [] : unloaded;
+            Failed = failed.IsDefault ? [] : failed;
+            Unreadable = unreadable;
+            Message = message;
+        }
+
+        /// <summary>
+        /// Gets the outcome. <c>Rejected</c> means nothing changed.
+        /// </summary>
+        public WoTOutcomeEnum Outcome { get; }
+
+        /// <summary>
+        /// Gets the policy that was applied.
+        /// </summary>
+        public WoTDeletePolicyEnum Policy { get; }
+
+        /// <summary>
+        /// Gets the registry generation after the operation.
+        /// </summary>
+        public long Generation { get; }
+
+        /// <summary>
+        /// Gets whether the target was removed from the registry. It is
+        /// <c>false</c> for <c>Retire</c>, which keeps the document so its
+        /// dependents keep resolving.
+        /// </summary>
+        public bool Deleted { get; }
+
+        /// <summary>
+        /// Gets whether the target's projection was taken down.
+        /// </summary>
+        public bool Retired { get; }
+
+        /// <summary>
+        /// Gets every document that depended on the target, by xid, in
+        /// ascending order.
+        /// </summary>
+        public ImmutableArray<string> Dependents { get; }
+
+        /// <summary>
+        /// Gets the dependents whose projections were unloaded, in ascending
+        /// order.
+        /// </summary>
+        public ImmutableArray<string> Unloaded { get; }
+
+        /// <summary>
+        /// Gets the dependents marked <c>Failed</c>, in ascending order.
+        /// </summary>
+        public ImmutableArray<string> Failed { get; }
+
+        /// <summary>
+        /// Gets the documents whose content could not be read, in ascending
+        /// order. Whether each of them depended on the target is unknown, which
+        /// is why a policy states what it did about them rather than treating
+        /// them as checked and clear.
+        /// </summary>
+        public ImmutableArray<string> Unreadable { get; }
+
+        /// <summary>
+        /// Gets a human-readable message.
+        /// </summary>
+        public string Message { get; }
+    }
+
+    /// <summary>
     /// The result of a registry mutation.
     /// </summary>
     public sealed class WotRegistryMutationResult
@@ -391,6 +495,42 @@ namespace Opc.Ua.WotCon.Server.Registry
         ValueTask<WotRegistryMutationResult> DeleteResourceAsync(
             string groupId,
             string resourceId,
+            long? expectedEpoch = null,
+            CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Deletes a resource under a WoT Connectivity delete policy, applying
+        /// the policy to every document that depends on it.
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// The four policies answer one question - what happens to the
+        /// documents that were resolving through this one - and they answer it
+        /// differently on purpose:
+        /// </para>
+        /// <list type="bullet">
+        /// <item><description><c>Reject</c> refuses while anything depends on
+        /// it, and leaves every piece of state exactly as it was.</description></item>
+        /// <item><description><c>Retire</c> takes the projection down but keeps
+        /// the stored document, so its dependents keep resolving.</description></item>
+        /// <item><description><c>Cascade</c> deletes it and unloads the
+        /// dependents that have no other way to resolve what they took from
+        /// it.</description></item>
+        /// <item><description><c>Force</c> deletes it regardless and marks
+        /// every remaining dependent <c>Failed</c>, because they are now
+        /// projecting against something that is gone.</description></item>
+        /// </list>
+        /// </remarks>
+        /// <param name="groupId">The owning group.</param>
+        /// <param name="resourceId">The resource to delete.</param>
+        /// <param name="policy">The delete policy.</param>
+        /// <param name="expectedEpoch">The epoch the caller last observed.</param>
+        /// <param name="cancellationToken">A cancellation token.</param>
+        /// <returns>What the policy did.</returns>
+        ValueTask<WotDeleteResult> DeleteResourceAsync(
+            string groupId,
+            string resourceId,
+            WoTDeletePolicyEnum policy,
             long? expectedEpoch = null,
             CancellationToken cancellationToken = default);
 

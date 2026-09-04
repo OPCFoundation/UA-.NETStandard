@@ -326,12 +326,45 @@ namespace Opc.Ua.Wot
             }
             writer.WritePropertyName(EngineeringUnitsTerm);
             writer.WriteStartObject();
-            writer.WriteString("namespaceUri", units!.NamespaceUri);
+
+            // Section 6.4.1 mints displayName and description as short members
+            // scoped to this object, so a root-level override cannot reach
+            // them: a scoped context is entered here and nowhere else. Where
+            // either states no text in the document's default locale, the two
+            // are re-declared without a language, so an unqualified value is
+            // not read as text of a language it is not written in.
+            if (LacksDefaultLocale(units!.DisplayName, defaultLocale) ||
+                LacksDefaultLocale(units.Description, defaultLocale))
+            {
+                WriteUnitLocalizedTextOverride(writer);
+            }
+            writer.WriteString("namespaceUri", units.NamespaceUri);
             writer.WriteNumber("unitId", units.UnitId);
             WriteLocalizedMember(
                 writer, "displayName", "displayNames", units.DisplayName, defaultLocale);
             WriteLocalizedMember(
                 writer, "description", "descriptions", units.Description, defaultLocale);
+            writer.WriteEndObject();
+        }
+
+        /// <summary>
+        /// Writes the node-local override that drops the document's default
+        /// language from the two scoped <c>EUInformation</c> text members.
+        /// </summary>
+        private static void WriteUnitLocalizedTextOverride(Utf8JsonWriter writer)
+        {
+            writer.WritePropertyName("@context");
+            writer.WriteStartObject();
+            writer.WritePropertyName("displayName");
+            writer.WriteStartObject();
+            writer.WriteString("@id", "uav:unitDisplayName");
+            writer.WriteNull("@language");
+            writer.WriteEndObject();
+            writer.WritePropertyName("description");
+            writer.WriteStartObject();
+            writer.WriteString("@id", "uav:unitDescription");
+            writer.WriteNull("@language");
+            writer.WriteEndObject();
             writer.WriteEndObject();
         }
 
@@ -961,7 +994,8 @@ namespace Opc.Ua.Wot
             _ = nodeSet;
             _ = diagnostics;
 
-            string nodeId = GenerateNodeId(rootLocal + "/" + ownerLocal + "/" + browseName);
+            string nodeId = GenerateBaseChildNodeId(
+                nodeSet, rootLocal, ownerLocal, browseName);
             items.Add(new UAVariable
             {
                 NodeId = nodeId,

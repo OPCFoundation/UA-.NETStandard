@@ -149,12 +149,21 @@ namespace Opc.Ua.WotCon.Server.Materialization
         /// document can only bind to a type a sibling projects, so every
         /// companion-model type binding of Section 5.2.1 is unresolvable.
         /// </param>
+        /// <param name="schemaProviders">
+        /// The providers an <c>uav:externalSchema</c> reference is resolved
+        /// through, in order. None is the default: the reference is an
+        /// arbitrary IRI in a document the Server did not write, so nothing is
+        /// fetched unless a host says what may be asked.
+        /// </param>
         public WotNodeSetDocumentConverter(
             WotNodeSetConverterOptions? options = null,
-            IWotNodeResolver? addressSpace = null)
+            IWotNodeResolver? addressSpace = null,
+            IEnumerable<IWotSchemaResolver>? schemaProviders = null)
         {
             m_options = options ?? new WotNodeSetConverterOptions();
             m_addressSpace = addressSpace;
+            m_schemaResolver = new WotExternalSchemaResolver(
+                schemaProviders is null ? [] : [.. schemaProviders]);
         }
 
         /// <summary>
@@ -221,7 +230,8 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 // while converting this resource.
                 var resolution = new WotResolutionContext(m_options.ToResolverOptions());
                 WotConversionResult<UANodeSet> result = await WotNodeSetConverter.ToNodeSetResultAsync(
-                    document, m_options, resolver, resolution, nodeResolver, cancellationToken)
+                    document, m_options, resolver, resolution, nodeResolver, m_schemaResolver,
+                    cancellationToken)
                     .ConfigureAwait(false);
                 ImmutableArray<string>.Builder errors = ImmutableArray.CreateBuilder<string>();
                 foreach (WotDiagnostic diagnostic in result.Diagnostics)
@@ -316,6 +326,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
         }
 
         private readonly WotNodeSetConverterOptions m_options;
+        private readonly WotExternalSchemaResolver m_schemaResolver;
         private readonly System.Threading.Lock m_resolverLock = new();
         private IWotNodeResolver? m_addressSpace;
         private SnapshotWotNodeResolver? m_nodeResolver;

@@ -63,7 +63,8 @@ namespace Opc.Ua.WotCon.Server.Materialization
     /// never pays for it.
     /// </para>
     /// </remarks>
-    public sealed class AddressSpaceWotNodeResolver : IWotNodeResolver, IWotReferenceTypeResolver
+    public sealed class AddressSpaceWotNodeResolver
+        : IWotNodeResolver, IWotReferenceTypeResolver, IWotTypeDeclarationResolver
     {
         /// <summary>
         /// Initializes a resolver over a Server's AddressSpace.
@@ -183,6 +184,461 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 : ArrayOf<WotResolvedReferenceType>.Empty;
         }
 
+        /// <inheritdoc/>
+        /// <remarks>
+        /// <para>
+        /// The declarations of a loaded type are read the way a Client would
+        /// read them: browse the type's hierarchical children, read the
+        /// Attributes each declaration carries, and follow <c>HasSubtype</c>
+        /// upwards for the effective closure. Nothing is taken from a node
+        /// manager's internal state, so any node manager implementation
+        /// answers.
+        /// </para>
+        /// <para>
+        /// The upward walk is bounded by
+        /// <see cref="WotTypeDeclarations.MaxSupertypeDepth"/> and refuses to
+        /// visit a type twice. A walk that is cut short reports an incomplete
+        /// closure rather than a partial one presented as whole.
+        /// </para>
+        /// </remarks>
+        public async ValueTask<WotTypeDeclarationSet?> ResolveDeclarationsAsync(
+            string typeNodeId,
+            WotDeclarationScope scope,
+            CancellationToken cancellationToken = default)
+        {
+            if (string.IsNullOrEmpty(typeNodeId))
+            {
+                return null;
+            }
+            NodeId typeId = TryToLocalNodeId(typeNodeId);
+            if (typeId.IsNull ||
+                await TryGetNodeClassAsync(typeId, cancellationToken).ConfigureAwait(false)
+                    is not (NodeClass.ObjectType or NodeClass.VariableType))
+            {
+                return null;
+            }
+
+            var byName = new Dictionary<string, WotTypeDeclaration>(StringComparer.Ordinal);
+            var supertypes = new List<string>();
+            var visited = new HashSet<NodeId> { typeId };
+            var faults = new List<string>();
+            string? detail = null;
+            NodeId current = typeId;
+            bool inherited = false;
+            while (true)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                WotDeclarationRead read = await ReadDeclarationsAsync(
+                    current, inherited, cancellationToken).ConfigureAwait(false);
+                foreach (string fault in read.Faults)
+                {
+                    faults.Add(fault);
+                }
+                foreach (WotTypeDeclaration declaration in read.Declarations)
+                {
+                    string key = declaration.NamespaceUri + "\u0000" + declaration.BrowseName +
+                        "\u0000" + ((int)declaration.Kind).ToString(
+                            System.Globalization.CultureInfo.InvariantCulture);
+                    if (!byName.ContainsKey(key))
+                    {
+                        byName[key] = declaration;
+                    }
+                }
+                if (scope == WotDeclarationScope.Direct)
+                {
+                    break;
+                }
+                NodeId superType = m_server.TypeTree.FindSuperType(current);
+                if (superType.IsNull)
+                {
+                    break;
+                }
+                if (!visited.Add(superType))
+                {
+                    detail =
+                        $"The supertype chain revisits '{ToPortable(superType)}', so it is a " +
+                        "cycle rather than a hierarchy.";
+                    break;
+                }
+                if (supertypes.Count >= WotTypeDeclarations.MaxSupertypeDepth)
+                {
+                    detail =
+                        "The supertype chain exceeded the maximum of " +
+                        $"{WotTypeDeclarations.MaxSupertypeDepth} types.";
+                    break;
+                }
+                supertypes.Add(ToPortable(superType));
+                current = superType;
+                inherited = true;
+            }
+
+            // A browse or a read the Server refused says nothing about what the
+            // type declares. Reporting the part that answered as the whole
+            // closure is what lets a member the type already declares be
+            // projected as a second, differently-reached Node, and lets
+            // uav:additionalProperties: false pass on the strength of nothing
+            // having been consulted.
+            if (faults.Count != 0)
+            {
+                detail = Combine(detail, faults);
+            }
+
+            var ordered = new List<WotTypeDeclaration>(byName.Values);
+            ordered.Sort(WotTypeDeclarations.Compare);
+            return new WotTypeDeclarationSet
+            {
+                TypeNodeId = typeNodeId,
+                Declarations = ordered.ToArrayOf(),
+                Supertypes = supertypes.ToArrayOf(),
+                IsComplete = detail is null,
+                Detail = detail
+            };
+        }
+
+        /// <summary>
+        /// Joins the reason a walk stopped and the faults it collected into one
+        /// sentence, bounded so a Server failing every read cannot grow a
+        /// detail without limit.
+        /// </summary>
+        private static string Combine(string? detail, List<string> faults)
+        {
+            var builder = new System.Text.StringBuilder();
+            if (!string.IsNullOrEmpty(detail))
+            {
+                builder.Append(detail).Append(' ');
+            }
+            int reported = Math.Min(faults.Count, MaxReportedFaults);
+            for (int ii = 0; ii < reported; ii++)
+            {
+                builder.Append(faults[ii]).Append(' ');
+            }
+            if (faults.Count > reported)
+            {
+                builder
+                    .Append('(')
+                    .Append((faults.Count - reported).ToString(
+                        System.Globalization.CultureInfo.InvariantCulture))
+                    .Append(" further failure(s) not listed.)");
+            }
+            return builder.ToString().TrimEnd();
+        }
+
+        /// <summary>
+        /// Reads the instance declarations one type states itself, and every
+        /// failure that kept one from being read.
+        /// </summary>
+        private async ValueTask<WotDeclarationRead> ReadDeclarationsAsync(
+            NodeId typeId,
+            bool inherited,
+            CancellationToken cancellationToken)
+        {
+            var declarations = new List<WotTypeDeclaration>();
+            var faults = new List<string>();
+            string declaringType = ToPortable(typeId);
+
+            // Materialised before the awaits below: ArrayOf<T> enumerates as a
+            // span, which cannot be preserved across an await boundary.
+            var children = new List<ReferenceDescription>();
+            WotBrowseOutcome outcome = await BrowseChildrenAsync(typeId, cancellationToken)
+                .ConfigureAwait(false);
+            if (outcome.Failure is { } browseFailure)
+            {
+                faults.Add(
+                    $"Browsing the children of '{declaringType}' failed: {browseFailure}");
+            }
+            foreach (ReferenceDescription reference in outcome.References)
+            {
+                children.Add(reference);
+            }
+            foreach (ReferenceDescription reference in children)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                WotDeclarationKind kind = ToDeclarationKind(reference.NodeClass);
+                if (kind == WotDeclarationKind.Unknown ||
+                    reference.BrowseName.IsNull ||
+                    string.IsNullOrEmpty(reference.BrowseName.Name))
+                {
+                    continue;
+                }
+                string? namespaceUri = m_server.NamespaceUris
+                    .GetString(reference.BrowseName.NamespaceIndex);
+                if (string.IsNullOrEmpty(namespaceUri))
+                {
+                    faults.Add(
+                        $"The BrowseName of a child of '{declaringType}' names namespace " +
+                        $"index {reference.BrowseName.NamespaceIndex}, which the Server's " +
+                        "namespace table does not hold.");
+                    continue;
+                }
+                NodeId declarationId = ExpandedNodeId.ToNodeId(
+                    reference.NodeId, m_server.NamespaceUris);
+                if (declarationId.IsNull)
+                {
+                    faults.Add(
+                        $"The child '{reference.BrowseName.Name}' of '{declaringType}' has " +
+                        "a NodeId this Server cannot translate.");
+                    continue;
+                }
+                (WotTypeDeclaration? declaration, string? fault) = await ReadDeclarationAsync(
+                    declarationId,
+                    kind,
+                    namespaceUri!,
+                    reference.BrowseName.Name!,
+                    ReferenceTypeName(reference.ReferenceTypeId),
+                    reference.TypeDefinition,
+                    declaringType,
+                    inherited,
+                    cancellationToken).ConfigureAwait(false);
+                if (fault is not null)
+                {
+                    faults.Add(fault);
+                }
+                if (declaration is not null)
+                {
+                    declarations.Add(declaration);
+                }
+            }
+            return new WotDeclarationRead(declarations, faults);
+        }
+
+        /// <summary>
+        /// Reads the Attributes one declaration carries, and says what could
+        /// not be read.
+        /// </summary>
+        /// <remarks>
+        /// Only a Variable declaration carries a DataType, a ValueRank and
+        /// ArrayDimensions, so only a Variable is asked for them. Asking a
+        /// Method or an Object for a DataType would be answered
+        /// <c>BadAttributeIdInvalid</c> - correctly - and reading that as a
+        /// failure would make every Method declaration unreadable.
+        /// </remarks>
+        private async ValueTask<(WotTypeDeclaration? Declaration, string? Fault)>
+            ReadDeclarationAsync(
+            NodeId declarationId,
+            WotDeclarationKind kind,
+            string namespaceUri,
+            string browseName,
+            string referenceTypeName,
+            ExpandedNodeId typeDefinition,
+            string declaringType,
+            bool inherited,
+            CancellationToken cancellationToken)
+        {
+            string dataType = string.Empty;
+            int valueRank = ValueRanks.Scalar;
+            ArrayOf<uint> arrayDimensions = ArrayOf<uint>.Empty;
+            string? attributeFault = null;
+            if (kind == WotDeclarationKind.Variable)
+            {
+                (ArrayOf<DataValue> values, string? readFault) = await ReadAttributesAsync(
+                    declarationId,
+                    [
+                        Opc.Ua.Attributes.DataType,
+                        Opc.Ua.Attributes.ValueRank,
+                        Opc.Ua.Attributes.ArrayDimensions
+                    ],
+                    cancellationToken,
+                    Opc.Ua.Attributes.ArrayDimensions).ConfigureAwait(false);
+                attributeFault = readFault is null
+                    ? null
+                    : $"Reading the Attributes of '{browseName}' on '{declaringType}' failed: " +
+                        readFault;
+                if (attributeFault is null && values.Count != 3)
+                {
+                    attributeFault =
+                        $"The Server answered {values.Count} of the 3 Attributes of " +
+                        $"'{browseName}' on '{declaringType}'.";
+                }
+                if (attributeFault is null)
+                {
+                    if (values[0].WrappedValue.TryGetValue(out NodeId declaredType) &&
+                        !declaredType.IsNull)
+                    {
+                        dataType = ToPortable(declaredType);
+                    }
+                    if (values[1].WrappedValue.TryGetValue(out int rank))
+                    {
+                        valueRank = rank;
+                    }
+                    if (values[2].WrappedValue.TryGetValue(out ArrayOf<uint> dimensions))
+                    {
+                        arrayDimensions = dimensions;
+                    }
+                }
+            }
+
+            if (attributeFault is not null)
+            {
+                // What the declaration says a member holds is exactly what was
+                // not read, so there is no declaration to populate: reporting
+                // one would write the values a refused read leaves behind - no
+                // DataType at all, and the scalar rank - onto the member as
+                // though the type had stated them.
+                return (null, attributeFault);
+            }
+
+            (WotModellingRule rule, string? ruleFault) = await ReadModellingRuleAsync(
+                declarationId, cancellationToken).ConfigureAwait(false);
+            string? fault = ruleFault is null
+                ? null
+
+                // The ModellingRule is what says whether an instance has to
+                // carry the declaration at all, so not knowing it makes the
+                // closure incomplete rather than optional by default. The
+                // declaration is still reported: its ReferenceType, type
+                // definition, DataType and ValueRank were read, and those are
+                // what a member populates.
+                : $"Reading the ModellingRule of '{browseName}' on '{declaringType}' " +
+                    $"failed: {ruleFault}";
+
+            return (
+                new WotTypeDeclaration
+                {
+                    NamespaceUri = namespaceUri,
+                    BrowseName = browseName,
+                    Kind = kind,
+                    DeclaringTypeNodeId = declaringType,
+                    NodeId = ToPortable(declarationId),
+                    ReferenceTypeName = referenceTypeName,
+                    TypeDefinitionNodeId = typeDefinition.IsNull
+                        ? string.Empty
+                        : ToPortable(
+                            ExpandedNodeId.ToNodeId(typeDefinition, m_server.NamespaceUris)),
+                    MethodDeclarationNodeId = kind == WotDeclarationKind.Method
+                        ? ToPortable(declarationId)
+                        : string.Empty,
+                    DataType = dataType,
+                    ValueRank = valueRank,
+                    ArrayDimensions = arrayDimensions,
+                    ModellingRule = rule,
+                    IsInherited = inherited
+                },
+                fault);
+        }
+
+        /// <summary>
+        /// Reads the ModellingRule a declaration carries, which is what decides
+        /// whether an instance has to have it.
+        /// </summary>
+        private async ValueTask<(WotModellingRule Rule, string? Fault)> ReadModellingRuleAsync(
+            NodeId declarationId,
+            CancellationToken cancellationToken)
+        {
+            WotBrowseOutcome outcome = await BrowseAsync(
+                declarationId,
+                Opc.Ua.ReferenceTypeIds.HasModellingRule,
+                includeSubtypes: false,
+                NodeClass.Object,
+                cancellationToken).ConfigureAwait(false);
+            if (outcome.Failure is { } failure)
+            {
+                return (WotModellingRule.None, failure);
+            }
+            foreach (ReferenceDescription rule in outcome.References)
+            {
+                NodeId ruleId = ExpandedNodeId.ToNodeId(rule.NodeId, m_server.NamespaceUris);
+                if (ruleId.NamespaceIndex != 0 ||
+                    !ruleId.TryGetValue(out uint identifier))
+                {
+                    continue;
+                }
+                WotModellingRule mapped = WotTypeDeclarations.FromModellingRuleId(
+                    "i=" + identifier.ToString(System.Globalization.CultureInfo.InvariantCulture));
+                if (mapped != WotModellingRule.None)
+                {
+                    return (mapped, null);
+                }
+            }
+            return (WotModellingRule.None, null);
+        }
+
+        private ValueTask<WotBrowseOutcome> BrowseChildrenAsync(
+            NodeId typeId,
+            CancellationToken cancellationToken)
+        {
+            return BrowseAsync(
+                typeId,
+                Opc.Ua.ReferenceTypeIds.HierarchicalReferences,
+                includeSubtypes: true,
+                NodeClass.Object | NodeClass.Variable | NodeClass.Method,
+                cancellationToken);
+        }
+
+        /// <summary>
+        /// Browses one Node through the Server's own browse path, reporting the
+        /// difference between "declares nothing" and "would not answer".
+        /// </summary>
+        private async ValueTask<WotBrowseOutcome> BrowseAsync(
+            NodeId nodeId,
+            NodeId referenceTypeId,
+            bool includeSubtypes,
+            NodeClass nodeClassMask,
+            CancellationToken cancellationToken)
+        {
+            ArrayOf<BrowseDescription> nodesToBrowse =
+            [
+                new BrowseDescription
+                {
+                    NodeId = nodeId,
+                    BrowseDirection = BrowseDirection.Forward,
+                    ReferenceTypeId = referenceTypeId,
+                    IncludeSubtypes = includeSubtypes,
+                    NodeClassMask = (uint)nodeClassMask,
+                    ResultMask = (uint)BrowseResultMask.All
+                }
+            ];
+            try
+            {
+                using OperationContext context = CreateContext();
+                (ArrayOf<BrowseResult> results, _) = await m_server.NodeManager.BrowseAsync(
+                    context,
+                    new ViewDescription(),
+                    0,
+                    nodesToBrowse,
+                    cancellationToken).ConfigureAwait(false);
+                if (results.Count == 0)
+                {
+                    return WotBrowseOutcome.Failed("the Server returned no browse result.");
+                }
+                if (StatusCode.IsBad(results[0].StatusCode))
+                {
+                    return WotBrowseOutcome.Failed(
+                        "the Server answered " + results[0].StatusCode.SymbolicId + ".");
+                }
+                return WotBrowseOutcome.Succeeded(results[0].References);
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                // A node manager that refuses the browse said nothing about
+                // what the Node has under it, which is not the same answer as
+                // "nothing".
+                return WotBrowseOutcome.Failed(ex.Message);
+            }
+        }
+
+        /// <summary>
+        /// Names the ReferenceType a declaration is reached through, in the
+        /// form a NodeSet writes it.
+        /// </summary>
+        private string ReferenceTypeName(NodeId referenceTypeId)
+        {
+            QualifiedName browseName = m_server.TypeTree.FindReferenceTypeName(referenceTypeId);
+            return browseName.IsNull || string.IsNullOrEmpty(browseName.Name)
+                ? "HasComponent"
+                : browseName.Name!;
+        }
+
+        private static WotDeclarationKind ToDeclarationKind(NodeClass nodeClass)
+        {
+            return nodeClass switch
+            {
+                NodeClass.Object => WotDeclarationKind.Object,
+                NodeClass.Variable => WotDeclarationKind.Variable,
+                NodeClass.Method => WotDeclarationKind.Method,
+                _ => WotDeclarationKind.Unknown
+            };
+        }
+
         /// <summary>
         /// Builds the ReferenceType index on first use, keyed by each of the
         /// two names a ReferenceType answers to.
@@ -244,7 +700,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
             Dictionary<string, List<WotResolvedReferenceType>> index,
             CancellationToken cancellationToken)
         {
-            ArrayOf<DataValue> values = await ReadAttributesAsync(
+            ArrayOf<DataValue> values = (await ReadAttributesAsync(
                 referenceTypeId,
                 [
                     Opc.Ua.Attributes.NodeClass,
@@ -252,7 +708,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
                     Opc.Ua.Attributes.InverseName,
                     Opc.Ua.Attributes.Symmetric
                 ],
-                cancellationToken).ConfigureAwait(false);
+                cancellationToken).ConfigureAwait(false)).Values;
             if (values.Count != 4 ||
                 !values[0].WrappedValue.TryGetValue(out int nodeClass) ||
                 (NodeClass)nodeClass != NodeClass.ReferenceType ||
@@ -314,10 +770,11 @@ namespace Opc.Ua.WotCon.Server.Materialization
         /// resolver holds no lock, never blocks on an asynchronous call, and
         /// works for any node manager implementation.
         /// </remarks>
-        private async ValueTask<ArrayOf<DataValue>> ReadAttributesAsync(
+        private async ValueTask<(ArrayOf<DataValue> Values, string? Fault)> ReadAttributesAsync(
             NodeId nodeId,
             uint[] attributes,
-            CancellationToken cancellationToken)
+            CancellationToken cancellationToken,
+            uint optionalAttribute = 0)
         {
             var nodesToRead = new ReadValueId[attributes.Length];
             for (int ii = 0; ii < attributes.Length; ii++)
@@ -337,13 +794,36 @@ namespace Opc.Ua.WotCon.Server.Materialization
                     TimestampsToReturn.Neither,
                     new ArrayOf<ReadValueId>(nodesToRead),
                     cancellationToken).ConfigureAwait(false);
-                return values;
+
+                // A Read answers per value, so a Server that would not state an
+                // Attribute says so in that value's StatusCode rather than by
+                // failing the call. The value it hands back with a Bad status
+                // is the default of its type, which is indistinguishable from
+                // an Attribute the Node really carries with that value.
+                for (int ii = 0; ii < values.Count && ii < attributes.Length; ii++)
+                {
+                    if (StatusCode.IsBad(values[ii].StatusCode))
+                    {
+                        if (attributes[ii] == optionalAttribute &&
+                            values[ii].StatusCode == StatusCodes.BadAttributeIdInvalid)
+                        {
+                            continue;
+                        }
+                        return (
+                            values,
+                            $"the Server answered the " +
+                                $"{Opc.Ua.Attributes.GetBrowseName(attributes[ii])} Attribute " +
+                                $"with {values[ii].StatusCode}.");
+                    }
+                }
+                return (values, null);
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {
-                // A node manager that refuses the read contributes no name
-                // rather than failing every other resolution.
-                return ArrayOf<DataValue>.Empty;
+                // A node manager that refuses the read said nothing about the
+                // Node's Attributes, which is not the same answer as "they are
+                // absent".
+                return (ArrayOf<DataValue>.Empty, ex.Message);
             }
         }
 
@@ -557,6 +1037,72 @@ namespace Opc.Ua.WotCon.Server.Materialization
         {
             return namespaceUri + "\u0000" + browseName;
         }
+
+        /// <summary>
+        /// The result of one browse: the references, or the reason the Server
+        /// would not answer. The two are different facts, and reporting the
+        /// second as an empty first is what makes a Server that refuses a
+        /// browse look like a type that declares nothing.
+        /// </summary>
+        private readonly struct WotBrowseOutcome
+        {
+            private WotBrowseOutcome(ArrayOf<ReferenceDescription> references, string? failure)
+            {
+                References = references;
+                Failure = failure;
+            }
+
+            /// <summary>
+            /// Gets the references the browse returned.
+            /// </summary>
+            public ArrayOf<ReferenceDescription> References { get; }
+
+            /// <summary>
+            /// Gets why the browse did not answer, or <c>null</c> when it did.
+            /// </summary>
+            public string? Failure { get; }
+
+            public static WotBrowseOutcome Succeeded(ArrayOf<ReferenceDescription> references)
+            {
+                return new WotBrowseOutcome(references, null);
+            }
+
+            public static WotBrowseOutcome Failed(string failure)
+            {
+                return new WotBrowseOutcome(ArrayOf<ReferenceDescription>.Empty, failure);
+            }
+        }
+
+        /// <summary>
+        /// What one type in the walk contributed: the declarations that were
+        /// read, and every failure that kept one from being read.
+        /// </summary>
+        private readonly struct WotDeclarationRead
+        {
+            public WotDeclarationRead(
+                List<WotTypeDeclaration> declarations, List<string> faults)
+            {
+                Declarations = declarations;
+                Faults = faults;
+            }
+
+            /// <summary>
+            /// Gets the declarations that were read.
+            /// </summary>
+            public List<WotTypeDeclaration> Declarations { get; }
+
+            /// <summary>
+            /// Gets the failures that make the closure incomplete.
+            /// </summary>
+            public List<string> Faults { get; }
+        }
+
+        /// <summary>
+        /// The number of failures a detail names before it summarizes the
+        /// rest, so a Server refusing every read cannot grow one without
+        /// bound.
+        /// </summary>
+        private const int MaxReportedFaults = 5;
 
         private readonly IServerInternal m_server;
         private volatile Dictionary<string, List<WotResolvedNode>>? m_index;

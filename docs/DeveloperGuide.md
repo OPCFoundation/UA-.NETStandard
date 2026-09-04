@@ -314,6 +314,53 @@ The fast test stages fan every `*.Tests.csproj` out across matrix jobs and filte
 
 Because the individual matrix jobs are generated (and are skipped outright when Azure Pipelines owns them, or when a pull request touches no build-relevant files), branch protection requires the aggregate **`build-and-test summary`** check rather than any individual job — see [Required checks and coverage](#required-checks-and-coverage). That job runs on every pull request — the workflow deliberately carries no `paths:` filter, because a workflow filtered out by `paths` never reports its checks and a required check that never reports blocks the pull request forever. The path allow-list is applied inside the `discover` job instead, and the summary treats an intentionally skipped job as success.
 
+### Specification traceability
+
+Some specifications this repository implements publish a **requirement ledger**: one entry per normative statement, hashed over the statement text. The OPC UA WoT Binding and WoT Connectivity ledgers mark the entries whose proof is an implementation as `pendingStackTests`, because a specification cannot name a test in a repository it does not build.
+
+[`tests/Opc.Ua.Types.Tests/Wot/Assets/wot-spec-requirements.json`](../tests/Opc.Ua.Types.Tests/Wot/Assets/wot-spec-requirements.json) is the other half. It names them:
+
+```jsonc
+{
+  "specId": "sec-constraining-an-auto-endpoint-selection#004",
+  "statementHash": "sha256:…",          // the statement this answers
+  "assembly": "Opc.Ua.WotCon.Bindings.Tests",
+  "tests": [ "…OpcUaWotBindingTermsTests.TheBuiltInSelectionFailsWhenNoEndpointIsEligible" ]
+}
+```
+
+Three rules make the file worth having:
+
+* **Every named test is resolved by reflection** in the assembly it names, and has to be something NUnit will run. A rename fails the check with the old name in the message; a mapping onto an `[Explicit]` test is rejected, because a requirement held only by a test that never runs is held by nothing. The ledger spans three test assemblies and none can see the others, so each embeds the same file and checks the mappings that name it.
+* **A requirement with no evidence states a `gap`** rather than being omitted. The whole point of replacing a blanket "pending" is that what remains unproved is enumerated and countable, and the count is asserted so closing a gap is a deliberate edit.
+* **The `statementHash` is carried**, so a restatement upstream invalidates the mapping instead of silently keeping evidence for something the specification no longer says.
+* **The `statementHash` is verified, not just carried.** [`wot-spec-statements.json`](../tests/Opc.Ua.Types.Tests/Wot/Assets/wot-spec-statements.json) vendors the same digests — **copied from the specification's own requirement ledgers** at the pinned commit, not re-derived from its prose — and the ledger pins that file by the SHA-256 of its actual bytes. Every requirement resolves to exactly one inventory record and the two must agree on the whole 64-digit digest as well as on the clause, specification and applicability — so an identifier present on one side only, a field edited on one side only, or an inventory edited without re-pinning all fail. A digest is compared in full: a prefix match is not a match.
+
+Regenerate or check the inventory with [`tools/wot-spec/Get-WotStatementDigests.ps1`](../tools/wot-spec/Get-WotStatementDigests.ps1) against a spec-drafts checkout holding the pinned commit:
+
+```powershell
+./tools/wot-spec/Get-WotStatementDigests.ps1 -SpecRoot <path-to-spec-drafts> -Verify   # prove
+./tools/wot-spec/Get-WotStatementDigests.ps1 -SpecRoot <path-to-spec-drafts>           # re-vendor
+```
+
+It reads `source/wot-specs/{WoT-Binding,WoT-Connectivity}/tools/requirements.json` through `git show <commit>:<path>`, so a dirty working tree, a checked-out branch or a later commit cannot change the answer. It does **not** re-derive the statements: upstream, a normative statement is a sentence, a normative table cell or a list item — not a line — enumerated by the specification's own `tools/normative.py` after code spans and link targets are masked. A second implementation of that finds a different set with different ordinals and therefore different digests, which is exactly what an earlier version of this script did wrong. It copies what the specification published and verifies it, refusing:
+
+* a commit git cannot resolve in the checkout (fetch), or one other than the pin (re-pin) — two failures with two remedies;
+* a requirement stated twice, upstream or in the stack ledger;
+* a stack-ledger identifier the specification does not state;
+* a selected set that is not exactly the upstream set marked `pendingStackTests`, so an identifier added or dropped upstream fails;
+* a record whose `statement` does not hash to the `statementHash` beside it — a restatement that was not re-hashed;
+* a digest, clause, specification or applicability the two files disagree about;
+* with `-Verify`, an output file whose bytes differ from what the pinned sources produce.
+
+The inventory pins the commit, its tree, and the blob id and SHA-256 of each upstream ledger, so a re-vendor from another revision is a visible edit. Update the pinned `sha256` in the ledger's `statementInventory` whenever it is regenerated. The statements themselves are the normative prose of a members-only draft and are not republished — their digests, lengths, keywords, applicability and evidence are; `-IncludeStatements` writes the text for local reading.
+
+`spec-drafts` is a members-only repository, so CI cannot reach the sources: `WotStatementDigestGeneratorTests` exercises the generator against a synthetic specification repository it builds itself — including the mutations above — and additionally re-verifies the vendored inventory against a real checkout when `WOT_SPEC_ROOT` points at one. What runs everywhere is the offline half: the inventory is pinned by digest and must agree with the ledger identifier-for-identifier and field-for-field.
+
+Where a specification also publishes **cross-language golden vectors**, the file is vendored byte-for-byte, its SHA-256 pinned, and its cases run against stack APIs — see `WotSpecVectorTests`. A group with no stack API to measure is named as a gap with the reason, and the partition is checked against the file so a group the specification adds fails rather than passing unnoticed.
+
+Re-pin the source commit — in the requirement ledger, the fixture manifest and the vector digest together — when the specification lands a new revision. The checks compare those pins against each other, so updating one and forgetting another is a failure.
+
 ### Triggering a pipeline run on a pull request
 
 Azure Pipelines is configured with **Require a team member's comment before building a pull request**, scoped to *pull requests from non-team members*. Pull requests opened by outside contributors and by the **GitHub Copilot coding agent** therefore do **not** start a pipeline automatically — this mirrors the "Approve and run workflows" gate GitHub Actions already applies to those pull requests.
@@ -364,6 +411,7 @@ The evaluation is [`.azurepipelines/check-coverage.ps1`](../.azurepipelines/chec
 | --- | --- |
 | **Project floor** | Total line and branch rates must meet the absolute floors in `coverage-thresholds.json`. The `ignore` globs are applied here too, so samples, tests and generated code do not count. |
 | **Patch coverage** | On pull requests, lines you added or modified must reach a floor that is **graduated by how much changed** — see below. The uncovered changed lines are listed by file. |
+| **Path rules** | A small number of paths state their own, non-graduated floor for changed lines and changed branches in `pathRules` — see below. A rule adds a requirement; it never relaxes one. |
 | **Baseline delta** | Reports how total coverage compares with the recorded `baselineLineRate`. Warning only, even within this advisory check. |
 
 Ratchet `minimumLineRate`, `minimumBranchRate` and `baselineLineRate` **upward** as coverage improves; never lower them to turn a red check green.
@@ -390,6 +438,35 @@ Only changes larger than the last band can fail the patch check. At that size th
 The bands live in `patch.bands` in [`coverage-thresholds.json`](../coverage-thresholds.json). They are consulted in order and the first band whose `maxChangedLines` covers the patch wins; set `enforced: true` on a band to make it blocking. Anything larger than the last band falls through to `patch.target` − `patch.threshold` and is always enforced.
 
 Remember that the coverage check as a whole is advisory and stays out of the branch ruleset — an enforced band produces a red `Code coverage` check, not a blocked merge.
+
+##### Some paths are not graduated
+
+The graduated band is right for the repository as a whole and wrong for a small number of areas where every changed line is meant to be exercised: a protocol mapping whose untested branch is a wire-format bug nobody sees until interop. Those areas state their own floor in `pathRules` in [`coverage-thresholds.json`](../coverage-thresholds.json), applied to the same changed lines the patch gate reads:
+
+```jsonc
+"pathRules": [
+  {
+    "name": "WoT Binding production paths",
+    "include": [ "src/Opc.Ua.Types/Wot/**", "src/Opc.Ua.WotCon/**", "..." ],
+    "exclude": [ "**/*.g.cs", "**/Design/**", "..." ],
+    "minimumChangedLineRate": 100.0,
+    "minimumChangedBranchRate": 100.0
+  }
+]
+```
+
+A rule matches a changed file when one of its `include` globs matches and none of its `exclude` globs does; exclusions are listed on the rule rather than inherited, so reading the rule tells you what it covers. The floor is **not** graduated — it is the rule for the path whatever the patch size, so one uncovered line in a two-line change fails it. `minimumChangedBranchRate` reads the Cobertura `condition-coverage` of the changed lines, because a line whose branches are only half taken is a covered line and an unexercised path.
+
+A rule only ever adds a requirement: the repository-wide project floors and patch bands are unchanged by one, and a path outside every rule is governed by the graduated band alone.
+
+A rule also refuses to pass on nothing. A changed file the rule governs that exists on disk but is **absent from the coverage report** fails the rule and is named, because the alternative — the assembly was not collected, or the diff and the report disagree on path shape — reads exactly like a clean patch. So does a rule whose `include` list is empty or mistyped, since it can never match a file. A file the patch deleted is correctly absent and does not fail; a file the report knows about whose changed lines are all non-coverable (a comment, a brace) is reported by name rather than failed.
+
+One absence is legitimate: a file that declares only interfaces, enumerations, delegates or constants produces no sequence point, so no collector can ever mention it and failing the rule for it would make the rule impossible to satisfy. That absence is excused only on two independent proofs, and the excused file is always named in the log rather than silently skipped:
+
+1. **assembly evidence** — some other file of the same project (the nearest enclosing directory holding a `.csproj`) *is* in the report, so the assembly was collected; and
+2. **source evidence** — the file provably contains no member body, expression-bodied member, primary constructor or field initializer.
+
+The classification is biased towards reporting evidence: any construct it does not recognise counts as executable, so an unrecognised file makes the gate fail rather than pass. An auto-property is executable (a collector measures its accessors); an interface property declaration is not.
 
 ##### Codecov
 
