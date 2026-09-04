@@ -68,6 +68,28 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Awaits completion of any pending deferred <c>ResetToServerDefaults</c>
+        /// work scheduled by a recent Method call. Returns immediately when no
+        /// reset is in flight. Used by tests and tightly-coupled hosts to
+        /// deterministically wait for the reset to run.
+        /// </summary>
+        internal Task DrainPendingResetAsync(CancellationToken cancellationToken = default)
+        {
+            Task pending;
+            lock (m_pendingApplyChangesLock)
+            {
+                pending = m_pendingResetTask;
+            }
+
+            if (pending.IsCompleted)
+            {
+                return Task.CompletedTask;
+            }
+
+            return cancellationToken.CanBeCanceled ? pending.WaitAsync(cancellationToken) : pending;
+        }
+
+        /// <summary>
         /// Implements the Optional OPC 10000-12 §7.10.13
         /// <c>ResetToServerDefaults</c> Method: it resets the application
         /// security configuration to its default state. The Method requires an
@@ -161,7 +183,7 @@ namespace Opc.Ua.Server
                 m_pendingResetTask = completion.Task;
             }
 
-            m_backgroundWork.Run("DeferredApplyChanges", async _ =>
+            m_backgroundWork.Run("DeferredResetToServerDefaults", async _ =>
             {
                 try
                 {
@@ -243,28 +265,6 @@ namespace Opc.Ua.Server
             {
                 m_logger.FailedToAdvertisePendingShutdown(ex);
             }
-        }
-
-        /// <summary>
-        /// Awaits completion of any pending deferred <c>ResetToServerDefaults</c>
-        /// work scheduled by a recent Method call. Returns immediately when no
-        /// reset is in flight. Used by tests and tightly-coupled hosts to
-        /// deterministically wait for the reset to run.
-        /// </summary>
-        internal Task DrainPendingResetAsync(CancellationToken cancellationToken = default)
-        {
-            Task pending;
-            lock (m_pendingApplyChangesLock)
-            {
-                pending = m_pendingResetTask;
-            }
-
-            if (pending.IsCompleted)
-            {
-                return Task.CompletedTask;
-            }
-
-            return cancellationToken.CanBeCanceled ? pending.WaitAsync(cancellationToken) : pending;
         }
 
         /// <summary>

@@ -37,10 +37,11 @@ namespace Opc.Ua.Server
     /// <summary>
     /// Certificate-group alarm surface of <see cref="ConfigurationNodeManager"/>
     /// (OPC 10000-12 §7.8.3): the <see cref="IConfigurationNodeManager"/> start/stop
-    /// members and the registration of the per-group <c>CertificateExpired</c> and
-    /// <c>TrustListOutOfDate</c> alarm subtrees in this manager's address space. The
-    /// evaluation logic lives in <see cref="CertificateAlarmScheduler"/>; code in this
-    /// file reads <c>m_certificateGroups</c> but never mutates it.
+    /// members and the creation and registration of the per-group <c>CertificateExpired</c>
+    /// and <c>TrustListOutOfDate</c> alarm subtrees in this manager's address space. Once an
+    /// alarm pair is registered its monitor is handed to <see cref="CertificateAlarmScheduler"/>,
+    /// which owns refresh and evaluation. Code in this file adds alarm instances to the group
+    /// nodes in <c>m_certificateGroups</c> but never changes the group list itself.
     /// </summary>
     public partial class ConfigurationNodeManager
     {
@@ -66,7 +67,9 @@ namespace Opc.Ua.Server
         /// Creates the optional per-group <c>CertificateExpired</c> and
         /// <c>TrustListOutOfDate</c> alarm instances (OPC 10000-12 §7.8.3),
         /// registers them with the node manager and as event sources, and
-        /// initializes their condition state without emitting any event.
+        /// initializes their condition state without emitting any event. The
+        /// monitor joins the scheduler only after registration succeeded, so
+        /// an alarm that is not in the address space is never evaluated.
         /// </summary>
         /// <param name="context">The system context.</param>
         /// <param name="externalReferences">
@@ -88,7 +91,27 @@ namespace Opc.Ua.Server
 
                 try
                 {
-                    m_alarmScheduler.CreateMonitor(context, certGroup);
+                    // Instantiate the optional alarm instances when the loaded
+                    // nodeset did not already provide them.
+                    if (node.CertificateExpired == null)
+                    {
+                        node.AddCertificateExpired(context);
+                        WireConditionMethodHandlers(context, node.CertificateExpired!);
+                        node.CertificateExpired!.AddExpirationLimit(context);
+                    }
+
+                    if (node.TrustListOutOfDate == null)
+                    {
+                        node.AddTrustListOutOfDate(context);
+                        WireConditionMethodHandlers(context, node.TrustListOutOfDate!);
+                    }
+
+                    var monitor = new CertificateGroupAlarmMonitor(
+                        node,
+                        certGroup.BrowseName,
+                        m_timeProvider,
+                        m_logger);
+                    monitor.InitializeQuiet(context);
 
                     // Register the new alarm subtrees and wire them as event
                     // sources so their transition events reach subscriptions
@@ -116,12 +139,35 @@ namespace Opc.Ua.Server
                         await AddRootNotifierAsync(node.TrustListOutOfDate, cancellationToken)
                             .ConfigureAwait(false);
                     }
+
+                    m_alarmScheduler.Add(monitor, certGroup);
                 }
                 catch (Exception ex)
                 {
                     m_logger.FailedToCreateCertificateAlarms(ex, certGroup.BrowseName);
                 }
             }
+        }
+
+        /// <summary>
+        /// Wires the standard condition method handlers (Acknowledge, Confirm,
+        /// Enable, Disable, AddComment) for an alarm that was built by the
+        /// generated <c>Add&lt;Alarm&gt;</c> factory. The factory constructs the
+        /// full alarm structure but does not run <c>OnAfterCreate</c>, which is
+        /// what binds those handlers; re-running <c>Create</c>
+        /// without reassigning NodeIds triggers <c>OnAfterCreate</c> while
+        /// preserving the existing structure so client method calls are honoured.
+        /// </summary>
+        /// <param name="context">The system context.</param>
+        /// <param name="alarm">The alarm whose method handlers must be wired.</param>
+        private static void WireConditionMethodHandlers(ISystemContext context, NodeState alarm)
+        {
+            alarm.Create(
+                context,
+                alarm.NodeId,
+                alarm.BrowseName,
+                alarm.DisplayName,
+                assignNodeIds: false);
         }
     }
 }

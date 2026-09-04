@@ -84,6 +84,30 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Maps trust-list scopes to the §7.10.9 effects on the server's
+        /// certificate groups, mirroring <see cref="BuildTrustListEffects"/>
+        /// (which maps committed TrustList NodeIds instead of scopes).
+        /// </summary>
+        internal List<TrustListChangeEffect> BuildTrustListEffectsForScopes(
+            IEnumerable<TrustListIdentifier> scopes)
+        {
+            // A null scope in the input matches no group and simply drops out.
+            var requested = new HashSet<TrustListIdentifier>(
+                scopes.Where(static scope => scope != null));
+
+            var effects = new List<TrustListChangeEffect>();
+            foreach (ServerCertificateGroup certGroup in m_certificateGroups)
+            {
+                if (requested.Contains(GetGroupValidationScope(certGroup)))
+                {
+                    effects.Add(CreateTrustListEffect(certGroup));
+                }
+            }
+
+            return effects;
+        }
+
+        /// <summary>
         /// The single source of truth for the certificate-group →
         /// trust-list-scope mapping used by both effect builders: the
         /// user-token group validates X.509 user identities
@@ -299,30 +323,6 @@ namespace Opc.Ua.Server
             // stop instead of sweeping listeners/sessions being torn down.
             await ApplyTrustListEffectsAsync(effects, listeners, shutdownToken)
                 .ConfigureAwait(false);
-        }
-
-        /// <summary>
-        /// Maps trust-list scopes to the §7.10.9 effects on the server's
-        /// certificate groups, mirroring <see cref="BuildTrustListEffects"/>
-        /// (which maps committed TrustList NodeIds instead of scopes).
-        /// </summary>
-        internal List<TrustListChangeEffect> BuildTrustListEffectsForScopes(
-            IEnumerable<TrustListIdentifier> scopes)
-        {
-            // A null scope in the input matches no group and simply drops out.
-            var requested = new HashSet<TrustListIdentifier>(
-                scopes.Where(static scope => scope != null));
-
-            var effects = new List<TrustListChangeEffect>();
-            foreach (ServerCertificateGroup certGroup in m_certificateGroups)
-            {
-                if (requested.Contains(GetGroupValidationScope(certGroup)))
-                {
-                    effects.Add(CreateTrustListEffect(certGroup));
-                }
-            }
-
-            return effects;
         }
     }
 }

@@ -409,10 +409,10 @@ namespace Opc.Ua.Server
                         {
 #if !NET9_0_OR_GREATER
                             // https://github.com/OPCFoundation/UA-.NETStandard/commit/0b24d62b7c2bab2e5ed08e694103d49278e457af
-                            // CopyWithPrivateKey apparently does not support ephimeralkeysets on windows
+                            // CopyWithPrivateKey apparently does not support ephemeral key sets on Windows
                             bool noEphemeralKeySet = RuntimeInformation.IsOSPlatform(OSPlatform.Windows);
 #else
-                            // But it seems to work on .net 9 - and we prefer that over files
+                            // But it seems to work on .NET 9 - and we prefer that over files
                             const bool noEphemeralKeySet = false;
 #endif
                             using Certificate certWithPrivateKey = X509Utils.CreateCertificateFromPKCS12(

@@ -175,7 +175,6 @@ namespace Opc.Ua.Server
             m_certificateGroups = [];
             m_configuration = configuration;
             m_namespaceMetadata = new NamespaceMetadataRegistry(this, m_logger);
-            m_namespaceMetadata.DefaultPermissionsChanged += OnNamespaceDefaultPermissionsChanged;
             m_alarmScheduler = new CertificateAlarmScheduler(m_timeProvider, m_logger);
             // TODO: configure cert groups in configuration
             var defaultApplicationGroup = new ServerCertificateGroup
@@ -396,8 +395,7 @@ namespace Opc.Ua.Server
                 }
                 Interlocked.Exchange(ref m_rejectedStoreInstance, null)?.Dispose();
 
-                m_namespaceMetadata.DefaultPermissionsChanged -= OnNamespaceDefaultPermissionsChanged;
-                m_namespaceMetadata.Detach(PredefinedNodes.Values);
+                m_namespaceMetadata.Detach();
 
                 // m_serverConfigurationNode is owned by the address space, not by this manager
                 m_serverConfigurationNode = null;
@@ -1141,22 +1139,22 @@ namespace Opc.Ua.Server
             Message = "Failed to advertise pending shutdown for ResetToServerDefaults.")]
         public static partial void FailedToAdvertisePendingShutdown(this ILogger logger, Exception ex);
 
-        [LoggerMessage(EventId = ServerEventIds.ConfigurationNodeManager + 4, Level = LogLevel.Information,
+        [LoggerMessage(EventId = ServerEventIds.ConfigurationNodeManager + 5, Level = LogLevel.Information,
             Message = "Delete application certificate {Thumbprint}")]
         public static partial void DeleteApplicationCertificate(this ILogger logger, string? thumbprint);
 
-        [LoggerMessage(EventId = ServerEventIds.ConfigurationNodeManager + 5, Level = LogLevel.Information,
+        [LoggerMessage(EventId = ServerEventIds.ConfigurationNodeManager + 6, Level = LogLevel.Information,
             Message = "Add application certificate {Certificate}")]
         public static partial void AddApplicationCertificate(this ILogger logger, Certificate? certificate);
 
-        [LoggerMessage(EventId = ServerEventIds.ConfigurationNodeManager + 6, Level = LogLevel.Warning,
+        [LoggerMessage(EventId = ServerEventIds.ConfigurationNodeManager + 7, Level = LogLevel.Warning,
             Message = "Restored the previous application certificate for {Type} after " +
                 "the replacement failed to commit.")]
         public static partial void RestoredPreviousCertificateAfterReplacementFailed(
             this ILogger logger,
             NodeId type);
 
-        [LoggerMessage(EventId = ServerEventIds.ConfigurationNodeManager + 7, Level = LogLevel.Critical,
+        [LoggerMessage(EventId = ServerEventIds.ConfigurationNodeManager + 8, Level = LogLevel.Critical,
             Message = "Failed to restore the previous application certificate for {Type} after " +
                 "the replacement failed to commit. Server configuration may be inconsistent.")]
         public static partial void FailedToRestorePreviousCertificateAfterReplacementFailed(
@@ -1164,14 +1162,14 @@ namespace Opc.Ua.Server
             Exception ex,
             NodeId type);
 
-        [LoggerMessage(EventId = ServerEventIds.ConfigurationNodeManager + 8, Level = LogLevel.Warning,
+        [LoggerMessage(EventId = ServerEventIds.ConfigurationNodeManager + 9, Level = LogLevel.Warning,
             Message = "Restored the previous application certificate for {Type} after " +
                 "importing its issuer chain failed to commit.")]
         public static partial void RestoredPreviousCertificateAfterIssuerImportFailed(
             this ILogger logger,
             NodeId type);
 
-        [LoggerMessage(EventId = ServerEventIds.ConfigurationNodeManager + 9, Level = LogLevel.Critical,
+        [LoggerMessage(EventId = ServerEventIds.ConfigurationNodeManager + 10, Level = LogLevel.Critical,
             Message = "Failed to restore the previous application certificate for {Type} after " +
                 "importing its issuer chain failed to commit. Server configuration may be inconsistent.")]
         public static partial void FailedToRestorePreviousCertificateAfterIssuerImportFailed(
@@ -1179,7 +1177,7 @@ namespace Opc.Ua.Server
             Exception ex,
             NodeId type);
 
-        [LoggerMessage(EventId = ServerEventIds.ConfigurationNodeManager + 10, Level = LogLevel.Critical,
+        [LoggerMessage(EventId = ServerEventIds.ConfigurationNodeManager + 11, Level = LogLevel.Critical,
             Message = "Failed to remove a newly staged issuer certificate {Thumbprint} from {Group} " +
                 "while rolling back a PushManagement operation. Server configuration may be inconsistent.")]
         public static partial void FailedToRemoveStagedIssuerCertificate(
@@ -1188,7 +1186,7 @@ namespace Opc.Ua.Server
             string thumbprint,
             NodeId group);
 
-        [LoggerMessage(EventId = ServerEventIds.ConfigurationNodeManager + 11, Level = LogLevel.Error,
+        [LoggerMessage(EventId = ServerEventIds.ConfigurationNodeManager + 12, Level = LogLevel.Error,
             Message = "Failed to verify integrity of the new certificate {Certificate} against " +
                 "the certificate group's TrustList.")]
         public static partial void FailedToVerifyIntegrityAgainstTrustList(
@@ -1196,14 +1194,14 @@ namespace Opc.Ua.Server
             Exception ex,
             Certificate? certificate);
 
-        [LoggerMessage(EventId = ServerEventIds.ConfigurationNodeManager + 12, Level = LogLevel.Error,
+        [LoggerMessage(EventId = ServerEventIds.ConfigurationNodeManager + 13, Level = LogLevel.Error,
             Message = "Failed to verify integrity of the new certificate {Certificate} and the issuer list.")]
         public static partial void FailedToVerifyIntegrityAndIssuerList(
             this ILogger logger,
             Exception ex,
             Certificate? certificate);
 
-        [LoggerMessage(EventId = ServerEventIds.ConfigurationNodeManager + 13, Level = LogLevel.Information,
+        [LoggerMessage(EventId = ServerEventIds.ConfigurationNodeManager + 14, Level = LogLevel.Information,
             Message = "Staged self-signed certificate {Subject} for {Group}/{Type}.")]
         public static partial void StagedSelfSignedCertificate(
             this ILogger logger,
@@ -1211,23 +1209,23 @@ namespace Opc.Ua.Server
             NodeId group,
             NodeId type);
 
-        [LoggerMessage(EventId = ServerEventIds.ConfigurationNodeManager + 14, Level = LogLevel.Information,
+        [LoggerMessage(EventId = ServerEventIds.ConfigurationNodeManager + 15, Level = LogLevel.Information,
             Message = "Create signing request {Certificate}")]
         public static partial void CreateSigningRequest(this ILogger logger, Certificate certificate);
 
-        [LoggerMessage(EventId = ServerEventIds.ConfigurationNodeManager + 15, Level = LogLevel.Warning,
+        [LoggerMessage(EventId = ServerEventIds.ConfigurationNodeManager + 16, Level = LogLevel.Warning,
             Message = "Certificate-alarm re-evaluation after ApplyChanges commit failed.")]
         public static partial void CertificateAlarmReevaluationAfterCommitFailed(this ILogger logger, Exception ex);
 
-        [LoggerMessage(EventId = ServerEventIds.ConfigurationNodeManager + 16, Level = LogLevel.Information,
+        [LoggerMessage(EventId = ServerEventIds.ConfigurationNodeManager + 17, Level = LogLevel.Information,
             Message = "Apply Changes for application certificate scheduled in {Grace} ms...")]
         public static partial void ApplyChangesScheduled(this ILogger logger, double grace);
 
-        [LoggerMessage(EventId = ServerEventIds.ConfigurationNodeManager + 17, Level = LogLevel.Information,
+        [LoggerMessage(EventId = ServerEventIds.ConfigurationNodeManager + 18, Level = LogLevel.Information,
             Message = "Apply Changes running...")]
         public static partial void ApplyChangesRunning(this ILogger logger);
 
-        [LoggerMessage(EventId = ServerEventIds.ConfigurationNodeManager + 18, Level = LogLevel.Warning,
+        [LoggerMessage(EventId = ServerEventIds.ConfigurationNodeManager + 19, Level = LogLevel.Warning,
             Message = "Listener {Listener} failed to close channels for {CertType}.")]
         public static partial void ListenerFailedToCloseChannels(
             this ILogger logger,
@@ -1235,34 +1233,34 @@ namespace Opc.Ua.Server
             string listener,
             NodeId certType);
 
-        [LoggerMessage(EventId = ServerEventIds.ConfigurationNodeManager + 19, Level = LogLevel.Information,
+        [LoggerMessage(EventId = ServerEventIds.ConfigurationNodeManager + 20, Level = LogLevel.Information,
             Message = "Apply Changes for application certificate completed: {Count} SecureChannel(s) cut.")]
         public static partial void ApplyChangesCompleted(this ILogger logger, int count);
 
-        [LoggerMessage(EventId = ServerEventIds.ConfigurationNodeManager + 20, Level = LogLevel.Warning,
+        [LoggerMessage(EventId = ServerEventIds.ConfigurationNodeManager + 21, Level = LogLevel.Warning,
             Message = "Certificate-alarm re-evaluation after ApplyChanges failed.")]
         public static partial void CertificateAlarmReevaluationFailed(this ILogger logger, Exception ex);
 
-        [LoggerMessage(EventId = ServerEventIds.ConfigurationNodeManager + 21, Level = LogLevel.Critical,
+        [LoggerMessage(EventId = ServerEventIds.ConfigurationNodeManager + 22, Level = LogLevel.Critical,
             Message = "Apply Changes for application certificate update failed. " +
                 "Server could be in a faulted state.")]
         public static partial void ApplyChangesUpdateFailed(this ILogger logger, Exception ex);
 
-        [LoggerMessage(EventId = ServerEventIds.ConfigurationNodeManager + 22, Level = LogLevel.Warning,
+        [LoggerMessage(EventId = ServerEventIds.ConfigurationNodeManager + 30, Level = LogLevel.Warning,
             Message = "Failed to create certificate alarms for group {Group}.")]
         public static partial void FailedToCreateCertificateAlarms(
             this ILogger logger,
             Exception ex,
             string group);
 
-        [LoggerMessage(EventId = ServerEventIds.ConfigurationNodeManager + 23, Level = LogLevel.Warning,
+        [LoggerMessage(EventId = ServerEventIds.ConfigurationNodeManager + 31, Level = LogLevel.Warning,
             Message = "Failed to notify the certificate manager of the TrustList change for scope {Scope}.")]
         public static partial void TrustListChangeNotificationFailed(
             this ILogger logger,
             Exception ex,
             string scope);
 
-        [LoggerMessage(EventId = ServerEventIds.ConfigurationNodeManager + 24, Level = LogLevel.Warning,
+        [LoggerMessage(EventId = ServerEventIds.ConfigurationNodeManager + 32, Level = LogLevel.Warning,
             Message = "Trust-material change enforcement pass failed.")]
         public static partial void TrustMaterialEnforcementFailed(
             this ILogger logger,

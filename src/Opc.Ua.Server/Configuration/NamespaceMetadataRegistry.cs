@@ -38,13 +38,16 @@ namespace Opc.Ua.Server
     /// <summary>
     /// The node-manager services a <see cref="NamespaceMetadataRegistry"/>
     /// needs from its host: the context and namespace to mint metadata nodes
-    /// into, the server for cross-manager lookups, the <c>Server/Namespaces</c>
-    /// node and node registration.
+    /// into, the <c>Server/Namespaces</c> node and node registration.
+    /// <see cref="AsyncCustomNodeManager"/> already provides every member
+    /// except <see cref="FindServerNamespacesNode"/>.
     /// </summary>
     internal interface INamespaceMetadataHost
     {
         /// <summary>
-        /// The host manager's system context.
+        /// The host manager's system context; its
+        /// <see cref="ServerSystemContext.Server"/> resolves namespaces and
+        /// looks nodes up across node managers.
         /// </summary>
         ServerSystemContext SystemContext { get; }
 
@@ -52,12 +55,6 @@ namespace Opc.Ua.Server
         /// The namespace index metadata BrowseNames are qualified with.
         /// </summary>
         ushort NamespaceIndex { get; }
-
-        /// <summary>
-        /// The server, for namespace resolution and address-space lookups
-        /// across node managers.
-        /// </summary>
-        IServerInternal Server { get; }
 
         /// <summary>
         /// Resolves the <c>Server/Namespaces</c> node owned by the host, or
@@ -79,7 +76,10 @@ namespace Opc.Ua.Server
     /// creation of missing metadata objects, and change tracking of the
     /// <c>DefaultRolePermissions</c>/<c>DefaultUserRolePermissions</c>
     /// properties so permission caches can be invalidated through
-    /// <see cref="DefaultPermissionsChanged"/>.
+    /// <see cref="DefaultPermissionsChanged"/>. The registry remembers every
+    /// node it subscribed to, including nodes owned by other node managers
+    /// that are referenced from <c>Server/Namespaces</c>, so
+    /// <see cref="Detach"/> releases all of them.
     /// </summary>
     internal sealed class NamespaceMetadataRegistry
     {
@@ -97,7 +97,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Raised when the <c>DefaultRolePermissions</c> or
         /// <c>DefaultUserRolePermissions</c> value of any tracked metadata
-        /// node changes.
+        /// node changes. The sender is the host node manager.
         /// </summary>
         public event EventHandler? DefaultPermissionsChanged;
 
@@ -151,7 +151,7 @@ namespace Opc.Ua.Server
                 }
             }
 
-            string? namespaceUri = m_host.Server.NamespaceUris.GetString(namespaceIndex);
+            string? namespaceUri = m_host.SystemContext.Server.NamespaceUris.GetString(namespaceIndex);
             NamespaceMetadataState? namespaceMetadataState = await GetAsync(
                 namespaceUri!, cancellationToken).ConfigureAwait(false);
 
@@ -216,7 +216,8 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Starts tracking the <c>Server/Namespaces</c> node: cache
         /// invalidation on child/reference changes and default-permission
-        /// tracking for every metadata node already present.
+        /// tracking for every metadata node already present. Calling it
+        /// again re-subscribes without duplicating handlers.
         /// </summary>
         /// <param name="context">The context used to enumerate children.</param>
         public void Attach(ISystemContext context)
@@ -226,6 +227,8 @@ namespace Opc.Ua.Server
                 return;
             }
 
+            // unsubscribe first so a repeated Attach never registers the handler twice
+            serverNamespacesNode.StateChanged -= OnServerNamespacesChanged;
             serverNamespacesNode.StateChanged += OnServerNamespacesChanged;
 
             IList<BaseInstanceState> children = [];
@@ -242,24 +245,30 @@ namespace Opc.Ua.Server
 
         /// <summary>
         /// Stops tracking: unsubscribes from the <c>Server/Namespaces</c>
-        /// node and from every metadata node in <paramref name="nodes"/>.
+        /// node and from every metadata node the registry subscribed to,
+        /// and drops the lookup cache.
         /// </summary>
-        /// <param name="nodes">The nodes owned by the host manager.</param>
-        public void Detach(IEnumerable<NodeState> nodes)
+        public void Detach()
         {
             if (m_host.FindServerNamespacesNode() is NamespacesState serverNamespacesNode)
             {
                 serverNamespacesNode.StateChanged -= OnServerNamespacesChanged;
             }
 
-            foreach (NodeState node in nodes)
+            NamespaceMetadataState[] tracked;
+            lock (m_lock)
             {
-                if (node is NamespaceMetadataState metadataState)
-                {
-                    metadataState.StateChanged -= OnNamespaceChildrenChanged;
-                    metadataState.DefaultRolePermissions?.StateChanged -= OnDefaultPermissionsChanged;
-                    metadataState.DefaultUserRolePermissions?.StateChanged -= OnDefaultPermissionsChanged;
-                }
+                tracked = [.. m_tracked];
+                m_tracked.Clear();
+                m_statesByUri.Clear();
+                m_statesByIndex.Clear();
+            }
+
+            foreach (NamespaceMetadataState metadataState in tracked)
+            {
+                metadataState.StateChanged -= OnNamespaceChildrenChanged;
+                metadataState.DefaultRolePermissions?.StateChanged -= OnDefaultPermissionsChanged;
+                metadataState.DefaultUserRolePermissions?.StateChanged -= OnDefaultPermissionsChanged;
             }
         }
 
@@ -300,18 +309,18 @@ namespace Opc.Ua.Server
                     }
                 }
 
-                IList<IReference> serverNamespacesReferencs = [];
-                serverNamespacesNode.GetReferences(context, serverNamespacesReferencs);
+                IList<IReference> serverNamespacesReferences = [];
+                serverNamespacesNode.GetReferences(context, serverNamespacesReferences);
 
-                foreach (IReference serverNamespacesReference in serverNamespacesReferencs)
+                foreach (IReference serverNamespacesReference in serverNamespacesReferences)
                 {
                     if (!serverNamespacesReference.IsInverse)
                     {
                         // Find NamespaceMetadata node of NamespaceUri in Namespaces references.
                         var nameSpaceNodeId = ExpandedNodeId.ToNodeId(
                             serverNamespacesReference.TargetId,
-                            m_host.Server.NamespaceUris);
-                        if (await m_host.Server.NodeManager.FindNodeInAddressSpaceAsync(
+                            context.Server.NamespaceUris);
+                        if (await context.Server.NodeManager.FindNodeInAddressSpaceAsync(
                             nameSpaceNodeId, cancellationToken).ConfigureAwait(false) is not NamespaceMetadataState namespaceMetadata)
                         {
                             continue;
@@ -376,7 +385,8 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Subscribes to the <c>StateChanged</c> events of the <c>DefaultRolePermissions</c>
         /// and <c>DefaultUserRolePermissions</c> child nodes of a <see cref="NamespaceMetadataState"/>
-        /// to detect changes that require permission cache invalidation.
+        /// to detect changes that require permission cache invalidation, and remembers the
+        /// node so <see cref="Detach"/> can release it.
         /// </summary>
         private void SubscribeToDefaultPermissions(NamespaceMetadataState namespaceMetadataState)
         {
@@ -395,6 +405,11 @@ namespace Opc.Ua.Server
 
             namespaceMetadataState.StateChanged -= OnNamespaceChildrenChanged;
             namespaceMetadataState.StateChanged += OnNamespaceChildrenChanged;
+
+            lock (m_lock)
+            {
+                m_tracked.Add(namespaceMetadataState);
+            }
         }
 
         /// <summary>
@@ -415,7 +430,7 @@ namespace Opc.Ua.Server
 
         /// <summary>
         /// Handles value changes on <c>DefaultRolePermissions</c> or <c>DefaultUserRolePermissions</c>
-        /// and raises the <see cref="DefaultPermissionsChanged"/> event.
+        /// and raises the <see cref="DefaultPermissionsChanged"/> event with the host as sender.
         /// </summary>
         private void OnDefaultPermissionsChanged(
             ISystemContext context,
@@ -424,7 +439,7 @@ namespace Opc.Ua.Server
         {
             if ((changes & NodeStateChangeMasks.Value) != 0)
             {
-                DefaultPermissionsChanged?.Invoke(this, EventArgs.Empty);
+                DefaultPermissionsChanged?.Invoke(m_host, EventArgs.Empty);
             }
         }
 
@@ -432,6 +447,7 @@ namespace Opc.Ua.Server
         private readonly ILogger m_logger;
         private readonly Dictionary<string, NamespaceMetadataState> m_statesByUri = [];
         private readonly Dictionary<ushort, NamespaceMetadataState> m_statesByIndex = [];
+        private readonly HashSet<NamespaceMetadataState> m_tracked = [];
         private readonly Lock m_lock = new();
     }
 

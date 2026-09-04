@@ -38,17 +38,20 @@ namespace Opc.Ua.Server
     /// <summary>
     /// Drives the per-group <c>CertificateExpired</c> and
     /// <c>TrustListOutOfDate</c> alarms of the ServerConfiguration object
-    /// (OPC 10000-12 §7.8.3): instantiates the optional alarm conditions on a
-    /// certificate group, publishes the current certificate/TrustList state
-    /// onto the alarm inputs, and evaluates every alarm both on demand
-    /// (address-space creation, <c>ApplyChanges</c>) and periodically from a
-    /// timer once monitoring is started.
+    /// (OPC 10000-12 §7.8.3): publishes the current certificate/TrustList
+    /// state onto the alarm inputs of every registered
+    /// <see cref="CertificateGroupAlarmMonitor"/> and evaluates them, both on
+    /// demand (address-space creation, <c>ApplyChanges</c>) and periodically
+    /// from a timer once monitoring is started. The owning node manager
+    /// instantiates and registers the alarm nodes and hands the finished
+    /// monitor to <see cref="Add"/>.
     /// </summary>
     /// <remarks>
     /// Refresh and evaluation are serialized on one lock so the node
     /// mutations and event reporting driven from the timer, from commits
     /// and from startup/shutdown never overlap. The lock only guards
-    /// synchronous work, so it never spans an await.
+    /// synchronous work, so it never spans an await. <see cref="Dispose"/>
+    /// is terminal: a later <see cref="Start"/> does nothing.
     /// </remarks>
     internal sealed class CertificateAlarmScheduler : IDisposable
     {
@@ -70,65 +73,50 @@ namespace Opc.Ua.Server
         public bool IsActive => m_active;
 
         /// <summary>
-        /// Gets the alarm monitors created for the server's certificate
+        /// Gets the alarm monitors registered for the server's certificate
         /// groups.
         /// </summary>
         public IReadOnlyList<CertificateGroupAlarmMonitor> Monitors
-            => m_monitors.ConvertAll(entry => entry.Monitor);
+        {
+            get
+            {
+                lock (m_lock)
+                {
+                    return m_monitors.ConvertAll(entry => entry.Monitor);
+                }
+            }
+        }
 
         /// <summary>
-        /// Instantiates the optional <c>CertificateExpired</c> and
-        /// <c>TrustListOutOfDate</c> alarm instances on the group node when
-        /// the loaded nodeset did not already provide them, creates the
-        /// monitor that evaluates them and initializes its condition state
-        /// without emitting any event. The caller registers the alarm
-        /// subtrees with its node manager and as event sources.
+        /// Registers a monitor whose alarm nodes are already part of the
+        /// address space, so it takes part in every refresh and evaluation
+        /// from now on.
         /// </summary>
-        /// <param name="context">The system context.</param>
-        /// <param name="group">The certificate group; its node must be set.</param>
-        /// <returns>The monitor created for the group.</returns>
-        public CertificateGroupAlarmMonitor CreateMonitor(ISystemContext context, ServerCertificateGroup group)
+        /// <param name="monitor">The monitor evaluating the group's alarms.</param>
+        /// <param name="group">The certificate group the monitor observes.</param>
+        public void Add(CertificateGroupAlarmMonitor monitor, ServerCertificateGroup group)
         {
+            if (monitor == null)
+            {
+                throw new ArgumentNullException(nameof(monitor));
+            }
+
             if (group == null)
             {
                 throw new ArgumentNullException(nameof(group));
             }
 
-            CertificateGroupState node = group.Node
-                ?? throw new ArgumentException("The certificate group has no node.", nameof(group));
-
-            if (node.CertificateExpired == null)
-            {
-                node.AddCertificateExpired(context);
-                WireConditionMethodHandlers(context, node.CertificateExpired!);
-                node.CertificateExpired!.AddExpirationLimit(context);
-            }
-
-            if (node.TrustListOutOfDate == null)
-            {
-                node.AddTrustListOutOfDate(context);
-                WireConditionMethodHandlers(context, node.TrustListOutOfDate!);
-            }
-
-            var monitor = new CertificateGroupAlarmMonitor(
-                node,
-                group.BrowseName,
-                m_timeProvider,
-                m_logger);
-            monitor.InitializeQuiet(context);
-
             lock (m_lock)
             {
                 m_monitors.Add(new MonitorEntry(monitor, group));
             }
-
-            return monitor;
         }
 
         /// <summary>
         /// Starts periodic evaluation: performs an immediate evaluation with
         /// events enabled and then arms a timer that re-evaluates every
-        /// <paramref name="interval"/>. Calling it while running is a no-op.
+        /// <paramref name="interval"/>. Calling it while running, or after
+        /// <see cref="Dispose"/>, is a no-op.
         /// </summary>
         /// <param name="context">The system context used for evaluation.</param>
         /// <param name="interval">The evaluation interval.</param>
@@ -136,7 +124,7 @@ namespace Opc.Ua.Server
         {
             lock (m_lock)
             {
-                if (m_timer != null)
+                if (m_disposed || m_timer != null)
                 {
                     return;
                 }
@@ -192,7 +180,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Stops periodic evaluation and suppresses any evaluation still
         /// queued behind the lock, so nodes that may be getting torn down are
-        /// no longer mutated.
+        /// no longer mutated. <see cref="Start"/> may be called again.
         /// </summary>
         public void Stop()
         {
@@ -252,9 +240,16 @@ namespace Opc.Ua.Server
             }
         }
 
-        /// <inheritdoc/>
+        /// <summary>
+        /// Stops monitoring for good; a later <see cref="Start"/> is ignored.
+        /// </summary>
         public void Dispose()
         {
+            lock (m_lock)
+            {
+                m_disposed = true;
+            }
+
             Stop();
         }
 
@@ -333,27 +328,6 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Wires the standard condition method handlers (Acknowledge, Confirm,
-        /// Enable, Disable, AddComment) for an alarm that was built by the
-        /// generated <c>Add&lt;Alarm&gt;</c> factory. The factory constructs the
-        /// full alarm structure but does not run <c>OnAfterCreate</c>, which is
-        /// what binds those handlers; re-running <c>Create</c>
-        /// without reassigning NodeIds triggers <c>OnAfterCreate</c> while
-        /// preserving the existing structure so client method calls are honoured.
-        /// </summary>
-        /// <param name="context">The system context.</param>
-        /// <param name="alarm">The alarm whose method handlers must be wired.</param>
-        private static void WireConditionMethodHandlers(ISystemContext context, NodeState alarm)
-        {
-            alarm.Create(
-                context,
-                alarm.NodeId,
-                alarm.BrowseName,
-                alarm.DisplayName,
-                assignNodeIds: false);
-        }
-
-        /// <summary>
         /// Explicitly binds a <see cref="CertificateGroupAlarmMonitor"/> to the
         /// <see cref="ServerCertificateGroup"/> whose certificate/TrustList state
         /// it evaluates, so the monitor list and the certificate-group list
@@ -373,6 +347,7 @@ namespace Opc.Ua.Server
         private ITimer? m_timer;
         private bool m_active;
         private bool m_stopped;
+        private bool m_disposed;
     }
 
     internal static partial class CertificateAlarmSchedulerLog

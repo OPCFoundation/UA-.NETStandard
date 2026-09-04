@@ -54,109 +54,6 @@ namespace Opc.Ua.Server.Tests
     {
         private static readonly ITelemetryContext s_telemetry = NUnitTelemetryContext.Create();
 
-        /// <summary>
-        /// Minimal host: a mocked server, its system context and an optional
-        /// <c>Server/Namespaces</c> node. Registered nodes are collected so
-        /// tests can assert on them.
-        /// </summary>
-        private sealed class FakeHost : INamespaceMetadataHost, INodeIdFactory
-        {
-            public FakeHost(bool withNamespacesNode)
-            {
-                Mock<IServerInternal> server = DeterministicServerMock.Create(out _);
-                Server = server.Object;
-                SystemContext = new ServerSystemContext(Server) { NodeIdFactory = this };
-
-                if (withNamespacesNode)
-                {
-                    NamespacesNode = new NamespacesState(null)
-                    {
-                        NodeId = ObjectIds.Server_Namespaces,
-                        BrowseName = new QualifiedName(BrowseNames.Namespaces, 0)
-                    };
-                }
-            }
-
-            public ServerSystemContext SystemContext { get; }
-
-            public ushort NamespaceIndex => 1;
-
-            public IServerInternal Server { get; }
-
-            public NamespacesState? NamespacesNode { get; }
-
-            public List<NodeState> RegisteredNodes { get; } = [];
-
-            public NamespacesState? FindServerNamespacesNode()
-            {
-                return NamespacesNode;
-            }
-
-            public ValueTask AddPredefinedNodeAsync(NodeState node, CancellationToken cancellationToken)
-            {
-                RegisteredNodes.Add(node);
-                return default;
-            }
-
-            public NodeId New(ISystemContext context, NodeState node)
-            {
-                return new NodeId(Guid.NewGuid(), NamespaceIndex);
-            }
-        }
-
-        private static NamespaceMetadataRegistry CreateRegistry(FakeHost host)
-        {
-            return new NamespaceMetadataRegistry(host, s_telemetry.CreateLogger<NamespaceMetadataRegistry>());
-        }
-
-        /// <summary>
-        /// Adds a metadata node with a <c>DefaultRolePermissions</c> property
-        /// under the namespaces node the way a NodeSet or another manager would.
-        /// </summary>
-        private static NamespaceMetadataState AddMetadataNode(NamespacesState parent, string namespaceUri)
-        {
-            var metadata = new NamespaceMetadataState(parent)
-            {
-                NodeId = new NodeId(Guid.NewGuid(), 1),
-                BrowseName = new QualifiedName(namespaceUri, 1)
-            };
-            metadata.NamespaceUri = new PropertyState<string>.Implementation<VariantBuilder>(metadata)
-            {
-                Value = namespaceUri
-            };
-            metadata.DefaultRolePermissions = new PropertyState<ArrayOf<RolePermissionType>>
-                .Implementation<StructureBuilder<RolePermissionType>>(metadata)
-            {
-                NodeId = new NodeId(Guid.NewGuid(), 1),
-                BrowseName = new QualifiedName(BrowseNames.DefaultRolePermissions, 1),
-                Value = []
-            };
-            metadata.AddChild(metadata.DefaultRolePermissions);
-            parent.AddChild(metadata);
-            return metadata;
-        }
-
-        /// <summary>
-        /// Writes a new, distinct permission set so a <c>Value</c> change mask
-        /// is raised on every call, then flushes the masks to fire
-        /// <c>StateChanged</c>.
-        /// </summary>
-        private static void ChangeDefaultRolePermissions(NamespaceMetadataState metadata, ISystemContext context)
-        {
-            uint permissions = (uint)Interlocked.Increment(ref s_permissionCounter);
-            metadata.DefaultRolePermissions!.Value =
-            [
-                new RolePermissionType
-                {
-                    RoleId = ObjectIds.WellKnownRole_Observer,
-                    Permissions = permissions
-                }
-            ];
-            metadata.ClearChangeMasks(context, true);
-        }
-
-        private static int s_permissionCounter;
-
         [Test]
         public void ConstructorRejectsNullArguments()
         {
@@ -191,7 +88,7 @@ namespace Opc.Ua.Server.Tests
                 Assert.That(created, Is.Null);
                 Assert.That(host.RegisteredNodes, Is.Empty);
                 Assert.DoesNotThrow(() => registry.Attach(host.SystemContext));
-                Assert.DoesNotThrow(() => registry.Detach([]));
+                Assert.DoesNotThrow(registry.Detach);
             });
         }
 
@@ -199,12 +96,12 @@ namespace Opc.Ua.Server.Tests
         public async Task GetFindsExistingChildByUriAndByIndexAndCachesItAsync()
         {
             var host = new FakeHost(withNamespacesNode: true);
-            NamespaceMetadataState metadata = AddMetadataNode(host.NamespacesNode!, DeterministicServerMock.TestNamespaceUri);
+            NamespaceMetadataState metadata = host.AddMetadataNode(DeterministicServerMock.TestNamespaceUri);
             NamespaceMetadataRegistry registry = CreateRegistry(host);
 
             NamespaceMetadataState? byUri = await registry.GetAsync(DeterministicServerMock.TestNamespaceUri).ConfigureAwait(false);
             NamespaceMetadataState? byUriAgain = await registry.GetAsync(DeterministicServerMock.TestNamespaceUri).ConfigureAwait(false);
-            ushort index = (ushort)host.Server.NamespaceUris.GetIndex(DeterministicServerMock.TestNamespaceUri);
+            ushort index = (ushort)host.SystemContext.Server.NamespaceUris.GetIndex(DeterministicServerMock.TestNamespaceUri);
             NamespaceMetadataState? byIndex = await registry.GetAsync(index).ConfigureAwait(false);
             NamespaceMetadataState? unknown = await registry.GetAsync("urn:unknown").ConfigureAwait(false);
 
@@ -222,7 +119,7 @@ namespace Opc.Ua.Server.Tests
         public async Task CreateReturnsExistingNodeOrRegistersANewOneAsync()
         {
             var host = new FakeHost(withNamespacesNode: true);
-            NamespaceMetadataState existing = AddMetadataNode(host.NamespacesNode!, "urn:existing");
+            NamespaceMetadataState existing = host.AddMetadataNode("urn:existing");
             NamespaceMetadataRegistry registry = CreateRegistry(host);
 
             NamespaceMetadataState found = await registry.CreateAsync("urn:existing").ConfigureAwait(false);
@@ -236,6 +133,7 @@ namespace Opc.Ua.Server.Tests
                 Assert.That(created.NamespaceUri!.Value, Is.EqualTo("urn:created"));
                 Assert.That(created.BrowseName.NamespaceIndex, Is.EqualTo(host.NamespaceIndex));
                 Assert.That(created.DefaultRolePermissions, Is.Not.Null);
+                Assert.That(created.DefaultUserRolePermissions, Is.Not.Null);
                 Assert.That(createdAgain, Is.SameAs(created), "a second create finds the registered node");
                 Assert.That(host.RegisteredNodes, Is.EqualTo(new[] { created }));
             });
@@ -245,10 +143,15 @@ namespace Opc.Ua.Server.Tests
         public async Task AttachTracksDefaultPermissionChangesAndDetachStopsAsync()
         {
             var host = new FakeHost(withNamespacesNode: true);
-            NamespaceMetadataState metadata = AddMetadataNode(host.NamespacesNode!, "urn:tracked");
+            NamespaceMetadataState metadata = host.AddMetadataNode("urn:tracked");
             NamespaceMetadataRegistry registry = CreateRegistry(host);
             int raised = 0;
-            registry.DefaultPermissionsChanged += (_, _) => raised++;
+            object? sender = null;
+            registry.DefaultPermissionsChanged += (s, _) =>
+            {
+                raised++;
+                sender = s;
+            };
 
             // Not attached: changes are not observed.
             ChangeDefaultRolePermissions(metadata, host.SystemContext);
@@ -256,17 +159,52 @@ namespace Opc.Ua.Server.Tests
 
             registry.Attach(host.SystemContext);
             ChangeDefaultRolePermissions(metadata, host.SystemContext);
-            Assert.That(raised, Is.EqualTo(1));
+            Assert.Multiple(() =>
+            {
+                Assert.That(raised, Is.EqualTo(1));
+                Assert.That(sender, Is.SameAs(host), "the host node manager is reported as sender");
+            });
 
-            // A node created through the registry is tracked as well.
-            NamespaceMetadataState created = await registry.CreateAsync("urn:created").ConfigureAwait(false);
-            ChangeDefaultRolePermissions(created, host.SystemContext);
+            // Attaching twice must not double-subscribe.
+            registry.Attach(host.SystemContext);
+            ChangeDefaultRolePermissions(metadata, host.SystemContext);
             Assert.That(raised, Is.EqualTo(2));
 
-            registry.Detach([metadata, created]);
+            // A node created through the registry is tracked as well, on both permission properties.
+            NamespaceMetadataState created = await registry.CreateAsync("urn:created").ConfigureAwait(false);
+            ChangeDefaultRolePermissions(created, host.SystemContext);
+            ChangeDefaultUserRolePermissions(created, host.SystemContext);
+            Assert.That(raised, Is.EqualTo(4));
+
+            registry.Detach();
             ChangeDefaultRolePermissions(metadata, host.SystemContext);
             ChangeDefaultRolePermissions(created, host.SystemContext);
-            Assert.That(raised, Is.EqualTo(2), "detached nodes no longer raise the event");
+            ChangeDefaultUserRolePermissions(created, host.SystemContext);
+            Assert.That(raised, Is.EqualTo(4), "detached nodes no longer raise the event");
+        }
+
+        [Test]
+        public async Task DetachReleasesNodesOwnedByOtherManagersAsync()
+        {
+            // A metadata node reached only through a forward reference from
+            // Server/Namespaces (as companion nodesets owned by other managers
+            // provide it) is subscribed by CreateAsync and must be released by
+            // Detach even though the host never lists it among its own nodes.
+            var host = new FakeHost(withNamespacesNode: true);
+            NamespaceMetadataState foreign = host.AddForeignMetadataNode("urn:foreign");
+            NamespaceMetadataRegistry registry = CreateRegistry(host);
+            int raised = 0;
+            registry.DefaultPermissionsChanged += (_, _) => raised++;
+
+            NamespaceMetadataState found = await registry.CreateAsync("urn:foreign").ConfigureAwait(false);
+            Assert.That(found, Is.SameAs(foreign));
+
+            ChangeDefaultRolePermissions(foreign, host.SystemContext);
+            Assert.That(raised, Is.EqualTo(1));
+
+            registry.Detach();
+            ChangeDefaultRolePermissions(foreign, host.SystemContext);
+            Assert.That(raised, Is.EqualTo(1), "Detach must release nodes it subscribed to but does not own");
         }
 
         [Test]
@@ -282,7 +220,7 @@ namespace Opc.Ua.Server.Tests
             Assert.That(await registry.GetAsync("urn:late").ConfigureAwait(false), Is.Null);
 
             // Add a child the way another manager would and signal the change.
-            NamespaceMetadataState late = AddMetadataNode(host.NamespacesNode!, "urn:late");
+            NamespaceMetadataState late = host.AddMetadataNode("urn:late");
             host.NamespacesNode!.ClearChangeMasks(host.SystemContext, true);
 
             Assert.That(await registry.GetAsync("urn:late").ConfigureAwait(false), Is.SameAs(late),
@@ -291,5 +229,133 @@ namespace Opc.Ua.Server.Tests
             ChangeDefaultRolePermissions(late, host.SystemContext);
             Assert.That(raised, Is.EqualTo(1), "children discovered through the change are tracked");
         }
+
+        private static NamespaceMetadataRegistry CreateRegistry(FakeHost host)
+        {
+            return new NamespaceMetadataRegistry(host, s_telemetry.CreateLogger<NamespaceMetadataRegistry>());
+        }
+
+        /// <summary>
+        /// Writes a new, distinct permission set so a <c>Value</c> change mask
+        /// is raised on every call, then flushes the masks to fire
+        /// <c>StateChanged</c>.
+        /// </summary>
+        private static void ChangeDefaultRolePermissions(NamespaceMetadataState metadata, ISystemContext context)
+        {
+            metadata.DefaultRolePermissions!.Value = NextPermissions();
+            metadata.ClearChangeMasks(context, true);
+        }
+
+        private static void ChangeDefaultUserRolePermissions(NamespaceMetadataState metadata, ISystemContext context)
+        {
+            metadata.DefaultUserRolePermissions!.Value = NextPermissions();
+            metadata.ClearChangeMasks(context, true);
+        }
+
+        private static ArrayOf<RolePermissionType> NextPermissions()
+        {
+            uint permissions = (uint)Interlocked.Increment(ref s_permissionCounter);
+            return
+            [
+                new RolePermissionType
+                {
+                    RoleId = ObjectIds.WellKnownRole_Observer,
+                    Permissions = permissions
+                }
+            ];
+        }
+
+        /// <summary>
+        /// Minimal host: a mocked server, its system context with a node-id
+        /// factory, and an optional <c>Server/Namespaces</c> node. Registered
+        /// nodes are collected so tests can assert on them; metadata nodes
+        /// are built with the same generated factories production uses.
+        /// </summary>
+        private sealed class FakeHost : INamespaceMetadataHost, INodeIdFactory
+        {
+            public FakeHost(bool withNamespacesNode)
+            {
+                IServerInternal server = DeterministicServerMock.Create(out _).Object;
+                SystemContext = new ServerSystemContext(server) { NodeIdFactory = this };
+
+                if (withNamespacesNode)
+                {
+                    NamespacesNode = new NamespacesState(null)
+                    {
+                        NodeId = ObjectIds.Server_Namespaces,
+                        BrowseName = new QualifiedName(BrowseNames.Namespaces, 0)
+                    };
+                }
+            }
+
+            public ServerSystemContext SystemContext { get; }
+
+            public ushort NamespaceIndex => 1;
+
+            public NamespacesState? NamespacesNode { get; }
+
+            public List<NodeState> RegisteredNodes { get; } = [];
+
+            public NamespacesState? FindServerNamespacesNode()
+            {
+                return NamespacesNode;
+            }
+
+            public ValueTask AddPredefinedNodeAsync(NodeState node, CancellationToken cancellationToken)
+            {
+                RegisteredNodes.Add(node);
+                return default;
+            }
+
+            public NodeId New(ISystemContext context, NodeState node)
+            {
+                return new NodeId(Guid.NewGuid(), NamespaceIndex);
+            }
+
+            /// <summary>
+            /// Adds a fully populated metadata node as a child of
+            /// <c>Server/Namespaces</c>, the way a NodeSet or another manager would.
+            /// </summary>
+            public NamespaceMetadataState AddMetadataNode(string namespaceUri)
+            {
+                NamespaceMetadataState metadata = CreateMetadataNode(namespaceUri);
+                NamespacesNode!.AddChild(metadata);
+                return metadata;
+            }
+
+            /// <summary>
+            /// Adds a metadata node owned by "another manager": it is not a
+            /// child of <c>Server/Namespaces</c> but only reachable through a
+            /// forward reference, which the registry resolves through the
+            /// server's master node manager.
+            /// </summary>
+            public NamespaceMetadataState AddForeignMetadataNode(string namespaceUri)
+            {
+                NamespaceMetadataState metadata = CreateMetadataNode(namespaceUri);
+                NamespacesNode!.AddReference(ReferenceTypeIds.HasComponent, false, metadata.NodeId);
+                Mock.Get(SystemContext.Server.NodeManager)
+                    .Setup(m => m.FindNodeInAddressSpaceAsync(metadata.NodeId, It.IsAny<CancellationToken>()))
+                    .ReturnsAsync(metadata);
+                return metadata;
+            }
+
+            private NamespaceMetadataState CreateMetadataNode(string namespaceUri)
+            {
+                NamespaceMetadataState metadata = SystemContext.CreateInstanceOfNamespaceMetadataType(
+                    NamespacesNode!,
+                    new QualifiedName(namespaceUri, NamespaceIndex));
+                metadata.NodeId = New(SystemContext, metadata);
+                metadata.NamespaceUri!.Value = namespaceUri;
+                metadata.AddDefaultRolePermissions(SystemContext)
+                    .AddDefaultUserRolePermissions(SystemContext);
+
+                // Consume the creation change masks so the first flush in a
+                // test reports only the change that test made.
+                metadata.ClearChangeMasks(SystemContext, true);
+                return metadata;
+            }
+        }
+
+        private static int s_permissionCounter;
     }
 }

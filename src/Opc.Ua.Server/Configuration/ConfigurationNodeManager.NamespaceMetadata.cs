@@ -38,14 +38,18 @@ namespace Opc.Ua.Server
     /// <see cref="IConfigurationNodeManager"/> members for looking up and creating
     /// <see cref="NamespaceMetadataState"/> nodes under <c>Server/Namespaces</c> and the
     /// <see cref="DefaultPermissionsChanged"/> notification. The behaviour lives in
-    /// <see cref="NamespaceMetadataRegistry"/>; this file only adapts the manager to the
-    /// registry's <see cref="INamespaceMetadataHost"/> contract and forwards its event so
-    /// subscribers observe the manager as sender.
+    /// <see cref="NamespaceMetadataRegistry"/>; the manager satisfies its
+    /// <see cref="INamespaceMetadataHost"/> contract with the inherited public members plus
+    /// the <c>Server/Namespaces</c> lookup below.
     /// </summary>
     public partial class ConfigurationNodeManager : INamespaceMetadataHost
     {
         /// <inheritdoc/>
-        public event EventHandler? DefaultPermissionsChanged;
+        public event EventHandler? DefaultPermissionsChanged
+        {
+            add => m_namespaceMetadata.DefaultPermissionsChanged += value;
+            remove => m_namespaceMetadata.DefaultPermissionsChanged -= value;
+        }
 
         /// <inheritdoc/>
         public ValueTask<NamespaceMetadataState?> GetNamespaceMetadataStateAsync(
@@ -75,22 +79,6 @@ namespace Opc.Ua.Server
         NamespacesState? INamespaceMetadataHost.FindServerNamespacesNode()
         {
             return FindPredefinedNode<NamespacesState>(ObjectIds.Server_Namespaces);
-        }
-
-        /// <inheritdoc/>
-        ValueTask INamespaceMetadataHost.AddPredefinedNodeAsync(
-            NodeState node,
-            CancellationToken cancellationToken)
-        {
-            return AddPredefinedNodeAsync(SystemContext, node, cancellationToken);
-        }
-
-        /// <summary>
-        /// Re-raises the registry's notification with this manager as sender.
-        /// </summary>
-        private void OnNamespaceDefaultPermissionsChanged(object? sender, EventArgs e)
-        {
-            DefaultPermissionsChanged?.Invoke(this, e);
         }
     }
 }
