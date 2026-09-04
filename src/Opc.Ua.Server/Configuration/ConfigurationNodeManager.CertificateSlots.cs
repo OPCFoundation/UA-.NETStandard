@@ -675,7 +675,7 @@ namespace Opc.Ua.Server
             // endpoint's own blob is the only source and is used as a fallback.
             var registry = m_configuration.CertificateManager as ICertificateRegistry;
 
-            if (PushCertificateValidation.IsCertificateReferencedByEndpoint(deletedThumbprint!, endpoints, registry, Server.Telemetry))
+            if (IsCertificateReferencedByEndpoint(deletedThumbprint!, endpoints, registry, Server.Telemetry))
             {
                 throw new ServiceResultException(
                     StatusCodes.BadInvalidState,

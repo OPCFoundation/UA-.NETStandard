@@ -37,12 +37,12 @@ using Opc.Ua.Security.Certificates;
 namespace Opc.Ua.Server
 {
     /// <summary>
-    /// Stateless validation helpers for the ServerConfiguration Push methods (OPC 10000-12 §7.10):
-    /// certificate/issuer-chain and trust-list checks, subject and key-size rules, endpoint-reference
-    /// checks and slot selection. Everything here is static and touches no node-manager state; members
-    /// are internal for test access.
+    /// Stateless validation helpers of <see cref="ConfigurationNodeManager"/> for the ServerConfiguration
+    /// Push methods (OPC 10000-12 §7.10): certificate/issuer-chain and trust-list checks, subject and
+    /// key-size rules, endpoint-reference checks and slot selection. Everything in this file is static
+    /// and touches no instance state; members are internal for test access.
     /// </summary>
-    internal static class PushCertificateValidation
+    public partial class ConfigurationNodeManager
     {
         /// <summary>
         /// Resolves the exact certificate each <see cref="EndpointDescription"/>

@@ -242,7 +242,7 @@ namespace Opc.Ua.Server
                     // error while still enforcing every other error.
                     try
                     {
-                        await PushCertificateValidation.ValidateCertificateAgainstGroupTrustListAsync(
+                        await ValidateCertificateAgainstGroupTrustListAsync(
                             certificateGroup.TrustedStore,
                             certificateGroup.IssuerStore,
                             certificateGroup.BrowseName,
@@ -296,7 +296,7 @@ namespace Opc.Ua.Server
                     {
                         try
                         {
-                            await PushCertificateValidation.ValidatePushCertificateAndIssuerChainAsync(
+                            await ValidatePushCertificateAndIssuerChainAsync(
                                 newCert,
                                 newIssuerCollection,
                                 m_configuration.SecurityConfiguration,
@@ -642,9 +642,9 @@ namespace Opc.Ua.Server
                 // OPC 10000-12 §7.10.6/§7.10.21: for ApplicationCertificateTypes
                 // the SubjectName may be omitted; the Server creates a
                 // suitable default based on the Server's ApplicationIdentity.
-                subjectName = PushCertificateValidation.CreateDefaultApplicationCertificateSubjectName(m_configuration.ApplicationName);
+                subjectName = CreateDefaultApplicationCertificateSubjectName(m_configuration.ApplicationName);
             }
-            else if (isHttpsCertificateType && !PushCertificateValidation.SubjectCommonNameMatchesDomain(subjectName, domainNames))
+            else if (isHttpsCertificateType && !SubjectCommonNameMatchesDomain(subjectName, domainNames))
             {
                 throw new ServiceResultException(
                     StatusCodes.BadInvalidArgument,
@@ -661,7 +661,7 @@ namespace Opc.Ua.Server
                 certificateTypeId == ObjectTypeIds.ApplicationCertificateType ||
                 certificateTypeId == ObjectTypeIds.RsaMinApplicationCertificateType ||
                 certificateTypeId == ObjectTypeIds.RsaSha256ApplicationCertificateType;
-            PushCertificateValidation.ValidateKeySizeForCertificateType(certificateTypeId, isRsaCertificateType, keySizeInBits);
+            ValidateKeySizeForCertificateType(certificateTypeId, isRsaCertificateType, keySizeInBits);
 
             NodeId sessionId = GetSessionId(context);
             await AcquireTransactionOwnershipAsync(sessionId, cancellationToken).ConfigureAwait(false);
@@ -1196,7 +1196,7 @@ namespace Opc.Ua.Server
             // returned blobs reflect the currently-active cert (the
             // configured identifier carries no Certificate cache).
             var registry = m_configuration.CertificateManager as ICertificateRegistry;
-            (certificateTypeIds, certificates) = PushCertificateValidation.SelectOccupiedCertificateSlots(
+            (certificateTypeIds, certificates) = SelectOccupiedCertificateSlots(
                 certificateGroup.ApplicationCertificates,
                 certificateType => registry?.AcquireApplicationCertificateByType(certificateType));
 
