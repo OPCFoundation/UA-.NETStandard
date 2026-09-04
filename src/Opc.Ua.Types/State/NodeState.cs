@@ -31,6 +31,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Xml;
@@ -2456,7 +2457,7 @@ namespace Opc.Ua
         /// <summary>
         /// True if events produced by the instance are being monitored.
         /// </summary>
-        public bool AreEventsMonitored => m_areEventsMonitored > 0;
+        public bool AreEventsMonitored => Volatile.Read(ref m_areEventsMonitored) > 0;
 
         /// <summary>
         /// True if the node and its children have been initialized.
@@ -2488,16 +2489,24 @@ namespace Opc.Ua
             bool areEventsMonitored,
             bool includeChildren)
         {
-            lock (m_areEventsMonitoredLock)
+            if (areEventsMonitored)
             {
-                if (areEventsMonitored)
+                Interlocked.Increment(ref m_areEventsMonitored);
+            }
+            else
+            {
+                // Clamp-at-zero: decrement only when the counter is positive, using a
+                // compare-exchange loop so concurrent decrements cannot push the value
+                // below zero and concurrent increments are not lost.
+                int current;
+                do
                 {
-                    m_areEventsMonitored++;
-                }
-                else if (m_areEventsMonitored > 0)
-                {
-                    m_areEventsMonitored--;
-                }
+                    current = Volatile.Read(ref m_areEventsMonitored);
+                    if (current <= 0)
+                    {
+                        break;
+                    }
+                } while (Interlocked.CompareExchange(ref m_areEventsMonitored, current - 1, current) != current);
             }
 
             // propagate monitoring flag to children.
@@ -2511,11 +2520,19 @@ namespace Opc.Ua
                     children[ii].SetAreEventsMonitored(context, areEventsMonitored, true);
                 }
 
-                List<Notifier>? notifiers;
-
-                lock (m_notifiersLock)
+                // Fast path: if m_notifiersLock has never been published, no AddNotifier
+                // has ever run on this node, so m_notifiers must be null.  The Volatile
+                // read pairs with the full-barrier CAS in GetOrCreateNotifiersLock(), which
+                // is always called before any write to m_notifiers, so the observation is
+                // race-free.
+                List<Notifier>? notifiers = null;
+                Lock? nl = Volatile.Read(ref m_notifiersLock);
+                if (nl != null)
                 {
-                    notifiers = m_notifiers != null ? [.. m_notifiers] : null;
+                    lock (nl)
+                    {
+                        notifiers = m_notifiers != null ? [.. m_notifiers] : null;
+                    }
                 }
 
                 // propagate monitoring flag to target notifiers.
@@ -2572,11 +2589,14 @@ namespace Opc.Ua
                 }
             }
 
-            List<Notifier>? notifiers;
-
-            lock (m_notifiersLock)
+            List<Notifier>? notifiers = null;
+            Lock? nl = Volatile.Read(ref m_notifiersLock);
+            if (nl != null)
             {
-                notifiers = m_notifiers != null ? [.. m_notifiers] : null;
+                lock (nl)
+                {
+                    notifiers = m_notifiers != null ? [.. m_notifiers] : null;
+                }
             }
 
             // report event to notifier sources.
@@ -2614,11 +2634,14 @@ namespace Opc.Ua
                 await onReportEventAsync(context, this, e, cancellationToken).ConfigureAwait(false);
             }
 
-            List<Notifier>? notifiers;
-
-            lock (m_notifiersLock)
+            List<Notifier>? notifiers = null;
+            Lock? nl = Volatile.Read(ref m_notifiersLock);
+            if (nl != null)
             {
-                notifiers = m_notifiers != null ? [.. m_notifiers] : null;
+                lock (nl)
+                {
+                    notifiers = m_notifiers != null ? [.. m_notifiers] : null;
+                }
             }
 
             // report event to notifier sources.
@@ -2660,7 +2683,7 @@ namespace Opc.Ua
                 RemoveReference(referenceTypeId, isInverse, target.NodeId);
             }
 
-            lock (m_notifiersLock)
+            lock (GetOrCreateNotifiersLock())
             {
                 m_notifiers ??= [];
 
@@ -2702,25 +2725,33 @@ namespace Opc.Ua
         {
             NodeState? nodeState = null;
 
-            lock (m_notifiersLock)
+            // Fast path: if m_notifiersLock is null no AddNotifier has ever run, so
+            // there is nothing to remove.  Acquiring (or creating) the lock in that case
+            // would permanently materialise a Lock object and break the invariant relied
+            // on by the read-only snapshot paths.
+            Lock? nl = Volatile.Read(ref m_notifiersLock);
+            if (nl != null)
             {
-                if (m_notifiers != null)
+                lock (nl)
                 {
-                    for (int ii = 0; ii < m_notifiers.Count; ii++)
+                    if (m_notifiers != null)
                     {
-                        Notifier entry = m_notifiers[ii];
-
-                        if (ReferenceEquals(entry.Node, target))
+                        for (int ii = 0; ii < m_notifiers.Count; ii++)
                         {
-                            nodeState = entry.Node;
-                            m_notifiers.RemoveAt(ii);
-                            break;
-                        }
-                    }
+                            Notifier entry = m_notifiers[ii];
 
-                    if (m_notifiers.Count == 0)
-                    {
-                        m_notifiers = null;
+                            if (ReferenceEquals(entry.Node, target))
+                            {
+                                nodeState = entry.Node;
+                                m_notifiers.RemoveAt(ii);
+                                break;
+                            }
+                        }
+
+                        if (m_notifiers.Count == 0)
+                        {
+                            m_notifiers = null;
+                        }
                     }
                 }
             }
@@ -2738,7 +2769,13 @@ namespace Opc.Ua
         /// <param name="notifiers">The list of notifiers to populate.</param>
         public virtual void GetNotifiers(ISystemContext context, IList<Notifier> notifiers)
         {
-            lock (m_notifiersLock)
+            Lock? nl = Volatile.Read(ref m_notifiersLock);
+            if (nl == null)
+            {
+                return;
+            }
+
+            lock (nl)
             {
                 if (m_notifiers != null)
                 {
@@ -2759,7 +2796,13 @@ namespace Opc.Ua
             NodeId notifierTypeId,
             bool isInverse)
         {
-            lock (m_notifiersLock)
+            Lock? nl = Volatile.Read(ref m_notifiersLock);
+            if (nl == null)
+            {
+                return;
+            }
+
+            lock (nl)
             {
                 if (m_notifiers != null)
                 {
@@ -2799,11 +2842,14 @@ namespace Opc.Ua
                     children[ii].ConditionRefresh(context, events, true);
                 }
 
-                List<Notifier>? notifiers;
-
-                lock (m_notifiersLock)
+                List<Notifier>? notifiers = null;
+                Lock? nl = Volatile.Read(ref m_notifiersLock);
+                if (nl != null)
                 {
-                    notifiers = m_notifiers != null ? [.. m_notifiers] : null;
+                    lock (nl)
+                    {
+                        notifiers = m_notifiers != null ? [.. m_notifiers] : null;
+                    }
                 }
 
                 // request events from notifier targets.
@@ -3381,7 +3427,7 @@ namespace Opc.Ua
                     browser = newBrowser;
                 }
 
-                lock (m_browseLock)
+                lock (GetOrCreateBrowseLock())
                 {
                     PopulateBrowser(context, browser);
 
@@ -3417,7 +3463,7 @@ namespace Opc.Ua
                 throw new ArgumentNullException(nameof(browser));
             }
 
-            lock (m_browseLock)
+            lock (GetOrCreateBrowseLock())
             {
                 PopulateBrowser(context, browser);
 
@@ -3673,11 +3719,14 @@ namespace Opc.Ua
                 }
             }
 
-            List<Notifier>? notifiers;
-
-            lock (m_notifiersLock)
+            List<Notifier>? notifiers = null;
+            Lock? nl = Volatile.Read(ref m_notifiersLock);
+            if (nl != null)
             {
-                notifiers = m_notifiers != null ? [.. m_notifiers] : null;
+                lock (nl)
+                {
+                    notifiers = m_notifiers != null ? [.. m_notifiers] : null;
+                }
             }
 
             // add any notifiers.
@@ -5651,6 +5700,51 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Gets the existing notifiers lock or publishes a fresh one using a
+        /// Volatile.Read / Interlocked.CompareExchange pattern.
+        /// </summary>
+        /// <remarks>
+        /// Safe on all TFMs and NativeAOT: no <see cref="System.Lazy{T}"/> or
+        /// reflection involved.  Only the CAS winner's <see cref="Lock"/> is used;
+        /// any concurrently-allocated candidates in other threads are discarded by the
+        /// GC.  Every subsequent call returns the same published instance via
+        /// <c>Volatile.Read</c>.
+        /// </remarks>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private Lock GetOrCreateNotifiersLock()
+        {
+            Lock? existing = Volatile.Read(ref m_notifiersLock);
+            if (existing is not null)
+            {
+                return existing;
+            }
+
+            Lock candidate = new Lock();
+            return Interlocked.CompareExchange(ref m_notifiersLock, candidate, null) ?? candidate;
+        }
+
+        /// <summary>
+        /// Gets the existing browse lock or publishes a fresh one using a
+        /// Volatile.Read / Interlocked.CompareExchange pattern.
+        /// </summary>
+        /// <remarks>
+        /// Safe on all TFMs and NativeAOT.  See <see cref="GetOrCreateNotifiersLock"/> for
+        /// the publication guarantee.
+        /// </remarks>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private Lock GetOrCreateBrowseLock()
+        {
+            Lock? existing = Volatile.Read(ref m_browseLock);
+            if (existing is not null)
+            {
+                return existing;
+            }
+
+            Lock candidate = new Lock();
+            return Interlocked.CompareExchange(ref m_browseLock, candidate, null) ?? candidate;
+        }
+
+        /// <summary>
         /// Stores the notifier relationship to another node.
         /// </summary>
         public class Notifier
@@ -5681,11 +5775,10 @@ namespace Opc.Ua
         /// </summary>
         protected NodeStateChangeMasks m_changeMasks;
 
-        private readonly Lock m_areEventsMonitoredLock = new();
-        private readonly Lock m_notifiersLock = new();
+        private Lock? m_notifiersLock;       // lazily published; see GetOrCreateNotifiersLock()
         private readonly Lock m_referencesLock = new();
         private readonly Lock m_childrenLock = new();
-        private readonly Lock m_browseLock = new();
+        private Lock? m_browseLock;           // lazily published; see GetOrCreateBrowseLock()
         private NodeId m_nodeId;
         private QualifiedName m_browseName;
         private LocalizedText m_displayName;
