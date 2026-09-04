@@ -44,8 +44,8 @@ namespace Opc.Ua.WotCon.Tests
         [Test]
         public async Task ReconcileQueuePreservesCreateThenDeleteWhileOccupied()
         {
-            TaskCompletionSource entered = NewSignal();
-            TaskCompletionSource release = NewSignal();
+            TaskCompletionSource<bool> entered = NewSignal();
+            TaskCompletionSource<bool> release = NewSignal();
             var generations = new List<long>();
             var interactions = new List<string>();
             bool resourceProjected = false;
@@ -54,7 +54,7 @@ namespace Opc.Ua.WotCon.Tests
                 generations.Add(change.Current.Generation);
                 if (change.Current.Generation == 1)
                 {
-                    entered.SetResult();
+                    entered.SetResult(true);
                     await release.Task.ConfigureAwait(false);
                 }
 
@@ -80,7 +80,7 @@ namespace Opc.Ua.WotCon.Tests
 
             queue.Enqueue(Change(empty1, created2));
             queue.Enqueue(Change(created2, deleted3));
-            release.SetResult();
+            release.SetResult(true);
             await queue.WhenIdleAsync().ConfigureAwait(false);
 
             Assert.Multiple(() =>
@@ -110,7 +110,7 @@ namespace Opc.Ua.WotCon.Tests
             {
                 WotResourceVersion version = WotResourceVersion.CreatePlaceholder(
                     "v1",
-                    DateTime.UnixEpoch);
+                    s_unixEpoch);
                 var resource = new WotResource(
                     "g",
                     "r",
@@ -128,12 +128,14 @@ namespace Opc.Ua.WotCon.Tests
             return new WotRegistrySnapshot(generation, groups);
         }
 
-        private static TaskCompletionSource NewSignal()
+        private static TaskCompletionSource<bool> NewSignal()
         {
-            return new TaskCompletionSource(
+            return new TaskCompletionSource<bool>(
                 TaskCreationOptions.RunContinuationsAsynchronously);
         }
 
+        private static readonly DateTime s_unixEpoch =
+            new(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc);
         private static readonly long[] s_expectedGenerations = [1, 2, 3];
         private static readonly string[] s_expectedInteractions = ["create", "delete"];
     }

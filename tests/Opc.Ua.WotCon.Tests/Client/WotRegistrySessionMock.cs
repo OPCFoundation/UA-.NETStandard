@@ -512,9 +512,16 @@ namespace Opc.Ua.WotCon.Tests.Client
             req.InputArguments[0].TryGetValue(out string resourceId);
             req.InputArguments[1].TryGetValue(out string versionId);
             req.InputArguments[2].TryGetValue(out bool requestFileOpen);
-            ResourceState? resource = string.IsNullOrEmpty(versionId)
-                ? group.Resources.GetValueOrDefault(resourceId)
-                : FindVersion(group, resourceId, versionId);
+            ResourceState? resource;
+            if (string.IsNullOrEmpty(versionId))
+            {
+                group.Resources.TryGetValue(resourceId, out resource);
+            }
+            else
+            {
+                resource = FindVersion(group, resourceId, versionId);
+            }
+
             bool existed = resource is not null;
             if (resource is null)
             {
