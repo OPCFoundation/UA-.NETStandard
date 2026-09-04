@@ -153,8 +153,9 @@ namespace Opc.Ua.WotCon.Client
         }
 
         /// <summary>
-        /// Resolves an already existing resource by id, browsing from the
-        /// group object.
+        /// Resolves an existing logical Resource by id to its current default
+        /// Version node. Deleting the returned client deletes the logical
+        /// Resource and all of its Versions.
         /// </summary>
         /// <exception cref="ArgumentException"><paramref name="resourceId"/> is null or empty.</exception>
         /// <exception cref="ServiceResultException">The resource was not found in this group.</exception>

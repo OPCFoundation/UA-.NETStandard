@@ -602,21 +602,28 @@ namespace Opc.Ua.WotCon.Server
                 WotResource resource,
                 WotResourceVersion version)
             {
+                ImmutableSortedDictionary<string, string>.Builder attributes =
+                    ImmutableSortedDictionary.CreateBuilder<string, string>(
+                        StringComparer.Ordinal);
+                string digestHex = version.DigestHex;
+                if (version.HasContent && !string.IsNullOrEmpty(digestHex))
+                {
+                    attributes[m_projection.m_options.XRegistryEvents
+                        .ResourceDocumentAttributeName] = digestHex;
+                }
+                if (!string.IsNullOrEmpty(version.ContentType))
+                {
+                    attributes["contenttype"] = version.ContentType;
+                }
+                if (!string.IsNullOrEmpty(version.Format))
+                {
+                    attributes["format"] = version.Format;
+                }
                 return new XRegistryProjectionEventVersion(
                     version.VersionId,
                     $"{resource.Xid}/versions/{version.VersionId}",
                     checked((uint)version.Epoch),
-                    ImmutableSortedDictionary.CreateRange(
-                        StringComparer.Ordinal,
-                        new[]
-                        {
-                            new KeyValuePair<string, string>(
-                                m_projection.m_options.XRegistryEvents
-                                    .ResourceDocumentAttributeName,
-                                version.DigestHex),
-                            new KeyValuePair<string, string>("contenttype", version.ContentType),
-                            new KeyValuePair<string, string>("format", version.Format)
-                        }))
+                    attributes.ToImmutable())
                 {
                     SourceNodeId = m_projection.ResourceNodeId(
                         resource.GroupId,

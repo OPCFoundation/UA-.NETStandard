@@ -322,6 +322,131 @@ namespace Opc.Ua.XRegistry.Tests
         }
 
         [Test]
+        public async Task DeleteOnDefaultVersionUsesLogicalResourceRouteAsync()
+        {
+            var strategy = new RecordingVersionedTestStrategy
+            {
+                Snapshot = VersionedProjectionSnapshot("v1"),
+                EventSnapshot = VersionedEventSnapshot("v1", 1, WotLabels())
+            };
+            ProjectionHarness harness = ProjectionHarness.Create(suppliedStrategy: strategy);
+            await harness.Engine.AttachAsync(harness.Registry, CancellationToken.None)
+                .ConfigureAwait(false);
+
+            ServiceResult result = await InvokeDeleteAsync(
+                harness,
+                FindVersionNode(harness, "v1"),
+                17).ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(ServiceResult.IsGood(result), Is.True);
+                Assert.That(strategy.ResourceDeletes, Is.EqualTo(new[]
+                {
+                    new ResourceDeleteInvocation("schemas", "pump", 17)
+                }));
+                Assert.That(strategy.VersionDeletes, Is.Empty);
+            });
+        }
+
+        [Test]
+        public async Task DeleteOnNonDefaultVersionUsesExactVersionRouteAsync()
+        {
+            var strategy = new RecordingVersionedTestStrategy
+            {
+                Snapshot = VersionedProjectionSnapshot("v1"),
+                EventSnapshot = VersionedEventSnapshot("v1", 1, WotLabels())
+            };
+            ProjectionHarness harness = ProjectionHarness.Create(suppliedStrategy: strategy);
+            await harness.Engine.AttachAsync(harness.Registry, CancellationToken.None)
+                .ConfigureAwait(false);
+
+            ServiceResult result = await InvokeDeleteAsync(
+                harness,
+                FindVersionNode(harness, "v2"),
+                23).ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(ServiceResult.IsGood(result), Is.True);
+                Assert.That(strategy.ResourceDeletes, Is.Empty);
+                Assert.That(strategy.VersionDeletes, Is.EqualTo(new[]
+                {
+                    new VersionDeleteInvocation("schemas", "pump", "v2", 23)
+                }));
+            });
+        }
+
+        [Test]
+        public async Task DeleteRoutingTracksDefaultSwitchWithoutRecreatingNodesAsync()
+        {
+            var strategy = new RecordingVersionedTestStrategy
+            {
+                Snapshot = VersionedProjectionSnapshot("v1"),
+                EventSnapshot = VersionedEventSnapshot("v1", 1, WotLabels())
+            };
+            ProjectionHarness harness = ProjectionHarness.Create(suppliedStrategy: strategy);
+            await harness.Engine.AttachAsync(harness.Registry, CancellationToken.None)
+                .ConfigureAwait(false);
+            ResourceState v1 = FindVersionNode(harness, "v1");
+            ResourceState v2 = FindVersionNode(harness, "v2");
+
+            strategy.Snapshot = VersionedProjectionSnapshot("v2");
+            strategy.EventSnapshot = VersionedEventSnapshot("v2", 2, WotLabels());
+            await harness.Engine.ReconcileAsync(CancellationToken.None).ConfigureAwait(false);
+
+            ServiceResult newDefault = await InvokeDeleteAsync(harness, v2, 29)
+                .ConfigureAwait(false);
+            ServiceResult oldDefault = await InvokeDeleteAsync(harness, v1, 31)
+                .ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(ServiceResult.IsGood(newDefault), Is.True);
+                Assert.That(ServiceResult.IsGood(oldDefault), Is.True);
+                Assert.That(FindVersionNode(harness, "v1"), Is.SameAs(v1));
+                Assert.That(FindVersionNode(harness, "v2"), Is.SameAs(v2));
+                Assert.That(strategy.ResourceDeletes, Is.EqualTo(new[]
+                {
+                    new ResourceDeleteInvocation("schemas", "pump", 29)
+                }));
+                Assert.That(strategy.VersionDeletes, Is.EqualTo(new[]
+                {
+                    new VersionDeleteInvocation("schemas", "pump", "v1", 31)
+                }));
+            });
+        }
+
+        [Test]
+        public async Task DeleteOnNonVersionedResourceStillUsesLogicalResourceRouteAsync()
+        {
+            var strategy = new RecordingTestStrategy
+            {
+                Snapshot = new TestSnapshot(
+                [
+                    new TestGroup("schemas", [new TestResource("schemas", "pump")])
+                ])
+            };
+            ProjectionHarness harness = ProjectionHarness.Create(suppliedStrategy: strategy);
+            await harness.Engine.AttachAsync(harness.Registry, CancellationToken.None)
+                .ConfigureAwait(false);
+
+            ServiceResult result = await InvokeDeleteAsync(
+                harness,
+                harness.Added.OfType<ResourceState>().Single(),
+                37).ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(ServiceResult.IsGood(result), Is.True);
+                Assert.That(strategy.ResourceDeletes, Is.EqualTo(new[]
+                {
+                    new ResourceDeleteInvocation("schemas", "pump", 37)
+                }));
+            });
+        }
+
+        [Test]
         public async Task GenerationCaptureCannotMixProjectionAndEventSnapshotsAsync()
         {
             var strategy = new AdvancingGenerationStrategy(
@@ -534,6 +659,55 @@ namespace Opc.Ua.XRegistry.Tests
         }
 
         [Test]
+        public async Task CreatingDeprecatedResourceEmitsSpecializedLifecycleEventAsync()
+        {
+            ProjectionHarness harness = ProjectionHarness.Create(eventsEnabled: true);
+            harness.Strategy.Snapshot = new TestSnapshot([new TestGroup("schemas", [])]);
+            harness.Strategy.EventSnapshot = SnapshotWithEmptyGroup(1);
+            await harness.Engine.AttachAsync(harness.Registry, CancellationToken.None)
+                .ConfigureAwait(false);
+
+            harness.Strategy.Snapshot = new TestSnapshot(
+                [new TestGroup("schemas", [new TestResource("schemas", "pump")])]);
+            harness.Strategy.EventSnapshot = SnapshotWithDeprecatedResource("reason=legacy", 2);
+            await harness.Engine.ReconcileAsync(CancellationToken.None).ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(harness.Events.Select(evt => evt.GetType()), Is.EquivalentTo(new[]
+                {
+                    typeof(ResourceCreatedEventState),
+                    typeof(VersionCreatedEventState),
+                    typeof(ResourceDeprecatedEventState),
+                    typeof(GroupUpdatedEventState)
+                }));
+                Assert.That(harness.Events.OfType<ResourceUpdatedEventState>(), Is.Empty);
+            });
+        }
+
+        [Test]
+        public async Task CreatingNormalResourceDoesNotEmitResourceDeprecatedAsync()
+        {
+            ProjectionHarness harness = ProjectionHarness.Create(eventsEnabled: true);
+            harness.Strategy.Snapshot = new TestSnapshot([new TestGroup("schemas", [])]);
+            harness.Strategy.EventSnapshot = SnapshotWithEmptyGroup(1);
+            await harness.Engine.AttachAsync(harness.Registry, CancellationToken.None)
+                .ConfigureAwait(false);
+
+            harness.Strategy.Snapshot = new TestSnapshot(
+                [new TestGroup("schemas", [new TestResource("schemas", "pump")])]);
+            harness.Strategy.EventSnapshot = SnapshotWithDeprecatedResource(null, 2);
+            await harness.Engine.ReconcileAsync(CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(harness.Events.Select(evt => evt.GetType()), Is.EquivalentTo(new[]
+            {
+                typeof(ResourceCreatedEventState),
+                typeof(VersionCreatedEventState),
+                typeof(GroupUpdatedEventState)
+            }));
+        }
+
+        [Test]
         public async Task VersionSourcesMetaAndDefaultSwitchAreDiffedIndependentlyAsync()
         {
             var strategy = new VersionedTestStrategy
@@ -597,6 +771,56 @@ namespace Opc.Ua.XRegistry.Tests
         }
 
         [Test]
+        public async Task DefaultSwitchIncludesAllPresentVersionAttributesWithoutVersionUpdateAsync()
+        {
+            ImmutableSortedDictionary<string, string> v1Attributes =
+                ImmutableSortedDictionary<string, string>.Empty
+                    .Add("thing", "digest-v1")
+                    .Add("zeta", "old");
+            ImmutableSortedDictionary<string, string> v2Attributes =
+                ImmutableSortedDictionary<string, string>.Empty
+                    .Add("alpha", "new")
+                    .Add("format", "WoT-TD/1.1");
+            ImmutableSortedDictionary<string, string> v1Labels =
+                ImmutableSortedDictionary<string, string>.Empty.Add("quality", "approved");
+            var strategy = new VersionedTestStrategy
+            {
+                Snapshot = VersionedProjectionSnapshot("v1"),
+                EventSnapshot = VersionedEventSnapshot(
+                    "v1",
+                    1,
+                    WotLabels(),
+                    v1Attributes: v1Attributes,
+                    v2Attributes: v2Attributes,
+                    v1Labels: v1Labels)
+            };
+            ProjectionHarness harness = ProjectionHarness.Create(
+                eventsEnabled: true,
+                suppliedStrategy: strategy);
+            await harness.Engine.AttachAsync(harness.Registry, CancellationToken.None)
+                .ConfigureAwait(false);
+
+            strategy.Snapshot = VersionedProjectionSnapshot("v2");
+            strategy.EventSnapshot = VersionedEventSnapshot(
+                "v2",
+                1,
+                WotLabels(),
+                v1Attributes: v1Attributes,
+                v2Attributes: v2Attributes,
+                v1Labels: v1Labels);
+            await harness.Engine.ReconcileAsync(CancellationToken.None).ConfigureAwait(false);
+
+            ResourceUpdatedEventState updated =
+                harness.Events.OfType<ResourceUpdatedEventState>().Single();
+            Assert.Multiple(() =>
+            {
+                Assert.That(harness.Events, Has.Count.EqualTo(1));
+                Assert.That(harness.Events[0], Is.SameAs(updated));
+                Assert.That(updated.Changed!.Value.ToArray(), Is.EqualTo(s_defaultSwitchChanged));
+            });
+        }
+
+        [Test]
         public async Task LogicalResourceEventSourceIsMappedWhenGenericEventsAreDisabled()
         {
             var strategy = new VersionedTestStrategy
@@ -627,6 +851,45 @@ namespace Opc.Ua.XRegistry.Tests
                 epoch,
                 ImmutableSortedDictionary<string, string>.Empty,
                 []);
+        }
+
+        private static XRegistryProjectionEventSnapshot SnapshotWithEmptyGroup(uint epoch)
+        {
+            return new XRegistryProjectionEventSnapshot(
+                "/",
+                epoch,
+                ImmutableSortedDictionary<string, string>.Empty,
+                [
+                    new XRegistryProjectionEventGroup(
+                        "schemas",
+                        "/groups/schemas",
+                        epoch,
+                        ImmutableSortedDictionary<string, string>.Empty,
+                        false,
+                        [])
+                ]);
+        }
+
+        private static ValueTask<ServiceResult> InvokeDeleteAsync(
+            ProjectionHarness harness,
+            ResourceState resource,
+            uint expectedEpoch)
+        {
+            return resource.Delete!.OnCallMethod2Async!(
+                harness.Context,
+                resource.Delete,
+                resource.NodeId,
+                [new Variant(expectedEpoch)],
+                [],
+                CancellationToken.None);
+        }
+
+        private static ResourceState FindVersionNode(
+            ProjectionHarness harness,
+            string versionId)
+        {
+            return harness.Added.OfType<ResourceState>().Single(node =>
+                string.Equals(node.VersionId?.Value, versionId, StringComparison.Ordinal));
         }
 
         private static XRegistryProjectionEventSnapshot SnapshotWithResource(
@@ -821,7 +1084,11 @@ namespace Opc.Ua.XRegistry.Tests
             uint metaEpoch,
             ImmutableSortedDictionary<string, string> metaLabels,
             uint v1Epoch = 1,
-            uint v2Epoch = 1)
+            uint v2Epoch = 1,
+            ImmutableSortedDictionary<string, string>? v1Attributes = null,
+            ImmutableSortedDictionary<string, string>? v2Attributes = null,
+            ImmutableSortedDictionary<string, string>? v1Labels = null,
+            ImmutableSortedDictionary<string, string>? v2Labels = null)
         {
             NodeId v1Node = new(
                 "TestRegistry/groups/schemas/resources/pump/versions/v1",
@@ -831,17 +1098,28 @@ namespace Opc.Ua.XRegistry.Tests
                 1);
             XRegistryProjectionEventVersion V(string id, uint epoch, NodeId source)
             {
+                ImmutableSortedDictionary<string, string> attributes = id == "v1"
+                    ? v1Attributes ??
+                        ImmutableSortedDictionary<string, string>.Empty.Add(
+                            "resource",
+                            epoch.ToString(
+                                System.Globalization.CultureInfo.InvariantCulture))
+                    : v2Attributes ??
+                        ImmutableSortedDictionary<string, string>.Empty.Add(
+                            "resource",
+                            epoch.ToString(
+                                System.Globalization.CultureInfo.InvariantCulture));
                 return new XRegistryProjectionEventVersion(
                     id,
                     $"/groups/schemas/resources/pump/versions/{id}",
                     epoch,
-                    ImmutableSortedDictionary<string, string>.Empty.Add(
-                        "resource",
-                        epoch.ToString(
-                            System.Globalization.CultureInfo.InvariantCulture)))
+                    attributes)
                 {
                     SourceNodeId = source,
                     SourceName = id,
+                    Labels = id == "v1"
+                        ? v1Labels ?? ImmutableSortedDictionary<string, string>.Empty
+                        : v2Labels ?? ImmutableSortedDictionary<string, string>.Empty,
                     CreatedAt = s_unixEpoch,
                     ModifiedAt = s_unixEpoch.AddSeconds(epoch)
                 };
@@ -1117,7 +1395,7 @@ namespace Opc.Ua.XRegistry.Tests
                 return new ValueTask<ServiceResult>(ServiceResult.Good);
             }
 
-            public ValueTask<ServiceResult> DeleteResourceAsync(
+            public virtual ValueTask<ServiceResult> DeleteResourceAsync(
                 string groupId,
                 string resourceId,
                 long? epoch,
@@ -1253,7 +1531,7 @@ namespace Opc.Ua.XRegistry.Tests
                 return new ValueTask<(IXRegistryProjectionResource, bool)>((resource, true));
             }
 
-            public ValueTask<ServiceResult> DeleteVersionAsync(
+            public virtual ValueTask<ServiceResult> DeleteVersionAsync(
                 string groupId,
                 string resourceId,
                 string versionId,
@@ -1374,6 +1652,60 @@ namespace Opc.Ua.XRegistry.Tests
 
             private int m_nextVersion;
         }
+
+        private sealed class RecordingTestStrategy : TestStrategy
+        {
+            public List<ResourceDeleteInvocation> ResourceDeletes { get; } = [];
+
+            public override ValueTask<ServiceResult> DeleteResourceAsync(
+                string groupId,
+                string resourceId,
+                long? epoch,
+                CancellationToken ct)
+            {
+                ResourceDeletes.Add(new ResourceDeleteInvocation(groupId, resourceId, epoch));
+                return new ValueTask<ServiceResult>(ServiceResult.Good);
+            }
+        }
+
+        private sealed class RecordingVersionedTestStrategy : VersionedTestStrategy
+        {
+            public List<ResourceDeleteInvocation> ResourceDeletes { get; } = [];
+            public List<VersionDeleteInvocation> VersionDeletes { get; } = [];
+
+            public override ValueTask<ServiceResult> DeleteResourceAsync(
+                string groupId,
+                string resourceId,
+                long? epoch,
+                CancellationToken ct)
+            {
+                ResourceDeletes.Add(new ResourceDeleteInvocation(groupId, resourceId, epoch));
+                return new ValueTask<ServiceResult>(ServiceResult.Good);
+            }
+
+            public override ValueTask<ServiceResult> DeleteVersionAsync(
+                string groupId,
+                string resourceId,
+                string versionId,
+                long? epoch,
+                CancellationToken ct)
+            {
+                VersionDeletes.Add(
+                    new VersionDeleteInvocation(groupId, resourceId, versionId, epoch));
+                return new ValueTask<ServiceResult>(ServiceResult.Good);
+            }
+        }
+
+        private sealed record ResourceDeleteInvocation(
+            string GroupId,
+            string ResourceId,
+            long? Epoch);
+
+        private sealed record VersionDeleteInvocation(
+            string GroupId,
+            string ResourceId,
+            string VersionId,
+            long? Epoch);
 
         private sealed class ContentlessClaimStrategy : VersionedTestStrategy
         {
@@ -1534,6 +1866,22 @@ namespace Opc.Ua.XRegistry.Tests
             public DateTime MetaModifiedAt => s_unixEpoch;
             public bool IsDefaultVersion { get; }
         }
+
+        private static readonly string[] s_defaultSwitchChanged =
+        [
+            "alpha",
+            "createdat",
+            "epoch",
+            "format",
+            "isdefault",
+            "labels",
+            "meta.defaultversionid",
+            "modifiedat",
+            "thing",
+            "versionid",
+            "xid",
+            "zeta"
+        ];
 
         private static readonly DateTime s_unixEpoch =
             new(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc);

@@ -267,6 +267,114 @@ namespace Opc.Ua.WotCon.Tests
             });
         }
 
+        [Test]
+        public async Task DeletingLogicalDefaultResourceRemovesAllVersions()
+        {
+            WotRegistryClient client = await OpenClientAsync().ConfigureAwait(false);
+            WotRegistryGroupClient group = await client
+                .CreateThingDescriptionGroupAsync()
+                .ConfigureAwait(false);
+            _ = await group.CreateResourceAsync("delete-logical", "v1").ConfigureAwait(false);
+            _ = await group.CreateResourceAsync("delete-logical", "v2").ConfigureAwait(false);
+            WotRegistryResourceClient logical = await group
+                .OpenResourceAsync("delete-logical")
+                .ConfigureAwait(false);
+            WotResource before = m_registry.Current.FindResource(
+                WotRegistryGroups.ThingDescriptions,
+                "delete-logical")!;
+
+            await logical.DeleteAsync(checked((uint)before.MetaEpoch)).ConfigureAwait(false);
+
+            Assert.That(
+                m_registry.Current.FindResource(
+                    WotRegistryGroups.ThingDescriptions,
+                    "delete-logical"),
+                Is.Null);
+        }
+
+        [Test]
+        public async Task DeletingNonDefaultVersionPreservesLogicalResource()
+        {
+            WotRegistryClient client = await OpenClientAsync().ConfigureAwait(false);
+            WotRegistryGroupClient group = await client
+                .CreateThingDescriptionGroupAsync()
+                .ConfigureAwait(false);
+            _ = await group.CreateResourceAsync("delete-version", "v1").ConfigureAwait(false);
+            (WotRegistryResourceClient v2, _) = await group
+                .CreateResourceAsync("delete-version", "v2")
+                .ConfigureAwait(false);
+            WotResource before = m_registry.Current.FindResource(
+                WotRegistryGroups.ThingDescriptions,
+                "delete-version")!;
+
+            await v2.DeleteAsync(
+                    checked((uint)before.FindVersion("v2")!.Epoch))
+                .ConfigureAwait(false);
+
+            WotResource stored = m_registry.Current.FindResource(
+                WotRegistryGroups.ThingDescriptions,
+                "delete-version")!;
+            Assert.Multiple(() =>
+            {
+                Assert.That(stored.DefaultVersionId, Is.EqualTo("v1"));
+                Assert.That(stored.Versions, Has.Length.EqualTo(1));
+                Assert.That(stored.Versions[0].VersionId, Is.EqualTo("v1"));
+            });
+        }
+
+        [Test]
+        public async Task DeleteRoutingTracksDefaultSwitchForExistingVersionNodes()
+        {
+            WotRegistryClient client = await OpenClientAsync().ConfigureAwait(false);
+            WotRegistryGroupClient group = await client
+                .CreateThingDescriptionGroupAsync()
+                .ConfigureAwait(false);
+            (WotRegistryResourceClient v1, _) = await group
+                .CreateResourceAsync("delete-switched", "v1")
+                .ConfigureAwait(false);
+            (WotRegistryResourceClient v2, _) = await group
+                .CreateResourceAsync("delete-switched", "v2")
+                .ConfigureAwait(false);
+            WotResource beforeSwitch = m_registry.Current.FindResource(
+                WotRegistryGroups.ThingDescriptions,
+                "delete-switched")!;
+
+            await v1.SetDefaultVersionAsync(
+                    "v2",
+                    checked((uint)beforeSwitch.MetaEpoch))
+                .ConfigureAwait(false);
+
+            WotResource afterSwitch = m_registry.Current.FindResource(
+                WotRegistryGroups.ThingDescriptions,
+                "delete-switched")!;
+            WotRegistryResourceClient logical = await group
+                .OpenResourceAsync("delete-switched")
+                .ConfigureAwait(false);
+            Assert.That(logical.ResourceNodeId, Is.EqualTo(v2.ResourceNodeId));
+
+            await v1.DeleteAsync(
+                    checked((uint)afterSwitch.FindVersion("v1")!.Epoch))
+                .ConfigureAwait(false);
+            WotResource afterOldDefaultDelete = m_registry.Current.FindResource(
+                WotRegistryGroups.ThingDescriptions,
+                "delete-switched")!;
+            Assert.Multiple(() =>
+            {
+                Assert.That(afterOldDefaultDelete.DefaultVersionId, Is.EqualTo("v2"));
+                Assert.That(afterOldDefaultDelete.Versions, Has.Length.EqualTo(1));
+                Assert.That(afterOldDefaultDelete.Versions[0].VersionId, Is.EqualTo("v2"));
+            });
+
+            await v2.DeleteAsync(checked((uint)afterOldDefaultDelete.MetaEpoch))
+                .ConfigureAwait(false);
+
+            Assert.That(
+                m_registry.Current.FindResource(
+                    WotRegistryGroups.ThingDescriptions,
+                    "delete-switched"),
+                Is.Null);
+        }
+
         /// <summary>
         /// Covers <c>OnGetOrCreateResourceAsync</c> existing path: the second call
         /// returns the existing resource with <c>Created == false</c>.
