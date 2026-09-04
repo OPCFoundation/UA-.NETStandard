@@ -50,8 +50,8 @@ Every mutator returns a `ServiceResult` that mirrors the spec-defined status cod
 - `X509Subject` - `Name=Value(/Name=Value)*` grammar with names from Part 18 Table 10.
 
 `EndpointType` comparisons in identity resolution honour Part 18 4.4.2: fields set to their default value on the rule
-side act as wildcards. A rule may therefore constrain any non-empty subset of the endpoint fields. For example, this
-rule applies to every endpoint URL that uses `SignAndEncrypt`:
+side act as wildcards. A rule may therefore constrain any subset of endpoint fields by assigning non-default values to
+those fields. For example, this rule applies to every endpoint URL that uses `SignAndEncrypt`:
 
 ```csharp
 IRoleManager roles = server.CurrentInstance.RoleManager;
