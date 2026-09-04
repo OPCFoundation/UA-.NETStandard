@@ -39,6 +39,19 @@ namespace Opc.Ua.Server
     internal static class EndpointTypeComparer
     {
         /// <summary>
+        /// Returns <c>true</c> if at least one field participates in endpoint
+        /// comparison rather than acting as a wildcard.
+        /// </summary>
+        public static bool HasNonDefaultFields(EndpointType? endpoint)
+        {
+            return endpoint != null &&
+                (!IsDefault(endpoint.EndpointUrl) ||
+                    endpoint.SecurityMode != MessageSecurityMode.Invalid ||
+                    !IsDefault(endpoint.SecurityPolicyUri) ||
+                    !IsDefault(endpoint.TransportProfileUri));
+        }
+
+        /// <summary>
         /// Returns <c>true</c> if the candidate endpoint matches the rule
         /// endpoint per §4.4.2 semantics: a field set to the default value on
         /// the rule side acts as a wildcard.

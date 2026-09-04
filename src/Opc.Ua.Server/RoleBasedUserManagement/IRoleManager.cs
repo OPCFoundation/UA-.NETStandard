@@ -120,13 +120,15 @@ namespace Opc.Ua.Server
         ServiceResult RemoveApplication(NodeId roleId, string applicationUri);
 
         /// <summary>
-        /// Adds an endpoint per Part 18 §4.4.9.
+        /// Adds an endpoint per Part 18 §4.4.9. Default-valued fields act as
+        /// wildcards during endpoint comparison per Part 18 §4.4.2.
         /// </summary>
         /// <returns>
         /// <c>Good</c> on success;
         /// <c>Bad_NodeIdUnknown</c> if the role is unknown;
         /// <c>Bad_RequestNotAllowed</c> if the role is reserved;
-        /// <c>Bad_InvalidArgument</c> if the endpoint is null or its URL is empty;
+        /// <c>Bad_InvalidArgument</c> if the endpoint is null or every field has
+        /// its default value;
         /// <c>Bad_AlreadyExists</c> if an equivalent endpoint already exists.
         /// </returns>
         ServiceResult AddEndpoint(NodeId roleId, EndpointType endpoint);
