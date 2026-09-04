@@ -281,6 +281,65 @@ namespace Opc.Ua.Server.Tests.Fluent
             Assert.That(lastSubscribers, Is.EqualTo(2));
         }
 
+        [Test]
+        public async Task FirstSubscriberCanReenterMonitoringOperationsAsync()
+        {
+            MonitoredItemHarness harness = null!;
+            IMonitoredItem? capturedItem = null;
+            int firstSubscribers = 0;
+            int lastSubscribers = 0;
+            int samples = 0;
+
+            harness = await MonitoredItemHarness.CreateAsync(builder =>
+            {
+                IVariableBuilder<int> variable = builder.Variable<int>("Value");
+                variable.OnMonitoredItemCreated(
+                    (context, node, item) => capturedItem = item);
+                variable.OnFirstSubscriber(async (context, node, cancellationToken) =>
+                {
+                    firstSubscribers++;
+                    ServiceResult result = await harness.SetModeAsync(
+                        capturedItem!,
+                        MonitoringMode.Disabled).ConfigureAwait(false);
+                    Assert.That(ServiceResult.IsGood(result), Is.True);
+                });
+                variable.OnLastSubscriber((context, node, cancellationToken) =>
+                {
+                    lastSubscribers++;
+                    return default;
+                });
+                variable.PollWhileMonitored(
+                    TimeSpan.FromMilliseconds(50),
+                    context => Interlocked.Increment(ref samples));
+            }).ConfigureAwait(false);
+            using (harness)
+            {
+                Task<(ServiceResult Error, IMonitoredItem? Item)> createTask =
+                    harness.CreateAsync(CreateRequest()).AsTask();
+                Task completed = await Task.WhenAny(
+                    createTask,
+                    Task.Delay(TimeSpan.FromSeconds(5))).ConfigureAwait(false);
+
+                Assert.That(
+                    completed,
+                    Is.SameAs(createTask),
+                    "OnFirstSubscriber re-entry must not deadlock reconciliation.");
+                (ServiceResult error, IMonitoredItem? item) =
+                    await createTask.ConfigureAwait(false);
+                Assert.Multiple(() =>
+                {
+                    Assert.That(ServiceResult.IsGood(error), Is.True);
+                    Assert.That(item, Is.Not.Null);
+                    Assert.That(item!.MonitoringMode, Is.EqualTo(MonitoringMode.Disabled));
+                    Assert.That(firstSubscribers, Is.EqualTo(1));
+                    Assert.That(lastSubscribers, Is.EqualTo(1));
+                    Assert.That(samples, Is.Zero);
+                });
+
+                await harness.DeleteAsync(item!).ConfigureAwait(false);
+            }
+        }
+
         [TestCase(false)]
         [TestCase(true)]
         public async Task CustomFactoryFailureRollsBackRegistrationAsync(

@@ -501,6 +501,9 @@ namespace Opc.Ua.Server.Fluent
             MonitoringMode monitoringMode,
             bool remove)
         {
+            ReconcileAction action;
+            TimeSpan effectivePeriod;
+            bool isEmpty;
             try
             {
                 await m_updateLock.WaitAsync().ConfigureAwait(false);
@@ -525,9 +528,37 @@ namespace Opc.Ua.Server.Fluent
                     }
 
                     bool isActive = HasActiveItems();
-                    TimeSpan effectivePeriod = GetEffectivePeriod();
+                    effectivePeriod = GetEffectivePeriod();
+                    m_desiredSource = source;
                     if (!wasActive && isActive)
                     {
+                        action = ReconcileAction.Activate;
+                    }
+                    else if (wasActive && !isActive)
+                    {
+                        action = ReconcileAction.Deactivate;
+                    }
+                    else if (isActive &&
+                        m_poller != null &&
+                        effectivePeriod != previousPeriod)
+                    {
+                        action = ReconcileAction.Restart;
+                    }
+                    else
+                    {
+                        action = ReconcileAction.None;
+                    }
+
+                    isEmpty = m_items.Count == 0;
+                }
+                finally
+                {
+                    m_updateLock.Release();
+                }
+
+                switch (action)
+                {
+                    case ReconcileAction.Activate:
                         await InvokeLifecycleAsync(
                             m_firstSubscriber,
                             context,
@@ -537,32 +568,27 @@ namespace Opc.Ua.Server.Fluent
                             context,
                             source,
                             effectivePeriod).ConfigureAwait(false);
-                    }
-                    else if (wasActive && !isActive)
-                    {
-                        await StopWorkerAsync().ConfigureAwait(false);
+                        break;
+                    case ReconcileAction.Deactivate:
+                        _ = await StopWorkerAsync(
+                            requireInactive: true,
+                            source,
+                            effectivePeriod).ConfigureAwait(false);
                         await InvokeLifecycleAsync(
                             m_lastSubscriber,
                             context,
                             source,
                             "OnLastSubscriber").ConfigureAwait(false);
-                    }
-                    else if (isActive &&
-                        m_poller != null &&
-                        effectivePeriod != previousPeriod)
-                    {
+                        break;
+                    case ReconcileAction.Restart:
                         await RestartWorkerAsync(
                             context,
                             source,
                             effectivePeriod).ConfigureAwait(false);
-                    }
+                        break;
+                }
 
-                    return m_items.Count == 0;
-                }
-                finally
-                {
-                    m_updateLock.Release();
-                }
+                return isEmpty;
             }
             catch (Exception exception) when (exception is not OutOfMemoryException)
             {
@@ -578,34 +604,113 @@ namespace Opc.Ua.Server.Fluent
             NodeState source,
             TimeSpan period)
         {
-            await StopWorkerAsync().ConfigureAwait(false);
             if (m_poller == null)
             {
                 return;
             }
 
-            m_workerCts = CancellationTokenSource.CreateLinkedTokenSource(
-                m_managerToken);
-            m_worker = RunWorkerAsync(
-                context,
+            bool isCurrent = await StopWorkerAsync(
+                requireInactive: false,
                 source,
-                period,
-                m_workerCts.Token);
-        }
-
-        private async ValueTask StopWorkerAsync()
-        {
-            CancellationTokenSource? workerCts = m_workerCts;
-            Task? worker = m_worker;
-            m_workerCts = null;
-            m_worker = null;
-
-            if (workerCts == null)
+                period).ConfigureAwait(false);
+            if (!isCurrent)
             {
                 return;
             }
 
-            workerCts.Cancel();
+            await SampleOnceAsync(
+                context,
+                source,
+                m_managerToken).ConfigureAwait(false);
+
+            CancellationTokenSource? workerCts = null;
+            try
+            {
+                workerCts = CancellationTokenSource.CreateLinkedTokenSource(
+                    m_managerToken);
+                var startSignal = new TaskCompletionSource<bool>(
+                    TaskCreationOptions.RunContinuationsAsynchronously);
+                var workerStarted = new TaskCompletionSource<bool>(
+                    TaskCreationOptions.RunContinuationsAsynchronously);
+                Task worker = RunWorkerAsync(
+                    context,
+                    source,
+                    period,
+                    startSignal.Task,
+                    workerStarted,
+                    workerCts.Token);
+
+                bool startWorker = false;
+                await m_updateLock.WaitAsync().ConfigureAwait(false);
+                try
+                {
+                    if (Volatile.Read(ref m_disposeStarted) == 0 &&
+                        HasActiveItems() &&
+                        GetEffectivePeriod() == period &&
+                        ReferenceEquals(m_desiredSource, source) &&
+                        m_workerCts == null)
+                    {
+                        m_workerCts = workerCts;
+                        m_worker = worker;
+                        workerCts = null; // ownership transferred
+                        startWorker = true;
+                    }
+                }
+                finally
+                {
+                    m_updateLock.Release();
+                    startSignal.TrySetResult(true);
+                }
+
+                if (startWorker)
+                {
+                    await workerStarted.Task.ConfigureAwait(false);
+                    return;
+                }
+
+                workerCts!.Cancel();
+                await worker.ConfigureAwait(false);
+            }
+            catch (OperationCanceledException)
+            {
+            }
+            finally
+            {
+                workerCts?.Dispose();
+            }
+        }
+
+        private async ValueTask<bool> StopWorkerAsync(
+            bool requireInactive,
+            NodeState source,
+            TimeSpan period)
+        {
+            CancellationTokenSource? workerCts;
+            Task? worker;
+            await m_updateLock.WaitAsync().ConfigureAwait(false);
+            try
+            {
+                bool stateMatches = requireInactive
+                    ? !HasActiveItems()
+                    : HasActiveItems() &&
+                        GetEffectivePeriod() == period &&
+                        ReferenceEquals(m_desiredSource, source);
+                if (Volatile.Read(ref m_disposeStarted) != 0 || !stateMatches)
+                {
+                    return false;
+                }
+
+                workerCts = m_workerCts;
+                worker = m_worker;
+                m_workerCts = null;
+                m_worker = null;
+            }
+            finally
+            {
+                m_updateLock.Release();
+            }
+
+            workerCts?.Cancel();
             try
             {
                 if (worker != null)
@@ -618,47 +723,68 @@ namespace Opc.Ua.Server.Fluent
             }
             finally
             {
-                workerCts.Dispose();
+                workerCts?.Dispose();
             }
+            return true;
         }
 
         private async Task RunWorkerAsync(
             ISystemContext context,
             NodeState source,
             TimeSpan period,
+            Task startSignal,
+            TaskCompletionSource<bool> workerStarted,
             CancellationToken cancellationToken)
         {
+            await startSignal.ConfigureAwait(false);
+            bool signalStartup = true;
             while (true)
             {
                 try
                 {
-                    await m_poller!.SampleAsync(
-                        context,
-                        source,
-                        cancellationToken).ConfigureAwait(false);
+                    Task delay = m_timeProvider.Delay(
+                        period,
+                        cancellationToken);
+                    if (signalStartup)
+                    {
+                        signalStartup = false;
+                        workerStarted.TrySetResult(true);
+                    }
+                    await delay.ConfigureAwait(false);
                 }
                 catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
                 {
                     return;
                 }
-                catch (Exception exception) when (exception is not OutOfMemoryException)
-                {
-                    m_logger.MonitoredSourceSampleFailed(
-                        exception,
-                        FormatNodeId(source.NodeId));
-                }
 
-                try
-                {
-                    await m_timeProvider.Delay(
-                        period,
-                        cancellationToken).ConfigureAwait(false);
-                }
-                catch (OperationCanceledException) when (
-                    cancellationToken.IsCancellationRequested)
-                {
-                    return;
-                }
+                await SampleOnceAsync(
+                    context,
+                    source,
+                    cancellationToken).ConfigureAwait(false);
+            }
+        }
+
+        private async ValueTask SampleOnceAsync(
+            ISystemContext context,
+            NodeState source,
+            CancellationToken cancellationToken)
+        {
+            try
+            {
+                await m_poller!.SampleAsync(
+                    context,
+                    source,
+                    cancellationToken).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException) when (
+                cancellationToken.IsCancellationRequested)
+            {
+            }
+            catch (Exception exception) when (exception is not OutOfMemoryException)
+            {
+                m_logger.MonitoredSourceSampleFailed(
+                    exception,
+                    FormatNodeId(source.NodeId));
             }
         }
 
@@ -756,9 +882,18 @@ namespace Opc.Ua.Server.Fluent
         private MonitoredSourceLifecycleHandler? m_lastSubscriber;
         private IMonitoredValuePoller? m_poller;
         private TimeSpan m_minimumPeriod;
+        private NodeState? m_desiredSource;
         private CancellationTokenSource? m_workerCts;
         private Task? m_worker;
         private int m_disposeStarted;
+
+        private enum ReconcileAction
+        {
+            None,
+            Activate,
+            Deactivate,
+            Restart
+        }
     }
 
     internal interface IMonitoredValuePoller
@@ -801,7 +936,15 @@ namespace Opc.Ua.Server.Fluent
             {
                 m_hasValue = true;
                 m_last = current;
-                new ValueUpdater<TValue>(variable, context).SetValue(current);
+                if (m_updater == null ||
+                    !ReferenceEquals(m_variable, variable) ||
+                    !ReferenceEquals(m_context, context))
+                {
+                    m_variable = variable;
+                    m_context = context;
+                    m_updater = new ValueUpdater<TValue>(variable, context);
+                }
+                m_updater.SetValue(current);
             }
         }
 
@@ -815,6 +958,9 @@ namespace Opc.Ua.Server.Fluent
             NodeState,
             CancellationToken,
             ValueTask<TValue>> m_sample;
+        private BaseVariableState? m_variable;
+        private ISystemContext? m_context;
+        private ValueUpdater<TValue>? m_updater;
         private TValue? m_last;
         private bool m_hasValue;
     }
