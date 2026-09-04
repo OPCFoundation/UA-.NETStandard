@@ -120,7 +120,7 @@ namespace TestData
             bool isReadModified,
             ref int position)
         {
-            position++;
+            position += isForward ? 1 : -1;
 
             lock (m_lock)
             {

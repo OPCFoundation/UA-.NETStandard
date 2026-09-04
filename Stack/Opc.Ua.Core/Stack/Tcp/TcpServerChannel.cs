@@ -595,7 +595,8 @@ namespace Opc.Ua.Bindings
 
                 // If the certificate structure, signature and trust list checks pass,
                 // return the other specific validation errors instead of BadSecurityChecksFailed
-                if (e.InnerException is ServiceResultException innerException)
+                if ((e as ServiceResultException ?? e.InnerException as ServiceResultException)
+                    is ServiceResultException innerException)
                 {
                     if (innerException.StatusCode == StatusCodes.BadCertificateUntrusted ||
                         innerException.StatusCode == StatusCodes.BadCertificateChainIncomplete ||
