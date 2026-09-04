@@ -137,7 +137,6 @@ occurrence.
 "events": {
   "Overheating": {
     "title": "Overheating",
-    "uav:severity": 700,          // legacy asset-registry term; 1..1000, defaults to 500
     "data": {
       "type": "object",
       "properties": { "Temperature": { "type": "number" } }
@@ -145,11 +144,6 @@ occurrence.
   }
 }
 ```
-
-> `uav:severity` here is a term of the legacy asset-registry document shape,
-> not of the WoT Binding vocabulary. WoT Binding 1.1 defines no such term:
-> `Severity` is a field of an event occurrence, carried by the notification
-> data schema. See [11.5 Legacy 1.02 compatibility](#115-legacy-102-compatibility).
 
 The registry subscribes the provider once per affordance when the TD is
 applied and keeps that subscription for the lifetime of the generation;
@@ -169,11 +163,9 @@ public ValueTask SubscribeEventAsync(
 ```
 
 `message` and `severity` are optional: a null `message` publishes the
-event name and a null `severity` falls back to the affordance's
-`uav:severity`. An authored severity outside 1..1000 is invalid: OPC 10000-5
-bounds `BaseEventType.Severity` to that range and the registry does not
-silently clamp it, so the affordance carrying it is skipped and the rest of
-the asset is unaffected.
+event name and a null or out-of-range `severity` uses the server's medium
+fallback. Severity is occurrence data supplied by the provider; the Thing
+Description carries no default-severity metadata.
 
 Skipping is not the same as succeeding. Whenever an affordance is skipped — for
 an out-of-range severity, an invalid child name, or a duplicate name — applying
@@ -939,13 +931,16 @@ adopted verbatim rather than maintained by hand.
 
 | Model | Version | PublicationDate |
 |---|---|---|
-| WoT Connectivity | `1.1.1` | 2026-09-02 |
+| WoT Connectivity | `1.1` | 2026-09-02 |
 | WoT Binding | `1.1` | 2026-07-29 |
 | xRegistry (`RequiredModel`) | `0.4.0` | 2026-08-31 |
 
 xRegistry contributes 71 nodes and two behavioural rules the registry honours: a
 reverse-authority construction algorithm for `GroupId` and `ResourceId`
 (§ 11.4), and `SignAndEncrypt` on every mutating operation.
+
+Draft iterations are identified by the specification release label, for example
+`1.1-draft5`; they do not increment the information model version.
 
 ### 12.2 Conformance units and profiles
 
@@ -1193,14 +1188,11 @@ The incorporated OPC 10100-1 v1.02 management and upload surface (NodeIds
 `1..172`) is superseded in capability by the registry but is **not** deprecated:
 serving a WoT asset that way is legitimate, and *WoT-Con Minimal* is built on it.
 
-It is also a **separate code path**. `AssetRegistry` reads a v1.02 asset document
-into the POCO shape OPC 10100-1 defines and is governed by that specification;
-`Opc.Ua.Wot.WotNodeSetConverter` implements the WoT Binding draft. The two share
-no vocabulary table, no diagnostics and no conformance mode, so what
-[WoT / NodeSet conversion](WoTNodeSetConversion.md) states about strict mode,
-residue preservation, localization or the retired `uav:severity` term describes the generic
-converter only. The legacy reader keeps the narrower term set v1.02 names, which
-is not a defect of the converter and is not fixed by changing it.
+It is also a **separate code path**. `AssetRegistry` reads an asset document
+into the POCO shape supported by this surface, while
+`Opc.Ua.Wot.WotNodeSetConverter` implements the complete WoT Binding draft.
+Unknown asset-document members are ignored and cannot affect the emitted
+AddressSpace.
 
 It carries its security obligation directly rather than by reference to the
 optional registry backing, so a server implementing only this surface still

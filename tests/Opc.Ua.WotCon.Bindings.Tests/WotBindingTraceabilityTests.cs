@@ -35,8 +35,6 @@ using System.Reflection;
 using NUnit.Framework;
 using Opc.Ua.Types.Tests.Wot;
 
-#nullable enable
-
 namespace Opc.Ua.WotCon.Bindings.Tests
 {
     /// <summary>

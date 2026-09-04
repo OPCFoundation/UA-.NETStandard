@@ -35,8 +35,6 @@ using System.Linq;
 using System.Xml.Linq;
 using NUnit.Framework;
 
-#nullable enable
-
 namespace Opc.Ua.WotCon.Tests
 {
     /// <summary>
@@ -73,9 +71,8 @@ namespace Opc.Ua.WotCon.Tests
             {
                 Assert.That(
                     model.Attribute("Version")?.Value,
-                    Is.EqualTo("1.1.1"),
-                    "The WoT Connectivity model is adopted verbatim; its version is the " +
-                    "specification's, not this repository's.");
+                    Is.EqualTo("1.1"),
+                    "Draft iterations do not increment the information model version.");
                 Assert.That(
                     model.Attribute("PublicationDate")?.Value,
                     Is.EqualTo("2026-09-02T00:00:00Z"));

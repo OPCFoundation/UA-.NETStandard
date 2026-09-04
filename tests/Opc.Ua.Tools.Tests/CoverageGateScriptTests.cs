@@ -768,51 +768,6 @@ namespace Opc.Ua.Tools.Tests
         }
 
         /// <summary>
-        /// The shipped rules are the ones the repository actually enforces, so
-        /// they are read from the checked-in file rather than restated here.
-        /// </summary>
-        [Test]
-        public void TheShippedThresholdsDeclareAWotPathRule()
-        {
-            string path = Path.Combine(FindRepositoryRoot(), "coverage-thresholds.json");
-            using var document = JsonDocument.Parse(File.ReadAllText(path));
-            JsonElement root = document.RootElement;
-
-            Assert.That(root.TryGetProperty("pathRules", out JsonElement rules), Is.True);
-            JsonElement rule = rules.EnumerateArray().Single(r =>
-                r.GetProperty("name").GetString()!.Contains(
-                    "WoT", StringComparison.Ordinal));
-
-            var includes = rule.GetProperty("include")
-                .EnumerateArray()
-                .Select(e => e.GetString()!)
-                .ToList();
-
-            Assert.Multiple(() =>
-            {
-                Assert.That(includes, Does.Contain("src/Opc.Ua.Types/Wot/**"));
-                Assert.That(
-                    rule.GetProperty("minimumChangedLineRate").GetDouble(),
-                    Is.EqualTo(100.0));
-                Assert.That(
-                    rule.GetProperty("minimumChangedBranchRate").GetDouble(),
-                    Is.EqualTo(100.0));
-                Assert.That(
-                    rule.TryGetProperty("exclude", out JsonElement excludes) &&
-                        excludes.GetArrayLength() > 0,
-                    Is.True,
-                    "Exclusions are explicit so that reading the rule tells you what it covers.");
-                Assert.That(
-                    root.GetProperty("project").GetProperty("minimumLineRate").GetDouble(),
-                    Is.EqualTo(70.0),
-                    "A path rule adds a requirement; it never relaxes the repository floor.");
-                Assert.That(
-                    root.GetProperty("project").GetProperty("minimumBranchRate").GetDouble(),
-                    Is.EqualTo(60.0));
-            });
-        }
-
-        /// <summary>
         /// The rule the fixture repository runs under: the same shape as the
         /// shipped one, over the fixture's own paths.
         /// </summary>

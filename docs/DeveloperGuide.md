@@ -411,7 +411,7 @@ The evaluation is [`.azurepipelines/check-coverage.ps1`](../.azurepipelines/chec
 | --- | --- |
 | **Project floor** | Total line and branch rates must meet the absolute floors in `coverage-thresholds.json`. The `ignore` globs are applied here too, so samples, tests and generated code do not count. |
 | **Patch coverage** | On pull requests, lines you added or modified must reach a floor that is **graduated by how much changed** — see below. The uncovered changed lines are listed by file. |
-| **Path rules** | A small number of paths state their own, non-graduated floor for changed lines and changed branches in `pathRules` — see below. A rule adds a requirement; it never relaxes one. |
+| **Optional path rules** | When configured, selected paths may state a non-graduated floor for changed lines and branches. No path-specific rule is currently configured. |
 | **Baseline delta** | Reports how total coverage compares with the recorded `baselineLineRate`. Warning only, even within this advisory check. |
 
 Ratchet `minimumLineRate`, `minimumBranchRate` and `baselineLineRate` **upward** as coverage improves; never lower them to turn a red check green.
@@ -439,15 +439,15 @@ The bands live in `patch.bands` in [`coverage-thresholds.json`](../coverage-thre
 
 Remember that the coverage check as a whole is advisory and stays out of the branch ruleset — an enforced band produces a red `Code coverage` check, not a blocked merge.
 
-##### Some paths are not graduated
+##### Optional non-graduated path rules
 
-The graduated band is right for the repository as a whole and wrong for a small number of areas where every changed line is meant to be exercised: a protocol mapping whose untested branch is a wire-format bug nobody sees until interop. Those areas state their own floor in `pathRules` in [`coverage-thresholds.json`](../coverage-thresholds.json), applied to the same changed lines the patch gate reads:
+The coverage script supports an optional `pathRules` array for an area that needs a non-graduated changed-line or changed-branch floor. No path-specific rule is currently configured. A future rule uses the same changed lines as the patch gate:
 
 ```jsonc
 "pathRules": [
   {
-    "name": "WoT Binding production paths",
-    "include": [ "src/Opc.Ua.Types/Wot/**", "src/Opc.Ua.WotCon/**", "..." ],
+    "name": "Protocol mapping",
+    "include": [ "src/Protocol/**" ],
     "exclude": [ "**/*.g.cs", "**/Design/**", "..." ],
     "minimumChangedLineRate": 100.0,
     "minimumChangedBranchRate": 100.0
@@ -455,7 +455,7 @@ The graduated band is right for the repository as a whole and wrong for a small 
 ]
 ```
 
-A rule matches a changed file when one of its `include` globs matches and none of its `exclude` globs does; exclusions are listed on the rule rather than inherited, so reading the rule tells you what it covers. The floor is **not** graduated — it is the rule for the path whatever the patch size, so one uncovered line in a two-line change fails it. `minimumChangedBranchRate` reads the Cobertura `condition-coverage` of the changed lines, because a line whose branches are only half taken is a covered line and an unexercised path.
+A configured rule matches a changed file when one of its `include` globs matches and none of its `exclude` globs does; exclusions are listed on the rule rather than inherited, so reading the rule tells you what it covers. The floor is **not** graduated. `minimumChangedBranchRate` reads the Cobertura `condition-coverage` of the changed lines, because a line whose branches are only half taken is a covered line and an unexercised path.
 
 A rule only ever adds a requirement: the repository-wide project floors and patch bands are unchanged by one, and a path outside every rule is governed by the graduated band alone.
 

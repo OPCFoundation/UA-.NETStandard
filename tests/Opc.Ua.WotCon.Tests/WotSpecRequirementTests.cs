@@ -34,8 +34,6 @@ using System.Reflection;
 using NUnit.Framework;
 using Opc.Ua.SpecTraceability;
 
-#nullable enable
-
 namespace Opc.Ua.WotCon.Tests
 {
     /// <summary>
