@@ -28,7 +28,6 @@
  * ======================================================================*/
 
 using System.Collections.Generic;
-using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Xml;
 using Moq;
@@ -50,10 +49,9 @@ namespace Opc.Ua.Schema.Tests
         public void DefinitionSourceIsStableApi()
         {
             Assert.That(
-                System.Attribute.IsDefined(
-                    typeof(EncodeableFactoryDefinitionSource),
-                    typeof(ExperimentalAttribute)),
-                Is.False);
+                typeof(EncodeableFactoryDefinitionSource).GetCustomAttributesData()
+                    .Select(attribute => attribute.AttributeType.FullName),
+                Does.Not.Contain("System.Diagnostics.CodeAnalysis.ExperimentalAttribute"));
         }
 
         [Test]
