@@ -35,6 +35,7 @@ using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.WotCon;
 using Opc.Ua.WotCon.Server.Registry;
+using Opc.Ua.XRegistry.Server;
 
 namespace Opc.Ua.WotCon.Tests.Registry
 {
@@ -137,7 +138,7 @@ namespace Opc.Ua.WotCon.Tests.Registry
         }
 
         [Test]
-        public void OpenSecondWriterWhileFirstOpenReturnsBadInvalidState()
+        public void OpenSecondWriterWhileFirstOpenReturnsBadNotWritable()
         {
             using var harness = new Harness();
             uint first = 0;
@@ -145,7 +146,7 @@ namespace Opc.Ua.WotCon.Tests.Registry
             uint second = 0;
             ServiceResult result = harness.Open(ModeWriteErase, ref second);
 
-            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadNotWritable));
             Assert.That(second, Is.Zero);
         }
 
@@ -284,13 +285,24 @@ namespace Opc.Ua.WotCon.Tests.Registry
         [Test]
         public async Task WriteBeyondMaxSizeReturnsBadOutOfMemory()
         {
-            using var harness = new Harness(maxDocumentSize: 4);
+            bool committed = false;
+            using var harness = new Harness(
+                maxDocumentSize: 4,
+                onCommit: (_, _, _) =>
+                {
+                    committed = true;
+                    return new ValueTask<ServiceResult>(ServiceResult.Good);
+                });
             uint handle = 0;
             harness.Open(ModeWriteErase, ref handle);
             ServiceResult result = harness.Write(handle, ByteString.From(new byte[] { 1, 2, 3, 4, 5 }));
             await harness.CloseAsync(handle).ConfigureAwait(false);
 
-            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadOutOfMemory));
+            Assert.Multiple(() =>
+            {
+                Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadOutOfMemory));
+                Assert.That(committed, Is.False);
+            });
         }
 
         [Test]
@@ -324,13 +336,46 @@ namespace Opc.Ua.WotCon.Tests.Registry
         [Test]
         public async Task WriteEmptyByteStringIsNoOp()
         {
-            using var harness = new Harness();
+            bool committed = false;
+            using var harness = new Harness(onCommit: (_, _, _) =>
+            {
+                committed = true;
+                return new ValueTask<ServiceResult>(ServiceResult.Good);
+            });
             uint handle = 0;
             harness.Open(ModeWriteErase, ref handle);
             ServiceResult result = harness.Write(handle, ByteString.Empty);
             await harness.CloseAsync(handle).ConfigureAwait(false);
 
-            Assert.That(ServiceResult.IsGood(result), Is.True);
+            Assert.Multiple(() =>
+            {
+                Assert.That(ServiceResult.IsGood(result), Is.True);
+                Assert.That(committed, Is.False);
+            });
+        }
+
+        [Test]
+        public async Task ByteIdenticalCloseDoesNotInvokeCommit()
+        {
+            byte[] document = [1, 2, 3];
+            bool committed = false;
+            using var harness = new Harness(onCommit: (_, _, _) =>
+            {
+                committed = true;
+                return new ValueTask<ServiceResult>(ServiceResult.Good);
+            });
+            harness.Manager.UpdatePersistedContent(document, "application/json");
+            uint handle = 0;
+            harness.Open(ModeWriteErase, ref handle);
+            harness.Write(handle, ByteString.From(document));
+
+            ServiceResult close = await harness.CloseAsync(handle).ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(ServiceResult.IsGood(close), Is.True);
+                Assert.That(committed, Is.False);
+            });
         }
 
         [Test]
@@ -629,14 +674,14 @@ namespace Opc.Ua.WotCon.Tests.Registry
         }
 
         [Test]
-        public void TryOpenWriteHandleWhenWriterAlreadyOpenReturnsBadInvalidState()
+        public void TryOpenWriteHandleWhenWriterAlreadyOpenReturnsBadNotWritable()
         {
             using var harness = new Harness();
             harness.Manager.TryOpenWriteHandle(NodeId.Null, out uint _);
 
             ServiceResult second = harness.Manager.TryOpenWriteHandle(NodeId.Null, out uint fileHandle);
 
-            Assert.That(second.StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
+            Assert.That(second.StatusCode, Is.EqualTo(StatusCodes.BadNotWritable));
             Assert.That(fileHandle, Is.Zero);
         }
 
@@ -674,6 +719,109 @@ namespace Opc.Ua.WotCon.Tests.Registry
             await harness.CloseAsync(rh).ConfigureAwait(false);
 
             Assert.That(data.Span.ToArray(), Is.EqualTo(payload));
+        }
+
+        [Test]
+        public async Task WriteHandlePassesStableBaselineIncarnationToCommit()
+        {
+            byte[] original = Encoding.UTF8.GetBytes("original");
+            DateTime now = DateTime.UtcNow;
+            var baselineVersion = new WotResourceVersion(
+                "v1",
+                WotContentDigest.Compute(original),
+                original.Length,
+                "application/json",
+                string.Empty,
+                now,
+                now);
+            Guid? observedIncarnation = null;
+            WotResourceVersion? committedVersion = null;
+            using var harness = new Harness(
+                onVersionCommit: (bytes, baseline, incarnation, session, token) =>
+                {
+                    observedIncarnation = incarnation;
+                    committedVersion = baselineVersion.With(
+                        digest: WotContentDigest.Compute(bytes),
+                        contentLength: bytes.Length);
+                    return new ValueTask<WotResourceCommitResult>(
+                        new WotResourceCommitResult(ServiceResult.Good, committedVersion));
+                });
+            harness.Manager.UpdatePersistedContent(baselineVersion, "application/json");
+            uint handle = 0;
+            harness.Open(ModeWriteErase, ref handle);
+            harness.Write(handle, ByteString.From(original));
+            harness.Manager.UpdatePersistedContent(
+                baselineVersion.With(contentType: "application/updated"),
+                "application/updated");
+
+            ServiceResult result = await harness.CloseAsync(handle).ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(ServiceResult.IsGood(result), Is.True);
+                Assert.That(observedIncarnation, Is.EqualTo(baselineVersion.IncarnationId));
+                Assert.That(committedVersion, Is.Not.Null);
+                Assert.That(
+                    harness.Manager.CurrentVersionIncarnation,
+                    Is.EqualTo(committedVersion!.IncarnationId));
+            });
+        }
+
+        [Test]
+        public async Task SecondWriterImmediatelyUsesCommittedContentAndIncarnation()
+        {
+            byte[] original = Encoding.UTF8.GetBytes("original");
+            DateTime now = DateTime.UtcNow;
+            WotResourceVersion current = new(
+                "v1",
+                WotContentDigest.Compute(original),
+                original.Length,
+                "application/json",
+                string.Empty,
+                now,
+                now);
+            var baselines = new List<(string ContentKey, Guid? Incarnation)>();
+            using var harness = new Harness(
+                onVersionCommit: (bytes, baseline, incarnation, session, token) =>
+                {
+                    baselines.Add((baseline, incarnation));
+                    current = current.With(
+                        digest: WotContentDigest.Compute(bytes),
+                        contentLength: bytes.Length,
+                        modifiedAt: DateTime.UtcNow);
+                    return new ValueTask<WotResourceCommitResult>(
+                        new WotResourceCommitResult(ServiceResult.Good, current));
+                });
+            harness.Manager.UpdatePersistedContent(current, "application/json");
+            byte[] first = Encoding.UTF8.GetBytes("first");
+            uint firstHandle = 0;
+            harness.Open(ModeWriteErase, ref firstHandle);
+            harness.Write(firstHandle, ByteString.From(first));
+            ServiceResult firstClose = await harness.CloseAsync(firstHandle).ConfigureAwait(false);
+            string firstDigest = WotContentDigest.ToHex(WotContentDigest.Compute(first));
+
+            byte[] second = Encoding.UTF8.GetBytes("second");
+            uint secondHandle = 0;
+            harness.Open(ModeWriteErase, ref secondHandle);
+            harness.Write(secondHandle, ByteString.From(second));
+            ServiceResult secondClose = await harness.CloseAsync(secondHandle).ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(ServiceResult.IsGood(firstClose), Is.True);
+                Assert.That(ServiceResult.IsGood(secondClose), Is.True);
+                Assert.That(baselines, Has.Count.EqualTo(2));
+                Assert.That(baselines[0].ContentKey, Is.EqualTo(
+                    WotContentDigest.ToHex(WotContentDigest.Compute(original))));
+                Assert.That(baselines[1].ContentKey, Is.EqualTo(firstDigest));
+                Assert.That(baselines[0].Incarnation, Is.EqualTo(current.IncarnationId));
+                Assert.That(baselines[1].Incarnation, Is.EqualTo(current.IncarnationId));
+                Assert.That(harness.Manager.CurrentContentKey, Is.EqualTo(current.DigestHex));
+                Assert.That(harness.Manager.CurrentContentLength, Is.EqualTo(second.Length));
+                Assert.That(
+                    harness.Manager.CurrentVersionIncarnation,
+                    Is.EqualTo(current.IncarnationId));
+            });
         }
 
         [Test]
@@ -734,6 +882,122 @@ namespace Opc.Ua.WotCon.Tests.Registry
             Assert.That(setPos.StatusCode, Is.EqualTo(StatusCodes.BadInvalidArgument));
         }
 
+        /// <summary>
+        /// Scenario 5 (logical-Resource file-handle forwarding): a write handle
+        /// opened through the <see cref="IXRegistryProjectedResourceFileHandleForwarder"/>
+        /// entry points (the path a logical Resource's Open/Read/Write/Close
+        /// delegate through) shares the SAME single-writer reservation as a
+        /// handle opened directly on the manager's own bound FileState, because
+        /// both paths are serviced by the one <see cref="WotResourceFileManager"/>
+        /// instance. Opening a second writer via either path while the other
+        /// path's writer is still open must be rejected.
+        /// </summary>
+        [Test]
+        public void ForwardedOpenConflictsWithDirectWriterOnSameManager()
+        {
+            using var harness = new Harness();
+            uint direct = 0;
+            ServiceResult directOpen = harness.Open(ModeWriteErase, ref direct);
+            Assert.That(ServiceResult.IsGood(directOpen), Is.True);
+
+            uint forwarded = 0;
+            ServiceResult forwardedOpen = harness.ForwardOpen(ModeWriteErase, ref forwarded);
+
+            Assert.That(forwardedOpen.StatusCode, Is.EqualTo(StatusCodes.BadNotWritable));
+            Assert.That(forwarded, Is.Zero);
+        }
+
+        [Test]
+        public void DirectOpenConflictsWithForwardedWriterOnSameManager()
+        {
+            using var harness = new Harness();
+            uint forwarded = 0;
+            ServiceResult forwardedOpen = harness.ForwardOpen(ModeWriteErase, ref forwarded);
+            Assert.That(ServiceResult.IsGood(forwardedOpen), Is.True);
+
+            uint direct = 0;
+            ServiceResult directOpen = harness.Open(ModeWriteErase, ref direct);
+
+            Assert.That(directOpen.StatusCode, Is.EqualTo(StatusCodes.BadNotWritable));
+            Assert.That(direct, Is.Zero);
+        }
+
+        [Test]
+        public async Task ForwardedWriteThenForwardedCloseCommitsAndDirectReadSeesIt()
+        {
+            byte[]? committed = null;
+            using var harness = new Harness(onCommit: (bytes, _, _) =>
+            {
+                committed = bytes;
+                return new ValueTask<ServiceResult>(ServiceResult.Good);
+            });
+
+            uint handle = 0;
+            Assert.That(
+                ServiceResult.IsGood(harness.ForwardOpen(ModeWriteErase, ref handle)),
+                Is.True);
+
+            byte[] content = Encoding.UTF8.GetBytes("forwarded content");
+            ServiceResult write = harness.ForwardWrite(handle, ByteString.From(content));
+            Assert.That(ServiceResult.IsGood(write), Is.True);
+
+            ServiceResult close = await harness.ForwardCloseAsync(handle).ConfigureAwait(false);
+            Assert.That(ServiceResult.IsGood(close), Is.True);
+            Assert.That(committed, Is.EqualTo(content));
+
+            // The commit path updates the manager's served content; a direct
+            // read handle (opened via the manager's own bound FileState) must
+            // observe the same bytes just committed via the forwarding path,
+            // proving both paths operate on one shared underlying state.
+            harness.Manager.UpdatePersistedContent(content, null);
+            uint readHandle = 0;
+            harness.Open(ModeRead, ref readHandle);
+            (ServiceResult readResult, ByteString data) = await harness
+                .ReadAsync(readHandle, 256)
+                .ConfigureAwait(false);
+            await harness.CloseAsync(readHandle).ConfigureAwait(false);
+
+            Assert.That(ServiceResult.IsGood(readResult), Is.True);
+            Assert.That(data.Span.ToArray(), Is.EqualTo(content));
+        }
+
+        [Test]
+        public async Task ForwardedReadReturnsSameContentAsDirectRead()
+        {
+            using var harness = new Harness();
+            byte[] content = Encoding.UTF8.GetBytes("shared state content");
+            harness.Manager.UpdatePersistedContent(content, null);
+
+            uint handle = 0;
+            Assert.That(
+                ServiceResult.IsGood(harness.ForwardOpen(ModeRead, ref handle)),
+                Is.True);
+            (ServiceResult result, ByteString data) = await harness
+                .ForwardReadAsync(handle, 256)
+                .ConfigureAwait(false);
+            await harness.ForwardCloseAsync(handle).ConfigureAwait(false);
+
+            Assert.That(ServiceResult.IsGood(result), Is.True);
+            Assert.That(data.Span.ToArray(), Is.EqualTo(content));
+        }
+
+        [Test]
+        public void ForwardedGetPositionAndSetPositionOperateOnSharedHandleState()
+        {
+            using var harness = new Harness();
+            uint handle = 0;
+            harness.ForwardOpen(ModeWriteErase, ref handle);
+            harness.ForwardWrite(handle, ByteString.From(new byte[] { 1, 2, 3, 4, 5 }));
+
+            ulong position = 0;
+            ServiceResult setResult = harness.ForwardSetPosition(handle, 3);
+            ServiceResult getResult = harness.ForwardGetPosition(handle, ref position);
+
+            Assert.That(ServiceResult.IsGood(setResult), Is.True);
+            Assert.That(ServiceResult.IsGood(getResult), Is.True);
+            Assert.That(position, Is.EqualTo(3UL));
+        }
+
         private sealed class Harness : IDisposable
         {
             private readonly NodeId m_objectId;
@@ -742,7 +1006,14 @@ namespace Opc.Ua.WotCon.Tests.Registry
                 int maxOpenHandles = 8,
                 int maxDocumentSize = 1024 * 1024,
                 Func<ISystemContext, string, ServiceResult>? authorizeWrite = null,
-                Func<byte[], NodeId, CancellationToken, ValueTask<ServiceResult>>? onCommit = null)
+                Func<byte[], NodeId, CancellationToken, ValueTask<ServiceResult>>? onCommit = null,
+                Func<
+                    byte[],
+                    string,
+                    Guid?,
+                    NodeId,
+                    CancellationToken,
+                    ValueTask<WotResourceCommitResult>>? onVersionCommit = null)
             {
                 Context = new SystemContext(null!)
                 {
@@ -756,12 +1027,21 @@ namespace Opc.Ua.WotCon.Tests.Registry
                     parent: null!,
                     browseName: new QualifiedName("ResourceFile", 1));
 
-                Manager = new WotResourceFileManager(
-                    File,
-                    maxOpenHandles,
-                    maxDocumentSize,
-                    authorizeWrite ?? ((_, _) => ServiceResult.Good),
-                    onCommit ?? ((_, _, _) => new ValueTask<ServiceResult>(ServiceResult.Good)));
+                Manager = onVersionCommit is null
+                    ? new WotResourceFileManager(
+                        File,
+                        maxOpenHandles,
+                        maxDocumentSize,
+                        authorizeWrite ?? ((_, _) => ServiceResult.Good),
+                        onCommit ?? ((_, _, _) =>
+                            new ValueTask<ServiceResult>(ServiceResult.Good)))
+                    : new WotResourceFileManager(
+                        File,
+                        maxOpenHandles,
+                        maxDocumentSize,
+                        authorizeWrite ?? ((_, _) => ServiceResult.Good),
+                        ReadEmptyAsync,
+                        onVersionCommit);
 
                 m_objectId = File.NodeId;
             }
@@ -805,6 +1085,15 @@ namespace Opc.Ua.WotCon.Tests.Registry
             public ServiceResult Write(uint fileHandle, ByteString data)
                 => File.Write!.OnCall!.Invoke(Context, File.Write, m_objectId, fileHandle, data);
 
+            private static ValueTask<ByteString> ReadEmptyAsync(
+                string key,
+                long offset,
+                int count,
+                CancellationToken cancellationToken)
+            {
+                return new ValueTask<ByteString>(ByteString.Empty);
+            }
+
             public ServiceResult GetPosition(uint fileHandle, ref ulong position)
                 => File.GetPosition!.OnCall!.Invoke(
                     Context, File.GetPosition, m_objectId, fileHandle, ref position);
@@ -812,6 +1101,39 @@ namespace Opc.Ua.WotCon.Tests.Registry
             public ServiceResult SetPosition(uint fileHandle, ulong position)
                 => File.SetPosition!.OnCall!.Invoke(
                     Context, File.SetPosition, m_objectId, fileHandle, position);
+
+            /// <summary>
+            /// Invokes <see cref="IXRegistryProjectedResourceFileHandleForwarder.ForwardOpen"/>
+            /// - the same entry point a logical Resource's own Open method
+            /// forwards through - against this same manager instance.
+            /// </summary>
+            public ServiceResult ForwardOpen(byte mode, ref uint fileHandle)
+                => Forwarder.ForwardOpen(Context, File.Open!, m_objectId, mode, ref fileHandle);
+
+            public ValueTask<ServiceResult> ForwardCloseAsync(uint fileHandle)
+                => Forwarder
+                    .ForwardCloseAsync(Context, File.Close!, m_objectId, fileHandle, CancellationToken.None);
+
+            public ValueTask<(ServiceResult Status, ByteString Data)> ForwardReadAsync(
+                uint fileHandle,
+                int length)
+                => Forwarder
+                    .ForwardReadAsync(
+                        Context, File.Read!, m_objectId, fileHandle, length, CancellationToken.None);
+
+            public ServiceResult ForwardWrite(uint fileHandle, ByteString data)
+                => Forwarder.ForwardWrite(Context, File.Write!, m_objectId, fileHandle, data);
+
+            public ServiceResult ForwardGetPosition(uint fileHandle, ref ulong position)
+                => Forwarder.ForwardGetPosition(
+                    Context, File.GetPosition!, m_objectId, fileHandle, ref position);
+
+            public ServiceResult ForwardSetPosition(uint fileHandle, ulong position)
+                => Forwarder.ForwardSetPosition(
+                    Context, File.SetPosition!, m_objectId, fileHandle, position);
+
+            private IXRegistryProjectedResourceFileHandleForwarder Forwarder =>
+                (IXRegistryProjectedResourceFileHandleForwarder)Manager;
 
             public void Dispose()
                 => Manager.Dispose();

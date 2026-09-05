@@ -422,6 +422,16 @@ namespace Opc.Ua.WotCon.Server.Registry
 
                     foreach (WotResourceVersion version in resource.Versions)
                     {
+                        if (!version.HasContent)
+                        {
+                            if (version.ContentLength != 0)
+                            {
+                                throw new InvalidDataException(
+                                    $"Registry snapshot placeholder version " +
+                                    $"'{version.VersionId}' has a non-zero content length.");
+                            }
+                            continue;
+                        }
                         string digestHex = version.DigestHex;
                         if (!IsSha256Hex(digestHex))
                         {
@@ -609,13 +619,16 @@ namespace Opc.Ua.WotCon.Server.Registry
                     "The registry was left unchanged.",
                     ex);
             }
-            if (manifest.SchemaVersion != CurrentSchemaVersion)
+            if (manifest.SchemaVersion < OldestSupportedSchemaVersion ||
+                manifest.SchemaVersion > CurrentSchemaVersion)
             {
                 throw new NotSupportedException(
                     $"WoT registry {manifestRole} '{manifestPath}' uses schema " +
-                    $"{manifest.SchemaVersion}; expected {CurrentSchemaVersion}. " +
+                    $"{manifest.SchemaVersion}; supported schemas are " +
+                    $"{OldestSupportedSchemaVersion} through {CurrentSchemaVersion}. " +
                     "The registry was left unchanged.");
             }
+            manifest = MigrateManifest(manifest);
 
             WotRegistrySnapshot loaded = await LoadSnapshotAsync(
                     manifest,
@@ -631,6 +644,56 @@ namespace Opc.Ua.WotCon.Server.Registry
                     manifest.Generation,
                     WotContentDigest.ToHex(WotContentDigest.Compute(manifestBytes))),
                 manifestBytes);
+        }
+
+        private static ManifestDto MigrateManifest(ManifestDto manifest)
+        {
+            if (manifest.SchemaVersion == CurrentSchemaVersion)
+            {
+                return manifest;
+            }
+
+            foreach (GroupDto group in manifest.Groups ?? [])
+            {
+                foreach (ResourceDto resource in group.Resources ?? [])
+                {
+                    string? defaultVersionId =
+                        resource.DefaultVersionId ?? resource.DesiredVersionId;
+                    foreach (VersionDto version in resource.Versions ?? [])
+                    {
+                        version.Epoch ??= 1;
+                        version.HasContent ??=
+                            !string.IsNullOrEmpty(version.DigestHex);
+                        version.DocumentId ??= resource.ThingId;
+                        version.Title ??= resource.Title;
+                        if (version.Validation is null &&
+                            string.Equals(
+                                version.VersionId,
+                                defaultVersionId,
+                                StringComparison.Ordinal))
+                        {
+                            version.Validation = resource.Validation;
+                        }
+                    }
+
+                    if (string.IsNullOrEmpty(resource.MetaCreatedAt) &&
+                        resource.Versions is { Length: > 0 })
+                    {
+                        resource.MetaCreatedAt = FormatDate(
+                            resource.Versions.Min(
+                                version => ParseDate(version.CreatedAt)));
+                    }
+                    if (string.IsNullOrEmpty(resource.MetaModifiedAt) &&
+                        resource.Versions is { Length: > 0 })
+                    {
+                        resource.MetaModifiedAt = FormatDate(
+                            resource.Versions.Max(
+                                version => ParseDate(version.ModifiedAt)));
+                    }
+                }
+            }
+            manifest.SchemaVersion = CurrentSchemaVersion;
+            return manifest;
         }
 
         /// <summary>
@@ -766,7 +829,12 @@ namespace Opc.Ua.WotCon.Server.Registry
         {
             ImmutableArray<WotResourceVersion>.Builder versions =
                 ImmutableArray.CreateBuilder<WotResourceVersion>();
-            var versionIds = new HashSet<string>(StringComparer.Ordinal);
+            var versionIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            bool hasPerVersionDocumentMetadata = dto.Versions?.Any(version =>
+                version.DocumentId is not null ||
+                version.Title is not null ||
+                version.BaseUri is not null ||
+                version.ModelVersion is not null) == true;
             if (dto.Versions is not null)
             {
                 foreach (VersionDto version in dto.Versions)
@@ -779,21 +847,27 @@ namespace Opc.Ua.WotCon.Server.Registry
                             $"contains a duplicate or empty version id " +
                             $"'{version.VersionId}'.");
                     }
-                    ValidateSegment(version.VersionId, "version id");
-                    if (!IsSha256Hex(version.DigestHex))
+                    ValidateVersionId(version.VersionId);
+                    bool hasContent = version.HasContent ??
+                        !string.IsNullOrEmpty(version.DigestHex);
+                    if (hasContent && !IsSha256Hex(version.DigestHex))
                     {
                         throw new InvalidDataException(
                             $"Registry resource '{dto.GroupId}/{dto.ResourceId}' version " +
                             $"'{version.VersionId}' has an invalid SHA-256 DigestHex.");
                     }
-                    string digestHex = version.DigestHex!.ToLowerInvariant();
+                    string digestHex = hasContent
+                        ? version.DigestHex!.ToLowerInvariant()
+                        : string.Empty;
                     if (version.ContentLength < 0)
                     {
                         throw new InvalidDataException(
                             $"Registry resource '{dto.GroupId}/{dto.ResourceId}' version " +
                             $"'{version.VersionId}' has an invalid ContentLength.");
                     }
-                    if (!loadedBlobs.TryGetValue(digestHex, out long contentLength))
+                    long contentLength = version.ContentLength;
+                    if (hasContent &&
+                        !loadedBlobs.TryGetValue(digestHex, out contentLength))
                     {
                         if (suppliedBlobs is not null)
                         {
@@ -841,26 +915,79 @@ namespace Opc.Ua.WotCon.Server.Registry
                     }
                     versions.Add(new WotResourceVersion(
                         version.VersionId,
-                        FromHexDigest(digestHex),
+                        hasContent ? FromHexDigest(digestHex) : ByteString.Empty,
                         contentLength,
                         version.ContentType ?? string.Empty,
                         version.Format ?? string.Empty,
                         ParseDate(version.CreatedAt),
-                        ParseDate(version.ModifiedAt)));
+                        ParseDate(version.ModifiedAt))
+                    {
+                        Epoch = version.Epoch.GetValueOrDefault(1),
+                        Labels = ToLabels(version.Labels),
+                        HasContent = hasContent,
+                        Validation = FromDto(version.Validation),
+                        DocumentId = hasPerVersionDocumentMetadata
+                            ? version.DocumentId
+                            : dto.ThingId,
+                        Title = hasPerVersionDocumentMetadata
+                            ? version.Title
+                            : dto.Title,
+                        BaseUri = version.BaseUri,
+                        ModelVersion = version.ModelVersion
+                    });
                 }
             }
 
+            ImmutableArray<WotResourceVersion> loadedVersions = versions.ToImmutable();
+            string? documentIdentity = null;
+            foreach (WotResourceVersion version in loadedVersions)
+            {
+                if (string.IsNullOrWhiteSpace(version.DocumentId))
+                {
+                    continue;
+                }
+                if (documentIdentity is null)
+                {
+                    documentIdentity = version.DocumentId;
+                }
+                else if (!string.Equals(
+                    documentIdentity,
+                    version.DocumentId,
+                    StringComparison.Ordinal))
+                {
+                    throw new InvalidDataException(
+                        $"Registry resource '{dto.GroupId}/{dto.ResourceId}' contains " +
+                        $"incompatible document identities '{documentIdentity}' and " +
+                        $"'{version.DocumentId}'.");
+                }
+            }
+            DateTime derivedMetaCreatedAt = loadedVersions.IsDefaultOrEmpty
+                ? DateTime.MinValue
+                : loadedVersions.Min(version => version.CreatedAt);
+            DateTime derivedMetaModifiedAt = loadedVersions.IsDefaultOrEmpty
+                ? derivedMetaCreatedAt
+                : loadedVersions.Max(version => version.ModifiedAt);
+            WoTValidationOutcomeDataType? validation = FromDto(dto.Validation) ??
+                loadedVersions.FirstOrDefault(version => string.Equals(
+                    version.VersionId,
+                    dto.DefaultVersionId ?? dto.DesiredVersionId,
+                    StringComparison.Ordinal))?.Validation;
+            WotResourceVersion? selectedVersion = loadedVersions.FirstOrDefault(version =>
+                string.Equals(
+                    version.VersionId,
+                    dto.DefaultVersionId ?? dto.DesiredVersionId,
+                    StringComparison.Ordinal));
             return new WotResource(
                 dto.GroupId,
                 dto.ResourceId,
                 (WoTDocumentKindEnum)dto.Kind,
-                versions.ToImmutable(),
+                loadedVersions,
                 defaultVersionId: dto.DefaultVersionId,
                 desiredVersionId: dto.DesiredVersionId,
                 activeVersionId: dto.ActiveVersionId,
                 enabled: dto.Enabled,
                 loadState: (WoTLoadStateEnum)dto.LoadState,
-                validation: FromDto(dto.Validation),
+                validation: validation,
                 diagnostics: dto.Diagnostics is null
                     ? []
                     : ImmutableArray.Create(dto.Diagnostics),
@@ -871,9 +998,17 @@ namespace Opc.Ua.WotCon.Server.Registry
                 rootNodeId: ParseNodeId(dto.RootNodeId),
                 name: dto.Name,
                 description: dto.Description,
-                thingId: dto.ThingId,
-                title: dto.Title,
-                labels: ToLabels(dto.Labels));
+                thingId: selectedVersion?.DocumentId ?? dto.ThingId,
+                title: selectedVersion?.Title ?? dto.Title,
+                labels: ToLabels(dto.Labels))
+            {
+                MetaCreatedAt = string.IsNullOrEmpty(dto.MetaCreatedAt)
+                    ? derivedMetaCreatedAt
+                    : ParseDate(dto.MetaCreatedAt),
+                MetaModifiedAt = string.IsNullOrEmpty(dto.MetaModifiedAt)
+                    ? derivedMetaModifiedAt
+                    : ParseDate(dto.MetaModifiedAt)
+            };
         }
 
         private static ManifestDto ToManifest(WotRegistrySnapshot snapshot)
@@ -920,7 +1055,15 @@ namespace Opc.Ua.WotCon.Server.Registry
                     CreatedAt = FormatDate(v.CreatedAt),
                     ModifiedAt = FormatDate(v.ModifiedAt),
                     DigestHex = v.DigestHex,
-                    ContentLength = v.ContentLength
+                    ContentLength = v.ContentLength,
+                    Epoch = v.Epoch,
+                    Labels = FromLabels(v.Labels),
+                    HasContent = v.HasContent,
+                    Validation = ToDto(v.Validation),
+                    DocumentId = v.DocumentId,
+                    Title = v.Title,
+                    BaseUri = v.BaseUri,
+                    ModelVersion = v.ModelVersion
                 };
             }
             return new ResourceDto
@@ -945,9 +1088,10 @@ namespace Opc.Ua.WotCon.Server.Registry
                 Diagnostics = resource.Diagnostics.IsDefaultOrEmpty
                     ? null
                     : System.Linq.Enumerable.ToArray(resource.Diagnostics),
-                Validation = ToDto(resource.Validation),
                 Versions = versions.Length == 0 ? null : versions,
-                Labels = FromLabels(resource.Labels)
+                Labels = FromLabels(resource.MetaLabels),
+                MetaCreatedAt = FormatDate(resource.MetaCreatedAt),
+                MetaModifiedAt = FormatDate(resource.MetaModifiedAt)
             };
         }
 
@@ -1308,6 +1452,29 @@ namespace Opc.Ua.WotCon.Server.Registry
             }
         }
 
+        private static void ValidateVersionId(string value)
+        {
+            if (WotRegistryService.IsValidExplicitVersionId(value))
+            {
+                return;
+            }
+            try
+            {
+                if (string.Equals(
+                    value,
+                    WotRegistryService.NormalizeSegment(value, "version id"),
+                    StringComparison.Ordinal))
+                {
+                    return;
+                }
+            }
+            catch (ArgumentException)
+            {
+            }
+            throw new InvalidDataException(
+                $"WoT registry version id '{value}' is not segment-safe.");
+        }
+
         private async ValueTask RollbackPristinePreSwitchFailureAsync(
             WotRegistrySnapshot intendedSnapshot,
             PristineCommitArtifacts? artifacts,
@@ -1568,6 +1735,10 @@ namespace Opc.Ua.WotCon.Server.Registry
             {
                 foreach (WotResourceVersion version in resource.Versions)
                 {
+                    if (!version.HasContent)
+                    {
+                        continue;
+                    }
                     string digestHex = version.DigestHex;
                     if (!seen.Add(digestHex))
                     {
@@ -2131,7 +2302,7 @@ namespace Opc.Ua.WotCon.Server.Registry
         private static extern int CloseUnix(IntPtr file);
 
         /// <summary>
-        /// Identifies the file-system durability barrier reached while committing manifest version 2.
+        /// Identifies the file-system durability barrier reached while committing a manifest.
         /// </summary>
         internal enum DirectorySyncPhase
         {
@@ -2385,7 +2556,8 @@ namespace Opc.Ua.WotCon.Server.Registry
         private const string LockFile = ".wot-registry.lock";
         private const string RegistryXid = "/";
         private const string RegistryNodeIdPath = "WoTRegistry";
-        private const int CurrentSchemaVersion = 3;
+        private const int CurrentSchemaVersion = 4;
+        private const int OldestSupportedSchemaVersion = 3;
         private const int Sha256HexLength = 64;
         private const int BlobVerifyChunkSize = 64 * 1024;
         private const int OpenReadOnly = 0;
@@ -2414,7 +2586,7 @@ namespace Opc.Ua.WotCon.Server.Registry
         private long? m_expectedGeneration;
 
         /// <summary>
-        /// Serializes the manifest version 2 root document for the file-backed WoT registry store.
+        /// Serializes the manifest root document for the file-backed WoT registry store.
         /// </summary>
         internal sealed class ManifestDto
         {
@@ -2440,7 +2612,7 @@ namespace Opc.Ua.WotCon.Server.Registry
         }
 
         /// <summary>
-        /// Serializes one xRegistry group inside a manifest version 2 document.
+        /// Serializes one xRegistry group inside a manifest document.
         /// </summary>
         internal sealed class GroupDto
         {
@@ -2481,7 +2653,7 @@ namespace Opc.Ua.WotCon.Server.Registry
         }
 
         /// <summary>
-        /// Serializes one resource version entry inside a manifest version 2 resource.
+        /// Serializes one resource Version entry inside a manifest resource.
         /// </summary>
         internal sealed class VersionDto
         {
@@ -2519,10 +2691,50 @@ namespace Opc.Ua.WotCon.Server.Registry
             /// Gets or sets the version blob length in bytes.
             /// </summary>
             public long ContentLength { get; set; }
+
+            /// <summary>
+            /// Gets or sets the independently versioned epoch.
+            /// </summary>
+            public long? Epoch { get; set; }
+
+            /// <summary>
+            /// Gets or sets Version labels.
+            /// </summary>
+            public Dictionary<string, string>? Labels { get; set; }
+
+            /// <summary>
+            /// Gets or sets whether document bytes have been committed.
+            /// </summary>
+            public bool? HasContent { get; set; }
+
+            /// <summary>
+            /// Gets or sets validation metadata recorded for this Version.
+            /// </summary>
+            public ValidationDto? Validation { get; set; }
+
+            /// <summary>
+            /// Gets or sets the document identity parsed from this Version.
+            /// </summary>
+            public string? DocumentId { get; set; }
+
+            /// <summary>
+            /// Gets or sets the document title parsed from this Version.
+            /// </summary>
+            public string? Title { get; set; }
+
+            /// <summary>
+            /// Gets or sets the Thing Description base URI parsed from this Version.
+            /// </summary>
+            public string? BaseUri { get; set; }
+
+            /// <summary>
+            /// Gets or sets the Thing Model <c>version.model</c> value.
+            /// </summary>
+            public string? ModelVersion { get; set; }
         }
 
         /// <summary>
-        /// Serializes validation metadata for one manifest version 2 resource.
+        /// Serializes validation metadata for one manifest entity.
         /// </summary>
         internal sealed class ValidationDto
         {
@@ -2573,7 +2785,7 @@ namespace Opc.Ua.WotCon.Server.Registry
         }
 
         /// <summary>
-        /// Serializes one xRegistry resource and its materialization state in manifest version 2.
+        /// Serializes one xRegistry resource and its materialization state in a manifest.
         /// </summary>
         internal sealed class ResourceDto
         {
@@ -2668,7 +2880,7 @@ namespace Opc.Ua.WotCon.Server.Registry
             public string[]? Diagnostics { get; set; }
 
             /// <summary>
-            /// Gets or sets validation metadata for the resource.
+            /// Gets or sets legacy schema-3 validation metadata for the default Version.
             /// </summary>
             public ValidationDto? Validation { get; set; }
 
@@ -2681,6 +2893,16 @@ namespace Opc.Ua.WotCon.Server.Registry
             /// Gets or sets resource-level labels persisted with the manifest.
             /// </summary>
             public Dictionary<string, string>? Labels { get; set; }
+
+            /// <summary>
+            /// Gets or sets the Resource Meta creation timestamp.
+            /// </summary>
+            public string? MetaCreatedAt { get; set; }
+
+            /// <summary>
+            /// Gets or sets the Resource Meta modification timestamp.
+            /// </summary>
+            public string? MetaModifiedAt { get; set; }
         }
     }
 

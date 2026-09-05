@@ -107,6 +107,11 @@ namespace Opc.Ua.SourceGeneration
                 generated,
                 Does.Contain(
                     "GetEncodeable<global::Opc.Ua.TestEvent.StatusPayload>"));
+            Assert.That(generated, Does.Contain("GetNullableUInt32"));
+            Assert.That(generated, Does.Contain("GetStringArray"));
+            Assert.That(
+                generated,
+                Does.Contain("public global::Opc.Ua.Variant SourceUrl"));
         }
 
         private const string NodeSet =
@@ -126,11 +131,38 @@ namespace Opc.Ua.SourceGeneration
                 <References>
                   <Reference ReferenceType="i=47">ns=1;i=1001</Reference>
                   <Reference ReferenceType="i=47">ns=1;i=1002</Reference>
+                  <Reference ReferenceType="i=47">ns=1;i=1003</Reference>
+                  <Reference ReferenceType="i=47">ns=1;i=1004</Reference>
+                  <Reference ReferenceType="i=47">ns=1;i=1005</Reference>
                   <Reference ReferenceType="i=45" IsForward="false">i=2041</Reference>
                 </References>
               </UAObjectType>
               <UAVariable NodeId="ns=1;i=1001" BrowseName="1:Status" ParentNodeId="ns=1;i=1000"
                 DataType="i=12">
+                <References>
+                  <Reference ReferenceType="i=47" IsForward="false">ns=1;i=1000</Reference>
+                  <Reference ReferenceType="i=40">i=63</Reference>
+                  <Reference ReferenceType="i=37">i=78</Reference>
+                </References>
+              </UAVariable>
+              <UAVariable NodeId="ns=1;i=1003" BrowseName="1:Epoch" ParentNodeId="ns=1;i=1000"
+                DataType="i=7">
+                <References>
+                  <Reference ReferenceType="i=47" IsForward="false">ns=1;i=1000</Reference>
+                  <Reference ReferenceType="i=40">i=63</Reference>
+                  <Reference ReferenceType="i=37">i=78</Reference>
+                </References>
+              </UAVariable>
+              <UAVariable NodeId="ns=1;i=1004" BrowseName="1:Changed" ParentNodeId="ns=1;i=1000"
+                DataType="i=12" ValueRank="1">
+                <References>
+                  <Reference ReferenceType="i=47" IsForward="false">ns=1;i=1000</Reference>
+                  <Reference ReferenceType="i=40">i=63</Reference>
+                  <Reference ReferenceType="i=37">i=78</Reference>
+                </References>
+              </UAVariable>
+              <UAVariable NodeId="ns=1;i=1005" BrowseName="1:SourceUrl" ParentNodeId="ns=1;i=1000"
+                DataType="i=23751">
                 <References>
                   <Reference ReferenceType="i=47" IsForward="false">ns=1;i=1000</Reference>
                   <Reference ReferenceType="i=40">i=63</Reference>

@@ -60,6 +60,9 @@ namespace Opc.Ua.XRegistry.Tests
                 .ConfigureAwait(false);
 
             var resource = (ResourceState?)nm.Find(result.ResourceNodeId);
+            var groupState = (GroupState)nm.Find(group)!;
+            var registry = (RegistryState)nm.Find(
+                new NodeId(XRegistryWellKnown.RegistryObject, NamespaceIndex(nm)))!;
             Assert.Multiple(() =>
             {
                 Assert.That(ServiceResult.IsGood(result.ServiceResult), Is.True);
@@ -71,6 +74,11 @@ namespace Opc.Ua.XRegistry.Tests
                     "ResourceType is a FileType, so the document transfers over the file Methods.");
                 Assert.That(resource!.ResourceId!.Value, Is.EqualTo("urn:doc"));
                 Assert.That(resource.VersionId!.Value, Is.EqualTo("1"));
+                Assert.That(registry.Xid!.Value, Is.EqualTo("/"));
+                Assert.That(groupState.Xid!.Value, Is.EqualTo("/groups/schemas"));
+                Assert.That(
+                    resource.Xid!.Value,
+                    Is.EqualTo("/groups/schemas/resources/urn:doc/versions/1"));
             });
         }
 
@@ -216,6 +224,152 @@ namespace Opc.Ua.XRegistry.Tests
         }
 
         [Test]
+        public async Task RejectedOversizedWriteLeavesTheVersionUnchangedAsync()
+        {
+            var store = new CountingResourceStore();
+            using XRegistryRegistrationNodeManager nm = CreateAddressSpace(
+                out _,
+                options =>
+                {
+                    options.MaxResourceBytes = 4;
+                    options.ResourceStore = store;
+                });
+            NodeId group = await CreateGroupAsync(nm).ConfigureAwait(false);
+            CreateResourceMethodStateResult created = await nm.OnCreateResourceAsync(
+                nm.SystemContext,
+                null!,
+                group,
+                "urn:doc",
+                "1",
+                true,
+                CancellationToken.None).ConfigureAwait(false);
+            var resource = (ResourceState)nm.Find(created.ResourceNodeId)!;
+            uint epoch = resource.Epoch!.Value;
+            DateTimeUtc modifiedAt = resource.ModifiedAt!.Value;
+
+            WriteMethodStateResult rejected = await WriteAsync(
+                nm,
+                resource,
+                created,
+                new byte[5]).ConfigureAwait(false);
+            CloseMethodStateResult closed = await resource.Close!.OnCallAsync!(
+                nm.SystemContext,
+                resource.Close,
+                resource.NodeId,
+                created.FileHandle,
+                CancellationToken.None).ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    rejected.ServiceResult.StatusCode,
+                    Is.EqualTo(StatusCodes.BadRequestTooLarge));
+                Assert.That(ServiceResult.IsGood(closed.ServiceResult), Is.True);
+                Assert.That(resource.Epoch.Value, Is.EqualTo(epoch));
+                Assert.That(resource.ModifiedAt.Value, Is.EqualTo(modifiedAt));
+                Assert.That(store.WriteCount, Is.Zero);
+                Assert.That(store.DeleteCount, Is.Zero);
+            });
+        }
+
+        [Test]
+        public async Task EmptyWriteAndEraseCloseDoNotCommitAsync()
+        {
+            var store = new CountingResourceStore();
+            using XRegistryRegistrationNodeManager nm = CreateAddressSpace(
+                out _,
+                options => options.ResourceStore = store);
+            NodeId group = await CreateGroupAsync(nm).ConfigureAwait(false);
+            ResourceState resource = await RegisterVersionAsync(
+                nm,
+                group,
+                "urn:doc",
+                "1",
+                s_document).ConfigureAwait(false);
+            uint epoch = resource.Epoch!.Value;
+            DateTimeUtc modifiedAt = resource.ModifiedAt!.Value;
+            store.ResetCounts();
+
+            OpenMethodStateResult opened = await resource.Open!.OnCallAsync!(
+                nm.SystemContext,
+                resource.Open,
+                resource.NodeId,
+                kWriteMode | kEraseExistingMode,
+                CancellationToken.None).ConfigureAwait(false);
+            WriteMethodStateResult empty = await resource.Write!.OnCallAsync!(
+                nm.SystemContext,
+                resource.Write,
+                resource.NodeId,
+                opened.FileHandle,
+                ByteString.Empty,
+                CancellationToken.None).ConfigureAwait(false);
+            CloseMethodStateResult closed = await resource.Close!.OnCallAsync!(
+                nm.SystemContext,
+                resource.Close,
+                resource.NodeId,
+                opened.FileHandle,
+                CancellationToken.None).ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(ServiceResult.IsGood(empty.ServiceResult), Is.True);
+                Assert.That(ServiceResult.IsGood(closed.ServiceResult), Is.True);
+                Assert.That(resource.Epoch.Value, Is.EqualTo(epoch));
+                Assert.That(resource.ModifiedAt.Value, Is.EqualTo(modifiedAt));
+                Assert.That(store.WriteCount, Is.Zero);
+                Assert.That(store.DeleteCount, Is.Zero);
+            });
+        }
+
+        [Test]
+        public async Task ByteIdenticalCloseDoesNotRewriteTheStoreAsync()
+        {
+            var store = new CountingResourceStore();
+            using XRegistryRegistrationNodeManager nm = CreateAddressSpace(
+                out _,
+                options => options.ResourceStore = store);
+            NodeId group = await CreateGroupAsync(nm).ConfigureAwait(false);
+            ResourceState resource = await RegisterVersionAsync(
+                nm,
+                group,
+                "urn:doc",
+                "1",
+                s_document).ConfigureAwait(false);
+            uint epoch = resource.Epoch!.Value;
+            DateTimeUtc modifiedAt = resource.ModifiedAt!.Value;
+            store.ResetCounts();
+
+            OpenMethodStateResult opened = await resource.Open!.OnCallAsync!(
+                nm.SystemContext,
+                resource.Open,
+                resource.NodeId,
+                kWriteMode | kEraseExistingMode,
+                CancellationToken.None).ConfigureAwait(false);
+            await resource.Write!.OnCallAsync!(
+                nm.SystemContext,
+                resource.Write,
+                resource.NodeId,
+                opened.FileHandle,
+                ByteString.From(s_document),
+                CancellationToken.None).ConfigureAwait(false);
+            CloseMethodStateResult closed = await resource.Close!.OnCallAsync!(
+                nm.SystemContext,
+                resource.Close,
+                resource.NodeId,
+                opened.FileHandle,
+                CancellationToken.None).ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(ServiceResult.IsGood(closed.ServiceResult), Is.True);
+                Assert.That(resource.Epoch.Value, Is.EqualTo(epoch));
+                Assert.That(resource.ModifiedAt.Value, Is.EqualTo(modifiedAt));
+                Assert.That(store.WriteCount, Is.Zero);
+                Assert.That(store.DeleteCount, Is.Zero);
+            });
+        }
+
+        [Test]
         public async Task WriteOnAnUnknownHandleIsRejectedAsync()
         {
             using XRegistryRegistrationNodeManager nm = CreateAddressSpace(out _);
@@ -348,7 +502,7 @@ namespace Opc.Ua.XRegistry.Tests
                 CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(opened.ServiceResult.StatusCode.Code,
-                Is.EqualTo(StatusCodes.BadTooManyOperations));
+                Is.EqualTo(StatusCodes.BadNotWritable));
         }
 
         [Test]
@@ -577,9 +731,8 @@ namespace Opc.Ua.XRegistry.Tests
                 Assert.That(ServiceResult.IsGood(first.ServiceResult), Is.True);
                 Assert.That(first.Created, Is.True);
                 Assert.That(second.ServiceResult.StatusCode.Code,
-                    Is.EqualTo(StatusCodes.BadTooManyOperations),
-                    "The existing-resource path hands out a write handle too, so the upload bound " +
-                    "has to apply there as well.");
+                    Is.EqualTo(StatusCodes.BadNotWritable),
+                    "A Version permits only one open writer.");
             });
         }
 
@@ -724,6 +877,32 @@ namespace Opc.Ua.XRegistry.Tests
                 ByteString.From(data), CancellationToken.None);
         }
 
+        private static async Task<ResourceState> RegisterVersionAsync(
+            XRegistryRegistrationNodeManager nm,
+            NodeId group,
+            string resourceId,
+            string versionId,
+            byte[] data)
+        {
+            CreateResourceMethodStateResult created = await nm.OnCreateResourceAsync(
+                nm.SystemContext,
+                null!,
+                group,
+                resourceId,
+                versionId,
+                true,
+                CancellationToken.None).ConfigureAwait(false);
+            var resource = (ResourceState)nm.Find(created.ResourceNodeId)!;
+            await WriteAsync(nm, resource, created, data).ConfigureAwait(false);
+            await resource.Close!.OnCallAsync!(
+                nm.SystemContext,
+                resource.Close,
+                resource.NodeId,
+                created.FileHandle,
+                CancellationToken.None).ConfigureAwait(false);
+            return resource;
+        }
+
         private static ValueTask<CreateResourceMethodStateResult> CreateResourceAsync(
             XRegistryRegistrationNodeManager nm,
             NodeId group,
@@ -764,6 +943,54 @@ namespace Opc.Ua.XRegistry.Tests
             var nm = new XRegistryRegistrationNodeManager(server.Object, null!, options);
             nm.CreateAddressSpace(new Dictionary<NodeId, IList<IReference>>());
             return nm;
+        }
+
+        private sealed class CountingResourceStore : IXRegistryResourceStore
+        {
+            public int WriteCount { get; private set; }
+            public int DeleteCount { get; private set; }
+
+            public void ResetCounts()
+            {
+                WriteCount = 0;
+                DeleteCount = 0;
+            }
+
+            public ValueTask<ByteString> ReadAsync(
+                string resourceKey,
+                long offset,
+                int count,
+                CancellationToken ct = default)
+            {
+                return m_inner.ReadAsync(resourceKey, offset, count, ct);
+            }
+
+            public ValueTask WriteAsync(
+                string resourceKey,
+                long offset,
+                ByteString data,
+                CancellationToken ct = default)
+            {
+                WriteCount++;
+                return m_inner.WriteAsync(resourceKey, offset, data, ct);
+            }
+
+            public ValueTask<long> GetLengthAsync(
+                string resourceKey,
+                CancellationToken ct = default)
+            {
+                return m_inner.GetLengthAsync(resourceKey, ct);
+            }
+
+            public ValueTask<bool> DeleteAsync(
+                string resourceKey,
+                CancellationToken ct = default)
+            {
+                DeleteCount++;
+                return m_inner.DeleteAsync(resourceKey, ct);
+            }
+
+            private readonly InMemoryResourceStore m_inner = new();
         }
 
         private const byte kWriteMode = 2;

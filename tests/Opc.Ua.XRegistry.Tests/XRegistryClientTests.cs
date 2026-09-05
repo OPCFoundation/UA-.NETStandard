@@ -876,5 +876,35 @@ namespace Opc.Ua.XRegistry.Tests
         private static readonly NodeId s_createdResourceNodeId = new(4711u, 1);
         private static readonly NodeId s_createdGroupNodeId = new(4712u, 1);
         private static readonly byte[] s_readChunk = [0x0A, 0x0B];
+
+        [TestCase("0.6.0", 0, 6, 0, true)]
+        [TestCase("0.5.9", 0, 6, 0, false)]
+        [TestCase("0.7.0", 0, 6, 0, true)]
+        [TestCase("1.0.0", 0, 6, 0, true)]
+        [TestCase("0.6.0-preview", 0, 6, 0, true)]
+        [TestCase("0.6.1", 0, 6, 0, true)]
+        [TestCase("0.5.99", 0, 6, 0, false)]
+        [TestCase("", 0, 6, 0, false)]
+        [TestCase("abc", 0, 6, 0, false)]
+        [TestCase("0.6", 0, 6, 0, true)]
+        [TestCase("1", 0, 6, 0, true)]
+        [TestCase("0", 0, 6, 0, false)]
+        // Regression: a single-component version equal to an all-zero
+        // minor/patch threshold with the same major must compare equal
+        // ("1" == "1.0.0"), not strictly less (the omitted components are 0,
+        // not a parse failure).
+        [TestCase("1", 1, 0, 0, true)]
+        [TestCase("2", 1, 9, 9, true)]
+        [TestCase("1", 2, 0, 0, false)]
+        [TestCase("1.5", 1, 5, 0, true)]
+        [TestCase("1.5", 1, 5, 1, false)]
+        [TestCase("1.x", 1, 0, 0, false)]
+        [TestCase("1.0.x", 1, 0, 0, false)]
+        public void IsVersionAtLeastParsesCorrectly(
+            string version, int major, int minor, int patch, bool expected)
+        {
+            bool result = XRegistryClient.IsVersionAtLeast(version ?? string.Empty, major, minor, patch);
+            Assert.That(result, Is.EqualTo(expected));
+        }
     }
 }

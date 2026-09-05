@@ -33,6 +33,7 @@ using System.Collections.Immutable;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Moq;
 using NUnit.Framework;
 using Opc.Ua.WotCon.Server.Materialization;
 using Opc.Ua.WotCon.Server.Registry;
@@ -268,6 +269,25 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             Assert.That(
                 async () => await m_coordinator.DeleteAsync(null!).ConfigureAwait(false),
                 Throws.TypeOf<ArgumentNullException>());
+        }
+
+        [Test]
+        public void ARegistryWithoutDeletePolicyCapabilityIsRejected()
+        {
+            var registry = new Mock<IWotRegistryService>(MockBehavior.Strict);
+            using var coordinator = new WotMaterializationCoordinator(
+                registry.Object,
+                new FakeWotProjectionHost(),
+                documentConverter: new FakeWotDocumentConverter());
+
+            Assert.That(
+                async () => await coordinator.DeleteAsync(new WotDeleteRequest
+                {
+                    GroupId = WotRegistryGroups.ThingModels,
+                    ResourceId = "tm-a",
+                    Policy = WoTDeletePolicyEnum.Reject
+                }).ConfigureAwait(false),
+                Throws.TypeOf<NotSupportedException>());
         }
 
         /// <summary>

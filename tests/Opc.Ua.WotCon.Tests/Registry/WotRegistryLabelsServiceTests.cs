@@ -27,6 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System.Collections.Generic;
 using System.IO;
 using System.Threading.Tasks;
 using NUnit.Framework;
@@ -267,6 +268,85 @@ namespace Opc.Ua.WotCon.Tests.Registry
             Assert.That(captured, Is.Not.Null);
             Assert.That(captured!.ProjectionOnly, Is.True,
                 "Label-only mutations must not re-trigger materialization.");
+        }
+
+        [Test]
+        public async Task VersionLabelMutationsAreProjectionOnlyButContentMutationsAreNot()
+        {
+            using var service = new WotRegistryService();
+            byte[] content = TestMaterialization.Td("urn:version-label", "first");
+            await service.UpsertResourceAsync(new WotUpsertResourceRequest
+            {
+                GroupId = WotRegistryGroups.ThingDescriptions,
+                ResourceId = "version-label",
+                VersionId = "v1",
+                Kind = WoTDocumentKindEnum.ThingDescription,
+                Content = ByteString.From(content)
+            });
+            var changes = new List<WotRegistryChangedEventArgs>();
+            int autoRefreshRequests = 0;
+            service.Changed += (_, e) =>
+            {
+                changes.Add(e);
+                if (!e.ProjectionOnly)
+                {
+                    autoRefreshRequests++;
+                }
+            };
+            WotResource before = service.Current.FindResource(
+                WotRegistryGroups.ThingDescriptions,
+                "version-label")!;
+
+            await service.AddVersionLabelAsync(
+                WotRegistryGroups.ThingDescriptions,
+                "version-label",
+                "v1",
+                "stage",
+                "production",
+                before.FindVersion("v1")!.Epoch);
+            WotResource afterLabel = service.Current.FindResource(
+                WotRegistryGroups.ThingDescriptions,
+                "version-label")!;
+            await service.RemoveVersionLabelAsync(
+                WotRegistryGroups.ThingDescriptions,
+                "version-label",
+                "v1",
+                "stage",
+                afterLabel.FindVersion("v1")!.Epoch);
+            WotResource afterRemove = service.Current.FindResource(
+                WotRegistryGroups.ThingDescriptions,
+                "version-label")!;
+            WotUpsertResourceRequest update = new()
+            {
+                GroupId = WotRegistryGroups.ThingDescriptions,
+                ResourceId = "version-label",
+                VersionId = "v1",
+                ExpectedVersionDigestHex = afterRemove.FindVersion("v1")!.DigestHex,
+                Kind = WoTDocumentKindEnum.ThingDescription,
+                Content = ByteString.From(TestMaterialization.Td("urn:version-label", "second"))
+            };
+            await service.UpsertResourceAsync(update);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(changes, Has.Count.EqualTo(3));
+                Assert.That(changes[0].ProjectionOnly, Is.True,
+                    "AutoRefresh consumers must ignore Version-label-only changes.");
+                Assert.That(changes[0].Current.FindResource(
+                    WotRegistryGroups.ThingDescriptions,
+                    "version-label")!.FindVersion("v1")!.Labels["stage"],
+                    Is.EqualTo("production"));
+                Assert.That(changes[1].ProjectionOnly, Is.True,
+                    "Removing a Version label must also remain projection-only.");
+                Assert.That(changes[1].Current.FindResource(
+                    WotRegistryGroups.ThingDescriptions,
+                    "version-label")!.FindVersion("v1")!.Labels.ContainsKey("stage"),
+                    Is.False);
+                Assert.That(changes[2].ProjectionOnly, Is.False,
+                    "Document content changes must continue to trigger AutoRefresh.");
+                Assert.That(autoRefreshRequests, Is.EqualTo(1),
+                    "Only the content mutation may request AutoRefresh.");
+            });
         }
 
         [Test]

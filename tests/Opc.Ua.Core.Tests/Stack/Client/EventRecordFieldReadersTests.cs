@@ -40,6 +40,27 @@ namespace Opc.Ua.Core.Tests.Stack.Client
     public sealed class EventRecordFieldReadersTests
     {
         [Test]
+        public void StandardUriStringEventFieldsPreserveVariantAbi()
+        {
+            System.Reflection.PropertyInfo serverUri =
+                typeof(AuditClientEventTypeRecord).GetProperty("ServerUri");
+
+            Assert.That(serverUri, Is.Not.Null);
+            Assert.That(serverUri!.PropertyType, Is.EqualTo(typeof(Variant)));
+        }
+
+        [Test]
+        public void CompanionUriStringEventFieldsPreserveVariantAbi()
+        {
+            System.Reflection.PropertyInfo productInstanceUri =
+                typeof(Onboarding.DeviceRegistrationAuditEventTypeRecord)
+                    .GetProperty("ProductInstanceUri");
+
+            Assert.That(productInstanceUri, Is.Not.Null);
+            Assert.That(productInstanceUri!.PropertyType, Is.EqualTo(typeof(Variant)));
+        }
+
+        [Test]
         public void GetNodeIdArrayWhenFieldContainsNodeIdsReturnsValues()
         {
             NodeId[] expected = [new NodeId(1u), new NodeId("Second", 2)];
@@ -60,6 +81,37 @@ namespace Opc.Ua.Core.Tests.Stack.Client
                 Assert.That(EventRecordFieldReaders.GetNodeIdArray(fields, fields.Length), Is.Null);
                 Assert.That(EventRecordFieldReaders.GetNodeIdArray(fields, 0), Is.Null);
                 Assert.That(EventRecordFieldReaders.GetNodeIdArray(fields, 1), Is.Null);
+            });
+        }
+
+        [Test]
+        public void GetNullableUInt32ReturnsValueOrNull()
+        {
+            Variant[] fields = [new Variant(42u), Variant.From("wrong")];
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(EventRecordFieldReaders.GetNullableUInt32(fields, 0), Is.EqualTo(42u));
+                Assert.That(EventRecordFieldReaders.GetNullableUInt32(fields, 1), Is.Null);
+                Assert.That(EventRecordFieldReaders.GetNullableUInt32(fields, fields.Length), Is.Null);
+            });
+        }
+
+        [Test]
+        public void GetStringArrayReturnsValuesOrNull()
+        {
+            string[] expected = ["a", "b"];
+            Variant[] fields =
+            [
+                new Variant(new ArrayOf<string>(expected)),
+                Variant.From("wrong")
+            ];
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(EventRecordFieldReaders.GetStringArray(fields, 0), Is.EqualTo(expected));
+                Assert.That(EventRecordFieldReaders.GetStringArray(fields, 1), Is.Null);
+                Assert.That(EventRecordFieldReaders.GetStringArray(fields, fields.Length), Is.Null);
             });
         }
 

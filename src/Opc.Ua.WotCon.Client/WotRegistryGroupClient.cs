@@ -50,7 +50,8 @@ namespace Opc.Ua.WotCon.Client
             string groupId,
             WoTDocumentKindEnum kind,
             GroupTypeClient proxy,
-            ITelemetryContext telemetry)
+            ITelemetryContext telemetry,
+            bool usesDistinctHierarchy = false)
         {
             Session = session;
             GroupNodeId = groupNodeId;
@@ -58,6 +59,7 @@ namespace Opc.Ua.WotCon.Client
             Kind = kind;
             Proxy = proxy;
             Telemetry = telemetry;
+            m_usesDistinctHierarchy = usesDistinctHierarchy;
         }
 
         /// <summary>
@@ -109,7 +111,13 @@ namespace Opc.Ua.WotCon.Client
             (NodeId resourceNodeId, string versionIdOut, _) = await Proxy
                 .CreateResourceAsync(resourceId, versionId ?? string.Empty, requestFileOpen: false, ct)
                 .ConfigureAwait(false);
-            return (OpenResourceClient(resourceNodeId, resourceId), versionIdOut);
+            return (
+                OpenResourceClient(
+                    resourceNodeId,
+                    resourceId,
+                    versionIdOut,
+                    pendingStructuralVersion: true),
+                versionIdOut);
         }
 
         /// <summary>
@@ -131,12 +139,25 @@ namespace Opc.Ua.WotCon.Client
             (NodeId resourceNodeId, string versionIdOut, _, bool created) = await Proxy
                 .GetOrCreateResourceAsync(resourceId, versionId ?? string.Empty, requestFileOpen: false, ct)
                 .ConfigureAwait(false);
-            return (OpenResourceClient(resourceNodeId, resourceId), versionIdOut, created);
+            WotRegistryResourceClient resource = OpenResourceClient(
+                resourceNodeId,
+                resourceId,
+                versionIdOut,
+                pendingStructuralVersion: created);
+            // This read only selects the conditional-fill path. The server
+            // rechecks content state atomically before returning a write handle.
+            if (!created &&
+                await resource.HasContentAsync(ct).ConfigureAwait(false) == false)
+            {
+                resource.MarkPendingStructuralVersion();
+            }
+            return (resource, versionIdOut, created);
         }
 
         /// <summary>
-        /// Resolves an already existing resource by id, browsing from the
-        /// group object.
+        /// Resolves an existing logical Resource by id to its current default
+        /// Version node. Deleting the returned client deletes the logical
+        /// Resource and all of its Versions.
         /// </summary>
         /// <exception cref="ArgumentException"><paramref name="resourceId"/> is null or empty.</exception>
         /// <exception cref="ServiceResultException">The resource was not found in this group.</exception>
@@ -149,16 +170,20 @@ namespace Opc.Ua.WotCon.Client
                 throw new ArgumentException("Resource id is required.", nameof(resourceId));
             }
             ushort ns = Session.NamespaceUris.GetIndexOrAppend(Namespaces.WotCon);
-            NodeId resourceNodeId = await WotConBrowsePathResolver.ResolveChildAsync(
+            NodeId resourceNodeId = await WotConBrowsePathResolver.ResolveLogicalResourceAsync(
                 Session,
                 GroupNodeId,
-                Ua.ReferenceTypeIds.Organizes,
                 ns,
                 resourceId,
+                m_usesDistinctHierarchy,
                 StatusCodes.BadNoMatch,
                 $"Resource '{resourceId}' not found in group '{GroupId}'.",
                 ct).ConfigureAwait(false);
-            return OpenResourceClient(resourceNodeId, resourceId);
+            return OpenResourceClient(
+                resourceNodeId,
+                resourceId,
+                versionId: string.Empty,
+                pendingStructuralVersion: false);
         }
 
         /// <summary>
@@ -169,13 +194,28 @@ namespace Opc.Ua.WotCon.Client
             return Proxy.DeleteAsync(expectedEpoch, ct);
         }
 
-        private WotRegistryResourceClient OpenResourceClient(NodeId resourceNodeId, string resourceId)
+        private WotRegistryResourceClient OpenResourceClient(
+            NodeId resourceNodeId,
+            string resourceId,
+            string versionId,
+            bool pendingStructuralVersion)
         {
             WoTDocumentTypeClient proxy = Kind == WoTDocumentKindEnum.ThingModel
                 ? new ThingModelFileTypeClient(Session, resourceNodeId, Telemetry)
                 : new ThingDescriptionFileTypeClient(Session, resourceNodeId, Telemetry);
             return new WotRegistryResourceClient(
-                Session, resourceNodeId, GroupId, resourceId, Kind, proxy, Telemetry);
+                Session,
+                resourceNodeId,
+                GroupId,
+                resourceId,
+                versionId,
+                Kind,
+                Proxy,
+                proxy,
+                pendingStructuralVersion,
+                Telemetry);
         }
+
+        private readonly bool m_usesDistinctHierarchy;
     }
 }

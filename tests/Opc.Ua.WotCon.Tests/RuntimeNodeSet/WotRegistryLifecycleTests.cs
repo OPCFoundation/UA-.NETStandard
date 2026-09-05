@@ -273,8 +273,11 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
             ushort v2Ns = (ushort)server.NamespaceUris.GetIndex(WotConModel.Namespaces.WotCon);
             var groupNodeId = new NodeId(
                 "WoTRegistry/groups/" + WotRegistryGroups.ThingDescriptions, v2Ns);
+            // In the new hierarchy, the Group's child is the logical Resource
+            // node, not a version node.
             var resourceNodeId = new NodeId(
-                $"WoTRegistry/groups/{WotRegistryGroups.ThingDescriptions}/resources/sensor", v2Ns);
+                $"WoTRegistry/groups/{WotRegistryGroups.ThingDescriptions}/resources/sensor",
+                v2Ns);
 
             bool groupVisible = await WaitForConditionAsync(async () =>
             {
@@ -437,7 +440,8 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
                 resourceNodeId,
                 closeId,
                 new Variant(writeHandle)).ConfigureAwait(false);
-            Assert.That(writeClose.StatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied));
+            Assert.That(writeClose.StatusCode, Is.EqualTo(StatusCodes.Good),
+                "A rejected Write leaves a clean handle, so Close only releases it.");
 
             m_options.ManagementAccess = new WotManagementAccessPolicy
             {

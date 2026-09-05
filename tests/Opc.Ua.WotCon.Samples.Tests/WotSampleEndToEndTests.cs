@@ -208,9 +208,17 @@ namespace Opc.Ua.WotCon.Samples.Tests
                 (WotRegistryResourceClient pumpResource, _, _) = await group
                     .GetOrCreateResourceAsync("sample-pump", string.Empty, timeout.Token)
                     .ConfigureAwait(false);
-                await pumpResource.UploadNewVersionAsync(
-                    ByteString.From(Encoding.UTF8.GetBytes(changedPump)),
-                    ct: timeout.Token).ConfigureAwait(false);
+                WotRegistryUploadResult upload = await pumpResource
+                    .UploadNewVersionAndGetResultAsync(
+                        ByteString.From(Encoding.UTF8.GetBytes(changedPump)),
+                        ct: timeout.Token)
+                    .ConfigureAwait(false);
+                await pumpResource
+                    .SetDefaultVersionAsync(
+                        upload.VersionId,
+                        expectedEpoch: 0,
+                        timeout.Token)
+                    .ConfigureAwait(false);
 
                 WotRegistryRefreshResult secondRefresh = await connection.Registry
                     .RefreshAllAsync(

@@ -39,8 +39,8 @@ namespace Opc.Ua.XRegistry.Tests
     /// <summary>
     /// Verifies the federation proxy: a resource hosted by another registry is represented locally
     /// by a proxy carrying an <c>ExternalReference</c> (an ExpandedNodeId naming the remote server
-    /// through the ServerArray) and a <c>ResourceUrl</c>, alongside the content-derived id that
-    /// makes the same resource de-duplicable across registries.
+    /// through the ServerArray) and a <c>ResourceUrl</c>, while retaining structural xRegistry
+    /// Resource and Version identity independently of the opaque content lookup.
     /// </summary>
     [TestFixture]
     [Category("XRegistry")]
@@ -127,14 +127,18 @@ namespace Opc.Ua.XRegistry.Tests
 
                 Assert.That(proxy.ResourceUrl!.Value, Is.EqualTo(remoteEndpoint));
                 Assert.That(proxy.Format!.Value, Is.EqualTo("application/json"));
-                Assert.That(proxy.Xid!.Value, Is.EqualTo(proxy.ResourceId!.Value),
-                    "The identity of a federated resource is its content id.");
+                Assert.That(proxy.ResourceId!.Value, Is.EqualTo("federated-resource"));
+                Assert.That(proxy.VersionId!.Value, Is.EqualTo("1"));
+                Assert.That(
+                    proxy.Xid!.Value,
+                    Is.EqualTo(
+                        "/groups/federated/resources/federated-resource/versions/1"));
                 Assert.That(proxy.Epoch!.Value, Is.EqualTo(1u));
             });
         }
 
         [Test]
-        public void ProxyIdentityIsTheContentIdOfTheFederatedDocument()
+        public void ProxyContentLookupDoesNotReplaceStructuralIdentity()
         {
             using XRegistryFederationNodeManager nm = CreateNodeManager(new XRegistryServerOptions
             {
@@ -146,10 +150,18 @@ namespace Opc.Ua.XRegistry.Tests
             nm.CreateAddressSpace(new Dictionary<NodeId, IList<IReference>>());
 
             var proxy = (ResourceState?)nm.Find(ProxyNodeId(nm));
-            Assert.That(
-                proxy!.Xid!.Value,
-                Is.EqualTo(ByteString.From(s_federatedDocument).ToHexString()),
-                "The content id is derived from the federated document itself.");
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    proxy!.Xid!.Value,
+                    Is.EqualTo(
+                        "/groups/federated/resources/federated-resource/versions/1"));
+                Assert.That(
+                    proxy.ExternalReference!.Value.TryGetValue(out ByteString identifier)
+                        ? identifier
+                        : ByteString.Empty,
+                    Is.EqualTo(ByteString.From(s_federatedDocument)));
+            });
         }
 
         [Test]

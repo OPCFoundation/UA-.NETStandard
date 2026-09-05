@@ -39,7 +39,7 @@ namespace Opc.Ua.XRegistry.Tests
 {
     /// <summary>
     /// Verifies the channel-security policy: a registry mutation always needs a
-    /// <c>SignAndEncrypt</c> channel because a document and its content-derived identity are
+    /// <c>SignAndEncrypt</c> channel because a document and its content lookup are
     /// integrity-critical, while reads follow
     /// <see cref="XRegistryServerOptions.RequireEncryptionForReads"/>.
     /// </summary>

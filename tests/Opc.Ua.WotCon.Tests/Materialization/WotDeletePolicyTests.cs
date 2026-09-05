@@ -29,8 +29,10 @@
 
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using Opc.Ua.WotCon.Bindings;
 using Opc.Ua.WotCon.Server.Materialization;
 using Opc.Ua.WotCon.Server.Registry;
 
@@ -105,6 +107,30 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             });
         }
 
+        [Test]
+        public async Task ProjectedLogicalDeleteUsesRejectPolicy()
+        {
+            await RegisterModelAndInstanceAsync();
+            long generation = m_registry.Current.Generation;
+            WotResource target = ModelResource()!;
+
+            WotRegistryMutationResult result = await m_registry.DeleteProjectedEntityAsync(
+                WotRegistryGroups.ThingModels,
+                "tm-a",
+                target.DefaultVersionId!,
+                deleteLogicalResource: true,
+                expectedEpoch: target.MetaEpoch);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(result.Outcome, Is.EqualTo(WoTOutcomeEnum.Rejected));
+                Assert.That(result.Message, Does.Contain("delete policy is Reject"));
+                Assert.That(m_registry.Current.Generation, Is.EqualTo(generation));
+                Assert.That(ModelResource(), Is.Not.Null);
+                Assert.That(InstanceResource(), Is.Not.Null);
+            });
+        }
+
         /// <summary>
         /// Reject with nothing depending on the document is an ordinary delete:
         /// the policy is about dependents, not about deleting.
@@ -135,9 +161,14 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         public async Task RetireRemovesTheProjectionAndKeepsTheDocumentResolvable()
         {
             await RegisterModelAndInstanceAsync();
+            WotResource before = ModelResource()!;
+            long groupEpoch = m_registry.Current.FindGroup(
+                WotRegistryGroups.ThingModels)!.Epoch;
+            await Task.Delay(20);
 
             WotDeleteResult result = await m_registry.DeleteResourceAsync(
                 WotRegistryGroups.ThingModels, "tm-a", WoTDeletePolicyEnum.Retire);
+            WotResource after = ModelResource()!;
 
             Assert.Multiple(() =>
             {
@@ -149,8 +180,13 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 Assert.That(result.Failed, Is.Empty);
                 Assert.That(result.Message, Does.Contain("remains stored and resolvable"));
                 Assert.That(ModelResource(), Is.Not.Null);
-                Assert.That(ModelResource()!.Enabled, Is.False);
-                Assert.That(ModelResource()!.LoadState, Is.EqualTo(WoTLoadStateEnum.Retired));
+                Assert.That(after.Enabled, Is.False);
+                Assert.That(after.LoadState, Is.EqualTo(WoTLoadStateEnum.Retired));
+                Assert.That(after.MetaEpoch, Is.EqualTo(before.MetaEpoch + 1));
+                Assert.That(after.MetaModifiedAt, Is.GreaterThan(before.MetaModifiedAt));
+                Assert.That(
+                    m_registry.Current.FindGroup(WotRegistryGroups.ThingModels)!.Epoch,
+                    Is.EqualTo(groupEpoch));
                 Assert.That(
                     WotDependencyGraph.Resolve(m_registry.Current, "urn:tm-a"),
                     Is.Not.Null,
@@ -166,9 +202,16 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         public async Task CascadeUnloadsADependentThatResolvesOnlyThroughIt()
         {
             await RegisterModelAndInstanceAsync();
+            WotResource dependentBefore = InstanceResource()!;
+            long targetGroupEpoch = m_registry.Current.FindGroup(
+                WotRegistryGroups.ThingModels)!.Epoch;
+            long dependentGroupEpoch = m_registry.Current.FindGroup(
+                WotRegistryGroups.ThingDescriptions)!.Epoch;
+            await Task.Delay(20);
 
             WotDeleteResult result = await m_registry.DeleteResourceAsync(
                 WotRegistryGroups.ThingModels, "tm-a", WoTDeletePolicyEnum.Cascade);
+            WotResource dependentAfter = InstanceResource()!;
 
             Assert.Multiple(() =>
             {
@@ -177,10 +220,20 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 Assert.That(result.Unloaded, Is.EqualTo(new[] { InstanceXid }).AsCollection);
                 Assert.That(result.Failed, Is.Empty);
                 Assert.That(ModelResource(), Is.Null);
-                Assert.That(InstanceResource(), Is.Not.Null);
-                Assert.That(InstanceResource()!.Enabled, Is.False);
+                Assert.That(dependentAfter.Enabled, Is.False);
+                Assert.That(dependentAfter.LoadState, Is.EqualTo(WoTLoadStateEnum.Unloaded));
                 Assert.That(
-                    InstanceResource()!.LoadState, Is.EqualTo(WoTLoadStateEnum.Unloaded));
+                    dependentAfter.MetaEpoch,
+                    Is.EqualTo(dependentBefore.MetaEpoch + 1));
+                Assert.That(
+                    dependentAfter.MetaModifiedAt,
+                    Is.GreaterThan(dependentBefore.MetaModifiedAt));
+                Assert.That(
+                    m_registry.Current.FindGroup(WotRegistryGroups.ThingModels)!.Epoch,
+                    Is.EqualTo(targetGroupEpoch + 1));
+                Assert.That(
+                    m_registry.Current.FindGroup(WotRegistryGroups.ThingDescriptions)!.Epoch,
+                    Is.EqualTo(dependentGroupEpoch));
             });
         }
 
@@ -428,6 +481,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         public async Task TheCoordinatorKeepsADependentProjectedAfterRetire()
         {
             await RegisterModelAndInstanceAsync();
+            int shadowReloads = m_host.ShadowCount;
 
             WotDeleteOutcome outcome = await m_coordinator.DeleteAsync(new WotDeleteRequest
             {
@@ -441,9 +495,125 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             {
                 Assert.That(outcome.Delete.Retired, Is.True);
                 Assert.That(outcome.Delete.Deleted, Is.False);
+                Assert.That(outcome.Summary.Retired, Is.EqualTo(1));
+                Assert.That(m_host.ShadowCount, Is.EqualTo(shadowReloads + 1));
+                Assert.That(ModelResource()!.Enabled, Is.False);
+                Assert.That(ModelResource()!.LoadState, Is.EqualTo(WoTLoadStateEnum.Retired));
+                Assert.That(ModelResource()!.ActiveVersionId, Is.Null);
                 Assert.That(InstanceResource()!.Enabled, Is.True);
                 Assert.That(
                     InstanceResource()!.LoadState, Is.EqualTo(WoTLoadStateEnum.Active));
+                Assert.That(
+                    outcome.Results.Any(result => result.Xid == ModelXid),
+                    Is.False);
+            });
+        }
+
+        [Test]
+        public async Task TheCoordinatorDeactivatesRetiredResourceBindings()
+        {
+            var binders = new RecordingDeleteBinderRegistry();
+            m_coordinator.Dispose();
+            m_coordinator = new WotMaterializationCoordinator(
+                m_registry,
+                m_host,
+                binders,
+                documentConverter: m_converter);
+            await RegisterModelAndInstanceAsync();
+
+            await m_coordinator.DeleteAsync(new WotDeleteRequest
+            {
+                GroupId = WotRegistryGroups.ThingModels,
+                ResourceId = "tm-a",
+                Policy = WoTDeletePolicyEnum.Retire
+            });
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    binders.DeactivatedPlans.Select(plan => plan.ResourceXid),
+                    Does.Contain(ModelXid));
+                Assert.That(
+                    binders.ActivatedPlans.Count(plan => plan.ResourceXid == ModelXid),
+                    Is.EqualTo(1));
+                Assert.That(
+                    binders.ActivatedPlans.Count(plan => plan.ResourceXid == InstanceXid),
+                    Is.EqualTo(2));
+            });
+        }
+
+        [Test]
+        public async Task FailedReloadKeepsRetiredResourceStateAndBindingsInactive()
+        {
+            var binders = new RecordingDeleteBinderRegistry();
+            m_coordinator.Dispose();
+            m_coordinator = new WotMaterializationCoordinator(
+                m_registry,
+                m_host,
+                binders,
+                documentConverter: m_converter);
+            await RegisterModelAndInstanceAsync();
+            m_host.FailNextReload = true;
+
+            WotDeleteOutcome outcome = await m_coordinator.DeleteAsync(new WotDeleteRequest
+            {
+                GroupId = WotRegistryGroups.ThingModels,
+                ResourceId = "tm-a",
+                Policy = WoTDeletePolicyEnum.Retire
+            });
+            WotRefreshResult retry = await m_coordinator.RefreshAsync(
+                new WotRefreshRequest());
+
+            WotResource retired = ModelResource()!;
+            Assert.Multiple(() =>
+            {
+                Assert.That(outcome.Delete.Retired, Is.True);
+                Assert.That(outcome.Summary.Outcome, Is.EqualTo(WoTOutcomeEnum.Failed));
+                Assert.That(outcome.Summary.Retired, Is.EqualTo(1));
+                Assert.That(retired.Enabled, Is.False);
+                Assert.That(retired.LoadState, Is.EqualTo(WoTLoadStateEnum.Retired));
+                Assert.That(retired.ActiveVersionId, Is.Null);
+                Assert.That(
+                    binders.DeactivatedPlans.Select(plan => plan.ResourceXid),
+                    Does.Contain(ModelXid));
+                Assert.That(
+                    binders.ActivatedPlans.Count(plan => plan.ResourceXid == ModelXid),
+                    Is.EqualTo(1));
+                Assert.That(retry.Summary.Retired, Is.Zero);
+            });
+        }
+
+        [Test]
+        public async Task ReenabledResourceRepairsStaleProjectionState()
+        {
+            await RegisterModelAndInstanceAsync();
+            await m_registry.DeleteResourceAsync(
+                WotRegistryGroups.ThingModels,
+                "tm-a",
+                WoTDeletePolicyEnum.Retire);
+            await m_coordinator.RefreshAsync(new WotRefreshRequest
+            {
+                Options = new WoTRefreshOptionsDataType { DryRun = true }
+            });
+            WotResource retired = ModelResource()!;
+            await m_registry.SetEnabledAsync(
+                WotRegistryGroups.ThingModels,
+                "tm-a",
+                enabled: true,
+                retired.MetaEpoch);
+            int shadowReloads = m_host.ShadowCount;
+
+            WotRefreshResult refreshed = await m_coordinator.RefreshAsync(
+                new WotRefreshRequest());
+            WotResource active = ModelResource()!;
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(refreshed.Summary.Outcome, Is.EqualTo(WoTOutcomeEnum.Success));
+                Assert.That(m_host.ShadowCount, Is.EqualTo(shadowReloads + 1));
+                Assert.That(active.Enabled, Is.True);
+                Assert.That(active.LoadState, Is.EqualTo(WoTLoadStateEnum.Active));
+                Assert.That(active.ActiveVersionId, Is.EqualTo(active.DefaultVersionId));
             });
         }
 
@@ -501,6 +671,34 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 Kind = kind,
                 Content = ByteString.From(content)
             });
+        }
+
+        private sealed class RecordingDeleteBinderRegistry : IWotBinderRegistry
+        {
+            public IReadOnlyList<WoTBindingCapabilityDataType> Capabilities { get; } = [];
+            public List<WotBindingPlan> ActivatedPlans { get; } = [];
+            public List<WotBindingPlan> DeactivatedPlans { get; } = [];
+
+            public WotBindingPlan Prepare(WotBindingPlanRequest request)
+            {
+                return new WotBindingPlan(request.ResourceXid, [], [], [], []);
+            }
+
+            public ValueTask ActivateAsync(
+                WotBindingPlan plan,
+                CancellationToken cancellationToken = default)
+            {
+                ActivatedPlans.Add(plan);
+                return default;
+            }
+
+            public ValueTask DeactivateAsync(
+                WotBindingPlan plan,
+                CancellationToken cancellationToken = default)
+            {
+                DeactivatedPlans.Add(plan);
+                return default;
+            }
         }
     }
 }

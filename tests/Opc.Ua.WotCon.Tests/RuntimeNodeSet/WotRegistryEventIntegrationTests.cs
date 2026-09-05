@@ -40,11 +40,13 @@ using Opc.Ua.WotCon;
 using Opc.Ua.WotCon.Server;
 using Opc.Ua.WotCon.Server.Materialization;
 using Opc.Ua.WotCon.Server.Registry;
+using Opc.Ua.XRegistry.Server;
 using Quickstarts.ReferenceServer;
-using WotConModel = Opc.Ua.WotCon;
 using UaBrowseNames = global::Opc.Ua.BrowseNames;
 using UaObjectIds = global::Opc.Ua.ObjectIds;
 using UaObjectTypeIds = global::Opc.Ua.ObjectTypeIds;
+using WotConModel = Opc.Ua.WotCon;
+using XRegistryModel = Opc.Ua.XRegistry;
 
 #nullable disable warnings
 
@@ -106,6 +108,12 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
                     MinimumSecurityMode = MessageSecurityMode.None,
                     AllowAnonymous = true,
                     RequiredRoleId = UaObjectIds.WellKnownRole_Anonymous
+                },
+                XRegistryEvents = new XRegistryServerOptions
+                {
+                    EventsEnabled = true,
+                    EventSourceUrl = "https://wot-registry.example.test",
+                    ResourceDocumentAttributeName = "thing"
                 }
             };
             m_registry = new WotRegistryService();
@@ -268,6 +276,274 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
             await DeleteSubscriptionAsync(services, subscriptionId).ConfigureAwait(false);
         }
 
+        [Test]
+        public async Task GenericXRegistryAndWotEventsCoexistOnTheRegistryNotifier()
+        {
+            var registryNodeId = ExpandedNodeId.ToNodeId(
+                WotConModel.ObjectIds.WoTRegistry, m_server.CurrentInstance.NamespaceUris);
+            var services = new ServerTestServices(m_server, m_secureChannelContext);
+            EventFilter filter = XRegistryModel.ResourceCreatedEventTypeRecord.EventFilters.Build(
+                m_server.CurrentInstance.NamespaceUris,
+                XRegistryModel.xRegistryEventRecordDecoders.RegisterxRegistryDecoders(
+                    new EventRecordDecoderRegistry(),
+                    m_server.CurrentInstance.NamespaceUris));
+            uint subscriptionId = await CreateEventSubscriptionAsync(
+                services,
+                registryNodeId,
+                filter).ConfigureAwait(false);
+
+            await m_registry.UpsertResourceAsync(new WotUpsertResourceRequest
+            {
+                GroupId = WotRegistryGroups.ThingDescriptions,
+                ResourceId = "generic-event",
+                Kind = WoTDocumentKindEnum.ThingDescription,
+                Content = ByteString.From(SelectiveConverter.ValidTd("generic-event"))
+            }).ConfigureAwait(false);
+
+            NodeId resourceCreatedType = ExpandedNodeId.ToNodeId(
+                Opc.Ua.XRegistry.ObjectTypeIds.ResourceCreatedEventType,
+                m_server.CurrentInstance.NamespaceUris);
+            EventFieldList? evt = await CollectEventAsync(
+                services,
+                subscriptionId,
+                efl => EventTypeOf(efl, filter) == resourceCreatedType).ConfigureAwait(false);
+
+            Assert.That(evt, Is.Not.Null);
+            Assert.That(
+                FieldByBrowseName(evt!, filter, Opc.Ua.XRegistry.BrowseNames.SourceUrl)
+                    .TryGetValue(out string sourceUrl) ? sourceUrl : string.Empty,
+                Is.EqualTo("https://wot-registry.example.test"));
+            await DeleteSubscriptionAsync(services, subscriptionId).ConfigureAwait(false);
+        }
+
+        [Test]
+        public async Task StructuralPlaceholderStillEmitsVersionCreatedEvent()
+        {
+            var registryNodeId = ExpandedNodeId.ToNodeId(
+                WotConModel.ObjectIds.WoTRegistry, m_server.CurrentInstance.NamespaceUris);
+            var services = new ServerTestServices(m_server, m_secureChannelContext);
+            EventFilter filter = XRegistryModel.VersionCreatedEventTypeRecord.EventFilters.Build(
+                m_server.CurrentInstance.NamespaceUris,
+                XRegistryModel.xRegistryEventRecordDecoders.RegisterxRegistryDecoders(
+                    new EventRecordDecoderRegistry(),
+                    m_server.CurrentInstance.NamespaceUris));
+            uint subscriptionId = await CreateEventSubscriptionAsync(
+                services,
+                registryNodeId,
+                filter).ConfigureAwait(false);
+
+            await m_registry.GetOrCreateVersionAsync(
+                WotRegistryGroups.ThingDescriptions,
+                "placeholder-event",
+                "v1",
+                WoTDocumentKindEnum.ThingDescription).ConfigureAwait(false);
+
+            NodeId versionCreatedType = ExpandedNodeId.ToNodeId(
+                XRegistryModel.ObjectTypeIds.VersionCreatedEventType,
+                m_server.CurrentInstance.NamespaceUris);
+            EventFieldList? evt = await CollectEventAsync(
+                services,
+                subscriptionId,
+                efl => EventTypeOf(efl, filter) == versionCreatedType).ConfigureAwait(false);
+
+            Assert.That(evt, Is.Not.Null);
+            await DeleteSubscriptionAsync(services, subscriptionId).ConfigureAwait(false);
+        }
+
+        [Test]
+        public async Task PlaceholderDefaultSwitchDoesNotInventOptionalChangedAttributes()
+        {
+            WotRegistryMutationResult v1 = await m_registry.UpsertResourceAsync(
+                new WotUpsertResourceRequest
+                {
+                    GroupId = WotRegistryGroups.ThingDescriptions,
+                    ResourceId = "placeholder-default",
+                    VersionId = "v1",
+                    Kind = WoTDocumentKindEnum.ThingDescription,
+                    Content = ByteString.From(
+                        SelectiveConverter.ValidTd("placeholder-default")),
+                    ContentType = string.Empty,
+                    Format = string.Empty
+                }).ConfigureAwait(false);
+            Assert.That(v1.Outcome, Is.EqualTo(WoTOutcomeEnum.Success));
+
+            var registryNodeId = ExpandedNodeId.ToNodeId(
+                WotConModel.ObjectIds.WoTRegistry, m_server.CurrentInstance.NamespaceUris);
+            var services = new ServerTestServices(m_server, m_secureChannelContext);
+            EventFilter versionFilter = XRegistryModel.VersionCreatedEventTypeRecord.EventFilters.Build(
+                m_server.CurrentInstance.NamespaceUris,
+                XRegistryModel.xRegistryEventRecordDecoders.RegisterxRegistryDecoders(
+                    new EventRecordDecoderRegistry(),
+                    m_server.CurrentInstance.NamespaceUris));
+            uint versionSubscriptionId = await CreateEventSubscriptionAsync(
+                services,
+                registryNodeId,
+                versionFilter).ConfigureAwait(false);
+
+            await m_registry.GetOrCreateVersionAsync(
+                WotRegistryGroups.ThingDescriptions,
+                "placeholder-default",
+                "v2",
+                WoTDocumentKindEnum.ThingDescription).ConfigureAwait(false);
+            NodeId versionCreatedType = ExpandedNodeId.ToNodeId(
+                XRegistryModel.ObjectTypeIds.VersionCreatedEventType,
+                m_server.CurrentInstance.NamespaceUris);
+            EventFieldList? v2Created = await CollectEventAsync(
+                services,
+                versionSubscriptionId,
+                efl =>
+                    EventTypeOf(efl, versionFilter) == versionCreatedType &&
+                    AsString(FieldByBrowseName(
+                        efl,
+                        versionFilter,
+                        XRegistryModel.BrowseNames.Subject)).EndsWith(
+                            "/versions/v2",
+                            StringComparison.Ordinal)).ConfigureAwait(false);
+            Assert.That(v2Created, Is.Not.Null);
+            await DeleteSubscriptionAsync(services, versionSubscriptionId).ConfigureAwait(false);
+
+            WotResource before = m_registry.Current.FindResource(
+                WotRegistryGroups.ThingDescriptions,
+                "placeholder-default")!;
+            EventFilter filter = XRegistryModel.ResourceUpdatedEventTypeRecord.EventFilters.Build(
+                m_server.CurrentInstance.NamespaceUris,
+                XRegistryModel.xRegistryEventRecordDecoders.RegisterxRegistryDecoders(
+                    new EventRecordDecoderRegistry(),
+                    m_server.CurrentInstance.NamespaceUris));
+            uint subscriptionId = await CreateEventSubscriptionAsync(
+                services,
+                registryNodeId,
+                filter).ConfigureAwait(false);
+            WotRegistryMutationResult result = await m_registry.SetDefaultVersionAsync(
+                WotRegistryGroups.ThingDescriptions,
+                "placeholder-default",
+                "v2",
+                before.MetaEpoch).ConfigureAwait(false);
+
+            NodeId resourceUpdatedType = ExpandedNodeId.ToNodeId(
+                XRegistryModel.ObjectTypeIds.ResourceUpdatedEventType,
+                m_server.CurrentInstance.NamespaceUris);
+            EventFieldList? evt = await CollectEventAsync(
+                services,
+                subscriptionId,
+                efl => EventTypeOf(efl, filter) == resourceUpdatedType).ConfigureAwait(false);
+
+            Assert.That(result.Outcome, Is.EqualTo(WoTOutcomeEnum.Success));
+            Assert.That(evt, Is.Not.Null);
+            Variant changedField = FieldByBrowseName(
+                evt!,
+                filter,
+                XRegistryModel.BrowseNames.Changed);
+            Assert.That(changedField.TryGetValue(out ArrayOf<string> changed), Is.True);
+            string[] changedNames = changed.ToArray();
+            Assert.Multiple(() =>
+            {
+                Assert.That(changedNames, Is.EqualTo(s_placeholderDefaultSwitchChanged));
+                Assert.That(changedNames, Does.Not.Contain("contenttype"));
+                Assert.That(changedNames, Does.Not.Contain("format"));
+            });
+
+            await DeleteSubscriptionAsync(services, subscriptionId).ConfigureAwait(false);
+        }
+
+        [Test]
+        public async Task ResourceMetadataChangesIncludeNameAndDescription()
+        {
+            var registryNodeId = ExpandedNodeId.ToNodeId(
+                WotConModel.ObjectIds.WoTRegistry,
+                m_server.CurrentInstance.NamespaceUris);
+            var services = new ServerTestServices(m_server, m_secureChannelContext);
+            EventFilter versionFilter = XRegistryModel.VersionCreatedEventTypeRecord.EventFilters.Build(
+                m_server.CurrentInstance.NamespaceUris,
+                XRegistryModel.xRegistryEventRecordDecoders.RegisterxRegistryDecoders(
+                    new EventRecordDecoderRegistry(),
+                    m_server.CurrentInstance.NamespaceUris));
+            uint versionSubscriptionId = await CreateEventSubscriptionAsync(
+                services,
+                registryNodeId,
+                versionFilter).ConfigureAwait(false);
+
+            await m_registry.UpsertResourceAsync(new WotUpsertResourceRequest
+            {
+                GroupId = WotRegistryGroups.ThingDescriptions,
+                ResourceId = "metadata-event",
+                Kind = WoTDocumentKindEnum.ThingDescription,
+                Content = ByteString.From(SelectiveConverter.ValidTd("metadata-event")),
+                Name = "Old name",
+                Description = "Old description"
+            }).ConfigureAwait(false);
+            NodeId versionCreatedType = ExpandedNodeId.ToNodeId(
+                XRegistryModel.ObjectTypeIds.VersionCreatedEventType,
+                m_server.CurrentInstance.NamespaceUris);
+            EventFieldList? created = await CollectEventAsync(
+                services,
+                versionSubscriptionId,
+                efl => EventTypeOf(efl, versionFilter) == versionCreatedType)
+                .ConfigureAwait(false);
+            Assert.That(created, Is.Not.Null);
+            await DeleteSubscriptionAsync(services, versionSubscriptionId).ConfigureAwait(false);
+
+            EventFilter resourceFilter = XRegistryModel.ResourceUpdatedEventTypeRecord.EventFilters.Build(
+                m_server.CurrentInstance.NamespaceUris,
+                XRegistryModel.xRegistryEventRecordDecoders.RegisterxRegistryDecoders(
+                    new EventRecordDecoderRegistry(),
+                    m_server.CurrentInstance.NamespaceUris));
+            uint resourceSubscriptionId = await CreateEventSubscriptionAsync(
+                services,
+                registryNodeId,
+                resourceFilter).ConfigureAwait(false);
+
+            WotRegistryMutationResult result = await m_registry.UpsertResourceAsync(
+                new WotUpsertResourceRequest
+                {
+                    GroupId = WotRegistryGroups.ThingDescriptions,
+                    ResourceId = "metadata-event",
+                    Kind = WoTDocumentKindEnum.ThingDescription,
+                    Content = ByteString.From(
+                        SelectiveConverter.ValidTd(
+                            "metadata-event",
+                            "metadata-event-v2")),
+                    Name = "New name",
+                    Description = "New description"
+                }).ConfigureAwait(false);
+
+            NodeId resourceUpdatedType = ExpandedNodeId.ToNodeId(
+                XRegistryModel.ObjectTypeIds.ResourceUpdatedEventType,
+                m_server.CurrentInstance.NamespaceUris);
+            EventFieldList? evt = await CollectEventAsync(
+                services,
+                resourceSubscriptionId,
+                efl => EventTypeOf(efl, resourceFilter) == resourceUpdatedType)
+                .ConfigureAwait(false);
+
+            Assert.That(result.Outcome, Is.EqualTo(WoTOutcomeEnum.Success));
+            Assert.That(evt, Is.Not.Null);
+            Variant changedField = FieldByBrowseName(
+                evt!,
+                resourceFilter,
+                XRegistryModel.BrowseNames.Changed);
+            Assert.That(changedField.TryGetValue(out ArrayOf<string> changed), Is.True);
+            string[] changedNames = changed.ToArray();
+            WotResource current = m_registry.Current.FindResource(
+                WotRegistryGroups.ThingDescriptions,
+                "metadata-event")!;
+            Assert.Multiple(() =>
+            {
+                Assert.That(changedNames, Does.Contain("name"));
+                Assert.That(changedNames, Does.Contain("description"));
+                Assert.That(
+                    AsUInt32(FieldByBrowseName(
+                        evt!,
+                        resourceFilter,
+                        XRegistryModel.BrowseNames.MetaEpoch)),
+                    Is.EqualTo(checked((uint)current.MetaEpoch)));
+                Assert.That(current.Name, Is.EqualTo("New name"));
+                Assert.That(current.Description, Is.EqualTo("New description"));
+            });
+
+            await DeleteSubscriptionAsync(services, resourceSubscriptionId).ConfigureAwait(false);
+        }
+
         private static class Field
         {
             public const int EventType = 0;
@@ -333,7 +609,9 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
         }
 
         private async Task<uint> CreateEventSubscriptionAsync(
-            ServerTestServices services, NodeId sourceNodeId)
+            ServerTestServices services,
+            NodeId sourceNodeId,
+            EventFilter? filter = null)
         {
             RequestHeader requestHeader = m_requestHeader;
             requestHeader.Timestamp = DateTimeUtc.Now;
@@ -358,7 +636,7 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
                         SamplingInterval = 0,
                         QueueSize = 100,
                         DiscardOldest = true,
-                        Filter = new ExtensionObject(BuildWotEventFilter())
+                        Filter = new ExtensionObject(filter ?? BuildWotEventFilter())
                     }
                 }
             ];
@@ -427,6 +705,32 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
             return efl.EventFields[Field.EventType].TryGetValue(out NodeId n) ? n : NodeId.Null;
         }
 
+        private static NodeId EventTypeOf(EventFieldList efl, EventFilter filter)
+        {
+            Variant field = FieldByBrowseName(efl, filter, UaBrowseNames.EventType);
+            return field.TryGetValue(out NodeId nodeId) ? nodeId : NodeId.Null;
+        }
+
+        private static Variant FieldByBrowseName(
+            EventFieldList efl,
+            EventFilter filter,
+            string browseName)
+        {
+            for (int index = 0; index < filter.SelectClauses.Count; index++)
+            {
+                SimpleAttributeOperand clause = filter.SelectClauses[index];
+                if (clause.BrowsePath.Count > 0 &&
+                    string.Equals(
+                        clause.BrowsePath[^1].Name,
+                        browseName,
+                        StringComparison.Ordinal))
+                {
+                    return efl.EventFields[index];
+                }
+            }
+            return Variant.Null;
+        }
+
         private static string AsString(Variant variant)
         {
             return variant.TryGetValue(out string s) ? s : string.Empty;
@@ -438,6 +742,19 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
         }
 
         private const uint ClientHandle = 77;
+        private static readonly string[] s_placeholderDefaultSwitchChanged =
+        [
+            "createdat",
+            "epoch",
+            "isdefault",
+            "meta.defaultversionid",
+            "meta.epoch",
+            "meta.modifiedat",
+            "modifiedat",
+            "thing",
+            "versionid",
+            "xid"
+        ];
 
         /// <summary>
         /// A converter that emits a minimal valid projection for a resource, but
@@ -450,12 +767,17 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
 
             public static byte[] ValidTd(string id)
             {
+                return ValidTd(id, id);
+            }
+
+            public static byte[] ValidTd(string id, string title)
+            {
                 return Encoding.UTF8.GetBytes(
                     "{\"@context\":\"https://www.w3.org/2022/wot/td/v1.1\"," +
                     "\"@type\":\"uav:object\",\"id\":\"urn:" +
                     id +
                     "\",\"title\":\"" +
-                    id +
+                    title +
                     "\"}");
             }
 

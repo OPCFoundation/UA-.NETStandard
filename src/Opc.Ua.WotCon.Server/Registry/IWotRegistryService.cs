@@ -54,6 +54,23 @@ namespace Opc.Ua.WotCon.Server.Registry
         public string? ResourceId { get; set; }
 
         /// <summary>
+        /// Gets or sets an explicit Version id. When omitted, the registry assigns the next id.
+        /// </summary>
+        public string? VersionId { get; set; }
+
+        /// <summary>
+        /// Gets or sets the digest observed when the Version write handle opened. The update is
+        /// rejected if the committed Version changed before Close.
+        /// </summary>
+        public string? ExpectedVersionDigestHex { get; set; }
+
+        /// <summary>
+        /// Gets or sets the immutable Version incarnation observed when an internal
+        /// write handle opened.
+        /// </summary>
+        internal Guid? ExpectedVersionIncarnation { get; set; }
+
+        /// <summary>
         /// Gets or sets the document kind.
         /// </summary>
         public WoTDocumentKindEnum Kind { get; set; } = WoTDocumentKindEnum.ThingDescription;
@@ -374,6 +391,11 @@ namespace Opc.Ua.WotCon.Server.Registry
         /// Gets whether the projection failed to keep a previous active generation.
         /// </summary>
         public bool RetainPreviousActiveVersion { get; init; }
+
+        /// <summary>
+        /// Gets or initializes the Version whose validation state this projection records.
+        /// </summary>
+        public string? VersionId { get; init; }
     }
 
     /// <summary>
@@ -395,8 +417,10 @@ namespace Opc.Ua.WotCon.Server.Registry
         WotRegistryPersistenceBounds Bounds { get; }
 
         /// <summary>
-        /// Raised after a content mutation (upsert/delete/set-default/set-enabled)
-        /// or a projection callback. Consumers filter on
+        /// Raised after a registry mutation or a projection callback. Structural
+        /// changes without document content and projection callbacks set
+        /// <see cref="WotRegistryChangedEventArgs.ProjectionOnly"/> so consumers
+        /// can update browseable state without running materialization. Consumers filter on
         /// <see cref="WotRegistryChangedEventArgs.ProjectionOnly"/>.
         /// </summary>
         event EventHandler<WotRegistryChangedEventArgs>? Changed;
@@ -499,42 +523,6 @@ namespace Opc.Ua.WotCon.Server.Registry
             CancellationToken cancellationToken = default);
 
         /// <summary>
-        /// Deletes a resource under a WoT Connectivity delete policy, applying
-        /// the policy to every document that depends on it.
-        /// </summary>
-        /// <remarks>
-        /// <para>
-        /// The four policies answer one question - what happens to the
-        /// documents that were resolving through this one - and they answer it
-        /// differently on purpose:
-        /// </para>
-        /// <list type="bullet">
-        /// <item><description><c>Reject</c> refuses while anything depends on
-        /// it, and leaves every piece of state exactly as it was.</description></item>
-        /// <item><description><c>Retire</c> takes the projection down but keeps
-        /// the stored document, so its dependents keep resolving.</description></item>
-        /// <item><description><c>Cascade</c> deletes it and unloads the
-        /// dependents that have no other way to resolve what they took from
-        /// it.</description></item>
-        /// <item><description><c>Force</c> deletes it regardless and marks
-        /// every remaining dependent <c>Failed</c>, because they are now
-        /// projecting against something that is gone.</description></item>
-        /// </list>
-        /// </remarks>
-        /// <param name="groupId">The owning group.</param>
-        /// <param name="resourceId">The resource to delete.</param>
-        /// <param name="policy">The delete policy.</param>
-        /// <param name="expectedEpoch">The epoch the caller last observed.</param>
-        /// <param name="cancellationToken">A cancellation token.</param>
-        /// <returns>What the policy did.</returns>
-        ValueTask<WotDeleteResult> DeleteResourceAsync(
-            string groupId,
-            string resourceId,
-            WoTDeletePolicyEnum policy,
-            long? expectedEpoch = null,
-            CancellationToken cancellationToken = default);
-
-        /// <summary>
         /// Sets the default (and desired) version of a resource.
         /// </summary>
         ValueTask<WotRegistryMutationResult> SetDefaultVersionAsync(
@@ -631,6 +619,135 @@ namespace Opc.Ua.WotCon.Server.Registry
         /// </summary>
         ValueTask ApplyProjectionResultsAsync(
             IReadOnlyList<WotResourceProjection> projections,
+            CancellationToken cancellationToken = default);
+    }
+
+    /// <summary>
+    /// Optional additive capability for policy-driven WoT Connectivity deletion.
+    /// Existing <see cref="IWotRegistryService"/> implementations do not need to
+    /// implement this interface.
+    /// </summary>
+    public interface IWotDeletePolicyRegistryService
+    {
+        /// <summary>
+        /// Deletes a resource under a WoT Connectivity delete policy, applying
+        /// the policy to every document that depends on it.
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// The four policies answer one question - what happens to the
+        /// documents that were resolving through the one being deleted - and
+        /// they answer it differently on purpose:
+        /// </para>
+        /// <list type="bullet">
+        /// <item><description><c>Reject</c> refuses while anything depends on
+        /// it, and leaves every piece of state exactly as it was.</description></item>
+        /// <item><description><c>Retire</c> takes the projection down but keeps
+        /// the stored document, so its dependents keep resolving.</description></item>
+        /// <item><description><c>Cascade</c> deletes it and unloads the
+        /// dependents that have no other way to resolve what they took from
+        /// it.</description></item>
+        /// <item><description><c>Force</c> deletes it regardless and marks
+        /// every remaining dependent <c>Failed</c>, because they are now
+        /// projecting against something that is gone.</description></item>
+        /// </list>
+        /// </remarks>
+        /// <param name="groupId">The owning group.</param>
+        /// <param name="resourceId">The resource to delete.</param>
+        /// <param name="policy">The delete policy.</param>
+        /// <param name="expectedEpoch">The epoch the caller last observed.</param>
+        /// <param name="cancellationToken">A cancellation token.</param>
+        /// <returns>What the policy did.</returns>
+        ValueTask<WotDeleteResult> DeleteResourceAsync(
+            string groupId,
+            string resourceId,
+            WoTDeletePolicyEnum policy,
+            long? expectedEpoch = null,
+            CancellationToken cancellationToken = default);
+    }
+
+    /// <summary>
+    /// Optional additive Version-aware registry operations used by the xRegistry
+    /// projection. Existing <see cref="IWotRegistryService"/> implementations do
+    /// not need to implement this interface.
+    /// </summary>
+    public interface IWotVersionedRegistryService
+    {
+        /// <summary>
+        /// Gets or creates an exact Version, assigning a VersionId when none is supplied.
+        /// </summary>
+        ValueTask<(WotResource Resource, WotResourceVersion Version, bool Created)>
+            GetOrCreateVersionAsync(
+                string groupId,
+                string resourceId,
+                string versionId,
+                WoTDocumentKindEnum kind,
+                CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Creates an exact Version, returning <c>null</c> when that explicit Version
+        /// already exists. An empty Version id reuses an existing pending Version.
+        /// </summary>
+        ValueTask<(WotResource Resource, WotResourceVersion Version)?> TryCreateVersionAsync(
+            string groupId,
+            string resourceId,
+            string versionId,
+            WoTDocumentKindEnum kind,
+            CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Validates and records the outcome for one exact Version.
+        /// </summary>
+        ValueTask<WoTValidationOutcomeDataType> ValidateVersionAsync(
+            string groupId,
+            string resourceId,
+            string versionId,
+            CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Deletes one exact Version.
+        /// </summary>
+        ValueTask<WotRegistryMutationResult> DeleteVersionAsync(
+            string groupId,
+            string resourceId,
+            string versionId,
+            long? expectedEpoch = null,
+            CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Atomically verifies that a projected node still has the caller-observed
+        /// logical Resource or exact Version role, then deletes that entity. Logical
+        /// Resource deletion applies the implementation's default dependency policy.
+        /// </summary>
+        ValueTask<WotRegistryMutationResult> DeleteProjectedEntityAsync(
+            string groupId,
+            string resourceId,
+            string versionId,
+            bool deleteLogicalResource,
+            long? expectedEpoch = null,
+            CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Adds or updates a label on one exact Version.
+        /// </summary>
+        ValueTask<WotRegistryMutationResult> AddVersionLabelAsync(
+            string groupId,
+            string resourceId,
+            string versionId,
+            string key,
+            string value,
+            long? expectedEpoch = null,
+            CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Removes a label from one exact Version.
+        /// </summary>
+        ValueTask<WotRegistryMutationResult> RemoveVersionLabelAsync(
+            string groupId,
+            string resourceId,
+            string versionId,
+            string key,
+            long? expectedEpoch = null,
             CancellationToken cancellationToken = default);
     }
 }

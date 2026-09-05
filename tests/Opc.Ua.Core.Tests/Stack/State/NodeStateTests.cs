@@ -48,6 +48,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
     {
         public const string ApplicationUri = "uri:localhost:opcfoundation.org:NodeStates";
         public const string OpcUa = "http://opcfoundation.org/UA/";
+        public const string OpcUaOnboarding = "http://opcfoundation.org/UA/Onboarding/";
         public IServiceMessageContext Context;
         public ITelemetryContext Telemetry;
 
@@ -64,6 +65,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
             // namespace index 1 must be the ApplicationUri
             nameSpaceUris.GetIndexOrAppend(ApplicationUri);
             nameSpaceUris.GetIndexOrAppend(Namespaces.OpcUaGds);
+            nameSpaceUris.GetIndexOrAppend(OpcUaOnboarding);
         }
 
         [OneTimeTearDown]

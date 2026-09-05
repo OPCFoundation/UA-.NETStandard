@@ -77,6 +77,7 @@ namespace Opc.Ua.XRegistry.Tests
             typeTable.AddSubtype(Opc.Ua.ObjectTypeIds.BaseObjectType, NodeId.Null);
             typeTable.AddSubtype(Opc.Ua.ObjectTypeIds.FolderType, Opc.Ua.ObjectTypeIds.BaseObjectType);
             typeTable.AddSubtype(Opc.Ua.ObjectTypeIds.FileType, Opc.Ua.ObjectTypeIds.BaseObjectType);
+            typeTable.AddSubtype(Opc.Ua.ObjectTypeIds.BaseEventType, Opc.Ua.ObjectTypeIds.BaseObjectType);
             typeTable.AddSubtype(Opc.Ua.VariableTypeIds.BaseVariableType, NodeId.Null);
             typeTable.AddSubtype(
                 Opc.Ua.VariableTypeIds.BaseDataVariableType, Opc.Ua.VariableTypeIds.BaseVariableType);
