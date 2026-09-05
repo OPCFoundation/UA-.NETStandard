@@ -1,0 +1,192 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- OPC UA Arrow DataEncoding companion namespace: the Part 14 configuration model additions for
+     the Arrow message mapping (Arrow companion specification §6.5).
+
+     PROVISIONAL NodeIds - the OPC Foundation assigns the final identifiers when the namespace is
+     registered, so every numeric id below is a draft.
+
+     Configuration only: no DataTypeEncoding Object and no HasEncoding reference is added for
+     "Default Arrow". -->
+<UANodeSet xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd" xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd">
+  <NamespaceUris>
+    <Uri>http://opcfoundation.org/UA/Arrow/</Uri>
+  </NamespaceUris>
+  <Models>
+    <Model ModelUri="http://opcfoundation.org/UA/Arrow/" Version="0.1.0" PublicationDate="2026-07-30T00:00:00Z">
+      <RequiredModel ModelUri="http://opcfoundation.org/UA/" Version="1.05.04" PublicationDate="2024-05-01T00:00:00Z" />
+    </Model>
+  </Models>
+  <Aliases>
+    <Alias Alias="Boolean">i=1</Alias>
+    <Alias Alias="UInt32">i=7</Alias>
+    <Alias Alias="String">i=12</Alias>
+    <Alias Alias="Enumeration">i=29</Alias>
+    <Alias Alias="HasModellingRule">i=37</Alias>
+    <Alias Alias="HasTypeDefinition">i=40</Alias>
+    <Alias Alias="HasSubtype">i=45</Alias>
+    <Alias Alias="HasProperty">i=46</Alias>
+    <Alias Alias="HasComponent">i=47</Alias>
+  </Aliases>
+
+  <!-- §6.5 supporting enumerations. These are framing and transport options over the identical
+       canonical column layout, so none of them is an encoding variant. -->
+  <UADataType NodeId="ns=1;i=65000" BrowseName="1:ArrowIpcFormatEnum">
+    <DisplayName>ArrowIpcFormatEnum</DisplayName>
+    <Description>Selects how an Arrow NetworkMessage payload is framed (Arrow companion specification Table 6.2-1). Batch is the default: a bare RecordBatch whose schema is conveyed once out of band and resolved by SchemaId.</Description>
+    <Category>PubSub Parameters Arrow</Category>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=29</Reference>
+    </References>
+    <Definition Name="ArrowIpcFormatEnum">
+      <Field Name="Batch" Value="0" />
+      <Field Name="Stream" Value="1" />
+      <Field Name="File" Value="2" />
+    </Definition>
+  </UADataType>
+
+  <UADataType NodeId="ns=1;i=65001" BrowseName="1:ArrowDeltaFrameModeEnum">
+    <DisplayName>ArrowDeltaFrameModeEnum</DisplayName>
+    <Description>Selects how a delta or sparse frame is represented (§6.2). NullableColumns keeps the full column set - and therefore one stable schema and SchemaId - marking absent keys as null cells; SelectedColumns drops columns and changes the SchemaId.</Description>
+    <Category>PubSub Parameters Arrow</Category>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=29</Reference>
+    </References>
+    <Definition Name="ArrowDeltaFrameModeEnum">
+      <Field Name="NullableColumns" Value="0" />
+      <Field Name="SelectedColumns" Value="1" />
+    </Definition>
+  </UADataType>
+
+  <UADataType NodeId="ns=1;i=65002" BrowseName="1:ArrowCompressionEnum">
+    <DisplayName>ArrowCompressionEnum</DisplayName>
+    <Description>Selects the Arrow IPC body compression codec (§6.1).</Description>
+    <Category>PubSub Parameters Arrow</Category>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=29</Reference>
+    </References>
+    <Definition Name="ArrowCompressionEnum">
+      <Field Name="None" Value="0" />
+      <Field Name="Lz4Frame" Value="1" />
+      <Field Name="Zstd" Value="2" />
+    </Definition>
+  </UADataType>
+
+  <!-- §6.5 MessageSettings DataTypes. -->
+  <UADataType NodeId="ns=1;i=65010" BrowseName="1:ArrowWriterGroupMessageDataType">
+    <DisplayName>ArrowWriterGroupMessageDataType</DisplayName>
+    <Description>WriterGroup MessageSettings for the Arrow message mapping. A WriterGroup uses the Arrow mapping if and only if its MessageSettings is of this DataType.</Description>
+    <Category>PubSub Parameters Arrow</Category>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=15616</Reference>
+    </References>
+    <Definition Name="ArrowWriterGroupMessageDataType">
+      <Field Name="ArrowIpcFormat" DataType="ns=1;i=65000">
+        <Description>Payload framing (Table 6.2-1).</Description>
+      </Field>
+      <Field Name="MaxRowsPerRecordBatch" DataType="i=7">
+        <Description>Batching target for rows per RecordBatch.</Description>
+      </Field>
+      <Field Name="IncludeSchemaMetadata" DataType="i=1">
+        <Description>Whether NetworkMessage header fields are carried as schema metadata (§6.6).</Description>
+      </Field>
+      <Field Name="DeltaFrameMode" DataType="ns=1;i=65001">
+        <Description>Delta and sparse frame representation (§6.2).</Description>
+      </Field>
+      <Field Name="Compression" DataType="ns=1;i=65002">
+        <Description>Arrow IPC body compression codec.</Description>
+      </Field>
+      <Field Name="ArrowSchemaUri" DataType="i=12">
+        <Description>Optional URI of the schema registry or catalog serving this group's schemas.</Description>
+      </Field>
+    </Definition>
+  </UADataType>
+
+  <UADataType NodeId="ns=1;i=65011" BrowseName="1:ArrowDataSetWriterMessageDataType">
+    <DisplayName>ArrowDataSetWriterMessageDataType</DisplayName>
+    <Description>DataSetWriter MessageSettings for the Arrow message mapping.</Description>
+    <Category>PubSub Parameters Arrow</Category>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=15605</Reference>
+    </References>
+    <Definition Name="ArrowDataSetWriterMessageDataType">
+      <Field Name="ArrowSchemaId" DataType="i=12">
+        <Description>SchemaId of the DataSet schema currently published by this writer (§4.3), in hexadecimal.</Description>
+      </Field>
+      <Field Name="DataSetFieldContentMask" DataType="i=15583">
+        <Description>Selects the RawData, Variant or DataValue column representation (§6.2).</Description>
+      </Field>
+    </Definition>
+  </UADataType>
+
+  <UADataType NodeId="ns=1;i=65012" BrowseName="1:ArrowDataSetReaderMessageDataType">
+    <DisplayName>ArrowDataSetReaderMessageDataType</DisplayName>
+    <Description>DataSetReader MessageSettings for the Arrow message mapping.</Description>
+    <Category>PubSub Parameters Arrow</Category>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=15629</Reference>
+    </References>
+    <Definition Name="ArrowDataSetReaderMessageDataType">
+      <Field Name="ArrowIpcFormat" DataType="ns=1;i=65000">
+        <Description>Framing the reader expects.</Description>
+      </Field>
+      <Field Name="ArrowSchemaUri" DataType="i=12">
+        <Description>Optional URI from which the reader resolves schemas by SchemaId (§6.9.2.6).</Description>
+      </Field>
+    </Definition>
+  </UADataType>
+
+  <!-- §6.5 ObjectTypes, mirroring the JSON message mapping ObjectTypes. -->
+  <UAObjectType NodeId="ns=1;i=65020" BrowseName="1:ArrowWriterGroupMessageType">
+    <DisplayName>ArrowWriterGroupMessageType</DisplayName>
+    <Description>The Arrow message mapping options of a WriterGroup (§6.5).</Description>
+    <Category>PubSub Parameters Arrow</Category>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=17998</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=65030</Reference>
+    </References>
+  </UAObjectType>
+  <UAVariable NodeId="ns=1;i=65030" BrowseName="1:ArrowIpcFormat" ParentNodeId="ns=1;i=65020" DataType="ns=1;i=65000">
+    <DisplayName>ArrowIpcFormat</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=65020</Reference>
+    </References>
+  </UAVariable>
+
+  <UAObjectType NodeId="ns=1;i=65021" BrowseName="1:ArrowDataSetWriterMessageType">
+    <DisplayName>ArrowDataSetWriterMessageType</DisplayName>
+    <Description>The Arrow message mapping options of a DataSetWriter (§6.5).</Description>
+    <Category>PubSub Parameters Arrow</Category>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=21096</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=65031</Reference>
+    </References>
+  </UAObjectType>
+  <UAVariable NodeId="ns=1;i=65031" BrowseName="1:DataSetFieldContentMask" ParentNodeId="ns=1;i=65021" DataType="i=15583">
+    <DisplayName>DataSetFieldContentMask</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=65021</Reference>
+    </References>
+  </UAVariable>
+
+  <UAObjectType NodeId="ns=1;i=65022" BrowseName="1:ArrowDataSetReaderMessageType">
+    <DisplayName>ArrowDataSetReaderMessageType</DisplayName>
+    <Description>The Arrow message mapping options of a DataSetReader (§6.5).</Description>
+    <Category>PubSub Parameters Arrow</Category>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=21104</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=65032</Reference>
+    </References>
+  </UAObjectType>
+  <UAVariable NodeId="ns=1;i=65032" BrowseName="1:ArrowIpcFormat" ParentNodeId="ns=1;i=65022" DataType="ns=1;i=65000">
+    <DisplayName>ArrowIpcFormat</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=65022</Reference>
+    </References>
+  </UAVariable>
+</UANodeSet>
