@@ -255,7 +255,6 @@ namespace Opc.Ua.Types.Tests.Wot
                   "\"Severity\":{\"type\":\"integer\"}"
                 : "\"Severity\":{\"type\":\"integer\"}";
             return "\"events\":{\"highTemperature\":{\"@type\":\"uav:eventType\"," +
-                "\"uav:isEvent\":true," +
                 "\"uav:conditionType\":\"" + conditionType + "\"," +
                 "\"data\":{\"type\":\"object\",\"properties\":{" + properties + "}}}}";
         }
@@ -276,7 +275,6 @@ namespace Opc.Ua.Types.Tests.Wot
         private static string OrdinaryEvent(string name)
         {
             return "\"events\":{\"" + name + "\":{\"@type\":\"uav:eventType\"," +
-                "\"uav:isEvent\":true," +
                 "\"data\":{\"type\":\"object\",\"properties\":" +
                 "{\"EventId\":{\"type\":\"string\"}}}}}";
         }

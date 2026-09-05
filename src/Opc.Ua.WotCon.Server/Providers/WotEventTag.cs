@@ -54,7 +54,7 @@ namespace Opc.Ua.WotCon.Server
         /// Event fields derived from the event's <c>data</c> schema.
         /// </param>
         /// <param name="severity">
-        /// The default severity reported when the provider supplies none.
+        /// The server fallback severity used when the provider supplies none.
         /// </param>
         /// <param name="form">The raw protocol-binding form.</param>
         /// <exception cref="ArgumentNullException">
@@ -98,8 +98,8 @@ namespace Opc.Ua.WotCon.Server
         public IReadOnlyList<Argument> Fields { get; }
 
         /// <summary>
-        /// The default OPC 10000-5 <c>BaseEventType.Severity</c> (1..1000)
-        /// reported when the provider does not supply one.
+        /// The server fallback OPC 10000-5
+        /// <c>BaseEventType.Severity</c> (1..1000).
         /// </summary>
         public ushort Severity { get; }
 

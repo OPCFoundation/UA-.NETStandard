@@ -104,14 +104,6 @@ namespace Opc.Ua.WotCon.Server.ThingDescriptions
         public WotActionSchema? Data { get; set; }
 
         /// <summary>
-        /// Optional severity (OPC 10000-5 <c>BaseEventType.Severity</c>,
-        /// 1..1000) reported for every occurrence of this event when the
-        /// provider does not supply one. Defaults to 500 when absent.
-        /// </summary>
-        [JsonPropertyName("uav:severity")]
-        public ushort? Severity { get; set; }
-
-        /// <summary>
         /// Optional OPC UA ConditionType BrowseName for an alarm/condition event.
         /// </summary>
         [JsonPropertyName("uav:conditionType")]

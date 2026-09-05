@@ -10,11 +10,19 @@ The documents ship with the client because the client is what uploads them. The 
 
 There are three long-running server processes:
 
-```text
-FlatTagServer Source A ─┐
-                           ├─ OPC UA forms ─> AggregationServer
-FlatTagServer Source B ─┘                    │
-                                                └─ materialized Pump OPC UA address space
+```mermaid
+flowchart LR
+    client["AggregationClient<br/>(one-shot loader and reader)"]
+    aggregation["AggregationServer<br/>WoT registry and binding runtime"]
+    sourceA["FlatTagServer<br/>Source A"]
+    sourceB["FlatTagServer<br/>Source B"]
+    pump["Materialized Pump<br/>OPC UA address space"]
+
+    client -->|"upload documents and Refresh"| aggregation
+    client -->|"browse and read"| aggregation
+    aggregation -->|"mapped OPC UA reads"| sourceA
+    aggregation -->|"mapped OPC UA reads"| sourceB
+    aggregation --> pump
 ```
 
 `AggregationClient` is a fourth, short-lived process. It connects to the aggregation server, uploads the checked-in documents, calls `Refresh`, browses the materialized Pump, reads ten values, prints the result, and exits.
@@ -30,6 +38,27 @@ The complete sample requires .NET 8, .NET 9, or .NET 10. `AggregationServer` int
 Run the commands below from the repository root with the .NET 10 SDK. The samples accept unencrypted anonymous OPC UA connections for local demonstration and auto-accept untrusted certificates; do not copy those security settings into a production deployment.
 
 ## Run the sample
+
+From the repository root, the demo script builds all three applications, starts
+the two source servers and aggregation server with isolated PKI stores, waits
+for their endpoints, runs the client, verifies all sixteen uploads and ten Good
+values, and stops the exact server processes:
+
+```powershell
+pwsh samples/WotCon/run-aggregation-demo.ps1
+```
+
+Use different local ports or keep the captured logs and PKI stores with:
+
+```powershell
+pwsh samples/WotCon/run-aggregation-demo.ps1 `
+  -AggregationPort 62650 `
+  -SourceAPort 62651 `
+  -SourceBPort 62652 `
+  -Keep
+```
+
+To run each process manually instead, use the four terminals below.
 
 Start Source A in the first terminal:
 
@@ -104,6 +133,7 @@ hierarchy, and ten Good values.
 | `instanceName` | `SourceA` | Endpoint path and source instance name. |
 | `applicationName` | `FlatTagServer` | OPC UA application name. |
 | `namespace` | Source A namespace URI | Must be exactly the Source A or Source B namespace URI. |
+| `pkiRoot` | temporary application directory | Optional certificate-store root. |
 | `differentialPressure` | `2.75` | Flat source value. |
 | `fluidTemperature` | `315.65` | Flat source value. |
 | `massFlow` | `0.1825` | Flat source value. |
@@ -125,9 +155,11 @@ hierarchy, and ten Good values.
 | `pump2NumberOfStarts` | `29` | Pump2 flat source value. |
 | `pump2MotorOverheat` | `false` | Pump2 flat source value. |
 
-`AggregationServer` reads `endpoint`, `host` (`localhost`), `port` (`62550`), `applicationName` (`AggregationServer`), and `maximumDocumentBytes` (`33554432`). Its reusable `AggregationServerOptions` additionally exposes `PkiRoot` for programmatic hosts.
+`AggregationServer` reads `endpoint`, `host` (`localhost`), `port` (`62550`), `applicationName`
+(`AggregationServer`), `pkiRoot`, and `maximumDocumentBytes` (`33554432`).
 
-`AggregationClient` reads `aggregationEndpoint`, `sourceAEndpoint`, `sourceBEndpoint`, and `documentsDirectory`. Its reusable `AggregationClientOptions` additionally exposes `ApplicationName` and `PkiRoot` for programmatic and integration-test hosts.
+`AggregationClient` reads `aggregationEndpoint`, `sourceAEndpoint`, `sourceBEndpoint`,
+`applicationName` (`AggregationClient`), `pkiRoot`, and `documentsDirectory`.
 
 ## Checked-in document set
 
