@@ -320,7 +320,7 @@ namespace Opc.Ua
         /// for a UA application</param>
         /// <param name="cancellationToken">The cancellation token</param>
         /// <param name="baseAddresses">The array of Uri elements which contains base addresses.</param>
-        /// <returns>Returns a host for a UA service.</returns>
+        /// <returns>The default service host, which the caller must open.</returns>
         /// <exception cref="ArgumentNullException"><paramref name="configuration"/> is <c>null</c>.</exception>
         /// <exception cref="ServiceResultException"></exception>
         public async ValueTask<ServiceHost> StartAsync(
@@ -1806,9 +1806,21 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Called after the server application has started and this start path has
-        /// opened the service hosts it owns.
+        /// Called after server application initialization, before <c>StartAsync</c> returns.
         /// </summary>
+        /// <remarks>
+        /// <para>
+        /// <see cref="StartAsync(ApplicationConfiguration, CancellationToken)"/> invokes this
+        /// hook after opening all service hosts.
+        /// </para>
+        /// <para>
+        /// <see cref="StartAsync(ApplicationConfiguration, CancellationToken, Uri[])"/> invokes
+        /// this hook after opening only the additional service hosts, if any. The default
+        /// service host returned by that overload is still unopened; the caller or WCF opens
+        /// it afterwards. Overrides must not assume that the default host is accepting
+        /// connections when this hook runs.
+        /// </para>
+        /// </remarks>
         /// <param name="cancellationToken">The cancellation token.</param>
         protected virtual ValueTask OnServerStartedAsync(
             CancellationToken cancellationToken = default)

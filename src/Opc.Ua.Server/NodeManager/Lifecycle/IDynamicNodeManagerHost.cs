@@ -35,38 +35,6 @@ using System.Threading.Tasks;
 namespace Opc.Ua.Server
 {
     /// <summary>
-    /// Raised when a factory returns a NodeManager that is already live.
-    /// </summary>
-    internal sealed class NodeManagerAlreadyRegisteredException : InvalidOperationException
-    {
-        public NodeManagerAlreadyRegisteredException()
-            : base("The NodeManager is already registered.")
-        {
-        }
-
-        /// <summary>
-        /// Initializes the exception with a custom message.
-        /// </summary>
-        /// <param name="message">The error message.</param>
-        public NodeManagerAlreadyRegisteredException(string message)
-            : base(message)
-        {
-        }
-
-        /// <summary>
-        /// Initializes the exception with a custom message and inner exception.
-        /// </summary>
-        /// <param name="message">The error message.</param>
-        /// <param name="innerException">The exception that caused this error.</param>
-        public NodeManagerAlreadyRegisteredException(
-            string message,
-            Exception innerException)
-            : base(message, innerException)
-        {
-        }
-    }
-
-    /// <summary>
     /// Hosts NodeManagers that are added, replaced, or retired while the server is running.
     /// <para>
     /// A lifecycle operation runs in stages so that a failure never leaves a partially visible
