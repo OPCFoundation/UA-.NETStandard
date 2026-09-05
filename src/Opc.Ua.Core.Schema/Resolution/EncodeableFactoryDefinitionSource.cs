@@ -92,7 +92,7 @@ namespace Opc.Ua.Schema
                     {
                         return TryResolveExact(
                             new ExpandedNodeId(
-                                typeId.InnerNodeId.WithNamespaceIndex((ushort)namespaceIndex)),
+                                CreateLocalNodeId(typeId.InnerNodeId, (ushort)namespaceIndex)),
                             out description);
                     }
                 }
@@ -159,6 +159,28 @@ namespace Opc.Ua.Schema
 
             description = null;
             return false;
+        }
+
+        private static NodeId CreateLocalNodeId(NodeId identifier, ushort namespaceIndex)
+        {
+            // WithNamespaceIndex preserves null NodeIds, but zero/empty identifiers are valid outside namespace zero.
+            if (identifier.TryGetValue(out uint numeric))
+            {
+                return new NodeId(numeric, namespaceIndex);
+            }
+            if (identifier.TryGetValue(out string text))
+            {
+                return new NodeId(text, namespaceIndex);
+            }
+            if (identifier.TryGetValue(out Guid guid))
+            {
+                return new NodeId(guid, namespaceIndex);
+            }
+            if (identifier.TryGetValue(out ByteString opaque))
+            {
+                return new NodeId(opaque, namespaceIndex);
+            }
+            throw ServiceResultException.Unexpected($"Unexpected IdType value {identifier.IdType}.");
         }
 
         private static UaTypeDescription Describe(

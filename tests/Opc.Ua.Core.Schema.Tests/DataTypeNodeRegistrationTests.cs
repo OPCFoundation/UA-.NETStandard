@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
 using NUnit.Framework;
 
 namespace Opc.Ua.Schema.Tests
@@ -168,8 +169,9 @@ namespace Opc.Ua.Schema.Tests
             });
         }
 
-        [Test]
-        public void AddUriFormTypeUsesBrowseNameNamespaceIndex()
+        [TestCase((ushort)0)]
+        [TestCase(SchemaTestData.TestNamespaceIndex)]
+        public void AddUriFormTypeDoesNotInferNamespaceFromBrowseName(ushort browseNamespaceIndex)
         {
             var definition = new StructureDefinition
             {
@@ -180,17 +182,27 @@ namespace Opc.Ua.Schema.Tests
                     SchemaTestData.Field("Value", SchemaTestData.BuiltIn(BuiltInType.Int32))
                 ]
             };
+            UaTypeDescription original = SchemaTestData.Structure(
+                3005,
+                "Original",
+                SchemaTestData.Field("OriginalValue", SchemaTestData.BuiltIn(BuiltInType.String)));
             var type = new UaTypeDescription(
-                new ExpandedNodeId(3005, SchemaTestData.TestNamespace),
-                new QualifiedName("UriType", SchemaTestData.TestNamespaceIndex),
+                new ExpandedNodeId(3005, SchemaTestData.OtherNamespace),
+                new QualifiedName("UriType", browseNamespaceIndex),
                 definition);
             var registry = new DataTypeDefinitionRegistry();
 
-            registry.Add(type);
+            registry.Add(original).Add(type);
 
             bool localResolved = registry.TryResolve(
-                new NodeId(3005, SchemaTestData.TestNamespaceIndex),
+                original.TypeId.InnerNodeId,
                 out UaTypeDescription? localDescription);
+            bool originalUriResolved = registry.TryResolve(
+                new ExpandedNodeId(3005, SchemaTestData.TestNamespace),
+                out UaTypeDescription? originalUriDescription);
+            bool unmappedResolved = registry.TryResolve(
+                new NodeId(3005, SchemaTestData.OtherNamespaceIndex),
+                out UaTypeDescription? unmappedDescription);
             bool namespaceZeroResolved = registry.TryResolve(
                 new NodeId(3005),
                 out UaTypeDescription? namespaceZeroDescription);
@@ -201,11 +213,156 @@ namespace Opc.Ua.Schema.Tests
             Assert.Multiple(() =>
             {
                 Assert.That(localResolved, Is.True);
-                Assert.That(localDescription, Is.SameAs(type));
+                Assert.That(localDescription, Is.SameAs(original));
+                Assert.That(originalUriResolved, Is.True);
+                Assert.That(originalUriDescription, Is.SameAs(original));
+                Assert.That(unmappedResolved, Is.False);
+                Assert.That(unmappedDescription, Is.Null);
                 Assert.That(namespaceZeroResolved, Is.False);
                 Assert.That(namespaceZeroDescription, Is.Null);
                 Assert.That(uriResolved, Is.True);
                 Assert.That(uriDescription, Is.SameAs(type));
+                Assert.That(registry.GetNamespaceTypes(SchemaTestData.TestNamespace), Is.EqualTo([original]));
+                Assert.That(registry.GetNamespaceTypes(SchemaTestData.OtherNamespace), Is.EqualTo([type]));
+            });
+        }
+
+        [Test]
+        public void AddStandardUriTypeUsesNamespaceZeroIndependentlyOfBrowseName()
+        {
+            var type = new UaTypeDescription(
+                new ExpandedNodeId(7701, Namespaces.OpcUa),
+                new QualifiedName("StandardType", SchemaTestData.OtherNamespaceIndex),
+                new EnumDefinition());
+            var registry = new DataTypeDefinitionRegistry();
+
+            registry.Add(type);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(registry.TryResolve(new NodeId(7701), out UaTypeDescription? indexed), Is.True);
+                Assert.That(indexed, Is.SameAs(type));
+                Assert.That(registry.TryResolve(type.TypeId, out UaTypeDescription? expanded), Is.True);
+                Assert.That(expanded, Is.SameAs(type));
+                Assert.That(
+                    registry.TryResolve(
+                        new NodeId(7701, SchemaTestData.OtherNamespaceIndex),
+                        out UaTypeDescription? unmapped),
+                    Is.False);
+                Assert.That(unmapped, Is.Null);
+            });
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public void AddKeepsEmptyIdentifiersDistinctByKind(bool reverseOrder)
+        {
+            (NodeId Id, string Name)[] identifiers =
+            [
+                (new NodeId(0, SchemaTestData.TestNamespaceIndex), "NumericZero"),
+                (new NodeId(Guid.Empty, SchemaTestData.TestNamespaceIndex), "GuidZero"),
+                (new NodeId(string.Empty, SchemaTestData.TestNamespaceIndex), "EmptyString"),
+                (new NodeId(ByteString.Empty, SchemaTestData.TestNamespaceIndex), "EmptyOpaque")
+            ];
+            var descriptions = new List<UaTypeDescription>();
+            foreach ((NodeId id, string name) in identifiers)
+            {
+                descriptions.Add(new UaTypeDescription(
+                    new ExpandedNodeId(id),
+                    new QualifiedName(name, SchemaTestData.TestNamespaceIndex),
+                    new EnumDefinition { Fields = [new EnumField { Name = "Enabled", Value = 1 }] },
+                    SchemaTestData.TestNamespace));
+            }
+            if (reverseOrder)
+            {
+                descriptions.Reverse();
+            }
+            var registry = new DataTypeDefinitionRegistry();
+            foreach (UaTypeDescription description in descriptions)
+            {
+                registry.Add(description);
+            }
+
+            Assert.Multiple(() =>
+            {
+                foreach (UaTypeDescription expected in descriptions)
+                {
+                    Assert.That(
+                        registry.TryResolve(expected.TypeId.InnerNodeId, out UaTypeDescription? indexed),
+                        Is.True,
+                        expected.Name);
+                    Assert.That(indexed, Is.SameAs(expected), expected.Name);
+                    Assert.That(
+                        registry.TryResolve(
+                            new ExpandedNodeId(expected.TypeId.InnerNodeId, expected.NamespaceUri),
+                            out UaTypeDescription? expanded),
+                        Is.True,
+                        expected.Name);
+                    Assert.That(expanded, Is.SameAs(expected), expected.Name);
+                }
+                Assert.That(
+                    registry.GetNamespaceTypes(SchemaTestData.TestNamespace),
+                    Is.EquivalentTo(descriptions));
+            });
+        }
+
+        [TestCaseSource(typeof(SchemaTestData), nameof(SchemaTestData.TypeIdentifierCases))]
+        public void AddReplacementPreservesOtherKindsAndNamespaces(NodeId replacedId)
+        {
+            var registry = new DataTypeDefinitionRegistry();
+            var expected = new List<UaTypeDescription>();
+            foreach (NodeId id in SchemaTestData.TypeIdentifierCases)
+            {
+                var description = new UaTypeDescription(
+                    new ExpandedNodeId(id),
+                    new QualifiedName($"Type{expected.Count}", SchemaTestData.TestNamespaceIndex),
+                    new EnumDefinition(),
+                    SchemaTestData.TestNamespace);
+                registry.Add(description);
+                if (id != replacedId)
+                {
+                    expected.Add(description);
+                }
+            }
+            var otherNamespace = new UaTypeDescription(
+                new ExpandedNodeId(replacedId.WithNamespaceIndex(SchemaTestData.OtherNamespaceIndex)),
+                new QualifiedName("OtherNamespace", SchemaTestData.OtherNamespaceIndex),
+                new EnumDefinition(),
+                SchemaTestData.OtherNamespace);
+            registry.Add(otherNamespace);
+            var replacement = new UaTypeDescription(
+                new ExpandedNodeId(replacedId),
+                new QualifiedName("Replacement", SchemaTestData.TestNamespaceIndex),
+                new EnumDefinition { Fields = [new EnumField { Name = "Replaced", Value = 1 }] },
+                SchemaTestData.TestNamespace);
+
+            registry.Add(replacement);
+            expected.Add(replacement);
+
+            Assert.Multiple(() =>
+            {
+                foreach (UaTypeDescription description in expected)
+                {
+                    Assert.That(
+                        registry.TryResolve(
+                            new ExpandedNodeId(description.TypeId.InnerNodeId, description.NamespaceUri),
+                            out UaTypeDescription? resolved),
+                        Is.True,
+                        description.Name);
+                    Assert.That(resolved, Is.SameAs(description), description.Name);
+                    Assert.That(
+                        registry.TryResolve(description.TypeId.InnerNodeId, out UaTypeDescription? indexed),
+                        Is.True);
+                    Assert.That(indexed, Is.SameAs(description));
+                }
+                Assert.That(
+                    registry.TryResolve(
+                        new ExpandedNodeId(otherNamespace.TypeId.InnerNodeId, otherNamespace.NamespaceUri),
+                        out UaTypeDescription? other),
+                    Is.True);
+                Assert.That(other, Is.SameAs(otherNamespace));
+                Assert.That(registry.GetNamespaceTypes(SchemaTestData.TestNamespace), Is.EquivalentTo(expected));
+                Assert.That(registry.GetNamespaceTypes(SchemaTestData.OtherNamespace), Is.EqualTo([otherNamespace]));
             });
         }
 

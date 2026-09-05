@@ -95,6 +95,29 @@ IDataTypeDefinitionResolver resolver = new CompositeDataTypeDefinitionResolver(
 
 Once registered, fields that reference other registered types are resolved automatically and included in the generated document.
 
+### Namespace identity
+
+`BrowseName.NamespaceIndex` is not a mapping for the data type's NodeId namespace; the
+two namespaces may legitimately differ. To support both local and URI-based lookup in
+`DataTypeDefinitionRegistry`, register an index-form TypeId together with its namespace
+URI, as `TryAddDataType(node, namespaceTable)` does:
+
+```csharp
+registry.Add(new UaTypeDescription(
+    new ExpandedNodeId(dataTypeNode.NodeId),
+    dataTypeNode.BrowseName,
+    definition,
+    session.NamespaceUris.GetString(dataTypeNode.NodeId.NamespaceIndex)));
+```
+
+A custom URI-only TypeId is resolvable by URI but does not create an inferred local
+alias. The standard OPC UA namespace URI is the exception because its local index is
+always zero. Registry entries must share one local namespace-table context.
+
+URI lookup preserves identifier kind as well as value. Numeric zero, an empty GUID,
+an empty string, and an empty ByteString are distinct identifiers in a nonzero namespace;
+they must not be conflated with namespace-zero null NodeIds.
+
 ## Generating a schema
 
 Once a type's definition is registered with the resolver, a schema can be produced from its type id:

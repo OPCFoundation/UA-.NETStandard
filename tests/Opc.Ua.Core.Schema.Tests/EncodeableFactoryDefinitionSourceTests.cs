@@ -141,6 +141,88 @@ namespace Opc.Ua.Schema.Tests
             });
         }
 
+        [TestCaseSource(typeof(SchemaTestData), nameof(SchemaTestData.TypeIdentifierCases))]
+        public void TryResolveUriFindsIndexedFactoryType(NodeId localId)
+        {
+            var namespaceUris = new NamespaceTable();
+            namespaceUris.Append(SchemaTestData.TestNamespace);
+            var definition = new EnumDefinition
+            {
+                Fields = [new EnumField { Name = "Enabled", Value = 1 }]
+            };
+            var standIn = new Encoders.Enumeration(
+                new XmlQualifiedName("IndexedType", SchemaTestData.TestNamespace),
+                definition);
+            IEncodeableFactory factory = EncodeableFactory.Create();
+            factory.Builder.AddEnumeratedType(new ExpandedNodeId(localId), standIn).Commit();
+            var source = new EncodeableFactoryDefinitionSource(factory, namespaceUris);
+            ExpandedNodeId uriId = NodeId.ToExpandedNodeId(localId, namespaceUris);
+
+            Assert.That(source.TryResolve(localId, out UaTypeDescription? indexed), Is.True);
+            Assert.That(indexed!.Definition, Is.SameAs(definition));
+            Assert.That(source.TryResolve(uriId, out UaTypeDescription? expanded), Is.True);
+            Assert.That(expanded!.Definition, Is.SameAs(definition));
+            var provider = new DefaultSchemaProvider(source, [new Json.JsonSchemaGenerator()]);
+            Assert.That(
+                provider.TryGetSchema(uriId, UaSchemaFormat.JsonCompact, UaSchemaScope.Type, out IUaSchema? schema),
+                Is.True);
+            Assert.That(schema!.ToSchemaString(), Does.Contain("IndexedType").And.Contain("Enabled"));
+        }
+
+        [Test]
+        public void TryResolveDoesNotNormalizeUnknownNamespacesOrRemoteIds()
+        {
+            var namespaceUris = new NamespaceTable();
+            namespaceUris.Append(SchemaTestData.TestNamespace);
+            var localId = new NodeId(7701, SchemaTestData.TestNamespaceIndex);
+            var standIn = new Encoders.Enumeration(
+                new XmlQualifiedName("LocalType", SchemaTestData.TestNamespace),
+                new EnumDefinition());
+            IEncodeableFactory factory = EncodeableFactory.Create();
+            factory.Builder.AddEnumeratedType(new ExpandedNodeId(localId), standIn).Commit();
+            var source = new EncodeableFactoryDefinitionSource(factory, namespaceUris);
+            ArrayOf<ExpandedNodeId> unresolvedIds =
+            [
+                new ExpandedNodeId(localId, SchemaTestData.OtherNamespace),
+                new ExpandedNodeId(new NodeId(7701, SchemaTestData.OtherNamespaceIndex)),
+                new ExpandedNodeId(localId, SchemaTestData.TestNamespace, serverIndex: 1),
+                new ExpandedNodeId(localId, serverIndex: 1)
+            ];
+
+            Assert.Multiple(() =>
+            {
+                foreach (ExpandedNodeId typeId in unresolvedIds)
+                {
+                    Assert.That(source.TryResolve(typeId, out UaTypeDescription? description), Is.False);
+                    Assert.That(description, Is.Null);
+                }
+            });
+        }
+
+        [Test]
+        public void TryResolvePrefersExactRegistration()
+        {
+            var namespaceUris = new NamespaceTable();
+            namespaceUris.Append(SchemaTestData.TestNamespace);
+            var indexedId = new ExpandedNodeId(new NodeId(7701, SchemaTestData.TestNamespaceIndex));
+            var uriId = new ExpandedNodeId(7701, SchemaTestData.TestNamespace);
+            var indexedDefinition = new EnumDefinition();
+            var uriDefinition = new EnumDefinition();
+            IEncodeableFactory factory = EncodeableFactory.Create();
+            factory.Builder
+                .AddEnumeratedType(indexedId, new Encoders.Enumeration(
+                    new XmlQualifiedName("IndexedType", SchemaTestData.TestNamespace), indexedDefinition))
+                .AddEnumeratedType(uriId, new Encoders.Enumeration(
+                    new XmlQualifiedName("UriType", SchemaTestData.TestNamespace), uriDefinition))
+                .Commit();
+            var source = new EncodeableFactoryDefinitionSource(factory, namespaceUris);
+
+            Assert.That(source.TryResolve(indexedId, out UaTypeDescription? indexed), Is.True);
+            Assert.That(indexed!.Definition, Is.SameAs(indexedDefinition));
+            Assert.That(source.TryResolve(uriId, out UaTypeDescription? expanded), Is.True);
+            Assert.That(expanded!.Definition, Is.SameAs(uriDefinition));
+        }
+
         [Test]
         public void ConstructorRejectsNullArguments()
         {

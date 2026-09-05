@@ -49,6 +49,11 @@ namespace Opc.Ua.Schema
         /// </summary>
         /// <param name="description">The description to add.</param>
         /// <returns>The registry to allow chaining.</returns>
+        /// <remarks>
+        /// An index-form type id paired with its namespace URI supports lookup in both forms.
+        /// Custom URI-only type ids do not imply a local namespace index; the BrowseName namespace
+        /// is not used to infer one. The standard OPC UA namespace URI maps to index zero.
+        /// </remarks>
         /// <exception cref="ArgumentNullException"><paramref name="description"/> is <c>null</c>.</exception>
         public DataTypeDefinitionRegistry Add(UaTypeDescription description)
         {
@@ -60,7 +65,7 @@ namespace Opc.Ua.Schema
             bool hasNodeIdKey = TryGetNodeIdKey(description, out NodeId nodeIdKey);
             bool hasNamespaceUriKey = TryGetNamespaceUriKey(
                 description,
-                out (string NamespaceUri, NodeId Identifier) namespaceUriKey);
+                out (string NamespaceUri, IdType IdentifierKind, NodeId Identifier) namespaceUriKey);
             UaTypeDescription? existingByNodeId = null;
             if (hasNodeIdKey)
             {
@@ -110,7 +115,7 @@ namespace Opc.Ua.Schema
             if (!string.IsNullOrEmpty(typeId.NamespaceUri))
             {
                 return m_byNamespaceUri.TryGetValue(
-                    (typeId.NamespaceUri, typeId.InnerNodeId.WithNamespaceIndex(0)),
+                    CreateNamespaceUriKey(typeId.NamespaceUri, typeId.InnerNodeId),
                     out description);
             }
 
@@ -149,7 +154,7 @@ namespace Opc.Ua.Schema
 
             if (TryGetNamespaceUriKey(
                     description,
-                    out (string NamespaceUri, NodeId Identifier) namespaceUriKey) &&
+                    out (string NamespaceUri, IdType IdentifierKind, NodeId Identifier) namespaceUriKey) &&
                 m_byNamespaceUri.TryGetValue(
                     namespaceUriKey,
                     out UaTypeDescription? namespaceUriDescription) &&
@@ -180,11 +185,9 @@ namespace Opc.Ua.Schema
                 return true;
             }
 
-            ushort namespaceIndex = description.BrowseName.NamespaceIndex;
-            if (namespaceIndex != 0 ||
-                string.Equals(description.NamespaceUri, Namespaces.OpcUa, StringComparison.Ordinal))
+            if (string.Equals(description.TypeId.NamespaceUri, Namespaces.OpcUa, StringComparison.Ordinal))
             {
-                nodeIdKey = description.TypeId.InnerNodeId.WithNamespaceIndex(namespaceIndex);
+                nodeIdKey = description.TypeId.InnerNodeId;
                 return true;
             }
 
@@ -194,13 +197,13 @@ namespace Opc.Ua.Schema
 
         private static bool TryGetNamespaceUriKey(
             UaTypeDescription description,
-            out (string NamespaceUri, NodeId Identifier) namespaceUriKey)
+            out (string NamespaceUri, IdType IdentifierKind, NodeId Identifier) namespaceUriKey)
         {
             if (!string.IsNullOrEmpty(description.NamespaceUri))
             {
-                namespaceUriKey = (
+                namespaceUriKey = CreateNamespaceUriKey(
                     description.NamespaceUri,
-                    description.TypeId.InnerNodeId.WithNamespaceIndex(0));
+                    description.TypeId.InnerNodeId);
                 return true;
             }
 
@@ -208,9 +211,17 @@ namespace Opc.Ua.Schema
             return false;
         }
 
+        private static (string NamespaceUri, IdType IdentifierKind, NodeId Identifier) CreateNamespaceUriKey(
+            string namespaceUri,
+            NodeId nodeId)
+        {
+            // NodeId equality treats zero/empty identifiers of different kinds as equal in namespace zero.
+            return (namespaceUri, nodeId.IdType, nodeId.WithNamespaceIndex(0));
+        }
+
         private readonly Dictionary<NodeId, UaTypeDescription> m_byNodeId = [];
 
-        private readonly Dictionary<(string NamespaceUri, NodeId Identifier), UaTypeDescription>
+        private readonly Dictionary<(string NamespaceUri, IdType IdentifierKind, NodeId Identifier), UaTypeDescription>
             m_byNamespaceUri = [];
 
         private readonly Dictionary<string, List<UaTypeDescription>> m_byNamespace =

@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System.Text.Json.Nodes;
+using System.Xml;
 using System.Xml.Linq;
 using Microsoft.Extensions.DependencyInjection;
 using Opc.Ua.Schema;
@@ -83,6 +84,55 @@ namespace Opc.Ua.Aot.Tests
             await Assert.That(resolved).IsTrue();
             await Assert.That(schema).IsNotNull();
             await Assert.That(schema!.ToSchemaString()).Contains("Argument");
+        }
+
+        [Test]
+        public async Task EmptyIdentifiersRetainTheirKindsThroughSchemaResolversAsync()
+        {
+            var namespaceUris = new NamespaceTable();
+            ushort namespaceIndex = namespaceUris.GetIndexOrAppend(TestNamespace);
+            (NodeId Id, string Name)[] identifiers =
+            [
+                (new NodeId(0, namespaceIndex), "NumericZero"),
+                (new NodeId(Guid.Empty, namespaceIndex), "GuidZero"),
+                (new NodeId(string.Empty, namespaceIndex), "EmptyString"),
+                (new NodeId(ByteString.Empty, namespaceIndex), "EmptyOpaque")
+            ];
+            var registry = new DataTypeDefinitionRegistry();
+            IEncodeableFactory factory = EncodeableFactory.Create();
+            IEncodeableFactoryBuilder builder = factory.Builder;
+            foreach ((NodeId id, string name) in identifiers)
+            {
+                var definition = new EnumDefinition
+                {
+                    Fields = [new EnumField { Name = "Enabled", Value = 1 }]
+                };
+                registry.TryAddDataType(new DataTypeNode
+                {
+                    NodeId = id,
+                    BrowseName = new QualifiedName(name, namespaceIndex),
+                    DataTypeDefinition = new ExtensionObject(definition)
+                }, namespaceUris);
+                builder.AddEnumeratedType(
+                    new ExpandedNodeId(id),
+                    new Encoders.Enumeration(new XmlQualifiedName(name, TestNamespace), definition));
+            }
+            builder.Commit();
+            var source = new EncodeableFactoryDefinitionSource(factory, namespaceUris);
+            var provider = new DefaultSchemaProvider(source, [new JsonSchemaGenerator()]);
+
+            foreach ((NodeId id, string name) in identifiers)
+            {
+                ExpandedNodeId uriId = NodeId.ToExpandedNodeId(id, namespaceUris);
+                await Assert.That(registry.TryResolve(uriId, out UaTypeDescription? registered)).IsTrue();
+                await Assert.That(registered!.Name).IsEqualTo(name);
+                await Assert.That(source.TryResolve(uriId, out UaTypeDescription? resolved)).IsTrue();
+                await Assert.That(resolved!.Name).IsEqualTo(name);
+                await Assert.That(provider.TryGetSchema(
+                    uriId, UaSchemaFormat.JsonCompact, UaSchemaScope.Type, out IUaSchema? schema)).IsTrue();
+                await Assert.That(schema!.ToSchemaString()).Contains(name);
+            }
+            await Assert.That(registry.GetNamespaceTypes(TestNamespace).Count).IsEqualTo(4);
         }
 
         private static async Task AssertAllFormatsAsync(

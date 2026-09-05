@@ -30,6 +30,7 @@
 using System;
 using Microsoft.Extensions.DependencyInjection;
 using NUnit.Framework;
+using Opc.Ua.Schema.Json;
 
 namespace Opc.Ua.Schema.Tests
 {
@@ -109,6 +110,50 @@ namespace Opc.Ua.Schema.Tests
                 Assert.That(resolved, Is.True);
                 Assert.That(schema, Is.Not.Null);
             });
+        }
+
+        [TestCaseSource(typeof(SchemaTestData), nameof(SchemaTestData.TypeIdentifierCases))]
+        public void RegisteredIdentifierResolvesWithoutUsingBrowseNameNamespace(NodeId nodeId)
+        {
+            var services = new ServiceCollection();
+            services.AddOpcUa().AddSchemaGeneration();
+            using ServiceProvider serviceProvider = services.BuildServiceProvider();
+            var namespaceUris = new NamespaceTable();
+            namespaceUris.Append(SchemaTestData.TestNamespace);
+            namespaceUris.Append(SchemaTestData.OtherNamespace);
+            var node = new DataTypeNode
+            {
+                NodeId = nodeId,
+                BrowseName = new QualifiedName("RegisteredEnum", SchemaTestData.OtherNamespaceIndex),
+                DataTypeDefinition = new ExtensionObject(new EnumDefinition
+                {
+                    Fields = [new EnumField { Name = "Running", Value = 2 }]
+                })
+            };
+            DataTypeDefinitionRegistry registry =
+                serviceProvider.GetRequiredService<DataTypeDefinitionRegistry>();
+            ISchemaProvider provider = serviceProvider.GetRequiredService<ISchemaProvider>();
+
+            Assert.That(registry.TryAddDataType(node, namespaceUris), Is.True);
+            Assert.That(
+                provider.TryGetSchema(
+                    NodeId.ToExpandedNodeId(nodeId, namespaceUris),
+                    UaSchemaFormat.JsonCompact,
+                    UaSchemaScope.Type,
+                    out IUaSchema? uriSchema),
+                Is.True);
+            Assert.That(
+                provider.TryGetSchema(
+                    new ExpandedNodeId(nodeId),
+                    UaSchemaFormat.JsonCompact,
+                    UaSchemaScope.Type,
+                    out IUaSchema? indexSchema),
+                Is.True);
+            Assert.That(uriSchema, Is.TypeOf<JsonSchemaDocument>());
+            var document = (JsonSchemaDocument)uriSchema!;
+            Assert.That(document.Root["title"]!.GetValue<string>(), Is.EqualTo("RegisteredEnum"));
+            Assert.That(uriSchema.ToSchemaString(), Does.Contain("Running"));
+            Assert.That(indexSchema!.ToSchemaString(), Is.EqualTo(uriSchema.ToSchemaString()));
         }
 
         [Test]
