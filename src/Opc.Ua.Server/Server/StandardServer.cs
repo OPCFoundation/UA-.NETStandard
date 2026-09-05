@@ -3614,26 +3614,44 @@ namespace Opc.Ua.Server
 
             foreach (string scheme in schemes)
             {
-                ITransportListenerFactory? binding = bindingFactory.GetListenerFactory(scheme);
-                if (binding != null)
-                {
-                    List<EndpointDescription> endpointsForHost = await binding.CreateServiceHostAsync(
-                        this,
-                        hosts,
-                        configuration,
-                        configuration.ServerConfiguration.BaseAddresses,
-                        serverDescription,
-                        configuration.ServerConfiguration.SecurityPolicies,
-                        CertificateManager!,
-                        configuration.CertificateManager!,
-                        cancellationToken).ConfigureAwait(false);
-                    endpointsList.AddRange(endpointsForHost);
-                }
+                ITransportListenerFactory binding = bindingFactory.GetListenerFactory(scheme) ??
+                    throw new InvalidOperationException(
+                        $"No OPC UA transport listener is registered for endpoint scheme '{scheme}'. " +
+                        "Register the matching transport binding, for example by calling " +
+                        $"Add{GetTransportName(scheme)}Transport().");
+
+                List<EndpointDescription> endpointsForHost = await binding.CreateServiceHostAsync(
+                    this,
+                    hosts,
+                    configuration,
+                    configuration.ServerConfiguration.BaseAddresses,
+                    serverDescription,
+                    configuration.ServerConfiguration.SecurityPolicies,
+                    CertificateManager!,
+                    configuration.CertificateManager!,
+                    cancellationToken).ConfigureAwait(false);
+                endpointsList.AddRange(endpointsForHost);
             }
             return new ServiceHostInitializationResult(
                 [.. hosts.Values],
                 serverDescription,
                 endpointsList);
+        }
+
+        /// <summary>
+        /// Maps a URI scheme to the name used by the corresponding
+        /// <c>Add*Transport()</c> DI extension method.
+        /// </summary>
+        private static string GetTransportName(string scheme)
+        {
+            return scheme switch
+            {
+                Utils.UriSchemeOpcTcp => "OpcTcp",
+                Utils.UriSchemeOpcQuic => "Quic",
+                Utils.UriSchemeHttps or Utils.UriSchemeOpcHttps => "Https",
+                Utils.UriSchemeWss or Utils.UriSchemeOpcWss => "Wss",
+                _ => scheme
+            };
         }
 
         /// <summary>

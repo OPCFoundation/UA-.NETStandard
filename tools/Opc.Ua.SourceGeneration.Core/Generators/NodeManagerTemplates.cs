@@ -93,7 +93,9 @@ namespace Opc.Ua.SourceGeneration
                         global::System.Threading.CancellationToken cancellationToken = default)
                     {
                         return new global::System.Threading.Tasks.ValueTask<global::Opc.Ua.NodeStateCollection>(
-                            new global::Opc.Ua.NodeStateCollection().Add{{Tokens.Namespace}}(context));
+                            global::{{Tokens.Prefix}}.{{Tokens.Namespace}}Extensions.Add{{Tokens.Namespace}}(
+                                new global::Opc.Ua.NodeStateCollection(),
+                                context));
                     }
 
                     /// <inheritdoc/>
@@ -161,19 +163,6 @@ namespace Opc.Ua.SourceGeneration
                             __b.Dispatcher.NotifyNodeRemoved(context, node);
                         }
                         await base.RemovePredefinedNodeAsync(context, node, referencesToRemove, cancellationToken).ConfigureAwait(false);
-                    }
-
-                    /// <inheritdoc/>
-                    protected override void OnMonitoredItemCreated(
-                        global::Opc.Ua.Server.ServerSystemContext context,
-                        global::Opc.Ua.Server.NodeHandle handle,
-                        global::Opc.Ua.Server.ISampledDataChangeMonitoredItem monitoredItem)
-                    {
-                        base.OnMonitoredItemCreated(context, handle, monitoredItem);
-                        if (__m_builder is { } __b && handle?.Node is { } __node)
-                        {
-                            __b.Dispatcher.NotifyMonitoredItemCreated(context, __node, monitoredItem);
-                        }
                     }
 
                     private global::Opc.Ua.NodeState __FindRootByBrowseName(global::Opc.Ua.QualifiedName browseName)
