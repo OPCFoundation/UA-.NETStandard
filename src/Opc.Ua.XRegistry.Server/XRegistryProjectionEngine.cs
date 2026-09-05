@@ -615,13 +615,17 @@ namespace Opc.Ua.XRegistry.Server
                 SetValue(entry.Node.MetaEpoch, checked((uint)meta.MetaEpoch));
                 SetValue(entry.Node.MetaCreatedAt, (DateTimeUtc)meta.MetaCreatedAt);
                 SetValue(entry.Node.MetaModifiedAt, (DateTimeUtc)meta.MetaModifiedAt);
-                if (meta.IsDefaultVersion &&
-                    FindEventResource(
-                        eventSnapshot,
-                        resource.GroupId,
-                        resource.ResourceId) is { } logicalResource)
+                if (meta.IsDefaultVersion)
                 {
-                    m_resourcesByXid[logicalResource.Xid] = entry.Node;
+                    m_resourcesByXid[
+                        ResourceSubject(resource.GroupId, resource.ResourceId)] = entry.Node;
+                    if (FindEventResource(
+                            eventSnapshot,
+                            resource.GroupId,
+                            resource.ResourceId) is { } logicalResource)
+                    {
+                        m_resourcesByXid[logicalResource.Xid] = entry.Node;
+                    }
                 }
             }
             else if (FindEventResource(

@@ -325,7 +325,7 @@ namespace Opc.Ua.WotCon.Server.Registry
             resourceId = NormalizeSegment(resourceId, nameof(resourceId));
             string? explicitVersionId = string.IsNullOrEmpty(versionId)
                 ? null
-                : ValidateExplicitVersionId(versionId, nameof(versionId));
+                : versionId;
             await m_mutex.WaitAsync(cancellationToken).ConfigureAwait(false);
             try
             {
@@ -345,13 +345,16 @@ namespace Opc.Ua.WotCon.Server.Registry
                 {
                     return new VersionCreateResult(existing, defaultVersion, false);
                 }
-                string assignedVersionId = explicitVersionId ?? NextVersionId(existing);
-                if (existing?.FindVersion(assignedVersionId) is { } existingVersion)
+                if (explicitVersionId is not null &&
+                    existing?.FindVersion(explicitVersionId) is { } existingVersion)
                 {
                     return getOrCreate
                         ? new VersionCreateResult(existing, existingVersion, false)
                         : default;
                 }
+                string assignedVersionId = explicitVersionId is null
+                    ? NextVersionId(existing)
+                    : ValidateExplicitVersionId(explicitVersionId, nameof(versionId));
                 if (existing?.Versions.Any(version => string.Equals(
                         version.VersionId,
                         assignedVersionId,

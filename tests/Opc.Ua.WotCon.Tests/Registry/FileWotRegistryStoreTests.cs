@@ -1138,6 +1138,18 @@ namespace Opc.Ua.WotCon.Tests.Registry
                     WotRegistryGroups.ThingDescriptions,
                     "legacy-id")!;
                 Assert.That(loaded.FindVersion(versionId), Is.Not.Null);
+                (WotResource openedResource, WotResourceVersion openedVersion, bool created) =
+                    await service.GetOrCreateVersionAsync(
+                        WotRegistryGroups.ThingDescriptions,
+                        "legacy-id",
+                        versionId,
+                        WoTDocumentKindEnum.ThingDescription);
+                Assert.Multiple(() =>
+                {
+                    Assert.That(created, Is.False);
+                    Assert.That(openedResource, Is.SameAs(loaded));
+                    Assert.That(openedVersion, Is.SameAs(loaded.FindVersion(versionId)));
+                });
                 WotRegistryMutationResult updated = await service.UpsertResourceAsync(
                     new WotUpsertResourceRequest
                     {

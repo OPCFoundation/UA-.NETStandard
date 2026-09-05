@@ -361,6 +361,43 @@ namespace Opc.Ua.XRegistry.Tests
         }
 
         [Test]
+        public async Task VersionedDeleteUsesLogicalRoleWithoutEventMetadataAsync()
+        {
+            var strategy = new RecordingVersionedTestStrategy
+            {
+                Snapshot = VersionedProjectionSnapshot("v1"),
+                CurrentDefaultVersionId = "v1",
+                ResourceEpoch = 17,
+                VersionEpoch = 23,
+                OmitEventMetadata = true
+            };
+            ProjectionHarness harness = ProjectionHarness.Create(suppliedStrategy: strategy);
+            await harness.Engine.AttachAsync(harness.Registry, CancellationToken.None)
+                .ConfigureAwait(false);
+            ResourceState v1 = FindVersionNode(harness, "v1");
+
+            ServiceResult result = await InvokeDeleteAsync(
+                harness,
+                v1,
+                17).ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(ServiceResult.IsGood(result), Is.True);
+                Assert.That(strategy.ProjectedDeletes, Is.EqualTo(new[]
+                {
+                    new ProjectedDeleteInvocation(
+                        "schemas",
+                        "pump",
+                        "v1",
+                        17,
+                        true,
+                        ProjectedDeleteTarget.Resource)
+                }));
+            });
+        }
+
+        [Test]
         public async Task VersionedDeletePassesVersionRoleAndEpochToAtomicStrategyAsync()
         {
             var strategy = new RecordingVersionedTestStrategy
@@ -1974,6 +2011,7 @@ namespace Opc.Ua.XRegistry.Tests
             public long ResourceEpoch { get; set; }
             public long VersionEpoch { get; set; }
             public bool RejectGenerationCaptureBeforeProjectedDelete { get; set; }
+            public bool OmitEventMetadata { get; set; }
             public List<ProjectedDeleteInvocation> ProjectedDeletes { get; } = [];
             public List<ResourceDeleteInvocation> ResourceDeletes { get; } = [];
 
@@ -1984,6 +2022,10 @@ namespace Opc.Ua.XRegistry.Tests
                 {
                     throw new InvalidOperationException(
                         "The engine captured projection state before atomic delete.");
+                }
+                if (OmitEventMetadata)
+                {
+                    return new XRegistryProjectionGeneration(Snapshot, null);
                 }
                 return base.CaptureProjectionGeneration();
             }
