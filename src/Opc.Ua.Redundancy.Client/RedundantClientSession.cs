@@ -1234,6 +1234,69 @@ namespace Opc.Ua.Redundancy.Client
             return await session.CancelAsync(requestHeader, requestHandle, ct).ConfigureAwait(false);
         }
 
+        /// <inheritdoc/>
+        [System.Diagnostics.CodeAnalysis.Experimental(
+            Opc.Ua.DataChannelFeature.ExperimentalDiagnosticId,
+            UrlFormat = Opc.Ua.DataChannelFeature.ExperimentalUrlFormat)]
+        public async ValueTask<OpenDataChannelResponse> OpenDataChannelAsync(
+            RequestHeader? requestHeader,
+            NodeId sourceNodeId,
+            uint offerId,
+            ulong transportChannelId,
+            DataChannelParametersDataType? requestedParameters,
+            CancellationToken ct
+        )
+        {
+            ISession session = await GetActiveAsync(ct).ConfigureAwait(false);
+            return await session.OpenDataChannelAsync(
+                requestHeader,
+                sourceNodeId,
+                offerId,
+                transportChannelId,
+                requestedParameters,
+                ct).ConfigureAwait(false);
+        }
+
+        /// <inheritdoc/>
+        [System.Diagnostics.CodeAnalysis.Experimental(
+            Opc.Ua.DataChannelFeature.ExperimentalDiagnosticId,
+            UrlFormat = Opc.Ua.DataChannelFeature.ExperimentalUrlFormat)]
+        public async ValueTask<ModifyDataChannelResponse> ModifyDataChannelAsync(
+            RequestHeader? requestHeader,
+            uint channelId,
+            DataChannelParametersDataType? requestedParameters,
+            CancellationToken ct
+        )
+        {
+            ISession session = await GetActiveAsync(ct).ConfigureAwait(false);
+            return await session.ModifyDataChannelAsync(
+                requestHeader,
+                channelId,
+                requestedParameters,
+                ct).ConfigureAwait(false);
+        }
+
+        /// <inheritdoc/>
+        [System.Diagnostics.CodeAnalysis.Experimental(
+            Opc.Ua.DataChannelFeature.ExperimentalDiagnosticId,
+            UrlFormat = Opc.Ua.DataChannelFeature.ExperimentalUrlFormat)]
+        public async ValueTask<CloseDataChannelResponse> CloseDataChannelAsync(
+            RequestHeader? requestHeader,
+            uint channelId,
+            StatusCode reason,
+            bool deleteQueued,
+            CancellationToken ct
+        )
+        {
+            ISession session = await GetActiveAsync(ct).ConfigureAwait(false);
+            return await session.CloseDataChannelAsync(
+                requestHeader,
+                channelId,
+                reason,
+                deleteQueued,
+                ct).ConfigureAwait(false);
+        }
+
         /// <summary>
         /// Refreshes the cached active session from the coordinator for unit tests.
         /// </summary>

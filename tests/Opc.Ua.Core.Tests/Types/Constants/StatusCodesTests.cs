@@ -27,6 +27,11 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
+using System.Collections.Generic;
+using System.Globalization;
+using System.Linq;
+using System.Reflection;
 using NUnit.Framework;
 
 namespace Opc.Ua.Core.Tests.Types.Constants
@@ -94,6 +99,32 @@ namespace Opc.Ua.Core.Tests.Types.Constants
         {
             string browseName = new StatusCode(0x12345678).SymbolicId;
             Assert.That(browseName, Is.Null);
+        }
+
+        /// <summary>
+        /// Two status codes that share a numeric identifier differ only in their severity
+        /// bits, so the collision produces valid but wrong constants rather than a build
+        /// failure. Identifiers therefore have to be asserted unique explicitly.
+        /// </summary>
+        [Test]
+        public void StatusCodeIdentifiersAreUnique()
+        {
+            Dictionary<uint, List<string>> byIdentifier = typeof(StatusCodes)
+                .GetFields(BindingFlags.Public | BindingFlags.Static)
+                .Where(field => field.IsLiteral && field.FieldType == typeof(uint))
+                .GroupBy(field => (Convert.ToUInt32(
+                    field.GetRawConstantValue(),
+                    CultureInfo.InvariantCulture) >> 16) & 0x3FFF)
+                .ToDictionary(
+                    group => group.Key,
+                    group => group.Select(field => field.Name).ToList());
+
+            List<string> collisions = byIdentifier
+                .Where(entry => entry.Value.Count > 1)
+                .Select(entry => $"{entry.Key}: {string.Join(", ", entry.Value)}")
+                .ToList();
+
+            Assert.That(collisions, Is.Empty);
         }
     }
 }

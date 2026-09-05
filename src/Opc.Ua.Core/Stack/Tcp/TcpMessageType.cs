@@ -108,6 +108,17 @@ namespace Opc.Ua.Bindings
         public const uint Error = 0x46525245;
 
         /// <summary>
+        /// A chunk carrying one data channel frame.
+        /// </summary>
+        /// <remarks>
+        /// Experimental. Defined by the OPC UA Data Channels errata as an
+        /// addition to the MessageTypes of OPC 10000-6 6.7.2.2. A STR
+        /// chunk is always final: a data channel frame is a single chunk,
+        /// so there is never a partially received Message to abort.
+        /// </remarks>
+        public const uint Stream = 0x00525453;
+
+        /// <summary>
         /// Returns true if the message type is equal to the expected type.
         /// </summary>
         public static bool IsType(uint actualType, uint expectedType)
@@ -155,6 +166,14 @@ namespace Opc.Ua.Bindings
                         case Open:
                         case Close:
                             return true;
+                        case Stream:
+                            // A data channel frame is a single chunk and
+                            // is never a Message abort, so 'F' is the only
+                            // acceptable chunk type. Accepting 'A' would
+                            // let the 6.7.3 abort parser read a 32 bit
+                            // string length out of the attacker
+                            // controlled stream header bytes.
+                            return chunkTypeMask == Final;
                         default:
                             return false;
                     }
