@@ -298,6 +298,13 @@ namespace Opc.Ua.XRegistry.Server
                 {
                     resource.File?.Dispose();
                 }
+                foreach (LogicalResourceEntry logical in group.LogicalResources.Values)
+                {
+                    foreach (ResourceEntry version in logical.Versions.Values)
+                    {
+                        version.File?.Dispose();
+                    }
+                }
             }
             m_groups.Clear();
             m_resourcesByXid.Clear();
@@ -362,6 +369,13 @@ namespace Opc.Ua.XRegistry.Server
             XRegistryProjectionEventSnapshot? eventSnapshot,
             CancellationToken ct)
         {
+            if (m_versionedStrategy is not null)
+            {
+                await ReconcileVersionedResourcesAsync(entry, group, eventSnapshot, ct)
+                    .ConfigureAwait(false);
+                return;
+            }
+
             var seenResources = new HashSet<ResourceEntryKey>();
             foreach (IXRegistryProjectionResource resource in group.Resources)
             {
@@ -408,6 +422,126 @@ namespace Opc.Ua.XRegistry.Server
                 .Where(id => !seenResources.Contains(id)).ToList())
             {
                 await RemoveResourceNodeAsync(entry, resourceKey, ct).ConfigureAwait(false);
+            }
+        }
+
+        private async ValueTask ReconcileVersionedResourcesAsync(
+            GroupEntry entry,
+            IXRegistryProjectionGroup group,
+            XRegistryProjectionEventSnapshot? eventSnapshot,
+            CancellationToken ct)
+        {
+            // Group the snapshot resources by ResourceId.
+            var versionsByResource = new Dictionary<string, List<IXRegistryProjectionResource>>(
+                StringComparer.Ordinal);
+            foreach (IXRegistryProjectionResource resource in group.Resources)
+            {
+                if (!versionsByResource.TryGetValue(
+                        resource.ResourceId,
+                        out List<IXRegistryProjectionResource>? list))
+                {
+                    list = [];
+                    versionsByResource[resource.ResourceId] = list;
+                }
+                list.Add(resource);
+            }
+
+            var seenResourceIds = new HashSet<string>(StringComparer.Ordinal);
+            foreach (KeyValuePair<string, List<IXRegistryProjectionResource>> pair in versionsByResource)
+            {
+                string resourceId = pair.Key;
+                List<IXRegistryProjectionResource> versions = pair.Value;
+                seenResourceIds.Add(resourceId);
+
+                // Find the default version for logical resource property delegation.
+                IXRegistryProjectionResource defaultVersion = versions
+                    .OfType<IXRegistryProjectionResourceMeta>()
+                    .FirstOrDefault(m => m.IsDefaultVersion) as IXRegistryProjectionResource
+                    ?? versions[0];
+
+                if (!entry.LogicalResources.TryGetValue(
+                        resourceId,
+                        out LogicalResourceEntry? logical))
+                {
+                    logical = await CreateLogicalResourceNodeAsync(
+                        entry,
+                        defaultVersion,
+                        eventSnapshot,
+                        ct).ConfigureAwait(false);
+                    entry.LogicalResources[resourceId] = logical;
+                }
+                else
+                {
+                    ApplyLogicalResourceProperties(logical, defaultVersion, eventSnapshot);
+                    m_strategy.ConfigureResourceNode(logical.LogicalNode, defaultVersion);
+                    if (logical.LogicalNode.MetaLabels is not null &&
+                        defaultVersion is IXRegistryProjectionResourceMeta meta)
+                    {
+                        await SyncLabelPropertiesAsync(
+                            logical.LogicalNode.MetaLabels,
+                            LogicalResourceMetaNodeIdPath(
+                                defaultVersion.GroupId,
+                                defaultVersion.ResourceId),
+                            meta.MetaLabels,
+                            ct).ConfigureAwait(false);
+                    }
+                    logical.LogicalNode.ClearChangeMasks(
+                        m_context.SystemContext,
+                        includeChildren: true);
+                }
+
+                // Reconcile the per-version nodes under the Versions folder.
+                var seenVersions = new HashSet<string>(StringComparer.Ordinal);
+                foreach (IXRegistryProjectionResource version in versions)
+                {
+                    seenVersions.Add(version.VersionId);
+                    if (!logical.Versions.TryGetValue(
+                            version.VersionId,
+                            out ResourceEntry? versionEntry))
+                    {
+                        versionEntry = await CreateVersionNodeAsync(
+                            logical,
+                            version,
+                            eventSnapshot,
+                            ct).ConfigureAwait(false);
+                        logical.Versions[version.VersionId] = versionEntry;
+                    }
+                    else
+                    {
+                        ApplyVersionProperties(versionEntry, version, eventSnapshot);
+                        m_strategy.ConfigureResourceNode(versionEntry.Node, version);
+                        if (versionEntry.Node.Labels is not null)
+                        {
+                            await SyncLabelPropertiesAsync(
+                                versionEntry.Node.Labels,
+                                VersionNodeIdPath(
+                                    version.GroupId,
+                                    version.ResourceId,
+                                    version.VersionId),
+                                version.Labels,
+                                ct).ConfigureAwait(false);
+                        }
+                        versionEntry.Node.ClearChangeMasks(
+                            m_context.SystemContext,
+                            includeChildren: true);
+                    }
+                }
+
+                // Remove stale version nodes.
+                foreach (string staleVersion in logical.Versions.Keys
+                    .Where(v => !seenVersions.Contains(v)).ToList())
+                {
+                    await RemoveVersionNodeAsync(logical, staleVersion, ct)
+                        .ConfigureAwait(false);
+                }
+            }
+
+            // Remove stale logical resources.
+            foreach (string staleResourceId in entry.LogicalResources.Keys
+                .Where(id => !seenResourceIds.Contains(id)).ToList())
+            {
+                await RemoveLogicalResourceNodeAsync(entry, staleResourceId, ct)
+                    .ConfigureAwait(false);
             }
         }
 
@@ -482,6 +616,11 @@ namespace Opc.Ua.XRegistry.Server
             foreach (ResourceEntryKey resourceId in entry.Resources.Keys.ToList())
             {
                 await RemoveResourceNodeAsync(entry, resourceId, ct).ConfigureAwait(false);
+            }
+            foreach (string logicalResourceId in entry.LogicalResources.Keys.ToList())
+            {
+                await RemoveLogicalResourceNodeAsync(entry, logicalResourceId, ct)
+                    .ConfigureAwait(false);
             }
             m_registryNode!.RemoveReference(Opc.Ua.ReferenceTypeIds.HasNotifier, false, entry.Node.NodeId);
             m_registryNode.RemoveChild(entry.Node);
@@ -693,6 +832,352 @@ namespace Opc.Ua.XRegistry.Server
             group.Resources.Remove(resourceKey);
         }
 
+        private async ValueTask<LogicalResourceEntry> CreateLogicalResourceNodeAsync(
+            GroupEntry group,
+            IXRegistryProjectionResource defaultVersion,
+            XRegistryProjectionEventSnapshot? eventSnapshot,
+            CancellationToken ct)
+        {
+            string groupId = defaultVersion.GroupId;
+            string resourceId = defaultVersion.ResourceId;
+
+            // Create the logical Resource node — child of the Group.
+            ResourceState node = m_strategy.CreateResourceNode(group.Node, defaultVersion);
+            NodeId logicalNodeId = LogicalResourceNodeId(groupId, resourceId);
+            node.ReferenceTypeId = Opc.Ua.ReferenceTypeIds.Organizes;
+            node.Create(
+                m_context.SystemContext,
+                logicalNodeId,
+                new QualifiedName(resourceId, m_context.ModelNamespaceIndex),
+                new LocalizedText(defaultVersion.Name),
+                assignNodeIds: false);
+
+            // Logical Resource carries Meta-prefixed members, stable Xid, Delete and Labels.
+            node.AddVersionId(m_context.SystemContext)
+                .AddFormat(m_context.SystemContext)
+                .AddContentType(m_context.SystemContext)
+                .AddXid(m_context.SystemContext)
+                .AddEpoch(m_context.SystemContext)
+                .AddDescription(m_context.SystemContext)
+                .AddCreatedAt(m_context.SystemContext)
+                .AddModifiedAt(m_context.SystemContext);
+            node.AddMetaEpoch(m_context.SystemContext)
+                .AddMetaLabels(m_context.SystemContext)
+                .AddMetaCreatedAt(m_context.SystemContext)
+                .AddMetaModifiedAt(m_context.SystemContext);
+            node.AddDelete(m_context.SystemContext);
+            node.AddLabels(m_context.SystemContext);
+            node.EventNotifier = EventNotifiers.SubscribeToEvents;
+
+            // Delete on the logical Resource always uses Resource-delete semantics.
+            node.Delete?.OnCallMethod2Async =
+                (c, m, o, i, ot, t) => OnDeleteLogicalResourceAsync(
+                    groupId, resourceId, c, i, t);
+
+            WireLabelsContainer(
+                node.MetaLabels,
+                (c, i, t) => OnAddResourceMetaLabelAsync(groupId, resourceId, c, i, t),
+                (c, i, t) => OnRemoveResourceMetaLabelAsync(groupId, resourceId, c, i, t));
+
+            // Create the Versions folder — child of the logical Resource.
+            node.AddVersions(m_context.SystemContext);
+            ResourceVersionsState versionsFolder = node.Versions!;
+            NodeId versionsNodeId = VersionsFolderNodeId(groupId, resourceId);
+            versionsFolder.NodeId = versionsNodeId;
+            versionsFolder.BrowseName = new QualifiedName(
+                "Versions", m_context.ModelNamespaceIndex);
+            versionsFolder.ReferenceTypeId = Opc.Ua.ReferenceTypeIds.HasComponent;
+
+            var logical = new LogicalResourceEntry(node, versionsFolder, groupId, resourceId);
+            ApplyLogicalResourceProperties(logical, defaultVersion, eventSnapshot);
+            m_strategy.ConfigureResourceNode(node, defaultVersion);
+            m_context.SystemContext.AssignInstanceChildNodeIds(node);
+            LinkMethodArguments(node, m_context.SystemContext);
+
+            // Wire into the group.
+            group.Node.AddChild(node);
+            group.Node.AddReference(Opc.Ua.ReferenceTypeIds.HasNotifier, false, logicalNodeId);
+            node.AddReference(Opc.Ua.ReferenceTypeIds.HasNotifier, true, group.Node.NodeId);
+
+            await m_context.AddNodeAsync(node, ct).ConfigureAwait(false);
+
+            // Register the logical resource in the xid index.
+            m_resourcesByXid[ResourceSubject(groupId, resourceId)] = node;
+            if (FindEventResource(eventSnapshot, groupId, resourceId) is { } logicalResource)
+            {
+                m_resourcesByXid[logicalResource.Xid] = node;
+            }
+
+            if (node.MetaLabels is not null &&
+                defaultVersion is IXRegistryProjectionResourceMeta meta)
+            {
+                await SyncLabelPropertiesAsync(
+                    node.MetaLabels,
+                    LogicalResourceMetaNodeIdPath(groupId, resourceId),
+                    meta.MetaLabels,
+                    ct).ConfigureAwait(false);
+            }
+            return logical;
+        }
+
+        private async ValueTask<ResourceEntry> CreateVersionNodeAsync(
+            LogicalResourceEntry logical,
+            IXRegistryProjectionResource version,
+            XRegistryProjectionEventSnapshot? eventSnapshot,
+            CancellationToken ct)
+        {
+            string groupId = version.GroupId;
+            string resourceId = version.ResourceId;
+            string versionId = version.VersionId;
+
+            // The strategy uses the group node to determine the domain type (TD/TM).
+            // We find the group entry via m_groups, then pass its GroupState.
+            GroupState groupNode = m_groups.TryGetValue(groupId, out GroupEntry? ge)
+                ? ge.Node
+                : logical.LogicalNode.Parent as GroupState ?? new GroupState(null);
+            ResourceState node = m_strategy.CreateResourceNode(groupNode, version);
+            NodeId versionNodeId = VersionNodeId(groupId, resourceId, versionId);
+            node.ReferenceTypeId = Opc.Ua.ReferenceTypeIds.Organizes;
+            node.Create(
+                m_context.SystemContext,
+                versionNodeId,
+                new QualifiedName(versionId, m_context.ModelNamespaceIndex),
+                new LocalizedText(version.Name),
+                assignNodeIds: false);
+
+            // Version carries its own Xid, Epoch, Labels, CreatedAt, ModifiedAt, Delete.
+            node.AddVersionId(m_context.SystemContext)
+                .AddFormat(m_context.SystemContext)
+                .AddContentType(m_context.SystemContext)
+                .AddXid(m_context.SystemContext)
+                .AddEpoch(m_context.SystemContext)
+                .AddDescription(m_context.SystemContext)
+                .AddCreatedAt(m_context.SystemContext)
+                .AddModifiedAt(m_context.SystemContext);
+            node.AddDelete(m_context.SystemContext);
+            node.AddLabels(m_context.SystemContext);
+            node.EventNotifier = EventNotifiers.SubscribeToEvents;
+
+            // Delete on a Version always uses Version-delete semantics.
+            node.Delete?.OnCallMethod2Async =
+                (c, m, o, i, ot, t) => OnDeleteVersionAsync(
+                    groupId, resourceId, versionId, c, i, t);
+
+            WireLabelsContainer(
+                node.Labels,
+                (c, i, t) => OnAddResourceLabelAsync(groupId, resourceId, versionId, c, i, t),
+                (c, i, t) => OnRemoveResourceLabelAsync(groupId, resourceId, versionId, c, i, t));
+
+            IXRegistryProjectedResourceFile? file = m_strategy.CreateResourceFile(node, version);
+            var entry = new ResourceEntry(node, file, groupId, resourceId, versionId, version.Xid);
+            ApplyVersionProperties(entry, version, eventSnapshot);
+            m_strategy.ConfigureResourceNode(node, version);
+            m_context.SystemContext.AssignInstanceChildNodeIds(node);
+            LinkMethodArguments(node, m_context.SystemContext);
+
+            // Wire into the Versions folder and notifier chain.
+            logical.VersionsFolder.AddChild(node);
+            logical.LogicalNode.AddReference(
+                Opc.Ua.ReferenceTypeIds.HasNotifier, false, versionNodeId);
+            node.AddReference(
+                Opc.Ua.ReferenceTypeIds.HasNotifier, true, logical.LogicalNode.NodeId);
+
+            await m_context.AddNodeAsync(node, ct).ConfigureAwait(false);
+            m_resourcesByXid[version.Xid] = node;
+            await SyncLabelPropertiesAsync(
+                node.Labels!,
+                VersionNodeIdPath(groupId, resourceId, versionId),
+                version.Labels,
+                ct).ConfigureAwait(false);
+            return entry;
+        }
+
+        private void ApplyLogicalResourceProperties(
+            LogicalResourceEntry logical,
+            IXRegistryProjectionResource defaultVersion,
+            XRegistryProjectionEventSnapshot? eventSnapshot)
+        {
+            ResourceState node = logical.LogicalNode;
+            SetValue(node.ResourceId, defaultVersion.ResourceId);
+            node.BrowseName = new QualifiedName(
+                defaultVersion.ResourceId,
+                m_context.ModelNamespaceIndex);
+            // Delegated properties from the selected default Version.
+            SetValue(node.VersionId, defaultVersion.VersionId);
+            SetValue(node.Format, defaultVersion.Format);
+            SetValue(node.ContentType, defaultVersion.ContentType);
+            SetValue(node.Epoch, (uint)defaultVersion.Epoch);
+            SetValue(node.Name, defaultVersion.Name);
+            SetValue(node.Description, defaultVersion.Description);
+            if (defaultVersion.CreatedAt != default)
+            {
+                SetValue(node.CreatedAt, (DateTimeUtc)defaultVersion.CreatedAt);
+            }
+            SetValue(node.ModifiedAt, (DateTimeUtc)defaultVersion.ModifiedAt);
+
+            // Stable Resource Xid = resource path without version.
+            string resourceXid = defaultVersion.Xid;
+            int versionsIdx = resourceXid.IndexOf("/versions/", StringComparison.Ordinal);
+            if (versionsIdx >= 0)
+            {
+                resourceXid = resourceXid.Substring(0, versionsIdx);
+            }
+            SetValue(node.Xid, resourceXid);
+
+            if (defaultVersion is IXRegistryProjectionResourceMeta meta)
+            {
+                SetValue(node.MetaEpoch, checked((uint)meta.MetaEpoch));
+                SetValue(node.MetaCreatedAt, (DateTimeUtc)meta.MetaCreatedAt);
+                SetValue(node.MetaModifiedAt, (DateTimeUtc)meta.MetaModifiedAt);
+
+                // Register the logical node in the xid index.
+                m_resourcesByXid[
+                    ResourceSubject(defaultVersion.GroupId, defaultVersion.ResourceId)] = node;
+            }
+            else if (FindEventResource(
+                    eventSnapshot,
+                    defaultVersion.GroupId,
+                    defaultVersion.ResourceId) is { } eventResource)
+            {
+                SetValue(node.MetaEpoch, eventResource.MetaEpoch);
+                SetValue(node.MetaCreatedAt, (DateTimeUtc)eventResource.MetaCreatedAt);
+                SetValue(node.MetaModifiedAt, (DateTimeUtc)eventResource.MetaModifiedAt);
+            }
+        }
+
+        private void ApplyVersionProperties(
+            ResourceEntry entry,
+            IXRegistryProjectionResource version,
+            XRegistryProjectionEventSnapshot? eventSnapshot)
+        {
+            SetValue(entry.Node.ResourceId, version.ResourceId);
+            entry.Node.BrowseName = new QualifiedName(
+                version.VersionId,
+                m_context.ModelNamespaceIndex);
+            SetValue(entry.Node.VersionId, version.VersionId);
+            SetValue(entry.Node.Format, version.Format);
+            SetValue(entry.Node.ContentType, version.ContentType);
+            SetValue(entry.Node.Xid, version.Xid);
+            SetValue(entry.Node.Epoch, (uint)version.Epoch);
+            SetValue(entry.Node.Name, version.Name);
+            SetValue(entry.Node.Description, version.Description);
+            if (version.CreatedAt != default)
+            {
+                SetValue(entry.Node.CreatedAt, (DateTimeUtc)version.CreatedAt);
+            }
+            SetValue(entry.Node.ModifiedAt, (DateTimeUtc)version.ModifiedAt);
+            entry.File?.ApplyResource(version);
+        }
+
+        private async ValueTask RemoveLogicalResourceNodeAsync(
+            GroupEntry group,
+            string resourceId,
+            CancellationToken ct)
+        {
+            if (!group.LogicalResources.TryGetValue(
+                    resourceId,
+                    out LogicalResourceEntry? logical))
+            {
+                return;
+            }
+            // Remove all version nodes first.
+            foreach (string versionId in logical.Versions.Keys.ToList())
+            {
+                await RemoveVersionNodeAsync(logical, versionId, ct).ConfigureAwait(false);
+            }
+            // Remove the logical resource xid mappings.
+            foreach (KeyValuePair<string, ResourceState> mapped in m_resourcesByXid
+                .Where(m => ReferenceEquals(m.Value, logical.LogicalNode)).ToList())
+            {
+                m_resourcesByXid.TryRemove(mapped.Key, out _);
+            }
+            group.Node.RemoveReference(
+                Opc.Ua.ReferenceTypeIds.HasNotifier, false, logical.LogicalNode.NodeId);
+            group.Node.RemoveChild(logical.LogicalNode);
+            await m_context.DeleteNodeAsync(logical.LogicalNode.NodeId, ct).ConfigureAwait(false);
+            group.LogicalResources.Remove(resourceId);
+        }
+
+        private async ValueTask RemoveVersionNodeAsync(
+            LogicalResourceEntry logical,
+            string versionId,
+            CancellationToken ct)
+        {
+            if (!logical.Versions.TryGetValue(versionId, out ResourceEntry? entry))
+            {
+                return;
+            }
+            entry.File?.Dispose();
+            foreach (KeyValuePair<string, ResourceState> mapped in m_resourcesByXid
+                .Where(m => ReferenceEquals(m.Value, entry.Node)).ToList())
+            {
+                m_resourcesByXid.TryRemove(mapped.Key, out _);
+            }
+            logical.LogicalNode.RemoveReference(
+                Opc.Ua.ReferenceTypeIds.HasNotifier, false, entry.Node.NodeId);
+            logical.VersionsFolder.RemoveChild(entry.Node);
+            await m_context.DeleteNodeAsync(entry.Node.NodeId, ct).ConfigureAwait(false);
+            logical.Versions.Remove(versionId);
+        }
+
+        private async ValueTask<ServiceResult> OnDeleteLogicalResourceAsync(
+            string groupId,
+            string resourceId,
+            ISystemContext context,
+            ArrayOf<Variant> input,
+            CancellationToken ct)
+        {
+            ServiceResult access = m_context.CheckManagementAccess(context, "DeleteResource");
+            if (ServiceResult.IsBad(access))
+            {
+                return access;
+            }
+            long? expectedEpoch = OptionalEpoch(input, 0);
+
+            // Resource-delete: always uses MetaEpoch check, deletes the logical
+            // Resource and ALL its Versions.
+            ServiceResult result = await m_versionedStrategy!.DeleteProjectedEntityAsync(
+                    groupId,
+                    resourceId,
+                    versionId: string.Empty,
+                    deleteLogicalResource: true,
+                    expectedEpoch,
+                    ct)
+                .ConfigureAwait(false);
+            await ReconcileProjectionAsync(ct).ConfigureAwait(false);
+            return result;
+        }
+
+        private async ValueTask<ServiceResult> OnDeleteVersionAsync(
+            string groupId,
+            string resourceId,
+            string versionId,
+            ISystemContext context,
+            ArrayOf<Variant> input,
+            CancellationToken ct)
+        {
+            ServiceResult access = m_context.CheckManagementAccess(context, "DeleteResource");
+            if (ServiceResult.IsBad(access))
+            {
+                return access;
+            }
+            long? expectedEpoch = OptionalEpoch(input, 0);
+
+            // Version-delete: always uses that Version's own Epoch check,
+            // deletes ONLY that Version. Last-version/default-reassignment
+            // rules are applied by the strategy.
+            ServiceResult result = await m_versionedStrategy!.DeleteProjectedEntityAsync(
+                    groupId,
+                    resourceId,
+                    versionId,
+                    deleteLogicalResource: false,
+                    expectedEpoch,
+                    ct)
+                .ConfigureAwait(false);
+            await ReconcileProjectionAsync(ct).ConfigureAwait(false);
+            return result;
+        }
+
         private async ValueTask<ServiceResult> OnCreateGroupAsync(
             ISystemContext context,
             MethodState method,
@@ -824,12 +1309,26 @@ namespace Opc.Ua.XRegistry.Server
             await m_gate.WaitAsync(ct).ConfigureAwait(false);
             try
             {
-                var key = new ResourceEntryKey(
-                    resourceId,
-                    m_versionedStrategy is null ? string.Empty : versionId);
-                if (!m_groups.TryGetValue(groupId, out GroupEntry? group) ||
-                    !group.Resources.TryGetValue(key, out ResourceEntry? entry) ||
-                    entry.File is not IXRegistryProjectedContentlessResourceFile contentlessFile)
+                ResourceEntry? entry = null;
+                if (m_versionedStrategy is not null)
+                {
+                    if (m_groups.TryGetValue(groupId, out GroupEntry? grp) &&
+                        grp.LogicalResources.TryGetValue(
+                            resourceId, out LogicalResourceEntry? logical))
+                    {
+                        logical.Versions.TryGetValue(versionId, out entry);
+                    }
+                }
+                else
+                {
+                    var key = new ResourceEntryKey(resourceId, string.Empty);
+                    if (m_groups.TryGetValue(groupId, out GroupEntry? grp))
+                    {
+                        grp.Resources.TryGetValue(key, out entry);
+                    }
+                }
+
+                if (entry?.File is not IXRegistryProjectedContentlessResourceFile contentlessFile)
                 {
                     return (false, ServiceResult.Good);
                 }
@@ -912,22 +1411,40 @@ namespace Opc.Ua.XRegistry.Server
             string groupId = resource.GroupId;
             string resourceId = resource.ResourceId;
             string versionId = resource.VersionId;
-            NodeId nodeId = ResourceNodeId(groupId, resourceId, versionId);
+
+            // In versioned mode, ResourceNodeId identifies the exact VERSION.
+            NodeId nodeId = m_versionedStrategy is not null
+                ? VersionNodeId(groupId, resourceId, versionId)
+                : ResourceNodeId(groupId, resourceId, versionId);
+
             uint fileHandle = 0;
             await m_gate.WaitAsync(ct).ConfigureAwait(false);
             try
             {
                 if (requestOpen &&
-                    m_groups.TryGetValue(groupId, out GroupEntry? group) &&
-                    group.Resources.TryGetValue(
-                        ResourceKey(resource),
-                        out ResourceEntry? entry) &&
-                    entry.File is not null)
+                    m_groups.TryGetValue(groupId, out GroupEntry? group))
                 {
-                    ServiceResult open = entry.File.TryOpenWriteHandle(context, out fileHandle);
-                    if (ServiceResult.IsBad(open))
+                    ResourceEntry? entry = null;
+                    if (m_versionedStrategy is not null)
                     {
-                        return open;
+                        if (group.LogicalResources.TryGetValue(
+                                resourceId,
+                                out LogicalResourceEntry? logical))
+                        {
+                            logical.Versions.TryGetValue(versionId, out entry);
+                        }
+                    }
+                    else
+                    {
+                        group.Resources.TryGetValue(ResourceKey(resource), out entry);
+                    }
+                    if (entry?.File is not null)
+                    {
+                        ServiceResult open = entry.File.TryOpenWriteHandle(context, out fileHandle);
+                        if (ServiceResult.IsBad(open))
+                        {
+                            return open;
+                        }
                     }
                 }
             }
@@ -1306,6 +1823,47 @@ namespace Opc.Ua.XRegistry.Server
             string versionId)
         {
             return $"{ResourceNodeIdPath(groupId, resourceId, versionId)}/meta";
+        }
+
+        private NodeId LogicalResourceNodeId(string groupId, string resourceId)
+        {
+            return new NodeId(
+                LogicalResourceNodeIdPath(groupId, resourceId),
+                m_context.ModelNamespaceIndex);
+        }
+
+        private string LogicalResourceNodeIdPath(string groupId, string resourceId)
+        {
+            return $"{m_registryNodeIdPath}/groups/{groupId}/resources/{resourceId}";
+        }
+
+        private string LogicalResourceMetaNodeIdPath(string groupId, string resourceId)
+        {
+            return $"{LogicalResourceNodeIdPath(groupId, resourceId)}/meta";
+        }
+
+        private NodeId VersionsFolderNodeId(string groupId, string resourceId)
+        {
+            return new NodeId(
+                VersionsFolderNodeIdPath(groupId, resourceId),
+                m_context.ModelNamespaceIndex);
+        }
+
+        private string VersionsFolderNodeIdPath(string groupId, string resourceId)
+        {
+            return $"{m_registryNodeIdPath}/groups/{groupId}/resources/{resourceId}/versions";
+        }
+
+        private NodeId VersionNodeId(string groupId, string resourceId, string versionId)
+        {
+            return new NodeId(
+                VersionNodeIdPath(groupId, resourceId, versionId),
+                m_context.ModelNamespaceIndex);
+        }
+
+        private string VersionNodeIdPath(string groupId, string resourceId, string versionId)
+        {
+            return $"{m_registryNodeIdPath}/groups/{groupId}/resources/{resourceId}/versions/{versionId}";
         }
 
         private ResourceEntryKey ResourceKey(IXRegistryProjectionResource resource)
@@ -1723,6 +2281,19 @@ namespace Opc.Ua.XRegistry.Server
                     FindVersionOwner(previous, change.Subject);
                 if (oldResource is not null)
                 {
+                    // In versioned mode, route to the logical Resource node if it
+                    // still exists (nearest surviving notifier ancestor).
+                    if (m_versionedStrategy is not null &&
+                        m_groups.TryGetValue(
+                            oldResource.GroupId,
+                            out GroupEntry? versGroup) &&
+                        versGroup.LogicalResources.TryGetValue(
+                            oldResource.ResourceId,
+                            out LogicalResourceEntry? logical))
+                    {
+                        return logical.LogicalNode;
+                    }
+
                     XRegistryProjectionEventResource? currentResource =
                         FindResourceBySubject(current, oldResource.Xid);
                     if (currentResource is not null &&
@@ -1753,13 +2324,23 @@ namespace Opc.Ua.XRegistry.Server
                 FindVersionOwner(current, change.Subject) ??
                 FindResourceBySubject(current, change.Subject);
             if (owner is not null &&
-                m_groups.TryGetValue(owner.GroupId, out GroupEntry? groupEntry) &&
-                FindResourceEntry(
-                    groupEntry,
-                    owner.ResourceId,
-                    owner.DefaultVersionId) is { } resourceEntry)
+                m_groups.TryGetValue(owner.GroupId, out GroupEntry? groupEntry))
             {
-                return resourceEntry.Node;
+                // In versioned mode, use the logical resource node for routing.
+                if (m_versionedStrategy is not null &&
+                    groupEntry.LogicalResources.TryGetValue(
+                        owner.ResourceId,
+                        out LogicalResourceEntry? logicalRes))
+                {
+                    return logicalRes.LogicalNode;
+                }
+                if (FindResourceEntry(
+                        groupEntry,
+                        owner.ResourceId,
+                        owner.DefaultVersionId) is { } resourceEntry)
+                {
+                    return resourceEntry.Node;
+                }
             }
             return m_registryNode!;
         }
@@ -1776,15 +2357,19 @@ namespace Opc.Ua.XRegistry.Server
                     out ResourceEntry? resource);
                 return resource;
             }
-            if (!string.IsNullOrEmpty(versionId) &&
-                group.Resources.TryGetValue(
-                    new ResourceEntryKey(resourceId, versionId),
-                    out ResourceEntry? version))
+            // In versioned mode, look in LogicalResources.
+            if (group.LogicalResources.TryGetValue(
+                    resourceId,
+                    out LogicalResourceEntry? logical))
             {
-                return version;
+                if (!string.IsNullOrEmpty(versionId) &&
+                    logical.Versions.TryGetValue(versionId!, out ResourceEntry? version))
+                {
+                    return version;
+                }
+                return logical.Versions.Values.FirstOrDefault();
             }
-            return group.Resources.Values.FirstOrDefault(candidate =>
-                string.Equals(candidate.ResourceId, resourceId, StringComparison.Ordinal));
+            return null;
         }
 
         private NodeState? FindLiveNode(NodeId nodeId)
@@ -1808,6 +2393,20 @@ namespace Opc.Ua.XRegistry.Server
                     if (resource.Node.NodeId == nodeId)
                     {
                         return resource.Node;
+                    }
+                }
+                foreach (LogicalResourceEntry logical in group.LogicalResources.Values)
+                {
+                    if (logical.LogicalNode.NodeId == nodeId)
+                    {
+                        return logical.LogicalNode;
+                    }
+                    foreach (ResourceEntry version in logical.Versions.Values)
+                    {
+                        if (version.Node.NodeId == nodeId)
+                        {
+                            return version.Node;
+                        }
                     }
                 }
             }
@@ -1881,24 +2480,34 @@ namespace Opc.Ua.XRegistry.Server
 
         private NodeId ResourceSourceNode(XRegistryProjectionEventResource resource)
         {
-            return resource.SourceNodeId.IsNull
-                ? ResourceNodeId(
+            if (!resource.SourceNodeId.IsNull)
+            {
+                return resource.SourceNodeId;
+            }
+            // In versioned mode, Resource events use the logical Resource NodeId.
+            return m_versionedStrategy is not null
+                ? LogicalResourceNodeId(resource.GroupId, resource.ResourceId)
+                : ResourceNodeId(
                     resource.GroupId,
                     resource.ResourceId,
-                    resource.DefaultVersionId ?? string.Empty)
-                : resource.SourceNodeId;
+                    resource.DefaultVersionId ?? string.Empty);
         }
 
         private NodeId VersionSourceNode(
             XRegistryProjectionEventVersion version,
             XRegistryProjectionEventResource resource)
         {
-            return version.SourceNodeId.IsNull
-                ? ResourceNodeId(
+            if (!version.SourceNodeId.IsNull)
+            {
+                return version.SourceNodeId;
+            }
+            // In versioned mode, Version events use the exact Version NodeId.
+            return m_versionedStrategy is not null
+                ? VersionNodeId(resource.GroupId, resource.ResourceId, version.VersionId)
+                : ResourceNodeId(
                     resource.GroupId,
                     resource.ResourceId,
-                    version.VersionId)
-                : version.SourceNodeId;
+                    version.VersionId);
         }
 
         private static List<string> ChangedKeys(
@@ -1997,7 +2606,18 @@ namespace Opc.Ua.XRegistry.Server
 
             public GroupState Node { get; }
 
+            /// <summary>
+            /// Flat-mode resources (non-versioned strategy) keyed by (ResourceId, "").
+            /// </summary>
             public Dictionary<ResourceEntryKey, ResourceEntry> Resources { get; } = [];
+
+            /// <summary>
+            /// Versioned-mode logical resources keyed by ResourceId.
+            /// Each entry contains the logical Resource node, its Versions folder
+            /// and the per-version entries underneath.
+            /// </summary>
+            public Dictionary<string, LogicalResourceEntry> LogicalResources { get; } =
+                new(StringComparer.Ordinal);
         }
 
         private readonly record struct ResourceEntryKey(string ResourceId, string VersionId);
@@ -2026,6 +2646,32 @@ namespace Opc.Ua.XRegistry.Server
             public string ResourceId { get; }
             public string VersionId { get; }
             public string Xid { get; }
+        }
+
+        /// <summary>
+        /// A logical Resource node with its Versions folder and per-version entries.
+        /// Used only when a versioned strategy is active.
+        /// </summary>
+        private sealed class LogicalResourceEntry
+        {
+            public LogicalResourceEntry(
+                ResourceState logicalNode,
+                ResourceVersionsState versionsFolder,
+                string groupId,
+                string resourceId)
+            {
+                LogicalNode = logicalNode;
+                VersionsFolder = versionsFolder;
+                GroupId = groupId;
+                ResourceId = resourceId;
+            }
+
+            public ResourceState LogicalNode { get; }
+            public ResourceVersionsState VersionsFolder { get; }
+            public string GroupId { get; }
+            public string ResourceId { get; }
+            public Dictionary<string, ResourceEntry> Versions { get; } =
+                new(StringComparer.Ordinal);
         }
 
         private readonly XRegistryProjectionContext m_context;
