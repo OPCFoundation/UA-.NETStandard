@@ -569,11 +569,7 @@ namespace Opc.Ua.XRegistry.Tests
             {
                 Assert.That(
                     created,
-                    Is.EqualTo(new[]
-                    {
-                        "/groups/schemas/resources/a",
-                        "/groups/schemas/resources/b"
-                    }));
+                    Is.EqualTo(s_expectedCreatedResourceSubjects));
                 Assert.That(
                     created.Count(subject =>
                         string.Equals(
@@ -1881,6 +1877,12 @@ namespace Opc.Ua.XRegistry.Tests
             "versionid",
             "xid",
             "zeta"
+        ];
+
+        private static readonly string[] s_expectedCreatedResourceSubjects =
+        [
+            "/groups/schemas/resources/a",
+            "/groups/schemas/resources/b"
         ];
 
         private static readonly DateTime s_unixEpoch =
