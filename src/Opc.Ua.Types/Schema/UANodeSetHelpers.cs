@@ -594,6 +594,7 @@ namespace Opc.Ua.Export
                         linkedChild =
                             parent.FindChild(context, instance.BrowseName) ??
                             instance;
+                        PreserveImportedMetadata(instance, linkedChild);
                         linkedChild.ReferenceTypeId =
                             ReferenceTypeIds.HasProperty;
                     }
@@ -618,6 +619,23 @@ namespace Opc.Ua.Export
                     s_unresolvedParents.Add(instance, new UnresolvedParent(parentNodeId));
                 }
             }
+        }
+
+        private static void PreserveImportedMetadata(NodeState source, NodeState target)
+        {
+            // Preserve authored metadata during typed promotion without changing
+            // the legacy initialization semantics of unrelated generated nodes.
+            target.UserWriteMask = source.UserWriteMask;
+            target.RolePermissions = source.RolePermissions;
+            target.UserRolePermissions = source.UserRolePermissions;
+            target.AccessRestrictions = source.AccessRestrictions;
+            target.IsPartOfTypeHierarchy = source.IsPartOfTypeHierarchy;
+            target.Extensions = source.Extensions;
+            target.Categories = source.Categories;
+            target.ReleaseStatus = source.ReleaseStatus;
+            target.Specification = source.Specification;
+            target.NodeSetDocumentation = source.NodeSetDocumentation;
+            target.DesignToolOnly = source.DesignToolOnly;
         }
 
         private static bool IsMethodArgumentProperty(

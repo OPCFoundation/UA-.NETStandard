@@ -328,20 +328,9 @@ namespace Opc.Ua
             m_displayName = source.m_displayName;
             m_description = source.m_description;
             m_writeMask = source.m_writeMask;
-            m_userWriteMask = source.m_userWriteMask;
-            m_rolePermissions = source.m_rolePermissions;
-            m_userRolePermissions = source.m_userRolePermissions;
-            m_accessRestrictions = source.m_accessRestrictions;
             m_children = null;
             m_references = null;
             m_changeMasks = NodeStateChangeMasks.None;
-            IsPartOfTypeHierarchy = source.IsPartOfTypeHierarchy;
-            Extensions = source.Extensions;
-            Categories = source.Categories;
-            ReleaseStatus = source.ReleaseStatus;
-            Specification = source.Specification;
-            NodeSetDocumentation = source.NodeSetDocumentation;
-            DesignToolOnly = source.DesignToolOnly;
 
             var children = new List<BaseInstanceState>();
             source.GetChildren(context, children);

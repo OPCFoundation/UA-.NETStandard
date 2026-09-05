@@ -338,10 +338,10 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
         [Order(300)]
         public async Task FailedStartupPublishesNoLifecycleRegistrationsAsync()
         {
+            // Leave room for certificate filenames within the .NET Framework path limit.
             string pkiRoot = Path.Combine(
-                TestContext.CurrentContext.WorkDirectory,
-                nameof(FailedStartupPublishesNoLifecycleRegistrationsAsync),
-                Guid.NewGuid().ToString("N"));
+                Path.GetTempPath(),
+                "ua-startup-" + Guid.NewGuid().ToString("N"));
             FailingStartupRuntimeNodeSetServer failedServer = null;
             var fixture = new ServerFixture<FailingStartupRuntimeNodeSetServer>(
                 telemetry =>
