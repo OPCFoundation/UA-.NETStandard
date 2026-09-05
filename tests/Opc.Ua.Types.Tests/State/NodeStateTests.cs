@@ -31,8 +31,8 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Reflection;
 using System.Threading;
-using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Tests;
 
@@ -1372,34 +1372,63 @@ namespace Opc.Ua.Types.Tests.State
         }
 
         /// <summary>
-        /// Under fully mixed contention — threads randomly calling true and false on the
-        /// same node — the counter must never fall below zero; after joining all threads
-        /// the counter must equal the number of true calls that are not yet matched by a
-        /// false call (i.e. it must be non-negative and <see cref="NodeState.AreEventsMonitored"/>
-        /// must reflect that).
+        /// Concurrent excess false calls from a count of one must clamp the counter at zero.
+        /// A single subsequent true call must therefore make
+        /// <see cref="NodeState.AreEventsMonitored"/> true.
         /// </summary>
         [Test]
-        public void MixedConcurrentCallsNeverProduceNegativeCounter()
+        public void ConcurrentExcessFalseCallsDoNotPoisonCounter()
         {
-            const int k_threadCount = 16;
-            const int k_iterationsPerThread = 100;
+            const int k_threadCount = 32;
             var node = new BaseObjectState(null);
+            node.SetAreEventsMonitored(m_context, true, false);
 
-            // Each thread does equal numbers of true and false calls in a fixed order
-            // so the expected net is zero, but arrival order is random due to scheduling.
-            var tasks = Enumerable.Range(0, k_threadCount).Select(_ => Task.Run(() =>
+            using var ready = new CountdownEvent(k_threadCount);
+            using var gate = new ManualResetEventSlim(false);
+            Exception[] errors = new Exception[k_threadCount];
+
+            Thread[] threads = Enumerable.Range(0, k_threadCount).Select((_, index) =>
             {
-                for (int i = 0; i < k_iterationsPerThread; i++)
+                int idx = index;
+                var thread = new Thread(() =>
                 {
-                    node.SetAreEventsMonitored(m_context, true, false);
-                    node.SetAreEventsMonitored(m_context, false, false);
-                }
-            })).ToArray();
-            Task.WaitAll(tasks);
+                    try
+                    {
+                        ready.Signal();
+                        gate.Wait();
+                        node.SetAreEventsMonitored(m_context, false, false);
+                    }
+                    catch (Exception ex)
+                    {
+                        errors[idx] = ex;
+                    }
+                });
+                thread.IsBackground = true;
+                return thread;
+            }).ToArray();
 
-            // After all threads complete, the counter must be exactly 0.
+            foreach (Thread thread in threads)
+            {
+                thread.Start();
+            }
+
+            Assert.That(ready.Wait(TimeSpan.FromSeconds(15)), Is.True,
+                "Not all decrement threads reached the start gate.");
+            gate.Set();
+
+            foreach (Thread thread in threads)
+            {
+                Assert.That(thread.Join(TimeSpan.FromSeconds(15)), Is.True,
+                    "A decrement thread did not complete within 15 s.");
+            }
+
+            Assert.That(errors, Has.All.Null, "A decrement thread threw an exception.");
             Assert.That(node.AreEventsMonitored, Is.False,
-                "Counter must be 0 after balanced mixed concurrent calls.");
+                "Concurrent excess false calls must clamp the counter at zero.");
+
+            node.SetAreEventsMonitored(m_context, true, false);
+            Assert.That(node.AreEventsMonitored, Is.True,
+                "One true call after concurrent excess false calls must make the counter positive.");
         }
 
         [Test]
@@ -2929,10 +2958,6 @@ namespace Opc.Ua.Types.Tests.State
             Assert.That(found.BrowseName, Is.EqualTo(QualifiedName.From("Leaf")));
         }
 
-        // ----------------------------------------------------------------
-        // Phase 3: lazy-lock concurrency tests
-        // ----------------------------------------------------------------
-
         /// <summary>
         /// When many threads race to call <see cref="NodeState.AddNotifier"/> on a
         /// fresh node (m_notifiersLock is null at that point), the lazy CAS publication
@@ -2943,22 +2968,15 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void ConcurrentFirstAddNotifierPreservesAllEntries()
         {
-            var node = new BaseObjectState(null)
-            {
-                NodeId = new NodeId(20000u, 1)
-            };
+            var node = new BaseObjectState(null);
 
             const int k_count = 8;
             BaseObjectState[] targets = Enumerable.Range(0, k_count)
-                .Select(i => new BaseObjectState(null) { NodeId = new NodeId((uint)(20100 + i), 1) })
+                .Select(_ => new BaseObjectState(null))
                 .ToArray();
 
-            // Use a ManualResetEventSlim starting-gate + dedicated threads so that:
-            // (a) all AddNotifier calls race with each other, and
-            // (b) we do not consume thread-pool threads (which would create contention
-            //     with async tests running in parallel in the same NUnit session).
+            using var ready = new CountdownEvent(k_count);
             using var gate = new ManualResetEventSlim(false);
-
             Exception[] errors = new Exception[k_count];
 
             Thread[] threads = targets.Select((target, index) =>
@@ -2968,19 +2986,27 @@ namespace Opc.Ua.Types.Tests.State
                 {
                     try
                     {
+                        ready.Signal();
                         gate.Wait();
                         node.AddNotifier(m_context, ReferenceTypeIds.HasEventSource, false, target);
                     }
-                    catch (Exception ex) { errors[idx] = ex; }
+                    catch (Exception ex)
+                    {
+                        errors[idx] = ex;
+                    }
                 });
                 t.IsBackground = true;
                 return t;
             }).ToArray();
 
             foreach (Thread t in threads)
-            { t.Start(); }
+            {
+                t.Start();
+            }
 
-            gate.Set();   // release all threads at once
+            Assert.That(ready.Wait(TimeSpan.FromSeconds(15)), Is.True,
+                "Not all AddNotifier threads reached the start gate.");
+            gate.Set();
 
             foreach (Thread t in threads)
             {
@@ -2996,6 +3022,8 @@ namespace Opc.Ua.Types.Tests.State
 
             Assert.That(notifiers, Has.Count.EqualTo(k_count),
                 "All concurrent AddNotifier calls must be committed (no entries lost).");
+            Assert.That(GetPrivateFieldValue(node, "m_notifiersLock"), Is.Not.Null,
+                "The first notifier mutation must publish the canonical notifier lock.");
         }
 
         /// <summary>
@@ -3104,10 +3132,37 @@ namespace Opc.Ua.Types.Tests.State
 
             const int k_threadCount = 8;
             int browsersObtained = 0;
+            int activeCallbacks = 0;
+            int maximumActiveCallbacks = 0;
 
+            using var ready = new CountdownEvent(k_threadCount);
             using var gate = new ManualResetEventSlim(false);
-
+            using var firstCallbackEntered = new ManualResetEventSlim(false);
+            using var releaseFirstCallback = new ManualResetEventSlim(false);
+            using var overlappingCallbackEntered = new ManualResetEventSlim(false);
             Exception[] errors = new Exception[k_threadCount];
+
+            node.OnPopulateBrowser = (ctx, currentNode, browser) =>
+            {
+                int active = Interlocked.Increment(ref activeCallbacks);
+                UpdateMaximum(ref maximumActiveCallbacks, active);
+
+                if (active > 1)
+                {
+                    overlappingCallbackEntered.Set();
+                }
+
+                if (!firstCallbackEntered.IsSet)
+                {
+                    firstCallbackEntered.Set();
+                    if (!releaseFirstCallback.Wait(TimeSpan.FromSeconds(15)))
+                    {
+                        throw new TimeoutException("The first browse callback was not released.");
+                    }
+                }
+
+                Interlocked.Decrement(ref activeCallbacks);
+            };
 
             Thread[] threads = Enumerable.Range(0, k_threadCount).Select((_, index) =>
             {
@@ -3116,6 +3171,7 @@ namespace Opc.Ua.Types.Tests.State
                 {
                     try
                     {
+                        ready.Signal();
                         gate.Wait();
                         using INodeBrowser browser = node.CreateBrowser(
                             m_context,
@@ -3128,51 +3184,69 @@ namespace Opc.Ua.Types.Tests.State
                             internalOnly: false);
                         Interlocked.Increment(ref browsersObtained);
                     }
-                    catch (Exception ex) { errors[idx] = ex; }
+                    catch (Exception ex)
+                    {
+                        errors[idx] = ex;
+                    }
                 });
                 t.IsBackground = true;
                 return t;
             }).ToArray();
 
             foreach (Thread t in threads)
-            { t.Start(); }
+            {
+                t.Start();
+            }
 
+            Assert.That(ready.Wait(TimeSpan.FromSeconds(15)), Is.True,
+                "Not all browse threads reached the start gate.");
             gate.Set();
+
+            try
+            {
+                Assert.That(firstCallbackEntered.Wait(TimeSpan.FromSeconds(15)), Is.True,
+                    "No browse callback entered within 15 s.");
+                Assert.That(overlappingCallbackEntered.Wait(TimeSpan.FromMilliseconds(500)), Is.False,
+                    "Concurrent browse calls entered OnPopulateBrowser at the same time.");
+            }
+            finally
+            {
+                releaseFirstCallback.Set();
+            }
 
             foreach (Thread t in threads)
             {
                 Assert.That(t.Join(TimeSpan.FromSeconds(15)), Is.True,
-                    "A thread did not complete within 15 s — possible deadlock.");
+                    "A browse thread did not complete within 15 s — possible deadlock.");
             }
 
             Assert.That(errors, Has.All.Null,
                 "One or more browse threads threw an unexpected exception.");
             Assert.That(browsersObtained, Is.EqualTo(k_threadCount));
+            Assert.That(maximumActiveCallbacks, Is.EqualTo(1),
+                "Browse population callbacks must be serialized per node.");
+            Assert.That(GetPrivateFieldValue(node, "m_browseLock"), Is.Not.Null,
+                "The first browse must publish the canonical browse lock.");
         }
 
         /// <summary>
-        /// A node that never has notifiers added must still return an empty list from
-        /// <see cref="NodeState.GetNotifiers(ISystemContext, IList{NodeState.Notifier})"/>
-        /// and must not throw.  This exercises the lock-null fast path.
+        /// Read-only notifier paths on a node that never had a notifier added must not
+        /// publish the lazy notifier lock.
         /// </summary>
         [Test]
-        public void GetNotifiersOnFreshNodeReturnsEmptyWithoutThrow()
+        public void NotifierReadPathsOnFreshNodeDoNotPublishLock()
         {
             var node = new BaseObjectState(null);
             var notifiers = new List<NodeState.Notifier>();
-            Assert.DoesNotThrow(() => node.GetNotifiers(m_context, notifiers));
-            Assert.That(notifiers, Is.Empty);
-        }
 
-        /// <summary>
-        /// A node with no notifiers must not throw when ReportEvent is called.
-        /// This exercises the notifier-null fast path in the lock-free read check.
-        /// </summary>
-        [Test]
-        public void ReportEventOnFreshNodeWithNoNotifiersDoesNotThrow()
-        {
-            var node = new BaseObjectState(null);
+            Assert.That(GetPrivateFieldValue(node, "m_notifiersLock"), Is.Null);
+            Assert.DoesNotThrow(() => node.GetNotifiers(m_context, notifiers));
             Assert.DoesNotThrow(() => node.ReportEvent(m_context, null!));
+            Assert.DoesNotThrow(() => node.RemoveNotifier(m_context, new BaseObjectState(null), false));
+
+            Assert.That(notifiers, Is.Empty);
+            Assert.That(GetPrivateFieldValue(node, "m_notifiersLock"), Is.Null,
+                "Read-only notifier paths must not publish the lazy notifier lock.");
         }
 
         /// <summary>
@@ -3196,6 +3270,28 @@ namespace Opc.Ua.Types.Tests.State
             var notifiers = new List<NodeState.Notifier>();
             source.GetNotifiers(m_context, notifiers);
             Assert.That(notifiers, Is.Empty);
+        }
+
+        private static object GetPrivateFieldValue(NodeState node, string fieldName)
+        {
+            FieldInfo field = typeof(NodeState).GetField(
+                fieldName,
+                BindingFlags.Instance | BindingFlags.NonPublic) ??
+                throw new InvalidOperationException($"Could not find NodeState.{fieldName}.");
+            return field.GetValue(node);
+        }
+
+        private static void UpdateMaximum(ref int maximum, int value)
+        {
+            int current;
+            do
+            {
+                current = Volatile.Read(ref maximum);
+                if (value <= current)
+                {
+                    return;
+                }
+            } while (Interlocked.CompareExchange(ref maximum, value, current) != current);
         }
 
         /// <summary>

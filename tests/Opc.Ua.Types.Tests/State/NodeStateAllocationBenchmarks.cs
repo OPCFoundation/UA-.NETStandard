@@ -27,6 +27,8 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
+using System.Threading;
 using BenchmarkDotNet.Attributes;
 using BenchmarkDotNet.Configs;
 using BenchmarkDotNet.Engines;
@@ -77,6 +79,14 @@ namespace Opc.Ua.Types.Tests.State
         // Pre-constructed node reused by the operation benchmarks.
         private SystemContext m_context;
         private BaseObjectState m_objectNode;
+        private BaseObjectState m_browseNode;
+        private BaseObjectState m_contendedBrowseNode;
+        private Barrier m_browseBarrier;
+        private AutoResetEvent[] m_browseStart;
+        private AutoResetEvent[] m_browseDone;
+        private Thread[] m_browseWorkers;
+        private Exception[] m_browseWorkerErrors;
+        private int m_stopBrowseWorkers;
 
         /// <summary>
         /// Creates the shared context and the pre-constructed benchmark nodes, then
@@ -108,6 +118,33 @@ namespace Opc.Ua.Types.Tests.State
                 DisplayName = new LocalizedText("BenchObject")
             };
 
+            m_browseNode = new BaseObjectState(null)
+            {
+                NodeId = new NodeId(2, 1),
+                BrowseName = new QualifiedName("BrowseObject", 1),
+                DisplayName = new LocalizedText("BrowseObject")
+            };
+            m_contendedBrowseNode = new BaseObjectState(null)
+            {
+                NodeId = new NodeId(3, 1),
+                BrowseName = new QualifiedName("ContendedBrowseObject", 1),
+                DisplayName = new LocalizedText("ContendedBrowseObject"),
+                OnPopulateBrowser = (ctx, node, browser) => Thread.SpinWait(256)
+            };
+            m_browseBarrier = new Barrier(3);
+            m_browseStart = [new AutoResetEvent(false), new AutoResetEvent(false)];
+            m_browseDone = [new AutoResetEvent(false), new AutoResetEvent(false)];
+            m_browseWorkerErrors = new Exception[2];
+            m_browseWorkers =
+            [
+                CreateBrowseWorker(0),
+                CreateBrowseWorker(1)
+            ];
+            foreach (Thread worker in m_browseWorkers)
+            {
+                worker.Start();
+            }
+
             // Pre-warm all benchmark paths so that JIT compilation and one-time static
             // initialisation of BaseVariableState, BaseDataVariableState and their type
             // dependencies do not contaminate the first measured BDN iteration.
@@ -129,6 +166,10 @@ namespace Opc.Ua.Types.Tests.State
                 m_objectNode.SetAreEventsMonitored(m_context, true, false);
                 m_objectNode.SetAreEventsMonitored(m_context, false, false);
                 m_objectNode.ReportEvent(m_context, null!);
+
+                using INodeBrowser firstBrowser = CreateBrowser(new BaseObjectState(null));
+                using INodeBrowser warmBrowser = CreateBrowser(m_browseNode);
+                CreateBrowserConcurrent();
             }
         }
 
@@ -137,12 +178,39 @@ namespace Opc.Ua.Types.Tests.State
         [OneTimeTearDown]
         public void TearDown()
         {
-            m_objectNode = null;
-        }
+            Volatile.Write(ref m_stopBrowseWorkers, 1);
+            foreach (AutoResetEvent start in m_browseStart)
+            {
+                start.Set();
+            }
 
-        // ----------------------------------------------------------------
-        // Construction benchmarks
-        // ----------------------------------------------------------------
+            foreach (Thread worker in m_browseWorkers)
+            {
+                if (!worker.Join(TimeSpan.FromSeconds(15)))
+                {
+                    throw new TimeoutException("A browse benchmark worker did not stop.");
+                }
+            }
+
+            m_browseBarrier.Dispose();
+            foreach (AutoResetEvent start in m_browseStart)
+            {
+                start.Dispose();
+            }
+            foreach (AutoResetEvent done in m_browseDone)
+            {
+                done.Dispose();
+            }
+
+            m_objectNode = null;
+            m_browseNode = null;
+            m_contendedBrowseNode = null;
+            m_browseBarrier = null;
+            m_browseStart = null;
+            m_browseDone = null;
+            m_browseWorkers = null;
+            m_browseWorkerErrors = null;
+        }
 
         /// <summary>
         /// Measures the per-operation allocation cost of constructing a
@@ -207,10 +275,6 @@ namespace Opc.Ua.Types.Tests.State
             };
         }
 
-        // ----------------------------------------------------------------
-        // Operation benchmarks (use pre-constructed nodes from Setup)
-        // ----------------------------------------------------------------
-
         /// <summary>
         /// Measures the cost of a paired <c>SetAreEventsMonitored(true)</c> /
         /// <c>SetAreEventsMonitored(false)</c> cycle on a node that has no children and no
@@ -262,9 +326,59 @@ namespace Opc.Ua.Types.Tests.State
             m_objectNode.ReportEvent(m_context, null!);
         }
 
-        // ----------------------------------------------------------------
-        // NUnit-only structural tests (no [Benchmark] attribute)
-        // ----------------------------------------------------------------
+        /// <summary>
+        /// Measures first-use browse allocation, including construction of the node,
+        /// lazy publication of its browse lock, and construction of the browser.
+        /// </summary>
+        [Test]
+        [Benchmark]
+        public void CreateBrowserFirstUse()
+        {
+            using INodeBrowser browser = CreateBrowser(new BaseObjectState(null));
+        }
+
+        /// <summary>
+        /// Measures steady-state browser construction after the node's browse lock has
+        /// already been published.
+        /// </summary>
+        [Test]
+        [Benchmark]
+        public void CreateBrowserWarm()
+        {
+            using INodeBrowser browser = CreateBrowser(m_browseNode);
+        }
+
+        /// <summary>
+        /// Measures two browser constructions that rendezvous on persistent worker
+        /// threads immediately before contending for the same warmed node's browse lock.
+        /// </summary>
+        [Test]
+        [Benchmark]
+        public void CreateBrowserConcurrent()
+        {
+            m_browseWorkerErrors[0] = null;
+            m_browseWorkerErrors[1] = null;
+            m_browseStart[0].Set();
+            m_browseStart[1].Set();
+            m_browseBarrier.SignalAndWait();
+            m_browseDone[0].WaitOne();
+            m_browseDone[1].WaitOne();
+
+            Exception firstError = Volatile.Read(ref m_browseWorkerErrors[0]);
+            Exception secondError = Volatile.Read(ref m_browseWorkerErrors[1]);
+            if (firstError != null && secondError != null)
+            {
+                throw new AggregateException(firstError, secondError);
+            }
+            if (firstError != null)
+            {
+                throw new AggregateException(firstError);
+            }
+            if (secondError != null)
+            {
+                throw new AggregateException(secondError);
+            }
+        }
 
         /// <summary>
         /// A freshly constructed <see cref="BaseObjectState"/> reports
@@ -339,6 +453,56 @@ namespace Opc.Ua.Types.Tests.State
 
             node.SetAreEventsMonitored(m_context, false, false);
             Assert.That(node.AreEventsMonitored, Is.False);
+        }
+
+        private INodeBrowser CreateBrowser(BaseObjectState node)
+        {
+            return node.CreateBrowser(
+                m_context,
+                view: null,
+                referenceType: NodeId.Null,
+                includeSubtypes: false,
+                browseDirection: BrowseDirection.Both,
+                browseName: QualifiedName.Null,
+                additionalReferences: null,
+                internalOnly: false);
+        }
+
+        private void BrowseOnce()
+        {
+            using INodeBrowser browser = CreateBrowser(m_contendedBrowseNode);
+        }
+
+        private Thread CreateBrowseWorker(int index)
+        {
+            return new Thread(() =>
+            {
+                while (true)
+                {
+                    m_browseStart[index].WaitOne();
+                    if (Volatile.Read(ref m_stopBrowseWorkers) != 0)
+                    {
+                        return;
+                    }
+
+                    m_browseBarrier.SignalAndWait();
+                    try
+                    {
+                        BrowseOnce();
+                    }
+                    catch (Exception ex)
+                    {
+                        Volatile.Write(ref m_browseWorkerErrors[index], ex);
+                    }
+                    finally
+                    {
+                        m_browseDone[index].Set();
+                    }
+                }
+            })
+            {
+                IsBackground = true
+            };
         }
     }
 }
