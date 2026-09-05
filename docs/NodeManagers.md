@@ -44,6 +44,8 @@
     - [Project-wide opt-in via MSBuild property (legacy)](#project-wide-opt-in-via-msbuild-property-legacy)
   - [Wiring callbacks: the Configure partial](#wiring-callbacks-the-configure-partial)
     - [Addressing modes](#addressing-modes)
+    - [On-demand virtual node families](#on-demand-virtual-node-families)
+    - [Monitored-item creation and lifecycle](#monitored-item-creation-and-lifecycle)
     - [Creating nodes under other managers' nodes (Objects folder)](#creating-nodes-under-other-managers-nodes-objects-folder)
   - [Typed model-traversal — the Configure(I{Manager}NodeManagerBuilder) partial](#typed-model-traversal--the-configureimanagernodemanagerbuilder-partial)
     - [What the generator emits per model](#what-the-generator-emits-per-model)
@@ -66,6 +68,7 @@
     - [Boolean supervision → alarm activation (NAMUR pattern)](#boolean-supervision--alarm-activation-namur-pattern)
     - [Simulation timers](#simulation-timers)
     - [Pushing runtime value changes to subscribers](#pushing-runtime-value-changes-to-subscribers)
+    - [Subscription-gated sources](#subscription-gated-sources)
     - [Multi-model composition](#multi-model-composition)
     - [Mixing ModelDesign and NodeSet2 in one project](#mixing-modeldesign-and-nodeset2-in-one-project)
     - [NodeSet2 access-level bitmasks](#nodeset2-access-level-bitmasks)
@@ -858,8 +861,11 @@ declare them on the attribute:
 
 ```csharp
 [NodeManager(
-    NamespaceUri = Namespaces.Boiler,
-    AdditionalNamespaceUris = new[] { Namespaces.Boiler + "Instance" })]
+    NamespaceUri = "http://opcfoundation.org/UA/Boiler/",
+    AdditionalNamespaceUris = new[]
+    {
+        "http://opcfoundation.org/UA/Boiler/Instance"
+    })]
 ```
 
 The generated constructor passes them to the base manager together with
@@ -869,6 +875,13 @@ namespaces to this manager from the moment it is built. Calling
 `SetNamespaces` later is not sufficient — the master builds its
 namespace routing from what the manager reported when it was
 constructed.
+
+The URI expressions must be available to Roslyn before this generator
+runs: use string literals, `const` values declared in ordinary source,
+or constants from a referenced assembly. A constant emitted by another
+generator in the **same compilation** is not available. Such an
+expression reports `MODELGEN035` at the offending argument instead of
+silently dropping the namespace from the generated manager and factory.
 
 #### Project-wide opt-in via MSBuild property (legacy)
 
@@ -904,6 +917,12 @@ namespace MyModel;
 
 public partial class MyModelNodeManager
 {
+    // The source-generated constructor retains the exact startup
+    // configuration on FluentNodeManagerBase. Use the protected property
+    // from any user-authored partial; no custom factory is required.
+    private MyModelConfiguration? Settings =>
+        Configuration?.ParseExtension<MyModelConfiguration>();
+
     partial void Configure(INodeManagerBuilder builder)
     {
         builder
@@ -961,17 +980,133 @@ The builder exposes:
 | `OnWrite` / `OnWriteAsync` | `BaseVariableState.OnWriteValue` |
 | `OnCall` / `OnCallAsync` | `MethodState.OnCallMethod*` |
 | `OnNodeAdded` / `OnNodeRemoved` | Lifecycle dispatch from `NotifyNodeAdded` |
-| `OnEvent`, `OnConditionRefresh`, `OnHistoryRead`, `OnHistoryUpdate`, `OnMonitoredItemCreated` | Manager-level dispatch keyed by `NodeId` |
+| `OnEvent`, `OnConditionRefresh`, `OnHistoryRead`, `OnHistoryUpdate` | Node or manager-level dispatch keyed by `NodeId` |
+| `OnCreateMonitoredItem`, `OnMonitoredItemCreated`, `OnMonitoredItemModified`, `OnMonitoredItemDeleted`, `OnMonitoringModeChanged` | Data-change monitored-item creation and lifecycle |
 
 `INodeManagerBuilder.NodeManager` is typed as `IAsyncNodeManager`. Use
 `builder.NodeManager.SyncNodeManager` to obtain the synchronous
 `INodeManager` facade for legacy interop, or cast it to your concrete
 manager type if you need direct access.
 
-All resolution happens **once** during `CreateAddressSpaceAsync`,
-against the in-memory predefined-node tree. There is no reflection, no
-`Activator.CreateInstance`, no `Expression.Compile` — the whole pipeline
-is NativeAOT-safe.
+Ordinary `Node(...)` / `Variable(...)` resolution happens **once**
+during `CreateAddressSpaceAsync`, against the in-memory predefined-node
+tree. Virtual node families are registered during the same phase but
+materialize individual nodes per service operation as described below.
+There is no reflection, no `Activator.CreateInstance`, no
+`Expression.Compile` — the whole pipeline is NativeAOT-safe.
+
+#### On-demand virtual node families
+
+Use `ResolveNodes` when the manager owns a potentially large or external
+address space that must not be copied into `PredefinedNodes`. The first
+delegate is a cheap ownership test and must not perform I/O. The second
+delegate materializes the requested `NodeState` asynchronously:
+
+```csharp
+partial void Configure(INodeManagerBuilder builder)
+{
+    builder.ResolveNodes(
+            nodeId => TryParseRegisterId(nodeId, out _),
+            async (context, nodeId, ct) =>
+            {
+                RegisterAddress address = ParseRegisterId(nodeId);
+                RegisterMetadata? metadata =
+                    await m_device.DescribeAsync(address, ct);
+                if (metadata is null)
+                {
+                    return null;
+                }
+
+                return new BaseDataVariableState(parent: null)
+                {
+                    NodeId = nodeId,
+                    BrowseName = new QualifiedName(metadata.Name, nodeId.NamespaceIndex),
+                    DisplayName = metadata.Name,
+                    DataType = metadata.DataType,
+                    ValueRank = ValueRanks.Scalar
+                };
+            })
+        .OnRead(ReadRegister)
+        .OnWrite(WriteRegister)
+        .OnCreateBrowser(CreateRegisterBrowser)
+        .OnMonitoredItemCreated(StartPushSource);
+}
+```
+
+Predefined nodes always win. On a predefined-node miss,
+`FluentNodeManagerBase` selects exactly one matching virtual family,
+creates an unvalidated `NodeHandle`, and invokes the resolver during
+normal node validation. Overlapping predicates fail with
+`BadConfigurationError` rather than depending on registration order.
+
+The resolver may return `null` for a syntactically valid id whose backing
+object does not exist. A returned node with `NodeId.Null` receives the
+requested id; a conflicting non-null id is rejected. The stack caches the
+result only in its existing per-operation and monitored-component caches:
+virtual nodes are never inserted into `PredefinedNodes`.
+
+The returned `IVirtualNodeBuilder` applies one callback template to every
+materialized member of the family. It supports read/write/call,
+condition/event, history, browser, monitored-item creation, and
+monitored-item lifecycle hooks. `OnCreateBrowser` uses the ordinary
+`NodeState.CreateBrowser` contract, so custom browsers still participate
+in browse filtering, continuation points, and translate-path handling.
+
+#### Monitored-item creation and lifecycle
+
+`OnCreateMonitoredItem` runs before the default sampled item is
+allocated. It can keep the default path, reject the request with an exact
+status, or supply a factory for a custom
+`ISampledDataChangeMonitoredItem`:
+
+```csharp
+builder.Node("Buffers/UInt32")
+    .OnCreateMonitoredItem((request, ct) =>
+    {
+        if (!request.Request.RequestedParameters.Filter.IsNull)
+        {
+            return new ValueTask<MonitoredItemCreateDecision>(
+                MonitoredItemCreateDecision.Refuse(
+                    StatusCodes.BadFilterNotAllowed));
+        }
+
+        if (!request.Request.ItemToMonitor.ParsedIndexRange.IsNull)
+        {
+            return new ValueTask<MonitoredItemCreateDecision>(
+                MonitoredItemCreateDecision.Refuse(
+                    StatusCodes.BadIndexRangeInvalid));
+        }
+
+        return new ValueTask<MonitoredItemCreateDecision>(
+            MonitoredItemCreateDecision.Use(
+                factory => new BufferMonitoredItem(factory)));
+    })
+    .OnMonitoredItemCreated(OnCreated)
+    .OnMonitoredItemModified(OnModifiedAsync)
+    .OnMonitoringModeChanged(OnModeChangedAsync)
+    .OnMonitoredItemDeleted(OnDeletedAsync);
+```
+
+The stack allocates the id and owns registration for a custom item. It
+supplies the validated filter/range, revised sampling interval and queue
+size, manager handle, subscription information, and durability setting
+through `MonitoredItemFactoryContext`. The returned item must preserve
+that identity and ownership. Both built-in monitored-item managers then
+handle modify, monitoring-mode, delete, and manager-lifecycle operations
+normally. `Use(factory, queueInitialValue: true)` additionally performs
+the standard initial attribute read; push-style items omit it by default.
+
+Manager-level asynchronous batch hooks receive only successful items and
+run after the monitored-item manager has applied its changes:
+
+```csharp
+builder
+    .OnMonitoredItemsCreated(SubscribeRegisterSlicesAsync)
+    .OnMonitoredItemsDeleted(UnsubscribeRegisterSlicesAsync);
+```
+
+The existing synchronous `OnCreateMonitoredItemsComplete` override remains
+supported and runs before the new async create-complete hook.
 
 #### Creating nodes under other managers' nodes (Objects folder)
 
@@ -1090,7 +1225,10 @@ All emitted types are `internal sealed` because `Configure` is a
 private partial — the surface never escapes the assembly. Child
 accessors resolve namespace indices lazily through
 `ISystemContext.NamespaceUris.GetIndexOrAppend(...)` so the wrappers
-work regardless of the namespace-table order at runtime.
+work regardless of the namespace-table order at runtime. Object wrappers
+use the generated concrete `*State` type when the model declares one,
+and manager-level extensions such as `Simulation(...)` work through the
+typed proxy just as they do through the untyped builder.
 
 #### Methods with arguments — typed `OnCall` overloads
 
@@ -1714,6 +1852,38 @@ Like `Simulation`, `PollEvery` reuses the manager-owned loop
 infrastructure and therefore **requires** the manager to derive from
 `FluentNodeManagerBase`; calling it on a plain `CustomNodeManager2` throws
 `StatusCodes.BadConfigurationError`.
+
+#### Subscription-gated sources
+
+Use `PollWhileMonitored` when sampling an external source should consume
+resources only while a client is interested. A disabled monitored item
+does not keep the source active; `Sampling` and `Reporting` items do:
+
+```csharp
+builder.Variable<double>("Dynamic/Temperature")
+    .OnFirstSubscriber((context, node, ct) =>
+        m_device.StartMonitoringAsync(node.NodeId, ct))
+    .OnLastSubscriber((context, node, ct) =>
+        m_device.StopMonitoringAsync(node.NodeId, ct))
+    .PollWhileMonitored(
+        TimeSpan.FromMilliseconds(100),
+        (context, ct) => m_device.ReadTemperatureAsync(ct));
+```
+
+The zero-to-one transition invokes `OnFirstSubscriber`, samples
+immediately, and starts the worker. The one-to-zero transition cancels
+the worker and invokes `OnLastSubscriber`. While active, the effective
+period is the fastest revised sampling interval among active items,
+bounded by the minimum period passed to `PollWhileMonitored`. Create,
+modify, mode-change, and delete operations reconcile that period without
+overlapping samples. The worker uses the server `TimeProvider`, pushes
+only changed values through `IValueUpdater<TValue>`, and is cancelled when
+the manager is disposed.
+
+The same `OnFirstSubscriber`, `OnLastSubscriber`, and
+`PollWhileMonitored` extensions are available on an
+`IVirtualNodeBuilder`; the current materialized node is retained only for
+the monitored-item lifetime.
 
 #### Multi-model composition
 

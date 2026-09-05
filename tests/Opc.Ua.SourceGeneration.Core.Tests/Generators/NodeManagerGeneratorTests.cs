@@ -81,12 +81,15 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             Assert.That(mgr, Does.Contain(": global::Opc.Ua.Server.Fluent.FluentNodeManagerBase"));
             Assert.That(mgr, Does.Match(@"public\s+partial\s+class\s+\w+NodeManager"));
 
-            // Lifecycle overrides that wire the runtime fluent dispatcher.
+            // Node-manager lifecycle members emitted by the generated partial.
             Assert.That(mgr, Does.Contain("LoadPredefinedNodesAsync"));
             Assert.That(mgr, Does.Contain("CreateAddressSpaceAsync"));
             Assert.That(mgr, Does.Contain("AddPredefinedNodeAsync"));
             Assert.That(mgr, Does.Contain("RemovePredefinedNodeAsync"));
-            Assert.That(mgr, Does.Contain("OnMonitoredItemCreated"));
+            Assert.That(
+                mgr,
+                Does.Not.Contain("OnMonitoredItemCreated"),
+                "Monitored-item lifecycle forwarding is owned by FluentNodeManagerBase");
 
             // The user code-behind hook + the runtime builder type.
             Assert.That(mgr, Does.Contain("partial void Configure("));
@@ -145,6 +148,25 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             // The factory must advertise the same namespace set.
             Assert.That(factory, Does.Contain(", \"" + instanceUri + "\" })"),
                 "Factory NamespacesUris must include the additional namespace URI");
+        }
+
+        [Test]
+        public void EmittedNodeManagerInUnrelatedNamespaceUsesQualifiedModelComposer()
+        {
+            Dictionary<string, string> files = GenerateForTestModel(
+                generateNodeManager: true,
+                nodeManagerNamespace: "Unrelated.Managers");
+
+            string mgr = files.Single(
+                kv => kv.Key.EndsWith(".NodeManager.g.cs", StringComparison.Ordinal)).Value;
+
+            Assert.That(mgr, Does.Contain("namespace Unrelated.Managers"));
+            Assert.That(
+                mgr,
+                Does.Match(
+                    @"global::TestModel\.TestModelExtensions\.AddTestModel\(\s*" +
+                    @"new global::Opc\.Ua\.NodeStateCollection\(\),\s*context\)"),
+                "LoadPredefinedNodesAsync must invoke the model composer as a fully-qualified static method");
         }
 
         [Test]
@@ -490,7 +512,8 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
 
         private static Dictionary<string, string> GenerateForTestModel(
             bool generateNodeManager,
-            IReadOnlyList<string> additionalNamespaceUris = null)
+            IReadOnlyList<string> additionalNamespaceUris = null,
+            string nodeManagerNamespace = null)
         {
             const string designFile = "TestModel.xml";
             ITelemetryContext telemetry = NUnitTelemetryContext.Create(logLevel: LogLevel.Error);
@@ -506,7 +529,8 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
                 Options = new DesignFileOptions
                 {
                     GenerateNodeManager = generateNodeManager,
-                    NodeManagerAdditionalNamespaceUris = additionalNamespaceUris
+                    NodeManagerAdditionalNamespaceUris = additionalNamespaceUris,
+                    NodeManagerNamespace = nodeManagerNamespace
                 }
             }, fileSystem, string.Empty, telemetry);
 
