@@ -973,27 +973,20 @@ namespace Opc.Ua.XRegistry.Server
                 return access;
             }
             long? expectedEpoch = OptionalEpoch(input, 0);
-            ServiceResult result;
-            if (m_versionedStrategy is null ||
-                IsCurrentDefaultVersion(groupId, resourceId, versionId))
-            {
-                result = await m_strategy.DeleteResourceAsync(
+            ServiceResult result = m_versionedStrategy is null
+                ? await m_strategy.DeleteResourceAsync(
                         groupId,
                         resourceId,
                         expectedEpoch,
                         ct)
-                    .ConfigureAwait(false);
-            }
-            else
-            {
-                result = await m_versionedStrategy.DeleteVersionAsync(
+                    .ConfigureAwait(false)
+                : await m_versionedStrategy.DeleteProjectedEntityAsync(
                         groupId,
                         resourceId,
                         versionId,
                         expectedEpoch,
                         ct)
                     .ConfigureAwait(false);
-            }
             await ReconcileProjectionAsync(ct).ConfigureAwait(false);
             return result;
         }
@@ -1303,37 +1296,6 @@ namespace Opc.Ua.XRegistry.Server
             return new ResourceEntryKey(
                 resource.ResourceId,
                 m_versionedStrategy is null ? string.Empty : resource.VersionId);
-        }
-
-        private bool IsCurrentDefaultVersion(
-            string groupId,
-            string resourceId,
-            string versionId)
-        {
-            XRegistryProjectionGeneration generation = m_generationProvider is null
-                ? new XRegistryProjectionGeneration(m_strategy.Current, null)
-                : m_generationProvider.CaptureProjectionGeneration();
-            foreach (IXRegistryProjectionGroup group in generation.Projection.Groups)
-            {
-                if (!string.Equals(group.GroupId, groupId, StringComparison.Ordinal))
-                {
-                    continue;
-                }
-                foreach (IXRegistryProjectionResource resource in group.Resources)
-                {
-                    if (string.Equals(resource.ResourceId, resourceId, StringComparison.Ordinal) &&
-                        string.Equals(resource.VersionId, versionId, StringComparison.Ordinal) &&
-                        resource is IXRegistryProjectionResourceMeta meta)
-                    {
-                        return meta.IsDefaultVersion;
-                    }
-                }
-                break;
-            }
-            return string.Equals(
-                FindEventResource(generation.Events, groupId, resourceId)?.DefaultVersionId,
-                versionId,
-                StringComparison.Ordinal);
         }
 
         private void WireMethod(

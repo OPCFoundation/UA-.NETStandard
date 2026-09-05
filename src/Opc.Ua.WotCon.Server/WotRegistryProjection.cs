@@ -839,6 +839,27 @@ namespace Opc.Ua.WotCon.Server
                 return ToServiceResult(result);
             }
 
+            public async ValueTask<ServiceResult> DeleteProjectedEntityAsync(
+                string groupId,
+                string resourceId,
+                string versionId,
+                long? epoch,
+                CancellationToken ct)
+            {
+                if (m_projection.m_registry is not IWotVersionedRegistryService versioned)
+                {
+                    return StatusCodes.BadNotSupported;
+                }
+                WotRegistryMutationResult result = await versioned.DeleteProjectedEntityAsync(
+                        groupId,
+                        resourceId,
+                        versionId,
+                        epoch,
+                        ct)
+                    .ConfigureAwait(false);
+                return ToServiceResult(result);
+            }
+
             public async ValueTask<ServiceResult> AddRegistryLabelAsync(
                 string key,
                 string value,

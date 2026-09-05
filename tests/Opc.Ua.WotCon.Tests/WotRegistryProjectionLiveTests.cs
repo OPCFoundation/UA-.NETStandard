@@ -277,8 +277,8 @@ namespace Opc.Ua.WotCon.Tests
             WotRegistryGroupClient group = await client
                 .CreateThingDescriptionGroupAsync()
                 .ConfigureAwait(false);
-            _ = await group.CreateResourceAsync("delete-logical", "v1").ConfigureAwait(false);
-            _ = await group.CreateResourceAsync("delete-logical", "v2").ConfigureAwait(false);
+            _ = await CreateCommittedVersionsAsync(group, "delete-logical")
+                .ConfigureAwait(false);
             WotRegistryResourceClient logical = await group
                 .OpenResourceAsync("delete-logical")
                 .ConfigureAwait(false);
@@ -302,9 +302,9 @@ namespace Opc.Ua.WotCon.Tests
             WotRegistryGroupClient group = await client
                 .CreateThingDescriptionGroupAsync()
                 .ConfigureAwait(false);
-            _ = await group.CreateResourceAsync("delete-version", "v1").ConfigureAwait(false);
-            (WotRegistryResourceClient v2, _) = await group
-                .CreateResourceAsync("delete-version", "v2")
+            (_, WotRegistryResourceClient v2) = await CreateCommittedVersionsAsync(
+                    group,
+                    "delete-version")
                 .ConfigureAwait(false);
             WotResource before = m_registry.Current.FindResource(
                 WotRegistryGroups.ThingDescriptions,
@@ -332,11 +332,10 @@ namespace Opc.Ua.WotCon.Tests
             WotRegistryGroupClient group = await client
                 .CreateThingDescriptionGroupAsync()
                 .ConfigureAwait(false);
-            (WotRegistryResourceClient v1, _) = await group
-                .CreateResourceAsync("delete-switched", "v1")
-                .ConfigureAwait(false);
-            (WotRegistryResourceClient v2, _) = await group
-                .CreateResourceAsync("delete-switched", "v2")
+            (WotRegistryResourceClient v1, WotRegistryResourceClient v2) =
+                await CreateCommittedVersionsAsync(
+                    group,
+                    "delete-switched")
                 .ConfigureAwait(false);
             WotResource beforeSwitch = m_registry.Current.FindResource(
                 WotRegistryGroups.ThingDescriptions,
@@ -1404,6 +1403,29 @@ namespace Opc.Ua.WotCon.Tests
         private ValueTask<WotRegistryClient> OpenClientAsync()
         {
             return WotRegistryClient.ForServerAsync(m_session, m_telemetry);
+        }
+
+        private static async ValueTask<(
+            WotRegistryResourceClient V1,
+            WotRegistryResourceClient V2)> CreateCommittedVersionsAsync(
+            WotRegistryGroupClient group,
+            string resourceId)
+        {
+            (WotRegistryResourceClient v1, _) = await group
+                .CreateResourceAsync(resourceId, "v1")
+                .ConfigureAwait(false);
+            await v1.UploadNewVersionAsync(
+                    ByteString.From(MakeThingDescriptionBytes(resourceId)))
+                .ConfigureAwait(false);
+            (WotRegistryResourceClient v2, _) = await group
+                .CreateResourceAsync(resourceId, "v2")
+                .ConfigureAwait(false);
+            await v2.UploadNewVersionAsync(
+                    ByteString.From(
+                        Encoding.UTF8.GetBytes(
+                            MakeThingDescriptionStringV2(resourceId))))
+                .ConfigureAwait(false);
+            return (v1, v2);
         }
 
         private async ValueTask<(WotRegistryGroupClient Group, WotRegistryResourceClient Resource)>
