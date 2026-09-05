@@ -51,6 +51,11 @@ namespace Opc.Ua.Schema
         /// <c>true</c> when the node carried a usable structure or enum
         /// definition and was added; otherwise <c>false</c>.
         /// </returns>
+        /// <remarks>
+        /// Supply <paramref name="namespaceUris"/> when the registered type
+        /// must also resolve from a namespace-URI-form
+        /// <see cref="ExpandedNodeId"/>.
+        /// </remarks>
         /// <exception cref="ArgumentNullException">A required argument is <c>null</c>.</exception>
         public static bool TryAddDataType(
             this DataTypeDefinitionRegistry registry,

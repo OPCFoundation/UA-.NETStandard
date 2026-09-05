@@ -30,10 +30,6 @@
 using NUnit.Framework;
 using Opc.Ua.Schema.Json;
 
-// The encodeable type registry API is experimental; the schema factory source
-// is built on top of it.
-#pragma warning disable UA_NETStandard_1
-
 namespace Opc.Ua.Schema.Tests
 {
     /// <summary>
@@ -54,29 +50,39 @@ namespace Opc.Ua.Schema.Tests
         }
 
         [Test]
-        public void SchemaIsProducedFromGeneratedDefinition()
+        public void GeneratedEnumerationActivatorExposesDefinition()
         {
             DataTypeDefinition definition =
-                ArgumentActivator.Instance.GetDataTypeDefinition(new NamespaceTable());
-            var typeId = new ExpandedNodeId(DataTypeIds.Argument);
-            var registry = new DataTypeDefinitionRegistry();
-            registry.Add(new UaTypeDescription(
-                typeId,
-                new QualifiedName("Argument"),
-                definition,
-                Namespaces.OpcUa));
-            var provider = new DefaultSchemaProvider(registry, [new JsonSchemaGenerator()]);
+                NamingRuleTypeActivator.Instance.GetDataTypeDefinition(new NamespaceTable());
 
-            bool resolved = provider.TryGetSchema(
-                typeId,
+            Assert.That(definition, Is.InstanceOf<EnumDefinition>());
+        }
+
+        [Test]
+        public void SchemasAreProducedFromGeneratedFactoryDefinitions()
+        {
+            var namespaceUris = new NamespaceTable();
+            IEncodeableFactory factory = EncodeableFactory.Create();
+            var resolver = new EncodeableFactoryDefinitionSource(factory, namespaceUris);
+            var provider = new DefaultSchemaProvider(resolver, [new JsonSchemaGenerator()]);
+
+            bool structureResolved = provider.TryGetSchema(
+                new ExpandedNodeId(DataTypeIds.Argument),
                 UaSchemaFormat.JsonCompact,
                 UaSchemaScope.Type,
-                out IUaSchema? schema);
+                out IUaSchema? structureSchema);
+            bool enumerationResolved = provider.TryGetSchema(
+                new ExpandedNodeId(DataTypeIds.NamingRuleType),
+                UaSchemaFormat.JsonCompact,
+                UaSchemaScope.Type,
+                out IUaSchema? enumerationSchema);
 
             Assert.Multiple(() =>
             {
-                Assert.That(resolved, Is.True);
-                Assert.That(schema!.ToSchemaString(), Does.Contain("Argument"));
+                Assert.That(structureResolved, Is.True);
+                Assert.That(structureSchema!.ToSchemaString(), Does.Contain("Argument"));
+                Assert.That(enumerationResolved, Is.True);
+                Assert.That(enumerationSchema!.ToSchemaString(), Does.Contain("NamingRuleType"));
             });
         }
     }

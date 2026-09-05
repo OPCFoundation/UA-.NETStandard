@@ -31,6 +31,9 @@ using System.Text.Json.Nodes;
 using System.Xml.Linq;
 using Microsoft.Extensions.DependencyInjection;
 using Opc.Ua.Schema;
+using Opc.Ua.Schema.Bsd;
+using Opc.Ua.Schema.Json;
+using Opc.Ua.Schema.Xsd;
 
 namespace Opc.Ua.Aot.Tests
 {
@@ -45,6 +48,47 @@ namespace Opc.Ua.Aot.Tests
             using ServiceProvider services = CreateServices(out UaTypeDescription outer);
             ISchemaProvider provider = services.GetRequiredService<ISchemaProvider>();
 
+            await AssertAllFormatsAsync(provider, outer);
+        }
+
+        [Test]
+        public async Task DirectConstructionForAllFormatsIsAotSafeAsync()
+        {
+            // This project is not a friend assembly of Opc.Ua.Core.Schema, so these
+            // constructors are also a compile-time guard for the public package API.
+            DataTypeDefinitionRegistry registry = CreateRegistry(out UaTypeDescription outer);
+            ISchemaProvider provider = new DefaultSchemaProvider(
+                registry,
+                [new JsonSchemaGenerator(), new XsdSchemaGenerator(), new BsdSchemaGenerator()]);
+
+            await AssertAllFormatsAsync(provider, outer);
+        }
+
+        [Test]
+        public async Task GeneratedFactoryDefinitionsAreAotSafeAsync()
+        {
+            var namespaceUris = new NamespaceTable();
+            IEncodeableFactory factory = EncodeableFactory.Create();
+            var resolver = new EncodeableFactoryDefinitionSource(factory, namespaceUris);
+            var provider = new DefaultSchemaProvider(
+                resolver,
+                [new JsonSchemaGenerator()]);
+
+            bool resolved = provider.TryGetSchema(
+                new ExpandedNodeId(DataTypeIds.Argument),
+                UaSchemaFormat.JsonCompact,
+                UaSchemaScope.Type,
+                out IUaSchema? schema);
+
+            await Assert.That(resolved).IsTrue();
+            await Assert.That(schema).IsNotNull();
+            await Assert.That(schema!.ToSchemaString()).Contains("Argument");
+        }
+
+        private static async Task AssertAllFormatsAsync(
+            ISchemaProvider provider,
+            UaTypeDescription outer)
+        {
             UaSchemaFormat[] formats =
             [
                 UaSchemaFormat.JsonCompact,
@@ -81,6 +125,21 @@ namespace Opc.Ua.Aot.Tests
             ServiceProvider provider = services.BuildServiceProvider();
 
             DataTypeDefinitionRegistry registry = provider.GetRequiredService<DataTypeDefinitionRegistry>();
+            PopulateRegistry(registry, out outer);
+            return provider;
+        }
+
+        private static DataTypeDefinitionRegistry CreateRegistry(out UaTypeDescription outer)
+        {
+            var registry = new DataTypeDefinitionRegistry();
+            PopulateRegistry(registry, out outer);
+            return registry;
+        }
+
+        private static void PopulateRegistry(
+            DataTypeDefinitionRegistry registry,
+            out UaTypeDescription outer)
+        {
             UaTypeDescription inner = Structure(
                 7102,
                 "AotInner",
@@ -98,7 +157,6 @@ namespace Opc.Ua.Aot.Tests
             registry.Add(inner)
                 .Add(color)
                 .Add(outer);
-            return provider;
         }
 
         private static StructureField Field(

@@ -30,11 +30,11 @@
 namespace Opc.Ua
 {
     /// <summary>
-    /// Implemented by encodeable and enumerated type activators that can expose
-    /// the OPC UA data type definition (a <see cref="StructureDefinition"/> or
-    /// <see cref="EnumDefinition"/>) of the type they represent. Schema
-    /// generation uses this to obtain a type's structure from the encodeable
-    /// type registry without reflection.
+    /// Implemented by encodeable and enumerated type activators, including
+    /// generated activators, that can expose the OPC UA data type definition
+    /// (a <see cref="StructureDefinition"/> or <see cref="EnumDefinition"/>)
+    /// of the type they represent. Schema generation uses this to obtain a
+    /// type's structure from the encodeable type registry without reflection.
     /// </summary>
     public interface IDataTypeDefinitionSource
     {

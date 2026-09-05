@@ -42,7 +42,7 @@ namespace Opc.Ua.Schema.Json
     /// <see cref="JsonObject"/> object model so that no
     /// reflection is required and the generator is NativeAOT compatible.
     /// </summary>
-    internal sealed class JsonSchemaGenerator : IUaSchemaGenerator
+    public sealed class JsonSchemaGenerator : IUaSchemaGenerator
     {
         /// <inheritdoc/>
         public bool CanGenerate(UaSchemaFormat format)

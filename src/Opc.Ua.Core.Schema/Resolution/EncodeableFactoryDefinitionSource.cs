@@ -36,12 +36,11 @@ namespace Opc.Ua.Schema
 {
     /// <summary>
     /// Resolves data type definitions from an <see cref="IEncodeableFactory"/>.
-    /// Generated and other registered encodeable/enumerated types that
+    /// Generated type activators and other registered encodeable/enumerated types that
     /// implement <see cref="IDataTypeDefinitionSource"/> expose their
     /// definition, so any type known to the factory can produce a schema
     /// without being registered manually.
     /// </summary>
-    [Experimental("UA_NETStandard_1")]
     public sealed class EncodeableFactoryDefinitionSource : IDataTypeDefinitionResolver
     {
         /// <summary>
@@ -65,20 +64,38 @@ namespace Opc.Ua.Schema
             ExpandedNodeId typeId,
             [NotNullWhen(true)] out UaTypeDescription? description)
         {
-            if (m_factory.TryGetEncodeableType(typeId, out IEncodeableType? encodeableType) &&
-                encodeableType is IDataTypeDefinitionSource encodeableSource)
+            if (TryResolveExact(typeId, out description))
             {
-                DataTypeDefinition encodeable = encodeableSource.GetDataTypeDefinition(m_namespaceUris);
-                description = Describe(typeId, encodeableType.XmlName, encodeable);
                 return true;
             }
 
-            if (m_factory.TryGetEnumeratedType(typeId, out IEnumeratedType? enumeratedType) &&
-                enumeratedType is IDataTypeDefinitionSource enumeratedSource)
+            if (typeId.ServerIndex == 0)
             {
-                DataTypeDefinition enumerated = enumeratedSource.GetDataTypeDefinition(m_namespaceUris);
-                description = Describe(typeId, enumeratedType.XmlName, enumerated);
-                return true;
+                if (string.IsNullOrEmpty(typeId.NamespaceUri))
+                {
+                    ushort namespaceIndex = typeId.InnerNodeId.NamespaceIndex;
+                    if (namespaceIndex > 0)
+                    {
+                        string? namespaceUri = m_namespaceUris.GetString(namespaceIndex);
+                        if (!string.IsNullOrEmpty(namespaceUri))
+                        {
+                            return TryResolveExact(
+                                new ExpandedNodeId(typeId.InnerNodeId, namespaceUri),
+                                out description);
+                        }
+                    }
+                }
+                else
+                {
+                    int namespaceIndex = m_namespaceUris.GetIndex(typeId.NamespaceUri);
+                    if (namespaceIndex >= 0 && namespaceIndex <= ushort.MaxValue)
+                    {
+                        return TryResolveExact(
+                            new ExpandedNodeId(
+                                typeId.InnerNodeId.WithNamespaceIndex((ushort)namespaceIndex)),
+                            out description);
+                    }
+                }
             }
 
             description = null;
@@ -118,6 +135,30 @@ namespace Opc.Ua.Schema
                 }
             }
             return result;
+        }
+
+        private bool TryResolveExact(
+            ExpandedNodeId typeId,
+            [NotNullWhen(true)] out UaTypeDescription? description)
+        {
+            if (m_factory.TryGetEncodeableType(typeId, out IEncodeableType? encodeableType) &&
+                encodeableType is IDataTypeDefinitionSource encodeableSource)
+            {
+                DataTypeDefinition encodeable = encodeableSource.GetDataTypeDefinition(m_namespaceUris);
+                description = Describe(typeId, encodeableType.XmlName, encodeable);
+                return true;
+            }
+
+            if (m_factory.TryGetEnumeratedType(typeId, out IEnumeratedType? enumeratedType) &&
+                enumeratedType is IDataTypeDefinitionSource enumeratedSource)
+            {
+                DataTypeDefinition enumerated = enumeratedSource.GetDataTypeDefinition(m_namespaceUris);
+                description = Describe(typeId, enumeratedType.XmlName, enumerated);
+                return true;
+            }
+
+            description = null;
+            return false;
         }
 
         private static UaTypeDescription Describe(

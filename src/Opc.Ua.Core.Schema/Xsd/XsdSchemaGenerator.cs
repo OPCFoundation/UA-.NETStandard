@@ -41,7 +41,7 @@ namespace Opc.Ua.Schema.Xsd
     /// <see cref="XmlSchema"/> object model so that no
     /// reflection-based serialization is required.
     /// </summary>
-    internal sealed class XsdSchemaGenerator : IUaSchemaGenerator
+    public sealed class XsdSchemaGenerator : IUaSchemaGenerator
     {
         /// <inheritdoc/>
         public bool CanGenerate(UaSchemaFormat format)

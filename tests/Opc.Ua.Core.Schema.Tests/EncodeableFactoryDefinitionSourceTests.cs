@@ -28,13 +28,13 @@
  * ======================================================================*/
 
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Xml;
 using Moq;
 using NUnit.Framework;
 
-// The encodeable type registry API is experimental; the schema factory source
-// is built on top of it.
+// The encodeable type registry API remains experimental.
 #pragma warning disable UA_NETStandard_1
 
 namespace Opc.Ua.Schema.Tests
@@ -46,6 +46,16 @@ namespace Opc.Ua.Schema.Tests
     [Category("Schema")]
     public class EncodeableFactoryDefinitionSourceTests
     {
+        [Test]
+        public void DefinitionSourceIsStableApi()
+        {
+            Assert.That(
+                System.Attribute.IsDefined(
+                    typeof(EncodeableFactoryDefinitionSource),
+                    typeof(ExperimentalAttribute)),
+                Is.False);
+        }
+
         [Test]
         public void TryResolveReturnsDefinitionFromFactoryType()
         {
@@ -78,6 +88,58 @@ namespace Opc.Ua.Schema.Tests
             {
                 Assert.That(resolved, Is.False);
                 Assert.That(description, Is.Null);
+            });
+        }
+
+        [Test]
+        public void TryResolveNodeIdFindsUriFormFactoryType()
+        {
+            const string namespaceUri = "http://test.org/standin";
+            var namespaceUris = new NamespaceTable();
+            namespaceUris.Append(namespaceUri);
+            StructureDefinition definition = CreateDefinition();
+            var typeId = new ExpandedNodeId(4003, namespaceUri);
+            var standIn = new Encoders.Structure(
+                new XmlQualifiedName("UriFactoryType", namespaceUri),
+                typeId,
+                ExpandedNodeId.Null,
+                ExpandedNodeId.Null,
+                definition,
+                new Dictionary<string, BuiltInType> { ["Value"] = BuiltInType.Int32 });
+            IEncodeableFactory factory = EncodeableFactory.Create();
+            factory.Builder.AddEncodeableType(typeId, standIn).Commit();
+            var source = new EncodeableFactoryDefinitionSource(factory, namespaceUris);
+            var sourceWithoutMapping = new EncodeableFactoryDefinitionSource(
+                factory,
+                new NamespaceTable());
+
+            bool nodeIdResolved = source.TryResolve(
+                new NodeId(4003, 1),
+                out UaTypeDescription? nodeIdDescription);
+            bool expandedNodeIdResolved = source.TryResolve(
+                new ExpandedNodeId(new NodeId(4003, 1)),
+                out UaTypeDescription? expandedNodeIdDescription);
+            var provider = new DefaultSchemaProvider(source, [new Json.JsonSchemaGenerator()]);
+            bool schemaResolved = provider.TryGetSchema(
+                new ExpandedNodeId(new NodeId(4003, 1)),
+                UaSchemaFormat.JsonCompact,
+                UaSchemaScope.Type,
+                out IUaSchema? schema);
+            bool unresolved = sourceWithoutMapping.TryResolve(
+                new NodeId(4003, 1),
+                out UaTypeDescription? missing);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(nodeIdResolved, Is.True);
+                Assert.That(nodeIdDescription!.Definition, Is.SameAs(definition));
+                Assert.That(nodeIdDescription.NamespaceUri, Is.EqualTo(namespaceUri));
+                Assert.That(expandedNodeIdResolved, Is.True);
+                Assert.That(expandedNodeIdDescription!.Definition, Is.SameAs(definition));
+                Assert.That(schemaResolved, Is.True);
+                Assert.That(schema, Is.Not.Null);
+                Assert.That(unresolved, Is.False);
+                Assert.That(missing, Is.Null);
             });
         }
 
@@ -183,10 +245,11 @@ namespace Opc.Ua.Schema.Tests
         [Test]
         public void TryResolveReturnsDefinitionFromStandInStructure()
         {
+            const string namespaceUri = "http://test.org/standin";
             StructureDefinition definition = CreateDefinition();
             var typeId = new ExpandedNodeId(new NodeId(5001, 1));
             var standIn = new Encoders.Structure(
-                new XmlQualifiedName("StandInStructure", "http://test.org/standin"),
+                new XmlQualifiedName("StandInStructure", namespaceUri),
                 typeId,
                 ExpandedNodeId.Null,
                 ExpandedNodeId.Null,
@@ -194,15 +257,22 @@ namespace Opc.Ua.Schema.Tests
                 new Dictionary<string, BuiltInType> { ["Value"] = BuiltInType.Int32 });
             IEncodeableFactory factory = EncodeableFactory.Create();
             factory.Builder.AddEncodeableType(typeId, standIn).Commit();
-            var source = new EncodeableFactoryDefinitionSource(factory, new NamespaceTable());
+            var namespaceUris = new NamespaceTable();
+            namespaceUris.Append(namespaceUri);
+            var source = new EncodeableFactoryDefinitionSource(factory, namespaceUris);
 
-            bool resolved = source.TryResolve(typeId, out UaTypeDescription? description);
+            bool indexResolved = source.TryResolve(typeId, out UaTypeDescription? indexDescription);
+            bool uriResolved = source.TryResolve(
+                new ExpandedNodeId(typeId.InnerNodeId, namespaceUri),
+                out UaTypeDescription? uriDescription);
 
             Assert.Multiple(() =>
             {
-                Assert.That(resolved, Is.True);
-                Assert.That(description!.Definition, Is.SameAs(definition));
-                Assert.That(description.Name, Is.EqualTo("StandInStructure"));
+                Assert.That(indexResolved, Is.True);
+                Assert.That(indexDescription!.Definition, Is.SameAs(definition));
+                Assert.That(indexDescription.Name, Is.EqualTo("StandInStructure"));
+                Assert.That(uriResolved, Is.True);
+                Assert.That(uriDescription!.Definition, Is.SameAs(definition));
             });
         }
 

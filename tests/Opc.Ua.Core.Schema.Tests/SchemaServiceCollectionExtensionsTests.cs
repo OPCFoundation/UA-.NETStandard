@@ -70,6 +70,48 @@ namespace Opc.Ua.Schema.Tests
         }
 
         [Test]
+        public void AddSchemaGenerationResolvesUriFormRegisteredNode()
+        {
+            var services = new ServiceCollection();
+            services.AddOpcUa().AddSchemaGeneration();
+            using ServiceProvider serviceProvider = services.BuildServiceProvider();
+
+            var namespaceUris = new NamespaceTable();
+            namespaceUris.Append(SchemaTestData.TestNamespace);
+            var node = new DataTypeNode
+            {
+                NodeId = new NodeId(3002, SchemaTestData.TestNamespaceIndex),
+                BrowseName = new QualifiedName("RegisteredNode", SchemaTestData.TestNamespaceIndex),
+                DataTypeDefinition = new ExtensionObject(new StructureDefinition
+                {
+                    BaseDataType = DataTypeIds.Structure,
+                    StructureType = StructureType.Structure,
+                    Fields =
+                    [
+                        SchemaTestData.Field("Value", SchemaTestData.BuiltIn(BuiltInType.Int32))
+                    ]
+                })
+            };
+            DataTypeDefinitionRegistry registry =
+                serviceProvider.GetRequiredService<DataTypeDefinitionRegistry>();
+
+            bool added = registry.TryAddDataType(node, namespaceUris);
+            ISchemaProvider provider = serviceProvider.GetRequiredService<ISchemaProvider>();
+            bool resolved = provider.TryGetSchema(
+                NodeId.ToExpandedNodeId(node.NodeId, namespaceUris),
+                UaSchemaFormat.JsonCompact,
+                UaSchemaScope.Type,
+                out IUaSchema? schema);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(added, Is.True);
+                Assert.That(resolved, Is.True);
+                Assert.That(schema, Is.Not.Null);
+            });
+        }
+
+        [Test]
         public void AddSchemaGenerationThrowsForNullBuilder()
         {
             Assert.That(
