@@ -688,7 +688,11 @@ namespace Opc.Ua.WotCon.Tests.Registry
                 "DeleteProjectedEntityAsync",
                 BindingFlags.Public | BindingFlags.Instance);
 
-            Assert.That(method, Is.Not.Null);
+            Assert.Multiple(() =>
+            {
+                Assert.That(method, Is.Not.Null);
+                Assert.That(method!.GetParameters()[3].ParameterType, Is.EqualTo(typeof(bool)));
+            });
         }
 
         [Test]
@@ -710,7 +714,7 @@ namespace Opc.Ua.WotCon.Tests.Registry
         }
 
         [Test]
-        public async Task ProjectedDeleteUsesCurrentDefaultRoleAtomically()
+        public async Task ProjectedDeleteStableVersionRoleUsesVersionEpoch()
         {
             using var service = new WotRegistryService();
             await CreateCommittedVersionsAsync(service, "role-delete", "v1", "v2");
@@ -728,7 +732,8 @@ namespace Opc.Ua.WotCon.Tests.Registry
                 WotRegistryGroups.ThingDescriptions,
                 "role-delete",
                 "v1",
-                v1Epoch);
+                deleteLogicalResource: false,
+                expectedEpoch: v1Epoch);
             WotResource after = service.Current.FindResource(
                 WotRegistryGroups.ThingDescriptions,
                 "role-delete")!;
@@ -743,7 +748,7 @@ namespace Opc.Ua.WotCon.Tests.Registry
         }
 
         [Test]
-        public async Task ProjectedDeleteWaitsForDefaultSwitchAndUsesCommittedRole()
+        public async Task ProjectedDeleteRejectsLogicalRoleAfterConcurrentSwitchAway()
         {
             var store = new RecordingRegistryStore();
             using var service = new WotRegistryService(store);
@@ -764,7 +769,8 @@ namespace Opc.Ua.WotCon.Tests.Registry
                 WotRegistryGroups.ThingDescriptions,
                 "concurrent-delete",
                 "v1",
-                v1Epoch).AsTask();
+                deleteLogicalResource: true,
+                expectedEpoch: v1Epoch).AsTask();
             try
             {
                 await Task.Delay(20).ConfigureAwait(false);
@@ -782,9 +788,9 @@ namespace Opc.Ua.WotCon.Tests.Registry
 
             Assert.Multiple(() =>
             {
-                Assert.That(deleted.Outcome, Is.EqualTo(WoTOutcomeEnum.Success));
+                Assert.That(deleted.Outcome, Is.EqualTo(WoTOutcomeEnum.Rejected));
                 Assert.That(after.DefaultVersionId, Is.EqualTo("v2"));
-                Assert.That(after.FindVersion("v1"), Is.Null);
+                Assert.That(after.FindVersion("v1"), Is.Not.Null);
                 Assert.That(after.FindVersion("v2"), Is.Not.Null);
             });
         }
@@ -803,18 +809,21 @@ namespace Opc.Ua.WotCon.Tests.Registry
                     WotRegistryGroups.ThingDescriptions,
                     "delete-epochs",
                     "v1",
-                    before.FindVersion("v1")!.Epoch);
+                    deleteLogicalResource: true,
+                    expectedEpoch: before.FindVersion("v1")!.Epoch);
             WotRegistryMutationResult versionWithResourceEpoch =
                 await service.DeleteProjectedEntityAsync(
                     WotRegistryGroups.ThingDescriptions,
                     "delete-epochs",
                     "v2",
-                    before.MetaEpoch);
+                    deleteLogicalResource: false,
+                    expectedEpoch: before.MetaEpoch);
             WotRegistryMutationResult exactVersion = await service.DeleteProjectedEntityAsync(
                 WotRegistryGroups.ThingDescriptions,
                 "delete-epochs",
                 "v2",
-                before.FindVersion("v2")!.Epoch);
+                deleteLogicalResource: false,
+                expectedEpoch: before.FindVersion("v2")!.Epoch);
             WotResource afterVersionDelete = service.Current.FindResource(
                 WotRegistryGroups.ThingDescriptions,
                 "delete-epochs")!;
@@ -822,7 +831,8 @@ namespace Opc.Ua.WotCon.Tests.Registry
                 WotRegistryGroups.ThingDescriptions,
                 "delete-epochs",
                 "v1",
-                afterVersionDelete.MetaEpoch);
+                deleteLogicalResource: true,
+                expectedEpoch: afterVersionDelete.MetaEpoch);
 
             Assert.Multiple(() =>
             {
@@ -839,7 +849,7 @@ namespace Opc.Ua.WotCon.Tests.Registry
         }
 
         [Test]
-        public async Task ProjectedDeleteRejectsDefaultEpochCollisionAfterRoleSwitch()
+        public async Task ProjectedDeleteRejectsVersionRoleAfterSwitchToDefault()
         {
             using var service = new WotRegistryService();
             await CreateCommittedVersionsAsync(service, "epoch-collision", "v1");
@@ -879,21 +889,52 @@ namespace Opc.Ua.WotCon.Tests.Registry
                 WotRegistryGroups.ThingDescriptions,
                 "epoch-collision",
                 "v1",
-                staleVersionEpoch);
-            WotRegistryMutationResult forced = await service.DeleteProjectedEntityAsync(
+                deleteLogicalResource: false,
+                expectedEpoch: staleVersionEpoch);
+            WotResource afterRejected = service.Current.FindResource(
                 WotRegistryGroups.ThingDescriptions,
-                "epoch-collision",
-                "v1",
-                expectedEpoch: null);
+                "epoch-collision")!;
 
             Assert.Multiple(() =>
             {
                 Assert.That(ambiguous.Outcome, Is.EqualTo(WoTOutcomeEnum.Rejected));
-                Assert.That(ambiguous.Message, Does.Contain("ambiguous").IgnoreCase);
-                Assert.That(forced.Outcome, Is.EqualTo(WoTOutcomeEnum.Success));
-                Assert.That(service.Current.FindResource(
+                Assert.That(ambiguous.Message, Does.Contain("role").IgnoreCase);
+                Assert.That(afterRejected.DefaultVersionId, Is.EqualTo("v1"));
+                Assert.That(afterRejected.FindVersion("v1"), Is.Not.Null);
+                Assert.That(afterRejected.FindVersion("v2"), Is.Not.Null);
+            });
+        }
+
+        [Test]
+        public async Task ProjectedDeleteRejectsWrongRoleRegardlessOfEpoch()
+        {
+            using var service = new WotRegistryService();
+            await CreateCommittedVersionsAsync(service, "wrong-role", "v1", "v2");
+            WotRegistrySnapshot before = service.Current;
+            WotResource resource = before.FindResource(
+                WotRegistryGroups.ThingDescriptions,
+                "wrong-role")!;
+
+            WotRegistryMutationResult defaultAsVersion =
+                await service.DeleteProjectedEntityAsync(
                     WotRegistryGroups.ThingDescriptions,
-                    "epoch-collision"), Is.Null);
+                    "wrong-role",
+                    "v1",
+                    deleteLogicalResource: false,
+                    expectedEpoch: resource.FindVersion("v1")!.Epoch);
+            WotRegistryMutationResult versionAsLogical =
+                await service.DeleteProjectedEntityAsync(
+                    WotRegistryGroups.ThingDescriptions,
+                    "wrong-role",
+                    "v2",
+                    deleteLogicalResource: true,
+                    expectedEpoch: resource.MetaEpoch);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(defaultAsVersion.Outcome, Is.EqualTo(WoTOutcomeEnum.Rejected));
+                Assert.That(versionAsLogical.Outcome, Is.EqualTo(WoTOutcomeEnum.Rejected));
+                Assert.That(service.Current, Is.SameAs(before));
             });
         }
 

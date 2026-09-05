@@ -567,13 +567,14 @@ namespace Opc.Ua.WotCon.Server.Registry
             CancellationToken cancellationToken = default);
 
         /// <summary>
-        /// Atomically resolves whether a projected node currently represents the
-        /// logical Resource or an exact non-default Version, then deletes that entity.
+        /// Atomically verifies that a projected node still has the caller-observed
+        /// logical Resource or exact Version role, then deletes that entity.
         /// </summary>
         ValueTask<WotRegistryMutationResult> DeleteProjectedEntityAsync(
             string groupId,
             string resourceId,
             string versionId,
+            bool deleteLogicalResource,
             long? expectedEpoch = null,
             CancellationToken cancellationToken = default);
 

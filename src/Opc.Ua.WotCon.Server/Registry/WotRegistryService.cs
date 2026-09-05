@@ -504,6 +504,7 @@ namespace Opc.Ua.WotCon.Server.Registry
             string groupId,
             string resourceId,
             string versionId,
+            bool deleteLogicalResource,
             long? expectedEpoch = null,
             CancellationToken cancellationToken = default)
         {
@@ -518,26 +519,22 @@ namespace Opc.Ua.WotCon.Server.Registry
                 {
                     return Failed(snapshot.Generation, "Resource not found.");
                 }
-                if (string.Equals(
-                        resource.DefaultVersionId,
-                        versionId,
-                        StringComparison.Ordinal))
+                bool currentlyLogicalResource = string.Equals(
+                    resource.DefaultVersionId,
+                    versionId,
+                    StringComparison.Ordinal);
+                if (currentlyLogicalResource != deleteLogicalResource)
                 {
-                    if (expectedEpoch is { } resourceEpoch)
+                    return Rejected(
+                        snapshot.Generation,
+                        "The projected node role changed before deletion.");
+                }
+                if (deleteLogicalResource)
+                {
+                    if (expectedEpoch is { } resourceEpoch &&
+                        resourceEpoch != resource.MetaEpoch)
                     {
-                        WotResourceVersion? defaultVersion = resource.FindVersion(versionId);
-                        if (defaultVersion is not null &&
-                            resourceEpoch == resource.MetaEpoch &&
-                            resourceEpoch == defaultVersion.Epoch)
-                        {
-                            return Rejected(
-                                snapshot.Generation,
-                                "The epoch is ambiguous between the Resource and default Version.");
-                        }
-                        if (resourceEpoch != resource.MetaEpoch)
-                        {
-                            return Rejected(snapshot.Generation, "Epoch mismatch.");
-                        }
+                        return Rejected(snapshot.Generation, "Epoch mismatch.");
                     }
                     return await DeleteResourceLockedAsync(
                             snapshot,
