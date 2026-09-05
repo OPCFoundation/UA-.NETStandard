@@ -390,10 +390,10 @@ namespace Opc.Ua.Server
         /// <inheritdoc/>
         public ServiceResult AddEndpoint(NodeId roleId, EndpointType endpoint)
         {
-            if (endpoint == null || string.IsNullOrEmpty(endpoint.EndpointUrl))
+            if (!EndpointTypeComparer.HasNonDefaultFields(endpoint))
             {
                 return new ServiceResult(StatusCodes.BadInvalidArgument,
-                    new LocalizedText("Endpoint or its EndpointUrl must be non-empty."));
+                    new LocalizedText("Endpoint must specify at least one non-default field."));
             }
 
             m_lock.EnterWriteLock();

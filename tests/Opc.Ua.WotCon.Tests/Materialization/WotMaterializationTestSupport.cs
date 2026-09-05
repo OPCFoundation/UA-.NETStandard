@@ -54,6 +54,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         public int ImmediateCount { get; private set; }
         public int RemoveCount { get; private set; }
         public string NextReloadWarning { get; set; } = string.Empty;
+        public bool FailNextReload { get; set; }
 
         public ValueTask<WotProjectionHandle> AddAsync(
             WotProjectionDocument document, CancellationToken cancellationToken = default)
@@ -69,6 +70,11 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         {
             ShadowCount++;
             Operations.Add(new HostOperation("shadow", document));
+            if (FailNextReload)
+            {
+                FailNextReload = false;
+                throw new InvalidOperationException("Injected projection reload failure.");
+            }
             long gen = (current?.Generation ?? 0) + 1;
             string warning = NextReloadWarning;
             NextReloadWarning = string.Empty;
@@ -81,6 +87,11 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         {
             ImmediateCount++;
             Operations.Add(new HostOperation("immediate", document));
+            if (FailNextReload)
+            {
+                FailNextReload = false;
+                throw new InvalidOperationException("Injected projection reload failure.");
+            }
             long gen = (current?.Generation ?? 0) + 1;
             string warning = NextReloadWarning;
             NextReloadWarning = string.Empty;

@@ -66,18 +66,17 @@ def Xform "Site"
         float inputs:intensity = 620
     }
 
-    # An operator walking up to the plant: eye-level-ish, standing off the front
-    # corner so the pump row is on the left and the generator row fills the
-    # right, both receding away. Framed to fill the viewport with machines
-    # rather than ground - this is the first frame a viewport shows, so it has
-    # to work without anyone touching the camera.
+    # An elevated front-left three-quarter view keeps all three pumps distinct
+    # from both generator sets instead of looking straight down either row.
+    # This is the first frame a viewport shows, so it has to work without anyone
+    # touching the camera.
     def Camera "SiteCamera"
     {
         float focalLength = 28
         float horizontalAperture = 24
         float verticalAperture = 13.5
-        double3 xformOp:translate = (1.5, -17, 8.5)
-        double3 xformOp:rotateXYZ = (74, 0, -8)
+        double3 xformOp:translate = (-22, -24, 14)
+        double3 xformOp:rotateXYZ = (71, 0, -35)
         uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateXYZ"]
     }
 }

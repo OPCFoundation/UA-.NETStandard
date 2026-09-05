@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Globalization;
 using System.Net;
 using System.Net.Sockets;
 
@@ -37,15 +38,105 @@ namespace Opc.Ua.WotCon.Bindings
     /// Validates a remote-supplied endpoint string against a <see cref="WotEndpointPolicy"/>.
     /// </summary>
     /// <remarks>
+    /// <para>
     /// DNS resolution is intentionally **not** performed during validation. Resolving the host name
     /// to an IP at validation time and then re-resolving it at connect time is itself a TOCTOU SSRF
     /// vector — a hostile DNS could return a public IP to the validator and a private IP to the
     /// connector. Operators who need IP-range enforcement must either pin
     /// <see cref="WotEndpointPolicy.AllowedHosts"/> to IP literals or accept that the IP-range gates
     /// only fire when the host portion of the URI itself is an IP literal.
+    /// </para>
+    /// <para>
+    /// A host is compared in its IDNA A-label form, which is the name the request actually
+    /// resolves. An allow list accepts either spelling of the same name, because both denote one
+    /// host; a block list refuses either, because refusing only one of them refuses nothing.
+    /// </para>
     /// </remarks>
     public static class WotEndpointValidator
     {
+        /// <summary>
+        /// Gets the ASCII form of a URI's host: the IDNA A-label of a registered name, or the
+        /// literal of an IP address. A URI with no authority has an empty host.
+        /// </summary>
+        /// <remarks>
+        /// <see cref="Uri.IdnHost"/> answers on every modern target, but on .NET Framework it
+        /// returns the Unicode host unchanged unless IRI parsing is switched on in configuration.
+        /// The explicit <see cref="IdnMapping"/> pass is what makes the result the same on every
+        /// target rather than dependent on a machine's configuration file.
+        /// </remarks>
+        /// <param name="uri">The parsed absolute URI.</param>
+        /// <returns>The ASCII host, without IPv6 brackets.</returns>
+        /// <exception cref="ArgumentNullException"><paramref name="uri"/> is <c>null</c>.</exception>
+        public static string ToAsciiHost(Uri uri)
+        {
+            if (uri is null)
+            {
+                throw new ArgumentNullException(nameof(uri));
+            }
+            if (uri.HostNameType == UriHostNameType.Unknown || string.IsNullOrEmpty(uri.Host))
+            {
+                return string.Empty;
+            }
+            return uri.HostNameType == UriHostNameType.IPv6
+                ? Unbracket(uri.IdnHost)
+                : ToAsciiName(uri.IdnHost);
+        }
+
+        /// <summary>
+        /// Converts a registered name to its IDNA A-label, leaving one that is already ASCII
+        /// alone.
+        /// </summary>
+        /// <remarks>
+        /// <see cref="Uri.IdnHost"/> answers on every modern target, but on .NET Framework it
+        /// returns the Unicode host unchanged unless IRI parsing is switched on in configuration,
+        /// so the explicit pass is what makes the result the same on every target rather than
+        /// dependent on a machine's configuration file. A name IDNA refuses is handed back
+        /// unchanged: it is not a name that resolves, and inventing a percent-encoded spelling
+        /// would name something else instead of letting the policy refuse it.
+        /// </remarks>
+        /// <param name="host">The host as the URI parser reported it.</param>
+        /// <returns>The ASCII form of the name.</returns>
+        internal static string ToAsciiName(string host)
+        {
+            if (IsAscii(host))
+            {
+                return host;
+            }
+            try
+            {
+                return new IdnMapping { AllowUnassigned = true }.GetAscii(host);
+            }
+            catch (ArgumentException)
+            {
+                return host;
+            }
+        }
+
+        /// <summary>
+        /// Removes the brackets an IPv6 literal is written with inside a URI, which a connect
+        /// call does not want and which one spelling of the host already omits.
+        /// </summary>
+        /// <param name="host">The host, with or without brackets.</param>
+        /// <returns>The bare IPv6 literal.</returns>
+        internal static string Unbracket(string host)
+        {
+            return host.Length > 1 && host[0] == '[' && host[host.Length - 1] == ']'
+                ? host.Substring(1, host.Length - 2)
+                : host;
+        }
+
+        private static bool IsAscii(string value)
+        {
+            foreach (char character in value)
+            {
+                if (character > '\u007F')
+                {
+                    return false;
+                }
+            }
+            return true;
+        }
+
         /// <summary>
         /// Validates <paramref name="endpoint"/>, returning the normalized <see cref="Uri"/> in
         /// <paramref name="normalized"/> on success.
@@ -81,20 +172,28 @@ namespace Opc.Ua.WotCon.Bindings
             }
 
             string host = uri.Host ?? string.Empty;
-            if (policy.AllowedHosts.Count > 0 && !policy.AllowedHosts.Contains(host))
+            string asciiHost = ToAsciiHost(uri);
+            if (policy.AllowedHosts.Count > 0 &&
+                !policy.AllowedHosts.Contains(asciiHost) &&
+                !policy.AllowedHosts.Contains(host))
             {
                 return ServiceResult.Create(
                     StatusCodes.BadSecurityChecksFailed,
                     "Endpoint host '{0}' is not in the policy's AllowedHosts set.",
-                    host);
+                    asciiHost);
             }
-            if (policy.BlockedHosts.Contains(host))
+            if (policy.BlockedHosts.Contains(asciiHost) || policy.BlockedHosts.Contains(host))
             {
                 return ServiceResult.Create(
                     StatusCodes.BadSecurityChecksFailed,
                     "Endpoint host '{0}' is in the policy's BlockedHosts set.",
-                    host);
+                    asciiHost);
             }
+
+            // Every remaining gate reads the ASCII host, because that is the
+            // name the request resolves. Reading the Unicode spelling here
+            // would let 'ü.example' pass a check that 'xn--tda.example' fails.
+            host = asciiHost;
 
             if (IPAddress.TryParse(host, out IPAddress? parsedIp))
             {

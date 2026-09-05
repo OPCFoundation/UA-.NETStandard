@@ -135,12 +135,57 @@ namespace Opc.Ua.Wot
         /// <exception cref="ArgumentNullException">
         /// <paramref name="document"/> is <c>null</c>.
         /// </exception>
+        public static ValueTask<WotConversionResult<UANodeSet>> ToNodeSetResultAsync(
+            WotDocument document,
+            WotNodeSetConverterOptions? options,
+            IWotThingResolver? thingResolver,
+            WotResolutionContext? resolutionContext,
+            IWotNodeResolver? nodeResolver,
+            CancellationToken cancellationToken = default)
+        {
+            return ToNodeSetResultAsync(
+                document,
+                options,
+                thingResolver,
+                resolutionContext,
+                nodeResolver,
+                null,
+                cancellationToken);
+        }
+
+        /// <summary>
+        /// Restores or synthesizes the NodeSet2 document described by a WoT
+        /// document, resolving names against the WoT Binding Section 5.1.5
+        /// local context and every <c>uav:externalSchema</c> reference against
+        /// the configured providers.
+        /// </summary>
+        /// <param name="document">The WoT document.</param>
+        /// <param name="options">Resource limits; defaults are used when omitted.</param>
+        /// <param name="thingResolver">Resolves referenced TD/TM documents.</param>
+        /// <param name="resolutionContext">The active resolution context.</param>
+        /// <param name="nodeResolver">
+        /// Resolves a name or identifier to the OPC UA Node it names. When
+        /// omitted nothing is held, so a document that binds to an existing
+        /// type is reported as unresolved rather than silently mistyped.
+        /// </param>
+        /// <param name="schemaResolver">
+        /// Resolves <c>uav:externalSchema</c> references through an ordered set
+        /// of providers. When omitted, or configured with no provider, a
+        /// reference is carried but never fetched: an external schema reference
+        /// is an arbitrary IRI in a document a consumer did not write.
+        /// </param>
+        /// <param name="cancellationToken">A cancellation token.</param>
+        /// <returns>The conversion result and its diagnostics.</returns>
+        /// <exception cref="ArgumentNullException">
+        /// <paramref name="document"/> is <c>null</c>.
+        /// </exception>
         public static async ValueTask<WotConversionResult<UANodeSet>> ToNodeSetResultAsync(
             WotDocument document,
             WotNodeSetConverterOptions? options,
             IWotThingResolver? thingResolver,
             WotResolutionContext? resolutionContext,
             IWotNodeResolver? nodeResolver,
+            WotExternalSchemaResolver? schemaResolver,
             CancellationToken cancellationToken = default)
         {
             if (document is null)
@@ -210,6 +255,7 @@ namespace Opc.Ua.Wot
             // WoT Binding Section 5.2.1 only applies to synthesized Nodes.
             WotTypeBinding? typeBinding = null;
             WotParentPlacement? parentPlacement = null;
+            WotDeclarationCatalog? declarations = null;
             if (!TakesRestorePath(document))
             {
                 typeBinding = await ResolveTypeBindingAsync(
@@ -223,6 +269,34 @@ namespace Opc.Ua.Wot
                     nodeResolver ?? NullWotNodeResolver.Instance,
                     diagnostics,
                     cancellationToken).ConfigureAwait(false);
+
+                // The instance declarations of the bound type are resolved
+                // here, once, because resolving them is asynchronous and the
+                // synthesis below is not. Doing it any later would mean either
+                // blocking on an asynchronous call or leaving Section 5.2.1's
+                // declaration rules unevaluated.
+                declarations = await PreresolveDeclarationsAsync(
+                    document,
+                    typeBinding,
+                    nodeResolver,
+                    cancellationToken).ConfigureAwait(false);
+            }
+
+            // Every uav:externalSchema reference is resolved and compared here,
+            // once, for the same reason: the providers are asynchronous and the
+            // synthesis is not.
+            WotExternalSchemaCatalog? externalSchemas = null;
+            if (schemaResolver is not null && !TakesRestorePath(document))
+            {
+                options ??= new WotNodeSetConverterOptions();
+                options.Validate();
+                resolutionContext ??= new WotResolutionContext(options.ToResolverOptions());
+                externalSchemas = await PreresolveExternalSchemasAsync(
+                    document,
+                    options,
+                    schemaResolver,
+                    resolutionContext,
+                    cancellationToken).ConfigureAwait(false);
             }
 
             UANodeSet? nodeSet = ToNodeSetCore(
@@ -235,9 +309,112 @@ namespace Opc.Ua.Wot
                 typeBinding,
                 parentPlacement,
                 eventSelections,
-                eventSelectionsResolved);
+                eventSelectionsResolved,
+                declarations,
+                externalSchemas);
             ApplyIdentifierLeniency(diagnostics, options);
             return new WotConversionResult<UANodeSet>(nodeSet, diagnostics);
+        }
+
+        /// <summary>
+        /// Resolves every <c>uav:externalSchema</c> a property affordance names
+        /// and compares it against that affordance's canonical DataSchema.
+        /// </summary>
+        /// <remarks>
+        /// The comparison needs the DataType the Binding derives, which is
+        /// derived here from the DataSchema alone rather than from the
+        /// synthesized Node: the reference is checked against what the document
+        /// states, and what the document states is what the synthesis will
+        /// write. Nothing here changes the DataType - Section 6.11's DataType
+        /// definition and Section 5.4's definitive terms remain the statement
+        /// of what the Variable is.
+        /// </remarks>
+        private static async ValueTask<WotExternalSchemaCatalog> PreresolveExternalSchemasAsync(
+            WotDocument document,
+            WotNodeSetConverterOptions options,
+            WotExternalSchemaResolver schemaResolver,
+            WotResolutionContext resolutionContext,
+            CancellationToken cancellationToken)
+        {
+            var catalog = new WotExternalSchemaCatalog();
+            foreach (KeyValuePair<string, JsonElement> property in document.Properties)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                if (GetElementString(property.Value, "uav:externalSchema")
+                    is not { Length: > 0 } reference)
+                {
+                    continue;
+                }
+                string local =
+                    LocalName(GetElementString(property.Value, "uav:browseName")) ??
+                    property.Key;
+                catalog.Add(
+                    local,
+                    await schemaResolver.ResolveAndCompareAsync(
+                        reference,
+                        property.Value,
+                        ReadDeclaredDataType(property.Value),
+                        resolutionContext,
+                        options,
+                        cancellationToken).ConfigureAwait(false));
+            }
+            return catalog;
+        }
+
+        /// <summary>
+        /// Resolves the instance declarations of the type a document binds to,
+        /// with the scope <c>uav:includeInherited</c> selects.
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// A document that binds to no type gets
+        /// <see cref="WotDeclarationCatalog.NotBound"/>: there is no type whose
+        /// declarations a member could populate, and Section 6.8's open-content
+        /// rule has no declared set to close against, so both are silent rather
+        /// than unevaluable.
+        /// </para>
+        /// <para>
+        /// <c>uav:includeInherited: false</c> narrows the question to the
+        /// declarations the bound type states itself. Absent or <c>true</c>, the
+        /// effective closure applies, which is what OPC 10000-3 means by the
+        /// declarations of a type: an instance carries the ones its type
+        /// inherits just as surely as the ones it states.
+        /// </para>
+        /// </remarks>
+        private static async ValueTask<WotDeclarationCatalog> PreresolveDeclarationsAsync(
+            WotDocument document,
+            WotTypeBinding? typeBinding,
+            IWotNodeResolver? nodeResolver,
+            CancellationToken cancellationToken)
+        {
+            if (typeBinding is not { Outcome: WotTypeBindingOutcome.Bound, NodeId: { } typeNodeId })
+            {
+                return WotDeclarationCatalog.NotBound;
+            }
+
+            WotDeclarationScope scope = ReadIncludeInherited(document) == false
+                ? WotDeclarationScope.Direct
+                : WotDeclarationScope.Effective;
+            bool offered = OffersDeclarations(nodeResolver);
+            WotTypeDeclarationSet? set = nodeResolver is IWotTypeDeclarationResolver capability
+                ? await capability
+                    .ResolveDeclarationsAsync(typeNodeId, scope, cancellationToken)
+                    .ConfigureAwait(false)
+                : null;
+            return WotDeclarationCatalog.Create(typeNodeId, scope, set, offered);
+        }
+
+        /// <summary>
+        /// Gets whether any part of the local context reports declarations.
+        /// </summary>
+        private static bool OffersDeclarations(IWotNodeResolver? nodeResolver)
+        {
+            return nodeResolver switch
+            {
+                WotCompositeNodeResolver composite => composite.OffersDeclarations(),
+                IWotTypeDeclarationResolver => true,
+                _ => false
+            };
         }
 
         /// <summary>
@@ -477,10 +654,14 @@ namespace Opc.Ua.Wot
                 SanitizeName(document.Title) ?? "Thing";
 
             // An authored uav:id is already the portable form; otherwise the
-            // conversion generates "ns=1;s=<root>" against a namespace table
-            // whose index 1 is the model URI.
+            // conversion generates the Annex G.1 identity against a namespace
+            // table whose index 1 is the model URI, and this derives the same
+            // one from the same two inputs.
             nodeId = GetUavString(document, "id") ??
-                "nsu=" + namespaceUri + ";s=" + browseName;
+                WotPortableIdentity.GenerateNodeId(
+                    namespaceUri,
+                    new ArrayOf<WotBrowsePathElement>(
+                        [new WotBrowsePathElement(namespaceUri, browseName)]));
             return true;
         }
 
@@ -558,22 +739,6 @@ namespace Opc.Ua.Wot
             return true;
         }
 
-        private static bool TryDescribeProjectionRoot(WotDocument document, out string nodeId)
-        {
-            nodeId = string.Empty;
-            if (document.Kind is not (WotDocumentKind.ThingModel or WotDocumentKind.ThingDescription))
-            {
-                return false;
-            }
-
-            string namespaceUri = DeriveModelUri(document);
-            string browseName = LocalName(GetUavString(document, "browseName")) ??
-                SanitizeName(document.Title) ?? "Thing";
-            nodeId = GetUavString(document, "id") ??
-                "nsu=" + namespaceUri + ";s=" + browseName;
-            return true;
-        }
-
         private static UANodeSet? ToNodeSetCore(
             WotDocument document,
             WotNodeSetConverterOptions? options,
@@ -584,7 +749,9 @@ namespace Opc.Ua.Wot
             WotTypeBinding? typeBinding = null,
             WotParentPlacement? parentPlacement = null,
             WotEventSelectionCatalog? eventSelections = null,
-            bool eventSelectionsResolved = false)
+            bool eventSelectionsResolved = false,
+            WotDeclarationCatalog? declarations = null,
+            WotExternalSchemaCatalog? externalSchemas = null)
         {
             options ??= new WotNodeSetConverterOptions();
             options.Validate();
@@ -641,7 +808,9 @@ namespace Opc.Ua.Wot
                     typeBinding,
                     parentPlacement,
                     eventSelections,
-                    eventSelectionsResolved);
+                    eventSelectionsResolved,
+                    declarations,
+                    externalSchemas);
             if (synthesized is not null)
             {
                 WotJsonResidue.Replace(synthesized, document, options, diagnostics);
@@ -936,7 +1105,7 @@ namespace Opc.Ua.Wot
             string local = LocalName(GetElementString(affordance, "uav:browseName")) ?? key;
             string? authoredNodeId = GetElementString(affordance, "uav:id");
             string expectedNodeId = authoredNodeId is null
-                ? GenerateNodeId(rootLocal + "/" + local)
+                ? GenerateMemberNodeId(DeriveModelUri(document), rootLocal, local)
                 : ToNodeSetNodeId(authoredNodeId, identityContext, []);
             if (authoredNodeId is not null)
             {
@@ -972,7 +1141,9 @@ namespace Opc.Ua.Wot
             WotTypeBinding? typeBinding,
             WotParentPlacement? parentPlacement,
             WotEventSelectionCatalog? eventSelections = null,
-            bool eventSelectionsResolved = false)
+            bool eventSelectionsResolved = false,
+            WotDeclarationCatalog? declarations = null,
+            WotExternalSchemaCatalog? externalSchemas = null)
         {
             WotDocumentKind kind = document.Kind;
             if (kind == WotDocumentKind.Unknown)
@@ -993,7 +1164,6 @@ namespace Opc.Ua.Wot
             // diagnosed; the exact uav:nodeSet envelope and uav:nodes projection
             // are never reached here and keep their own namespace indices.
             ValidatePortableIdentity(document, diagnostics);
-            ValidateEventAnnotations(document, diagnostics);
             ValidateModelConceptNames(document, diagnostics);
             ValidateModelVocabulary(document, diagnostics);
             ValidateBindingConformance(document, options, diagnostics);
@@ -1004,7 +1174,6 @@ namespace Opc.Ua.Wot
             string rootLocal = LocalName(GetUavString(document, "browseName")) ??
                 SanitizeName(document.Title) ?? "Thing";
             string? authoredRootId = GetUavString(document, "id");
-            string rootNodeId = GenerateNodeId(rootLocal);
 
             var nodeSet = new UANodeSet
             {
@@ -1014,6 +1183,7 @@ namespace Opc.Ua.Wot
                     new ModelTableEntry { ModelUri = modelUri }
                 ]
             };
+            string rootNodeId = GenerateRootNodeId(nodeSet, rootLocal);
             if (authoredRootId is not null)
             {
                 rootNodeId = ToNodeSetNodeId(authoredRootId, nodeSet, diagnostics);
@@ -1140,7 +1310,7 @@ namespace Opc.Ua.Wot
                 SynthesizeProperty(
                     document, nodeSet, property.Key, property.Value, rootLocal,
                     rootNodeId, isThingModel, declaredLocale,
-                    items, rootReferences, propertyNodeIds, diagnostics);
+                    items, rootReferences, propertyNodeIds, externalSchemas, diagnostics);
             }
 
             // Sections 6.4 and 6.4.1 relate two affordances - the annotated one
@@ -1173,6 +1343,15 @@ namespace Opc.Ua.Wot
                     eventSelections);
             }
 
+            // Section 5.2.1: every affordance is now a Node, so a member that
+            // names an instance declaration of the bound type can be matched
+            // against it and populate it rather than stand beside it. The pass
+            // runs before the links are synthesized so the References it
+            // rewrites are the ones the affordance passes created.
+            MergeInstanceDeclarations(
+                document, nodeSet, items, rootReferences, rootNodeId,
+                declarations, diagnostics);
+
             // A ReferenceType relation whose target is also listed under
             // uav:hasComponent / uav:componentOf pins the exact subtype of that
             // component (WoT Binding Section 5.3). Collect those pins once so the
@@ -1198,10 +1377,12 @@ namespace Opc.Ua.Wot
 
             rootNode.References = [.. rootReferences];
             items.Insert(0, rootNode);
+            var nestedOnly = new HashSet<string>(StringComparer.Ordinal);
             Dictionary<string, string> dataTypeIdentities =
-                SynthesizeDataTypeDefinitions(document, nodeSet, items, diagnostics);
+                SynthesizeDataTypeDefinitions(document, nodeSet, items, nestedOnly, diagnostics);
             SynthesizeInferredDataTypes(
                 document, dataTypeIdentities, nodeSet, items, diagnostics);
+            ValidateNestedOnlySelection(nestedOnly, items, diagnostics);
             nodeSet.Items = [.. items];
             return nodeSet;
         }
@@ -1218,12 +1399,13 @@ namespace Opc.Ua.Wot
             List<UANode> items,
             List<Reference> rootReferences,
             Dictionary<string, string> propertyNodeIds,
+            WotExternalSchemaCatalog? externalSchemas,
             List<WotDiagnostic> diagnostics)
         {
             string local = LocalName(GetElementString(schema, "uav:browseName")) ?? key;
             string? authoredNodeId = GetElementString(schema, "uav:id");
             string nodeId = authoredNodeId is null
-                ? GenerateNodeId(rootLocal + "/" + local)
+                ? GenerateMemberNodeId(nodeSet, rootLocal, local)
                 : ToNodeSetNodeId(authoredNodeId, nodeSet, diagnostics);
             string? authoredBrowseName = GetElementString(schema, "uav:browseName");
             var variable = new UAVariable
@@ -1245,7 +1427,7 @@ namespace Opc.Ua.Wot
             // ArrayDimensions, and OPC 10000-3 tells five ranks apart that a
             // json type cannot.
             variable.ValueRank = ReadValueRank(schema);
-            variable.ArrayDimensions = ReadArrayDimensions(schema);
+            variable.ArrayDimensions = ReadArrayDimensions(schema, local, diagnostics);
             variable.DisplayName = ReadTitle(schema, declaredLocale);
             variable.Description = ReadDescription(schema, declaredLocale);
 
@@ -1288,7 +1470,7 @@ namespace Opc.Ua.Wot
             variable.References = [.. references];
             variable.Value ??= BuildVariableValue(schema, variable.DataType);
 
-            ReportUnsupportedSchema(schema, nodeId, diagnostics);
+            ReportUnsupportedSchema(schema, nodeId, local, externalSchemas, diagnostics);
 
             items.Add(variable);
             propertyNodeIds[key] = nodeId;
@@ -1534,7 +1716,7 @@ namespace Opc.Ua.Wot
                 : LocalName(GetElementString(action, "uav:browseName")) ?? key;
             string? authoredNodeId = GetElementString(action, "uav:id");
             string nodeId = authoredNodeId is null
-                ? GenerateNodeId(rootLocal + "/" + local)
+                ? GenerateMemberNodeId(nodeSet, rootLocal, local)
                 : ToNodeSetNodeId(authoredNodeId, nodeSet, diagnostics);
             string? authoredBrowseName = GetElementString(action, "uav:browseName");
             var method = new UAMethod
@@ -1623,7 +1805,7 @@ namespace Opc.Ua.Wot
                 eventAffordance,
                 "uav:id");
             string nodeId = authoredNodeId is null
-                ? GenerateNodeId(rootLocal + "/" + local)
+                ? GenerateMemberNodeId(nodeSet, rootLocal, local)
                 : ToNodeSetNodeId(authoredNodeId, nodeSet, diagnostics);
             string? authoredBrowseName = GetElementString(
                 eventAffordance,
@@ -1656,14 +1838,7 @@ namespace Opc.Ua.Wot
 
             items.Add(eventType);
 
-            // Section 6.6: an authored default severity is the value of the
-            // EventType's own Severity Property, so it materializes as that
-            // Property rather than being carried as opaque metadata. An
-            // out-of-range value is reported by ValidateSeverity and left to
-            // preservation; nothing is clamped here.
             var eventReferences = new List<Reference>(eventType.References);
-            SynthesizeEventSeverity(
-                eventAffordance, nodeId, local, rootLocal, items, eventReferences);
 
             // Section 13.3: the members of the notification's data object that
             // the projected type adds are fields of that type. The ones it
@@ -2706,16 +2881,19 @@ namespace Opc.Ua.Wot
         private static void ReportUnsupportedSchema(
             JsonElement schema,
             string nodeId,
+            string local,
+            WotExternalSchemaCatalog? externalSchemas,
             List<WotDiagnostic> diagnostics)
         {
             if (schema.TryGetProperty("uav:externalSchema", out JsonElement external) &&
                 external.ValueKind == JsonValueKind.String)
             {
-                diagnostics.Add(new WotDiagnostic(
-                    WotDiagnosticSeverity.Warning,
-                    WotDiagnosticCode.UnsupportedSchema,
-                    $"The property references an external schema '{external.GetString()}' that was not inlined.",
-                    WotLocation.FromNode(nodeId)));
+                ReportExternalSchema(
+                    external.GetString()!,
+                    nodeId,
+                    local,
+                    externalSchemas,
+                    diagnostics);
                 return;
             }
             string? type = GetElementString(schema, "type");
@@ -2727,6 +2905,74 @@ namespace Opc.Ua.Wot
                     WotDiagnosticCode.UnsupportedSchema,
                     $"The '{type}' DataSchema was mapped to a generic DataType; a custom DataType may be required.",
                     WotLocation.FromNode(nodeId)));
+            }
+        }
+
+        /// <summary>
+        /// Reports what resolving an <c>uav:externalSchema</c> established.
+        /// </summary>
+        /// <remarks>
+        /// A conversion configured with no provider never fetched the
+        /// reference, so it is reported exactly as it was before providers
+        /// existed: carried, not inlined. A conversion that did resolve it
+        /// reports whether the external description agrees with the canonical
+        /// one - and only reports it, because the canonical DataSchema and the
+        /// DataType definition remain the statement of what the Variable is.
+        /// </remarks>
+        private static void ReportExternalSchema(
+            string reference,
+            string nodeId,
+            string local,
+            WotExternalSchemaCatalog? externalSchemas,
+            List<WotDiagnostic> diagnostics)
+        {
+            WotExternalSchemaResult? result =
+                externalSchemas is not null &&
+                externalSchemas.TryGet(local, out WotExternalSchemaResult found)
+                    ? found
+                    : null;
+            if (result is null || result.Outcome == WotExternalSchemaOutcome.NotEvaluated)
+            {
+                diagnostics.Add(new WotDiagnostic(
+                    WotDiagnosticSeverity.Warning,
+                    WotDiagnosticCode.UnsupportedSchema,
+                    $"The property references an external schema '{reference}' that was not inlined.",
+                    WotLocation.FromNode(nodeId)));
+                return;
+            }
+
+            // The result states the reason it exists for, so the four arms
+            // below differ only in how serious the outcome is.
+            switch (result.Outcome)
+            {
+                case WotExternalSchemaOutcome.Compatible:
+                    diagnostics.Add(new WotDiagnostic(
+                        WotDiagnosticSeverity.Info,
+                        WotDiagnosticCode.UnsupportedSchema,
+                        result.Reason,
+                        WotLocation.FromNode(nodeId)));
+                    return;
+                case WotExternalSchemaOutcome.Incompatible:
+                    diagnostics.Add(new WotDiagnostic(
+                        WotDiagnosticSeverity.Error,
+                        WotDiagnosticCode.ExternalSchemaIncompatible,
+                        result.Reason,
+                        WotLocation.FromNode(nodeId)));
+                    return;
+                case WotExternalSchemaOutcome.Ambiguous:
+                    diagnostics.Add(new WotDiagnostic(
+                        WotDiagnosticSeverity.Warning,
+                        WotDiagnosticCode.ExternalSchemaAmbiguous,
+                        result.Reason,
+                        WotLocation.FromNode(nodeId)));
+                    return;
+                default:
+                    diagnostics.Add(new WotDiagnostic(
+                        WotDiagnosticSeverity.Warning,
+                        WotDiagnosticCode.ExternalSchemaUnresolved,
+                        result.Reason,
+                        WotLocation.FromNode(nodeId)));
+                    return;
             }
         }
 
@@ -2929,18 +3175,7 @@ namespace Opc.Ua.Wot
         /// </returns>
         private static bool IsSessionLocalNodeId(string nodeId)
         {
-            const string prefix = "ns=";
-            if (!nodeId.StartsWith(prefix, StringComparison.Ordinal))
-            {
-                return false;
-            }
-            int index = prefix.Length;
-            int start = index;
-            while (index < nodeId.Length && nodeId[index] is >= '0' and <= '9')
-            {
-                index++;
-            }
-            return index > start && index < nodeId.Length && nodeId[index] == ';';
+            return WotPortableIdentity.IsSessionLocalNodeId(nodeId);
         }
 
         private static int GetOrAppendNamespaceUri(
@@ -3386,16 +3621,26 @@ namespace Opc.Ua.Wot
             WotDocument document,
             List<WotDiagnostic> diagnostics)
         {
-            ValidatePortableIdentity(document.RootElement, diagnostics);
+            ValidatePortableIdentity(
+                document.RootElement, WotAnchorScope.None, false, diagnostics);
         }
 
         private static void ValidatePortableIdentity(
             JsonElement element,
+            WotAnchorScope outer,
+            bool inSelectClauses,
             List<WotDiagnostic> diagnostics)
         {
             switch (element.ValueKind)
             {
                 case JsonValueKind.Object:
+                    // Section 5.1.4: the scope a member resolves in is the one
+                    // this object states, over the one it inherited.
+                    WotAnchorScope scope = outer.Enter(element);
+                    if (!inSelectClauses)
+                    {
+                        CheckBrowsePath(element, scope, diagnostics);
+                    }
                     foreach (JsonProperty member in element.EnumerateObject())
                     {
                         if (string.Equals(member.Name, "uav:nodeSet", StringComparison.Ordinal) ||
@@ -3405,16 +3650,67 @@ namespace Opc.Ua.Wot
                             continue;
                         }
                         CheckPortableMember(member.Name, member.Value, diagnostics);
-                        ValidatePortableIdentity(member.Value, diagnostics);
+
+                        // A select clause's uav:browsePath is a path within an
+                        // EventType's notification, not a path to a Node: it is
+                        // relative by definition and anchored by the clause's own
+                        // uav:typeDefinitionReference, so the Section 5.1.4
+                        // starting-Node rule does not apply to it.
+                        ValidatePortableIdentity(
+                            member.Value,
+                            scope,
+                            inSelectClauses || string.Equals(
+                                member.Name,
+                                WotEventSelectClauses.Term,
+                                StringComparison.Ordinal),
+                            diagnostics);
                     }
                     break;
                 case JsonValueKind.Array:
                     foreach (JsonElement item in element.EnumerateArray())
                     {
-                        ValidatePortableIdentity(item, diagnostics);
+                        ValidatePortableIdentity(item, outer, inSelectClauses, diagnostics);
                     }
                     break;
             }
+        }
+
+        /// <summary>
+        /// Section 5.1.4: a browse path resolves only where it is absolute or
+        /// its scope states what it is relative to, and only where no element
+        /// uses a numeric NamespaceIndex.
+        /// </summary>
+        /// <remarks>
+        /// The anchor is the nearest enclosing <c>uav:browsePathAnchor</c>, or
+        /// failing that the nearest enclosing <c>uav:id</c>, so a document that
+        /// identifies the Node it describes anchors its own relative paths
+        /// without repeating that identity as an anchor. The predicate is
+        /// <see cref="WotPortableIdentity.IsResolvableBrowsePath"/>, which is
+        /// what the published Section 5.1.4 vectors are run against, so a
+        /// document and a vector cannot disagree about what resolves.
+        /// </remarks>
+        private static void CheckBrowsePath(
+            JsonElement element,
+            WotAnchorScope scope,
+            List<WotDiagnostic> diagnostics)
+        {
+            if (!element.TryGetProperty("uav:browsePath", out JsonElement pathMember) ||
+                pathMember.ValueKind != JsonValueKind.String)
+            {
+                return;
+            }
+            string? path = pathMember.GetString();
+            if (WotPortableIdentity.IsResolvableBrowsePath(path, scope.IsAnchored))
+            {
+                return;
+            }
+            diagnostics.Add(new WotDiagnostic(
+                WotDiagnosticSeverity.Error,
+                WotDiagnosticCode.NonPortableIdentity,
+                $"The browse path '{path}' has no starting Node: a relative path " +
+                "needs a uav:browsePathAnchor or an enclosing uav:id, and no element " +
+                "may use a numeric NamespaceIndex (WoT Binding Section 5.1.4).",
+                new WotLocation(reference: path)));
         }
 
         private static void CheckPortableMember(
@@ -3486,21 +3782,27 @@ namespace Opc.Ua.Wot
                     new WotLocation(reference: value)));
                 return;
             }
-            int marker = value!.IndexOf("ns=", StringComparison.Ordinal);
-            if (marker >= 0 &&
-                marker + 3 < value.Length &&
-                char.IsDigit(value[marker + 3]) &&
-                (marker == 0 || value[marker - 1] is ';' or '='))
+
+            // The same predicate the published Section 5.1.1 vectors are run
+            // against, so a document and a vector cannot disagree about what is
+            // portable. It refuses the session-local ns=<index> form and the
+            // svr= prefix, and a value that names no identifier type at all.
+            if (WotPortableIdentity.IsPortableNodeId(value))
             {
-                diagnostics.Add(new WotDiagnostic(
-                    WotDiagnosticSeverity.Warning,
-                    WotDiagnosticCode.NonPortableIdentity,
-                    $"The portable identity term {term} uses the session-local " +
-                    $"ns=<index> form ('{value}'); a persisted document shall use an " +
-                    "ExpandedNodeId (nsu=<NamespaceUri>;... or namespace-0 i=...) " +
-                    "so it survives a namespace-table reordering (WoT Binding Section 5.1.1).",
-                    new WotLocation(reference: value)));
+                return;
             }
+            diagnostics.Add(new WotDiagnostic(
+                WotDiagnosticSeverity.Warning,
+                WotDiagnosticCode.NonPortableIdentity,
+                $"The portable identity term {term} uses " +
+                (WotPortableIdentity.IsSessionLocalNodeId(value)
+                    ? $"the session-local ns=<index> form ('{value}')"
+                    : $"'{value}', which is not an ExpandedNodeId a persisted document " +
+                        "may carry") +
+                "; a persisted document shall use an ExpandedNodeId " +
+                "(nsu=<NamespaceUri>;... or namespace-0 i=...) so it survives a " +
+                "namespace-table reordering (WoT Binding Section 5.1.1).",
+                new WotLocation(reference: value)));
         }
 
         private static void ValidateModelConceptNames(
@@ -3636,62 +3938,6 @@ namespace Opc.Ua.Wot
             }
         }
 
-        /// <summary>
-        /// Event-annotation consistency (WoT Binding Section 5.2): an event
-        /// affordance annotated <c>@type: uav:eventType</c> shall not set
-        /// <c>uav:isEvent: false</c>; the two forms record the same fact.
-        /// </summary>
-        private static void ValidateEventAnnotations(
-            WotDocument document,
-            List<WotDiagnostic> diagnostics)
-        {
-            foreach (KeyValuePair<string, JsonElement> affordance in document.Events)
-            {
-                JsonElement node = affordance.Value;
-                if (node.ValueKind != JsonValueKind.Object || !HasEventTypeType(node))
-                {
-                    continue;
-                }
-                if (node.TryGetProperty("uav:isEvent", out JsonElement isEvent) &&
-                    isEvent.ValueKind == JsonValueKind.False)
-                {
-                    diagnostics.Add(new WotDiagnostic(
-                        WotDiagnosticSeverity.Error,
-                        WotDiagnosticCode.EventAnnotationConflict,
-                        $"The event affordance '{affordance.Key}' is annotated " +
-                        "@type uav:eventType but sets uav:isEvent: false; the two " +
-                        "forms record the same EventType projection (WoT Binding Section 5.2).",
-                        WotLocation.FromPointer("/events/" + affordance.Key)));
-                }
-            }
-        }
-
-        private static bool HasEventTypeType(JsonElement node)
-        {
-            if (!node.TryGetProperty("@type", out JsonElement type))
-            {
-                return false;
-            }
-            if (type.ValueKind == JsonValueKind.String)
-            {
-                return string.Equals(
-                    type.GetString(), WotVocabulary.EventTypeAnnotation, StringComparison.Ordinal);
-            }
-            if (type.ValueKind == JsonValueKind.Array)
-            {
-                foreach (JsonElement token in type.EnumerateArray())
-                {
-                    if (token.ValueKind == JsonValueKind.String &&
-                        string.Equals(
-                            token.GetString(), WotVocabulary.EventTypeAnnotation, StringComparison.Ordinal))
-                    {
-                        return true;
-                    }
-                }
-            }
-            return false;
-        }
-
         private static string DeriveModelUri(WotDocument document)
         {
             string? uavId = GetUavString(document, "id");
@@ -3738,11 +3984,9 @@ namespace Opc.Ua.Wot
             UANodeSet nodeSet,
             List<WotDiagnostic> diagnostics)
         {
-            string? definitive = GetElementString(schema, "uav:mapToType");
-            if (definitive is not null)
-            {
-                return ToNodeSetNodeId(definitive, nodeSet, diagnostics);
-            }
+            string? mapped = GetElementString(schema, "uav:mapToType") is { } definitive
+                ? ToNodeSetNodeId(definitive, nodeSet, diagnostics)
+                : null;
 
             // A DataSchema that names a DataType definition is bound to that
             // DataType. §6.11 exists so a Variable can carry a custom Structure
@@ -3750,19 +3994,78 @@ namespace Opc.Ua.Wot
             // built-in the definition was written to replace.
             string? defined = ResolveSchemaDataTypeDefinition(
                 document, schema, nodeSet, diagnostics);
-            if (defined is not null)
+            string? annotated = GetElementString(schema, "uav:dataTypeId") is { } id
+                ? ToNodeSetNodeId(id, nodeSet, diagnostics)
+                : null;
+
+            ReportDataTypeDisagreement(mapped, defined, annotated, schema, diagnostics);
+
+            return mapped ??
+                defined ??
+                annotated ??
+                WotVocabulary.MapJsonTypeToDataType(
+                    GetElementString(schema, "type"),
+                    GetElementString(schema, "contentEncoding"),
+                    GetElementString(schema, "format"));
+        }
+
+        /// <summary>
+        /// Reports two definitive DataType statements that name different
+        /// types.
+        /// </summary>
+        /// <remarks>
+        /// The three definitive channels are ordered - <c>uav:mapToType</c>
+        /// outranks an authored DataType definition, which outranks
+        /// <c>uav:dataTypeId</c>, which outranks what the json type implies -
+        /// so a reader always has one answer. The order exists to settle which
+        /// statement is read, not to excuse a document that makes two
+        /// different ones: silently taking the higher-ranked type would leave a
+        /// Variable typed against a statement the author also contradicted, and
+        /// the contradiction would only surface where a value failed to
+        /// encode. Inference is deliberately excluded, because being overridden
+        /// is exactly what the lowest rank means.
+        /// </remarks>
+        private static void ReportDataTypeDisagreement(
+            string? mapped,
+            string? defined,
+            string? annotated,
+            JsonElement schema,
+            List<WotDiagnostic> diagnostics)
+        {
+            if (Disagrees(mapped, defined))
             {
-                return defined;
+                Report("uav:mapToType", mapped!, "uav:dataTypeDefinition", defined!);
             }
-            string? annotated = GetElementString(schema, "uav:dataTypeId");
-            if (annotated is not null)
+            if (Disagrees(mapped, annotated))
             {
-                return ToNodeSetNodeId(annotated, nodeSet, diagnostics);
+                Report("uav:mapToType", mapped!, "uav:dataTypeId", annotated!);
             }
-            return WotVocabulary.MapJsonTypeToDataType(
-                GetElementString(schema, "type"),
-                GetElementString(schema, "contentEncoding"),
-                GetElementString(schema, "format"));
+            if (Disagrees(defined, annotated))
+            {
+                Report("uav:dataTypeDefinition", defined!, "uav:dataTypeId", annotated!);
+            }
+
+            static bool Disagrees(string? left, string? right)
+            {
+                return left is not null &&
+                    right is not null &&
+                    !string.Equals(left, right, StringComparison.Ordinal);
+            }
+
+            void Report(string leftTerm, string left, string rightTerm, string right)
+            {
+                diagnostics.Add(new WotDiagnostic(
+                    WotDiagnosticSeverity.Error,
+                    WotDiagnosticCode.ValidationError,
+                    $"A DataSchema states {leftTerm} '{left}' and {rightTerm} " +
+                    $"'{right}'. Both are definitive statements of the DataType, " +
+                    "so a document that makes two different ones is contradicting " +
+                    "itself rather than choosing; the ranking between them settles " +
+                    "which is read, not which is true.",
+                    new WotLocation(
+                        reference: GetElementString(schema, "uav:browseName") ??
+                            GetElementString(schema, "title"))));
+            }
         }
 
         /// <summary>

@@ -711,6 +711,27 @@ namespace Opc.Ua.WotCon.Tests.Registry
         }
 
         [Test]
+        public void DeletePolicyIsAnOptionalCapability()
+        {
+            MethodInfo[] baseDeleteMethods = typeof(IWotRegistryService)
+                .GetMethods()
+                .Where(method => method.Name == nameof(IWotRegistryService.DeleteResourceAsync))
+                .ToArray();
+            MethodInfo? policyDelete = typeof(IWotDeletePolicyRegistryService).GetMethod(
+                nameof(IWotDeletePolicyRegistryService.DeleteResourceAsync));
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(baseDeleteMethods, Has.Length.EqualTo(1));
+                Assert.That(policyDelete, Is.Not.Null);
+                Assert.That(
+                    typeof(IWotDeletePolicyRegistryService)
+                        .IsAssignableFrom(typeof(WotRegistryService)),
+                    Is.True);
+            });
+        }
+
+        [Test]
         public void ExpectedVersionIncarnationRemainsInternal()
         {
             Assert.Multiple(() =>

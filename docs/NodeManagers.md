@@ -113,7 +113,7 @@ The default configuration and diagnostics manager is a single object. `MainNodeM
 
 As a diagnostics manager, it loads the standard diagnostics and server-support nodes generated for the stack, manages session and subscription diagnostics, diagnostics enable/disable state, aggregate functions, event notifier updates, and the well-known OPC UA Part 17 alias-name methods that dispatch through the server-wide alias-name registry. It registers namespace URIs for the OPC UA namespace and the diagnostics namespace.
 
-As a configuration manager, the same instance exposes push certificate-management and server-configuration functionality from OPC UA Part 12. It owns the server-configuration methods and state that interact with trust lists, certificate groups, transaction coordination, pending regenerated keys, endpoint and listener registries, and post-`ApplyChanges` effects.
+As a configuration manager, the same instance exposes push certificate-management and server-configuration functionality from OPC UA Part 12. It owns the server-configuration methods and state that interact with trust lists, certificate groups, transaction coordination, pending regenerated keys, endpoint and listener registries, and post-`ApplyChanges` effects. The class is a partial split by concern (`ConfigurationNodeManager.PushMethods.cs`, `.PushValidation.cs`, `.CertificateSlots.cs`, `.ApplyChanges.cs`, `.TrustMaterial.cs`, `.CertificateAlarms.cs`, `.NamespaceMetadata.cs`) over one core file, and delegates namespace-metadata tracking and alarm scheduling to the internal `NamespaceMetadataRegistry` and `CertificateAlarmScheduler` collaborators.
 
 ### Managers supplied by server features
 
@@ -379,6 +379,25 @@ factories while it starts.
 services.AddOpcUa()
     .AddServer(o => { /* … */ })
     .AddNodeManager(sp => new MyNodeManager(sp.GetRequiredService<ITelemetryContext>()));
+```
+
+For a one-shot fluent node manager, the callback creates and places the
+complete contributed graph. The hosting API does not add an implicit root:
+
+```csharp
+const string namespaceUri = "urn:example:line";
+
+services.AddOpcUa()
+    .AddServer(o => { /* … */ })
+    .AddNodeManager(namespaceUri, builder =>
+    {
+        ushort namespaceIndex =
+            (ushort)builder.Context.NamespaceUris.GetIndex(namespaceUri);
+        builder.CreateInstance(
+                new QualifiedName("Line", namespaceIndex),
+                parent => new FolderState(parent))
+            .Configure(node => node.UnderObjectsFolder());
+    });
 ```
 
 ### Runtime registration
@@ -1829,12 +1848,16 @@ await AddPredefinedNodeAsync(SystemContext, pump, cancellationToken);
 The generated factory intentionally returns a graph whose create lifecycle
 has not completed. Node manager registration completes
 `OnBeforeCreate`/`OnAfterCreate` and clears change masks before the graph is
-indexed. The asynchronous registration path performs any required NodeId
-rebasing first, so lifecycle callbacks see the identifiers which enter the
-address space. Synchronous predefined-node registration preserves the
-caller-assigned NodeIds and expects them to be ready. The behavior hook then
-receives a created node. `NodeState.IsCreated` reports whether an individual
-node has completed that lifecycle.
+indexed. Asynchronous predefined-node registration repairs typed instance
+subtrees which still carry null, foreign-namespace, or
+type-declaration-colliding NodeIds first, so lifecycle callbacks see the
+identifiers which enter the address space. NodeIds explicitly assigned in a
+namespace owned by the manager are preserved. Synchronous registration keeps
+the caller's identifiers; fluent helpers which materialise typed subtrees,
+such as the state-machine creators, assign their instance child NodeIds before
+registration. The behavior hook then receives a created node.
+`NodeState.IsCreated` reports whether an individual node has completed that
+lifecycle.
 
 Most callers should configure the graph and then register it as shown above.
 If code must read state established by `OnAfterCreate`, or write state or
@@ -1864,8 +1887,13 @@ Notes:
   automatically.
 * Assignment only happens when the context carries an
   `ISystemContext.NodeIdFactory`. `AsyncCustomNodeManager` supplies one
-  that allocates from the manager's namespace; override `New` to derive
-  ids from the parent chain instead.
+  that allocates null IDs in the manager's default namespace. Registration
+  selectively retries descendants when an asynchronously registered,
+  manager-owned instance subtree still carries foreign declaration IDs, while
+  preserving explicitly assigned IDs in an owned namespace and well-known
+  namespace-zero roots. Synchronous creators must assign typed child IDs before
+  registration. Override `New` only when the address space needs a different
+  stable naming strategy, such as deriving IDs from the parent chain.
 * **A node copy never assigns.** `NodeState.Create(context, source)`
   initialises each child from its source right after creating it, which
   overwrites any NodeId minted along the way — so minting one would only

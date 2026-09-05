@@ -50,6 +50,7 @@ namespace Opc.Ua.Server.Hosting
 
         /// <summary>
         /// Registers a fluent node manager built from a namespace URI and configuration callback.
+        /// The callback creates and places every node; no implicit root node is added.
         /// </summary>
         /// <param name="namespaceUri">Namespace URI owned by the fluent node manager.</param>
         /// <param name="build">Callback that wires fluent nodes, alarms, state machines and simulations.</param>

@@ -493,7 +493,7 @@ namespace Opc.Ua.Types.Tests.Wot
                 "{\"uav\":\"http://opcfoundation.org/UA/WoT-Binding/\"}]," +
                 "\"@type\":[\"tm:ThingModel\",\"uav:objectType\"]," +
                 "\"title\":\"T\"," +
-                "\"events\":{\"alarm\":{\"uav:isEvent\":true,\"uav:browseName\":\"1:Alarm\"}}}");
+                "\"events\":{\"alarm\":{\"uav:browseName\":\"1:Alarm\"}}}");
 
             using WotDocument document = WotDocument.Parse(json);
             WotConversionResult<UANodeSet> result = WotNodeSetConverter.ToNodeSetResult(document);
@@ -820,7 +820,7 @@ namespace Opc.Ua.Types.Tests.Wot
         }
 
         [Test]
-        public void ToNodeSetReportsEventAnnotationConflict()
+        public void ToNodeSetTreatsARetiredIsEventFlagAsResidue()
         {
             byte[] json = WotTestData.Utf8(
                 "{\"@context\":[\"https://www.w3.org/2022/wot/td/v1.1\"," +
@@ -836,8 +836,9 @@ namespace Opc.Ua.Types.Tests.Wot
 
             Assert.That(
                 result.Diagnostics.Any(d => d.Code == WotDiagnosticCode.EventAnnotationConflict),
-                Is.True,
-                "An event affordance with @type uav:eventType and uav:isEvent:false should produce EventAnnotationConflict.");
+                Is.False,
+                "WoT Binding 1.1 defines no uav:isEvent term, so it can contradict nothing.");
+            Assert.That(result.HasErrors, Is.False);
         }
 
         [Test]
@@ -1282,7 +1283,7 @@ namespace Opc.Ua.Types.Tests.Wot
         }
 
         [Test]
-        public void ToNodeSetEventAnnotationConflictDetectedWhenTypeIsArray()
+        public void ToNodeSetTreatsARetiredIsEventFlagAsResidueWhenTypeIsArray()
         {
             byte[] json = WotTestData.Utf8(
                 "{\"@context\":[\"https://www.w3.org/2022/wot/td/v1.1\"," +
@@ -1298,8 +1299,8 @@ namespace Opc.Ua.Types.Tests.Wot
 
             Assert.That(
                 result.Diagnostics.Any(d => d.Code == WotDiagnosticCode.EventAnnotationConflict),
-                Is.True,
-                "An event with @type array containing uav:eventType and uav:isEvent:false should produce EventAnnotationConflict.");
+                Is.False,
+                "WoT Binding 1.1 defines no uav:isEvent term, so it can contradict nothing.");
         }
 
         [Test]
@@ -1427,7 +1428,7 @@ namespace Opc.Ua.Types.Tests.Wot
                 "\"@type\":[\"tm:ThingModel\",\"uav:objectType\"]," +
                 "\"title\":\"T\"," +
                 "\"events\":{" +
-                "\"alarm\":{\"title\":\"High Temp Alarm\",\"uav:isEvent\":true}" +
+                "\"alarm\":{\"title\":\"High Temp Alarm\"}" +
                 "}}");
 
             using WotDocument document = WotDocument.Parse(json);
