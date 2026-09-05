@@ -779,7 +779,7 @@ namespace Opc.Ua.WotCon.Server.Registry
                 : NormalizeSegment(request.GroupId!, nameof(request.GroupId));
             string? explicitVersionId = string.IsNullOrEmpty(request.VersionId)
                 ? null
-                : ValidateExplicitVersionId(request.VersionId, nameof(request.VersionId));
+                : request.VersionId;
             string contentType = request.ContentType ?? string.Empty;
             string format = request.Format ?? string.Empty;
 
@@ -895,20 +895,23 @@ namespace Opc.Ua.WotCon.Server.Registry
                 {
                     versionId = explicitVersionId;
                     current = existing?.FindVersion(versionId);
-                    if (current is null &&
-                        existing?.Versions.Any(version => string.Equals(
-                            version.VersionId,
-                            versionId,
-                            StringComparison.OrdinalIgnoreCase)) == true)
+                    if (current is null)
                     {
-                        throw new ServiceResultException(
-                            StatusCodes.BadNodeIdExists,
-                            $"Version '{versionId}' differs only by case from an " +
-                            "existing sibling Version.");
+                        ValidateExplicitVersionId(versionId, nameof(request.VersionId));
+                        if (existing?.Versions.Any(version => string.Equals(
+                                version.VersionId,
+                                versionId,
+                                StringComparison.OrdinalIgnoreCase)) == true)
+                        {
+                            throw new ServiceResultException(
+                                StatusCodes.BadNodeIdExists,
+                                $"Version '{versionId}' differs only by case from an " +
+                                "existing sibling Version.");
+                        }
                     }
                 }
-                if (request.ExpectedVersionSnapshot is not null &&
-                    !ReferenceEquals(current, request.ExpectedVersionSnapshot))
+                if (request.ExpectedVersionIncarnation is { } expectedIncarnation &&
+                    current?.IncarnationId != expectedIncarnation)
                 {
                     return Rejected(
                         snapshot.Generation,
@@ -1918,12 +1921,9 @@ namespace Opc.Ua.WotCon.Server.Registry
                     .ToImmutableArray();
                 if (committedVersions.IsEmpty)
                 {
-                    return await DeleteResourceLockedAsync(
-                            snapshot,
-                            group,
-                            resource,
-                            cancellationToken)
-                        .ConfigureAwait(false);
+                    return Rejected(
+                        snapshot.Generation,
+                        "Deleting the last committed Version would leave only pending Versions.");
                 }
                 WotResourceVersion? currentDefault = versions.FirstOrDefault(candidate =>
                     candidate.HasContent &&
@@ -1931,19 +1931,25 @@ namespace Opc.Ua.WotCon.Server.Registry
                         candidate.VersionId,
                         resource.DefaultVersionId,
                         StringComparison.Ordinal));
-                bool defaultChanged = currentDefault is null;
                 WotResourceVersion selectedDefault =
                     currentDefault ?? committedVersions[^1];
                 string defaultVersionId = selectedDefault.VersionId;
-                string desiredVersionId = defaultChanged ||
-                    versions.All(candidate =>
-                        !candidate.HasContent ||
-                        !string.Equals(
-                            candidate.VersionId,
-                            resource.DesiredVersionId,
-                            StringComparison.Ordinal))
-                            ? defaultVersionId
-                            : resource.DesiredVersionId!;
+                WotResourceVersion? survivingDesired = versions.FirstOrDefault(candidate =>
+                    candidate.HasContent &&
+                    string.Equals(
+                        candidate.VersionId,
+                        resource.DesiredVersionId,
+                        StringComparison.Ordinal));
+                string desiredVersionId =
+                    survivingDesired?.VersionId ?? defaultVersionId;
+                WotResourceVersion selectedVersion =
+                    survivingDesired ?? selectedDefault;
+                string? previousSelectedVersionId =
+                    resource.DesiredVersionId ?? resource.DefaultVersionId;
+                bool selectedVersionChanged = !string.Equals(
+                    previousSelectedVersionId,
+                    selectedVersion.VersionId,
+                    StringComparison.Ordinal);
                 bool activeVersionDeleted = string.Equals(
                     resource.ActiveVersionId,
                     version.VersionId,
@@ -1953,25 +1959,26 @@ namespace Opc.Ua.WotCon.Server.Registry
                         versions: versions,
                         defaultVersionId: defaultVersionId,
                         desiredVersionId: desiredVersionId,
-                        loadState: defaultChanged || activeVersionDeleted
+                        loadState: selectedVersionChanged || activeVersionDeleted
                             ? WoTLoadStateEnum.Unloaded
                             : resource.LoadState,
-                        validation: defaultChanged
-                            ? selectedDefault.Validation
+                        validation: selectedVersionChanged
+                            ? selectedVersion.Validation
                             : resource.Validation,
-                        diagnostics: defaultChanged ? [] : resource.Diagnostics,
+                        diagnostics: selectedVersionChanged ? [] : resource.Diagnostics,
                         epoch: metaEpoch,
                         materializedNodeCount: activeVersionDeleted
                             ? 0
                             : resource.MaterializedNodeCount,
                         clearActiveVersion: activeVersionDeleted,
-                        clearValidation: defaultChanged && selectedDefault.Validation is null,
+                        clearValidation: selectedVersionChanged &&
+                            selectedVersion.Validation is null,
                         clearRootNodeId: activeVersionDeleted);
-                if (defaultChanged)
+                if (selectedVersionChanged)
                 {
                     resultResource = resultResource.WithSelectedVersionMetadata(
-                        selectedDefault.DocumentId,
-                        selectedDefault.Title);
+                        selectedVersion.DocumentId,
+                        selectedVersion.Title);
                 }
                 resultResource = resultResource
                     .WithMeta(metaEpoch, modifiedAt: DateTime.UtcNow);

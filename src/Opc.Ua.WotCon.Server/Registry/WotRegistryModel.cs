@@ -183,6 +183,11 @@ namespace Opc.Ua.WotCon.Server.Registry
         public string VersionId { get; }
 
         /// <summary>
+        /// Gets the immutable in-process identity of this Version incarnation.
+        /// </summary>
+        internal Guid IncarnationId { get; init; } = Guid.NewGuid();
+
+        /// <summary>
         /// Gets the SHA-256 content digest used as the resource-store key.
         /// </summary>
         public ByteString Digest { get; }
@@ -290,6 +295,7 @@ namespace Opc.Ua.WotCon.Server.Registry
                 CreatedAt,
                 modifiedAt ?? ModifiedAt)
             {
+                IncarnationId = this.IncarnationId,
                 Epoch = epoch ?? Epoch,
                 Labels = labels ?? Labels,
                 HasContent = updatedHasContent,
@@ -316,6 +322,7 @@ namespace Opc.Ua.WotCon.Server.Registry
                 CreatedAt,
                 ModifiedAt)
             {
+                IncarnationId = this.IncarnationId,
                 Epoch = Epoch,
                 Labels = Labels,
                 HasContent = HasContent,

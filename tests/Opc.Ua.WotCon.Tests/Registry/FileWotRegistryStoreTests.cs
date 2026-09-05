@@ -1138,12 +1138,27 @@ namespace Opc.Ua.WotCon.Tests.Registry
                     WotRegistryGroups.ThingDescriptions,
                     "legacy-id")!;
                 Assert.That(loaded.FindVersion(versionId), Is.Not.Null);
+                WotRegistryMutationResult updated = await service.UpsertResourceAsync(
+                    new WotUpsertResourceRequest
+                    {
+                        GroupId = WotRegistryGroups.ThingDescriptions,
+                        ResourceId = "legacy-id",
+                        VersionId = versionId,
+                        ExpectedVersionDigestHex = loaded.FindVersion(versionId)!.DigestHex,
+                        Kind = WoTDocumentKindEnum.ThingDescription,
+                        Content = ByteString.From(
+                            TestMaterialization.Td("urn:legacy-id", "updated"))
+                    });
+                Assert.That(updated.Outcome, Is.EqualTo(WoTOutcomeEnum.Success));
+                WotResource afterUpdate = service.Current.FindResource(
+                    WotRegistryGroups.ThingDescriptions,
+                    "legacy-id")!;
                 await service.AddResourceLabelAsync(
                     WotRegistryGroups.ThingDescriptions,
                     "legacy-id",
                     "roundtrip",
                     "true",
-                    loaded.MetaEpoch);
+                    afterUpdate.MetaEpoch);
             }
 
             using var reloaded = new WotRegistryService(new FileWotRegistryStore(m_root));
@@ -1155,6 +1170,9 @@ namespace Opc.Ua.WotCon.Tests.Registry
             {
                 Assert.That(roundTripped.DefaultVersionId, Is.EqualTo(versionId));
                 Assert.That(roundTripped.FindVersion(versionId), Is.Not.Null);
+                Assert.That(
+                    roundTripped.FindVersion(versionId)!.Title,
+                    Is.EqualTo("urn:legacy-id-updated"));
                 Assert.That(roundTripped.MetaLabels["roundtrip"], Is.EqualTo("true"));
             });
         }

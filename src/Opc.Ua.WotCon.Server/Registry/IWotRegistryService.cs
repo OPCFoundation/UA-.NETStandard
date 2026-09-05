@@ -65,10 +65,10 @@ namespace Opc.Ua.WotCon.Server.Registry
         public string? ExpectedVersionDigestHex { get; set; }
 
         /// <summary>
-        /// Gets or sets the exact immutable Version incarnation observed when an
-        /// internal write handle opened.
+        /// Gets or sets the immutable Version incarnation observed when an internal
+        /// write handle opened.
         /// </summary>
-        internal WotResourceVersion? ExpectedVersionSnapshot { get; set; }
+        internal Guid? ExpectedVersionIncarnation { get; set; }
 
         /// <summary>
         /// Gets or sets the document kind.

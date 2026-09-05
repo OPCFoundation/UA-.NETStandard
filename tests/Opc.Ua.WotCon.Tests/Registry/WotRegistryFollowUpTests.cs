@@ -583,6 +583,21 @@ namespace Opc.Ua.WotCon.Tests.Registry
         }
 
         [Test]
+        public void NewOverlongUpsertVersionIdThrowsBadInvalidArgument()
+        {
+            using var service = new WotRegistryService();
+
+            ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(
+                async () => await service.UpsertResourceAsync(
+                    Request(
+                        "overlong-upsert",
+                        TestMaterialization.Td("urn:overlong-upsert"),
+                        new string('a', 129))))!;
+
+            Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadInvalidArgument));
+        }
+
+        [Test]
         public async Task ServerAssignedVersionIdRejectsSequenceOverflow()
         {
             using var service = new WotRegistryService();
@@ -625,7 +640,7 @@ namespace Opc.Ua.WotCon.Tests.Registry
                 TestMaterialization.Td("urn:stale-delete"),
                 "v1",
                 expectedDigestHex: string.Empty);
-            stale.ExpectedVersionSnapshot = baseline;
+            stale.ExpectedVersionIncarnation = baseline.IncarnationId;
 
             WotRegistryMutationResult result = await service.UpsertResourceAsync(stale);
 
@@ -665,7 +680,7 @@ namespace Opc.Ua.WotCon.Tests.Registry
                 TestMaterialization.Td("urn:stale-aba"),
                 "v1",
                 expectedDigestHex: string.Empty);
-            stale.ExpectedVersionSnapshot = baseline;
+            stale.ExpectedVersionIncarnation = baseline.IncarnationId;
 
             WotRegistryMutationResult result = await service.UpsertResourceAsync(stale);
 
@@ -696,20 +711,60 @@ namespace Opc.Ua.WotCon.Tests.Registry
         }
 
         [Test]
-        public void ExpectedVersionSnapshotRemainsInternal()
+        public void ExpectedVersionIncarnationRemainsInternal()
         {
             Assert.Multiple(() =>
             {
                 Assert.That(
                     typeof(WotUpsertResourceRequest).GetProperty(
-                        "ExpectedVersionSnapshot",
+                        "ExpectedVersionIncarnation",
                         BindingFlags.Public | BindingFlags.Instance),
                     Is.Null);
                 Assert.That(
                     typeof(WotUpsertResourceRequest).GetProperty(
-                        "ExpectedVersionSnapshot",
+                        "ExpectedVersionIncarnation",
                         BindingFlags.NonPublic | BindingFlags.Instance),
                     Is.Not.Null);
+            });
+        }
+
+        [Test]
+        public async Task BenignVersionCopiesPreserveOpenHandleIncarnation()
+        {
+            using var service = new WotRegistryService();
+            byte[] original = TestMaterialization.Td("urn:benign-copy", "first");
+            await service.UpsertResourceAsync(Request("benign-copy", original, "v1"));
+            WotResourceVersion baseline = service.Current.FindResource(
+                WotRegistryGroups.ThingDescriptions,
+                "benign-copy")!.FindVersion("v1")!;
+            await service.AddVersionLabelAsync(
+                WotRegistryGroups.ThingDescriptions,
+                "benign-copy",
+                "v1",
+                "stage",
+                "open");
+            await SetActiveVersionAsync(service, "benign-copy", "v1");
+            WotResourceVersion copied = service.Current.FindResource(
+                WotRegistryGroups.ThingDescriptions,
+                "benign-copy")!.FindVersion("v1")!;
+            WotUpsertResourceRequest close = Request(
+                "benign-copy",
+                TestMaterialization.Td("urn:benign-copy", "second"),
+                "v1",
+                expectedDigestHex: baseline.DigestHex);
+            close.ExpectedVersionIncarnation = baseline.IncarnationId;
+
+            WotRegistryMutationResult result = await service.UpsertResourceAsync(close);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(copied, Is.Not.SameAs(baseline));
+                Assert.That(copied.IncarnationId, Is.EqualTo(baseline.IncarnationId));
+                Assert.That(result.Outcome, Is.EqualTo(WoTOutcomeEnum.Success));
+                Assert.That(service.Current.FindResource(
+                    WotRegistryGroups.ThingDescriptions,
+                    "benign-copy")!.FindVersion("v1")!.IncarnationId,
+                    Is.EqualTo(baseline.IncarnationId));
             });
         }
 
@@ -903,6 +958,18 @@ namespace Opc.Ua.WotCon.Tests.Registry
                 Assert.That(afterRejected.FindVersion("v1"), Is.Not.Null);
                 Assert.That(afterRejected.FindVersion("v2"), Is.Not.Null);
             });
+
+            WotRegistryMutationResult logical = await service.DeleteProjectedEntityAsync(
+                WotRegistryGroups.ThingDescriptions,
+                "epoch-collision",
+                "v1",
+                deleteLogicalResource: true,
+                expectedEpoch: staleVersionEpoch);
+
+            Assert.That(logical.Outcome, Is.EqualTo(WoTOutcomeEnum.Success));
+            Assert.That(service.Current.FindResource(
+                WotRegistryGroups.ThingDescriptions,
+                "epoch-collision"), Is.Null);
         }
 
         [Test]
@@ -939,7 +1006,7 @@ namespace Opc.Ua.WotCon.Tests.Registry
         }
 
         [Test]
-        public async Task DeletingOnlyCommittedVersionAlsoDeletesPendingResource()
+        public async Task DeletingLastCommittedVersionWithPendingIsRejected()
         {
             using var service = new WotRegistryService();
             await CreateCommittedVersionsAsync(service, "delete-pending", "v1");
@@ -961,10 +1028,12 @@ namespace Opc.Ua.WotCon.Tests.Registry
 
             Assert.Multiple(() =>
             {
-                Assert.That(result.Outcome, Is.EqualTo(WoTOutcomeEnum.Success));
-                Assert.That(service.Current.FindResource(
+                Assert.That(result.Outcome, Is.EqualTo(WoTOutcomeEnum.Rejected));
+                WotResource after = service.Current.FindResource(
                     WotRegistryGroups.ThingDescriptions,
-                    "delete-pending"), Is.Null);
+                    "delete-pending")!;
+                Assert.That(after.FindVersion("v1"), Is.Not.Null);
+                Assert.That(after.FindVersion("v2")!.HasContent, Is.False);
             });
         }
 
@@ -1012,6 +1081,71 @@ namespace Opc.Ua.WotCon.Tests.Registry
                 Assert.That(after.Validation, Is.SameAs(expectedValidation));
                 Assert.That(after.FindVersion("v2"), Is.Not.Null);
                 Assert.That(after.FindVersion("v3")!.HasContent, Is.False);
+            });
+        }
+
+        [Test]
+        public async Task DeletingDefaultPreservesSurvivingCommittedDesiredVersion()
+        {
+            var store = new RecordingRegistryStore();
+            using (var service = new WotRegistryService(store))
+            {
+                await CreateCommittedVersionsAsync(
+                    service,
+                    "delete-desired",
+                    "v1",
+                    "v2",
+                    "v3");
+                await SetActiveVersionAsync(service, "delete-desired", "v2");
+                await service.ValidateVersionAsync(
+                    WotRegistryGroups.ThingDescriptions,
+                    "delete-desired",
+                    "v2");
+                var pending = await service.TryCreateVersionAsync(
+                    WotRegistryGroups.ThingDescriptions,
+                    "delete-desired",
+                    "v4",
+                    WoTDocumentKindEnum.ThingDescription);
+                Assert.That(pending, Is.Not.Null);
+                WotRegistrySnapshot snapshot = service.Current;
+                WotResource resource = snapshot.FindResource(
+                    WotRegistryGroups.ThingDescriptions,
+                    "delete-desired")!;
+                WotResourceVersion desired = resource.FindVersion("v2")!;
+                WotResource selected = resource.With(
+                        desiredVersionId: "v2",
+                        validation: desired.Validation)
+                    .WithSelectedVersionMetadata(desired.DocumentId, desired.Title);
+                store.SetSnapshot(ReplaceResource(snapshot, selected));
+            }
+
+            using var reloaded = new WotRegistryService(store);
+            await reloaded.InitializeAsync();
+            WotResource before = reloaded.Current.FindResource(
+                WotRegistryGroups.ThingDescriptions,
+                "delete-desired")!;
+            WotResourceVersion expectedSelected = before.FindVersion("v2")!;
+
+            WotRegistryMutationResult result = await reloaded.DeleteVersionAsync(
+                WotRegistryGroups.ThingDescriptions,
+                "delete-desired",
+                "v1",
+                before.FindVersion("v1")!.Epoch);
+            WotResource after = reloaded.Current.FindResource(
+                WotRegistryGroups.ThingDescriptions,
+                "delete-desired")!;
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(result.Outcome, Is.EqualTo(WoTOutcomeEnum.Success));
+                Assert.That(after.DefaultVersionId, Is.EqualTo("v3"));
+                Assert.That(after.DesiredVersionId, Is.EqualTo("v2"));
+                Assert.That(after.DefaultVersion!.VersionId, Is.EqualTo("v2"));
+                Assert.That(after.LoadState, Is.EqualTo(WoTLoadStateEnum.Active));
+                Assert.That(after.Validation, Is.SameAs(expectedSelected.Validation));
+                Assert.That(after.ThingId, Is.EqualTo(expectedSelected.DocumentId));
+                Assert.That(after.Title, Is.EqualTo(expectedSelected.Title));
+                Assert.That(after.FindVersion("v4")!.HasContent, Is.False);
             });
         }
 

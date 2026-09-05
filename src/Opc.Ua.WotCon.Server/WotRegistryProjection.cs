@@ -311,14 +311,14 @@ namespace Opc.Ua.WotCon.Server
                 m_options.Bounds.MaxDocumentBytes,
                 m_manager.CheckManagementAccess,
                 (key, offset, count, token) => m_registry.ReadContentChunkAsync(key, offset, count, token),
-                (bytes, baseline, baselineVersion, session, token) => CommitDocumentAsync(
+                (bytes, baseline, baselineIncarnation, session, token) => CommitDocumentAsync(
                     groupId,
                     resourceId,
                     versionId,
                     kind,
                     bytes,
                     baseline,
-                    baselineVersion,
+                    baselineIncarnation,
                     token));
         }
 
@@ -424,14 +424,14 @@ namespace Opc.Ua.WotCon.Server
             return ToServiceResult(result);
         }
 
-        private async ValueTask<ServiceResult> CommitDocumentAsync(
+        private async ValueTask<WotResourceCommitResult> CommitDocumentAsync(
             string groupId,
             string resourceId,
             string versionId,
             WoTDocumentKindEnum kind,
             byte[] content,
             string baselineContentKey,
-            WotResourceVersion? baselineVersion,
+            Guid? baselineVersionIncarnation,
             CancellationToken ct)
         {
             var request = new WotUpsertResourceRequest
@@ -440,7 +440,7 @@ namespace Opc.Ua.WotCon.Server
                 ResourceId = resourceId,
                 VersionId = versionId,
                 ExpectedVersionDigestHex = baselineContentKey,
-                ExpectedVersionSnapshot = baselineVersion,
+                ExpectedVersionIncarnation = baselineVersionIncarnation,
                 Kind = kind,
                 Content = ByteString.From(content),
                 ContentType = kind == WoTDocumentKindEnum.ThingModel
@@ -451,9 +451,19 @@ namespace Opc.Ua.WotCon.Server
             };
             WotRegistryMutationResult result = await m_registry
                 .UpsertResourceAsync(request, ct).ConfigureAwait(false);
-            return result.Outcome is WoTOutcomeEnum.Rejected or WoTOutcomeEnum.Failed
+            ServiceResult serviceResult =
+                result.Outcome is WoTOutcomeEnum.Rejected or WoTOutcomeEnum.Failed
                 ? ServiceResult.Create(StatusCodes.BadInvalidState, result.Message)
                 : ServiceResult.Good;
+            WotResource? committedResource = ServiceResult.IsGood(serviceResult)
+                ? result.Resource ?? m_registry.Current.FindResource(groupId, resourceId)
+                : null;
+            string? committedVersionId = string.IsNullOrEmpty(versionId)
+                ? committedResource?.DesiredVersionId ?? committedResource?.DefaultVersionId
+                : versionId;
+            WotResourceVersion? committedVersion =
+                committedResource?.FindVersion(committedVersionId);
+            return new WotResourceCommitResult(serviceResult, committedVersion);
         }
 
         private WoTDocumentKindEnum KindForGroup(string groupId)

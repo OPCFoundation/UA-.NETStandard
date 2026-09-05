@@ -259,6 +259,46 @@ namespace Opc.Ua.WotCon.Tests.Registry
         }
 
         [Test]
+        public void WotResourceVersionCopiesPreserveIncarnation()
+        {
+            byte[] content = Encoding.UTF8.GetBytes("content");
+            DateTime now = DateTime.UtcNow;
+            var version = new WotResourceVersion(
+                "v1",
+                WotContentDigest.Compute(content),
+                content.Length,
+                "application/json",
+                string.Empty,
+                now,
+                now);
+
+            WotResourceVersion metadataCopy = version.With(contentType: "updated");
+            WotResourceVersion documentCopy = version.WithDocumentMetadata(
+                "urn:copy",
+                "copy",
+                baseUri: null,
+                modelVersion: null);
+            var newIncarnation = new WotResourceVersion(
+                "v1",
+                version.Digest,
+                version.ContentLength,
+                version.ContentType,
+                version.Format,
+                version.CreatedAt,
+                version.ModifiedAt);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(version.IncarnationId, Is.Not.EqualTo(Guid.Empty));
+                Assert.That(metadataCopy.IncarnationId, Is.EqualTo(version.IncarnationId));
+                Assert.That(documentCopy.IncarnationId, Is.EqualTo(version.IncarnationId));
+                Assert.That(
+                    newIncarnation.IncarnationId,
+                    Is.Not.EqualTo(version.IncarnationId));
+            });
+        }
+
+        [Test]
         public void WotResourceVersionPublicMethodsDoNotExposeNullableByteString()
         {
             MethodInfo[] publicMethods = typeof(WotResourceVersion).GetMethods(

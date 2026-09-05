@@ -721,15 +721,8 @@ namespace Opc.Ua.WotCon.Tests.Registry
         }
 
         [Test]
-        public async Task WriteHandlePassesExactBaselineVersionToCommit()
+        public async Task WriteHandlePassesStableBaselineIncarnationToCommit()
         {
-            WotResourceVersion? observedBaseline = null;
-            using var harness = new Harness(
-                onVersionCommit: (bytes, baseline, version, session, token) =>
-                {
-                    observedBaseline = version;
-                    return new ValueTask<ServiceResult>(ServiceResult.Good);
-                });
             byte[] original = Encoding.UTF8.GetBytes("original");
             DateTime now = DateTime.UtcNow;
             var baselineVersion = new WotResourceVersion(
@@ -740,6 +733,18 @@ namespace Opc.Ua.WotCon.Tests.Registry
                 string.Empty,
                 now,
                 now);
+            Guid? observedIncarnation = null;
+            WotResourceVersion? committedVersion = null;
+            using var harness = new Harness(
+                onVersionCommit: (bytes, baseline, incarnation, session, token) =>
+                {
+                    observedIncarnation = incarnation;
+                    committedVersion = baselineVersion.With(
+                        digest: WotContentDigest.Compute(bytes),
+                        contentLength: bytes.Length);
+                    return new ValueTask<WotResourceCommitResult>(
+                        new WotResourceCommitResult(ServiceResult.Good, committedVersion));
+                });
             harness.Manager.UpdatePersistedContent(baselineVersion, "application/json");
             uint handle = 0;
             harness.Open(ModeWriteErase, ref handle);
@@ -753,7 +758,68 @@ namespace Opc.Ua.WotCon.Tests.Registry
             Assert.Multiple(() =>
             {
                 Assert.That(ServiceResult.IsGood(result), Is.True);
-                Assert.That(observedBaseline, Is.SameAs(baselineVersion));
+                Assert.That(observedIncarnation, Is.EqualTo(baselineVersion.IncarnationId));
+                Assert.That(committedVersion, Is.Not.Null);
+                Assert.That(
+                    harness.Manager.CurrentVersionIncarnation,
+                    Is.EqualTo(committedVersion!.IncarnationId));
+            });
+        }
+
+        [Test]
+        public async Task SecondWriterImmediatelyUsesCommittedContentAndIncarnation()
+        {
+            byte[] original = Encoding.UTF8.GetBytes("original");
+            DateTime now = DateTime.UtcNow;
+            WotResourceVersion current = new(
+                "v1",
+                WotContentDigest.Compute(original),
+                original.Length,
+                "application/json",
+                string.Empty,
+                now,
+                now);
+            var baselines = new List<(string ContentKey, Guid? Incarnation)>();
+            using var harness = new Harness(
+                onVersionCommit: (bytes, baseline, incarnation, session, token) =>
+                {
+                    baselines.Add((baseline, incarnation));
+                    current = current.With(
+                        digest: WotContentDigest.Compute(bytes),
+                        contentLength: bytes.Length,
+                        modifiedAt: DateTime.UtcNow);
+                    return new ValueTask<WotResourceCommitResult>(
+                        new WotResourceCommitResult(ServiceResult.Good, current));
+                });
+            harness.Manager.UpdatePersistedContent(current, "application/json");
+            byte[] first = Encoding.UTF8.GetBytes("first");
+            uint firstHandle = 0;
+            harness.Open(ModeWriteErase, ref firstHandle);
+            harness.Write(firstHandle, ByteString.From(first));
+            ServiceResult firstClose = await harness.CloseAsync(firstHandle).ConfigureAwait(false);
+            string firstDigest = WotContentDigest.ToHex(WotContentDigest.Compute(first));
+
+            byte[] second = Encoding.UTF8.GetBytes("second");
+            uint secondHandle = 0;
+            harness.Open(ModeWriteErase, ref secondHandle);
+            harness.Write(secondHandle, ByteString.From(second));
+            ServiceResult secondClose = await harness.CloseAsync(secondHandle).ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(ServiceResult.IsGood(firstClose), Is.True);
+                Assert.That(ServiceResult.IsGood(secondClose), Is.True);
+                Assert.That(baselines, Has.Count.EqualTo(2));
+                Assert.That(baselines[0].ContentKey, Is.EqualTo(
+                    WotContentDigest.ToHex(WotContentDigest.Compute(original))));
+                Assert.That(baselines[1].ContentKey, Is.EqualTo(firstDigest));
+                Assert.That(baselines[0].Incarnation, Is.EqualTo(current.IncarnationId));
+                Assert.That(baselines[1].Incarnation, Is.EqualTo(current.IncarnationId));
+                Assert.That(harness.Manager.CurrentContentKey, Is.EqualTo(current.DigestHex));
+                Assert.That(harness.Manager.CurrentContentLength, Is.EqualTo(second.Length));
+                Assert.That(
+                    harness.Manager.CurrentVersionIncarnation,
+                    Is.EqualTo(current.IncarnationId));
             });
         }
 
@@ -827,10 +893,10 @@ namespace Opc.Ua.WotCon.Tests.Registry
                 Func<
                     byte[],
                     string,
-                    WotResourceVersion?,
+                    Guid?,
                     NodeId,
                     CancellationToken,
-                    ValueTask<ServiceResult>>? onVersionCommit = null)
+                    ValueTask<WotResourceCommitResult>>? onVersionCommit = null)
             {
                 Context = new SystemContext(null!)
                 {

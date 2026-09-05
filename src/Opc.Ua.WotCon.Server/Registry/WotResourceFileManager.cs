@@ -35,6 +35,21 @@ using System.Threading.Tasks;
 
 namespace Opc.Ua.WotCon.Server.Registry
 {
+    internal readonly struct WotResourceCommitResult
+    {
+        public WotResourceCommitResult(
+            ServiceResult serviceResult,
+            WotResourceVersion? version)
+        {
+            ServiceResult = serviceResult;
+            Version = version;
+        }
+
+        public ServiceResult ServiceResult { get; }
+
+        public WotResourceVersion? Version { get; }
+    }
+
     /// <summary>
     /// Manages the inherited OPC UA <c>FileType</c> primitives
     /// (<c>Open</c>/<c>Read</c>/<c>Write</c>/<c>Close</c>/<c>GetPosition</c>/
@@ -75,7 +90,8 @@ namespace Opc.Ua.WotCon.Server.Registry
                 maxDocumentSize,
                 authorizeWrite,
                 ReadInlineContentAsync,
-                (bytes, baseline, version, session, token) => onCommit(bytes, session, token),
+                (bytes, baseline, incarnation, session, token) =>
+                    WrapCommitAsync(onCommit(bytes, session, token)),
                 validateVersionIncarnation: false)
         {
         }
@@ -93,7 +109,8 @@ namespace Opc.Ua.WotCon.Server.Registry
                 maxDocumentSize,
                 authorizeWrite,
                 readContent,
-                (bytes, baseline, version, session, token) => onCommit(bytes, session, token),
+                (bytes, baseline, incarnation, session, token) =>
+                    WrapCommitAsync(onCommit(bytes, session, token)),
                 validateVersionIncarnation: false)
         {
         }
@@ -111,8 +128,8 @@ namespace Opc.Ua.WotCon.Server.Registry
                 maxDocumentSize,
                 authorizeWrite,
                 readContent,
-                (bytes, baseline, version, session, token) =>
-                    onCommit(bytes, baseline, session, token),
+                (bytes, baseline, incarnation, session, token) =>
+                    WrapCommitAsync(onCommit(bytes, baseline, session, token)),
                 validateVersionIncarnation: false)
         {
         }
@@ -126,10 +143,10 @@ namespace Opc.Ua.WotCon.Server.Registry
             Func<
                 byte[],
                 string,
-                WotResourceVersion?,
+                Guid?,
                 NodeId,
                 CancellationToken,
-                ValueTask<ServiceResult>> onCommit,
+                ValueTask<WotResourceCommitResult>> onCommit,
             bool validateVersionIncarnation = true)
         {
             m_file = file ?? throw new ArgumentNullException(nameof(file));
@@ -192,9 +209,9 @@ namespace Opc.Ua.WotCon.Server.Registry
         public long CurrentContentLength { get; private set; }
 
         /// <summary>
-        /// Gets the exact immutable Version snapshot currently represented by the file.
+        /// Gets the immutable Version incarnation currently represented by the file.
         /// </summary>
-        public WotResourceVersion? CurrentVersion { get; private set; }
+        public Guid? CurrentVersionIncarnation { get; private set; }
 
         /// <summary>
         /// Replaces the served content metadata (called when the registry snapshot changes).
@@ -203,7 +220,7 @@ namespace Opc.Ua.WotCon.Server.Registry
         {
             lock (m_handlesLock)
             {
-                CurrentVersion = version;
+                CurrentVersionIncarnation = version?.IncarnationId;
                 CurrentContentKey = version?.DigestHex ?? string.Empty;
                 CurrentContentLength = version?.ContentLength ?? 0;
                 if (m_file.Size is not null)
@@ -318,7 +335,7 @@ namespace Opc.Ua.WotCon.Server.Registry
                     sessionId,
                     CurrentContentKey,
                     CurrentContentLength,
-                    CurrentVersion));
+                    CurrentVersionIncarnation));
             m_writingHandle = fileHandle;
             if (m_file.OpenCount is not null)
             {
@@ -366,7 +383,7 @@ namespace Opc.Ua.WotCon.Server.Registry
                         sessionId,
                         CurrentContentKey,
                         CurrentContentLength,
-                        CurrentVersion)
+                        CurrentVersionIncarnation)
                     : Handle.OpenRead(sessionId, CurrentContentKey, CurrentContentLength);
                 fileHandle = ++m_nextHandle;
                 m_handles.Add(fileHandle, handle);
@@ -436,7 +453,8 @@ namespace Opc.Ua.WotCon.Server.Registry
                         digest,
                         handle.BaselineContentKey,
                         StringComparison.Ordinal) &&
-                    (!m_validateVersionIncarnation || handle.BaselineVersion is null))
+                    (!m_validateVersionIncarnation ||
+                        handle.BaselineVersionIncarnation is null))
                 {
                     return new CloseMethodStateResult { ServiceResult = ServiceResult.Good };
                 }
@@ -452,22 +470,35 @@ namespace Opc.Ua.WotCon.Server.Registry
                             "The committed Version changed while the writer was open.")
                     };
                 }
-                ServiceResult result = await m_onCommit(
+                WotResourceCommitResult commitResult = await m_onCommit(
                         content,
                         handle.BaselineContentKey,
-                        handle.BaselineVersion,
+                        handle.BaselineVersionIncarnation,
                         SessionIdOf(context),
                         cancellationToken)
                     .ConfigureAwait(false);
+                ServiceResult result = commitResult.ServiceResult;
                 if (ServiceResult.IsGood(result))
                 {
                     lock (m_handlesLock)
                     {
-                        CurrentContentKey = digest;
-                        CurrentContentLength = content.Length;
+                        WotResourceVersion? committedVersion = commitResult.Version;
+                        CurrentContentKey = committedVersion?.DigestHex ?? digest;
+                        CurrentContentLength = committedVersion?.ContentLength ?? content.Length;
+                        CurrentVersionIncarnation = committedVersion?.IncarnationId;
                         if (m_file.Size is not null)
                         {
-                            m_file.Size.Value = (ulong)content.Length;
+                            m_file.Size.Value = (ulong)CurrentContentLength;
+                        }
+                        if (committedVersion is not null &&
+                            m_file.LastModifiedTime is not null)
+                        {
+                            m_file.LastModifiedTime.Value = committedVersion.ModifiedAt;
+                        }
+                        if (committedVersion is not null &&
+                            m_file.MimeType is not null)
+                        {
+                            m_file.MimeType.Value = committedVersion.ContentType;
                         }
                     }
                 }
@@ -680,6 +711,13 @@ namespace Opc.Ua.WotCon.Server.Registry
             }
         }
 
+        private static async ValueTask<WotResourceCommitResult> WrapCommitAsync(
+            ValueTask<ServiceResult> commit)
+        {
+            ServiceResult result = await commit.ConfigureAwait(false);
+            return new WotResourceCommitResult(result, version: null);
+        }
+
         private sealed class Handle : IDisposable
         {
             private Handle(
@@ -689,7 +727,7 @@ namespace Opc.Ua.WotCon.Server.Registry
                 string storeKey,
                 long length,
                 string baselineContentKey,
-                WotResourceVersion? baselineVersion)
+                Guid? baselineVersionIncarnation)
             {
                 SessionId = sessionId;
                 Stream = stream;
@@ -697,7 +735,7 @@ namespace Opc.Ua.WotCon.Server.Registry
                 StoreKey = storeKey;
                 m_length = length;
                 BaselineContentKey = baselineContentKey;
-                BaselineVersion = baselineVersion;
+                BaselineVersionIncarnation = baselineVersionIncarnation;
             }
 
             public NodeId SessionId { get; }
@@ -705,7 +743,7 @@ namespace Opc.Ua.WotCon.Server.Registry
             public bool Writing { get; }
             public string StoreKey { get; }
             public string BaselineContentKey { get; }
-            public WotResourceVersion? BaselineVersion { get; }
+            public Guid? BaselineVersionIncarnation { get; }
             public bool HasAcceptedWrite { get; set; }
             public long Length => Writing ? Stream.Length : m_length;
             public long Position
@@ -732,13 +770,13 @@ namespace Opc.Ua.WotCon.Server.Registry
                     storeKey,
                     length,
                     storeKey,
-                    baselineVersion: null);
+                    baselineVersionIncarnation: null);
 
             public static Handle OpenWrite(
                 NodeId sessionId,
                 string baselineContentKey,
                 long baselineLength,
-                WotResourceVersion? baselineVersion)
+                Guid? baselineVersionIncarnation)
                 => new(
                     sessionId,
                     new MemoryStream(),
@@ -746,7 +784,7 @@ namespace Opc.Ua.WotCon.Server.Registry
                     string.Empty,
                     baselineLength,
                     baselineContentKey,
-                    baselineVersion);
+                    baselineVersionIncarnation);
 
             public void Dispose() => Stream.Dispose();
 
@@ -762,10 +800,10 @@ namespace Opc.Ua.WotCon.Server.Registry
         private readonly Func<
             byte[],
             string,
-            WotResourceVersion?,
+            Guid?,
             NodeId,
             CancellationToken,
-            ValueTask<ServiceResult>> m_onCommit;
+            ValueTask<WotResourceCommitResult>> m_onCommit;
         private readonly bool m_validateVersionIncarnation;
         private readonly Lock m_handlesLock = new();
         private readonly Dictionary<uint, Handle> m_handles = new();
