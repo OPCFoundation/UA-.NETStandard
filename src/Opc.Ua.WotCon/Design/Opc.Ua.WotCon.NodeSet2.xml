@@ -6,9 +6,9 @@
     <Uri>http://opcfoundation.org/UA/WoT-Con/</Uri>
   </NamespaceUris>
   <Models>
-    <Model ModelUri="http://opcfoundation.org/UA/WoT-Con/" Version="1.1.1" PublicationDate="2026-09-03T00:00:00Z">
+    <Model ModelUri="http://opcfoundation.org/UA/WoT-Con/" Version="1.1" PublicationDate="2026-09-05T00:00:00Z">
       <RequiredModel ModelUri="http://opcfoundation.org/UA/" Version="1.05.04" PublicationDate="2024-05-01T00:00:00Z" />
-      <RequiredModel ModelUri="http://opcfoundation.org/UA/xRegistry/" Version="0.5.0" PublicationDate="2026-09-03T00:00:00Z" />
+      <RequiredModel ModelUri="http://opcfoundation.org/UA/xRegistry/" Version="0.6.0" PublicationDate="2026-09-05T00:00:00Z" />
     </Model>
   </Models>
   <Aliases>
@@ -430,7 +430,7 @@
   </UAObjectType>
   <UAObjectType NodeId="ns=2;i=64003" BrowseName="2:WoTDocumentType" IsAbstract="true">
     <DisplayName>WoTDocumentType</DisplayName>
-    <Description>The abstract base of a stored WoT document resource - an xRegistry ResourceType (a FileType) whose content bytes are the JSON-LD document, read/written with the inherited Open/Read/Write/Close Methods. Adds the derived-projection metadata (load state, desired/active version, validation and compatibility outcomes, content digest, materialized-node count and root, selected bindings) and the Validate, SetEnabled and SetDefaultVersion Methods. Concrete subtypes fix the document kind.</Description>
+    <Description>The abstract base used by a stable logical WoT document Resource and each exact Version - an xRegistry ResourceType (a FileType) whose JSON-LD bytes are read/written with the inherited Open/Read/Write/Close Methods. A logical Resource delegates its file and Version-view state to the selected default Version; an exact Version owns that state. Adds the derived-projection metadata (load state, desired/active version, validation and compatibility outcomes, content digest, materialized-node count and root, selected bindings) and the Validate, SetEnabled and SetDefaultVersion Methods. Concrete subtypes fix the document kind.</Description>
     <Category>WOTC-DocumentRead</Category>
     <Category>WOTC-DocumentWrite</Category>
     <Category>WOTC-VersionLifecycle</Category>
@@ -474,6 +474,7 @@
       <Reference ReferenceType="HasProperty">ns=2;i=64572</Reference>
       <Reference ReferenceType="HasProperty">ns=2;i=64573</Reference>
       <Reference ReferenceType="HasProperty">ns=2;i=64574</Reference>
+      <Reference ReferenceType="HasComponent">ns=2;i=64610</Reference>
     </References>
   </UAObjectType>
   <UAObjectType NodeId="ns=2;i=64005" BrowseName="2:ThingModelFileType">
@@ -490,6 +491,7 @@
       <Reference ReferenceType="HasProperty">ns=2;i=64576</Reference>
       <Reference ReferenceType="HasProperty">ns=2;i=64577</Reference>
       <Reference ReferenceType="HasProperty">ns=2;i=64608</Reference>
+      <Reference ReferenceType="HasComponent">ns=2;i=64612</Reference>
     </References>
   </UAObjectType>
   <UAObjectType NodeId="ns=2;i=64006" BrowseName="2:WoTBindingType">
@@ -1005,7 +1007,7 @@
   </UAVariable>
   <UAMethod NodeId="ns=2;i=64569" BrowseName="2:SetDefaultVersion" ParentNodeId="ns=2;i=64003">
     <DisplayName>SetDefaultVersion</DisplayName>
-    <Description>Make a specific version of this resource its default (sticky) version, so that resolvers selecting the resource without a versionid resolve to it. If ExpectedEpoch is non-zero and does not equal the resource's current Epoch the call fails with Bad_InvalidState and changes nothing.</Description>
+    <Description>Make a specific version of this resource its default (sticky) version, so that resolvers selecting the resource without a versionid resolve to it. This Method is invoked on the logical Resource; a call on an exact Version fails with Bad_NotSupported. If ExpectedEpoch is non-zero and does not equal the logical Resource's current MetaEpoch the call fails with Bad_InvalidState and changes nothing.</Description>
     <References>
       <Reference ReferenceType="HasModellingRule">i=80</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">ns=2;i=64003</Reference>
@@ -1019,7 +1021,7 @@
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=2;i=64569</Reference>
     </References>
-    <Value><ListOfExtensionObject xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"><ExtensionObject><TypeId><Identifier>i=297</Identifier></TypeId><Body><Argument><Name>VersionId</Name><DataType><Identifier>i=12</Identifier></DataType><ValueRank>-1</ValueRank><ArrayDimensions/><Description><Text>The versionid to make default.</Text></Description></Argument></Body></ExtensionObject><ExtensionObject><TypeId><Identifier>i=297</Identifier></TypeId><Body><Argument><Name>ExpectedEpoch</Name><DataType><Identifier>i=7</Identifier></DataType><ValueRank>-1</ValueRank><ArrayDimensions/><Description><Text>Expected current Epoch for optimistic concurrency; 0 disables the check.</Text></Description></Argument></Body></ExtensionObject></ListOfExtensionObject></Value>
+    <Value><ListOfExtensionObject xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"><ExtensionObject><TypeId><Identifier>i=297</Identifier></TypeId><Body><Argument><Name>VersionId</Name><DataType><Identifier>i=12</Identifier></DataType><ValueRank>-1</ValueRank><ArrayDimensions/><Description><Text>The versionid to make default.</Text></Description></Argument></Body></ExtensionObject><ExtensionObject><TypeId><Identifier>i=297</Identifier></TypeId><Body><Argument><Name>ExpectedEpoch</Name><DataType><Identifier>i=7</Identifier></DataType><ValueRank>-1</ValueRank><ArrayDimensions/><Description><Text>Expected current Resource MetaEpoch for optimistic concurrency; 0 disables the check.</Text></Description></Argument></Body></ExtensionObject></ListOfExtensionObject></Value>
   </UAVariable>
   <UAVariable NodeId="ns=2;i=64571" BrowseName="2:ThingId" ParentNodeId="ns=2;i=64004" DataType="String" ValueRank="-1">
     <DisplayName>ThingId</DisplayName>
@@ -1746,7 +1748,7 @@
       <Reference ReferenceType="HasProperty" IsForward="false">ns=2;i=67</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
     </References>
-    <Value><uax:String xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd">1.1</uax:String></Value>
+    <Value><uax:String xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd">1.1.0</uax:String></Value>
   </UAVariable>
   <UAVariable NodeId="ns=2;i=40" BrowseName="2:SupportedWoTBindings" ParentNodeId="ns=2;i=1" DataType="UriString" ValueRank="1" ArrayDimensions="0">
     <DisplayName>SupportedWoTBindings</DisplayName>
@@ -2057,7 +2059,7 @@
       <Reference ReferenceType="HasProperty" IsForward="false">ns=2;i=67</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
     </References>
-    <Value><uax:String xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd">1.1.1</uax:String></Value>
+    <Value><uax:String xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd">1.1</uax:String></Value>
   </UAVariable>
   <UAVariable NodeId="ns=2;i=70" BrowseName="NamespacePublicationDate" ParentNodeId="ns=2;i=67" DataType="DateTime" ValueRank="-1">
     <DisplayName>NamespacePublicationDate</DisplayName>
@@ -2066,7 +2068,7 @@
       <Reference ReferenceType="HasProperty" IsForward="false">ns=2;i=67</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
     </References>
-    <Value><uax:DateTime xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd">2026-09-03T00:00:00Z</uax:DateTime></Value>
+    <Value><uax:DateTime xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd">2026-09-05T00:00:00Z</uax:DateTime></Value>
   </UAVariable>
   <UAVariable NodeId="ns=2;i=71" BrowseName="IsNamespaceSubset" ParentNodeId="ns=2;i=67" DataType="Boolean" ValueRank="-1">
     <DisplayName>IsNamespaceSubset</DisplayName>
@@ -2794,4 +2796,60 @@
     </References>
     <Value><ListOfExtensionObject xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"><ExtensionObject><TypeId><Identifier>i=297</Identifier></TypeId><Body><Argument><Name>AssetId</Name><DataType><Identifier>i=17</Identifier></DataType><ValueRank>-1</ValueRank><ArrayDimensions/></Argument></Body></ExtensionObject></ListOfExtensionObject></Value>
   </UAVariable>
+  <UAObjectType NodeId="ns=2;i=64015" BrowseName="2:ThingDescriptionVersionsType">
+    <DisplayName>ThingDescriptionVersionsType</DisplayName>
+    <Description>The typed Versions folder of a logical Thing Description Resource.</Description>
+    <Category>WOTC-DocumentRead</Category>
+    <Category>WOTC-VersionLifecycle</Category>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">ns=1;i=63025</Reference>
+      <Reference ReferenceType="Organizes">ns=2;i=64609</Reference>
+    </References>
+  </UAObjectType>
+  <UAObject NodeId="ns=2;i=64609" BrowseName="2:&lt;Version&gt;" ParentNodeId="ns=2;i=64015">
+    <DisplayName>&lt;Version&gt;</DisplayName>
+    <Description>One exact Thing Description Version.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=11508</Reference>
+      <Reference ReferenceType="HasTypeDefinition">ns=2;i=64004</Reference>
+      <Reference ReferenceType="Organizes" IsForward="false">ns=2;i=64015</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="ns=2;i=64610" BrowseName="2:Versions" ParentNodeId="ns=2;i=64004">
+    <DisplayName>Versions</DisplayName>
+    <Description>Overrides the inherited Versions component so every exact Version is a ThingDescriptionFileType.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasTypeDefinition">ns=2;i=64015</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=2;i=64004</Reference>
+    </References>
+  </UAObject>
+  <UAObjectType NodeId="ns=2;i=64016" BrowseName="2:ThingModelVersionsType">
+    <DisplayName>ThingModelVersionsType</DisplayName>
+    <Description>The typed Versions folder of a logical Thing Model Resource.</Description>
+    <Category>WOTC-DocumentRead</Category>
+    <Category>WOTC-VersionLifecycle</Category>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">ns=1;i=63025</Reference>
+      <Reference ReferenceType="Organizes">ns=2;i=64611</Reference>
+    </References>
+  </UAObjectType>
+  <UAObject NodeId="ns=2;i=64611" BrowseName="2:&lt;Version&gt;" ParentNodeId="ns=2;i=64016">
+    <DisplayName>&lt;Version&gt;</DisplayName>
+    <Description>One exact Thing Model Version.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=11508</Reference>
+      <Reference ReferenceType="HasTypeDefinition">ns=2;i=64005</Reference>
+      <Reference ReferenceType="Organizes" IsForward="false">ns=2;i=64016</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="ns=2;i=64612" BrowseName="2:Versions" ParentNodeId="ns=2;i=64005">
+    <DisplayName>Versions</DisplayName>
+    <Description>Overrides the inherited Versions component so every exact Version is a ThingModelFileType.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasTypeDefinition">ns=2;i=64016</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=2;i=64005</Reference>
+    </References>
+  </UAObject>
 </UANodeSet>

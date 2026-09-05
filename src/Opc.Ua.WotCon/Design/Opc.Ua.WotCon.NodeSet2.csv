@@ -308,3 +308,9 @@ WoTRegistry_RefreshGeneration,64605,Variable
 ThingDescriptionGroupType_CatalogUri,64606,Variable
 ThingModelGroupType_CatalogUri,64607,Variable
 ThingModelFileType_ModelId,64608,Variable
+ThingDescriptionVersionsType,64015,ObjectType
+ThingDescriptionVersionsType_Version,64609,Object
+ThingDescriptionFileType_Versions,64610,Object
+ThingModelVersionsType,64016,ObjectType
+ThingModelVersionsType_Version,64611,Object
+ThingModelFileType_Versions,64612,Object

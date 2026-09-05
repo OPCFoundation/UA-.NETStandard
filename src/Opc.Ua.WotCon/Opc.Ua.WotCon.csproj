@@ -4,7 +4,7 @@
     <TargetFrameworks>$(LibTargetFrameworks)</TargetFrameworks>
     <PackageId>$(PackagePrefix).Opc.Ua.WotCon</PackageId>
     <RootNamespace>Opc.Ua.WotCon</RootNamespace>
-    <NoWarn>$(NoWarn);CS1591</NoWarn>
+    <NoWarn>$(NoWarn);CS1591;CS0108</NoWarn>
     <Nullable>enable</Nullable>
     <Description>OPC UA WoT Connectivity 1.1 information model — a registry-first revision (additive registry nodes plus the incorporated OPC 10100-1 v1.02 surface, superseded in capability but not deprecated) in one namespace.</Description>
     <IsPackable>true</IsPackable>

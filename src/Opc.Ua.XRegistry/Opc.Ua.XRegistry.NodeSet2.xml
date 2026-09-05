@@ -5,7 +5,7 @@
     <Uri>http://opcfoundation.org/UA/xRegistry/</Uri>
   </NamespaceUris>
   <Models>
-    <Model ModelUri="http://opcfoundation.org/UA/xRegistry/" Version="0.5.0" PublicationDate="2026-09-03T00:00:00Z">
+    <Model ModelUri="http://opcfoundation.org/UA/xRegistry/" Version="0.6.0" PublicationDate="2026-09-05T00:00:00Z">
       <RequiredModel ModelUri="http://opcfoundation.org/UA/" Version="1.05.04" PublicationDate="2024-05-01T00:00:00Z" />
     </Model>
   </Models>
@@ -64,7 +64,7 @@
   </UAObjectType>
   <UAObjectType NodeId="ns=1;i=63001" BrowseName="1:GroupType">
     <DisplayName>GroupType</DisplayName>
-    <Description>An abstract xRegistry group, expressed as a FolderType that organizes its resource files. It creates resources and versions through the CreateResource Method and is removed with its own Delete Method. Domain group types subtype this and add the group key (e.g. a namespace URI).</Description>
+    <Description>An abstract xRegistry group, expressed as a FolderType that organizes stable logical Resource objects. It creates a Resource together with its first Version, and creates later Versions, through the CreateResource Method. It is removed with its own Delete Method. Domain group types subtype this and add the group key (e.g. a namespace URI).</Description>
     <Category>XREG-Group</Category>
     <Category>XREG-Identity</Category>
     <Category>XREG-Events</Category>
@@ -92,7 +92,7 @@
   </UAObjectType>
   <UAObjectType NodeId="ns=1;i=63002" BrowseName="1:ResourceType">
     <DisplayName>ResourceType</DisplayName>
-    <Description>An abstract xRegistry resource/version whose document IS the file: the content is read and written through the inherited FileType methods (Open/Read/Write/Close). The common attributes are the represented Version attributes; the Meta-prefixed members carry the separate Resource Meta entity. Also carries an optional ExternalReference for federation. Domain resource types subtype this.</Description>
+    <Description>An abstract xRegistry Resource or Version whose document IS the file. A logical Resource is a stable Object under its Group: its FileType methods and Version-view Properties delegate to the selected default Version, while its Xid, Meta-prefixed members, Versions folder and resource Delete behavior remain stable. A Version is a distinct Object under that Versions folder: its FileType methods, Xid, Epoch and Delete behavior apply only to that Version. Domain resource types subtype this for both roles.</Description>
     <Category>XREG-Resource</Category>
     <Category>XREG-Identity</Category>
     <Category>XREG-Federation</Category>
@@ -126,12 +126,14 @@
       <Reference ReferenceType="HasComponent">ns=1;i=63586</Reference>
       <Reference ReferenceType="HasProperty">ns=1;i=63587</Reference>
       <Reference ReferenceType="HasProperty">ns=1;i=63588</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=63590</Reference>
     </References>
   </UAObjectType>
   <UAObjectType NodeId="ns=1;i=63003" BrowseName="1:AttributesType">
     <DisplayName>AttributesType</DisplayName>
     <Description>A container for an entity's extensible xRegistry attributes/labels. Each attribute materializes as a browsable HasProperty PropertyType Variable whose BrowseName is the attribute key, so attributes can be browsed, read and enumerated, and are deleted with the owning entity. The AddAttribute/RemoveAttribute Methods add and remove attributes. This follows the OPC UA extensible-container pattern (an OptionalPlaceholder Property plus Add/Remove Methods); the placeholder isolates dynamic attributes so they never conflict with an entity's fixed attribute BrowseNames.</Description>
     <Category>XREG-Attributes</Category>
+    <Category>XREG-Events</Category>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=58</Reference>
       <Reference ReferenceType="HasProperty">ns=1;i=63500</Reference>
@@ -150,7 +152,7 @@
   </UAVariable>
   <UAMethod NodeId="ns=1;i=63501" BrowseName="1:AddAttribute" ParentNodeId="ns=1;i=63003">
     <DisplayName>AddAttribute</DisplayName>
-    <Description>Add or update an xRegistry attribute/label in this container. The server materializes it as a browsable PropertyType Variable whose BrowseName is the Key, and increments the owning entity's Epoch. If ExpectedEpoch is non-zero and does not equal the owning entity's current Epoch, the call fails with Bad_InvalidState and makes no change (optimistic concurrency). Success or failure is conveyed by the Method Call StatusCode.</Description>
+    <Description>Add or update an xRegistry attribute/label in this container. The server materializes it as a browsable PropertyType Variable whose BrowseName is the Key, and increments the owning container's applicable change counter: Epoch for Labels and MetaEpoch for Resource MetaLabels. If ExpectedEpoch is non-zero and does not equal that current counter, the call fails with Bad_InvalidState and makes no change (optimistic concurrency). Success or failure is conveyed by the Method Call StatusCode.</Description>
     <Category>XREG-Attributes</Category>
     <References>
       <Reference ReferenceType="HasModellingRule">i=80</Reference>
@@ -165,11 +167,11 @@
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=63501</Reference>
     </References>
-    <Value><ListOfExtensionObject xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"><ExtensionObject><TypeId><Identifier>i=297</Identifier></TypeId><Body><Argument><Name>Key</Name><DataType><Identifier>i=12</Identifier></DataType><ValueRank>-1</ValueRank><ArrayDimensions/><Description><Text>Attribute (or label) name.</Text></Description></Argument></Body></ExtensionObject><ExtensionObject><TypeId><Identifier>i=297</Identifier></TypeId><Body><Argument><Name>Value</Name><DataType><Identifier>i=12</Identifier></DataType><ValueRank>-1</ValueRank><ArrayDimensions/><Description><Text>Attribute value.</Text></Description></Argument></Body></ExtensionObject><ExtensionObject><TypeId><Identifier>i=297</Identifier></TypeId><Body><Argument><Name>ExpectedEpoch</Name><DataType><Identifier>i=7</Identifier></DataType><ValueRank>-1</ValueRank><ArrayDimensions/><Description><Text>Expected current Epoch of the owning entity for optimistic concurrency; 0 disables the check.</Text></Description></Argument></Body></ExtensionObject></ListOfExtensionObject></Value>
+    <Value><ListOfExtensionObject xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"><ExtensionObject><TypeId><Identifier>i=297</Identifier></TypeId><Body><Argument><Name>Key</Name><DataType><Identifier>i=12</Identifier></DataType><ValueRank>-1</ValueRank><ArrayDimensions/><Description><Text>Attribute (or label) name.</Text></Description></Argument></Body></ExtensionObject><ExtensionObject><TypeId><Identifier>i=297</Identifier></TypeId><Body><Argument><Name>Value</Name><DataType><Identifier>i=12</Identifier></DataType><ValueRank>-1</ValueRank><ArrayDimensions/><Description><Text>Attribute value.</Text></Description></Argument></Body></ExtensionObject><ExtensionObject><TypeId><Identifier>i=297</Identifier></TypeId><Body><Argument><Name>ExpectedEpoch</Name><DataType><Identifier>i=7</Identifier></DataType><ValueRank>-1</ValueRank><ArrayDimensions/><Description><Text>Expected current applicable change counter (Epoch or MetaEpoch) for optimistic concurrency; 0 disables the check.</Text></Description></Argument></Body></ExtensionObject></ListOfExtensionObject></Value>
   </UAVariable>
   <UAMethod NodeId="ns=1;i=63503" BrowseName="1:RemoveAttribute" ParentNodeId="ns=1;i=63003">
     <DisplayName>RemoveAttribute</DisplayName>
-    <Description>Remove an xRegistry attribute/label (the Variable whose BrowseName is the Key) from this container. If ExpectedEpoch is non-zero and does not equal the owning entity's current Epoch, the call fails with Bad_InvalidState and makes no change. Success or failure is conveyed by the Method Call StatusCode.</Description>
+    <Description>Remove an xRegistry attribute/label (the Variable whose BrowseName is the Key) from this container. If ExpectedEpoch is non-zero and does not equal the owning container's applicable change counter (Epoch for Labels or MetaEpoch for Resource MetaLabels), the call fails with Bad_InvalidState and makes no change. Success or failure is conveyed by the Method Call StatusCode.</Description>
     <Category>XREG-Attributes</Category>
     <References>
       <Reference ReferenceType="HasModellingRule">i=80</Reference>
@@ -184,7 +186,7 @@
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=63503</Reference>
     </References>
-    <Value><ListOfExtensionObject xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"><ExtensionObject><TypeId><Identifier>i=297</Identifier></TypeId><Body><Argument><Name>Key</Name><DataType><Identifier>i=12</Identifier></DataType><ValueRank>-1</ValueRank><ArrayDimensions/><Description><Text>Attribute (or label) name.</Text></Description></Argument></Body></ExtensionObject><ExtensionObject><TypeId><Identifier>i=297</Identifier></TypeId><Body><Argument><Name>ExpectedEpoch</Name><DataType><Identifier>i=7</Identifier></DataType><ValueRank>-1</ValueRank><ArrayDimensions/><Description><Text>Expected current Epoch of the owning entity for optimistic concurrency; 0 disables the check.</Text></Description></Argument></Body></ExtensionObject></ListOfExtensionObject></Value>
+    <Value><ListOfExtensionObject xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"><ExtensionObject><TypeId><Identifier>i=297</Identifier></TypeId><Body><Argument><Name>Key</Name><DataType><Identifier>i=12</Identifier></DataType><ValueRank>-1</ValueRank><ArrayDimensions/><Description><Text>Attribute (or label) name.</Text></Description></Argument></Body></ExtensionObject><ExtensionObject><TypeId><Identifier>i=297</Identifier></TypeId><Body><Argument><Name>ExpectedEpoch</Name><DataType><Identifier>i=7</Identifier></DataType><ValueRank>-1</ValueRank><ArrayDimensions/><Description><Text>Expected current applicable change counter (Epoch or MetaEpoch) for optimistic concurrency; 0 disables the check.</Text></Description></Argument></Body></ExtensionObject></ListOfExtensionObject></Value>
   </UAVariable>
   <UADataType NodeId="ns=1;i=63004" BrowseName="1:RegistryCapabilitiesDataType">
     <DisplayName>RegistryCapabilitiesDataType</DisplayName>
@@ -478,7 +480,7 @@
   </UAVariable>
   <UAObject NodeId="ns=1;i=63536" BrowseName="1:&lt;Resource&gt;" ParentNodeId="ns=1;i=63001">
     <DisplayName>&lt;Resource&gt;</DisplayName>
-    <Description>A resource file held by this group.</Description>
+    <Description>A stable logical Resource held by this group. Its BrowseName is ResourceId; its Versions component contains the distinct Version files.</Description>
     <References>
       <Reference ReferenceType="HasModellingRule">i=11508</Reference>
       <Reference ReferenceType="HasTypeDefinition">ns=1;i=63002</Reference>
@@ -487,7 +489,7 @@
   </UAObject>
   <UAMethod NodeId="ns=1;i=63537" BrowseName="1:CreateResource" ParentNodeId="ns=1;i=63001">
     <DisplayName>CreateResource</DisplayName>
-    <Description>Create a resource, or a new version of an existing resource, as a ResourceType file in this group, optionally opened for writing. A resource version is identified by (ResourceId, VersionId): when the ResourceId is new the resource is created with this first version; when the ResourceId already exists a new sibling version is created. When VersionId is empty the server assigns the next versionid per the registry model. The server bootstraps the resource/version identity, epochs and timestamps before returning; a later file Close commits document bytes and document-derived attributes. Fails with Bad_NodeIdExists if that exact (ResourceId, VersionId) already exists; use GetOrCreateResource for idempotent create-or-get.</Description>
+    <Description>Create a Resource together with its first Version, or create a new Version of an existing Resource. The logical Resource is a stable ResourceType child of this Group; the Version is a distinct ResourceType child of the Resource's Versions folder. A Version is identified by (ResourceId, VersionId). When VersionId is empty, the server assigns the next versionid per the registry model. The output ResourceNodeId identifies the exact Version paired with AssignedVersionId and FileHandle; the logical Resource is discovered by ResourceId. The server commits both structural identities, epochs and timestamps before returning; a later dirty file Close commits document bytes and document-derived attributes. Fails with Bad_NodeIdExists if the exact (ResourceId, VersionId) already exists; use GetOrCreateResource for idempotent create-or-get.</Description>
     <Category>XREG-Registration</Category>
     <References>
       <Reference ReferenceType="HasModellingRule">i=80</Reference>
@@ -512,11 +514,11 @@
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=63537</Reference>
     </References>
-    <Value><ListOfExtensionObject xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"><ExtensionObject><TypeId><Identifier>i=297</Identifier></TypeId><Body><Argument><Name>ResourceNodeId</Name><DataType><Identifier>i=17</Identifier></DataType><ValueRank>-1</ValueRank><ArrayDimensions/><Description><Text>NodeId of the created resource/version Object.</Text></Description></Argument></Body></ExtensionObject><ExtensionObject><TypeId><Identifier>i=297</Identifier></TypeId><Body><Argument><Name>AssignedVersionId</Name><DataType><Identifier>i=12</Identifier></DataType><ValueRank>-1</ValueRank><ArrayDimensions/><Description><Text>The versionid assigned to the created version.</Text></Description></Argument></Body></ExtensionObject><ExtensionObject><TypeId><Identifier>i=297</Identifier></TypeId><Body><Argument><Name>FileHandle</Name><DataType><Identifier>i=7</Identifier></DataType><ValueRank>-1</ValueRank><ArrayDimensions/><Description><Text>Write handle when RequestFileOpen is true; otherwise 0.</Text></Description></Argument></Body></ExtensionObject></ListOfExtensionObject></Value>
+    <Value><ListOfExtensionObject xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"><ExtensionObject><TypeId><Identifier>i=297</Identifier></TypeId><Body><Argument><Name>ResourceNodeId</Name><DataType><Identifier>i=17</Identifier></DataType><ValueRank>-1</ValueRank><ArrayDimensions/><Description><Text>NodeId of the created Version Object.</Text></Description></Argument></Body></ExtensionObject><ExtensionObject><TypeId><Identifier>i=297</Identifier></TypeId><Body><Argument><Name>AssignedVersionId</Name><DataType><Identifier>i=12</Identifier></DataType><ValueRank>-1</ValueRank><ArrayDimensions/><Description><Text>The versionid assigned to the created version.</Text></Description></Argument></Body></ExtensionObject><ExtensionObject><TypeId><Identifier>i=297</Identifier></TypeId><Body><Argument><Name>FileHandle</Name><DataType><Identifier>i=7</Identifier></DataType><ValueRank>-1</ValueRank><ArrayDimensions/><Description><Text>Write handle when RequestFileOpen is true; otherwise 0.</Text></Description></Argument></Body></ExtensionObject></ListOfExtensionObject></Value>
   </UAVariable>
   <UAMethod NodeId="ns=1;i=63540" BrowseName="1:GetOrCreateResource" ParentNodeId="ns=1;i=63001">
     <DisplayName>GetOrCreateResource</DisplayName>
-    <Description>Idempotently return the (ResourceId, VersionId) version, creating it if absent, optionally opened for writing. When VersionId is empty the resource's default (latest) version is returned, or - if the resource does not yet exist - created as its first version. One-shot form that avoids a separate existence check: returns the existing ResourceType file (Created = false) or a newly created one (Created = true); a write FileHandle is returned when RequestFileOpen is true. A newly created entity has its identity, epochs and timestamps before this Method returns; a later file Close commits document bytes and document-derived attributes.</Description>
+    <Description>Idempotently return the exact (ResourceId, VersionId) Version, creating it if absent, optionally opened for writing. When VersionId is empty, the existing Resource's selected default Version is returned; if the Resource does not exist, the server creates it together with its first assigned Version. The output ResourceNodeId identifies the exact Version paired with AssignedVersionId and FileHandle; the logical Resource is discovered by ResourceId. Created is false for an existing Version and true for a newly created Version. A newly created Resource and/or Version has its structural identity, epochs and timestamps before this Method returns; a later dirty file Close commits document bytes and document-derived attributes.</Description>
     <Category>XREG-Registration</Category>
     <References>
       <Reference ReferenceType="HasModellingRule">i=80</Reference>
@@ -541,7 +543,7 @@
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=63540</Reference>
     </References>
-    <Value><ListOfExtensionObject xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"><ExtensionObject><TypeId><Identifier>i=297</Identifier></TypeId><Body><Argument><Name>ResourceNodeId</Name><DataType><Identifier>i=17</Identifier></DataType><ValueRank>-1</ValueRank><ArrayDimensions/><Description><Text>NodeId of the existing or newly created resource/version Object.</Text></Description></Argument></Body></ExtensionObject><ExtensionObject><TypeId><Identifier>i=297</Identifier></TypeId><Body><Argument><Name>AssignedVersionId</Name><DataType><Identifier>i=12</Identifier></DataType><ValueRank>-1</ValueRank><ArrayDimensions/><Description><Text>The versionid of the returned version.</Text></Description></Argument></Body></ExtensionObject><ExtensionObject><TypeId><Identifier>i=297</Identifier></TypeId><Body><Argument><Name>FileHandle</Name><DataType><Identifier>i=7</Identifier></DataType><ValueRank>-1</ValueRank><ArrayDimensions/><Description><Text>Write handle when RequestFileOpen is true; otherwise 0.</Text></Description></Argument></Body></ExtensionObject><ExtensionObject><TypeId><Identifier>i=297</Identifier></TypeId><Body><Argument><Name>Created</Name><DataType><Identifier>i=1</Identifier></DataType><ValueRank>-1</ValueRank><ArrayDimensions/><Description><Text>True if the resource/version was created, false if it already existed.</Text></Description></Argument></Body></ExtensionObject></ListOfExtensionObject></Value>
+    <Value><ListOfExtensionObject xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"><ExtensionObject><TypeId><Identifier>i=297</Identifier></TypeId><Body><Argument><Name>ResourceNodeId</Name><DataType><Identifier>i=17</Identifier></DataType><ValueRank>-1</ValueRank><ArrayDimensions/><Description><Text>NodeId of the existing or newly created Version Object.</Text></Description></Argument></Body></ExtensionObject><ExtensionObject><TypeId><Identifier>i=297</Identifier></TypeId><Body><Argument><Name>AssignedVersionId</Name><DataType><Identifier>i=12</Identifier></DataType><ValueRank>-1</ValueRank><ArrayDimensions/><Description><Text>The versionid of the returned version.</Text></Description></Argument></Body></ExtensionObject><ExtensionObject><TypeId><Identifier>i=297</Identifier></TypeId><Body><Argument><Name>FileHandle</Name><DataType><Identifier>i=7</Identifier></DataType><ValueRank>-1</ValueRank><ArrayDimensions/><Description><Text>Write handle when RequestFileOpen is true; otherwise 0.</Text></Description></Argument></Body></ExtensionObject><ExtensionObject><TypeId><Identifier>i=297</Identifier></TypeId><Body><Argument><Name>Created</Name><DataType><Identifier>i=1</Identifier></DataType><ValueRank>-1</ValueRank><ArrayDimensions/><Description><Text>True if the exact Version was created (with its logical Resource when new); false if that Version already existed.</Text></Description></Argument></Body></ExtensionObject></ListOfExtensionObject></Value>
   </UAVariable>
   <UAMethod NodeId="ns=1;i=63543" BrowseName="1:Delete" ParentNodeId="ns=1;i=63001">
     <DisplayName>Delete</DisplayName>
@@ -618,7 +620,7 @@
   </UAVariable>
   <UAVariable NodeId="ns=1;i=63551" BrowseName="1:Xid" ParentNodeId="ns=1;i=63002" DataType="String" ValueRank="-1">
     <DisplayName>Xid</DisplayName>
-    <Description>xRegistry relative identifier (xid): the entity's stable path within the registry, independent of the hosting endpoint.</Description>
+    <Description>xRegistry relative identifier (xid). On a logical Resource this is the stable Resource path; on a Version under Versions it is that Resource path followed by /versions/&lt;VersionId&gt;. It is independent of the hosting endpoint and document bytes.</Description>
     <References>
       <Reference ReferenceType="HasModellingRule">i=80</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -627,7 +629,7 @@
   </UAVariable>
   <UAVariable NodeId="ns=1;i=63552" BrowseName="1:Epoch" ParentNodeId="ns=1;i=63002" DataType="UInt32" ValueRank="-1">
     <DisplayName>Epoch</DisplayName>
-    <Description>xRegistry epoch: a counter that increments on every change to the entity.</Description>
+    <Description>The represented Version's xRegistry epoch. On a logical Resource this is the selected default Version's epoch; on a Version it is that exact Version's epoch. Resource Meta uses MetaEpoch.</Description>
     <References>
       <Reference ReferenceType="HasModellingRule">i=80</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -690,7 +692,7 @@
   </UAVariable>
   <UAMethod NodeId="ns=1;i=63559" BrowseName="1:Delete" ParentNodeId="ns=1;i=63002">
     <DisplayName>Delete</DisplayName>
-    <Description>Delete the xRegistry entity represented by this file. A version node removes that version; a resource node removes the resource and all of its versions. If ExpectedEpoch is non-zero and does not equal the entity's current Epoch, the call fails with Bad_InvalidState and deletes nothing; 0 disables the check. Success or failure is conveyed by the Method Call StatusCode.</Description>
+    <Description>Delete the xRegistry entity represented by this Object. On a logical Resource, this removes the Resource, its Resource Meta and every Version; ExpectedEpoch checks MetaEpoch. On a Version under Versions, this removes only that Version and applies the xRegistry default-Version/last-Version rules; ExpectedEpoch checks that Version's Epoch. A non-zero mismatch fails with Bad_InvalidState and deletes nothing; 0 disables the check. Success or failure is conveyed by the Method Call StatusCode.</Description>
     <Category>XREG-Registration</Category>
     <References>
       <Reference ReferenceType="HasModellingRule">i=80</Reference>
@@ -705,7 +707,7 @@
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=63559</Reference>
     </References>
-    <Value><ListOfExtensionObject xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"><ExtensionObject><TypeId><Identifier>i=297</Identifier></TypeId><Body><Argument><Name>ExpectedEpoch</Name><DataType><Identifier>i=7</Identifier></DataType><ValueRank>-1</ValueRank><ArrayDimensions/><Description><Text>Expected current Epoch of the resource or version for optimistic concurrency; 0 disables the check.</Text></Description></Argument></Body></ExtensionObject></ListOfExtensionObject></Value>
+    <Value><ListOfExtensionObject xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"><ExtensionObject><TypeId><Identifier>i=297</Identifier></TypeId><Body><Argument><Name>ExpectedEpoch</Name><DataType><Identifier>i=7</Identifier></DataType><ValueRank>-1</ValueRank><ArrayDimensions/><Description><Text>Expected MetaEpoch for a logical Resource or Epoch for a Version; 0 disables the check.</Text></Description></Argument></Body></ExtensionObject></ListOfExtensionObject></Value>
   </UAVariable>
   <UAObject NodeId="ns=1;i=63561" BrowseName="1:http://opcfoundation.org/UA/xRegistry/" ParentNodeId="i=11715">
     <DisplayName>http://opcfoundation.org/UA/xRegistry/</DisplayName>
@@ -733,7 +735,7 @@
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=63561</Reference>
     </References>
-    <Value><uax:String>0.5.0</uax:String></Value>
+    <Value><uax:String>0.6.0</uax:String></Value>
   </UAVariable>
   <UAVariable NodeId="ns=1;i=63564" BrowseName="1:NamespacePublicationDate" ParentNodeId="ns=1;i=63561" DataType="DateTime" ValueRank="-1">
     <DisplayName>NamespacePublicationDate</DisplayName>
@@ -741,7 +743,7 @@
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=63561</Reference>
     </References>
-    <Value><uax:DateTime>2026-09-03T00:00:00Z</uax:DateTime></Value>
+    <Value><uax:DateTime>2026-09-05T00:00:00Z</uax:DateTime></Value>
   </UAVariable>
   <UAVariable NodeId="ns=1;i=63565" BrowseName="1:IsNamespaceSubset" ParentNodeId="ns=1;i=63561" DataType="Boolean" ValueRank="-1">
     <DisplayName>IsNamespaceSubset</DisplayName>
@@ -1136,4 +1138,32 @@
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=63002</Reference>
     </References>
   </UAVariable>
+  <UAObjectType NodeId="ns=1;i=63025" BrowseName="1:ResourceVersionsType">
+    <DisplayName>ResourceVersionsType</DisplayName>
+    <Description>A typed Versions folder owned by one logical Resource. It organizes the distinct ResourceType Version Objects of that Resource. Domain models subtype this type to constrain the Version placeholder to their own ResourceType subtype.</Description>
+    <Category>XREG-Resource</Category>
+    <Category>XREG-Events</Category>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=61</Reference>
+      <Reference ReferenceType="Organizes">ns=1;i=63589</Reference>
+    </References>
+  </UAObjectType>
+  <UAObject NodeId="ns=1;i=63589" BrowseName="1:&lt;Version&gt;" ParentNodeId="ns=1;i=63025">
+    <DisplayName>&lt;Version&gt;</DisplayName>
+    <Description>A Version of the owning Resource. Its BrowseName is VersionId and its Xid is the Resource Xid followed by /versions/&lt;VersionId&gt;.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=11508</Reference>
+      <Reference ReferenceType="HasTypeDefinition">ns=1;i=63002</Reference>
+      <Reference ReferenceType="Organizes" IsForward="false">ns=1;i=63025</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="ns=1;i=63590" BrowseName="1:Versions" ParentNodeId="ns=1;i=63002">
+    <DisplayName>Versions</DisplayName>
+    <Description>The typed folder containing this logical Resource's distinct Version Objects. A logical Resource instantiates this component; a Version Object does not. Conditionally Mandatory for a normal local Resource.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasTypeDefinition">ns=1;i=63025</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=63002</Reference>
+    </References>
+  </UAObject>
 </UANodeSet>
