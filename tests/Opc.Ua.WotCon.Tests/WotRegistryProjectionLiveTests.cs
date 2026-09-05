@@ -239,6 +239,9 @@ namespace Opc.Ua.WotCon.Tests
 
             (WotRegistryResourceClient v1, string v1Id) =
                 await group.CreateResourceAsync("multi", "v1").ConfigureAwait(false);
+            await v1.Proxy.UploadAsync(
+                ByteString.From(TestMaterialization.Td("urn:multi", "v1")))
+                .ConfigureAwait(false);
             (WotRegistryResourceClient v2, string v2Id) =
                 await group.CreateResourceAsync("multi", "v2").ConfigureAwait(false);
 

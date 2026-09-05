@@ -269,23 +269,17 @@ namespace Opc.Ua.WotCon.Server.Registry
             DateTime? modifiedAt = null,
             long? epoch = null,
             ImmutableSortedDictionary<string, string>? labels = null,
-            bool? hasContent = null,
             WoTValidationOutcomeDataType? validation = null,
             bool clearValidation = false)
         {
-            ByteString updatedDigest = digest.IsNull ? Digest : digest;
-            bool updatedHasContent = hasContent ?? HasContent;
+            bool replacesDigest = !digest.IsNull;
+            ByteString updatedDigest = replacesDigest ? digest : Digest;
+            bool updatedHasContent = HasContent || replacesDigest;
             if (updatedHasContent && (updatedDigest.IsNull || updatedDigest.Length == 0))
             {
                 throw new ArgumentException(
                     "A non-empty digest is required for a Version with content.",
                     nameof(digest));
-            }
-            if (!updatedHasContent && (HasContent || !digest.IsNull))
-            {
-                throw new ArgumentException(
-                    "Contentless Versions must be created with CreatePlaceholder.",
-                    nameof(hasContent));
             }
             return new WotResourceVersion(
                 VersionId,

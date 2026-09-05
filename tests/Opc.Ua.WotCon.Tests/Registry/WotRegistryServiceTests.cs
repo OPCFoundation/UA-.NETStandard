@@ -438,11 +438,12 @@ namespace Opc.Ua.WotCon.Tests.Registry
                 TestMaterialization.Td("urn:case-collision", "second"));
             collision.VersionId = "v1@prod";
 
-            WotRegistryMutationResult result = await service.UpsertResourceAsync(collision);
+            ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(
+                async () => await service.UpsertResourceAsync(collision))!;
 
             Assert.Multiple(() =>
             {
-                Assert.That(result.Outcome, Is.EqualTo(WoTOutcomeEnum.Rejected));
+                Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadNodeIdExists));
                 Assert.That(service.Current.Generation, Is.EqualTo(generation));
                 Assert.That(service.Current.FindResource(
                     WotRegistryGroups.ThingDescriptions,
@@ -637,16 +638,18 @@ namespace Opc.Ua.WotCon.Tests.Registry
         public async Task VersionLabelsAndResourceMetaHaveIndependentEpochs()
         {
             using var service = new WotRegistryService();
-            await service.GetOrCreateVersionAsync(
-                WotRegistryGroups.ThingDescriptions,
+            WotUpsertResourceRequest v1 = TdRequest(
                 "a",
-                "v1",
-                WoTDocumentKindEnum.ThingDescription);
-            await service.GetOrCreateVersionAsync(
-                WotRegistryGroups.ThingDescriptions,
+                TestMaterialization.Td("urn:a", "v1"),
+                setDefault: false);
+            v1.VersionId = "v1";
+            await service.UpsertResourceAsync(v1);
+            WotUpsertResourceRequest v2 = TdRequest(
                 "a",
-                "v2",
-                WoTDocumentKindEnum.ThingDescription);
+                TestMaterialization.Td("urn:a", "v2"),
+                setDefault: false);
+            v2.VersionId = "v2";
+            await service.UpsertResourceAsync(v2);
             WotResource before = service.Current.FindResource(
                 WotRegistryGroups.ThingDescriptions,
                 "a")!;
@@ -693,16 +696,18 @@ namespace Opc.Ua.WotCon.Tests.Registry
         public async Task DefaultSwitchChangesOnlyResourceMeta()
         {
             using var service = new WotRegistryService();
-            await service.GetOrCreateVersionAsync(
-                WotRegistryGroups.ThingDescriptions,
+            WotUpsertResourceRequest v1 = TdRequest(
                 "a",
-                "v1",
-                WoTDocumentKindEnum.ThingDescription);
-            await service.GetOrCreateVersionAsync(
-                WotRegistryGroups.ThingDescriptions,
+                TestMaterialization.Td("urn:a", "v1"),
+                setDefault: false);
+            v1.VersionId = "v1";
+            await service.UpsertResourceAsync(v1);
+            WotUpsertResourceRequest v2 = TdRequest(
                 "a",
-                "v2",
-                WoTDocumentKindEnum.ThingDescription);
+                TestMaterialization.Td("urn:a", "v2"),
+                setDefault: false);
+            v2.VersionId = "v2";
+            await service.UpsertResourceAsync(v2);
             WotResource before = service.Current.FindResource(
                 WotRegistryGroups.ThingDescriptions,
                 "a")!;
@@ -1040,17 +1045,18 @@ namespace Opc.Ua.WotCon.Tests.Registry
         }
 
         [Test]
-        public async Task StructuralVersionCreationAtLimitTrimsOldestEligibleVersion()
+        public async Task StructuralVersionCreationAtLimitPreservesCommittedVersions()
         {
             var bounds = new WotRegistryPersistenceBounds { MaxVersionsPerResource = 3 };
             using var service = new WotRegistryService(bounds: bounds);
             foreach (string versionId in new[] { "v1", "v2", "v3" })
             {
-                await service.GetOrCreateVersionAsync(
-                    WotRegistryGroups.ThingDescriptions,
+                WotUpsertResourceRequest request = TdRequest(
                     "structural",
-                    versionId,
-                    WoTDocumentKindEnum.ThingDescription);
+                    TestMaterialization.Td("urn:structural", versionId),
+                    setDefault: false);
+                request.VersionId = versionId;
+                await service.UpsertResourceAsync(request);
             }
             await SetActiveVersionAsync(service, "structural", "v1");
             WotResource before = service.Current.FindResource(
@@ -1077,7 +1083,7 @@ namespace Opc.Ua.WotCon.Tests.Registry
                 Assert.That(resource.DefaultVersionId, Is.EqualTo("v2"));
                 Assert.That(
                     resource.Versions.Select(item => item.VersionId),
-                    Is.EqualTo(s_expectedProtectedVersionIds));
+                    Is.EqualTo(s_expectedCommittedAndPendingVersionIds));
             });
         }
 
@@ -1086,11 +1092,12 @@ namespace Opc.Ua.WotCon.Tests.Registry
         {
             var bounds = new WotRegistryPersistenceBounds { MaxVersionsPerResource = 1 };
             using var service = new WotRegistryService(bounds: bounds);
-            await service.GetOrCreateVersionAsync(
-                WotRegistryGroups.ThingDescriptions,
+            WotUpsertResourceRequest request = TdRequest(
                 "protected",
-                "v1",
-                WoTDocumentKindEnum.ThingDescription);
+                TestMaterialization.Td("urn:protected"),
+                setDefault: false);
+            request.VersionId = "v1";
+            await service.UpsertResourceAsync(request);
             await SetActiveVersionAsync(service, "protected", "v1");
             WotRegistrySnapshot before = service.Current;
 
@@ -1433,5 +1440,7 @@ namespace Opc.Ua.WotCon.Tests.Registry
         private static readonly string[] s_expectedRetainedVersionIds = ["v1", "v3"];
         private static readonly string[] s_expectedProtectedVersionIds = ["v1", "v2", "v4"];
         private static readonly string[] s_expectedSingleVersionIds = ["v1"];
+        private static readonly string[] s_expectedCommittedAndPendingVersionIds =
+            ["v1", "v2", "v3", "v4"];
     }
 }

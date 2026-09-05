@@ -219,15 +219,43 @@ namespace Opc.Ua.WotCon.Tests.Registry
         }
 
         [Test]
-        public void WotResourceVersionWithCannotCommitPlaceholderWithoutDigest()
+        public void WotResourceVersionWithPreservesPlaceholderWithoutDigest()
         {
             WotResourceVersion placeholder = WotResourceVersion.CreatePlaceholder(
                 "v1",
                 DateTime.UtcNow);
 
-            Assert.That(
-                () => placeholder.With(hasContent: true),
-                Throws.TypeOf<ArgumentException>());
+            WotResourceVersion copy = placeholder.With(contentType: "metadata");
+
+            Assert.That(copy.HasContent, Is.False);
+        }
+
+        [Test]
+        public void WotResourceVersionWithPreservesPlaceholderOrCommitsRealDigest()
+        {
+            WotResourceVersion placeholder = WotResourceVersion.CreatePlaceholder(
+                "v1",
+                DateTime.UtcNow);
+            ByteString digest = WotContentDigest.Compute(Encoding.UTF8.GetBytes("content"));
+
+            WotResourceVersion retained = placeholder.With(contentType: "metadata");
+            WotResourceVersion committed = placeholder.With(
+                digest: digest,
+                contentLength: 7,
+                contentType: "application/json");
+            ParameterInfo[] parameters = typeof(WotResourceVersion)
+                .GetMethod("With", BindingFlags.NonPublic | BindingFlags.Instance)!
+                .GetParameters();
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(retained.HasContent, Is.False);
+                Assert.That(retained.Digest.IsNull, Is.False);
+                Assert.That(retained.Digest.Length, Is.Zero);
+                Assert.That(committed.HasContent, Is.True);
+                Assert.That(WotContentDigest.Equal(committed.Digest, digest), Is.True);
+                Assert.That(parameters.Any(parameter => parameter.Name == "hasContent"), Is.False);
+            });
         }
 
         [Test]

@@ -30,6 +30,7 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
@@ -224,6 +225,44 @@ namespace Opc.Ua.WotCon.Tests.Registry
                     Is.EqualTo(versionIds));
                 Assert.That(resource.FindVersion("V1@prod"), Is.Not.Null);
                 Assert.That(resource.FindVersion("v1@prod"), Is.Null);
+            });
+        }
+
+        [Test]
+        public async Task MaximumNumericVersionIdReloadsAndRejectsServerAssignmentOverflow()
+        {
+            string maximumVersionId = long.MaxValue.ToString(CultureInfo.InvariantCulture);
+            using (var service = new WotRegistryService(new FileWotRegistryStore(m_root)))
+            {
+                await service.InitializeAsync();
+                await service.UpsertResourceAsync(new WotUpsertResourceRequest
+                {
+                    GroupId = WotRegistryGroups.ThingDescriptions,
+                    ResourceId = "overflow",
+                    VersionId = maximumVersionId,
+                    Kind = WoTDocumentKindEnum.ThingDescription,
+                    Content = ByteString.From(TestMaterialization.Td("urn:overflow"))
+                });
+            }
+
+            using var reloaded = new WotRegistryService(new FileWotRegistryStore(m_root));
+            await reloaded.InitializeAsync();
+            WotRegistrySnapshot before = reloaded.Current;
+
+            ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(
+                async () => await reloaded.TryCreateVersionAsync(
+                    WotRegistryGroups.ThingDescriptions,
+                    "overflow",
+                    string.Empty,
+                    WoTDocumentKindEnum.ThingDescription))!;
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadOutOfRange));
+                Assert.That(reloaded.Current, Is.SameAs(before));
+                Assert.That(reloaded.Current.FindResource(
+                    WotRegistryGroups.ThingDescriptions,
+                    "overflow")!.FindVersion(maximumVersionId), Is.Not.Null);
             });
         }
 
