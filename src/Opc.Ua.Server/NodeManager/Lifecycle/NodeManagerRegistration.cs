@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
 using System.Linq;
 
 namespace Opc.Ua.Server
@@ -45,7 +46,10 @@ namespace Opc.Ua.Server
             Id = id;
             Generation = generation;
             NodeManager = nodeManager;
-            NamespaceUris = new ArrayOf<string>(nodeManager.NamespaceUris.ToArray());
+            IEnumerable<string>? namespaceUris = nodeManager.NamespaceUris;
+            NamespaceUris = namespaceUris is null
+                ? default
+                : new ArrayOf<string>(namespaceUris.ToArray());
         }
 
         /// <summary>
@@ -64,7 +68,8 @@ namespace Opc.Ua.Server
         public IAsyncNodeManager NodeManager { get; }
 
         /// <summary>
-        /// Gets the namespaces owned by this generation.
+        /// Gets the namespaces owned by this generation. The array is null for
+        /// a NodeManager that uses custom routing instead of namespace ownership.
         /// </summary>
         public ArrayOf<string> NamespaceUris { get; }
     }

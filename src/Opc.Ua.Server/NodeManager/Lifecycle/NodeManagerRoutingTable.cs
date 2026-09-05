@@ -143,7 +143,7 @@ namespace Opc.Ua.Server
             lock (m_lock)
             {
                 RoutingSnapshot snapshot = m_snapshot;
-                if (Array.IndexOf(snapshot.NodeManagers, nodeManager) >= 0)
+                if (IndexOf(snapshot.NodeManagers, nodeManager) >= 0)
                 {
                     throw new InvalidOperationException("The NodeManager is already registered.");
                 }
@@ -169,7 +169,7 @@ namespace Opc.Ua.Server
                 IAsyncNodeManager[] hiddenNodeManagers =
                 [
                     .. snapshot.HiddenNodeManagers.Where(manager =>
-                        !ReferenceEquals(manager, nodeManager))
+                        !AreSameManager(manager, nodeManager))
                 ];
                 if (!visible)
                 {
@@ -199,11 +199,12 @@ namespace Opc.Ua.Server
         /// <param name="replacementVisible">
         /// <c>false</c> to keep the replacement hidden from Clients until it is committed.
         /// </param>
+        /// <returns>The routing position occupied by the current NodeManager.</returns>
         /// <exception cref="ArgumentNullException">An argument is <c>null</c>.</exception>
         /// <exception cref="InvalidOperationException">
         /// <paramref name="current"/> is not registered.
         /// </exception>
-        public void Replace(
+        public NodeManagerRoutingPosition Replace(
             IAsyncNodeManager current,
             IAsyncNodeManager replacement,
             IEnumerable<int> replacementNamespaceIndexes,
@@ -225,18 +226,22 @@ namespace Opc.Ua.Server
             lock (m_lock)
             {
                 RoutingSnapshot snapshot = m_snapshot;
-                int managerIndex = Array.IndexOf(snapshot.NodeManagers, current);
+                int managerIndex = IndexOf(snapshot.NodeManagers, current);
                 if (managerIndex < 2)
                 {
                     throw new InvalidOperationException(
                         "Only lifecycle-managed NodeManagers can be replaced.");
                 }
-                if (Array.IndexOf(snapshot.NodeManagers, replacement) >= 0)
+                if (IndexOf(snapshot.NodeManagers, replacement) >= 0)
                 {
                     throw new InvalidOperationException(
                         "The replacement NodeManager is already registered.");
                 }
 
+                NodeManagerRoutingPosition currentPosition = CreatePosition(
+                    snapshot,
+                    managerIndex,
+                    snapshot.NodeManagers[managerIndex]);
                 int[] replacementNamespaces = [.. replacementNamespaceIndexes.Distinct()];
                 var replacementNamespaceSet = new HashSet<int>(replacementNamespaces);
                 IAsyncNodeManager[] managers = [.. snapshot.NodeManagers];
@@ -306,8 +311,8 @@ namespace Opc.Ua.Server
                 IAsyncNodeManager[] hiddenNodeManagers =
                 [
                     .. snapshot.HiddenNodeManagers.Where(manager =>
-                        !ReferenceEquals(manager, current) &&
-                        !ReferenceEquals(manager, replacement))
+                        !AreSameManager(manager, current) &&
+                        !AreSameManager(manager, replacement))
                 ];
                 if (!replacementVisible)
                 {
@@ -322,6 +327,111 @@ namespace Opc.Ua.Server
                     managers,
                     routes,
                     hiddenNodeManagers);
+                return currentPosition;
+            }
+        }
+
+        /// <summary>
+        /// Atomically removes a replacement and restores the previous NodeManager
+        /// to its captured global and namespace-route positions.
+        /// </summary>
+        public void RestoreReplacement(
+            IAsyncNodeManager replacement,
+            IAsyncNodeManager previous,
+            NodeManagerRoutingPosition previousPosition,
+            bool visible)
+        {
+            if (replacement is null)
+            {
+                throw new ArgumentNullException(nameof(replacement));
+            }
+            if (previous is null)
+            {
+                throw new ArgumentNullException(nameof(previous));
+            }
+            if (previousPosition is null)
+            {
+                throw new ArgumentNullException(nameof(previousPosition));
+            }
+
+            lock (m_lock)
+            {
+                RoutingSnapshot snapshot = m_snapshot;
+                int replacementIndex = IndexOf(
+                    snapshot.NodeManagers,
+                    replacement);
+                if (replacementIndex < 2)
+                {
+                    throw new InvalidOperationException(
+                        "Only lifecycle-managed NodeManagers can be restored.");
+                }
+                if (IndexOf(snapshot.NodeManagers, previous) >= 0)
+                {
+                    throw new InvalidOperationException(
+                        "The previous NodeManager is already registered.");
+                }
+
+                var managers = new List<IAsyncNodeManager>(
+                    snapshot.NodeManagers);
+                managers.RemoveAt(replacementIndex);
+                managers.Insert(
+                    ResolveInsertionIndex(
+                        managers,
+                        previousPosition.ManagerPosition),
+                    previous);
+
+                Dictionary<int, IReadOnlyList<IAsyncNodeManager>> routes =
+                    CopyRoutes(snapshot.NamespaceManagers);
+                foreach (int namespaceIndex in routes.Keys.ToArray())
+                {
+                    var updated = routes[namespaceIndex]
+                        .Where(manager =>
+                            !AreSameManager(manager, replacement))
+                        .ToList();
+                    if (updated.Count == 0)
+                    {
+                        routes.Remove(namespaceIndex);
+                    }
+                    else
+                    {
+                        routes[namespaceIndex] = [.. updated];
+                    }
+                }
+                foreach (KeyValuePair<int, NodeManagerInsertionPoint> routePosition
+                    in previousPosition.NamespaceRoutePositions)
+                {
+                    routes.TryGetValue(
+                        routePosition.Key,
+                        out IReadOnlyList<IAsyncNodeManager>? existing);
+                    var updated = existing?.Where(manager =>
+                        !AreSameManager(manager, previous)).ToList() ?? [];
+                    updated.Insert(
+                        ResolveInsertionIndex(
+                            updated,
+                            routePosition.Value),
+                        previous);
+                    routes[routePosition.Key] = [.. updated];
+                }
+
+                IAsyncNodeManager[] hiddenNodeManagers =
+                [
+                    .. snapshot.HiddenNodeManagers.Where(manager =>
+                        !AreSameManager(manager, replacement) &&
+                        !AreSameManager(manager, previous))
+                ];
+                if (!visible)
+                {
+                    hiddenNodeManagers =
+                    [
+                        .. hiddenNodeManagers,
+                        previous
+                    ];
+                }
+
+                m_snapshot = new RoutingSnapshot(
+                    [.. managers],
+                    routes,
+                    hiddenNodeManagers);
             }
         }
 
@@ -331,6 +441,15 @@ namespace Opc.Ua.Server
         /// <param name="nodeManager">The NodeManager to remove.</param>
         public void Remove(IAsyncNodeManager nodeManager)
         {
+            _ = RemoveAndCapturePosition(nodeManager);
+        }
+
+        /// <summary>
+        /// Atomically captures and removes a lifecycle-managed NodeManager.
+        /// </summary>
+        public NodeManagerRoutingPosition RemoveAndCapturePosition(
+            IAsyncNodeManager nodeManager)
+        {
             if (nodeManager is null)
             {
                 throw new ArgumentNullException(nameof(nodeManager));
@@ -339,7 +458,7 @@ namespace Opc.Ua.Server
             lock (m_lock)
             {
                 RoutingSnapshot snapshot = m_snapshot;
-                int managerIndex = Array.IndexOf(snapshot.NodeManagers, nodeManager);
+                int managerIndex = IndexOf(snapshot.NodeManagers, nodeManager);
                 if (managerIndex < 2)
                 {
                     throw new InvalidOperationException(
@@ -347,6 +466,11 @@ namespace Opc.Ua.Server
                 }
 
                 List<IAsyncNodeManager> managers = [.. snapshot.NodeManagers];
+                IAsyncNodeManager registeredManager = managers[managerIndex];
+                NodeManagerRoutingPosition position = CreatePosition(
+                    snapshot,
+                    managerIndex,
+                    registeredManager);
                 managers.RemoveAt(managerIndex);
                 Dictionary<int, IReadOnlyList<IAsyncNodeManager>> routes =
                     CopyRoutes(snapshot.NamespaceManagers);
@@ -354,7 +478,8 @@ namespace Opc.Ua.Server
                 foreach (int namespaceIndex in routes.Keys.ToArray())
                 {
                     var updated = routes[namespaceIndex].ToList();
-                    updated.RemoveAll(manager => ReferenceEquals(manager, nodeManager));
+                    updated.RemoveAll(manager =>
+                        AreSameManager(manager, registeredManager));
                     if (updated.Count == 0)
                     {
                         routes.Remove(namespaceIndex);
@@ -370,8 +495,106 @@ namespace Opc.Ua.Server
                     routes,
                     [
                         .. snapshot.HiddenNodeManagers.Where(manager =>
-                            !ReferenceEquals(manager, nodeManager))
+                            !AreSameManager(manager, registeredManager))
                     ]);
+                return position;
+            }
+        }
+
+        /// <summary>
+        /// Captures the manager's position in the global list and every namespace route.
+        /// </summary>
+        public NodeManagerRoutingPosition CapturePosition(
+            IAsyncNodeManager nodeManager)
+        {
+            if (nodeManager is null)
+            {
+                throw new ArgumentNullException(nameof(nodeManager));
+            }
+
+            RoutingSnapshot snapshot = Volatile.Read(ref m_snapshot);
+            int managerIndex = IndexOf(snapshot.NodeManagers, nodeManager);
+            if (managerIndex < 2)
+            {
+                throw new InvalidOperationException(
+                    "Only lifecycle-managed NodeManagers have a restorable position.");
+            }
+
+            return CreatePosition(
+                snapshot,
+                managerIndex,
+                snapshot.NodeManagers[managerIndex]);
+        }
+
+        /// <summary>
+        /// Restores a previously removed NodeManager to its captured routing positions.
+        /// </summary>
+        public void Restore(
+            IAsyncNodeManager nodeManager,
+            NodeManagerRoutingPosition position,
+            bool? visible = null)
+        {
+            if (nodeManager is null)
+            {
+                throw new ArgumentNullException(nameof(nodeManager));
+            }
+            if (position is null)
+            {
+                throw new ArgumentNullException(nameof(position));
+            }
+
+            lock (m_lock)
+            {
+                RoutingSnapshot snapshot = m_snapshot;
+                if (IndexOf(snapshot.NodeManagers, nodeManager) >= 0)
+                {
+                    throw new InvalidOperationException(
+                        "The NodeManager is already registered.");
+                }
+
+                var managers = new List<IAsyncNodeManager>(snapshot.NodeManagers);
+                managers.Insert(
+                    ResolveInsertionIndex(
+                        managers,
+                        position.ManagerPosition),
+                    nodeManager);
+
+                Dictionary<int, IReadOnlyList<IAsyncNodeManager>> routes =
+                    CopyRoutes(snapshot.NamespaceManagers);
+                foreach (KeyValuePair<int, NodeManagerInsertionPoint> routePosition
+                    in position.NamespaceRoutePositions)
+                {
+                    routes.TryGetValue(
+                        routePosition.Key,
+                        out IReadOnlyList<IAsyncNodeManager>? existing);
+                    var updated = existing?.Where(manager =>
+                        !AreSameManager(manager, nodeManager)).ToList() ?? [];
+                    updated.Insert(
+                        ResolveInsertionIndex(
+                            updated,
+                            routePosition.Value),
+                        nodeManager);
+                    routes[routePosition.Key] = [.. updated];
+                }
+
+                IAsyncNodeManager[] hiddenNodeManagers =
+                [
+                    .. snapshot.HiddenNodeManagers.Where(manager =>
+                        !AreSameManager(manager, nodeManager))
+                ];
+                if (!(visible ?? position.WasVisible))
+                {
+                    hiddenNodeManagers =
+                    [
+                        .. hiddenNodeManagers,
+                        nodeManager
+                    ];
+                }
+
+                m_snapshot = new RoutingSnapshot(
+                    [.. managers],
+                    routes,
+                    hiddenNodeManagers);
             }
         }
 
@@ -396,24 +619,29 @@ namespace Opc.Ua.Server
                 routes.TryGetValue(
                     namespaceIndex,
                     out IReadOnlyList<IAsyncNodeManager>? existing);
-                if (existing?.Any(manager => ReferenceEquals(manager, nodeManager)) == true)
+                int managerIndex = IndexOf(snapshot.NodeManagers, nodeManager);
+                IAsyncNodeManager registeredManager = managerIndex >= 0
+                    ? snapshot.NodeManagers[managerIndex]
+                    : nodeManager;
+                if (existing?.Any(manager =>
+                    AreSameManager(manager, registeredManager)) == true)
                 {
                     return;
                 }
                 routes[namespaceIndex] = existing is null
-                    ? [nodeManager]
-                    : [.. existing, nodeManager];
+                    ? [registeredManager]
+                    : [.. existing, registeredManager];
                 IAsyncNodeManager[] hiddenNodeManagers =
                 [
                     .. snapshot.HiddenNodeManagers.Where(manager =>
-                        !ReferenceEquals(manager, nodeManager))
+                        !AreSameManager(manager, registeredManager))
                 ];
                 if (!visible)
                 {
                     hiddenNodeManagers =
                     [
                         .. hiddenNodeManagers,
-                        nodeManager
+                        registeredManager
                     ];
                 }
 
@@ -450,7 +678,7 @@ namespace Opc.Ua.Server
                 var updated = existing.ToList();
                 int removed = updated.RemoveAll(manager =>
                     asyncNodeManager is not null
-                        ? ReferenceEquals(manager, asyncNodeManager)
+                        ? AreSameManager(manager, asyncNodeManager)
                         : manager.SyncNodeManager is { } syncNodeManager &&
                             ReferenceEquals(syncNodeManager, nodeManager));
                 if (removed == 0)
@@ -527,9 +755,9 @@ namespace Opc.Ua.Server
         {
             RoutingSnapshot snapshot = Volatile.Read(ref m_snapshot);
             return snapshot.NodeManagers.Any(manager =>
-                ReferenceEquals(manager, nodeManager)) &&
+                AreSameManager(manager, nodeManager)) &&
                 !snapshot.HiddenNodeManagers.Any(manager =>
-                    ReferenceEquals(manager, nodeManager));
+                    AreSameManager(manager, nodeManager));
         }
 
         /// <summary>
@@ -547,7 +775,7 @@ namespace Opc.Ua.Server
 
             RoutingSnapshot snapshot = Volatile.Read(ref m_snapshot);
             return snapshot.NodeManagers.Any(manager =>
-                ReferenceEquals(manager, nodeManager));
+                AreSameManager(manager, nodeManager));
         }
 
         /// <summary>
@@ -570,24 +798,26 @@ namespace Opc.Ua.Server
             lock (m_lock)
             {
                 RoutingSnapshot snapshot = m_snapshot;
-                if (!snapshot.NodeManagers.Any(manager =>
-                    ReferenceEquals(manager, nodeManager)))
+                int managerIndex = IndexOf(snapshot.NodeManagers, nodeManager);
+                if (managerIndex < 0)
                 {
                     throw new InvalidOperationException(
                         "The NodeManager is not registered.");
                 }
+                IAsyncNodeManager registeredManager =
+                    snapshot.NodeManagers[managerIndex];
 
                 IAsyncNodeManager[] hiddenNodeManagers =
                 [
                     .. snapshot.HiddenNodeManagers.Where(manager =>
-                        !ReferenceEquals(manager, nodeManager))
+                        !AreSameManager(manager, registeredManager))
                 ];
                 if (!visible)
                 {
                     hiddenNodeManagers =
                     [
                         .. hiddenNodeManagers,
-                        nodeManager
+                        registeredManager
                     ];
                 }
 
@@ -627,15 +857,16 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Returns the position of a NodeManager by reference, or -1 when it is absent.
+        /// Returns the position of a NodeManager by async or wrapped synchronous identity,
+        /// or -1 when it is absent.
         /// </summary>
         private static int IndexOf(
-            List<IAsyncNodeManager> managers,
+            IReadOnlyList<IAsyncNodeManager> managers,
             IAsyncNodeManager manager)
         {
             for (int ii = 0; ii < managers.Count; ii++)
             {
-                if (ReferenceEquals(managers[ii], manager))
+                if (AreSameManager(managers[ii], manager))
                 {
                     return ii;
                 }
@@ -672,6 +903,65 @@ namespace Opc.Ua.Server
             IReadOnlyDictionary<int, IReadOnlyList<IAsyncNodeManager>> routes)
         {
             return routes.ToDictionary(entry => entry.Key, entry => entry.Value);
+        }
+
+        private static NodeManagerRoutingPosition CreatePosition(
+            RoutingSnapshot snapshot,
+            int managerIndex,
+            IAsyncNodeManager registeredManager)
+        {
+            var routePositions =
+                new Dictionary<int, NodeManagerInsertionPoint>();
+            foreach (KeyValuePair<int, IReadOnlyList<IAsyncNodeManager>> route
+                in snapshot.NamespaceManagers)
+            {
+                int routeIndex = IndexOf(route.Value, registeredManager);
+                if (routeIndex >= 0)
+                {
+                    routePositions.Add(
+                        route.Key,
+                        CreateInsertionPoint(route.Value, routeIndex));
+                }
+            }
+
+            return new NodeManagerRoutingPosition(
+                CreateInsertionPoint(snapshot.NodeManagers, managerIndex),
+                routePositions,
+                !snapshot.HiddenNodeManagers.Any(manager =>
+                    AreSameManager(manager, registeredManager)));
+        }
+
+        private static NodeManagerInsertionPoint CreateInsertionPoint(
+            IReadOnlyList<IAsyncNodeManager> managers,
+            int index)
+        {
+            return new NodeManagerInsertionPoint(
+                index,
+                index > 0 ? managers[index - 1] : null,
+                index + 1 < managers.Count ? managers[index + 1] : null);
+        }
+
+        private static int ResolveInsertionIndex(
+            List<IAsyncNodeManager> managers,
+            NodeManagerInsertionPoint position)
+        {
+            if (position.Next is not null)
+            {
+                int nextIndex = IndexOf(managers, position.Next);
+                if (nextIndex >= 0)
+                {
+                    return nextIndex;
+                }
+            }
+            if (position.Previous is not null)
+            {
+                int previousIndex = IndexOf(managers, position.Previous);
+                if (previousIndex >= 0)
+                {
+                    return previousIndex + 1;
+                }
+            }
+            return Math.Min(position.Index, managers.Count);
         }
 
         private readonly Lock m_lock = new();
@@ -771,6 +1061,82 @@ namespace Opc.Ua.Server
                 }
                 return visibleRoutes;
             }
+        }
+
+        /// <summary>
+        /// Captures a lifecycle-managed NodeManager's ordering in the routing table.
+        /// </summary>
+        internal sealed class NodeManagerRoutingPosition
+        {
+            /// <summary>
+            /// Initializes a captured routing position.
+            /// </summary>
+            /// <param name="managerPosition">The position in the global manager list.</param>
+            /// <param name="namespaceRoutePositions">The position in each namespace route.</param>
+            /// <param name="wasVisible">Whether the manager was visible to clients.</param>
+            public NodeManagerRoutingPosition(
+                NodeManagerInsertionPoint managerPosition,
+                IReadOnlyDictionary<int, NodeManagerInsertionPoint> namespaceRoutePositions,
+                bool wasVisible)
+            {
+                ManagerPosition = managerPosition;
+                NamespaceRoutePositions = namespaceRoutePositions;
+                WasVisible = wasVisible;
+            }
+
+            /// <summary>
+            /// Gets the position in the global manager list.
+            /// </summary>
+            public NodeManagerInsertionPoint ManagerPosition { get; }
+
+            /// <summary>
+            /// Gets the position in each namespace route.
+            /// </summary>
+            public IReadOnlyDictionary<int, NodeManagerInsertionPoint>
+                NamespaceRoutePositions
+            { get; }
+
+            /// <summary>
+            /// Gets whether the manager was visible to clients.
+            /// </summary>
+            public bool WasVisible { get; }
+        }
+
+        /// <summary>
+        /// Identifies an insertion point by its former index and neighboring managers.
+        /// </summary>
+        internal sealed class NodeManagerInsertionPoint
+        {
+            /// <summary>
+            /// Initializes an insertion point.
+            /// </summary>
+            /// <param name="index">The former absolute index.</param>
+            /// <param name="previous">The former predecessor, if any.</param>
+            /// <param name="next">The former successor, if any.</param>
+            public NodeManagerInsertionPoint(
+                int index,
+                IAsyncNodeManager? previous,
+                IAsyncNodeManager? next)
+            {
+                Index = index;
+                Previous = previous;
+                Next = next;
+            }
+
+            /// <summary>
+            /// Gets the former absolute index.
+            /// </summary>
+            public int Index { get; }
+
+            /// <summary>
+            /// Gets the manager that formerly preceded the removed manager.
+            /// </summary>
+            public IAsyncNodeManager? Previous { get; }
+
+            /// <summary>
+            /// Gets the manager that formerly followed the removed manager.
+            /// </summary>
+            public IAsyncNodeManager? Next { get; }
         }
     }
 }

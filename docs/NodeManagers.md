@@ -373,7 +373,9 @@ set of models genuinely has to change without restarting the server.
 
 `AddNodeManager` and `AddRuntimeNodeSet` register a factory on `IOpcUaServerBuilder`. The factory is
 created before the server starts, and the server builds its address space from all registered
-factories while it starts.
+factories while it starts. Once startup succeeds, each application NodeManager appears as a
+generation-1 entry in `INodeManagerLifecycle.Registrations`. The built-in diagnostics,
+configuration, and core NodeManagers are not exposed there.
 
 ```csharp
 services.AddOpcUa()
@@ -428,8 +430,10 @@ public sealed class ModelLoader(INodeManagerLifecycle lifecycle)
 ```
 
 Each add returns an immutable `NodeManagerRegistration`. Reload returns the next generation and
-invalidates the previous handle. Only registrations created by the lifecycle provider can be
-reloaded or removed; startup, diagnostics, and core NodeManagers are protected.
+invalidates the previous handle. `Registrations` also contains application NodeManagers that were
+composed before startup, so a control-plane component can discover their generation-1 handles and
+remove them or, when the current manager implements `INodeManagerReloadParticipant`, reload them.
+Diagnostics, configuration, and core NodeManagers remain protected and absent from the collection.
 
 `INodeManagerLifecycle` is a host control-plane API. Do not invoke reload or removal from inside an
 OPC UA service or Method callback: teardown waits for the requests that already captured the retired

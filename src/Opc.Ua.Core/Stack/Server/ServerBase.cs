@@ -383,6 +383,7 @@ namespace Opc.Ua
                 }
             }
 
+            await CompleteServerStartAsync(cancellationToken).ConfigureAwait(false);
             return hosts[0];
         }
 
@@ -439,6 +440,43 @@ namespace Opc.Ua
                     serviceHost.Open();
                     ServiceHosts.Add(serviceHost);
                 }
+            }
+
+            await CompleteServerStartAsync(cancellationToken).ConfigureAwait(false);
+        }
+
+        private async ValueTask CompleteServerStartAsync(
+            CancellationToken cancellationToken)
+        {
+            try
+            {
+                await OnServerStartedAsync(cancellationToken).ConfigureAwait(false);
+            }
+            catch (Exception startupException) when (
+                startupException is not OutOfMemoryException)
+            {
+                ServerError = null!;
+                try
+                {
+                    await StopAsync(CancellationToken.None).ConfigureAwait(false);
+                }
+                catch (Exception cleanupException) when (
+                    cleanupException is not OutOfMemoryException)
+                {
+                    throw new AggregateException(
+                        "Server post-start initialization and cleanup both failed.",
+                        startupException,
+                        cleanupException);
+                }
+                if (ServerError is not null &&
+                    ServiceResult.IsBad(ServerError))
+                {
+                    throw new AggregateException(
+                        "Server post-start initialization failed and shutdown reported an error.",
+                        startupException,
+                        new ServiceResultException(ServerError));
+                }
+                throw;
             }
         }
 
@@ -1765,6 +1803,17 @@ namespace Opc.Ua
         protected virtual void StartApplication(ApplicationConfiguration configuration)
         {
             // must be defined by the subclass.
+        }
+
+        /// <summary>
+        /// Called after the server application has started and this start path has
+        /// opened the service hosts it owns.
+        /// </summary>
+        /// <param name="cancellationToken">The cancellation token.</param>
+        protected virtual ValueTask OnServerStartedAsync(
+            CancellationToken cancellationToken = default)
+        {
+            return default;
         }
 
         /// <summary>

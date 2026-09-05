@@ -35,6 +35,38 @@ using System.Threading.Tasks;
 namespace Opc.Ua.Server
 {
     /// <summary>
+    /// Raised when a factory returns a NodeManager that is already live.
+    /// </summary>
+    internal sealed class NodeManagerAlreadyRegisteredException : InvalidOperationException
+    {
+        public NodeManagerAlreadyRegisteredException()
+            : base("The NodeManager is already registered.")
+        {
+        }
+
+        /// <summary>
+        /// Initializes the exception with a custom message.
+        /// </summary>
+        /// <param name="message">The error message.</param>
+        public NodeManagerAlreadyRegisteredException(string message)
+            : base(message)
+        {
+        }
+
+        /// <summary>
+        /// Initializes the exception with a custom message and inner exception.
+        /// </summary>
+        /// <param name="message">The error message.</param>
+        /// <param name="innerException">The exception that caused this error.</param>
+        public NodeManagerAlreadyRegisteredException(
+            string message,
+            Exception innerException)
+            : base(message, innerException)
+        {
+        }
+    }
+
+    /// <summary>
     /// Hosts NodeManagers that are added, replaced, or retired while the server is running.
     /// <para>
     /// A lifecycle operation runs in stages so that a failure never leaves a partially visible
@@ -156,6 +188,16 @@ namespace Opc.Ua.Server
             CancellationToken ct = default);
 
         /// <summary>
+        /// Transfers the application NodeManagers created during server startup into the
+        /// live lifecycle bookkeeping. Built-in configuration, diagnostics, and core
+        /// NodeManagers are not included.
+        /// </summary>
+        /// <param name="ct">The token used to cancel the operation.</param>
+        /// <returns>The already-published startup NodeManagers and their external references.</returns>
+        ValueTask<ArrayOf<PreparedNodeManager>> TakeStartupNodeManagersAsync(
+            CancellationToken ct = default);
+
+        /// <summary>
         /// Drops the host bookkeeping for a NodeManager that the caller has taken over, without
         /// tearing its address space down.
         /// </summary>
@@ -247,6 +289,12 @@ namespace Opc.Ua.Server
         /// Gets the references the NodeManager adds to Nodes owned by other NodeManagers.
         /// </summary>
         public Dictionary<NodeId, IList<IReference>> ExternalReferences { get; }
+
+        /// <summary>
+        /// Gets or sets whether lifecycle operations initiated from an OPC UA request callback
+        /// are allowed for this NodeManager.
+        /// </summary>
+        public bool AllowLifecycleFromRequestCallback { get; set; }
 
         /// <summary>
         /// Gets or sets whether the NodeManager was added to the routing table and therefore has

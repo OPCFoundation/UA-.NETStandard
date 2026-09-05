@@ -167,7 +167,8 @@ namespace Opc.Ua.Server.RuntimeNodeSet
                 sorted,
                 defaultNs,
                 m_configure,
-                m_configureAsync);
+                m_configureAsync,
+                AllowLifecycleFromRequestCallback);
 #pragma warning restore CA2000
         }
 

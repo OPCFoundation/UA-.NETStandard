@@ -487,7 +487,7 @@ namespace Opc.Ua.Export
             // Link parent-child relationships after all nodes are imported if requested
             if (linkParentChild)
             {
-                LinkParentChildRelationships(nodes);
+                LinkParentChildRelationships(context, nodes);
             }
         }
 
@@ -502,39 +502,113 @@ namespace Opc.Ua.Export
         /// as an external reference. Such a parent is recorded through
         /// <see cref="TryGetUnresolvedParentNodeId"/> instead of being dropped.
         /// </remarks>
+        /// <param name="context">The context used to materialize declared children.</param>
         /// <param name="nodes">The collection of imported nodes.</param>
-        private static void LinkParentChildRelationships(NodeStateCollection nodes)
+        private static void LinkParentChildRelationships(
+            ISystemContext context,
+            NodeStateCollection nodes)
         {
-            // Create a dictionary for fast lookup of nodes by NodeId
-            var nodeTable = new Dictionary<NodeId, NodeState>();
-            foreach (NodeState node in nodes)
+            var nodeIndexes = new Dictionary<NodeId, int>();
+            for (int ii = 0; ii < nodes.Count; ii++)
             {
+                NodeState node = nodes[ii];
                 if (!node.NodeId.IsNull)
                 {
-                    nodeTable[node.NodeId] = node;
+                    nodeIndexes[node.NodeId] = ii;
                 }
             }
 
-            // Process each node to establish parent-child relationships
-            foreach (NodeState node in nodes)
+            var linkStates = new ParentLinkState[nodes.Count];
+            for (int ii = 0; ii < nodes.Count; ii++)
             {
-                if (node is BaseInstanceState instance && instance.Handle is NodeId parentNodeId)
+                if (linkStates[ii] == ParentLinkState.Linked)
                 {
-                    // The Handle is only a carrier for the authored parent
-                    // between Import and this pass, so it is always cleared;
-                    // an unresolved parent is preserved separately.
-                    instance.Handle = null;
+                    continue;
+                }
 
-                    if (nodeTable.TryGetValue(parentNodeId, out NodeState? parent))
+                var pending = new Stack<int>();
+                int current = ii;
+                while (linkStates[current] == ParentLinkState.Unlinked)
+                {
+                    linkStates[current] = ParentLinkState.Linking;
+                    pending.Push(current);
+
+                    if (nodes[current] is not BaseInstanceState instance ||
+                        instance.Handle is not NodeId parentNodeId ||
+                        !nodeIndexes.TryGetValue(parentNodeId, out int parentIndex) ||
+                        linkStates[parentIndex] != ParentLinkState.Unlinked)
                     {
-                        // Set the Parent property to establish the relationship
-                        instance.Parent = parent;
-
-                        // Add the child to the parent's children collection
-                        parent.AddChild(instance);
-                        continue;
+                        break;
                     }
+                    current = parentIndex;
+                }
 
+                while (pending.Count > 0)
+                {
+                    int index = pending.Pop();
+                    LinkParentChildRelationship(
+                        context,
+                        nodes,
+                        nodeIndexes,
+                        index);
+                    linkStates[index] = ParentLinkState.Linked;
+                }
+            }
+        }
+
+        private static void LinkParentChildRelationship(
+            ISystemContext context,
+            NodeStateCollection nodes,
+            Dictionary<NodeId, int> nodeIndexes,
+            int index)
+        {
+            NodeState node = nodes[index];
+            if (node is BaseInstanceState instance &&
+                instance.Handle is NodeId parentNodeId)
+            {
+                // The Handle is only a carrier for the authored parent between
+                // Import and this pass. A typed replacement copies it, so clear
+                // the carrier before asking the parent to adopt the child.
+                instance.Handle = null;
+
+                if (nodeIndexes.TryGetValue(parentNodeId, out int parentIndex))
+                {
+                    NodeState parent = nodes[parentIndex];
+
+                    BaseInstanceState linkedChild = instance;
+                    bool bindDeclaredChild =
+                        parent is MethodState method &&
+                        IsMethodArgumentProperty(method, instance);
+                    BaseInstanceState? existing =
+                        bindDeclaredChild
+                            ? parent.FindChild(context, instance.BrowseName)
+                            : null;
+                    if (bindDeclaredChild && existing is null)
+                    {
+                        // ReplaceChild routes through the parent's declared-child
+                        // factory. MethodState therefore narrows imported generic
+                        // properties to its typed InputArguments/OutputArguments
+                        // children, while an untyped parent retains the existing
+                        // generic AddChild behavior.
+                        parent.ReplaceChild(context, instance);
+                        linkedChild =
+                            parent.FindChild(context, instance.BrowseName) ??
+                            instance;
+                        linkedChild.ReferenceTypeId =
+                            ReferenceTypeIds.HasProperty;
+                    }
+                    else
+                    {
+                        // Preserve the previous import behavior for unnamed
+                        // children and duplicate BrowseNames. Replacing an
+                        // existing sibling would otherwise make it unreachable.
+                        parent.AddChild(instance);
+                    }
+                    linkedChild.Handle = null;
+                    nodes[index] = linkedChild;
+                }
+                else
+                {
                     // Add throws on a duplicate key and AddOrUpdate is not
                     // available on netstandard2.0. Handle is a general-purpose
                     // slot, so a caller can legitimately present the same
@@ -544,6 +618,38 @@ namespace Opc.Ua.Export
                     s_unresolvedParents.Add(instance, new UnresolvedParent(parentNodeId));
                 }
             }
+        }
+
+        private static bool IsMethodArgumentProperty(
+            MethodState method,
+            BaseInstanceState child)
+        {
+            if (child is not BaseVariableState variable ||
+                child.BrowseName.NamespaceIndex != 0 ||
+                child.TypeDefinitionId != VariableTypeIds.PropertyType ||
+                variable.DataType != DataTypeIds.Argument ||
+                variable.ValueRank != ValueRanks.OneDimension ||
+                (child.BrowseName.Name != BrowseNames.InputArguments &&
+                    child.BrowseName.Name != BrowseNames.OutputArguments))
+            {
+                return false;
+            }
+
+            return child.ReferenceExists(
+                    ReferenceTypeIds.HasProperty,
+                    true,
+                    method.NodeId) ||
+                method.ReferenceExists(
+                    ReferenceTypeIds.HasProperty,
+                    false,
+                    child.NodeId);
+        }
+
+        private enum ParentLinkState
+        {
+            Unlinked,
+            Linking,
+            Linked
         }
 
         /// <summary>
