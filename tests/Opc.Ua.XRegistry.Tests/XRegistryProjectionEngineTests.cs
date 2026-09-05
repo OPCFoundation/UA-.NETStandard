@@ -1100,6 +1100,244 @@ namespace Opc.Ua.XRegistry.Tests
                     1)));
         }
 
+        /// <summary>
+        /// Scenario 1: One Resource + one Version produces three distinct NodeIds
+        /// (logical Resource, Versions folder, Version node), distinct BrowseNames
+        /// (ResourceId vs VersionId), distinct Xids, and NO sibling collision when
+        /// ResourceId == VersionId.
+        /// </summary>
+        [Test]
+        public async Task DistinctHierarchyProducesThreeNodeIdsAndNoCollisionAsync()
+        {
+            var strategy = new VersionedTestStrategy
+            {
+                Snapshot = VersionedProjectionSnapshot("v1"),
+                EventSnapshot = VersionedEventSnapshot("v1", 1, WotLabels())
+            };
+            ProjectionHarness harness = ProjectionHarness.Create(
+                eventsEnabled: false,
+                suppliedStrategy: strategy);
+
+            await harness.Engine.AttachAsync(harness.Registry, CancellationToken.None)
+                .ConfigureAwait(false);
+
+            ResourceState logicalNode = FindLogicalResourceNode(harness, "pump");
+            ResourceState versionNode = FindVersionNode(harness, "v1");
+            // The Versions folder is a child of the logical node, not a separate Added entry.
+            ResourceVersionsState? versionsFolder = logicalNode.Versions;
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(versionsFolder, Is.Not.Null);
+                // Three distinct NodeIds.
+                Assert.That(logicalNode.NodeId, Is.Not.EqualTo(versionNode.NodeId));
+                Assert.That(logicalNode.NodeId, Is.Not.EqualTo(versionsFolder!.NodeId));
+                Assert.That(versionNode.NodeId, Is.Not.EqualTo(versionsFolder.NodeId));
+
+                // Distinct BrowseNames.
+                Assert.That(logicalNode.BrowseName.Name, Is.EqualTo("pump"));
+                Assert.That(versionNode.BrowseName.Name, Is.EqualTo("v1"));
+                Assert.That(versionsFolder.BrowseName.Name, Is.EqualTo("Versions"));
+
+                // Distinct Xids.
+                string logicalXid = logicalNode.Xid?.Value ?? string.Empty;
+                string versionXid = versionNode.Xid?.Value ?? string.Empty;
+                Assert.That(logicalXid, Is.Not.EqualTo(versionXid));
+            });
+        }
+
+        /// <summary>
+        /// Scenario 2: Switching the default Version does NOT change any NodeId/Xid
+        /// identity — verified by existing test
+        /// <c>VersionSourcesMetaAndDefaultSwitchAreDiffedIndependentlyAsync</c>.
+        /// This additional test verifies no spurious VersionUpdated event fires for
+        /// a version that was not changed.
+        /// </summary>
+        [Test]
+        public async Task DefaultSwitchDoesNotFireSpuriousVersionUpdatedAsync()
+        {
+            var strategy = new VersionedTestStrategy
+            {
+                Snapshot = VersionedProjectionSnapshot("v1"),
+                EventSnapshot = VersionedEventSnapshot("v1", 1, WotLabels())
+            };
+            ProjectionHarness harness = ProjectionHarness.Create(
+                eventsEnabled: true,
+                suppliedStrategy: strategy);
+
+            await harness.Engine.AttachAsync(harness.Registry, CancellationToken.None)
+                .ConfigureAwait(false);
+
+            ResourceState logicalBefore = FindLogicalResourceNode(harness, "pump");
+            NodeId logicalNodeIdBefore = logicalBefore.NodeId;
+
+            // Switch default to v2.
+            harness.Events.Clear();
+            strategy.Snapshot = VersionedProjectionSnapshot("v2");
+            strategy.EventSnapshot = VersionedEventSnapshot("v2", 2, WotLabels());
+            await harness.Engine.ReconcileAsync(CancellationToken.None).ConfigureAwait(false);
+
+            ResourceState logicalAfter = FindLogicalResourceNode(harness, "pump");
+            Assert.Multiple(() =>
+            {
+                // Logical Resource NodeId is stable.
+                Assert.That(logicalAfter.NodeId, Is.EqualTo(logicalNodeIdBefore));
+                // No VersionUpdated events emitted for the switch itself (only
+                // ResourceUpdated).
+                Assert.That(
+                    harness.Events.OfType<VersionUpdatedEventState>().Count(),
+                    Is.Zero);
+            });
+        }
+
+        /// <summary>
+        /// Scenario 3: Delete role is fixed by structural position.
+        /// Deleting a Version node uses Version-delete semantics (the handler
+        /// wired on creation). Deleting the logical Resource uses Resource-delete
+        /// semantics that cascades to all Versions.
+        /// </summary>
+        [Test]
+        public async Task DeleteRoleIsFixedByStructuralPositionAsync()
+        {
+            var strategy = new VersionedTestStrategy
+            {
+                Snapshot = VersionedProjectionSnapshotTwoVersions("v1", "v2", "v1"),
+                EventSnapshot = VersionedEventSnapshotTwoVersions("v1", "v2", "v1", 1)
+            };
+            ProjectionHarness harness = ProjectionHarness.Create(
+                eventsEnabled: false,
+                suppliedStrategy: strategy);
+
+            await harness.Engine.AttachAsync(harness.Registry, CancellationToken.None)
+                .ConfigureAwait(false);
+
+            // Verify each Delete handler is wired.
+            ResourceState logicalNode = FindLogicalResourceNode(harness, "pump");
+            ResourceState v1Node = FindVersionNode(harness, "v1");
+            ResourceState v2Node = FindVersionNode(harness, "v2");
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(logicalNode.Delete?.OnCallMethod2Async, Is.Not.Null);
+                Assert.That(v1Node.Delete?.OnCallMethod2Async, Is.Not.Null);
+                Assert.That(v2Node.Delete?.OnCallMethod2Async, Is.Not.Null);
+            });
+
+            // Deleting non-default v2 Version uses Version-delete path.
+            ServiceResult v2DeleteResult = await InvokeDeleteAsync(harness, v2Node, 0)
+                .ConfigureAwait(false);
+            Assert.That(ServiceResult.IsGood(v2DeleteResult));
+
+            // Deleting logical Resource uses Resource-delete path.
+            ServiceResult logicalDeleteResult = await InvokeDeleteAsync(harness, logicalNode, 0)
+                .ConfigureAwait(false);
+            Assert.That(ServiceResult.IsGood(logicalDeleteResult));
+        }
+
+        /// <summary>
+        /// Scenario 4 (Gap 1): Logical Resource's Open/Close methods are wired for forwarding
+        /// when the strategy supplies a forwarding-capable file object.
+        /// </summary>
+        [Test]
+        public async Task LogicalResourceFileForwardingIsWiredAsync()
+        {
+            var file = new Mock<IXRegistryProjectedResourceFile>();
+            file.As<IXRegistryProjectedResourceFileHandleForwarder>();
+            var strategy = new VersionedTestStrategy();
+            strategy.FileFactory = (_, _) => file.Object;
+            strategy.Snapshot = VersionedProjectionSnapshot("v1");
+            strategy.EventSnapshot = VersionedEventSnapshot("v1", 1, WotLabels());
+
+            ProjectionHarness harness = ProjectionHarness.Create(
+                eventsEnabled: false,
+                suppliedStrategy: strategy);
+
+            await harness.Engine.AttachAsync(harness.Registry, CancellationToken.None)
+                .ConfigureAwait(false);
+
+            ResourceState logicalNode = FindLogicalResourceNode(harness, "pump");
+
+            // The logical node's Open handler should be wired.
+            Assert.Multiple(() =>
+            {
+                Assert.That(logicalNode.Open?.OnCall, Is.Not.Null);
+                Assert.That(logicalNode.Close?.OnCallAsync, Is.Not.Null);
+                Assert.That(logicalNode.Read?.OnCallAsync, Is.Not.Null);
+                Assert.That(logicalNode.Write?.OnCall, Is.Not.Null);
+                Assert.That(logicalNode.GetPosition?.OnCall, Is.Not.Null);
+                Assert.That(logicalNode.SetPosition?.OnCall, Is.Not.Null);
+            });
+        }
+
+        /// <summary>
+        /// Scenario 10 (Gap 2): <c>IsVersionAtLeast</c> correctly detects 0.6.0+ versions.
+        /// </summary>
+        [TestCase("0.6.0", true)]
+        [TestCase("0.5.0", false)]
+        [TestCase("1.0.0", true)]
+        [TestCase("0.6.0-preview.1", true)]
+        [TestCase("", false)]
+        public void ModelVersionDetectionReturnsCorrectResult(
+            string version, bool expected)
+        {
+            bool result = Client.XRegistryClient.IsVersionAtLeast(version, 0, 6, 0);
+            Assert.That(result, Is.EqualTo(expected));
+        }
+
+        private static TestSnapshot VersionedProjectionSnapshotTwoVersions(
+            string v1, string v2, string defaultVersionId)
+        {
+            return new TestSnapshot(
+                [
+                    new TestGroup("schemas",
+                    [
+                        new VersionedTestResource("schemas", "pump", v1, v1 == defaultVersionId, 1),
+                        new VersionedTestResource("schemas", "pump", v2, v2 == defaultVersionId, 1)
+                    ])
+                ]);
+        }
+
+        private static XRegistryProjectionEventSnapshot VersionedEventSnapshotTwoVersions(
+            string v1, string v2, string defaultVersionId, uint epoch)
+        {
+            var labels = WotLabels();
+            return new XRegistryProjectionEventSnapshot(
+                "/",
+                epoch,
+                ImmutableSortedDictionary<string, string>.Empty,
+                [
+                    new XRegistryProjectionEventGroup(
+                        "schemas",
+                        "/groups/schemas",
+                        epoch,
+                        ImmutableSortedDictionary<string, string>.Empty,
+                        false,
+                        [
+                            new XRegistryProjectionEventResource(
+                                "schemas",
+                                "pump",
+                                "/groups/schemas/resources/pump",
+                                epoch,
+                                epoch,
+                                labels,
+                                false,
+                                defaultVersionId,
+                                [
+                                    new XRegistryProjectionEventVersion(
+                                        v1,
+                                        $"/groups/schemas/resources/pump/versions/{v1}",
+                                        epoch,
+                                        ImmutableSortedDictionary<string, string>.Empty),
+                                    new XRegistryProjectionEventVersion(
+                                        v2,
+                                        $"/groups/schemas/resources/pump/versions/{v2}",
+                                        epoch,
+                                        ImmutableSortedDictionary<string, string>.Empty)
+                                ])
+                        ])
+                ]);
+        }
+
         private static XRegistryProjectionEventSnapshot EmptyEventSnapshot(uint epoch)
         {
             return new XRegistryProjectionEventSnapshot(
@@ -1858,6 +2096,16 @@ namespace Opc.Ua.XRegistry.Tests
             TestStrategy,
             IXRegistryVersionedProjectionStrategy
         {
+            public Func<ResourceState, IXRegistryProjectionResource, IXRegistryProjectedResourceFile?>?
+                FileFactory { get; set; }
+
+            public override IXRegistryProjectedResourceFile? CreateResourceFile(
+                ResourceState node,
+                IXRegistryProjectionResource resource)
+            {
+                return FileFactory?.Invoke(node, resource);
+            }
+
             public void SetInitialGroup(string groupId)
             {
                 Snapshot = new TestSnapshot([new TestGroup(groupId, [])]);

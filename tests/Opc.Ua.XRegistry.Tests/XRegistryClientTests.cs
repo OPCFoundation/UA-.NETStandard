@@ -876,5 +876,24 @@ namespace Opc.Ua.XRegistry.Tests
         private static readonly NodeId s_createdResourceNodeId = new(4711u, 1);
         private static readonly NodeId s_createdGroupNodeId = new(4712u, 1);
         private static readonly byte[] s_readChunk = [0x0A, 0x0B];
+
+        [TestCase("0.6.0", 0, 6, 0, true)]
+        [TestCase("0.5.9", 0, 6, 0, false)]
+        [TestCase("0.7.0", 0, 6, 0, true)]
+        [TestCase("1.0.0", 0, 6, 0, true)]
+        [TestCase("0.6.0-preview", 0, 6, 0, true)]
+        [TestCase("0.6.1", 0, 6, 0, true)]
+        [TestCase("0.5.99", 0, 6, 0, false)]
+        [TestCase("", 0, 6, 0, false)]
+        [TestCase("abc", 0, 6, 0, false)]
+        [TestCase("0.6", 0, 6, 0, true)]
+        [TestCase("1", 0, 6, 0, true)]
+        [TestCase("0", 0, 6, 0, false)]
+        public void IsVersionAtLeastParsesCorrectly(
+            string version, int major, int minor, int patch, bool expected)
+        {
+            bool result = XRegistryClient.IsVersionAtLeast(version ?? string.Empty, major, minor, patch);
+            Assert.That(result, Is.EqualTo(expected));
+        }
     }
 }

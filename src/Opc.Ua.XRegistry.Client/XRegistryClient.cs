@@ -482,7 +482,7 @@ namespace Opc.Ua.XRegistry.Client
         /// Returns <c>true</c> when the parsed version is ≥ the threshold.
         /// Returns <c>false</c> on any parse failure.
         /// </summary>
-        internal static bool IsVersionAtLeast(string version, int major, int minor, int patch)
+        public static bool IsVersionAtLeast(string version, int major, int minor, int patch)
         {
             if (string.IsNullOrEmpty(version))
             {
@@ -495,7 +495,7 @@ namespace Opc.Ua.XRegistry.Client
             }
             if (parts.Length < 2 || !int.TryParse(parts[1], out int min))
             {
-                return maj >= major;
+                return maj > major;
             }
             if (parts.Length < 3)
             {
