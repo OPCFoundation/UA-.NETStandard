@@ -531,6 +531,51 @@ namespace Opc.Ua.XRegistry.Tests
         }
 
         [Test]
+        public async Task CreatingDeprecatedGroupEmitsSpecializedLifecycleEventAsync()
+        {
+            ProjectionHarness harness = ProjectionHarness.Create(eventsEnabled: true);
+            harness.Strategy.Snapshot = new TestSnapshot([]);
+            harness.Strategy.EventSnapshot = EmptyEventSnapshot(0);
+            await harness.Engine.AttachAsync(harness.Registry, CancellationToken.None)
+                .ConfigureAwait(false);
+
+            harness.Strategy.Snapshot = new TestSnapshot([new TestGroup("schemas", [])]);
+            harness.Strategy.EventSnapshot = SnapshotWithDeprecatedGroup("reason=legacy", 1);
+            await harness.Engine.ReconcileAsync(CancellationToken.None).ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(harness.Events.Select(evt => evt.GetType()), Is.EquivalentTo(new[]
+                {
+                    typeof(RegistryUpdatedEventState),
+                    typeof(GroupCreatedEventState),
+                    typeof(GroupDeprecatedEventState)
+                }));
+                Assert.That(harness.Events.OfType<GroupUpdatedEventState>(), Is.Empty);
+            });
+        }
+
+        [Test]
+        public async Task CreatingNormalGroupDoesNotEmitGroupDeprecatedAsync()
+        {
+            ProjectionHarness harness = ProjectionHarness.Create(eventsEnabled: true);
+            harness.Strategy.Snapshot = new TestSnapshot([]);
+            harness.Strategy.EventSnapshot = EmptyEventSnapshot(0);
+            await harness.Engine.AttachAsync(harness.Registry, CancellationToken.None)
+                .ConfigureAwait(false);
+
+            harness.Strategy.Snapshot = new TestSnapshot([new TestGroup("schemas", [])]);
+            harness.Strategy.EventSnapshot = SnapshotWithDeprecatedGroup(null, 1);
+            await harness.Engine.ReconcileAsync(CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(harness.Events.Select(evt => evt.GetType()), Is.EquivalentTo(new[]
+            {
+                typeof(RegistryUpdatedEventState),
+                typeof(GroupCreatedEventState)
+            }));
+        }
+
+        [Test]
         public async Task ProjectionOnlyReconcileLeavesFifoTransitionsAsEventAuthorityAsync()
         {
             ProjectionHarness harness = ProjectionHarness.Create(eventsEnabled: true);
@@ -701,6 +746,39 @@ namespace Opc.Ua.XRegistry.Tests
                 typeof(VersionCreatedEventState),
                 typeof(GroupUpdatedEventState)
             }));
+        }
+
+        [Test]
+        public Task ResourceNameChangeIncludesCanonicalNameAndMetaEpochAsync()
+        {
+            return AssertResourceTextChangeAsync(
+                "Old name",
+                "New name",
+                "Description",
+                "Description",
+                s_resourceNameChanged);
+        }
+
+        [Test]
+        public Task ResourceDescriptionChangeIncludesCanonicalDescriptionAndMetaEpochAsync()
+        {
+            return AssertResourceTextChangeAsync(
+                "Name",
+                "Name",
+                "Old description",
+                "New description",
+                s_resourceDescriptionChanged);
+        }
+
+        [Test]
+        public Task ResourceNameAndDescriptionChangeIncludesBothAndMetaEpochAsync()
+        {
+            return AssertResourceTextChangeAsync(
+                "Old name",
+                "New name",
+                "Old description",
+                "New description",
+                s_resourceNameAndDescriptionChanged);
         }
 
         [Test]
@@ -888,6 +966,43 @@ namespace Opc.Ua.XRegistry.Tests
                 string.Equals(node.VersionId?.Value, versionId, StringComparison.Ordinal));
         }
 
+        private static async Task AssertResourceTextChangeAsync(
+            string previousName,
+            string currentName,
+            string previousDescription,
+            string currentDescription,
+            string[] expectedChanged)
+        {
+            ProjectionHarness harness = ProjectionHarness.Create(eventsEnabled: true);
+            harness.Strategy.Snapshot = new TestSnapshot(
+                [new TestGroup("schemas", [new TestResource("schemas", "pump")])]);
+            harness.Strategy.EventSnapshot = SnapshotWithResourceText(
+                previousName,
+                previousDescription,
+                versionEpoch: 7,
+                metaEpoch: 3);
+            await harness.Engine.AttachAsync(harness.Registry, CancellationToken.None)
+                .ConfigureAwait(false);
+
+            harness.Strategy.EventSnapshot = SnapshotWithResourceText(
+                currentName,
+                currentDescription,
+                versionEpoch: 7,
+                metaEpoch: 4);
+            await harness.Engine.ReconcileAsync(CancellationToken.None).ConfigureAwait(false);
+
+            ResourceUpdatedEventState updated =
+                harness.Events.OfType<ResourceUpdatedEventState>().Single();
+            Assert.Multiple(() =>
+            {
+                Assert.That(harness.Events, Has.Count.EqualTo(1));
+                Assert.That(harness.Events[0], Is.SameAs(updated));
+                Assert.That(updated.Epoch!.Value, Is.EqualTo(7u));
+                Assert.That(updated.MetaEpoch!.Value, Is.EqualTo(4u));
+                Assert.That(updated.Changed!.Value.ToArray(), Is.EqualTo(expectedChanged));
+            });
+        }
+
         private static XRegistryProjectionEventSnapshot SnapshotWithResource(
             uint epoch,
             uint versionEpoch)
@@ -925,6 +1040,63 @@ namespace Opc.Ua.XRegistry.Tests
                                                     System.Globalization.CultureInfo.InvariantCulture)))
                                 ])
                         ])
+                ]);
+        }
+
+        private static XRegistryProjectionEventSnapshot SnapshotWithResourceText(
+            string name,
+            string description,
+            uint versionEpoch,
+            uint metaEpoch)
+        {
+            NodeId source = new("TestRegistry/groups/schemas/resources/pump", 1);
+            return new XRegistryProjectionEventSnapshot(
+                "/",
+                metaEpoch,
+                ImmutableSortedDictionary<string, string>.Empty,
+                [
+                    new XRegistryProjectionEventGroup(
+                        "schemas",
+                        "/groups/schemas",
+                        1,
+                        ImmutableSortedDictionary<string, string>.Empty,
+                        false,
+                        [
+                            new XRegistryProjectionEventResource(
+                                "schemas",
+                                "pump",
+                                "/groups/schemas/resources/pump",
+                                versionEpoch,
+                                metaEpoch,
+                                ImmutableSortedDictionary<string, string>.Empty,
+                                false,
+                                "v1",
+                                [
+                                    new XRegistryProjectionEventVersion(
+                                        "v1",
+                                        "/groups/schemas/resources/pump/versions/v1",
+                                        versionEpoch,
+                                        ImmutableSortedDictionary<string, string>.Empty)
+                                    {
+                                        SourceNodeId = source,
+                                        SourceName = "v1",
+                                        CreatedAt = s_unixEpoch,
+                                        ModifiedAt = s_unixEpoch
+                                    }
+                                ])
+                            {
+                                SourceNodeId = source,
+                                SourceName = name,
+                                Name = name,
+                                Description = description,
+                                MetaCreatedAt = s_unixEpoch,
+                                MetaModifiedAt = s_unixEpoch.AddSeconds(metaEpoch)
+                            }
+                        ])
+                    {
+                        SourceNodeId = new NodeId("TestRegistry/groups/schemas", 1),
+                        SourceName = "schemas"
+                    }
                 ]);
         }
 
@@ -1884,6 +2056,15 @@ namespace Opc.Ua.XRegistry.Tests
             "/groups/schemas/resources/a",
             "/groups/schemas/resources/b"
         ];
+
+        private static readonly string[] s_resourceNameChanged =
+            ["meta.epoch", "meta.modifiedat", "name"];
+
+        private static readonly string[] s_resourceDescriptionChanged =
+            ["description", "meta.epoch", "meta.modifiedat"];
+
+        private static readonly string[] s_resourceNameAndDescriptionChanged =
+            ["description", "meta.epoch", "meta.modifiedat", "name"];
 
         private static readonly DateTime s_unixEpoch =
             new(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc);

@@ -1431,6 +1431,13 @@ namespace Opc.Ua.XRegistry.Server
                         newGroup.Xid,
                         GroupSourceNode(newGroup),
                         newGroup.Epoch));
+                    if (DeprecatedFingerprint(newGroup) is not null)
+                    {
+                        changes.Add(new XRegistryEventChange(
+                            XRegistryEventKind.GroupDeprecated,
+                            newGroup.Xid,
+                            GroupSourceNode(newGroup)));
+                    }
                     AddRegistryCollectionUpdated(changes, current);
                     foreach (XRegistryProjectionEventResource resource in newGroup.Resources)
                     {
@@ -1553,6 +1560,17 @@ namespace Opc.Ua.XRegistry.Server
             XRegistryProjectionEventResource current)
         {
             var resourceChanged = new List<string>();
+            if (!string.Equals(previous.Name, current.Name, StringComparison.Ordinal))
+            {
+                resourceChanged.Add("name");
+            }
+            if (!string.Equals(
+                    previous.Description,
+                    current.Description,
+                    StringComparison.Ordinal))
+            {
+                resourceChanged.Add("description");
+            }
             if (!previous.Labels.SequenceEqual(current.Labels))
             {
                 resourceChanged.Add("meta.labels");

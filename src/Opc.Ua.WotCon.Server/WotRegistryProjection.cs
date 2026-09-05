@@ -593,6 +593,8 @@ namespace Opc.Ua.WotCon.Server
                             resource.ResourceId,
                             defaultVersion.VersionId),
                     SourceName = resource.Name,
+                    Name = resource.Name,
+                    Description = resource.Description,
                     MetaCreatedAt = resource.MetaCreatedAt,
                     MetaModifiedAt = resource.MetaModifiedAt
                 };

@@ -301,6 +301,16 @@ namespace Opc.Ua.XRegistry.Server
         /// <summary>Gets the source name retained for deleted events.</summary>
         public string? SourceName { get; init; }
 
+        /// <summary>
+        /// Gets the current projected Resource name.
+        /// </summary>
+        public string? Name { get; init; }
+
+        /// <summary>
+        /// Gets the current projected Resource description.
+        /// </summary>
+        public string? Description { get; init; }
+
         /// <summary>Gets the Resource Meta creation time.</summary>
         public DateTime MetaCreatedAt { get; init; }
 
