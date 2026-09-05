@@ -534,6 +534,30 @@ namespace Opc.Ua.XRegistry.Server
                     await RemoveVersionNodeAsync(logical, staleVersion, ct)
                         .ConfigureAwait(false);
                 }
+
+                // Delegate the logical Resource's (non-Meta) Labels and inherited
+                // FileType Properties to the currently selected default Version, now
+                // that its node exists/was updated in the loop above. Runs for both a
+                // brand-new logical Resource and an existing one being refreshed.
+                if (logical.Versions.TryGetValue(
+                        defaultVersion.VersionId,
+                        out ResourceEntry? defaultVersionEntry))
+                {
+                    if (logical.LogicalNode.Labels is not null)
+                    {
+                        await SyncLabelPropertiesAsync(
+                            logical.LogicalNode.Labels,
+                            LogicalResourceNodeIdPath(
+                                defaultVersion.GroupId,
+                                defaultVersion.ResourceId),
+                            defaultVersion.Labels,
+                            ct).ConfigureAwait(false);
+                    }
+                    MirrorFileTypeProperties(logical.LogicalNode, defaultVersionEntry.Node);
+                    logical.LogicalNode.ClearChangeMasks(
+                        m_context.SystemContext,
+                        includeChildren: true);
+                }
             }
 
             // Remove stale logical resources.
@@ -879,6 +903,20 @@ namespace Opc.Ua.XRegistry.Server
                 (c, i, t) => OnAddResourceMetaLabelAsync(groupId, resourceId, c, i, t),
                 (c, i, t) => OnRemoveResourceMetaLabelAsync(groupId, resourceId, c, i, t));
 
+            // The logical Resource's (non-Meta) Labels represent "the represented
+            // Version's attributes" (per ResourceType), so a mutation is delegated to
+            // whichever Version is currently the resolved default — resolved dynamically
+            // at call time, exactly like the FileType forwarding above, since the default
+            // can change over the node's lifetime. The Property children themselves are
+            // kept in sync with the default Version's labels on every reconciliation pass
+            // (see ReconcileVersionedResourcesAsync).
+            WireLabelsContainer(
+                node.Labels,
+                (c, i, t) => OnAddResourceLabelAsync(
+                    groupId, resourceId, node.VersionId?.Value ?? string.Empty, c, i, t),
+                (c, i, t) => OnRemoveResourceLabelAsync(
+                    groupId, resourceId, node.VersionId?.Value ?? string.Empty, c, i, t));
+
             // Create the Versions folder — child of the logical Resource.
             node.AddVersions(m_context.SystemContext);
             ResourceVersionsState versionsFolder = node.Versions!;
@@ -942,6 +980,9 @@ namespace Opc.Ua.XRegistry.Server
                      byte mode, ref uint fileHandle) =>
                     {
                         // Resolve the current default Version by reading VersionId.
+                        // Versions is a ConcurrentDictionary: this read happens on an
+                        // OPC UA method-dispatch thread, outside m_gate, concurrently
+                        // with reconciliation writes under that gate.
                         string? defaultVersionId = node.VersionId?.Value;
                         if (string.IsNullOrEmpty(defaultVersionId) ||
                             !logical.Versions.TryGetValue(defaultVersionId, out ResourceEntry? vEntry) ||
@@ -955,11 +996,29 @@ namespace Opc.Ua.XRegistry.Server
                             return StatusCodes.BadNotSupported;
                         }
 
+                        uint underlyingHandle = 0;
                         ServiceResult result = forwarder.ForwardOpen(
-                            context, method, objectId, mode, ref fileHandle);
+                            context, method, objectId, mode, ref underlyingHandle);
                         if (ServiceResult.IsGood(result))
                         {
-                            logical.PinnedHandles[fileHandle] = forwarder;
+                            // Allocate an engine-owned synthetic handle: every Version's
+                            // own file manager numbers its underlying handles
+                            // independently starting from 1, so two different Versions
+                            // opened through the logical Resource (e.g. across a default
+                            // switch) can otherwise produce the same underlying handle
+                            // number. Keying PinnedHandles by that raw number alone would
+                            // let a later Open silently overwrite an earlier pin for a
+                            // different Version, misrouting/closing the wrong one.
+                            uint syntheticHandle = logical.AllocatePinnedHandle();
+                            logical.PinnedHandles[syntheticHandle] =
+                                new PinnedFileHandle(forwarder, vEntry.Node, underlyingHandle);
+                            fileHandle = syntheticHandle;
+
+                            // Mirror the resolved Version's FileType Properties (Size,
+                            // OpenCount, ...) onto the logical Resource promptly, rather
+                            // than waiting for the next reconciliation pass.
+                            MirrorFileTypeProperties(node, vEntry.Node);
+                            node.ClearChangeMasks(m_context.SystemContext, includeChildren: false);
                         }
                         return result;
                     });
@@ -971,7 +1030,7 @@ namespace Opc.Ua.XRegistry.Server
                     async (ISystemContext context, MethodState method, NodeId objectId,
                            uint fileHandle, CancellationToken ct) =>
                     {
-                        if (!logical.PinnedHandles.TryRemove(fileHandle, out var forwarder))
+                        if (!logical.PinnedHandles.TryRemove(fileHandle, out PinnedFileHandle pinned))
                         {
                             return new CloseMethodStateResult
                             {
@@ -979,8 +1038,14 @@ namespace Opc.Ua.XRegistry.Server
                                     StatusCodes.BadInvalidArgument, "Unknown file handle.")
                             };
                         }
-                        ServiceResult result = await forwarder.ForwardCloseAsync(
-                            context, method, objectId, fileHandle, ct).ConfigureAwait(false);
+                        ServiceResult result = await pinned.Forwarder.ForwardCloseAsync(
+                            context, method, objectId, pinned.UnderlyingHandle, ct)
+                            .ConfigureAwait(false);
+
+                        // Mirror the pinned Version's FileType Properties (OpenCount,
+                        // Size after a commit, ...) onto the logical Resource promptly.
+                        MirrorFileTypeProperties(node, pinned.VersionNode);
+                        node.ClearChangeMasks(m_context.SystemContext, includeChildren: false);
                         return new CloseMethodStateResult { ServiceResult = result };
                     });
             }
@@ -991,7 +1056,7 @@ namespace Opc.Ua.XRegistry.Server
                     async (ISystemContext context, MethodState method, NodeId objectId,
                            uint fileHandle, int length, CancellationToken ct) =>
                     {
-                        if (!logical.PinnedHandles.TryGetValue(fileHandle, out var forwarder))
+                        if (!logical.PinnedHandles.TryGetValue(fileHandle, out PinnedFileHandle pinned))
                         {
                             return new ReadMethodStateResult
                             {
@@ -999,8 +1064,9 @@ namespace Opc.Ua.XRegistry.Server
                                     StatusCodes.BadInvalidArgument, "Unknown file handle.")
                             };
                         }
-                        (ServiceResult status, ByteString data) = await forwarder.ForwardReadAsync(
-                            context, method, objectId, fileHandle, length, ct).ConfigureAwait(false);
+                        (ServiceResult status, ByteString data) = await pinned.Forwarder.ForwardReadAsync(
+                            context, method, objectId, pinned.UnderlyingHandle, length, ct)
+                            .ConfigureAwait(false);
                         return new ReadMethodStateResult { ServiceResult = status, Data = data };
                     });
             }
@@ -1011,12 +1077,13 @@ namespace Opc.Ua.XRegistry.Server
                     (ISystemContext context, MethodState method, NodeId objectId,
                      uint fileHandle, ByteString data) =>
                     {
-                        if (!logical.PinnedHandles.TryGetValue(fileHandle, out var forwarder))
+                        if (!logical.PinnedHandles.TryGetValue(fileHandle, out PinnedFileHandle pinned))
                         {
                             return ServiceResult.Create(
                                 StatusCodes.BadInvalidArgument, "Unknown file handle.");
                         }
-                        return forwarder.ForwardWrite(context, method, objectId, fileHandle, data);
+                        return pinned.Forwarder.ForwardWrite(
+                            context, method, objectId, pinned.UnderlyingHandle, data);
                     });
             }
 
@@ -1026,13 +1093,13 @@ namespace Opc.Ua.XRegistry.Server
                     (ISystemContext context, MethodState method, NodeId objectId,
                      uint fileHandle, ref ulong position) =>
                     {
-                        if (!logical.PinnedHandles.TryGetValue(fileHandle, out var forwarder))
+                        if (!logical.PinnedHandles.TryGetValue(fileHandle, out PinnedFileHandle pinned))
                         {
                             return ServiceResult.Create(
                                 StatusCodes.BadInvalidArgument, "Unknown file handle.");
                         }
-                        return forwarder.ForwardGetPosition(
-                            context, method, objectId, fileHandle, ref position);
+                        return pinned.Forwarder.ForwardGetPosition(
+                            context, method, objectId, pinned.UnderlyingHandle, ref position);
                     });
             }
 
@@ -1042,14 +1109,54 @@ namespace Opc.Ua.XRegistry.Server
                     (ISystemContext context, MethodState method, NodeId objectId,
                      uint fileHandle, ulong position) =>
                     {
-                        if (!logical.PinnedHandles.TryGetValue(fileHandle, out var forwarder))
+                        if (!logical.PinnedHandles.TryGetValue(fileHandle, out PinnedFileHandle pinned))
                         {
                             return ServiceResult.Create(
                                 StatusCodes.BadInvalidArgument, "Unknown file handle.");
                         }
-                        return forwarder.ForwardSetPosition(
-                            context, method, objectId, fileHandle, position);
+                        return pinned.Forwarder.ForwardSetPosition(
+                            context, method, objectId, pinned.UnderlyingHandle, position);
                     });
+            }
+        }
+
+        /// <summary>
+        /// Mirrors the inherited FileType Properties (Size, Writable, UserWritable,
+        /// OpenCount, MimeType, LastModifiedTime, MaxByteStringLength) from the exact
+        /// Version node currently represented by a logical Resource onto that logical
+        /// Resource's own node, so a client reading these Properties directly on the
+        /// logical Resource observes the represented Version's file state instead of
+        /// stale or default values.
+        /// </summary>
+        private static void MirrorFileTypeProperties(ResourceState target, ResourceState source)
+        {
+            if (source.Size is not null)
+            {
+                SetValue(target.Size, source.Size.Value);
+            }
+            if (source.Writable is not null)
+            {
+                SetValue(target.Writable, source.Writable.Value);
+            }
+            if (source.UserWritable is not null)
+            {
+                SetValue(target.UserWritable, source.UserWritable.Value);
+            }
+            if (source.OpenCount is not null)
+            {
+                SetValue(target.OpenCount, source.OpenCount.Value);
+            }
+            if (source.MimeType is not null)
+            {
+                SetValue(target.MimeType, source.MimeType.Value);
+            }
+            if (source.LastModifiedTime is not null)
+            {
+                SetValue(target.LastModifiedTime, source.LastModifiedTime.Value);
+            }
+            if (source.MaxByteStringLength is not null)
+            {
+                SetValue(target.MaxByteStringLength, source.MaxByteStringLength.Value);
             }
         }
 
@@ -1250,7 +1357,7 @@ namespace Opc.Ua.XRegistry.Server
                 Opc.Ua.ReferenceTypeIds.HasNotifier, false, entry.Node.NodeId);
             logical.VersionsFolder.RemoveChild(entry.Node);
             await m_context.DeleteNodeAsync(entry.Node.NodeId, ct).ConfigureAwait(false);
-            logical.Versions.Remove(versionId);
+            logical.Versions.TryRemove(versionId, out _);
         }
 
         private async ValueTask<ServiceResult> OnDeleteLogicalResourceAsync(
@@ -2782,6 +2889,17 @@ namespace Opc.Ua.XRegistry.Server
         }
 
         /// <summary>
+        /// A file handle pinned by the logical Resource's file forwarding: the
+        /// underlying forwarder/handle pair on the exact Version that was the
+        /// resolved default at Open time, plus that Version's node (used to mirror
+        /// FileType Properties back onto the logical Resource after Open/Close).
+        /// </summary>
+        private readonly record struct PinnedFileHandle(
+            IXRegistryProjectedResourceFileHandleForwarder Forwarder,
+            ResourceState VersionNode,
+            uint UnderlyingHandle);
+
+        /// <summary>
         /// A logical Resource node with its Versions folder and per-version entries.
         /// Used only when a versioned strategy is active.
         /// </summary>
@@ -2803,16 +2921,46 @@ namespace Opc.Ua.XRegistry.Server
             public ResourceVersionsState VersionsFolder { get; }
             public string GroupId { get; }
             public string ResourceId { get; }
-            public Dictionary<string, ResourceEntry> Versions { get; } =
+
+            /// <summary>
+            /// The exact Version entries under this logical Resource's Versions
+            /// folder, keyed by VersionId. A <see cref="ConcurrentDictionary{TKey,TValue}"/>
+            /// because the logical Resource's forwarded Open/Read/Write/Close/
+            /// GetPosition/SetPosition handlers read this collection directly from
+            /// OPC UA method-call dispatch threads, outside the engine's
+            /// reconciliation gate, while reconciliation mutates it under that gate
+            /// from a different thread/call. A plain <see cref="Dictionary{TKey,TValue}"/>
+            /// is not safe for that concurrent read/write pattern.
+            /// </summary>
+            public ConcurrentDictionary<string, ResourceEntry> Versions { get; } =
                 new(StringComparer.Ordinal);
 
             /// <summary>
-            /// Tracks file handles opened via the logical Resource's <c>Open</c> method.
-            /// Each handle is pinned to the exact Version file-manager that was the resolved
-            /// default at <c>Open</c> time. The entry is removed on <c>Close</c>.
+            /// Tracks file handles opened via the logical Resource's <c>Open</c>
+            /// method, keyed by an engine-allocated synthetic handle unique within
+            /// this logical Resource. Each entry pins the exact Version file-manager
+            /// (and its node, for FileType Property mirroring) that was the resolved
+            /// default at <c>Open</c> time. A synthetic handle is required because
+            /// every Version's own file manager allocates its underlying handles
+            /// independently starting from 1, so two different Versions opened
+            /// through the logical Resource (e.g. across a default switch) can
+            /// otherwise produce the same underlying handle number; keying this
+            /// collection by that raw number alone would let a later Open silently
+            /// overwrite an earlier pin for a different Version, misrouting or
+            /// closing the wrong one. The entry is removed on <c>Close</c>.
             /// </summary>
-            public ConcurrentDictionary<uint, IXRegistryProjectedResourceFileHandleForwarder> PinnedHandles { get; } =
+            public ConcurrentDictionary<uint, PinnedFileHandle> PinnedHandles { get; } =
                 new();
+
+            private long m_nextPinnedHandle;
+
+            /// <summary>
+            /// Allocates a new engine-owned synthetic file handle, unique within this
+            /// logical Resource, that never collides with any underlying Version's
+            /// own handle numbering.
+            /// </summary>
+            public uint AllocatePinnedHandle()
+                => unchecked((uint)Interlocked.Increment(ref m_nextPinnedHandle));
         }
 
         private readonly XRegistryProjectionContext m_context;
