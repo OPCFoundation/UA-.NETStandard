@@ -721,6 +721,43 @@ namespace Opc.Ua.WotCon.Tests.Registry
         }
 
         [Test]
+        public async Task WriteHandlePassesExactBaselineVersionToCommit()
+        {
+            WotResourceVersion? observedBaseline = null;
+            using var harness = new Harness(
+                onVersionCommit: (bytes, baseline, version, session, token) =>
+                {
+                    observedBaseline = version;
+                    return new ValueTask<ServiceResult>(ServiceResult.Good);
+                });
+            byte[] original = Encoding.UTF8.GetBytes("original");
+            DateTime now = DateTime.UtcNow;
+            var baselineVersion = new WotResourceVersion(
+                "v1",
+                WotContentDigest.Compute(original),
+                original.Length,
+                "application/json",
+                string.Empty,
+                now,
+                now);
+            harness.Manager.UpdatePersistedContent(baselineVersion, "application/json");
+            uint handle = 0;
+            harness.Open(ModeWriteErase, ref handle);
+            harness.Write(handle, ByteString.From(original));
+            harness.Manager.UpdatePersistedContent(
+                baselineVersion.With(contentType: "application/updated"),
+                "application/updated");
+
+            ServiceResult result = await harness.CloseAsync(handle).ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(ServiceResult.IsGood(result), Is.True);
+                Assert.That(observedBaseline, Is.SameAs(baselineVersion));
+            });
+        }
+
+        [Test]
         public async Task DisposeClosesAllOpenHandlesAndResetsState()
         {
             var harness = new Harness();
@@ -786,7 +823,14 @@ namespace Opc.Ua.WotCon.Tests.Registry
                 int maxOpenHandles = 8,
                 int maxDocumentSize = 1024 * 1024,
                 Func<ISystemContext, string, ServiceResult>? authorizeWrite = null,
-                Func<byte[], NodeId, CancellationToken, ValueTask<ServiceResult>>? onCommit = null)
+                Func<byte[], NodeId, CancellationToken, ValueTask<ServiceResult>>? onCommit = null,
+                Func<
+                    byte[],
+                    string,
+                    WotResourceVersion?,
+                    NodeId,
+                    CancellationToken,
+                    ValueTask<ServiceResult>>? onVersionCommit = null)
             {
                 Context = new SystemContext(null!)
                 {
@@ -800,12 +844,21 @@ namespace Opc.Ua.WotCon.Tests.Registry
                     parent: null!,
                     browseName: new QualifiedName("ResourceFile", 1));
 
-                Manager = new WotResourceFileManager(
-                    File,
-                    maxOpenHandles,
-                    maxDocumentSize,
-                    authorizeWrite ?? ((_, _) => ServiceResult.Good),
-                    onCommit ?? ((_, _, _) => new ValueTask<ServiceResult>(ServiceResult.Good)));
+                Manager = onVersionCommit is null
+                    ? new WotResourceFileManager(
+                        File,
+                        maxOpenHandles,
+                        maxDocumentSize,
+                        authorizeWrite ?? ((_, _) => ServiceResult.Good),
+                        onCommit ?? ((_, _, _) =>
+                            new ValueTask<ServiceResult>(ServiceResult.Good)))
+                    : new WotResourceFileManager(
+                        File,
+                        maxOpenHandles,
+                        maxDocumentSize,
+                        authorizeWrite ?? ((_, _) => ServiceResult.Good),
+                        ReadEmptyAsync,
+                        onVersionCommit);
 
                 m_objectId = File.NodeId;
             }
@@ -848,6 +901,15 @@ namespace Opc.Ua.WotCon.Tests.Registry
 
             public ServiceResult Write(uint fileHandle, ByteString data)
                 => File.Write!.OnCall!.Invoke(Context, File.Write, m_objectId, fileHandle, data);
+
+            private static ValueTask<ByteString> ReadEmptyAsync(
+                string key,
+                long offset,
+                int count,
+                CancellationToken cancellationToken)
+            {
+                return new ValueTask<ByteString>(ByteString.Empty);
+            }
 
             public ServiceResult GetPosition(uint fileHandle, ref ulong position)
                 => File.GetPosition!.OnCall!.Invoke(

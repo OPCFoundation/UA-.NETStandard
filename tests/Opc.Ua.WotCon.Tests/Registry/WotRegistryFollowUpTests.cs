@@ -44,7 +44,7 @@ namespace Opc.Ua.WotCon.Tests.Registry
     public sealed class WotRegistryFollowUpTests
     {
         [Test]
-        public async Task PendingAllocationAtLimitPreservesCommittedVersionsAndRejectsSecondPending()
+        public async Task EmptyCreationReusesPendingAndExplicitConflictIsRejected()
         {
             var bounds = new WotRegistryPersistenceBounds { MaxVersionsPerResource = 2 };
             using var service = new WotRegistryService(bounds: bounds);
@@ -61,17 +61,34 @@ namespace Opc.Ua.WotCon.Tests.Registry
                 WotRegistryGroups.ThingDescriptions,
                 "pending")!;
 
+            var reusedCreate = await service.TryCreateVersionAsync(
+                WotRegistryGroups.ThingDescriptions,
+                "pending",
+                string.Empty,
+                WoTDocumentKindEnum.ThingDescription);
+            (WotResource _, WotResourceVersion reusedGet, bool getCreated) =
+                await service.GetOrCreateVersionAsync(
+                    WotRegistryGroups.ThingDescriptions,
+                    "pending",
+                    string.Empty,
+                    WoTDocumentKindEnum.ThingDescription);
             ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(
                 async () => await service.TryCreateVersionAsync(
                     WotRegistryGroups.ThingDescriptions,
                     "pending",
-                    string.Empty,
+                    "different",
                     WoTDocumentKindEnum.ThingDescription))!;
 
             Assert.Multiple(() =>
             {
-                Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadTooManyOperations));
+                Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
                 Assert.That(service.Current, Is.SameAs(afterFirst));
+                Assert.That(reusedCreate, Is.Not.Null);
+                Assert.That(
+                    reusedCreate!.Value.Version,
+                    Is.SameAs(created!.Value.Version));
+                Assert.That(reusedGet, Is.SameAs(created.Value.Version));
+                Assert.That(getCreated, Is.False);
                 Assert.That(resource.Versions.Count(version => version.HasContent), Is.EqualTo(2));
                 Assert.That(resource.Versions.Count(version => !version.HasContent), Is.EqualTo(1));
                 Assert.That(resource.FindVersion("v1"), Is.Not.Null);
@@ -357,6 +374,79 @@ namespace Opc.Ua.WotCon.Tests.Registry
         }
 
         [Test]
+        public async Task DesiredVersionContentDrivesMaterializationButMetadataDoesNot()
+        {
+            var store = new RecordingRegistryStore();
+            using (var service = new WotRegistryService(store))
+            {
+                await CreateCommittedVersionsAsync(service, "desired-materialization", "v1", "v2");
+                await SetActiveVersionAsync(service, "desired-materialization", "v2");
+                await service.ValidateVersionAsync(
+                    WotRegistryGroups.ThingDescriptions,
+                    "desired-materialization",
+                    "v1");
+                WotRegistrySnapshot snapshot = service.Current;
+                WotResource resource = snapshot.FindResource(
+                    WotRegistryGroups.ThingDescriptions,
+                    "desired-materialization")!;
+                store.SetSnapshot(ReplaceResource(
+                    snapshot,
+                    resource.With(
+                        desiredVersionId: "v2",
+                        diagnostics: ImmutableArray.Create("retained"))));
+            }
+
+            using var reloaded = new WotRegistryService(store);
+            await reloaded.InitializeAsync();
+            WotResource before = reloaded.Current.FindResource(
+                WotRegistryGroups.ThingDescriptions,
+                "desired-materialization")!;
+            WoTValidationOutcomeDataType validation = before.Validation!;
+            byte[] selectedContent = TestMaterialization.Td(
+                "urn:desired-materialization",
+                "v2");
+            var changes = new System.Collections.Generic.List<WotRegistryChangedEventArgs>();
+            reloaded.Changed += (_, e) => changes.Add(e);
+            WotUpsertResourceRequest metadata = Request(
+                "desired-materialization",
+                selectedContent,
+                "v2",
+                setAsDefault: false,
+                expectedDigestHex: before.FindVersion("v2")!.DigestHex);
+            metadata.ContentType = "application/wot+json";
+
+            await reloaded.UpsertResourceAsync(metadata);
+            WotResource afterMetadata = reloaded.Current.FindResource(
+                WotRegistryGroups.ThingDescriptions,
+                "desired-materialization")!;
+            WotUpsertResourceRequest content = Request(
+                "desired-materialization",
+                TestMaterialization.Td("urn:desired-materialization", "updated"),
+                "v2",
+                setAsDefault: false,
+                expectedDigestHex: afterMetadata.FindVersion("v2")!.DigestHex);
+            await reloaded.UpsertResourceAsync(content);
+            WotResource afterContent = reloaded.Current.FindResource(
+                WotRegistryGroups.ThingDescriptions,
+                "desired-materialization")!;
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(changes, Has.Count.EqualTo(2));
+                Assert.That(changes[0].ProjectionOnly, Is.True);
+                Assert.That(afterMetadata.LoadState, Is.EqualTo(WoTLoadStateEnum.Active));
+                Assert.That(afterMetadata.Validation, Is.SameAs(validation));
+                Assert.That(afterMetadata.Diagnostics, Is.EqualTo(before.Diagnostics));
+                Assert.That(changes[1].ProjectionOnly, Is.False);
+                Assert.That(afterContent.LoadState, Is.EqualTo(WoTLoadStateEnum.Unloaded));
+                Assert.That(afterContent.Validation, Is.Null);
+                Assert.That(afterContent.Diagnostics, Is.Empty);
+                Assert.That(afterContent.DefaultVersionId, Is.EqualTo("v1"));
+                Assert.That(afterContent.DesiredVersionId, Is.EqualTo("v2"));
+            });
+        }
+
+        [Test]
         public async Task DigestMatchWithoutVersionIdTargetsDefaultInsteadOfDesired()
         {
             byte[] content = TestMaterialization.Td("urn:default-selection");
@@ -478,6 +568,21 @@ namespace Opc.Ua.WotCon.Tests.Registry
         }
 
         [Test]
+        public void MalformedUpsertVersionIdThrowsBadInvalidArgument()
+        {
+            using var service = new WotRegistryService();
+
+            ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(
+                async () => await service.UpsertResourceAsync(
+                    Request(
+                        "invalid-upsert",
+                        TestMaterialization.Td("urn:invalid-upsert"),
+                        "invalid/version")))!;
+
+            Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadInvalidArgument));
+        }
+
+        [Test]
         public async Task ServerAssignedVersionIdRejectsSequenceOverflow()
         {
             using var service = new WotRegistryService();
@@ -501,6 +606,82 @@ namespace Opc.Ua.WotCon.Tests.Registry
         }
 
         [Test]
+        public async Task StaleCloseAfterDeletionCannotResurrectVersion()
+        {
+            using var service = new WotRegistryService();
+            (WotResource _, WotResourceVersion baseline, bool _) =
+                await service.GetOrCreateVersionAsync(
+                    WotRegistryGroups.ThingDescriptions,
+                    "stale-delete",
+                    "v1",
+                    WoTDocumentKindEnum.ThingDescription);
+            await service.DeleteVersionAsync(
+                WotRegistryGroups.ThingDescriptions,
+                "stale-delete",
+                "v1",
+                baseline.Epoch);
+            WotUpsertResourceRequest stale = Request(
+                "stale-delete",
+                TestMaterialization.Td("urn:stale-delete"),
+                "v1",
+                expectedDigestHex: string.Empty);
+            stale.ExpectedVersionSnapshot = baseline;
+
+            WotRegistryMutationResult result = await service.UpsertResourceAsync(stale);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(result.Outcome, Is.EqualTo(WoTOutcomeEnum.Rejected));
+                Assert.That(service.Current.FindResource(
+                    WotRegistryGroups.ThingDescriptions,
+                    "stale-delete"), Is.Null);
+            });
+        }
+
+        [Test]
+        public async Task StaleCloseAfterDeleteRecreateCannotReplaceNewIncarnation()
+        {
+            using var service = new WotRegistryService();
+            (WotResource _, WotResourceVersion baseline, bool _) =
+                await service.GetOrCreateVersionAsync(
+                    WotRegistryGroups.ThingDescriptions,
+                    "stale-aba",
+                    "v1",
+                    WoTDocumentKindEnum.ThingDescription);
+            await service.DeleteVersionAsync(
+                WotRegistryGroups.ThingDescriptions,
+                "stale-aba",
+                "v1",
+                baseline.Epoch);
+            (WotResource _, WotResourceVersion replacement, bool _) =
+                await service.GetOrCreateVersionAsync(
+                    WotRegistryGroups.ThingDescriptions,
+                    "stale-aba",
+                    "v1",
+                    WoTDocumentKindEnum.ThingDescription);
+            WotRegistrySnapshot before = service.Current;
+            WotUpsertResourceRequest stale = Request(
+                "stale-aba",
+                TestMaterialization.Td("urn:stale-aba"),
+                "v1",
+                expectedDigestHex: string.Empty);
+            stale.ExpectedVersionSnapshot = baseline;
+
+            WotRegistryMutationResult result = await service.UpsertResourceAsync(stale);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(result.Outcome, Is.EqualTo(WoTOutcomeEnum.Rejected));
+                Assert.That(service.Current, Is.SameAs(before));
+                WotResourceVersion current = service.Current.FindResource(
+                    WotRegistryGroups.ThingDescriptions,
+                    "stale-aba")!.FindVersion("v1")!;
+                Assert.That(current, Is.SameAs(replacement));
+                Assert.That(current.HasContent, Is.False);
+            });
+        }
+
+        [Test]
         public void VersionedInterfaceExposesAtomicProjectedDelete()
         {
             MethodInfo? method = typeof(IWotVersionedRegistryService).GetMethod(
@@ -508,6 +689,24 @@ namespace Opc.Ua.WotCon.Tests.Registry
                 BindingFlags.Public | BindingFlags.Instance);
 
             Assert.That(method, Is.Not.Null);
+        }
+
+        [Test]
+        public void ExpectedVersionSnapshotRemainsInternal()
+        {
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    typeof(WotUpsertResourceRequest).GetProperty(
+                        "ExpectedVersionSnapshot",
+                        BindingFlags.Public | BindingFlags.Instance),
+                    Is.Null);
+                Assert.That(
+                    typeof(WotUpsertResourceRequest).GetProperty(
+                        "ExpectedVersionSnapshot",
+                        BindingFlags.NonPublic | BindingFlags.Instance),
+                    Is.Not.Null);
+            });
         }
 
         [Test]
@@ -636,6 +835,142 @@ namespace Opc.Ua.WotCon.Tests.Registry
                 Assert.That(service.Current.FindResource(
                     WotRegistryGroups.ThingDescriptions,
                     "delete-epochs"), Is.Null);
+            });
+        }
+
+        [Test]
+        public async Task ProjectedDeleteRejectsDefaultEpochCollisionAfterRoleSwitch()
+        {
+            using var service = new WotRegistryService();
+            await CreateCommittedVersionsAsync(service, "epoch-collision", "v1");
+            await service.AddVersionLabelAsync(
+                WotRegistryGroups.ThingDescriptions,
+                "epoch-collision",
+                "v1",
+                "first",
+                "1");
+            await service.AddVersionLabelAsync(
+                WotRegistryGroups.ThingDescriptions,
+                "epoch-collision",
+                "v1",
+                "second",
+                "2");
+            await service.UpsertResourceAsync(
+                Request(
+                    "epoch-collision",
+                    TestMaterialization.Td("urn:epoch-collision", "v2"),
+                    "v2",
+                    setAsDefault: true));
+            WotResource beforeSwitch = service.Current.FindResource(
+                WotRegistryGroups.ThingDescriptions,
+                "epoch-collision")!;
+            long staleVersionEpoch = beforeSwitch.FindVersion("v1")!.Epoch;
+            await service.SetDefaultVersionAsync(
+                WotRegistryGroups.ThingDescriptions,
+                "epoch-collision",
+                "v1",
+                beforeSwitch.MetaEpoch);
+            WotResource afterSwitch = service.Current.FindResource(
+                WotRegistryGroups.ThingDescriptions,
+                "epoch-collision")!;
+            Assert.That(afterSwitch.MetaEpoch, Is.EqualTo(staleVersionEpoch));
+
+            WotRegistryMutationResult ambiguous = await service.DeleteProjectedEntityAsync(
+                WotRegistryGroups.ThingDescriptions,
+                "epoch-collision",
+                "v1",
+                staleVersionEpoch);
+            WotRegistryMutationResult forced = await service.DeleteProjectedEntityAsync(
+                WotRegistryGroups.ThingDescriptions,
+                "epoch-collision",
+                "v1",
+                expectedEpoch: null);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(ambiguous.Outcome, Is.EqualTo(WoTOutcomeEnum.Rejected));
+                Assert.That(ambiguous.Message, Does.Contain("ambiguous").IgnoreCase);
+                Assert.That(forced.Outcome, Is.EqualTo(WoTOutcomeEnum.Success));
+                Assert.That(service.Current.FindResource(
+                    WotRegistryGroups.ThingDescriptions,
+                    "epoch-collision"), Is.Null);
+            });
+        }
+
+        [Test]
+        public async Task DeletingOnlyCommittedVersionAlsoDeletesPendingResource()
+        {
+            using var service = new WotRegistryService();
+            await CreateCommittedVersionsAsync(service, "delete-pending", "v1");
+            var pending = await service.TryCreateVersionAsync(
+                WotRegistryGroups.ThingDescriptions,
+                "delete-pending",
+                "v2",
+                WoTDocumentKindEnum.ThingDescription);
+            Assert.That(pending, Is.Not.Null);
+            WotResource before = service.Current.FindResource(
+                WotRegistryGroups.ThingDescriptions,
+                "delete-pending")!;
+
+            WotRegistryMutationResult result = await service.DeleteVersionAsync(
+                WotRegistryGroups.ThingDescriptions,
+                "delete-pending",
+                "v1",
+                before.FindVersion("v1")!.Epoch);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(result.Outcome, Is.EqualTo(WoTOutcomeEnum.Success));
+                Assert.That(service.Current.FindResource(
+                    WotRegistryGroups.ThingDescriptions,
+                    "delete-pending"), Is.Null);
+            });
+        }
+
+        [Test]
+        public async Task DeletingDefaultChoosesNewestCommittedVersionBeforePending()
+        {
+            using var service = new WotRegistryService();
+            await CreateCommittedVersionsAsync(
+                service,
+                "delete-replacement",
+                "v1",
+                "v2");
+            await service.ValidateVersionAsync(
+                WotRegistryGroups.ThingDescriptions,
+                "delete-replacement",
+                "v2");
+            var pending = await service.TryCreateVersionAsync(
+                WotRegistryGroups.ThingDescriptions,
+                "delete-replacement",
+                "v3",
+                WoTDocumentKindEnum.ThingDescription);
+            Assert.That(pending, Is.Not.Null);
+            WotResource before = service.Current.FindResource(
+                WotRegistryGroups.ThingDescriptions,
+                "delete-replacement")!;
+            WoTValidationOutcomeDataType expectedValidation =
+                before.FindVersion("v2")!.Validation!;
+
+            WotRegistryMutationResult result = await service.DeleteVersionAsync(
+                WotRegistryGroups.ThingDescriptions,
+                "delete-replacement",
+                "v1",
+                before.FindVersion("v1")!.Epoch);
+            WotResource after = service.Current.FindResource(
+                WotRegistryGroups.ThingDescriptions,
+                "delete-replacement")!;
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(result.Outcome, Is.EqualTo(WoTOutcomeEnum.Success));
+                Assert.That(after.DefaultVersionId, Is.EqualTo("v2"));
+                Assert.That(after.DesiredVersionId, Is.EqualTo("v2"));
+                Assert.That(after.DefaultVersion!.HasContent, Is.True);
+                Assert.That(after.LoadState, Is.EqualTo(WoTLoadStateEnum.Unloaded));
+                Assert.That(after.Validation, Is.SameAs(expectedValidation));
+                Assert.That(after.FindVersion("v2"), Is.Not.Null);
+                Assert.That(after.FindVersion("v3")!.HasContent, Is.False);
             });
         }
 

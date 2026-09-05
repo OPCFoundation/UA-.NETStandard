@@ -310,7 +310,7 @@ namespace Opc.Ua.WotCon.Server.Registry
                     getOrCreate: false,
                     cancellationToken)
                 .ConfigureAwait(false);
-            return result.Created ? (result.Resource!, result.Version!) : null;
+            return result.Version is null ? null : (result.Resource!, result.Version!);
         }
 
         private async ValueTask<VersionCreateResult> CreateVersionAsync(
@@ -333,6 +333,12 @@ namespace Opc.Ua.WotCon.Server.Registry
                 WotRegistrySnapshot snapshot = m_snapshot;
                 WotResourceGroup? group = snapshot.FindGroup(groupId);
                 WotResource? existing = group?.Resources.GetValueOrDefault(resourceId);
+                WotResourceVersion? pendingVersion = existing?.Versions
+                    .FirstOrDefault(version => !version.HasContent);
+                if (explicitVersionId is null && pendingVersion is not null)
+                {
+                    return new VersionCreateResult(existing!, pendingVersion, false);
+                }
                 if (getOrCreate &&
                     explicitVersionId is null &&
                     existing?.FindVersion(existing.DefaultVersionId) is { } defaultVersion)
@@ -377,10 +383,10 @@ namespace Opc.Ua.WotCon.Server.Registry
                 }
                 if (existing is not null)
                 {
-                    if (existing.Versions.Any(version => !version.HasContent))
+                    if (pendingVersion is not null)
                     {
                         throw new ServiceResultException(
-                            StatusCodes.BadTooManyOperations,
+                            StatusCodes.BadInvalidState,
                             $"Resource '{resourceId}' already has a pending contentless Version.");
                     }
                     if (!CanRetainIncomingCommittedVersion(
@@ -517,10 +523,21 @@ namespace Opc.Ua.WotCon.Server.Registry
                         versionId,
                         StringComparison.Ordinal))
                 {
-                    if (expectedEpoch is { } resourceEpoch &&
-                        resourceEpoch != resource.MetaEpoch)
+                    if (expectedEpoch is { } resourceEpoch)
                     {
-                        return Rejected(snapshot.Generation, "Epoch mismatch.");
+                        WotResourceVersion? defaultVersion = resource.FindVersion(versionId);
+                        if (defaultVersion is not null &&
+                            resourceEpoch == resource.MetaEpoch &&
+                            resourceEpoch == defaultVersion.Epoch)
+                        {
+                            return Rejected(
+                                snapshot.Generation,
+                                "The epoch is ambiguous between the Resource and default Version.");
+                        }
+                        if (resourceEpoch != resource.MetaEpoch)
+                        {
+                            return Rejected(snapshot.Generation, "Epoch mismatch.");
+                        }
                     }
                     return await DeleteResourceLockedAsync(
                             snapshot,
@@ -893,6 +910,13 @@ namespace Opc.Ua.WotCon.Server.Registry
                             "existing sibling Version.");
                     }
                 }
+                if (request.ExpectedVersionSnapshot is not null &&
+                    !ReferenceEquals(current, request.ExpectedVersionSnapshot))
+                {
+                    return Rejected(
+                        snapshot.Generation,
+                        "The Version incarnation changed while the writer was open.");
+                }
                 if (request.ExpectedVersionDigestHex is not null &&
                     !string.Equals(
                         current?.DigestHex ?? string.Empty,
@@ -910,8 +934,15 @@ namespace Opc.Ua.WotCon.Server.Registry
                 string desiredVersionId = request.SetAsDefault
                     ? versionId
                     : existing?.DesiredVersionId ?? defaultVersionId;
+                string selectedVersionId = desiredVersionId;
+                string? previousSelectedVersionId =
+                    existing?.DesiredVersionId ?? existing?.DefaultVersionId;
                 bool updatesLogicalDefault = string.Equals(
                     defaultVersionId,
+                    versionId,
+                    StringComparison.Ordinal);
+                bool updatesSelectedVersion = string.Equals(
+                    selectedVersionId,
                     versionId,
                     StringComparison.Ordinal);
                 string resourceName = existing is null
@@ -1069,8 +1100,13 @@ namespace Opc.Ua.WotCon.Server.Registry
                             .ConfigureAwait(false);
                 }
 
-                bool materializationChanged = updatesLogicalDefault &&
-                    (existing is null || contentChanged || defaultChanged || desiredChanged);
+                bool selectedVersionChanged = existing is null ||
+                    !string.Equals(
+                        previousSelectedVersionId,
+                        selectedVersionId,
+                        StringComparison.Ordinal);
+                bool materializationChanged = selectedVersionChanged ||
+                    (updatesSelectedVersion && contentChanged);
                 WoTLoadStateEnum loadState = materializationChanged
                     ? (parseFailed
                         ? WoTLoadStateEnum.Failed
@@ -1880,34 +1916,67 @@ namespace Opc.Ua.WotCon.Server.Registry
             {
                 ImmutableArray<WotResourceVersion> versions =
                     resource.Versions.Remove(version);
-                string defaultVersionId = string.Equals(
-                    resource.DefaultVersionId,
-                    version.VersionId,
-                    StringComparison.Ordinal)
-                        ? versions[^1].VersionId
-                        : resource.DefaultVersionId!;
-                string? desiredVersionId = string.Equals(
-                    resource.DesiredVersionId,
-                    version.VersionId,
-                    StringComparison.Ordinal)
-                        ? defaultVersionId
-                        : resource.DesiredVersionId;
-                WotResourceVersion selectedDefault = versions.First(
-                    candidate => string.Equals(
+                ImmutableArray<WotResourceVersion> committedVersions = versions
+                    .Where(candidate => candidate.HasContent)
+                    .ToImmutableArray();
+                if (committedVersions.IsEmpty)
+                {
+                    return await DeleteResourceLockedAsync(
+                            snapshot,
+                            group,
+                            resource,
+                            cancellationToken)
+                        .ConfigureAwait(false);
+                }
+                WotResourceVersion? currentDefault = versions.FirstOrDefault(candidate =>
+                    candidate.HasContent &&
+                    string.Equals(
                         candidate.VersionId,
-                        defaultVersionId,
+                        resource.DefaultVersionId,
                         StringComparison.Ordinal));
+                bool defaultChanged = currentDefault is null;
+                WotResourceVersion selectedDefault =
+                    currentDefault ?? committedVersions[^1];
+                string defaultVersionId = selectedDefault.VersionId;
+                string desiredVersionId = defaultChanged ||
+                    versions.All(candidate =>
+                        !candidate.HasContent ||
+                        !string.Equals(
+                            candidate.VersionId,
+                            resource.DesiredVersionId,
+                            StringComparison.Ordinal))
+                            ? defaultVersionId
+                            : resource.DesiredVersionId!;
+                bool activeVersionDeleted = string.Equals(
+                    resource.ActiveVersionId,
+                    version.VersionId,
+                    StringComparison.Ordinal);
                 long metaEpoch = resource.MetaEpoch + 1;
                 resultResource = resource.With(
                         versions: versions,
                         defaultVersionId: defaultVersionId,
                         desiredVersionId: desiredVersionId,
-                        validation: selectedDefault.Validation,
-                        clearValidation: selectedDefault.Validation is null,
-                        epoch: metaEpoch)
-                    .WithSelectedVersionMetadata(
+                        loadState: defaultChanged || activeVersionDeleted
+                            ? WoTLoadStateEnum.Unloaded
+                            : resource.LoadState,
+                        validation: defaultChanged
+                            ? selectedDefault.Validation
+                            : resource.Validation,
+                        diagnostics: defaultChanged ? [] : resource.Diagnostics,
+                        epoch: metaEpoch,
+                        materializedNodeCount: activeVersionDeleted
+                            ? 0
+                            : resource.MaterializedNodeCount,
+                        clearActiveVersion: activeVersionDeleted,
+                        clearValidation: defaultChanged && selectedDefault.Validation is null,
+                        clearRootNodeId: activeVersionDeleted);
+                if (defaultChanged)
+                {
+                    resultResource = resultResource.WithSelectedVersionMetadata(
                         selectedDefault.DocumentId,
-                        selectedDefault.Title)
+                        selectedDefault.Title);
+                }
+                resultResource = resultResource
                     .WithMeta(metaEpoch, modifiedAt: DateTime.UtcNow);
                 next = ReplaceResource(
                     snapshot,
@@ -2167,11 +2236,11 @@ namespace Opc.Ua.WotCon.Server.Registry
         {
             if (!IsValidExplicitVersionId(value))
             {
-                throw new ArgumentException(
-                    "A Version identifier must be 1-128 characters, start with an ASCII " +
+                throw new ServiceResultException(
+                    StatusCodes.BadInvalidArgument,
+                    $"'{paramName}' must be 1-128 characters, start with an ASCII " +
                     "letter, digit, or '_', and contain only ASCII letters, digits, " +
-                    "'-', '.', '_', '~', ':', or '@'.",
-                    paramName);
+                    "'-', '.', '_', '~', ':', or '@'.");
             }
             return value;
         }

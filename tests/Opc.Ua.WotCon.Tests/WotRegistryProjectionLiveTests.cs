@@ -230,6 +230,42 @@ namespace Opc.Ua.WotCon.Tests
         }
 
         [Test]
+        public async Task EmptyCreateAndGetOrCreateReusePendingVersion()
+        {
+            WotRegistryClient client = await OpenClientAsync().ConfigureAwait(false);
+            WotRegistryGroupClient group = await client
+                .CreateThingDescriptionGroupAsync()
+                .ConfigureAwait(false);
+            (WotRegistryResourceClient first, string versionId) = await group
+                .CreateResourceAsync("recover-pending")
+                .ConfigureAwait(false);
+
+            (WotRegistryResourceClient reusedCreate, string createVersionId) = await group
+                .CreateResourceAsync("recover-pending")
+                .ConfigureAwait(false);
+            (WotRegistryResourceClient reusedGet, string getVersionId, bool created) = await group
+                .GetOrCreateResourceAsync("recover-pending")
+                .ConfigureAwait(false);
+            await reusedCreate.UploadNewVersionAsync(
+                    ByteString.From(TestMaterialization.Td("urn:recover-pending")))
+                .ConfigureAwait(false);
+            WotResource stored = m_registry.Current.FindResource(
+                WotRegistryGroups.ThingDescriptions,
+                "recover-pending")!;
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(createVersionId, Is.EqualTo(versionId));
+                Assert.That(getVersionId, Is.EqualTo(versionId));
+                Assert.That(reusedCreate.ResourceNodeId, Is.EqualTo(first.ResourceNodeId));
+                Assert.That(reusedGet.ResourceNodeId, Is.EqualTo(first.ResourceNodeId));
+                Assert.That(created, Is.False);
+                Assert.That(stored.Versions, Has.Length.EqualTo(1));
+                Assert.That(stored.FindVersion(versionId)!.HasContent, Is.True);
+            });
+        }
+
+        [Test]
         public async Task ExplicitVersionsHaveDistinctStableProjectedNodeIds()
         {
             WotRegistryClient client = await OpenClientAsync().ConfigureAwait(false);

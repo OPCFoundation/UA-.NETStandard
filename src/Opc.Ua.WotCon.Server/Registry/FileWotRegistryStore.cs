@@ -1454,11 +1454,25 @@ namespace Opc.Ua.WotCon.Server.Registry
 
         private static void ValidateVersionId(string value)
         {
-            if (!WotRegistryService.IsValidExplicitVersionId(value))
+            if (WotRegistryService.IsValidExplicitVersionId(value))
             {
-                throw new InvalidDataException(
-                    $"WoT registry version id '{value}' is not segment-safe.");
+                return;
             }
+            try
+            {
+                if (string.Equals(
+                    value,
+                    WotRegistryService.NormalizeSegment(value, "version id"),
+                    StringComparison.Ordinal))
+                {
+                    return;
+                }
+            }
+            catch (ArgumentException)
+            {
+            }
+            throw new InvalidDataException(
+                $"WoT registry version id '{value}' is not segment-safe.");
         }
 
         private async ValueTask RollbackPristinePreSwitchFailureAsync(

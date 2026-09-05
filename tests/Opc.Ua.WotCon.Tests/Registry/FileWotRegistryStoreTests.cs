@@ -536,6 +536,80 @@ namespace Opc.Ua.WotCon.Tests.Registry
         }
 
         [Test]
+        public async Task PendingVersionIsRecoveredAfterRestartAndTrimmedOnlyOnClose()
+        {
+            var bounds = new WotRegistryPersistenceBounds { MaxVersionsPerResource = 2 };
+            string pendingVersionId;
+            using (var service = new WotRegistryService(
+                new FileWotRegistryStore(m_root),
+                bounds))
+            {
+                await service.InitializeAsync();
+                foreach (string versionId in new[] { "v1", "v2" })
+                {
+                    await service.UpsertResourceAsync(new WotUpsertResourceRequest
+                    {
+                        GroupId = WotRegistryGroups.ThingDescriptions,
+                        ResourceId = "pending-restart",
+                        VersionId = versionId,
+                        Kind = WoTDocumentKindEnum.ThingDescription,
+                        Content = ByteString.From(
+                            TestMaterialization.Td("urn:pending-restart", versionId)),
+                        SetAsDefault = false
+                    });
+                }
+                var created = await service.TryCreateVersionAsync(
+                    WotRegistryGroups.ThingDescriptions,
+                    "pending-restart",
+                    string.Empty,
+                    WoTDocumentKindEnum.ThingDescription);
+                Assert.That(created, Is.Not.Null);
+                pendingVersionId = created!.Value.Version.VersionId;
+            }
+
+            using var reloaded = new WotRegistryService(
+                new FileWotRegistryStore(m_root),
+                bounds);
+            await reloaded.InitializeAsync();
+            WotResource beforeClose = reloaded.Current.FindResource(
+                WotRegistryGroups.ThingDescriptions,
+                "pending-restart")!;
+            var recovered = await reloaded.TryCreateVersionAsync(
+                WotRegistryGroups.ThingDescriptions,
+                "pending-restart",
+                string.Empty,
+                WoTDocumentKindEnum.ThingDescription);
+            Assert.That(recovered, Is.Not.Null);
+            await reloaded.UpsertResourceAsync(new WotUpsertResourceRequest
+            {
+                GroupId = WotRegistryGroups.ThingDescriptions,
+                ResourceId = "pending-restart",
+                VersionId = pendingVersionId,
+                ExpectedVersionDigestHex = string.Empty,
+                Kind = WoTDocumentKindEnum.ThingDescription,
+                Content = ByteString.From(
+                    TestMaterialization.Td("urn:pending-restart", "recovered")),
+                SetAsDefault = false
+            });
+            WotResource afterClose = reloaded.Current.FindResource(
+                WotRegistryGroups.ThingDescriptions,
+                "pending-restart")!;
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(beforeClose.FindVersion("v1"), Is.Not.Null);
+                Assert.That(beforeClose.FindVersion("v2"), Is.Not.Null);
+                Assert.That(beforeClose.FindVersion(pendingVersionId)!.HasContent, Is.False);
+                Assert.That(
+                    recovered!.Value.Version.VersionId,
+                    Is.EqualTo(pendingVersionId));
+                Assert.That(afterClose.FindVersion("v1"), Is.Not.Null);
+                Assert.That(afterClose.FindVersion("v2"), Is.Null);
+                Assert.That(afterClose.FindVersion(pendingVersionId)!.HasContent, Is.True);
+            });
+        }
+
+        [Test]
         public async Task Schema3ManifestMigratesVersionAndResourceMetaDefaults()
         {
             using (var service = new WotRegistryService(new FileWotRegistryStore(m_root)))
@@ -1044,20 +1118,45 @@ namespace Opc.Ua.WotCon.Tests.Registry
         }
 
         [Test]
-        public Task OverlongVersionIdFailsClosedWithoutChangingFiles()
+        public async Task LegacyOverlongNormalizedVersionIdLoadsAndRoundTrips()
         {
-            return AssertInvalidManifestRejected(
-                manifest =>
-                {
-                    FileWotRegistryStore.ResourceDto resource =
-                        manifest.Groups![0].Resources![0];
-                    string versionId = new('a', 129);
-                    resource.Versions![0].VersionId = versionId;
-                    resource.DefaultVersionId = versionId;
-                    resource.DesiredVersionId = versionId;
-                },
-                "version id",
-                "not segment-safe");
+            await PersistResourceAsync("legacy-id", "urn:legacy-id");
+            string versionId = new('a', 160);
+            JsonObject manifest = JsonNode.Parse(File.ReadAllText(ManifestPath))!.AsObject();
+            JsonObject resource = manifest["Groups"]![0]!["Resources"]![0]!.AsObject();
+            resource["DefaultVersionId"] = versionId;
+            resource["DesiredVersionId"] = versionId;
+            resource["Versions"]![0]!["VersionId"] = versionId;
+            File.WriteAllText(
+                ManifestPath,
+                manifest.ToJsonString(new JsonSerializerOptions { WriteIndented = true }));
+
+            using (var service = new WotRegistryService(new FileWotRegistryStore(m_root)))
+            {
+                await service.InitializeAsync();
+                WotResource loaded = service.Current.FindResource(
+                    WotRegistryGroups.ThingDescriptions,
+                    "legacy-id")!;
+                Assert.That(loaded.FindVersion(versionId), Is.Not.Null);
+                await service.AddResourceLabelAsync(
+                    WotRegistryGroups.ThingDescriptions,
+                    "legacy-id",
+                    "roundtrip",
+                    "true",
+                    loaded.MetaEpoch);
+            }
+
+            using var reloaded = new WotRegistryService(new FileWotRegistryStore(m_root));
+            await reloaded.InitializeAsync();
+            WotResource roundTripped = reloaded.Current.FindResource(
+                WotRegistryGroups.ThingDescriptions,
+                "legacy-id")!;
+            Assert.Multiple(() =>
+            {
+                Assert.That(roundTripped.DefaultVersionId, Is.EqualTo(versionId));
+                Assert.That(roundTripped.FindVersion(versionId), Is.Not.Null);
+                Assert.That(roundTripped.MetaLabels["roundtrip"], Is.EqualTo("true"));
+            });
         }
 
         [Test]

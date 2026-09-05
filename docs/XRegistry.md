@@ -83,6 +83,9 @@ the compiled model, and groups and resource versions are created beneath it at r
    without regard to case. A Resource may have one contentless pending Version while an upload is
    open. Allocating it never evicts committed content; retention is applied atomically when the
    upload closes, and a close that cannot preserve active/default/desired Versions is rejected.
+   An empty Version id reuses that pending Version after an abort or restart; requesting a
+   different explicit Version while it remains pending is rejected. Existing manifests retain
+   compatibility with longer, already-normalized legacy Version ids.
 3. Because `ResourceType` **is a `FileType`**, the document is streamed with the standard
    `Write`/`Read` file Methods against the handle — there is no registry-specific transfer.
 4. **`Close`** compares the staged bytes with the committed bytes captured immediately before

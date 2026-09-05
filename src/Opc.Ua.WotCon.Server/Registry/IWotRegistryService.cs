@@ -65,6 +65,12 @@ namespace Opc.Ua.WotCon.Server.Registry
         public string? ExpectedVersionDigestHex { get; set; }
 
         /// <summary>
+        /// Gets or sets the exact immutable Version incarnation observed when an
+        /// internal write handle opened.
+        /// </summary>
+        internal WotResourceVersion? ExpectedVersionSnapshot { get; set; }
+
+        /// <summary>
         /// Gets or sets the document kind.
         /// </summary>
         public WoTDocumentKindEnum Kind { get; set; } = WoTDocumentKindEnum.ThingDescription;
@@ -531,7 +537,8 @@ namespace Opc.Ua.WotCon.Server.Registry
                 CancellationToken cancellationToken = default);
 
         /// <summary>
-        /// Creates an exact Version, returning <c>null</c> when it already exists.
+        /// Creates an exact Version, returning <c>null</c> when that explicit Version
+        /// already exists. An empty Version id reuses an existing pending Version.
         /// </summary>
         ValueTask<(WotResource Resource, WotResourceVersion Version)?> TryCreateVersionAsync(
             string groupId,

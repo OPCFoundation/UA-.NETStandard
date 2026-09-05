@@ -49,7 +49,9 @@ namespace Opc.Ua.WotCon.Server.Registry
     /// handle buffers the upload and, when it is closed, replaces the projected
     /// Version through the injected callback (which stores a validated or an
     /// invalid version - the bytes are never lost). Logical resource clients
-    /// allocate a new structural Version before opening its file.
+    /// allocate a new structural Version before opening its file. Each write
+    /// handle captures the exact immutable Version incarnation so a stale close
+    /// cannot replace a deleted and recreated Version with the same id and digest.
     /// <para>
     /// Per the xRegistry document model the only supported <c>OpenFileMode</c>
     /// values are <c>Read</c> (1) and <c>Write | EraseExisting</c> (6); other
@@ -73,7 +75,8 @@ namespace Opc.Ua.WotCon.Server.Registry
                 maxDocumentSize,
                 authorizeWrite,
                 ReadInlineContentAsync,
-                (bytes, baseline, session, token) => onCommit(bytes, session, token))
+                (bytes, baseline, version, session, token) => onCommit(bytes, session, token),
+                validateVersionIncarnation: false)
         {
         }
 
@@ -90,7 +93,8 @@ namespace Opc.Ua.WotCon.Server.Registry
                 maxDocumentSize,
                 authorizeWrite,
                 readContent,
-                (bytes, baseline, session, token) => onCommit(bytes, session, token))
+                (bytes, baseline, version, session, token) => onCommit(bytes, session, token),
+                validateVersionIncarnation: false)
         {
         }
 
@@ -101,6 +105,32 @@ namespace Opc.Ua.WotCon.Server.Registry
             Func<ISystemContext, string, ServiceResult> authorizeWrite,
             Func<string, long, int, CancellationToken, ValueTask<ByteString>> readContent,
             Func<byte[], string, NodeId, CancellationToken, ValueTask<ServiceResult>> onCommit)
+            : this(
+                file,
+                maxOpenHandles,
+                maxDocumentSize,
+                authorizeWrite,
+                readContent,
+                (bytes, baseline, version, session, token) =>
+                    onCommit(bytes, baseline, session, token),
+                validateVersionIncarnation: false)
+        {
+        }
+
+        public WotResourceFileManager(
+            FileState file,
+            int maxOpenHandles,
+            int maxDocumentSize,
+            Func<ISystemContext, string, ServiceResult> authorizeWrite,
+            Func<string, long, int, CancellationToken, ValueTask<ByteString>> readContent,
+            Func<
+                byte[],
+                string,
+                WotResourceVersion?,
+                NodeId,
+                CancellationToken,
+                ValueTask<ServiceResult>> onCommit,
+            bool validateVersionIncarnation = true)
         {
             m_file = file ?? throw new ArgumentNullException(nameof(file));
             m_maxHandles = maxOpenHandles;
@@ -108,6 +138,7 @@ namespace Opc.Ua.WotCon.Server.Registry
             m_authorizeWrite = authorizeWrite ?? throw new ArgumentNullException(nameof(authorizeWrite));
             m_readContent = readContent ?? throw new ArgumentNullException(nameof(readContent));
             m_onCommit = onCommit ?? throw new ArgumentNullException(nameof(onCommit));
+            m_validateVersionIncarnation = validateVersionIncarnation;
 
             if (m_file.Writable is not null)
             {
@@ -161,12 +192,18 @@ namespace Opc.Ua.WotCon.Server.Registry
         public long CurrentContentLength { get; private set; }
 
         /// <summary>
+        /// Gets the exact immutable Version snapshot currently represented by the file.
+        /// </summary>
+        public WotResourceVersion? CurrentVersion { get; private set; }
+
+        /// <summary>
         /// Replaces the served content metadata (called when the registry snapshot changes).
         /// </summary>
         public void UpdatePersistedContent(WotResourceVersion? version, string? mimeType)
         {
             lock (m_handlesLock)
             {
+                CurrentVersion = version;
                 CurrentContentKey = version?.DigestHex ?? string.Empty;
                 CurrentContentLength = version?.ContentLength ?? 0;
                 if (m_file.Size is not null)
@@ -277,7 +314,11 @@ namespace Opc.Ua.WotCon.Server.Registry
             fileHandle = ++m_nextHandle;
             m_handles.Add(
                 fileHandle,
-                Handle.OpenWrite(sessionId, CurrentContentKey, CurrentContentLength));
+                Handle.OpenWrite(
+                    sessionId,
+                    CurrentContentKey,
+                    CurrentContentLength,
+                    CurrentVersion));
             m_writingHandle = fileHandle;
             if (m_file.OpenCount is not null)
             {
@@ -321,7 +362,11 @@ namespace Opc.Ua.WotCon.Server.Registry
                         "Another writer is already open on this file.");
                 }
                 Handle handle = mode == WriteEraseMode
-                    ? Handle.OpenWrite(sessionId, CurrentContentKey, CurrentContentLength)
+                    ? Handle.OpenWrite(
+                        sessionId,
+                        CurrentContentKey,
+                        CurrentContentLength,
+                        CurrentVersion)
                     : Handle.OpenRead(sessionId, CurrentContentKey, CurrentContentLength);
                 fileHandle = ++m_nextHandle;
                 m_handles.Add(fileHandle, handle);
@@ -390,7 +435,8 @@ namespace Opc.Ua.WotCon.Server.Registry
                 if (string.Equals(
                         digest,
                         handle.BaselineContentKey,
-                        StringComparison.Ordinal))
+                        StringComparison.Ordinal) &&
+                    (!m_validateVersionIncarnation || handle.BaselineVersion is null))
                 {
                     return new CloseMethodStateResult { ServiceResult = ServiceResult.Good };
                 }
@@ -409,6 +455,7 @@ namespace Opc.Ua.WotCon.Server.Registry
                 ServiceResult result = await m_onCommit(
                         content,
                         handle.BaselineContentKey,
+                        handle.BaselineVersion,
                         SessionIdOf(context),
                         cancellationToken)
                     .ConfigureAwait(false);
@@ -641,7 +688,8 @@ namespace Opc.Ua.WotCon.Server.Registry
                 bool writing,
                 string storeKey,
                 long length,
-                string baselineContentKey)
+                string baselineContentKey,
+                WotResourceVersion? baselineVersion)
             {
                 SessionId = sessionId;
                 Stream = stream;
@@ -649,6 +697,7 @@ namespace Opc.Ua.WotCon.Server.Registry
                 StoreKey = storeKey;
                 m_length = length;
                 BaselineContentKey = baselineContentKey;
+                BaselineVersion = baselineVersion;
             }
 
             public NodeId SessionId { get; }
@@ -656,6 +705,7 @@ namespace Opc.Ua.WotCon.Server.Registry
             public bool Writing { get; }
             public string StoreKey { get; }
             public string BaselineContentKey { get; }
+            public WotResourceVersion? BaselineVersion { get; }
             public bool HasAcceptedWrite { get; set; }
             public long Length => Writing ? Stream.Length : m_length;
             public long Position
@@ -681,19 +731,22 @@ namespace Opc.Ua.WotCon.Server.Registry
                     writing: false,
                     storeKey,
                     length,
-                    storeKey);
+                    storeKey,
+                    baselineVersion: null);
 
             public static Handle OpenWrite(
                 NodeId sessionId,
                 string baselineContentKey,
-                long baselineLength)
+                long baselineLength,
+                WotResourceVersion? baselineVersion)
                 => new(
                     sessionId,
                     new MemoryStream(),
                     writing: true,
                     string.Empty,
                     baselineLength,
-                    baselineContentKey);
+                    baselineContentKey,
+                    baselineVersion);
 
             public void Dispose() => Stream.Dispose();
 
@@ -709,9 +762,11 @@ namespace Opc.Ua.WotCon.Server.Registry
         private readonly Func<
             byte[],
             string,
+            WotResourceVersion?,
             NodeId,
             CancellationToken,
             ValueTask<ServiceResult>> m_onCommit;
+        private readonly bool m_validateVersionIncarnation;
         private readonly Lock m_handlesLock = new();
         private readonly Dictionary<uint, Handle> m_handles = new();
         private uint m_nextHandle;

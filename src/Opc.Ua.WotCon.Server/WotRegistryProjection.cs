@@ -311,13 +311,14 @@ namespace Opc.Ua.WotCon.Server
                 m_options.Bounds.MaxDocumentBytes,
                 m_manager.CheckManagementAccess,
                 (key, offset, count, token) => m_registry.ReadContentChunkAsync(key, offset, count, token),
-                (bytes, baseline, session, token) => CommitDocumentAsync(
+                (bytes, baseline, baselineVersion, session, token) => CommitDocumentAsync(
                     groupId,
                     resourceId,
                     versionId,
                     kind,
                     bytes,
                     baseline,
+                    baselineVersion,
                     token));
         }
 
@@ -430,6 +431,7 @@ namespace Opc.Ua.WotCon.Server
             WoTDocumentKindEnum kind,
             byte[] content,
             string baselineContentKey,
+            WotResourceVersion? baselineVersion,
             CancellationToken ct)
         {
             var request = new WotUpsertResourceRequest
@@ -438,6 +440,7 @@ namespace Opc.Ua.WotCon.Server
                 ResourceId = resourceId,
                 VersionId = versionId,
                 ExpectedVersionDigestHex = baselineContentKey,
+                ExpectedVersionSnapshot = baselineVersion,
                 Kind = kind,
                 Content = ByteString.From(content),
                 ContentType = kind == WoTDocumentKindEnum.ThingModel

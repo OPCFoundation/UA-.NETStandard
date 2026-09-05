@@ -460,12 +460,14 @@ namespace Opc.Ua.WotCon.Tests.Registry
         {
             using var service = new WotRegistryService();
 
-            Assert.ThrowsAsync<ArgumentException>(
+            ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(
                 async () => await service.GetOrCreateVersionAsync(
                     WotRegistryGroups.ThingDescriptions,
                     "invalid",
                     versionId,
-                    WoTDocumentKindEnum.ThingDescription));
+                    WoTDocumentKindEnum.ThingDescription))!;
+
+            Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadInvalidArgument));
         }
 
         [Test]
@@ -473,12 +475,14 @@ namespace Opc.Ua.WotCon.Tests.Registry
         {
             using var service = new WotRegistryService();
 
-            Assert.ThrowsAsync<ArgumentException>(
+            ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(
                 async () => await service.GetOrCreateVersionAsync(
                     WotRegistryGroups.ThingDescriptions,
                     "invalid",
                     new string('a', 129),
-                    WoTDocumentKindEnum.ThingDescription));
+                    WoTDocumentKindEnum.ThingDescription))!;
+
+            Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadInvalidArgument));
         }
 
         [Test]
