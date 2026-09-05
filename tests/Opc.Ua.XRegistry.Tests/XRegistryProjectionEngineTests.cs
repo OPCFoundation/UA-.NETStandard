@@ -354,7 +354,6 @@ namespace Opc.Ua.XRegistry.Tests
                         ProjectedDeleteTarget.Resource)
                 }));
                 Assert.That(strategy.ResourceDeletes, Is.Empty);
-                Assert.That(strategy.VersionDeletes, Is.Empty);
             });
         }
 
@@ -391,7 +390,6 @@ namespace Opc.Ua.XRegistry.Tests
                         ProjectedDeleteTarget.Version)
                 }));
                 Assert.That(strategy.ResourceDeletes, Is.Empty);
-                Assert.That(strategy.VersionDeletes, Is.Empty);
             });
         }
 
@@ -435,7 +433,6 @@ namespace Opc.Ua.XRegistry.Tests
                         ProjectedDeleteTarget.Version)
                 }));
                 Assert.That(strategy.ResourceDeletes, Is.Empty);
-                Assert.That(strategy.VersionDeletes, Is.Empty);
             });
         }
 
@@ -1731,16 +1728,6 @@ namespace Opc.Ua.XRegistry.Tests
                 return new ValueTask<ServiceResult>(ServiceResult.Good);
             }
 
-            public virtual ValueTask<ServiceResult> DeleteVersionAsync(
-                string groupId,
-                string resourceId,
-                string versionId,
-                long? epoch,
-                CancellationToken ct)
-            {
-                return new ValueTask<ServiceResult>(ServiceResult.Good);
-            }
-
             public ValueTask<ServiceResult> AddVersionLabelAsync(
                 string groupId,
                 string resourceId,
@@ -1876,7 +1863,6 @@ namespace Opc.Ua.XRegistry.Tests
             public bool RejectGenerationCaptureBeforeProjectedDelete { get; set; }
             public List<ProjectedDeleteInvocation> ProjectedDeletes { get; } = [];
             public List<ResourceDeleteInvocation> ResourceDeletes { get; } = [];
-            public List<VersionDeleteInvocation> VersionDeletes { get; } = [];
 
             public override XRegistryProjectionGeneration CaptureProjectionGeneration()
             {
@@ -1931,18 +1917,6 @@ namespace Opc.Ua.XRegistry.Tests
                 return new ValueTask<ServiceResult>(result);
             }
 
-            public override ValueTask<ServiceResult> DeleteVersionAsync(
-                string groupId,
-                string resourceId,
-                string versionId,
-                long? epoch,
-                CancellationToken ct)
-            {
-                VersionDeletes.Add(
-                    new VersionDeleteInvocation(groupId, resourceId, versionId, epoch));
-                return new ValueTask<ServiceResult>(ServiceResult.Good);
-            }
-
             private bool m_projectedDeleteInvoked;
         }
 
@@ -1962,12 +1936,6 @@ namespace Opc.Ua.XRegistry.Tests
         private sealed record ResourceDeleteInvocation(
             string GroupId,
             string ResourceId,
-            long? Epoch);
-
-        private sealed record VersionDeleteInvocation(
-            string GroupId,
-            string ResourceId,
-            string VersionId,
             long? Epoch);
 
         private sealed class ContentlessClaimStrategy : VersionedTestStrategy

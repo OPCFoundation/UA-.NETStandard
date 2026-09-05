@@ -353,11 +353,19 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
         [Test]
         public async Task PlaceholderDefaultSwitchDoesNotInventOptionalChangedAttributes()
         {
-            await m_registry.GetOrCreateVersionAsync(
-                WotRegistryGroups.ThingDescriptions,
-                "placeholder-default",
-                "v1",
-                WoTDocumentKindEnum.ThingDescription).ConfigureAwait(false);
+            WotRegistryMutationResult v1 = await m_registry.UpsertResourceAsync(
+                new WotUpsertResourceRequest
+                {
+                    GroupId = WotRegistryGroups.ThingDescriptions,
+                    ResourceId = "placeholder-default",
+                    VersionId = "v1",
+                    Kind = WoTDocumentKindEnum.ThingDescription,
+                    Content = ByteString.From(
+                        SelectiveConverter.ValidTd("placeholder-default")),
+                    ContentType = string.Empty,
+                    Format = string.Empty
+                }).ConfigureAwait(false);
+            Assert.That(v1.Outcome, Is.EqualTo(WoTOutcomeEnum.Success));
 
             var registryNodeId = ExpandedNodeId.ToNodeId(
                 WotConModel.ObjectIds.WoTRegistry, m_server.CurrentInstance.NamespaceUris);
@@ -427,7 +435,13 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
                 filter,
                 XRegistryModel.BrowseNames.Changed);
             Assert.That(changedField.TryGetValue(out ArrayOf<string> changed), Is.True);
-            Assert.That(changed.ToArray(), Is.EqualTo(s_placeholderDefaultSwitchChanged));
+            string[] changedNames = changed.ToArray();
+            Assert.Multiple(() =>
+            {
+                Assert.That(changedNames, Is.EqualTo(s_placeholderDefaultSwitchChanged));
+                Assert.That(changedNames, Does.Not.Contain("contenttype"));
+                Assert.That(changedNames, Does.Not.Contain("format"));
+            });
 
             await DeleteSubscriptionAsync(services, subscriptionId).ConfigureAwait(false);
         }
@@ -737,6 +751,7 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
             "meta.epoch",
             "meta.modifiedat",
             "modifiedat",
+            "thing",
             "versionid",
             "xid"
         ];

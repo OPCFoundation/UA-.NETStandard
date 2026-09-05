@@ -509,14 +509,6 @@ namespace Opc.Ua.XRegistry.Server
             string versionId,
             CancellationToken ct);
 
-        /// <summary>Deletes one Version, deleting the Resource when it was the last Version.</summary>
-        ValueTask<ServiceResult> DeleteVersionAsync(
-            string groupId,
-            string resourceId,
-            string versionId,
-            long? epoch,
-            CancellationToken ct);
-
         /// <summary>
         /// Atomically resolves the projected node's current Resource or Version
         /// role and deletes that entity using the corresponding epoch space.
