@@ -69,6 +69,18 @@ namespace Opc.Ua.Server.Tests.Fluent
         }
 
         [Test]
+        public void SimulationAcceptsTypedBuilderFacade()
+        {
+            using var h = SimulationHarness.Create();
+            var facade = new Mock<INodeManagerBuilder>();
+            facade.SetupGet(value => value.NodeManager)
+                .Returns(h.Builder.NodeManager);
+
+            Assert.DoesNotThrow(
+                () => facade.Object.Simulation(TimeSpan.FromMilliseconds(10)));
+        }
+
+        [Test]
         public async Task OnTickFiresPeriodically()
         {
             using var h = SimulationHarness.Create();

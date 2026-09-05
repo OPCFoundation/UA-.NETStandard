@@ -143,6 +143,14 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Initializes the context with a monitored item.
         /// </summary>
+        /// <remarks>
+        /// The identity is the Session's <see cref="ISession.EffectiveIdentity"/>, the
+        /// one the Roles granted by <see cref="IRoleManager.ResolveGrantedRoles"/> were
+        /// layered onto, and not <see cref="ISession.Identity"/>, which is the token as
+        /// it arrived. Permission checks made from a monitored item - most visibly the
+        /// Part 3 8.55 ReceiveEvents check on an event's EventType and SourceNode - have
+        /// to see the Roles the Session actually holds.
+        /// </remarks>
         /// <param name="monitoredItem">The monitored item.</param>
         public OperationContext(IMonitoredItem monitoredItem)
         {
@@ -157,7 +165,7 @@ namespace Opc.Ua.Server
 
             if (Session != null)
             {
-                UserIdentity = Session.Identity;
+                UserIdentity = Session.EffectiveIdentity;
                 PreferredLocales = Session.PreferredLocales;
             }
 
