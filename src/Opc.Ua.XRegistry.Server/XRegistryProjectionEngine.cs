@@ -975,6 +975,11 @@ namespace Opc.Ua.XRegistry.Server
                 return access;
             }
             long? expectedEpoch = OptionalEpoch(input, 0);
+            bool deleteLogicalResource =
+                m_resourcesByXid.TryGetValue(
+                    ResourceSubject(groupId, resourceId),
+                    out ResourceState? logicalResource) &&
+                ReferenceEquals(logicalResource, node);
             ServiceResult result = m_versionedStrategy is null
                 ? await m_strategy.DeleteResourceAsync(
                         groupId,
@@ -986,10 +991,7 @@ namespace Opc.Ua.XRegistry.Server
                         groupId,
                         resourceId,
                         versionId,
-                        string.Equals(
-                            node.BrowseName.Name,
-                            resourceId,
-                            StringComparison.Ordinal),
+                        deleteLogicalResource,
                         expectedEpoch,
                         ct)
                     .ConfigureAwait(false);
@@ -1276,6 +1278,11 @@ namespace Opc.Ua.XRegistry.Server
         private string GroupNodeIdPath(string groupId)
         {
             return $"{m_registryNodeIdPath}/groups/{groupId}";
+        }
+
+        private static string ResourceSubject(string groupId, string resourceId)
+        {
+            return $"/groups/{groupId}/resources/{resourceId}";
         }
 
         private string ResourceNodeIdPath(

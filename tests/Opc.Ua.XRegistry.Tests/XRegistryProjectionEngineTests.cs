@@ -400,6 +400,64 @@ namespace Opc.Ua.XRegistry.Tests
         }
 
         [Test]
+        public async Task VersionedDeleteUsesLogicalXidMappingWhenBrowseNamesCollideAsync()
+        {
+            const string ResourceId = "v2";
+            var strategy = new RecordingVersionedTestStrategy
+            {
+                Snapshot = VersionedProjectionSnapshot("v1", ResourceId),
+                EventSnapshot = VersionedEventSnapshot(
+                    "v1",
+                    1,
+                    WotLabels(),
+                    resourceId: ResourceId),
+                CurrentDefaultVersionId = "v1",
+                ResourceEpoch = 17,
+                VersionEpoch = 23
+            };
+            ProjectionHarness harness = ProjectionHarness.Create(suppliedStrategy: strategy);
+            await harness.Engine.AttachAsync(harness.Registry, CancellationToken.None)
+                .ConfigureAwait(false);
+            ResourceState logical = FindVersionNode(harness, "v1");
+            ResourceState exactVersion = FindVersionNode(harness, "v2");
+
+            ServiceResult versionResult = await InvokeDeleteAsync(
+                harness,
+                exactVersion,
+                23).ConfigureAwait(false);
+            ServiceResult logicalResult = await InvokeDeleteAsync(
+                harness,
+                logical,
+                17).ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(logical.BrowseName.Name, Is.EqualTo(ResourceId));
+                Assert.That(exactVersion.BrowseName.Name, Is.EqualTo(ResourceId));
+                Assert.That(ServiceResult.IsGood(versionResult), Is.True);
+                Assert.That(ServiceResult.IsGood(logicalResult), Is.True);
+                Assert.That(strategy.ProjectedDeletes, Is.EqualTo(new[]
+                {
+                    new ProjectedDeleteInvocation(
+                        "schemas",
+                        ResourceId,
+                        "v2",
+                        23,
+                        false,
+                        ProjectedDeleteTarget.Version),
+                    new ProjectedDeleteInvocation(
+                        "schemas",
+                        ResourceId,
+                        "v1",
+                        17,
+                        true,
+                        ProjectedDeleteTarget.Resource)
+                }));
+                Assert.That(strategy.ResourceDeletes, Is.Empty);
+            });
+        }
+
+        [Test]
         public async Task VersionedDeletePassesStaleNonDefaultRoleAndServiceRejectsAsync()
         {
             var strategy = new RecordingVersionedTestStrategy
@@ -1297,7 +1355,8 @@ namespace Opc.Ua.XRegistry.Tests
         }
 
         private static TestSnapshot VersionedProjectionSnapshot(
-            string defaultVersionId)
+            string defaultVersionId,
+            string resourceId = "pump")
         {
             return new TestSnapshot(
             [
@@ -1306,12 +1365,12 @@ namespace Opc.Ua.XRegistry.Tests
                     [
                         new VersionedTestResource(
                             "schemas",
-                            "pump",
+                            resourceId,
                             "v1",
                             defaultVersionId == "v1"),
                         new VersionedTestResource(
                             "schemas",
-                            "pump",
+                            resourceId,
                             "v2",
                             defaultVersionId == "v2")
                     ])
@@ -1327,13 +1386,14 @@ namespace Opc.Ua.XRegistry.Tests
             ImmutableSortedDictionary<string, string>? v1Attributes = null,
             ImmutableSortedDictionary<string, string>? v2Attributes = null,
             ImmutableSortedDictionary<string, string>? v1Labels = null,
-            ImmutableSortedDictionary<string, string>? v2Labels = null)
+            ImmutableSortedDictionary<string, string>? v2Labels = null,
+            string resourceId = "pump")
         {
             NodeId v1Node = new(
-                "TestRegistry/groups/schemas/resources/pump/versions/v1",
+                $"TestRegistry/groups/schemas/resources/{resourceId}/versions/v1",
                 1);
             NodeId v2Node = new(
-                "TestRegistry/groups/schemas/resources/pump/versions/v2",
+                $"TestRegistry/groups/schemas/resources/{resourceId}/versions/v2",
                 1);
             XRegistryProjectionEventVersion V(string id, uint epoch, NodeId source)
             {
@@ -1350,7 +1410,7 @@ namespace Opc.Ua.XRegistry.Tests
                                 System.Globalization.CultureInfo.InvariantCulture));
                 return new XRegistryProjectionEventVersion(
                     id,
-                    $"/groups/schemas/resources/pump/versions/{id}",
+                    $"/groups/schemas/resources/{resourceId}/versions/{id}",
                     epoch,
                     attributes)
                 {
@@ -1378,8 +1438,8 @@ namespace Opc.Ua.XRegistry.Tests
                         [
                             new XRegistryProjectionEventResource(
                                 "schemas",
-                                "pump",
-                                "/groups/schemas/resources/pump",
+                                resourceId,
+                                $"/groups/schemas/resources/{resourceId}",
                                 defaultVersionId == "v1" ? v1Epoch : v2Epoch,
                                 metaEpoch,
                                 metaLabels,
@@ -1388,7 +1448,7 @@ namespace Opc.Ua.XRegistry.Tests
                                 [V("v1", v1Epoch, v1Node), V("v2", v2Epoch, v2Node)])
                             {
                                 SourceNodeId = defaultVersionId == "v1" ? v1Node : v2Node,
-                                SourceName = "pump",
+                                SourceName = resourceId,
                                 MetaCreatedAt = s_unixEpoch,
                                 MetaModifiedAt = s_unixEpoch.AddSeconds(metaEpoch)
                             }

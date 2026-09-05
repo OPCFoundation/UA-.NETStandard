@@ -362,6 +362,48 @@ namespace Opc.Ua.WotCon.Tests
         }
 
         [Test]
+        public async Task DeletingVersionWhoseIdMatchesResourceIdUsesExactVersionRole()
+        {
+            const string ResourceId = "collision-delete";
+            WotRegistryClient client = await OpenClientAsync().ConfigureAwait(false);
+            WotRegistryGroupClient group = await client
+                .CreateThingDescriptionGroupAsync()
+                .ConfigureAwait(false);
+            (WotRegistryResourceClient logical, WotRegistryResourceClient exactVersion) =
+                await CreateCommittedVersionsAsync(
+                    group,
+                    ResourceId,
+                    secondVersionId: ResourceId)
+                .ConfigureAwait(false);
+            WotResource before = m_registry.Current.FindResource(
+                WotRegistryGroups.ThingDescriptions,
+                ResourceId)!;
+
+            await exactVersion.DeleteAsync(
+                    checked((uint)before.FindVersion(ResourceId)!.Epoch))
+                .ConfigureAwait(false);
+
+            WotResource afterVersionDelete = m_registry.Current.FindResource(
+                WotRegistryGroups.ThingDescriptions,
+                ResourceId)!;
+            Assert.Multiple(() =>
+            {
+                Assert.That(afterVersionDelete.DefaultVersionId, Is.EqualTo("v1"));
+                Assert.That(afterVersionDelete.FindVersion(ResourceId), Is.Null);
+                Assert.That(afterVersionDelete.FindVersion("v1"), Is.Not.Null);
+            });
+
+            await logical.DeleteAsync(checked((uint)afterVersionDelete.MetaEpoch))
+                .ConfigureAwait(false);
+
+            Assert.That(
+                m_registry.Current.FindResource(
+                    WotRegistryGroups.ThingDescriptions,
+                    ResourceId),
+                Is.Null);
+        }
+
+        [Test]
         public async Task DeleteRoutingTracksDefaultSwitchForExistingVersionNodes()
         {
             WotRegistryClient client = await OpenClientAsync().ConfigureAwait(false);
@@ -1445,7 +1487,8 @@ namespace Opc.Ua.WotCon.Tests
             WotRegistryResourceClient V1,
             WotRegistryResourceClient V2)> CreateCommittedVersionsAsync(
             WotRegistryGroupClient group,
-            string resourceId)
+            string resourceId,
+            string secondVersionId = "v2")
         {
             (WotRegistryResourceClient v1, _) = await group
                 .CreateResourceAsync(resourceId, "v1")
@@ -1454,7 +1497,7 @@ namespace Opc.Ua.WotCon.Tests
                     ByteString.From(MakeThingDescriptionBytes(resourceId)))
                 .ConfigureAwait(false);
             (WotRegistryResourceClient v2, _) = await group
-                .CreateResourceAsync(resourceId, "v2")
+                .CreateResourceAsync(resourceId, secondVersionId)
                 .ConfigureAwait(false);
             await v2.UploadNewVersionAsync(
                     ByteString.From(
