@@ -322,79 +322,7 @@ namespace Opc.Ua.XRegistry.Tests
         }
 
         [Test]
-        public async Task VersionedDeleteDelegatesDefaultRoleAndEpochAtomicallyAsync()
-        {
-            var strategy = new RecordingVersionedTestStrategy
-            {
-                Snapshot = VersionedProjectionSnapshot("v1"),
-                EventSnapshot = VersionedEventSnapshot("v1", 1, WotLabels()),
-                CurrentDefaultVersionId = "v1",
-                ResourceEpoch = 17,
-                VersionEpoch = 23
-            };
-            ProjectionHarness harness = ProjectionHarness.Create(suppliedStrategy: strategy);
-            await harness.Engine.AttachAsync(harness.Registry, CancellationToken.None)
-                .ConfigureAwait(false);
-
-            ServiceResult result = await InvokeDeleteAsync(
-                harness,
-                FindVersionNode(harness, "v1"),
-                17).ConfigureAwait(false);
-
-            Assert.Multiple(() =>
-            {
-                Assert.That(ServiceResult.IsGood(result), Is.True);
-                Assert.That(strategy.ProjectedDeletes, Is.EqualTo(new[]
-                {
-                    new ProjectedDeleteInvocation(
-                        "schemas",
-                        "pump",
-                        "v1",
-                        17,
-                        ProjectedDeleteTarget.Resource)
-                }));
-                Assert.That(strategy.ResourceDeletes, Is.Empty);
-            });
-        }
-
-        [Test]
-        public async Task VersionedDeleteDelegatesNonDefaultRoleAndEpochAtomicallyAsync()
-        {
-            var strategy = new RecordingVersionedTestStrategy
-            {
-                Snapshot = VersionedProjectionSnapshot("v1"),
-                EventSnapshot = VersionedEventSnapshot("v1", 1, WotLabels()),
-                CurrentDefaultVersionId = "v1",
-                ResourceEpoch = 17,
-                VersionEpoch = 23
-            };
-            ProjectionHarness harness = ProjectionHarness.Create(suppliedStrategy: strategy);
-            await harness.Engine.AttachAsync(harness.Registry, CancellationToken.None)
-                .ConfigureAwait(false);
-
-            ServiceResult result = await InvokeDeleteAsync(
-                harness,
-                FindVersionNode(harness, "v2"),
-                23).ConfigureAwait(false);
-
-            Assert.Multiple(() =>
-            {
-                Assert.That(ServiceResult.IsGood(result), Is.True);
-                Assert.That(strategy.ProjectedDeletes, Is.EqualTo(new[]
-                {
-                    new ProjectedDeleteInvocation(
-                        "schemas",
-                        "pump",
-                        "v2",
-                        23,
-                        ProjectedDeleteTarget.Version)
-                }));
-                Assert.That(strategy.ResourceDeletes, Is.Empty);
-            });
-        }
-
-        [Test]
-        public async Task VersionedDeleteDefersRoleResolutionUntilAtomicStrategyInvocationAsync()
+        public async Task VersionedDeletePassesLogicalRoleAndEpochToAtomicStrategyAsync()
         {
             var strategy = new RecordingVersionedTestStrategy
             {
@@ -409,6 +337,84 @@ namespace Opc.Ua.XRegistry.Tests
                 .ConfigureAwait(false);
             ResourceState v1 = FindVersionNode(harness, "v1");
 
+            ServiceResult result = await InvokeDeleteAsync(
+                harness,
+                v1,
+                17).ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(ServiceResult.IsGood(result), Is.True);
+                Assert.That(v1.BrowseName.Name, Is.EqualTo("pump"));
+                Assert.That(strategy.ProjectedDeletes, Is.EqualTo(new[]
+                {
+                    new ProjectedDeleteInvocation(
+                        "schemas",
+                        "pump",
+                        "v1",
+                        17,
+                        true,
+                        ProjectedDeleteTarget.Resource)
+                }));
+                Assert.That(strategy.ResourceDeletes, Is.Empty);
+            });
+        }
+
+        [Test]
+        public async Task VersionedDeletePassesVersionRoleAndEpochToAtomicStrategyAsync()
+        {
+            var strategy = new RecordingVersionedTestStrategy
+            {
+                Snapshot = VersionedProjectionSnapshot("v1"),
+                EventSnapshot = VersionedEventSnapshot("v1", 1, WotLabels()),
+                CurrentDefaultVersionId = "v1",
+                ResourceEpoch = 17,
+                VersionEpoch = 23
+            };
+            ProjectionHarness harness = ProjectionHarness.Create(suppliedStrategy: strategy);
+            await harness.Engine.AttachAsync(harness.Registry, CancellationToken.None)
+                .ConfigureAwait(false);
+            ResourceState v2 = FindVersionNode(harness, "v2");
+
+            ServiceResult result = await InvokeDeleteAsync(
+                harness,
+                v2,
+                23).ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(ServiceResult.IsGood(result), Is.True);
+                Assert.That(v2.BrowseName.Name, Is.EqualTo("v2"));
+                Assert.That(strategy.ProjectedDeletes, Is.EqualTo(new[]
+                {
+                    new ProjectedDeleteInvocation(
+                        "schemas",
+                        "pump",
+                        "v2",
+                        23,
+                        false,
+                        ProjectedDeleteTarget.Version)
+                }));
+                Assert.That(strategy.ResourceDeletes, Is.Empty);
+            });
+        }
+
+        [Test]
+        public async Task VersionedDeletePassesStaleNonDefaultRoleAndServiceRejectsAsync()
+        {
+            var strategy = new RecordingVersionedTestStrategy
+            {
+                Snapshot = VersionedProjectionSnapshot("v1"),
+                EventSnapshot = VersionedEventSnapshot("v1", 1, WotLabels()),
+                CurrentDefaultVersionId = "v1",
+                ResourceEpoch = 17,
+                VersionEpoch = 23
+            };
+            ProjectionHarness harness = ProjectionHarness.Create(suppliedStrategy: strategy);
+            await harness.Engine.AttachAsync(harness.Registry, CancellationToken.None)
+                .ConfigureAwait(false);
+            ResourceState v2 = FindVersionNode(harness, "v2");
+
             strategy.Snapshot = VersionedProjectionSnapshot("v2");
             strategy.EventSnapshot = VersionedEventSnapshot("v2", 2, WotLabels());
             strategy.CurrentDefaultVersionId = "v2";
@@ -416,21 +422,67 @@ namespace Opc.Ua.XRegistry.Tests
             strategy.VersionEpoch = 31;
             strategy.RejectGenerationCaptureBeforeProjectedDelete = true;
 
-            ServiceResult result = await InvokeDeleteAsync(harness, v1, 31)
+            ServiceResult result = await InvokeDeleteAsync(harness, v2, 31)
                 .ConfigureAwait(false);
 
             Assert.Multiple(() =>
             {
-                Assert.That(ServiceResult.IsGood(result), Is.True);
-                Assert.That(FindVersionNode(harness, "v1"), Is.SameAs(v1));
+                Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
+                Assert.That(FindVersionNode(harness, "v2"), Is.SameAs(v2));
                 Assert.That(strategy.ProjectedDeletes, Is.EqualTo(new[]
                 {
                     new ProjectedDeleteInvocation(
                         "schemas",
                         "pump",
-                        "v1",
+                        "v2",
                         31,
-                        ProjectedDeleteTarget.Version)
+                        false,
+                        ProjectedDeleteTarget.Resource)
+                }));
+                Assert.That(strategy.ResourceDeletes, Is.Empty);
+            });
+        }
+
+        [Test]
+        public async Task VersionedDeleteUsesReconciledLogicalRoleForNewDefaultAsync()
+        {
+            var strategy = new RecordingVersionedTestStrategy
+            {
+                Snapshot = VersionedProjectionSnapshot("v1"),
+                EventSnapshot = VersionedEventSnapshot("v1", 1, WotLabels()),
+                CurrentDefaultVersionId = "v1",
+                ResourceEpoch = 17,
+                VersionEpoch = 23
+            };
+            ProjectionHarness harness = ProjectionHarness.Create(suppliedStrategy: strategy);
+            await harness.Engine.AttachAsync(harness.Registry, CancellationToken.None)
+                .ConfigureAwait(false);
+            ResourceState v2 = FindVersionNode(harness, "v2");
+
+            strategy.Snapshot = VersionedProjectionSnapshot("v2");
+            strategy.EventSnapshot = VersionedEventSnapshot("v2", 2, WotLabels());
+            strategy.CurrentDefaultVersionId = "v2";
+            strategy.ResourceEpoch = 29;
+            strategy.VersionEpoch = 31;
+            await harness.Engine.ReconcileAsync(CancellationToken.None).ConfigureAwait(false);
+            strategy.RejectGenerationCaptureBeforeProjectedDelete = true;
+
+            ServiceResult result = await InvokeDeleteAsync(harness, v2, 29)
+                .ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(ServiceResult.IsGood(result), Is.True);
+                Assert.That(v2.BrowseName.Name, Is.EqualTo("pump"));
+                Assert.That(strategy.ProjectedDeletes, Is.EqualTo(new[]
+                {
+                    new ProjectedDeleteInvocation(
+                        "schemas",
+                        "pump",
+                        "v2",
+                        29,
+                        true,
+                        ProjectedDeleteTarget.Resource)
                 }));
                 Assert.That(strategy.ResourceDeletes, Is.Empty);
             });
@@ -1722,6 +1774,7 @@ namespace Opc.Ua.XRegistry.Tests
                 string groupId,
                 string resourceId,
                 string versionId,
+                bool deleteLogicalResource,
                 long? epoch,
                 CancellationToken ct)
             {
@@ -1889,6 +1942,7 @@ namespace Opc.Ua.XRegistry.Tests
                 string groupId,
                 string resourceId,
                 string versionId,
+                bool deleteLogicalResource,
                 long? epoch,
                 CancellationToken ct)
             {
@@ -1905,7 +1959,16 @@ namespace Opc.Ua.XRegistry.Tests
                         resourceId,
                         versionId,
                         epoch,
+                        deleteLogicalResource,
                         target));
+                if (deleteLogicalResource !=
+                    (target == ProjectedDeleteTarget.Resource))
+                {
+                    return new ValueTask<ServiceResult>(
+                        ServiceResult.Create(
+                            StatusCodes.BadInvalidState,
+                            "The projected node role changed before deletion."));
+                }
                 long expectedEpoch = target == ProjectedDeleteTarget.Resource
                     ? ResourceEpoch
                     : VersionEpoch;
@@ -1931,6 +1994,7 @@ namespace Opc.Ua.XRegistry.Tests
             string ResourceId,
             string VersionId,
             long? Epoch,
+            bool DeleteLogicalResource,
             ProjectedDeleteTarget Target);
 
         private sealed record ResourceDeleteInvocation(

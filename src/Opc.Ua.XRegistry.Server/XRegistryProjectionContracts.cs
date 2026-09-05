@@ -510,13 +510,14 @@ namespace Opc.Ua.XRegistry.Server
             CancellationToken ct);
 
         /// <summary>
-        /// Atomically resolves the projected node's current Resource or Version
-        /// role and deletes that entity using the corresponding epoch space.
+        /// Atomically verifies the caller-observed Resource or Version role and
+        /// deletes that entity using the corresponding epoch space.
         /// </summary>
         ValueTask<ServiceResult> DeleteProjectedEntityAsync(
             string groupId,
             string resourceId,
             string versionId,
+            bool deleteLogicalResource,
             long? epoch,
             CancellationToken ct);
 

@@ -530,6 +530,7 @@ namespace Opc.Ua.XRegistry.Server
             string versionId = resource.VersionId;
             node.Delete?.OnCallMethod2Async =
                 (c, m, o, i, ot, t) => OnDeleteResourceAsync(
+                    node,
                     groupId,
                     resourceId,
                     versionId,
@@ -960,6 +961,7 @@ namespace Opc.Ua.XRegistry.Server
         }
 
         private async ValueTask<ServiceResult> OnDeleteResourceAsync(
+            ResourceState node,
             string groupId,
             string resourceId,
             string versionId,
@@ -984,6 +986,10 @@ namespace Opc.Ua.XRegistry.Server
                         groupId,
                         resourceId,
                         versionId,
+                        string.Equals(
+                            node.BrowseName.Name,
+                            resourceId,
+                            StringComparison.Ordinal),
                         expectedEpoch,
                         ct)
                     .ConfigureAwait(false);

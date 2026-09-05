@@ -825,6 +825,7 @@ namespace Opc.Ua.WotCon.Server
                 string groupId,
                 string resourceId,
                 string versionId,
+                bool deleteLogicalResource,
                 long? epoch,
                 CancellationToken ct)
             {
@@ -836,6 +837,7 @@ namespace Opc.Ua.WotCon.Server
                         groupId,
                         resourceId,
                         versionId,
+                        deleteLogicalResource,
                         epoch,
                         ct)
                     .ConfigureAwait(false);
