@@ -337,24 +337,26 @@ namespace Opc.Ua.XRegistry.Tests
                 .ConfigureAwait(false);
             ResourceState v1 = FindVersionNode(harness, "v1");
 
+            // In the new hierarchy, deleting a version node always uses
+            // version-delete semantics regardless of being the default.
             ServiceResult result = await InvokeDeleteAsync(
                 harness,
                 v1,
-                17).ConfigureAwait(false);
+                23).ConfigureAwait(false);
 
             Assert.Multiple(() =>
             {
                 Assert.That(ServiceResult.IsGood(result), Is.True);
-                Assert.That(v1.BrowseName.Name, Is.EqualTo("pump"));
+                Assert.That(v1.BrowseName.Name, Is.EqualTo("v1"));
                 Assert.That(strategy.ProjectedDeletes, Is.EqualTo(new[]
                 {
                     new ProjectedDeleteInvocation(
                         "schemas",
                         "pump",
                         "v1",
-                        17,
-                        true,
-                        ProjectedDeleteTarget.Resource)
+                        23,
+                        false,
+                        ProjectedDeleteTarget.Version)
                 }));
                 Assert.That(strategy.ResourceDeletes, Is.Empty);
             });
@@ -374,11 +376,14 @@ namespace Opc.Ua.XRegistry.Tests
             ProjectionHarness harness = ProjectionHarness.Create(suppliedStrategy: strategy);
             await harness.Engine.AttachAsync(harness.Registry, CancellationToken.None)
                 .ConfigureAwait(false);
-            ResourceState v1 = FindVersionNode(harness, "v1");
+
+            // In the new hierarchy, to delete the logical resource you must
+            // delete the logical resource node, not a version node.
+            ResourceState logical = FindLogicalResourceNode(harness, "pump");
 
             ServiceResult result = await InvokeDeleteAsync(
                 harness,
-                v1,
+                logical,
                 17).ConfigureAwait(false);
 
             Assert.Multiple(() =>
@@ -389,7 +394,7 @@ namespace Opc.Ua.XRegistry.Tests
                     new ProjectedDeleteInvocation(
                         "schemas",
                         "pump",
-                        "v1",
+                        string.Empty,
                         17,
                         true,
                         ProjectedDeleteTarget.Resource)
@@ -455,13 +460,17 @@ namespace Opc.Ua.XRegistry.Tests
             ProjectionHarness harness = ProjectionHarness.Create(suppliedStrategy: strategy);
             await harness.Engine.AttachAsync(harness.Registry, CancellationToken.None)
                 .ConfigureAwait(false);
-            ResourceState logical = FindVersionNode(harness, "v1");
+
+            // In the new hierarchy, logical resource and version nodes are distinct.
+            ResourceState logical = FindLogicalResourceNode(harness, ResourceId);
             ResourceState exactVersion = FindVersionNode(harness, "v2");
 
+            // Version delete — always deleteLogicalResource=false.
             ServiceResult versionResult = await InvokeDeleteAsync(
                 harness,
                 exactVersion,
                 23).ConfigureAwait(false);
+            // Logical resource delete — always deleteLogicalResource=true.
             ServiceResult logicalResult = await InvokeDeleteAsync(
                 harness,
                 logical,
@@ -470,7 +479,7 @@ namespace Opc.Ua.XRegistry.Tests
             Assert.Multiple(() =>
             {
                 Assert.That(logical.BrowseName.Name, Is.EqualTo(ResourceId));
-                Assert.That(exactVersion.BrowseName.Name, Is.EqualTo(ResourceId));
+                Assert.That(exactVersion.BrowseName.Name, Is.EqualTo("v2"));
                 Assert.That(ServiceResult.IsGood(versionResult), Is.True);
                 Assert.That(ServiceResult.IsGood(logicalResult), Is.True);
                 Assert.That(strategy.ProjectedDeletes, Is.EqualTo(new[]
@@ -485,7 +494,7 @@ namespace Opc.Ua.XRegistry.Tests
                     new ProjectedDeleteInvocation(
                         "schemas",
                         ResourceId,
-                        "v1",
+                        string.Empty,
                         17,
                         true,
                         ProjectedDeleteTarget.Resource)
@@ -515,14 +524,15 @@ namespace Opc.Ua.XRegistry.Tests
             strategy.CurrentDefaultVersionId = "v2";
             strategy.ResourceEpoch = 29;
             strategy.VersionEpoch = 31;
-            strategy.RejectGenerationCaptureBeforeProjectedDelete = true;
 
+            // In the new hierarchy, v2 is a version node and its delete role
+            // cannot become stale — it is always version-delete semantics.
             ServiceResult result = await InvokeDeleteAsync(harness, v2, 31)
                 .ConfigureAwait(false);
 
             Assert.Multiple(() =>
             {
-                Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
+                Assert.That(ServiceResult.IsGood(result), Is.True);
                 Assert.That(FindVersionNode(harness, "v2"), Is.SameAs(v2));
                 Assert.That(strategy.ProjectedDeletes, Is.EqualTo(new[]
                 {
@@ -532,7 +542,7 @@ namespace Opc.Ua.XRegistry.Tests
                         "v2",
                         31,
                         false,
-                        ProjectedDeleteTarget.Resource)
+                        ProjectedDeleteTarget.Version)
                 }));
                 Assert.That(strategy.ResourceDeletes, Is.Empty);
             });
@@ -562,22 +572,26 @@ namespace Opc.Ua.XRegistry.Tests
             await harness.Engine.ReconcileAsync(CancellationToken.None).ConfigureAwait(false);
             strategy.RejectGenerationCaptureBeforeProjectedDelete = true;
 
-            ServiceResult result = await InvokeDeleteAsync(harness, v2, 29)
+            // In the new hierarchy, v2 is always a version node regardless of
+            // whether it is the current default. Delete always uses version-delete
+            // semantics.
+            ServiceResult result = await InvokeDeleteAsync(harness, v2, 31)
                 .ConfigureAwait(false);
 
             Assert.Multiple(() =>
             {
                 Assert.That(ServiceResult.IsGood(result), Is.True);
-                Assert.That(v2.BrowseName.Name, Is.EqualTo("pump"));
+                // BrowseName is always the VersionId in the new hierarchy.
+                Assert.That(v2.BrowseName.Name, Is.EqualTo("v2"));
                 Assert.That(strategy.ProjectedDeletes, Is.EqualTo(new[]
                 {
                     new ProjectedDeleteInvocation(
                         "schemas",
                         "pump",
                         "v2",
-                        29,
-                        true,
-                        ProjectedDeleteTarget.Resource)
+                        31,
+                        false,
+                        ProjectedDeleteTarget.Version)
                 }));
                 Assert.That(strategy.ResourceDeletes, Is.Empty);
             });
@@ -1077,10 +1091,12 @@ namespace Opc.Ua.XRegistry.Tests
 
             NodeState source = harness.Engine.EventSourceFor(
                 "/groups/schemas/resources/pump");
+            // In the new hierarchy, the logical resource node lives at the
+            // stable resource path, not at a version path.
             Assert.That(
                 source.NodeId,
                 Is.EqualTo(new NodeId(
-                    "TestRegistry/groups/schemas/resources/pump/versions/v1",
+                    "TestRegistry/groups/schemas/resources/pump",
                     1)));
         }
 
@@ -1128,8 +1144,28 @@ namespace Opc.Ua.XRegistry.Tests
             ProjectionHarness harness,
             string versionId)
         {
-            return harness.Added.OfType<ResourceState>().Single(node =>
-                string.Equals(node.VersionId?.Value, versionId, StringComparison.Ordinal));
+            // In the hierarchical model, version nodes are children of a
+            // ResourceVersionsState folder. Filter to nodes whose parent is
+            // a ResourceVersionsState to avoid matching the logical Resource node.
+            IEnumerable<ResourceState> candidates = harness.Added
+                .OfType<ResourceState>()
+                .Where(node =>
+                    string.Equals(node.VersionId?.Value, versionId, StringComparison.Ordinal));
+
+            ResourceState? versionChild = candidates
+                .FirstOrDefault(node => node.Parent is ResourceVersionsState);
+            return versionChild ?? candidates.Single();
+        }
+
+        private static ResourceState FindLogicalResourceNode(
+            ProjectionHarness harness,
+            string resourceId)
+        {
+            return harness.Added
+                .OfType<ResourceState>()
+                .Single(node =>
+                    string.Equals(node.BrowseName.Name, resourceId, StringComparison.Ordinal) &&
+                    node.Parent is not ResourceVersionsState);
         }
 
         private static async Task AssertResourceTextChangeAsync(
@@ -2049,10 +2085,10 @@ namespace Opc.Ua.XRegistry.Tests
                 CancellationToken ct)
             {
                 m_projectedDeleteInvoked = true;
-                ProjectedDeleteTarget target = string.Equals(
-                    versionId,
-                    CurrentDefaultVersionId,
-                    StringComparison.Ordinal)
+                // In the new hierarchy, the role is determined by the caller
+                // (structural position), not by whether the versionId happens
+                // to be the current default.
+                ProjectedDeleteTarget target = deleteLogicalResource
                     ? ProjectedDeleteTarget.Resource
                     : ProjectedDeleteTarget.Version;
                 ProjectedDeletes.Add(
@@ -2063,14 +2099,6 @@ namespace Opc.Ua.XRegistry.Tests
                         epoch,
                         deleteLogicalResource,
                         target));
-                if (deleteLogicalResource !=
-                    (target == ProjectedDeleteTarget.Resource))
-                {
-                    return new ValueTask<ServiceResult>(
-                        ServiceResult.Create(
-                            StatusCodes.BadInvalidState,
-                            "The projected node role changed before deletion."));
-                }
                 long expectedEpoch = target == ProjectedDeleteTarget.Resource
                     ? ResourceEpoch
                     : VersionEpoch;

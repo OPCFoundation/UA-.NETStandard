@@ -71,10 +71,10 @@ namespace Opc.Ua.WotCon.Tests
             {
                 Assert.That(
                     model.Attribute("Version")?.Value,
-                    Is.EqualTo("1.1.1"));
+                    Is.EqualTo("1.1"));
                 Assert.That(
                     model.Attribute("PublicationDate")?.Value,
-                    Is.EqualTo("2026-09-03T00:00:00Z"));
+                    Is.EqualTo("2026-09-05T00:00:00Z"));
             });
         }
 
@@ -85,10 +85,10 @@ namespace Opc.Ua.WotCon.Tests
 
             Assert.Multiple(() =>
             {
-                Assert.That(model.Attribute("Version")?.Value, Is.EqualTo("0.5.0"));
+                Assert.That(model.Attribute("Version")?.Value, Is.EqualTo("0.6.0"));
                 Assert.That(
                     model.Attribute("PublicationDate")?.Value,
-                    Is.EqualTo("2026-09-03T00:00:00Z"));
+                    Is.EqualTo("2026-09-05T00:00:00Z"));
             });
         }
 
@@ -143,8 +143,8 @@ namespace Opc.Ua.WotCon.Tests
                 }
                 Assert.That(
                     nodes,
-                    Has.Count.EqualTo(286),
-                    "The connectivity model has 286 Nodes; a re-sync that drops one is " +
+                    Has.Count.EqualTo(292),
+                    "The connectivity model has 292 Nodes; a re-sync that drops one is " +
                     "invisible in a diff of two large NodeSets.");
             });
         }
@@ -204,7 +204,7 @@ namespace Opc.Ua.WotCon.Tests
             Assert.Multiple(() =>
             {
                 Assert.That(Property("NamespaceUri"), Is.EqualTo(RegistryNamespace));
-                Assert.That(Property("NamespaceVersion"), Is.EqualTo("0.5.0"));
+                Assert.That(Property("NamespaceVersion"), Is.EqualTo("0.6.0"));
                 Assert.That(Property("IsNamespaceSubset"), Is.EqualTo("false"));
             });
         }
