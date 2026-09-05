@@ -58,6 +58,19 @@ namespace Opc.Ua
         /// </summary>
         public AlarmConditionSimpleEventHandler? OnResetRequested;
 
+        /// <inheritdoc/>
+        protected override bool HasAdditionalRuntimeCallbacks()
+        {
+            return OnSilenceRequested is not null ||
+                OnSuppressRequested is not null ||
+                OnOutOfServiceRequested is not null ||
+                OnResetRequested is not null ||
+                OnShelve is not null ||
+                OnTimedUnshelve is not null ||
+                OnUpdateUnshelveTime is not null ||
+                base.HasAdditionalRuntimeCallbacks();
+        }
+
         /// <summary>
         /// Sets the silence state of the alarm.
         /// </summary>

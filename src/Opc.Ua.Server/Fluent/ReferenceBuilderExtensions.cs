@@ -53,7 +53,8 @@ namespace Opc.Ua.Server.Fluent
     ///   <item><description><see cref="AddReference(INodeBuilder, NodeId, bool, NodeId)"/>
     ///     — generic escape hatch for any
     ///     reference type.</description></item>
-    ///   <item><description><see cref="AddObject(INodeBuilder, QualifiedName, NodeId)"/>
+    ///   <item><description><see cref="AddObject(INodeBuilder, string, NodeId)"/>
+    ///     / <see cref="AddObject(INodeBuilder, QualifiedName, NodeId)"/>
     ///     — creates a new <see cref="BaseObjectState"/> child (typically
     ///     of <c>Opc.Ua.Di.ObjectTypes.FunctionalGroupType</c>) for grouping
     ///     other nodes.</description></item>
@@ -199,6 +200,40 @@ namespace Opc.Ua.Server.Fluent
 
         /// <summary>
         /// Creates and attaches a new <see cref="BaseObjectState"/> child
+        /// in the owning builder's default namespace.
+        /// </summary>
+        /// <param name="parent">The owning parent builder.</param>
+        /// <param name="browseName">Browse name of the new child.</param>
+        /// <param name="typeDefinitionId">
+        /// Optional <c>TypeDefinitionId</c> for the new object.
+        /// </param>
+        /// <returns>A typed builder for the newly created child.</returns>
+        public static INodeBuilder<BaseObjectState> AddObject(
+            this INodeBuilder parent,
+            string browseName,
+            NodeId typeDefinitionId = default)
+        {
+            if (parent == null)
+            {
+                throw new ArgumentNullException(nameof(parent));
+            }
+            if (string.IsNullOrEmpty(browseName))
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadBrowseNameInvalid,
+                    "Browse name is null or empty.");
+            }
+            ushort namespaceIndex = parent.Builder is NodeManagerBuilder builder
+                ? builder.DefaultNamespaceIndex
+                : GetDefaultNamespaceIndex(parent.Builder);
+            return AddObject(
+                parent,
+                new QualifiedName(browseName, namespaceIndex),
+                typeDefinitionId);
+        }
+
+        /// <summary>
+        /// Creates and attaches a new <see cref="BaseObjectState"/> child
         /// to the resolved parent. Useful for synthesising
         /// FunctionalGroups (DI) or other grouping objects in code rather
         /// than declaring them in the NodeSet XML.
@@ -233,7 +268,16 @@ namespace Opc.Ua.Server.Fluent
             }
             if (browseName.IsNull)
             {
-                throw new ArgumentNullException(nameof(browseName));
+                throw ServiceResultException.Create(
+                    StatusCodes.BadBrowseNameInvalid,
+                    "Browse name is null or empty.");
+            }
+            if (browseName.NamespaceIndex == 0)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadBrowseNameInvalid,
+                    "A QualifiedName browse name must specify a nonzero namespace index. " +
+                    "Use the string overload for the builder's default namespace.");
             }
             NodeId typeDef = typeDefinitionId.IsNull ? ObjectTypeIds.BaseObjectType : typeDefinitionId;
 
@@ -247,13 +291,10 @@ namespace Opc.Ua.Server.Fluent
                 TypeDefinitionId = typeDef
             };
 
-            // Generate a NodeId that mirrors the parent's identifier scope.
-            // Pattern matches PumpDeviceIntegrationServer's NodeIdFactory:
-            // "{parentIdentifier}_{childBrowseName}" in the parent's namespace.
-            string parentIdentifier = parent.Node.NodeId.IdentifierAsString;
-            child.NodeId = new NodeId(
-                $"{parentIdentifier}_{symbolicName}",
-                parent.Node.NodeId.NamespaceIndex);
+            FluentNodeRegistration.AssignNodeId(
+                parent.Builder,
+                child,
+                parent.Node);
 
             parent.Node.AddChild(child);
             FluentNodeRegistration.RegisterCreatedNode(parent.Builder, child);
@@ -262,6 +303,24 @@ namespace Opc.Ua.Server.Fluent
             // existing NodeManagerBuilder.AsTyped path by going through a
             // small adapter that doesn't require re-registration.
             return new AdHocNodeBuilder<BaseObjectState>(parent.Builder, child);
+        }
+
+        private static ushort GetDefaultNamespaceIndex(INodeManagerBuilder builder)
+        {
+            foreach (string namespaceUri in builder.NodeManager.NamespaceUris)
+            {
+                if (!string.IsNullOrEmpty(namespaceUri))
+                {
+                    int namespaceIndex = builder.Context.NamespaceUris.GetIndex(namespaceUri);
+                    if (namespaceIndex >= 0)
+                    {
+                        return (ushort)namespaceIndex;
+                    }
+                }
+            }
+            throw ServiceResultException.Create(
+                StatusCodes.BadConfigurationError,
+                "The owning node manager does not declare a default namespace.");
         }
 
         /// <summary>

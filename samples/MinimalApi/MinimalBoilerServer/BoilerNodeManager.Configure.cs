@@ -35,24 +35,24 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Opc.Ua;
 using Opc.Ua.Server.Fluent;
+using Opc.Ua.Server.Nodes;
 
 namespace Boiler
 {
     /// <summary>
-    /// Sibling partial that wires per-node callbacks for the
-    /// source-generated <see cref="BoilerNodeManager"/> using the fluent
+    /// Wires per-node callbacks for the source-generated
+    /// <see cref="BoilerNodeSource"/> using the fluent
     /// builder.
     /// </summary>
     /// <remarks>
-    /// The <c>[NodeManager]</c> attribute opts this partial class in to
-    /// source generation: the generator emits a sibling partial that
-    /// derives from <c>CustomNodeManager2</c>, owns the predefined-node
-    /// load, and calls back into <see cref="Configure"/> below. No
+    /// The <c>[NodeManager]</c> attribute and
+    /// <c>Configure(INodeGraphBuilder)</c> overload opt this partial class in
+    /// to node-source generation: the generator completes it with graph
+    /// materialization and calls back into <see cref="Configure"/> below. No
     /// MSBuild flag is required; the attribute alone selects the class
     /// and (since this project carries a single design) the single
     /// matching design file.
-    /// <c>Configure</c> runs once,
-    /// <em>after</em> <c>base.CreateAddressSpace</c> has materialized the
+    /// <c>Configure</c> runs once after the generated source has materialized the
     /// predefined Boiler instance, so all browse paths into the
     /// <c>Boilers/Boiler #1</c> sub-tree are addressable here.
     /// <para>
@@ -60,18 +60,21 @@ namespace Boiler
     /// styles — string browse path, absolute <see cref="NodeId"/>,
     /// type-definition lookup, and the new typed
     /// <see cref="IVariableBuilder{TValue}"/> surface — to demonstrate
-    /// that the legacy and source-generator-friendly APIs interoperate.
+    /// that the untyped and typed fluent APIs interoperate.
     /// </para>
     /// </remarks>
     [NodeManager(NamespaceUri = "http://opcfoundation.org/UA/Boiler/")]
-    public partial class BoilerNodeManager
+    public sealed partial class BoilerNodeSource
     {
-        private long m_drumLevelTicks;
-        private long m_pipeFlowTicks;
-        private long m_inputFlowTicks;
-        private long m_drumHeartbeatTicks;
+        /// <summary>
+        /// Initializes a new <see cref="BoilerNodeSource"/>.
+        /// </summary>
+        public BoilerNodeSource(ILogger<BoilerNodeSource> logger)
+        {
+            m_logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        }
 
-        partial void Configure(INodeManagerBuilder builder)
+        partial void Configure(INodeGraphBuilder builder)
         {
             // (1) Legacy browse-path addressing with the lower-level
             // ref-Variant callback. Use this when you need full control
@@ -85,7 +88,7 @@ namespace Boiler
             builder
                 .Node(ExpandedNodeId.ToNodeId(
                     VariableIds.Boilers_Boiler__1_PipeX001_FTX001_Output,
-                    Server.NamespaceUris))
+                    builder.Context.NamespaceUris))
                 .OnRead(GeneratePipeFlow);
 
             // (3) New typed IVariableBuilder<T> via the absolute NodeId
@@ -95,7 +98,7 @@ namespace Boiler
             builder
                 .Variable<double>(ExpandedNodeId.ToNodeId(
                     VariableIds.Boilers_Boiler__1_FCX001_Measurement,
-                    Server.NamespaceUris))
+                    builder.Context.NamespaceUris))
                 .OnRead(GenerateInputFlow);
 
             // (4) New typed async IVariableBuilder<T> overload — the
@@ -103,18 +106,20 @@ namespace Boiler
             // semantics in BaseVariableState.ReadAttributeAsync), so the
             // lambda may freely await without tying up a thread-pool
             // thread. Hooked to the second pipe's flow output to show
-            // the routing end-to-end through AsyncCustomNodeManager.
+            // the routing end-to-end through the source adapter.
             builder
                 .Variable<double>(ExpandedNodeId.ToNodeId(
                     VariableIds.Boilers_Boiler__1_PipeX002_FTX002_Output,
-                    Server.NamespaceUris))
+                    builder.Context.NamespaceUris))
                 .OnRead(GenerateOutputFlowAsync);
 
             // (5) TypeDefinitionId addressing — robust for well-known
             // singletons, independent of browse-path layout.
             builder
-                .NodeFromTypeId(ExpandedNodeId.ToNodeId(ObjectTypeIds.BoilerType, Server.NamespaceUris))
-                .OnNodeAdded((context, node) => Server.Telemetry.CreateLogger<BoilerNodeManager>()
+                .NodeFromTypeId(ExpandedNodeId.ToNodeId(
+                    ObjectTypeIds.BoilerType,
+                    builder.Context.NamespaceUris))
+                .OnNodeAdded((_, node) => m_logger
                     .BoilerInstanceMaterialized(node.NodeId, node.BrowseName));
         }
 
@@ -128,13 +133,13 @@ namespace Boiler
         /// typos are compile-time errors.
         /// </summary>
         /// <remarks>
-        /// This partial coexists with <see cref="Configure(INodeManagerBuilder)"/>;
-        /// the generated <c>CreateAddressSpaceAsync</c> override invokes
-        /// both. Wiring the same node from both partials is illegal and
+        /// This partial coexists with <see cref="Configure(INodeGraphBuilder)"/>;
+        /// the generated source invokes both. Wiring the same node from both
+        /// partials is illegal and
         /// will throw at startup, so the targets here are deliberately
         /// disjoint from the ones in the non-typed partial above.
         /// </remarks>
-        partial void Configure(IBoilerNodeManagerBuilder builder)
+        partial void Configure(IBoilerNodeSourceBuilder builder)
         {
             // (6) Typed traversal — the LCX001 level controller measurement
             // is reached via generated accessors with no string paths or
@@ -144,7 +149,7 @@ namespace Boiler
             // historical access; with no prior UseHistorian() call the
             // fluent surface lazily installs an in-memory engine and
             // registers it as the server-wide default. Subsequent
-            // .Historize() calls in this manager would reuse the same
+            // .Historize() calls in this source would reuse the same
             // binding.
             builder.Boilers.Boiler__1.LCX001.Measurement
                 .OnRead(GenerateLevelControlMeasurement)
@@ -172,8 +177,6 @@ namespace Boiler
                 .Publish(GenerateDrumHeartbeatAsync);
         }
 
-        private long m_levelMeasurementTicks;
-
         private double GenerateLevelControlMeasurement()
         {
             long t = Interlocked.Increment(ref m_levelMeasurementTicks);
@@ -183,11 +186,10 @@ namespace Boiler
         private async ValueTask HaltSimulationAsync(CancellationToken cancellationToken)
         {
             // Token-aware async work to demonstrate the end-to-end async
-            // method call path through AsyncCustomNodeManager.CallAsync.
+            // method call path through the source adapter.
             await Task.Yield();
             cancellationToken.ThrowIfCancellationRequested();
-            Server.Telemetry.CreateLogger<BoilerNodeManager>()
-                .BoilerSimulationHalted();
+            m_logger.BoilerSimulationHalted();
         }
 
         /// <summary>
@@ -283,6 +285,13 @@ namespace Boiler
             long t = Interlocked.Increment(ref m_pipeFlowTicks);
             return 105.0 + (25.0 * Math.Cos(t * 0.07));
         }
+
+        private readonly ILogger<BoilerNodeSource> m_logger;
+        private long m_drumLevelTicks;
+        private long m_pipeFlowTicks;
+        private long m_inputFlowTicks;
+        private long m_drumHeartbeatTicks;
+        private long m_levelMeasurementTicks;
     }
 
     internal static partial class BoilerNodeManagerLog

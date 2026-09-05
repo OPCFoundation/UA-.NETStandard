@@ -1,0 +1,175 @@
+/* ========================================================================
+ * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
+ *
+ * OPC Foundation MIT License 1.00
+ *
+ * Permission is hereby granted, free of charge, to any person
+ * obtaining a copy of this software and associated documentation
+ * files (the "Software"), to deal in the Software without
+ * restriction, including without limitation the rights to use,
+ * copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following
+ * conditions:
+ *
+ * The above copyright notice and this permission notice shall be
+ * included in all copies or substantial portions of the Software.
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+ * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+ * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ * OTHER DEALINGS IN THE SOFTWARE.
+ *
+ * The complete license agreement can be found here:
+ * http://opcfoundation.org/License/MIT/1.00/
+ * ======================================================================*/
+
+using System;
+using Opc.Ua.Export;
+using Opc.Ua.Server.Fluent;
+
+namespace Opc.Ua.Server.Nodes
+{
+    /// <summary>
+    /// Extends the existing fluent NodeManager builder with node creation.
+    /// </summary>
+    /// <remarks>
+    /// Creation is compositional: returned builders are the same fluent
+    /// builders used by source-generated and runtime NodeSet managers.
+    /// NodeIds are assigned before a builder is returned. String browse names
+    /// use the source's first namespace; <see cref="QualifiedName"/> overloads
+    /// require an explicit nonzero namespace index. A default <c>parentId</c>
+    /// places instance nodes below the standard Objects folder.
+    /// </remarks>
+    public interface INodeGraphBuilder : INodeManagerBuilder
+    {
+        /// <summary>
+        /// Imports a NodeSet2 document into this graph generation.
+        /// </summary>
+        /// <remarks>
+        /// Imported nodes retain their NodeSet-defined NodeIds, attributes,
+        /// values, references, and parent relationships. Multiple calls form
+        /// one import batch and are linked once before registration. Every
+        /// namespace containing imported nodes must be declared by the owning
+        /// <see cref="INodeSource"/>.
+        /// </remarks>
+        /// <param name="nodeSet">The parsed NodeSet2 document.</param>
+        void Import(UANodeSet nodeSet);
+
+        /// <summary>
+        /// Adds an already constructed state and preserves caller-assigned NodeIds.
+        /// </summary>
+        /// <typeparam name="TState">The concrete state type.</typeparam>
+        /// <param name="node">The node or node subtree to add.</param>
+        /// <param name="parentId">
+        /// The parent NodeId. The default places instance nodes below
+        /// <see cref="ObjectIds.ObjectsFolder"/>.
+        /// </param>
+        /// <returns>A typed fluent builder for the added node.</returns>
+        INodeBuilder<TState> Add<TState>(
+            TState node,
+            NodeId parentId = default)
+            where TState : NodeState;
+
+        /// <summary>
+        /// Creates and adds a typed state after resolving the parent identity.
+        /// </summary>
+        /// <remarks>
+        /// Generated type factories use this overload so their NodeId factory
+        /// can observe the final parent identity, including an unresolved
+        /// parent owned by another node manager.
+        /// </remarks>
+        /// <typeparam name="TState">The concrete state type.</typeparam>
+        /// <param name="factory">
+        /// Creates the state with the resolved parent, or an internal
+        /// identity-only parent proxy when the parent is external.
+        /// </param>
+        /// <param name="parentId">
+        /// The parent NodeId. The default places instance nodes below
+        /// <see cref="ObjectIds.ObjectsFolder"/>.
+        /// </param>
+        /// <returns>A typed fluent builder for the added node.</returns>
+        INodeBuilder<TState> Add<TState>(
+            Func<NodeState?, TState> factory,
+            NodeId parentId = default)
+            where TState : NodeState;
+
+        /// <summary>
+        /// Adds a pre-built root without synthesizing an Objects-folder parent.
+        /// Existing references on the root are preserved.
+        /// </summary>
+        /// <typeparam name="TState">The concrete state type.</typeparam>
+        /// <param name="node">The root node or subtree to add.</param>
+        /// <returns>A typed fluent builder for the added root.</returns>
+        INodeBuilder<TState> AddRoot<TState>(TState node)
+            where TState : NodeState;
+
+        /// <summary>
+        /// Attempts to resolve an authored or already registered node.
+        /// </summary>
+        bool TryGetNode(NodeId nodeId, out NodeState? node);
+
+        /// <summary>
+        /// Creates a folder in the source's first namespace.
+        /// </summary>
+        INodeBuilder<FolderState> AddFolder(
+            string browseName,
+            NodeId parentId = default);
+
+        /// <summary>
+        /// Creates a folder using an explicitly namespaced browse name.
+        /// </summary>
+        INodeBuilder<FolderState> AddFolder(
+            QualifiedName browseName,
+            NodeId parentId = default);
+
+        /// <summary>
+        /// Creates an object in the source's first namespace.
+        /// </summary>
+        INodeBuilder<BaseObjectState> AddObject(
+            string browseName,
+            NodeId parentId = default,
+            NodeId typeDefinitionId = default);
+
+        /// <summary>
+        /// Creates an object using an explicitly namespaced browse name.
+        /// </summary>
+        INodeBuilder<BaseObjectState> AddObject(
+            QualifiedName browseName,
+            NodeId parentId = default,
+            NodeId typeDefinitionId = default);
+
+        /// <summary>
+        /// Creates a typed data variable in the source's first namespace.
+        /// </summary>
+        /// <typeparam name="TValue">The CLR type of the variable value.</typeparam>
+        IVariableBuilder<TValue> AddVariable<TValue>(
+            string browseName,
+            NodeId parentId = default);
+
+        /// <summary>
+        /// Creates a typed data variable using an explicitly namespaced browse name.
+        /// </summary>
+        /// <typeparam name="TValue">The CLR type of the variable value.</typeparam>
+        IVariableBuilder<TValue> AddVariable<TValue>(
+            QualifiedName browseName,
+            NodeId parentId = default);
+
+        /// <summary>
+        /// Creates an executable method in the source's first namespace.
+        /// </summary>
+        INodeBuilder<MethodState> AddMethod(
+            string browseName,
+            NodeId parentId = default);
+
+        /// <summary>
+        /// Creates an executable method using an explicitly namespaced browse name.
+        /// </summary>
+        INodeBuilder<MethodState> AddMethod(
+            QualifiedName browseName,
+            NodeId parentId = default);
+    }
+}

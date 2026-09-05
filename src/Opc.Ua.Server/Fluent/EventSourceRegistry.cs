@@ -174,6 +174,14 @@ namespace Opc.Ua.Server.Fluent
             SignalReconcile();
         }
 
+        internal bool ContainsSource(NodeId nodeId)
+        {
+            lock (m_sourcesLock)
+            {
+                return m_sources.ContainsKey(nodeId);
+            }
+        }
+
         private static void ValidateOptions(EventPublishOptions options)
         {
             TimeSpan timeout = options.CancellationTimeout;

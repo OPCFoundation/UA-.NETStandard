@@ -1089,6 +1089,570 @@ namespace Opc.Ua.SourceGeneration
         }
 
         [Theory]
+        public void NodeManagerGraphConfigureTargetsOnlySelectedModel(
+            LanguageVersion languageVersion)
+        {
+            string bindingSource = CreateNodeManagerInferenceSource(
+                "TypesNodeSource",
+                """
+                partial void Configure(
+                    global::Opc.Ua.Server.Nodes.INodeGraphBuilder builder)
+                {
+                }
+                """);
+            (ImmutableArray<Diagnostic> diagnostics, GeneratorDriverRunResult runResult) =
+                RunMixedModelGenerator(languageVersion, bindingSource);
+
+            Assert.That(
+                diagnostics.Where(d => d.Id == "MODELGEN010"),
+                Is.Empty);
+
+            GeneratorRunResult result = runResult.Results[0];
+            string generated = string.Join(
+                "\n",
+                result.GeneratedSources.Select(source => source.SourceText.ToString()));
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    result.GeneratedSources.Count(source =>
+                        source.HintName.EndsWith(
+                            ".NodeSource.g.cs",
+                            StringComparison.Ordinal)),
+                    Is.EqualTo(1),
+                    "Only the explicitly selected model should emit a node source.");
+                Assert.That(
+                    generated,
+                    Does.Not.Contain("class TypesNodeManager :"));
+                Assert.That(
+                    generated,
+                    Does.Contain("sealed partial class TypesNodeSource"));
+                Assert.That(
+                    generated,
+                    Does.Contain("global::Opc.Ua.Server.Nodes.INodeSource"));
+                Assert.That(
+                    generated,
+                    Does.Contain("CrossModelTypesNodeSetImportFactoryProvider"));
+            });
+        }
+
+        [Theory]
+        public void GeneratedNodeSourceProviderLeavesDependencyFactoriesToDependencyModel(
+            LanguageVersion languageVersion)
+        {
+            string bindingSource = CreateNodeManagerInferenceSource(
+                "InstancesNodeSource",
+                """
+                partial void Configure(
+                    global::Opc.Ua.Server.Nodes.INodeGraphBuilder builder)
+                {
+                }
+                """,
+                namespaceUri: "http://test.org/UA/CrossModel/Instances");
+            (ImmutableArray<Diagnostic> diagnostics, GeneratorDriverRunResult runResult) =
+                RunMixedModelGenerator(languageVersion, bindingSource);
+
+            Assert.That(
+                diagnostics.Where(d => d.Id == "MODELGEN010"),
+                Is.Empty);
+
+            string generated = string.Join(
+                "\n",
+                runResult.Results[0].GeneratedSources.Select(
+                    source => source.SourceText.ToString()));
+            string importProvider = runResult.Results[0]
+                .GeneratedSources
+                .Select(source => source.SourceText.ToString())
+                .Single(source => source.Contains(
+                    "public sealed class CrossModelInstancesNodeSetImportFactoryProvider",
+                    StringComparison.Ordinal));
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    generated,
+                    Does.Contain(
+                        "global::CrossModel.Instances.CrossModelInstancesExtensions."));
+                Assert.That(
+                    importProvider,
+                    Does.Contain("new global::CrossModelTypes.WidgetState(null)"));
+                Assert.That(
+                    importProvider,
+                    Does.Not.Contain("NodeSetImportDiscriminator.TypeDefinition"));
+                Assert.That(
+                    generated,
+                    Does.Contain("AddNodeSetImportFactories"));
+            });
+        }
+
+        [Theory]
+        public void NodeManagerConfigureSelectsManagerGeneration(
+            LanguageVersion languageVersion)
+        {
+            string bindingSource = CreateNodeManagerInferenceSource(
+                "TypesNodeManager",
+                """
+                partial void Configure(
+                    global::Opc.Ua.Server.Fluent.INodeManagerBuilder builder)
+                {
+                }
+                """);
+            (ImmutableArray<Diagnostic> diagnostics, GeneratorDriverRunResult runResult) =
+                RunMixedModelGenerator(languageVersion, bindingSource);
+
+            Assert.That(diagnostics.Where(d => d.Id == "MODELGEN016"), Is.Empty);
+
+            GeneratorRunResult result = runResult.Results[0];
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    result.GeneratedSources.Count(source =>
+                        source.HintName.EndsWith(
+                            ".NodeManager.g.cs",
+                            StringComparison.Ordinal)),
+                    Is.EqualTo(1));
+                Assert.That(
+                    result.GeneratedSources.Count(source =>
+                        source.HintName.EndsWith(
+                            ".NodeSource.g.cs",
+                            StringComparison.Ordinal)),
+                    Is.Zero);
+            });
+        }
+
+        [Theory]
+        public void NodeManagerBothConfigureOverloadsReportAmbiguousKind(
+            LanguageVersion languageVersion)
+        {
+            string bindingSource = CreateNodeManagerInferenceSource(
+                "AmbiguousAuthoring",
+                """
+                partial void Configure(
+                    global::Opc.Ua.Server.Nodes.INodeGraphBuilder builder)
+                {
+                }
+                partial void Configure(
+                    global::Opc.Ua.Server.Fluent.INodeManagerBuilder builder)
+                {
+                }
+                """);
+            (ImmutableArray<Diagnostic> diagnostics, GeneratorDriverRunResult runResult) =
+                RunMixedModelGenerator(
+                    languageVersion,
+                    bindingSource,
+                    out Compilation outputCompilation);
+
+            Diagnostic[] ambiguous =
+                [.. diagnostics.Where(d => d.Id == "MODELGEN016")];
+            Assert.That(ambiguous, Has.Length.EqualTo(1));
+            Assert.That(
+                ambiguous[0].GetMessage(CultureInfo.InvariantCulture),
+                Does.Contain("AmbiguousAuthoring"));
+            Assert.That(ambiguous[0].AdditionalLocations, Has.Count.EqualTo(2));
+            Assert.That(
+                outputCompilation.GetDiagnostics().Where(d => d.Id == "CS0759"),
+                Is.Empty,
+                "The ambiguity diagnostic should not cascade into missing partial declarations.");
+
+            GeneratorRunResult result = runResult.Results[0];
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    result.GeneratedSources,
+                    Has.None.Matches<GeneratedSourceResult>(source =>
+                        source.HintName.EndsWith(
+                            ".NodeManager.g.cs",
+                            StringComparison.Ordinal)));
+                Assert.That(
+                    result.GeneratedSources,
+                    Has.None.Matches<GeneratedSourceResult>(source =>
+                        source.HintName.EndsWith(
+                            ".NodeSource.g.cs",
+                            StringComparison.Ordinal)));
+            });
+        }
+
+        [Theory]
+        public void NodeManagerAmbiguitySuppressesProjectWideManagerFallback(
+            LanguageVersion languageVersion)
+        {
+            string bindingSource = CreateNodeManagerInferenceSource(
+                "AmbiguousAuthoring",
+                """
+                partial void Configure(
+                    global::Opc.Ua.Server.Nodes.INodeGraphBuilder builder)
+                {
+                }
+                partial void Configure(
+                    global::Opc.Ua.Server.Fluent.INodeManagerBuilder builder)
+                {
+                }
+                """);
+            (ImmutableArray<Diagnostic> diagnostics, GeneratorDriverRunResult runResult) =
+                RunMixedModelGenerator(
+                    languageVersion,
+                    bindingSource,
+                    out _,
+                    generateNodeManagerFallback: true);
+
+            Assert.That(
+                diagnostics.Where(d => d.Id == "MODELGEN016"),
+                Has.Exactly(1).Items);
+
+            string generated = string.Join(
+                "\n",
+                runResult.Results[0].GeneratedSources.Select(
+                    source => source.SourceText.ToString()));
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    generated,
+                    Does.Not.Contain("class CrossModelTypesNodeManager"));
+                Assert.That(
+                    generated,
+                    Does.Not.Contain("class AmbiguousAuthoring :"));
+                Assert.That(
+                    generated,
+                    Does.Contain("class CrossModelInstancesNodeManager"),
+                    "The invalid binding should suppress only its selected model.");
+            });
+        }
+
+        [Theory]
+        public void NodeManagerGraphAliasInSeparatePartialSelectsNodeSource(
+            LanguageVersion languageVersion)
+        {
+            const string bindingSource =
+                """
+                using GraphBuilder = Opc.Ua.Server.Nodes.INodeGraphBuilder;
+
+                namespace Opc.Ua.Server.Fluent
+                {
+                public interface INodeManagerBuilder
+                {
+                }
+                public sealed class NodeManagerAttribute : global::System.Attribute
+                {
+                public string NamespaceUri { get; set; }
+                public string Design { get; set; }
+                public bool GenerateFactory { get; set; }
+                }
+                }
+                namespace Opc.Ua.Server.Nodes
+                {
+                public interface INodeGraphBuilder : global::Opc.Ua.Server.Fluent.INodeManagerBuilder
+                {
+                }
+                }
+                namespace CrossModelConsumer
+                {
+                [global::Opc.Ua.Server.Fluent.NodeManager(
+                    NamespaceUri = "http://test.org/UA/CrossModel/Types")]
+                public partial class AliasedNodeSource
+                {
+                }
+
+                public partial class AliasedNodeSource
+                {
+                partial void Configure(GraphBuilder builder)
+                {
+                }
+                }
+                }
+                """;
+            (ImmutableArray<Diagnostic> diagnostics, GeneratorDriverRunResult runResult) =
+                RunMixedModelGenerator(languageVersion, bindingSource);
+
+            Assert.That(diagnostics.Where(d => d.Id == "MODELGEN016"), Is.Empty);
+            Assert.That(
+                runResult.Results[0].GeneratedSources,
+                Has.Some.Matches<GeneratedSourceResult>(source =>
+                    source.HintName.EndsWith(
+                        ".NodeSource.g.cs",
+                        StringComparison.Ordinal)));
+        }
+
+        [Theory]
+        public void NodeManagerTypedOnlyConfigureDefaultsToManager(
+            LanguageVersion languageVersion)
+        {
+            string bindingSource = CreateNodeManagerInferenceSource(
+                "TypedOnlyNodeSource",
+                """
+                partial void Configure(ITypedOnlyNodeSourceBuilder builder)
+                {
+                }
+                """);
+            (ImmutableArray<Diagnostic> diagnostics, GeneratorDriverRunResult runResult) =
+                RunMixedModelGenerator(languageVersion, bindingSource);
+
+            Assert.That(diagnostics.Where(d => d.Id == "MODELGEN016"), Is.Empty);
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    runResult.Results[0].GeneratedSources,
+                    Has.Some.Matches<GeneratedSourceResult>(source =>
+                        source.HintName.EndsWith(
+                            ".NodeManager.g.cs",
+                            StringComparison.Ordinal)));
+                Assert.That(
+                    runResult.Results[0].GeneratedSources,
+                    Has.None.Matches<GeneratedSourceResult>(source =>
+                        source.HintName.EndsWith(
+                            ".NodeSource.g.cs",
+                            StringComparison.Ordinal)));
+            });
+        }
+
+        [Theory]
+        public void NodeManagerDerivedGraphBuilderDoesNotSelectNodeSource(
+            LanguageVersion languageVersion)
+        {
+            string bindingSource = CreateNodeManagerInferenceSource(
+                "DerivedBuilderAuthoring",
+                """
+                partial void Configure(ICustomGraphBuilder builder)
+                {
+                }
+                """,
+                additionalDeclarations:
+                """
+                public interface ICustomGraphBuilder :
+                    global::Opc.Ua.Server.Nodes.INodeGraphBuilder
+                {
+                }
+                """);
+            (ImmutableArray<Diagnostic> diagnostics, GeneratorDriverRunResult runResult) =
+                RunMixedModelGenerator(languageVersion, bindingSource);
+
+            Assert.That(diagnostics.Where(d => d.Id == "MODELGEN016"), Is.Empty);
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    runResult.Results[0].GeneratedSources,
+                    Has.Some.Matches<GeneratedSourceResult>(source =>
+                        source.HintName.EndsWith(
+                            ".NodeManager.g.cs",
+                            StringComparison.Ordinal)));
+                Assert.That(
+                    runResult.Results[0].GeneratedSources,
+                    Has.None.Matches<GeneratedSourceResult>(source =>
+                        source.HintName.EndsWith(
+                            ".NodeSource.g.cs",
+                            StringComparison.Ordinal)));
+            });
+        }
+
+        [Test]
+        public void NodeManagerNonCanonicalGraphConfigureDefaultsToManager()
+        {
+            string[] configureMembers =
+            [
+                """
+                void Configure(
+                    global::Opc.Ua.Server.Nodes.INodeGraphBuilder builder)
+                {
+                }
+                """,
+                """
+                static partial void Configure(
+                    global::Opc.Ua.Server.Nodes.INodeGraphBuilder builder)
+                {
+                }
+                """,
+                """
+                partial void Configure<T>(
+                    global::Opc.Ua.Server.Nodes.INodeGraphBuilder builder)
+                {
+                }
+                """,
+                """
+                partial void Configure(
+                    ref global::Opc.Ua.Server.Nodes.INodeGraphBuilder builder)
+                {
+                }
+                """,
+                """
+                partial void Configure(
+                    global::Opc.Ua.Server.Nodes.INodeGraphBuilder builder);
+                """
+            ];
+
+            foreach (string configureMember in configureMembers)
+            {
+                string bindingSource = CreateNodeManagerInferenceSource(
+                    "NonCanonicalAuthoring",
+                    configureMember);
+                (ImmutableArray<Diagnostic> diagnostics, GeneratorDriverRunResult runResult) =
+                    RunMixedModelGenerator(
+                        LanguageVersion.CSharp14,
+                        bindingSource);
+
+                Assert.That(diagnostics.Where(d => d.Id == "MODELGEN016"), Is.Empty);
+                Assert.Multiple(() =>
+                {
+                    Assert.That(
+                        runResult.Results[0].GeneratedSources,
+                        Has.Some.Matches<GeneratedSourceResult>(source =>
+                            source.HintName.EndsWith(
+                                ".NodeManager.g.cs",
+                                StringComparison.Ordinal)));
+                    Assert.That(
+                        runResult.Results[0].GeneratedSources,
+                        Has.None.Matches<GeneratedSourceResult>(source =>
+                            source.HintName.EndsWith(
+                                ".NodeSource.g.cs",
+                                StringComparison.Ordinal)));
+                });
+            }
+        }
+
+        [Test]
+        public void NodeManagerSiblingConfigureChangeUpdatesInferredAuthoringKind()
+        {
+            const string attributeSource =
+                """
+                namespace Opc.Ua.Server.Fluent
+                {
+                public interface INodeManagerBuilder
+                {
+                }
+                public sealed class NodeManagerAttribute : global::System.Attribute
+                {
+                public string NamespaceUri { get; set; }
+                public string Design { get; set; }
+                public bool GenerateFactory { get; set; }
+                }
+                }
+                namespace Opc.Ua.Server.Nodes
+                {
+                public interface INodeGraphBuilder : global::Opc.Ua.Server.Fluent.INodeManagerBuilder
+                {
+                }
+                }
+                namespace CrossModelConsumer
+                {
+                [global::Opc.Ua.Server.Fluent.NodeManager(
+                    NamespaceUri = "http://test.org/UA/CrossModel/Types")]
+                public partial class IncrementalAuthoring
+                {
+                }
+                }
+                """;
+            const string managerConfigureSource =
+                """
+                namespace CrossModelConsumer
+                {
+                public partial class IncrementalAuthoring
+                {
+                partial void Configure(
+                    global::Opc.Ua.Server.Fluent.INodeManagerBuilder builder)
+                {
+                }
+                }
+                }
+                """;
+            const string graphConfigureSource =
+                """
+                namespace CrossModelConsumer
+                {
+                public partial class IncrementalAuthoring
+                {
+                partial void Configure(
+                    global::Opc.Ua.Server.Nodes.INodeGraphBuilder builder)
+                {
+                }
+                }
+                }
+                """;
+
+            var parseOptions = new CSharpParseOptions(
+                LanguageVersion.CSharp8,
+                DocumentationMode.Parse,
+                SourceCodeKind.Regular);
+            CSharpCompilation compilation = OptimizationLevel.Release.CreateCompilation()
+                .AddCode(new Dictionary<string, string>
+                {
+                    ["NodeManagerBinding.cs"] = attributeSource,
+                    ["NodeManagerConfigure.cs"] = managerConfigureSource
+                }.WithOpcUaGeneratedStack(), LanguageVersion.CSharp8);
+
+            var options = new AnalyzerOptionsProvider(
+                new Dictionary<string, string>
+                {
+                    ["build_property.ModelSourceGeneratorOmitFluentApi"] = "true"
+                });
+            options.TextOptions["CrossModelTypes.NodeSet2.xml"] =
+                new Dictionary<string, string>
+                {
+                    ["build_metadata.AdditionalFiles.ModelSourceGeneratorModelUri"] =
+                        "http://test.org/UA/CrossModel/Types",
+                    ["build_metadata.AdditionalFiles.ModelSourceGeneratorName"] = "CrossModelTypes",
+                    ["build_metadata.AdditionalFiles.ModelSourceGeneratorPrefix"] = "CrossModelTypes"
+                };
+            options.TextOptions["CrossModelInstances.ModelDesign.xml"] =
+                new Dictionary<string, string>
+                {
+                    ["build_metadata.AdditionalFiles.ModelSourceGeneratorModelUri"] =
+                        "http://test.org/UA/CrossModel/Instances"
+                };
+
+            GeneratorDriver driver = CSharpGeneratorDriver.Create(new ModelSourceGenerator())
+                .WithUpdatedParseOptions(parseOptions)
+                .AddAdditionalTexts(
+                [
+                    EmbeddedText.From("CrossModelTypes.NodeSet2.xml"),
+                    EmbeddedText.From("CrossModelInstances.ModelDesign.xml")
+                ])
+                .WithUpdatedAnalyzerConfigOptions(options);
+
+            driver = driver.RunGeneratorsAndUpdateCompilation(
+                compilation,
+                out _,
+                out ImmutableArray<Diagnostic> firstDiagnostics);
+            Assert.That(firstDiagnostics.Where(d => d.Id == "MODELGEN016"), Is.Empty);
+            Assert.That(
+                driver.GetRunResult().Results[0].GeneratedSources,
+                Has.Some.Matches<GeneratedSourceResult>(source =>
+                    source.HintName.EndsWith(
+                        ".NodeManager.g.cs",
+                        StringComparison.Ordinal)));
+
+            SyntaxTree configureTree = compilation.SyntaxTrees.Single(tree =>
+                tree.FilePath.EndsWith(
+                    "NodeManagerConfigure.cs",
+                    StringComparison.Ordinal));
+            SyntaxTree graphConfigureTree = CSharpSyntaxTree.ParseText(
+                graphConfigureSource,
+                parseOptions,
+                configureTree.FilePath,
+                Encoding.UTF8);
+            compilation = compilation.ReplaceSyntaxTree(
+                configureTree,
+                graphConfigureTree);
+
+            driver = driver.RunGeneratorsAndUpdateCompilation(
+                compilation,
+                out _,
+                out ImmutableArray<Diagnostic> secondDiagnostics);
+            Assert.That(secondDiagnostics.Where(d => d.Id == "MODELGEN016"), Is.Empty);
+            GeneratorRunResult result = driver.GetRunResult().Results[0];
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    result.GeneratedSources,
+                    Has.Some.Matches<GeneratedSourceResult>(source =>
+                        source.HintName.EndsWith(
+                            ".NodeSource.g.cs",
+                            StringComparison.Ordinal)));
+                Assert.That(
+                    result.GeneratedSources,
+                    Has.None.Matches<GeneratedSourceResult>(source =>
+                        source.HintName.EndsWith(
+                            ".NodeManager.g.cs",
+                            StringComparison.Ordinal)));
+            });
+        }
+
+        [Theory]
         public void NodeManagerWithUnresolvedNamespaceUriReportsExpression(
             LanguageVersion languageVersion)
         {
@@ -1185,6 +1749,60 @@ namespace Opc.Ua.SourceGeneration
                 "\n",
                 runResult.Results[0].GeneratedSources.Select(s => s.SourceText.ToString()));
             Assert.That(generated, Does.Not.Contain("class TypesNodeManager"));
+        }
+
+        [Theory]
+        public void NodeSourceWithUnresolvedAdditionalNamespaceUriReportsExpression(
+            LanguageVersion languageVersion)
+        {
+            const string bindingSource =
+                """
+                namespace Opc.Ua.Server.Fluent
+                {
+                public interface INodeManagerBuilder
+                {
+                }
+                public sealed class NodeManagerAttribute : global::System.Attribute
+                {
+                public string NamespaceUri { get; set; }
+                public string[] AdditionalNamespaceUris { get; set; }
+                }
+                }
+                namespace Opc.Ua.Server.Nodes
+                {
+                public interface INodeGraphBuilder : global::Opc.Ua.Server.Fluent.INodeManagerBuilder
+                {
+                }
+                }
+                namespace CrossModelConsumer
+                {
+                [global::Opc.Ua.Server.Fluent.NodeManager(
+                    NamespaceUri = "http://test.org/UA/CrossModel/Types",
+                    AdditionalNamespaceUris = new[] { GeneratedModel.NamespaceUri })]
+                public partial class TypesNodeSource
+                {
+                partial void Configure(global::Opc.Ua.Server.Nodes.INodeGraphBuilder builder)
+                {
+                }
+                }
+                }
+                """;
+
+            (ImmutableArray<Diagnostic> diagnostics, GeneratorDriverRunResult runResult) =
+                RunMixedModelGenerator(languageVersion, bindingSource);
+
+            Diagnostic[] unresolved = [.. diagnostics.Where(d => d.Id == "MODELGEN035")];
+            Assert.That(unresolved, Has.Length.EqualTo(1));
+            Assert.That(unresolved[0].Severity, Is.EqualTo(DiagnosticSeverity.Error));
+            Assert.That(
+                unresolved[0].Location.SourceTree?.GetText()
+                    .ToString(unresolved[0].Location.SourceSpan),
+                Is.EqualTo("GeneratedModel.NamespaceUri"));
+            Assert.That(diagnostics.Where(d => d.Id is "MODELGEN010" or "MODELGEN016"), Is.Empty);
+            Assert.That(
+                runResult.Results[0].GeneratedSources,
+                Has.None.Matches<GeneratedSourceResult>(source =>
+                    source.HintName.EndsWith(".NodeSource.g.cs", StringComparison.Ordinal)));
         }
 
         [Theory]
@@ -1450,18 +2068,75 @@ namespace Opc.Ua.SourceGeneration
         }
 
         /// <summary>
+        /// Creates the attributed class and builder-interface stubs used by
+        /// the authoring-kind inference tests.
+        /// </summary>
+        private static string CreateNodeManagerInferenceSource(
+            string className,
+            string configureMember,
+            string namespaceUri = "http://test.org/UA/CrossModel/Types",
+            string additionalDeclarations = null)
+        {
+            return $$"""
+                namespace Opc.Ua.Server.Fluent
+                {
+                public interface INodeManagerBuilder
+                {
+                }
+                public sealed class NodeManagerAttribute : global::System.Attribute
+                {
+                public string NamespaceUri { get; set; }
+                public string Design { get; set; }
+                public bool GenerateFactory { get; set; }
+                }
+                }
+                namespace Opc.Ua.Server.Nodes
+                {
+                public interface INodeGraphBuilder : global::Opc.Ua.Server.Fluent.INodeManagerBuilder
+                {
+                }
+                }
+                namespace CrossModelConsumer
+                {
+                {{additionalDeclarations}}
+                [global::Opc.Ua.Server.Fluent.NodeManager(
+                    NamespaceUri = "{{namespaceUri}}")]
+                public partial class {{className}}
+                {
+                {{configureMember}}
+                }
+                }
+                """;
+        }
+
+        /// <summary>
         /// Run the model generator over the shared cross-model NodeSet2 +
         /// ModelDesign fixture plus a user-supplied source containing a
         /// <c>[NodeManager]</c> attribute, and return the generator
-        /// diagnostics and run result. The output is intentionally not
-        /// strictly compiled: a matched <c>[NodeManager]</c> emits Fluent
-        /// node-manager code that references <c>Opc.Ua.Server</c> types not
-        /// present in this model-only test compilation.
+        /// diagnostics and run result. The output is parsed at the requested
+        /// language version but is not semantically compiled: generated
+        /// authoring code references <c>Opc.Ua.Server</c> types not present in
+        /// this model-only test compilation.
         /// </summary>
         private static (ImmutableArray<Diagnostic> Diagnostics, GeneratorDriverRunResult RunResult)
             RunMixedModelGenerator(
                 LanguageVersion languageVersion,
                 string bindingSource,
+                MetadataReference additionalReference = null)
+        {
+            return RunMixedModelGenerator(
+                languageVersion,
+                bindingSource,
+                out _,
+                additionalReference: additionalReference);
+        }
+
+        private static (ImmutableArray<Diagnostic> Diagnostics, GeneratorDriverRunResult RunResult)
+            RunMixedModelGenerator(
+                LanguageVersion languageVersion,
+                string bindingSource,
+                out Compilation outputCompilation,
+                bool generateNodeManagerFallback = false,
                 MetadataReference additionalReference = null)
         {
             var generator = new ModelSourceGenerator();
@@ -1476,11 +2151,16 @@ namespace Opc.Ua.SourceGeneration
                 compilation = compilation.AddReferences(additionalReference);
             }
 
-            var options = new AnalyzerOptionsProvider(
-                new Dictionary<string, string>
-                {
-                    ["build_property.ModelSourceGeneratorOmitFluentApi"] = "true"
-                });
+            var globalOptions = new Dictionary<string, string>
+            {
+                ["build_property.ModelSourceGeneratorOmitFluentApi"] = "true"
+            };
+            if (generateNodeManagerFallback)
+            {
+                globalOptions["build_property.ModelSourceGeneratorGenerateNodeManager"] =
+                    "true";
+            }
+            var options = new AnalyzerOptionsProvider(globalOptions);
             options.TextOptions["CrossModelTypes.NodeSet2.xml"] =
                 new Dictionary<string, string>
                 {
@@ -1509,10 +2189,29 @@ namespace Opc.Ua.SourceGeneration
 
             driver = driver.RunGeneratorsAndUpdateCompilation(
                 compilation,
-                out Compilation _,
+                out outputCompilation,
                 out ImmutableArray<Diagnostic> diagnostics);
+            ImmutableArray<Diagnostic> parseDiagnostics =
+                [.. outputCompilation.GetParseDiagnostics()];
+            Assert.That(
+                parseDiagnostics.Where(diagnostic =>
+                    diagnostic.Severity == DiagnosticSeverity.Error),
+                Is.Empty,
+                "Generated sources must parse at the requested language version.");
+            Diagnostic[] languageVersionErrors =
+            [
+                .. outputCompilation.GetDiagnostics().Where(diagnostic =>
+                    diagnostic.Severity == DiagnosticSeverity.Error &&
+                    diagnostic.GetMessage(CultureInfo.InvariantCulture).Contains(
+                        "not available in C#",
+                        StringComparison.Ordinal))
+            ];
+            Assert.That(
+                languageVersionErrors,
+                Is.Empty,
+                "Generated sources must not use features newer than the requested language version.");
 
-            return (diagnostics, driver.GetRunResult());
+            return (diagnostics.AddRange(parseDiagnostics), driver.GetRunResult());
         }
 
         /// <summary>

@@ -35,11 +35,8 @@ using Opc.Ua.Schema.Model;
 namespace Opc.Ua.SourceGeneration
 {
     /// <summary>
-    /// Emits a partial <c>{Namespace}NodeManager</c> deriving from
-    /// <c>AsyncCustomNodeManager</c> plus a matching
-    /// <c>{Namespace}NodeManagerFactory</c> implementing
-    /// <c>IAsyncNodeManagerFactory</c>. Opt-in via
-    /// <see cref="DesignFileOptions.GenerateNodeManager"/>.
+    /// Emits node-manager or compositional node-source authoring
+    /// artifacts for a model design.
     /// </summary>
     /// <remarks>
     /// The generated manager wires the predefined nodes from the existing
@@ -80,6 +77,16 @@ namespace Opc.Ua.SourceGeneration
         public bool EmitFactory { get; init; } = true;
 
         /// <summary>
+        /// When <c>true</c>, emits the generated node manager.
+        /// </summary>
+        public bool EmitNodeManager { get; init; } = true;
+
+        /// <summary>
+        /// When <c>true</c>, emits a compositional node-source artifact.
+        /// </summary>
+        public bool EmitNodeSource { get; init; }
+
+        /// <summary>
         /// Additional namespace URIs (beyond the model namespace) that
         /// the generated constructor passes to the base node manager and
         /// the generated factory advertises via <c>NamespacesUris</c>.
@@ -107,28 +114,51 @@ namespace Opc.Ua.SourceGeneration
                 ? nsPrefix
                 : OverrideNamespace;
             string targetClass = string.IsNullOrEmpty(OverrideClassName)
-                ? typeStem + "NodeManager"
+                ? typeStem + (EmitNodeManager ? "NodeManager" : "NodeSource")
                 : OverrideClassName;
             string factoryClass = string.IsNullOrEmpty(OverrideClassName)
                 ? typeStem + "NodeManagerFactory"
                 : OverrideClassName + "Factory";
+            string nodeSourceClass = EmitNodeManager
+                ? targetClass + "Source"
+                : targetClass;
+            string importFactoryProviderClass =
+                typeStem + "NodeSetImportFactoryProvider";
             string fileStem = string.IsNullOrEmpty(OverrideClassName)
                 ? nsPrefix
                 : OverrideClassName;
 
-            var resources = new List<Resource>(2)
+            var resources = new List<Resource>(3);
+            if (EmitNodeManager)
             {
-                EmitNodeManager(nsPrefix, targetNamespace, targetClass, typeStem, nsUriSymbol, fileStem)
-            };
-            if (EmitFactory)
+                resources.Add(
+                    EmitNodeManagerFile(
+                        targetNamespace,
+                        targetClass,
+                        typeStem,
+                        nsUriSymbol,
+                        fileStem));
+            }
+            if (EmitNodeManager && EmitFactory)
             {
                 resources.Add(EmitFactoryFile(targetNamespace, targetClass, factoryClass, nsUriSymbol, fileStem));
+            }
+            if (EmitNodeSource)
+            {
+                resources.Add(EmitNodeSourceFile(
+                    targetNamespace,
+                    EmitNodeManager ? targetClass : nodeSourceClass,
+                    nodeSourceClass,
+                    typeStem,
+                    nsPrefix,
+                    importFactoryProviderClass,
+                    nsUriSymbol,
+                    fileStem));
             }
             return resources;
         }
 
-        private TextFileResource EmitNodeManager(
-            string modelNamespace,
+        private TextFileResource EmitNodeManagerFile(
             string targetNamespace,
             string targetClass,
             string typeStem,
@@ -143,7 +173,9 @@ namespace Opc.Ua.SourceGeneration
             using var templateWriter = new TemplateWriter(writer);
             var template = new Template(templateWriter, NodeManagerTemplates.File);
             template.AddReplacement(Tokens.NamespacePrefix, targetNamespace);
-            template.AddReplacement(Tokens.Prefix, modelNamespace);
+            template.AddReplacement(
+                Tokens.ModelNamespacePrefix,
+                m_context.ModelDesign.TargetNamespace.Prefix);
             template.AddReplacement(Tokens.Namespace, typeStem);
             template.AddReplacement(Tokens.NodeManagerClassName, targetClass);
             template.AddReplacement(Tokens.NamespaceUri, nsUriSymbol);
@@ -194,6 +226,39 @@ namespace Opc.Ua.SourceGeneration
             template.AddReplacement(Tokens.NamespacePrefix, targetNamespace);
             template.AddReplacement(Tokens.NodeManagerClassName, targetClass);
             template.AddReplacement(Tokens.NodeManagerFactoryClassName, factoryClass);
+            template.AddReplacement(Tokens.NamespaceUri, nsUriSymbol);
+            template.AddReplacement(
+                Tokens.AdditionalNamespaceUris,
+                FormatAdditionalNamespaceUris());
+            template.Render();
+            return fileName.AsTextFileResource();
+        }
+
+        private TextFileResource EmitNodeSourceFile(
+            string targetNamespace,
+            string targetClass,
+            string nodeSourceClass,
+            string typeStem,
+            string modelNamespace,
+            string importFactoryProviderClass,
+            string nsUriSymbol,
+            string fileStem)
+        {
+            string fileName = Path.Combine(
+                m_context.OutputFolder,
+                CoreUtils.Format("{0}.NodeSource.g.cs", fileStem));
+
+            using TextWriter writer = m_context.FileSystem.CreateTextWriter(fileName);
+            using var templateWriter = new TemplateWriter(writer);
+            var template = new Template(templateWriter, NodeManagerTemplates.NodeSourceFile);
+            template.AddReplacement(Tokens.NamespacePrefix, targetNamespace);
+            template.AddReplacement(Tokens.ModelNamespacePrefix, modelNamespace);
+            template.AddReplacement(Tokens.Namespace, typeStem);
+            template.AddReplacement(Tokens.NodeManagerClassName, targetClass);
+            template.AddReplacement(Tokens.NodeSourceClassName, nodeSourceClass);
+            template.AddReplacement(
+                Tokens.NodeSetImportFactoryProviderClassName,
+                importFactoryProviderClass);
             template.AddReplacement(Tokens.NamespaceUri, nsUriSymbol);
             template.AddReplacement(
                 Tokens.AdditionalNamespaceUris,

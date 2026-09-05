@@ -106,6 +106,23 @@ namespace Opc.Ua.SourceGeneration
             """);
 
         /// <summary>
+        /// File shell for opt-in compositional node-source support.
+        /// </summary>
+        public static readonly TemplateString NodeSourceSupport_File = TemplateString.Parse(
+            $$"""
+            {{Tokens.CodeHeader}}
+
+            #pragma warning disable CS1591 // Missing XML comment for publicly visible type or member
+            #pragma warning disable RCS0056 // A generated identifier can make a line exceed 120 characters
+
+            namespace {{Tokens.NamespacePrefix}}
+            {
+                {{Tokens.ListOfTypes}}
+            }
+
+            """);
+
+        /// <summary>
         /// Object Type node state
         /// </summary>
         public static readonly TemplateString ObjectType_Class = TemplateString.Parse(
@@ -247,6 +264,14 @@ namespace Opc.Ua.SourceGeneration
                 {{Tokens.ListOfProperties}}
 
                 {{Tokens.ListOfNonMandatoryChildren}}
+
+                /// <inheritdoc/>
+                protected override bool HasAdditionalRuntimeCallbacks()
+                {
+                    return OnCall != null ||
+                        OnCallAsync != null ||
+                        base.HasAdditionalRuntimeCallbacks();
+                }
 
                 /// <inheritdoc/>
                 public override bool DeepEquals(global::Opc.Ua.NodeState node)
@@ -1352,6 +1377,7 @@ namespace Opc.Ua.SourceGeneration
             if (object.ReferenceEquals({{Tokens.FieldName}}, child))
             {
                 {{Tokens.FieldName}} = null;
+                DetachExplicitlyDefinedChild(child);
                 return;
             }
 
@@ -1791,7 +1817,7 @@ namespace Opc.Ua.SourceGeneration
             /// <remarks>
             /// The returned node graph has not completed its create lifecycle.
             /// Node manager registration completes it automatically. Call
-            /// <see cref="global::Opc.Ua.NodeState.CreateAsPredefinedNode"/>
+            /// <see cref="global::Opc.Ua.NodeState.CreateAsPredefinedNode(global::Opc.Ua.ISystemContext)"/>
             /// before registration when configuration depends on
             /// <c>OnBeforeCreate</c> or <c>OnAfterCreate</c>.
             /// </remarks>
@@ -1903,7 +1929,7 @@ namespace Opc.Ua.SourceGeneration
             /// <remarks>
             /// The returned node graph has not completed its create lifecycle.
             /// Node manager registration completes it automatically. Call
-            /// <see cref="global::Opc.Ua.NodeState.CreateAsPredefinedNode"/>
+            /// <see cref="global::Opc.Ua.NodeState.CreateAsPredefinedNode(global::Opc.Ua.ISystemContext)"/>
             /// before registration when configuration depends on
             /// <c>OnBeforeCreate</c> or <c>OnAfterCreate</c>.
             /// </remarks>
@@ -1968,7 +1994,7 @@ namespace Opc.Ua.SourceGeneration
             /// <remarks>
             /// The returned node graph has not completed its create lifecycle.
             /// Node manager registration completes it automatically. Call
-            /// <see cref="global::Opc.Ua.NodeState.CreateAsPredefinedNode"/>
+            /// <see cref="global::Opc.Ua.NodeState.CreateAsPredefinedNode(global::Opc.Ua.ISystemContext)"/>
             /// before registration when configuration depends on
             /// <c>OnBeforeCreate</c> or <c>OnAfterCreate</c>.
             /// </remarks>

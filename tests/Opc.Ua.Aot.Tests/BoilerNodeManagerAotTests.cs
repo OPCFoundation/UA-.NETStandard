@@ -32,14 +32,15 @@ extern alias boilersample;
 using Microsoft.Extensions.Logging;
 using Opc.Ua.Client;
 using Opc.Ua.Server;
+using Opc.Ua.Server.Nodes;
 using TUnit.Core.Interfaces;
 
 namespace Opc.Ua.Aot.Tests
 {
     /// <summary>
     /// AOT smoke tests that verify the source-generated
-    /// <c>Boiler.BoilerNodeManagerFactory</c> emitted by the
-    /// <c>[NodeManager]</c> attribute on <see cref="Boiler.BoilerNodeManager"/>
+    /// <c>Boiler.BoilerNodeSource</c> emitted by the
+    /// <c>[NodeManager]</c> attribute and graph Configure overload
     /// (in the MinimalBoilerServer sample) actually loads the boiler
     /// address space, registers its namespace, and dispatches the
     /// fluent <c>OnRead</c> callback wired in
@@ -48,7 +49,7 @@ namespace Opc.Ua.Aot.Tests
     /// against AOT regressions.
     /// </summary>
     [ClassDataSource<BoilerAotFixture>(Shared = SharedType.PerTestSession)]
-    public class BoilerNodeManagerAotTests(BoilerAotFixture fixture)
+    public class BoilerNodeSourceAotTests(BoilerAotFixture fixture)
     {
         private const string kBoilerNamespaceUri =
             "http://opcfoundation.org/UA/Boiler/";
@@ -99,7 +100,7 @@ namespace Opc.Ua.Aot.Tests
         [Test]
         public async Task TypedBuilderWiredLevelMeasurementProducesValueInRange()
         {
-            // Wired via Configure(IBoilerNodeManagerBuilder) using
+            // Wired via Configure(IBoilerNodeSourceBuilder) using
             // builder.Boilers.Boiler__1.LCX001.Measurement.OnRead(...) —
             // exercises the source-generated typed traversal end-to-end
             // through the AOT-compiled binary.
@@ -118,10 +119,10 @@ namespace Opc.Ua.Aot.Tests
         [Test]
         public async Task TypedBuilderWiredHaltMethodCanBeCalled()
         {
-            // Wired via Configure(IBoilerNodeManagerBuilder) using
+            // Wired via Configure(IBoilerNodeSourceBuilder) using
             // builder.Boilers.Boiler__1.Simulation.Halt.OnCall(async ct =>
             // ...) — exercises the typed-traversal async OnCall overload
-            // end-to-end through AsyncCustomNodeManager.CallAsync.
+            // end-to-end through the asynchronous call path.
             NodeId simulationObject = await ResolveBoilerObjectAsync(
                 "Simulation").ConfigureAwait(false);
             NodeId haltMethod = await ResolveBoilerObjectAsync(
@@ -220,7 +221,7 @@ namespace Opc.Ua.Aot.Tests
 
     /// <summary>
     /// Per-test-session fixture that boots a NativeAOT-friendly server
-    /// hosting the source-generated <c>BoilerNodeManagerFactory</c> and
+    /// hosting the source-generated <c>BoilerNodeSource</c> and
     /// connects an anonymous client session to it.
     /// </summary>
     public sealed class BoilerAotFixture : IAsyncInitializer, IAsyncDisposable
@@ -345,8 +346,8 @@ namespace Opc.Ua.Aot.Tests
 
     /// <summary>
     /// Public <see cref="StandardServer"/> subclass that registers the
-    /// source-generated <see cref="Boiler.BoilerNodeManagerFactory"/>.
-    /// Mirrors the internal <c>BoilerStandardServer</c> in
+    /// source-generated <see cref="Boiler.BoilerNodeSource"/>.
+    /// Mirrors the implicit hosting that <c>AddNodeSource</c> sets up in
     /// MinimalBoilerServer's <c>Program.cs</c> but is exposed as
     /// <c>public</c> so <see cref="AotServerFixture{T}"/> can host it.
     /// </summary>
@@ -355,12 +356,18 @@ namespace Opc.Ua.Aot.Tests
         public BoilerTestServer(ITelemetryContext telemetry)
             : base(telemetry)
         {
+            m_telemetry = telemetry;
         }
 
         protected override void OnServerStarting(ApplicationConfiguration configuration)
         {
             base.OnServerStarting(configuration);
-            AddNodeManager(new boilersample::Boiler.BoilerNodeManagerFactory());
+            AddNodeManager(NodeSourceFactory.Create(
+                new boilersample::Boiler.BoilerNodeSource(
+                    m_telemetry.CreateLogger<
+                        boilersample::Boiler.BoilerNodeSource>())));
         }
+
+        private readonly ITelemetryContext m_telemetry;
     }
 }

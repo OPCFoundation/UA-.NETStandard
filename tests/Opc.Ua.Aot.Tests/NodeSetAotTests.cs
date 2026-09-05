@@ -30,6 +30,8 @@
 using System.Text;
 using Opc.Ua.Client;
 using Opc.Ua.Export;
+using Opc.Ua.Server.Nodes;
+using Opc.Ua.Server.RuntimeNodeSet;
 
 namespace Opc.Ua.Aot.Tests
 {
@@ -177,6 +179,38 @@ namespace Opc.Ua.Aot.Tests
             await Assert.That(variableNode).IsTypeOf<BaseDataVariableState>();
             await Assert.That(dataTypeNode).IsNotNull();
             await Assert.That(dataTypeNode).IsTypeOf<DataTypeState>();
+        }
+
+        /// <summary>
+        /// Verifies that concrete, static import factories preserve typed
+        /// states without runtime type lookup under NativeAOT.
+        /// </summary>
+        [Test]
+        public async Task ImportNodeSetWithTypedFactoryAsync()
+        {
+            using var stream = new MemoryStream(Encoding.UTF8.GetBytes(SimpleNodeSetXml));
+            UANodeSet nodeSet = UANodeSet.Read(stream);
+            var namespaceUris = new NamespaceTable();
+            var context = new SystemContext(fixture.Telemetry)
+            {
+                NamespaceUris = namespaceUris,
+                ServerUris = new StringTable(),
+                TypeTable = new TypeTable(namespaceUris),
+                EncodeableFactory = EncodeableFactory.Create()
+            };
+            var importer = new NodeSetImporter(
+                context,
+                new AotImportFactoryProvider());
+
+            importer.Import(nodeSet);
+            importer.Complete();
+
+            NodeState typedNode = importer.ImportedNodes.Find(
+                node => node.NodeId.TryGetValue(out uint identifier) &&
+                    identifier == 2000);
+            await Assert.That(typedNode).IsTypeOf<AotTypedObjectState>();
+            await Assert.That(((BaseObjectState)typedNode).TypeDefinitionId)
+                .IsEqualTo(new NodeId(1000u, 1));
         }
 
         /// <summary>
@@ -478,6 +512,39 @@ namespace Opc.Ua.Aot.Tests
             await Assert.That(roundTripped.Aliases).IsNotNull();
             await Assert.That(roundTripped.Aliases.Length)
                 .IsEqualTo(nodeSet.Aliases.Length);
+        }
+
+        private sealed class AotImportFactoryProvider :
+            INodeSetImportFactoryProvider
+        {
+            public ArrayOf<INodeSetImportFactory> GetNodeSetImportFactories()
+            {
+                return [new AotObjectImportFactory()];
+            }
+        }
+
+        private sealed class AotObjectImportFactory : INodeSetImportFactory
+        {
+            public NodeClass NodeClass => NodeClass.Object;
+
+            public NodeSetImportDiscriminator Discriminator =>
+                NodeSetImportDiscriminator.TypeDefinition;
+
+            public ExpandedNodeId DiscriminatorId =>
+                new(1000u, "http://opcfoundation.org/UA/AotTest");
+
+            public NodeState CreateEmptyState()
+            {
+                return new AotTypedObjectState(null);
+            }
+        }
+
+        private sealed class AotTypedObjectState : BaseObjectState
+        {
+            public AotTypedObjectState(NodeState parent)
+                : base(parent)
+            {
+            }
         }
     }
 }

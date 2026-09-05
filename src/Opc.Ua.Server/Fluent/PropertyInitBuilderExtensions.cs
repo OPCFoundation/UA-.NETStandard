@@ -420,12 +420,13 @@ namespace Opc.Ua.Server.Fluent
                 AccessLevel = AccessLevels.CurrentRead,
                 UserAccessLevel = AccessLevels.CurrentRead,
                 MinimumSamplingInterval = MinimumSamplingIntervals.Indeterminate,
-                Historizing = false,
-                NodeId = new NodeId(
-                    string.Concat(parent.NodeId.IdentifierAsString, "_", name),
-                    parent.NodeId.NamespaceIndex)
+                Historizing = false
             };
 
+            FluentNodeRegistration.AssignNodeId(
+                builder.Builder,
+                property,
+                parent);
             property.WrappedValue = value;
             parent.AddChild(property);
 

@@ -51,6 +51,7 @@ using Opc.Ua.Server.FileSystem;
 using Opc.Ua.Server.Fluent;
 using Opc.Ua.Server.Historian;
 using Opc.Ua.Server.Hosting;
+using Opc.Ua.Server.Nodes;
 using Opc.Ua.Server.UserDatabase;
 using Opc.Ua.Server.UserManagement;
 
@@ -1056,6 +1057,34 @@ namespace Microsoft.Extensions.DependencyInjection
             }
 
             return RegisterFluentNodeManager(builder, namespaceUri, build);
+        }
+
+        /// <summary>
+        /// Registers a DI-constructed compositional node source.
+        /// </summary>
+        /// <typeparam name="TSource">The source type constructed by dependency injection.</typeparam>
+        /// <param name="builder">The server builder.</param>
+        /// <returns>The same <see cref="IOpcUaServerBuilder"/> for chaining.</returns>
+        /// <exception cref="ArgumentNullException">
+        /// <paramref name="builder"/> is <c>null</c>.
+        /// </exception>
+        public static IOpcUaServerBuilder AddNodeSource<
+            [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] TSource>(
+                this IOpcUaServerBuilder builder)
+            where TSource : class, INodeSource
+        {
+            if (builder is null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
+
+            builder.Services.AddSingleton<TSource>();
+            builder.Services.AddSingleton(sp =>
+                new OpcUaServerNodeManagerRegistration(
+                    new NodeSourceNodeManagerFactory(
+                        sp.GetRequiredService<TSource>(),
+                        sp)));
+            return builder;
         }
 
         /// <summary>

@@ -101,7 +101,7 @@ library hangs its own `.AddXxx(...)` extension off it. Servers run as
 `Action<T>` or `IConfiguration`; identity providers, certificate manager,
 secret store, file system, historian, alarms, and the GDS extensions all
 register through the same builder. Alongside DI, a
-[source-generated fluent server API](NodeManagers.md#source-generated-node-managers) lets
+[source-generated fluent server API](NodeManagers.md#source-generated-node-sources) lets
 applications stand up a server from a model design XML with a few
 `.AddXxx().WithYyy()` calls; the
 [`ManagedSession`](Sessions.md#3-managedsession--the-connection-state-machine-facade)
@@ -122,9 +122,9 @@ library.
 
 The new source-generation pipeline emits the typical OPC UA boilerplate
 from model design XML rather than hand-written code. The
-[NodeManager generator](NodeManagers.md#source-generated-node-managers) produces a fully
-async, fluent NodeManager skeleton plus typed `*State` properties for every
-node; the [DataType generator](SourceGeneratedDataTypes.md) emits
+[node-source generator](NodeManagers.md#source-generated-node-sources) produces a
+compositional `INodeSource` plus typed `*State` properties for every node;
+the [DataType generator](SourceGeneratedDataTypes.md) emits
 `IEncodeable` implementations from POCO classes; and a new generator emits
 **typed method proxies on `ObjectType`**s so callers invoke methods with a
 strongly-typed signature rather than a generic `Call` plus variant arrays.
@@ -140,6 +140,12 @@ state class (idempotent ensure-child, `Action<TChild>` configure,
 conditional configure, `Func<TChild, TChild>` replace, conditional
 replace) so opt-in extensions of singleton instances collapse into a
 single fluent chain.
+
+Compositional and fluent-created child nodes now use one versioned,
+length-prefixed deterministic NodeId format. It preserves parent identifier
+type, uses namespace URIs across namespaces, and avoids collisions caused by
+underscore-delimited parent and child names. This intentionally replaces the
+unreleased `{parentIdentifier}_{childName}` convention.
 
 ### OPC UA companion-spec coverage
 
@@ -527,7 +533,7 @@ coverage service; see
 - [Dependency Injection](DependencyInjection.md),
   [Native AOT](NativeAoT.md),
   [Diagnostics](Diagnostics.md),
-  [Source-Generated NodeManagers](NodeManagers.md#source-generated-node-managers),
+  [source-generated node sources](NodeManagers.md#source-generated-node-sources),
   [Source-Generated DataTypes](SourceGeneratedDataTypes.md).
 - Companion specs:
   [Alarms and Conditions](AlarmsAndConditions.md),

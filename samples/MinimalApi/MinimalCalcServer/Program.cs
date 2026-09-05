@@ -75,6 +75,6 @@ builder.Services
         o.EnableX509 = false;
         o.EnableJwt = false;
     })
-    .AddNodeManager<Calc.CalcNodeManagerFactory>();
+    .AddNodeSource<Calc.CalcNodeSource>();
 
 await builder.Build().RunAsync().ConfigureAwait(false);

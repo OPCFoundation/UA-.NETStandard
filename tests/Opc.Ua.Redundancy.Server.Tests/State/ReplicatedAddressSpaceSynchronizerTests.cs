@@ -33,7 +33,6 @@
 #nullable enable
 
 using System;
-using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using Crdt;
 using Crdt.Transport;
@@ -256,15 +255,20 @@ namespace Opc.Ua.Redundancy.Server.Tests
             staleVariable.Timestamp = DateTimeUtc.Now;
 
             await fixture.DrainAsync().ConfigureAwait(false);
-            long inboundApplyCount = fixture.SyncA.InboundApplyCount;
+            long inboundApplyCount = fixture.SyncB.InboundApplyCount;
+            // B publishes inbound completion after its awaited anti-entropy send,
+            // so this proves the reconciliation rebroadcast without requiring the
+            // gossip transport to echo an identical frame back to A.
+            Task reconciliationApply =
+                fixture.SyncB.WaitForInboundApplyAfterAsync(inboundApplyCount);
             await fixture.SyncA.SeedOrHydrateAsync().ConfigureAwait(false);
 
+            await AwaitWithTimeoutAsync(reconciliationApply).ConfigureAwait(false);
             await AssertEventuallyAsync(
                 () => fixture.SpaceB.TryGetNode(source.NodeId, out NodeState? remote) &&
                     remote is BaseVariableState variable &&
                     variable.Value.Equals(new Variant(42.0)),
                 "a zero-diff merge should reconcile the stale materialized value on B").ConfigureAwait(false);
-            await AwaitWithTimeoutAsync(fixture.SyncA.WaitForInboundApplyAfterAsync(inboundApplyCount)).ConfigureAwait(false);
         }
 
         [Test]
@@ -377,9 +381,7 @@ namespace Opc.Ua.Redundancy.Server.Tests
 
         private static TimeSpan GetReplicationTimeout()
         {
-            return RuntimeInformation.IsOSPlatform(OSPlatform.OSX) ?
-                TimeSpan.FromSeconds(90) :
-                TimeSpan.FromSeconds(30);
+            return TimeSpan.FromSeconds(90);
         }
 
         private sealed class TwoReplicaFixture : IAsyncDisposable

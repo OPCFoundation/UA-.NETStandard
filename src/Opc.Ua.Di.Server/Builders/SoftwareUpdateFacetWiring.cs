@@ -161,7 +161,7 @@ namespace Opc.Ua.Di.Server.Builders
 
         /// <summary>
         /// Writes each state machine's initial state. Runs after
-        /// <see cref="NodeState.CreateAsPredefinedNode"/> so that the
+        /// <see cref="NodeState.CreateAsPredefinedNode(ISystemContext)"/> so that the
         /// machines have resolved the namespace their element NodeIds
         /// are qualified with.
         /// </summary>

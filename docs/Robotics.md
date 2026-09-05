@@ -1966,5 +1966,5 @@ controller satisfies.
 * [Robotics samples](../samples/Robotics/README.md) — runnable servers and clients.
 * [Dependency Injection](DependencyInjection.md) — the shared `AddOpcUa()`
   hosting surface.
-* [Source Generated NodeManagers](NodeManagers.md#source-generated-node-managers) — the fluent
+* [Source-generated node sources](NodeManagers.md#source-generated-node-sources) — the fluent
   `INodeManagerBuilder` and generated factories the builders compose.

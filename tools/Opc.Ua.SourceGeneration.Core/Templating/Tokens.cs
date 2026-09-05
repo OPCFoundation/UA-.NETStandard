@@ -142,6 +142,10 @@ namespace Opc.Ua.SourceGeneration
         public static string NamespaceUri => nameof(NamespaceUri);
         public static string NodeManagerClassName => nameof(NodeManagerClassName);
         public static string NodeManagerFactoryClassName => nameof(NodeManagerFactoryClassName);
+        public static string NodeSourceClassName => nameof(NodeSourceClassName);
+        public static string NodeSetImportFactoryProviderClassName =>
+            nameof(NodeSetImportFactoryProviderClassName);
+        public static string ModelNamespacePrefix => nameof(ModelNamespacePrefix);
         public static string Nillable => nameof(Nillable);
         public static string NodeClass => nameof(NodeClass);
         public static string OnCallAsyncDeclaration => nameof(OnCallAsyncDeclaration);

@@ -71,6 +71,229 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
         }
 
         [Test]
+        public void Emit_WithoutNodeSourceOptIn_ProducesNoNodeSourceArtifacts()
+        {
+            Dictionary<string, string> files = GenerateForTestModel(generateNodeManager: true);
+
+            Assert.That(files.Keys, Has.None.EndsWith(".NodeSource.g.cs"));
+            Assert.That(files.Keys, Has.None.EndsWith(".NodeSourceSupport.g.cs"));
+        }
+
+        [Test]
+        public void Emit_WithNodeSourceOptIn_ProducesSourceWithoutNodeManager()
+        {
+            Dictionary<string, string> files = GenerateForTestModel(
+                generateNodeManager: false,
+                generateNodeSource: true);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(files.Keys, Has.None.EndsWith(".NodeManager.g.cs"));
+                Assert.That(files.Keys, Has.None.EndsWith(".NodeManagerFactory.g.cs"));
+                Assert.That(files.Keys, Has.Some.EndsWith(".NodeSource.g.cs"));
+                Assert.That(files.Keys, Has.Some.EndsWith(".NodeSourceSupport.g.cs"));
+            });
+        }
+
+        [Test]
+        public void Emit_WithBothAuthoringKinds_ThrowsInvalidOperationException()
+        {
+            Assert.That(
+                () => GenerateForTestModel(
+                    generateNodeManager: true,
+                    generateNodeSource: true),
+                Throws.InvalidOperationException.With.Message.EqualTo(
+                    "GenerateNodeManager and GenerateNodeSource cannot both be enabled."));
+        }
+
+        [Test]
+        public void EmittedNodeSource_MaterializesFreshGraphAndInvokesConfigureHooks()
+        {
+            Dictionary<string, string> files = GenerateForTestModel(
+                generateNodeManager: false,
+                generateNodeSource: true,
+                additionalNamespaceUris: ["urn:test:instance"]);
+            string source = files
+                .Single(kv => kv.Key.EndsWith(".NodeSource.g.cs", StringComparison.Ordinal))
+                .Value;
+            string fluentBuilders = files
+                .Single(kv => kv.Key.EndsWith(".FluentBuilders.g.cs", StringComparison.Ordinal))
+                .Value;
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    source,
+                    Does.Contain("global::Opc.Ua.Server.Nodes.INodeSource"));
+                Assert.That(
+                    source,
+                    Does.Contain("global::Opc.Ua.Server.Nodes.INodeSetImportFactoryProvider"));
+                Assert.That(
+                    source,
+                    Does.Contain("sealed partial class TestModelNodeSource"));
+                Assert.That(
+                    source,
+                    Does.Contain("new global::Opc.Ua.NodeStateCollection()"));
+                Assert.That(
+                    source,
+                    Does.Contain("global::TestModel.TestModelExtensions."));
+                Assert.That(source, Does.Contain("AddTestModel("));
+                Assert.That(source, Does.Contain("builder.AddRoot(__node);"));
+                Assert.That(
+                    source,
+                    Does.Match(
+                        @"partial\s+void\s+Configure\s*\(\s*" +
+                        @"global::Opc\.Ua\.Server\.Nodes\.INodeGraphBuilder\s+builder\s*\);"));
+                Assert.That(
+                    source,
+                    Does.Contain("partial void Configure(ITestModelNodeSourceBuilder builder);"));
+                Assert.That(
+                    source,
+                    Does.Contain("Configure(new TestModelNodeSourceTypedBuilder(builder));"));
+                Assert.That(
+                    fluentBuilders,
+                    Does.Contain("interface ITestModelNodeSourceBuilder"));
+                Assert.That(
+                    fluentBuilders,
+                    Does.Contain("class TestModelNodeSourceTypedBuilder"));
+                Assert.That(
+                    source,
+                    Does.Contain("partial void ConfigureBehaviorRegistrations("));
+                Assert.That(source, Does.Contain("Namespaces.TestModel"));
+                Assert.That(source, Does.Contain("\"urn:test:instance\""));
+            });
+        }
+
+        [Test]
+        public void EmittedNodeSourceSupport_HasTypedGraphHelpersAndDirectImportFactories()
+        {
+            Dictionary<string, string> files = GenerateForTestModel(
+                generateNodeManager: false,
+                generateNodeSource: true);
+            string support = files
+                .Single(kv => kv.Key.EndsWith(".NodeSourceSupport.g.cs", StringComparison.Ordinal))
+                .Value;
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    support,
+                    Does.Contain("AddRestrictedObjectType("));
+                Assert.That(
+                    support,
+                    Does.Contain("AddRestrictedVariableType("));
+                Assert.That(
+                    support,
+                    Does.Contain("AddRestrictedMethodType("));
+                Assert.That(
+                    support,
+                    Does.Contain("string browseName"));
+                Assert.That(
+                    support,
+                    Does.Contain(
+                        "A QualifiedName browse name must specify a nonzero namespace index."));
+                Assert.That(support, Does.Contain("parent => global::"));
+                Assert.That(
+                    support,
+                    Does.Not.Contain("builder.TryGetNode(parentId"));
+                Assert.That(
+                    support,
+                    Does.Contain(
+                        "TestModelExtensions.CreateInstanceOfRestrictedObjectType("));
+                Assert.That(
+                    support,
+                    Does.Contain(
+                        "TestModelExtensions.CreateInstanceOfRestrictedVariableType("));
+                Assert.That(
+                    support,
+                    Does.Contain(
+                        "TestModelExtensions.CreateInstanceOfRestrictedMethodType("));
+                Assert.That(
+                    support,
+                    Does.Contain(
+                        "global::Opc.Ua.Server.Fluent.IVariableBuilder<global::Opc.Ua.Variant>"));
+                Assert.That(
+                    support,
+                    Does.Contain("public sealed class TestModelNodeSetImportFactoryProvider"));
+                Assert.That(
+                    support,
+                    Does.Contain("NodeSetImportDiscriminator.TypeDefinition"));
+                Assert.That(
+                    support,
+                    Does.Contain("NodeSetImportDiscriminator.MethodDeclaration"));
+                Assert.That(
+                    support,
+                    Does.Contain("NodeSetImportDiscriminator.NodeId"));
+                Assert.That(
+                    support,
+                    Does.Contain("new global::TestModel.RestrictedObjectState(null)"));
+                Assert.That(
+                    support,
+                    Does.Contain("new global::TestModel.RestrictedVariableState(null)"));
+                Assert.That(
+                    support,
+                    Does.Contain("new global::TestModel.RestrictedMethodState(null)"));
+                Assert.That(
+                    support,
+                    Does.Contain(
+                        "new global::Opc.Ua.PropertyState<" +
+                        "global::Opc.Ua.ArrayOf<global::Opc.Ua.Argument>>.Implementation<" +
+                        "global::Opc.Ua.StructureBuilder<global::Opc.Ua.Argument>>(null)"));
+                Assert.That(support, Does.Not.Contain("Activator.CreateInstance"));
+                Assert.That(support, Does.Not.Contain("System.Reflection"));
+                Assert.That(
+                    support,
+                    Does.Contain(
+                        "new global::Opc.Ua.ArrayOf<" +
+                        "global::Opc.Ua.Server.Nodes.INodeSetImportFactory>"));
+                Assert.That(support, Does.Not.Contain("return [];"));
+            });
+        }
+
+        [Test]
+        public void EmittedImportFactoriesCoverPlaceholderInheritedAndArgumentChildren()
+        {
+            Dictionary<string, string> files = GenerateForTestModel(
+                generateNodeManager: false,
+                generateNodeSource: true);
+            string support = files
+                .Single(kv => kv.Key.EndsWith(".NodeSourceSupport.g.cs", StringComparison.Ordinal))
+                .Value;
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    support,
+                    Does.Match(
+                        @"(?s)ExpandedNodeId\(227u,.*?" +
+                        @"CreateEmptyState\(\).*?" +
+                        @"RestrictedVariableState\(null\)"),
+                    "The OptionalPlaceholder variable declaration needs an exact typed factory.");
+                Assert.That(
+                    support,
+                    Does.Match(
+                        @"(?s)ExpandedNodeId\(228u,.*?" +
+                        @"CreateEmptyState\(\).*?" +
+                        @"PropertyState<int>"),
+                    "Inherited children below a placeholder need exact typed factories.");
+                Assert.That(
+                    support,
+                    Does.Match(
+                        @"(?s)ExpandedNodeId\(357u,.*?" +
+                        @"CreateEmptyState\(\).*?" +
+                        @"PropertyState<global::Opc\.Ua\.ArrayOf<global::Opc\.Ua\.Argument>>"),
+                    "InputArguments needs an exact typed factory.");
+                Assert.That(
+                    support,
+                    Does.Match(
+                        @"(?s)ExpandedNodeId\(358u,.*?" +
+                        @"CreateEmptyState\(\).*?" +
+                        @"PropertyState<global::Opc\.Ua\.ArrayOf<global::Opc\.Ua\.Argument>>"),
+                    "OutputArguments needs an exact typed factory.");
+            });
+        }
+
+        [Test]
         public void EmittedNodeManager_HasRequiredStructuralMembers()
         {
             Dictionary<string, string> files = GenerateForTestModel(generateNodeManager: true);
@@ -95,6 +318,10 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             Assert.That(mgr, Does.Contain("partial void Configure("));
             Assert.That(mgr, Does.Contain("global::Opc.Ua.Server.Fluent.NodeManagerBuilder"));
             Assert.That(mgr, Does.Contain("global::Opc.Ua.Server.Fluent.INodeManagerBuilder"));
+            Assert.That(mgr, Does.Not.Contain("return [];"));
+            Assert.That(
+                mgr,
+                Does.Contain("global::System.Array.Empty<global::Opc.Ua.NodeState>()"));
 
             // The Configure/CompleteConfigure/Seal sequence inside
             // CreateAddressSpace must be wired before any NotifyNodeAdded
@@ -164,7 +391,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             Assert.That(
                 mgr,
                 Does.Match(
-                    @"global::TestModel\.TestModelExtensions\.AddTestModel\(\s*" +
+                    @"global::TestModel\.TestModelExtensions\.\s*AddTestModel\(\s*" +
                     @"new global::Opc\.Ua\.NodeStateCollection\(\),\s*context\)"),
                 "LoadPredefinedNodesAsync must invoke the model composer as a fully-qualified static method");
         }
@@ -512,6 +739,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
 
         private static Dictionary<string, string> GenerateForTestModel(
             bool generateNodeManager,
+            bool generateNodeSource = false,
             IReadOnlyList<string> additionalNamespaceUris = null,
             string nodeManagerNamespace = null)
         {
@@ -529,6 +757,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
                 Options = new DesignFileOptions
                 {
                     GenerateNodeManager = generateNodeManager,
+                    GenerateNodeSource = generateNodeSource,
                     NodeManagerAdditionalNamespaceUris = additionalNamespaceUris,
                     NodeManagerNamespace = nodeManagerNamespace
                 }

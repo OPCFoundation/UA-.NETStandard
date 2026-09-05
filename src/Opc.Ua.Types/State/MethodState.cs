@@ -544,6 +544,22 @@ namespace Opc.Ua
             }
         }
 
+        /// <inheritdoc/>
+        protected override void RemoveExplicitlyDefinedChild(BaseInstanceState child)
+        {
+            if (ReferenceEquals(InputArguments, child))
+            {
+                InputArguments = null;
+                DetachExplicitlyDefinedChild(child);
+            }
+            if (ReferenceEquals(OutputArguments, child))
+            {
+                OutputArguments = null;
+                DetachExplicitlyDefinedChild(child);
+            }
+            base.RemoveExplicitlyDefinedChild(child);
+        }
+
         /// <summary>
         /// Create or replace output arguments
         /// </summary>

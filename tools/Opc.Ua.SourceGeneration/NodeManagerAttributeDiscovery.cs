@@ -38,9 +38,8 @@ using Microsoft.CodeAnalysis.CSharp.Syntax;
 namespace Opc.Ua.SourceGeneration
 {
     /// <summary>
-    /// Discovered <c>[Opc.Ua.Server.Fluent.NodeManager]</c> binding plus
-    /// the source location of the attribute, used to report friendly
-    /// diagnostics back at the user's class.
+    /// Discovered node-authoring binding plus the source locations used to
+    /// infer its runtime kind and report diagnostics at the user's class.
     /// </summary>
     internal sealed record class NodeManagerAttributeDiscovery
     {
@@ -60,6 +59,22 @@ namespace Opc.Ua.SourceGeneration
         /// <c>partial</c>.
         /// </summary>
         public bool IsPartial { get; init; }
+
+        /// <summary>
+        /// Location of the user-authored graph Configure implementation.
+        /// </summary>
+        public Location GraphConfigureLocation { get; init; }
+
+        /// <summary>
+        /// Location of the user-authored manager Configure implementation.
+        /// </summary>
+        public Location ManagerConfigureLocation { get; init; }
+
+        /// <summary>
+        /// Whether both canonical untyped Configure implementations exist.
+        /// </summary>
+        public bool HasConflictingConfigureMethods =>
+            GraphConfigureLocation != null && ManagerConfigureLocation != null;
 
         /// <summary>
         /// Attribute expressions that Roslyn could not bind to constants.
@@ -84,6 +99,7 @@ namespace Opc.Ua.SourceGeneration
         {
             var symbol = (INamedTypeSymbol)context.TargetSymbol;
             AttributeData attr = context.Attributes.FirstOrDefault();
+            Compilation compilation = context.SemanticModel.Compilation;
 
             string namespaceUri = attr.GetValue(nameof(NodeManagerAttributeBinding.NamespaceUri));
             string design = attr.GetValue(nameof(NodeManagerAttributeBinding.Design));
@@ -91,11 +107,28 @@ namespace Opc.Ua.SourceGeneration
                 nameof(NodeManagerAttributeBinding.AdditionalNamespaceUris));
             ImmutableArray<NodeManagerAttributeExpressionError> invalidExpressions =
                 GetInvalidExpressions(attr, context.SemanticModel, cancellationToken);
-            bool generateFactory = attr == null ||
+            Location graphConfigureLocation = FindConfigureImplementation(
+                symbol,
+                compilation,
+                kGraphBuilderMetadataName,
+                cancellationToken);
+            Location managerConfigureLocation = FindConfigureImplementation(
+                symbol,
+                compilation,
+                kManagerBuilderMetadataName,
+                cancellationToken);
+            NodeAuthoringKind authoringKind =
+                graphConfigureLocation != null && managerConfigureLocation != null
+                    ? NodeAuthoringKind.None
+                    : graphConfigureLocation != null
+                        ? NodeAuthoringKind.NodeSource
+                        : NodeAuthoringKind.NodeManager;
+            bool generateFactory = authoringKind == NodeAuthoringKind.NodeManager &&
+                (attr == null ||
                 !attr.NamedArguments
                     .Any(p => p.Key == nameof(NodeManagerAttributeBinding.GenerateFactory) &&
                         p.Value.Value is bool b &&
-                        !b);
+                        !b));
 
             string targetNamespace = symbol.GetFullNamespace();
             string targetClassName = symbol.Name;
@@ -116,12 +149,66 @@ namespace Opc.Ua.SourceGeneration
                     NamespaceUri = namespaceUri,
                     Design = design,
                     GenerateFactory = generateFactory,
+                    AuthoringKind = authoringKind,
                     AdditionalNamespaceUris = additionalNamespaceUris
                 },
                 Location = location,
                 IsPartial = isPartial,
+                GraphConfigureLocation = graphConfigureLocation,
+                ManagerConfigureLocation = managerConfigureLocation,
                 InvalidExpressions = invalidExpressions
             };
+        }
+
+        private static Location FindConfigureImplementation(
+            INamedTypeSymbol type,
+            Compilation compilation,
+            string parameterTypeMetadataName,
+            CancellationToken cancellationToken)
+        {
+            INamedTypeSymbol parameterType =
+                compilation.GetTypeByMetadataName(parameterTypeMetadataName);
+            if (parameterType == null)
+            {
+                return null;
+            }
+
+            foreach (SyntaxReference reference in type.DeclaringSyntaxReferences)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                if (reference.GetSyntax(cancellationToken) is not TypeDeclarationSyntax declaration)
+                {
+                    continue;
+                }
+
+                SemanticModel semanticModel = compilation.GetSemanticModel(declaration.SyntaxTree);
+                foreach (MethodDeclarationSyntax method in declaration.Members
+                    .OfType<MethodDeclarationSyntax>())
+                {
+                    if (method.Identifier.ValueText != "Configure" ||
+                        !method.Modifiers.Any(SyntaxKind.PartialKeyword) ||
+                        method.Modifiers.Any(SyntaxKind.StaticKeyword) ||
+                        method.TypeParameterList != null ||
+                        method.ParameterList.Parameters.Count != 1 ||
+                        method.ParameterList.Parameters[0].Modifiers.Count != 0 ||
+                        (method.Body == null && method.ExpressionBody == null))
+                    {
+                        continue;
+                    }
+
+                    if (semanticModel.GetDeclaredSymbol(method, cancellationToken)
+                            is IMethodSymbol methodSymbol &&
+                        methodSymbol.ReturnsVoid &&
+                        SymbolEqualityComparer.Default.Equals(
+                            methodSymbol.Parameters[0].Type,
+                            parameterType))
+                    {
+                        return method.Identifier.GetLocation();
+                    }
+                }
+            }
+
+            return null;
         }
 
         private static ImmutableArray<NodeManagerAttributeExpressionError> GetInvalidExpressions(
@@ -236,6 +323,11 @@ namespace Opc.Ua.SourceGeneration
             };
             return expressions.HasValue ? [.. expressions.Value] : [];
         }
+
+        private const string kGraphBuilderMetadataName =
+            "Opc.Ua.Server.Nodes.INodeGraphBuilder";
+        private const string kManagerBuilderMetadataName =
+            "Opc.Ua.Server.Fluent.INodeManagerBuilder";
     }
 
     /// <summary>

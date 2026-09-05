@@ -8,6 +8,15 @@
 
 Analysis performed against commit `e73e71184` on `master`.
 
+> **2.0 transition note (September 2026):** `[NodeManager]` is the single
+> generated-authoring binding documented in `docs/NodeManagers.md`. An exact
+> `Configure(INodeGraphBuilder)` implementation selects the compositional
+> `INodeSource` output; `Configure(INodeManagerBuilder)` or no untyped hook
+> selects the generated-manager output. The runtime distinction remains:
+> applications use sources for materialized graphs, while specialized managers
+> such as `ReferenceNodeManager` retain node-management, custom NodeId, history,
+> sampling, and other manager-level capabilities.
+
 ## Table of contents
 
 - [Purpose](#purpose)
@@ -418,7 +427,7 @@ virtuals that duplicate them.
   narrow seam rather than stacking on the wide one.
 - **Source generators emit against this surface.** The generated `NodeManagerBase` derives
   from `FluentNodeManagerBase`; generator templates must move in lockstep. See
-  [NodeManagers.md](../docs/NodeManagers.md#source-generated-node-managers).
+  [NodeManagers.md](../docs/NodeManagers.md#source-generated-node-sources).
 - **`SampleNodeManager` implements `INodeManager` directly** and is the one external
   adapter for that interface. It either migrates or stays as the demonstration of the
   obsolete path.

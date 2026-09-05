@@ -444,6 +444,15 @@ namespace Opc.Ua
         /// </summary>
         public StateMachineTransitionHandler? OnAfterTransition;
 
+        /// <inheritdoc/>
+        protected override bool HasAdditionalRuntimeCallbacks()
+        {
+            return OnCheckUserPermission is not null ||
+                OnBeforeTransition is not null ||
+                OnAfterTransition is not null ||
+                base.HasAdditionalRuntimeCallbacks();
+        }
+
         /// <summary>
         /// If true transition events will not be produced by the state machine.
         /// </summary>

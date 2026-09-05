@@ -10,7 +10,7 @@ Use `AddRuntimeNodeSet` when:
 - Your information model changes frequently enough that rebuilding the source-generated manager for every XML update would be disruptive.
 - You are prototyping or testing a new NodeSet2 design.
 
-Use the [source-generated path](NodeManagers.md#source-generated-node-managers) when you want compile-time safety, strong typing, and AOT-safe named constants for every node in your model. The runtime path gives you generic `NodeState` objects and untyped browse-path wiring.
+Use the [source-generated path](NodeManagers.md#source-generated-node-sources) when you want compile-time safety, strong typing, and AOT-safe named constants for every node in your model. The runtime path gives you generic `NodeState` objects and untyped browse-path wiring.
 
 ## Startup and live lifecycle semantics
 
@@ -226,22 +226,22 @@ Setting `StandardServer.LoadComplexTypes = false` or disabling the complex type 
 
 For a complete description of the server-side complex type system, see [ComplexTypes.md](ComplexTypes.md).
 
-## Comparison with source-generated NodeManagers
+## Comparison with source-generated node sources
 
-| Aspect | Runtime NodeSet (`AddRuntimeNodeSet`) | Source-generated (`[NodeManager]`) |
+| Aspect | Runtime NodeSet (`AddRuntimeNodeSet`) | Source-generated (`[NodeManager]` + `Configure(INodeGraphBuilder)`) |
 |--------|--------------------------------------|-------------------------------------|
 | Node access in callbacks | Generic `NodeState` / `BaseVariableState` via untyped browse paths | Strongly typed, compiler-checked fluent accessors per node |
 | Compilation required on model change | No — reload through `INodeManagerLifecycle` | Yes — regenerate and rebuild |
 | AOT / trimming compatibility | Full (uses the existing `UANodeSet.Read` XmlSerializer path) | Full (generated code is static) |
 | Named NodeId constants | Not generated | Generated (`Variables.*`, `Objects.*`, etc.) |
 | Multiple namespaces in one manager | Yes — group multiple sources | One namespace per generator run |
-| DI registration | `AddRuntimeNodeSet(...)` | `AddNodeManager<TFactory>()` |
+| DI registration | `AddRuntimeNodeSet(...)` | `AddNodeSource<TSource>()` |
 | Stream / file input | Files and custom stream factories | MSBuild `AdditionalFiles` only |
 
-Source-generated managers are the recommended path for production code where type safety and compile-time validation matter. Runtime NodeSets are the recommended path for rapid prototyping, model-file delivery scenarios, and cases where the XML content changes independently of the server binary.
+Source-generated node sources are the recommended path for production code where type safety and compile-time validation matter. Runtime NodeSets are the recommended path for rapid prototyping, model-file delivery scenarios, and cases where the XML content changes independently of the server binary.
 
 ## Related documentation
 
-- [Source-Generated NodeManagers](NodeManagers.md#source-generated-node-managers) — strongly typed alternative.
+- [Source-generated node sources](NodeManagers.md#source-generated-node-sources) — strongly typed alternative.
 - [Dependency Injection](DependencyInjection.md) — `IOpcUaServerBuilder` and service registration.
 - [ComplexTypes.md](ComplexTypes.md) — server-side complex type loading and client-side decoding.

@@ -34,7 +34,9 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Opc.Ua.Client;
 using Opc.Ua.Server;
+using Opc.Ua.Server.Fluent;
 using Opc.Ua.Server.Hosting;
+using Opc.Ua.Server.Nodes;
 using Opc.Ua.Server.RuntimeNodeSet;
 
 namespace Opc.Ua.Aot.Tests
@@ -255,6 +257,49 @@ namespace Opc.Ua.Aot.Tests
             }
         }
 
+        [Test]
+        public async Task AddNodeSourceRegistrationIsAotSafeAsync()
+        {
+            var dependency = new AotNodeSourceDependency(42);
+            var services = new ServiceCollection();
+            services.AddSingleton(dependency);
+            services.AddOpcUa()
+                .AddServer(o =>
+                {
+                    o.ApplicationName = "AotNodeSourceServer";
+                    o.AutoAcceptUntrustedCertificates = true;
+                })
+                .AddNodeSource<AotNodeSource>();
+
+            using ServiceProvider sp = services.BuildServiceProvider();
+            AotNodeSource source = sp.GetRequiredService<AotNodeSource>();
+            OpcUaServerNodeManagerRegistration registration = sp
+                .GetServices<OpcUaServerNodeManagerRegistration>()
+                .Single();
+
+            await Assert.That(source.Dependency).IsSameReferenceAs(dependency);
+            await Assert.That(registration.AsyncFactory).IsNotNull();
+
+            IAsyncNodeManager manager = await registration.AsyncFactory.CreateAsync(
+                fixture.ServerFixture.Server.CurrentInstance,
+                fixture.ServerFixture.Config,
+                CancellationToken.None).ConfigureAwait(false);
+
+            try
+            {
+                await manager.CreateAddressSpaceAsync(
+                    new Dictionary<NodeId, IList<IReference>>(),
+                    CancellationToken.None).ConfigureAwait(false);
+
+                await Assert.That(source.BuildCount).IsEqualTo(1);
+                await Assert.That(source.VariableId.IsNull).IsFalse();
+            }
+            finally
+            {
+                (manager as IDisposable)?.Dispose();
+            }
+        }
+
         private static ApplicationConfiguration CreateMinimalClientConfiguration(
             ITelemetryContext telemetry)
         {
@@ -265,6 +310,43 @@ namespace Opc.Ua.Aot.Tests
                 ApplicationType = ApplicationType.Client,
                 ClientConfiguration = new ClientConfiguration()
             };
+        }
+
+        public sealed class AotNodeSource : INodeSource
+        {
+            public AotNodeSource(AotNodeSourceDependency dependency)
+            {
+                Dependency = dependency;
+            }
+
+            public ArrayOf<string> NamespaceUris =>
+                ["urn:opcfoundation.org:Tests:AotNodeSource"];
+
+            public AotNodeSourceDependency Dependency { get; }
+
+            public NodeId VariableId { get; private set; }
+
+            public int BuildCount { get; private set; }
+
+            public ValueTask BuildAsync(
+                INodeGraphBuilder builder,
+                CancellationToken cancellationToken = default)
+            {
+                BuildCount++;
+                INodeBuilder<FolderState> folder =
+                    builder.AddFolder("AotSource");
+                IVariableBuilder<int> variable = builder.AddVariable<int>(
+                    "Value",
+                    folder.Node.NodeId);
+                variable.Node.WrappedValue = new Variant(Dependency.Value);
+                VariableId = variable.Node.NodeId;
+                return default;
+            }
+        }
+
+        public sealed class AotNodeSourceDependency(int value)
+        {
+            public int Value { get; } = value;
         }
     }
 }

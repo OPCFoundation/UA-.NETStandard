@@ -195,6 +195,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         }
 
         [Test]
+        [NonParallelizable]
         public void ReadAsymmetricMessageHeaderDisposesSenderChainWhenReceiverThumbprintMismatches()
         {
             var factory = new RecordingByteTransportFactory();
@@ -237,6 +238,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         }
 
         [Test]
+        [NonParallelizable]
         public void ReadAsymmetricMessageHeaderDisposesSenderChainWhenReceiverCertificateMissing()
         {
             var factory = new RecordingByteTransportFactory();
@@ -274,6 +276,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         }
 
         [Test]
+        [NonParallelizable]
         public void ReadAsymmetricMessageHeaderDisposesSenderChainWhenReceiverThumbprintMissing()
         {
             var factory = new RecordingByteTransportFactory();

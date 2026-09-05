@@ -29,15 +29,17 @@
 
 using System.Threading.Tasks;
 using Opc.Ua.Server.Fluent;
+using Opc.Ua.Server.Nodes;
 
 namespace Calc
 {
     /// <summary>
-    /// Source-generated <c>CustomNodeManager2</c> for the calculator
-    /// sample. The <c>[NodeManager]</c> attribute opts this partial class
-    /// in to source generation: the generator emits the sibling partial
-    /// that owns the predefined-node load and calls back into the
-    /// <c>Configure</c> partials in <c>CalcNodeManager.Configure.cs</c>.
+    /// Source-generated compositional node source for the calculator
+    /// sample. The <c>[NodeManager]</c> attribute and
+    /// <c>Configure(INodeGraphBuilder)</c> overload opt this partial class
+    /// in to source generation: the generator completes this class with
+    /// graph materialization and calls back into the
+    /// <c>Configure</c> partials in this file.
     /// </summary>
     /// <remarks>
     /// The calculator model intentionally exposes three method shapes —
@@ -50,19 +52,19 @@ namespace Calc
     /// can be reasoned about in one glance.
     /// </remarks>
     [NodeManager(NamespaceUri = "http://opcfoundation.org/UA/Calc/")]
-    public partial class CalcNodeManager
+    public sealed partial class CalcNodeSource
     {
-        partial void Configure(INodeManagerBuilder builder)
+        partial void Configure(INodeGraphBuilder builder)
         {
             // Intentionally empty. Kept to mirror the Boiler sample and
             // demonstrate that the typed and non-typed Configure partials
             // coexist on the same class — the generated address-space
             // bootstrap invokes both. The calculator sample wires every
             // node through the typed surface in
-            // Configure(ICalcNodeManagerBuilder).
+            // Configure(ICalcNodeSourceBuilder).
         }
 
-        partial void Configure(ICalcNodeManagerBuilder builder)
+        partial void Configure(ICalcNodeSourceBuilder builder)
         {
             // Sync int+int→int — exercises Variant.TryGetValue<int> on
             // each input arg and Variant.From<int> on the boxed result.
@@ -72,7 +74,7 @@ namespace Calc
             // Async double+double→double — exercises the typed async
             // OnCall overload (Func<double, double, CancellationToken,
             // ValueTask<double>>) end-to-end through
-            // AsyncCustomNodeManager.CallAsync, plus Variant.From<double>
+            // the asynchronous call path, plus Variant.From<double>
             // on the boxed result.
             builder.Calculator.Multiply
                 .OnCall(async (x, y, ct) =>

@@ -356,7 +356,7 @@ namespace Opc.Ua.Server.RuntimeNodeSet
         /// The <c>RequiredModel</c> declarations form a circular dependency among
         /// the included NodeSet2 sources.
         /// </exception>
-        private static ParsedNodeSetDocument[] TopologicalSort(
+        internal static ParsedNodeSetDocument[] TopologicalSort(
             ParsedNodeSetDocument[] documents,
             Dictionary<string, int> modelUriToIndex)
         {

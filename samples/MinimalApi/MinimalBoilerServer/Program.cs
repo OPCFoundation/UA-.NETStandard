@@ -58,6 +58,6 @@ builder.Services
         o.MinCertificateKeySize = 2048;
         o.EndpointUrls.Add($"opc.tcp://localhost:{port}/MinimalBoilerServer");
     })
-    .AddNodeManager<Boiler.BoilerNodeManagerFactory>();
+    .AddNodeSource<Boiler.BoilerNodeSource>();
 
 await builder.Build().RunAsync().ConfigureAwait(false);

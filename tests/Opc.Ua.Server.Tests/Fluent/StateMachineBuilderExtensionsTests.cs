@@ -537,7 +537,7 @@ namespace Opc.Ua.Server.Tests.Fluent
             Assert.That(sm.StateMachine.Parent,
                 Is.SameAs(parent.Node));
             Assert.That(sm.StateMachine.NodeId.IdentifierAsString,
-                Is.EqualTo("Machine_Cycle"));
+                Does.StartWith("v1:"));
         }
 
         [Test]

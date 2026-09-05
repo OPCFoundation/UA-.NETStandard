@@ -195,7 +195,7 @@ public override async ValueTask<(ServiceResult result, NodeId addedNodeId)> AddN
 
 - [Reference Server](../samples/README.md) — opt-in example in
   `ReferenceNodeManager`.
-- [Source generated NodeManagers](NodeManagers.md#source-generated-node-managers) —
+- [Source-generated node sources](NodeManagers.md#source-generated-node-sources) —
   combine NodeManagement with generated models.
 - [Model Change Tracking](ModelChangeTracking.md) — `AddNodes` and
   `DeleteNodes` emit `GeneralModelChangeEvent` automatically when

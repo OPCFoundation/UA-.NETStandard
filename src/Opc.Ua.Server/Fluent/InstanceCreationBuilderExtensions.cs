@@ -61,9 +61,9 @@ namespace Opc.Ua.Server.Fluent
     /// registered with the owning node manager.
     /// </para>
     /// <para>
-    /// NodeIds for the new instance follow the
-    /// <c>{parentIdentifier}_{browseName}</c> pattern used by the
-    /// generated NodeIdFactory and the existing
+    /// NodeIds for the new instance use the same versioned,
+    /// collision-free parent/browse-name format as the compositional
+    /// node-source builder and the existing
     /// <see cref="ReferenceBuilderExtensions.AddObject(INodeBuilder, QualifiedName, NodeId)"/>
     /// helper.
     /// </para>
@@ -131,10 +131,10 @@ namespace Opc.Ua.Server.Fluent
             instance.DisplayName = new LocalizedText(symbolicName);
             instance.ReferenceTypeId = ReferenceTypeIds.HasComponent;
 
-            string parentIdentifier = parent.Node.NodeId.IdentifierAsString;
-            instance.NodeId = new NodeId(
-                $"{parentIdentifier}_{symbolicName}",
-                parent.Node.NodeId.NamespaceIndex);
+            FluentNodeRegistration.AssignNodeId(
+                parent.Builder,
+                instance,
+                parent.Node);
 
             if (!typeDefinitionId.IsNull)
 

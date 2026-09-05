@@ -1576,7 +1576,7 @@ services.AddOpcUa()
 ## See also
 
 - [Sessions](Sessions.md) — `ManagedSession`, reconnect, subscription engines.
-- [Source Generated NodeManagers](NodeManagers.md#source-generated-node-managers) — `IAsyncNodeManagerFactory` from a model design XML.
+- [Source-generated node sources](NodeManagers.md#source-generated-node-sources) — compile-time model authoring through `INodeSource`.
 - [Native AOT](NativeAoT.md) — AOT testing setup.
 - [GDS Developer Guide](GDS.md) — GDS service interfaces and provider patterns.
 - [Robotics](Robotics.md) — OPC 40010 hosting, model providers, and topology builders.
