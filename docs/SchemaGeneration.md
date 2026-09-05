@@ -14,7 +14,7 @@ Generation is driven by a type's runtime structure definition (`StructureDefinit
 
 - `ISchemaProvider` is the entry point. It produces an `IUaSchema` for a requested `UaSchemaFormat` and `UaSchemaScope`.
 - `IUaSchema` is the generated document. It exposes the strongly-typed object model (for example `JsonSchemaDocument.Root`, `XmlSchemaDocument.Schema`, `BinarySchemaDocument.Dictionary`) and can serialize itself with `WriteTo(Stream)`, `WriteTo(TextWriter)` or `ToSchemaString()`.
-- `IDataTypeDefinitionResolver` maps a data type id to its `UaTypeDescription` (the type id, browse name and definition). The default implementation, `DataTypeDefinitionRegistry`, is an in-memory registry that generated and dynamically built types register their definitions with. The resolver is also used to follow field references and to enumerate the types of a namespace.
+- `IDataTypeDefinitionResolver` maps a data type id to its `UaTypeDescription` (the type id, browse name and definition). The default implementation, `DataTypeDefinitionRegistry`, is an in-memory registry that callers populate from browsed or otherwise available definitions. The resolver is also used to follow field references and to enumerate the types of a namespace.
 
 `UaSchemaFormat` selects the encoding (`Xsd`, `Bsd`, `JsonCompact`, `JsonVerbose`). `UaSchemaScope` selects the document granularity: `Type` produces a document for a single type and the closure of the types it depends on; `Namespace` produces a dictionary document for all types in a namespace.
 
@@ -40,7 +40,11 @@ registry.Add(new UaTypeDescription(typeId, browseName, structureDefinition, name
 
 ISchemaProvider provider = new DefaultSchemaProvider(
     registry,
-    new IUaSchemaGenerator[] { new JsonSchemaGenerator() });
+    [
+        new JsonSchemaGenerator(),
+        new XsdSchemaGenerator(),
+        new BsdSchemaGenerator()
+    ]);
 ```
 
 ## Registering data types
@@ -54,10 +58,28 @@ var registry = serviceProvider.GetRequiredService<DataTypeDefinitionRegistry>();
 registry.TryAddDataType(dataTypeNode, session.NamespaceUris);
 ```
 
-- **Source-generated types** — the generated types expose their definition through the generated `DataTypeDefinitions.Create<TypeName>(namespaceUris)` factory. Wrap it in a `UaTypeDescription` and add it:
+- **Source-generated types** — the generated model registration extension adds public
+  structure and enumeration activators to an `IEncodeableFactory`. Those activators
+  implement `IDataTypeDefinitionSource`; the generated data value itself does not need
+  to implement that interface. Use `EncodeableFactoryDefinitionSource` to resolve their
+  definitions without reflection or manual registration:
 
 ```csharp
-registry.Add(new UaTypeDescription(typeId, browseName, definition, namespaceUri));
+IEncodeableFactory factory = EncodeableFactory.Create();
+factory.Builder
+    .AddOpcUa() // use the generated Add<Namespace>() extension for your model
+    .Commit();
+
+IDataTypeDefinitionResolver resolver =
+    new EncodeableFactoryDefinitionSource(factory, namespaceUris);
+
+ISchemaProvider provider = new DefaultSchemaProvider(
+    resolver,
+    [
+        new JsonSchemaGenerator(),
+        new XsdSchemaGenerator(),
+        new BsdSchemaGenerator()
+    ]);
 ```
 
 - **Dynamic complex types** — complex types built by the complex-type client carry a `StructureDefinition` (via `IStructureTypeInfo` / the structure-definition attribute) that can likewise be wrapped in a `UaTypeDescription` and registered.
@@ -73,6 +95,29 @@ IDataTypeDefinitionResolver resolver = new CompositeDataTypeDefinitionResolver(
 
 Once registered, fields that reference other registered types are resolved automatically and included in the generated document.
 
+### Namespace identity
+
+`BrowseName.NamespaceIndex` is not a mapping for the data type's NodeId namespace; the
+two namespaces may legitimately differ. To support both local and URI-based lookup in
+`DataTypeDefinitionRegistry`, register an index-form TypeId together with its namespace
+URI, as `TryAddDataType(node, namespaceTable)` does:
+
+```csharp
+registry.Add(new UaTypeDescription(
+    new ExpandedNodeId(dataTypeNode.NodeId),
+    dataTypeNode.BrowseName,
+    definition,
+    session.NamespaceUris.GetString(dataTypeNode.NodeId.NamespaceIndex)));
+```
+
+A custom URI-only TypeId is resolvable by URI but does not create an inferred local
+alias. The standard OPC UA namespace URI is the exception because its local index is
+always zero. Registry entries must share one local namespace-table context.
+
+URI lookup preserves identifier kind as well as value. Numeric zero, an empty GUID,
+an empty string, and an empty ByteString are distinct identifiers in a nonzero namespace;
+they must not be conflated with namespace-zero null NodeIds.
+
 ## Generating a schema
 
 Once a type's definition is registered with the resolver, a schema can be produced from its type id:
@@ -82,6 +127,16 @@ if (provider.TryGetSchema(typeId, UaSchemaFormat.JsonCompact, UaSchemaScope.Type
 {
     string json = schema.ToSchemaString();
 }
+```
+
+When the starting point is a namespace-index `NodeId` obtained from a server, convert it
+with the session namespace table. A registry populated with
+`TryAddDataType(dataTypeNode, session.NamespaceUris)` accepts both this URI form and the
+local index-form `ExpandedNodeId`:
+
+```csharp
+ExpandedNodeId typeId = NodeId.ToExpandedNodeId(dataTypeNode.NodeId, session.NamespaceUris);
+provider.TryGetSchema(typeId, UaSchemaFormat.JsonCompact, UaSchemaScope.Type, out IUaSchema? schema);
 ```
 
 The convenience extension methods read more naturally and make a type "expose" its schema:

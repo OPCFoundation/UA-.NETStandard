@@ -44,7 +44,7 @@ namespace Opc.Ua.Schema
         /// Initializes a new instance of the <see cref="DefaultSchemaProvider"/> class.
         /// </summary>
         /// <param name="resolver">The data type definition resolver.</param>
-        /// <param name="generators">The registered schema generators.</param>
+        /// <param name="generators">The schema generators.</param>
         /// <exception cref="ArgumentNullException">A required argument is <c>null</c>.</exception>
         public DefaultSchemaProvider(
             IDataTypeDefinitionResolver resolver,
