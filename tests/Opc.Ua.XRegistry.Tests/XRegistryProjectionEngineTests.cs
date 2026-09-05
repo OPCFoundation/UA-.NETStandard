@@ -1493,6 +1493,135 @@ namespace Opc.Ua.XRegistry.Tests
         }
 
         /// <summary>
+        /// Reviewer issue #1 regression (second review round): a different
+        /// session guessing/replaying the synthetic handle number a logical
+        /// Resource's Open returned to the rightful owner must be rejected
+        /// (BadUserAccessDenied) WITHOUT removing the owner's pin and WITHOUT
+        /// ever reaching the underlying manager's own Close. The rightful
+        /// owner must still be able to close (and thereby release the writer
+        /// slot) afterwards using the same handle, and a further close
+        /// attempt must then correctly report the handle as gone.
+        /// </summary>
+        [Test]
+        public async Task CrossSessionCloseCannotStrandLegitimateOwnerHandleAsync()
+        {
+            Mock<IXRegistryProjectedResourceFileHandleForwarder> forwarder =
+                CreateForwarderMock(underlyingOpenHandle: 1);
+            var strategy = new VersionedTestStrategy
+            {
+                FileFactory = (_, _) => (IXRegistryProjectedResourceFile)forwarder.Object,
+                Snapshot = VersionedProjectionSnapshot("v1"),
+                EventSnapshot = VersionedEventSnapshot("v1", 1, WotLabels())
+            };
+            ProjectionHarness harness = ProjectionHarness.Create(suppliedStrategy: strategy);
+            await harness.Engine.AttachAsync(harness.Registry, CancellationToken.None)
+                .ConfigureAwait(false);
+
+            ResourceState logicalNode = FindLogicalResourceNode(harness, "pump");
+
+            var ownerContext = (ServerSystemContext)harness.Context.Copy();
+            ownerContext.SessionId = new NodeId("owner-session", 1);
+            var attackerContext = (ServerSystemContext)harness.Context.Copy();
+            attackerContext.SessionId = new NodeId("attacker-session", 1);
+
+            uint handle = 0;
+            ServiceResult open = logicalNode.Open!.OnCall!.Invoke(
+                ownerContext, logicalNode.Open, logicalNode.NodeId, TestWriteEraseMode, ref handle);
+            Assert.That(ServiceResult.IsGood(open), Is.True);
+
+            // A different session guesses/replays the same synthetic handle.
+            CloseMethodStateResult attackerClose = await logicalNode.Close!.OnCallAsync!(
+                    attackerContext, logicalNode.Close, logicalNode.NodeId, handle, CancellationToken.None)
+                .ConfigureAwait(false);
+            Assert.That(
+                attackerClose.ServiceResult.StatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied));
+
+            // The malicious attempt must never have reached the underlying
+            // manager's Close at all — the pin must still be intact.
+            forwarder.Verify(f => f.ForwardCloseAsync(
+                It.IsAny<ISystemContext>(), It.IsAny<MethodState>(), It.IsAny<NodeId>(),
+                It.IsAny<uint>(), It.IsAny<CancellationToken>()), Times.Never);
+
+            // The rightful owner must still be able to close (and thereby
+            // release the writer slot) using the SAME handle afterwards.
+            CloseMethodStateResult ownerClose = await logicalNode.Close!.OnCallAsync!(
+                    ownerContext, logicalNode.Close, logicalNode.NodeId, handle, CancellationToken.None)
+                .ConfigureAwait(false);
+            Assert.That(ServiceResult.IsGood(ownerClose.ServiceResult), Is.True);
+
+            forwarder.Verify(f => f.ForwardCloseAsync(
+                It.IsAny<ISystemContext>(), It.IsAny<MethodState>(), It.IsAny<NodeId>(),
+                1u, It.IsAny<CancellationToken>()), Times.Once);
+
+            // The handle is now fully released at our layer too: a further
+            // close attempt (even by the owner) reports "unknown handle"
+            // rather than silently succeeding or hitting a stale pin.
+            CloseMethodStateResult secondClose = await logicalNode.Close!.OnCallAsync!(
+                    ownerContext, logicalNode.Close, logicalNode.NodeId, handle, CancellationToken.None)
+                .ConfigureAwait(false);
+            Assert.That(
+                secondClose.ServiceResult.StatusCode, Is.EqualTo(StatusCodes.BadInvalidArgument));
+        }
+
+        /// <summary>
+        /// Reviewer issue #2 regression (second review round): mirroring the
+        /// default Version's FileType Properties onto the logical Resource
+        /// sets each child PropertyState's own change mask (Size, OpenCount,
+        /// ...); clearing change masks with <c>includeChildren: false</c> only
+        /// processes the logical Resource node's OWN mask and leaves those
+        /// children dirty/unreported. A subscriber on a mirrored child
+        /// Property must be notified (and that child's mask cleared)
+        /// immediately after a logical-Resource Open and again after Close.
+        /// </summary>
+        [Test]
+        public async Task LogicalResourceOpenAndCloseNotifyMirroredChildPropertyChangesAsync()
+        {
+            Mock<IXRegistryProjectedResourceFileHandleForwarder> forwarder =
+                CreateForwarderMock(underlyingOpenHandle: 1);
+            var strategy = new VersionedTestStrategy
+            {
+                FileFactory = (_, _) => (IXRegistryProjectedResourceFile)forwarder.Object,
+                Snapshot = VersionedProjectionSnapshot("v1"),
+                EventSnapshot = VersionedEventSnapshot("v1", 1, WotLabels())
+            };
+            ProjectionHarness harness = ProjectionHarness.Create(suppliedStrategy: strategy);
+            await harness.Engine.AttachAsync(harness.Registry, CancellationToken.None)
+                .ConfigureAwait(false);
+
+            ResourceState logicalNode = FindLogicalResourceNode(harness, "pump");
+            ResourceState v1Node = FindVersionNode(harness, "v1");
+            v1Node.Size!.Value = 555UL;
+
+            var notifications = new List<NodeStateChangeMasks>();
+            logicalNode.Size!.OnStateChanged = (_, _, changes) => notifications.Add(changes);
+
+            uint handle = 0;
+            ServiceResult open = logicalNode.Open!.OnCall!.Invoke(
+                harness.Context, logicalNode.Open, logicalNode.NodeId, TestWriteEraseMode, ref handle);
+            Assert.That(ServiceResult.IsGood(open), Is.True);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(notifications, Has.Count.EqualTo(1));
+                Assert.That(notifications[0].HasFlag(NodeStateChangeMasks.Value), Is.True);
+                // The mask must actually be cleared, not merely observed once
+                // and left dirty for the child.
+                Assert.That(logicalNode.Size.ChangeMasks, Is.EqualTo(NodeStateChangeMasks.None));
+            });
+
+            v1Node.Size.Value = 777UL;
+            await logicalNode.Close!.OnCallAsync!(
+                    harness.Context, logicalNode.Close, logicalNode.NodeId, handle, CancellationToken.None)
+                .ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(notifications, Has.Count.EqualTo(2));
+                Assert.That(logicalNode.Size.ChangeMasks, Is.EqualTo(NodeStateChangeMasks.None));
+            });
+        }
+
+        /// <summary>
         /// Reviewer issue #3 regression: the logical Resource's inherited
         /// FileType Properties (Size, Writable, UserWritable, OpenCount,
         /// MimeType, LastModifiedTime, MaxByteStringLength) must mirror the

@@ -479,8 +479,11 @@ namespace Opc.Ua.XRegistry.Client
 
         /// <summary>
         /// Compares a "major.minor.patch" version string against a threshold.
-        /// Returns <c>true</c> when the parsed version is ≥ the threshold.
-        /// Returns <c>false</c> on any parse failure.
+        /// A version string may omit trailing components (e.g. "1" or "1.2"),
+        /// in which case each omitted component is treated as 0 for the
+        /// comparison — so "1" is equivalent to "1.0.0". Returns <c>true</c>
+        /// when the parsed version is ≥ the threshold. Returns <c>false</c> on
+        /// any parse failure of a component that IS present.
         /// </summary>
         public static bool IsVersionAtLeast(string version, int major, int minor, int patch)
         {
@@ -493,25 +496,33 @@ namespace Opc.Ua.XRegistry.Client
             {
                 return false;
             }
-            if (parts.Length < 2 || !int.TryParse(parts[1], out int min))
+
+            // A missing minor/patch component is not a parse failure — it is
+            // treated as 0, so a bare "1" compares equal to "1.0.0" rather than
+            // always comparing strictly less than any threshold with the same
+            // major component.
+            int min = 0;
+            if (parts.Length >= 2 && !int.TryParse(parts[1], out min))
             {
-                return maj > major;
+                return false;
             }
-            if (parts.Length < 3)
+
+            int pat = 0;
+            if (parts.Length >= 3)
             {
-                return maj > major || (maj == major && min >= minor);
+                // Strip any suffix after digits (e.g. "-preview").
+                string patchPart = parts[2];
+                int end = 0;
+                while (end < patchPart.Length && char.IsDigit(patchPart[end]))
+                {
+                    end++;
+                }
+                if (end == 0 || !int.TryParse(patchPart.Substring(0, end), out pat))
+                {
+                    return false;
+                }
             }
-            // Strip any suffix after digits (e.g. "-preview").
-            string patchPart = parts[2];
-            int end = 0;
-            while (end < patchPart.Length && char.IsDigit(patchPart[end]))
-            {
-                end++;
-            }
-            if (end == 0 || !int.TryParse(patchPart.Substring(0, end), out int pat))
-            {
-                return maj > major || (maj == major && min >= minor);
-            }
+
             return maj > major ||
                    (maj == major && min > minor) ||
                    (maj == major && min == minor && pat >= patch);

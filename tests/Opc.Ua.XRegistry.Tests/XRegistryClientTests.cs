@@ -889,6 +889,17 @@ namespace Opc.Ua.XRegistry.Tests
         [TestCase("0.6", 0, 6, 0, true)]
         [TestCase("1", 0, 6, 0, true)]
         [TestCase("0", 0, 6, 0, false)]
+        // Regression: a single-component version equal to an all-zero
+        // minor/patch threshold with the same major must compare equal
+        // ("1" == "1.0.0"), not strictly less (the omitted components are 0,
+        // not a parse failure).
+        [TestCase("1", 1, 0, 0, true)]
+        [TestCase("2", 1, 9, 9, true)]
+        [TestCase("1", 2, 0, 0, false)]
+        [TestCase("1.5", 1, 5, 0, true)]
+        [TestCase("1.5", 1, 5, 1, false)]
+        [TestCase("1.x", 1, 0, 0, false)]
+        [TestCase("1.0.x", 1, 0, 0, false)]
         public void IsVersionAtLeastParsesCorrectly(
             string version, int major, int minor, int patch, bool expected)
         {

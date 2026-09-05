@@ -1010,15 +1010,15 @@ namespace Opc.Ua.XRegistry.Server
                             // let a later Open silently overwrite an earlier pin for a
                             // different Version, misrouting/closing the wrong one.
                             uint syntheticHandle = logical.AllocatePinnedHandle();
-                            logical.PinnedHandles[syntheticHandle] =
-                                new PinnedFileHandle(forwarder, vEntry.Node, underlyingHandle);
+                            logical.PinnedHandles[syntheticHandle] = new PinnedFileHandle(
+                                forwarder, vEntry.Node, underlyingHandle, SessionIdOf(context));
                             fileHandle = syntheticHandle;
 
                             // Mirror the resolved Version's FileType Properties (Size,
                             // OpenCount, ...) onto the logical Resource promptly, rather
                             // than waiting for the next reconciliation pass.
                             MirrorFileTypeProperties(node, vEntry.Node);
-                            node.ClearChangeMasks(m_context.SystemContext, includeChildren: false);
+                            node.ClearChangeMasks(m_context.SystemContext, includeChildren: true);
                         }
                         return result;
                     });
@@ -1030,7 +1030,18 @@ namespace Opc.Ua.XRegistry.Server
                     async (ISystemContext context, MethodState method, NodeId objectId,
                            uint fileHandle, CancellationToken ct) =>
                     {
-                        if (!logical.PinnedHandles.TryRemove(fileHandle, out PinnedFileHandle pinned))
+                        // Peek only: do not remove the pin until we know either (a) this
+                        // is not the owning session, in which case the pin must survive
+                        // for the rightful owner's later Close, or (b) the underlying
+                        // manager has actually been given the chance to consume the
+                        // handle. Removing eagerly here previously let a different
+                        // session guess/replay another session's synthetic handle,
+                        // strip the pin, and receive the underlying manager's
+                        // BadUserAccessDenied — after which the underlying writer
+                        // reservation was still held (not released) but the rightful
+                        // owner's own later Close could no longer find its pin at this
+                        // layer, stranding the handle and its writer slot forever.
+                        if (!logical.PinnedHandles.TryGetValue(fileHandle, out PinnedFileHandle pinned))
                         {
                             return new CloseMethodStateResult
                             {
@@ -1038,14 +1049,39 @@ namespace Opc.Ua.XRegistry.Server
                                     StatusCodes.BadInvalidArgument, "Unknown file handle.")
                             };
                         }
+
+                        NodeId callerSessionId = SessionIdOf(context);
+                        if (!pinned.SessionId.IsNull &&
+                            !callerSessionId.IsNull &&
+                            pinned.SessionId != callerSessionId)
+                        {
+                            // Reject outright without forwarding to the underlying
+                            // manager and without removing the pin, so the rightful
+                            // owner can still close (and release the writer slot) later.
+                            return new CloseMethodStateResult
+                            {
+                                ServiceResult = ServiceResult.Create(
+                                    StatusCodes.BadUserAccessDenied,
+                                    "File handle is owned by another session.")
+                            };
+                        }
+
+                        // Ownership confirmed (or no session context on either side, e.g.
+                        // an in-process call): the underlying manager will now either
+                        // release the handle on success, or on any failure path reached
+                        // past its own session check (unknown handle, commit-authorization
+                        // failure, stale content, ...), all of which also remove it from
+                        // the underlying manager's own handle table. It is therefore safe
+                        // to remove our pin unconditionally after forwarding.
                         ServiceResult result = await pinned.Forwarder.ForwardCloseAsync(
                             context, method, objectId, pinned.UnderlyingHandle, ct)
                             .ConfigureAwait(false);
+                        logical.PinnedHandles.TryRemove(fileHandle, out _);
 
                         // Mirror the pinned Version's FileType Properties (OpenCount,
                         // Size after a commit, ...) onto the logical Resource promptly.
                         MirrorFileTypeProperties(node, pinned.VersionNode);
-                        node.ClearChangeMasks(m_context.SystemContext, includeChildren: false);
+                        node.ClearChangeMasks(m_context.SystemContext, includeChildren: true);
                         return new CloseMethodStateResult { ServiceResult = result };
                     });
             }
@@ -1128,6 +1164,17 @@ namespace Opc.Ua.XRegistry.Server
         /// logical Resource observes the represented Version's file state instead of
         /// stale or default values.
         /// </summary>
+        /// <summary>
+        /// Gets the session a call arrived on, or a null NodeId for an in-process
+        /// call or a context without session information.
+        /// </summary>
+        private static NodeId SessionIdOf(ISystemContext? context)
+        {
+            return context is ISessionSystemContext { SessionId: { IsNull: false } sessionId }
+                ? sessionId
+                : NodeId.Null;
+        }
+
         private static void MirrorFileTypeProperties(ResourceState target, ResourceState source)
         {
             if (source.Size is not null)
@@ -2891,13 +2938,17 @@ namespace Opc.Ua.XRegistry.Server
         /// <summary>
         /// A file handle pinned by the logical Resource's file forwarding: the
         /// underlying forwarder/handle pair on the exact Version that was the
-        /// resolved default at Open time, plus that Version's node (used to mirror
-        /// FileType Properties back onto the logical Resource after Open/Close).
+        /// resolved default at Open time, that Version's node (used to mirror
+        /// FileType Properties back onto the logical Resource after Open/Close),
+        /// and the session that opened it (so a different session's Close cannot
+        /// remove this pin before the underlying manager gets a chance to reject
+        /// it — see <see cref="SessionIdOf"/>).
         /// </summary>
         private readonly record struct PinnedFileHandle(
             IXRegistryProjectedResourceFileHandleForwarder Forwarder,
             ResourceState VersionNode,
-            uint UnderlyingHandle);
+            uint UnderlyingHandle,
+            NodeId SessionId);
 
         /// <summary>
         /// A logical Resource node with its Versions folder and per-version entries.
