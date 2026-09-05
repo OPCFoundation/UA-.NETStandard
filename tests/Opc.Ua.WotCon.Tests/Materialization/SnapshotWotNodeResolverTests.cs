@@ -86,7 +86,17 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 .ConfigureAwait(false);
 
             Assert.That(matches, Has.Count.EqualTo(1));
-            Assert.That(matches[0].NodeId, Is.EqualTo("nsu=urn:test:pump;s=Tank"));
+            Assert.That(
+                matches[0].NodeId,
+                Is.EqualTo(Opc.Ua.Wot.WotPortableIdentity.GenerateNodeId(
+                    PumpNamespace,
+                    new ArrayOf<Opc.Ua.Wot.WotBrowsePathElement>(
+                        new[]
+                        {
+                            new Opc.Ua.Wot.WotBrowsePathElement(PumpNamespace, "Tank")
+                        }))),
+                "The index and the conversion derive one generated identity, by the " +
+                "Annex G.1 formula, from the same two inputs.");
             Assert.That(matches[0].NodeClass, Is.EqualTo(WotExpectedNodeClass.ObjectType));
         }
 

@@ -41,7 +41,7 @@ namespace Opc.Ua.Wot
     /// <summary>
     /// Schema-complete, deterministic JSON projection of the UANodeSet XSD.
     /// </summary>
-    internal static class WotNativeProjection
+    internal static partial class WotNativeProjection
     {
         public const string ProjectionType = "uav:NodeModel";
         public const string ProfileVersion = "1.0";
@@ -112,6 +112,18 @@ namespace Opc.Ua.Wot
                     $"The uav:nodes member shall be an object whose @type is " +
                     $"{ProjectionType}.",
                     WotLocation.FromPointer("/uav:nodes")));
+                return null;
+            }
+
+            // The record grammar gives every member exactly one JSON type, so a
+            // member of the wrong type is a corrupt record rather than an
+            // absent value. Checking that once, before anything is read, is
+            // what keeps a reader from answering "absent" for a member that is
+            // present and wrong - and what makes the pointer in the diagnostic
+            // the place the record is wrong rather than the place a default
+            // later surfaced.
+            if (!ValidateScalarKinds(projection, options, diagnostics))
+            {
                 return null;
             }
 

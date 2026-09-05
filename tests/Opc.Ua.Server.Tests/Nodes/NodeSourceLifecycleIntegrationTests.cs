@@ -218,6 +218,65 @@ namespace Opc.Ua.Server.Tests.Nodes
         }
 
         [Test]
+        public async Task SourceMonitoredItemCallbacksRunOnceAsync()
+        {
+            var source = new GraphSource(generation: 1);
+            NodeManagerRegistration registration = await m_server.NodeManagerLifecycle
+                .AddNodeSourceAsync(source).ConfigureAwait(false);
+            try
+            {
+                var services = new ServerTestServices(m_server, m_secureChannelContext);
+                m_requestHeader.Timestamp = DateTimeUtc.Now;
+                CreateSubscriptionResponse subscription = await services
+                    .CreateSubscriptionAsync(m_requestHeader, 100, 100, 10, 0, true, 0)
+                    .ConfigureAwait(false);
+                try
+                {
+                    m_requestHeader.Timestamp = DateTimeUtc.Now;
+                    CreateMonitoredItemsResponse response = await services.CreateMonitoredItemsAsync(
+                        m_requestHeader,
+                        subscription.SubscriptionId,
+                        TimestampsToReturn.Both,
+                        [
+                            new MonitoredItemCreateRequest
+                            {
+                                ItemToMonitor = new ReadValueId
+                                {
+                                    NodeId = source.VariableId,
+                                    AttributeId = Attributes.Value
+                                },
+                                MonitoringMode = MonitoringMode.Reporting,
+                                RequestedParameters = new MonitoringParameters
+                                {
+                                    ClientHandle = 1,
+                                    SamplingInterval = 0,
+                                    QueueSize = 1,
+                                    DiscardOldest = true
+                                }
+                            }
+                        ]).ConfigureAwait(false);
+
+                    Assert.That(response.Results, Has.Count.EqualTo(1));
+                    Assert.That(response.Results[0].StatusCode, Is.EqualTo(StatusCodes.Good));
+                    Assert.That(source.MonitoredItemCreatedCount, Is.EqualTo(1));
+                }
+                finally
+                {
+                    m_requestHeader.Timestamp = DateTimeUtc.Now;
+                    await services.DeleteSubscriptionsAsync(
+                        m_requestHeader,
+                        [subscription.SubscriptionId]).ConfigureAwait(false);
+                }
+                Assert.That(source.MonitoredItemDeletedCount, Is.EqualTo(1));
+            }
+            finally
+            {
+                await m_server.NodeManagerLifecycle.RemoveAsync(
+                    registration, callerContext: null).ConfigureAwait(false);
+            }
+        }
+
+        [Test]
         public async Task BuildAsyncImportSupportsTypedBrowseReadAndCallAsync()
         {
             var source = new ImportedGraphSource();
@@ -1014,6 +1073,10 @@ namespace Opc.Ua.Server.Tests.Nodes
 
             public int NodeRemovedCount { get; private set; }
 
+            public int MonitoredItemCreatedCount { get; private set; }
+
+            public int MonitoredItemDeletedCount { get; private set; }
+
             public bool ExistingResolversSeeAuthoredGraph { get; private set; }
 
             public ValueTask BuildAsync(
@@ -1040,6 +1103,12 @@ namespace Opc.Ua.Server.Tests.Nodes
                 variable.Node.WrappedValue = new Variant(m_generation);
                 variable.OnNodeAdded((_, _) => NodeAddedCount++);
                 variable.OnNodeRemoved((_, _) => NodeRemovedCount++);
+                variable.OnMonitoredItemCreated((_, _, _) => MonitoredItemCreatedCount++);
+                variable.OnMonitoredItemDeleted((_, _, _, _) =>
+                {
+                    MonitoredItemDeletedCount++;
+                    return default;
+                });
                 VariableId = variable.Node.NodeId;
                 VariableBrowseName = variable.Node.BrowseName;
                 VariableReferenceTypeId = variable.Node.ReferenceTypeId;

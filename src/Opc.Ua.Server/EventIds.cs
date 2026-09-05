@@ -60,6 +60,7 @@ namespace Opc.Ua
         public const int JsonUserDatabase = 190;
         public const int MasterNodeManager = 200;
         public const int MonitoredItem = 230;
+        public const int MonitoredSourceRegistry = 240;
         public const int MonitoredItemQueue = 250;
         public const int MonitoredNode = 260;
         public const int NamespaceMetadataPublisher = 270;

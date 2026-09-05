@@ -61,8 +61,9 @@ namespace Opc.Ua.Types.Tests.Wot
                 Is.True,
                 "Event type root should carry the uav:eventType annotation.");
             Assert.That(
-                document.RootElement.GetProperty("uav:isEvent").GetBoolean(),
-                Is.True);
+                document.RootElement.TryGetProperty("uav:isEvent", out _),
+                Is.False,
+                "WoT Binding 1.1 defines no uav:isEvent term.");
         }
 
         [Test]

@@ -44,6 +44,9 @@ try
             "opc.tcp://localhost:62551/SourceA",
         SourceBEndpoint = builder.Configuration["sourceBEndpoint"] ??
             "opc.tcp://localhost:62552/SourceB",
+        ApplicationName = builder.Configuration["applicationName"] ??
+            "AggregationClient",
+        PkiRoot = builder.Configuration["pkiRoot"],
         DocumentsDirectory = builder.Configuration["documentsDirectory"] ??
             System.IO.Path.Combine(AppContext.BaseDirectory, "Documents")
     };

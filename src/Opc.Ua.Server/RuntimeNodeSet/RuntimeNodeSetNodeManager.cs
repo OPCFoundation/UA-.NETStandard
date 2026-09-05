@@ -463,20 +463,6 @@ namespace Opc.Ua.Server.RuntimeNodeSet
             return new ArrayOf<LocalReference>(droppedReferences.ToArray());
         }
 
-        /// <inheritdoc/>
-        protected override void OnMonitoredItemCreated(
-            ServerSystemContext context,
-            NodeHandle handle,
-            ISampledDataChangeMonitoredItem monitoredItem)
-        {
-            base.OnMonitoredItemCreated(context, handle, monitoredItem);
-
-            if (handle?.Node is { } node)
-            {
-                m_dispatcher?.NotifyMonitoredItemCreated(context, node, monitoredItem);
-            }
-        }
-
         /// <summary>
         /// Reports an imported node whose declared <c>ParentNodeId</c> is
         /// outside this manager and is not backed by an explicit inverse

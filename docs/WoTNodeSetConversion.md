@@ -86,14 +86,8 @@ ModellingRule Object at all. The four rules therefore map as:
 | `OptionalPlaceholder` | `i=11508` |
 | `MandatoryPlaceholder` | `i=11510` |
 
-An earlier draft of this converter mapped `MandatoryPlaceholder` to
-`i=11508` and `OptionalPlaceholder` to `i=11509`, which inverted the first
-rule and left the second pointing at a Node that does not exist. Both
-directions now derive from one pair of constants, so a round trip preserves
-the rule it started with. A NodeSet2 emitted by that draft keeps the wrong
-`HasModellingRule` target until it is converted again; the readable spelling
-a document authors never changed, so re-generating the NodeSet is the whole
-of the fix.
+Both conversion directions derive these identifiers from one pair of constants,
+so a round trip preserves the modelling rule it started with.
 
 ## WoT to NodeSet defaults
 
@@ -109,14 +103,14 @@ them.
 | Convertible content: no `uav:nodeSet`, no `uav:nodes`, and neither a Thing Model nor a Thing Description kind | **Fails** | `NoConvertibleContent` error; no NodeSet is returned. |
 | Model namespace: root `uav:id` has no `nsu=<NamespaceUri>;...` part and document `id` is absent | **Default** | `NamespaceUris = ["urn:opcua:wot:synthesized"]` and `Models[0].ModelUri = "urn:opcua:wot:synthesized"`. This is intentionally synthetic and should be replaced by an authored namespace in portable documents. |
 | Root local name: root `uav:browseName` is absent | **Default** | Sanitized `title` (letters, digits, `_`, `-`) when non-empty; otherwise `Thing`. |
-| Root `uav:id` | **Default** | Deterministic NodeId `ns=1;s=<rootLocal>` and an informational `GeneratedNodeId` diagnostic. |
+| Root `uav:id` | **Default** | Deterministic NodeId by Annex G.1: `ns=1;s=/nsu=<escaped model NamespaceUri>;<rootLocal>`, and an informational `GeneratedNodeId` diagnostic. |
 | Root `uav:browseName` | **Default** | `1:<rootLocal>`. |
 | Root `title` | **Default** | Root `DisplayName` becomes `<rootLocal>`. |
 | Thing Model root event annotation `uav:eventType` | **Default** | Root is a non-abstract `UAObjectType` with inverse `HasSubtype` to `BaseObjectType` (`i=58`). If the event annotation is present, the default supertype is `BaseEventType` (`i=2041`). |
 | Thing Description root type information | **Default** / **Bound** / **Fails** | Absent: root is a `UAObject` with `HasTypeDefinition` to `BaseObjectType` (`i=58`). Present: a `ua:HasTypeDefinition` link (WoT Binding Section 5.2.1) whose `href` is the ExpandedNodeId of the type, and/or a compact model name in `@type`, binds the root to that type so the converter reuses the existing type rather than defining a second one. The two forms are resolved against the Section 5.1.5 local context — the sibling documents of the conversion first, a loaded AddressSpace as the fallback — supplied through `IWotNodeResolver`. A binding that names a type the local context does not hold **fails** (`UnresolvedTypeBinding`) rather than falling back to `BaseObjectType`; two bindings that disagree, an ambiguous name with nothing to settle it, or a resolved type of the wrong NodeClass **fail** as `AmbiguousTypeBinding`. A compact name is a binding when its namespace is one the local context holds; any other `@type` member is ordinary annotation and is retained as residue. |
 | Root `description` | **Default** | No `Description` field is materialized. |
 | Property affordance `uav:browseName` | **Default** | The affordance map key is used as the local name and BrowseName `1:<key>`. |
-| Property affordance `uav:id` | **Default** | Deterministic NodeId `ns=1;s=<rootLocal>/<propertyLocal>`. |
+| Property affordance `uav:id` | **Default** | Deterministic NodeId by Annex G.1: `ns=1;s=/nsu=<escaped model NamespaceUri>;<rootLocal>/nsu=<escaped model NamespaceUri>;<propertyLocal>`. |
 | Property DataSchema `type` or an unrecognized `type` | **Default** | The canonical table of WoT Binding §6.11.4: `boolean` → `Boolean`, `integer` → the **abstract** `Integer` (`i=27`), `number` → the **abstract** `Number` (`i=26`), `string` → `String`, refined by `contentEncoding: base64` → `ByteString`, `format: date-time` → `DateTime`, `format: uuid` → `Guid`, `format: uri` → `UriString`. An explicit `uav:dataTypeId` or `uav:mapToType` outranks the inference. Anything unrecognized falls back to `BaseDataType` (`i=24`). A bare `integer` or `number` is deliberately abstract: the schema states only that the value is whole or numeric, and a concrete width is recovered from an annotation rather than guessed. |
 | Property `readOnly` and `writeOnly` | **Default** | Missing flags mean read/write access (`CurrentRead | CurrentWrite`, value `3`). If both flags are `true`, the zero-access result is coerced to `CurrentRead` (`1`); this is an arbitrary safety default and should be specified explicitly. |
 | Property `title` | **Default** | No `DisplayName` field is materialized for the variable. A `titles` map materializes one `LocalizedText` per locale, the default locale's entry first (Section 9.1.1). |
@@ -125,30 +119,30 @@ them.
 | Property `uav:arrayDimensions` (Sections 7, 9.1) | **Default** / **Fails** | Absent: no `ArrayDimensions` attribute. Present: the ordered bounds, with `0` meaning a dimension whose length is not fixed. Not an array of non-negative integers, a length other than a fixed `uav:valueRank`, or any dimension against a rank that fixes none: `InvalidValueRank` error. |
 | Property type definition | **Default** | `HasTypeDefinition` to `BaseDataVariableType` (`i=63`). An affordance that binds itself to `PropertyType` (`i=68`) is held by `HasProperty` rather than `HasComponent`, which is the only ReferenceType OPC 10000-3 reaches a Property through. |
 | Action affordance `uav:browseName` | **Default** | The affordance map key is used as the local name and BrowseName `1:<key>`. |
-| Action affordance `uav:id` | **Default** | Deterministic NodeId `ns=1;s=<rootLocal>/<actionLocal>`. |
+| Action affordance `uav:id` | **Default** | Deterministic NodeId by Annex G.1: `ns=1;s=/nsu=<escaped model NamespaceUri>;<rootLocal>/nsu=<escaped model NamespaceUri>;<actionLocal>`. |
 | Action `title` | **Default** | No `DisplayName` field is materialized for the method. |
-| Action `input` / `output` (Section 9.1) | **Default** / **Fails** | Absent: the Method is materialized with no argument Property. Present: the schema becomes an `InputArguments` / `OutputArguments` Property (`Argument[]`, `DataType` `i=296`, `ValueRank` `1`) held by `HasProperty`, with NodeId `ns=1;s=<rootLocal>/<actionLocal>/<InputArguments\|OutputArguments>`. A schema that names one DataType — through `uav:mapToType`, `uav:dataTypeId`, `uav:dataTypeName` or an inline `uav:dataTypeDefinition` — is one argument, named from its `uav:browseName` or `title` and otherwise `Input` / `Output`; an object schema's members are the arguments. Each member's DataType resolves by the property rules above, `uav:valueRank` defaults to `-1` and `uav:arrayDimensions` and `description` are carried onto the `Argument`. Order comes from `uav:fieldOrder` (Section 6.11.4); a single member needs none, and an `Acknowledge`, `Confirm` or `AddComment` action takes the fixed OPC 10000-9 order `EventId`, `Comment`. A multi-member schema with no order **fails** (`MethodArgumentOrderAmbiguous`) rather than using JSON member order, and one whose `uav:fieldOrder` does not list every member exactly once, or that is not a JSON object, **fails** (`MethodArgumentSchemaInvalid`). A reported schema is still carried verbatim through residue, so a rejected document never loses the signature it authored. |
+| Action `input` / `output` (Section 9.1) | **Default** / **Fails** | Absent: the Method is materialized with no argument Property. Present: the schema becomes an `InputArguments` / `OutputArguments` Property (`Argument[]`, `DataType` `i=296`, `ValueRank` `1`) held by `HasProperty`, with NodeId `ns=1;s=/nsu=<escaped model NamespaceUri>;<rootLocal>/nsu=<escaped model NamespaceUri>;<actionLocal>/<InputArguments\|OutputArguments>` (Annex G.1; the standard child keeps its bare base-namespace name). A schema that names one DataType — through `uav:mapToType`, `uav:dataTypeId`, `uav:dataTypeName` or an inline `uav:dataTypeDefinition` — is one argument, named from its `uav:browseName` or `title` and otherwise `Input` / `Output`; an object schema's members are the arguments. Each member's DataType resolves by the property rules above, `uav:valueRank` defaults to `-1` and `uav:arrayDimensions` and `description` are carried onto the `Argument`. Order comes from `uav:fieldOrder` (Section 6.11.4); a single member needs none, and an `Acknowledge`, `Confirm` or `AddComment` action takes the fixed OPC 10000-9 order `EventId`, `Comment`. A multi-member schema with no order **fails** (`MethodArgumentOrderAmbiguous`) rather than using JSON member order, and one whose `uav:fieldOrder` does not list every member exactly once, or that is not a JSON object, **fails** (`MethodArgumentSchemaInvalid`). A reported schema is still carried verbatim through residue, so a rejected document never loses the signature it authored. |
 | Event affordance `uav:browseName` | **Default** | The affordance map key is used as the local name and BrowseName `1:<key>`. |
-| Event affordance `uav:id` | **Default** | Deterministic NodeId `ns=1;s=<rootLocal>/<eventLocal>`. |
+| Event affordance `uav:id` | **Default** | Deterministic NodeId by Annex G.1: `ns=1;s=/nsu=<escaped model NamespaceUri>;<rootLocal>/nsu=<escaped model NamespaceUri>;<eventLocal>`. |
 | Event `title` | **Default** | No `DisplayName` field is materialized for the event type. |
 | Event type abstraction/supertype | **Default** | Event affordances materialize as non-abstract `UAObjectType` nodes with inverse `HasSubtype` to `BaseEventType` (`i=2041`) and a root `GeneratesEvent` reference, unless the affordance carries `uav:conditionType` or `uav:conditionTypeId`. A Condition event derives from the named ConditionType instead (WoT Binding Section 13.2). A `uav:conditionType` and a `uav:conditionTypeId` naming different types **fail** (`ConditionTypeConflict`). |
-| Event `data` (Section 13.3) | **Default** / **Fails** | Absent, or a member naming a field the projected type inherits: no Node is materialized, because `BaseEventType` and the ConditionTypes already declare those fields and `ConditionId` is the Condition's NodeId Attribute rather than a Variable. A member the type adds becomes a Property (`HasTypeDefinition` `PropertyType`, NodeId `ns=1;s=<rootLocal>/<eventLocal>/<fieldLocal>`) whose DataType resolves by the property rules above, with `uav:valueRank` defaulting to `-1`, `uav:arrayDimensions` and `description` carried across, and `HasModellingRule` `Mandatory` when the schema lists the member in `required` and `Optional` otherwise. A member that is not a DataSchema, or that reaches a BrowseName another member already reached, **fails** (`EventFieldInvalid`) and is carried verbatim through residue. |
+| Event `data` (Section 13.3) | **Default** / **Fails** | Absent, or a member naming a field the projected type inherits: no Node is materialized, because `BaseEventType` and the ConditionTypes already declare those fields and `ConditionId` is the Condition's NodeId Attribute rather than a Variable. A member the type adds becomes a Property (`HasTypeDefinition` `PropertyType`, NodeId `ns=1;s=/nsu=<escaped model NamespaceUri>;<rootLocal>/nsu=<escaped model NamespaceUri>;<eventLocal>/nsu=<escaped model NamespaceUri>;<fieldLocal>` (Annex G.1)) whose DataType resolves by the property rules above, with `uav:valueRank` defaulting to `-1`, `uav:arrayDimensions` and `description` carried across, and `HasModellingRule` `Mandatory` when the schema lists the member in `required` and `Optional` otherwise. A member that is not a DataSchema, or that reaches a BrowseName another member already reached, **fails** (`EventFieldInvalid`) and is carried verbatim through residue. |
 | `uav:conditionAction` / `uav:actsOn` (Section 13.4) | **Default** / **Fails** | Absent: the Method is a component of the Thing with no `MethodDeclarationId`. Present and admitted by the ConditionType the target event projects: the Method takes the base-namespace BrowseName of the named Condition Method, carries the OPC 10000-9 declaration as its `MethodDeclarationId` (`Acknowledge` `i=9111`, `Confirm` `i=9113`, `AddComment` `i=9029`, `Enable` `i=9027`, `Disable` `i=9028`) and becomes a component of the EventType instead of the Thing. A Method the projected ConditionType does not declare — `Acknowledge` or `Confirm` against a plain `ua:ConditionType` — **fails** (`ConditionActionNotDeclared`). |
-| `uav:severity` (Section 6.6) | **Default** / **Fails** | Absent: no `Severity` Property is materialized, so the EventType inherits the one `BaseEventType` declares and a server applies its own default. Present and in the OPC 10000-5 range `1..1000`: a `Severity` Property (`UInt16`, `HasTypeDefinition` `PropertyType`, `HasModellingRule` `Mandatory`) holding that value, with NodeId `ns=1;s=<rootLocal>/<eventLocal>/Severity`. Outside that range, non-integer, or on an affordance that is not an event: `InvalidEventSeverity` error. The value is **not** clamped — Section 7 forbids it — and the rejected value is carried through residue rather than dropped. |
+| Unknown event member `uav:severity` | **Default** | WoT Binding 1.1 defines no such term. A document that carries one is consumed permissively: the member is ordinary unknown residue, nothing is materialized from it, and no `Severity` Property is synthesized. Strict authoring reports it as an unknown term. |
 | `uav:modellingRule` on a property or action | **Default** | No `HasModellingRule` reference is materialized. |
 | `uav:hasComponent` / `uav:componentOf` entry has no matching typed ReferenceType link | **Default** | `HasComponent` is used for the component reference. |
 | Link `rel` names a ReferenceType the local context holds (Sections 5.1.2, 5.1.5 and 6.2) | **Default** / **Fails** | The relation is created with that exact ReferenceType, stated as a NodeSet-local NodeId. A `rel` matching the ReferenceType's **InverseName** clears `IsForward`; a symmetric ReferenceType reads forward under its BrowseName in both directions. A `rel` matching more than one ReferenceType with no `uav:refId` to settle it: `ReferenceTypeAmbiguous` error. A `rel` or `uav:refId` naming a Node of another NodeClass: `ReferenceTypeNodeClassInvalid` error. A `rel` and a `uav:refId` naming different ReferenceTypes, or a `uav:refId` naming none of an ambiguous name's candidates: `ModelConceptConflict` error. Nothing falls back to `HasComponent` or to a standard alias. |
 | `uav:inverseName` / `uav:symmetric` on a document that projects a ReferenceType | **Default** | Absent: the ReferenceType is materialized with no `InverseName` and `Symmetric` `false`. Present: they become the projected Node's `InverseName` (tagged with the document's default locale) and `Symmetric` Attributes, which is what lets a local context built from documents alone resolve an inverse relation. |
-| Binding link has no resolvable model-name relation and no `uav:refId` | **Default** | The link maps to `Organizes`. Spec PR #19 removed `uav:componentModel`, `uav:capability` and `uav:reference`; a link now names its ReferenceType directly in `rel` (`ua:HasComponent`, `ua:HasInterface`, `ua:NonHierarchicalReferences`). |
+| Binding link has no resolvable model-name relation and no `uav:refId` | **Default** | The link maps to `Organizes`. A typed link names its ReferenceType directly in `rel` (`ua:HasComponent`, `ua:HasInterface`, `ua:NonHierarchicalReferences`). |
 | Reference link points to another Thing by URI and no resolver is supplied or the resolver cannot find `uav:id` | **Default** | The reference is omitted and a warning diagnostic is emitted; no placeholder NodeId is generated. |
 | Invalid namespace-qualified `uav:id` / `uav:browseName` syntax or unbound compact-name prefix | **Fails** | An error diagnostic is emitted; `ToNodeSet` throws even though synthesis continues far enough to collect diagnostics. |
-| Event affordance says `@type: uav:eventType` and `uav:isEvent: false` | **Fails** | `EventAnnotationConflict` error; the two terms must not contradict each other. |
+| Event affordance says `@type: uav:eventType` and carries `uav:isEvent` | **Default** | WoT Binding 1.1 defines event identity with the `@type` annotation and defines no `uav:isEvent` term. The unknown member is preserved as residue and reported as an unknown term in strict authoring. |
 | `uav:isComposite` (Section 6.1) | **Default** / **Fails** | Absent: the type is treated as atomic and no `HasComponent` walk is forced. Malformed (non-boolean): `InvalidModelVocabularyValue` error and `ToNodeSet` throws. Present and valid: the flag has no distinct readable NodeSet structure, so it is carried verbatim through the `uav:nodes` residue and restored on the reverse conversion. |
 | `uav:contains` (Section 6.3) | **Default** / **Fails** | Absent: sub-components come from links only. Malformed (not an array, or an entry that does not match a link `uav:refName` declared on the same type): `InvalidContainment` error. Present and valid: preserved via residue. |
 | `uav:containedIn` (Section 6.3) | **Default** / **Fails** | Absent: no parent is recorded. Malformed (not a non-empty string, or naming the type itself, which is a cycle): `InvalidContainment` error. The reciprocal "the named composite exists" check is cross-document and out of scope for the single-document converter, which validates range and self-cycle only. Present and valid: preserved via residue. |
 | `uav:unitProperty` (Section 6.4) | **Default** / **Fails** | Absent: the affordance names no unit Property. Malformed (not a canonical RFC 6901 pointer of the form `/properties/<name>`, naming the affordance that carries it, or resolving to something other than a sibling property affordance whose DataSchema `type` is `string`): `InvalidUnitPointer` error. Present and valid: the named affordance becomes the annotated Variable's own `EngineeringUnits` Property (`HasProperty`), unless it states its own `uav:componentOf`. |
 | `uav:engineeringUnits` (Section 6.4.1) | **Default** / **Fails** | Absent: no `EUInformation` value is materialized. Malformed (not an object carrying `namespaceUri`, an integer `unitId` and `displayName`): `InvalidEngineeringUnits` error. Present and valid: the affordance's Variable gets `DataType` `EUInformation` (`i=887`) — unless `uav:mapToType` pins another — and a `Value` holding the `EUInformation` in its default XML encoding (`i=888`). |
-| `minimum` / `maximum` (Section 6.4.1) | **Default** / **Fails** | Absent, or only one of the two: no `EURange` Property is materialized. `minimum` above `maximum`: `InvalidRangeValue` error. Present and valid: an `EURange` Property (`Range` `i=884`, `HasTypeDefinition` `PropertyType`, `HasModellingRule` `Mandatory`, NodeId `ns=1;s=<rootLocal>/<propertyLocal>/EURange`) holding the interval, or the value of the `EURange` affordance the document authored itself. |
+| `minimum` / `maximum` (Section 6.4.1) | **Default** / **Fails** | Absent, or only one of the two: no `EURange` Property is materialized. `minimum` above `maximum`: `InvalidRangeValue` error. Present and valid: an `EURange` Property (`Range` `i=884`, `HasTypeDefinition` `PropertyType`, `HasModellingRule` `Mandatory`, NodeId `ns=1;s=/nsu=<escaped model NamespaceUri>;<rootLocal>/nsu=<escaped model NamespaceUri>;<propertyLocal>/EURange` (Annex G.1)) holding the interval, or the value of the `EURange` affordance the document authored itself. |
 | `uav:instrumentRange` (Section 6.4.1) | **Default** / **Fails** | Absent: no `InstrumentRange` Property. Malformed, or an engineering range not contained in it: `InvalidRangeValue` error. Present and valid: an `InstrumentRange` Property (`Range` `i=884`, `HasModellingRule` `Optional`) holding the interval. |
 | `uav:scaleFactor` (Section 6.4) | **Default** / **Fails** | Absent: identity scaling (factor `1`). Malformed (not a non-zero number): `InvalidModelVocabularyValue` error. Present and valid: preserved via residue. It is a static presentation and transport transform, never derived from — nor used to derive — `EngineeringUnits`, `EURange` or `InstrumentRange`. |
 | `uav:decimalPlaces` (Section 6.4) | **Default** / **Fails** | Absent: no rounding is recorded. Malformed (not an integer greater than or equal to zero; `2.0` is rejected as a non-integer literal): `InvalidModelVocabularyValue` error. Present and valid: preserved via residue. |
@@ -162,11 +156,40 @@ them.
 | `uav:additionalProperties` (Section 6.8) | **Default** / **Fails** | Absent: no open-content flag is recorded. Malformed (non-boolean): `InvalidModelVocabularyValue` error. Present and valid: preserved via residue. |
 | `uav:browsePathAnchor` (Section 5.1.4) | **Default** / **Fails** | Absent: a relative `uav:browsePath` resolves against the nearest enclosing `uav:id`. Malformed (not an ExpandedNodeId): `ValidationError` error; the session-local `ns=<index>` form is reported `NonPortableIdentity` (an error unless `AllowNonPortableIdentifiers` is set). Present and valid: preserved via residue. |
 
-## Consumer-visible compatibility notes
+## Portable identity and preservation semantics
 
-Two WoT-to-NodeSet behaviours are intentionally silent because they follow the
-current WoT Binding vocabulary, but both can change what a consumer observes in
-the materialized NodeSet.
+The following sections describe generated NodeId identity and the distinct
+measurements used for preserved JSON values.
+
+### Generated NodeIds follow Annex G.1
+
+A document that authors no `uav:id` gets a **generated** NodeId, and the
+generation is the Annex G.1 formula rather than a convenience of this
+implementation:
+
+> `GeneratedNodeId(U, P) = "nsu=" + U + ";s=" + P`
+
+`U` is the NamespaceUri the synthesized Node is created in, and `P` is the
+Node's absolute browse path in OPC 10000-4 Annex A.2 relative-path syntax: each
+element is preceded by `/`, an element of the base OPC UA namespace is written
+bare, any other element is `nsu=<percent-encoded NamespaceUri>;<name>`, and the
+Annex A.2 reserved characters `&/.<>:#!` are escaped with `&` inside a name. A
+NodeSet file carries the same identity in its NodeSet-local spelling,
+`ns=1;s=<P>`, because namespace index 1 is `U`; the reverse mapping renders it
+back as `nsu=U;s=P`.
+
+`WotPortableIdentity.GenerateNodeId` / `GenerateBrowsePath` is the single
+implementation, so a conversion and a published Annex G.1 vector measure the
+same function. The same class answers `IsPortableNodeId`,
+`IsPortableQualifiedName` and `IsResolvableBrowsePath`, which is what the
+conversion's Section 5.1.1 and 5.1.4 validation calls.
+
+The leading separator, per-element namespace qualification and escaping make
+the generated identity injective. A member named `A/B` of `Root` has a different
+identifier from a member named `B` of `Root/A`, and a base-namespace
+`InputArguments` has a different identity from a model member with the same
+name. A document-authored `uav:id` always wins over generation; author one when
+the identity must be fixed independently of its browse path.
 
 ### Preservation digests and the two things that can be measured
 
@@ -210,23 +233,17 @@ implementation keeps them apart. Two of them are digests; the third is a size.
   bytes measure the same number. The depth and key-count bounds are measured
   over the parsed value, where formatting cannot matter.
 
-### Pre-PR #19 reference vocabulary is residue
+### Unmapped reference vocabulary is residue
 
-Spec PR #19 removed six `uav:` terms from the Binding vocabulary:
-`uav:capability`, `uav:componentModel`, `uav:reference`,
-`uav:congruentType`, `uav:congruentTypeName` and `uav:nameNamespace`. A
-document authored against the earlier vocabulary that still carries those terms
-is not rejected. The terms are now unmapped JSON and are carried through the
-Section 9 `uav:nodes` residue mechanism, with no diagnostic.
+The Binding vocabulary does not define `uav:capability`,
+`uav:componentModel`, `uav:reference`, `uav:congruentType`,
+`uav:congruentTypeName` or `uav:nameNamespace`. The converter treats them as
+unmapped JSON and carries them through the Section 9 `uav:nodes` residue
+mechanism without creating References or emitting a permissive-mode diagnostic.
 
-That preserves the source document for WoT &rarr; NodeSet &rarr; WoT round-trip,
-but it no longer creates the References that earlier conversions produced. A
-consumer that browses the projected NodeSet therefore will not see those legacy
-references even though conversion succeeds.
+Use the following Binding forms to state those relationships:
 
-Use the current vocabulary instead:
-
-| Earlier term | Current form |
+| Unmapped term | Binding form |
 | --- | --- |
 | `uav:componentModel` | link `rel` names `ua:HasComponent` directly |
 | `uav:capability` | link `rel` names `ua:HasInterface` directly |
@@ -497,8 +514,8 @@ opaque bounds and the security strength orders are stated once, in
 `Opc.Ua.Wot.WotBindingConformance`; the select-clause term, its shape rules,
 its member-naming rule and its documented `BaseEventType` default are stated
 once, in `Opc.Ua.Wot.WotEventSelectClauses`. `WotBindingConformance.VocabularyTerms`
-is the complete set of 115 `uav:` IRIs the published `@context` mints:
-`IsKnownTerm` answers for the 102 a document spells with the prefix, and
+is the complete set of 113 `uav:` IRIs the published `@context` mints:
+`IsKnownTerm` answers for the 100 a document spells with the prefix, and
 `ScopedTerms` / `IsScopedTerm` for the 13 a scoped context mints under a short
 member name (`namespaceUri`, `unitId`, `minimum`, `sha256` and the rest).
 
@@ -528,10 +545,9 @@ that declared `1.9` round-trips as `1.9`, because a claim a consumer shall
 preserve is not one it may overwrite. A claim that agrees with the stamp is
 re-derived rather than also carried as residue.
 
-### The four standardized terms of revision 1.1
+### NodeClass and ReferenceType vocabulary
 
-Revision 1.1 completes the NodeClass annotation set and adds the two
-ReferenceType Attributes no link `rel` states:
+The NodeClass annotations and ReferenceType Attributes are:
 
 | Term | Where | What it says |
 |---|---|---|
@@ -547,13 +563,12 @@ symmetric Reference reads the same in both directions; that, and either term on
 a document that projects no ReferenceType, is a
 `ReferenceTypeProjectionInvalid` error.
 
-`uav:severity` is the exception to the "readable annotation" rule above: it
-names one OPC UA model fact, the EventType's own `Severity` Property, so both
-directions map it rather than carrying it. A NodeSet whose EventType declares a
-`Severity` Property with a value in `1..1000` emits the term; a document
-authoring the term materializes that Property. Because the term is mapped it is
-**not** also captured as residue — an out-of-range value, which is not mapped,
-still is, so a rejected document keeps what its author wrote.
+WoT Binding 1.1 defines neither `uav:severity` nor `uav:isEvent`. Event identity
+comes from the `@type: uav:eventType` annotation alone, and `Severity` is a field
+of an occurrence carried by the notification data schema rather than affordance
+metadata. Generated documents emit neither member, nothing is synthesized from
+either, and permissive conversion preserves either unknown member as ordinary
+residue. Strict authoring reports either as an unknown term.
 
 ## Engineering units, ranges and scaling (Sections 6.4 and 6.4.1)
 
@@ -561,6 +576,17 @@ still is, so a rejected document keeps what its author wrote.
 `uav:instrumentRange` are **mapped**, not carried: each names a Property Node
 of an `AnalogUnitType` or `AnalogItemType` Variable, and both directions
 materialize it.
+
+Five of the `uav:` terms — `uav:engineeringUnits`, `uav:unitProperty`,
+`uav:instrumentRange`, `uav:scaleFactor` and `uav:decimalPlaces` — describe the
+Variable a **property affordance** projects, and are rejected anywhere else. The
+role is decided once, at the document root: the members of the root `properties`
+map are property affordances, and everything below one — a member of an action's
+`input`, of an event's `data`, or of a property affordance's own DataSchema —
+rejects all five. A field of a payload is not a Variable, so it carries no
+`EngineeringUnits` Property for a unit to describe, and a `properties` map deeper
+in a document is a DataSchema member map rather than an affordance map however it
+is spelled.
 
 **NodeSet to WoT.** For every Variable that holds them, the converter decodes
 the three OPC 10000-8 Properties:
@@ -620,6 +646,33 @@ a display fallback that asserts no locale. The document does not claim that text
 is written in the default locale, and nothing is pushed into the exceptional
 `uav:nodes` projection to say something the plural member already says.
 
+Asserting no locale is a claim a JSON-LD reader has to be told about. `title` and
+`description` are terms of the W3C Thing Description context, and a `@context`
+that declares `@language` tags every unqualified value with it - so a German
+singular member would expand as English text. Where any projected text states no
+entry for the document's default locale, the generated `@context` therefore
+carries **one** further entry re-declaring the two terms with `"@language": null`.
+It is written only where the document needs it: adding it unconditionally would
+strip the language tag from every document this library writes. Being derived
+from the projected Nodes it is re-derivable and is not also captured as residue;
+an author's own override of the same terms says something different and is kept.
+
+The same problem has a different answer inside `uav:engineeringUnits`. Section
+6.4.1 mints `displayName` and `description` there as **short members under a
+type-scoped context**, so a root-level override cannot reach them: the scoped
+context is entered on that object and nowhere else. Where the EUInformation's
+text is not in the document's default locale, the object therefore carries its
+own node-local `@context` re-declaring `displayName` as `uav:unitDisplayName`
+and `description` as `uav:unitDescription`, each with `"@language": null`.
+`namespaceUri` and `unitId` are short members of that same scoped context, which
+is why the generated document names the Binding context itself
+(`http://opcfoundation.org/UA/WoT-Binding/v1.1/opc-ua-wot-binding.context.jsonld`)
+alongside the W3C one: a short member is a term only while the context defining
+it is in scope, and a document that named only the `uav` prefix would expand
+those members to nothing. The identity is version-pinned because a document
+states which revision it was written against, and a context that moves under a
+document is a document whose meaning changed without it being edited.
+
 **WoT to NodeSet.** A plural member becomes one `LocalizedText` per entry. The
 entry written first — the one the Node's own attribute carries — is the
 default-locale entry where the map has one and the code-point-first entry
@@ -637,8 +690,7 @@ disagree.
 
 The mapping applies to the root, to property, action and event affordances, to
 event fields, to `Method` argument descriptions, and to DataType definitions and
-their structure and enumeration fields. A field's `DisplayName` used to be
-dropped on the way out; it is now `title`.
+their structure and enumeration fields. A field's `DisplayName` maps to `title`.
 
 ## ValueRank and ArrayDimensions (Sections 7 and 9.1)
 
@@ -665,14 +717,14 @@ A UA Method's `InputArguments` and `OutputArguments` are the WoT action's
 decoded into an object DataSchema whose members are the arguments, whose
 `uav:fieldOrder` states their declaration order — the order an OPC 10000-4
 `Call` is positional over — and whose `required` lists all of them, because a
-Call supplies all of them. Each member carries the WoT type members that stand
-for its DataType, the definitive `uav:mapToType`, `uav:valueRank`, any
-`uav:arrayDimensions` and its `Description`. An argument Property the schemas
-represent is no longer emitted a second time as a sibling property of the
-Thing; one whose value cannot be decoded still is, so no Node is lost. The
-readable schemas state what the arguments are and not which Nodes hold them, so
-the exact NodeId and attributes of the argument Properties travel in the
-`uav:nodes` preservation projection.
+Call supplies all of them. Each member carries the WoT type members that stand for its DataType, the
+definitive `uav:mapToType`, `uav:valueRank`, any `uav:arrayDimensions` and its
+`Description`. An argument Property represented by the schemas is not also
+emitted as a sibling property of the Thing. A Property whose value cannot be
+decoded remains a sibling so no Node is lost. The readable schemas state what
+the arguments are and not which Nodes hold them, so the exact NodeId and
+attributes of the argument Properties travel in the `uav:nodes` preservation
+projection.
 
 **WoT to NodeSet.** See the `input` / `output` row of the defaults table above.
 
@@ -712,18 +764,17 @@ context.
 
 ### `uav:componentOf` and its `ua:ComponentOf` alias
 
-Section 9.1 spells the parent-placement relation `uav:componentOf` and declares
-`ua:ComponentOf` as an alias of it. Both spellings are accepted wherever the
-relation is read, and they are treated as the same term rather than as a term
-and a lookalike: the alias reads as a compact model name whose local part is the
-InverseName of `HasComponent`, so it is intercepted as a binding term instead of
-being realized a second time as a generic inverse typed link. A document using
-the alias used to be rejected with `ModelConceptUnresolved`.
+Section 9.1 spells the parent-placement relation `uav:componentOf` and declares `ua:ComponentOf` as an alias of it. Both
+spellings are accepted wherever the relation is read, and they are treated as
+the same term rather than as a term and a lookalike: the alias reads as a
+compact model name whose local part is the InverseName of `HasComponent`, so it
+is intercepted as a binding term instead of being realized a second time as a
+generic inverse typed link.
 
-`uav:componentOf` remains the spelling this implementation writes. The alias is
-read, never emitted, which keeps one relation one spelling on the way out.
+This implementation writes `uav:componentOf` and accepts but does not emit the
+alias, keeping one relation in one spelling on output.
 
-### Projections and legacy asset documents
+### Projection documents and the OPC 10100-1 v1.02 asset surface
 
 Two neighbouring subjects are documented elsewhere so they are stated once:
 
@@ -732,5 +783,5 @@ Two neighbouring subjects are documented elsewhere so they are stated once:
   [Projection documents and the View NodeClass](WoTConnectivity.md#124-projection-documents-and-the-view-nodeclass).
 - The **OPC 10100-1 v1.02 asset surface** (`CreateAsset`, `WoTFile` upload, the
   `AssetRegistry` POCO reader) is a separate code path governed by that
-  specification, not by the WoT Binding draft. Nothing on this page describes
-  it. See [The 1.02 asset surface](WoTConnectivity.md#126-the-102-asset-surface).
+  specification. Nothing on this page describes it. See
+  [The 1.02 asset surface](WoTConnectivity.md#126-the-102-asset-surface).

@@ -639,6 +639,314 @@ namespace Opc.Ua.WotCon.Server.Registry
         }
 
         /// <inheritdoc/>
+        public async ValueTask<WotDeleteResult> DeleteResourceAsync(
+            string groupId,
+            string resourceId,
+            WoTDeletePolicyEnum policy,
+            long? expectedEpoch = null,
+            CancellationToken cancellationToken = default)
+        {
+            await m_mutex.WaitAsync(cancellationToken).ConfigureAwait(false);
+            try
+            {
+                EnsureMutationAllowed();
+                WotRegistrySnapshot snapshot = m_snapshot;
+                WotResource? resource = snapshot.FindResource(groupId, resourceId);
+                if (resource is null)
+                {
+                    return DeleteRefused(
+                        WoTOutcomeEnum.Failed, policy, snapshot.Generation, "Resource not found.");
+                }
+                if (expectedEpoch is { } epoch && epoch != resource.Epoch)
+                {
+                    return DeleteRefused(
+                        WoTOutcomeEnum.Rejected, policy, snapshot.Generation, "Epoch mismatch.");
+                }
+
+                WotDependentSet found =
+                    await WotDependencyGraph.FindDependentsWithFaultsAsync(
+                        snapshot,
+                        resource,
+                        Bounds.MaxJsonDepth,
+                        ReadContentAsync,
+                        cancellationToken).ConfigureAwait(false);
+                ImmutableArray<WotDependent> dependents = found.Dependents;
+
+                // The target's own blob being unreadable says nothing about
+                // whether anything depends on it, and it is being removed
+                // anyway. Every other unreadable document might be a dependent,
+                // and no policy may treat "not checked" as "checked and clear".
+                ImmutableArray<string> unknown = Except(found.Unreadable, resource.Xid);
+                ImmutableArray<string>.Builder xids = ImmutableArray.CreateBuilder<string>();
+                foreach (WotDependent dependent in dependents)
+                {
+                    xids.Add(dependent.Xid);
+                }
+                ImmutableArray<string> dependentXids = xids.ToImmutable();
+
+                if (policy == WoTDeletePolicyEnum.Reject &&
+                    (dependents.Length != 0 || unknown.Length != 0))
+                {
+                    // Nothing is written: a rejected delete has to leave every
+                    // piece of state exactly as the caller found it, or the
+                    // difference between Reject and Force is only a message.
+                    return new WotDeleteResult(
+                        WoTOutcomeEnum.Rejected,
+                        policy,
+                        snapshot.Generation,
+                        deleted: false,
+                        retired: false,
+                        dependentXids,
+                        [],
+                        [],
+                        unknown,
+                        dependents.Length != 0
+                            ? $"'{resource.Xid}' still has " +
+                                dependentXids.Length.ToString(CultureInfo.InvariantCulture) +
+                                " dependent document(s), and the delete policy is Reject."
+                            : $"'{resource.Xid}' cannot be shown to be unreferenced: " +
+                                unknown.Length.ToString(CultureInfo.InvariantCulture) +
+                                " document(s) could not be read, and the delete policy is " +
+                                "Reject.");
+                }
+
+                long generation = snapshot.Generation + 1;
+                var changed = new List<string> { resource.Xid };
+                WotRegistrySnapshot next = snapshot;
+                bool deleted;
+                bool retired;
+                ImmutableArray<string> unloaded = [];
+                ImmutableArray<string> failed = [];
+                if (policy == WoTDeletePolicyEnum.Retire)
+                {
+                    // The document stays stored and therefore stays
+                    // resolvable; only its projection comes down. Nothing that
+                    // might depend on it loses a reference, so an unreadable
+                    // document is not this policy's problem.
+                    next = WithResource(
+                        next,
+                        resource.With(
+                            enabled: false,
+                            loadState: WoTLoadStateEnum.Retired,
+                            epoch: resource.Epoch + 1,
+                            clearActiveVersion: true,
+                            clearRootNodeId: true,
+                            materializedNodeCount: 0),
+                        generation);
+                    deleted = false;
+                    retired = true;
+                }
+                else
+                {
+                    next = WithoutResource(next, resource, generation);
+                    deleted = true;
+                    retired = true;
+                    (next, unloaded, failed) = ApplyPolicyToDependents(
+                        next, policy, dependents, unknown, generation, changed);
+                }
+
+                await CommitAndPublishAsync(
+                        snapshot, next, changed, projectionOnly: false, cancellationToken)
+                    .ConfigureAwait(false);
+                return new WotDeleteResult(
+                    WoTOutcomeEnum.Success,
+                    policy,
+                    generation,
+                    deleted,
+                    retired,
+                    dependentXids,
+                    unloaded,
+                    failed,
+                    unknown,
+                    DescribeDelete(policy, resource.Xid, unloaded, failed, unknown));
+            }
+            finally
+            {
+                m_mutex.Release();
+            }
+        }
+
+        /// <summary>
+        /// Applies a delete policy to the documents that depended on the
+        /// deleted one, and to the documents that might have.
+        /// </summary>
+        /// <remarks>
+        /// <c>Cascade</c> unloads only the dependents that lost a reference:
+        /// one whose references are all still answered by some other stored
+        /// document was never in danger, and taking its projection down would
+        /// remove something the delete did not break. A document that could not
+        /// be read is not proof of anything, so <c>Cascade</c> leaves it alone
+        /// and reports it - unloading it would take down a projection on a
+        /// guess. <c>Force</c> marks every dependent <c>Failed</c> instead,
+        /// because it deleted the target while they were still resolving
+        /// through it, and marks the unreadable ones <c>Failed</c> too: it
+        /// cannot say they were unaffected, and its contract is to say what it
+        /// broke.
+        /// </remarks>
+        private static (
+            WotRegistrySnapshot Snapshot,
+            ImmutableArray<string> Unloaded,
+            ImmutableArray<string> Failed) ApplyPolicyToDependents(
+            WotRegistrySnapshot snapshot,
+            WoTDeletePolicyEnum policy,
+            ImmutableArray<WotDependent> dependents,
+            ImmutableArray<string> unknown,
+            long generation,
+            List<string> changed)
+        {
+            ImmutableArray<string>.Builder unloaded = ImmutableArray.CreateBuilder<string>();
+            ImmutableArray<string>.Builder failed = ImmutableArray.CreateBuilder<string>();
+            foreach (WotDependent dependent in dependents)
+            {
+                WoTLoadStateEnum state;
+                if (policy == WoTDeletePolicyEnum.Cascade)
+                {
+                    if (!dependent.ResolvesOnlyThroughTarget)
+                    {
+                        continue;
+                    }
+                    state = WoTLoadStateEnum.Unloaded;
+                    unloaded.Add(dependent.Xid);
+                }
+                else if (policy == WoTDeletePolicyEnum.Force)
+                {
+                    state = WoTLoadStateEnum.Failed;
+                    failed.Add(dependent.Xid);
+                }
+                else
+                {
+                    continue;
+                }
+                snapshot = WithResource(
+                    snapshot,
+                    dependent.Resource.With(
+                        enabled: false,
+                        loadState: state,
+                        epoch: dependent.Resource.Epoch + 1,
+                        clearActiveVersion: true,
+                        clearRootNodeId: true,
+                        materializedNodeCount: 0,
+                        diagnostics: [
+                            state == WoTLoadStateEnum.Failed
+                                ? "A document this projection resolves through was force-deleted."
+                                : "The only document this projection resolved through was deleted."
+                        ]),
+                    generation);
+                changed.Add(dependent.Xid);
+            }
+
+            if (policy != WoTDeletePolicyEnum.Force)
+            {
+                return (snapshot, unloaded.ToImmutable(), failed.ToImmutable());
+            }
+            foreach (string xid in unknown)
+            {
+                // Every xid here is still in the snapshot and is not one of the
+                // dependents above: 'unknown' excludes the target, nothing else
+                // is removed, and a document whose content could not be read
+                // states no edge, so it can never have been proven a dependent.
+                WotResource unreadable = snapshot.FindResourceByXid(xid)!;
+                failed.Add(xid);
+                snapshot = WithResource(
+                    snapshot,
+                    unreadable.With(
+                        enabled: false,
+                        loadState: WoTLoadStateEnum.Failed,
+                        epoch: unreadable.Epoch + 1,
+                        clearActiveVersion: true,
+                        clearRootNodeId: true,
+                        materializedNodeCount: 0,
+                        diagnostics: [
+                            "This document could not be read, so whether it resolved " +
+                            "through the force-deleted document is unknown."
+                        ]),
+                    generation);
+                changed.Add(xid);
+            }
+            return (snapshot, unloaded.ToImmutable(), failed.ToImmutable());
+        }
+
+        /// <summary>
+        /// Removes one xid from a list, which is how the target's own
+        /// unreadable blob is kept out of the "might depend on it" set.
+        /// </summary>
+        private static ImmutableArray<string> Except(
+            ImmutableArray<string> values, string excluded)
+        {
+            if (values.IsDefaultOrEmpty)
+            {
+                return [];
+            }
+            ImmutableArray<string>.Builder builder = ImmutableArray.CreateBuilder<string>();
+            foreach (string value in values)
+            {
+                if (!string.Equals(value, excluded, StringComparison.Ordinal))
+                {
+                    builder.Add(value);
+                }
+            }
+            return builder.ToImmutable();
+        }
+
+        private static string DescribeDelete(
+            WoTDeletePolicyEnum policy,
+            string xid,
+            ImmutableArray<string> unloaded,
+            ImmutableArray<string> failed,
+            ImmutableArray<string> unknown)
+        {
+            string unreadable = unknown.IsDefaultOrEmpty
+                ? string.Empty
+                : " " + unknown.Length.ToString(CultureInfo.InvariantCulture) +
+                    " document(s) could not be read, so whether they depended on it is " +
+                    "unknown.";
+            return policy switch
+            {
+                WoTDeletePolicyEnum.Retire =>
+                    $"'{xid}' was retired; the document remains stored and resolvable.",
+                WoTDeletePolicyEnum.Cascade =>
+                    $"'{xid}' was deleted and " +
+                    unloaded.Length.ToString(CultureInfo.InvariantCulture) +
+                    " dependent projection(s) were unloaded." + unreadable,
+                WoTDeletePolicyEnum.Force =>
+                    $"'{xid}' was force-deleted; " +
+                    failed.Length.ToString(CultureInfo.InvariantCulture) +
+                    " remaining dependent(s) were marked Failed." + unreadable,
+                _ => $"'{xid}' was deleted."
+            };
+        }
+
+        private static WotDeleteResult DeleteRefused(
+            WoTOutcomeEnum outcome,
+            WoTDeletePolicyEnum policy,
+            long generation,
+            string message)
+        {
+            return new WotDeleteResult(
+                outcome, policy, generation, false, false, [], [], [], [], message);
+        }
+
+        private static WotRegistrySnapshot WithResource(
+            WotRegistrySnapshot snapshot, WotResource resource, long generation)
+        {
+            WotResourceGroup group = snapshot.FindGroup(resource.GroupId)!;
+            return snapshot.WithGroup(
+                group.WithResources(
+                    group.Resources.SetItem(resource.ResourceId, resource), generation),
+                generation);
+        }
+
+        private static WotRegistrySnapshot WithoutResource(
+            WotRegistrySnapshot snapshot, WotResource resource, long generation)
+        {
+            WotResourceGroup group = snapshot.FindGroup(resource.GroupId)!;
+            return snapshot.WithGroup(
+                group.WithResources(
+                    group.Resources.Remove(resource.ResourceId), generation),
+                generation);
+        }
+
+        /// <inheritdoc/>
         public ValueTask<WotRegistryMutationResult> SetDefaultVersionAsync(
             string groupId,
             string resourceId,

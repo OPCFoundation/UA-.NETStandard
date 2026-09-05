@@ -158,31 +158,47 @@
     }
   },
   "events": {
-    "overTemperature": {
+    "temperatureExceeded": {
       "@type": "uav:eventType",
-      "title": "Over Temperature",
-      "uav:isEvent": true,
-      "uav:browseName": "pump:OverTemperatureEventType",
-      "uav:semanticId": "http://example.com/ontology/OverTemperature",
-      "uav:severity": 500,
+      "tm:ref": "./27-event-type-models.jsonld#/events/temperatureExceeded",
+      "title": "Temperature Exceeded",
+      "uav:browseName": "pump:TemperatureExceededEventType",
+      "uav:semanticId": "http://example.com/ontology/TemperatureExceeded",
       "data": {
         "type": "object",
+        "required": ["EventId", "EventType", "SourceNode", "SourceName", "Time", "ReceiveTime", "Message", "Severity"],
         "properties": {
-          "temperature": { "type": "number", "unit": "Cel", "qudt:hasQuantityKind": "qudt-quantitykind:Temperature" }
+          "EventId": { "type": "string", "contentEncoding": "base64" },
+          "EventType": { "type": "string" },
+          "SourceNode": { "type": "string" },
+          "SourceName": { "type": "string" },
+          "Time": { "type": "string", "format": "date-time" },
+          "ReceiveTime": { "type": "string", "format": "date-time" },
+          "Message": { "type": "string" },
+          "Severity": { "type": "integer", "minimum": 1, "maximum": 1000 },
+          "Temperature": { "uav:browseName": "pump:Temperature", "type": "number", "unit": "Cel" }
         }
       }
     },
     "sealLeak": {
       "@type": "uav:eventType",
+      "tm:ref": "./27-event-type-models.jsonld#/events/sealLeak",
       "title": "Seal Leak",
-      "uav:isEvent": true,
       "uav:browseName": "pump:SealLeakEventType",
       "uav:semanticId": "http://example.com/ontology/SealLeak",
-      "uav:severity": 700,
       "data": {
         "type": "object",
+        "required": ["EventId", "EventType", "SourceNode", "SourceName", "Time", "ReceiveTime", "Message", "Severity"],
         "properties": {
-          "leakRate": { "type": "number", "unit": "L/min", "qudt:hasQuantityKind": "qudt-quantitykind:VolumeFlowRate" }
+          "EventId": { "type": "string", "contentEncoding": "base64" },
+          "EventType": { "type": "string" },
+          "SourceNode": { "type": "string" },
+          "SourceName": { "type": "string" },
+          "Time": { "type": "string", "format": "date-time" },
+          "ReceiveTime": { "type": "string", "format": "date-time" },
+          "Message": { "type": "string" },
+          "Severity": { "type": "integer", "minimum": 1, "maximum": 1000 },
+          "LeakRate": { "uav:browseName": "pump:LeakRate", "type": "number", "unit": "L/min" }
         }
       }
     }

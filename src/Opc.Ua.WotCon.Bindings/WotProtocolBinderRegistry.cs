@@ -112,7 +112,11 @@ namespace Opc.Ua.WotCon.Bindings
                 ImmutableArray.CreateBuilder<WoTBindingCapabilityDataType>(m_ordered.Count);
             foreach (IWotProtocolBinder binder in m_ordered)
             {
-                capabilities.Add(binder.Capability.ToDataType());
+                // Executors are registered above, so the advertised capability
+                // already reflects whether this host can actually invoke
+                // anything through the binder.
+                capabilities.Add(
+                    binder.Capability.ToDataType(HasExecutor(binder.Identity)));
             }
             Capabilities = capabilities.ToImmutable();
         }
@@ -174,8 +178,9 @@ namespace Opc.Ua.WotCon.Bindings
                     continue;
                 }
 
-                participating[binder.Identity.Key] = binder.Capability.ToDataType();
                 bool executorPresent = HasExecutor(binder.Identity);
+                participating[binder.Identity.Key] =
+                    binder.Capability.ToDataType(executorPresent);
                 foreach (WotCompiledForm entry in compilation.Entries)
                 {
                     bool effective = entry.IsExecutable && executorPresent;

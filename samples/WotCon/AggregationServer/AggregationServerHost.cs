@@ -91,6 +91,7 @@ namespace AggregationServer
                 Port = ReadPort(builder.Configuration),
                 ApplicationName =
                     builder.Configuration["applicationName"] ?? "AggregationServer",
+                PkiRoot = builder.Configuration["pkiRoot"],
                 MaximumDocumentBytes = ReadMaximumDocumentBytes(builder.Configuration)
             };
             Configure(builder, options);

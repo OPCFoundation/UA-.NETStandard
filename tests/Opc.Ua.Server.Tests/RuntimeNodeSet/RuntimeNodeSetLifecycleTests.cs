@@ -144,6 +144,46 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
             }
         }
 
+        [Test]
+        public async Task RuntimeNodeSetMonitoredItemCallbacksRunOnceAsync()
+        {
+            int created = 0;
+            int deleted = 0;
+            RuntimeNodeSetOptions options = CreateOptions(generation: 1);
+            options.Configure += builder =>
+                builder.Node($"{kRootBrowseName}/{kValueBrowseName}")
+                    .OnMonitoredItemCreated((_, _, _) => created++)
+                    .OnMonitoredItemDeleted((_, _, _, _) =>
+                    {
+                        deleted++;
+                        return default;
+                    });
+            NodeManagerRegistration registration = await m_server.NodeManagerLifecycle
+                .AddRuntimeNodeSetAsync(options, null).ConfigureAwait(false);
+            try
+            {
+                var services = new ServerTestServices(m_server, m_secureChannelContext);
+                ushort namespaceIndex = (ushort)m_server.CurrentInstance.NamespaceUris
+                    .GetIndex(kModelNamespaceUri);
+                uint subscriptionId = await CreateSubscriptionWithMonitoredItemAsync(
+                    services, new NodeId(kValueNodeId, namespaceIndex)).ConfigureAwait(false);
+                try
+                {
+                    Assert.That(created, Is.EqualTo(1));
+                }
+                finally
+                {
+                    await DeleteSubscriptionAsync(services, subscriptionId).ConfigureAwait(false);
+                }
+                Assert.That(deleted, Is.EqualTo(1));
+            }
+            finally
+            {
+                await m_server.NodeManagerLifecycle.RemoveAsync(
+                    registration, callerContext: null).ConfigureAwait(false);
+            }
+        }
+
         /// <summary>
         /// Adding a runtime NodeSet after startup must publish exactly one registration,
         /// route it into the master node manager's live snapshots exactly once, append the

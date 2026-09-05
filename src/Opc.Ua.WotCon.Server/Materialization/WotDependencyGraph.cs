@@ -87,6 +87,22 @@ namespace Opc.Ua.WotCon.Server.Materialization
     }
 
     /// <summary>
+    /// One resource that depends on the resource being deleted.
+    /// </summary>
+    /// <param name="Xid">The dependent's xid.</param>
+    /// <param name="Resource">The dependent resource.</param>
+    /// <param name="ResolvesOnlyThroughTarget">
+    /// Whether at least one of the dependent's references stops resolving once
+    /// the target is gone. A dependent whose references are all answered by
+    /// some other stored resource survives the delete, so <c>Cascade</c> leaves
+    /// it alone; one that does not cannot be projected any more.
+    /// </param>
+    public sealed record WotDependent(
+        string Xid,
+        WotResource Resource,
+        bool ResolvesOnlyThroughTarget);
+
+    /// <summary>
     /// A dependency closure: a set of resources that must be materialized
     /// together, with Thing Models topologically ordered before the Thing
     /// Descriptions that depend on them. A closure is the default unit of
@@ -154,6 +170,44 @@ namespace Opc.Ua.WotCon.Server.Materialization
     }
 
     /// <summary>
+    /// What a dependency walk found: the dependents, and every resource whose
+    /// own content could not be read.
+    /// </summary>
+    /// <remarks>
+    /// The two are different facts. A document that could not be read may or
+    /// may not depend on the target, and a walk that reported only the
+    /// dependents it could prove would let a delete policy act as though the
+    /// unreadable one had been checked and cleared.
+    /// </remarks>
+    public sealed class WotDependentSet
+    {
+        internal WotDependentSet(
+            ImmutableArray<WotDependent> dependents,
+            ImmutableArray<string> unreadable)
+        {
+            Dependents = dependents;
+            Unreadable = unreadable;
+        }
+
+        /// <summary>
+        /// Gets the dependents the walk proved, ordered by xid.
+        /// </summary>
+        public ImmutableArray<WotDependent> Dependents { get; }
+
+        /// <summary>
+        /// Gets the xids of the resources whose content could not be read, so
+        /// whether they depend on the target is unknown. Ordered by xid.
+        /// </summary>
+        public ImmutableArray<string> Unreadable { get; }
+
+        /// <summary>
+        /// Gets whether every resource in the registry was read, so the set of
+        /// dependents is the whole set rather than the part that answered.
+        /// </summary>
+        public bool IsComplete => Unreadable.IsEmpty;
+    }
+
+    /// <summary>
     /// Builds the TD/TM dependency graph from a registry snapshot and partitions
     /// it into deterministic dependency closures. References are extracted from
     /// <c>links</c> (rel = tm:extends / type / tm:submodel), a top-level
@@ -172,6 +226,224 @@ namespace Opc.Ua.WotCon.Server.Materialization
         /// references.
         /// </summary>
         public const string EventSelectClauseRefType = "uav:eventSelectClauses";
+
+        /// <summary>
+        /// Finds the resources that depend on one resource, and says which of
+        /// them have no other way to resolve what they took from it.
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// This is what a delete policy needs: <c>Reject</c> asks whether
+        /// anything depends on the target at all, <c>Cascade</c> asks which
+        /// dependents resolve <em>only</em> through it, and <c>Force</c> needs
+        /// the rest so it can say what it broke.
+        /// </para>
+        /// <para>
+        /// A dependent resolves only through the target when at least one of
+        /// its references stops resolving once the target is gone. A reference
+        /// that another stored resource also answers keeps resolving, so the
+        /// dependent survives the delete and is not cascaded - unloading it
+        /// would remove a projection that was never in danger.
+        /// </para>
+        /// <para>
+        /// The walk is transitive: a document that depends on a document that
+        /// depends on the target loses its own dependency when the middle one
+        /// is unloaded, so it is reported too.
+        /// </para>
+        /// </remarks>
+        /// <param name="snapshot">The registry snapshot.</param>
+        /// <param name="target">The resource being deleted.</param>
+        /// <param name="maxJsonDepth">The JSON depth bound documents are read with.</param>
+        /// <param name="readContent">Reads one version's bytes.</param>
+        /// <param name="cancellationToken">A cancellation token.</param>
+        /// <returns>The dependents, ordered by xid.</returns>
+        /// <exception cref="ArgumentNullException">
+        /// <paramref name="snapshot"/>, <paramref name="target"/> or
+        /// <paramref name="readContent"/> is <c>null</c>.
+        /// </exception>
+        public static async ValueTask<ImmutableArray<WotDependent>> FindDependentsAsync(
+            WotRegistrySnapshot snapshot,
+            WotResource target,
+            int maxJsonDepth,
+            Func<WotResourceVersion, CancellationToken, ValueTask<ByteString>> readContent,
+            CancellationToken cancellationToken)
+        {
+            WotDependentSet found = await FindDependentsWithFaultsAsync(
+                snapshot, target, maxJsonDepth, readContent, cancellationToken)
+                .ConfigureAwait(false);
+            return found.Dependents;
+        }
+
+        /// <summary>
+        /// Finds the resources that depend on one resource, and separately
+        /// reports every resource whose own content could not be read.
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// A registry is a set of blobs a store may fail to hand back - the
+        /// blob is gone, or its digest no longer matches its metadata. That is
+        /// a fact about one document, and letting it out of the walk as an
+        /// exception makes it a fact about the whole delete: one corrupt blob
+        /// anywhere in the registry then wedges every policy, including
+        /// <c>Force</c>, whose entire purpose is to remove a target when the
+        /// tidy answer is unavailable.
+        /// </para>
+        /// <para>
+        /// A document that could not be read contributes no edges and is named
+        /// in <see cref="WotDependentSet.Unreadable"/> instead, so a policy can
+        /// decide what "might depend on the target" is worth rather than being
+        /// told either "does" or "does not".
+        /// </para>
+        /// </remarks>
+        /// <param name="snapshot">The registry snapshot.</param>
+        /// <param name="target">The resource being deleted.</param>
+        /// <param name="maxJsonDepth">The JSON depth bound documents are read with.</param>
+        /// <param name="readContent">Reads one version's bytes.</param>
+        /// <param name="cancellationToken">A cancellation token.</param>
+        /// <returns>The dependents and the unreadable resources.</returns>
+        /// <exception cref="ArgumentNullException">
+        /// <paramref name="snapshot"/>, <paramref name="target"/> or
+        /// <paramref name="readContent"/> is <c>null</c>.
+        /// </exception>
+        public static async ValueTask<WotDependentSet> FindDependentsWithFaultsAsync(
+            WotRegistrySnapshot snapshot,
+            WotResource target,
+            int maxJsonDepth,
+            Func<WotResourceVersion, CancellationToken, ValueTask<ByteString>> readContent,
+            CancellationToken cancellationToken)
+        {
+            if (snapshot is null)
+            {
+                throw new ArgumentNullException(nameof(snapshot));
+            }
+            if (target is null)
+            {
+                throw new ArgumentNullException(nameof(target));
+            }
+            if (readContent is null)
+            {
+                throw new ArgumentNullException(nameof(readContent));
+            }
+
+            var edges = new Dictionary<string, List<WotDependency>>(StringComparer.Ordinal);
+            var byXid = new Dictionary<string, WotResource>(StringComparer.Ordinal);
+            var unreadable = new List<string>();
+            foreach (WotResource resource in snapshot.AllResources())
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                byXid[resource.Xid] = resource;
+                var list = new List<WotDependency>();
+                edges[resource.Xid] = list;
+                WotResourceVersion? version = resource.DefaultVersion;
+                if (version is null)
+                {
+                    continue;
+                }
+                ByteString content;
+                try
+                {
+                    content = await readContent(version, cancellationToken)
+                        .ConfigureAwait(false);
+                }
+                catch (Exception ex) when (ex is not OperationCanceledException)
+                {
+                    // The store would not hand the blob back, or handed one back
+                    // that does not match its metadata. Either way this document
+                    // states no edges that can be trusted, and it is the caller's
+                    // policy - not this walk - that decides what that is worth.
+                    unreadable.Add(resource.Xid);
+                    continue;
+                }
+                if (content.IsNull)
+                {
+                    unreadable.Add(resource.Xid);
+                    continue;
+                }
+                foreach ((string href, string refType) in ExtractReferences(
+                    content.Memory, maxJsonDepth))
+                {
+                    WotResource? resolved = Resolve(snapshot, href);
+                    list.Add(new WotDependency(
+                        resource.Xid, href, resolved?.Xid, refType, resolved is not null));
+                }
+            }
+
+            // Removed grows as the walk proceeds: a dependent that loses its
+            // own dependency is itself gone, so anything that resolved only
+            // through it is gone as well.
+            var removed = new HashSet<string>(StringComparer.Ordinal) { target.Xid };
+            var dependents = new Dictionary<string, WotDependent>(StringComparer.Ordinal);
+            bool changed = true;
+            while (changed)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                changed = false;
+                foreach (KeyValuePair<string, List<WotDependency>> entry in edges)
+                {
+                    if (removed.Contains(entry.Key))
+                    {
+                        continue;
+                    }
+                    bool dependsOnRemoved = false;
+                    bool losesAReference = false;
+                    foreach (WotDependency edge in entry.Value)
+                    {
+                        if (edge.TargetXid is null || !removed.Contains(edge.TargetXid))
+                        {
+                            continue;
+                        }
+                        dependsOnRemoved = true;
+                        if (!ResolvesWithout(snapshot, edge.TargetHref, removed))
+                        {
+                            losesAReference = true;
+                        }
+                    }
+                    if (!dependsOnRemoved)
+                    {
+                        continue;
+                    }
+                    // A dependent that loses its own reference is itself gone,
+                    // so it is added to the removed set below and never
+                    // revisited: an entry already recorded here is one that
+                    // still resolved, and it is re-recorded only when this pass
+                    // finds that it no longer does.
+                    if (!dependents.ContainsKey(entry.Key) || losesAReference)
+                    {
+                        dependents[entry.Key] = new WotDependent(
+                            entry.Key, byXid[entry.Key], losesAReference);
+                        changed = true;
+                    }
+                    if (losesAReference && removed.Add(entry.Key))
+                    {
+                        changed = true;
+                    }
+                }
+            }
+
+            unreadable.Sort(StringComparer.Ordinal);
+            return new WotDependentSet(
+                [.. dependents.Values.OrderBy(d => d.Xid, StringComparer.Ordinal)],
+                [.. unreadable]);
+        }
+
+        /// <summary>
+        /// Gets whether an href still resolves once a set of resources is gone.
+        /// </summary>
+        private static bool ResolvesWithout(
+            WotRegistrySnapshot snapshot,
+            string href,
+            HashSet<string> removed)
+        {
+            string trimmed = TrimFragment(href);
+            foreach (WotResource candidate in snapshot.AllResources())
+            {
+                if (!removed.Contains(candidate.Xid) && Matches(candidate, trimmed))
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
 
         /// <summary>
         /// Resolves a WoT reference href to a stored resource, or <c>null</c>.
@@ -440,16 +712,24 @@ namespace Opc.Ua.WotCon.Server.Materialization
         {
             foreach (WotResource resource in resources)
             {
-                if (string.Equals(resource.ThingId, href, StringComparison.Ordinal) ||
-                    string.Equals(resource.Xid, href, StringComparison.Ordinal) ||
-                    string.Equals(RegistryUri(resource), href, StringComparison.Ordinal) ||
-                    string.Equals(resource.ResourceId, href, StringComparison.Ordinal) ||
-                    href.EndsWith("/" + resource.ResourceId, StringComparison.Ordinal))
+                if (Matches(resource, href))
                 {
                     return resource;
                 }
             }
             return null;
+        }
+
+        /// <summary>
+        /// Gets whether one resource answers to an href.
+        /// </summary>
+        private static bool Matches(WotResource resource, string href)
+        {
+            return string.Equals(resource.ThingId, href, StringComparison.Ordinal) ||
+                string.Equals(resource.Xid, href, StringComparison.Ordinal) ||
+                string.Equals(RegistryUri(resource), href, StringComparison.Ordinal) ||
+                string.Equals(resource.ResourceId, href, StringComparison.Ordinal) ||
+                href.EndsWith("/" + resource.ResourceId, StringComparison.Ordinal);
         }
 
         private static string RegistryUri(WotResource resource)

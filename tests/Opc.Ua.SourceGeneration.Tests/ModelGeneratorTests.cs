@@ -1653,6 +1653,335 @@ namespace Opc.Ua.SourceGeneration
         }
 
         [Theory]
+        public void NodeManagerWithUnresolvedNamespaceUriReportsExpression(
+            LanguageVersion languageVersion)
+        {
+            const string bindingSource =
+                """
+                namespace Opc.Ua.Server.Fluent
+                {
+                public sealed class NodeManagerAttribute : global::System.Attribute
+                {
+                public string NamespaceUri { get; set; }
+                public string Design { get; set; }
+                public bool GenerateFactory { get; set; }
+                public string[] AdditionalNamespaceUris { get; set; }
+                }
+                }
+                namespace CrossModelConsumer
+                {
+                [global::Opc.Ua.Server.Fluent.NodeManager(
+                    NamespaceUri = GeneratedModel.NamespaceUri)]
+                public partial class TypesNodeManager
+                {
+                }
+                }
+                """;
+
+            (ImmutableArray<Diagnostic> diagnostics, GeneratorDriverRunResult runResult) =
+                RunMixedModelGenerator(languageVersion, bindingSource);
+
+            Diagnostic[] unresolved = [.. diagnostics.Where(d => d.Id == "MODELGEN035")];
+            Assert.That(unresolved, Has.Length.EqualTo(1));
+            Assert.That(
+                unresolved[0].Location.SourceTree?.GetText()
+                    .ToString(unresolved[0].Location.SourceSpan),
+                Is.EqualTo("GeneratedModel.NamespaceUri"));
+            Assert.That(
+                unresolved[0].GetMessage(CultureInfo.InvariantCulture),
+                Does.Contain("values generated in the same compilation are unavailable"));
+            Assert.That(diagnostics.Where(d => d.Id == "MODELGEN010"), Is.Empty);
+
+            string generated = string.Join(
+                "\n",
+                runResult.Results[0].GeneratedSources.Select(s => s.SourceText.ToString()));
+            Assert.That(generated, Does.Not.Contain("class TypesNodeManager"));
+        }
+
+        [Theory]
+        public void NodeManagerWithUnresolvedAdditionalNamespaceUrisReportsEachExpression(
+            LanguageVersion languageVersion)
+        {
+            const string bindingSource =
+                """
+                namespace Opc.Ua.Server.Fluent
+                {
+                public sealed class NodeManagerAttribute : global::System.Attribute
+                {
+                public string NamespaceUri { get; set; }
+                public string Design { get; set; }
+                public bool GenerateFactory { get; set; }
+                public string[] AdditionalNamespaceUris { get; set; }
+                }
+                }
+                namespace CrossModelConsumer
+                {
+                [global::Opc.Ua.Server.Fluent.NodeManager(
+                    NamespaceUri = "http://test.org/UA/CrossModel/Types",
+                    AdditionalNamespaceUris = new[]
+                    {
+                        GeneratedModel.FirstNamespaceUri,
+                        "http://test.org/UA/CrossModel/Types/Valid",
+                        GeneratedModel.SecondNamespaceUri
+                    })]
+                public partial class TypesNodeManager
+                {
+                }
+                }
+                """;
+
+            (ImmutableArray<Diagnostic> diagnostics, GeneratorDriverRunResult runResult) =
+                RunMixedModelGenerator(languageVersion, bindingSource);
+
+            string[] expressions = [.. diagnostics
+                .Where(d => d.Id == "MODELGEN035")
+                .Select(d => d.Location.SourceTree?.GetText().ToString(d.Location.SourceSpan))
+                .OrderBy(expression => expression, StringComparer.Ordinal)];
+            string[] expectedExpressions =
+            {
+                "GeneratedModel.FirstNamespaceUri",
+                "GeneratedModel.SecondNamespaceUri"
+            };
+            Assert.That(expressions, Is.EqualTo(expectedExpressions));
+            Assert.That(diagnostics.Where(d => d.Id == "MODELGEN010"), Is.Empty);
+
+            string generated = string.Join(
+                "\n",
+                runResult.Results[0].GeneratedSources.Select(s => s.SourceText.ToString()));
+            Assert.That(generated, Does.Not.Contain("class TypesNodeManager"));
+        }
+
+        [Theory]
+        public void NodeSourceWithUnresolvedAdditionalNamespaceUriReportsExpression(
+            LanguageVersion languageVersion)
+        {
+            const string bindingSource =
+                """
+                namespace Opc.Ua.Server.Fluent
+                {
+                public interface INodeManagerBuilder
+                {
+                }
+                public sealed class NodeManagerAttribute : global::System.Attribute
+                {
+                public string NamespaceUri { get; set; }
+                public string[] AdditionalNamespaceUris { get; set; }
+                }
+                }
+                namespace Opc.Ua.Server.Nodes
+                {
+                public interface INodeGraphBuilder : global::Opc.Ua.Server.Fluent.INodeManagerBuilder
+                {
+                }
+                }
+                namespace CrossModelConsumer
+                {
+                [global::Opc.Ua.Server.Fluent.NodeManager(
+                    NamespaceUri = "http://test.org/UA/CrossModel/Types",
+                    AdditionalNamespaceUris = new[] { GeneratedModel.NamespaceUri })]
+                public partial class TypesNodeSource
+                {
+                partial void Configure(global::Opc.Ua.Server.Nodes.INodeGraphBuilder builder)
+                {
+                }
+                }
+                }
+                """;
+
+            (ImmutableArray<Diagnostic> diagnostics, GeneratorDriverRunResult runResult) =
+                RunMixedModelGenerator(languageVersion, bindingSource);
+
+            Diagnostic[] unresolved = [.. diagnostics.Where(d => d.Id == "MODELGEN035")];
+            Assert.That(unresolved, Has.Length.EqualTo(1));
+            Assert.That(unresolved[0].Severity, Is.EqualTo(DiagnosticSeverity.Error));
+            Assert.That(
+                unresolved[0].Location.SourceTree?.GetText()
+                    .ToString(unresolved[0].Location.SourceSpan),
+                Is.EqualTo("GeneratedModel.NamespaceUri"));
+            Assert.That(diagnostics.Where(d => d.Id is "MODELGEN010" or "MODELGEN016"), Is.Empty);
+            Assert.That(
+                runResult.Results[0].GeneratedSources,
+                Has.None.Matches<GeneratedSourceResult>(source =>
+                    source.HintName.EndsWith(".NodeSource.g.cs", StringComparison.Ordinal)));
+        }
+
+        [Theory]
+        public void NodeManagerWithSourceConstantsGeneratesBinding(
+            LanguageVersion languageVersion)
+        {
+            const string bindingSource =
+                """
+                namespace Opc.Ua.Server.Fluent
+                {
+                public sealed class NodeManagerAttribute : global::System.Attribute
+                {
+                public string NamespaceUri { get; set; }
+                public string Design { get; set; }
+                public bool GenerateFactory { get; set; }
+                public string[] AdditionalNamespaceUris { get; set; }
+                }
+                }
+                namespace CrossModelConsumer
+                {
+                public static class ModelUris
+                {
+                public const string Types = "http://test.org/UA/CrossModel/Types";
+                public const string Instances = "http://test.org/UA/CrossModel/Types/Instance";
+                }
+                [global::Opc.Ua.Server.Fluent.NodeManager(
+                    NamespaceUri = ModelUris.Types,
+                    AdditionalNamespaceUris = new[] { ModelUris.Instances })]
+                public partial class TypesNodeManager
+                {
+                }
+                }
+                """;
+
+            (ImmutableArray<Diagnostic> diagnostics, GeneratorDriverRunResult runResult) =
+                RunMixedModelGenerator(languageVersion, bindingSource);
+
+            Assert.That(diagnostics.Where(d => d.Id is "MODELGEN010" or "MODELGEN035"), Is.Empty);
+            string generated = string.Join(
+                "\n",
+                runResult.Results[0].GeneratedSources.Select(s => s.SourceText.ToString()));
+            Assert.That(generated, Does.Contain("class TypesNodeManager"));
+            Assert.That(
+                generated,
+                Does.Contain("\"http://test.org/UA/CrossModel/Types/Instance\""));
+        }
+
+        [Theory]
+        public void NodeManagerWithReferencedConstantsGeneratesBinding(
+            LanguageVersion languageVersion)
+        {
+            CSharpCompilation constantsCompilation = OptimizationLevel.Release
+                .CreateCompilation("NodeManagerConstants")
+                .AddCode(
+                    new Dictionary<string, string>
+                    {
+                        ["ModelUris.cs"] =
+                            """
+                            namespace Shared;
+                            public static class ModelUris
+                            {
+                                public const string Types =
+                                    "http://test.org/UA/CrossModel/Types";
+                                public const string Instances =
+                                    "http://test.org/UA/CrossModel/Types/Referenced";
+                            }
+                            """
+                    },
+                    languageVersion);
+            MetadataReference constantsReference = constantsCompilation.ToMetadataReference();
+            const string bindingSource =
+                """
+                namespace Opc.Ua.Server.Fluent
+                {
+                public sealed class NodeManagerAttribute : global::System.Attribute
+                {
+                public string NamespaceUri { get; set; }
+                public string Design { get; set; }
+                public bool GenerateFactory { get; set; }
+                public string[] AdditionalNamespaceUris { get; set; }
+                }
+                }
+                namespace CrossModelConsumer
+                {
+                [global::Opc.Ua.Server.Fluent.NodeManager(
+                    NamespaceUri = global::Shared.ModelUris.Types,
+                    AdditionalNamespaceUris = new[] { global::Shared.ModelUris.Instances })]
+                public partial class TypesNodeManager
+                {
+                }
+                }
+                """;
+
+            (ImmutableArray<Diagnostic> diagnostics, GeneratorDriverRunResult runResult) =
+                RunMixedModelGenerator(languageVersion, bindingSource, constantsReference);
+
+            Assert.That(diagnostics.Where(d => d.Id is "MODELGEN010" or "MODELGEN035"), Is.Empty);
+            string generated = string.Join(
+                "\n",
+                runResult.Results[0].GeneratedSources.Select(s => s.SourceText.ToString()));
+            Assert.That(generated, Does.Contain("class TypesNodeManager"));
+            Assert.That(
+                generated,
+                Does.Contain("\"http://test.org/UA/CrossModel/Types/Referenced\""));
+        }
+
+        [TestCase("null")]
+        [TestCase("new string[] { }")]
+        [TestCase("new string[] { null, \"\" }")]
+        public void NodeManagerWithEmptyAdditionalNamespaceUrisGeneratesBinding(
+            string additionalNamespaceUris)
+        {
+            string bindingSource =
+                $$"""
+                namespace Opc.Ua.Server.Fluent
+                {
+                public sealed class NodeManagerAttribute : global::System.Attribute
+                {
+                public string NamespaceUri { get; set; }
+                public string Design { get; set; }
+                public bool GenerateFactory { get; set; }
+                public string[] AdditionalNamespaceUris { get; set; }
+                }
+                }
+                namespace CrossModelConsumer
+                {
+                [global::Opc.Ua.Server.Fluent.NodeManager(
+                    NamespaceUri = "http://test.org/UA/CrossModel/Types",
+                    AdditionalNamespaceUris = {{additionalNamespaceUris}})]
+                public partial class TypesNodeManager
+                {
+                }
+                }
+                """;
+
+            (ImmutableArray<Diagnostic> diagnostics, GeneratorDriverRunResult runResult) =
+                RunMixedModelGenerator(LanguageVersion.CSharp13, bindingSource);
+
+            Assert.That(diagnostics.Where(d => d.Id is "MODELGEN010" or "MODELGEN035"), Is.Empty);
+            string generated = string.Join(
+                "\n",
+                runResult.Results[0].GeneratedSources.Select(s => s.SourceText.ToString()));
+            Assert.That(generated, Does.Contain("class TypesNodeManager"));
+        }
+
+        [TestCase("null")]
+        [TestCase("\"\"")]
+        public void NodeManagerWithEmptyNamespaceUriRetainsSelectorlessBehavior(
+            string namespaceUri)
+        {
+            string bindingSource =
+                $$"""
+                namespace Opc.Ua.Server.Fluent
+                {
+                public sealed class NodeManagerAttribute : global::System.Attribute
+                {
+                public string NamespaceUri { get; set; }
+                public string Design { get; set; }
+                public bool GenerateFactory { get; set; }
+                public string[] AdditionalNamespaceUris { get; set; }
+                }
+                }
+                namespace CrossModelConsumer
+                {
+                [global::Opc.Ua.Server.Fluent.NodeManager(NamespaceUri = {{namespaceUri}})]
+                public partial class AmbiguousNodeManager
+                {
+                }
+                }
+                """;
+
+            (ImmutableArray<Diagnostic> diagnostics, _) =
+                RunMixedModelGenerator(LanguageVersion.CSharp13, bindingSource);
+
+            Assert.That(diagnostics.Where(d => d.Id == "MODELGEN035"), Is.Empty);
+            Assert.That(diagnostics.Where(d => d.Id == "MODELGEN010"), Has.Exactly(1).Items);
+        }
+
+        [Theory]
         public void NodeManagerBoundToModelDesignInstancesIsNotReportedUnmatchedWithNodeSet2(
             LanguageVersion languageVersion)
         {
@@ -1790,12 +2119,16 @@ namespace Opc.Ua.SourceGeneration
         /// this model-only test compilation.
         /// </summary>
         private static (ImmutableArray<Diagnostic> Diagnostics, GeneratorDriverRunResult RunResult)
-            RunMixedModelGenerator(LanguageVersion languageVersion, string bindingSource)
+            RunMixedModelGenerator(
+                LanguageVersion languageVersion,
+                string bindingSource,
+                MetadataReference additionalReference = null)
         {
             return RunMixedModelGenerator(
                 languageVersion,
                 bindingSource,
-                out _);
+                out _,
+                additionalReference: additionalReference);
         }
 
         private static (ImmutableArray<Diagnostic> Diagnostics, GeneratorDriverRunResult RunResult)
@@ -1803,7 +2136,8 @@ namespace Opc.Ua.SourceGeneration
                 LanguageVersion languageVersion,
                 string bindingSource,
                 out Compilation outputCompilation,
-                bool generateNodeManagerFallback = false)
+                bool generateNodeManagerFallback = false,
+                MetadataReference additionalReference = null)
         {
             var generator = new ModelSourceGenerator();
 
@@ -1812,6 +2146,10 @@ namespace Opc.Ua.SourceGeneration
                 {
                     ["NodeManagerBinding.cs"] = bindingSource
                 }.WithOpcUaGeneratedStack(), languageVersion);
+            if (additionalReference != null)
+            {
+                compilation = compilation.AddReferences(additionalReference);
+            }
 
             var globalOptions = new Dictionary<string, string>
             {

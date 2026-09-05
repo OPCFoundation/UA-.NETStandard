@@ -507,19 +507,6 @@ namespace Opc.Ua.Server
             return base.OnNodeRemovedAsync(node, cancellationToken);
         }
 
-        /// <inheritdoc/>
-        protected override void OnMonitoredItemCreated(
-            ServerSystemContext context,
-            NodeHandle handle,
-            ISampledDataChangeMonitoredItem monitoredItem)
-        {
-            base.OnMonitoredItemCreated(context, handle, monitoredItem);
-            if (handle?.Node is { } node)
-            {
-                m_dispatcher?.NotifyMonitoredItemCreated(context, node, monitoredItem);
-            }
-        }
-
         private async ValueTask ActivateBehaviorsAsync(
             CancellationToken cancellationToken)
         {

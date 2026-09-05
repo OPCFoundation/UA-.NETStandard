@@ -27,6 +27,8 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.Linq;
 using System.Threading;
 using Microsoft.CodeAnalysis;
@@ -75,6 +77,11 @@ namespace Opc.Ua.SourceGeneration
             GraphConfigureLocation != null && ManagerConfigureLocation != null;
 
         /// <summary>
+        /// Attribute expressions that Roslyn could not bind to constants.
+        /// </summary>
+        public ImmutableArray<NodeManagerAttributeExpressionError> InvalidExpressions { get; init; }
+
+        /// <summary>
         /// Predicate used by <see cref="SyntaxProvider.ForAttributeWithMetadataName"/>.
         /// </summary>
         public static bool Handles(SyntaxNode node, CancellationToken ct)
@@ -98,6 +105,8 @@ namespace Opc.Ua.SourceGeneration
             string design = attr.GetValue(nameof(NodeManagerAttributeBinding.Design));
             string[] additionalNamespaceUris = attr.GetStringArray(
                 nameof(NodeManagerAttributeBinding.AdditionalNamespaceUris));
+            ImmutableArray<NodeManagerAttributeExpressionError> invalidExpressions =
+                GetInvalidExpressions(attr, context.SemanticModel, cancellationToken);
             Location graphConfigureLocation = FindConfigureImplementation(
                 symbol,
                 compilation,
@@ -146,7 +155,8 @@ namespace Opc.Ua.SourceGeneration
                 Location = location,
                 IsPartial = isPartial,
                 GraphConfigureLocation = graphConfigureLocation,
-                ManagerConfigureLocation = managerConfigureLocation
+                ManagerConfigureLocation = managerConfigureLocation,
+                InvalidExpressions = invalidExpressions
             };
         }
 
@@ -201,9 +211,130 @@ namespace Opc.Ua.SourceGeneration
             return null;
         }
 
+        private static ImmutableArray<NodeManagerAttributeExpressionError> GetInvalidExpressions(
+            AttributeData attribute,
+            SemanticModel semanticModel,
+            CancellationToken cancellationToken)
+        {
+            if (attribute?.ApplicationSyntaxReference?.GetSyntax(cancellationToken) is not
+                AttributeSyntax attributeSyntax)
+            {
+                return [];
+            }
+
+            var errors = ImmutableArray.CreateBuilder<NodeManagerAttributeExpressionError>();
+            AddInvalidExpression(
+                errors,
+                attribute,
+                attributeSyntax,
+                semanticModel,
+                nameof(NodeManagerAttributeBinding.NamespaceUri),
+                isArray: false,
+                cancellationToken);
+            AddInvalidExpression(
+                errors,
+                attribute,
+                attributeSyntax,
+                semanticModel,
+                nameof(NodeManagerAttributeBinding.AdditionalNamespaceUris),
+                isArray: true,
+                cancellationToken);
+            return errors.ToImmutable();
+        }
+
+        private static void AddInvalidExpression(
+            ImmutableArray<NodeManagerAttributeExpressionError>.Builder errors,
+            AttributeData attribute,
+            AttributeSyntax attributeSyntax,
+            SemanticModel semanticModel,
+            string argumentName,
+            bool isArray,
+            CancellationToken cancellationToken)
+        {
+            KeyValuePair<string, TypedConstant> namedArgument = attribute.NamedArguments
+                .FirstOrDefault(argument => argument.Key == argumentName);
+            if (namedArgument.Key == null)
+            {
+                return;
+            }
+            TypedConstant value = namedArgument.Value;
+            bool hasError = value.Kind == TypedConstantKind.Error ||
+                (isArray &&
+                    value.Kind == TypedConstantKind.Array &&
+                    !value.IsNull &&
+                    value.Values.Any(element => element.Kind == TypedConstantKind.Error));
+            if (!hasError)
+            {
+                return;
+            }
+
+            AttributeArgumentSyntax argumentSyntax = attributeSyntax.ArgumentList?.Arguments
+                .FirstOrDefault(argument =>
+                    argument.NameEquals?.Name.Identifier.ValueText == argumentName);
+            if (argumentSyntax == null)
+            {
+                return;
+            }
+
+            if (isArray)
+            {
+                ExpressionSyntax[] elementExpressions =
+                    GetArrayElementExpressions(argumentSyntax.Expression);
+                if (elementExpressions.Length > 0)
+                {
+                    int initialCount = errors.Count;
+                    for (int ii = 0; ii < elementExpressions.Length; ii++)
+                    {
+                        ExpressionSyntax elementExpression = elementExpressions[ii];
+                        bool isInvalid = namedArgument.Value.Kind == TypedConstantKind.Array &&
+                            ii < namedArgument.Value.Values.Length
+                                ? namedArgument.Value.Values[ii].Kind == TypedConstantKind.Error
+                                : !semanticModel.GetConstantValue(
+                                    elementExpression,
+                                    cancellationToken).HasValue;
+                        if (isInvalid)
+                        {
+                            errors.Add(new NodeManagerAttributeExpressionError(
+                                argumentName,
+                                elementExpression.ToString(),
+                                elementExpression.GetLocation()));
+                        }
+                    }
+                    if (errors.Count > initialCount)
+                    {
+                        return;
+                    }
+                }
+            }
+
+            errors.Add(new NodeManagerAttributeExpressionError(
+                argumentName,
+                argumentSyntax.Expression.ToString(),
+                argumentSyntax.Expression.GetLocation()));
+        }
+
+        private static ExpressionSyntax[] GetArrayElementExpressions(ExpressionSyntax expression)
+        {
+            SeparatedSyntaxList<ExpressionSyntax>? expressions = expression switch
+            {
+                ArrayCreationExpressionSyntax array => array.Initializer?.Expressions,
+                ImplicitArrayCreationExpressionSyntax array => array.Initializer.Expressions,
+                _ => null
+            };
+            return expressions.HasValue ? [.. expressions.Value] : [];
+        }
+
         private const string kGraphBuilderMetadataName =
             "Opc.Ua.Server.Nodes.INodeGraphBuilder";
         private const string kManagerBuilderMetadataName =
             "Opc.Ua.Server.Fluent.INodeManagerBuilder";
     }
+
+    /// <summary>
+    /// An unresolved constant expression in a <c>[NodeManager]</c> attribute.
+    /// </summary>
+    internal sealed record class NodeManagerAttributeExpressionError(
+        string ArgumentName,
+        string Expression,
+        Location Location);
 }
