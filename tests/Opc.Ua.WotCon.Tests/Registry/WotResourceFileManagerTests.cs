@@ -35,6 +35,7 @@ using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.WotCon;
 using Opc.Ua.WotCon.Server.Registry;
+using Opc.Ua.XRegistry.Server;
 
 namespace Opc.Ua.WotCon.Tests.Registry
 {
@@ -881,6 +882,122 @@ namespace Opc.Ua.WotCon.Tests.Registry
             Assert.That(setPos.StatusCode, Is.EqualTo(StatusCodes.BadInvalidArgument));
         }
 
+        /// <summary>
+        /// Scenario 5 (logical-Resource file-handle forwarding): a write handle
+        /// opened through the <see cref="IXRegistryProjectedResourceFileHandleForwarder"/>
+        /// entry points (the path a logical Resource's Open/Read/Write/Close
+        /// delegate through) shares the SAME single-writer reservation as a
+        /// handle opened directly on the manager's own bound FileState, because
+        /// both paths are serviced by the one <see cref="WotResourceFileManager"/>
+        /// instance. Opening a second writer via either path while the other
+        /// path's writer is still open must be rejected.
+        /// </summary>
+        [Test]
+        public void ForwardedOpenConflictsWithDirectWriterOnSameManager()
+        {
+            using var harness = new Harness();
+            uint direct = 0;
+            ServiceResult directOpen = harness.Open(ModeWriteErase, ref direct);
+            Assert.That(ServiceResult.IsGood(directOpen), Is.True);
+
+            uint forwarded = 0;
+            ServiceResult forwardedOpen = harness.ForwardOpen(ModeWriteErase, ref forwarded);
+
+            Assert.That(forwardedOpen.StatusCode, Is.EqualTo(StatusCodes.BadNotWritable));
+            Assert.That(forwarded, Is.Zero);
+        }
+
+        [Test]
+        public void DirectOpenConflictsWithForwardedWriterOnSameManager()
+        {
+            using var harness = new Harness();
+            uint forwarded = 0;
+            ServiceResult forwardedOpen = harness.ForwardOpen(ModeWriteErase, ref forwarded);
+            Assert.That(ServiceResult.IsGood(forwardedOpen), Is.True);
+
+            uint direct = 0;
+            ServiceResult directOpen = harness.Open(ModeWriteErase, ref direct);
+
+            Assert.That(directOpen.StatusCode, Is.EqualTo(StatusCodes.BadNotWritable));
+            Assert.That(direct, Is.Zero);
+        }
+
+        [Test]
+        public async Task ForwardedWriteThenForwardedCloseCommitsAndDirectReadSeesIt()
+        {
+            byte[]? committed = null;
+            using var harness = new Harness(onCommit: (bytes, _, _) =>
+            {
+                committed = bytes;
+                return new ValueTask<ServiceResult>(ServiceResult.Good);
+            });
+
+            uint handle = 0;
+            Assert.That(
+                ServiceResult.IsGood(harness.ForwardOpen(ModeWriteErase, ref handle)),
+                Is.True);
+
+            byte[] content = Encoding.UTF8.GetBytes("forwarded content");
+            ServiceResult write = harness.ForwardWrite(handle, ByteString.From(content));
+            Assert.That(ServiceResult.IsGood(write), Is.True);
+
+            ServiceResult close = await harness.ForwardCloseAsync(handle).ConfigureAwait(false);
+            Assert.That(ServiceResult.IsGood(close), Is.True);
+            Assert.That(committed, Is.EqualTo(content));
+
+            // The commit path updates the manager's served content; a direct
+            // read handle (opened via the manager's own bound FileState) must
+            // observe the same bytes just committed via the forwarding path,
+            // proving both paths operate on one shared underlying state.
+            harness.Manager.UpdatePersistedContent(content, null);
+            uint readHandle = 0;
+            harness.Open(ModeRead, ref readHandle);
+            (ServiceResult readResult, ByteString data) = await harness
+                .ReadAsync(readHandle, 256)
+                .ConfigureAwait(false);
+            await harness.CloseAsync(readHandle).ConfigureAwait(false);
+
+            Assert.That(ServiceResult.IsGood(readResult), Is.True);
+            Assert.That(data.Span.ToArray(), Is.EqualTo(content));
+        }
+
+        [Test]
+        public async Task ForwardedReadReturnsSameContentAsDirectRead()
+        {
+            using var harness = new Harness();
+            byte[] content = Encoding.UTF8.GetBytes("shared state content");
+            harness.Manager.UpdatePersistedContent(content, null);
+
+            uint handle = 0;
+            Assert.That(
+                ServiceResult.IsGood(harness.ForwardOpen(ModeRead, ref handle)),
+                Is.True);
+            (ServiceResult result, ByteString data) = await harness
+                .ForwardReadAsync(handle, 256)
+                .ConfigureAwait(false);
+            await harness.ForwardCloseAsync(handle).ConfigureAwait(false);
+
+            Assert.That(ServiceResult.IsGood(result), Is.True);
+            Assert.That(data.Span.ToArray(), Is.EqualTo(content));
+        }
+
+        [Test]
+        public void ForwardedGetPositionAndSetPositionOperateOnSharedHandleState()
+        {
+            using var harness = new Harness();
+            uint handle = 0;
+            harness.ForwardOpen(ModeWriteErase, ref handle);
+            harness.ForwardWrite(handle, ByteString.From(new byte[] { 1, 2, 3, 4, 5 }));
+
+            ulong position = 0;
+            ServiceResult setResult = harness.ForwardSetPosition(handle, 3);
+            ServiceResult getResult = harness.ForwardGetPosition(handle, ref position);
+
+            Assert.That(ServiceResult.IsGood(setResult), Is.True);
+            Assert.That(ServiceResult.IsGood(getResult), Is.True);
+            Assert.That(position, Is.EqualTo(3UL));
+        }
+
         private sealed class Harness : IDisposable
         {
             private readonly NodeId m_objectId;
@@ -984,6 +1101,39 @@ namespace Opc.Ua.WotCon.Tests.Registry
             public ServiceResult SetPosition(uint fileHandle, ulong position)
                 => File.SetPosition!.OnCall!.Invoke(
                     Context, File.SetPosition, m_objectId, fileHandle, position);
+
+            /// <summary>
+            /// Invokes <see cref="IXRegistryProjectedResourceFileHandleForwarder.ForwardOpen"/>
+            /// - the same entry point a logical Resource's own Open method
+            /// forwards through - against this same manager instance.
+            /// </summary>
+            public ServiceResult ForwardOpen(byte mode, ref uint fileHandle)
+                => Forwarder.ForwardOpen(Context, File.Open!, m_objectId, mode, ref fileHandle);
+
+            public ValueTask<ServiceResult> ForwardCloseAsync(uint fileHandle)
+                => Forwarder
+                    .ForwardCloseAsync(Context, File.Close!, m_objectId, fileHandle, CancellationToken.None);
+
+            public ValueTask<(ServiceResult Status, ByteString Data)> ForwardReadAsync(
+                uint fileHandle,
+                int length)
+                => Forwarder
+                    .ForwardReadAsync(
+                        Context, File.Read!, m_objectId, fileHandle, length, CancellationToken.None);
+
+            public ServiceResult ForwardWrite(uint fileHandle, ByteString data)
+                => Forwarder.ForwardWrite(Context, File.Write!, m_objectId, fileHandle, data);
+
+            public ServiceResult ForwardGetPosition(uint fileHandle, ref ulong position)
+                => Forwarder.ForwardGetPosition(
+                    Context, File.GetPosition!, m_objectId, fileHandle, ref position);
+
+            public ServiceResult ForwardSetPosition(uint fileHandle, ulong position)
+                => Forwarder.ForwardSetPosition(
+                    Context, File.SetPosition!, m_objectId, fileHandle, position);
+
+            private IXRegistryProjectedResourceFileHandleForwarder Forwarder =>
+                (IXRegistryProjectedResourceFileHandleForwarder)Manager;
 
             public void Dispose()
                 => Manager.Dispose();
