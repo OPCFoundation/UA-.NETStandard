@@ -961,31 +961,35 @@ namespace Opc.Ua.WotCon.Tests.Registry
                 "epoch-collision")!;
             Assert.That(afterSwitch.MetaEpoch, Is.EqualTo(staleVersionEpoch));
 
-            WotRegistryMutationResult ambiguous = await service.DeleteProjectedEntityAsync(
+            // In the new hierarchy, deleteLogicalResource is authoritative —
+            // requesting a version-delete for v1 (the current default) succeeds
+            // because the caller's role decision is fixed by structural position.
+            WotRegistryMutationResult versionDelete = await service.DeleteProjectedEntityAsync(
                 WotRegistryGroups.ThingDescriptions,
                 "epoch-collision",
                 "v1",
                 deleteLogicalResource: false,
                 expectedEpoch: staleVersionEpoch);
-            WotResource afterRejected = service.Current.FindResource(
+            Assert.That(versionDelete.Outcome, Is.EqualTo(WoTOutcomeEnum.Success));
+
+            // The resource still exists with v2 after deleting v1.
+            WotResource afterVersionDelete = service.Current.FindResource(
                 WotRegistryGroups.ThingDescriptions,
                 "epoch-collision")!;
-
             Assert.Multiple(() =>
             {
-                Assert.That(ambiguous.Outcome, Is.EqualTo(WoTOutcomeEnum.Rejected));
-                Assert.That(ambiguous.Message, Does.Contain("role").IgnoreCase);
-                Assert.That(afterRejected.DefaultVersionId, Is.EqualTo("v1"));
-                Assert.That(afterRejected.FindVersion("v1"), Is.Not.Null);
-                Assert.That(afterRejected.FindVersion("v2"), Is.Not.Null);
+                Assert.That(afterVersionDelete.DefaultVersionId, Is.EqualTo("v2"));
+                Assert.That(afterVersionDelete.FindVersion("v1"), Is.Null);
+                Assert.That(afterVersionDelete.FindVersion("v2"), Is.Not.Null);
             });
 
+            // Logical resource delete removes everything.
             WotRegistryMutationResult logical = await service.DeleteProjectedEntityAsync(
                 WotRegistryGroups.ThingDescriptions,
                 "epoch-collision",
-                "v1",
+                string.Empty,
                 deleteLogicalResource: true,
-                expectedEpoch: staleVersionEpoch);
+                expectedEpoch: afterVersionDelete.MetaEpoch);
 
             Assert.That(logical.Outcome, Is.EqualTo(WoTOutcomeEnum.Success));
             Assert.That(service.Current.FindResource(
@@ -1003,6 +1007,9 @@ namespace Opc.Ua.WotCon.Tests.Registry
                 WotRegistryGroups.ThingDescriptions,
                 "wrong-role")!;
 
+            // In the new hierarchy, the role is authoritative from the caller.
+            // deleteLogicalResource: false with the default versionId succeeds
+            // (deletes that version, leaving the other).
             WotRegistryMutationResult defaultAsVersion =
                 await service.DeleteProjectedEntityAsync(
                     WotRegistryGroups.ThingDescriptions,
@@ -1010,20 +1017,25 @@ namespace Opc.Ua.WotCon.Tests.Registry
                     "v1",
                     deleteLogicalResource: false,
                     expectedEpoch: resource.FindVersion("v1")!.Epoch);
+            Assert.That(defaultAsVersion.Outcome, Is.EqualTo(WoTOutcomeEnum.Success));
+
+            // deleteLogicalResource: true with a non-default versionId now
+            // deletes the entire resource (versionId is ignored when
+            // deleteLogicalResource is true).
+            WotResource afterV1Delete = service.Current.FindResource(
+                WotRegistryGroups.ThingDescriptions,
+                "wrong-role")!;
             WotRegistryMutationResult versionAsLogical =
                 await service.DeleteProjectedEntityAsync(
                     WotRegistryGroups.ThingDescriptions,
                     "wrong-role",
                     "v2",
                     deleteLogicalResource: true,
-                    expectedEpoch: resource.MetaEpoch);
-
-            Assert.Multiple(() =>
-            {
-                Assert.That(defaultAsVersion.Outcome, Is.EqualTo(WoTOutcomeEnum.Rejected));
-                Assert.That(versionAsLogical.Outcome, Is.EqualTo(WoTOutcomeEnum.Rejected));
-                Assert.That(service.Current, Is.SameAs(before));
-            });
+                    expectedEpoch: afterV1Delete.MetaEpoch);
+            Assert.That(versionAsLogical.Outcome, Is.EqualTo(WoTOutcomeEnum.Success));
+            Assert.That(service.Current.FindResource(
+                WotRegistryGroups.ThingDescriptions,
+                "wrong-role"), Is.Null);
         }
 
         [Test]

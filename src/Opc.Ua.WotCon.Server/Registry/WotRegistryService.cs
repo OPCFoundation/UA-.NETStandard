@@ -523,16 +523,10 @@ namespace Opc.Ua.WotCon.Server.Registry
                 {
                     return Failed(snapshot.Generation, "Resource not found.");
                 }
-                bool currentlyLogicalResource = string.Equals(
-                    resource.DefaultVersionId,
-                    versionId,
-                    StringComparison.Ordinal);
-                if (currentlyLogicalResource != deleteLogicalResource)
-                {
-                    return Rejected(
-                        snapshot.Generation,
-                        "The projected node role changed before deletion.");
-                }
+
+                // In the distinct Resource/Versions/Version hierarchy, the
+                // role is determined by the node's structural position and
+                // cannot become stale — deleteLogicalResource is authoritative.
                 if (deleteLogicalResource)
                 {
                     if (expectedEpoch is { } resourceEpoch &&

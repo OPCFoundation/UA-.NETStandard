@@ -167,7 +167,7 @@ namespace Opc.Ua.WotCon.Tests
                         Is.EqualTo(browseName),
                         $"'{nodeId}' now names a different Node.");
                 }
-                Assert.That(nodes, Has.Count.EqualTo(114));
+                Assert.That(nodes, Has.Count.EqualTo(117));
             });
         }
 

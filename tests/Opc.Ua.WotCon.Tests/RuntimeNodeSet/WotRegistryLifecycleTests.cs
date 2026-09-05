@@ -273,12 +273,10 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
             ushort v2Ns = (ushort)server.NamespaceUris.GetIndex(WotConModel.Namespaces.WotCon);
             var groupNodeId = new NodeId(
                 "WoTRegistry/groups/" + WotRegistryGroups.ThingDescriptions, v2Ns);
-            string versionId = m_registry.Current.FindResource(
-                WotRegistryGroups.ThingDescriptions,
-                "sensor")!.DefaultVersionId!;
+            // In the new hierarchy, the Group's child is the logical Resource
+            // node, not a version node.
             var resourceNodeId = new NodeId(
-                $"WoTRegistry/groups/{WotRegistryGroups.ThingDescriptions}/resources/sensor/" +
-                $"versions/{versionId}",
+                $"WoTRegistry/groups/{WotRegistryGroups.ThingDescriptions}/resources/sensor",
                 v2Ns);
 
             bool groupVisible = await WaitForConditionAsync(async () =>

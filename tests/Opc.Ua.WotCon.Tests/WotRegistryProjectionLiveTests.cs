@@ -369,7 +369,7 @@ namespace Opc.Ua.WotCon.Tests
             WotRegistryGroupClient group = await client
                 .CreateThingDescriptionGroupAsync()
                 .ConfigureAwait(false);
-            (WotRegistryResourceClient logical, WotRegistryResourceClient exactVersion) =
+            (WotRegistryResourceClient v1Version, WotRegistryResourceClient exactVersion) =
                 await CreateCommittedVersionsAsync(
                     group,
                     ResourceId,
@@ -393,6 +393,10 @@ namespace Opc.Ua.WotCon.Tests
                 Assert.That(afterVersionDelete.FindVersion("v1"), Is.Not.Null);
             });
 
+            // Use the logical resource node (not a version node) for resource-level delete.
+            WotRegistryResourceClient logical = await group
+                .OpenResourceAsync(ResourceId)
+                .ConfigureAwait(false);
             await logical.DeleteAsync(checked((uint)afterVersionDelete.MetaEpoch))
                 .ConfigureAwait(false);
 
@@ -430,7 +434,9 @@ namespace Opc.Ua.WotCon.Tests
             WotRegistryResourceClient logical = await group
                 .OpenResourceAsync("delete-switched")
                 .ConfigureAwait(false);
-            Assert.That(logical.ResourceNodeId, Is.EqualTo(v2.ResourceNodeId));
+            // In the new hierarchy, the logical resource has a stable NodeId
+            // that does not change with SetDefaultVersion.
+            Assert.That(logical.ResourceNodeId, Is.Not.EqualTo(v2.ResourceNodeId));
 
             await v1.DeleteAsync(
                     checked((uint)afterSwitch.FindVersion("v1")!.Epoch))
@@ -445,7 +451,8 @@ namespace Opc.Ua.WotCon.Tests
                 Assert.That(afterOldDefaultDelete.Versions[0].VersionId, Is.EqualTo("v2"));
             });
 
-            await v2.DeleteAsync(checked((uint)afterOldDefaultDelete.MetaEpoch))
+            // Delete the logical resource (not the version) to remove all versions.
+            await logical.DeleteAsync(checked((uint)afterOldDefaultDelete.MetaEpoch))
                 .ConfigureAwait(false);
 
             Assert.That(
@@ -925,7 +932,14 @@ namespace Opc.Ua.WotCon.Tests
                 .OpenResourceAsync("collision")
                 .ConfigureAwait(false);
 
-            Assert.That(opened.ResourceNodeId, Is.EqualTo(defaultVersion.ResourceNodeId));
+            // In the new hierarchy, OpenResource returns the stable logical
+            // resource node, not the default version's version node.
+            Assert.That(
+                opened.ResourceNodeId,
+                Is.Not.EqualTo(collidingVersion.ResourceNodeId));
+            Assert.That(
+                opened.ResourceNodeId,
+                Is.Not.EqualTo(defaultVersion.ResourceNodeId));
         }
 
         /// <summary>
@@ -1067,11 +1081,19 @@ namespace Opc.Ua.WotCon.Tests
         public async Task AddResourceMetaLabelOverOpcUaSucceeds()
         {
             WotRegistryClient client = await OpenClientAsync().ConfigureAwait(false);
-            (_, WotRegistryResourceClient resource) = await CreateGroupAndResourceAsync(client)
+            WotRegistryGroupClient group;
+            WotRegistryResourceClient resource;
+            (group, resource) = await CreateGroupAndResourceAsync(client)
+                .ConfigureAwait(false);
+
+            // MetaLabels lives on the logical Resource node, not the Version
+            // node returned by CreateResource. Open the logical resource.
+            WotRegistryResourceClient logical = await group
+                .OpenResourceAsync("td-01")
                 .ConfigureAwait(false);
 
             NodeId labelsNodeId = await BrowseForChildNodeIdAsync(
-                resource.ResourceNodeId,
+                logical.ResourceNodeId,
                 "MetaLabels").ConfigureAwait(false);
             Assert.That(labelsNodeId.IsNull, Is.False);
 
