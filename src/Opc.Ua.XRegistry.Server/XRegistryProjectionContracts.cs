@@ -176,6 +176,63 @@ namespace Opc.Ua.XRegistry.Server
     }
 
     /// <summary>
+    /// Optional additive capability for projections whose <see cref="IXRegistryProjectedResourceFile"/>
+    /// can service Open/Read/Write/Close/GetPosition/SetPosition calls arriving through a
+    /// <em>different</em> FileState (the logical Resource's inherited FileType members) while
+    /// sharing the same handle table and writer reservation with the version's own FileState.
+    /// </summary>
+    /// <remarks>
+    /// The engine wires the logical Resource's FileType methods to closures that pin the
+    /// resolved default Version at Open time and forward every subsequent call to the same
+    /// file-manager instance that services the Version's own node, so a write reservation
+    /// taken through either access path is naturally shared.
+    /// </remarks>
+    public interface IXRegistryProjectedResourceFileHandleForwarder
+    {
+        /// <summary>
+        /// Opens a file handle (read or write) on behalf of a logical Resource node.
+        /// </summary>
+        ServiceResult ForwardOpen(
+            ISystemContext context, MethodState method, NodeId objectId,
+            byte mode, ref uint fileHandle);
+
+        /// <summary>
+        /// Closes a previously opened handle.
+        /// </summary>
+        ValueTask<ServiceResult> ForwardCloseAsync(
+            ISystemContext context, MethodState method, NodeId objectId,
+            uint fileHandle, CancellationToken cancellationToken);
+
+        /// <summary>
+        /// Reads from a previously opened handle.
+        /// </summary>
+        ValueTask<(ServiceResult Status, ByteString Data)> ForwardReadAsync(
+            ISystemContext context, MethodState method, NodeId objectId,
+            uint fileHandle, int length, CancellationToken cancellationToken);
+
+        /// <summary>
+        /// Writes to a previously opened handle.
+        /// </summary>
+        ServiceResult ForwardWrite(
+            ISystemContext context, MethodState method, NodeId objectId,
+            uint fileHandle, ByteString data);
+
+        /// <summary>
+        /// Gets the current position of a previously opened handle.
+        /// </summary>
+        ServiceResult ForwardGetPosition(
+            ISystemContext context, MethodState method, NodeId objectId,
+            uint fileHandle, ref ulong position);
+
+        /// <summary>
+        /// Sets the position of a previously opened handle.
+        /// </summary>
+        ServiceResult ForwardSetPosition(
+            ISystemContext context, MethodState method, NodeId objectId,
+            uint fileHandle, ulong position);
+    }
+
+    /// <summary>
     /// Optional additive capability for projections that can atomically claim
     /// an existing content-less resource for its first write.
     /// </summary>

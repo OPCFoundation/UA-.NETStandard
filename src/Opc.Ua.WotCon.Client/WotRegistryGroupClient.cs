@@ -50,7 +50,8 @@ namespace Opc.Ua.WotCon.Client
             string groupId,
             WoTDocumentKindEnum kind,
             GroupTypeClient proxy,
-            ITelemetryContext telemetry)
+            ITelemetryContext telemetry,
+            bool usesDistinctHierarchy = false)
         {
             Session = session;
             GroupNodeId = groupNodeId;
@@ -58,6 +59,7 @@ namespace Opc.Ua.WotCon.Client
             Kind = kind;
             Proxy = proxy;
             Telemetry = telemetry;
+            m_usesDistinctHierarchy = usesDistinctHierarchy;
         }
 
         /// <summary>
@@ -173,6 +175,7 @@ namespace Opc.Ua.WotCon.Client
                 GroupNodeId,
                 ns,
                 resourceId,
+                m_usesDistinctHierarchy,
                 StatusCodes.BadNoMatch,
                 $"Resource '{resourceId}' not found in group '{GroupId}'.",
                 ct).ConfigureAwait(false);
@@ -212,5 +215,7 @@ namespace Opc.Ua.WotCon.Client
                 pendingStructuralVersion,
                 Telemetry);
         }
+
+        private readonly bool m_usesDistinctHierarchy;
     }
 }

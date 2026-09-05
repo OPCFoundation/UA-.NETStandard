@@ -917,7 +917,140 @@ namespace Opc.Ua.XRegistry.Server
                     meta.MetaLabels,
                     ct).ConfigureAwait(false);
             }
+
+            // Wire the logical Resource's inherited FileType methods to forward through the
+            // resolved default Version's file manager, pinning the Version at Open time.
+            WireLogicalResourceFileForwarding(logical);
+
             return logical;
+        }
+
+        /// <summary>
+        /// Wires the logical Resource's inherited FileType Open/Read/Write/Close/GetPosition/
+        /// SetPosition methods to forward through the resolved default Version's file manager.
+        /// The Version is pinned at Open time: once a handle is opened, switching the default
+        /// Version does not redirect that handle.
+        /// </summary>
+        private void WireLogicalResourceFileForwarding(LogicalResourceEntry logical)
+        {
+            ResourceState node = logical.LogicalNode;
+
+            if (node.Open is not null)
+            {
+                node.Open.OnCall = new OpenMethodStateMethodCallHandler(
+                    (ISystemContext context, MethodState method, NodeId objectId,
+                     byte mode, ref uint fileHandle) =>
+                    {
+                        // Resolve the current default Version by reading VersionId.
+                        string? defaultVersionId = node.VersionId?.Value;
+                        if (string.IsNullOrEmpty(defaultVersionId) ||
+                            !logical.Versions.TryGetValue(defaultVersionId, out ResourceEntry? vEntry) ||
+                            vEntry.File is null)
+                        {
+                            return StatusCodes.BadNotSupported;
+                        }
+
+                        if (vEntry.File is not IXRegistryProjectedResourceFileHandleForwarder forwarder)
+                        {
+                            return StatusCodes.BadNotSupported;
+                        }
+
+                        ServiceResult result = forwarder.ForwardOpen(
+                            context, method, objectId, mode, ref fileHandle);
+                        if (ServiceResult.IsGood(result))
+                        {
+                            logical.PinnedHandles[fileHandle] = forwarder;
+                        }
+                        return result;
+                    });
+            }
+
+            if (node.Close is not null)
+            {
+                node.Close.OnCallAsync = new CloseMethodStateMethodAsyncCallHandler(
+                    async (ISystemContext context, MethodState method, NodeId objectId,
+                           uint fileHandle, CancellationToken ct) =>
+                    {
+                        if (!logical.PinnedHandles.TryRemove(fileHandle, out var forwarder))
+                        {
+                            return new CloseMethodStateResult
+                            {
+                                ServiceResult = ServiceResult.Create(
+                                    StatusCodes.BadInvalidArgument, "Unknown file handle.")
+                            };
+                        }
+                        ServiceResult result = await forwarder.ForwardCloseAsync(
+                            context, method, objectId, fileHandle, ct).ConfigureAwait(false);
+                        return new CloseMethodStateResult { ServiceResult = result };
+                    });
+            }
+
+            if (node.Read is not null)
+            {
+                node.Read.OnCallAsync = new ReadMethodStateMethodAsyncCallHandler(
+                    async (ISystemContext context, MethodState method, NodeId objectId,
+                           uint fileHandle, int length, CancellationToken ct) =>
+                    {
+                        if (!logical.PinnedHandles.TryGetValue(fileHandle, out var forwarder))
+                        {
+                            return new ReadMethodStateResult
+                            {
+                                ServiceResult = ServiceResult.Create(
+                                    StatusCodes.BadInvalidArgument, "Unknown file handle.")
+                            };
+                        }
+                        (ServiceResult status, ByteString data) = await forwarder.ForwardReadAsync(
+                            context, method, objectId, fileHandle, length, ct).ConfigureAwait(false);
+                        return new ReadMethodStateResult { ServiceResult = status, Data = data };
+                    });
+            }
+
+            if (node.Write is not null)
+            {
+                node.Write.OnCall = new WriteMethodStateMethodCallHandler(
+                    (ISystemContext context, MethodState method, NodeId objectId,
+                     uint fileHandle, ByteString data) =>
+                    {
+                        if (!logical.PinnedHandles.TryGetValue(fileHandle, out var forwarder))
+                        {
+                            return ServiceResult.Create(
+                                StatusCodes.BadInvalidArgument, "Unknown file handle.");
+                        }
+                        return forwarder.ForwardWrite(context, method, objectId, fileHandle, data);
+                    });
+            }
+
+            if (node.GetPosition is not null)
+            {
+                node.GetPosition.OnCall = new GetPositionMethodStateMethodCallHandler(
+                    (ISystemContext context, MethodState method, NodeId objectId,
+                     uint fileHandle, ref ulong position) =>
+                    {
+                        if (!logical.PinnedHandles.TryGetValue(fileHandle, out var forwarder))
+                        {
+                            return ServiceResult.Create(
+                                StatusCodes.BadInvalidArgument, "Unknown file handle.");
+                        }
+                        return forwarder.ForwardGetPosition(
+                            context, method, objectId, fileHandle, ref position);
+                    });
+            }
+
+            if (node.SetPosition is not null)
+            {
+                node.SetPosition.OnCall = new SetPositionMethodStateMethodCallHandler(
+                    (ISystemContext context, MethodState method, NodeId objectId,
+                     uint fileHandle, ulong position) =>
+                    {
+                        if (!logical.PinnedHandles.TryGetValue(fileHandle, out var forwarder))
+                        {
+                            return ServiceResult.Create(
+                                StatusCodes.BadInvalidArgument, "Unknown file handle.");
+                        }
+                        return forwarder.ForwardSetPosition(
+                            context, method, objectId, fileHandle, position);
+                    });
+            }
         }
 
         private async ValueTask<ResourceEntry> CreateVersionNodeAsync(
@@ -2672,6 +2805,14 @@ namespace Opc.Ua.XRegistry.Server
             public string ResourceId { get; }
             public Dictionary<string, ResourceEntry> Versions { get; } =
                 new(StringComparer.Ordinal);
+
+            /// <summary>
+            /// Tracks file handles opened via the logical Resource's <c>Open</c> method.
+            /// Each handle is pinned to the exact Version file-manager that was the resolved
+            /// default at <c>Open</c> time. The entry is removed on <c>Close</c>.
+            /// </summary>
+            public ConcurrentDictionary<uint, IXRegistryProjectedResourceFileHandleForwarder> PinnedHandles { get; } =
+                new();
         }
 
         private readonly XRegistryProjectionContext m_context;

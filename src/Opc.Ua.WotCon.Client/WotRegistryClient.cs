@@ -186,7 +186,8 @@ namespace Opc.Ua.WotCon.Client
                 throw new ArgumentException("Group id is required.", nameof(groupId));
             }
             NodeId groupNodeId = await Proxy.CreateGroupAsync(groupId, ct).ConfigureAwait(false);
-            return await OpenGroupClientAsync(Session, groupNodeId, groupId, Telemetry, ct)
+            bool distinct = await UsesDistinctHierarchyAsync(ct).ConfigureAwait(false);
+            return await OpenGroupClientAsync(Session, groupNodeId, groupId, Telemetry, ct, distinct)
                 .ConfigureAwait(false);
         }
 
@@ -206,8 +207,9 @@ namespace Opc.Ua.WotCon.Client
             }
             (NodeId groupNodeId, bool created) = await Proxy
                 .GetOrCreateGroupAsync(groupId, ct).ConfigureAwait(false);
+            bool distinct = await UsesDistinctHierarchyAsync(ct).ConfigureAwait(false);
             WotRegistryGroupClient group = await OpenGroupClientAsync(
-                Session, groupNodeId, groupId, Telemetry, ct).ConfigureAwait(false);
+                Session, groupNodeId, groupId, Telemetry, ct, distinct).ConfigureAwait(false);
             return (group, created);
         }
 
@@ -275,7 +277,9 @@ namespace Opc.Ua.WotCon.Client
                 StatusCodes.BadNoMatch,
                 $"Group '{groupId}' not found in the registry.",
                 ct).ConfigureAwait(false);
-            return await OpenGroupClientAsync(Session, groupNodeId, groupId, Telemetry, ct)
+            return await OpenGroupClientAsync(
+                Session, groupNodeId, groupId, Telemetry, ct,
+                await UsesDistinctHierarchyAsync(ct).ConfigureAwait(false))
                 .ConfigureAwait(false);
         }
 
@@ -566,14 +570,16 @@ namespace Opc.Ua.WotCon.Client
             NodeId groupNodeId,
             string groupId,
             ITelemetryContext telemetry,
-            CancellationToken ct)
+            CancellationToken ct,
+            bool usesDistinctHierarchy = false)
         {
             WoTDocumentKindEnum kind = await ResolveGroupKindAsync(session, groupNodeId, ct)
                 .ConfigureAwait(false);
             GroupTypeClient proxy = kind == WoTDocumentKindEnum.ThingModel
                 ? new ThingModelGroupTypeClient(session, groupNodeId, telemetry)
                 : new ThingDescriptionGroupTypeClient(session, groupNodeId, telemetry);
-            return new WotRegistryGroupClient(session, groupNodeId, groupId, kind, proxy, telemetry);
+            return new WotRegistryGroupClient(
+                session, groupNodeId, groupId, kind, proxy, telemetry, usesDistinctHierarchy);
         }
 
         private static async ValueTask<WoTDocumentKindEnum> ResolveGroupKindAsync(

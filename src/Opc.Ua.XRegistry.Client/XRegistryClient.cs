@@ -423,5 +423,101 @@ namespace Opc.Ua.XRegistry.Client
             GroupTypeClient group = GetGroup(groupNodeId);
             await group.DeleteAsync(expectedEpoch, ct).ConfigureAwait(false);
         }
+
+        /// <summary>
+        /// Returns <c>true</c> when the connected server advertises an xRegistry model version
+        /// that uses the distinct Resource / Versions-folder / Version hierarchy (≥ 0.6.0).
+        /// The result is read once from the server's namespace metadata and cached for the
+        /// lifetime of this client instance.
+        /// </summary>
+        /// <param name="ct">Cancellation token.</param>
+        /// <returns><c>true</c> when the hierarchy is distinct; <c>false</c> (or unknown)
+        /// selects the legacy flat layout.</returns>
+        public async ValueTask<bool> UsesDistinctHierarchyAsync(CancellationToken ct = default)
+        {
+            if (m_hierarchyChecked)
+            {
+                return m_usesDistinctHierarchy;
+            }
+            m_usesDistinctHierarchy = await DetectDistinctHierarchyAsync(ct).ConfigureAwait(false);
+            m_hierarchyChecked = true;
+            return m_usesDistinctHierarchy;
+        }
+
+        /// <summary>
+        /// Reads the <c>NamespaceVersion</c> property from the xRegistry namespace metadata
+        /// object and returns <c>true</c> when the version is ≥ 0.6.0.
+        /// </summary>
+        private async ValueTask<bool> DetectDistinctHierarchyAsync(CancellationToken ct)
+        {
+            try
+            {
+                // NamespaceVersion lives at well-known numeric id 63563 in the xRegistry
+                // companion namespace (which may differ from the domain registry namespace).
+                int xregIdx = Session.NamespaceUris.GetIndex(
+                    XRegistryWellKnown.XRegistryNamespaceUri);
+                ushort ns = xregIdx > 0
+                    ? (ushort)xregIdx
+                    : NamespaceIndex; // fallback to domain namespace if xRegistry is not separate
+
+                var versionNodeId = new NodeId(63563u, ns);
+                DataValue value = await Session.ReadValueAsync(versionNodeId, ct)
+                    .ConfigureAwait(false);
+                if (StatusCode.IsBad(value.StatusCode) ||
+                    !value.WrappedValue.TryGetValue(out string versionString) ||
+                    string.IsNullOrEmpty(versionString))
+                {
+                    return false;
+                }
+                return IsVersionAtLeast(versionString, 0, 6, 0);
+            }
+            catch (ServiceResultException)
+            {
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Compares a "major.minor.patch" version string against a threshold.
+        /// Returns <c>true</c> when the parsed version is ≥ the threshold.
+        /// Returns <c>false</c> on any parse failure.
+        /// </summary>
+        internal static bool IsVersionAtLeast(string version, int major, int minor, int patch)
+        {
+            if (string.IsNullOrEmpty(version))
+            {
+                return false;
+            }
+            string[] parts = version.Split('.');
+            if (parts.Length < 1 || !int.TryParse(parts[0], out int maj))
+            {
+                return false;
+            }
+            if (parts.Length < 2 || !int.TryParse(parts[1], out int min))
+            {
+                return maj >= major;
+            }
+            if (parts.Length < 3)
+            {
+                return maj > major || (maj == major && min >= minor);
+            }
+            // Strip any suffix after digits (e.g. "-preview").
+            string patchPart = parts[2];
+            int end = 0;
+            while (end < patchPart.Length && char.IsDigit(patchPart[end]))
+            {
+                end++;
+            }
+            if (end == 0 || !int.TryParse(patchPart.Substring(0, end), out int pat))
+            {
+                return maj > major || (maj == major && min >= minor);
+            }
+            return maj > major ||
+                   (maj == major && min > minor) ||
+                   (maj == major && min == minor && pat >= patch);
+        }
+
+        private bool m_hierarchyChecked;
+        private bool m_usesDistinctHierarchy;
     }
 }

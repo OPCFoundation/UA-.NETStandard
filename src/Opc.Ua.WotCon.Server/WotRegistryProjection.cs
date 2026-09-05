@@ -1215,7 +1215,8 @@ namespace Opc.Ua.WotCon.Server
 
         private sealed class ResourceFileAdapter :
             IXRegistryProjectedResourceFile,
-            IXRegistryProjectedContentlessResourceFile
+            IXRegistryProjectedContentlessResourceFile,
+            IXRegistryProjectedResourceFileHandleForwarder
         {
             public ResourceFileAdapter(
                 WotResourceFileManager file,
@@ -1260,6 +1261,57 @@ namespace Opc.Ua.WotCon.Server
             public void Dispose()
             {
                 m_file.Dispose();
+            }
+
+            // --- IXRegistryProjectedResourceFileHandleForwarder ---
+
+            ServiceResult IXRegistryProjectedResourceFileHandleForwarder.ForwardOpen(
+                ISystemContext context, MethodState method, NodeId objectId,
+                byte mode, ref uint fileHandle)
+            {
+                return ((IXRegistryProjectedResourceFileHandleForwarder)m_file)
+                    .ForwardOpen(context, method, objectId, mode, ref fileHandle);
+            }
+
+            ValueTask<ServiceResult> IXRegistryProjectedResourceFileHandleForwarder.ForwardCloseAsync(
+                ISystemContext context, MethodState method, NodeId objectId,
+                uint fileHandle, CancellationToken cancellationToken)
+            {
+                return ((IXRegistryProjectedResourceFileHandleForwarder)m_file)
+                    .ForwardCloseAsync(context, method, objectId, fileHandle, cancellationToken);
+            }
+
+            ValueTask<(ServiceResult Status, ByteString Data)>
+                IXRegistryProjectedResourceFileHandleForwarder.ForwardReadAsync(
+                ISystemContext context, MethodState method, NodeId objectId,
+                uint fileHandle, int length, CancellationToken cancellationToken)
+            {
+                return ((IXRegistryProjectedResourceFileHandleForwarder)m_file)
+                    .ForwardReadAsync(context, method, objectId, fileHandle, length, cancellationToken);
+            }
+
+            ServiceResult IXRegistryProjectedResourceFileHandleForwarder.ForwardWrite(
+                ISystemContext context, MethodState method, NodeId objectId,
+                uint fileHandle, ByteString data)
+            {
+                return ((IXRegistryProjectedResourceFileHandleForwarder)m_file)
+                    .ForwardWrite(context, method, objectId, fileHandle, data);
+            }
+
+            ServiceResult IXRegistryProjectedResourceFileHandleForwarder.ForwardGetPosition(
+                ISystemContext context, MethodState method, NodeId objectId,
+                uint fileHandle, ref ulong position)
+            {
+                return ((IXRegistryProjectedResourceFileHandleForwarder)m_file)
+                    .ForwardGetPosition(context, method, objectId, fileHandle, ref position);
+            }
+
+            ServiceResult IXRegistryProjectedResourceFileHandleForwarder.ForwardSetPosition(
+                ISystemContext context, MethodState method, NodeId objectId,
+                uint fileHandle, ulong position)
+            {
+                return ((IXRegistryProjectedResourceFileHandleForwarder)m_file)
+                    .ForwardSetPosition(context, method, objectId, fileHandle, position);
             }
 
             private readonly WotResourceFileManager m_file;

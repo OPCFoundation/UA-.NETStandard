@@ -73,7 +73,9 @@ namespace Opc.Ua.WotCon.Server.Registry
     /// modes are rejected with <see cref="StatusCodes.BadNotSupported"/>.
     /// </para>
     /// </remarks>
-    internal sealed class WotResourceFileManager : IDisposable
+    internal sealed class WotResourceFileManager :
+        IDisposable,
+        XRegistry.Server.IXRegistryProjectedResourceFileHandleForwarder
     {
         public const byte ReadMode = 1;
         public const byte WriteEraseMode = 6;
@@ -290,6 +292,58 @@ namespace Opc.Ua.WotCon.Server.Registry
                 }
                 return TryOpenWriteHandleLocked(sessionId, out fileHandle);
             }
+        }
+
+        // --- IXRegistryProjectedResourceFileHandleForwarder ---
+
+        ServiceResult XRegistry.Server.IXRegistryProjectedResourceFileHandleForwarder.ForwardOpen(
+            ISystemContext context, MethodState method, NodeId objectId,
+            byte mode, ref uint fileHandle)
+        {
+            return OnOpen(context, method, objectId, mode, ref fileHandle);
+        }
+
+        async ValueTask<ServiceResult>
+            XRegistry.Server.IXRegistryProjectedResourceFileHandleForwarder.ForwardCloseAsync(
+            ISystemContext context, MethodState method, NodeId objectId,
+            uint fileHandle, CancellationToken cancellationToken)
+        {
+            CloseMethodStateResult result = await OnCloseAsync(
+                context, method, objectId, fileHandle, cancellationToken)
+                .ConfigureAwait(false);
+            return result.ServiceResult;
+        }
+
+        async ValueTask<(ServiceResult Status, ByteString Data)>
+            XRegistry.Server.IXRegistryProjectedResourceFileHandleForwarder.ForwardReadAsync(
+            ISystemContext context, MethodState method, NodeId objectId,
+            uint fileHandle, int length, CancellationToken cancellationToken)
+        {
+            ReadMethodStateResult result = await OnReadAsync(
+                context, method, objectId, fileHandle, length, cancellationToken)
+                .ConfigureAwait(false);
+            return (result.ServiceResult, result.Data);
+        }
+
+        ServiceResult XRegistry.Server.IXRegistryProjectedResourceFileHandleForwarder.ForwardWrite(
+            ISystemContext context, MethodState method, NodeId objectId,
+            uint fileHandle, ByteString data)
+        {
+            return OnWrite(context, method, objectId, fileHandle, data);
+        }
+
+        ServiceResult XRegistry.Server.IXRegistryProjectedResourceFileHandleForwarder.ForwardGetPosition(
+            ISystemContext context, MethodState method, NodeId objectId,
+            uint fileHandle, ref ulong position)
+        {
+            return OnGetPosition(context, method, objectId, fileHandle, ref position);
+        }
+
+        ServiceResult XRegistry.Server.IXRegistryProjectedResourceFileHandleForwarder.ForwardSetPosition(
+            ISystemContext context, MethodState method, NodeId objectId,
+            uint fileHandle, ulong position)
+        {
+            return OnSetPosition(context, method, objectId, fileHandle, position);
         }
 
         public void Dispose()

@@ -89,12 +89,16 @@ namespace Opc.Ua.WotCon.Client
         /// <summary>
         /// Resolves the logical default Resource when a ResourceId collides with a
         /// non-default VersionId and therefore produces duplicate flat BrowseNames.
+        /// When <paramref name="usesDistinctHierarchy"/> is <c>true</c> (0.6.0+),
+        /// the Resource is a unique child of the Group, so no disambiguation is
+        /// needed — the first (and only) candidate is returned directly.
         /// </summary>
         public static async ValueTask<NodeId> ResolveLogicalResourceAsync(
             ISession session,
             NodeId groupNode,
             ushort targetNamespaceIndex,
             string resourceId,
+            bool usesDistinctHierarchy,
             StatusCode notFoundStatus,
             string notFoundMessage,
             CancellationToken ct)
@@ -111,10 +115,41 @@ namespace Opc.Ua.WotCon.Client
             {
                 throw new ServiceResultException(notFoundStatus, notFoundMessage);
             }
-            if (candidates.Count == 1)
+            if (candidates.Count == 1 || usesDistinctHierarchy)
             {
                 return candidates[0];
             }
+            return await DisambiguateByIsDefaultAsync(
+                session, candidates, resourceId, notFoundStatus, notFoundMessage, ct)
+                .ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Resolves the logical default Resource. Overload without explicit hierarchy
+        /// flag uses legacy disambiguation when multiple candidates exist.
+        /// </summary>
+        public static ValueTask<NodeId> ResolveLogicalResourceAsync(
+            ISession session,
+            NodeId groupNode,
+            ushort targetNamespaceIndex,
+            string resourceId,
+            StatusCode notFoundStatus,
+            string notFoundMessage,
+            CancellationToken ct)
+        {
+            return ResolveLogicalResourceAsync(
+                session, groupNode, targetNamespaceIndex, resourceId,
+                usesDistinctHierarchy: false, notFoundStatus, notFoundMessage, ct);
+        }
+
+        private static async ValueTask<NodeId> DisambiguateByIsDefaultAsync(
+            ISession session,
+            List<NodeId> candidates,
+            string resourceId,
+            StatusCode notFoundStatus,
+            string notFoundMessage,
+            CancellationToken ct)
+        {
 
             NodeId selected = NodeId.Null;
             foreach (NodeId candidate in candidates)
