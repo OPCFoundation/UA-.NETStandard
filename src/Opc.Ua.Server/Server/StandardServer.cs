@@ -3658,6 +3658,10 @@ namespace Opc.Ua.Server
         {
             await base.StartApplicationAsync(configuration, cancellationToken)
                 .ConfigureAwait(false);
+            if (NodeManagerLifecycle is NodeManagerLifecycle lifecycle)
+            {
+                lifecycle.PrepareForStartup();
+            }
             await m_semaphoreSlim.WaitAsync(cancellationToken).ConfigureAwait(false);
             try
             {
@@ -3877,6 +3881,7 @@ namespace Opc.Ua.Server
                             Timeout.InfiniteTimeSpan);
                     }
                 }
+
             }
             catch (Exception e)
             {
@@ -3938,6 +3943,22 @@ namespace Opc.Ua.Server
                 // and transport listeners pick up cert hot-updates.
                 m_certManagerSubscription = CertificateManager.CertificateChanges
                     .Subscribe(new CertificateManagerChangeObserver(this, m_logger));
+            }
+
+        }
+
+        /// <inheritdoc/>
+        protected override async ValueTask OnServerStartedAsync(
+            CancellationToken cancellationToken = default)
+        {
+            await base.OnServerStartedAsync(cancellationToken).ConfigureAwait(false);
+            if (NodeManagerLifecycle is NodeManagerLifecycle lifecycle)
+            {
+                await lifecycle
+                    .AdoptStartupNodeManagersAsync(
+                        CurrentInstance,
+                        cancellationToken)
+                    .ConfigureAwait(false);
             }
         }
 
@@ -4040,7 +4061,6 @@ namespace Opc.Ua.Server
                         failures,
                         () => lifecycle.CompleteShutdownAsync(serverInternal, CancellationToken.None))
                     .ConfigureAwait(false);
-                lifecycle.Dispose();
             }
 
             serverInternal.Dispose();

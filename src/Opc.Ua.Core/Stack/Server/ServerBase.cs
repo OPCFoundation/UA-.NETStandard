@@ -320,7 +320,7 @@ namespace Opc.Ua
         /// for a UA application</param>
         /// <param name="cancellationToken">The cancellation token</param>
         /// <param name="baseAddresses">The array of Uri elements which contains base addresses.</param>
-        /// <returns>Returns a host for a UA service.</returns>
+        /// <returns>The default service host, which the caller must open.</returns>
         /// <exception cref="ArgumentNullException"><paramref name="configuration"/> is <c>null</c>.</exception>
         /// <exception cref="ServiceResultException"></exception>
         public async ValueTask<ServiceHost> StartAsync(
@@ -383,6 +383,7 @@ namespace Opc.Ua
                 }
             }
 
+            await CompleteServerStartAsync(cancellationToken).ConfigureAwait(false);
             return hosts[0];
         }
 
@@ -439,6 +440,43 @@ namespace Opc.Ua
                     serviceHost.Open();
                     ServiceHosts.Add(serviceHost);
                 }
+            }
+
+            await CompleteServerStartAsync(cancellationToken).ConfigureAwait(false);
+        }
+
+        private async ValueTask CompleteServerStartAsync(
+            CancellationToken cancellationToken)
+        {
+            try
+            {
+                await OnServerStartedAsync(cancellationToken).ConfigureAwait(false);
+            }
+            catch (Exception startupException) when (
+                startupException is not OutOfMemoryException)
+            {
+                ServerError = null!;
+                try
+                {
+                    await StopAsync(CancellationToken.None).ConfigureAwait(false);
+                }
+                catch (Exception cleanupException) when (
+                    cleanupException is not OutOfMemoryException)
+                {
+                    throw new AggregateException(
+                        "Server post-start initialization and cleanup both failed.",
+                        startupException,
+                        cleanupException);
+                }
+                if (ServerError is not null &&
+                    ServiceResult.IsBad(ServerError))
+                {
+                    throw new AggregateException(
+                        "Server post-start initialization failed and shutdown reported an error.",
+                        startupException,
+                        new ServiceResultException(ServerError));
+                }
+                throw;
             }
         }
 
@@ -1765,6 +1803,29 @@ namespace Opc.Ua
         protected virtual void StartApplication(ApplicationConfiguration configuration)
         {
             // must be defined by the subclass.
+        }
+
+        /// <summary>
+        /// Called after server application initialization, before <c>StartAsync</c> returns.
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// <see cref="StartAsync(ApplicationConfiguration, CancellationToken)"/> invokes this
+        /// hook after opening all service hosts.
+        /// </para>
+        /// <para>
+        /// <see cref="StartAsync(ApplicationConfiguration, CancellationToken, Uri[])"/> invokes
+        /// this hook after opening only the additional service hosts, if any. The default
+        /// service host returned by that overload is still unopened; the caller or WCF opens
+        /// it afterwards. Overrides must not assume that the default host is accepting
+        /// connections when this hook runs.
+        /// </para>
+        /// </remarks>
+        /// <param name="cancellationToken">The cancellation token.</param>
+        protected virtual ValueTask OnServerStartedAsync(
+            CancellationToken cancellationToken = default)
+        {
+            return default;
         }
 
         /// <summary>

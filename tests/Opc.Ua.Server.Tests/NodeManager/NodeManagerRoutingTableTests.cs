@@ -129,6 +129,36 @@ namespace Opc.Ua.Server.Tests.NodeManager
         }
 
         [Test]
+        public void RestoreReplacementRecoversDroppedRoutePositions()
+        {
+            NodeManagerRoutingTable table = CreateTable(out _, out _);
+            IAsyncNodeManager original = CreateManager();
+            IAsyncNodeManager peer = CreateManager();
+            IAsyncNodeManager replacement = CreateManager();
+            table.Add(original, InitialNamespaceIndexes);
+            table.Add(peer, InitialNamespaceIndexes);
+
+            NodeManagerRoutingTable.NodeManagerRoutingPosition position =
+                table.Replace(
+                    original,
+                    replacement,
+                    ReplaceNamespaceIndexes);
+            table.RestoreReplacement(
+                replacement,
+                original,
+                position,
+                visible: true);
+
+            Assert.That(table[2], Is.SameAs(original));
+            Assert.That(table[3], Is.SameAs(peer));
+            Assert.That(table.NamespaceManagers.Keys, Is.EquivalentTo(InitialNamespaceIndexes));
+            Assert.That(table.NamespaceManagers[2][0], Is.SameAs(original));
+            Assert.That(table.NamespaceManagers[2][1], Is.SameAs(peer));
+            Assert.That(table.NamespaceManagers[3][0], Is.SameAs(original));
+            Assert.That(table.NamespaceManagers[3][1], Is.SameAs(peer));
+        }
+
+        [Test]
         public void RemoveUnpublishesManagerWithoutMutatingCapturedSnapshots()
         {
             NodeManagerRoutingTable table = CreateTable(
@@ -165,6 +195,54 @@ namespace Opc.Ua.Server.Tests.NodeManager
             Assert.That(namespaceRouteSnapshot[3], Is.SameAs(namespaceThreeSnapshot));
             AssertSingleManagerRoute(namespaceRouteSnapshot, 2, lifecycleManager);
             AssertSingleManagerRoute(namespaceRouteSnapshot, 3, lifecycleManager);
+        }
+
+        [Test]
+        public void RestoreReturnsManagerToCapturedGlobalAndNamespacePositions()
+        {
+            NodeManagerRoutingTable table = CreateTable(out _, out _);
+            IAsyncNodeManager earlier = CreateManager();
+            IAsyncNodeManager first = CreateManager();
+            IAsyncNodeManager second = CreateManager();
+            table.Add(earlier, InitialNamespaceIndexes);
+            table.Add(first, InitialNamespaceIndexes);
+            table.Add(second, InitialNamespaceIndexes);
+
+            NodeManagerRoutingTable.NodeManagerRoutingPosition position =
+                table.RemoveAndCapturePosition(first);
+            table.Remove(earlier);
+            table.Restore(first, position);
+
+            Assert.That(table[2], Is.SameAs(first));
+            Assert.That(table[3], Is.SameAs(second));
+            Assert.That(table.NamespaceManagers[2][0], Is.SameAs(first));
+            Assert.That(table.NamespaceManagers[2][1], Is.SameAs(second));
+            Assert.That(table.NamespaceManagers[3][0], Is.SameAs(first));
+            Assert.That(table.NamespaceManagers[3][1], Is.SameAs(second));
+        }
+
+        [Test]
+        public void RoutingMutationsMatchAdaptersBySynchronousManagerIdentity()
+        {
+            NodeManagerRoutingTable table = CreateTable(out _, out _);
+            INodeManager syncManager = new Mock<INodeManager>().Object;
+            IAsyncNodeManager registeredAdapter =
+                CreateManagerWithSync(syncManager);
+            IAsyncNodeManager lookupAdapter =
+                CreateManagerWithSync(syncManager);
+            table.Add(registeredAdapter, [2]);
+
+            table.RegisterNamespace(3, lookupAdapter);
+
+            Assert.That(table.NamespaceManagers[3], Has.Count.EqualTo(1));
+            Assert.That(
+                table.NamespaceManagers[3][0],
+                Is.SameAs(registeredAdapter));
+
+            table.Remove(lookupAdapter);
+
+            Assert.That(table, Has.Count.EqualTo(2));
+            Assert.That(table.NamespaceManagers, Is.Empty);
         }
 
         /// <summary>

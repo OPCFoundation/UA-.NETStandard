@@ -52,7 +52,8 @@ namespace Opc.Ua.Server.RuntimeNodeSet
     /// </remarks>
     internal sealed class RuntimeNodeSetNodeManager :
         FluentNodeManagerBase,
-        INodeManagerReloadParticipant
+        INodeManagerReloadParticipant,
+        IRequestCallbackSafeNodeManager
     {
         /// <summary>
         /// Initializes the node manager.
@@ -85,6 +86,10 @@ namespace Opc.Ua.Server.RuntimeNodeSet
         /// generation; it is disposed asynchronously when the generation
         /// is torn down.
         /// </param>
+        /// <param name="allowLifecycleFromRequestCallback">
+        /// Whether lifecycle operations may be initiated from this manager's
+        /// OPC UA request callbacks.
+        /// </param>
         internal RuntimeNodeSetNodeManager(
             IServerInternal server,
             ApplicationConfiguration configuration,
@@ -93,7 +98,8 @@ namespace Opc.Ua.Server.RuntimeNodeSet
             ParsedNodeSetDocument[] documents,
             string? defaultNamespaceUri,
             Action<INodeManagerBuilder>? configure,
-            Func<INodeManagerBuilder, CancellationToken, ValueTask<IAsyncDisposable?>>? configureAsync)
+            Func<INodeManagerBuilder, CancellationToken, ValueTask<IAsyncDisposable?>>? configureAsync,
+            bool allowLifecycleFromRequestCallback)
             : base(server, configuration, logger, modelNamespaceUris)
         {
             m_documents = documents
@@ -101,7 +107,11 @@ namespace Opc.Ua.Server.RuntimeNodeSet
             m_defaultNamespaceUri = defaultNamespaceUri;
             m_configure = configure;
             m_configureAsync = configureAsync;
+            AllowLifecycleFromRequestCallback = allowLifecycleFromRequestCallback;
         }
+
+        /// <inheritdoc/>
+        public bool AllowLifecycleFromRequestCallback { get; }
 
         /// <inheritdoc/>
         public override async ValueTask CreateAddressSpaceAsync(

@@ -459,6 +459,270 @@ namespace Opc.Ua.Core.Tests.Stack.Schema
         }
 
         /// <summary>
+        /// Imported Method argument Variables must be adopted through
+        /// <see cref="MethodState"/>'s declared children so Call validation
+        /// sees the authored argument definitions.
+        /// </summary>
+        [Test]
+        public void ImportBindsMethodArgumentProperties()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
+            const string importBuffer =
+                @"<?xml version='1.0' encoding='utf-8'?>
+                <UANodeSet xmlns:xsi='http://www.w3.org/2001/XMLSchema-instance'
+                           xmlns:xsd='http://www.w3.org/2001/XMLSchema'
+                           xmlns:uax='http://opcfoundation.org/UA/2008/02/Types.xsd'
+                           xmlns='http://opcfoundation.org/UA/2011/03/UANodeSet.xsd'>
+                  <NamespaceUris>
+                    <Uri>urn:test:method-arguments</Uri>
+                  </NamespaceUris>
+                  <Aliases>
+                    <Alias Alias='Argument'>i=296</Alias>
+                    <Alias Alias='HasComponent'>i=47</Alias>
+                    <Alias Alias='HasProperty'>i=46</Alias>
+                    <Alias Alias='HasTypeDefinition'>i=40</Alias>
+                  </Aliases>
+                  <UAVariable NodeId='ns=1;i=1003' BrowseName='1:InputArguments'
+                              ParentNodeId='ns=1;i=1000' DataType='i=12'
+                              ValueRank='-1'>
+                    <DisplayName>Custom InputArguments</DisplayName>
+                    <References>
+                      <Reference ReferenceType='HasTypeDefinition'>i=68</Reference>
+                      <Reference ReferenceType='HasProperty' IsForward='false'>ns=1;i=1000</Reference>
+                    </References>
+                  </UAVariable>
+                  <UAVariable NodeId='ns=1;i=1001' BrowseName='InputArguments'
+                              ParentNodeId='ns=1;i=1000' DataType='Argument'
+                              ValueRank='1' ArrayDimensions='1'
+                              UserWriteMask='1' AccessRestrictions='1'
+                              DesignToolOnly='true'>
+                    <DisplayName>Imported inputs</DisplayName>
+                    <Description>Input metadata</Description>
+                    <Category>Method metadata</Category>
+                    <Documentation>https://example.org/input-arguments</Documentation>
+                    <References>
+                      <Reference ReferenceType='HasTypeDefinition'>i=68</Reference>
+                      <Reference ReferenceType='HasProperty' IsForward='false'>ns=1;i=1000</Reference>
+                    </References>
+                    <RolePermissions>
+                      <RolePermission Permissions='1'>i=15644</RolePermission>
+                    </RolePermissions>
+                    <Value>
+                      <uax:ListOfExtensionObject>
+                        <uax:ExtensionObject>
+                          <uax:TypeId>
+                            <uax:Identifier>i=297</uax:Identifier>
+                          </uax:TypeId>
+                          <uax:Body>
+                            <uax:Argument>
+                              <uax:Name>revision</uax:Name>
+                              <uax:DataType>
+                                <uax:Identifier>i=12</uax:Identifier>
+                              </uax:DataType>
+                              <uax:ValueRank>-1</uax:ValueRank>
+                              <uax:ArrayDimensions />
+                            </uax:Argument>
+                          </uax:Body>
+                        </uax:ExtensionObject>
+                      </uax:ListOfExtensionObject>
+                    </Value>
+                  </UAVariable>
+                  <UAVariable NodeId='ns=1;i=1002' BrowseName='OutputArguments'
+                              ParentNodeId='ns=1;i=1000' DataType='Argument'
+                              ValueRank='1' ArrayDimensions='1'>
+                    <DisplayName>Imported outputs</DisplayName>
+                    <References>
+                      <Reference ReferenceType='HasTypeDefinition'>i=68</Reference>
+                      <Reference ReferenceType='HasProperty' IsForward='false'>ns=1;i=1000</Reference>
+                    </References>
+                    <Value>
+                      <uax:ListOfExtensionObject>
+                        <uax:ExtensionObject>
+                          <uax:TypeId>
+                            <uax:Identifier>i=297</uax:Identifier>
+                          </uax:TypeId>
+                          <uax:Body>
+                            <uax:Argument>
+                              <uax:Name>accepted</uax:Name>
+                              <uax:DataType>
+                                <uax:Identifier>i=1</uax:Identifier>
+                              </uax:DataType>
+                              <uax:ValueRank>-1</uax:ValueRank>
+                              <uax:ArrayDimensions />
+                            </uax:Argument>
+                          </uax:Body>
+                        </uax:ExtensionObject>
+                      </uax:ListOfExtensionObject>
+                    </Value>
+                  </UAVariable>
+                  <UAMethod NodeId='ns=1;i=1000' BrowseName='1:Load'>
+                    <DisplayName>Load</DisplayName>
+                    <References>
+                      <Reference ReferenceType='HasProperty'>ns=1;i=1003</Reference>
+                      <Reference ReferenceType='HasProperty'>ns=1;i=1002</Reference>
+                    </References>
+                  </UAMethod>
+                </UANodeSet>";
+
+            using var importStream = new MemoryStream(Encoding.UTF8.GetBytes(importBuffer));
+            Export.UANodeSet importedNodeSet = Export.UANodeSet.Read(importStream);
+
+            var importedNodeStates = new NodeStateCollection();
+            var localContext = new SystemContext(telemetry) { NamespaceUris = new NamespaceTable() };
+            foreach (string namespaceUri in importedNodeSet.NamespaceUris)
+            {
+                localContext.NamespaceUris.Append(namespaceUri);
+            }
+
+            localContext.ServerUris = new StringTable();
+            localContext.EncodeableFactory = EncodeableFactory.Create();
+
+            importedNodeSet.Import(localContext, importedNodeStates, linkParentChild: true);
+
+            MethodState method = importedNodeStates.OfType<MethodState>().Single();
+            ushort namespaceIndex = (ushort)localContext.NamespaceUris.GetIndex(
+                "urn:test:method-arguments");
+            var inputId = new NodeId(1001u, namespaceIndex);
+            var outputId = new NodeId(1002u, namespaceIndex);
+            var customInputId = new NodeId(1003u, namespaceIndex);
+            var children = new List<BaseInstanceState>();
+            method.GetChildren(localContext, children);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(method.InputArguments, Is.Not.Null);
+                Assert.That(method.OutputArguments, Is.Not.Null);
+                Assert.That(method.InputArguments!.NodeId, Is.EqualTo(inputId));
+                Assert.That(method.OutputArguments!.NodeId, Is.EqualTo(outputId));
+                Assert.That(
+                    method.InputArguments.ReferenceTypeId,
+                    Is.EqualTo(ReferenceTypeIds.HasProperty));
+                Assert.That(method.InputArguments.DisplayName.Text, Is.EqualTo("Imported inputs"));
+                Assert.That(method.InputArguments.Description.Text, Is.EqualTo("Input metadata"));
+                Assert.That(
+                    method.InputArguments.UserWriteMask,
+                    Is.EqualTo(AttributeWriteMask.AccessLevel));
+                Assert.That(
+                    method.InputArguments.AccessRestrictions,
+                    Is.EqualTo(AccessRestrictionType.SigningRequired));
+                Assert.That(method.InputArguments.DesignToolOnly, Is.True);
+                Assert.That(
+                    method.InputArguments.NodeSetDocumentation,
+                    Is.EqualTo("https://example.org/input-arguments"));
+                Assert.That(
+                    method.InputArguments.Categories,
+                    Has.Count.EqualTo(1));
+                Assert.That(
+                    method.InputArguments.Categories,
+                    Has.Member("Method metadata"));
+                Assert.That(method.InputArguments.RolePermissions, Has.Count.EqualTo(1));
+                Assert.That(
+                    method.InputArguments.RolePermissions[0].RoleId,
+                    Is.EqualTo(ObjectIds.WellKnownRole_Anonymous));
+                Assert.That(
+                    method.InputArguments.RolePermissions[0].Permissions,
+                    Is.EqualTo((uint)PermissionType.Browse));
+                Assert.That(method.InputArguments.Value, Has.Count.EqualTo(1));
+                Assert.That(method.InputArguments.Value[0].Name, Is.EqualTo("revision"));
+                Assert.That(method.OutputArguments.Value, Has.Count.EqualTo(1));
+                Assert.That(method.OutputArguments.Value[0].Name, Is.EqualTo("accepted"));
+                Assert.That(
+                    importedNodeStates.Single(node => node.NodeId == inputId),
+                    Is.SameAs(method.InputArguments));
+                Assert.That(
+                    importedNodeStates.Single(node => node.NodeId == outputId),
+                    Is.SameAs(method.OutputArguments));
+                Assert.That(children, Has.Count.EqualTo(3));
+                Assert.That(children, Does.Contain(method.InputArguments));
+                Assert.That(children, Does.Contain(method.OutputArguments));
+                Assert.That(
+                    children.Single(child => child.NodeId == customInputId),
+                    Is.TypeOf<PropertyState>());
+            });
+        }
+
+        /// <summary>
+        /// Linking must preserve the importer's previous behavior for unnamed
+        /// children and sibling BrowseName collisions.
+        /// </summary>
+        [Test]
+        public void ImportPreservesUnnamedAndDuplicateBrowseNameChildren()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
+            const string importBuffer =
+                @"<?xml version='1.0' encoding='utf-8'?>
+                <UANodeSet xmlns='http://opcfoundation.org/UA/2011/03/UANodeSet.xsd'>
+                  <NamespaceUris>
+                    <Uri>urn:test:duplicate-children</Uri>
+                  </NamespaceUris>
+                  <Aliases>
+                    <Alias Alias='HasComponent'>i=47</Alias>
+                    <Alias Alias='HasTypeDefinition'>i=40</Alias>
+                  </Aliases>
+                  <UAObject NodeId='ns=1;i=2000' BrowseName='1:Parent'>
+                    <DisplayName>Parent</DisplayName>
+                    <References>
+                      <Reference ReferenceType='HasTypeDefinition'>i=58</Reference>
+                    </References>
+                  </UAObject>
+                  <UAObject NodeId='ns=1;i=2001' BrowseName='1:Duplicate'
+                            ParentNodeId='ns=1;i=2000'>
+                    <DisplayName>First</DisplayName>
+                    <References>
+                      <Reference ReferenceType='HasComponent' IsForward='false'>ns=1;i=2000</Reference>
+                    </References>
+                  </UAObject>
+                  <UAObject NodeId='ns=1;i=2002' BrowseName='1:Duplicate'
+                            ParentNodeId='ns=1;i=2000'>
+                    <DisplayName>Second</DisplayName>
+                    <References>
+                      <Reference ReferenceType='HasComponent' IsForward='false'>ns=1;i=2000</Reference>
+                    </References>
+                  </UAObject>
+                  <UAObject NodeId='ns=1;i=2003' ParentNodeId='ns=1;i=2000'>
+                    <DisplayName>Unnamed</DisplayName>
+                    <References>
+                      <Reference ReferenceType='HasComponent' IsForward='false'>ns=1;i=2000</Reference>
+                    </References>
+                  </UAObject>
+                </UANodeSet>";
+
+            using var importStream = new MemoryStream(Encoding.UTF8.GetBytes(importBuffer));
+            Export.UANodeSet importedNodeSet = Export.UANodeSet.Read(importStream);
+            var importedNodeStates = new NodeStateCollection();
+            var localContext = new SystemContext(telemetry) { NamespaceUris = new NamespaceTable() };
+            foreach (string namespaceUri in importedNodeSet.NamespaceUris)
+            {
+                localContext.NamespaceUris.Append(namespaceUri);
+            }
+
+            importedNodeSet.Import(localContext, importedNodeStates, linkParentChild: true);
+
+            BaseObjectState parent = importedNodeStates
+                .OfType<BaseObjectState>()
+                .Single(node => node.BrowseName.Name == "Parent");
+            var children = new List<BaseInstanceState>();
+            parent.GetChildren(localContext, children);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(children, Has.Count.EqualTo(3));
+                Assert.That(
+                    children.Count(child => child.BrowseName.Name == "Duplicate"),
+                    Is.EqualTo(2));
+                Assert.That(
+                    children.Count(child => child.BrowseName.IsNull),
+                    Is.EqualTo(1));
+                Assert.That(
+                    importedNodeStates.Count(node =>
+                        node.NodeId.NamespaceIndex == parent.NodeId.NamespaceIndex),
+                    Is.EqualTo(4));
+            });
+        }
+
+        /// <summary>
         /// Test that parent-child references are NOT established by default (backward compatibility).
         /// </summary>
         [Test]

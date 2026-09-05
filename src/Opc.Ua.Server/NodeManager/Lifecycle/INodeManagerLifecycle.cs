@@ -38,7 +38,9 @@ namespace Opc.Ua.Server
     public interface INodeManagerLifecycle
     {
         /// <summary>
-        /// Gets a snapshot of the live registrations owned by this provider.
+        /// Gets a snapshot of the live application NodeManagers owned by this provider,
+        /// including managers composed before server startup and managers added at runtime.
+        /// Built-in diagnostics, configuration, and core NodeManagers are excluded.
         /// </summary>
         ArrayOf<NodeManagerRegistration> Registrations { get; }
 
