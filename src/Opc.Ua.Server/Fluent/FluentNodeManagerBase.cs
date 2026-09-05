@@ -69,8 +69,10 @@ namespace Opc.Ua.Server.Fluent
             params string[] namespaceUris)
             : base(server, namespaceUris)
         {
+            Configuration = null;
             EventSources = new EventSourceRegistry(this, m_logger);
             Simulations = new SimulationRegistry(this, m_logger);
+            MonitoredSources = new MonitoredSourceRegistry(this, m_logger);
         }
 
         /// <summary>
@@ -82,8 +84,10 @@ namespace Opc.Ua.Server.Fluent
             params string[] namespaceUris)
             : base(server, logger, namespaceUris)
         {
+            Configuration = null;
             EventSources = new EventSourceRegistry(this, m_logger);
             Simulations = new SimulationRegistry(this, m_logger);
+            MonitoredSources = new MonitoredSourceRegistry(this, m_logger);
         }
 
         /// <summary>
@@ -95,8 +99,10 @@ namespace Opc.Ua.Server.Fluent
             params string[] namespaceUris)
             : base(server, configuration, namespaceUris)
         {
+            Configuration = configuration;
             EventSources = new EventSourceRegistry(this, m_logger);
             Simulations = new SimulationRegistry(this, m_logger);
+            MonitoredSources = new MonitoredSourceRegistry(this, m_logger);
         }
 
         /// <summary>
@@ -109,8 +115,10 @@ namespace Opc.Ua.Server.Fluent
             params string[] namespaceUris)
             : base(server, configuration, logger, namespaceUris)
         {
+            Configuration = configuration;
             EventSources = new EventSourceRegistry(this, m_logger);
             Simulations = new SimulationRegistry(this, m_logger);
+            MonitoredSources = new MonitoredSourceRegistry(this, m_logger);
         }
 
         /// <summary>
@@ -123,8 +131,10 @@ namespace Opc.Ua.Server.Fluent
             params string[] namespaceUris)
             : base(server, configuration, useSamplingGroups, namespaceUris)
         {
+            Configuration = configuration;
             EventSources = new EventSourceRegistry(this, m_logger);
             Simulations = new SimulationRegistry(this, m_logger);
+            MonitoredSources = new MonitoredSourceRegistry(this, m_logger);
         }
 
         /// <summary>
@@ -138,9 +148,23 @@ namespace Opc.Ua.Server.Fluent
             params string[] namespaceUris)
             : base(server, configuration, useSamplingGroups, logger, namespaceUris)
         {
+            Configuration = configuration;
             EventSources = new EventSourceRegistry(this, m_logger);
             Simulations = new SimulationRegistry(this, m_logger);
+            MonitoredSources = new MonitoredSourceRegistry(this, m_logger);
         }
+
+        /// <summary>
+        /// The application configuration supplied when this manager was
+        /// constructed. Configuration-less legacy constructors expose
+        /// <c>null</c>.
+        /// </summary>
+        protected ApplicationConfiguration? Configuration { get; }
+
+        /// <summary>
+        /// The concrete fluent builder attached to this manager.
+        /// </summary>
+        internal NodeManagerBuilder? AttachedBuilder { get; private set; }
 
         /// <summary>
         /// Registry that the fluent <c>Publish</c> surface stores its
@@ -158,6 +182,11 @@ namespace Opc.Ua.Server.Fluent
         /// and torn down on disposal.
         /// </summary>
         internal SimulationRegistry Simulations { get; }
+
+        /// <summary>
+        /// Registry for data sources activated by monitored-item lifecycle.
+        /// </summary>
+        internal MonitoredSourceRegistry MonitoredSources { get; }
 
         /// <summary>
         /// Constructs a <see cref="NodeManagerBuilder"/> for this
@@ -225,8 +254,82 @@ namespace Opc.Ua.Server.Fluent
             {
                 throw new System.ArgumentNullException(nameof(builder));
             }
-            builder.AttachEventSources(EventSources);
-            builder.AttachSimulations(Simulations);
+
+            lock (m_attachedBuildersLock)
+            {
+                foreach (NodeManagerBuilder attached in m_attachedBuilders)
+                {
+                    if (ReferenceEquals(attached, builder))
+                    {
+                        return;
+                    }
+                }
+
+                builder.AttachEventSources(EventSources);
+                builder.AttachSimulations(Simulations);
+                builder.AttachMonitoredSources(MonitoredSources);
+                builder.AttachOwner(this);
+                m_attachedBuilders.Add(builder);
+                AttachedBuilder = builder;
+            }
+        }
+
+        /// <summary>
+        /// Resolves the concrete builder attached to the manager exposed by
+        /// an arbitrary <see cref="INodeManagerBuilder"/> facade.
+        /// </summary>
+        internal static NodeManagerBuilder ResolveAttachedBuilder(
+            INodeManagerBuilder builder,
+            string feature)
+        {
+            if (builder == null)
+            {
+                throw new System.ArgumentNullException(nameof(builder));
+            }
+
+            if (builder is NodeManagerBuilder concreteBuilder &&
+                concreteBuilder.FluentOwner != null)
+            {
+                return concreteBuilder;
+            }
+
+            if (builder.NodeManager is FluentNodeManagerBase manager &&
+                manager.AttachedBuilder is { } concrete)
+            {
+                return concrete;
+            }
+
+            throw ServiceResultException.Create(
+                StatusCodes.BadConfigurationError,
+                "{0} requires the node manager to derive from FluentNodeManagerBase " +
+                "and attach its builder before Configure runs. Manager type '{1}' does not opt in.",
+                feature,
+                builder.NodeManager?.GetType().FullName ?? "(unknown)");
+        }
+
+        internal VirtualNodeRegistration? FindVirtualNodeRegistration(
+            NodeId nodeId)
+        {
+            VirtualNodeRegistration? match = null;
+            foreach (NodeManagerBuilder builder in GetAttachedBuilders())
+            {
+                VirtualNodeRegistration? registration =
+                    builder.FindVirtualNodeRegistration(nodeId);
+                if (registration == null)
+                {
+                    continue;
+                }
+                if (match != null)
+                {
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadConfigurationError,
+                        "NodeId '{0}' matches virtual-node families registered " +
+                        "on more than one fluent builder.",
+                        nodeId);
+                }
+                match = registration;
+            }
+            return match;
         }
 
         /// <summary>
@@ -264,6 +367,159 @@ namespace Opc.Ua.Server.Fluent
             return AddReverseReferencesAsync(externalReferences, cancellationToken);
         }
 
+        /// <inheritdoc/>
+        protected override async ValueTask<NodeHandle> GetManagerHandleAsync(
+            ServerSystemContext context,
+            NodeId nodeId,
+            IDictionary<NodeId, NodeState> cache,
+            CancellationToken cancellationToken = default)
+        {
+            NodeHandle handle = await base.GetManagerHandleAsync(
+                context,
+                nodeId,
+                cache,
+                cancellationToken).ConfigureAwait(false);
+            if (handle != null || !IsNodeIdInNamespace(nodeId))
+            {
+                return handle!;
+            }
+
+            VirtualNodeRegistration? registration =
+                FindVirtualNodeRegistration(nodeId);
+            return registration == null
+                ? null!
+                : new NodeHandle
+                {
+                    NodeId = nodeId,
+                    ParsedNodeId = registration,
+                    Validated = false
+                };
+        }
+
+        /// <inheritdoc/>
+        protected override async ValueTask<NodeState> ValidateNodeAsync(
+            ServerSystemContext context,
+            NodeHandle handle,
+            IDictionary<NodeId, NodeState> cache,
+            CancellationToken cancellationToken = default)
+        {
+            NodeState? node = await base.ValidateNodeAsync(
+                context,
+                handle,
+                cache,
+                cancellationToken).ConfigureAwait(false);
+            if (node != null ||
+                handle?.ParsedNodeId is not VirtualNodeRegistration registration)
+            {
+                return node!;
+            }
+
+            if (cache != null && cache.TryGetValue(handle.NodeId, out NodeState? cached))
+            {
+                return cached == null
+                    ? null!
+                    : ValidationComplete(context, handle, cached, cache);
+            }
+
+            NodeState? resolved = await registration.Resolver(
+                context,
+                handle.NodeId,
+                cancellationToken).ConfigureAwait(false);
+            if (resolved == null)
+            {
+                if (cache != null)
+                {
+                    cache[handle.NodeId] = null!;
+                }
+                return null!;
+            }
+
+            if (resolved.NodeId.IsNull)
+            {
+                resolved.NodeId = handle.NodeId;
+            }
+            else if (resolved.NodeId != handle.NodeId)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadNodeIdInvalid,
+                    "Virtual-node resolver returned NodeId '{0}' for requested NodeId '{1}'.",
+                    resolved.NodeId,
+                    handle.NodeId);
+            }
+
+            registration.Apply(resolved);
+            return ValidationComplete(context, handle, resolved, cache!);
+        }
+
+        /// <inheritdoc/>
+        protected override bool TryHandleHistoryRead(
+            ISystemContext context,
+            NodeState source,
+            HistoryReadDetails details,
+            TimestampsToReturn timestampsToReturn,
+            bool releaseContinuationPoints,
+            HistoryReadValueId nodeToRead,
+            HistoryReadResult result,
+            out ServiceResult status)
+        {
+            NodeManagerBuilder[] builders = GetAttachedBuilders();
+            for (int ii = builders.Length - 1; ii >= 0; ii--)
+            {
+                if (builders[ii].Dispatcher.TryHandleHistoryRead(
+                    context,
+                    source,
+                    details,
+                    timestampsToReturn,
+                    releaseContinuationPoints,
+                    nodeToRead,
+                    result,
+                    out status))
+                {
+                    return true;
+                }
+            }
+
+            return base.TryHandleHistoryRead(
+                context,
+                source,
+                details,
+                timestampsToReturn,
+                releaseContinuationPoints,
+                nodeToRead,
+                result,
+                out status);
+        }
+
+        /// <inheritdoc/>
+        protected override bool TryHandleHistoryUpdate(
+            ISystemContext context,
+            NodeState source,
+            HistoryUpdateDetails nodeToUpdate,
+            HistoryUpdateResult result,
+            out ServiceResult status)
+        {
+            NodeManagerBuilder[] builders = GetAttachedBuilders();
+            for (int ii = builders.Length - 1; ii >= 0; ii--)
+            {
+                if (builders[ii].Dispatcher.TryHandleHistoryUpdate(
+                    context,
+                    source,
+                    nodeToUpdate,
+                    result,
+                    out status))
+                {
+                    return true;
+                }
+            }
+
+            return base.TryHandleHistoryUpdate(
+                context,
+                source,
+                nodeToUpdate,
+                result,
+                out status);
+        }
+
         /// <summary>
         /// Signals the registry whenever a notifier's monitored-events
         /// ref-count flips so the reconcile loop can start or stop the
@@ -281,6 +537,332 @@ namespace Opc.Ua.Server.Fluent
             return base.OnSubscribeToEventsAsync(context, monitoredNode, unsubscribe, cancellationToken);
         }
 
+        /// <inheritdoc/>
+        protected override void OnMonitoredItemCreated(
+            ServerSystemContext context,
+            NodeHandle handle,
+            ISampledDataChangeMonitoredItem monitoredItem)
+        {
+            base.OnMonitoredItemCreated(context, handle, monitoredItem);
+
+            if (handle?.Node is not { } node)
+            {
+                return;
+            }
+
+            NodeManagerBuilder[] builders = GetAttachedBuilders();
+            for (int ii = builders.Length - 1; ii >= 0; ii--)
+            {
+                if (builders[ii].HasMonitoredItemCreatedHandler(node.NodeId))
+                {
+                    builders[ii].Dispatcher.NotifyMonitoredItemCreated(
+                        context,
+                        node,
+                        monitoredItem);
+                    break;
+                }
+            }
+        }
+
+        /// <inheritdoc/>
+        protected override async ValueTask<MonitoredItemCreateDecision>
+            OnCreatingMonitoredItemAsync(
+                MonitoredItemCreateContext context,
+                CancellationToken cancellationToken = default)
+        {
+            MonitoredItemCreateDecision decision =
+                await base.OnCreatingMonitoredItemAsync(
+                    context,
+                    cancellationToken).ConfigureAwait(false);
+            if (decision.Kind != MonitoredItemCreateDecisionKind.Default)
+            {
+                return decision;
+            }
+
+            NodeManagerBuilder[] builders = GetAttachedBuilders();
+            for (int ii = builders.Length - 1; ii >= 0; ii--)
+            {
+                if (builders[ii].HasMonitoredItemCreatingHandler(
+                    context.Source.NodeId))
+                {
+                    return await builders[ii].Dispatcher
+                        .GetMonitoredItemCreateDecisionAsync(
+                            context,
+                            cancellationToken).ConfigureAwait(false);
+                }
+            }
+            return decision;
+        }
+
+        /// <inheritdoc/>
+        protected override async ValueTask OnMonitoredItemModifiedAsync(
+            ServerSystemContext context,
+            NodeHandle handle,
+            ISampledDataChangeMonitoredItem monitoredItem,
+            CancellationToken cancellationToken = default)
+        {
+            await base.OnMonitoredItemModifiedAsync(
+                context,
+                handle,
+                monitoredItem,
+                cancellationToken).ConfigureAwait(false);
+
+            if (handle?.Node is not { } node)
+            {
+                return;
+            }
+
+            NodeManagerBuilder[] builders = GetAttachedBuilders();
+            for (int ii = builders.Length - 1; ii >= 0; ii--)
+            {
+                if (builders[ii].HasMonitoredItemModifiedHandler(node.NodeId))
+                {
+                    await builders[ii].Dispatcher.NotifyMonitoredItemModifiedAsync(
+                        context,
+                        node,
+                        monitoredItem,
+                        cancellationToken).ConfigureAwait(false);
+                    break;
+                }
+            }
+
+        }
+
+        /// <inheritdoc/>
+        protected override async ValueTask OnMonitoredItemDeletedAsync(
+            ServerSystemContext context,
+            NodeHandle handle,
+            ISampledDataChangeMonitoredItem monitoredItem,
+            CancellationToken cancellationToken = default)
+        {
+            await base.OnMonitoredItemDeletedAsync(
+                context,
+                handle,
+                monitoredItem,
+                cancellationToken).ConfigureAwait(false);
+
+            if (handle?.Node is not { } node)
+            {
+                return;
+            }
+
+            NodeManagerBuilder[] builders = GetAttachedBuilders();
+            for (int ii = builders.Length - 1; ii >= 0; ii--)
+            {
+                if (builders[ii].HasMonitoredItemDeletedHandler(node.NodeId))
+                {
+                    await builders[ii].Dispatcher.NotifyMonitoredItemDeletedAsync(
+                        context,
+                        node,
+                        monitoredItem,
+                        cancellationToken).ConfigureAwait(false);
+                    break;
+                }
+            }
+
+        }
+
+        /// <inheritdoc/>
+        protected override async ValueTask OnMonitoringModeChangedAsync(
+            ServerSystemContext context,
+            NodeHandle handle,
+            ISampledDataChangeMonitoredItem monitoredItem,
+            MonitoringMode previousMode,
+            MonitoringMode monitoringMode,
+            CancellationToken cancellationToken = default)
+        {
+            await base.OnMonitoringModeChangedAsync(
+                context,
+                handle,
+                monitoredItem,
+                previousMode,
+                monitoringMode,
+                cancellationToken).ConfigureAwait(false);
+
+            if (handle?.Node is not { } node)
+            {
+                return;
+            }
+
+            NodeManagerBuilder[] builders = GetAttachedBuilders();
+            for (int ii = builders.Length - 1; ii >= 0; ii--)
+            {
+                if (builders[ii].HasMonitoringModeChangedHandler(node.NodeId))
+                {
+                    await builders[ii].Dispatcher.NotifyMonitoringModeChangedAsync(
+                        context,
+                        node,
+                        monitoredItem,
+                        previousMode,
+                        monitoringMode,
+                        cancellationToken).ConfigureAwait(false);
+                    break;
+                }
+            }
+
+        }
+
+        /// <inheritdoc/>
+        protected override async ValueTask OnMonitoredItemAttachedAsync(
+            ServerSystemContext context,
+            NodeHandle handle,
+            ISampledDataChangeMonitoredItem monitoredItem,
+            CancellationToken cancellationToken = default)
+        {
+            await base.OnMonitoredItemAttachedAsync(
+                context,
+                handle,
+                monitoredItem,
+                cancellationToken).ConfigureAwait(false);
+
+            if (handle?.Node is { } source)
+            {
+                await MonitoredSources.OnCreatedAsync(
+                    context,
+                    source,
+                    monitoredItem).ConfigureAwait(false);
+            }
+        }
+
+        /// <inheritdoc/>
+        protected override async ValueTask OnMonitoredItemDetachedAsync(
+            ServerSystemContext context,
+            NodeHandle handle,
+            ISampledDataChangeMonitoredItem monitoredItem,
+            CancellationToken cancellationToken = default)
+        {
+            await base.OnMonitoredItemDetachedAsync(
+                context,
+                handle,
+                monitoredItem,
+                cancellationToken).ConfigureAwait(false);
+
+            if (handle?.Node is { } source)
+            {
+                await MonitoredSources.OnDeletedAsync(
+                    context,
+                    source,
+                    monitoredItem).ConfigureAwait(false);
+            }
+        }
+
+        /// <inheritdoc/>
+        protected override async ValueTask OnCreateMonitoredItemsCompleteAsync(
+            ServerSystemContext context,
+            IList<IMonitoredItem> monitoredItems,
+            CancellationToken cancellationToken = default)
+        {
+            await base.OnCreateMonitoredItemsCompleteAsync(
+                context,
+                monitoredItems,
+                cancellationToken).ConfigureAwait(false);
+
+            foreach (IMonitoredItem item in monitoredItems)
+            {
+                if (item is ISampledDataChangeMonitoredItem sampled &&
+                    sampled.ManagerHandle is NodeHandle { Node: { } source })
+                {
+                    await MonitoredSources.OnCreatedAsync(
+                        context,
+                        source,
+                        sampled).ConfigureAwait(false);
+                }
+            }
+
+            ArrayOf<IMonitoredItem> snapshot =
+                new List<IMonitoredItem>(monitoredItems);
+            foreach (NodeManagerBuilder builder in GetAttachedBuilders())
+            {
+                await builder.Dispatcher.NotifyMonitoredItemsCreatedAsync(
+                    context,
+                    snapshot,
+                    cancellationToken).ConfigureAwait(false);
+            }
+        }
+
+        /// <inheritdoc/>
+        protected override async ValueTask OnDeleteMonitoredItemsCompleteAsync(
+            ServerSystemContext context,
+            IList<IMonitoredItem> monitoredItems,
+            CancellationToken cancellationToken = default)
+        {
+            await base.OnDeleteMonitoredItemsCompleteAsync(
+                context,
+                monitoredItems,
+                cancellationToken).ConfigureAwait(false);
+
+            foreach (IMonitoredItem item in monitoredItems)
+            {
+                if (item is ISampledDataChangeMonitoredItem sampled &&
+                    sampled.ManagerHandle is NodeHandle { Node: { } source })
+                {
+                    await MonitoredSources.OnDeletedAsync(
+                        context,
+                        source,
+                        sampled).ConfigureAwait(false);
+                }
+            }
+
+            ArrayOf<IMonitoredItem> snapshot =
+                new List<IMonitoredItem>(monitoredItems);
+            foreach (NodeManagerBuilder builder in GetAttachedBuilders())
+            {
+                await builder.Dispatcher.NotifyMonitoredItemsDeletedAsync(
+                    context,
+                    snapshot,
+                    cancellationToken).ConfigureAwait(false);
+            }
+        }
+
+        /// <inheritdoc/>
+        protected override async ValueTask OnModifyMonitoredItemsCompleteAsync(
+            ServerSystemContext context,
+            IList<IMonitoredItem> monitoredItems,
+            CancellationToken cancellationToken = default)
+        {
+            await base.OnModifyMonitoredItemsCompleteAsync(
+                context,
+                monitoredItems,
+                cancellationToken).ConfigureAwait(false);
+
+            foreach (IMonitoredItem item in monitoredItems)
+            {
+                if (item is ISampledDataChangeMonitoredItem sampled &&
+                    sampled.ManagerHandle is NodeHandle { Node: { } source })
+                {
+                    await MonitoredSources.OnModifiedAsync(
+                        context,
+                        source,
+                        sampled).ConfigureAwait(false);
+                }
+            }
+        }
+
+        /// <inheritdoc/>
+        protected override async ValueTask OnSetMonitoringModeCompleteAsync(
+            ServerSystemContext context,
+            IList<IMonitoredItem> monitoredItems,
+            CancellationToken cancellationToken = default)
+        {
+            await base.OnSetMonitoringModeCompleteAsync(
+                context,
+                monitoredItems,
+                cancellationToken).ConfigureAwait(false);
+
+            foreach (IMonitoredItem item in monitoredItems)
+            {
+                if (item is ISampledDataChangeMonitoredItem sampled &&
+                    sampled.ManagerHandle is NodeHandle { Node: { } source })
+                {
+                    await MonitoredSources.OnMonitoringModeChangedAsync(
+                        context,
+                        source,
+                        sampled,
+                        sampled.MonitoringMode).ConfigureAwait(false);
+                }
+            }
+        }
+
         /// <summary>
         /// Cancels every running iterator and waits (bounded by each
         /// source's
@@ -292,6 +874,7 @@ namespace Opc.Ua.Server.Fluent
         {
             if (disposing)
             {
+                MonitoredSources.Dispose();
                 Simulations.Dispose();
                 EventSources.Dispose();
             }
@@ -312,5 +895,16 @@ namespace Opc.Ua.Server.Fluent
         {
             return AddRootNotifierAsync(notifier, cancellationToken).AsTask();
         }
+
+        private NodeManagerBuilder[] GetAttachedBuilders()
+        {
+            lock (m_attachedBuildersLock)
+            {
+                return [.. m_attachedBuilders];
+            }
+        }
+
+        private readonly Lock m_attachedBuildersLock = new();
+        private readonly List<NodeManagerBuilder> m_attachedBuilders = [];
     }
 }

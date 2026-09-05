@@ -117,14 +117,14 @@ namespace Opc.Ua.WotCon.Bindings.Planners
                     return WotBindingCompilation.Unsupported([.. diagnostics]);
                 }
                 endpoint = MakeEndpoint(uri);
-                authority = uri.GetLeftPart(UriPartial.Authority);
+                authority = ToTransmittedAuthority(uri);
             }
             else if (!string.IsNullOrEmpty(context.BaseUri) &&
                 TryParseUri(context.BaseUri!, out Uri baseUri) &&
                 IsOpcScheme(baseUri.Scheme))
             {
                 endpoint = MakeEndpoint(baseUri);
-                authority = baseUri.GetLeftPart(UriPartial.Authority);
+                authority = ToTransmittedAuthority(baseUri);
             }
             else
             {

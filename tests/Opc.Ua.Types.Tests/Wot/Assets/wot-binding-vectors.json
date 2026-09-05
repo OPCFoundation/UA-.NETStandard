@@ -1,0 +1,606 @@
+{
+  "$comment": "Shared cross-language golden vectors for the OPC UA WoT Binding. Every algorithm here is implemented at least twice - once by this specification's Python validators and once by an OPC UA stack - and the two only agree if they are measured against the same values. A vector file is data, not a test: the Python side proves it in tools/test_vectors.py, and an implementation pins this file's SHA-256 and proves it in its own suite. Adding a case here is how a disagreement becomes a failing test on both sides at once.",
+  "schemaVersion": 1,
+  "specification": "OPC 99009-1",
+  "revision": "1.1",
+  "groups": {
+    "compactReceivedForm": {
+      "clause": "sec-g-4-measured-size-of-an-opaque-object",
+      "description": "Annex G.4. The measured size of an opaque object is its received text with insignificant whitespace removed, encoded as UTF-8. Nothing is sorted, re-escaped or re-formatted, so a canonical re-serialization measures a form the document does not contain.",
+      "cases": [
+        {
+          "id": "minimal",
+          "received": "{\"a\": 1}",
+          "compact": "{\"a\":1}"
+        },
+        {
+          "id": "newlines-and-array",
+          "received": "{\n  \"a\" : [ 1, 2 ]\n}",
+          "compact": "{\"a\":[1,2]}"
+        },
+        {
+          "id": "whitespace-inside-a-string-is-significant",
+          "received": "{\"a\": \" b  c \"}",
+          "compact": "{\"a\":\" b  c \"}"
+        },
+        {
+          "id": "number-lexical-form-is-kept",
+          "received": "{\"a\": 1.500}",
+          "compact": "{\"a\":1.500}"
+        },
+        {
+          "id": "member-order-is-kept",
+          "received": "{\"b\": 1, \"a\": 2}",
+          "compact": "{\"b\":1,\"a\":2}"
+        },
+        {
+          "id": "escape-sequences-are-kept",
+          "received": "{\"a\": \"\\n x\"}",
+          "compact": "{\"a\":\"\\n x\"}"
+        },
+        {
+          "id": "escaped-and-literal-spellings-measure-differently",
+          "received": "{\"a\":\"\\u0041\"}",
+          "compact": "{\"a\":\"\\u0041\"}"
+        },
+        {
+          "id": "the-literal-spelling-of-the-same-value",
+          "received": "{\"a\":\"A\"}",
+          "compact": "{\"a\":\"A\"}"
+        },
+        {
+          "id": "non-ascii-is-measured-in-utf-8-octets",
+          "received": "{\"a\":\"ä\"}",
+          "compact": "{\"a\":\"ä\"}"
+        }
+      ]
+    },
+    "opaquePointers": {
+      "clause": "sec-g-4-measured-size-of-an-opaque-object",
+      "description": "The received span of an opaque member is located by its exact RFC 6901 JSON Pointer. Pairing a parsed value with a received span by value equality is wrong whenever two occurrences carry equal values written differently.",
+      "cases": [
+        {
+          "id": "two-equal-values-different-spellings",
+          "document": "{\"uav:metadata\": {\"p:a\": \"A\"},\n \"properties\": {\"x\": {\"uav:metadata\": {\"p:a\": \"\\u0041\"}}}}",
+          "expected": [
+            {
+              "pointer": "/uav:metadata",
+              "member": "uav:metadata",
+              "compact": "{\"p:a\":\"A\"}"
+            },
+            {
+              "pointer": "/properties/x/uav:metadata",
+              "member": "uav:metadata",
+              "compact": "{\"p:a\":\"\\u0041\"}"
+            }
+          ]
+        },
+        {
+          "id": "escaped-member-name",
+          "document": "{\"properties\": {\"p~1/x\": {\"uav:eventConfiguration\": {\"p:b\": [1, 2]}}}}",
+          "expected": [
+            {
+              "pointer": "/properties/p~01~1x/uav:eventConfiguration",
+              "member": "uav:eventConfiguration",
+              "compact": "{\"p:b\":[1,2]}"
+            }
+          ]
+        }
+      ]
+    },
+    "codePointOrder": {
+      "clause": "sec-g-3-deterministic-ordering",
+      "description": "Annex G.3. Ordering is by ascending Unicode code point of the whole string, not by locale, not case-insensitively, and not by UTF-16 code unit.",
+      "cases": [
+        {
+          "id": "upper-before-lower",
+          "input": [
+            "serialNumber",
+            "SerialNumber"
+          ],
+          "sorted": [
+            "SerialNumber",
+            "serialNumber"
+          ]
+        },
+        {
+          "id": "digits-before-letters",
+          "input": [
+            "b",
+            "A",
+            "1",
+            "_"
+          ],
+          "sorted": [
+            "1",
+            "A",
+            "_",
+            "b"
+          ]
+        },
+        {
+          "id": "locale-independent",
+          "input": [
+            "z",
+            "ä",
+            "a"
+          ],
+          "sorted": [
+            "a",
+            "z",
+            "ä"
+          ]
+        },
+        {
+          "id": "astral-after-bmp",
+          "input": [
+            "😀",
+            "￿"
+          ],
+          "sorted": [
+            "￿",
+            "😀"
+          ]
+        },
+        {
+          "id": "prefix-first",
+          "input": [
+            "ab",
+            "a"
+          ],
+          "sorted": [
+            "a",
+            "ab"
+          ]
+        }
+      ]
+    },
+    "generatedNodeIds": {
+      "clause": "sec-g-1-deterministic-generated-nodeids",
+      "description": "Annex G.1. GeneratedNodeId(U, P) = \"nsu=\" + U + \";s=\" + P, where U is the NamespaceUri the synthesized Node is created in and P is the Node's absolute browse path in OPC 10000-4 Annex A.2 relative-path syntax: each element is preceded by '/', a base-namespace element is the bare name, any other element is 'nsu=<percent-encoded NamespaceUri>;<name>', and the Annex A.2 reserved characters &/.<>:#! are escaped with '&' inside a name. The escaping is what makes the encoding injective, so two different paths cannot produce one identifier.",
+      "reservedCharacters": "&/.<>:#!",
+      "cases": [
+        {
+          "id": "root-object",
+          "namespaceUri": "http://example.com/demo/pump",
+          "browsePathElements": [
+            {
+              "namespaceUri": null,
+              "name": "Objects"
+            },
+            {
+              "namespaceUri": "http://example.com/demo/pump",
+              "name": "Pump"
+            }
+          ],
+          "nodeId": "nsu=http://example.com/demo/pump;s=/Objects/nsu=http%3A%2F%2Fexample.com%2Fdemo%2Fpump;Pump"
+        },
+        {
+          "id": "nested-member",
+          "namespaceUri": "http://example.com/demo/pump",
+          "browsePathElements": [
+            {
+              "namespaceUri": null,
+              "name": "Objects"
+            },
+            {
+              "namespaceUri": "http://example.com/demo/pump",
+              "name": "Pump"
+            },
+            {
+              "namespaceUri": "http://example.com/demo/pump",
+              "name": "PumpSpeed"
+            }
+          ],
+          "nodeId": "nsu=http://example.com/demo/pump;s=/Objects/nsu=http%3A%2F%2Fexample.com%2Fdemo%2Fpump;Pump/nsu=http%3A%2F%2Fexample.com%2Fdemo%2Fpump;PumpSpeed"
+        },
+        {
+          "id": "base-namespace-element-is-bare",
+          "namespaceUri": "http://example.com/demo/pump",
+          "browsePathElements": [
+            {
+              "namespaceUri": null,
+              "name": "Objects"
+            },
+            {
+              "namespaceUri": "http://example.com/demo/pump",
+              "name": "Pump"
+            },
+            {
+              "namespaceUri": "http://example.com/demo/pump",
+              "name": "PumpSpeed"
+            },
+            {
+              "namespaceUri": null,
+              "name": "EngineeringUnits"
+            }
+          ],
+          "nodeId": "nsu=http://example.com/demo/pump;s=/Objects/nsu=http%3A%2F%2Fexample.com%2Fdemo%2Fpump;Pump/nsu=http%3A%2F%2Fexample.com%2Fdemo%2Fpump;PumpSpeed/EngineeringUnits"
+        },
+        {
+          "id": "reserved-character-in-a-name-is-escaped",
+          "namespaceUri": "http://example.com/demo/pump",
+          "browsePathElements": [
+            {
+              "namespaceUri": null,
+              "name": "Objects"
+            },
+            {
+              "namespaceUri": "http://example.com/demo/pump",
+              "name": "A/B"
+            }
+          ],
+          "nodeId": "nsu=http://example.com/demo/pump;s=/Objects/nsu=http%3A%2F%2Fexample.com%2Fdemo%2Fpump;A&/B"
+        }
+      ]
+    },
+    "eventSelection": {
+      "clause": "sec-computing-the-final-selection",
+      "description": "Section 6.1. A definition-derived baseline is one clause per leaf in uav:fieldOrder order; an explicit clause replaces the baseline clause with the same materialized member path in place and otherwise appends in authored order.",
+      "cases": [
+        {
+          "id": "default-baseline",
+          "baseline": [
+            "EventId",
+            "EventType",
+            "SourceNode",
+            "SourceName",
+            "Time",
+            "ReceiveTime",
+            "Message",
+            "Severity"
+          ],
+          "explicit": [],
+          "final": [
+            "EventId",
+            "EventType",
+            "SourceNode",
+            "SourceName",
+            "Time",
+            "ReceiveTime",
+            "Message",
+            "Severity"
+          ]
+        },
+        {
+          "id": "explicit-replaces-and-moves-to-the-end",
+          "baseline": [
+            "EventId",
+            "Severity",
+            "Message"
+          ],
+          "explicit": [
+            "Severity"
+          ],
+          "final": [
+            "EventId",
+            "Message",
+            "Severity"
+          ]
+        },
+        {
+          "id": "explicit-appends-in-authored-order",
+          "baseline": [
+            "EventId"
+          ],
+          "explicit": [
+            "HighLimit",
+            "Temperature"
+          ],
+          "final": [
+            "EventId",
+            "HighLimit",
+            "Temperature"
+          ]
+        },
+        {
+          "id": "explicit-replaces-and-appends",
+          "baseline": [
+            "EventId",
+            "Severity",
+            "Message"
+          ],
+          "explicit": [
+            "Message",
+            "Temperature"
+          ],
+          "final": [
+            "EventId",
+            "Severity",
+            "Message",
+            "Temperature"
+          ]
+        }
+      ]
+    },
+    "materializedMembers": {
+      "clause": "sec-materializing-selected-fields-into-data",
+      "description": "Section 6.1. The data member a select clause fills is the browse path with its namespace qualification dropped, with Name appended where the last element names a state Variable, and ConditionId for the empty path.",
+      "cases": [
+        {
+          "id": "simple",
+          "browsePath": "Severity",
+          "member": [
+            "Severity"
+          ]
+        },
+        {
+          "id": "namespace-qualified",
+          "browsePath": "pump:Temperature",
+          "member": [
+            "Temperature"
+          ]
+        },
+        {
+          "id": "nested",
+          "browsePath": "EnabledState/Id",
+          "member": [
+            "EnabledState",
+            "Id"
+          ]
+        },
+        {
+          "id": "state-variable-supplies-name",
+          "browsePath": "EnabledState",
+          "member": [
+            "EnabledState",
+            "Name"
+          ]
+        },
+        {
+          "id": "condition-id-is-the-empty-path",
+          "browsePath": "",
+          "member": [
+            "ConditionId"
+          ]
+        }
+      ]
+    },
+    "viewVersion": {
+      "clause": "sec-materialization-to-an-opc-ua-view",
+      "description": "Section 12.6. ViewVersion is a function of the resolved membership alone: take the portable ExpandedNodeId of each member, remove duplicates, sort ascending by Unicode code point, encode the sorted sequence as Annex G.3 defines, and take the first four octets of its SHA-256 digest as a big-endian UInt32, reporting 1 where that value is 0. Two servers that resolved the same membership therefore compute the same value, which a per-server counter cannot promise.",
+      "cases": [
+        {
+          "id": "three-members",
+          "members": [
+            "nsu=http://example.com/demo/pump;s=Pump",
+            "nsu=http://example.com/demo/pump;s=Pump.PumpSpeed",
+            "i=85"
+          ],
+          "viewVersion": 3865095075
+        },
+        {
+          "id": "duplicates-are-removed",
+          "members": [
+            "nsu=http://example.com/demo/pump;s=Pump",
+            "nsu=http://example.com/demo/pump;s=Pump.PumpSpeed",
+            "i=85",
+            "nsu=http://example.com/demo/pump;s=Pump"
+          ],
+          "viewVersion": 3865095075
+        },
+        {
+          "id": "input-order-does-not-matter",
+          "members": [
+            "i=85",
+            "nsu=http://example.com/demo/pump;s=Pump.PumpSpeed",
+            "nsu=http://example.com/demo/pump;s=Pump"
+          ],
+          "viewVersion": 3865095075
+        },
+        {
+          "id": "single-member",
+          "members": [
+            "nsu=http://example.com/demo/pump;s=Pump"
+          ],
+          "viewVersion": 2719683397
+        }
+      ]
+    },
+    "identifierExpansion": {
+      "clause": "sec-resolution-order",
+      "description": "Section 5.1.5. A compact logical identifier expands through the referring node's active context before comparison. A prefix the context does not bind is read as an absolute IRI, exactly as JSON-LD reads it, so the two cannot be told apart by spelling; a value with no scheme and no bound prefix, and a value containing whitespace, are not identifiers.",
+      "cases": [
+        {
+          "id": "compact",
+          "context": {
+            "evt": "urn:example:opcua:event-type:"
+          },
+          "value": "evt:highTemperatureAlarm",
+          "expanded": "urn:example:opcua:event-type:highTemperatureAlarm"
+        },
+        {
+          "id": "alias-prefix-expands-to-the-same-identifier",
+          "context": {
+            "evtAlias": "urn:example:opcua:event-type:"
+          },
+          "value": "evtAlias:highTemperatureAlarm",
+          "expanded": "urn:example:opcua:event-type:highTemperatureAlarm"
+        },
+        {
+          "id": "absolute",
+          "context": {},
+          "value": "http://opcfoundation.org/UA/BaseEventType",
+          "expanded": "http://opcfoundation.org/UA/BaseEventType"
+        },
+        {
+          "id": "an-unbound-prefix-is-read-as-an-absolute-iri",
+          "context": {},
+          "value": "evt:highTemperatureAlarm",
+          "expanded": "evt:highTemperatureAlarm"
+        },
+        {
+          "id": "whitespace-is-not-an-identifier",
+          "context": {},
+          "value": "urn:example: thing",
+          "expanded": null
+        },
+        {
+          "id": "a-bare-name-is-not-an-identifier",
+          "context": {},
+          "value": "highTemperatureAlarm",
+          "expanded": null
+        },
+        {
+          "id": "the-empty-string-is-not-an-identifier",
+          "context": {},
+          "value": "",
+          "expanded": null
+        }
+      ]
+    },
+    "expandedNodeIds": {
+      "clause": "sec-portable-identity-expandednodeid",
+      "description": "Section 5.1.1. A readable NodeId-valued member is an OPC 10000-6 ExpandedNodeId with no session-local namespace index and no ServerIndex prefix.",
+      "cases": [
+        {
+          "id": "namespace-0-numeric",
+          "value": "i=2041",
+          "portable": true
+        },
+        {
+          "id": "namespace-uri-string",
+          "value": "nsu=http://example.com/demo/pump;s=Pump",
+          "portable": true
+        },
+        {
+          "id": "guid",
+          "value": "nsu=http://example.com/demo/pump;g=09087e75-8e5e-499b-954f-f2a9603db28a",
+          "portable": true
+        },
+        {
+          "id": "opaque",
+          "value": "nsu=http://example.com/demo/pump;b=M/RbKBsRVkePCePcx24oRA==",
+          "portable": true
+        },
+        {
+          "id": "session-local-index",
+          "value": "ns=2;s=Pump",
+          "portable": false
+        },
+        {
+          "id": "server-index-prefix",
+          "value": "svr=1;nsu=http://example.com/demo/pump;s=Pump",
+          "portable": false
+        },
+        {
+          "id": "no-idtype",
+          "value": "nsu=http://example.com/demo/pump;Pump",
+          "portable": false
+        },
+        {
+          "id": "empty",
+          "value": "",
+          "portable": false
+        }
+      ]
+    },
+    "qualifiedNames": {
+      "clause": "sec-portable-qualifiedname",
+      "description": "Section 5.1.3. A persisted readable QualifiedName is a compact prefixed name, a bare namespace-0 name, or the OPC 10000-6 nsu= form. A numeric NamespaceIndex prefix is never persisted.",
+      "cases": [
+        {
+          "id": "compact",
+          "value": "pump:PumpSpeed",
+          "portable": true
+        },
+        {
+          "id": "bare-namespace-0",
+          "value": "EngineeringUnits",
+          "portable": true
+        },
+        {
+          "id": "nsu-form",
+          "value": "nsu=http://example.com/demo/pump;PumpSpeed",
+          "portable": true
+        },
+        {
+          "id": "percent-encoded-semicolon",
+          "value": "nsu=http://example.com/a%3Bb;PumpSpeed",
+          "portable": true
+        },
+        {
+          "id": "numeric-index",
+          "value": "1:PumpSpeed",
+          "portable": false
+        }
+      ]
+    },
+    "browsePaths": {
+      "clause": "sec-anchored-browse-paths",
+      "description": "Section 5.1.4. A browse path is absolute or anchored. A relative path with no uav:browsePathAnchor has no starting Node and is not resolvable.",
+      "cases": [
+        {
+          "id": "absolute",
+          "path": "/Objects/pump:Pump/pump:PumpSpeed",
+          "anchored": false,
+          "resolvable": true
+        },
+        {
+          "id": "relative-with-anchor",
+          "path": "pump:PumpSpeed",
+          "anchored": true,
+          "resolvable": true
+        },
+        {
+          "id": "relative-without-anchor",
+          "path": "pump:PumpSpeed",
+          "anchored": false,
+          "resolvable": false
+        },
+        {
+          "id": "numeric-index-is-never-persisted",
+          "path": "/Objects/1:Pump",
+          "anchored": false,
+          "resolvable": false
+        }
+      ]
+    },
+    "sequenceDigest": {
+      "clause": "sec-g-3-deterministic-ordering",
+      "description": "Annex G.3 injective sequence encoding: for each string, in the order the calling clause states, write its length in UTF-8 octets as decimal digits, U+003A COLON, the string, and U+000A LINE FEED; concatenate and encode as UTF-8. The digest of the sequence is the SHA-256 of that encoding. The length prefix is what stops one member whose text embeds a newline from serializing as the two members it imitates.",
+      "cases": [
+        {
+          "id": "empty",
+          "items": [],
+          "encodingUtf8Hex": "",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "id": "two-members",
+          "items": [
+            "a",
+            "bb"
+          ],
+          "encodingUtf8Hex": "313a610a323a62620a",
+          "sha256": "e1b50ce4859ecf7b8f4d3afbee6477e04287fba21a6d7c9c38df256093da50b2"
+        },
+        {
+          "id": "an-embedded-newline-cannot-imitate-two-members",
+          "items": [
+            "a\nbb"
+          ],
+          "encodingUtf8Hex": "343a610a62620a",
+          "sha256": "2751f57c4b457d5ff782bae7e198a83c99c90dab6e969ce9dbda186af75d5c65"
+        },
+        {
+          "id": "the-two-members-it-would-have-imitated",
+          "items": [
+            "a",
+            "bb"
+          ],
+          "encodingUtf8Hex": "313a610a323a62620a",
+          "sha256": "e1b50ce4859ecf7b8f4d3afbee6477e04287fba21a6d7c9c38df256093da50b2"
+        },
+        {
+          "id": "length-is-counted-in-utf-8-octets",
+          "items": [
+            "ä"
+          ],
+          "encodingUtf8Hex": "323ac3a40a",
+          "sha256": "c29791e3eb392aa1c09e2b6d454f7e45ee5293aed3d677acadb6ef6b584449be"
+        }
+      ]
+    }
+  }
+}

@@ -1126,7 +1126,7 @@ namespace Opc.Ua.SourceGeneration
             System.Xml.XmlQualifiedName typeDef = child?.TypeDefinition;
             if (typeDef == null || string.IsNullOrEmpty(typeDef.Name))
             {
-                return ResolveStateClrType(child);
+                return ResolveFallbackStateClrType(child);
             }
             if (child.TypeDefinitionNode is ObjectTypeDesign objectType)
             {
@@ -1139,6 +1139,23 @@ namespace Opc.Ua.SourceGeneration
             return string.IsNullOrEmpty(prefix)
                 ? "global::Opc.Ua." + stateName
                 : "global::" + prefix + "." + stateName;
+        }
+
+        private static string ResolveFallbackStateClrType(NodeDesign node)
+        {
+            if (node is ObjectDesign)
+            {
+                return "global::Opc.Ua.BaseObjectState";
+            }
+            if (node is MethodDesign)
+            {
+                return "global::Opc.Ua.MethodState";
+            }
+            if (node is VariableDesign)
+            {
+                return "global::Opc.Ua.BaseDataVariableState";
+            }
+            return "global::Opc.Ua.NodeState";
         }
 
         /// <summary>
@@ -1837,22 +1854,11 @@ namespace Opc.Ua.SourceGeneration
         /// </summary>
         private string ResolveStateClrType(NodeDesign node)
         {
-            // For object instances, use BaseObjectState as the lowest common
-            // denominator. The user can call .Builder.As&lt;TConcrete&gt;() to
-            // narrow.
-            if (node is ObjectDesign)
+            if (node is ObjectDesign objectDesign)
             {
-                return "global::Opc.Ua.BaseObjectState";
+                return ResolveChildStateClr(objectDesign);
             }
-            if (node is MethodDesign)
-            {
-                return "global::Opc.Ua.MethodState";
-            }
-            if (node is VariableDesign)
-            {
-                return "global::Opc.Ua.BaseDataVariableState";
-            }
-            return "global::Opc.Ua.NodeState";
+            return ResolveFallbackStateClrType(node);
         }
 
         /// <summary>

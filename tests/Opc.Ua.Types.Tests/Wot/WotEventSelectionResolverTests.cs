@@ -95,14 +95,7 @@ namespace Opc.Ua.Types.Tests.Wot
 
             Assert.That(
                 members.ToList().Select(WotEventSelectClauses.FormatMemberPath),
-                Is.EqualTo(new[]
-                {
-                    "ConditionId",
-                    "EventId",
-                    "EnabledState.Name",
-                    "EnabledState.Id",
-                    "Temperature"
-                }));
+                Is.EqualTo(s_nestedAlarmMemberPaths));
         }
 
         [Test]
@@ -116,7 +109,7 @@ namespace Opc.Ua.Types.Tests.Wot
             {
                 Assert.That(
                     clauses.ToList().Select(c => c.BrowsePath),
-                    Is.EqualTo(new[] { "EventId", "Message" }));
+                    Is.EqualTo(s_baseEventBrowsePaths));
                 Assert.That(clauses[0].TypeDefinitionId, Is.EqualTo("i=2041"));
             });
         }
@@ -124,7 +117,7 @@ namespace Opc.Ua.Types.Tests.Wot
         [Test]
         public void AnAffordanceThatStatesNoSelectionTakesTheImplicitDefault()
         {
-            using WotDocument document = Parse(Affordance("\"uav:isEvent\":true"));
+            using WotDocument document = Parse(Affordance("\"title\":\"Alarm\""));
 
             Assert.Multiple(() =>
             {
@@ -198,7 +191,7 @@ namespace Opc.Ua.Types.Tests.Wot
 
             Assert.That(
                 clauses.ToList().Select(c => c.BrowsePath),
-                Is.EqualTo(new[] { "EventId", "Message", "pump:Temperature" }),
+                Is.EqualTo(s_addedTemperatureBrowsePaths),
                 "A field the linked definition does not declare is added by a clause that " +
                 "names the EventType which does declare it, and the affordance's own data " +
                 "is the effective schema the result is held to.");
@@ -294,7 +287,7 @@ namespace Opc.Ua.Types.Tests.Wot
                 "{\"uav\":\"http://opcfoundation.org/UA/WoT-Binding/\"," +
                 "\"pump\":\"urn:test:pump\"}]," +
                 "\"@type\":\"tm:ThingModel\",\"title\":\"Pump\"," +
-                "\"events\":{\"alarm\":{\"@type\":\"uav:eventType\",\"uav:isEvent\":true," +
+                "\"events\":{\"alarm\":{\"@type\":\"uav:eventType\"," +
                 "\"tm:ref\":\"./base-event.tm.jsonld\"," +
                 "\"data\":{\"type\":\"object\"," +
                 "\"properties\":{\"EventId\":{\"type\":\"string\"}}}}}}",
@@ -683,7 +676,7 @@ namespace Opc.Ua.Types.Tests.Wot
                 "\"@type\":[\"tm:ThingModel\",\"uav:objectType\"],\"title\":\"PumpAlarms\"," +
                 "\"properties\":{\"speed\":{\"type\":\"number\"}}," +
                 "\"events\":{" +
-                "\"alarm\":{\"@type\":\"uav:eventType\",\"uav:isEvent\":true," +
+                "\"alarm\":{\"@type\":\"uav:eventType\"," +
                 "\"uav:id\":\"nsu=urn:test:pump;i=6001\"," +
                 "\"data\":{\"type\":\"object\"," +
                 "\"uav:fieldOrder\":[\"ConditionId\",\"EventId\",\"EnabledState\"," +
@@ -755,5 +748,30 @@ namespace Opc.Ua.Types.Tests.Wot
             private readonly Dictionary<string, string> m_documents = new(StringComparer.Ordinal);
             private int m_requests;
         }
+
+        /// <summary>
+        /// The member paths a nested alarm definition materializes, parent
+        /// before child, which is the order the derivation walks them in.
+        /// </summary>
+        private static readonly string[] s_nestedAlarmMemberPaths =
+        [
+            "ConditionId",
+            "EventId",
+            "EnabledState.Name",
+            "EnabledState.Id",
+            "Temperature"
+        ];
+
+        /// <summary>
+        /// The two fields the sibling BaseEventType Thing Model declares.
+        /// </summary>
+        private static readonly string[] s_baseEventBrowsePaths = ["EventId", "Message"];
+
+        /// <summary>
+        /// The baseline plus the field an explicit clause adds, which is
+        /// appended after the fields the linked definition declares.
+        /// </summary>
+        private static readonly string[] s_addedTemperatureBrowsePaths =
+            ["EventId", "Message", "pump:Temperature"];
     }
 }

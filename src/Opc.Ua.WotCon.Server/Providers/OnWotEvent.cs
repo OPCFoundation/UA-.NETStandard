@@ -48,7 +48,7 @@ namespace Opc.Ua.WotCon.Server
     /// </param>
     /// <param name="severity">
     /// The OPC 10000-5 <c>BaseEventType.Severity</c> (1..1000). When null
-    /// <see cref="WotEventTag.Severity"/> is used.
+    /// the server fallback in <see cref="WotEventTag.Severity"/> is used.
     /// </param>
     /// <param name="timestamp">
     /// The time the asset reported the event, published as

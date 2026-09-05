@@ -1,11 +1,11 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <!-- OPC UA xRegistry abstract companion namespace. Draft NodeIds (final IDs assigned by the OPC Foundation). -->
 <UANodeSet xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd" xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd">
   <NamespaceUris>
     <Uri>http://opcfoundation.org/UA/xRegistry/</Uri>
   </NamespaceUris>
   <Models>
-    <Model ModelUri="http://opcfoundation.org/UA/xRegistry/" Version="0.3.0" PublicationDate="2026-07-31T00:00:00Z">
+    <Model ModelUri="http://opcfoundation.org/UA/xRegistry/" Version="0.4.0" PublicationDate="2026-08-31T00:00:00Z">
       <RequiredModel ModelUri="http://opcfoundation.org/UA/" Version="1.05.04" PublicationDate="2024-05-01T00:00:00Z" />
     </Model>
   </Models>
@@ -677,5 +677,49 @@
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=63559</Reference>
     </References>
     <Value><ListOfExtensionObject xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"><ExtensionObject><TypeId><Identifier>i=297</Identifier></TypeId><Body><Argument><Name>ExpectedEpoch</Name><DataType><Identifier>i=7</Identifier></DataType><ValueRank>-1</ValueRank><ArrayDimensions/><Description><Text>Expected current Epoch of the resource for optimistic concurrency; 0 disables the check.</Text></Description></Argument></Body></ExtensionObject></ListOfExtensionObject></Value>
+  </UAVariable>
+  <UAObject NodeId="ns=1;i=63561" BrowseName="1:http://opcfoundation.org/UA/xRegistry/" ParentNodeId="i=11715">
+    <DisplayName>http://opcfoundation.org/UA/xRegistry/</DisplayName>
+    <Description>Metadata for this namespace, as OPC 10000-5 requires a Server to publish it.</Description>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=11616</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=11715</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=63562</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=63563</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=63564</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=63565</Reference>
+    </References>
+  </UAObject>
+  <UAVariable NodeId="ns=1;i=63562" BrowseName="1:NamespaceUri" ParentNodeId="ns=1;i=63561" DataType="String" ValueRank="-1">
+    <DisplayName>NamespaceUri</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=63561</Reference>
+    </References>
+    <Value><uax:String>http://opcfoundation.org/UA/xRegistry/</uax:String></Value>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=63563" BrowseName="1:NamespaceVersion" ParentNodeId="ns=1;i=63561" DataType="String" ValueRank="-1">
+    <DisplayName>NamespaceVersion</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=63561</Reference>
+    </References>
+    <Value><uax:String>0.4.0</uax:String></Value>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=63564" BrowseName="1:NamespacePublicationDate" ParentNodeId="ns=1;i=63561" DataType="DateTime" ValueRank="-1">
+    <DisplayName>NamespacePublicationDate</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=63561</Reference>
+    </References>
+    <Value><uax:DateTime>2026-08-31T00:00:00Z</uax:DateTime></Value>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=63565" BrowseName="1:IsNamespaceSubset" ParentNodeId="ns=1;i=63561" DataType="Boolean" ValueRank="-1">
+    <DisplayName>IsNamespaceSubset</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=63561</Reference>
+    </References>
+    <Value><uax:Boolean>false</uax:Boolean></Value>
   </UAVariable>
 </UANodeSet>

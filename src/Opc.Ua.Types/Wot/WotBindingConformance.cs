@@ -29,9 +29,26 @@
 
 using System;
 using System.Collections.Generic;
+using System.Text.Json;
 
 namespace Opc.Ua.Wot
 {
+    /// <summary>
+    /// One opaque object a document carries, located by the exact RFC 6901
+    /// JSON Pointer of the member that holds it.
+    /// </summary>
+    /// <param name="Pointer">The member's JSON Pointer.</param>
+    /// <param name="Member">The opaque member's name.</param>
+    /// <param name="CompactUtf8Length">
+    /// The size of the value in the compact received form of Annex G.4: the
+    /// received text with insignificant whitespace removed, measured in UTF-8
+    /// octets.
+    /// </param>
+    public readonly record struct WotOpaqueMember(
+        string Pointer,
+        string Member,
+        long CompactUtf8Length);
+
     /// <summary>
     /// The single statement of what revision of the OPC UA WoT Binding this
     /// library implements, which conformance units and profiles it recognizes,
@@ -244,6 +261,87 @@ namespace Opc.Ua.Wot
             "uav:actionConfiguration",
             "uav:eventConfiguration"
         ];
+
+        /// <summary>
+        /// Locates every opaque object a document carries, by its exact
+        /// RFC 6901 JSON Pointer, and measures each in the compact received
+        /// form Annex G.4 defines.
+        /// </summary>
+        /// <remarks>
+        /// Annex G.4 pairs an opaque member with its received span by
+        /// <em>location</em>. Pairing by value equality is wrong whenever two
+        /// occurrences carry equal values written differently - one spelled
+        /// <c>"A"</c> and the other <c>"\u0041"</c> parse to the same value and
+        /// measure differently - so the two would swap sizes and each would be
+        /// bounded against the other's text.
+        /// </remarks>
+        /// <param name="root">The document root.</param>
+        /// <returns>
+        /// Every opaque member, in document order, with its pointer, its member
+        /// name and its measured size.
+        /// </returns>
+        public static ArrayOf<WotOpaqueMember> FindOpaqueMembers(JsonElement root)
+        {
+            var found = new List<WotOpaqueMember>();
+            CollectOpaqueMembers(root, string.Empty, found);
+            return found.ToArrayOf();
+        }
+
+        private static void CollectOpaqueMembers(
+            JsonElement element, string pointer, List<WotOpaqueMember> found)
+        {
+            if (element.ValueKind == JsonValueKind.Object)
+            {
+                foreach (JsonProperty member in element.EnumerateObject())
+                {
+                    string childPointer =
+                        pointer + "/" + EscapeJsonPointerToken(member.Name);
+                    if (IsOpaqueMember(member.Name))
+                    {
+                        found.Add(new WotOpaqueMember(
+                            childPointer,
+                            member.Name,
+                            WotDocument.MeasureCompactUtf8(member.Value)));
+                        continue;
+                    }
+                    CollectOpaqueMembers(member.Value, childPointer, found);
+                }
+                return;
+            }
+            if (element.ValueKind != JsonValueKind.Array)
+            {
+                return;
+            }
+            int index = 0;
+            foreach (JsonElement item in element.EnumerateArray())
+            {
+                CollectOpaqueMembers(
+                    item,
+                    pointer + "/" + index.ToString(
+                        System.Globalization.CultureInfo.InvariantCulture),
+                    found);
+                index++;
+            }
+        }
+
+        private static bool IsOpaqueMember(string name)
+        {
+            foreach (string member in OpaqueMembers)
+            {
+                if (string.Equals(member, name, StringComparison.Ordinal))
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        private static string EscapeJsonPointerToken(string token)
+        {
+            return token
+                .Replace("~", "~0", StringComparison.Ordinal)
+                .Replace("/", "~1", StringComparison.Ordinal);
+        }
 
         /// <summary>
         /// Determines whether a value is a syntactically well-formed vocabulary
@@ -649,8 +747,6 @@ namespace Opc.Ua.Wot
                 "uav:isComposite",
                 "uav:contains",
                 "uav:containedIn",
-                "uav:isEvent",
-                WotNodeSetConverter.SeverityTerm,
                 WotEventSelectClauses.Term,
                 WotEventSelectClauses.TypeDefinitionReferenceTerm,
                 // Section 6.2 - links and references.
