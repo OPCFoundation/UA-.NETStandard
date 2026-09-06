@@ -437,11 +437,20 @@ namespace Opc.Ua.SourceGeneration
                 {
                     continue;
                 }
-                Add(
-                    nodeClass,
-                    "NodeId",
-                    instance,
-                    GetDirectEmptyStateCreation(instance));
+
+                // Only declarations get an exact-NodeId factory. Registering
+                // one per address-space instance would emit a factory per node
+                // of the model, and an imported node that re-declares an
+                // instance still resolves through its TypeDefinition or
+                // MethodDeclaration below.
+                if (IsDeclarationNode(node))
+                {
+                    Add(
+                        nodeClass,
+                        "NodeId",
+                        instance,
+                        GetDirectEmptyStateCreation(instance));
+                }
 
                 if (instance is ObjectDesign &&
                     instance.TypeDefinitionNode is ObjectTypeDesign objectType &&
@@ -556,6 +565,21 @@ namespace Opc.Ua.SourceGeneration
             }
 
             return null;
+        }
+
+        /// <summary>
+        /// Gets whether a node belongs to a declaration - a type definition or
+        /// a method type - rather than to the model's address space.
+        /// </summary>
+        private static bool IsDeclarationNode(NodeToGenerate node)
+        {
+            NodeToGenerate root = node;
+            while (root.Parent != null)
+            {
+                root = root.Parent;
+            }
+            return root.RootIsTypeDefinition ||
+                (root.Design is MethodDesign method && method.IsMethodTypeDesign());
         }
 
         private static string GetImportNodeClass(InstanceDesign instance)

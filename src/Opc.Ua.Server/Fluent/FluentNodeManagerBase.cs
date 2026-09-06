@@ -396,6 +396,10 @@ namespace Opc.Ua.Server.Fluent
                     existingNodes[entry.Key] = entry.Value;
                 }
 
+                // RemovePredefinedNodeAsync only collects the references other
+                // node managers hold on a removed node; dropping them is the
+                // caller's job.
+                var referencesToRemove = new List<LocalReference>();
                 await builder.CompleteNodeSetImportsAsync(
                     existingNodes,
                     (node, ct) => AddPredefinedNodeAsync(
@@ -406,9 +410,59 @@ namespace Opc.Ua.Server.Fluent
                     (node, ct) => RemovePredefinedNodeAsync(
                         SystemContext,
                         node,
-                        [],
+                        referencesToRemove,
                         ct),
                     cancellationToken).ConfigureAwait(false);
+
+                if (referencesToRemove.Count > 0)
+                {
+                    DropPendingExternalReferences(externalReferences, referencesToRemove);
+                    await Server.NodeManager
+                        .RemoveReferencesAsync(referencesToRemove, cancellationToken)
+                        .ConfigureAwait(false);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Removes references to displaced nodes which this pass has staged in
+        /// <paramref name="externalReferences"/> but the master node manager
+        /// has not applied yet.
+        /// </summary>
+        /// <remarks>
+        /// At startup the reverse-reference pass of
+        /// <c>LoadPredefinedNodesAsync</c> has already published the generated
+        /// nodes' references into the dictionary. An entry that targets a node
+        /// the import has just removed would otherwise be applied afterwards,
+        /// leaving another node manager pointing at a node that no longer
+        /// exists.
+        /// </remarks>
+        private static void DropPendingExternalReferences(
+            IDictionary<NodeId, IList<IReference>> externalReferences,
+            List<LocalReference> referencesToRemove)
+        {
+            for (int ii = 0; ii < referencesToRemove.Count; ii++)
+            {
+                LocalReference reference = referencesToRemove[ii];
+                if (!externalReferences.TryGetValue(
+                        reference.SourceId,
+                        out IList<IReference>? references) ||
+                    references is null)
+                {
+                    continue;
+                }
+
+                for (int jj = references.Count - 1; jj >= 0; jj--)
+                {
+                    IReference candidate = references[jj];
+                    if (candidate.IsInverse == reference.IsInverse &&
+                        candidate.ReferenceTypeId == reference.ReferenceTypeId &&
+                        !candidate.TargetId.IsAbsolute &&
+                        (NodeId)candidate.TargetId == reference.TargetId)
+                    {
+                        references.RemoveAt(jj);
+                    }
+                }
             }
         }
 

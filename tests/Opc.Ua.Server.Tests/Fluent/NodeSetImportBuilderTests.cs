@@ -479,7 +479,7 @@ namespace Opc.Ua.Server.Tests.Fluent
                 "  <NamespaceUris>\r\n" +
                 "    <Uri>" + kNamespaceUri + "</Uri>\r\n" +
                 "  </NamespaceUris>\r\n" +
-                nodes.Replace("\n", "\r\n", StringComparison.Ordinal) + "\r\n" +
+                nodes + "\r\n" +
                 "</UANodeSet>";
             using var stream = new MemoryStream(Encoding.UTF8.GetBytes(xml));
             return UANodeSet.Read(stream);
@@ -522,7 +522,9 @@ namespace Opc.Ua.Server.Tests.Fluent
                     kNs,
                     browseName => harness.Existing.Values
                         .FirstOrDefault(node => node.BrowseName == browseName),
-                    nodeId => harness.Existing.GetValueOrDefault(nodeId),
+                    nodeId => harness.Existing.TryGetValue(nodeId, out NodeState node)
+                        ? node
+                        : null,
                     typeDefinitionId =>
                     [
                         .. harness.Existing.Values

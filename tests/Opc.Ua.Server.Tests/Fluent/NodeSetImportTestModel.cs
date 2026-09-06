@@ -212,7 +212,7 @@ namespace NodeSetImportModel
                 "  <NamespaceUris>\r\n" +
                 "    <Uri>" + NamespaceUri + "</Uri>\r\n" +
                 "  </NamespaceUris>\r\n" +
-                nodes.Replace("\n", "\r\n", System.StringComparison.Ordinal) + "\r\n" +
+                nodes + "\r\n" +
                 "</UANodeSet>";
             using var stream = new MemoryStream(Encoding.UTF8.GetBytes(xml));
             return UANodeSet.Read(stream);

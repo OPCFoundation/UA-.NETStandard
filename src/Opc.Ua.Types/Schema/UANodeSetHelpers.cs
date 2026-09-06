@@ -637,7 +637,10 @@ namespace Opc.Ua.Export
 
                     if (nodeTable.TryGetValue(parentNodeId, out NodeState? parent))
                     {
-                        if (instance.ReferenceTypeId.IsNull)
+                        // Only the batch overload supplies a context. The
+                        // single-document path keeps its historical behaviour,
+                        // where AddChild assigns the default reference type.
+                        if (context is not null && instance.ReferenceTypeId.IsNull)
                         {
                             instance.ReferenceTypeId = FindParentReferenceType(
                                 context,
@@ -781,13 +784,13 @@ namespace Opc.Ua.Export
         /// inverse reference the document declared for it.
         /// </summary>
         private static NodeId FindParentReferenceType(
-            ISystemContext? context,
+            ISystemContext context,
             BaseInstanceState instance,
             NodeId parentNodeId,
             IReadOnlyDictionary<NodeId, NodeId> referenceSuperTypes)
         {
             var references = new List<IReference>();
-            instance.GetReferences(context!, references);
+            instance.GetReferences(context, references);
             for (int ii = 0; ii < references.Count; ii++)
             {
                 IReference reference = references[ii];
@@ -809,12 +812,12 @@ namespace Opc.Ua.Export
         }
 
         private static bool IsHierarchicalReference(
-            ISystemContext? context,
+            ISystemContext context,
             NodeId referenceTypeId,
             IReadOnlyDictionary<NodeId, NodeId> referenceSuperTypes)
         {
             if (referenceTypeId == ReferenceTypeIds.HierarchicalReferences ||
-                context?.TypeTable?.IsTypeOf(
+                context.TypeTable?.IsTypeOf(
                     referenceTypeId,
                     ReferenceTypeIds.HierarchicalReferences) == true)
             {
@@ -833,7 +836,7 @@ namespace Opc.Ua.Export
                 }
                 current = superType;
                 if (current == ReferenceTypeIds.HierarchicalReferences ||
-                    context?.TypeTable?.IsTypeOf(
+                    context.TypeTable?.IsTypeOf(
                         current,
                         ReferenceTypeIds.HierarchicalReferences) == true)
                 {
