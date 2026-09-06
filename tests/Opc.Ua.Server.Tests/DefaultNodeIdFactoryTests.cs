@@ -83,10 +83,11 @@ namespace Opc.Ua.Server.Tests
         public void NewRebasesAChildThatStillCarriesADeclarationNodeId()
         {
             // a child arrives here through AssignNodeIds, walking a subtree
-            // copied from a type declaration, so its NodeId is the
-            // declaration's rather than one the caller chose for it.
+            // copied from a type declaration. The declaration lives in the
+            // model's own namespace, which is not this NodeManager's, so the
+            // identifier is not one the caller can have chosen.
             var factory = new DefaultNodeIdFactory(NodeIdAssignmentMode.String, kNamespaceIndex);
-            var declaration = new NodeId("TypeDeclaration", kNamespaceIndex);
+            var declaration = new NodeId("TypeDeclaration", kOtherNamespaceIndex);
             BaseObjectState node = CreateChild(new NodeId("Root", kNamespaceIndex), "Child");
             node.NodeId = declaration;
 
@@ -95,8 +96,25 @@ namespace Opc.Ua.Server.Tests
             Assert.Multiple(() =>
             {
                 Assert.That(nodeId, Is.Not.EqualTo(declaration));
+                Assert.That(nodeId.NamespaceIndex, Is.EqualTo(kNamespaceIndex));
                 Assert.That(nodeId.IdentifierAsString, Does.Contain("Child"));
             });
+        }
+
+        [Test]
+        public void NewKeepsAChildNodeIdThatIsAlreadyInThisNamespace()
+        {
+            // NodeState.Create hands the root the NodeId it was given and
+            // then runs the assignment pass over the subtree, so a caller
+            // naming a parented node explicitly arrives here with an
+            // identifier that is already ours. Re-minting it would rename
+            // the node out from under the caller.
+            var factory = new DefaultNodeIdFactory(NodeIdAssignmentMode.String, kNamespaceIndex);
+            var authored = new NodeId("Pump1.Events.Cavitation.Alarm", kNamespaceIndex);
+            BaseObjectState node = CreateChild(new NodeId("Root", kNamespaceIndex), "Child");
+            node.NodeId = authored;
+
+            Assert.That(factory.New(m_context, node), Is.EqualTo(authored));
         }
 
         [Test]
