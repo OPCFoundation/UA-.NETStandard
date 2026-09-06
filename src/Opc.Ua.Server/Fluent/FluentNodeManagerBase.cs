@@ -527,14 +527,22 @@ namespace Opc.Ua.Server.Fluent
         /// <see cref="AsyncCustomNodeManager.OnSubscribeToEventsAsync"/>
         /// must call <c>base</c> before doing their own work.
         /// </summary>
-        protected override ValueTask OnSubscribeToEventsAsync(
+        protected override async ValueTask OnSubscribeToEventsAsync(
             ServerSystemContext context,
             MonitoredNode2 monitoredNode,
             bool unsubscribe,
             CancellationToken cancellationToken = default)
         {
-            EventSources.SignalReconcile();
-            return base.OnSubscribeToEventsAsync(context, monitoredNode, unsubscribe, cancellationToken);
+            if (unsubscribe)
+            {
+                EventSources.SignalReconcile();
+            }
+            else
+            {
+                await EventSources.WaitUntilReadyAsync(monitoredNode.Node, cancellationToken).ConfigureAwait(false);
+            }
+            await base.OnSubscribeToEventsAsync(context, monitoredNode, unsubscribe, cancellationToken)
+                .ConfigureAwait(false);
         }
 
         /// <inheritdoc/>

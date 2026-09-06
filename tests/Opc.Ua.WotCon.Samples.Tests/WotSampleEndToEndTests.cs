@@ -30,8 +30,10 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Text;
+using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Threading;
 using System.Threading.Tasks;
@@ -39,6 +41,7 @@ using NUnit.Framework;
 using Opc.Ua.Client;
 using Opc.Ua.WotCon.Client;
 using AggregationClient;
+using FlatTagServer;
 
 namespace Opc.Ua.WotCon.Samples.Tests
 {
@@ -59,7 +62,6 @@ namespace Opc.Ua.WotCon.Samples.Tests
 
         private const string kWotConNamespaceUri = "http://opcfoundation.org/UA/WoT-Con/";
         private const string kPumpsNamespaceUri = "http://opcfoundation.org/UA/Pumps/";
-        private const string kDiNamespaceUri = "http://opcfoundation.org/UA/DI/";
 
         [Test]
         public async Task RealSamplesAggregateSubscribeAndReplaceGenerationAsync()
@@ -70,16 +72,20 @@ namespace Opc.Ua.WotCon.Samples.Tests
             await using ConfiguredAsyncDisposable environmentLifetime = environment.ConfigureAwait(false);
 
             AggregationClientResult result = await AggregationClientRunner
-                .RunAsync(environment.ClientOptions, timeout.Token)
-                .ConfigureAwait(false);
+                .RunAsync(environment.ClientOptions, timeout.Token).ConfigureAwait(false);
 
-            Assert.That(result.LoadResult.Uploaded, Has.Count.EqualTo(s_expectedResourceIds.Length));
+            using JsonDocument manifest = JsonDocument.Parse(
+                File.ReadAllBytes(Path.Combine(environment.DocumentsDirectory, "documents.json")));
+            string[] expectedResourceIds = manifest.RootElement.EnumerateArray()
+                .Select(entry => entry.GetProperty("resourceId").GetString()!).ToArray();
+            Assert.That(result.LoadResult.Uploaded, Has.Count.EqualTo(expectedResourceIds.Length));
             var uploadedResourceIds = new List<string>();
             foreach (WotRegistryDocumentLoadOutcome upload in result.LoadResult.Uploaded)
             {
                 uploadedResourceIds.Add(upload.Document.ResourceId);
             }
-            Assert.That(uploadedResourceIds, Is.EqualTo(s_expectedResourceIds));
+            Assert.That(uploadedResourceIds, Is.EquivalentTo(expectedResourceIds));
+            Assert.That(uploadedResourceIds, Does.Contain("sample-pump").And.Contain("pump2-asset"));
             WotRegistryRefreshResult firstRefresh = result.LoadResult.Refresh ??
                 throw new InvalidOperationException("The real loader did not run Refresh.");
             Assert.That(firstRefresh.HasFailures, Is.False, FormatRefresh(firstRefresh));
@@ -91,23 +97,44 @@ namespace Opc.Ua.WotCon.Samples.Tests
                     load.LoadState == WoTLoadStateEnum.Active;
             }
             Assert.That(pumpActive, Is.True);
-            Assert.That(result.Values, Has.Count.EqualTo(10));
-            AssertResultDouble(
-                result,
-                "DifferentialPressure",
-                environment.SourceAValues.DifferentialPressure);
-            AssertResultDouble(result, "FluidTemperature", environment.SourceAValues.FluidTemperature);
-            AssertResultDouble(result, "MassFlow", environment.SourceAValues.MassFlow);
-            AssertResultDouble(result, "Level", environment.SourceAValues.Level);
-            AssertResultBoolean(result, "Cavitation", environment.SourceAValues.Cavitation);
-            AssertResultDouble(
-                result,
-                "BearingTemperature",
-                environment.SourceBValues.BearingTemperature);
-            AssertResultDouble(result, "PumpPowerInput", environment.SourceBValues.PumpPowerInput);
-            AssertResultDouble(result, "PumpEfficiency", environment.SourceBValues.PumpEfficiency);
-            AssertResultUInt32(result, "NumberOfStarts", environment.SourceBValues.NumberOfStarts);
-            AssertResultBoolean(result, "MotorOverheat", environment.SourceBValues.MotorOverheat);
+            Assert.That(result.Pumps, Has.Count.EqualTo(2));
+            Assert.That(result.Pumps[0].Name, Is.EqualTo("Pump1"));
+            Assert.That(result.Pumps[1].Name, Is.EqualTo("Pump2"));
+            Assert.That(result.Values, Has.Count.EqualTo(15));
+            for (int i = 0; i < result.Pumps.Count; i++)
+            {
+                WotPumpResult pump = result.Pumps[i];
+                FlatTagValues sourceA = i == 0 ? environment.SourceAValues : environment.SourceAPump2Values;
+                FlatTagValues sourceB = i == 0 ? environment.SourceBValues : environment.SourceBPump2Values;
+                List<WotPumpValueResult> readings = pump.Values.ToList();
+                List<WotPumpBrowseNode> browsed = pump.BrowsedNodes.ToList();
+                Assert.That(readings, Has.Count.EqualTo(15), pump.Name);
+                Assert.That(readings.All(value => value.StatusCode == StatusCodes.Good), Is.True, pump.Name);
+                WotPumpValueResult manufacturer = readings.Single(value => value.Name == "Manufacturer");
+                Assert.That(manufacturer.Value.TryGetValue(out LocalizedText name), Is.True);
+                Assert.That(name.Text, Is.EqualTo(sourceA.Manufacturer), pump.Name);
+                WotPumpValueResult serial = readings.Single(value => value.Name == "SerialNumber");
+                Assert.That(serial.Value.TryGetValue(out string? serialNumber), Is.True);
+                Assert.That(serialNumber, Is.EqualTo(sourceA.SerialNumber), pump.Name);
+                WotPumpValueResult identity = readings.Single(value => value.Name == "ProductInstanceUri");
+                Assert.That(identity.Value.TryGetValue(out string? productInstanceUri), Is.True);
+                Assert.That(productInstanceUri, Is.EqualTo(sourceA.ProductInstanceUri), pump.Name);
+                Assert.That(browsed.Count(node => node.BrowseName.Name == "EngineeringUnits"), Is.EqualTo(7), pump.Name);
+                Assert.That(browsed.Count(node => node.BrowseName.Name == "EURange"), Is.EqualTo(7), pump.Name);
+                Assert.That(browsed.Any(node => node.NodeClass == NodeClass.Method), Is.True, pump.Name);
+                AssertResultDouble(pump, "DifferentialPressure", sourceA.DifferentialPressure);
+                AssertResultDouble(pump, "FluidTemperature", sourceA.FluidTemperature);
+                AssertResultDouble(pump, "MassFlow", sourceA.MassFlow);
+                AssertResultDouble(pump, "Level", sourceA.Level);
+                AssertResultBoolean(pump, "Cavitation", sourceA.Cavitation);
+                AssertResultDouble(pump, "BearingTemperature", sourceB.BearingTemperature);
+                AssertResultDouble(pump, "PumpPowerInput", sourceB.PumpPowerInput);
+                AssertResultDouble(pump, "PumpEfficiency", sourceB.PumpEfficiency);
+                AssertResultUInt32(pump, "NumberOfStarts", sourceB.NumberOfStarts);
+                AssertResultBoolean(pump, "MotorOverheat", sourceB.MotorOverheat);
+                AssertResultBoolean(pump, "SourceARunning", true);
+                AssertResultBoolean(pump, "SourceBRunning", true);
+            }
 
             WotClientConnection connection = await environment
                 .ConnectAsync(timeout.Token).ConfigureAwait(false);
@@ -116,25 +143,14 @@ namespace Opc.Ua.WotCon.Samples.Tests
             int pumpNamespaceIndex = session.NamespaceUris.GetIndex(kPumpNamespaceUri);
             Assert.That(pumpNamespaceIndex, Is.GreaterThan(0), "The Pump namespace must exist.");
             ushort pumpNs = checked((ushort)pumpNamespaceIndex);
-            var pumpNodeId = new NodeId("Pump1", pumpNs);
-            var operationalNodeId = new NodeId("Pump1.Operational", pumpNs);
-            var measurementsNodeId = new NodeId("Pump1.Operational.Measurements", pumpNs);
-            var eventsNodeId = new NodeId("Pump1.Events", pumpNs);
-            var processFluidNodeId = new NodeId("Pump1.Events.SupervisionProcessFluid", pumpNs);
-            var pumpOperationNodeId = new NodeId("Pump1.Events.SupervisionPumpOperation", pumpNs);
             var differentialPressureNodeId = new NodeId(
                 "Pump1.Operational.Measurements.DifferentialPressure",
                 pumpNs);
 
-            await AssertPumpHierarchyAsync(
-                session,
-                pumpNodeId,
-                operationalNodeId,
-                measurementsNodeId,
-                eventsNodeId,
-                processFluidNodeId,
-                pumpOperationNodeId,
-                timeout.Token).ConfigureAwait(false);
+            foreach (string pumpName in s_pumpNames)
+            {
+                await AssertPumpHierarchyAsync(session, pumpName, timeout.Token).ConfigureAwait(false);
+            }
 
             WotClientConnection subscriptionConnection = await environment
                 .ConnectAsync(timeout.Token).ConfigureAwait(false);
@@ -201,12 +217,13 @@ namespace Opc.Ua.WotCon.Samples.Tests
 
             try
             {
-                string changedPump = CreateChangedPumpDocument(environment);
+                (string resourceId, string changedPump) = await CreateChangedPumpDocumentAsync(
+                    environment, timeout.Token).ConfigureAwait(false);
                 (WotRegistryGroupClient group, _) = await connection.Registry
                     .GetOrCreateThingDescriptionGroupAsync(timeout.Token)
                     .ConfigureAwait(false);
                 (WotRegistryResourceClient pumpResource, _, _) = await group
-                    .GetOrCreateResourceAsync("sample-pump", string.Empty, timeout.Token)
+                    .GetOrCreateResourceAsync(resourceId, string.Empty, timeout.Token)
                     .ConfigureAwait(false);
                 await pumpResource.UploadNewVersionAsync(
                     ByteString.From(Encoding.UTF8.GetBytes(changedPump)),
@@ -287,40 +304,40 @@ namespace Opc.Ua.WotCon.Samples.Tests
         }
 
         [Test]
-        public async Task CurrentPumpAlarmDocumentsDoNotWireAggregationAlarmEventRoundTripAsync()
+        public async Task RealSamplesRouteManagementAndConditionActionsToEachSourceAsync()
         {
             using var timeout = new CancellationTokenSource(TimeSpan.FromMinutes(8));
             WotSampleEnvironment environment = await WotSampleEnvironment
                 .StartAsync(timeout.Token).ConfigureAwait(false);
             await using ConfiguredAsyncDisposable environmentLifetime = environment.ConfigureAwait(false);
 
-            OpcUaClientConnection source = await environment
-                .ConnectSourceAAsync(timeout.Token).ConfigureAwait(false);
-            await using ConfiguredAsyncDisposable sourceLifetime = source.ConfigureAwait(false);
-
-            ushort sourceNs = ResolveNamespace(source.Session, kSourceANamespaceUri);
-            var upstreamSignal = new NodeId(
-                "Pump1.Events.SupervisionProcessFluid.Cavitation",
-                sourceNs);
-            var upstreamAlarm = new NodeId(
-                "Pump1.Events.SupervisionProcessFluid.Cavitation.Alarm",
-                sourceNs);
-            await WriteBooleanAsync(source.Session, upstreamSignal, value: false, timeout.Token)
-                .ConfigureAwait(false);
-            Assert.That(await ReadTwoStateAsync(
-                    source.Session,
-                    upstreamAlarm,
-                    "ActiveState",
-                    timeout.Token).ConfigureAwait(false),
-                Is.False,
-                "The upstream signal must start inactive so the trip is observable.");
-
+            environment.ClientOptions.ExerciseControls = true;
             AggregationClientResult result = await AggregationClientRunner
                 .RunAsync(environment.ClientOptions, timeout.Token)
                 .ConfigureAwait(false);
             WotRegistryRefreshResult refresh = result.LoadResult.Refresh ??
                 throw new InvalidOperationException("The real loader did not run Refresh.");
             Assert.That(refresh.HasFailures, Is.False, FormatRefresh(refresh));
+            Assert.That(refresh.Results.ToArray()!.All(item => item.Outcome != WoTOutcomeEnum.Warning),
+                Is.True, FormatRefresh(refresh));
+            Assert.That(result.Controls, Has.Count.EqualTo(4));
+            Assert.That(
+                result.Controls.ToArray()!.Select(item => item.PumpName + "/" + item.SourceName),
+                Is.EquivalentTo(s_controlPairs));
+
+            OpcUaClientConnection sourceA = await environment.ConnectSourceAAsync(timeout.Token).ConfigureAwait(false);
+            await using var sourceALifetime = sourceA.ConfigureAwait(false);
+            OpcUaClientConnection sourceB = await environment.ConnectSourceBAsync(timeout.Token).ConfigureAwait(false);
+            await using var sourceBLifetime = sourceB.ConfigureAwait(false);
+            foreach (string pumpName in s_pumpNames)
+            {
+                await AssertCompletedSourceConditionAsync(
+                    sourceA.Session, pumpName, kSourceANamespaceUri,
+                    "Events.SupervisionProcessFluid.Cavitation", timeout.Token).ConfigureAwait(false);
+                await AssertCompletedSourceConditionAsync(
+                    sourceB.Session, pumpName, "urn:opcfoundation.org:UA:WotAggregation:SourceB",
+                    "Events.SupervisionPumpOperation.MotorOverheat", timeout.Token).ConfigureAwait(false);
+            }
 
             WotClientConnection connection = await environment
                 .ConnectAsync(timeout.Token).ConfigureAwait(false);
@@ -328,43 +345,47 @@ namespace Opc.Ua.WotCon.Samples.Tests
 
             ushort pumpNs = ResolveNamespace(connection.Session, kPumpNamespaceUri);
             ushort wotConNs = ResolveNamespace(connection.Session, kWotConNamespaceUri);
-            var pumpNodeId = new NodeId("Pump1", pumpNs);
-            var pump1AssetViewNodeId = new NodeId(
-                "WoTRegistry/groups/thingdescriptions/resources/pump1-asset/View",
-                wotConNs);
-            NodeId supervisionGroupNodeId = await FindOrganizedChildAsync(
-                connection.Session,
-                pump1AssetViewNodeId,
-                "Supervision",
-                timeout.Token).ConfigureAwait(false);
-            await WriteBooleanAsync(source.Session, upstreamSignal, value: true, timeout.Token)
-                .ConfigureAwait(false);
-            Assert.That(await ReadTwoStateAsync(
-                    source.Session,
-                    upstreamAlarm,
-                    "ActiveState",
-                    timeout.Token).ConfigureAwait(false),
-                Is.True,
-                "Tripping the upstream boolean must raise the upstream alarm.");
-            Assert.That(await ReadTwoStateAsync(
-                    source.Session,
-                    upstreamAlarm,
-                    "AckedState",
-                    timeout.Token).ConfigureAwait(false),
-                Is.False,
-                "The upstream alarm must require acknowledgement after the trip.");
-
-            await AssertDoesNotOrganizeChildAsync(
-                connection.Session,
-                supervisionGroupNodeId,
-                "CavitationAlarm",
-                timeout.Token).ConfigureAwait(false);
-            await AssertDoesNotGenerateEventTypeAsync(
-                connection.Session,
-                pumpNodeId,
-                "pump1CavitationAlarm",
-                timeout.Token).ConfigureAwait(false);
-            AssertPumpActionsDoNotDeclareConditionRoundTrip(environment.DocumentsDirectory);
+            for (int i = 0; i < result.Pumps.Count; i++)
+            {
+                string pumpName = result.Pumps[i].Name;
+                var assetView = new NodeId(
+                    "WoTRegistry/groups/thingdescriptions/resources/" +
+                    pumpName.ToLowerInvariant() + "-asset/View",
+                    wotConNs);
+                NodeId processGroup = await FindOrganizedChildAsync(
+                    connection.Session, assetView, "ProcessData", timeout.Token).ConfigureAwait(false);
+                await AssertOrganizedMeasurementsAsync(
+                    connection.Session, processGroup, pumpName, pumpNs, s_processMeasurements, timeout.Token)
+                    .ConfigureAwait(false);
+                NodeId conditionGroup = await FindOrganizedChildAsync(
+                    connection.Session, assetView, "ConditionData", timeout.Token).ConfigureAwait(false);
+                await AssertOrganizedMeasurementsAsync(
+                    connection.Session, conditionGroup, pumpName, pumpNs, s_conditionMeasurements, timeout.Token)
+                    .ConfigureAwait(false);
+                NodeId eventGroup = await FindOrganizedChildAsync(
+                    connection.Session, assetView, "Supervision", timeout.Token).ConfigureAwait(false);
+                (_, _, ArrayOf<ReferenceDescription> eventTypes) = await connection.Session.BrowseAsync(
+                    null, null, eventGroup, 0, BrowseDirection.Forward, Ua.ReferenceTypeIds.Organizes,
+                    false, 0, timeout.Token).ConfigureAwait(false);
+                Assert.That(eventTypes, Has.Count.EqualTo(4), pumpName);
+                Assert.That(eventTypes.ToList().Count(item => item.NodeClass == NodeClass.ObjectType), Is.EqualTo(2));
+                Assert.That(eventTypes.ToList().Count(item => item.NodeClass == NodeClass.Variable), Is.EqualTo(2));
+                AssertOrganizedIds(
+                    connection.Session, eventTypes, pumpName, pumpNs, s_supervisionMembers);
+                NodeId managementGroup = await FindOrganizedChildAsync(
+                    connection.Session, assetView, "Management", timeout.Token).ConfigureAwait(false);
+                (_, _, ArrayOf<ReferenceDescription> methods) = await connection.Session.BrowseAsync(
+                    null, null, managementGroup, 0, BrowseDirection.Forward, Ua.ReferenceTypeIds.Organizes,
+                    false, 0, timeout.Token).ConfigureAwait(false);
+                Assert.That(methods, Has.Count.EqualTo(14), pumpName);
+                Assert.That(methods.ToList().Count(item => item.NodeClass == NodeClass.Method), Is.EqualTo(10));
+                Assert.That(methods.ToList().Count(item => item.NodeClass == NodeClass.ObjectType), Is.EqualTo(2));
+                Assert.That(methods.ToList().Count(item => item.NodeClass == NodeClass.Variable), Is.EqualTo(2));
+                AssertOrganizedIds(
+                    connection.Session, methods, pumpName, pumpNs, s_managementMembers);
+            }
+            await AssertSourceOwnershipAsync(
+                connection.Session, sourceA.Session, sourceB.Session, timeout.Token).ConfigureAwait(false);
         }
 
         [Test]
@@ -440,15 +461,12 @@ namespace Opc.Ua.WotCon.Samples.Tests
                 .StartAsync(timeout.Token).ConfigureAwait(false);
             await using ConfiguredAsyncDisposable environmentLifetime = environment.ConfigureAwait(false);
             string documents = environment.CreateDocumentsCopy();
-            string pumpPath = Path.Combine(documents, "SamplePump.td.json");
-            string pump = await File.ReadAllTextAsync(pumpPath, timeout.Token).ConfigureAwait(false);
-            pump = pump.Replace(
+            (string path, _, JsonObject root, JsonObject property) = await FindMeasurementDocumentAsync(
+                documents, timeout.Token).ConfigureAwait(false);
+            property["uav:mapToNodeId"] =
                 "nsu=urn:opcfoundation.org:UA:WotAggregation:PumpInstance;" +
-                "s=Pump1.Operational.Measurements.DifferentialPressure",
-                "nsu=urn:opcfoundation.org:UA:WotAggregation:PumpInstance;" +
-                "s=Pump1.Missing.DifferentialPressure",
-                StringComparison.Ordinal);
-            await File.WriteAllTextAsync(pumpPath, pump, timeout.Token).ConfigureAwait(false);
+                "s=Pump1.Missing.DifferentialPressure";
+            await File.WriteAllTextAsync(path, root.ToJsonString(), timeout.Token).ConfigureAwait(false);
 
             Exception failure = await CaptureFailureAsync(
                 () => AggregationClientRunner.RunAsync(
@@ -480,16 +498,18 @@ namespace Opc.Ua.WotCon.Samples.Tests
 
         private static async Task AssertPumpHierarchyAsync(
             ISession session,
-            NodeId pumpNodeId,
-            NodeId operationalNodeId,
-            NodeId measurementsNodeId,
-            NodeId eventsNodeId,
-            NodeId processFluidNodeId,
-            NodeId pumpOperationNodeId,
+            string pumpName,
             CancellationToken cancellationToken)
         {
             ushort pumpsNs = ResolveNamespace(session, kPumpsNamespaceUri);
-            ushort diNs = ResolveNamespace(session, kDiNamespaceUri);
+            ushort pumpNs = ResolveNamespace(session, kPumpNamespaceUri);
+            var pumpNodeId = new NodeId(pumpName, pumpNs);
+            var identificationNodeId = new NodeId(pumpName + ".Identification", pumpNs);
+            var operationalNodeId = new NodeId(pumpName + ".Operational", pumpNs);
+            var measurementsNodeId = new NodeId(pumpName + ".Operational.Measurements", pumpNs);
+            var eventsNodeId = new NodeId(pumpName + ".Events", pumpNs);
+            var processFluidNodeId = new NodeId(pumpName + ".Events.SupervisionProcessFluid", pumpNs);
+            var pumpOperationNodeId = new NodeId(pumpName + ".Events.SupervisionPumpOperation", pumpNs);
             await AssertTypeDefinitionAsync(
                 session,
                 pumpNodeId,
@@ -497,9 +517,16 @@ namespace Opc.Ua.WotCon.Samples.Tests
                 cancellationToken).ConfigureAwait(false);
             await AssertTypeDefinitionAsync(
                 session,
-                new NodeId("Pump1.Identification", pumpNodeId.NamespaceIndex),
+                identificationNodeId,
                 new NodeId(1005u, pumpsNs),
                 cancellationToken).ConfigureAwait(false);
+            (_, _, ArrayOf<ReferenceDescription> identificationProperties) = await session.BrowseAsync(
+                null, null, identificationNodeId,
+                0, BrowseDirection.Forward, Ua.ReferenceTypeIds.HasProperty, false,
+                (uint)NodeClass.Variable, cancellationToken).ConfigureAwait(false);
+            Assert.That(
+                identificationProperties.ToList().Select(property => property.BrowseName.Name),
+                Is.EquivalentTo(s_identityProperties));
             await AssertTypeDefinitionAsync(
                 session,
                 operationalNodeId,
@@ -528,14 +555,14 @@ namespace Opc.Ua.WotCon.Samples.Tests
             await AssertTypeDefinitionAsync(
                 session,
                 new NodeId(
-                    "Pump1.Events.SupervisionProcessFluid.Cavitation",
+                    pumpName + ".Events.SupervisionProcessFluid.Cavitation",
                     pumpNodeId.NamespaceIndex),
                 new NodeId(2373u),
                 cancellationToken).ConfigureAwait(false);
             await AssertTypeDefinitionAsync(
                 session,
                 new NodeId(
-                    "Pump1.Events.SupervisionPumpOperation.MotorOverheat",
+                    pumpName + ".Events.SupervisionPumpOperation.MotorOverheat",
                     pumpNodeId.NamespaceIndex),
                 new NodeId(2373u),
                 cancellationToken).ConfigureAwait(false);
@@ -753,10 +780,12 @@ namespace Opc.Ua.WotCon.Samples.Tests
                 $"{parentNodeId} does not organize '{browseName}'. Found: {string.Join(", ", names)}.");
         }
 
-        private static async Task AssertDoesNotOrganizeChildAsync(
+        private static async Task AssertOrganizedMeasurementsAsync(
             ManagedSession session,
             NodeId parentNodeId,
-            string browseName,
+            string pumpName,
+            ushort namespaceIndex,
+            string[] names,
             CancellationToken cancellationToken)
         {
             (_, _, ArrayOf<ReferenceDescription> references) = await session.BrowseAsync(
@@ -770,58 +799,25 @@ namespace Opc.Ua.WotCon.Samples.Tests
                 nodeClassMask: 0,
                 cancellationToken).ConfigureAwait(false);
 
-            foreach (ReferenceDescription reference in references)
-            {
-                Assert.That(reference.BrowseName.Name, Is.Not.EqualTo(browseName),
-                    "The current projection view does not organize selected event affordances yet.");
-            }
+            Assert.That(
+                references.ToArray()!
+                    .Select(reference => ExpandedNodeId.ToNodeId(reference.NodeId, session.NamespaceUris)),
+                Is.EquivalentTo(names.Select(name =>
+                    new NodeId($"{pumpName}.Operational.Measurements.{name}", namespaceIndex))));
         }
 
-        private static async Task AssertDoesNotGenerateEventTypeAsync(
+        private static void AssertOrganizedIds(
             ManagedSession session,
-            NodeId notifierNodeId,
-            string browseName,
-            CancellationToken cancellationToken)
+            ArrayOf<ReferenceDescription> references,
+            string pumpName,
+            ushort namespaceIndex,
+            string[] names)
         {
-            (_, _, ArrayOf<ReferenceDescription> references) = await session.BrowseAsync(
-                requestHeader: null,
-                view: null,
-                notifierNodeId,
-                maxResultsToReturn: 0,
-                BrowseDirection.Forward,
-                Ua.ReferenceTypeIds.GeneratesEvent,
-                includeSubtypes: false,
-                nodeClassMask: (uint)NodeClass.ObjectType,
-                cancellationToken).ConfigureAwait(false);
-
-            foreach (ReferenceDescription reference in references)
-            {
-                Assert.That(reference.BrowseName.Name, Is.Not.EqualTo(browseName),
-                    "The current materialized Pump1 object does not generate TD event affordances yet.");
-            }
-        }
-
-        private static void AssertPumpActionsDoNotDeclareConditionRoundTrip(
-            string documentsDirectory)
-        {
-            string pumpPath = Path.Combine(documentsDirectory, "SamplePump.td.json");
-            JsonObject root = JsonNode.Parse(File.ReadAllText(pumpPath))?.AsObject() ??
-                throw new InvalidDataException("SamplePump.td.json is empty.");
-            JsonObject actions = root["actions"]?.AsObject() ??
-                throw new InvalidDataException("SamplePump.td.json has no actions.");
-
-            foreach (KeyValuePair<string, JsonNode?> action in actions)
-            {
-                JsonObject actionObject = action.Value?.AsObject() ??
-                    throw new InvalidDataException($"Action '{action.Key}' is not an object.");
-                Assert.Multiple(() =>
-                {
-                    Assert.That(actionObject.ContainsKey("uav:conditionAction"), Is.False,
-                        $"{action.Key} is a pump method, not a condition method.");
-                    Assert.That(actionObject.ContainsKey("uav:actsOn"), Is.False,
-                        $"{action.Key} does not identify an upstream condition instance.");
-                });
-            }
+            Assert.That(
+                references.ToList()
+                    .Select(reference => ExpandedNodeId.ToNodeId(reference.NodeId, session.NamespaceUris)),
+                Is.EquivalentTo(names.Select(name => new NodeId($"{pumpName}.{name}", namespaceIndex))),
+                pumpName);
         }
 
         private static async Task<(
@@ -884,7 +880,7 @@ namespace Opc.Ua.WotCon.Samples.Tests
         }
 
         private static void AssertResultDouble(
-            AggregationClientResult result,
+            WotPumpResult result,
             string name,
             double expected)
         {
@@ -895,7 +891,7 @@ namespace Opc.Ua.WotCon.Samples.Tests
         }
 
         private static void AssertResultBoolean(
-            AggregationClientResult result,
+            WotPumpResult result,
             string name,
             bool expected)
         {
@@ -906,7 +902,7 @@ namespace Opc.Ua.WotCon.Samples.Tests
         }
 
         private static void AssertResultUInt32(
-            AggregationClientResult result,
+            WotPumpResult result,
             string name,
             uint expected)
         {
@@ -917,7 +913,7 @@ namespace Opc.Ua.WotCon.Samples.Tests
         }
 
         private static WotPumpValueResult FindResultValue(
-            AggregationClientResult result,
+            WotPumpResult result,
             string name)
         {
             foreach (WotPumpValueResult candidate in result.Values)
@@ -936,15 +932,12 @@ namespace Opc.Ua.WotCon.Samples.Tests
             Assert.That(actual, Is.EqualTo(expected));
         }
 
-        private static string CreateChangedPumpDocument(WotSampleEnvironment environment)
+        private static async Task<(string ResourceId, string Json)> CreateChangedPumpDocumentAsync(
+            WotSampleEnvironment environment, CancellationToken cancellationToken)
         {
-            string path = Path.Combine(environment.DocumentsDirectory, "SamplePump.td.json");
-            JsonObject root = JsonNode.Parse(File.ReadAllText(path))?.AsObject() ??
-                throw new InvalidDataException("SamplePump.td.json is empty.");
-            JsonObject properties = root["properties"]?.AsObject() ??
-                throw new InvalidDataException("The Pump properties are missing.");
-            JsonObject differentialPressure = properties["DifferentialPressure"]?.AsObject() ??
-                throw new InvalidDataException("DifferentialPressure is missing.");
+            (_, string resourceId, JsonObject root, JsonObject differentialPressure) =
+                await FindMeasurementDocumentAsync(environment.DocumentsDirectory, cancellationToken)
+                    .ConfigureAwait(false);
             JsonArray forms = differentialPressure["forms"]?.AsArray() ??
                 throw new InvalidDataException("DifferentialPressure forms are missing.");
             JsonObject form = forms[0]?.AsObject() ??
@@ -955,7 +948,7 @@ namespace Opc.Ua.WotCon.Samples.Tests
                 "s=Pump1.Operational.Measurements.BearingTemperature";
 
             string content = root.ToJsonString();
-            return content
+            return (resourceId, content
                 .Replace(
                     "${SOURCE_A_ENDPOINT}",
                     environment.ClientOptions.SourceAEndpoint,
@@ -963,7 +956,139 @@ namespace Opc.Ua.WotCon.Samples.Tests
                 .Replace(
                     "${SOURCE_B_ENDPOINT}",
                     environment.ClientOptions.SourceBEndpoint,
-                    StringComparison.Ordinal);
+                    StringComparison.Ordinal));
+        }
+
+        private static async Task<(string Path, string ResourceId, JsonObject Root, JsonObject Property)>
+            FindMeasurementDocumentAsync(string directory, CancellationToken cancellationToken)
+        {
+            using JsonDocument manifest = JsonDocument.Parse(await File.ReadAllTextAsync(
+                Path.Combine(directory, "documents.json"), cancellationToken).ConfigureAwait(false));
+            foreach (JsonElement entry in manifest.RootElement.EnumerateArray())
+            {
+                if (entry.GetProperty("documentKind").GetString() != "ThingDescription")
+                {
+                    continue;
+                }
+                string path = Path.Combine(directory, entry.GetProperty("path").GetString()!);
+                JsonObject root = JsonNode.Parse(await File.ReadAllTextAsync(path, cancellationToken)
+                    .ConfigureAwait(false))!.AsObject();
+                if (root["properties"] is not JsonObject properties)
+                {
+                    continue;
+                }
+                foreach (KeyValuePair<string, JsonNode?> member in properties)
+                {
+                    if (member.Value is JsonObject property &&
+                        property["uav:mapToNodeId"]?.GetValue<string>() ==
+                            "nsu=" + kPumpNamespaceUri + ";s=Pump1.Operational.Measurements.DifferentialPressure")
+                    {
+                        return (path, entry.GetProperty("resourceId").GetString()!, root, property);
+                    }
+                }
+            }
+            throw new AssertionException("The manifest has no document binding Pump1 DifferentialPressure.");
+        }
+
+        private static async Task AssertCompletedSourceConditionAsync(
+            ManagedSession session, string pump, string namespaceUri, string signalPath,
+            CancellationToken cancellationToken)
+        {
+            ushort ns = ResolveNamespace(session, namespaceUri);
+            var alarm = new NodeId(pump + "." + signalPath + ".Alarm", ns);
+            Assert.That(await ReadTwoStateAsync(session, alarm, "ActiveState", cancellationToken)
+                .ConfigureAwait(false), Is.False);
+            Assert.That(await ReadTwoStateAsync(session, alarm, "AckedState", cancellationToken)
+                .ConfigureAwait(false), Is.True);
+            Assert.That(await ReadTwoStateAsync(session, alarm, "ConfirmedState", cancellationToken)
+                .ConfigureAwait(false), Is.True);
+            NodeId retain = await TranslateAsync(session, alarm, "Retain", cancellationToken).ConfigureAwait(false);
+            DataValue value = await ReadValueAsync(session, retain, cancellationToken).ConfigureAwait(false);
+            Assert.That(value.WrappedValue.TryGetValue(out bool retained), Is.True);
+            Assert.That(retained, Is.False);
+        }
+
+        private static async Task AssertSourceOwnershipAsync(
+            ManagedSession aggregate,
+            ManagedSession sourceA,
+            ManagedSession sourceB,
+            CancellationToken cancellationToken)
+        {
+            ushort pumpNs = ResolveNamespace(aggregate, kPumpNamespaceUri);
+            ushort sourceANs = ResolveNamespace(sourceA, kSourceANamespaceUri);
+            ushort sourceBNs = ResolveNamespace(
+                sourceB, "urn:opcfoundation.org:UA:WotAggregation:SourceB");
+            ManagedSession[] sources = [sourceA, sourceA, sourceB, sourceB];
+            NodeId[] runningNodes =
+            [
+                new("Pump1.Running", sourceANs), new("Pump2.Running", sourceANs),
+                new("Pump1.Running", sourceBNs), new("Pump2.Running", sourceBNs)
+            ];
+            bool[] expected = [true, true, true, true];
+
+            _ = await aggregate.CallAsync(
+                new NodeId("Pump1", pumpNs), new NodeId("Pump1.SourceAStop", pumpNs), cancellationToken)
+                .ConfigureAwait(false);
+            expected[0] = false;
+            await AssertSourceFlagsAsync(sources, runningNodes, expected, cancellationToken).ConfigureAwait(false);
+
+            _ = await aggregate.CallAsync(
+                new NodeId("Pump1", pumpNs), new NodeId("Pump1.SourceBStop", pumpNs), cancellationToken)
+                .ConfigureAwait(false);
+            expected[2] = false;
+            await AssertSourceFlagsAsync(sources, runningNodes, expected, cancellationToken).ConfigureAwait(false);
+
+            _ = await aggregate.CallAsync(
+                new NodeId("Pump1", pumpNs), new NodeId("Pump1.SourceAStart", pumpNs), cancellationToken)
+                .ConfigureAwait(false);
+            expected[0] = true;
+            await AssertSourceFlagsAsync(sources, runningNodes, expected, cancellationToken).ConfigureAwait(false);
+
+            _ = await aggregate.CallAsync(
+                new NodeId("Pump1", pumpNs), new NodeId("Pump1.SourceBStart", pumpNs), cancellationToken)
+                .ConfigureAwait(false);
+            expected[2] = true;
+            await AssertSourceFlagsAsync(sources, runningNodes, expected, cancellationToken).ConfigureAwait(false);
+
+            NodeId[] signals =
+            [
+                new("Pump1.Events.SupervisionProcessFluid.Cavitation", sourceANs),
+                new("Pump2.Events.SupervisionProcessFluid.Cavitation", sourceANs),
+                new("Pump1.Events.SupervisionPumpOperation.MotorOverheat", sourceBNs),
+                new("Pump2.Events.SupervisionPumpOperation.MotorOverheat", sourceBNs)
+            ];
+            for (int i = 0; i < signals.Length; i++)
+            {
+                await WriteBooleanAsync(sources[i], signals[i], true, cancellationToken).ConfigureAwait(false);
+            }
+            _ = await aggregate.CallAsync(
+                new NodeId("Pump1", pumpNs), new NodeId("Pump1.SourceAReset", pumpNs), cancellationToken)
+                .ConfigureAwait(false);
+            expected[0] = false;
+            await AssertSourceFlagsAsync(sources, signals, expected, cancellationToken).ConfigureAwait(false);
+
+            _ = await aggregate.CallAsync(
+                new NodeId("Pump2", pumpNs), new NodeId("Pump2.SourceBReset", pumpNs), cancellationToken)
+                .ConfigureAwait(false);
+            expected[3] = false;
+            await AssertSourceFlagsAsync(sources, signals, expected, cancellationToken).ConfigureAwait(false);
+        }
+
+        private static async Task AssertSourceFlagsAsync(
+            ManagedSession[] sessions,
+            NodeId[] nodes,
+            bool[] expected,
+            CancellationToken cancellationToken)
+        {
+            Assert.That(nodes, Has.Length.EqualTo(expected.Length));
+            Assert.That(sessions, Has.Length.EqualTo(expected.Length));
+            for (int i = 0; i < nodes.Length; i++)
+            {
+                DataValue value = await ReadValueAsync(sessions[i], nodes[i], cancellationToken).ConfigureAwait(false);
+                Assert.That(value.StatusCode, Is.EqualTo(StatusCodes.Good), nodes[i].ToString());
+                Assert.That(value.WrappedValue.TryGetValue(out bool actual), Is.True, nodes[i].ToString());
+                Assert.That(actual, Is.EqualTo(expected[i]), $"Source {i}: {nodes[i]}");
+            }
         }
 
         private static async Task<Exception> CaptureFailureAsync(
@@ -1003,24 +1128,26 @@ namespace Opc.Ua.WotCon.Samples.Tests
             return string.Join("; ", details);
         }
 
-        private static readonly string[] s_expectedResourceIds =
+        private static readonly string[] s_controlPairs =
+            ["Pump1/SourceA", "Pump1/SourceB", "Pump2/SourceA", "Pump2/SourceB"];
+        private static readonly string[] s_pumpNames = ["Pump1", "Pump2"];
+        private static readonly string[] s_identityProperties =
+            ["Manufacturer", "SerialNumber", "ProductInstanceUri"];
+        private static readonly string[] s_processMeasurements =
+            ["DifferentialPressure", "FluidTemperature", "Level", "MassFlow"];
+        private static readonly string[] s_conditionMeasurements =
+            ["BearingTemperature", "PumpPowerInput", "PumpEfficiency", "NumberOfStarts"];
+        private static readonly string[] s_supervisionMembers =
         [
-            "opc-ua-di",
-            "opc-ua-machinery",
-            "opc-ua-pumps",
-            "sample-pump",
-            "pump1-members",
-            "pump1-processdata",
-            "pump1-conditiondata",
-            "pump1-supervision",
-            "pump1-management",
-            "pump1-asset",
-            "pump2-members",
-            "pump2-processdata",
-            "pump2-conditiondata",
-            "pump2-supervision",
-            "pump2-management",
-            "pump2-asset"
+            "Events.SupervisionProcessFluid.Cavitation", "Events.SupervisionPumpOperation.MotorOverheat",
+            "CavitationAlarm", "MotorOverheatAlarm"
+        ];
+        private static readonly string[] s_managementMembers =
+        [
+            "SourceARunning", "SourceBRunning",
+            "SourceAStart", "SourceAStop", "SourceAReset", "SourceBStart", "SourceBStop", "SourceBReset",
+            "CavitationAcknowledge", "CavitationConfirm", "MotorOverheatAcknowledge", "MotorOverheatConfirm",
+            "CavitationAlarm", "MotorOverheatAlarm"
         ];
     }
 }

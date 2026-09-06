@@ -1,6 +1,9 @@
 # WoT aggregation sample
 
-The WoT aggregation sample demonstrates a generic OPC UA server that loads DI, Machinery, Pumps, and Pump-instance shape from WoT Thing Models and a Thing Description, then binds the materialized Pump variables to values read from two independent OPC UA source servers.
+The WoT aggregation sample loads the DI, Machinery, and Pumps companion models
+and two pump instances from linked WoT documents. A generic aggregation server
+binds their properties, management actions, and alarm notifications to two
+independent OPC UA source servers.
 
 The aggregation server contains no Pump-specific generated code and does not reference the DI, Machinery, or Pumps server/model assemblies. The complete DI/Machinery/Pumps/Pump instance shape is runtime-loaded from the files in [`samples/WotCon/AggregationClient/Documents`](AggregationClient/Documents) through the generic WoT-to-NodeSet converter, runtime NodeSet loader, and target-mapping binding runtime.
 
@@ -12,24 +15,34 @@ There are three long-running server processes:
 
 ```mermaid
 flowchart LR
-    client["AggregationClient<br/>(one-shot loader and reader)"]
+    client["AggregationClient<br/>Loader and optional control demo"]
     aggregation["AggregationServer<br/>WoT registry and binding runtime"]
     sourceA["FlatTagServer<br/>Source A"]
     sourceB["FlatTagServer<br/>Source B"]
-    pump["Materialized Pump<br/>OPC UA address space"]
+    pump1["Pump1<br/>Data, identity, actions, alarms"]
+    pump2["Pump2<br/>Data, identity, actions, alarms"]
 
     client -->|"upload documents and Refresh"| aggregation
-    client -->|"browse and read"| aggregation
-    aggregation -->|"mapped OPC UA reads"| sourceA
-    aggregation -->|"mapped OPC UA reads"| sourceB
-    aggregation --> pump
+    client -->|"browse, read, invoke, subscribe"| aggregation
+    aggregation -->|"reads, calls, events"| sourceA
+    aggregation -->|"reads, calls, events"| sourceB
+    aggregation --> pump1
+    aggregation --> pump2
 ```
 
-`AggregationClient` is a fourth, short-lived process. It connects to the aggregation server, uploads the checked-in documents, calls `Refresh`, browses the materialized Pump, reads ten values, prints the result, and exits.
+`AggregationClient` is a fourth, short-lived process. It uploads the document
+manifest, calls `Refresh`, discovers both pumps by browsing from `Objects`, and
+reads fifteen values per pump. With `--exerciseControls true`, it also invokes
+Start, Stop, and Reset, subscribes to projected alarms, and acknowledges and
+confirms occurrences through the aggregate while inspecting independent source
+state. Controls are opt-in because they change the source servers.
 
 Source A and Source B expose deliberately flat variables. They do not expose a Pump companion-model hierarchy. The aggregation server creates that hierarchy from the WoT documents and routes each materialized variable to its selected upstream source.
 
-Each flat source exposes two upstream pump roots, `Pump1` and `Pump2`. Both roots use the same Source A / Source B split so the aggregation server can later prove that asset projections and alarms remain per-pump rather than accidentally global.
+Each flat source exposes two upstream pump roots, `Pump1` and `Pump2`. The
+aggregate preserves this separation: each action has one explicit source
+owner, and each projected alarm has a source- and pump-specific occurrence
+route. Alternative forms are not an instruction to invoke multiple sources.
 
 ## Prerequisites
 
@@ -41,8 +54,9 @@ Run the commands below from the repository root with the .NET 10 SDK. The sample
 
 From the repository root, the demo script builds all three applications, starts
 the two source servers and aggregation server with isolated PKI stores, waits
-for their endpoints, runs the client, verifies all sixteen uploads and ten Good
-values, and stops the exact server processes:
+for their endpoints, and runs the complete client workflow. Success requires
+every manifest resource, thirty Good values, and all four pump/source control
+and alarm round trips. The script stops only the processes it started:
 
 ```powershell
 pwsh samples/WotCon/run-aggregation-demo.ps1
@@ -56,6 +70,13 @@ pwsh samples/WotCon/run-aggregation-demo.ps1 `
   -SourceAPort 62651 `
   -SourceBPort 62652 `
   -Keep
+```
+
+With the platform's NativeAOT prerequisites installed, the same workflow can
+publish and run native executables:
+
+```powershell
+pwsh samples/WotCon/run-aggregation-demo.ps1 -NativeAot
 ```
 
 To run each process manually instead, use the four terminals below.
@@ -115,11 +136,16 @@ dotnet run --project samples/WotCon/AggregationClient/AggregationClient.csproj -
   --aggregationEndpoint opc.tcp://localhost:62550/AggregationServer `
   --sourceAEndpoint opc.tcp://localhost:62551/SourceA `
   --sourceBEndpoint opc.tcp://localhost:62552/SourceB `
-  --documentsDirectory ./samples/WotCon/AggregationClient/Documents
+  --documentsDirectory ./samples/WotCon/AggregationClient/Documents `
+  --exerciseControls true `
+  --timeoutSeconds 480
 ```
 
-The client should report sixteen uploaded resources, a successful refresh generation, the recursively browsed Pump
-hierarchy, and ten Good values.
+The client reports the actual manifest resource count, refresh outcomes, both
+recursively browsed pump hierarchies, and their typed values. The
+`WOT_AGGREGATION_CONTROLS_OK` marker appears only after all four pump/source
+workflows finish. `-ClientTimeoutSeconds` bounds the script's client process;
+`--timeoutSeconds` bounds a manually launched client.
 
 ## Command-line and programmatic options
 
@@ -134,6 +160,12 @@ hierarchy, and ten Good values.
 | `applicationName` | `FlatTagServer` | OPC UA application name. |
 | `namespace` | Source A namespace URI | Must be exactly the Source A or Source B namespace URI. |
 | `pkiRoot` | temporary application directory | Optional certificate-store root. |
+| `manufacturer` | `SimPump Corp` | Pump1 Manufacturer, exposed as LocalizedText. |
+| `serialNumber` | `SN-001` | Pump1 SerialNumber. |
+| `productInstanceUri` | `urn:simdevice:SimPump:PumpX-2000:SN-001` | Pump1 stable product identity. |
+| `pump2Manufacturer` | `SimPump Corp` | Pump2 Manufacturer. |
+| `pump2SerialNumber` | `SN-002` | Pump2 SerialNumber. |
+| `pump2ProductInstanceUri` | `urn:simdevice:SimPump:PumpX-2000:SN-002` | Pump2 stable product identity. |
 | `differentialPressure` | `2.75` | Flat source value. |
 | `fluidTemperature` | `315.65` | Flat source value. |
 | `massFlow` | `0.1825` | Flat source value. |
@@ -159,25 +191,36 @@ hierarchy, and ten Good values.
 (`AggregationServer`), `pkiRoot`, and `maximumDocumentBytes` (`33554432`).
 
 `AggregationClient` reads `aggregationEndpoint`, `sourceAEndpoint`, `sourceBEndpoint`,
-`applicationName` (`AggregationClient`), `pkiRoot`, and `documentsDirectory`.
+`applicationName` (`AggregationClient`), `pkiRoot`, `documentsDirectory`,
+`exerciseControls` (`false`), and `timeoutSeconds` (`480`, range 1-3600).
 
 ## Checked-in document set
 
-[`documents.json`](AggregationClient/Documents/documents.json) declares the sample document set and the dependencies between its entries:
+[`documents.json`](AggregationClient/Documents/documents.json) is the authoritative
+inventory. It contains linked DI, Machinery, and Pumps documents, two pump
+instance closures, and six projection documents per pump: Members,
+ProcessData, ConditionData, Supervision, Management, and Asset.
 
-1. `Opc.Ua.Di.tm.json` as `thingmodels/opc-ua-di`.
-2. `Opc.Ua.Machinery.tm.json` as `thingmodels/opc-ua-machinery`, depending on DI.
-3. `Opc.Ua.Pumps.tm.json` as `thingmodels/opc-ua-pumps`, depending on DI and Machinery.
-4. `SamplePump.td.json` as `thingdescriptions/sample-pump`, depending on all three Thing Models.
-5. `Pump1.*.td.json` and `Pump2.*.td.json` as Thing Description projection documents, depending on
-   `SamplePump.td.json`. Each pump has a member projection, four group projections (`ProcessData`,
-   `ConditionData`, `Supervision`, `Management`), and an Asset projection that organizes those groups.
+`WotAggregationDocumentGenerator` starts with the checked-in companion NodeSets
+and `SamplePump.NodeSet2.xml`. `FromNodeSetDocumentsAsync` verifies each linked
+export by reconstructing the complete source facts. The generator then enriches
+existing affordances by local identity with source-specific forms. It does not
+replace the generated maps or add Nodes over an authoritative native partition.
+Dependencies describe actual document references and ownership, not an arbitrary
+upload chain. Use the manifest rather than assuming a fixed resource count.
 
-Each Thing Model is generated from a checked-in NodeSet2 by `WotAggregationDocumentGenerator`, and `WotAggregationDocumentTests.ThingModelsMatchCanonicalConverterRegeneration` asserts the checked-in file is byte-identical to that output, so the documents cannot drift from their sources.
+Localizations, type bindings, method arguments, engineering units and ranges,
+ordered event selections, and Condition-action relationships remain in the
+generated documents. Event severity comes from the source occurrence, not an
+invented severity property on an asset projection. See
+[WoT / NodeSet conversion](../../docs/WoTNodeSetConversion.md) for the representation
+and preservation rules.
 
-Because the checked-in documents are generated output, a converter change shows up here as a re-generated document set. The current set was regenerated for WoT Binding revision 1.1: the companion Thing Models now additionally carry `titles` / `descriptions` for every locale their NodeSet states, `uav:valueRank` and `uav:arrayDimensions`, engineering units and ranges, event severity, `Method` argument schemas, the Section 13 Condition terms, and typed links for arbitrary companion ReferenceTypes in both directions. Some of them correspondingly carry *less* `uav:nodes` projection, because the readable mapping now reaches facts it previously had to fall back for. See [WoT / NodeSet conversion](../../docs/WoTNodeSetConversion.md) for what each term means and for what changes in a document you generated yourself.
-
-`Opc.Ua.Di.tm.json` is generated from **DI 1.05.0**. That version matters: the official DI NodeSet declared the `ConnectsTo` ReferenceType as a subtype of `HierarchicalReferences` through DI 1.04, which contradicts [OPC 10000-100](https://reference.opcfoundation.org/specs/OPC-10000-100/5.5) §5.5 Table 48 ("Subtype of 0:NonHierarchicalReferences"), and the OPC Foundation corrected it in 1.05.0. `DiConnectsToIsANonHierarchicalReference` pins the corrected form so refreshing the NodeSet from an older upstream revision fails rather than silently reintroducing a non-compliant model.
+The DI documents use **DI 1.05.0**. `ConnectsTo` derives from
+`NonHierarchicalReferences`, as required by
+[OPC 10000-100](https://reference.opcfoundation.org/specs/OPC-10000-100/5.5)
+Section 5.5 Table 48. `DiConnectsToIsANonHierarchicalReference` pins that
+relationship when the source NodeSet is refreshed.
 
 ### Asset projection shape
 
@@ -186,67 +229,32 @@ The checked-in Asset documents use the same shape for each modeled unit:
 * A member projection selects the affordances that belong to the unit and keeps them addressable by stable local names.
 * `ProcessData` and `ConditionData` are dataset projections. Their selected properties are annotated as
   `dataPoint` members so a consumer can browse measurements separately from the larger unit.
-* `Supervision` is an event group projection selected by predicate: event affordances whose type tokens include
-  `uav:eventType`.
-* `Management` is a management group projection selected from action affordances.
+* `Supervision` contains the two supervision signal Variables and their two EventTypes.
+* `Management` contains two Running Variables, six source-owned management Methods,
+  four Condition-action Methods, and the two EventTypes those actions reference.
 * The Asset projection organizes those four groups and selects only identity data at the Asset level. The group
   documents therefore shape browsing; they do not define another copy of the selected affordances.
 
-### What the projections organize, and what they do not
+Every selected member must resolve to a real local Node. A projection shapes
+browsing; it does not synthesize missing Methods, EventTypes, or pump instances.
+Both ProcessData and ConditionData contain four measurement Nodes. Supervision
+contains four Nodes and Management fourteen, with no cross-pump membership.
 
-Running the sample reports per-resource what each View organized and, when a
-selected member could not be organized, why. That reporting is the point: a View
-that quietly organizes nothing is indistinguishable from one that works until a
-client browses it.
+### Native preservation within a linked set
 
-What materializes today, and what does not:
+An incomplete readable partition carries its complete authoritative `uav:nodes`
+representation. This preserves model facts that are not reproduced by its
+readable view; it is neither a whole-model singleton disguised as a linked set
+nor an invitation to overlay additional Nodes. Complete readable partitions do
+not need the native representation.
 
-| Projection | Result | Why |
-| --- | --- | --- |
-| `pump1-processdata`, `pump1-conditiondata` | organizes 4 Nodes each | Their selected property affordances carry `uav:id`, so the projection resolves each to the Node the pump materialized. |
-| `pump1-members`, `pump1-asset` | organizes 11 of 16 | The 11 property affordances resolve; the 3 action and 2 event affordances do not. |
-| `pump1-management` | organizes 0 of 3 | `SamplePump.td.json` carries a `uav:nodes` native projection, so the converter restores the pump from it and never synthesizes the action affordances. `SamplePump.NodeSet2.xml` declares no Methods, so there is no Node for `start`, `stop` or `reset` to organize. |
-| `pump1-supervision` | organizes 0 of 2 | The same cause: the event affordances are declared but never materialize, so no alarm Node exists to organize. |
-| every `pump2-*` projection | organizes 0 | `SamplePump.NodeSet2.xml` contains Pump1 only (35 Nodes, all `ns=1;s=Pump1…`). The Pump2 affordances are bound to upstream tags for reading but map to no local Node. |
-
-The single root cause of the Pump1 gaps is that a document carrying `uav:nodes`
-restores its Nodes from that projection and returns before affordance synthesis
-runs, so any affordance the projection does not already account for contributes
-nothing to the address space. The conversion now reports each such affordance as
-a warning rather than accepting it silently, which is why `sample-pump` loads
-with warnings.
-
-Consequently the upstream cavitation signal is proven to raise the upstream
-alarm and leave it unacknowledged, but Pump1 carries no `GeneratesEvent`
-reference for its cavitation alarm and acknowledgement does not round-trip:
-the projected pump actions are Start, Stop and Reset rather than Condition
-Methods carrying `uav:conditionAction` / `uav:actsOn`.
-
-### Why the pump document still carries `uav:nodes`
-
-*OPC UA — WoT Binding* §9.2 emits the exceptional `uav:nodes` projection only when
-converting the readable document back would not reproduce an equivalent NodeSet. For
-this pump it is still emitted, and the reason is a gap in this implementation rather
-than in the vocabulary.
-
-The readable mapping was completed a long way. Converting `SamplePump.NodeSet2.xml`
-through affordances alone once produced **one** Node in **one** namespace; it now
-produces **21 of 35** Nodes in the source's exact **four**-namespace table, invents
-nothing, and keeps every companion type definition, every DataType and every scalar
-value. What is left is the fourteen `EURange` and `EngineeringUnits` Nodes, which are
-`HasProperty` children of a Variable — one level deeper than the conversion currently
-descends — and whose values are structures rather than scalars.
-
-Both are ordinary work rather than limits. A structure's value is self-describing: the
-`ExtensionObject` carries the identifier of the type it holds, `EUInformation` and
-`Range` are types the stack already generates from the standard NodeSet, and the
-encoder stack maps such a value to named JSON fields and back. Nothing has to infer a
-unit's identifier from its symbol.
-
-One convention the conversion follows is worth knowing when reading a generated
-document: completeness is tested for *equivalence*, not for spelling. A NodeSet may
-write a DataType as an alias its own `Aliases` table declares or as the identifier that
-alias stands for; the check reads both sides through their own tables so the two agree.
+Nested Variable Properties, including `EURange` and `EngineeringUnits`, are
+part of conversion and browsing. The source comparison covers model metadata,
+attributes, references, values, and extensions as well as Node identities.
+Top-level XML Node ordering can change when partitioning; ordered method
+arguments, definition fields, and references remain significant. Routing-only
+JSON added by the sample is retained as residue and accounted for separately
+from the original model facts.
 
 ### Upload order is not a server requirement
 
@@ -268,7 +276,13 @@ Both refresh models are valid, and the sample shows the second one:
 
 ## Endpoint placeholder substitution
 
-The checked-in Pump TD is portable and contains `${SOURCE_A_ENDPOINT}` and `${SOURCE_B_ENDPOINT}` placeholders. `AggregationClientRunner.LoadDocumentsAsync` substitutes the two endpoint options only in `SamplePump.td.json` immediately before upload. The checked-in file remains environment-independent, and no generated file is written back to the repository.
+The pump documents contain `${SOURCE_A_ENDPOINT}` and `${SOURCE_B_ENDPOINT}`
+placeholders. `AggregationClientRunner.LoadDocumentsAsync` substitutes exact
+`href` values in document-level and affordance-level forms across the manifest,
+entirely in memory. It does not interpret links, schema defaults, native
+projections, preservation envelopes, or vendor metadata as endpoint addresses.
+Documents without a substitutable form retain their original bytes. No generated
+file is rewritten by the client.
 
 Each property form also contains a portable upstream `uav:id` using the source server's `nsu=` namespace URI. The property affordance contains a separate `uav:mapToNodeId` using the materialized Pump-instance namespace. The form therefore describes where to read, while the affordance describes where the value belongs in the aggregate model.
 
@@ -286,11 +300,16 @@ WotRegistryBulkLoadResult loadResult = await client.LoadDocumentsAsync(
 
 For each document, the registry client get-or-creates the correct Thing Model or Thing Description group, get-or-creates the resource, and uploads a new version through the inherited OPC UA `FileType` transfer. With `refresh: true`, it then calls `RefreshAllAsync`. The aggregation server validates dependencies, converts each document closure to NodeSet2, prepares its binding plans, imports the NodeSets, wires the OPC UA target mappings, and publishes the new generation.
 
-The sample aggregation server sets `AutoRefresh = false` so the four uploads do not cause four intermediate projections. The explicit final `Refresh` activates one complete dependency closure. A deployment that wants live progress instead leaves `AutoRefresh` at its default `true` and consumes the events described above.
+The sample aggregation server sets `AutoRefresh = false` so manifest uploads do
+not cause intermediate projections. The explicit final `Refresh` activates the
+complete dependency closure. A deployment that wants live progress instead
+leaves `AutoRefresh` at its default `true` and consumes the events described above.
 
 ## Pump companion-model shape
 
-The materialized namespace is `urn:opcfoundation.org:UA:WotAggregation:PumpInstance`, with root `Pump1`. The end-to-end test verifies that the runtime-loaded hierarchy and type definitions comply with the checked-in companion models:
+The materialized namespace is `urn:opcfoundation.org:UA:WotAggregation:PumpInstance`,
+with roots `Pump1` and `Pump2` organized beneath `Objects`. Both use the same
+companion-model hierarchy; the names below use Pump1 as an example:
 
 * `Pump1` has the Pumps `PumpType` definition.
 * `Pump1.Identification` uses the Pumps `PumpIdentificationType`, which OPC 40223 declares for `PumpType.Identification`. It is a subtype of Machinery's `MachineryItemIdentificationType` and ultimately of DI's `FunctionalGroupType`, so the DI identification properties remain available on it.
@@ -303,25 +322,29 @@ These nodes are not compiled into `AggregationServer`. They are produced from th
 
 ### Cross-checked against a hand-written server
 
-The list above only restates what this sample's own documents ask for, so on its own it cannot catch a document that asks for the wrong thing — and it did not: `Pump1.Identification` carried DI's `FunctionalGroupType` instead of the `PumpIdentificationType` OPC 40223 declares, and every test, the sample documents and this README agreed with each other about it.
-
-[`WotPumpAddressSpaceComparisonTests`](../../tests/Opc.Ua.WotCon.Samples.Tests/WotPumpAddressSpaceComparisonTests.cs) therefore compares this server against [`PumpDeviceIntegrationServer`](../DI/PumpDeviceIntegrationServer), which builds the same OPC 40223 Pump by a completely different route — generated from the companion NodeSets and wired by hand. It is an independent oracle rather than a restatement.
+[`WotPumpAddressSpaceComparisonTests`](../../tests/Opc.Ua.WotCon.Samples.Tests/WotPumpAddressSpaceComparisonTests.cs)
+compares the declared companion-model subset against
+[`PumpDeviceIntegrationServer`](../DI/PumpDeviceIntegrationServer), which builds
+an OPC 40223 Pump from generated companion-model code. This provides an
+independent oracle rather than only comparing the WoT documents with themselves.
 
 It asserts two things separately:
 
-* Every node this server materializes under its Pump also exists under the native `Pump_1` with the same BrowseName, NodeClass and type definition. Nodes the native server has and this model does not — alarms, OpenUSD, the fuller Identification, the rest of the simulation — are reported for information, because the Thing Description deliberately models a subset.
+* The complete original companion-model subset has the same BrowseNames,
+  NodeClasses, and type definitions as the native `Pump_1`. The aggregation
+  sample's source-specific controls and Condition proxy subtrees are separate
+  sample extensions, not claimed as native Pump parity.
 * The DI, Machinery and Pumps *type* definitions are equal in both servers. Both derive from the same companion models, so a difference there is a defect rather than a scope decision.
 
 Comparison is on namespace URIs and browse names throughout; NodeIds, namespace indexes, modelling rules and values legitimately differ between the two servers and are ignored.
 
-Two known differences remain and are deliberate rather than accidental:
-
-* `Pump1` has no hierarchical parent, so it is reachable by NodeId but not by browsing down from `Objects`. The native server organizes `Pump_1` under `DeviceSet` and `Machines`. Adding the equivalent `Organizes` reference to `SamplePump.NodeSet2.xml` round-trips through the converter but then fails activation with `IdentifierMissing`, so it needs its own fix first.
-* The Thing Description models ten measurements and two supervision variables; the native server simulates considerably more.
+The native server also supplies additional Identification, alarm, simulation,
+and OpenUSD features. Those are outside this sample's declared subset.
 
 ## Values from both sources
 
-The Pump TD routes five properties to each source:
+Each pump routes four measurement Variables and one supervision signal to each
+source:
 
 | Materialized Pump property | Upstream source |
 | --- | --- |
@@ -336,7 +359,45 @@ The Pump TD routes five properties to each source:
 | NumberOfStarts | Source B |
 | MotorOverheat | Source B |
 
-With the commands above, the output should include Source A values such as `DifferentialPressure = 111.25` and Source B values such as `BearingTemperature = 333.15`. Every value is read through the aggregation server's local Pump NodeId, not directly from the source server by the sample client.
+Three identity Properties come from Source A: Manufacturer (`LocalizedText`),
+SerialNumber (`String`), and ProductInstanceUri (`String`). SourceARunning and
+SourceBRunning expose each source's independent Boolean state. Together these
+make fifteen readings per pump.
+
+The example command values distinguish the pumps: Pump1 DifferentialPressure
+is `111.25`, while Pump2 is `211.25`; their BearingTemperature values are
+`333.15` and `337.15`. Readings use the aggregate's local NodeIds. Direct source
+connections are used only by the optional control demonstration as an independent
+side-effect oracle.
+
+## Management and alarm workflow
+
+For each pump, `SourceAStart`, `SourceAStop`, and `SourceAReset` invoke only Source
+A. The corresponding `SourceB*` Methods invoke only Source B. Reset clears that
+source's supervision signal; it does not acknowledge or confirm operator
+obligations.
+
+`CavitationAlarm` and `MotorOverheatAlarm` identify local EventTypes. Their
+mutable Condition instances and emitted occurrences are distinct objects.
+Event forms subscribe to the owning upstream pump with explicit selected
+fields, including EventId and Condition identity/state. The aggregate publishes
+through its local notifier hierarchy and maps each local occurrence EventId
+back to the selected source.
+
+`CavitationAcknowledge` / `CavitationConfirm` and
+`MotorOverheatAcknowledge` / `MotorOverheatConfirm` carry
+`uav:conditionAction` and same-document `uav:actsOn` relationships. A native OPC
+UA call supplies EventId followed by Comment; use `LocalizedText.Null` for an
+omitted comment. A WoT invocation may omit an optional Comment, which the OPC
+UA binding normalizes to that second slot. After acknowledgement, use the
+EventId from the updated occurrence for confirmation.
+
+The demo initializes the source Condition, subscribes through the aggregate,
+trips the signal, acknowledges and confirms the emitted occurrence, then calls
+Reset. Return to normal alone leaves an unacknowledged or unconfirmed Condition
+retained. Wrong or evicted occurrence IDs do not fall back to another source.
+Shelving, suppression, dialog, and cross-WoT ConditionRefresh mappings are not
+part of this demonstration.
 
 ## Local monitored items
 
@@ -348,9 +409,17 @@ The integration test creates a real subscription and monitored item with a 50 ms
 
 ## Version replacement and shadow drain
 
-Uploading another version of `sample-pump` and calling `RefreshAllAsync` creates a shadow runtime NodeSet generation. The new generation becomes the target for new reads and monitored items without disconnecting clients. Existing monitored items remain attached to the old generation until they are deleted or otherwise drain.
+Uploading another version of a pump document and calling `RefreshAllAsync`
+creates a shadow runtime NodeSet generation. New reads and monitored items use
+the new generation without disconnecting clients. Existing monitored items
+remain attached to the old generation until they are deleted or otherwise drain.
 
-[`WotSampleEndToEndTests.cs`](../../tests/Opc.Ua.WotCon.Samples.Tests/WotSampleEndToEndTests.cs) demonstrates this by changing the DifferentialPressure mapping to read Source B's BearingTemperature, uploading the new Pump TD version, and refreshing. A normal read after the switch returns the Source B value from the new generation. The already-existing monitored item can still publish the Source A value from the retired generation. After that subscription is deleted and the retired generation drains, subsequent reads continue against the new Source B mapping.
+[`WotSampleEndToEndTests.cs`](../../tests/Opc.Ua.WotCon.Samples.Tests/WotSampleEndToEndTests.cs)
+locates the actual document owning Pump1 DifferentialPressure, changes its
+mapping to Source B BearingTemperature, uploads a replacement, and refreshes.
+New reads use Source B while an existing monitored item can continue receiving
+Source A from the retired generation. Deleting that subscription releases its
+retired-generation consumer.
 
 If conversion, mapping resolution, channel wiring, or shadow activation fails, the previous active generation remains in service and the failed refresh reports per-resource diagnostics.
 
@@ -389,10 +458,13 @@ An existing monitored item intentionally remains on the retired generation until
 The real sample tests launch all three servers in process with isolated ports and PKI roots:
 
 ```powershell
-dotnet test tests/Opc.Ua.WotCon.Samples.Tests/Opc.Ua.WotCon.Samples.Tests.csproj -f net10.0 --filter "Category=Samples"
+dotnet test tests/Opc.Ua.WotCon.Samples.Tests/Opc.Ua.WotCon.Samples.Tests.csproj -f net10.0 --filter "TestCategory=Samples"
 ```
 
-The suite covers successful upload and refresh, companion-model hierarchy, values from both sources, local monitored items, version replacement and shadow drain, invalid documents, missing manifest dependencies, invalid target mappings, and unavailable upstream endpoints.
+The suite covers both pump hierarchies and all typed readings, exact projection
+membership, source-owned management actions, Condition round trips, local
+monitored items, replacement and shadow drain, invalid documents, missing
+dependencies, invalid target mappings, and unavailable upstream endpoints.
 
 ## NativeAOT publishing
 

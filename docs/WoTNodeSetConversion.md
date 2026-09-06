@@ -146,7 +146,7 @@ them.
 | `uav:instrumentRange` (Section 6.4.1) | **Default** / **Fails** | Absent: no `InstrumentRange` Property. Malformed, or an engineering range not contained in it: `InvalidRangeValue` error. Present and valid: an `InstrumentRange` Property (`Range` `i=884`, `HasModellingRule` `Optional`) holding the interval. |
 | `uav:scaleFactor` (Section 6.4) | **Default** / **Fails** | Absent: identity scaling (factor `1`). Malformed (not a non-zero number): `InvalidModelVocabularyValue` error. Present and valid: preserved via residue. It is a static presentation and transport transform, never derived from — nor used to derive — `EngineeringUnits`, `EURange` or `InstrumentRange`. |
 | `uav:decimalPlaces` (Section 6.4) | **Default** / **Fails** | Absent: no rounding is recorded. Malformed (not an integer greater than or equal to zero; `2.0` is rejected as a non-integer literal): `InvalidModelVocabularyValue` error. Present and valid: preserved via residue. |
-| `titles` / `descriptions` (Section 9.1.1) | **Default** / **Fails** | Absent: the singular member alone materializes one locale-free `LocalizedText` — the form a UANodeSet writes when it names one language — or one tagged with the document's `@language` where the context declares it. A plural member without its singular member, without an entry for the document's default locale, or whose default-locale entry differs from the singular member: `InvalidLocalizedText` error. |
+| `titles` / `descriptions` (Section 9.1.1) | **Default** / **Fails** | Absent: the singular member materializes one `LocalizedText` using its effective language. Present: every plural entry is authoritative. The singular member repeats the default-locale entry when present; otherwise it repeats the code-point-first language entry and uses a node-local language-neutral override. A missing default locale is valid. A missing singular member, an inconsistent fallback, or an incorrectly language-tagged fallback produces `InvalidLocalizedText`. |
 | `uav:semanticId` (Section 6.7) | **Default** / **Fails** | Absent: no semantic reference is recorded. Malformed (not an absolute IRI with a scheme): `NonAbsoluteIri` error. Present and valid: preserved via residue. |
 | `uav:metadata` (Section 6.7) | **Default** | Absent: nothing is recorded. Present: opaque; carried verbatim through residue, never validated and never a reason to reject the document (Section 6.7). |
 | `uav:propertyConfiguration` (Section 6.7) | **Default** | Absent: nothing is recorded. Present: opaque per-affordance configuration; carried verbatim through residue and never validated. |
@@ -160,6 +160,65 @@ them.
 
 The following sections describe generated NodeId identity and the distinct
 measurements used for preserved JSON values.
+
+### Verified linked document sets
+
+`WotNodeSetConverter.FromNodeSetDocumentsAsync` exports a linked set and
+reconstructs it before returning success. Each document root owns a disjoint
+partition of the source. Methods, their argument Properties, and nested
+Variables stay with their owner; nested Objects and EventTypes have separate
+document roots. References can point at Nodes in other partitions.
+
+Complete readable partitions omit `uav:nodes`. A partition requiring exceptional
+preservation carries its complete authoritative `uav:nodes` representation,
+not a delta to overlay on readable siblings. The namespace/model/alias tables,
+values, permissions, and extensions remain part of the fidelity check. Duplicate
+native ownership, conflicting shared headers, and attempts to add readable Nodes
+to another native partition are rejected.
+
+`WotNodeSetConverter.CompareDocumentSet` compares the reconstructed set with
+its source, normalizing only the order of top-level Node records that partitioning
+can regroup. Reference direction and order, definition-field and argument order,
+attributes, values, and metadata remain compared. The synchronous
+`FromNodeSetDocuments` API produces the readable candidate; use the asynchronous
+API when verified reconstruction is required.
+
+`MergeNodeSetPartitions` applies the same bounded ownership and header rules
+to already converted partitions without modifying its inputs. The registry
+uses this when preparing one runtime source from several documents that declare
+the same model. Shared model ownership joins their activation closure; unrelated
+readable documents do not become one atomic closure merely because their NodeIds
+use the same namespace.
+
+Generated Double constants, ranges, and sampling intervals use the canonical
+shortest round-trip spelling on every supported framework. This avoids
+platform-specific formatter output being rejected as an over-precise authored
+literal. Validation of received numeric literals remains unchanged.
+
+```csharp
+WotConversionResult<WotDocumentSet> exported =
+    await WotNodeSetConverter.FromNodeSetDocumentsAsync(
+        nodeSet, "pump", nodeResolver: resolver, cancellationToken: ct);
+if (!exported.Success)
+{
+    throw new InvalidOperationException(string.Join(Environment.NewLine, exported.Diagnostics));
+}
+using WotDocumentSet documents = exported.Value!;
+foreach (WotDocumentSetEntry entry in documents.Entries)
+{
+    Console.WriteLine($"{entry.Href}: {entry.Document.Utf8Json.Length} bytes");
+}
+```
+
+An unsupported future `uav:nodes` grammar is not parsed. The converter reports
+that projection as unsupported while processing the document's usable readable
+members and retaining the unsupported object as opaque residue. Malformed
+supported grammars and invalid archival digests remain errors.
+
+When an archival `uav:nodeSet` is present, known readable facts are checked
+against that baseline and conflicts are reported rather than overwritten.
+Routing-only enrichment does not grant permission to add or replace archived
+model facts.
 
 ### Generated NodeIds follow Annex G.1
 
