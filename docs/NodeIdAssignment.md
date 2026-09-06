@@ -364,8 +364,18 @@ and the result is an instance sitting on the type's node.
 
 ### Why the surrounding machinery stays
 
-Two pieces of this look redundant once there is a single rule, and are
+Three pieces of this look redundant once there is a single rule, and are
 not.
+
+**`AssignInstanceNodeId`'s retry.** After the forced call it retries once,
+which looks like belt and braces for a deterministic factory. It is not,
+because the second call is not the same as the first when the factory
+holds state. A counter advances on every call, so an allocator whose next
+value happens to equal the identifier being replaced - a counter sitting
+at 0 replacing `i=1`, say - hands that identifier straight back. The
+retry is what steps past it. `NodeInstanceExtensionsTests
+.AssignInstanceNodeIdRetriesDeclarationIdCollision` pins exactly that
+case.
 
 **`assignInstanceNodeIds`**, threaded through `CreateChild`, `FindChild`,
 `BaseDataVariableState`, `MethodState` and every generated
