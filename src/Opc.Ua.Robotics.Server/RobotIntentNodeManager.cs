@@ -118,22 +118,6 @@ namespace Opc.Ua.Robotics.Server
 
         internal bool BaseDisposeStarted => Volatile.Read(ref m_baseDisposeStarted) != 0;
 
-        /// <inheritdoc/>
-        public override NodeId New(ISystemContext context, NodeState node)
-        {
-            if (node is BaseInstanceState instance && instance.Parent != null)
-            {
-                return new NodeId(
-                    $"{instance.Parent.NodeId.IdentifierAsString}_{instance.SymbolicName}",
-                    GetInstanceNamespaceIndex(context));
-            }
-            if (node.NodeId.IsNull)
-            {
-                return new NodeId(Guid.NewGuid(), GetInstanceNamespaceIndex(context));
-            }
-            return node.NodeId;
-        }
-
         /// <summary>
         /// Creates a direct build context for non-DI configuration.
         /// </summary>
@@ -404,7 +388,7 @@ namespace Opc.Ua.Robotics.Server
             return root;
         }
 
-        private ushort GetInstanceNamespaceIndex(ISystemContext context)
+        private ushort GetInstanceNamespaceIndex(ServerSystemContext context)
         {
             return (ushort)context.NamespaceUris.GetIndex(m_options.InstanceNamespaceUri);
         }

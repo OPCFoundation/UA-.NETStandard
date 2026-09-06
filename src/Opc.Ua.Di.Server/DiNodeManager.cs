@@ -240,19 +240,33 @@ namespace Opc.Ua.Di.Server
         public ArrayOf<string> ServerProfiles => BuildServerProfiles();
 
         /// <inheritdoc/>
+        /// <remarks>
+        /// Devices and their children live in the server's instance
+        /// namespace even though their parents - <c>DeviceSet</c> and the
+        /// type declarations below it - come from the DI model namespace, so
+        /// the namespace cannot simply be inherited from the parent. The
+        /// identifier itself is the same canonical browse path
+        /// <see cref="DefaultNodeIdFactory"/> mints everywhere else.
+        /// </remarks>
         public override NodeId New(ISystemContext context, NodeState node)
         {
-            if (node is BaseInstanceState instance &&
-                instance.Parent != null)
+            if (!node.NodeId.IsNull)
             {
-                string parentId = instance.Parent.NodeId.IdentifierAsString;
-
-                return new NodeId(
-                    $"{parentId}_{instance.SymbolicName}",
-                    InstanceNamespaceIndex);
+                return node.NodeId;
             }
 
-            return node.NodeId;
+            if (node is BaseInstanceState { Parent: { } parent } &&
+                !parent.NodeId.IsNull &&
+                !node.BrowseName.IsNull)
+            {
+                return NodeIdFactory.CreateChildNodeId(
+                    parent.NodeId,
+                    node.BrowseName,
+                    InstanceNamespaceIndex,
+                    context.NamespaceUris);
+            }
+
+            return base.New(context, node);
         }
 
         /// <summary>

@@ -74,19 +74,6 @@ namespace Opc.Ua.Positioning.Server
             SystemContext.NodeIdFactory = this;
         }
 
-        /// <inheritdoc/>
-        public override NodeId New(ISystemContext context, NodeState node)
-        {
-            if (node is BaseInstanceState instance && instance.Parent != null)
-            {
-                return new NodeId(
-                    $"{instance.Parent.NodeId.IdentifierAsString}_{instance.SymbolicName}",
-                    instance.Parent.NodeId.NamespaceIndex);
-            }
-
-            return node.NodeId;
-        }
-
         /// <summary>
         /// Creates an address-space builder bound to this manager.
         /// </summary>

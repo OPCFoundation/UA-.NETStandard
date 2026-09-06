@@ -77,23 +77,6 @@ namespace Opc.Ua.ISA95.Server
         public ushort InstanceNamespaceIndex =>
             (ushort)Server.NamespaceUris.GetIndex(m_options.InstanceNamespaceUri);
 
-        public override NodeId New(ISystemContext context, NodeState node)
-        {
-            if (!node.NodeId.IsNull)
-            {
-                return node.NodeId;
-            }
-            if (node is BaseInstanceState instance && instance.Parent != null)
-            {
-                string parent = instance.Parent.NodeId.IdentifierAsString;
-                string name = instance.BrowseName.Name ?? instance.SymbolicName ?? "Node";
-                return new NodeId($"{parent}_{name}", InstanceNamespaceIndex);
-            }
-            return new NodeId(
-                $"ISA95_{Interlocked.Increment(ref m_nextNodeId)}",
-                InstanceNamespaceIndex);
-        }
-
         protected override ValueTask<NodeStateCollection> LoadPredefinedNodesAsync(
             ISystemContext context,
             CancellationToken cancellationToken = default)
@@ -1307,7 +1290,6 @@ namespace Opc.Ua.ISA95.Server
         private int m_catalogChangesDisposed;
         private long m_jobOrderAppliedGeneration;
         private long m_jobOrderRefreshGeneration;
-        private long m_nextNodeId;
     }
 
     internal static partial class Isa95NodeManagerLog

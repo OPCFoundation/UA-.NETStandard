@@ -112,11 +112,13 @@ namespace Opc.Ua.Vision.Tests
         }
 
         [Test]
-        public async Task NewNodeIdSynthesisesGuidWhenNoParentAndNoExistingNodeId()
+        public async Task NewNodeIdFallsBackToASequentialIdWhenThereIsNoBrowsePath()
         {
             await using var fixture = new VisionServerFixture();
             await fixture.StartAsync().ConfigureAwait(false);
 
+            // no browse name, so there is no path for the deterministic
+            // factory to derive an identifier from.
             var orphan = new BaseObjectState(null)
             {
                 NodeId = NodeId.Null,
@@ -126,7 +128,10 @@ namespace Opc.Ua.Vision.Tests
             NodeId result = fixture.Manager.New(fixture.Manager.SystemContext, orphan);
 
             Assert.That(result.IsNull, Is.False);
-            Assert.That(result.IdType, Is.EqualTo(IdType.Guid));
+            Assert.That(result.IdType, Is.EqualTo(IdType.Numeric));
+            Assert.That(
+                result.NamespaceIndex,
+                Is.EqualTo(fixture.Manager.NamespaceIndex));
         }
 
         [Test]
@@ -143,7 +148,8 @@ namespace Opc.Ua.Vision.Tests
             var child = new BaseObjectState(parent)
             {
                 NodeId = NodeId.Null,
-                SymbolicName = "Child"
+                SymbolicName = "Child",
+                BrowseName = new QualifiedName("Child", fixture.Manager.NamespaceIndex)
             };
 
             NodeId result = fixture.Manager.New(fixture.Manager.SystemContext, child);
@@ -151,6 +157,9 @@ namespace Opc.Ua.Vision.Tests
             Assert.That(result.IdType, Is.EqualTo(IdType.String));
             Assert.That(result.IdentifierAsString, Does.Contain("Parent"));
             Assert.That(result.IdentifierAsString, Does.Contain("Child"));
+            Assert.That(
+                result.NamespaceIndex,
+                Is.EqualTo(fixture.Manager.NamespaceIndex));
         }
 
         [Test]

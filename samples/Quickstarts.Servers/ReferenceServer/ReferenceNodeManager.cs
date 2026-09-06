@@ -116,20 +116,6 @@ namespace Quickstarts.ReferenceServer
         /// <summary>
         /// Creates the NodeId for the specified node.
         /// </summary>
-        public override NodeId New(ISystemContext context, NodeState node)
-        {
-            if (node is BaseInstanceState instance &&
-                instance.Parent != null &&
-                instance.Parent.NodeId.TryGetValue(out string id))
-            {
-                return new NodeId(
-                    id + "_" + instance.SymbolicName,
-                    instance.Parent.NodeId.NamespaceIndex);
-            }
-
-            return node.NodeId;
-        }
-
         /// <inheritdoc/>
         /// <remarks>
         /// Enables the OPC UA NodeManagement service set (AddNodes /

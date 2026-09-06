@@ -168,6 +168,10 @@ namespace Opc.Ua.Server
             m_namespaceUris = namespaceUris;
             m_namespaceIndexes = namespaceIndexes;
 
+            // nodes created at runtime get a deterministic NodeId derived
+            // from their browse path unless a sub-class picks another rule.
+            m_nodeIdFactory = ResolveNodeIdFactory(server, DefaultNamespaceIndex);
+
             m_syncNodeManager = (INodeManager3)this.ToSyncNodeManager();
 
             // create a monitored item manager that owns sampling groups / monitoredNodes
@@ -232,21 +236,83 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Mints NodeIds for nodes that this NodeManager creates at runtime.
+        /// </summary>
+        /// <remarks>
+        /// Resolved from dependency injection when the server was composed
+        /// that way, otherwise a <see cref="NodeIdAssignmentMode.String"/>
+        /// factory, which derives a deterministic identifier from the node's
+        /// browse path. Assign a factory to mint a different identifier
+        /// type, or a <see cref="NodeIdAssignmentMode.None"/> factory
+        /// together with a <see cref="New"/> override to assign NodeIds by
+        /// another rule entirely. The assigned factory is rebased onto this
+        /// NodeManager's own namespace.
+        /// </remarks>
+        /// <exception cref="ArgumentNullException">
+        /// Thrown when the factory is set to <c>null</c>.
+        /// </exception>
+        public DefaultNodeIdFactory NodeIdFactory
+        {
+            get => m_nodeIdFactory;
+            set
+            {
+                if (value is null)
+                {
+                    throw new ArgumentNullException(nameof(value));
+                }
+
+                m_nodeIdFactory = value.WithDefaultNamespaceIndex(DefaultNamespaceIndex);
+            }
+        }
+
+        /// <summary>
         /// Creates the NodeId for the specified node.
         /// </summary>
         /// <param name="context">The context.</param>
         /// <param name="node">The node.</param>
         /// <returns>The new NodeId.</returns>
+        /// <remarks>
+        /// Delegates to <see cref="NodeIdFactory"/>, except for a node with
+        /// no browse path to derive a deterministic identifier from - a
+        /// node without a browse name, or one hanging off a transient parent
+        /// such as an event instance. Those keep the classic sequential
+        /// identifier in the manager's default namespace.
+        /// </remarks>
         public virtual NodeId New(ISystemContext context, NodeState node)
         {
-            if (node.NodeId.IsNull)
+            if (node.NodeId.IsNull && !m_nodeIdFactory.HasDerivablePath(node))
             {
                 uint id = Utils.IncrementIdentifier(ref m_lastUsedNodeId);
-                return new NodeId(id, m_namespaceIndexes[0]);
+                return new NodeId(id, DefaultNamespaceIndex);
             }
 
-            return node.NodeId;
+            return m_nodeIdFactory.New(context, node);
         }
+
+        /// <summary>
+        /// Resolves the NodeId factory the server was configured with,
+        /// falling back to the deterministic default.
+        /// </summary>
+        private static DefaultNodeIdFactory ResolveNodeIdFactory(
+            IServerInternal server,
+            ushort namespaceIndex)
+        {
+            if (server is INodeIdFactoryProvider { NodeIdFactory: { } configured })
+            {
+                return configured.WithDefaultNamespaceIndex(namespaceIndex);
+            }
+
+            return new DefaultNodeIdFactory(
+                NodeIdAssignmentMode.String,
+                namespaceIndex);
+        }
+
+        /// <summary>
+        /// The namespace index that <see cref="NodeIdFactory"/> mints into
+        /// when a node's browse name is in namespace 0.
+        /// </summary>
+        private ushort DefaultNamespaceIndex
+            => m_namespaceIndexes.Length > 0 ? m_namespaceIndexes[0] : (ushort)0;
 
         /// <inheritdoc/>
         ILocalAddressSpace ILocalAddressSpaceSource.CreateLocalAddressSpace()
@@ -898,6 +964,7 @@ namespace Opc.Ua.Server
             // create the immutable table of namespaces that are used by the NodeManager.
             m_namespaceUris = namespaceUris;
             m_namespaceIndexes = namespaceIndexes;
+            m_nodeIdFactory = m_nodeIdFactory.WithDefaultNamespaceIndex(DefaultNamespaceIndex);
         }
 
         /// <summary>
@@ -915,6 +982,7 @@ namespace Opc.Ua.Server
             // create the immutable table of namespaces that are used by the NodeManager.
             m_namespaceUris = namespaceUris;
             m_namespaceIndexes = namespaceIndexes;
+            m_nodeIdFactory = m_nodeIdFactory.WithDefaultNamespaceIndex(DefaultNamespaceIndex);
         }
 
         /// <summary>
@@ -8341,6 +8409,11 @@ namespace Opc.Ua.Server
         /// Counter for the NodeIdFactory.New Method
         /// </summary>
         private uint m_lastUsedNodeId;
+
+        /// <summary>
+        /// Assigns NodeIds to nodes created at runtime.
+        /// </summary>
+        private DefaultNodeIdFactory m_nodeIdFactory;
 
         private const byte kHistoryAccessMask = AccessLevels.HistoryRead | AccessLevels.HistoryWrite;
     }

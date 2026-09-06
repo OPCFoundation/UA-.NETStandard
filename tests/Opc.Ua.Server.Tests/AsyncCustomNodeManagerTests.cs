@@ -170,6 +170,109 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
+        public void NodeIdFactoryDefaultsToTheDeterministicStringForm()
+        {
+            using ITestNodeManager manager = CreateManager();
+            Assume.That(manager is TestableAsyncCustomNodeManager, "Requires AsyncCustomNodeManager features");
+            var acnm = (TestableAsyncCustomNodeManager)manager;
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    acnm.NodeIdFactory.Mode,
+                    Is.EqualTo(NodeIdAssignmentMode.String));
+                Assert.That(
+                    acnm.NodeIdFactory.DefaultNamespaceIndex,
+                    Is.EqualTo(manager.NamespaceIndexes[0]));
+            });
+        }
+
+        [Test]
+        public void NodeIDFactoryMintsTheSameIdForTheSameBrowsePath()
+        {
+            using ITestNodeManager manager = CreateManager();
+            Assume.That(manager is TestableAsyncCustomNodeManager, "Requires AsyncCustomNodeManager features");
+            ServerSystemContext context = manager.SystemContext;
+            ushort namespaceIndex = manager.NamespaceIndexes[0];
+
+            NodeId first = manager.New(context, CreateNamedChild(namespaceIndex));
+            NodeId second = manager.New(context, CreateNamedChild(namespaceIndex));
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(first.IdType, Is.EqualTo(IdType.String));
+                Assert.That(first.NamespaceIndex, Is.EqualTo(namespaceIndex));
+                Assert.That(second, Is.EqualTo(first));
+            });
+        }
+
+        [Test]
+        public void ReplacingTheNodeIdFactoryChangesTheMintedIdentifierType()
+        {
+            using ITestNodeManager manager = CreateManager();
+            Assume.That(manager is TestableAsyncCustomNodeManager, "Requires AsyncCustomNodeManager features");
+            var acnm = (TestableAsyncCustomNodeManager)manager;
+            ushort namespaceIndex = manager.NamespaceIndexes[0];
+
+            acnm.NodeIdFactory = new DefaultNodeIdFactory(NodeIdAssignmentMode.Numeric);
+
+            NodeId nodeId = manager.New(manager.SystemContext, CreateNamedChild(namespaceIndex));
+
+            Assert.Multiple(() =>
+            {
+                // the manager keeps the assigner pointed at its own namespace.
+                Assert.That(
+                    acnm.NodeIdFactory.DefaultNamespaceIndex,
+                    Is.EqualTo(namespaceIndex));
+                Assert.That(nodeId.IdType, Is.EqualTo(IdType.Numeric));
+                Assert.That(nodeId.NamespaceIndex, Is.EqualTo(namespaceIndex));
+            });
+        }
+
+        [Test]
+        public void DisablingTheNodeIdFactoryRejectsNamedNodes()
+        {
+            using ITestNodeManager manager = CreateManager();
+            Assume.That(manager is TestableAsyncCustomNodeManager, "Requires AsyncCustomNodeManager features");
+            var acnm = (TestableAsyncCustomNodeManager)manager;
+            ushort namespaceIndex = manager.NamespaceIndexes[0];
+
+            acnm.NodeIdFactory = new DefaultNodeIdFactory(NodeIdAssignmentMode.None);
+
+            ServiceResultException exception = Assert.Throws<ServiceResultException>(
+                () => manager.New(manager.SystemContext, CreateNamedChild(namespaceIndex)));
+
+            Assert.That(exception.StatusCode, Is.EqualTo(StatusCodes.BadConfigurationError));
+        }
+
+        [Test]
+        public void TheNodeIdFactoryCannotBeCleared()
+        {
+            using ITestNodeManager manager = CreateManager();
+            Assume.That(manager is TestableAsyncCustomNodeManager, "Requires AsyncCustomNodeManager features");
+            var acnm = (TestableAsyncCustomNodeManager)manager;
+
+            Assert.Throws<ArgumentNullException>(() => acnm.NodeIdFactory = null);
+        }
+
+        /// <summary>
+        /// Creates a named child of a named parent, the shape the deterministic
+        /// assigner derives an identifier from.
+        /// </summary>
+        private static BaseObjectState CreateNamedChild(ushort namespaceIndex)
+        {
+            var parent = new BaseObjectState(null)
+            {
+                NodeId = new NodeId("Root", namespaceIndex)
+            };
+
+            return new BaseObjectState(parent)
+            {
+                BrowseName = new QualifiedName("Child", namespaceIndex)
+            };
+        }
+
+        [Test]
         public async Task AddPredefinedNodeCompletesCreateLifecycleAsync()
         {
             using ITestNodeManager manager = CreateManager();

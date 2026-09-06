@@ -91,6 +91,18 @@ namespace Opc.Ua.Server
         /// </summary>
         public INodeManagerLifecycle NodeManagerLifecycle { get; }
 
+        /// <summary>
+        /// Gets or sets the factory that every <see cref="AsyncCustomNodeManager"/>
+        /// this server hosts mints runtime NodeIds with.
+        /// </summary>
+        /// <remarks>
+        /// Set before the server starts; leaving it <c>null</c> leaves each
+        /// NodeManager on its own default. A server composed through
+        /// dependency injection picks this up from the registered
+        /// <see cref="DefaultNodeIdFactory"/>.
+        /// </remarks>
+        public DefaultNodeIdFactory? NodeIdFactory { get; set; }
+
         internal ApplicationConfiguration CurrentConfiguration
             => Configuration
                 ?? throw new InvalidOperationException("The server has not been configured.");
@@ -3656,6 +3668,8 @@ namespace Opc.Ua.Server
                     MessageContext,
                     TimeProvider,
                     SecurityPolicyRegistry);
+
+                m_serverInternal.SetNodeIdFactory(NodeIdFactory);
 
                 m_serverInternal.SetRoleManager(CreateRoleManager(m_serverInternal, configuration));
 

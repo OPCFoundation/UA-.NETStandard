@@ -110,30 +110,6 @@ namespace Opc.Ua.Vision.Server
         /// <inheritdoc/>
         public ArrayOf<string> ServerProfiles => ComputeServerProfileArrayEntries();
 
-        /// <inheritdoc/>
-        public override NodeId New(ISystemContext context, NodeState node)
-        {
-            if (context == null)
-            {
-                throw new ArgumentNullException(nameof(context));
-            }
-            if (node == null)
-            {
-                throw new ArgumentNullException(nameof(node));
-            }
-            if (node is BaseInstanceState instance && instance.Parent != null)
-            {
-                return new NodeId(
-                    $"{instance.Parent.NodeId.IdentifierAsString}_{instance.SymbolicName}",
-                    GetInstanceNamespaceIndex(context));
-            }
-            if (node.NodeId.IsNull)
-            {
-                return new NodeId(Guid.NewGuid(), GetInstanceNamespaceIndex(context));
-            }
-            return node.NodeId;
-        }
-
         /// <summary>
         /// Creates a direct build context for non-DI configuration.
         /// </summary>

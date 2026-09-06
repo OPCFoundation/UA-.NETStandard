@@ -485,6 +485,58 @@ namespace Microsoft.Extensions.DependencyInjection
         }
 
         /// <summary>
+        /// Registers the NodeId factory that every NodeManager the hosted
+        /// server owns mints runtime NodeIds with.
+        /// </summary>
+        /// <remarks>
+        /// Each NodeManager rebases the registered factory onto its own
+        /// namespace, so one registration serves the whole server. Without
+        /// this call NodeManagers default to
+        /// <see cref="NodeIdAssignmentMode.String"/>.
+        /// </remarks>
+        /// <param name="builder">The server builder.</param>
+        /// <param name="mode">The identifier type to mint.</param>
+        /// <returns>The same <see cref="IOpcUaServerBuilder"/> for chaining.</returns>
+        /// <exception cref="ArgumentNullException"><paramref name="builder"/>
+        /// is <c>null</c>.</exception>
+        public static IOpcUaServerBuilder AddNodeIdFactory(
+            this IOpcUaServerBuilder builder,
+            NodeIdAssignmentMode mode)
+        {
+            return builder.AddNodeIdFactory(new DefaultNodeIdFactory(mode));
+        }
+
+        /// <summary>
+        /// Registers the NodeId factory that every NodeManager the hosted
+        /// server owns mints runtime NodeIds with.
+        /// </summary>
+        /// <remarks>
+        /// Each NodeManager rebases the registered factory onto its own
+        /// namespace, so one registration serves the whole server.
+        /// </remarks>
+        /// <param name="builder">The server builder.</param>
+        /// <param name="nodeIdFactory">The factory to register.</param>
+        /// <returns>The same <see cref="IOpcUaServerBuilder"/> for chaining.</returns>
+        /// <exception cref="ArgumentNullException"><paramref name="builder"/> or
+        /// <paramref name="nodeIdFactory"/> is <c>null</c>.</exception>
+        public static IOpcUaServerBuilder AddNodeIdFactory(
+            this IOpcUaServerBuilder builder,
+            DefaultNodeIdFactory nodeIdFactory)
+        {
+            if (builder is null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
+            if (nodeIdFactory is null)
+            {
+                throw new ArgumentNullException(nameof(nodeIdFactory));
+            }
+
+            builder.Services.Replace(ServiceDescriptor.Singleton(nodeIdFactory));
+            return builder;
+        }
+
+        /// <summary>
         /// Registers a role manager that is installed on the hosted server at startup.
         /// </summary>
         /// <param name="builder">The server builder.</param>
