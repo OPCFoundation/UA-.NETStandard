@@ -1139,11 +1139,18 @@ namespace Opc.Ua.Server
         /// NodeId stay valid once the node is registered.
         /// </summary>
         /// <remarks>
-        /// Unlike <c>PrepareInstanceNodeIdsForRegistration</c>, which only
-        /// rebases a subtree that collides with a declaration, this pass
-        /// assigns an id to every node that still lacks one and pulls
-        /// namespace-0 children into the root's namespace. It is idempotent:
-        /// a second call over an already prepared subtree assigns nothing.
+        /// This pass assigns an id to every node that still lacks one, pulls
+        /// namespace-0 children into the root's namespace, and rebases nodes
+        /// whose id collides with a type declaration. That last case covers a
+        /// subtree materialised with <c>NodeState.Create(..., assignNodeIds:
+        /// false)</c>, whose children keep their declaration ids: they are
+        /// neither null nor in namespace 0, so only the collision check
+        /// catches them. Rebasing here rather than at registration is what
+        /// keeps the ids the fluent builder hands back final — the same
+        /// repair <c>PrepareInstanceNodeIdsForRegistration</c> would
+        /// otherwise apply later, silently invalidating them.
+        /// It is idempotent: a second call over an already prepared subtree
+        /// assigns nothing.
         /// </remarks>
         /// <param name="node">The root of the subtree to prepare.</param>
         /// <exception cref="ArgumentNullException">
@@ -1172,6 +1179,7 @@ namespace Opc.Ua.Server
             {
                 NodeState candidate = nodes[i];
                 if (candidate.NodeId.IsNull ||
+                    HasDeclarationNodeIdCollision(candidate) ||
                     (i > 0 &&
                         node.NodeId.NamespaceIndex != 0 &&
                         candidate.NodeId.NamespaceIndex == 0))

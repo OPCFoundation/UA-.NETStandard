@@ -1193,7 +1193,10 @@ Three properties make this usable straight from `Configure`:
   `INodeIdFactory` before returning, so `OnRead`/`OnWrite`
   registrations, which key off `NodeState.NodeId`, stay valid once the
   node is registered. `machines.Node.NodeId` above is the id clients
-  will browse.
+  will browse. This includes a subtree materialised from a type model
+  with `NodeState.Create(…, assignNodeIds: false)`, whose children still
+  carry their declaration ids: those are rebased at `Add` time rather
+  than at registration, so they too are final when the builder returns.
 - **Creation is staged, not immediate.** Created nodes are held until
   the manager calls `RegisterAuthoredNodesAsync`, which the generated
   `CreateAddressSpaceAsync` emits after the `Configure` partials and

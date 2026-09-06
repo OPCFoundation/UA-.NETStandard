@@ -809,6 +809,53 @@ namespace Opc.Ua.Server.Tests.Fluent
             }
         }
 
+
+        [Test]
+        public async Task ASubtreeMaterialisedFromATypeModelIsRebasedOffTheDeclarationIdsAsync()
+        {
+            // NodeState.Create(..., assignNodeIds: false) leaves every child
+            // carrying its declaration NodeId: non-null, and in the model's own
+            // namespace rather than ns 0. Staging must rebase those before the
+            // per-node builder is handed back, otherwise the ids collide with
+            // the type-model nodes already in PredefinedNodes.
+            using var manager = new AuthoringTestManager(_ => { });
+            ushort ns = manager.TestNamespaceIndex;
+            NodeId declarationId = new("Declaration.Child", ns);
+            manager.SeedTypeHierarchyNode(declarationId);
+
+            NodeManagerBuilder builder = manager.CreateBuilder();
+            var instance = new BaseObjectState(null)
+            {
+                BrowseName = new QualifiedName("Instance", ns)
+            };
+            var child = new BaseDataVariableState(instance)
+            {
+                NodeId = declarationId,
+                BrowseName = new QualifiedName("Child", ns),
+                DataType = DataTypeIds.Int32,
+                ValueRank = ValueRanks.Scalar
+            };
+            instance.AddChild(child);
+
+            INodeBuilder<BaseObjectState> staged = builder.Add(instance);
+            await manager.RegisterAsync(builder).ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    child.NodeId,
+                    Is.Not.EqualTo(declarationId),
+                    "the child must be rebased off the declaration id");
+                Assert.That(
+                    manager.ContainsPredefined(child.NodeId),
+                    Is.True,
+                    "the rebased child must be the id that got registered");
+                Assert.That(
+                    manager.ContainsPredefined(staged.Node.NodeId),
+                    Is.True);
+            });
+        }
+
         private static bool HasInverseReference(
             NodeState node,
             NodeId referenceTypeId,
@@ -868,6 +915,20 @@ namespace Opc.Ua.Server.Tests.Fluent
                 return m_builder;
             }
 
+            public void SeedTypeHierarchyNode(NodeId nodeId)
+            {
+                PredefinedNodes[nodeId] = new BaseDataVariableState(null)
+                {
+                    NodeId = nodeId,
+                    BrowseName = new QualifiedName("Declaration", nodeId.NamespaceIndex),
+                    IsPartOfTypeHierarchy = true
+                };
+            }
+
+            public ValueTask RegisterAsync(NodeManagerBuilder builder)
+            {
+                return RegisterAuthoredNodesAsync(builder, CancellationToken.None);
+            }
             public void SeedPredefinedNode(NodeId nodeId)
             {
                 PredefinedNodes[nodeId] = new BaseObjectState(null)
