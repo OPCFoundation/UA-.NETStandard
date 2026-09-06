@@ -344,10 +344,13 @@ namespace Opc.Ua.Di.Server
         /// and drive the fluent <c>INodeManagerBuilder</c> from here.
         /// </summary>
         /// <remarks>
-        /// The default implementation is a no-op. Implementers do not
-        /// need to invoke <c>base.OnAddressSpaceReadyAsync</c>.
+        /// Declared by <see cref="FluentNodeManagerBase"/>, which every
+        /// fluent manager shares; this override exists only to document
+        /// where DI calls it from. The default implementation is a no-op,
+        /// so implementers do not need to invoke
+        /// <c>base.OnAddressSpaceReadyAsync</c>.
         /// </remarks>
-        protected virtual ValueTask OnAddressSpaceReadyAsync(
+        protected override ValueTask OnAddressSpaceReadyAsync(
             CancellationToken cancellationToken)
         {
             return default;

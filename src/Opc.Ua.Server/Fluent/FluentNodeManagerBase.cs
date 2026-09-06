@@ -333,6 +333,35 @@ namespace Opc.Ua.Server.Fluent
         }
 
         /// <summary>
+        /// Invoked once the predefined nodes are loaded and before the
+        /// <c>Configure</c> callbacks run. Override to do the asynchronous
+        /// setup a manager needs before its wiring can be resolved —
+        /// opening a database, materialising instances, building the state
+        /// that <c>Configure</c> then binds to.
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// This is the only seam a source-generated manager has between
+        /// the address space existing and the fluent wiring being applied:
+        /// the generated <c>CreateAddressSpaceAsync</c> is <c>override</c>
+        /// already, and <c>Configure</c> is a <c>partial void</c> that
+        /// cannot await. Hand-written managers that drive
+        /// <see cref="CreateFluentBuilder"/> themselves are free to
+        /// sequence their own startup instead.
+        /// </para>
+        /// <para>
+        /// The default implementation is a no-op, so overrides need not
+        /// call <c>base.OnAddressSpaceReadyAsync</c>.
+        /// </para>
+        /// </remarks>
+        /// <param name="cancellationToken">The cancellation token.</param>
+        protected virtual ValueTask OnAddressSpaceReadyAsync(
+            CancellationToken cancellationToken)
+        {
+            return default;
+        }
+
+        /// <summary>
         /// Re-runs the reverse-reference collection pass after the user's
         /// <c>Configure</c> callbacks return so that nodes registered
         /// during <c>Configure</c> publish their references to nodes
