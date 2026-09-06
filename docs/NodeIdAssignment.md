@@ -362,17 +362,28 @@ on a generated state object is the trap: the object is born carrying its
 own type's NodeId, `Create` only replaces that when handed an identifier,
 and the result is an instance sitting on the type's node.
 
-### Still open
+### Why the surrounding machinery stays
 
-- `AssignInstanceNodeId` retries twice and falls back to the previous
-  identifier. That loop dates from `New` implementations disagreeing about
-  preservation; with one rule, a single forced call would do.
-- The `assignInstanceNodeIds` flag threaded through `CreateChild`,
-  `FindChild`, `BaseDataVariableState`, `MethodState` and every generated
-  `CreateOrReplace` may be reducible now that the rebase call itself
-  carries the intent.
-- The generator's `NodeId.Equals(TypeNodeIdConstant)` guard is a second
-  line of defence against the same mistake, and may be redundant.
+Two pieces of this look redundant once there is a single rule, and are
+not.
 
-Both of the last two are public API, so they are left alone pending a
-decision.
+**`assignInstanceNodeIds`**, threaded through `CreateChild`, `FindChild`,
+`BaseDataVariableState`, `MethodState` and every generated
+`CreateOrReplace`, means *suppress* minting. The rebase rule above is
+about *forcing* it, which is the opposite direction, so one does not
+subsume the other. Two callers depend on the suppression:
+
+- `NodeState`'s copy path passes `false` for children whose identifiers
+  are about to be overwritten, so the copy does not consume identifiers it
+  will discard. Under `NodeIdAssignmentMode.Counter` that would burn
+  counter values on nodes nobody ever sees.
+- The generator emits `assignInstanceNodeIds: false` where it builds a
+  *declaration* subtree, which has to keep its model NodeIds.
+
+**The generator's `NodeId.Equals(TypeNodeIdConstant)` guard** is what
+distinguishes "still on the declaration's identifier" from "the caller
+chose this one". In `Add{Child}` it is close to redundant, because the
+child is created immediately above it and therefore always carries the
+constant. In `CreateOrReplace{Child}` it is not: the child may already
+exist with a caller-assigned NodeId, and `AssignInstanceNodeId` forces
+unconditionally, so without the guard that identifier would be replaced.
