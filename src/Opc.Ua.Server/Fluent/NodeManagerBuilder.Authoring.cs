@@ -249,12 +249,6 @@ namespace Opc.Ua.Server.Fluent
             }
         }
 
-        /// <summary>
-        /// Gets the roots staged by the <c>Add*</c> methods, in insertion
-        /// order.
-        /// </summary>
-        internal IReadOnlyList<NodeState> AuthoredRoots => m_authoredRoots;
-
         private NodeBuilder<TState> AddNode<TState>(
             TState node,
             NodeId parentId,
@@ -564,10 +558,6 @@ namespace Opc.Ua.Server.Fluent
             }
 
             manager.PrepareAuthoredNodeIdsForRegistration(node);
-            if (node.NodeId.IsNull)
-            {
-                node.NodeId = Context.RequireNodeIdFactory().New(Context, node);
-            }
             if (node.NodeId.IsNull)
             {
                 throw ServiceResultException.Create(

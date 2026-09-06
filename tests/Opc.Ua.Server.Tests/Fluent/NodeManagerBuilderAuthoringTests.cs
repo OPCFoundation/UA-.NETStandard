@@ -434,6 +434,381 @@ namespace Opc.Ua.Server.Tests.Fluent
             Assert.That(manager.PredefinedNodeCount, Is.Zero);
         }
 
+
+        [Test]
+        public async Task QualifiedNameOverloadsCreateInTheGivenNamespaceAsync()
+        {
+            using var manager = new AuthoringTestManager(builder =>
+            {
+                ushort ns = builder.Context.NamespaceUris.GetIndexOrAppend(kNamespaceUri);
+                builder.AddObject(new QualifiedName("Press", ns));
+                builder.AddVariable<int>(new QualifiedName("Count", ns));
+                builder.AddMethod(new QualifiedName("Halt", ns));
+            });
+            await manager.BuildAsync().ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(manager.FindByBrowseName("Press"), Is.InstanceOf<BaseObjectState>());
+                Assert.That(manager.FindByBrowseName("Count"), Is.InstanceOf<BaseDataVariableState>());
+                Assert.That(manager.FindByBrowseName("Halt"), Is.InstanceOf<MethodState>());
+            });
+        }
+
+        [Test]
+        public async Task AddObjectAppliesAnExplicitTypeDefinitionAsync()
+        {
+            using var manager = new AuthoringTestManager(
+                builder => builder.AddObject("Press", default, ObjectTypeIds.FolderType));
+            await manager.BuildAsync().ConfigureAwait(false);
+
+            var press = (BaseObjectState)manager.FindByBrowseName("Press");
+            Assert.That(press.TypeDefinitionId, Is.EqualTo(ObjectTypeIds.FolderType));
+        }
+
+        [Test]
+        public void CreatedNodesAreVisibleToTypeAndDataTypeLookups()
+        {
+            using var manager = new AuthoringTestManager(builder =>
+            {
+                builder.AddObject("Press", default, ObjectTypeIds.FolderType);
+                builder.AddVariable<float>("Ratio");
+
+                Assert.Multiple(() =>
+                {
+                    Assert.That(
+                        builder.NodeFromTypeId(ObjectTypeIds.FolderType).Node.BrowseName.Name,
+                        Is.EqualTo("Press"));
+                    Assert.That(
+                        builder.VariableFromDataTypeId<float>(DataTypeIds.Float).Node.BrowseName.Name,
+                        Is.EqualTo("Ratio"));
+                });
+            });
+
+            Assert.DoesNotThrowAsync(async () => await manager.BuildAsync().ConfigureAwait(false));
+        }
+
+        [Test]
+        public async Task GrandchildrenAreRegisteredWithTheirRootAsync()
+        {
+            using var manager = new AuthoringTestManager(builder =>
+            {
+                INodeBuilder<FolderState> plant = builder.AddFolder("Plant");
+                INodeBuilder<BaseObjectState> line = builder.AddObject(
+                    "Line",
+                    plant.Node.NodeId);
+                builder.AddVariable<int>("Speed", line.Node.NodeId);
+            });
+            await manager.BuildAsync().ConfigureAwait(false);
+
+            NodeState speed = manager.FindByBrowseName("Speed");
+            Assert.Multiple(() =>
+            {
+                // One root registered; the subtree came along with it.
+                Assert.That(manager.PredefinedNodeCount, Is.EqualTo(3));
+                Assert.That(
+                    ((BaseInstanceState)speed).Parent!.BrowseName.Name,
+                    Is.EqualTo("Line"));
+                Assert.That(speed.NodeId.NamespaceIndex, Is.EqualTo(manager.TestNamespaceIndex));
+            });
+        }
+
+        [Test]
+        public async Task AddingAnExistingChildDoesNotDuplicateItAsync()
+        {
+            using var manager = new AuthoringTestManager(builder =>
+            {
+                ushort ns = builder.Context.NamespaceUris.GetIndexOrAppend(kNamespaceUri);
+                var parent = new BaseObjectState(null)
+                {
+                    NodeId = new NodeId("Parent", ns),
+                    BrowseName = new QualifiedName("Parent", ns)
+                };
+                var child = new BaseDataVariableState(parent)
+                {
+                    NodeId = new NodeId("Parent.Child", ns),
+                    BrowseName = new QualifiedName("Child", ns),
+                    DataType = DataTypeIds.Int32,
+                    ValueRank = ValueRanks.Scalar
+                };
+                parent.AddChild(child);
+                builder.AddRoot(parent);
+
+                // Re-adding the same instance against the same parent must not
+                // append a second child entry.
+                builder.Add(child, parent.NodeId);
+            });
+            await manager.BuildAsync().ConfigureAwait(false);
+
+            var parentNode = (BaseObjectState)manager.FindByBrowseName("Parent");
+            var children = new List<BaseInstanceState>();
+            parentNode.GetChildren(manager.TestSystemContext, children);
+            Assert.That(children, Has.Count.EqualTo(1));
+        }
+
+        [Test]
+        public async Task AddRootIsIdempotentForTheSameInstanceAsync()
+        {
+            using var manager = new AuthoringTestManager(builder =>
+            {
+                ushort ns = builder.Context.NamespaceUris.GetIndexOrAppend(kNamespaceUri);
+                var root = new BaseObjectState(null)
+                {
+                    NodeId = new NodeId("Root", ns),
+                    BrowseName = new QualifiedName("Root", ns)
+                };
+                builder.AddRoot(root);
+                builder.AddRoot(root);
+            });
+            await manager.BuildAsync().ConfigureAwait(false);
+
+            Assert.That(manager.PredefinedNodeCount, Is.EqualTo(1));
+        }
+
+        [Test]
+        public void NullArgumentsAreRejected()
+        {
+            using var manager = new AuthoringTestManager(builder =>
+            {
+                Assert.Multiple(() =>
+                {
+                    Assert.Throws<ArgumentNullException>(
+                        () => builder.Add((Func<NodeState?, BaseObjectState>)null!));
+                    Assert.Throws<ArgumentNullException>(
+                        () => builder.Add((BaseObjectState)null!));
+                    Assert.Throws<ArgumentNullException>(
+                        () => builder.AddRoot((BaseObjectState)null!));
+                });
+            });
+
+            Assert.DoesNotThrowAsync(async () => await manager.BuildAsync().ConfigureAwait(false));
+        }
+
+        [Test]
+        public void RegisterAuthoredNodesRejectsANullRegisterDelegate()
+        {
+            using var manager = new AuthoringTestManager(_ => { });
+            NodeManagerBuilder builder = manager.CreateBuilder();
+
+            Assert.ThrowsAsync<ArgumentNullException>(
+                async () => await builder
+                    .RegisterAuthoredNodesAsync(null!)
+                    .ConfigureAwait(false));
+        }
+
+        [Test]
+        public async Task AddingAfterRegistrationButBeforeSealIsRejectedAsync()
+        {
+            using var manager = new AuthoringTestManager(_ => { });
+            NodeManagerBuilder builder = manager.CreateBuilder();
+            await builder
+                .RegisterAuthoredNodesAsync((_, _) => default)
+                .ConfigureAwait(false);
+
+            // The builder is registered but not sealed, so this is the
+            // "graph already handed over" guard rather than the seal guard.
+            ServiceResultException exception = Assert.Throws<ServiceResultException>(
+                () => builder.AddFolder("TooLate"))!;
+            Assert.That(exception.StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
+        }
+
+        [Test]
+        public void EmptyBrowseNamesAreRejected()
+        {
+            using var manager = new AuthoringTestManager(builder =>
+            {
+                Assert.Multiple(() =>
+                {
+                    Assert.That(
+                        Assert.Throws<ServiceResultException>(
+                            () => builder.AddFolder(string.Empty))!.StatusCode,
+                        Is.EqualTo(StatusCodes.BadBrowseNameInvalid));
+                    Assert.That(
+                        Assert.Throws<ServiceResultException>(
+                            () => builder.AddFolder(default(QualifiedName)))!.StatusCode,
+                        Is.EqualTo(StatusCodes.BadBrowseNameInvalid));
+                });
+            });
+
+            Assert.DoesNotThrowAsync(async () => await manager.BuildAsync().ConfigureAwait(false));
+        }
+
+        [Test]
+        public void ANodeWithoutABrowseNameIsRejected()
+        {
+            using var manager = new AuthoringTestManager(builder => builder.AddRoot(
+                new BaseObjectState(null)
+                {
+                    NodeId = new NodeId("NoBrowseName", 2)
+                }));
+
+            ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(
+                async () => await manager.BuildAsync().ConfigureAwait(false))!;
+            Assert.That(exception.StatusCode, Is.EqualTo(StatusCodes.BadBrowseNameInvalid));
+        }
+
+        [Test]
+        public void ANonInstanceNodeCannotBeGivenAParent()
+        {
+            using var manager = new AuthoringTestManager(builder =>
+            {
+                ushort ns = builder.Context.NamespaceUris.GetIndexOrAppend(kNamespaceUri);
+                INodeBuilder<FolderState> folder = builder.AddFolder("Machines");
+                builder.Add(
+                    new BaseObjectTypeState
+                    {
+                        NodeId = new NodeId("SomeType", ns),
+                        BrowseName = new QualifiedName("SomeType", ns)
+                    },
+                    folder.Node.NodeId);
+            });
+
+            ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(
+                async () => await manager.BuildAsync().ConfigureAwait(false))!;
+            Assert.That(exception.StatusCode, Is.EqualTo(StatusCodes.BadNodeClassInvalid));
+        }
+
+        [Test]
+        public void AParentIdThatContradictsAnExistingParentIsRejected()
+        {
+            using var manager = new AuthoringTestManager(builder =>
+            {
+                ushort ns = builder.Context.NamespaceUris.GetIndexOrAppend(kNamespaceUri);
+                INodeBuilder<FolderState> a = builder.AddFolder("A");
+                INodeBuilder<FolderState> b = builder.AddFolder("B");
+
+                var child = new BaseObjectState(a.Node)
+                {
+                    NodeId = new NodeId("Child", ns),
+                    BrowseName = new QualifiedName("Child", ns)
+                };
+                builder.Add(child, b.Node.NodeId);
+            });
+
+            ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(
+                async () => await manager.BuildAsync().ConfigureAwait(false))!;
+            Assert.That(exception.StatusCode, Is.EqualTo(StatusCodes.BadInvalidArgument));
+        }
+
+        [Test]
+        public void AnExistingParentWithoutANodeIdIsRejected()
+        {
+            using var manager = new AuthoringTestManager(builder =>
+            {
+                ushort ns = builder.Context.NamespaceUris.GetIndexOrAppend(kNamespaceUri);
+                var parent = new BaseObjectState(null)
+                {
+                    BrowseName = new QualifiedName("Unidentified", ns)
+                };
+                builder.Add(new BaseObjectState(parent)
+                {
+                    BrowseName = new QualifiedName("Child", ns)
+                });
+            });
+
+            ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(
+                async () => await manager.BuildAsync().ConfigureAwait(false))!;
+            Assert.That(exception.StatusCode, Is.EqualTo(StatusCodes.BadNodeIdInvalid));
+        }
+
+        [Test]
+        public void AnExistingParentOutsideTheGraphIsRejected()
+        {
+            using var manager = new AuthoringTestManager(builder =>
+            {
+                ushort ns = builder.Context.NamespaceUris.GetIndexOrAppend(kNamespaceUri);
+                var parent = new BaseObjectState(null)
+                {
+                    NodeId = new NodeId("Stranger", ns),
+                    BrowseName = new QualifiedName("Stranger", ns)
+                };
+                builder.Add(new BaseObjectState(parent)
+                {
+                    BrowseName = new QualifiedName("Child", ns)
+                });
+            });
+
+            ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(
+                async () => await manager.BuildAsync().ConfigureAwait(false))!;
+            Assert.That(exception.StatusCode, Is.EqualTo(StatusCodes.BadNodeIdUnknown));
+        }
+
+        [Test]
+        public void ANodeIdInAnUnownedNamespaceIsRejected()
+        {
+            using var manager = new AuthoringTestManager(builder => builder.AddRoot(
+                new BaseObjectState(null)
+                {
+                    NodeId = new NodeId("Foreign", 99),
+                    BrowseName = new QualifiedName("Foreign", 99)
+                }));
+
+            ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(
+                async () => await manager.BuildAsync().ConfigureAwait(false))!;
+            Assert.That(exception.StatusCode, Is.EqualTo(StatusCodes.BadNodeIdInvalid));
+        }
+
+        [Test]
+        public void CollidingWithAPredefinedNodeIsRejected()
+        {
+            using var manager = new AuthoringTestManager(_ => { });
+            NodeId taken = new("Taken", manager.TestNamespaceIndex);
+            manager.SeedPredefinedNode(taken);
+
+            NodeManagerBuilder builder = manager.CreateBuilder();
+            ServiceResultException exception = Assert.Throws<ServiceResultException>(
+                () => builder.AddRoot(new BaseObjectState(null)
+                {
+                    NodeId = taken,
+                    BrowseName = new QualifiedName("Taken", manager.TestNamespaceIndex)
+                }))!;
+            Assert.That(exception.StatusCode, Is.EqualTo(StatusCodes.BadNodeIdExists));
+        }
+
+        [Test]
+        public void ANodeIdFactoryThatAssignsNothingIsReported()
+        {
+            using var manager = new AuthoringTestManager(_ => { });
+            manager.UseNullNodeIdFactory();
+
+            NodeManagerBuilder builder = manager.CreateBuilder();
+            ServiceResultException exception = Assert.Throws<ServiceResultException>(
+                () => builder.AddFolder("Machines"))!;
+            Assert.That(exception.StatusCode, Is.EqualTo(StatusCodes.BadConfigurationError));
+        }
+
+        [Test]
+        public void CreationRequiresAnAsyncCustomNodeManagerBackedBuilder()
+        {
+            var builder = new NodeManagerBuilder(
+                new SystemContext(telemetry: null!) { NodeIdFactory = new FixedNodeIdFactory() },
+                Mock.Of<IAsyncNodeManager>(),
+                defaultNamespaceIndex: 2,
+                rootResolver: _ => null!,
+                nodeIdResolver: _ => null!,
+                typeIdResolver: _ => []);
+
+            ServiceResultException exception = Assert.Throws<ServiceResultException>(
+                () => builder.AddFolder("Machines"))!;
+            Assert.That(exception.StatusCode, Is.EqualTo(StatusCodes.BadConfigurationError));
+        }
+
+        private sealed class FixedNodeIdFactory : INodeIdFactory
+        {
+            public NodeId New(ISystemContext context, NodeState node)
+            {
+                return new NodeId(node.BrowseName.Name!, 2);
+            }
+        }
+
+        private sealed class NullNodeIdFactory : INodeIdFactory
+        {
+            public NodeId New(ISystemContext context, NodeState node)
+            {
+                return NodeId.Null;
+            }
+        }
+
         private static bool HasInverseReference(
             NodeState node,
             NodeId referenceTypeId,
@@ -487,6 +862,25 @@ namespace Opc.Ua.Server.Tests.Fluent
                 return RegisterAuthoredNodesAsync(m_builder!, CancellationToken.None);
             }
 
+            public NodeManagerBuilder CreateBuilder()
+            {
+                m_builder = CreateFluentBuilder(TestNamespaceIndex);
+                return m_builder;
+            }
+
+            public void SeedPredefinedNode(NodeId nodeId)
+            {
+                PredefinedNodes[nodeId] = new BaseObjectState(null)
+                {
+                    NodeId = nodeId,
+                    BrowseName = new QualifiedName("Seeded", nodeId.NamespaceIndex)
+                };
+            }
+
+            public void UseNullNodeIdFactory()
+            {
+                SystemContext.NodeIdFactory = new NullNodeIdFactory();
+            }
             public bool ContainsPredefined(NodeId nodeId)
             {
                 return PredefinedNodes.ContainsKey(nodeId);
