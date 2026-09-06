@@ -31,4 +31,21 @@ if (provider.TryGetSchema(typeId, UaSchemaFormat.JsonCompact, UaSchemaScope.Type
 }
 ```
 
+The provider can also be assembled without dependency injection:
+
+```csharp
+IDataTypeDefinitionResolver resolver = new DataTypeDefinitionRegistry();
+ISchemaProvider provider = new DefaultSchemaProvider(
+    resolver,
+    [
+        new JsonSchemaGenerator(),
+        new XsdSchemaGenerator(),
+        new BsdSchemaGenerator()
+    ]);
+```
+
+Generated model registration extensions add public structure and enumeration activators
+to an `IEncodeableFactory`. Use `EncodeableFactoryDefinitionSource` when schemas should be
+resolved directly from those compiled definitions instead of a manual registry.
+
 See `docs/SchemaGeneration.md` in the repository for details.
