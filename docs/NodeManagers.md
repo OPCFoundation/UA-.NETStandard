@@ -47,7 +47,7 @@
     - [On-demand virtual node families](#on-demand-virtual-node-families)
     - [Monitored-item creation and lifecycle](#monitored-item-creation-and-lifecycle)
     - [Creating nodes under other managers' nodes (Objects folder)](#creating-nodes-under-other-managers-nodes-objects-folder)
-    - [Creating nodes from scratch — the `Add*` surface](#creating-nodes-from-scratch--the-add-surface)
+    - [Creating nodes from scratch — the Add* surface](#creating-nodes-from-scratch--the-add-surface)
   - [Typed model-traversal — the Configure(I{Manager}NodeManagerBuilder) partial](#typed-model-traversal--the-configureimanagernodemanagerbuilder-partial)
     - [What the generator emits per model](#what-the-generator-emits-per-model)
     - [Methods with arguments — typed OnCall overloads](#methods-with-arguments--typed-oncall-overloads)
