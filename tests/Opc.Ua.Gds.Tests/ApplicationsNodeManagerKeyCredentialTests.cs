@@ -488,10 +488,12 @@ namespace Opc.Ua.Gds.Tests
                     false);
                 service.AddRevoke(SystemContext);
 
-                NodeState active = await AddBehaviourToPredefinedNodeAsync(
-                    SystemContext,
-                    service).ConfigureAwait(false);
-                return (KeyCredentialServiceState)active;
+                // A host adds its own service objects to the model's empty
+                // KeyCredentialManagement folder and wires each one, the
+                // same call the GDS makes for the nodes it owns.
+                ConfigureKeyCredentialService(service);
+                await AddPredefinedNodeAsync(SystemContext, service).ConfigureAwait(false);
+                return service;
             }
         }
 
