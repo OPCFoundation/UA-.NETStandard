@@ -423,9 +423,11 @@ namespace Opc.Ua.Robotics.Tests
 
             Assert.Multiple(() =>
             {
-                Assert.That(
-                    childId.IdentifierAsString,
-                    Is.EqualTo($"{fixture.Manager.Root.NodeId.IdentifierAsString}_Child"));
+                // The child carries a SymbolicName but no BrowseName, so it
+                // has no browse path to derive a deterministic identifier
+                // from and the factory falls back to its counter.
+                Assert.That(childId.IsNull, Is.False);
+                Assert.That(childId.IdType, Is.EqualTo(IdType.Numeric));
                 Assert.That(generated.IsNull, Is.False);
                 Assert.That(fixture.Manager.New(fixture.Manager.SystemContext, existing), Is.EqualTo(existing.NodeId));
                 Assert.That(RobotIntentNodeManager.NormalizeProviders(default).Count, Is.EqualTo(1));

@@ -246,23 +246,29 @@ namespace Opc.Ua.Server
                 throw new ArgumentNullException(nameof(node));
             }
 
-            // A node that stands on its own keeps an authored NodeId: the
-            // caller chose it and nothing here knows better.
+            // An identifier the caller can plausibly have chosen is kept:
+            // one already in this NodeManager's own namespace, or one on a
+            // node that stands on its own. NodeState.Create hands the root
+            // its NodeId before running the assignment pass, so a caller
+            // naming a node explicitly reaches here through the first of
+            // those.
             //
-            // A node hanging off a parent does not. It reaches here through
-            // AssignNodeIds, which walks a subtree NodeState.CreateInstance
-            // copied from a type declaration, so every child still carries
-            // the declaration's own identifier. Keeping those would alias
-            // every instance of the type onto the type's nodes, and the
-            // predefined-node index takes the last writer, so the type
-            // quietly becomes an instance instead of the clash being
-            // reported.
+            // Anything else belongs to another namespace's model. A node
+            // reaches here through AssignNodeIds walking a subtree that
+            // NodeState.CreateInstance copied from a type declaration, and
+            // its nodes still carry that declaration's identifiers. Keeping
+            // them would alias every instance of the type onto the type's own
+            // nodes, and the predefined-node index takes the last writer, so
+            // the type quietly becomes an instance rather than the clash
+            // being reported.
             //
-            // A root that must also shed a declaration identifier - an
-            // instance built by NodeState.Create - says so by passing the
-            // NodeId it wants, which Create applies before this runs.
+            // A node that must shed an identifier already in this namespace -
+            // a generated instance whose type lives here too - says so by
+            // clearing the NodeId first, which is what
+            // ISystemContext.AssignInstanceNodeId does for a whole subtree.
             if (!node.NodeId.IsNull &&
-                node is not BaseInstanceState { Parent: not null })
+                (node.NodeId.NamespaceIndex == DefaultNamespaceIndex ||
+                    node is not BaseInstanceState { Parent: not null }))
             {
                 return node.NodeId;
             }
