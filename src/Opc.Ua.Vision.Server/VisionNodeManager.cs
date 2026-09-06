@@ -91,6 +91,12 @@ namespace Opc.Ua.Vision.Server
             m_registry = new VisionRegistry();
             m_dispatcherLogger = server.Telemetry.CreateLogger<VisionMethodDispatcher>();
             m_dispatcher = new VisionMethodDispatcher(m_registry, m_dispatcherLogger);
+
+            // mint into the server's own instance namespace. It is listed
+            // after the model namespaces, which belong to the loaded
+            // NodeSets and whose identifiers are not ours to hand out.
+            NodeIdFactory = NodeIdFactory.WithDefaultNamespaceIndex(
+                GetInstanceNamespaceIndex(SystemContext));
             SystemContext.NodeIdFactory = this;
             RegisterEncodeables(SystemContext);
         }
@@ -393,7 +399,7 @@ namespace Opc.Ua.Vision.Server
             return root;
         }
 
-        private ushort GetInstanceNamespaceIndex(ISystemContext context)
+        private ushort GetInstanceNamespaceIndex(ServerSystemContext context)
         {
             return (ushort)context.NamespaceUris.GetIndex(m_options.InstanceNamespaceUri);
         }

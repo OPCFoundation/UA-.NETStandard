@@ -139,20 +139,6 @@ namespace Pumps
         internal TimeSpan SimulationInterval => m_options.SimulationInterval;
 
         /// <inheritdoc/>
-        public override NodeId New(ISystemContext context, NodeState node)
-        {
-            if (node is BaseInstanceState instance &&
-                instance.Parent != null)
-            {
-                string parentId = instance.Parent.NodeId.IdentifierAsString;
-                return new NodeId(
-                    $"{parentId}_{instance.SymbolicName}",
-                    InstanceNamespaceIndex);
-            }
-
-            return node.NodeId;
-        }
-
         /// <summary>
         /// Creates and registers a generated <see cref="PumpState"/>
         /// instance organized by the DI <c>DeviceSet</c>.
@@ -308,9 +294,14 @@ namespace Pumps
                     "The DI DeviceSet is not available.");
             }
 
-            var pumpNodeId = new NodeId(
-                $"{deviceSet.NodeId.IdentifierAsString}_{pumpBrowseName.Name}",
-                InstanceNamespaceIndex);
+            // the NodeId the manager's factory will mint for this pump, so
+            // the duplicate check looks for the node that would actually
+            // clash rather than for one identifier format.
+            NodeId pumpNodeId = NodeIdFactory.CreateChildNodeId(
+                deviceSet.NodeId,
+                pumpBrowseName,
+                InstanceNamespaceIndex,
+                Server.NamespaceUris);
             if (PredefinedNodes.ContainsKey(pumpNodeId))
             {
                 m_logger.DeviceSetAlreadyContains(pumpBrowseName.Name);

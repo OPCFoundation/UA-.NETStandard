@@ -66,14 +66,37 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
-        public void NewKeepsAnExplicitlyAuthoredNodeId()
+        public void NewKeepsAnAuthoredNodeIdOnANodeThatStandsOnItsOwn()
         {
             var factory = new DefaultNodeIdFactory(NodeIdAssignmentMode.String, kNamespaceIndex);
             var authored = new NodeId("Authored", kNamespaceIndex);
-            BaseObjectState node = CreateChild(new NodeId("Root", kNamespaceIndex), "Child");
-            node.NodeId = authored;
+            var node = new BaseObjectState(null)
+            {
+                NodeId = authored,
+                BrowseName = new QualifiedName("Authored", kNamespaceIndex)
+            };
 
             Assert.That(factory.New(m_context, node), Is.EqualTo(authored));
+        }
+
+        [Test]
+        public void NewRebasesAChildThatStillCarriesADeclarationNodeId()
+        {
+            // a child arrives here through AssignNodeIds, walking a subtree
+            // copied from a type declaration, so its NodeId is the
+            // declaration's rather than one the caller chose for it.
+            var factory = new DefaultNodeIdFactory(NodeIdAssignmentMode.String, kNamespaceIndex);
+            var declaration = new NodeId("TypeDeclaration", kNamespaceIndex);
+            BaseObjectState node = CreateChild(new NodeId("Root", kNamespaceIndex), "Child");
+            node.NodeId = declaration;
+
+            NodeId nodeId = factory.New(m_context, node);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(nodeId, Is.Not.EqualTo(declaration));
+                Assert.That(nodeId.IdentifierAsString, Does.Contain("Child"));
+            });
         }
 
         [Test]
@@ -318,10 +341,12 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
-        public void AChildIsMintedIntoItsParentsNamespace()
+        public void EveryNodeIsMintedIntoTheConfiguredNamespace()
         {
-            // the browse name's namespace names the type that declared the
-            // child, so it must not decide where the instance lives.
+            // neither the parent's namespace nor the browse name's decides
+            // this: a parent can belong to a companion-specification model
+            // whose identifiers are fixed by its NodeSet, and a browse name
+            // only names the type that declared the child.
             var factory = new DefaultNodeIdFactory(
                 NodeIdAssignmentMode.String,
                 kNamespaceIndex);
@@ -331,7 +356,7 @@ namespace Opc.Ua.Server.Tests
 
             NodeId nodeId = factory.New(m_context, node);
 
-            Assert.That(nodeId.NamespaceIndex, Is.EqualTo(kOtherNamespaceIndex));
+            Assert.That(nodeId.NamespaceIndex, Is.EqualTo(kNamespaceIndex));
         }
 
         [Test]
@@ -371,27 +396,101 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
-        public void ANodeWithoutABrowseNameCannotBeAssigned()
+        public void ANodeWithoutABrowseNameFallsBackToTheCounter()
         {
             var factory = new DefaultNodeIdFactory(NodeIdAssignmentMode.String, kNamespaceIndex);
             var node = new BaseObjectState(null);
 
-            ServiceResultException exception = Assert.Throws<ServiceResultException>(
-                () => factory.New(m_context, node));
+            NodeId nodeId = factory.New(m_context, node);
 
-            Assert.That(exception.StatusCode, Is.EqualTo(StatusCodes.BadBrowseNameInvalid));
+            Assert.Multiple(() =>
+            {
+                Assert.That(factory.HasDerivablePath(node), Is.False);
+                Assert.That(nodeId.IdType, Is.EqualTo(IdType.Numeric));
+                Assert.That(nodeId.IsNull, Is.False);
+            });
         }
 
         [Test]
-        public void AParentWithoutANodeIdIsRejectedRatherThanTreatedAsARoot()
+        public void AParentWithoutANodeIdFallsBackToTheCounter()
         {
+            // a transient parent gives the child no stable path, so deriving
+            // one would silently alias it onto a root.
             var factory = new DefaultNodeIdFactory(NodeIdAssignmentMode.String, kNamespaceIndex);
             BaseObjectState node = CreateChild(NodeId.Null, "Child");
 
-            ServiceResultException exception = Assert.Throws<ServiceResultException>(
-                () => factory.New(m_context, node));
+            NodeId nodeId = factory.New(m_context, node);
 
-            Assert.That(exception.StatusCode, Is.EqualTo(StatusCodes.BadConfigurationError));
+            Assert.Multiple(() =>
+            {
+                Assert.That(factory.HasDerivablePath(node), Is.False);
+                Assert.That(nodeId.IdType, Is.EqualTo(IdType.Numeric));
+                Assert.That(nodeId.NamespaceIndex, Is.EqualTo(kNamespaceIndex));
+            });
+        }
+
+        [Test]
+        public void CounterModeMintsUniqueNumericIdentifiers()
+        {
+            var factory = new DefaultNodeIdFactory(
+                NodeIdAssignmentMode.Counter,
+                kNamespaceIndex);
+            var minted = new HashSet<NodeId>(NodeIdComparer.Default);
+
+            for (int i = 0; i < 500; i++)
+            {
+                // the same browse path every time: a counter is what keeps
+                // repeated paths distinct.
+                NodeId nodeId = factory.New(
+                    m_context,
+                    CreateChild(new NodeId("Root", kNamespaceIndex), "Child"));
+
+                Assert.Multiple(() =>
+                {
+                    Assert.That(nodeId.IdType, Is.EqualTo(IdType.Numeric));
+                    Assert.That(nodeId.NamespaceIndex, Is.EqualTo(kNamespaceIndex));
+                    Assert.That(minted.Add(nodeId), Is.True, "Duplicate NodeId minted.");
+                });
+            }
+        }
+
+        [Test]
+        public void CounterModeStaysClearOfAuthoredIdentifiers()
+        {
+            // a NodeManager usually mints into the namespace its NodeSet
+            // occupies. Identifiers below this bound belong to the model.
+            const uint authoredCeiling = 0x40000000;
+            var factory = new DefaultNodeIdFactory(
+                NodeIdAssignmentMode.Counter,
+                kNamespaceIndex);
+
+            for (int i = 0; i < 100; i++)
+            {
+                Assert.That(
+                    factory.NextCounterNodeId().TryGetValue(out uint identifier),
+                    Is.True);
+                Assert.That(identifier, Is.GreaterThanOrEqualTo(authoredCeiling));
+            }
+        }
+
+        [Test]
+        public void WithModeSwitchesTypeWithoutMutating()
+        {
+            var original = new DefaultNodeIdFactory(
+                NodeIdAssignmentMode.String,
+                kNamespaceIndex);
+
+            DefaultNodeIdFactory switched = original.WithMode(NodeIdAssignmentMode.Counter);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(original.Mode, Is.EqualTo(NodeIdAssignmentMode.String));
+                Assert.That(switched.Mode, Is.EqualTo(NodeIdAssignmentMode.Counter));
+                Assert.That(switched.DefaultNamespaceIndex, Is.EqualTo(kNamespaceIndex));
+                Assert.That(
+                    original.WithMode(NodeIdAssignmentMode.String),
+                    Is.SameAs(original));
+            });
         }
 
         [Test]

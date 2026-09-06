@@ -100,7 +100,14 @@ namespace Opc.Ua.Server
             SetNamespaces(namespaceUris);
 
             m_namespaceIndex = Server.NamespaceUris.GetIndexOrAppend(namespaceUris[1]);
-            m_lastUsedId = (uint)DateTime.UtcNow.Ticks & 0x7FFFFFFF;
+
+            // counter identifiers in the diagnostics namespace rather than
+            // the first one, which is the OPC UA namespace this manager only
+            // reads. Session and subscription diagnostics come and go under
+            // repeating browse names, so browse paths would collide.
+            NodeIdFactory = NodeIdFactory
+                .WithMode(NodeIdAssignmentMode.Counter)
+                .WithDefaultNamespaceIndex(m_namespaceIndex);
             m_sessions = [];
             m_subscriptions = [];
             DiagnosticsEnabled = true;
@@ -144,18 +151,6 @@ namespace Opc.Ua.Server
             }
 
             base.Dispose(disposing);
-        }
-
-        /// <summary>
-        /// Creates the NodeId for the specified node.
-        /// </summary>
-        /// <param name="context">The context.</param>
-        /// <param name="node">The node.</param>
-        /// <returns>The new NodeId.</returns>
-        public override NodeId New(ISystemContext context, NodeState node)
-        {
-            uint id = Utils.IncrementIdentifier(ref m_lastUsedId);
-            return new NodeId(id, m_namespaceIndex);
         }
 
         /// <summary>
@@ -2315,7 +2310,6 @@ namespace Opc.Ua.Server
         private readonly Lock m_diagnosticsLock = new();
         private readonly TimeProvider m_timeProvider;
         private readonly ushort m_namespaceIndex;
-        private uint m_lastUsedId;
         private ITimer? m_diagnosticsScanTimer;
         private int m_diagnosticsMonitoringCount;
         private bool m_doScanBusy;

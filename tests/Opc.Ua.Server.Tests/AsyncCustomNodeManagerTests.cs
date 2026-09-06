@@ -5712,7 +5712,6 @@ namespace Opc.Ua.Server.Tests
         IReadOnlyList<ushort> NamespaceIndexes { get; }
         ushort NamespaceIndex { get; }
         NodeState Find(NodeId nodeId);
-        NodeId New(ISystemContext context, NodeState node);
         ValueTask<NodeId> AddNodeAsync(ServerSystemContext context, NodeId parentId, BaseInstanceState node, CancellationToken ct = default);
 
         ValueTask<NodeId> CreateNodeAsync(
@@ -6038,6 +6037,16 @@ namespace Opc.Ua.Server.Tests
         public NodeState Find(NodeId nodeId)
         {
             return m_cnm2.Find(nodeId)!;
+        }
+
+        public void AddNode(NodeState node)
+        {
+            m_cnm2.AddPredefinedNodePublic(m_cnm2.SystemContext, node);
+        }
+
+        public void AddRootNotifier(NodeState notifier)
+        {
+            m_cnm2.AddRootNotifierPublic(notifier);
         }
 
         public NodeId New(ISystemContext context, NodeState node)

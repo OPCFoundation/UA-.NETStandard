@@ -74,6 +74,9 @@ namespace Opc.Ua.Gds.Server
         {
             NamespaceUris = ["http://opcfoundation.org/UA/GDS/applications/", Namespaces.OpcUaGds];
 
+            // counter identifiers: applications, certificate groups and trust
+            // lists are registered and unregistered under repeating names.
+            NodeIdFactory = NodeIdFactory.WithMode(NodeIdAssignmentMode.Counter);
             SystemContext.NodeIdFactory = this;
 
             m_configuration = configuration;
@@ -145,20 +148,6 @@ namespace Opc.Ua.Gds.Server
 
                 m_logger.DatabaseInitialized();
             }
-        }
-
-        /// <summary>
-        /// Creates the NodeId for the specified node.
-        /// </summary>
-        public override NodeId New(ISystemContext context, NodeState node)
-        {
-            // generate a numeric node id if the node has a parent and no node id assigned.
-            if (node is BaseInstanceState instance && instance.Parent != null)
-            {
-                return GenerateNodeId();
-            }
-
-            return node.NodeId;
         }
 
         private NodeId GetTrustListId(NodeId certificateGroupId)
@@ -2209,14 +2198,6 @@ namespace Opc.Ua.Gds.Server
             return handle.Node;
         }
 
-        /// <summary>
-        /// Generates a new node id.
-        /// </summary>
-        private NodeId GenerateNodeId()
-        {
-            return new NodeId(++m_nextNodeId, NamespaceIndex);
-        }
-
         protected async ValueTask SetCertificateGroupNodesAsync(ICertificateGroup certificateGroup)
         {
             certificateGroup.DefaultTrustList = null!;
@@ -2891,7 +2872,6 @@ namespace Opc.Ua.Gds.Server
         }
 
         private readonly bool m_autoApprove;
-        private uint m_nextNodeId;
         private readonly ApplicationConfiguration m_configuration;
         private readonly GlobalDiscoveryServerConfiguration m_globalDiscoveryServerConfiguration;
         private readonly IApplicationsDatabase m_database;

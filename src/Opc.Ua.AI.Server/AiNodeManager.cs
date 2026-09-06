@@ -74,7 +74,6 @@ namespace Opc.Ua.AI.Server
         private readonly HashSet<string> m_learningSampleIds = new(StringComparer.Ordinal);
         private readonly Queue<string> m_learningSampleOrder = new();
         private readonly StreamFileManager m_files;
-        private int m_nextId;
 
         private AiRootState? m_root;
         private ModelState? m_primaryModel;
@@ -117,6 +116,11 @@ namespace Opc.Ua.AI.Server
             m_fallbackBackendOptions = fallbackBackendOptions ?? m_backendOptions;
             m_logger = logger ?? (ILogger)NullLogger<AINodeManager>.Instance;
             m_files = new StreamFileManager(m_options.MaxTransferSize);
+
+            // counter identifiers: inference jobs and transfers come and go
+            // under repeating browse names, so a browse-path identifier
+            // would collide between one job and its successor.
+            NodeIdFactory = NodeIdFactory.WithMode(NodeIdAssignmentMode.Counter);
             SystemContext.NodeIdFactory = this;
         }
 
@@ -160,24 +164,6 @@ namespace Opc.Ua.AI.Server
         /// NodeId of the learning job that accounts for submitted ground-truth samples.
         /// </summary>
         public NodeId LearningJobId => m_learningJob?.NodeId ?? NodeId.Null;
-
-        /// <inheritdoc/>
-        /// <remarks>
-        /// String identifiers, deliberately. Numeric ones would be drawn from the
-        /// same namespace the loaded NodeSet occupies, and this model runs to
-        /// ns=2;i=7001 - so a counter starting at 1 walks into the type nodes, and
-        /// the predefined-node index overwrites rather than rejects. A Server that
-        /// had served a few hundred transfers would quietly have replaced
-        /// <c>AiRootType</c> with an inference job's <c>FinishedAt</c> property.
-        /// A string identifier cannot collide with a numeric one at all, which is a
-        /// stronger guarantee than any seed value.
-        /// </remarks>
-        public override NodeId New(ISystemContext context, NodeState node)
-        {
-            return new NodeId(
-                FormattableString.Invariant($"n{Interlocked.Increment(ref m_nextId)}"),
-                NamespaceIndex);
-        }
 
         /// <inheritdoc/>
         protected override ValueTask<NodeStateCollection> LoadPredefinedNodesAsync(
@@ -362,12 +348,10 @@ namespace Opc.Ua.AI.Server
             // without one is indexed, readable by NodeId and callable, but no client
             // can navigate to it - so the whole optional half of the model simply
             // is not there, without anything failing.
-            typed.Create(
-                SystemContext,
-                NodeId.Null,
+            SystemContext.CreateInstance(
+                typed,
                 qualifiedName,
-                new LocalizedText(browseName),
-                true);
+                new LocalizedText(browseName));
 
             typed.ReferenceTypeId = typed is PropertyState
                 ? Opc.Ua.ReferenceTypeIds.HasProperty

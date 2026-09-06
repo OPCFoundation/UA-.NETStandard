@@ -59,9 +59,9 @@ namespace Opc.Ua.Server.Tests.Fluent
             INodeBuilder nb = h.Builder.Node(rootId);
             nb.WithProperty("NewProp", 42);
 
-            var createdId = new NodeId("Root_NewProp", ns);
-            Assert.That(h.Manager.PredefinedNodes.ContainsKey(createdId), Is.True);
-            var created = h.Manager.PredefinedNodes[createdId] as PropertyState;
+            // the NodeId is whatever the manager's factory minted, so the
+            // property is located by browse name rather than by a literal id.
+            PropertyState created = FindRegisteredProperty(h, "NewProp");
             Assert.That(created, Is.Not.Null);
             Assert.That(created!.WrappedValue.AsBoxedObject(), Is.EqualTo(42));
             Assert.That(created.DataType, Is.EqualTo(DataTypeIds.Int32));
@@ -76,9 +76,7 @@ namespace Opc.Ua.Server.Tests.Fluent
             INodeBuilder nb = h.Builder.Node(new NodeId("Root", ns));
             nb.WithProperty("Flag", Variant.From(true), p => p.Writable());
 
-            var createdId = new NodeId("Root_Flag", ns);
-            Assert.That(h.Manager.PredefinedNodes.ContainsKey(createdId), Is.True);
-            var created = h.Manager.PredefinedNodes[createdId] as PropertyState;
+            PropertyState created = FindRegisteredProperty(h, "Flag");
             Assert.That(created, Is.Not.Null);
             Assert.That(
                 created!.AccessLevel & AccessLevels.CurrentWrite,
@@ -153,6 +151,24 @@ namespace Opc.Ua.Server.Tests.Fluent
             Assert.That(
                 harness.Manager.FindPredefinedNodePublic<PropertyState<TValue>>(property.NodeId),
                 Is.SameAs(property));
+        }
+
+        /// <summary>
+        /// Returns the property the fluent surface registered under the
+        /// supplied browse name, whatever NodeId the manager minted for it.
+        /// </summary>
+        private static PropertyState FindRegisteredProperty(Harness h, string browseName)
+        {
+            foreach (NodeState node in h.Manager.PredefinedNodes.Values)
+            {
+                if (node is PropertyState property &&
+                    property.BrowseName.Name == browseName)
+                {
+                    return property;
+                }
+            }
+
+            return null;
         }
 
         private static Harness CreateHarness()

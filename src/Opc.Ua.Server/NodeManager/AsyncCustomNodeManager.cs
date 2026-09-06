@@ -150,7 +150,6 @@ namespace Opc.Ua.Server
             // the node id factory assigns new node ids to new nodes.
             // the strategy used by a NodeManager depends on what kind of information it provides.
             SystemContext.NodeIdFactory = this;
-            m_lastUsedNodeId = (uint)DateTime.UtcNow.Ticks & 0x7FFFFFFF;
 
             // add the uris to the server's namespace table and cache the indexes.
             ushort[] namespaceIndexes = [];
@@ -261,7 +260,17 @@ namespace Opc.Ua.Server
                     throw new ArgumentNullException(nameof(value));
                 }
 
-                m_nodeIdFactory = value.WithDefaultNamespaceIndex(DefaultNamespaceIndex);
+                // A factory that names no namespace adopts this NodeManager's
+                // own, which is what a bare "new DefaultNodeIdFactory(mode)"
+                // means. One that names a namespace is left alone: namespace 0
+                // is the OPC UA namespace and never a place a NodeManager
+                // mints into, so it is unambiguous as "not specified", and
+                // forcing the namespace back here would silently undo the
+                // rebase of a NodeManager whose instance namespace is not its
+                // first one.
+                m_nodeIdFactory = value.DefaultNamespaceIndex == 0
+                    ? value.WithDefaultNamespaceIndex(DefaultNamespaceIndex)
+                    : value;
             }
         }
 
@@ -272,21 +281,41 @@ namespace Opc.Ua.Server
         /// <param name="node">The node.</param>
         /// <returns>The new NodeId.</returns>
         /// <remarks>
-        /// Delegates to <see cref="NodeIdFactory"/>, except for a node with
-        /// no browse path to derive a deterministic identifier from - a
-        /// node without a browse name, or one hanging off a transient parent
-        /// such as an event instance. Those keep the classic sequential
-        /// identifier in the manager's default namespace.
+        /// Delegates to <see cref="NodeIdFactory"/>. A NodeManager selects
+        /// its identifier style by assigning that factory rather than by
+        /// overriding this method.
         /// </remarks>
         public virtual NodeId New(ISystemContext context, NodeState node)
         {
-            if (node.NodeId.IsNull && !m_nodeIdFactory.HasDerivablePath(node))
-            {
-                uint id = Utils.IncrementIdentifier(ref m_lastUsedNodeId);
-                return new NodeId(id, DefaultNamespaceIndex);
-            }
-
             return m_nodeIdFactory.New(context, node);
+        }
+
+        /// <inheritdoc/>
+        public void AddNode(NodeState node)
+        {
+            AddPredefinedNodeSynchronously(node);
+        }
+
+        /// <inheritdoc/>
+        public void AddRootNotifier(NodeState notifier)
+        {
+            AddRootNotifierSynchronously(notifier);
+        }
+
+        /// <summary>
+        /// Follows the NodeId factory onto the manager's new default
+        /// namespace, unless it was deliberately pointed somewhere else.
+        /// </summary>
+        /// <param name="previousDefault">
+        /// The default namespace index before the namespaces changed.
+        /// </param>
+        private void RebaseNodeIdFactory(ushort previousDefault)
+        {
+            if (m_nodeIdFactory.DefaultNamespaceIndex == previousDefault)
+            {
+                m_nodeIdFactory = m_nodeIdFactory.WithDefaultNamespaceIndex(
+                    DefaultNamespaceIndex);
+            }
         }
 
         /// <summary>
@@ -962,9 +991,10 @@ namespace Opc.Ua.Server
             }
 
             // create the immutable table of namespaces that are used by the NodeManager.
+            ushort previousDefault = DefaultNamespaceIndex;
             m_namespaceUris = namespaceUris;
             m_namespaceIndexes = namespaceIndexes;
-            m_nodeIdFactory = m_nodeIdFactory.WithDefaultNamespaceIndex(DefaultNamespaceIndex);
+            RebaseNodeIdFactory(previousDefault);
         }
 
         /// <summary>
@@ -980,9 +1010,10 @@ namespace Opc.Ua.Server
             }
 
             // create the immutable table of namespaces that are used by the NodeManager.
+            ushort previousDefault = DefaultNamespaceIndex;
             m_namespaceUris = namespaceUris;
             m_namespaceIndexes = namespaceIndexes;
-            m_nodeIdFactory = m_nodeIdFactory.WithDefaultNamespaceIndex(DefaultNamespaceIndex);
+            RebaseNodeIdFactory(previousDefault);
         }
 
         /// <summary>
@@ -1578,9 +1609,7 @@ namespace Opc.Ua.Server
                 newNodeId = New(systemContext, instance);
                 if (newNodeId.IsNull)
                 {
-                    newNodeId = new NodeId(
-                        Utils.IncrementIdentifier(ref m_lastUsedNodeId),
-                        NamespaceIndex);
+                    newNodeId = m_nodeIdFactory.NextCounterNodeId();
                 }
             }
             else
@@ -8404,12 +8433,6 @@ namespace Opc.Ua.Server
         /// consumer tasks based on the number of event monitored items.
         /// </summary>
         internal NodeIdDictionary<bool> MultiConsumerNodeIds { get; } = [];
-
-        /// <summary>
-        /// Counter for the NodeIdFactory.New Method
-        /// </summary>
-        private uint m_lastUsedNodeId;
-
         /// <summary>
         /// Assigns NodeIds to nodes created at runtime.
         /// </summary>

@@ -91,6 +91,18 @@ namespace Opc.Ua.Sample
         }
 
         /// <summary>
+        /// Mints NodeIds for nodes this NodeManager creates at runtime.
+        /// </summary>
+        /// <remarks>
+        /// This sample base predates <see cref="AsyncCustomNodeManager"/> and
+        /// so carries the factory itself. A subclass selects its identifier
+        /// style by assigning this rather than by overriding
+        /// <see cref="New"/>.
+        /// </remarks>
+        public DefaultNodeIdFactory NodeIdFactory { get; set; }
+            = new DefaultNodeIdFactory(NodeIdAssignmentMode.String);
+
+        /// <summary>
         /// Creates the NodeId for the specified node.
         /// </summary>
         /// <param name="context">The context.</param>
@@ -98,7 +110,7 @@ namespace Opc.Ua.Sample
         /// <returns>The new NodeId.</returns>
         public virtual NodeId New(ISystemContext context, NodeState node)
         {
-            return node.NodeId;
+            return NodeIdFactory.New(context, node);
         }
 
         /// <summary>

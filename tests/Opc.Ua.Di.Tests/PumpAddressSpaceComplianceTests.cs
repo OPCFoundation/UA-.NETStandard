@@ -632,9 +632,18 @@ namespace Opc.Ua.Di.Tests
             NodeId deviceSetId = DeviceSetNodeId(server);
             ushort instanceNamespaceIndex = (ushort)server.NamespaceUris.GetIndex(
                 "urn:localhost:" + nameof(PumpAddressSpaceComplianceTests));
-            return new NodeId(
-                deviceSetId.IdentifierAsString + "_" + pumpName,
-                instanceNamespaceIndex);
+
+            // the pump's NodeId is whatever the manager's factory mints for a
+            // child of DeviceSet, so derive it the same way rather than
+            // restating a literal identifier format here.
+            return new DefaultNodeIdFactory(
+                NodeIdAssignmentMode.String,
+                instanceNamespaceIndex)
+                .CreateChildNodeId(
+                    deviceSetId,
+                    new QualifiedName(pumpName, instanceNamespaceIndex),
+                    instanceNamespaceIndex,
+                    server.NamespaceUris);
         }
 
         private static string PumpBrowseName(int pumpNumber)

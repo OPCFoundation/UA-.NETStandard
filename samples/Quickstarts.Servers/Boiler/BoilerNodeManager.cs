@@ -71,20 +71,12 @@ namespace Boiler
             Server.NamespaceUris.GetIndexOrAppend(namespaceUris[0]);
             m_namespaceIndex = Server.NamespaceUris.GetIndexOrAppend(namespaceUris[1]);
 
-            m_lastUsedId = 0;
+            // counter identifiers in the boiler namespace, which is the
+            // second one this manager owns.
+            NodeIdFactory = NodeIdFactory
+                .WithMode(NodeIdAssignmentMode.Counter)
+                .WithDefaultNamespaceIndex(m_namespaceIndex);
             m_boilers = [];
-        }
-
-        /// <summary>
-        /// Creates the NodeId for the specified node.
-        /// </summary>
-        /// <param name="context">The context.</param>
-        /// <param name="node">The node.</param>
-        /// <returns>The new NodeId.</returns>
-        public override NodeId New(ISystemContext context, NodeState node)
-        {
-            uint id = Utils.IncrementIdentifier(ref m_lastUsedId);
-            return new NodeId(id, m_namespaceIndex);
         }
 
         /// <summary>
@@ -272,7 +264,6 @@ namespace Boiler
         }
 
         private readonly ushort m_namespaceIndex;
-        private uint m_lastUsedId;
         private readonly List<BoilerState> m_boilers;
     }
 }

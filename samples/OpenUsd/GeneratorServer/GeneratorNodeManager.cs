@@ -192,18 +192,6 @@ namespace Generators
         internal bool InjectFaults => m_options.InjectFaults;
 
         /// <inheritdoc/>
-        public override NodeId New(ISystemContext context, NodeState node)
-        {
-            if (node is BaseInstanceState { Parent: not null } instance)
-            {
-                string parentId = instance.Parent.NodeId.IdentifierAsString;
-                return new NodeId(
-                    $"{parentId}_{instance.SymbolicName}",
-                    InstanceNamespaceIndex);
-            }
-            return node.NodeId;
-        }
-
         /// <summary>
         /// Creates and registers a generator set organised by the DI
         /// <c>DeviceSet</c>, wired into the running simulation.

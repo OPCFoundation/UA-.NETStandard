@@ -84,6 +84,12 @@ namespace Opc.Ua.Robotics.Server
             m_options.Validate();
             m_runner = runner;
             m_services = services;
+
+            // mint into the server's own instance namespace. It is listed
+            // after the model namespaces, which belong to the loaded
+            // NodeSets and whose identifiers are not ours to hand out.
+            NodeIdFactory = NodeIdFactory.WithDefaultNamespaceIndex(
+                GetInstanceNamespaceIndex(SystemContext));
             SystemContext.NodeIdFactory = this;
             RegisterEncodeables(SystemContext);
         }

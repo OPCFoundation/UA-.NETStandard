@@ -74,6 +74,12 @@ namespace Opc.Ua.WotCon.Server
             SystemContext.NodeIdFactory = this;
             AssetNamespaceIndex = (ushort)server.NamespaceUris.GetIndex(options.AssetNamespaceUri);
             WotConNamespaceIndex = (ushort)server.NamespaceUris.GetIndex(Namespaces.WotCon);
+
+            // counter identifiers: assets are (re)discovered at runtime and
+            // reuse browse names across generations.
+            NodeIdFactory = NodeIdFactory
+                .WithMode(NodeIdAssignmentMode.Counter)
+                .WithDefaultNamespaceIndex(AssetNamespaceIndex);
             m_registry = new AssetRegistry(this, options, m_logger);
         }
 
@@ -86,16 +92,6 @@ namespace Opc.Ua.WotCon.Server
         /// The namespace index of the WoT Connectivity model.
         /// </summary>
         public ushort WotConNamespaceIndex { get; }
-
-        /// <inheritdoc/>
-        public override NodeId New(ISystemContext context, NodeState node)
-        {
-            if (!node.NodeId.IsNull)
-            {
-                return node.NodeId;
-            }
-            return new NodeId((uint)Interlocked.Increment(ref m_nextDynamicId), AssetNamespaceIndex);
-        }
 
         /// <summary>
         /// Registers an EventType materialised for a WoT event affordance.
@@ -687,7 +683,6 @@ namespace Opc.Ua.WotCon.Server
         private readonly SemaphoreSlim m_writeLock = new(1, 1);
         private readonly Lock m_changeLock = new();
         private WoTAssetConnectionManagementState? m_managementObject;
-        private long m_nextDynamicId = 1_000_000;
     }
 
     internal static partial class WotConnectivityNodeManagerLog

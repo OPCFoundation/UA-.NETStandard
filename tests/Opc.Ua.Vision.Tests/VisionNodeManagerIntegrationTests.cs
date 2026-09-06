@@ -131,7 +131,7 @@ namespace Opc.Ua.Vision.Tests
             Assert.That(result.IdType, Is.EqualTo(IdType.Numeric));
             Assert.That(
                 result.NamespaceIndex,
-                Is.EqualTo(fixture.Manager.NamespaceIndex));
+                Is.EqualTo(fixture.Manager.NodeIdFactory.DefaultNamespaceIndex));
         }
 
         [Test]
@@ -159,7 +159,7 @@ namespace Opc.Ua.Vision.Tests
             Assert.That(result.IdentifierAsString, Does.Contain("Child"));
             Assert.That(
                 result.NamespaceIndex,
-                Is.EqualTo(fixture.Manager.NamespaceIndex));
+                Is.EqualTo(fixture.Manager.NodeIdFactory.DefaultNamespaceIndex));
         }
 
         [Test]

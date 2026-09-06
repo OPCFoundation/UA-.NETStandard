@@ -87,7 +87,19 @@ namespace Opc.Ua.Server
         /// Mints opaque identifiers holding the first 128 bits of the
         /// canonical path hash.
         /// </summary>
-        Opaque
+        Opaque,
+
+        /// <summary>
+        /// Mints numeric identifiers from a sequential counter.
+        /// </summary>
+        /// <remarks>
+        /// The only mode that does not derive from the browse path, and so
+        /// the only one that stays unique when browse paths repeat - nodes
+        /// that come and go under the same name, such as per-session
+        /// diagnostics objects. The identifiers are compact but not stable
+        /// across restarts.
+        /// </remarks>
+        Counter
     }
 
     /// <summary>
@@ -151,12 +163,13 @@ namespace Opc.Ua.Server
         public NodeIdAssignmentMode Mode { get; }
 
         /// <summary>
-        /// The namespace index a root node is minted into.
+        /// The namespace index every minted NodeId belongs to.
         /// </summary>
         /// <remarks>
-        /// A child inherits the namespace of its parent, so this only
-        /// applies to a node with no parent or one organized under a
-        /// namespace 0 folder such as Objects.
+        /// A NodeManager may only mint NodeIds in a namespace it owns, so
+        /// this is never inferred from the node. A parent's namespace in
+        /// particular can belong to a companion-specification model whose
+        /// NodeIds are fixed by its NodeSet, or to another NodeManager.
         /// </remarks>
         public ushort DefaultNamespaceIndex { get; }
 
@@ -168,7 +181,8 @@ namespace Opc.Ua.Server
         /// A NodeManager calls this on the factory it resolved from
         /// dependency injection, so that a single registered instance can be
         /// shared by managers that own different namespaces without any of
-        /// them mutating shared state.
+        /// them mutating shared state. A NodeManager whose instance namespace
+        /// is not its first one rebases the factory onto that namespace.
         /// </remarks>
         /// <param name="defaultNamespaceIndex">The namespace to mint into.</param>
         /// <returns>
@@ -186,6 +200,29 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Returns a factory that mints into the same namespace using the
+        /// specified mode.
+        /// </summary>
+        /// <remarks>
+        /// This is how a NodeManager selects its identifier style: a single
+        /// declarative line in its constructor rather than a
+        /// <c>New</c> override.
+        /// </remarks>
+        /// <param name="mode">The identifier type to mint.</param>
+        /// <returns>
+        /// This instance when the mode already matches, otherwise a copy.
+        /// </returns>
+        public virtual DefaultNodeIdFactory WithMode(NodeIdAssignmentMode mode)
+        {
+            if (mode == Mode)
+            {
+                return this;
+            }
+
+            return new DefaultNodeIdFactory(mode, DefaultNamespaceIndex);
+        }
+
+        /// <summary>
         /// Creates the NodeId for the specified node.
         /// </summary>
         /// <param name="context">The context.</param>
@@ -196,8 +233,7 @@ namespace Opc.Ua.Server
         /// </returns>
         /// <exception cref="ServiceResultException">
         /// Thrown when <see cref="Mode"/> is
-        /// <see cref="NodeIdAssignmentMode.None"/>, or when the node carries
-        /// no browse name to derive an identifier from.
+        /// <see cref="NodeIdAssignmentMode.None"/>.
         /// </exception>
         public virtual NodeId New(ISystemContext context, NodeState node)
         {
@@ -210,8 +246,23 @@ namespace Opc.Ua.Server
                 throw new ArgumentNullException(nameof(node));
             }
 
-            // an explicitly authored NodeId always wins.
-            if (!node.NodeId.IsNull)
+            // A node that stands on its own keeps an authored NodeId: the
+            // caller chose it and nothing here knows better.
+            //
+            // A node hanging off a parent does not. It reaches here through
+            // AssignNodeIds, which walks a subtree NodeState.CreateInstance
+            // copied from a type declaration, so every child still carries
+            // the declaration's own identifier. Keeping those would alias
+            // every instance of the type onto the type's nodes, and the
+            // predefined-node index takes the last writer, so the type
+            // quietly becomes an instance instead of the clash being
+            // reported.
+            //
+            // A root that must also shed a declaration identifier - an
+            // instance built by NodeState.Create - says so by passing the
+            // NodeId it wants, which Create applies before this runs.
+            if (!node.NodeId.IsNull &&
+                node is not BaseInstanceState { Parent: not null })
             {
                 return node.NodeId;
             }
@@ -225,29 +276,36 @@ namespace Opc.Ua.Server
                     node.BrowseName);
             }
 
-            if (node.BrowseName.IsNull || string.IsNullOrEmpty(node.BrowseName.Name))
+            // a node with no stable browse path - an event instance and its
+            // fields, for example - cannot be derived from, so it falls back
+            // to the counter no matter which mode is selected. That keeps
+            // the NodeManagers themselves free of any assignment logic.
+            if (Mode == NodeIdAssignmentMode.Counter || !HasDerivablePath(node))
             {
-                throw ServiceResultException.Create(
-                    StatusCodes.BadBrowseNameInvalid,
-                    "Cannot mint a NodeId for a node without a browse name.");
+                return NextCounterNodeId();
             }
 
-            NodeId parentNodeId = GetParentNodeId(context, node);
-
-            // a child lives in its parent's namespace. Only a root - or a
-            // node organized under a namespace 0 folder such as Objects -
-            // falls back to the NodeManager's own namespace. The browse
-            // name's namespace is deliberately not consulted: it names the
-            // type that declared the child, not where the instance lives.
-            ushort namespaceIndex = parentNodeId.NamespaceIndex != 0
-                ? parentNodeId.NamespaceIndex
-                : DefaultNamespaceIndex;
-
             return CreateChildNodeId(
-                parentNodeId,
+                GetParentNodeId(context, node),
                 node.BrowseName,
-                namespaceIndex,
+                DefaultNamespaceIndex,
                 context.NamespaceUris);
+        }
+
+        /// <summary>
+        /// Mints the next sequential NodeId.
+        /// </summary>
+        /// <remarks>
+        /// The counter is per factory instance. Two NodeManagers that share
+        /// one instance therefore share the counter, which is what keeps
+        /// their identifiers distinct while they mint into one namespace.
+        /// </remarks>
+        /// <returns>A NodeId no other caller of this factory has seen.</returns>
+        public NodeId NextCounterNodeId()
+        {
+            return new NodeId(
+                Utils.IncrementIdentifier(ref m_lastUsedId),
+                DefaultNamespaceIndex);
         }
 
         /// <summary>
@@ -258,11 +316,10 @@ namespace Opc.Ua.Server
         /// A node fails this test when it has no browse name, or when its
         /// parent is itself transient and carries no NodeId - an event
         /// instance and its fields, for example. Such a node has no stable
-        /// path, so a caller that needs an identifier for it has to mint one
-        /// by another rule.
+        /// path, so <see cref="New"/> falls back to the counter for it.
         /// </remarks>
         /// <param name="node">The node to test.</param>
-        /// <returns>True when <see cref="New"/> can mint an identifier.</returns>
+        /// <returns>True when a deterministic identifier can be derived.</returns>
         public virtual bool HasDerivablePath(NodeState node)
         {
             if (node is null)
@@ -306,6 +363,11 @@ namespace Opc.Ua.Server
                     browseName);
             }
 
+            if (Mode == NodeIdAssignmentMode.Counter)
+            {
+                return NextCounterNodeId();
+            }
+
             string canonicalPath = CreateCanonicalPath(
                 parentNodeId,
                 browseName,
@@ -331,6 +393,29 @@ namespace Opc.Ua.Server
                     return new NodeId((ByteString)opaque, namespaceIndex);
             }
         }
+
+        /// <summary>
+        /// The lowest identifier the counter ever mints.
+        /// </summary>
+        /// <remarks>
+        /// A NodeManager usually mints into the same namespace its NodeSet
+        /// occupies, and a counter that started near zero would walk into
+        /// that model's numeric identifiers - the predefined-node index
+        /// overwrites rather than rejects, so a long-running server would
+        /// quietly replace a type node with a runtime instance. Identifiers
+        /// this large are out of reach of any authored model, which makes
+        /// the separation structural rather than a matter of seeding luck.
+        /// </remarks>
+        private const uint kCounterBase = 0x40000000;
+
+        /// <summary>
+        /// Counter behind <see cref="NodeIdAssignmentMode.Counter"/> and the
+        /// fallback for nodes with no derivable browse path. The clock seeds
+        /// the offset so a restart is unlikely to reissue identifiers a
+        /// client still holds.
+        /// </summary>
+        private uint m_lastUsedId
+            = kCounterBase | ((uint)DateTime.UtcNow.Ticks & 0x0FFFFFFF);
 
         /// <summary>
         /// Builds the canonical path that every identifier type is derived
@@ -461,12 +546,7 @@ namespace Opc.Ua.Server
                 return Local(identifierText);
             }
 
-            return Qualified(
-                ResolveNamespaceUri(
-                    namespaceUris,
-                    parentNodeId.NamespaceIndex,
-                    $"Parent NodeId '{parentNodeId}' has no namespace URI."),
-                identifierText);
+            return Qualified(namespaceUris, parentNodeId.NamespaceIndex, identifierText);
         }
 
         /// <summary>
@@ -489,12 +569,7 @@ namespace Opc.Ua.Server
                     LengthPrefixed(browseName.Name!));
             }
 
-            return Qualified(
-                ResolveNamespaceUri(
-                    namespaceUris,
-                    browseName.NamespaceIndex,
-                    $"Browse name '{browseName}' has no namespace URI."),
-                browseName.Name!);
+            return Qualified(namespaceUris, browseName.NamespaceIndex, browseName.Name!);
         }
 
         /// <summary>
@@ -508,31 +583,32 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Formats a segment qualified by its namespace URI.
         /// </summary>
-        private static string Qualified(string namespaceUri, string text)
-        {
-            return string.Concat(
-                "u:",
-                LengthPrefixed(namespaceUri),
-                ":",
-                LengthPrefixed(text));
-        }
-
-        /// <summary>
-        /// Resolves a namespace index to its URI.
-        /// </summary>
-        private static string ResolveNamespaceUri(
+        private static string Qualified(
             NamespaceTable namespaceUris,
             ushort namespaceIndex,
-            string message)
+            string text)
         {
             string? namespaceUri = namespaceUris.GetString(namespaceIndex);
 
+            // A namespace with no URI cannot be named stably, so the segment
+            // falls back to the index. That form is deliberately distinct
+            // from the URI form, so identifiers minted while the namespace
+            // was missing stay distinguishable from the ones minted once it
+            // is registered rather than silently colliding with them.
             if (string.IsNullOrEmpty(namespaceUri))
             {
-                throw new InvalidOperationException(message);
+                return string.Concat(
+                    "x:",
+                    LengthPrefixed(namespaceIndex.ToString(CultureInfo.InvariantCulture)),
+                    ":",
+                    LengthPrefixed(text));
             }
 
-            return namespaceUri!;
+            return string.Concat(
+                "u:",
+                LengthPrefixed(namespaceUri!),
+                ":",
+                LengthPrefixed(text));
         }
 
         /// <summary>

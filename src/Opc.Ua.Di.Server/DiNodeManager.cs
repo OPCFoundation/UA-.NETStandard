@@ -118,6 +118,13 @@ namespace Opc.Ua.Di.Server
                   CombineNamespaces(configuration))
         {
             m_instanceNamespaceUri = GetInstanceNamespaceUri(configuration);
+
+            // devices live in the server's own instance namespace. Their
+            // parents - DeviceSet and the type declarations below it - come
+            // from the DI model, and a subclass registers its own model
+            // namespaces ahead of the instance one, so neither the first
+            // namespace nor the parent's is the right place to mint into.
+            NodeIdFactory = NodeIdFactory.WithDefaultNamespaceIndex(InstanceNamespaceIndex);
             SystemContext.NodeIdFactory = this;
             PostSetupRunner = postSetupRunner;
         }
@@ -160,6 +167,13 @@ namespace Opc.Ua.Di.Server
                   CombineNamespaces(configuration, additionalNamespaceUris))
         {
             m_instanceNamespaceUri = GetInstanceNamespaceUri(configuration);
+
+            // devices live in the server's own instance namespace. Their
+            // parents - DeviceSet and the type declarations below it - come
+            // from the DI model, and a subclass registers its own model
+            // namespaces ahead of the instance one, so neither the first
+            // namespace nor the parent's is the right place to mint into.
+            NodeIdFactory = NodeIdFactory.WithDefaultNamespaceIndex(InstanceNamespaceIndex);
             SystemContext.NodeIdFactory = this;
             PostSetupRunner = postSetupRunner;
         }
@@ -238,36 +252,6 @@ namespace Opc.Ua.Di.Server
 
         /// <inheritdoc/>
         public ArrayOf<string> ServerProfiles => BuildServerProfiles();
-
-        /// <inheritdoc/>
-        /// <remarks>
-        /// Devices and their children live in the server's instance
-        /// namespace even though their parents - <c>DeviceSet</c> and the
-        /// type declarations below it - come from the DI model namespace, so
-        /// the namespace cannot simply be inherited from the parent. The
-        /// identifier itself is the same canonical browse path
-        /// <see cref="DefaultNodeIdFactory"/> mints everywhere else.
-        /// </remarks>
-        public override NodeId New(ISystemContext context, NodeState node)
-        {
-            if (!node.NodeId.IsNull)
-            {
-                return node.NodeId;
-            }
-
-            if (node is BaseInstanceState { Parent: { } parent } &&
-                !parent.NodeId.IsNull &&
-                !node.BrowseName.IsNull)
-            {
-                return NodeIdFactory.CreateChildNodeId(
-                    parent.NodeId,
-                    node.BrowseName,
-                    InstanceNamespaceIndex,
-                    context.NamespaceUris);
-            }
-
-            return base.New(context, node);
-        }
 
         /// <summary>
         /// References an instance node from the Machinery <c>Machines</c> folder

@@ -121,16 +121,6 @@ namespace SiteComposition
         private ushort SiteNamespaceIndex => NamespaceIndexes[0];
 
         /// <inheritdoc/>
-        public override NodeId New(ISystemContext context, NodeState node)        {
-            if (node is BaseInstanceState { Parent: not null } instance)
-            {
-                return new NodeId(
-                    $"{instance.Parent.NodeId.IdentifierAsString}_{instance.SymbolicName}",
-                    SiteNamespaceIndex);
-            }
-            return node.NodeId;
-        }
-
         /// <inheritdoc/>
         protected override ValueTask<NodeStateCollection> LoadPredefinedNodesAsync(
             ISystemContext context,

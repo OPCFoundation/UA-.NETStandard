@@ -344,34 +344,16 @@ have been audited for sync-over-async and converted to TAP. See
 story.
 
 NodeIds for nodes created at runtime are now minted by a
-`DefaultNodeIdFactory` that every `AsyncCustomNodeManager` exposes as a
-settable property. Instead of a sequential counter, the default
-`NodeIdAssignmentMode.String` derives the identifier from a canonical,
-length-prefixed browse path (`v1:10:l:6:s=Root:10:l:6:Group1`), so a node
-keeps the same NodeId across reloads. The path records the parent's
-identifier type and qualifies cross-namespace parents and browse names by
-URI, which removes the ambiguity of the old `{parent}_{child}`
-convention - `A_B` plus `C` and `A` plus `B_C` no longer collide - and
-makes identifiers independent of namespace-table ordering.
-`NodeIdAssignmentMode.Numeric`, `Guid` and `Opaque` project the same path
-through SHA-256 onto their identifier type when shorter or less opaque ids
-matter; `None` disables minting for a NodeManager that overrides `New`
-and assigns NodeIds itself.
-
-The factory is resolved from dependency injection —
-`builder.AddNodeIdFactory(NodeIdAssignmentMode.Guid)` registers it once and
-every NodeManager the server hosts picks it up, rebased onto its own
-namespace, so one registration settles the identifier style for the whole
-address space. `AsyncCustomNodeManager.NodeIdFactory` remains settable for
-a NodeManager that wants its own. Because a child is minted into its
-parent's namespace, the factory reproduces what the per-NodeManager
-`New` overrides used to do, and the companion-spec NodeManagers (DI,
-ISA95, Positioning, Vision, RobotIntent) have dropped theirs. NodeManagers
-whose identifiers are genuinely structural — FileSystem's path ids,
-Robotics' coordinator-reserved ids — and those minting for transient nodes
-whose browse paths repeat keep their overrides. A node with no browse path
-to derive from, such as an event instance field, still falls back to a
-sequential identifier.
+[`DefaultNodeIdFactory`](NodeIdAssignment.md). Instead of a per-NodeManager
+counter, the default derives a deterministic identifier from the node's
+browse path, so a node keeps the same NodeId across reloads; other modes
+project that path onto numeric, Guid or opaque identifiers, and a counter
+mode covers nodes whose browse paths repeat. One
+`builder.AddNodeIdFactory(...)` call settles the style for the whole
+address space. `New` overrides are consequently gone from every
+NodeManager the stack ships except the two whose identifiers are a domain
+scheme rather than an assignment policy. `CustomNodeManager2` is
+unchanged, so servers built on it keep their existing behaviour.
 
 ### Client
 
@@ -554,6 +536,9 @@ coverage service; see
   server/client/network redundancy and the opt-in distributed HA building
   blocks; [Kubernetes High Availability Deployment](Kubernetes.md) — the
   Kubernetes deployment guide for the `Opc.Ua.Redundancy.Kubernetes` package.
+- [NodeId Assignment](NodeIdAssignment.md) — how runtime NodeIds are
+  minted: the factory contract, identifier formats, types vs instances,
+  the generated helpers, and per-NodeManager behaviour.
 - [Dependency Injection](DependencyInjection.md),
   [Native AOT](NativeAoT.md),
   [Diagnostics](Diagnostics.md),
