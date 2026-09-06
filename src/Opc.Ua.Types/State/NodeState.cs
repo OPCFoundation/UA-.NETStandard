@@ -4881,6 +4881,161 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Replaces a child which is held in a generated, explicitly defined
+        /// slot rather than in the ordinary child collection.
+        /// </summary>
+        /// <remarks>
+        /// Returns <c>false</c> for an ordinary child so that importing a node
+        /// does not evict an application-authored child which happens to share
+        /// its browse name.
+        /// </remarks>
+        /// <param name="context">The system context.</param>
+        /// <param name="replacement">The replacement child.</param>
+        /// <param name="replaced">The displaced explicitly defined child.</param>
+        /// <param name="explicitSlotFound">
+        /// Whether the browse name maps to an explicitly defined child slot.
+        /// </param>
+        /// <returns>
+        /// <c>true</c> when an explicitly defined child was replaced.
+        /// </returns>
+        internal bool TryReplaceExplicitlyDefinedChild(
+            ISystemContext context,
+            BaseInstanceState replacement,
+            out BaseInstanceState? replaced,
+            out bool explicitSlotFound)
+        {
+            replaced = null;
+            explicitSlotFound = false;
+            bool materialized = false;
+            BaseInstanceState? existing = FindChild(
+                context,
+                replacement.BrowseName,
+                createOrReplace: false,
+                replacement: null);
+            if (existing is null)
+            {
+                // The slot may be optional and not materialized yet.
+                existing = FindChild(
+                    context,
+                    replacement.BrowseName,
+                    createOrReplace: true,
+                    replacement: null,
+                    assignInstanceNodeIds: false);
+                if (existing is null)
+                {
+                    return false;
+                }
+                materialized = true;
+                explicitSlotFound = true;
+            }
+            if (existing.BrowseName != replacement.BrowseName)
+            {
+                // A generated FindChild may fall back to an unrelated slot.
+                if (materialized)
+                {
+                    RemoveExplicitlyDefinedChild(existing);
+                    if (!ReferenceEquals(
+                        FindChild(
+                            context,
+                            replacement.BrowseName,
+                            createOrReplace: false,
+                            replacement: null),
+                        existing))
+                    {
+                        existing.Parent = null;
+                    }
+                }
+                return false;
+            }
+            if (ContainsBaseChildReference(existing))
+            {
+                return false;
+            }
+
+            RemoveExplicitlyDefinedChild(existing);
+            BaseInstanceState? remaining = FindChild(
+                context,
+                replacement.BrowseName,
+                createOrReplace: false,
+                replacement: null);
+            if (ReferenceEquals(remaining, existing))
+            {
+                // The generated slot does not release its child on removal, so
+                // hand the replacement to the slot's own assignment path.
+                BaseInstanceState? adopted = FindChild(
+                    context,
+                    replacement.BrowseName,
+                    createOrReplace: true,
+                    replacement);
+                if (!ReferenceEquals(adopted, replacement))
+                {
+                    return false;
+                }
+                existing.Parent = null;
+                replaced = existing;
+                explicitSlotFound = true;
+                return true;
+            }
+            explicitSlotFound = true;
+            if (remaining is not null)
+            {
+                // Another child already occupies the browse name; restore the
+                // state that was removed above and leave the slot alone.
+                existing.Parent = this;
+                ReplaceChild(context, existing);
+                return false;
+            }
+
+            ReplaceChild(context, replacement);
+            existing.Parent = null;
+            replaced = existing;
+            return true;
+        }
+
+        private bool ContainsBaseChildReference(BaseInstanceState child)
+        {
+            lock (m_childrenLock)
+            {
+                if (m_children is null)
+                {
+                    return false;
+                }
+                for (int ii = 0; ii < m_children.Count; ii++)
+                {
+                    if (ReferenceEquals(m_children[ii], child))
+                    {
+                        return true;
+                    }
+                }
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Gets whether the child is held in a generated, explicitly defined
+        /// slot of this node rather than in the ordinary child collection.
+        /// </summary>
+        /// <param name="context">The system context.</param>
+        /// <param name="child">The child to test.</param>
+        /// <returns><c>true</c> when the child occupies a generated slot.</returns>
+        public bool IsExplicitlyDefinedChild(ISystemContext context, BaseInstanceState child)
+        {
+            if (child is null)
+            {
+                throw new ArgumentNullException(nameof(child));
+            }
+
+            return !ContainsBaseChildReference(child) &&
+                ReferenceEquals(
+                    FindChild(
+                        context,
+                        child.BrowseName,
+                        createOrReplace: false,
+                        replacement: null),
+                    child);
+        }
+
+        /// <summary>
         /// Adds a child to the node.
         /// </summary>
         public void AddChild(BaseInstanceState child)
@@ -4943,6 +5098,18 @@ namespace Opc.Ua
         protected virtual void RemoveExplicitlyDefinedChild(BaseInstanceState child)
         {
             // no explicitly defined children on base type.
+        }
+
+        /// <summary>
+        /// Clears the parent link of an explicitly defined child which a
+        /// derived state has just released from its slot.
+        /// </summary>
+        protected void DetachExplicitlyDefinedChild(BaseInstanceState child)
+        {
+            if (ReferenceEquals(child.Parent, this))
+            {
+                child.Parent = null;
+            }
         }
 
         /// <summary>

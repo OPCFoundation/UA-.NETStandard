@@ -360,11 +360,56 @@ namespace Opc.Ua.Server.Fluent
         /// was handed to <c>CreateAddressSpaceAsync</c>.
         /// </param>
         /// <param name="cancellationToken">The cancellation token.</param>
-        protected ValueTask CompleteConfigureAsync(
+        protected async ValueTask CompleteConfigureAsync(
             IDictionary<NodeId, IList<IReference>> externalReferences,
             CancellationToken cancellationToken = default)
         {
-            return AddReverseReferencesAsync(externalReferences, cancellationToken);
+            await CompleteNodeSetImportsAsync(externalReferences, cancellationToken)
+                .ConfigureAwait(false);
+            await AddReverseReferencesAsync(externalReferences, cancellationToken)
+                .ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Links and registers the NodeSet documents which the
+        /// <c>Configure</c> pass imported through
+        /// <see cref="INodeManagerBuilder.Import"/>.
+        /// </summary>
+        private async ValueTask CompleteNodeSetImportsAsync(
+            IDictionary<NodeId, IList<IReference>> externalReferences,
+            CancellationToken cancellationToken)
+        {
+            NodeManagerBuilder[] builders = GetAttachedBuilders();
+            for (int ii = 0; ii < builders.Length; ii++)
+            {
+                NodeManagerBuilder builder = builders[ii];
+                if (!builder.HasPendingNodeSetImports)
+                {
+                    continue;
+                }
+
+                // Snapshot the nodes owned before the import so linking can
+                // resolve parents in them without seeing the imported nodes.
+                var existingNodes = new Dictionary<NodeId, NodeState>();
+                foreach (KeyValuePair<NodeId, NodeState> entry in PredefinedNodes)
+                {
+                    existingNodes[entry.Key] = entry.Value;
+                }
+
+                await builder.CompleteNodeSetImportsAsync(
+                    existingNodes,
+                    (node, ct) => AddPredefinedNodeAsync(
+                        SystemContext,
+                        node,
+                        externalReferences,
+                        ct),
+                    (node, ct) => RemovePredefinedNodeAsync(
+                        SystemContext,
+                        node,
+                        [],
+                        ct),
+                    cancellationToken).ConfigureAwait(false);
+            }
         }
 
         /// <inheritdoc/>

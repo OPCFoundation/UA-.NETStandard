@@ -648,6 +648,14 @@ namespace Opc.Ua.SourceGeneration
             EmitPassThroughProperty(writer, "global::Opc.Ua.Server.IAsyncNodeManager", "NodeManager");
             EmitPassThroughProperty(writer, "global::Opc.Ua.Server.Fluent.IFluentDispatcher", "Dispatcher");
 
+            writer.WriteLine();
+            writer.WriteLine("    /// <inheritdoc/>");
+            writer.WriteLine("    public void Import(");
+            writer.WriteLine("        global::Opc.Ua.Export.UANodeSet nodeSet,");
+            writer.WriteLine(
+                "        global::Opc.Ua.Server.Nodes.INodeSetImportFactoryProvider? factoryProvider = null)");
+            writer.WriteLine("        => __inner.Import(nodeSet, factoryProvider);");
+
             EmitPassThroughMethod(writer,
                 "global::Opc.Ua.Server.Fluent.INodeBuilder", "Node",
                 "string browsePath", "browsePath");

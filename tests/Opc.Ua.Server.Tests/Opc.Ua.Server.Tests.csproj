@@ -63,6 +63,13 @@
       <ModelSourceGeneratorName>CoverageTestSecondary</ModelSourceGeneratorName>
       <ModelSourceGeneratorPrefix>Opc.Ua.CoverageTestSecondary</ModelSourceGeneratorPrefix>
     </AdditionalFiles>
+    <!-- Model behind the fluent NodeSet2 import tests: the generated node
+         manager supplies the typed import factories for its own model. -->
+    <AdditionalFiles Include="Fluent\Assets\NodeSetImport.NodeSet2.xml">
+      <ModelSourceGeneratorModelUri>urn:opcfoundation.org:2026-09:NodeSetImport</ModelSourceGeneratorModelUri>
+      <ModelSourceGeneratorName>NodeSetImportModel</ModelSourceGeneratorName>
+      <ModelSourceGeneratorPrefix>NodeSetImportModel</ModelSourceGeneratorPrefix>
+    </AdditionalFiles>
   </ItemGroup>
   <Import Project="..\..\tools\Opc.Ua.SourceGeneration\OPCFoundation.Opc.Ua.SourceGeneration.props" />
   <ItemGroup>

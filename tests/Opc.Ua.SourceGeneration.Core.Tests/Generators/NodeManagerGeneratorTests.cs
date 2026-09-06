@@ -71,6 +71,127 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
         }
 
         [Test]
+        public void Emit_WithoutOptIn_ProducesNoNodeSetImportSupport()
+        {
+            Dictionary<string, string> files = GenerateForTestModel(generateNodeManager: false);
+
+            Assert.That(files.Keys, Has.None.EndsWith(".NodeSetImportSupport.g.cs"));
+        }
+
+        [Test]
+        public void EmittedNodeManager_ProvidesTheModelsNodeSetImportFactories()
+        {
+            Dictionary<string, string> files = GenerateForTestModel(generateNodeManager: true);
+
+            string mgr = files
+                .Single(kv => kv.Key.EndsWith(".NodeManager.g.cs", StringComparison.Ordinal))
+                .Value;
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    mgr,
+                    Does.Contain("global::Opc.Ua.Server.Nodes.INodeSetImportFactoryProvider"));
+                Assert.That(mgr, Does.Contain("GetNodeSetImportFactories()"));
+                Assert.That(
+                    mgr,
+                    Does.Contain("TestModelNodeSetImportFactoryProvider"),
+                    "The manager must delegate to the model's generated provider.");
+                Assert.That(
+                    mgr,
+                    Does.Contain("partial void AddNodeSetImportFactories("),
+                    "Dependency models and applications need a registration hook.");
+            });
+        }
+
+        [Test]
+        public void EmittedNodeSetImportSupport_HasDirectTypedImportFactories()
+        {
+            Dictionary<string, string> files = GenerateForTestModel(generateNodeManager: true);
+
+            string support = files
+                .Single(kv => kv.Key.EndsWith(".NodeSetImportSupport.g.cs", StringComparison.Ordinal))
+                .Value;
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    support,
+                    Does.Contain("public sealed class TestModelNodeSetImportFactoryProvider"));
+                Assert.That(
+                    support,
+                    Does.Contain("NodeSetImportDiscriminator.TypeDefinition"));
+                Assert.That(
+                    support,
+                    Does.Contain("NodeSetImportDiscriminator.MethodDeclaration"));
+                Assert.That(
+                    support,
+                    Does.Contain("NodeSetImportDiscriminator.NodeId"));
+
+                // Every factory calls a concrete constructor: no type lookup,
+                // and nothing that NativeAOT would have to keep alive.
+                Assert.That(
+                    support,
+                    Does.Contain("new global::TestModel.RestrictedObjectState(null)"));
+                Assert.That(
+                    support,
+                    Does.Contain("new global::TestModel.RestrictedVariableState(null)"));
+                Assert.That(
+                    support,
+                    Does.Contain("new global::TestModel.RestrictedMethodState(null)"));
+                Assert.That(support, Does.Not.Contain("Activator.CreateInstance"));
+                Assert.That(support, Does.Not.Contain("System.Reflection"));
+                Assert.That(
+                    support,
+                    Does.Contain(
+                        "new global::Opc.Ua.ArrayOf<" +
+                        "global::Opc.Ua.Server.Nodes.INodeSetImportFactory>"));
+            });
+        }
+
+        [Test]
+        public void EmittedImportFactoriesCoverPlaceholderInheritedAndArgumentChildren()
+        {
+            Dictionary<string, string> files = GenerateForTestModel(generateNodeManager: true);
+
+            string support = files
+                .Single(kv => kv.Key.EndsWith(".NodeSetImportSupport.g.cs", StringComparison.Ordinal))
+                .Value;
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    support,
+                    Does.Match(
+                        @"(?s)ExpandedNodeId\(227u,.*?" +
+                        @"CreateEmptyState\(\).*?" +
+                        @"RestrictedVariableState\(null\)"),
+                    "The OptionalPlaceholder variable declaration needs an exact typed factory.");
+                Assert.That(
+                    support,
+                    Does.Match(
+                        @"(?s)ExpandedNodeId\(228u,.*?" +
+                        @"CreateEmptyState\(\).*?" +
+                        @"PropertyState<int>"),
+                    "Inherited children below a placeholder need exact typed factories.");
+                Assert.That(
+                    support,
+                    Does.Match(
+                        @"(?s)ExpandedNodeId\(357u,.*?" +
+                        @"CreateEmptyState\(\).*?" +
+                        @"PropertyState<global::Opc\.Ua\.ArrayOf<global::Opc\.Ua\.Argument>>"),
+                    "InputArguments needs an exact typed factory.");
+                Assert.That(
+                    support,
+                    Does.Match(
+                        @"(?s)ExpandedNodeId\(358u,.*?" +
+                        @"CreateEmptyState\(\).*?" +
+                        @"PropertyState<global::Opc\.Ua\.ArrayOf<global::Opc\.Ua\.Argument>>"),
+                    "OutputArguments needs an exact typed factory.");
+            });
+        }
+
+        [Test]
         public void EmittedNodeManager_HasRequiredStructuralMembers()
         {
             Dictionary<string, string> files = GenerateForTestModel(generateNodeManager: true);
@@ -78,7 +199,10 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             string mgr = files.Single(kv => kv.Key.EndsWith(".NodeManager.g.cs", StringComparison.Ordinal)).Value;
 
             // Inheritance and partial — required so users can extend.
-            Assert.That(mgr, Does.Contain(": global::Opc.Ua.Server.Fluent.FluentNodeManagerBase"));
+            Assert.That(
+                mgr,
+                Does.Match(
+                    @"(?s):\s*global::Opc\.Ua\.Server\.Fluent\.FluentNodeManagerBase"));
             Assert.That(mgr, Does.Match(@"public\s+partial\s+class\s+\w+NodeManager"));
 
             // Node-manager lifecycle members emitted by the generated partial.
