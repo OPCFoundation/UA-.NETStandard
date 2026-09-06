@@ -102,7 +102,21 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             // the hybrid integration test. CompleteConfigureAsync re-runs
             // the reverse-reference pass so configure-created nodes publish
             // references to nodes owned by other managers (issue #4329).
+            // The async setup hook is the only seam between the address
+            // space existing and the wiring being applied, so it has to run
+            // before Configure — a manager whose wiring depends on that
+            // setup would otherwise resolve against a half-built world.
+            int idxReady = mgr.IndexOf(
+                "await OnAddressSpaceReadyAsync(cancellationToken)",
+                StringComparison.Ordinal);
+            int idxBase = mgr.IndexOf(
+                "await base.CreateAddressSpaceAsync(",
+                StringComparison.Ordinal);
             int idxConfigure = mgr.IndexOf("Configure(__m_builder)", StringComparison.Ordinal);
+            Assert.That(idxReady, Is.GreaterThan(idxBase),
+                "OnAddressSpaceReadyAsync must run after the predefined nodes are loaded");
+            Assert.That(idxConfigure, Is.GreaterThan(idxReady),
+                "Configure must run after OnAddressSpaceReadyAsync");
             int idxComplete = mgr.IndexOf(
                 "await CompleteConfigureAsync(externalReferences, cancellationToken)",
                 StringComparison.Ordinal);
@@ -139,15 +153,101 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             string mgr = files.Single(kv => kv.Key.EndsWith(".NodeManager.g.cs", StringComparison.Ordinal)).Value;
             string factory = files.Single(kv => kv.Key.EndsWith(".NodeManagerFactory.g.cs", StringComparison.Ordinal)).Value;
 
-            // The constructor must pass the extra namespace to the base
-            // manager so the master node manager routes it to this manager
-            // from construction (SetNamespaces after the fact is too late).
-            Assert.That(mgr, Does.Contain(", \"" + instanceUri + "\")"),
-                "Constructor must append the additional namespace URI to the base call");
+            // The namespace set the constructor reports must carry the
+            // extra namespace, so the master node manager routes it to this
+            // manager from construction (SetNamespaces after the fact is
+            // too late).
+            Assert.That(mgr, Does.Contain(", \"" + instanceUri + "\" }"),
+                "DefaultNamespaceUris must append the additional namespace URI");
 
             // The factory must advertise the same namespace set.
             Assert.That(factory, Does.Contain(", \"" + instanceUri + "\" })"),
                 "Factory NamespacesUris must include the additional namespace URI");
+        }
+
+        /// <summary>
+        /// The namespace set and its order decide which NodeIds the manager
+        /// mints, so both have to be reachable from a hand-written
+        /// constructor: the default list as a callable member, the override
+        /// as a protected constructor parameter.
+        /// </summary>
+        [Test]
+        public void EmittedNodeManager_ExposesItsNamespaceSetAndAConstructorThatReplacesIt()
+        {
+            Dictionary<string, string> files = GenerateForTestModel(generateNodeManager: true);
+
+            string mgr = files.Single(
+                kv => kv.Key.EndsWith(".NodeManager.g.cs", StringComparison.Ordinal)).Value;
+
+            Assert.That(mgr, Does.Match(@"public\s+static\s+string\[\]\s+DefaultNamespaceUris\(\)"),
+                "The default namespace set must be callable from a user constructor");
+            Assert.That(
+                mgr,
+                Does.Match(@"protected\s+\w+NodeManager\(" +
+                    @"[\s\S]*?string\[\]\?\s+namespaceUris\)" +
+                    @"[\s\S]*?namespaceUris\s+\?\?\s+DefaultNamespaceUris\(\)"),
+                "A protected constructor must accept a replacement namespace set");
+        }
+
+        /// <summary>
+        /// Log lines are filtered by category, so a generated manager has
+        /// to log under its own name rather than the base class every
+        /// generated manager shares.
+        /// </summary>
+        [Test]
+        public void EmittedNodeManager_LogsUnderItsOwnCategory()
+        {
+            Dictionary<string, string> files = GenerateForTestModel(generateNodeManager: true);
+
+            string mgr = files.Single(
+                kv => kv.Key.EndsWith(".NodeManager.g.cs", StringComparison.Ordinal)).Value;
+
+            Assert.That(
+                mgr,
+                Does.Match(
+                    @"global::Opc\.Ua\.TelemetryExtensions\.CreateLogger<\w+NodeManager>\(\s*" +
+                    @"server\.Telemetry\)"));
+        }
+
+        [Test]
+        public void EmittedNodeManager_WithDefaultConstructor_ExposesTheTwoArgumentForm()
+        {
+            Dictionary<string, string> files = GenerateForTestModel(generateNodeManager: true);
+
+            string mgr = files.Single(
+                kv => kv.Key.EndsWith(".NodeManager.g.cs", StringComparison.Ordinal)).Value;
+
+            Assert.That(mgr, Does.Match(@"public\s+\w+NodeManager\(\s*" +
+                @"global::Opc\.Ua\.Server\.IServerInternal\s+server,\s*" +
+                @"global::Opc\.Ua\.ApplicationConfiguration\s+configuration\)"));
+            Assert.That(mgr, Does.Contain(": this(server, configuration, null)"),
+                "The default constructor must delegate to the namespace-set constructor");
+        }
+
+        /// <summary>
+        /// A manager that needs collaborators beyond a server and a
+        /// configuration must be able to suppress the two-argument form, or
+        /// callers could build it half-initialized.
+        /// </summary>
+        [Test]
+        public void EmittedNodeManager_WithoutDefaultConstructor_OmitsTheTwoArgumentForm()
+        {
+            Dictionary<string, string> files = GenerateForTestModel(
+                generateNodeManager: true,
+                emitDefaultConstructor: false);
+
+            string mgr = files.Single(
+                kv => kv.Key.EndsWith(".NodeManager.g.cs", StringComparison.Ordinal)).Value;
+
+            Assert.That(mgr, Does.Not.Contain(": this(server, configuration, null)"));
+            Assert.That(mgr, Does.Not.Match(@"public\s+\w+NodeManager\(\s*" +
+                @"global::Opc\.Ua\.Server\.IServerInternal\s+server,\s*" +
+                @"global::Opc\.Ua\.ApplicationConfiguration\s+configuration\)"));
+
+            // The protected form stays: it is what a hand-written
+            // constructor chains to.
+            Assert.That(mgr, Does.Match(@"protected\s+\w+NodeManager\("));
+            Assert.That(mgr, Does.Match(@"public\s+static\s+string\[\]\s+DefaultNamespaceUris\(\)"));
         }
 
         [Test]
@@ -513,7 +613,8 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
         private static Dictionary<string, string> GenerateForTestModel(
             bool generateNodeManager,
             IReadOnlyList<string> additionalNamespaceUris = null,
-            string nodeManagerNamespace = null)
+            string nodeManagerNamespace = null,
+            bool emitDefaultConstructor = true)
         {
             const string designFile = "TestModel.xml";
             ITelemetryContext telemetry = NUnitTelemetryContext.Create(logLevel: LogLevel.Error);
@@ -530,7 +631,8 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
                 {
                     GenerateNodeManager = generateNodeManager,
                     NodeManagerAdditionalNamespaceUris = additionalNamespaceUris,
-                    NodeManagerNamespace = nodeManagerNamespace
+                    NodeManagerNamespace = nodeManagerNamespace,
+                    EmitNodeManagerDefaultConstructor = emitDefaultConstructor
                 }
             }, fileSystem, string.Empty, telemetry);
 

@@ -84,6 +84,44 @@ namespace Opc.Ua.Server.Fluent
         public bool GenerateFactory { get; set; } = true;
 
         /// <summary>
+        /// When <c>true</c> (default) the generator emits the public
+        /// <c>(IServerInternal, ApplicationConfiguration)</c> constructor.
+        /// Set to <c>false</c> for a manager that cannot be built from
+        /// those two arguments alone — one that takes a database, a
+        /// certificate authority, or any other collaborator — so callers
+        /// cannot construct it half-initialized.
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// The <c>protected (IServerInternal, ApplicationConfiguration,
+        /// string[])</c> constructor is emitted either way. Chain to it
+        /// from your own constructor; passing <c>null</c> for its
+        /// <c>namespaceUris</c> argument adopts
+        /// <c>DefaultNamespaceUris()</c>, and passing an array of your own
+        /// replaces both the set and its order:
+        /// </para>
+        /// <example>
+        /// <code>
+        /// public MyNodeManager(
+        ///     IServerInternal server,
+        ///     ApplicationConfiguration configuration,
+        ///     IMyDatabase database)
+        ///     : this(server, configuration, [MyInstanceNamespace, Namespaces.MyModel])
+        /// {
+        ///     m_database = database;
+        /// }
+        /// </code>
+        /// </example>
+        /// <para>
+        /// The generated factory constructs the manager from the two-argument
+        /// form, so a manager that suppresses it and does not declare a
+        /// replacement with the same signature must also set
+        /// <see cref="GenerateFactory"/> to <c>false</c>.
+        /// </para>
+        /// </remarks>
+        public bool GenerateDefaultConstructor { get; set; } = true;
+
+        /// <summary>
         /// Additional namespace URIs the manager owns beyond the model's
         /// own namespace — typically a separate instance namespace (e.g.
         /// <c>"http://opcfoundation.org/UA/Boiler/Instance"</c>).

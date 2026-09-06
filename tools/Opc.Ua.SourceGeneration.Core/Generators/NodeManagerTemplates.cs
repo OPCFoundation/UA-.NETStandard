@@ -63,12 +63,43 @@ namespace Opc.Ua.SourceGeneration
                     private global::Opc.Ua.Server.Fluent.NodeManagerBuilder? __m_builder;
 
                     /// <summary>
-                    /// Initializes a new <see cref="{{Tokens.NodeManagerClassName}}"/>.
+                    /// The namespace URIs this manager owns, in the order they
+                    /// are reported to the master node manager. The first entry
+                    /// becomes <c>NamespaceIndexes[0]</c> and therefore the
+                    /// manager's own <c>NamespaceIndex</c>, so the order is part
+                    /// of the NodeIds this manager mints. Pass a different array
+                    /// to the protected constructor to change it.
                     /// </summary>
-                    public {{Tokens.NodeManagerClassName}}(
+                    public static string[] DefaultNamespaceUris()
+                    {
+                        return new string[] { {{Tokens.NamespaceUri}}{{Tokens.AdditionalNamespaceUris}} };
+                    }
+
+                    {{Tokens.NodeManagerDefaultConstructor}}
+
+                    /// <summary>
+                    /// Initializes a new <see cref="{{Tokens.NodeManagerClassName}}"/>
+                    /// that owns <paramref name="namespaceUris"/>. Chain to this
+                    /// from a constructor of your own to take collaborators the
+                    /// generated signature does not carry, to change which
+                    /// namespaces the manager owns, or to change their order.
+                    /// </summary>
+                    /// <param name="server">The hosting server.</param>
+                    /// <param name="configuration">The application configuration.</param>
+                    /// <param name="namespaceUris">
+                    /// The namespace URIs to report, in order. <c>null</c> adopts
+                    /// <see cref="DefaultNamespaceUris"/>.
+                    /// </param>
+                    protected {{Tokens.NodeManagerClassName}}(
                         global::Opc.Ua.Server.IServerInternal server,
-                        global::Opc.Ua.ApplicationConfiguration configuration)
-                        : base(server, configuration, {{Tokens.NamespaceUri}}{{Tokens.AdditionalNamespaceUris}})
+                        global::Opc.Ua.ApplicationConfiguration configuration,
+                        string[]? namespaceUris)
+                        : base(
+                            server,
+                            configuration,
+                            global::Opc.Ua.TelemetryExtensions.CreateLogger<{{Tokens.NodeManagerClassName}}>(
+                                server.Telemetry),
+                            namespaceUris ?? DefaultNamespaceUris())
                     {
                         SystemContext.NodeIdFactory = this;
                     }
@@ -105,6 +136,12 @@ namespace Opc.Ua.SourceGeneration
                         global::System.Threading.CancellationToken cancellationToken = default)
                     {
                         await base.CreateAddressSpaceAsync(externalReferences, cancellationToken).ConfigureAwait(false);
+
+                        // The one asynchronous seam between the address space
+                        // existing and the wiring being applied: Configure is a
+                        // partial void and cannot await, so a manager that has
+                        // setup to do before its wiring resolves does it here.
+                        await OnAddressSpaceReadyAsync(cancellationToken).ConfigureAwait(false);
 
                         ushort __nsIndex = Server.NamespaceUris.GetIndexOrAppend({{Tokens.NamespaceUri}});
 
@@ -279,6 +316,28 @@ namespace Opc.Ua.SourceGeneration
                             __matches.ToArray());
                     }
                 }
+            }
+            """);
+
+        /// <summary>
+        /// The public <c>(server, configuration)</c> constructor. Emitted
+        /// unless the binding sets <c>GenerateDefaultConstructor=false</c>,
+        /// which managers do when they cannot be built from those two
+        /// arguments alone.
+        /// </summary>
+        public static readonly TemplateString DefaultConstructor = TemplateString.Parse(
+            $$"""
+            /// <summary>
+            /// Initializes a new <see cref="{{Tokens.NodeManagerClassName}}"/>
+            /// owning <see cref="DefaultNamespaceUris"/>.
+            /// </summary>
+            /// <param name="server">The hosting server.</param>
+            /// <param name="configuration">The application configuration.</param>
+            public {{Tokens.NodeManagerClassName}}(
+                global::Opc.Ua.Server.IServerInternal server,
+                global::Opc.Ua.ApplicationConfiguration configuration)
+                : this(server, configuration, null)
+            {
             }
             """);
 

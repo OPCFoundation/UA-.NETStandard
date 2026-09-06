@@ -41,6 +41,9 @@
   - [What the generator produces](#what-the-generator-produces)
   - [Opting in](#opting-in)
     - [Per-class opt-in via [NodeManager] (recommended)](#per-class-opt-in-via-nodemanager-recommended)
+      - [Taking over the constructor and the namespace order](#taking-over-the-constructor-and-the-namespace-order)
+      - [Asynchronous startup before Configure](#asynchronous-startup-before-configure)
+      - [Binding to a model a referenced assembly supplies](#binding-to-a-model-a-referenced-assembly-supplies)
     - [Project-wide opt-in via MSBuild property (legacy)](#project-wide-opt-in-via-msbuild-property-legacy)
   - [Wiring callbacks: the Configure partial](#wiring-callbacks-the-configure-partial)
     - [Addressing modes](#addressing-modes)
@@ -884,6 +887,112 @@ generator in the **same compilation** is not available. Such an
 expression reports `MODELGEN035` at the offending argument instead of
 silently dropping the namespace from the generated manager and factory.
 
+##### Taking over the constructor and the namespace order
+
+The generator emits two constructors:
+
+```csharp
+public MyDeviceNodeManager(IServerInternal server, ApplicationConfiguration configuration)
+    : this(server, configuration, null) { }
+
+protected MyDeviceNodeManager(
+    IServerInternal server,
+    ApplicationConfiguration configuration,
+    string[]? namespaceUris)
+    : base(server, configuration, namespaceUris ?? DefaultNamespaceUris()) { … }
+```
+
+Chain to the protected one from a constructor of your own when the
+manager needs collaborators the generated signature does not carry, when
+it owns a different set of namespaces, or when it needs them in a
+different **order**. Order matters: the first entry becomes
+`NamespaceIndexes[0]` and therefore the manager's own `NamespaceIndex`,
+so it is baked into every NodeId the manager mints — changing it on a
+deployed server invalidates the ids its clients and databases already
+hold. `DefaultNamespaceUris()` returns the attribute's set, model
+namespace first.
+
+```csharp
+[NodeManager(
+    NamespaceUri = Namespaces.MyModel,
+    AdditionalNamespaceUris = ["urn:my:instances"],
+    GenerateDefaultConstructor = false,
+    GenerateFactory = false)]
+public partial class MyDeviceNodeManager
+{
+    private readonly IMyDatabase m_database;
+
+    public MyDeviceNodeManager(
+        IServerInternal server,
+        ApplicationConfiguration configuration,
+        IMyDatabase database)
+        // instance namespace first: NamespaceIndexes[0] mints record ids
+        : this(server, configuration, ["urn:my:instances", Namespaces.MyModel])
+    {
+        m_database = database;
+    }
+}
+```
+
+`GenerateDefaultConstructor = false` suppresses the public two-argument
+form so callers cannot build the manager without its collaborators. The
+generated factory constructs the manager through exactly that form, so a
+manager that suppresses it — and does not declare a replacement with the
+same signature — must set `GenerateFactory = false` too.
+
+##### Asynchronous startup before `Configure`
+
+`Configure` is a `partial void` and cannot await, and the generated
+`CreateAddressSpaceAsync` is already an `override`, so a manager whose
+wiring depends on asynchronous setup has one seam:
+
+```csharp
+protected override async ValueTask OnAddressSpaceReadyAsync(
+    CancellationToken cancellationToken)
+{
+    // predefined nodes exist; Configure has not run yet
+    m_groups = await LoadCertificateGroupsAsync(cancellationToken);
+}
+```
+
+It runs after the predefined nodes are loaded and before both `Configure`
+overloads, so anything it builds is available to the wiring. Declared on
+`FluentNodeManagerBase`, so hand-written managers get it too; the default
+implementation is a no-op and overrides need not call `base`.
+
+##### Binding to a model a referenced assembly supplies
+
+A `[NodeManager]` normally lives in the project that emits the model.
+That is impossible when the model belongs to a package which cannot
+reference `Opc.Ua.Server` — a model-only assembly shared with clients,
+for example. Point the attribute at the model anyway: add its design as
+`AdditionalFiles` in the server-side project, and the generator emits
+the manager and its fluent surface there while the model types keep
+coming from the reference.
+
+```xml
+<!-- MyServer.csproj — the model itself lives in MyModel.csproj -->
+<ItemGroup>
+  <ProjectReference Include="..\MyModel\MyModel.csproj" />
+  <AdditionalFiles Include="..\MyModel\Design\MyModel.xml" />
+  <AdditionalFiles Include="..\MyModel\Design\MyModel.csv" />
+</ItemGroup>
+```
+
+Nothing else is needed — no `ModelSourceGeneratorFluentAccessorsOnly`.
+Without a binding, a design that a reference already supplies stays
+skipped, exactly as before, so this cannot start duplicating types by
+accident.
+
+Two conditions apply, both reported as `MODELGEN014` when unmet: the
+referenced assembly must publish the model under the same C# prefix, and
+it must not already contain generated fluent accessors (a model-only
+assembly built with `ModelSourceGeneratorOmitFluentApi` does not). The
+project-wide `ModelSourceGeneratorGenerateNodeManager` switch is not a
+substitute here and is still rejected in accessors-only builds: it would
+emit conventionally named managers into the referenced model's own C#
+namespace for every design in the project.
+
 #### Project-wide opt-in via MSBuild property (legacy)
 
 If you prefer a generator-derived class identity (`{Prefix}NodeManager` /
@@ -961,6 +1070,7 @@ different namespace.
 | `Node(NodeId id)` / `Node<TState>(NodeId id)` | Absolute NodeId | You own the id (e.g. generated `Variables.*`) |
 | `NodeFromTypeId(NodeId typeId)` / `NodeFromTypeId<TState>(NodeId typeId)` | `BaseInstanceState.TypeDefinitionId` | Singleton instance of a well-known type |
 | `NodeFromTypeId(NodeId typeId, QualifiedName browseName)` | TypeDefinitionId + BrowseName | Multi-instance types — pick one |
+| `Node<TState>(TState node)` | Nothing — takes the node as given | You already hold the `NodeState` (see below) |
 
 `NodeFromTypeId` walks every predefined node owned by this manager
 (and their sub-trees) at Configure-time. Error matrix:
@@ -973,6 +1083,23 @@ different namespace.
   `browseName`).
 * `BadTypeMismatch` — typed overload's `TState` cast fails.
 
+`Node<TState>(TState node)` is the one addressing mode that does not
+consult the predefined-node graph. Use it for nodes that appear *after*
+`Configure` has run — a service object a host contributes at runtime, a
+subtree replaced in `AddBehaviourToPredefinedNodeAsync`, a device
+discovered while the server is up — so the same fluent wiring recipe
+applies to statically declared and runtime-created nodes alike:
+
+```csharp
+private void ConfigureService(MyServiceState service)
+{
+    NodeManagerBuilder builder = CreateFluentBuilder(namespaceIndex);
+    builder.Node(service.DoSomething!)
+           .OnReadRolePermissions(GrantSelfAdmin);
+    builder.Seal();
+}
+```
+
 The builder exposes:
 
 | Method | Wires |
@@ -980,6 +1107,7 @@ The builder exposes:
 | `OnRead` / `OnReadAsync` | `BaseVariableState.OnReadValue` |
 | `OnWrite` / `OnWriteAsync` | `BaseVariableState.OnWriteValue` |
 | `OnCall` / `OnCallAsync` | `MethodState.OnCallMethod*` |
+| `OnReadRolePermissions` / `OnReadUserRolePermissions` | `NodeState.OnRead*RolePermissions` — compute the permission set per request (e.g. grant a caller a role on its own record) |
 | `OnNodeAdded` / `OnNodeRemoved` | Lifecycle dispatch from `NotifyNodeAdded` |
 | `OnEvent`, `OnConditionRefresh`, `OnHistoryRead`, `OnHistoryUpdate` | Node or manager-level dispatch keyed by `NodeId` |
 | `OnCreateMonitoredItem`, `OnMonitoredItemCreated`, `OnMonitoredItemModified`, `OnMonitoredItemDeleted`, `OnMonitoringModeChanged` | Data-change monitored-item creation and lifecycle |
