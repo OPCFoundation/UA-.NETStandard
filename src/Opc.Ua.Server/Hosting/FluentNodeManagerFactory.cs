@@ -120,6 +120,10 @@ namespace Opc.Ua.Server.Hosting
             NodeManagerBuilder builder = CreateFluentBuilder(namespaceIndex);
             m_build(builder);
 
+            // Register nodes the build delegate created through the builder's
+            // Add* methods before the reverse-reference pass runs.
+            await RegisterAuthoredNodesAsync(builder, cancellationToken).ConfigureAwait(false);
+
             // Mirror references from build-created nodes to nodes owned by
             // other node managers (e.g. the Objects folder) into the
             // externalReferences dictionary before sealing the builder.

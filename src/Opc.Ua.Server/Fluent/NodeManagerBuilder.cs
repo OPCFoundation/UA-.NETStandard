@@ -56,7 +56,7 @@ namespace Opc.Ua.Server.Fluent
     /// dispatch time.
     /// </para>
     /// </remarks>
-    public sealed class NodeManagerBuilder : INodeManagerBuilder, IFluentDispatcher
+    public sealed partial class NodeManagerBuilder : INodeManagerBuilder, IFluentDispatcher
     {
         /// <summary>
         /// Creates a new builder for the supplied <paramref name="nodeManager"/>.
@@ -145,7 +145,7 @@ namespace Opc.Ua.Server.Fluent
                 Context,
                 browsePath,
                 m_defaultNamespaceIndex,
-                m_rootResolver);
+                ResolveRoot);
 
             return new NodeBuilder(this, node);
         }
@@ -159,7 +159,7 @@ namespace Opc.Ua.Server.Fluent
                 Context,
                 browsePath,
                 m_defaultNamespaceIndex,
-                m_rootResolver);
+                ResolveRoot);
 
             if (node is not TState typed)
             {
@@ -262,7 +262,7 @@ namespace Opc.Ua.Server.Fluent
                 Context,
                 browsePath,
                 m_defaultNamespaceIndex,
-                m_rootResolver);
+                ResolveRoot);
             return ToVariableBuilder<TValue>(node, browsePath);
         }
 
@@ -896,6 +896,11 @@ namespace Opc.Ua.Server.Fluent
                     "NodeId is null or empty.");
             }
 
+            if (m_authoredNodes.TryGetValue(nodeId, out NodeState? authored))
+            {
+                return authored;
+            }
+
             return m_nodeIdResolver(nodeId) ??
                 throw ServiceResultException.Create(
                     StatusCodes.BadNodeIdUnknown,
@@ -912,8 +917,10 @@ namespace Opc.Ua.Server.Fluent
                     "TypeDefinitionId is null or empty.");
             }
 
-            IReadOnlyList<NodeState> candidates = m_typeIdResolver(typeDefinitionId)
-                ?? [];
+            IReadOnlyList<NodeState> candidates = CollectAuthoredCandidates(
+                m_typeIdResolver(typeDefinitionId) ?? [],
+                node => node is BaseInstanceState instance &&
+                    instance.TypeDefinitionId == typeDefinitionId);
 
             if (candidates.Count == 0)
             {
@@ -975,7 +982,10 @@ namespace Opc.Ua.Server.Fluent
                     "DataTypeId is null or empty.");
             }
 
-            ArrayOf<NodeState> candidates = m_dataTypeIdResolver(dataTypeId);
+            List<NodeState> candidates = CollectAuthoredCandidates(
+                m_dataTypeIdResolver(dataTypeId),
+                node => node is BaseVariableState variable &&
+                    variable.DataType == dataTypeId);
 
             if (candidates.Count == 0)
             {
