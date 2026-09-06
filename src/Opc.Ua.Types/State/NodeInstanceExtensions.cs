@@ -150,13 +150,12 @@ namespace Opc.Ua
         /// returns its previous NodeId.
         /// </summary>
         /// <remarks>
-        /// The factory first sees the current NodeId, so a parent- or
-        /// path-based implementation can derive from it. If the factory hands
-        /// that same identifier back, it is asked again with a null NodeId,
-        /// which is how this call says "rebase" rather than "create". A
-        /// factory that mints nothing then answers with a null identifier and
-        /// the node keeps what it had, so NodeManagers that assign their own
-        /// NodeIds are unaffected.
+        /// The factory first sees the declaration NodeId so parent/path based
+        /// implementations can use it. If it preserves that ID, the factory
+        /// is invoked again with a null NodeId to support allocators such as
+        /// the default custom NodeManagers. A null-ID allocation that collides
+        /// with the declaration ID is retried once; if no call produces a
+        /// fresh ID, the previous ID is preserved for compatibility.
         /// </remarks>
         /// <param name="context">
         /// The system context supplying the NodeIdFactory.
@@ -174,22 +173,20 @@ namespace Opc.Ua
 
             NodeId previousNodeId = node.NodeId;
             NodeId assignedNodeId = context.NodeIdFactory.New(context, node);
-
             if (assignedNodeId.IsNull || assignedNodeId.Equals(previousNodeId))
             {
-                // The factory kept what it was handed, so the intent is
-                // stated instead of implied: this node is being rebased, not
-                // merely created. Asking again with no NodeId is the only
-                // way to say that through INodeIdFactory.
-                node.NodeId = NodeId.Null;
-                NodeId rebasedNodeId = context.NodeIdFactory.New(context, node);
-
-                // A factory that mints nothing - CustomNodeManager2 answers
-                // with the node's own NodeId - has nothing to offer here, so
-                // the node keeps the identifier it arrived with.
-                assignedNodeId = rebasedNodeId.IsNull
-                    ? previousNodeId
-                    : rebasedNodeId;
+                assignedNodeId = previousNodeId;
+                for (int attempt = 0; attempt < 2; attempt++)
+                {
+                    node.NodeId = NodeId.Null;
+                    NodeId allocatedNodeId = context.NodeIdFactory.New(context, node);
+                    if (!allocatedNodeId.IsNull &&
+                        !allocatedNodeId.Equals(previousNodeId))
+                    {
+                        assignedNodeId = allocatedNodeId;
+                        break;
+                    }
+                }
             }
 
             node.NodeId = assignedNodeId;
