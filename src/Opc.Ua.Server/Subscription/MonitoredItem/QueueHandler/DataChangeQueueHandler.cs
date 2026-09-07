@@ -337,24 +337,6 @@ namespace Opc.Ua.Server
         internal bool HasRequiredValues => m_requiredPending;
 
         /// <summary>
-        /// Gets the required notification currently protected by the queue.
-        /// </summary>
-        internal bool TryGetRequiredValue(
-            out DataValue value,
-            out ServiceResult error)
-        {
-            value = m_required;
-            error = m_requiredError ?? ServiceResult.Good;
-            if (m_requiredPending &&
-                m_overflowPending &&
-                m_overflow == m_required)
-            {
-                SetOverflowBit(ref value, ref error);
-            }
-            return m_requiredPending;
-        }
-
-        /// <summary>
         /// Deques the last item
         /// </summary>
         public bool PublishSingleValue(

@@ -7954,7 +7954,7 @@ namespace Opc.Ua.Server
                 validateMonitoringFilterResult.FilterToUse as
                     ServerAggregateFilter;
             var concreteItem = datachangeItem as MonitoredItem;
-            MonitoredItem.AggregateModificationPreparation? preparation = null;
+            MonitoredItemAggregation.Modification? preparation = null;
             bool prevalidationRegistered = false;
             bool initialValueCompleted = false;
 

@@ -472,8 +472,9 @@ namespace Opc.Ua.Server.Tests
             Assert.That(queuedRawValues[1], Is.EqualTo(distinctLive));
         }
 
-        [Test]
-        public void QueueSizeOneProtectsInitialHistoryFailureUntilPublish()
+        [TestCase(true)]
+        [TestCase(false)]
+        public void QueueSizeOneKeepsLatestValueAfterInitialHistoryFailure(bool discardOldest)
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             ILogger logger = telemetry.CreateLogger<MonitoredItemTests>();
@@ -512,7 +513,7 @@ namespace Opc.Ua.Server.Tests
                 null,
                 0,
                 1,
-                discardOldest: false,
+                discardOldest,
                 sourceSamplingInterval: 0);
             DateTime timestamp = DateTime.UtcNow;
             var live = new DataValue(
@@ -547,10 +548,12 @@ namespace Opc.Ua.Server.Tests
                 logger);
             Assert.That(notifications, Has.Count.EqualTo(1));
             Assert.That(
-                notifications.Dequeue().Value.StatusCode,
-                Is.EqualTo(StatusCodes.BadCommunicationError));
+                notifications.Peek().Value.StatusCode,
+                Is.EqualTo(StatusCodes.Good));
+            Assert.That(notifications.Dequeue().Value, Is.EqualTo(live));
 
-            monitoredItem.QueueValue(live, ServiceResult.Good);
+            var nextLive = new DataValue(Variant.From(2), StatusCodes.Good);
+            monitoredItem.QueueValue(nextLive, ServiceResult.Good);
             _ = monitoredItem.Publish(
                 new OperationContext(monitoredItem),
                 notifications,
@@ -558,13 +561,12 @@ namespace Opc.Ua.Server.Tests
                 10,
                 logger);
             Assert.That(notifications, Has.Count.EqualTo(1));
-            Assert.That(
-                notifications.Dequeue().Value.WrappedValue,
-                Is.EqualTo(new Variant(1)));
+            Assert.That(notifications.Dequeue().Value, Is.EqualTo(nextLive));
         }
 
-        [Test]
-        public void ShrinkingToQueueSizeOnePreservesRequiredOverflow()
+        [TestCase(true)]
+        [TestCase(false)]
+        public void ShrinkingToQueueSizeOneKeepsLatestValueWithoutProtection(bool discardOldest)
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             ILogger logger = telemetry.CreateLogger<MonitoredItemTests>();
@@ -603,7 +605,7 @@ namespace Opc.Ua.Server.Tests
                 null,
                 0,
                 2,
-                discardOldest: true,
+                discardOldest,
                 sourceSamplingInterval: 0);
             DateTime timestamp = DateTime.UtcNow;
             var historyError = new DataValue(
@@ -635,11 +637,8 @@ namespace Opc.Ua.Server.Tests
                 null,
                 0,
                 1,
-                discardOldest: true);
+                discardOldest);
             Assert.That(ServiceResult.IsGood(result), Is.True);
-            monitoredItem.QueueValue(
-                new DataValue(new Variant(3), StatusCodes.Good),
-                ServiceResult.Good);
             var notifications = new Queue<MonitoredItemNotification>();
             var diagnostics = new Queue<DiagnosticInfo>();
 
@@ -652,9 +651,61 @@ namespace Opc.Ua.Server.Tests
 
             Assert.That(notifications, Has.Count.EqualTo(1));
             Assert.That(
-                notifications.Peek().Value.StatusCode.Code,
-                Is.EqualTo(StatusCodes.BadCommunicationError));
-            Assert.That(notifications.Peek().Value.StatusCode.Overflow, Is.True);
+                notifications.Peek().Value.StatusCode,
+                Is.EqualTo(StatusCodes.Good));
+            Assert.That(notifications.Dequeue().Value.WrappedValue, Is.EqualTo(Variant.From(2)));
+
+            monitoredItem.QueueValue(
+                new DataValue(Variant.From(3), StatusCodes.Good),
+                ServiceResult.Good);
+            _ = monitoredItem.Publish(
+                new OperationContext(monitoredItem),
+                notifications,
+                diagnostics,
+                10,
+                logger);
+
+            Assert.That(notifications, Has.Count.EqualTo(1));
+            Assert.That(notifications.Peek().Value.StatusCode, Is.EqualTo(StatusCodes.Good));
+            Assert.That(notifications.Peek().Value.WrappedValue, Is.EqualTo(Variant.From(3)));
+        }
+
+        [Test]
+        public void GrowingFromQueueSizeOneDoesNotReinstateNotificationProtection()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            using MonitoredItem monitoredItem = CreateMonitoredItem(telemetry, queueSize: 1);
+            ((IInitialValueMonitoredItem)monitoredItem).QueueInitialValue(
+                new DataValue(Variant.Null, StatusCodes.BadCommunicationError),
+                new ServiceResult(StatusCodes.BadCommunicationError),
+                ignoreFilters: true);
+
+            ServiceResult result = monitoredItem.ModifyAttributes(
+                DiagnosticsMasks.All,
+                TimestampsToReturn.Both,
+                3,
+                monitoredItem.Filter,
+                monitoredItem.Filter,
+                null,
+                0,
+                2,
+                discardOldest: true);
+            Assert.That(ServiceResult.IsGood(result), Is.True);
+            monitoredItem.QueueValue(new DataValue(Variant.From(1)), ServiceResult.Good);
+            monitoredItem.QueueValue(new DataValue(Variant.From(2)), ServiceResult.Good);
+            var notifications = new Queue<MonitoredItemNotification>();
+            _ = monitoredItem.Publish(
+                new OperationContext(monitoredItem),
+                notifications,
+                new Queue<DiagnosticInfo>(),
+                10,
+                telemetry.CreateLogger<MonitoredItemTests>());
+
+            Assert.That(notifications, Has.Count.EqualTo(2));
+            Assert.That(notifications.All(value => StatusCode.IsGood(value.Value.StatusCode)), Is.True);
+            Assert.That(
+                notifications.Select(value => value.Value.WrappedValue),
+                Is.EqualTo([Variant.From(1), Variant.From(2)]));
         }
 
         [Test]

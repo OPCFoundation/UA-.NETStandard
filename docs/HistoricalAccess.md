@@ -376,24 +376,37 @@ oldest-to-newest before live delivery begins. Live values arriving while the
 provider is being read are buffered and delivered after the historical window;
 the current value is never queued ahead of that history. Future start times,
 non-Value attributes, and nodes without a raw historian retain the normal
-current-value initialization. Provider read failures queue a visible error
+current-value initialization. Provider read failures queue an error
 notification and leave the monitored item active for later live values rather
 than silently falling back. A live-value buffer overflow fails creation because
 the history-to-live ordering can no longer be guaranteed. Required priming-error
-notifications remain protected across live queue resizing. That protection is
-transient queue state: durable restore retains the monitored-item definition,
-last value/error, and stored raw queue values, but does not reinstate priming
+notifications remain protected while the live queue size is greater than one.
+A queue size of one retains only the newest notification, including after a
+resize: later samples may replace an error before publication, as specified in
+[Part 4, 5.13.1.5](https://reference.opcfoundation.org/specs/OPC-10000-4/5.13.1.5).
+Growing that single-value buffer does not restore protection.
+Protection is transient queue state: durable restore retains the monitored-item
+definition, last value/error, and stored raw queue values, but does not reinstate priming
 protection or synthesize a notification absent from the stored queue.
 
 Modifying an existing monitored item to a past-start aggregate uses the same
 history-before-live handoff whenever the aggregate calculator changes.
 Equivalent filter revisions do not replay history or replace the calculator.
 If post-commit priming fails, the existing monitored item stays registered,
-publishes a protected error notification, and continues with later live
-values.
+queues an error notification under the same queue-size rules, and continues
+with later live values.
 
 Custom monitored-item implementations can preserve the same ordering by
 implementing `IInitialValueMonitoredItem`.
+
+[Part 4, 7.22.4](https://reference.opcfoundation.org/specs/OPC-10000-4/7.22.4)
+allows past start times and server revision; it does not require
+every server to read history or prescribe where aggregation is implemented.
+This stack supports historical initialization when the resolved provider can
+supply it. `MonitoredItemAggregation` owns calculator changes, bounded live
+buffering, overlap identities, and aggregate output. `MonitoredItem` delegates
+that work while retaining its normal filtering, notification, and lifecycle
+responsibilities.
 
 The synchronous `CustomNodeManager` path retains its synchronous aggregate
 revision and current-value initialization behavior; it does not block on

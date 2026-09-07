@@ -32,7 +32,6 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Threading;
 using Microsoft.Extensions.Logging;
-using Opc.Ua.Server.Historian;
 
 namespace Opc.Ua.Server
 {
@@ -197,12 +196,6 @@ namespace Opc.Ua.Server
             QueueSize = queueSize;
             m_discardOldest = discardOldest;
             m_sourceSamplingInterval = (int)sourceSamplingInterval;
-            m_calculator = null;
-            m_initialValuePending =
-                filterToUse is ServerAggregateFilter { PrimeInitialValue: true };
-            m_initialValueKeySelector =
-                (filterToUse as ServerAggregateFilter)?.HistorianKeySelector ??
-                TimestampStructuredDataKeySelector.Instance;
             m_nextSamplingTime = m_timeProvider.GetTimestampMilliseconds();
             AlwaysReportUpdates = false;
             m_monitoredItemQueueFactory = m_server.MonitoredItemQueueFactory;
@@ -227,18 +220,13 @@ namespace Opc.Ua.Server
                 }
             }
 
-            // create aggregate calculator.
-            var aggregateFilter = filterToUse as ServerAggregateFilter;
-
-            if (filterToUse is ServerAggregateFilter)
+            if (filterToUse is ServerAggregateFilter aggregateFilter)
             {
-                m_calculator = m_server.AggregateManager.CreateCalculator(
-                    aggregateFilter!.AggregateType,
-                    (DateTime)aggregateFilter.StartTime,
-                    DateTime.MaxValue,
-                    aggregateFilter.ProcessingInterval,
-                    aggregateFilter.Stepped,
-                    aggregateFilter.AggregateConfiguration);
+                m_aggregation = new MonitoredItemAggregation(
+                    m_server.AggregateManager,
+                    aggregateFilter,
+                    QueueProcessedValue,
+                    primeInitialValue: true);
             }
 
             if (range != null)
@@ -315,7 +303,6 @@ namespace Opc.Ua.Server
             QueueSize = storedMonitoredItem.QueueSize;
             m_discardOldest = storedMonitoredItem.DiscardOldest;
             m_sourceSamplingInterval = storedMonitoredItem.SourceSamplingInterval;
-            m_calculator = null;
             m_nextSamplingTime = m_timeProvider.GetTimestampMilliseconds();
             m_monitoredItemQueueFactory = m_server.MonitoredItemQueueFactory;
             m_subscriptionStore = m_server.SubscriptionStore;
@@ -337,16 +324,13 @@ namespace Opc.Ua.Server
                 m_filteredRetainConditionIds = [.. filteredRetainConditionIds];
             }
 
-            // create aggregate calculator.
             if (storedMonitoredItem.FilterToUse is ServerAggregateFilter aggregateFilter)
             {
-                m_calculator = m_server.AggregateManager.CreateCalculator(
-                    aggregateFilter.AggregateType,
-                    (DateTime)aggregateFilter.StartTime,
-                    DateTime.MaxValue,
-                    aggregateFilter.ProcessingInterval,
-                    aggregateFilter.Stepped,
-                    aggregateFilter.AggregateConfiguration);
+                m_aggregation = new MonitoredItemAggregation(
+                    m_server.AggregateManager,
+                    aggregateFilter,
+                    QueueProcessedValue,
+                    primeInitialValue: false);
             }
 
             // report change to item state.
@@ -388,9 +372,6 @@ namespace Opc.Ua.Server
             Filter = null!;
             m_lastValue = default;
             m_lastError = null;
-            m_requiredLastValue = default;
-            m_requiredLastError = null;
-            m_requiredLastValuePending = false;
             m_readyToPublish = false;
             m_readyToTrigger = false;
             m_sourceSamplingInterval = 0;
@@ -454,7 +435,7 @@ namespace Opc.Ua.Server
             get
             {
                 // check if aggregate interval has passed.
-                if (m_calculator != null && m_calculator.HasEndTimePassed(DateTime.UtcNow))
+                if (m_aggregation?.HasEndTimePassed(DateTime.UtcNow) == true)
                 {
                     return true;
                 }
@@ -941,44 +922,12 @@ namespace Opc.Ua.Server
             lock (m_lock)
             {
                 MonitoringFilter? previousFilterToUse = m_filterToUse;
-                IAggregateCalculator? replacementCalculator = m_calculator;
-                bool preparedCalculatorUsed = false;
-                bool calculatorChanged = false;
-
-                if (filterToUse is ServerAggregateFilter aggregateFilter)
+                MonitoredItemAggregation? aggregation = m_aggregation;
+                if (aggregation == null && filterToUse is ServerAggregateFilter)
                 {
-                    if (IsEquivalentAggregateFilterLocked(aggregateFilter))
-                    {
-                        aggregateFilter.PrimeInitialValue = false;
-                    }
-                    else
-                    {
-                        if (m_aggregateModificationPreparation is
-                            {
-                                Filter: var preparedFilter
-                            } prepared &&
-                            ReferenceEquals(preparedFilter, aggregateFilter))
-                        {
-                            preparedCalculatorUsed = true;
-                            replacementCalculator = prepared.Calculator;
-                        }
-                        else
-                        {
-                            replacementCalculator =
-                                CreateAggregateCalculator(aggregateFilter);
-                        }
-                        calculatorChanged = true;
-                        if (replacementCalculator == null)
-                        {
-                            aggregateFilter.PrimeInitialValue = false;
-                        }
-                    }
+                    aggregation = new MonitoredItemAggregation(m_server.AggregateManager, QueueProcessedValue);
                 }
-                else if (m_calculator != null)
-                {
-                    replacementCalculator = null;
-                    calculatorChanged = true;
-                }
+                MonitoredItemAggregation.Modification? aggregateChange = aggregation?.PrepareChange(filterToUse);
 
                 DiagnosticsMasks = diagnosticsMasks;
                 m_timestampsToReturn = timestampsToReturn;
@@ -999,27 +948,8 @@ namespace Opc.Ua.Server
                 SetSamplingInterval(samplingInterval);
                 QueueSize = queueSize;
 
-                if (calculatorChanged)
-                {
-                    m_calculator = replacementCalculator;
-                    m_initialValuePending =
-                        replacementCalculator != null &&
-                        filterToUse is ServerAggregateFilter
-                        {
-                            PrimeInitialValue: true
-                        };
-                    m_pendingValues = null;
-                    m_initialValueKeys = null;
-                    m_initialValuesWithoutSourceTimestamp = null;
-                    m_initialValueKeySelector =
-                        (filterToUse as ServerAggregateFilter)?.HistorianKeySelector ??
-                        TimestampStructuredDataKeySelector.Instance;
-                    m_initialValueOverflowed = false;
-                    if (preparedCalculatorUsed)
-                    {
-                        m_aggregateModificationPreparation!.MarkCommitted();
-                    }
-                }
+                m_aggregation = aggregation;
+                aggregation?.CommitChange(filterToUse, aggregateChange);
 
                 // report change to item state.
                 ServerUtils.ReportModifyMonitoredItem(
@@ -1032,102 +962,25 @@ namespace Opc.Ua.Server
                     MonitoringMode);
 
                 InitializeQueue();
-                if (preparedCalculatorUsed)
-                {
-                    m_aggregateModificationPreparation = null;
-                }
 
                 return null;
             }
         }
 
-        internal AggregateModificationPreparation?
-            PrepareAggregateModification(
-            ServerAggregateFilter aggregateFilter)
+        internal MonitoredItemAggregation.Modification? PrepareAggregateModification(ServerAggregateFilter filter)
         {
             lock (m_lock)
             {
-                m_aggregateModificationPreparation = null;
-                if (IsEquivalentAggregateFilterLocked(aggregateFilter))
-                {
-                    aggregateFilter.PrimeInitialValue = false;
-                    return null;
-                }
-
-                var preparation = new AggregateModificationPreparation(
-                    aggregateFilter,
-                    CreateAggregateCalculator(aggregateFilter));
-                m_aggregateModificationPreparation = preparation;
-                if (preparation.Calculator == null)
-                {
-                    aggregateFilter.PrimeInitialValue = false;
-                }
-                return preparation;
+                m_aggregation ??= new MonitoredItemAggregation(m_server.AggregateManager, QueueProcessedValue);
+                return m_aggregation.PrepareModification(filter);
             }
         }
 
-        internal void CancelPreparedAggregateModification(
-            AggregateModificationPreparation preparation)
+        internal void CancelPreparedAggregateModification(MonitoredItemAggregation.Modification preparation)
         {
             lock (m_lock)
             {
-                if (ReferenceEquals(
-                    m_aggregateModificationPreparation,
-                    preparation))
-                {
-                    m_aggregateModificationPreparation = null;
-                }
-            }
-        }
-
-        private IAggregateCalculator? CreateAggregateCalculator(
-            ServerAggregateFilter aggregateFilter)
-        {
-            return m_server.AggregateManager.CreateCalculator(
-                aggregateFilter.AggregateType,
-                (DateTime)aggregateFilter.StartTime,
-                DateTime.MaxValue,
-                aggregateFilter.ProcessingInterval,
-                aggregateFilter.Stepped,
-                aggregateFilter.AggregateConfiguration);
-        }
-
-        private bool IsEquivalentAggregateFilterLocked(
-            ServerAggregateFilter aggregateFilter)
-        {
-            return m_filterToUse is ServerAggregateFilter existingFilter &&
-                m_calculator != null &&
-                existingFilter.AggregateType == aggregateFilter.AggregateType &&
-                existingFilter.ProcessingInterval ==
-                    aggregateFilter.ProcessingInterval &&
-                existingFilter.StartTime == aggregateFilter.StartTime &&
-                existingFilter.Stepped == aggregateFilter.Stepped &&
-                existingFilter.AggregateConfiguration
-                    .IsEqual(aggregateFilter.AggregateConfiguration);
-        }
-
-        internal sealed class AggregateModificationPreparation
-        {
-            internal AggregateModificationPreparation(
-                ServerAggregateFilter filter,
-                IAggregateCalculator? calculator)
-            {
-                Filter = filter;
-                Calculator = calculator;
-            }
-
-            internal ServerAggregateFilter Filter { get; }
-
-            internal IAggregateCalculator? Calculator { get; }
-
-            internal bool IsCommitted { get; private set; }
-
-            internal bool RequiresInitialValue =>
-                Calculator != null && Filter.PrimeInitialValue;
-
-            internal void MarkCommitted()
-            {
-                IsCommitted = true;
+                m_aggregation?.CancelModification(preparation);
             }
         }
 
@@ -1248,59 +1101,7 @@ namespace Opc.Ua.Server
         {
             lock (m_lock)
             {
-                List<PendingValue>? pendingValues = m_pendingValues;
-                HashSet<HistoricalValueKey>? initialValueKeys =
-                    m_initialValueKeys;
-                List<DataValue>? initialValuesWithoutSourceTimestamp =
-                    m_initialValuesWithoutSourceTimestamp;
-                bool initialValueOverflowed = m_initialValueOverflowed;
-                m_pendingValues = null;
-                m_initialValueKeys = null;
-                m_initialValuesWithoutSourceTimestamp = null;
-                m_initialValuePending = false;
-                m_initialValueOverflowed = false;
-
-                if (initialValueOverflowed)
-                {
-                    return StatusCodes.BadTooManyOperations;
-                }
-
-                if (pendingValues != null)
-                {
-                    foreach (PendingValue pending in pendingValues)
-                    {
-                        DataValue pendingValue = pending.Value;
-                        if (!pendingValue.IsNull &&
-                            pending.Error != null &&
-                            pending.Error.StatusCode.Code != 0)
-                        {
-                            pendingValue = pendingValue.WithStatus(
-                                pending.Error.StatusCode);
-                        }
-                        // A source timestamp identifies an archived sample. Without one,
-                        // require the complete DataValue to match before dropping live data.
-                        bool alreadyRepresented = ServiceResult.IsGood(
-                            pending.Error) &&
-                            (TryGetInitialValueKey(
-                                in pendingValue,
-                                out HistoricalValueKey key)
-                                ? initialValueKeys?.Contains(key) == true
-                                : initialValuesWithoutSourceTimestamp?.Exists(
-                                    candidate =>
-                                        candidate.Equals(pendingValue)) == true);
-                        if (alreadyRepresented)
-                        {
-                            continue;
-                        }
-                        QueueValueLocked(
-                            pending.Value,
-                            pending.Error,
-                            pending.IgnoreFilters,
-                            required: false,
-                            initialValue: false);
-                    }
-                }
-                return ServiceResult.Good;
+                return m_aggregation?.CompleteInitialValue(QueueBufferedValue) ?? ServiceResult.Good;
             }
         }
 
@@ -1324,22 +1125,9 @@ namespace Opc.Ua.Server
                     return;
                 }
 
-                if (m_initialValuePending && !initialValue)
+                if (!initialValue &&
+                    m_aggregation?.TryBufferLiveValue(value, error, ignoreFilters) == true)
                 {
-                    if ((m_pendingValues?.Count ?? 0) >=
-                        kMaxPendingInitialValues)
-                    {
-                        m_initialValueOverflowed = true;
-                        return;
-                    }
-                    DataValue pendingValue = value.IsNull
-                        ? DataValue.Null
-                        : value.Copy();
-                    (m_pendingValues ??= []).Add(
-                        new PendingValue(
-                            pendingValue,
-                            error,
-                            ignoreFilters));
                     return;
                 }
 
@@ -1347,16 +1135,24 @@ namespace Opc.Ua.Server
                     value,
                     error,
                     ignoreFilters,
-                    required: initialValue && ServiceResult.IsBad(error),
                     initialValue: initialValue);
             }
+        }
+
+        private void QueueBufferedValue(in DataValue value, ServiceResult? error, bool ignoreFilters)
+        {
+            QueueValueLocked(value, error, ignoreFilters, initialValue: false);
+        }
+
+        private void QueueProcessedValue(in DataValue value)
+        {
+            AddValueToQueue(value, null!);
         }
 
         private void QueueValueLocked(
             in DataValue value,
             ServiceResult? error,
             bool ignoreFilters,
-            bool required,
             bool initialValue)
         {
             DataValue current = value;
@@ -1395,12 +1191,7 @@ namespace Opc.Ua.Server
                 return;
             }
 
-            if (m_requiredLastValuePending && !required)
-            {
-                return;
-            }
-
-            if (required)
+            if (initialValue && ServiceResult.IsBad(error))
             {
                 ServerUtils.ReportQueuedValue(NodeId, Id, current);
                 AddRequiredValueToQueue(
@@ -1411,26 +1202,10 @@ namespace Opc.Ua.Server
             }
 
             // apply aggregate filter.
-            if (m_calculator != null && !ServiceResult.IsBad(error))
+            if (!ServiceResult.IsBad(error) &&
+                m_aggregation != null &&
+                m_aggregation.TryQueueValue(current, initialValue, out bool accepted))
             {
-                bool accepted = m_calculator.QueueRawValue(current);
-                if (accepted &&
-                    initialValue &&
-                    m_initialValuePending)
-                {
-                    if (TryGetInitialValueKey(
-                        in current,
-                        out HistoricalValueKey key))
-                    {
-                        (m_initialValueKeys ??= []).Add(key);
-                    }
-                    else
-                    {
-                        (m_initialValuesWithoutSourceTimestamp ??= [])
-                            .Add(current);
-                    }
-                }
-
                 if (!accepted &&
                     m_logger.IsEnabled(LogLevel.Trace))
                 {
@@ -1440,11 +1215,6 @@ namespace Opc.Ua.Server
                             .ToString("HH:mm:ss.fff", CultureInfo.InvariantCulture),
                         Id,
                         SubscriptionId);
-                }
-
-                while (m_calculator.TryGetProcessedValue(false, out DataValue processedValue))
-                {
-                    AddValueToQueue(processedValue, null!);
                 }
 
                 return;
@@ -1463,31 +1233,6 @@ namespace Opc.Ua.Server
             AddValueToQueue(current, error!);
         }
 
-        private bool TryGetInitialValueKey(
-            in DataValue value,
-            out HistoricalValueKey key)
-        {
-            if (value.SourceTimestamp == DateTimeUtc.MinValue)
-            {
-                key = default;
-                return false;
-            }
-            IHistorianStructuredDataKeySelector selector =
-                m_initialValueKeySelector ??
-                TimestampStructuredDataKeySelector.Instance;
-            if (!selector.TryGetUniquenessKey(
-                    in value,
-                    out ByteString uniquenessKey))
-            {
-                key = default;
-                return false;
-            }
-            key = new HistoricalValueKey(
-                value.SourceTimestamp,
-                uniquenessKey);
-            return true;
-        }
-
         private void AddRequiredValueToQueue(
             DataValue value,
             ServiceResult error,
@@ -1500,34 +1245,16 @@ namespace Opc.Ua.Server
                     error,
                     replaceExisting);
             }
-            else
-            {
-                if (m_requiredLastValuePending &&
-                    (m_requiredLastValue.StatusCode == value.StatusCode ||
-                        !replaceExisting))
-                {
-                    return;
-                }
-                m_requiredLastValue = value;
-                m_requiredLastError = error;
-                m_requiredLastValuePending = true;
-            }
-
             m_lastValue = value;
             m_lastError = error;
             m_readyToPublish = true;
             m_readyToTrigger = true;
         }
 
-        private readonly record struct PendingValue(
-            DataValue Value,
-            ServiceResult? Error,
-            bool IgnoreFilters);
-
         /// <summary>
         /// Adds a value to the queue.
         /// </summary>
-        private void AddValueToQueue(DataValue value, ServiceResult error)
+        private void AddValueToQueue(in DataValue value, ServiceResult error)
         {
             bool overflow = false;
             if (QueueSize > 1)
@@ -2023,20 +1750,7 @@ namespace Opc.Ua.Server
                 }
                 else
                 {
-                    // pull any unprocessed data.
-                    if (m_calculator != null &&
-                        m_calculator.HasEndTimePassed(DateTime.UtcNow))
-                    {
-                        while (m_calculator.TryGetProcessedValue(false, out DataValue processedValue))
-                        {
-                            AddValueToQueue(processedValue, null!);
-                        }
-
-                        if (m_calculator.TryGetProcessedValue(true, out DataValue partialValue))
-                        {
-                            AddValueToQueue(partialValue, null!);
-                        }
-                    }
+                    m_aggregation?.Publish(DateTime.UtcNow);
 
                     IncrementSampleTime();
                 }
@@ -2071,13 +1785,6 @@ namespace Opc.Ua.Server
                         m_lastValue.StatusCode.Overflow,
                         Id);
                     Publish(context, notifications, diagnostics, m_lastValue, m_lastError!);
-                    if (m_requiredLastValuePending &&
-                        m_requiredLastValue == m_lastValue)
-                    {
-                        m_requiredLastValue = default;
-                        m_requiredLastError = null;
-                        m_requiredLastValuePending = false;
-                    }
                 }
 
                 bool moreValuesToPublish = m_dataChangeQueueHandler?.ItemsInQueue > 0;
@@ -2450,16 +2157,6 @@ namespace Opc.Ua.Server
                     {
                         if (QueueSize <= 1)
                         {
-                            if (m_dataChangeQueueHandler?.TryGetRequiredValue(
-                                out DataValue requiredValue,
-                                out ServiceResult requiredError) == true)
-                            {
-                                m_requiredLastValue = requiredValue;
-                                m_requiredLastError = requiredError;
-                                m_requiredLastValuePending = true;
-                                m_lastValue = requiredValue;
-                                m_lastError = requiredError;
-                            }
                             m_dataChangeQueueHandler?.Dispose();
                             m_dataChangeQueueHandler = null;
                             break; // queueing is disabled
@@ -2486,21 +2183,9 @@ namespace Opc.Ua.Server
 
                         if (queueLastValue && !m_lastValue.IsNull)
                         {
-                            if (m_requiredLastValuePending)
-                            {
-                                m_dataChangeQueueHandler.QueueRequiredValue(
-                                    m_requiredLastValue,
-                                    m_requiredLastError!);
-                                m_requiredLastValue = default;
-                                m_requiredLastError = null;
-                                m_requiredLastValuePending = false;
-                            }
-                            else
-                            {
-                                m_dataChangeQueueHandler.QueueValue(
-                                    m_lastValue,
-                                    m_lastError!);
-                            }
+                            m_dataChangeQueueHandler.QueueValue(
+                                m_lastValue,
+                                m_lastError!);
                         }
                     }
                     else // create event queue.
@@ -2518,9 +2203,6 @@ namespace Opc.Ua.Server
                     m_eventQueueHandler = null;
                     m_dataChangeQueueHandler?.Dispose();
                     m_dataChangeQueueHandler = null;
-                    m_requiredLastValue = default;
-                    m_requiredLastError = null;
-                    m_requiredLastValuePending = false;
                     break;
                 default:
                     throw ServiceResultException.Unexpected(
@@ -2722,9 +2404,6 @@ namespace Opc.Ua.Server
         private int m_sourceSamplingInterval;
         private DataValue m_lastValue;
         private ServiceResult? m_lastError;
-        private DataValue m_requiredLastValue;
-        private ServiceResult? m_requiredLastError;
-        private bool m_requiredLastValuePending;
         private long m_nextSamplingTime;
         private readonly IMonitoredItemQueueFactory m_monitoredItemQueueFactory;
         private DataChangeQueueHandler? m_dataChangeQueueHandler;
@@ -2738,24 +2417,12 @@ namespace Opc.Ua.Server
         private bool m_structureChanged;
         private ISubscription? m_subscription;
         private ServiceResult? m_samplingError;
-        private IAggregateCalculator? m_calculator;
-
-        private AggregateModificationPreparation?
-            m_aggregateModificationPreparation;
-
-        private bool m_initialValuePending;
-        private List<PendingValue>? m_pendingValues;
-        private HashSet<HistoricalValueKey>? m_initialValueKeys;
-        private List<DataValue>? m_initialValuesWithoutSourceTimestamp;
-        private IHistorianStructuredDataKeySelector? m_initialValueKeySelector;
-        private bool m_initialValueOverflowed;
+        private MonitoredItemAggregation? m_aggregation;
         private bool m_triggered;
         private bool m_resendData;
         private HashSet<string>? m_filteredRetainConditionIds;
         private bool m_isDetached;
         private bool m_isDeleted;
-
-        private const int kMaxPendingInitialValues = 100_000;
     }
 
     /// <summary>

@@ -98,6 +98,22 @@ namespace Opc.Ua.Server.Tests
             });
         }
 
+        [Test]
+        public void QueueSizeOneCanReplaceDeletionNotificationBeforePublish()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            using MonitoredItem item = CreateMonitoredItem(telemetry, queueSize: 1);
+            var recovered = new DataValue(Variant.From(42), StatusCodes.Good);
+
+            ((IDetachableMonitoredItem)item).MarkNodeDeleted();
+            item.QueueValue(recovered, ServiceResult.Good);
+            Queue<MonitoredItemNotification> notifications = Publish(item, telemetry, 1, out bool more);
+
+            Assert.That(notifications, Has.Count.EqualTo(1));
+            Assert.That(notifications.Peek().Value, Is.EqualTo(recovered));
+            Assert.That(more, Is.False);
+        }
+
         [TestCase(true)]
         [TestCase(false)]
         public void LifecycleValuesObeyQueueDiscardPolicyWithoutDiscardingBad(bool discardOldest)
@@ -185,8 +201,8 @@ namespace Opc.Ua.Server.Tests
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             var originalManager = new Mock<IAsyncNodeManager>();
             var reboundManager = new Mock<IAsyncNodeManager>();
-            var originalHandle = new object();
-            var reboundHandle = new object();
+            object originalHandle = new();
+            object reboundHandle = new();
             using MonitoredItem item = CreateMonitoredItem(
                 telemetry,
                 nodeManager: originalManager.Object,
@@ -297,6 +313,7 @@ namespace Opc.Ua.Server.Tests
                 Assert.That(restoredLifecycle.IsDetached, Is.False);
             });
         }
+
         [Test]
         public void MultiplePendingDeletionEpochsCollapseIntoOneMarker()
         {
@@ -703,6 +720,7 @@ namespace Opc.Ua.Server.Tests
                 Assert.That(published[0].WrappedValue, Is.EqualTo(new Variant(42)));
             });
         }
+
         private static DataChangeQueueHandler CreateQueueHandler(
             ITelemetryContext telemetry,
             MonitoredItemQueueFactory queueFactory,
@@ -738,6 +756,7 @@ namespace Opc.Ua.Server.Tests
             }
             return values;
         }
+
         private static MonitoredItem CreateMonitoredItem(
             ITelemetryContext telemetry,
             uint queueSize = 1,
