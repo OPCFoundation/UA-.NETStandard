@@ -76,8 +76,13 @@ namespace Opc.Ua.Server.Fluent
             if (firstSource != null &&
                 builder.NodeManager is AsyncCustomNodeManager manager)
             {
+                // Only claim ownership when this alarm actually inserted the
+                // registration. AddRootNotifierSynchronously is an upsert, so claiming
+                // it unconditionally would have teardown remove a pre-existing root
+                // notifier — along with its event callback and HasNotifier reference.
+                bool alreadyRegistered = manager.IsRootNotifier(firstSource.NodeId);
                 manager.AddRootNotifierSynchronously(firstSource);
-                rootNotifier = firstSource;
+                rootNotifier = alreadyRegistered ? null : firstSource;
             }
 
             return new AlarmEventSourceRegistration(promoted, rootNotifier);

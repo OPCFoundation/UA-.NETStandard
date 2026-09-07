@@ -62,6 +62,11 @@ namespace Opc.Ua.Server.Fluent
             }
             m_released = true;
 
+            // A failure here must not cost us the rest of the cleanup, but it must not
+            // vanish either: the engine promises to aggregate release failures, and an
+            // operator otherwise gets no sign that teardown left registration state
+            // behind. It is retained and rethrown once the rest has run.
+            Exception? rootNotifierFailure = null;
             if (m_eventSource.RootNotifier != null &&
                 m_builder.NodeManager is FluentNodeManagerBase manager)
             {
@@ -75,8 +80,7 @@ namespace Opc.Ua.Server.Fluent
                 }
                 catch (Exception ex) when (ex is not OutOfMemoryException)
                 {
-                    // Teardown is best effort for the notifier registration; the
-                    // condition itself is still disabled below.
+                    rootNotifierFailure = ex;
                 }
             }
 
@@ -90,6 +94,13 @@ namespace Opc.Ua.Server.Fluent
             // being deleted, so they are left alone: they hold nothing to release, and
             // the fields are not nullable.
             m_alarm.SetEnableState(m_context, enabled: false);
+
+            if (rootNotifierFailure is not null)
+            {
+                System.Runtime.ExceptionServices.ExceptionDispatchInfo
+                    .Capture(rootNotifierFailure)
+                    .Throw();
+            }
         }
 
         private readonly ConditionState m_alarm;

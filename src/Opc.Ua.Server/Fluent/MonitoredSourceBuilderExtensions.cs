@@ -222,9 +222,13 @@ namespace Opc.Ua.Server.Fluent
 
             builder.OnFirstSubscriber(async (context, source, cancellationToken) =>
             {
+                // Take the generation before awaiting: a release that lands while the
+                // acquisition is still in flight bumps it, and the handle we are about
+                // to receive is then disposed on arrival rather than stranded.
+                long generation = held.BeginAcquire();
                 IAsyncDisposable handle = await acquire(context, source, cancellationToken)
                     .ConfigureAwait(false);
-                held.Set(handle);
+                await held.CompleteAcquireAsync(generation, handle).ConfigureAwait(false);
             });
 
             builder.OnLastSubscriber(async (context, source, cancellationToken) =>
@@ -244,18 +248,63 @@ namespace Opc.Ua.Server.Fluent
         /// </summary>
         private sealed class HeldResource
         {
-            public void Set(IAsyncDisposable handle)
+            /// <summary>
+            /// Marks the start of an acquisition and returns the generation it belongs
+            /// to.
+            /// </summary>
+            public long BeginAcquire()
             {
-                Interlocked.Exchange(ref m_handle, handle);
+                lock (m_gate)
+                {
+                    return m_generation;
+                }
+            }
+
+            /// <summary>
+            /// Stores the acquired handle, or disposes it when a release overtook the
+            /// acquisition that produced it.
+            /// </summary>
+            public ValueTask CompleteAcquireAsync(
+                long generation,
+                IAsyncDisposable handle)
+            {
+                if (handle is null)
+                {
+                    return default;
+                }
+
+                lock (m_gate)
+                {
+                    if (generation == m_generation)
+                    {
+                        m_handle = handle;
+                        return default;
+                    }
+                }
+
+                // The subscriber that asked for this went away while it was being
+                // acquired, so nothing will ever release it but us.
+                return handle.DisposeAsync();
             }
 
             public ValueTask ReleaseAsync()
             {
-                IAsyncDisposable? handle = Interlocked.Exchange(ref m_handle, null);
+                IAsyncDisposable? handle;
+                lock (m_gate)
+                {
+                    // Bump first: an acquisition still in flight belongs to the old
+                    // generation and will dispose its own result.
+                    m_generation++;
+                    handle = m_handle;
+                    m_handle = null;
+                }
+
                 return handle?.DisposeAsync() ?? default;
             }
 
+            private readonly Lock m_gate = new();
             private IAsyncDisposable? m_handle;
+            private long m_generation;
         }
 
         private static MonitoredSourceRegistration GetRegistration(

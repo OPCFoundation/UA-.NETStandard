@@ -134,6 +134,21 @@ namespace Opc.Ua.Server.Fluent
         public void Seal()
         {
             m_sealed = true;
+
+            // Sealing is synchronous and cannot activate, so a manager that seals
+            // without ever completing asynchronously would drop its behavior
+            // registrations without a trace. Say so rather than leaving the caller to
+            // wonder why nothing was ever released.
+            int pending;
+            lock (m_nodeAttachmentsLock)
+            {
+                pending = m_nodeAttachments.Count;
+            }
+            if (pending > 0)
+            {
+                FluentOwner?.WarnSealedWithPendingNodeBehaviors(pending);
+            }
+
             Simulations?.Start();
         }
 

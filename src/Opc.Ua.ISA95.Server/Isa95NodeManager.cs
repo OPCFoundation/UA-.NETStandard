@@ -127,9 +127,9 @@ namespace Opc.Ua.ISA95.Server
                 .ConfigureAwait(false);
             builder.Seal();
             await ConfigureCommonModelAsync(Root, cancellationToken).ConfigureAwait(false);
-            ConfigureCatalogChanges();
+            await ConfigureCatalogChangesAsync(cancellationToken).ConfigureAwait(false);
             await RefreshJobOrderListsAsync(cancellationToken).ConfigureAwait(false);
-            ConfigureStatusEvents();
+            await ConfigureStatusEventsAsync(cancellationToken).ConfigureAwait(false);
         }
 
         public override async ValueTask DeleteAddressSpaceAsync(
@@ -1030,7 +1030,8 @@ namespace Opc.Ua.ISA95.Server
                     StringComparison.Ordinal);
         }
 
-        private void ConfigureStatusEvents()
+        private async ValueTask ConfigureStatusEventsAsync(
+            CancellationToken cancellationToken)
         {
             if (m_v2ResponseProvider == null || m_providers.JobStatusSourceV2 == null)
             {
@@ -1043,19 +1044,27 @@ namespace Opc.Ua.ISA95.Server
                 .Publish(
                     CreateStatusEventsAsync,
                     new EventPublishOptions { AlwaysOn = true });
+
+            // This second builder is created after the manager's only
+            // CompleteConfigureAsync call, so it drains its own registrations —
+            // otherwise the event source's release would never be activated.
+            await ActivateNodeBehaviorsAsync(cancellationToken).ConfigureAwait(false);
             builder.Seal();
         }
 
-        private void ConfigureCatalogChanges()
+        private ValueTask ConfigureCatalogChangesAsync(
+            CancellationToken cancellationToken)
         {
+            _ = cancellationToken;
             if (m_providers.JobOrderCatalog == null ||
                 m_providers.JobOrderCatalogChangeSource == null)
             {
-                return;
+                return default;
             }
             m_catalogChangesTask = ProcessCatalogChangesAsync(
                 m_providers.JobOrderCatalogChangeSource,
                 m_catalogChangesCts.Token);
+            return default;
         }
 
         private void CancelCatalogChanges()

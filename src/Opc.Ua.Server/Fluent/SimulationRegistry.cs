@@ -336,6 +336,12 @@ namespace Opc.Ua.Server.Fluent
             // slow handler drops ticks rather than queueing them up.
             // Ownership of both handles transfers to the loop task below, which disposes
             // them in its finally; the analyzer cannot see across that lambda boundary.
+            // Baseline the clock before arming: the timer can fire before the loop task
+            // is scheduled — deterministically so under a fake clock advanced right
+            // after Start — and a baseline taken inside the task would report the first
+            // tick as zero elapsed even though a full interval passed.
+            long startTimestamp = timeProvider.GetTimestamp();
+
 #pragma warning disable CA2000
             var tick = new SemaphoreSlim(0, 1);
             ITimer timer;
@@ -372,7 +378,7 @@ namespace Opc.Ua.Server.Fluent
             RunningTask = Task.Run(
                 async () =>
                 {
-                    long lastTimestamp = timeProvider.GetTimestamp();
+                    long lastTimestamp = startTimestamp;
                     try
                     {
                         while (true)
@@ -399,7 +405,11 @@ namespace Opc.Ua.Server.Fluent
                         tick.Dispose();
                     }
                 },
-                cancellationToken);
+                // Deliberately not the shutdown token: cancelling between the check
+                // above and scheduling would stop the delegate from ever running, and
+                // its finally is what disposes the timer and the signal. The loop
+                // observes cancellation in WaitAsync instead.
+                CancellationToken.None);
         }
 
         private void AddHandler(

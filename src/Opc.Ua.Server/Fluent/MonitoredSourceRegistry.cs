@@ -547,12 +547,19 @@ namespace Opc.Ua.Server.Fluent
             await m_updateLock.WaitAsync().ConfigureAwait(false);
             try
             {
-                if (m_disposeStarted == 0 && HasActiveItems())
+                if (!m_releasing && m_disposeStarted == 0 && HasActiveItems())
                 {
                     lastSubscriber = m_lastSubscriber;
                     source = m_desiredSource;
                     m_items.Clear();
                 }
+
+                // Enter the terminal state while still holding the lock. Clearing the
+                // items alone would leave a window in which an already-dispatched
+                // UpdateAsync sees zero active items, runs the first-subscriber
+                // acquisition again, and has its handle cleared by DisposeAsync
+                // without the last-subscriber release ever running.
+                m_releasing = true;
             }
             finally
             {
@@ -628,7 +635,10 @@ namespace Opc.Ua.Server.Fluent
                 await m_updateLock.WaitAsync().ConfigureAwait(false);
                 try
                 {
-                    if (Volatile.Read(ref m_disposeStarted) != 0)
+                    // m_releasing is set under this same lock the moment release
+                    // begins, so a pass dispatched before that cannot re-acquire in
+                    // the window before m_disposeStarted is set.
+                    if (m_releasing || Volatile.Read(ref m_disposeStarted) != 0)
                     {
                         return false;
                     }
@@ -1005,6 +1015,12 @@ namespace Opc.Ua.Server.Fluent
         private CancellationTokenSource? m_workerCts;
         private Task? m_worker;
         private int m_disposeStarted;
+
+        /// <summary>
+        /// Set under <c>m_updateLock</c> once release has begun, so a reconcile pass
+        /// that was already dispatched cannot re-acquire behind it.
+        /// </summary>
+        private bool m_releasing;
 
         private enum ReconcileAction
         {

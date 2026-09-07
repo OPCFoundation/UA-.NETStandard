@@ -180,6 +180,12 @@ namespace Opc.Ua.Server.RuntimeNodeSet
                     await AddReverseReferencesAsync(externalReferences, cancellationToken)
                         .ConfigureAwait(false);
 
+                    // This path does its own completion rather than going through
+                    // CompleteConfigureAsync, so it has to drain the behavior
+                    // registrations itself or they would stay pending forever.
+                    await ActivateNodeBehaviorsAsync(cancellationToken)
+                        .ConfigureAwait(false);
+
                     builder.Seal();
 
                     // Step 7 – Replay NotifyNodeAdded for every predefined node

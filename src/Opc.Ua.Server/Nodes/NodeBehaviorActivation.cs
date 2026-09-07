@@ -161,22 +161,32 @@ namespace Opc.Ua.Server.Nodes
         /// </remarks>
         public void SignalShutdown()
         {
+            // Snapshot under the gate, then signal outside it. Cancelling a token
+            // source runs the behavior's own lifetime callbacks synchronously: holding
+            // the gate across that would let a slow callback stall disposal, and a
+            // callback that re-enters teardown would deadlock on the gate.
+            List<INodeBehaviorShutdownSignal> signals = [];
             lock (m_gate)
             {
                 for (int i = 0; i < m_leases.Count; i++)
                 {
                     if (m_leases[i].Lease is INodeBehaviorShutdownSignal signal)
                     {
-                        try
-                        {
-                            signal.SignalShutdown();
-                        }
-                        catch (Exception ex) when (ex is not OutOfMemoryException)
-                        {
-                            // Best effort: a behavior that cannot be signalled is still
-                            // released by the async teardown path.
-                        }
+                        signals.Add(signal);
                     }
+                }
+            }
+
+            for (int i = signals.Count - 1; i >= 0; i--)
+            {
+                try
+                {
+                    signals[i].SignalShutdown();
+                }
+                catch (Exception ex) when (ex is not OutOfMemoryException)
+                {
+                    // Best effort: a behavior that cannot be signalled is still
+                    // released by the async teardown path.
                 }
             }
         }
@@ -192,7 +202,11 @@ namespace Opc.Ua.Server.Nodes
                 {
                     cancellationToken.ThrowIfCancellationRequested();
                     ActivationPlan plan = plans[planIndex];
-                    int firstLeaseIndex = m_leases.Count;
+                    int firstLeaseIndex;
+                    lock (m_gate)
+                    {
+                        firstLeaseIndex = m_leases.Count;
+                    }
                     var context = new NodeBehaviorContext(
                         plan.Node,
                         m_systemContext,
@@ -214,23 +228,39 @@ namespace Opc.Ua.Server.Nodes
                             // nothing is unwound for it later.
                             continue;
                         }
-                        if (!m_leaseSet.Add(lease))
+                        // Publication is guarded: a synchronous shutdown signal may be
+                        // enumerating the ledger on another thread while this pass is
+                        // still appending to it.
+                        lock (m_gate)
                         {
-                            throw new InvalidOperationException(
-                                "A node behavior lease was returned more than once " +
-                                $"for '{DescribeTarget(plan.Node)}'.");
-                        }
+                            if (!m_leaseSet.Add(lease))
+                            {
+                                throw new InvalidOperationException(
+                                    "A node behavior lease was returned more than once " +
+                                    $"for '{DescribeTarget(plan.Node)}'.");
+                            }
 
-                        m_leases.Add(new LeaseEntry(lease));
+                            m_leases.Add(new LeaseEntry(lease));
+                        }
                         cancellationToken.ThrowIfCancellationRequested();
                     }
 
+                    int lastLeaseIndex;
+                    lock (m_gate)
+                    {
+                        lastLeaseIndex = m_leases.Count;
+                    }
+
                     for (int leaseIndex = firstLeaseIndex;
-                        leaseIndex < m_leases.Count;
+                        leaseIndex < lastLeaseIndex;
                         leaseIndex++)
                     {
                         cancellationToken.ThrowIfCancellationRequested();
-                        LeaseEntry entry = m_leases[leaseIndex];
+                        LeaseEntry entry;
+                        lock (m_gate)
+                        {
+                            entry = m_leases[leaseIndex];
+                        }
                         await entry.Lease
                             .ActivateAsync(cancellationToken)
                             .ConfigureAwait(false);
@@ -402,7 +432,8 @@ namespace Opc.Ua.Server.Nodes
                     plans.Add(new ActivationPlan(
                         node,
                         factories,
-                        GetHierarchyDepth(instance)));
+                        GetHierarchyDepth(instance),
+                        plans.Count));
                 }
             }
 
@@ -422,7 +453,8 @@ namespace Opc.Ua.Server.Nodes
                     new ArrayOf<INodeBehaviorFactory>(new[] { pin.Factory }),
                     pin.Node is BaseInstanceState pinnedInstance
                         ? GetHierarchyDepth(pinnedInstance)
-                        : 0));
+                        : 0,
+                    plans.Count));
             }
 
             // 3. Manager-scoped registrations own no node. They sort last, so they
@@ -436,7 +468,8 @@ namespace Opc.Ua.Server.Nodes
                 plans.Add(new ActivationPlan(
                     node: null,
                     new ArrayOf<INodeBehaviorFactory>(new[] { factory }),
-                    ManagerScopedDepth));
+                    ManagerScopedDepth,
+                    plans.Count));
             }
 
             if (matched is not null)
@@ -455,6 +488,10 @@ namespace Opc.Ua.Server.Nodes
                 }
             }
 
+            // List<T>.Sort is not stable, so every comparison must end in a total
+            // order. Without the ordinal, two pinned behaviors on one node — or two
+            // manager-scoped ones — compare equal and can be reordered, which would
+            // break both deterministic composition and the reverse-order teardown.
             plans.Sort(static (left, right) =>
             {
                 int depth = right.Depth.CompareTo(left.Depth);
@@ -462,13 +499,20 @@ namespace Opc.Ua.Server.Nodes
                 {
                     return depth;
                 }
-                if (left.Node is null || right.Node is null)
+                if (left.Node is not null && right.Node is not null)
                 {
-                    return left.Node is null && right.Node is null
-                        ? 0
-                        : left.Node is null ? 1 : -1;
+                    int byNodeId = left.Node.NodeId.CompareTo(right.Node.NodeId);
+                    if (byNodeId != 0)
+                    {
+                        return byNodeId;
+                    }
                 }
-                return left.Node.NodeId.CompareTo(right.Node.NodeId);
+                else if (left.Node is null != right.Node is null)
+                {
+                    return left.Node is null ? 1 : -1;
+                }
+
+                return left.Ordinal.CompareTo(right.Ordinal);
             });
             return plans;
         }
@@ -528,9 +572,18 @@ namespace Opc.Ua.Server.Nodes
         private async ValueTask<List<Exception>> CleanupCoreAsync()
         {
             var failures = new List<Exception>();
-            for (int i = m_leases.Count - 1; i >= 0; i--)
+
+            // Snapshot the ledger: the loops below await, and the gate must not be
+            // held across an await.
+            List<LeaseEntry> leases;
+            lock (m_gate)
             {
-                LeaseEntry entry = m_leases[i];
+                leases = [.. m_leases];
+            }
+
+            for (int i = leases.Count - 1; i >= 0; i--)
+            {
+                LeaseEntry entry = leases[i];
                 if (!entry.Activated || entry.DeactivationAttempted)
                 {
                     continue;
@@ -549,9 +602,9 @@ namespace Opc.Ua.Server.Nodes
                 }
             }
 
-            for (int i = m_leases.Count - 1; i >= 0; i--)
+            for (int i = leases.Count - 1; i >= 0; i--)
             {
-                LeaseEntry entry = m_leases[i];
+                LeaseEntry entry = leases[i];
                 if (entry.DisposalAttempted)
                 {
                     continue;
@@ -568,8 +621,11 @@ namespace Opc.Ua.Server.Nodes
                 }
             }
 
-            m_leases.Clear();
-            m_leaseSet.Clear();
+            lock (m_gate)
+            {
+                m_leases.Clear();
+                m_leaseSet.Clear();
+            }
             return failures;
         }
 
@@ -578,11 +634,13 @@ namespace Opc.Ua.Server.Nodes
             public ActivationPlan(
                 NodeState? node,
                 ArrayOf<INodeBehaviorFactory> factories,
-                int depth)
+                int depth,
+                int ordinal)
             {
                 Node = node;
                 Factories = factories;
                 Depth = depth;
+                Ordinal = ordinal;
             }
 
             public NodeState? Node { get; }
@@ -590,6 +648,12 @@ namespace Opc.Ua.Server.Nodes
             public ArrayOf<INodeBehaviorFactory> Factories { get; }
 
             public int Depth { get; }
+
+            /// <summary>
+            /// Gets the position this plan was created in, used as the final sort key
+            /// so that equally ranked plans keep their registration order.
+            /// </summary>
+            public int Ordinal { get; }
         }
 
         private sealed class LeaseEntry

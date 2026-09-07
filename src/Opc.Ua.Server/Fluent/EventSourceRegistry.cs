@@ -170,10 +170,42 @@ namespace Opc.Ua.Server.Fluent
                 }
                 catch (Exception ex)
                 {
+                    // Undo the promotion before dropping the entry: removing the entry
+                    // discards the only record that we set the flag, so clearing it
+                    // afterwards would be impossible and the node would keep a
+                    // SubscribeToEvents bit this failed registration put there.
                     lock (m_sourcesLock)
                     {
+                        if (m_sources.TryGetValue(
+                                notifier.NodeId,
+                                out SourceEntry? failed) &&
+                            failed.PromotedEventNotifier)
+                        {
+                            notifier.EventNotifier = (byte)(notifier.EventNotifier &
+                                unchecked((byte)~EventNotifiers.SubscribeToEvents));
+                        }
                         m_sources.Remove(notifier.NodeId);
                     }
+
+                    // AddRootNotifierAsync can also have inserted the notifier before
+                    // failing in its later awaited work, so undo that too.
+                    try
+                    {
+                        m_owner.RemoveRootNotifierFromFluentAsync(
+                                notifier,
+                                CancellationToken.None)
+                            .GetAwaiter()
+                            .GetResult();
+                    }
+                    catch (Exception cleanupEx) when (
+                        cleanupEx is not OutOfMemoryException)
+                    {
+                        m_logger?.PublishReleaseFailedForBrowseIdNodeId(
+                            notifier.BrowseName,
+                            notifier.NodeId,
+                            cleanupEx);
+                    }
+
                     throw ServiceResultException.Create(
                         StatusCodes.BadConfigurationError,
                         ex,

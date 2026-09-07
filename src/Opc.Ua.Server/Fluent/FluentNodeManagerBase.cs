@@ -562,6 +562,15 @@ namespace Opc.Ua.Server.Fluent
         }
 
         /// <summary>
+        /// Reports a builder that was sealed while behavior registrations were still
+        /// pending, which means nothing will ever activate or release them.
+        /// </summary>
+        internal void WarnSealedWithPendingNodeBehaviors(int pending)
+        {
+            m_logger?.SealedWithPendingNodeBehaviors(pending, GetType().Name);
+        }
+
+        /// <summary>
         /// Gets the server time provider, falling back to the system clock.
         /// </summary>
         /// <remarks>
@@ -1211,5 +1220,23 @@ namespace Opc.Ua.Server.Fluent
         private readonly List<NodeManagerBuilder> m_attachedBuilders = [];
         private readonly Lock m_behaviorActivationsLock = new();
         private readonly List<NodeBehaviorActivation> m_behaviorActivations = [];
+    }
+
+    /// <summary>
+    /// Source-generated log messages for the fluent node manager base.
+    /// </summary>
+    internal static partial class FluentNodeManagerLog
+    {
+        [LoggerMessage(
+            EventId = ServerEventIds.FluentNodeManager + 0,
+            Level = LogLevel.Warning,
+            Message = "Sealed '{Manager}' with {Pending} node behavior registration(s) " +
+                "still pending; they will never activate or release. Complete the " +
+                "manager asynchronously (CompleteConfigureAsync or " +
+                "ActivateNodeBehaviorsAsync) before sealing.")]
+        public static partial void SealedWithPendingNodeBehaviors(
+            this ILogger logger,
+            int pending,
+            string manager);
     }
 }

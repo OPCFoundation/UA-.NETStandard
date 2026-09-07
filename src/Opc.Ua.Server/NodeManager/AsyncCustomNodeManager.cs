@@ -6193,6 +6193,19 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Gets whether a node is already registered as a root notifier.
+        /// </summary>
+        /// <remarks>
+        /// Used by fluent registration so that teardown removes only a registration it
+        /// actually added. Removing one that was already there would strip the node's
+        /// event callback and notifier reference from whoever does own it.
+        /// </remarks>
+        internal bool IsRootNotifier(NodeId nodeId)
+        {
+            return !nodeId.IsNull && RootNotifiers.TryGetValue(nodeId, out _);
+        }
+
+        /// <summary>
         /// Synchronously registers a root event notifier owned by this node manager.
         /// </summary>
         protected internal void AddRootNotifierSynchronously(NodeState notifier)
