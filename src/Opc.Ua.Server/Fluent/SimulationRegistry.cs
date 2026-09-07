@@ -29,7 +29,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -37,32 +36,24 @@ using Microsoft.Extensions.Logging;
 namespace Opc.Ua.Server.Fluent
 {
     /// <summary>
-    /// Manager-owned registry of periodic simulation loops. Each loop is
-    /// driven by a periodic timer and survives until the owning
-    /// <see cref="FluentNodeManagerBase"/> is disposed.
+    /// Manager-owned registry of periodic simulation loops.
     /// </summary>
     /// <remarks>
     /// <para>
-    /// Loops are added at <c>Configure</c> time via the
-    /// <see cref="ISimulationBuilder"/> fluent surface. They start running
-    /// when <see cref="Start"/> is invoked by the owning manager (after
-    /// <c>Configure</c> completes); subsequent loop additions are
-    /// rejected.
+    /// Loops are added at <c>Configure</c> time through the
+    /// <see cref="ISimulationBuilder"/> fluent surface. The registry itself owns no
+    /// lifecycle: the first <c>Simulation(...)</c> call registers a manager-scoped
+    /// behavior, so the loops start when behaviors activate and are released — awaited,
+    /// not blocked on — when the address space is deleted.
     /// </para>
     /// <para>
-    /// Exceptions inside tick handlers are caught and logged; they do
-    /// not kill the loop. <see cref="Dispose"/> cancels every loop and
-    /// awaits them (bounded by a small grace period) before returning.
+    /// Loops are driven from the server <see cref="TimeProvider"/> rather than from
+    /// <see cref="PeriodicTimer"/> and <c>Stopwatch</c>, so tests can run them on a
+    /// fake clock instead of wall-clock sleeps.
     /// </para>
     /// <para>
-    /// On <c>net6.0</c> and later, the loop uses
-    /// <c>System.Threading.PeriodicTimer</c>. On older targets
-    /// (<c>net472</c>, <c>net48</c>, <c>netstandard2.1</c>) the loop
-    /// falls back to a
-    /// <see cref="Task.Delay(TimeSpan, CancellationToken)"/> loop with
-    /// drift compensation. Both paths use
-    /// <see cref="Stopwatch.GetTimestamp"/> as the monotonic time
-    /// source.
+    /// Exceptions inside tick handlers are caught and logged; they do not kill the
+    /// loop. A handler that observes cancellation stops its own loop only.
     /// </para>
     /// </remarks>
     internal sealed class SimulationRegistry : IDisposable
@@ -77,8 +68,7 @@ namespace Opc.Ua.Server.Fluent
         }
 
         /// <summary>
-        /// Returns a builder for a new simulation loop with the given
-        /// tick interval.
+        /// Returns a builder for a new simulation loop with the given tick interval.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
         public ISimulationBuilder NewSimulation(TimeSpan interval)
@@ -98,32 +88,56 @@ namespace Opc.Ua.Server.Fluent
         }
 
         /// <summary>
-        /// Starts every registered loop. Subsequent
-        /// <see cref="NewSimulation(TimeSpan)"/> calls are rejected. Invoked
-        /// once by the owning manager when the builder is sealed.
+        /// Gets whether any loop has been registered.
         /// </summary>
-        public void Start()
+        public bool HasLoops
         {
-            lock (m_gate)
+            get
             {
-                if (m_started)
+                lock (m_gate)
                 {
-                    return;
-                }
-                m_started = true;
-                if (m_cts == null)
-                {
-                    return;
-                }
-                foreach (SimulationLoop loop in m_loops)
-                {
-                    loop.Start(m_cts.Token);
+                    return m_loops.Count > 0;
                 }
             }
         }
 
-        /// <inheritdoc/>
-        public void Dispose()
+        /// <summary>
+        /// Starts every registered loop, bound to the supplied shutdown token.
+        /// </summary>
+        /// <remarks>
+        /// Subsequent <see cref="NewSimulation(TimeSpan)"/> calls are rejected: the
+        /// loops have been snapshotted and a late addition would never run.
+        /// </remarks>
+        public void Start()
+        {
+            List<SimulationLoop> snapshot;
+            CancellationToken shutdownToken;
+            lock (m_gate)
+            {
+                if (m_started || m_cts == null)
+                {
+                    return;
+                }
+                m_started = true;
+                shutdownToken = m_cts.Token;
+                snapshot = [.. m_loops];
+            }
+
+            TimeProvider timeProvider = m_owner.NodeManagerTimeProvider;
+            foreach (SimulationLoop loop in snapshot)
+            {
+                loop.Start(timeProvider, shutdownToken);
+            }
+        }
+
+        /// <summary>
+        /// Stops every loop and awaits its drain.
+        /// </summary>
+        /// <remarks>
+        /// Unlike <see cref="Dispose"/> this never abandons a running handler: the
+        /// caller is the async teardown path and can afford to wait.
+        /// </remarks>
+        public async ValueTask StopAsync()
         {
             CancellationTokenSource? cts;
             List<SimulationLoop> snapshot;
@@ -136,26 +150,69 @@ namespace Opc.Ua.Server.Fluent
             }
 
             if (cts == null)
-
             {
                 return;
             }
+
+            try
+            {
+#if NET8_0_OR_GREATER
+                await cts.CancelAsync().ConfigureAwait(false);
+#else
+                cts.Cancel();
+#endif
+                foreach (SimulationLoop loop in snapshot)
+                {
+                    try
+                    {
+                        await loop.RunningTask.ConfigureAwait(false);
+                    }
+                    catch (OperationCanceledException)
+                    {
+                        // expected on shutdown
+                    }
+                }
+            }
+            catch (Exception ex) when (ex is not OutOfMemoryException)
+            {
+                m_logger?.SimulationDrainFailedIgnoringOnDisposal(ex);
+            }
+            finally
+            {
+                cts.Dispose();
+            }
+        }
+
+        /// <summary>
+        /// Signals every loop to stop without waiting.
+        /// </summary>
+        /// <remarks>
+        /// Synchronous disposal must not block, so this only trips the token. The
+        /// awaited drain belongs to <see cref="StopAsync"/>, which the behavior release
+        /// path runs.
+        /// </remarks>
+        public void Dispose()
+        {
+            CancellationTokenSource? cts;
+            lock (m_gate)
+            {
+                cts = m_cts;
+                m_cts = null;
+                m_loops.Clear();
+            }
+
+            if (cts == null)
+            {
+                return;
+            }
+
             try
             {
                 cts.Cancel();
-                // Bound the dispose wait so a misbehaving handler can't
-                // stall manager teardown indefinitely.
-                var drain = Task.WhenAll(snapshot.ConvertAll(l => l.RunningTask));
-                drain.Wait(TimeSpan.FromSeconds(5));
             }
-            catch (AggregateException ex) when (
-                ex.InnerException is OperationCanceledException)
+            catch (ObjectDisposedException)
             {
-                // expected on shutdown
-            }
-            catch (Exception ex)
-            {
-                m_logger?.SimulationDrainFailedIgnoringOnDisposal(ex);
+                // Already released by the async path.
             }
             finally
             {
@@ -174,9 +231,31 @@ namespace Opc.Ua.Server.Fluent
     }
 
     /// <summary>
-    /// A single periodic simulation loop. Implements
-    /// <see cref="ISimulationBuilder"/> for chaining additional handlers
-    /// before <see cref="SimulationRegistry.Start"/>.
+    /// Releases the simulation loops when the owning node manager tears down.
+    /// </summary>
+    /// <remarks>
+    /// Registered as a manager-scoped behavior by the first <c>Simulation(...)</c>
+    /// call, so the awaited drain runs on the async teardown path instead of blocking
+    /// inside <see cref="SimulationRegistry.Dispose"/>.
+    /// </remarks>
+    internal sealed class SimulationLifetime : IAsyncDisposable
+    {
+        public SimulationLifetime(SimulationRegistry registry)
+        {
+            m_registry = registry;
+        }
+
+        public ValueTask DisposeAsync()
+        {
+            return m_registry.StopAsync();
+        }
+
+        private readonly SimulationRegistry m_registry;
+    }
+
+    /// <summary>
+    /// A single periodic simulation loop. Implements <see cref="ISimulationBuilder"/>
+    /// for chaining additional handlers before the registry starts.
     /// </summary>
     internal sealed class SimulationLoop : ISimulationBuilder
     {
@@ -197,7 +276,7 @@ namespace Opc.Ua.Server.Fluent
             {
                 throw new ArgumentNullException(nameof(handler));
             }
-            m_handlers.Add((ctx, dt, _) =>
+            AddHandler((ctx, dt, _) =>
             {
                 handler(ctx, dt);
                 return default;
@@ -212,65 +291,116 @@ namespace Opc.Ua.Server.Fluent
             {
                 throw new ArgumentNullException(nameof(handler));
             }
-            m_handlers.Add(handler);
+            AddHandler(handler);
             return this;
         }
 
         public Task RunningTask { get; private set; }
 
-        public void Start(CancellationToken cancellationToken)
+        public void Start(TimeProvider timeProvider, CancellationToken cancellationToken)
         {
-            if (m_handlers.Count == 0)
+            // Snapshot the handlers: the running loop must not enumerate a list a late
+            // OnTick could still mutate.
+            List<Func<ISystemContext, TimeSpan, CancellationToken, ValueTask>> handlers;
+            lock (m_handlerGate)
             {
-                // No handlers — skip starting a useless timer.
+                if (m_started)
+                {
+                    return;
+                }
+                m_started = true;
+                if (m_handlers.Count == 0)
+                {
+                    // No handlers — skip starting a useless timer.
+                    return;
+                }
+                handlers = [.. m_handlers];
+            }
+
+            // Capture into locals so the closure is allocation-stable and AOT-safe.
+            ISystemContext context = m_registry.Context;
+            TimeSpan interval = m_interval;
+            ILogger? logger = m_logger;
+
+            if (cancellationToken.IsCancellationRequested)
+            {
+                // Task.Run would never run the body, which would strand the timer.
                 return;
             }
 
-            // Capture into local variables so the closure is allocation-stable
-            // and AOT-safe (no captured-this generic instantiation).
-            ISystemContext context = m_registry.Context;
-            TimeSpan interval = m_interval;
-            List<Func<ISystemContext, TimeSpan, CancellationToken, ValueTask>> handlers = m_handlers;
-            ILogger? logger = m_logger;
+            // The timer is created here, not inside the loop task: it must be armed
+            // before Start returns, or a clock advanced immediately afterwards would
+            // fire into nothing.
+            //
+            // A bounded signal coalesces missed ticks the way PeriodicTimer does, so a
+            // slow handler drops ticks rather than queueing them up.
+            var tick = new SemaphoreSlim(0, 1);
+            ITimer timer = timeProvider.CreateTimer(
+                static state =>
+                {
+                    try
+                    {
+                        ((SemaphoreSlim)state!).Release();
+                    }
+                    catch (SemaphoreFullException)
+                    {
+                        // Previous tick still running; skip this one.
+                    }
+                    catch (ObjectDisposedException)
+                    {
+                        // Loop already torn down.
+                    }
+                },
+                tick,
+                interval,
+                interval);
 
-            RunningTask = Task.Run(async () =>
+            RunningTask = Task.Run(
+                async () =>
+                {
+                    long lastTimestamp = timeProvider.GetTimestamp();
+                    try
+                    {
+                        while (true)
+                        {
+                            await tick.WaitAsync(cancellationToken).ConfigureAwait(false);
+
+                            long now = timeProvider.GetTimestamp();
+                            TimeSpan elapsed =
+                                timeProvider.GetElapsedTime(lastTimestamp, now);
+                            lastTimestamp = now;
+
+                            await InvokeHandlersAsync(
+                                    handlers, context, elapsed, logger, cancellationToken)
+                                .ConfigureAwait(false);
+                        }
+                    }
+                    catch (OperationCanceledException)
+                    {
+                        // expected on shutdown
+                    }
+                    finally
+                    {
+                        timer.Dispose();
+                        tick.Dispose();
+                    }
+                },
+                cancellationToken);
+        }
+
+        private void AddHandler(
+            Func<ISystemContext, TimeSpan, CancellationToken, ValueTask> handler)
+        {
+            lock (m_handlerGate)
             {
-                long lastTimestamp = Stopwatch.GetTimestamp();
-                try
+                if (m_started)
                 {
-#if NET6_0_OR_GREATER
-                    using var timer = new PeriodicTimer(interval);
-                    while (await timer.WaitForNextTickAsync(cancellationToken)
-                        .ConfigureAwait(false))
-                    {
-                        long now = Stopwatch.GetTimestamp();
-                        TimeSpan elapsed = TimestampToTimeSpan(now - lastTimestamp);
-                        lastTimestamp = now;
-
-                        await InvokeHandlersAsync(
-                                handlers, context, elapsed, logger, cancellationToken)
-                            .ConfigureAwait(false);
-                    }
-#else
-                    while (!cancellationToken.IsCancellationRequested)
-                    {
-                        await Task.Delay(interval, cancellationToken).ConfigureAwait(false);
-
-                        long now = Stopwatch.GetTimestamp();
-                        TimeSpan elapsed = TimestampToTimeSpan(now - lastTimestamp);
-                        lastTimestamp = now;
-
-                        await InvokeHandlersAsync(
-                                handlers, context, elapsed, logger, cancellationToken)
-                            .ConfigureAwait(false);
-                    }
-#endif
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadInvalidState,
+                        "Cannot add a tick handler after the simulation has started.");
                 }
-                catch (OperationCanceledException)
-                {
-                    // expected on shutdown
-                }
-            }, cancellationToken);
+                m_handlers.Add(handler);
+            }
         }
 
         private static async ValueTask InvokeHandlersAsync(
@@ -286,29 +416,27 @@ namespace Opc.Ua.Server.Fluent
                 {
                     await h(context, elapsed, cancellationToken).ConfigureAwait(false);
                 }
-                catch (OperationCanceledException)
+                catch (OperationCanceledException) when (
+                    cancellationToken.IsCancellationRequested)
                 {
+                    // Shutdown: let the loop unwind.
                     throw;
                 }
                 catch (Exception ex)
                 {
+                    // A handler that cancels something of its own must not silently
+                    // kill the whole loop, so it is logged like any other failure.
                     logger?.SimulationTickHandlerThrewLoopContinues(ex);
                 }
             }
         }
 
-        private static TimeSpan TimestampToTimeSpan(long delta)
-        {
-            // Convert Stopwatch ticks to TimeSpan ticks. Stopwatch.Frequency
-            // is per-second; TimeSpan.TicksPerSecond = 10_000_000.
-            double seconds = (double)delta / Stopwatch.Frequency;
-            return TimeSpan.FromSeconds(seconds);
-        }
-
         private readonly SimulationRegistry m_registry;
         private readonly TimeSpan m_interval;
         private readonly ILogger? m_logger;
+        private readonly Lock m_handlerGate = new();
         private readonly List<Func<ISystemContext, TimeSpan, CancellationToken, ValueTask>> m_handlers = [];
+        private bool m_started;
     }
 
     /// <summary>

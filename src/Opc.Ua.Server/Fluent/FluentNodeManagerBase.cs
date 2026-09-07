@@ -536,6 +536,17 @@ namespace Opc.Ua.Server.Fluent
         }
 
         /// <summary>
+        /// Gets the server time provider, falling back to the system clock.
+        /// </summary>
+        /// <remarks>
+        /// Exposed so the manager-owned registries schedule from the same clock the
+        /// behavior surface hands to user code, which lets tests drive both from a
+        /// fake clock.
+        /// </remarks>
+        internal TimeProvider NodeManagerTimeProvider =>
+            (Server as ITimeProviderProvider)?.TimeProvider ?? TimeProvider.System;
+
+        /// <summary>
         /// Rewrites a type definition into the namespace-stable form the behavior
         /// registry matches on.
         /// </summary>

@@ -340,6 +340,33 @@ namespace Opc.Ua.Server.Fluent
         }
 
         /// <summary>
+        /// Registers the manager-scoped behavior that releases the simulation loops,
+        /// once per builder.
+        /// </summary>
+        internal void EnsureSimulationLifecycleRegistered()
+        {
+            SimulationRegistry? registry = Simulations;
+            if (registry == null)
+            {
+                return;
+            }
+
+            lock (m_nodeAttachmentsLock)
+            {
+                if (m_simulationLifecycleRegistered)
+                {
+                    return;
+                }
+                m_simulationLifecycleRegistered = true;
+                m_nodeAttachments.Add(
+                    NodeAttachRegistration.ForManager(
+                        static (_, _, _, state) => new ValueTask<IAsyncDisposable?>(
+                            new SimulationLifetime((SimulationRegistry)state)),
+                        registry));
+            }
+        }
+
+        /// <summary>
         /// Records a pending behavior registration.
         /// </summary>
         internal void RegisterNodeAttachment(NodeAttachRegistration registration)
@@ -1116,6 +1143,7 @@ namespace Opc.Ua.Server.Fluent
         private readonly List<VirtualNodeRegistration> m_virtualNodes = [];
         private readonly List<NodeAttachRegistration> m_nodeAttachments = [];
         private readonly Lock m_nodeAttachmentsLock = new();
+        private bool m_simulationLifecycleRegistered;
         private MonitoredItemsBatchHandler? m_monitoredItemsCreated;
         private MonitoredItemsBatchHandler? m_monitoredItemsDeleted;
     }
