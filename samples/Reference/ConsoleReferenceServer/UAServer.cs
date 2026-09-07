@@ -144,12 +144,7 @@ namespace Quickstarts
             try
             {
                 // create the server.
-                Server = m_factory(m_telemetry);
-                // The reference server configuration files list opc.https / opc.wss
-                // base addresses. Register the matching transport bindings (this
-                // project references Opc.Ua.Bindings.Https) so those endpoints
-                // resolve to a registered listener instead of failing to start.
-                Server.TransportBindings = CreateTransportBindings();
+                Server = CreateServerWithTransportBindings();
                 foreach (INodeManagerFactory factory in nodeManagerFactories)
                 {
                     Server.AddNodeManager(factory);
@@ -162,23 +157,42 @@ namespace Quickstarts
         }
 
         /// <summary>
+        /// Creates the server instance and assigns it a transport binding
+        /// registry (see <see cref="CreateTransportBindings"/>). Shared by
+        /// <see cref="Create"/> and the lazy-creation fallback in
+        /// <see cref="StartAsync"/> so both call sites stay in sync.
+        /// </summary>
+        private T CreateServerWithTransportBindings()
+        {
+            T server = m_factory(m_telemetry);
+            // The reference server configuration files list opc.https / opc.wss
+            // base addresses. Register the matching transport bindings (this
+            // project references Opc.Ua.Bindings.Https) so those endpoints
+            // resolve to a registered listener instead of failing to start.
+            server.TransportBindings = CreateTransportBindings();
+            return server;
+        }
+
+        /// <summary>
         /// Builds the transport binding registry used by the server. Reuses
         /// the production <c>AddOpcTcpTransport()</c> / <c>AddHttpsTransport()</c> /
         /// <c>AddWssTransport()</c> DI registrations (this project references
         /// <c>Opc.Ua.Bindings.Https</c>) so base addresses configured with the
         /// <c>opc.tcp</c>/<c>opc.https</c>/<c>https</c>/<c>opc.wss</c>/<c>wss</c>
         /// schemes resolve to a registered transport instead of relying on a
-        /// hand-rolled duplicate of that registration logic.
+        /// hand-rolled duplicate of that registration logic. The backing
+        /// <see cref="ServiceProvider"/> is kept alive in <see cref="m_transportServices"/>
+        /// for as long as the registry is in use and disposed in <see cref="StopAsync"/>.
         /// </summary>
-        private static ITransportBindingRegistry CreateTransportBindings()
+        private ITransportBindingRegistry CreateTransportBindings()
         {
             var services = new ServiceCollection();
             services.AddOpcUa()
                 .AddOpcTcpTransport()
                 .AddHttpsTransport()
                 .AddWssTransport();
-            using ServiceProvider provider = services.BuildServiceProvider();
-            return provider.GetRequiredService<ITransportBindingRegistry>();
+            m_transportServices = services.BuildServiceProvider();
+            return m_transportServices.GetRequiredService<ITransportBindingRegistry>();
         }
 
         /// <summary>
@@ -190,12 +204,7 @@ namespace Quickstarts
             try
             {
                 // create the server.
-                bool serverCreated = Server is null;
-                Server ??= m_factory(m_telemetry);
-                if (serverCreated)
-                {
-                    Server.TransportBindings = CreateTransportBindings();
-                }
+                Server ??= CreateServerWithTransportBindings();
 
 #if NET10_0_OR_GREATER
                 // Opt-in diagnostics: when OPCUA_PCAP_FILE / OPCUA_KEYLOGFILE are
@@ -267,6 +276,12 @@ namespace Quickstarts
                     m_pcapCapture = null;
                 }
 #endif
+
+                // Dispose the DI container backing the transport binding
+                // registry built in CreateTransportBindings(), now that the
+                // server (and any listeners it opened) have stopped.
+                m_transportServices?.Dispose();
+                m_transportServices = null;
 
                 ExitCode = ExitCode.Ok;
             }
@@ -421,6 +436,7 @@ namespace Quickstarts
         private readonly ILogger m_logger;
         private Task m_status = Task.CompletedTask;
         private DateTime m_lastEventTime;
+        private ServiceProvider? m_transportServices;
 #if NET10_0_OR_GREATER
         private IAsyncDisposable? m_pcapCapture;
 #endif
