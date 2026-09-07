@@ -210,10 +210,14 @@ foreach (WotDocumentSetEntry entry in documents.Entries)
 }
 ```
 
-An unsupported future `uav:nodes` grammar is not parsed. The converter reports
-that projection as unsupported while processing the document's usable readable
-members and retaining the unsupported object as opaque residue. Malformed
-supported grammars and invalid archival digests remain errors.
+Opaque preservation is not limited to `uav:nodes`. Extension members and WoT
+metadata without a native NodeSet mapping are retained as JSON residue while
+the converter processes the document's supported readable members. For example,
+an unsupported future `uav:nodes` grammar is not parsed: the converter reports
+the unsupported profile and retains the complete object as opaque residue
+instead of discarding it or guessing how to interpret its records. This does
+not bypass validation of supported content; malformed supported grammars and
+invalid archival digests remain errors.
 
 When an archival `uav:nodeSet` is present, known readable facts are checked
 against that baseline and conflicts are reported rather than overwritten.

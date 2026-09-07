@@ -1,1 +1,142 @@
-{"@context":["https://www.w3.org/2022/wot/td/v1.1",{"tm":"https://www.w3.org/2019/wot/tm#","ua":"http://opcfoundation.org/UA/","uav":"http://opcfoundation.org/UA/WoT-Binding/"}],"@type":["Thing","uav:projection"],"actions":{"CavitationAcknowledge":{"tm:ref":"sample-pump#/actions/CavitationAcknowledge"},"CavitationConfirm":{"tm:ref":"sample-pump#/actions/CavitationConfirm"},"MotorOverheatAcknowledge":{"tm:ref":"sample-pump#/actions/MotorOverheatAcknowledge"},"MotorOverheatConfirm":{"tm:ref":"sample-pump#/actions/MotorOverheatConfirm"},"SourceAReset":{"tm:ref":"sample-pump#/actions/SourceAReset"},"SourceAStart":{"tm:ref":"sample-pump#/actions/SourceAStart"},"SourceAStop":{"tm:ref":"sample-pump#/actions/SourceAStop"},"SourceBReset":{"tm:ref":"sample-pump#/actions/SourceBReset"},"SourceBStart":{"tm:ref":"sample-pump#/actions/SourceBStart"},"SourceBStop":{"tm:ref":"sample-pump#/actions/SourceBStop"}},"events":{"CavitationAlarm":{"tm:ref":"sample-pump#/events/CavitationAlarm"},"MotorOverheatAlarm":{"tm:ref":"sample-pump#/events/MotorOverheatAlarm"}},"id":"urn:opcfoundation.org:UA:WotAggregation:Asset:Pump1:Members","properties":{"BearingTemperature":{"tm:ref":"sample-pump-operational-measurements#/properties/BearingTemperature"},"Cavitation":{"tm:ref":"sample-pump-events-supervisionprocessfluid#/properties/Cavitation"},"DifferentialPressure":{"tm:ref":"sample-pump-operational-measurements#/properties/DifferentialPressure"},"FluidTemperature":{"tm:ref":"sample-pump-operational-measurements#/properties/FluidTemperature"},"Level":{"tm:ref":"sample-pump-operational-measurements#/properties/Level"},"Manufacturer":{"tm:ref":"sample-pump-identification#/properties/Manufacturer"},"MassFlow":{"tm:ref":"sample-pump-operational-measurements#/properties/MassFlow"},"MotorOverheat":{"tm:ref":"sample-pump-events-supervisionpumpoperation#/properties/MotorOverheat"},"NumberOfStarts":{"tm:ref":"sample-pump-operational-measurements#/properties/NumberOfStarts"},"ProductInstanceUri":{"tm:ref":"sample-pump-identification#/properties/ProductInstanceUri"},"PumpEfficiency":{"tm:ref":"sample-pump-operational-measurements#/properties/PumpEfficiency"},"PumpPowerInput":{"tm:ref":"sample-pump-operational-measurements#/properties/PumpPowerInput"},"SerialNumber":{"tm:ref":"sample-pump-identification#/properties/SerialNumber"},"SourceARunning":{"tm:ref":"sample-pump#/properties/SourceARunning"},"SourceBRunning":{"tm:ref":"sample-pump#/properties/SourceBRunning"}},"security":"nosec_sc","securityDefinitions":{"nosec_sc":{"scheme":"nosec"}},"title":"Pump1 Members","uav:projects":[{"href":"sample-pump","type":"application/td+json","uav:routing":"source","uav:sourceName":"sample-pump"},{"href":"sample-pump-events-supervisionprocessfluid","type":"application/td+json","uav:routing":"source","uav:sourceName":"sample-pump-events-supervisionprocessfluid"},{"href":"sample-pump-events-supervisionpumpoperation","type":"application/td+json","uav:routing":"source","uav:sourceName":"sample-pump-events-supervisionpumpoperation"},{"href":"sample-pump-identification","type":"application/td+json","uav:routing":"source","uav:sourceName":"sample-pump-identification"},{"href":"sample-pump-operational-measurements","type":"application/td+json","uav:routing":"source","uav:sourceName":"sample-pump-operational-measurements"}],"uav:scenario":"urn:opcfoundation.org:UA:WotAggregation:AssetManagement"}
+{
+  "@context": [
+    "https://www.w3.org/2022/wot/td/v1.1",
+    {
+      "tm": "https://www.w3.org/2019/wot/tm#",
+      "ua": "http://opcfoundation.org/UA/",
+      "uav": "http://opcfoundation.org/UA/WoT-Binding/"
+    }
+  ],
+  "@type": [
+    "Thing",
+    "uav:projection"
+  ],
+  "actions": {
+    "CavitationAcknowledge": {
+      "tm:ref": "sample-pump#/actions/CavitationAcknowledge"
+    },
+    "CavitationConfirm": {
+      "tm:ref": "sample-pump#/actions/CavitationConfirm"
+    },
+    "MotorOverheatAcknowledge": {
+      "tm:ref": "sample-pump#/actions/MotorOverheatAcknowledge"
+    },
+    "MotorOverheatConfirm": {
+      "tm:ref": "sample-pump#/actions/MotorOverheatConfirm"
+    },
+    "SourceAReset": {
+      "tm:ref": "sample-pump#/actions/SourceAReset"
+    },
+    "SourceAStart": {
+      "tm:ref": "sample-pump#/actions/SourceAStart"
+    },
+    "SourceAStop": {
+      "tm:ref": "sample-pump#/actions/SourceAStop"
+    },
+    "SourceBReset": {
+      "tm:ref": "sample-pump#/actions/SourceBReset"
+    },
+    "SourceBStart": {
+      "tm:ref": "sample-pump#/actions/SourceBStart"
+    },
+    "SourceBStop": {
+      "tm:ref": "sample-pump#/actions/SourceBStop"
+    }
+  },
+  "events": {
+    "CavitationAlarm": {
+      "tm:ref": "sample-pump#/events/CavitationAlarm"
+    },
+    "MotorOverheatAlarm": {
+      "tm:ref": "sample-pump#/events/MotorOverheatAlarm"
+    }
+  },
+  "id": "urn:opcfoundation.org:UA:WotAggregation:Asset:Pump1:Members",
+  "properties": {
+    "BearingTemperature": {
+      "tm:ref": "sample-pump-operational-measurements#/properties/BearingTemperature"
+    },
+    "Cavitation": {
+      "tm:ref": "sample-pump-events-supervisionprocessfluid#/properties/Cavitation"
+    },
+    "DifferentialPressure": {
+      "tm:ref": "sample-pump-operational-measurements#/properties/DifferentialPressure"
+    },
+    "FluidTemperature": {
+      "tm:ref": "sample-pump-operational-measurements#/properties/FluidTemperature"
+    },
+    "Level": {
+      "tm:ref": "sample-pump-operational-measurements#/properties/Level"
+    },
+    "Manufacturer": {
+      "tm:ref": "sample-pump-identification#/properties/Manufacturer"
+    },
+    "MassFlow": {
+      "tm:ref": "sample-pump-operational-measurements#/properties/MassFlow"
+    },
+    "MotorOverheat": {
+      "tm:ref": "sample-pump-events-supervisionpumpoperation#/properties/MotorOverheat"
+    },
+    "NumberOfStarts": {
+      "tm:ref": "sample-pump-operational-measurements#/properties/NumberOfStarts"
+    },
+    "ProductInstanceUri": {
+      "tm:ref": "sample-pump-identification#/properties/ProductInstanceUri"
+    },
+    "PumpEfficiency": {
+      "tm:ref": "sample-pump-operational-measurements#/properties/PumpEfficiency"
+    },
+    "PumpPowerInput": {
+      "tm:ref": "sample-pump-operational-measurements#/properties/PumpPowerInput"
+    },
+    "SerialNumber": {
+      "tm:ref": "sample-pump-identification#/properties/SerialNumber"
+    },
+    "SourceARunning": {
+      "tm:ref": "sample-pump#/properties/SourceARunning"
+    },
+    "SourceBRunning": {
+      "tm:ref": "sample-pump#/properties/SourceBRunning"
+    }
+  },
+  "security": "nosec_sc",
+  "securityDefinitions": {
+    "nosec_sc": {
+      "scheme": "nosec"
+    }
+  },
+  "title": "Pump1 Members",
+  "uav:projects": [
+    {
+      "href": "sample-pump",
+      "type": "application/td+json",
+      "uav:routing": "source",
+      "uav:sourceName": "sample-pump"
+    },
+    {
+      "href": "sample-pump-events-supervisionprocessfluid",
+      "type": "application/td+json",
+      "uav:routing": "source",
+      "uav:sourceName": "sample-pump-events-supervisionprocessfluid"
+    },
+    {
+      "href": "sample-pump-events-supervisionpumpoperation",
+      "type": "application/td+json",
+      "uav:routing": "source",
+      "uav:sourceName": "sample-pump-events-supervisionpumpoperation"
+    },
+    {
+      "href": "sample-pump-identification",
+      "type": "application/td+json",
+      "uav:routing": "source",
+      "uav:sourceName": "sample-pump-identification"
+    },
+    {
+      "href": "sample-pump-operational-measurements",
+      "type": "application/td+json",
+      "uav:routing": "source",
+      "uav:sourceName": "sample-pump-operational-measurements"
+    }
+  ],
+  "uav:scenario": "urn:opcfoundation.org:UA:WotAggregation:AssetManagement"
+}

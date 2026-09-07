@@ -54,7 +54,7 @@ namespace Opc.Ua.WotCon.Tests.Samples
                         ProjectionResourceId(pumpName, group),
                         $"{pumpName}.{group}.td.json",
                         WoTDocumentKindEnum.ThingDescription,
-                        CanonicalJson(root)));
+                        FormatJson(root)));
                 }
             }
             return documents.ToArrayOf();

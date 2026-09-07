@@ -157,9 +157,11 @@ Once a closure's forms are materialized as NodeSet2 content, `LifecycleWotProjec
 owning resource, and JSON Pointer separately from its upstream form address.
 An action's `uav:id` identifies the local Method; its selected form supplies the
 upstream Method and Object addresses. The runtime wires the local Method through
-the existing asynchronous fluent `OnCall` hook. It selects one executable
-alternative, never invokes all forms, and returns upstream status and argument
-errors rather than reporting local-only success.
+the existing asynchronous fluent `OnCall` hook. When an action offers several
+forms, the runtime selects one supported, executable form and sends the request
+only to that form's upstream source. It returns the upstream call's status and
+any argument errors to the caller; invoking the local Method does not by itself
+count as success.
 
 Type-owned declarations need not have executable forms. Their declaration
 context follows document containment or authoritative native ownership, not
@@ -173,10 +175,10 @@ declares it, including an unspecified initial Value. This covers companion-model
 metadata as well as local constants; it does not invent a data source for an
 unbacked property or excuse a target mapping without a form.
 
-`IWotProjectionEventPublisher` registers generation-owned streams with the
+`IWotProjectionEventPublisher` registers generation-owned streams of events with the
 existing monitored-source lifecycle. Compatible local consumers share an
 upstream subscription; the last consumer releases that subscription, while the
-generation retains its channel until disposal. Streams report through the local
+generation retains its channel until disposal. Events are reported through the local
 notifier hierarchy. Organizational projection Views do not become event sources.
 The stream implements `IEventSourceReadiness`, so creating an event monitored
 item waits until its upstream subscriptions are active, not until the first
@@ -190,7 +192,7 @@ source, Condition, and branch. Wrong-source, unknown, or evicted IDs fail rather
 than falling back to another source. Retired-generation routes remain usable
 only while that generation is alive and the declaration and source still match.
 
-Section 13 actions use `uav:conditionAction` and same-document `uav:actsOn`.
+Condition-management actions use `uav:conditionAction` and same-document `uav:actsOn`.
 For a WoT invocation with an optional Comment, the OPC UA adapter supplies
 `LocalizedText.Null` when the caller provides only EventId. This does not change
 a native two-argument Method's signature: OPC UA callers supply both arguments.
@@ -198,10 +200,17 @@ After acknowledgement changes the occurrence, confirmation uses the updated
 EventId. Unbound standard Methods on a Condition proxy are disabled, so they
 cannot change only the local copy.
 
-`WotProjectionBindingRuntimeOptions` bounds pending event notifications and
-retained occurrence routes. Queue overflow faults the stream explicitly.
-The event publisher, Condition factory, runtime factory, and options are
-injectable and available for direct construction. The
+`WotProjectionBindingRuntimeOptions` limits pending notifications per local
+notifier (`MaxQueuedEvents`) and retained occurrence routes per event declaration
+(`MaxEventRoutes`). If the notification queue fills, the producer finishes
+delivering already queued events, then stops with a `BadTooManyOperations`
+error and releases its upstream subscription leases. The monitored-source
+lifecycle logs the failure; other event sources continue running. This is a
+server-side producer failure, not an `EventQueueOverflowEventType` notification
+or termination of the client's entire subscription. Evicting an occurrence route
+has a different result: a later action using that EventId fails with
+`BadEventIdUnknown`. The event publisher, Condition factory, runtime factory,
+and options are injectable as well as available for direct construction. The
 [two-pump aggregation sample](../samples/WotCon/README.md) demonstrates
 source-specific management actions and acknowledgement/confirmation without
 introducing shelving, suppression, dialog, or ConditionRefresh transport mappings.

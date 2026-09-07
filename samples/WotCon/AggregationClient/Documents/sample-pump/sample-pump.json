@@ -1,1 +1,1958 @@
-{"@context":["https://www.w3.org/2022/wot/td/v1.1",{"ns1":"urn:opcfoundation.org:UA:WotAggregation:PumpInstance","ns2":"http://opcfoundation.org/UA/Pumps/","ns3":"http://opcfoundation.org/UA/Machinery/","ns4":"http://opcfoundation.org/UA/DI/","ua":"http://opcfoundation.org/UA/","uav":"http://opcfoundation.org/UA/WoT-Binding/"},"http://opcfoundation.org/UA/WoT-Binding/v1.1/opc-ua-wot-binding.context.jsonld"],"@type":"uav:object","actions":{"CavitationAcknowledge":{"@type":"uav:method","forms":[{"href":"${SOURCE_A_ENDPOINT}","op":["invokeaction"],"uav:componentOf":"nsu=urn:opcfoundation.org:UA:WotAggregation:SourceA;s=Pump1.Events.SupervisionProcessFluid.Cavitation.Alarm","uav:id":"i=9111"}],"input":{"properties":{"Comment":{"description":"Optional operator comment.","uav:mapToType":"i=21","uav:valueRank":-1},"EventId":{"contentEncoding":"base64","description":"The occurrence EventId returned by this source's alarm.","type":"string","uav:mapToType":"i=15","uav:valueRank":-1}},"required":["EventId"],"type":"object","uav:fieldOrder":["EventId","Comment"]},"title":"CavitationAcknowledge","uav:actsOn":"CavitationAlarm","uav:browseName":"ns1:CavitationAcknowledge","uav:conditionAction":"Acknowledge","uav:id":"nsu=urn:opcfoundation.org:UA:WotAggregation:PumpInstance;s=Pump1.CavitationAcknowledge"},"CavitationConfirm":{"@type":"uav:method","forms":[{"href":"${SOURCE_A_ENDPOINT}","op":["invokeaction"],"uav:componentOf":"nsu=urn:opcfoundation.org:UA:WotAggregation:SourceA;s=Pump1.Events.SupervisionProcessFluid.Cavitation.Alarm","uav:id":"i=9113"}],"input":{"properties":{"Comment":{"description":"Optional operator comment.","uav:mapToType":"i=21","uav:valueRank":-1},"EventId":{"contentEncoding":"base64","description":"The occurrence EventId returned by this source's alarm.","type":"string","uav:mapToType":"i=15","uav:valueRank":-1}},"required":["EventId"],"type":"object","uav:fieldOrder":["EventId","Comment"]},"title":"CavitationConfirm","uav:actsOn":"CavitationAlarm","uav:browseName":"ns1:CavitationConfirm","uav:conditionAction":"Confirm","uav:id":"nsu=urn:opcfoundation.org:UA:WotAggregation:PumpInstance;s=Pump1.CavitationConfirm"},"MotorOverheatAcknowledge":{"@type":"uav:method","forms":[{"href":"${SOURCE_B_ENDPOINT}","op":["invokeaction"],"uav:componentOf":"nsu=urn:opcfoundation.org:UA:WotAggregation:SourceB;s=Pump1.Events.SupervisionPumpOperation.MotorOverheat.Alarm","uav:id":"i=9111"}],"input":{"properties":{"Comment":{"description":"Optional operator comment.","uav:mapToType":"i=21","uav:valueRank":-1},"EventId":{"contentEncoding":"base64","description":"The occurrence EventId returned by this source's alarm.","type":"string","uav:mapToType":"i=15","uav:valueRank":-1}},"required":["EventId"],"type":"object","uav:fieldOrder":["EventId","Comment"]},"title":"MotorOverheatAcknowledge","uav:actsOn":"MotorOverheatAlarm","uav:browseName":"ns1:MotorOverheatAcknowledge","uav:conditionAction":"Acknowledge","uav:id":"nsu=urn:opcfoundation.org:UA:WotAggregation:PumpInstance;s=Pump1.MotorOverheatAcknowledge"},"MotorOverheatConfirm":{"@type":"uav:method","forms":[{"href":"${SOURCE_B_ENDPOINT}","op":["invokeaction"],"uav:componentOf":"nsu=urn:opcfoundation.org:UA:WotAggregation:SourceB;s=Pump1.Events.SupervisionPumpOperation.MotorOverheat.Alarm","uav:id":"i=9113"}],"input":{"properties":{"Comment":{"description":"Optional operator comment.","uav:mapToType":"i=21","uav:valueRank":-1},"EventId":{"contentEncoding":"base64","description":"The occurrence EventId returned by this source's alarm.","type":"string","uav:mapToType":"i=15","uav:valueRank":-1}},"required":["EventId"],"type":"object","uav:fieldOrder":["EventId","Comment"]},"title":"MotorOverheatConfirm","uav:actsOn":"MotorOverheatAlarm","uav:browseName":"ns1:MotorOverheatConfirm","uav:conditionAction":"Confirm","uav:id":"nsu=urn:opcfoundation.org:UA:WotAggregation:PumpInstance;s=Pump1.MotorOverheatConfirm"},"SourceAReset":{"@type":"uav:method","forms":[{"href":"${SOURCE_A_ENDPOINT}","op":["invokeaction"],"uav:componentOf":"nsu=urn:opcfoundation.org:UA:WotAggregation:SourceA;s=Pump1","uav:id":"nsu=urn:opcfoundation.org:UA:WotAggregation:SourceA;s=Pump1.Reset"}],"title":"SourceAReset","uav:browseName":"ns1:SourceAReset","uav:id":"nsu=urn:opcfoundation.org:UA:WotAggregation:PumpInstance;s=Pump1.SourceAReset"},"SourceAStart":{"@type":"uav:method","forms":[{"href":"${SOURCE_A_ENDPOINT}","op":["invokeaction"],"uav:componentOf":"nsu=urn:opcfoundation.org:UA:WotAggregation:SourceA;s=Pump1","uav:id":"nsu=urn:opcfoundation.org:UA:WotAggregation:SourceA;s=Pump1.Start"}],"title":"SourceAStart","uav:browseName":"ns1:SourceAStart","uav:id":"nsu=urn:opcfoundation.org:UA:WotAggregation:PumpInstance;s=Pump1.SourceAStart"},"SourceAStop":{"@type":"uav:method","forms":[{"href":"${SOURCE_A_ENDPOINT}","op":["invokeaction"],"uav:componentOf":"nsu=urn:opcfoundation.org:UA:WotAggregation:SourceA;s=Pump1","uav:id":"nsu=urn:opcfoundation.org:UA:WotAggregation:SourceA;s=Pump1.Stop"}],"title":"SourceAStop","uav:browseName":"ns1:SourceAStop","uav:id":"nsu=urn:opcfoundation.org:UA:WotAggregation:PumpInstance;s=Pump1.SourceAStop"},"SourceBReset":{"@type":"uav:method","forms":[{"href":"${SOURCE_B_ENDPOINT}","op":["invokeaction"],"uav:componentOf":"nsu=urn:opcfoundation.org:UA:WotAggregation:SourceB;s=Pump1","uav:id":"nsu=urn:opcfoundation.org:UA:WotAggregation:SourceB;s=Pump1.Reset"}],"title":"SourceBReset","uav:browseName":"ns1:SourceBReset","uav:id":"nsu=urn:opcfoundation.org:UA:WotAggregation:PumpInstance;s=Pump1.SourceBReset"},"SourceBStart":{"@type":"uav:method","forms":[{"href":"${SOURCE_B_ENDPOINT}","op":["invokeaction"],"uav:componentOf":"nsu=urn:opcfoundation.org:UA:WotAggregation:SourceB;s=Pump1","uav:id":"nsu=urn:opcfoundation.org:UA:WotAggregation:SourceB;s=Pump1.Start"}],"title":"SourceBStart","uav:browseName":"ns1:SourceBStart","uav:id":"nsu=urn:opcfoundation.org:UA:WotAggregation:PumpInstance;s=Pump1.SourceBStart"},"SourceBStop":{"@type":"uav:method","forms":[{"href":"${SOURCE_B_ENDPOINT}","op":["invokeaction"],"uav:componentOf":"nsu=urn:opcfoundation.org:UA:WotAggregation:SourceB;s=Pump1","uav:id":"nsu=urn:opcfoundation.org:UA:WotAggregation:SourceB;s=Pump1.Stop"}],"title":"SourceBStop","uav:browseName":"ns1:SourceBStop","uav:id":"nsu=urn:opcfoundation.org:UA:WotAggregation:PumpInstance;s=Pump1.SourceBStop"}},"description":"Sample-owned aggregate pump projected from two upstream OPC UA servers.","events":{"CavitationAlarm":{"@type":"uav:eventType","data":{"properties":{"AckedState":{"properties":{"Id":{"type":"boolean"},"Name":{"type":"string"}},"type":"object","uav:fieldOrder":["Id","Name"]},"ActiveState":{"properties":{"Id":{"type":"boolean"},"Name":{"type":"string"}},"type":"object","uav:fieldOrder":["Id","Name"]},"BranchId":{"type":"string"},"ClientUserId":{"type":"string"},"Comment":{"type":"string"},"ConditionClassId":{"type":"string"},"ConditionClassName":{"type":"string"},"ConditionId":{"type":"string"},"ConditionName":{"type":"string"},"ConfirmedState":{"properties":{"Id":{"type":"boolean"},"Name":{"type":"string"}},"type":"object","uav:fieldOrder":["Id","Name"]},"EnabledState":{"properties":{"Id":{"type":"boolean"},"Name":{"type":"string"}},"type":"object","uav:fieldOrder":["Id","Name"]},"EventId":{"contentEncoding":"base64","type":"string"},"EventType":{"type":"string"},"InputNode":{"type":"string"},"LastSeverity":{"maximum":1000,"minimum":1,"type":"integer"},"Message":{"type":"string"},"Quality":{"type":"string"},"ReceiveTime":{"format":"date-time","type":"string"},"Retain":{"type":"boolean"},"Severity":{"maximum":1000,"minimum":1,"type":"integer"},"SourceName":{"type":"string"},"SourceNode":{"type":"string"},"SuppressedOrShelved":{"type":"boolean"},"Time":{"format":"date-time","type":"string"}},"required":["EventId","EventType","SourceNode","SourceName","Time","ReceiveTime","Message","Severity","ConditionId","ConditionName","BranchId","Retain","ConditionClassId","ConditionClassName","Quality","LastSeverity","Comment","ClientUserId","EnabledState"],"type":"object","uav:fieldOrder":["EventId","EventType","SourceNode","SourceName","Time","ReceiveTime","Message","Severity","ConditionId","ConditionName","BranchId","Retain","ConditionClassId","ConditionClassName","Quality","LastSeverity","Comment","ClientUserId","EnabledState","AckedState","ConfirmedState","ActiveState","InputNode","SuppressedOrShelved"]},"description":"SourceA-owned Cavitation notifications for Pump1.","forms":[{"href":"${SOURCE_A_ENDPOINT}","op":["subscribeevent","unsubscribeevent"],"uav:id":"nsu=urn:opcfoundation.org:UA:WotAggregation:SourceA;s=Pump1"}],"title":"CavitationAlarm","tm:ref":"sample-pump-cavitationalarm","uav:browseName":"ns1:CavitationAlarm","uav:conditionType":"ua:AlarmConditionType","uav:conditionTypeId":"i=2915","uav:eventSelectClauses":[{"tm:ref":"sample-pump#/schemaDefinitions/CavitationConditionType","uav:browsePath":"ua:EventId"},{"tm:ref":"sample-pump#/schemaDefinitions/CavitationConditionType","uav:browsePath":"ua:EventType"},{"tm:ref":"sample-pump#/schemaDefinitions/CavitationConditionType","uav:browsePath":"ua:SourceNode"},{"tm:ref":"sample-pump#/schemaDefinitions/CavitationConditionType","uav:browsePath":"ua:SourceName"},{"tm:ref":"sample-pump#/schemaDefinitions/CavitationConditionType","uav:browsePath":"ua:Time"},{"tm:ref":"sample-pump#/schemaDefinitions/CavitationConditionType","uav:browsePath":"ua:ReceiveTime"},{"tm:ref":"sample-pump#/schemaDefinitions/CavitationConditionType","uav:browsePath":"ua:Message"},{"tm:ref":"sample-pump#/schemaDefinitions/CavitationConditionType","uav:browsePath":"ua:Severity"},{"tm:ref":"sample-pump#/schemaDefinitions/CavitationConditionType","uav:browsePath":""},{"tm:ref":"sample-pump#/schemaDefinitions/CavitationConditionType","uav:browsePath":"ua:ConditionName"},{"tm:ref":"sample-pump#/schemaDefinitions/CavitationConditionType","uav:browsePath":"ua:BranchId"},{"tm:ref":"sample-pump#/schemaDefinitions/CavitationConditionType","uav:browsePath":"ua:Retain"},{"tm:ref":"sample-pump#/schemaDefinitions/CavitationConditionType","uav:browsePath":"ua:ConditionClassId"},{"tm:ref":"sample-pump#/schemaDefinitions/CavitationConditionType","uav:browsePath":"ua:ConditionClassName"},{"tm:ref":"sample-pump#/schemaDefinitions/CavitationConditionType","uav:browsePath":"ua:Quality"},{"tm:ref":"sample-pump#/schemaDefinitions/CavitationConditionType","uav:browsePath":"ua:LastSeverity"},{"tm:ref":"sample-pump#/schemaDefinitions/CavitationConditionType","uav:browsePath":"ua:Comment"},{"tm:ref":"sample-pump#/schemaDefinitions/CavitationConditionType","uav:browsePath":"ua:ClientUserId"},{"tm:ref":"sample-pump#/schemaDefinitions/CavitationConditionType","uav:browsePath":"ua:EnabledState/ua:Id"},{"tm:ref":"sample-pump#/schemaDefinitions/CavitationConditionType","uav:browsePath":"ua:EnabledState"},{"tm:ref":"sample-pump#/schemaDefinitions/CavitationConditionType","uav:browsePath":"ua:AckedState/ua:Id"},{"tm:ref":"sample-pump#/schemaDefinitions/CavitationConditionType","uav:browsePath":"ua:AckedState"},{"tm:ref":"sample-pump#/schemaDefinitions/CavitationConditionType","uav:browsePath":"ua:ConfirmedState/ua:Id"},{"tm:ref":"sample-pump#/schemaDefinitions/CavitationConditionType","uav:browsePath":"ua:ConfirmedState"},{"tm:ref":"sample-pump#/schemaDefinitions/CavitationConditionType","uav:browsePath":"ua:ActiveState/ua:Id"},{"tm:ref":"sample-pump#/schemaDefinitions/CavitationConditionType","uav:browsePath":"ua:ActiveState"},{"tm:ref":"sample-pump#/schemaDefinitions/CavitationConditionType","uav:browsePath":"ua:InputNode"},{"tm:ref":"sample-pump#/schemaDefinitions/CavitationConditionType","uav:browsePath":"ua:SuppressedOrShelved"}],"uav:id":"nsu=urn:opcfoundation.org:UA:WotAggregation:PumpInstance;s=Pump1.CavitationAlarm"},"MotorOverheatAlarm":{"@type":"uav:eventType","data":{"properties":{"AckedState":{"properties":{"Id":{"type":"boolean"},"Name":{"type":"string"}},"type":"object","uav:fieldOrder":["Id","Name"]},"ActiveState":{"properties":{"Id":{"type":"boolean"},"Name":{"type":"string"}},"type":"object","uav:fieldOrder":["Id","Name"]},"BranchId":{"type":"string"},"ClientUserId":{"type":"string"},"Comment":{"type":"string"},"ConditionClassId":{"type":"string"},"ConditionClassName":{"type":"string"},"ConditionId":{"type":"string"},"ConditionName":{"type":"string"},"ConfirmedState":{"properties":{"Id":{"type":"boolean"},"Name":{"type":"string"}},"type":"object","uav:fieldOrder":["Id","Name"]},"EnabledState":{"properties":{"Id":{"type":"boolean"},"Name":{"type":"string"}},"type":"object","uav:fieldOrder":["Id","Name"]},"EventId":{"contentEncoding":"base64","type":"string"},"EventType":{"type":"string"},"InputNode":{"type":"string"},"LastSeverity":{"maximum":1000,"minimum":1,"type":"integer"},"Message":{"type":"string"},"Quality":{"type":"string"},"ReceiveTime":{"format":"date-time","type":"string"},"Retain":{"type":"boolean"},"Severity":{"maximum":1000,"minimum":1,"type":"integer"},"SourceName":{"type":"string"},"SourceNode":{"type":"string"},"SuppressedOrShelved":{"type":"boolean"},"Time":{"format":"date-time","type":"string"}},"required":["EventId","EventType","SourceNode","SourceName","Time","ReceiveTime","Message","Severity","ConditionId","ConditionName","BranchId","Retain","ConditionClassId","ConditionClassName","Quality","LastSeverity","Comment","ClientUserId","EnabledState"],"type":"object","uav:fieldOrder":["EventId","EventType","SourceNode","SourceName","Time","ReceiveTime","Message","Severity","ConditionId","ConditionName","BranchId","Retain","ConditionClassId","ConditionClassName","Quality","LastSeverity","Comment","ClientUserId","EnabledState","AckedState","ConfirmedState","ActiveState","InputNode","SuppressedOrShelved"]},"description":"SourceB-owned MotorOverheat notifications for Pump1.","forms":[{"href":"${SOURCE_B_ENDPOINT}","op":["subscribeevent","unsubscribeevent"],"uav:id":"nsu=urn:opcfoundation.org:UA:WotAggregation:SourceB;s=Pump1"}],"title":"MotorOverheatAlarm","tm:ref":"sample-pump-motoroverheatalarm","uav:browseName":"ns1:MotorOverheatAlarm","uav:conditionType":"ua:AlarmConditionType","uav:conditionTypeId":"i=2915","uav:eventSelectClauses":[{"tm:ref":"sample-pump#/schemaDefinitions/MotorOverheatConditionType","uav:browsePath":"ua:EventId"},{"tm:ref":"sample-pump#/schemaDefinitions/MotorOverheatConditionType","uav:browsePath":"ua:EventType"},{"tm:ref":"sample-pump#/schemaDefinitions/MotorOverheatConditionType","uav:browsePath":"ua:SourceNode"},{"tm:ref":"sample-pump#/schemaDefinitions/MotorOverheatConditionType","uav:browsePath":"ua:SourceName"},{"tm:ref":"sample-pump#/schemaDefinitions/MotorOverheatConditionType","uav:browsePath":"ua:Time"},{"tm:ref":"sample-pump#/schemaDefinitions/MotorOverheatConditionType","uav:browsePath":"ua:ReceiveTime"},{"tm:ref":"sample-pump#/schemaDefinitions/MotorOverheatConditionType","uav:browsePath":"ua:Message"},{"tm:ref":"sample-pump#/schemaDefinitions/MotorOverheatConditionType","uav:browsePath":"ua:Severity"},{"tm:ref":"sample-pump#/schemaDefinitions/MotorOverheatConditionType","uav:browsePath":""},{"tm:ref":"sample-pump#/schemaDefinitions/MotorOverheatConditionType","uav:browsePath":"ua:ConditionName"},{"tm:ref":"sample-pump#/schemaDefinitions/MotorOverheatConditionType","uav:browsePath":"ua:BranchId"},{"tm:ref":"sample-pump#/schemaDefinitions/MotorOverheatConditionType","uav:browsePath":"ua:Retain"},{"tm:ref":"sample-pump#/schemaDefinitions/MotorOverheatConditionType","uav:browsePath":"ua:ConditionClassId"},{"tm:ref":"sample-pump#/schemaDefinitions/MotorOverheatConditionType","uav:browsePath":"ua:ConditionClassName"},{"tm:ref":"sample-pump#/schemaDefinitions/MotorOverheatConditionType","uav:browsePath":"ua:Quality"},{"tm:ref":"sample-pump#/schemaDefinitions/MotorOverheatConditionType","uav:browsePath":"ua:LastSeverity"},{"tm:ref":"sample-pump#/schemaDefinitions/MotorOverheatConditionType","uav:browsePath":"ua:Comment"},{"tm:ref":"sample-pump#/schemaDefinitions/MotorOverheatConditionType","uav:browsePath":"ua:ClientUserId"},{"tm:ref":"sample-pump#/schemaDefinitions/MotorOverheatConditionType","uav:browsePath":"ua:EnabledState/ua:Id"},{"tm:ref":"sample-pump#/schemaDefinitions/MotorOverheatConditionType","uav:browsePath":"ua:EnabledState"},{"tm:ref":"sample-pump#/schemaDefinitions/MotorOverheatConditionType","uav:browsePath":"ua:AckedState/ua:Id"},{"tm:ref":"sample-pump#/schemaDefinitions/MotorOverheatConditionType","uav:browsePath":"ua:AckedState"},{"tm:ref":"sample-pump#/schemaDefinitions/MotorOverheatConditionType","uav:browsePath":"ua:ConfirmedState/ua:Id"},{"tm:ref":"sample-pump#/schemaDefinitions/MotorOverheatConditionType","uav:browsePath":"ua:ConfirmedState"},{"tm:ref":"sample-pump#/schemaDefinitions/MotorOverheatConditionType","uav:browsePath":"ua:ActiveState/ua:Id"},{"tm:ref":"sample-pump#/schemaDefinitions/MotorOverheatConditionType","uav:browsePath":"ua:ActiveState"},{"tm:ref":"sample-pump#/schemaDefinitions/MotorOverheatConditionType","uav:browsePath":"ua:InputNode"},{"tm:ref":"sample-pump#/schemaDefinitions/MotorOverheatConditionType","uav:browsePath":"ua:SuppressedOrShelved"}],"uav:id":"nsu=urn:opcfoundation.org:UA:WotAggregation:PumpInstance;s=Pump1.MotorOverheatAlarm"}},"links":[{"href":"nsu=http://opcfoundation.org/UA/Pumps/;i=1052","rel":"ua:HasTypeDefinition"},{"href":"i=85","rel":"ua:OrganizedBy","uav:refId":"i=35"}],"properties":{"SourceARunning":{"@type":"uav:variable","forms":[{"href":"${SOURCE_A_ENDPOINT}","op":["readproperty","observeproperty"],"uav:id":"nsu=urn:opcfoundation.org:UA:WotAggregation:SourceA;s=Pump1.Running"}],"links":[{"href":"i=63","rel":"ua:HasTypeDefinition"}],"observable":true,"readOnly":true,"title":"SourceARunning","type":"boolean","uav:browseName":"ns1:SourceARunning","uav:id":"nsu=urn:opcfoundation.org:UA:WotAggregation:PumpInstance;s=Pump1.SourceARunning","uav:mapToNodeId":"nsu=urn:opcfoundation.org:UA:WotAggregation:PumpInstance;s=Pump1.SourceARunning","uav:mapToType":"i=1"},"SourceBRunning":{"@type":"uav:variable","forms":[{"href":"${SOURCE_B_ENDPOINT}","op":["readproperty","observeproperty"],"uav:id":"nsu=urn:opcfoundation.org:UA:WotAggregation:SourceB;s=Pump1.Running"}],"links":[{"href":"i=63","rel":"ua:HasTypeDefinition"}],"observable":true,"readOnly":true,"title":"SourceBRunning","type":"boolean","uav:browseName":"ns1:SourceBRunning","uav:id":"nsu=urn:opcfoundation.org:UA:WotAggregation:PumpInstance;s=Pump1.SourceBRunning","uav:mapToNodeId":"nsu=urn:opcfoundation.org:UA:WotAggregation:PumpInstance;s=Pump1.SourceBRunning","uav:mapToType":"i=1"}},"schemaDefinitions":{"CavitationConditionType":{"@type":["tm:ThingModel","uav:eventType"],"data":{"properties":{"AckedState":{"properties":{"Id":{"type":"boolean"},"Name":{"type":"string"}},"required":["Id","Name"],"type":"object","uav:fieldOrder":["Id","Name"]},"ActiveState":{"properties":{"Id":{"type":"boolean"},"Name":{"type":"string"}},"required":["Id","Name"],"type":"object","uav:fieldOrder":["Id","Name"]},"BranchId":{"type":"string"},"ClientUserId":{"type":"string"},"Comment":{"type":"string"},"ConditionClassId":{"type":"string"},"ConditionClassName":{"type":"string"},"ConditionId":{"type":"string"},"ConditionName":{"type":"string"},"ConfirmedState":{"properties":{"Id":{"type":"boolean"},"Name":{"type":"string"}},"required":["Id","Name"],"type":"object","uav:fieldOrder":["Id","Name"]},"EnabledState":{"properties":{"Id":{"type":"boolean"},"Name":{"type":"string"}},"required":["Id","Name"],"type":"object","uav:fieldOrder":["Id","Name"]},"EventId":{"contentEncoding":"base64","type":"string"},"EventType":{"type":"string"},"InputNode":{"type":"string"},"LastSeverity":{"maximum":1000,"minimum":1,"type":"integer"},"Message":{"type":"string"},"Quality":{"type":"string"},"ReceiveTime":{"format":"date-time","type":"string"},"Retain":{"type":"boolean"},"Severity":{"maximum":1000,"minimum":1,"type":"integer"},"SourceName":{"type":"string"},"SourceNode":{"type":"string"},"SuppressedOrShelved":{"type":"boolean"},"Time":{"format":"date-time","type":"string"}},"required":["EventId","EventType","SourceNode","SourceName","Time","ReceiveTime","Message","Severity","ConditionId","ConditionName","BranchId","Retain","ConditionClassId","ConditionClassName","Quality","LastSeverity","Comment","ClientUserId","EnabledState","AckedState","ConfirmedState","ActiveState"],"type":"object","uav:fieldOrder":["EventId","EventType","SourceNode","SourceName","Time","ReceiveTime","Message","Severity","ConditionId","ConditionName","BranchId","Retain","ConditionClassId","ConditionClassName","Quality","LastSeverity","Comment","ClientUserId","EnabledState","AckedState","ConfirmedState","ActiveState","InputNode","SuppressedOrShelved"]},"uav:browseName":"AlarmConditionType","uav:id":"i=2915"},"MotorOverheatConditionType":{"@type":["tm:ThingModel","uav:eventType"],"data":{"properties":{"AckedState":{"properties":{"Id":{"type":"boolean"},"Name":{"type":"string"}},"required":["Id","Name"],"type":"object","uav:fieldOrder":["Id","Name"]},"ActiveState":{"properties":{"Id":{"type":"boolean"},"Name":{"type":"string"}},"required":["Id","Name"],"type":"object","uav:fieldOrder":["Id","Name"]},"BranchId":{"type":"string"},"ClientUserId":{"type":"string"},"Comment":{"type":"string"},"ConditionClassId":{"type":"string"},"ConditionClassName":{"type":"string"},"ConditionId":{"type":"string"},"ConditionName":{"type":"string"},"ConfirmedState":{"properties":{"Id":{"type":"boolean"},"Name":{"type":"string"}},"required":["Id","Name"],"type":"object","uav:fieldOrder":["Id","Name"]},"EnabledState":{"properties":{"Id":{"type":"boolean"},"Name":{"type":"string"}},"required":["Id","Name"],"type":"object","uav:fieldOrder":["Id","Name"]},"EventId":{"contentEncoding":"base64","type":"string"},"EventType":{"type":"string"},"InputNode":{"type":"string"},"LastSeverity":{"maximum":1000,"minimum":1,"type":"integer"},"Message":{"type":"string"},"Quality":{"type":"string"},"ReceiveTime":{"format":"date-time","type":"string"},"Retain":{"type":"boolean"},"Severity":{"maximum":1000,"minimum":1,"type":"integer"},"SourceName":{"type":"string"},"SourceNode":{"type":"string"},"SuppressedOrShelved":{"type":"boolean"},"Time":{"format":"date-time","type":"string"}},"required":["EventId","EventType","SourceNode","SourceName","Time","ReceiveTime","Message","Severity","ConditionId","ConditionName","BranchId","Retain","ConditionClassId","ConditionClassName","Quality","LastSeverity","Comment","ClientUserId","EnabledState","AckedState","ConfirmedState","ActiveState"],"type":"object","uav:fieldOrder":["EventId","EventType","SourceNode","SourceName","Time","ReceiveTime","Message","Severity","ConditionId","ConditionName","BranchId","Retain","ConditionClassId","ConditionClassName","Quality","LastSeverity","Comment","ClientUserId","EnabledState","AckedState","ConfirmedState","ActiveState","InputNode","SuppressedOrShelved"]},"uav:browseName":"AlarmConditionType","uav:id":"i=2915"}},"security":"nosec_sc","securityDefinitions":{"nosec_sc":{"scheme":"nosec"}},"title":"Pump #1","uav:bindingVersion":"1.1","uav:browseName":"ns1:Pump_1","uav:hasComponent":["nsu=urn:opcfoundation.org:UA:WotAggregation:PumpInstance;s=Pump1.Identification","nsu=urn:opcfoundation.org:UA:WotAggregation:PumpInstance;s=Pump1.Operational","nsu=urn:opcfoundation.org:UA:WotAggregation:PumpInstance;s=Pump1.Events","nsu=urn:opcfoundation.org:UA:WotAggregation:PumpInstance;s=Pump1.Maintenance"],"uav:id":"nsu=urn:opcfoundation.org:UA:WotAggregation:PumpInstance;s=Pump1","uav:nodes":{"@type":"uav:NodeModel","aliases":[{"alias":"Boolean","value":"i=1"},{"alias":"UInt32","value":"i=7"},{"alias":"Double","value":"i=11"},{"alias":"String","value":"i=12"},{"alias":"LocalizedText","value":"i=21"},{"alias":"HasTypeDefinition","value":"i=40"},{"alias":"HasProperty","value":"i=46"},{"alias":"HasComponent","value":"i=47"},{"alias":"Range","value":"i=884"},{"alias":"EUInformation","value":"i=887"},{"alias":"HasSubtype","value":"i=45"},{"alias":"GeneratesEvent","value":"i=41"},{"alias":"Argument","value":"i=296"}],"models":[{"modelUri":"urn:opcfoundation.org:UA:WotAggregation:PumpInstance","publicationDate":"2026-07-24T00:00:00Z","requiredModels":[{"modelUri":"http://opcfoundation.org/UA/","publicationDate":"2022-02-24T00:00:00Z","version":"1.05.01"},{"modelUri":"http://opcfoundation.org/UA/DI/","publicationDate":"2022-11-03T00:00:00Z","version":"1.04.0"},{"modelUri":"http://opcfoundation.org/UA/Machinery/","publicationDate":"2021-02-25T00:00:00Z","version":"1.01.0"},{"modelUri":"http://opcfoundation.org/UA/Pumps/","publicationDate":"2021-04-19T00:00:00Z","version":"1.0.0"}],"version":"1.0.0"}],"namespaceUris":["urn:opcfoundation.org:UA:WotAggregation:PumpInstance","http://opcfoundation.org/UA/Pumps/","http://opcfoundation.org/UA/Machinery/","http://opcfoundation.org/UA/DI/"],"nodes":[{"browseName":"1:Pump_1","description":[{"value":"Sample-owned aggregate pump projected from two upstream OPC UA servers."}],"displayName":[{"value":"Pump #1"}],"eventNotifier":1,"nodeClass":"Object","nodeId":"ns=1;s=Pump1","references":[{"referenceType":"HasComponent","target":"ns=1;s=Pump1.Identification"},{"referenceType":"HasComponent","target":"ns=1;s=Pump1.Operational"},{"referenceType":"HasComponent","target":"ns=1;s=Pump1.Events"},{"referenceType":"HasComponent","target":"ns=1;s=Pump1.Maintenance"},{"referenceType":"HasTypeDefinition","target":"ns=2;i=1052"},{"isForward":false,"referenceType":"i=35","target":"i=85"},{"referenceType":"HasComponent","target":"ns=1;s=Pump1.SourceARunning"},{"referenceType":"HasComponent","target":"ns=1;s=Pump1.SourceAStart"},{"referenceType":"HasComponent","target":"ns=1;s=Pump1.SourceAStop"},{"referenceType":"HasComponent","target":"ns=1;s=Pump1.SourceAReset"},{"referenceType":"HasComponent","target":"ns=1;s=Pump1.SourceBRunning"},{"referenceType":"HasComponent","target":"ns=1;s=Pump1.SourceBStart"},{"referenceType":"HasComponent","target":"ns=1;s=Pump1.SourceBStop"},{"referenceType":"HasComponent","target":"ns=1;s=Pump1.SourceBReset"},{"referenceType":"GeneratesEvent","target":"ns=1;s=Pump1.CavitationAlarm"},{"referenceType":"HasComponent","target":"ns=1;s=Pump1.CavitationAcknowledge"},{"referenceType":"HasComponent","target":"ns=1;s=Pump1.CavitationConfirm"},{"referenceType":"GeneratesEvent","target":"ns=1;s=Pump1.MotorOverheatAlarm"},{"referenceType":"HasComponent","target":"ns=1;s=Pump1.MotorOverheatAcknowledge"},{"referenceType":"HasComponent","target":"ns=1;s=Pump1.MotorOverheatConfirm"}],"typeDefinition":"ns=2;i=1052"},{"browseName":"1:SourceARunning","dataType":"Boolean","displayName":[{"value":"SourceARunning"}],"nodeClass":"Variable","nodeId":"ns=1;s=Pump1.SourceARunning","parentNodeId":"ns=1;s=Pump1","references":[{"isForward":false,"referenceType":"HasComponent","target":"ns=1;s=Pump1"},{"referenceType":"HasTypeDefinition","target":"i=63"}],"typeDefinition":"i=63"},{"browseName":"1:SourceAStart","displayName":[{"value":"SourceAStart"}],"nodeClass":"Method","nodeId":"ns=1;s=Pump1.SourceAStart","parentNodeId":"ns=1;s=Pump1","references":[{"isForward":false,"referenceType":"HasComponent","target":"ns=1;s=Pump1"}]},{"browseName":"1:SourceAStop","displayName":[{"value":"SourceAStop"}],"nodeClass":"Method","nodeId":"ns=1;s=Pump1.SourceAStop","parentNodeId":"ns=1;s=Pump1","references":[{"isForward":false,"referenceType":"HasComponent","target":"ns=1;s=Pump1"}]},{"browseName":"1:SourceAReset","displayName":[{"value":"SourceAReset"}],"nodeClass":"Method","nodeId":"ns=1;s=Pump1.SourceAReset","parentNodeId":"ns=1;s=Pump1","references":[{"isForward":false,"referenceType":"HasComponent","target":"ns=1;s=Pump1"}]},{"browseName":"1:SourceBRunning","dataType":"Boolean","displayName":[{"value":"SourceBRunning"}],"nodeClass":"Variable","nodeId":"ns=1;s=Pump1.SourceBRunning","parentNodeId":"ns=1;s=Pump1","references":[{"isForward":false,"referenceType":"HasComponent","target":"ns=1;s=Pump1"},{"referenceType":"HasTypeDefinition","target":"i=63"}],"typeDefinition":"i=63"},{"browseName":"1:SourceBStart","displayName":[{"value":"SourceBStart"}],"nodeClass":"Method","nodeId":"ns=1;s=Pump1.SourceBStart","parentNodeId":"ns=1;s=Pump1","references":[{"isForward":false,"referenceType":"HasComponent","target":"ns=1;s=Pump1"}]},{"browseName":"1:SourceBStop","displayName":[{"value":"SourceBStop"}],"nodeClass":"Method","nodeId":"ns=1;s=Pump1.SourceBStop","parentNodeId":"ns=1;s=Pump1","references":[{"isForward":false,"referenceType":"HasComponent","target":"ns=1;s=Pump1"}]},{"browseName":"1:SourceBReset","displayName":[{"value":"SourceBReset"}],"nodeClass":"Method","nodeId":"ns=1;s=Pump1.SourceBReset","parentNodeId":"ns=1;s=Pump1","references":[{"isForward":false,"referenceType":"HasComponent","target":"ns=1;s=Pump1"}]},{"arrayDimensions":"2","browseName":"InputArguments","dataType":"Argument","displayName":[{"value":"InputArguments"}],"nodeClass":"Variable","nodeId":"ns=1;s=Pump1.CavitationAcknowledge.InputArguments","parentNodeId":"ns=1;s=Pump1.CavitationAcknowledge","references":[{"isForward":false,"referenceType":"HasProperty","target":"ns=1;s=Pump1.CavitationAcknowledge"},{"referenceType":"HasTypeDefinition","target":"i=68"}],"typeDefinition":"i=68","valueRank":1,"valueXml":"<ListOfExtensionObject xmlns=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">\n        <ExtensionObject>\n          <TypeId>\n            <Identifier>i=297</Identifier>\n          </TypeId>\n          <Body>\n            <Argument>\n              <Name>EventId</Name>\n              <DataType>\n                <Identifier>i=15</Identifier>\n              </DataType>\n              <ValueRank>-1</ValueRank>\n              <ArrayDimensions />\n              <Description>\n                <Text>The occurrence EventId returned by this source's alarm.</Text>\n              </Description>\n            </Argument>\n          </Body>\n        </ExtensionObject>\n        <ExtensionObject>\n          <TypeId>\n            <Identifier>i=297</Identifier>\n          </TypeId>\n          <Body>\n            <Argument>\n              <Name>Comment</Name>\n              <DataType>\n                <Identifier>i=21</Identifier>\n              </DataType>\n              <ValueRank>-1</ValueRank>\n              <ArrayDimensions />\n              <Description>\n                <Text>Optional operator comment.</Text>\n              </Description>\n            </Argument>\n          </Body>\n        </ExtensionObject>\n      </ListOfExtensionObject>"},{"browseName":"1:CavitationAcknowledge","displayName":[{"value":"CavitationAcknowledge"}],"methodDeclarationId":"i=9111","nodeClass":"Method","nodeId":"ns=1;s=Pump1.CavitationAcknowledge","parentNodeId":"ns=1;s=Pump1","references":[{"isForward":false,"referenceType":"HasComponent","target":"ns=1;s=Pump1"},{"referenceType":"HasProperty","target":"ns=1;s=Pump1.CavitationAcknowledge.InputArguments"}]},{"arrayDimensions":"2","browseName":"InputArguments","dataType":"Argument","displayName":[{"value":"InputArguments"}],"nodeClass":"Variable","nodeId":"ns=1;s=Pump1.CavitationConfirm.InputArguments","parentNodeId":"ns=1;s=Pump1.CavitationConfirm","references":[{"isForward":false,"referenceType":"HasProperty","target":"ns=1;s=Pump1.CavitationConfirm"},{"referenceType":"HasTypeDefinition","target":"i=68"}],"typeDefinition":"i=68","valueRank":1,"valueXml":"<ListOfExtensionObject xmlns=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">\n        <ExtensionObject>\n          <TypeId>\n            <Identifier>i=297</Identifier>\n          </TypeId>\n          <Body>\n            <Argument>\n              <Name>EventId</Name>\n              <DataType>\n                <Identifier>i=15</Identifier>\n              </DataType>\n              <ValueRank>-1</ValueRank>\n              <ArrayDimensions />\n              <Description>\n                <Text>The occurrence EventId returned by this source's alarm.</Text>\n              </Description>\n            </Argument>\n          </Body>\n        </ExtensionObject>\n        <ExtensionObject>\n          <TypeId>\n            <Identifier>i=297</Identifier>\n          </TypeId>\n          <Body>\n            <Argument>\n              <Name>Comment</Name>\n              <DataType>\n                <Identifier>i=21</Identifier>\n              </DataType>\n              <ValueRank>-1</ValueRank>\n              <ArrayDimensions />\n              <Description>\n                <Text>Optional operator comment.</Text>\n              </Description>\n            </Argument>\n          </Body>\n        </ExtensionObject>\n      </ListOfExtensionObject>"},{"browseName":"1:CavitationConfirm","displayName":[{"value":"CavitationConfirm"}],"methodDeclarationId":"i=9113","nodeClass":"Method","nodeId":"ns=1;s=Pump1.CavitationConfirm","parentNodeId":"ns=1;s=Pump1","references":[{"isForward":false,"referenceType":"HasComponent","target":"ns=1;s=Pump1"},{"referenceType":"HasProperty","target":"ns=1;s=Pump1.CavitationConfirm.InputArguments"}]},{"arrayDimensions":"2","browseName":"InputArguments","dataType":"Argument","displayName":[{"value":"InputArguments"}],"nodeClass":"Variable","nodeId":"ns=1;s=Pump1.MotorOverheatAcknowledge.InputArguments","parentNodeId":"ns=1;s=Pump1.MotorOverheatAcknowledge","references":[{"isForward":false,"referenceType":"HasProperty","target":"ns=1;s=Pump1.MotorOverheatAcknowledge"},{"referenceType":"HasTypeDefinition","target":"i=68"}],"typeDefinition":"i=68","valueRank":1,"valueXml":"<ListOfExtensionObject xmlns=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">\n        <ExtensionObject>\n          <TypeId>\n            <Identifier>i=297</Identifier>\n          </TypeId>\n          <Body>\n            <Argument>\n              <Name>EventId</Name>\n              <DataType>\n                <Identifier>i=15</Identifier>\n              </DataType>\n              <ValueRank>-1</ValueRank>\n              <ArrayDimensions />\n              <Description>\n                <Text>The occurrence EventId returned by this source's alarm.</Text>\n              </Description>\n            </Argument>\n          </Body>\n        </ExtensionObject>\n        <ExtensionObject>\n          <TypeId>\n            <Identifier>i=297</Identifier>\n          </TypeId>\n          <Body>\n            <Argument>\n              <Name>Comment</Name>\n              <DataType>\n                <Identifier>i=21</Identifier>\n              </DataType>\n              <ValueRank>-1</ValueRank>\n              <ArrayDimensions />\n              <Description>\n                <Text>Optional operator comment.</Text>\n              </Description>\n            </Argument>\n          </Body>\n        </ExtensionObject>\n      </ListOfExtensionObject>"},{"browseName":"1:MotorOverheatAcknowledge","displayName":[{"value":"MotorOverheatAcknowledge"}],"methodDeclarationId":"i=9111","nodeClass":"Method","nodeId":"ns=1;s=Pump1.MotorOverheatAcknowledge","parentNodeId":"ns=1;s=Pump1","references":[{"isForward":false,"referenceType":"HasComponent","target":"ns=1;s=Pump1"},{"referenceType":"HasProperty","target":"ns=1;s=Pump1.MotorOverheatAcknowledge.InputArguments"}]},{"arrayDimensions":"2","browseName":"InputArguments","dataType":"Argument","displayName":[{"value":"InputArguments"}],"nodeClass":"Variable","nodeId":"ns=1;s=Pump1.MotorOverheatConfirm.InputArguments","parentNodeId":"ns=1;s=Pump1.MotorOverheatConfirm","references":[{"isForward":false,"referenceType":"HasProperty","target":"ns=1;s=Pump1.MotorOverheatConfirm"},{"referenceType":"HasTypeDefinition","target":"i=68"}],"typeDefinition":"i=68","valueRank":1,"valueXml":"<ListOfExtensionObject xmlns=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">\n        <ExtensionObject>\n          <TypeId>\n            <Identifier>i=297</Identifier>\n          </TypeId>\n          <Body>\n            <Argument>\n              <Name>EventId</Name>\n              <DataType>\n                <Identifier>i=15</Identifier>\n              </DataType>\n              <ValueRank>-1</ValueRank>\n              <ArrayDimensions />\n              <Description>\n                <Text>The occurrence EventId returned by this source's alarm.</Text>\n              </Description>\n            </Argument>\n          </Body>\n        </ExtensionObject>\n        <ExtensionObject>\n          <TypeId>\n            <Identifier>i=297</Identifier>\n          </TypeId>\n          <Body>\n            <Argument>\n              <Name>Comment</Name>\n              <DataType>\n                <Identifier>i=21</Identifier>\n              </DataType>\n              <ValueRank>-1</ValueRank>\n              <ArrayDimensions />\n              <Description>\n                <Text>Optional operator comment.</Text>\n              </Description>\n            </Argument>\n          </Body>\n        </ExtensionObject>\n      </ListOfExtensionObject>"},{"browseName":"1:MotorOverheatConfirm","displayName":[{"value":"MotorOverheatConfirm"}],"methodDeclarationId":"i=9113","nodeClass":"Method","nodeId":"ns=1;s=Pump1.MotorOverheatConfirm","parentNodeId":"ns=1;s=Pump1","references":[{"isForward":false,"referenceType":"HasComponent","target":"ns=1;s=Pump1"},{"referenceType":"HasProperty","target":"ns=1;s=Pump1.MotorOverheatConfirm.InputArguments"}]}],"profileVersion":"1.0"}}
+{
+  "@context": [
+    "https://www.w3.org/2022/wot/td/v1.1",
+    {
+      "ns1": "urn:opcfoundation.org:UA:WotAggregation:PumpInstance",
+      "ns2": "http://opcfoundation.org/UA/Pumps/",
+      "ns3": "http://opcfoundation.org/UA/Machinery/",
+      "ns4": "http://opcfoundation.org/UA/DI/",
+      "ua": "http://opcfoundation.org/UA/",
+      "uav": "http://opcfoundation.org/UA/WoT-Binding/"
+    },
+    "http://opcfoundation.org/UA/WoT-Binding/v1.1/opc-ua-wot-binding.context.jsonld"
+  ],
+  "@type": "uav:object",
+  "actions": {
+    "CavitationAcknowledge": {
+      "@type": "uav:method",
+      "forms": [
+        {
+          "href": "${SOURCE_A_ENDPOINT}",
+          "op": [
+            "invokeaction"
+          ],
+          "uav:componentOf": "nsu=urn:opcfoundation.org:UA:WotAggregation:SourceA;s=Pump1.Events.SupervisionProcessFluid.Cavitation.Alarm",
+          "uav:id": "i=9111"
+        }
+      ],
+      "input": {
+        "properties": {
+          "Comment": {
+            "description": "Optional operator comment.",
+            "uav:mapToType": "i=21",
+            "uav:valueRank": -1
+          },
+          "EventId": {
+            "contentEncoding": "base64",
+            "description": "The occurrence EventId returned by this source's alarm.",
+            "type": "string",
+            "uav:mapToType": "i=15",
+            "uav:valueRank": -1
+          }
+        },
+        "required": [
+          "EventId"
+        ],
+        "type": "object",
+        "uav:fieldOrder": [
+          "EventId",
+          "Comment"
+        ]
+      },
+      "title": "CavitationAcknowledge",
+      "uav:actsOn": "CavitationAlarm",
+      "uav:browseName": "ns1:CavitationAcknowledge",
+      "uav:conditionAction": "Acknowledge",
+      "uav:id": "nsu=urn:opcfoundation.org:UA:WotAggregation:PumpInstance;s=Pump1.CavitationAcknowledge"
+    },
+    "CavitationConfirm": {
+      "@type": "uav:method",
+      "forms": [
+        {
+          "href": "${SOURCE_A_ENDPOINT}",
+          "op": [
+            "invokeaction"
+          ],
+          "uav:componentOf": "nsu=urn:opcfoundation.org:UA:WotAggregation:SourceA;s=Pump1.Events.SupervisionProcessFluid.Cavitation.Alarm",
+          "uav:id": "i=9113"
+        }
+      ],
+      "input": {
+        "properties": {
+          "Comment": {
+            "description": "Optional operator comment.",
+            "uav:mapToType": "i=21",
+            "uav:valueRank": -1
+          },
+          "EventId": {
+            "contentEncoding": "base64",
+            "description": "The occurrence EventId returned by this source's alarm.",
+            "type": "string",
+            "uav:mapToType": "i=15",
+            "uav:valueRank": -1
+          }
+        },
+        "required": [
+          "EventId"
+        ],
+        "type": "object",
+        "uav:fieldOrder": [
+          "EventId",
+          "Comment"
+        ]
+      },
+      "title": "CavitationConfirm",
+      "uav:actsOn": "CavitationAlarm",
+      "uav:browseName": "ns1:CavitationConfirm",
+      "uav:conditionAction": "Confirm",
+      "uav:id": "nsu=urn:opcfoundation.org:UA:WotAggregation:PumpInstance;s=Pump1.CavitationConfirm"
+    },
+    "MotorOverheatAcknowledge": {
+      "@type": "uav:method",
+      "forms": [
+        {
+          "href": "${SOURCE_B_ENDPOINT}",
+          "op": [
+            "invokeaction"
+          ],
+          "uav:componentOf": "nsu=urn:opcfoundation.org:UA:WotAggregation:SourceB;s=Pump1.Events.SupervisionPumpOperation.MotorOverheat.Alarm",
+          "uav:id": "i=9111"
+        }
+      ],
+      "input": {
+        "properties": {
+          "Comment": {
+            "description": "Optional operator comment.",
+            "uav:mapToType": "i=21",
+            "uav:valueRank": -1
+          },
+          "EventId": {
+            "contentEncoding": "base64",
+            "description": "The occurrence EventId returned by this source's alarm.",
+            "type": "string",
+            "uav:mapToType": "i=15",
+            "uav:valueRank": -1
+          }
+        },
+        "required": [
+          "EventId"
+        ],
+        "type": "object",
+        "uav:fieldOrder": [
+          "EventId",
+          "Comment"
+        ]
+      },
+      "title": "MotorOverheatAcknowledge",
+      "uav:actsOn": "MotorOverheatAlarm",
+      "uav:browseName": "ns1:MotorOverheatAcknowledge",
+      "uav:conditionAction": "Acknowledge",
+      "uav:id": "nsu=urn:opcfoundation.org:UA:WotAggregation:PumpInstance;s=Pump1.MotorOverheatAcknowledge"
+    },
+    "MotorOverheatConfirm": {
+      "@type": "uav:method",
+      "forms": [
+        {
+          "href": "${SOURCE_B_ENDPOINT}",
+          "op": [
+            "invokeaction"
+          ],
+          "uav:componentOf": "nsu=urn:opcfoundation.org:UA:WotAggregation:SourceB;s=Pump1.Events.SupervisionPumpOperation.MotorOverheat.Alarm",
+          "uav:id": "i=9113"
+        }
+      ],
+      "input": {
+        "properties": {
+          "Comment": {
+            "description": "Optional operator comment.",
+            "uav:mapToType": "i=21",
+            "uav:valueRank": -1
+          },
+          "EventId": {
+            "contentEncoding": "base64",
+            "description": "The occurrence EventId returned by this source's alarm.",
+            "type": "string",
+            "uav:mapToType": "i=15",
+            "uav:valueRank": -1
+          }
+        },
+        "required": [
+          "EventId"
+        ],
+        "type": "object",
+        "uav:fieldOrder": [
+          "EventId",
+          "Comment"
+        ]
+      },
+      "title": "MotorOverheatConfirm",
+      "uav:actsOn": "MotorOverheatAlarm",
+      "uav:browseName": "ns1:MotorOverheatConfirm",
+      "uav:conditionAction": "Confirm",
+      "uav:id": "nsu=urn:opcfoundation.org:UA:WotAggregation:PumpInstance;s=Pump1.MotorOverheatConfirm"
+    },
+    "SourceAReset": {
+      "@type": "uav:method",
+      "forms": [
+        {
+          "href": "${SOURCE_A_ENDPOINT}",
+          "op": [
+            "invokeaction"
+          ],
+          "uav:componentOf": "nsu=urn:opcfoundation.org:UA:WotAggregation:SourceA;s=Pump1",
+          "uav:id": "nsu=urn:opcfoundation.org:UA:WotAggregation:SourceA;s=Pump1.Reset"
+        }
+      ],
+      "title": "SourceAReset",
+      "uav:browseName": "ns1:SourceAReset",
+      "uav:id": "nsu=urn:opcfoundation.org:UA:WotAggregation:PumpInstance;s=Pump1.SourceAReset"
+    },
+    "SourceAStart": {
+      "@type": "uav:method",
+      "forms": [
+        {
+          "href": "${SOURCE_A_ENDPOINT}",
+          "op": [
+            "invokeaction"
+          ],
+          "uav:componentOf": "nsu=urn:opcfoundation.org:UA:WotAggregation:SourceA;s=Pump1",
+          "uav:id": "nsu=urn:opcfoundation.org:UA:WotAggregation:SourceA;s=Pump1.Start"
+        }
+      ],
+      "title": "SourceAStart",
+      "uav:browseName": "ns1:SourceAStart",
+      "uav:id": "nsu=urn:opcfoundation.org:UA:WotAggregation:PumpInstance;s=Pump1.SourceAStart"
+    },
+    "SourceAStop": {
+      "@type": "uav:method",
+      "forms": [
+        {
+          "href": "${SOURCE_A_ENDPOINT}",
+          "op": [
+            "invokeaction"
+          ],
+          "uav:componentOf": "nsu=urn:opcfoundation.org:UA:WotAggregation:SourceA;s=Pump1",
+          "uav:id": "nsu=urn:opcfoundation.org:UA:WotAggregation:SourceA;s=Pump1.Stop"
+        }
+      ],
+      "title": "SourceAStop",
+      "uav:browseName": "ns1:SourceAStop",
+      "uav:id": "nsu=urn:opcfoundation.org:UA:WotAggregation:PumpInstance;s=Pump1.SourceAStop"
+    },
+    "SourceBReset": {
+      "@type": "uav:method",
+      "forms": [
+        {
+          "href": "${SOURCE_B_ENDPOINT}",
+          "op": [
+            "invokeaction"
+          ],
+          "uav:componentOf": "nsu=urn:opcfoundation.org:UA:WotAggregation:SourceB;s=Pump1",
+          "uav:id": "nsu=urn:opcfoundation.org:UA:WotAggregation:SourceB;s=Pump1.Reset"
+        }
+      ],
+      "title": "SourceBReset",
+      "uav:browseName": "ns1:SourceBReset",
+      "uav:id": "nsu=urn:opcfoundation.org:UA:WotAggregation:PumpInstance;s=Pump1.SourceBReset"
+    },
+    "SourceBStart": {
+      "@type": "uav:method",
+      "forms": [
+        {
+          "href": "${SOURCE_B_ENDPOINT}",
+          "op": [
+            "invokeaction"
+          ],
+          "uav:componentOf": "nsu=urn:opcfoundation.org:UA:WotAggregation:SourceB;s=Pump1",
+          "uav:id": "nsu=urn:opcfoundation.org:UA:WotAggregation:SourceB;s=Pump1.Start"
+        }
+      ],
+      "title": "SourceBStart",
+      "uav:browseName": "ns1:SourceBStart",
+      "uav:id": "nsu=urn:opcfoundation.org:UA:WotAggregation:PumpInstance;s=Pump1.SourceBStart"
+    },
+    "SourceBStop": {
+      "@type": "uav:method",
+      "forms": [
+        {
+          "href": "${SOURCE_B_ENDPOINT}",
+          "op": [
+            "invokeaction"
+          ],
+          "uav:componentOf": "nsu=urn:opcfoundation.org:UA:WotAggregation:SourceB;s=Pump1",
+          "uav:id": "nsu=urn:opcfoundation.org:UA:WotAggregation:SourceB;s=Pump1.Stop"
+        }
+      ],
+      "title": "SourceBStop",
+      "uav:browseName": "ns1:SourceBStop",
+      "uav:id": "nsu=urn:opcfoundation.org:UA:WotAggregation:PumpInstance;s=Pump1.SourceBStop"
+    }
+  },
+  "description": "Sample-owned aggregate pump projected from two upstream OPC UA servers.",
+  "events": {
+    "CavitationAlarm": {
+      "@type": "uav:eventType",
+      "data": {
+        "properties": {
+          "AckedState": {
+            "properties": {
+              "Id": {
+                "type": "boolean"
+              },
+              "Name": {
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "uav:fieldOrder": [
+              "Id",
+              "Name"
+            ]
+          },
+          "ActiveState": {
+            "properties": {
+              "Id": {
+                "type": "boolean"
+              },
+              "Name": {
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "uav:fieldOrder": [
+              "Id",
+              "Name"
+            ]
+          },
+          "BranchId": {
+            "type": "string"
+          },
+          "ClientUserId": {
+            "type": "string"
+          },
+          "Comment": {
+            "type": "string"
+          },
+          "ConditionClassId": {
+            "type": "string"
+          },
+          "ConditionClassName": {
+            "type": "string"
+          },
+          "ConditionId": {
+            "type": "string"
+          },
+          "ConditionName": {
+            "type": "string"
+          },
+          "ConfirmedState": {
+            "properties": {
+              "Id": {
+                "type": "boolean"
+              },
+              "Name": {
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "uav:fieldOrder": [
+              "Id",
+              "Name"
+            ]
+          },
+          "EnabledState": {
+            "properties": {
+              "Id": {
+                "type": "boolean"
+              },
+              "Name": {
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "uav:fieldOrder": [
+              "Id",
+              "Name"
+            ]
+          },
+          "EventId": {
+            "contentEncoding": "base64",
+            "type": "string"
+          },
+          "EventType": {
+            "type": "string"
+          },
+          "InputNode": {
+            "type": "string"
+          },
+          "LastSeverity": {
+            "maximum": 1000,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "Message": {
+            "type": "string"
+          },
+          "Quality": {
+            "type": "string"
+          },
+          "ReceiveTime": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "Retain": {
+            "type": "boolean"
+          },
+          "Severity": {
+            "maximum": 1000,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "SourceName": {
+            "type": "string"
+          },
+          "SourceNode": {
+            "type": "string"
+          },
+          "SuppressedOrShelved": {
+            "type": "boolean"
+          },
+          "Time": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "EventId",
+          "EventType",
+          "SourceNode",
+          "SourceName",
+          "Time",
+          "ReceiveTime",
+          "Message",
+          "Severity",
+          "ConditionId",
+          "ConditionName",
+          "BranchId",
+          "Retain",
+          "ConditionClassId",
+          "ConditionClassName",
+          "Quality",
+          "LastSeverity",
+          "Comment",
+          "ClientUserId",
+          "EnabledState"
+        ],
+        "type": "object",
+        "uav:fieldOrder": [
+          "EventId",
+          "EventType",
+          "SourceNode",
+          "SourceName",
+          "Time",
+          "ReceiveTime",
+          "Message",
+          "Severity",
+          "ConditionId",
+          "ConditionName",
+          "BranchId",
+          "Retain",
+          "ConditionClassId",
+          "ConditionClassName",
+          "Quality",
+          "LastSeverity",
+          "Comment",
+          "ClientUserId",
+          "EnabledState",
+          "AckedState",
+          "ConfirmedState",
+          "ActiveState",
+          "InputNode",
+          "SuppressedOrShelved"
+        ]
+      },
+      "description": "SourceA-owned Cavitation notifications for Pump1.",
+      "forms": [
+        {
+          "href": "${SOURCE_A_ENDPOINT}",
+          "op": [
+            "subscribeevent",
+            "unsubscribeevent"
+          ],
+          "uav:id": "nsu=urn:opcfoundation.org:UA:WotAggregation:SourceA;s=Pump1"
+        }
+      ],
+      "title": "CavitationAlarm",
+      "tm:ref": "sample-pump-cavitationalarm",
+      "uav:browseName": "ns1:CavitationAlarm",
+      "uav:conditionType": "ua:AlarmConditionType",
+      "uav:conditionTypeId": "i=2915",
+      "uav:eventSelectClauses": [
+        {
+          "tm:ref": "sample-pump#/schemaDefinitions/CavitationConditionType",
+          "uav:browsePath": "ua:EventId"
+        },
+        {
+          "tm:ref": "sample-pump#/schemaDefinitions/CavitationConditionType",
+          "uav:browsePath": "ua:EventType"
+        },
+        {
+          "tm:ref": "sample-pump#/schemaDefinitions/CavitationConditionType",
+          "uav:browsePath": "ua:SourceNode"
+        },
+        {
+          "tm:ref": "sample-pump#/schemaDefinitions/CavitationConditionType",
+          "uav:browsePath": "ua:SourceName"
+        },
+        {
+          "tm:ref": "sample-pump#/schemaDefinitions/CavitationConditionType",
+          "uav:browsePath": "ua:Time"
+        },
+        {
+          "tm:ref": "sample-pump#/schemaDefinitions/CavitationConditionType",
+          "uav:browsePath": "ua:ReceiveTime"
+        },
+        {
+          "tm:ref": "sample-pump#/schemaDefinitions/CavitationConditionType",
+          "uav:browsePath": "ua:Message"
+        },
+        {
+          "tm:ref": "sample-pump#/schemaDefinitions/CavitationConditionType",
+          "uav:browsePath": "ua:Severity"
+        },
+        {
+          "tm:ref": "sample-pump#/schemaDefinitions/CavitationConditionType",
+          "uav:browsePath": ""
+        },
+        {
+          "tm:ref": "sample-pump#/schemaDefinitions/CavitationConditionType",
+          "uav:browsePath": "ua:ConditionName"
+        },
+        {
+          "tm:ref": "sample-pump#/schemaDefinitions/CavitationConditionType",
+          "uav:browsePath": "ua:BranchId"
+        },
+        {
+          "tm:ref": "sample-pump#/schemaDefinitions/CavitationConditionType",
+          "uav:browsePath": "ua:Retain"
+        },
+        {
+          "tm:ref": "sample-pump#/schemaDefinitions/CavitationConditionType",
+          "uav:browsePath": "ua:ConditionClassId"
+        },
+        {
+          "tm:ref": "sample-pump#/schemaDefinitions/CavitationConditionType",
+          "uav:browsePath": "ua:ConditionClassName"
+        },
+        {
+          "tm:ref": "sample-pump#/schemaDefinitions/CavitationConditionType",
+          "uav:browsePath": "ua:Quality"
+        },
+        {
+          "tm:ref": "sample-pump#/schemaDefinitions/CavitationConditionType",
+          "uav:browsePath": "ua:LastSeverity"
+        },
+        {
+          "tm:ref": "sample-pump#/schemaDefinitions/CavitationConditionType",
+          "uav:browsePath": "ua:Comment"
+        },
+        {
+          "tm:ref": "sample-pump#/schemaDefinitions/CavitationConditionType",
+          "uav:browsePath": "ua:ClientUserId"
+        },
+        {
+          "tm:ref": "sample-pump#/schemaDefinitions/CavitationConditionType",
+          "uav:browsePath": "ua:EnabledState/ua:Id"
+        },
+        {
+          "tm:ref": "sample-pump#/schemaDefinitions/CavitationConditionType",
+          "uav:browsePath": "ua:EnabledState"
+        },
+        {
+          "tm:ref": "sample-pump#/schemaDefinitions/CavitationConditionType",
+          "uav:browsePath": "ua:AckedState/ua:Id"
+        },
+        {
+          "tm:ref": "sample-pump#/schemaDefinitions/CavitationConditionType",
+          "uav:browsePath": "ua:AckedState"
+        },
+        {
+          "tm:ref": "sample-pump#/schemaDefinitions/CavitationConditionType",
+          "uav:browsePath": "ua:ConfirmedState/ua:Id"
+        },
+        {
+          "tm:ref": "sample-pump#/schemaDefinitions/CavitationConditionType",
+          "uav:browsePath": "ua:ConfirmedState"
+        },
+        {
+          "tm:ref": "sample-pump#/schemaDefinitions/CavitationConditionType",
+          "uav:browsePath": "ua:ActiveState/ua:Id"
+        },
+        {
+          "tm:ref": "sample-pump#/schemaDefinitions/CavitationConditionType",
+          "uav:browsePath": "ua:ActiveState"
+        },
+        {
+          "tm:ref": "sample-pump#/schemaDefinitions/CavitationConditionType",
+          "uav:browsePath": "ua:InputNode"
+        },
+        {
+          "tm:ref": "sample-pump#/schemaDefinitions/CavitationConditionType",
+          "uav:browsePath": "ua:SuppressedOrShelved"
+        }
+      ],
+      "uav:id": "nsu=urn:opcfoundation.org:UA:WotAggregation:PumpInstance;s=Pump1.CavitationAlarm"
+    },
+    "MotorOverheatAlarm": {
+      "@type": "uav:eventType",
+      "data": {
+        "properties": {
+          "AckedState": {
+            "properties": {
+              "Id": {
+                "type": "boolean"
+              },
+              "Name": {
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "uav:fieldOrder": [
+              "Id",
+              "Name"
+            ]
+          },
+          "ActiveState": {
+            "properties": {
+              "Id": {
+                "type": "boolean"
+              },
+              "Name": {
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "uav:fieldOrder": [
+              "Id",
+              "Name"
+            ]
+          },
+          "BranchId": {
+            "type": "string"
+          },
+          "ClientUserId": {
+            "type": "string"
+          },
+          "Comment": {
+            "type": "string"
+          },
+          "ConditionClassId": {
+            "type": "string"
+          },
+          "ConditionClassName": {
+            "type": "string"
+          },
+          "ConditionId": {
+            "type": "string"
+          },
+          "ConditionName": {
+            "type": "string"
+          },
+          "ConfirmedState": {
+            "properties": {
+              "Id": {
+                "type": "boolean"
+              },
+              "Name": {
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "uav:fieldOrder": [
+              "Id",
+              "Name"
+            ]
+          },
+          "EnabledState": {
+            "properties": {
+              "Id": {
+                "type": "boolean"
+              },
+              "Name": {
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "uav:fieldOrder": [
+              "Id",
+              "Name"
+            ]
+          },
+          "EventId": {
+            "contentEncoding": "base64",
+            "type": "string"
+          },
+          "EventType": {
+            "type": "string"
+          },
+          "InputNode": {
+            "type": "string"
+          },
+          "LastSeverity": {
+            "maximum": 1000,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "Message": {
+            "type": "string"
+          },
+          "Quality": {
+            "type": "string"
+          },
+          "ReceiveTime": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "Retain": {
+            "type": "boolean"
+          },
+          "Severity": {
+            "maximum": 1000,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "SourceName": {
+            "type": "string"
+          },
+          "SourceNode": {
+            "type": "string"
+          },
+          "SuppressedOrShelved": {
+            "type": "boolean"
+          },
+          "Time": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "EventId",
+          "EventType",
+          "SourceNode",
+          "SourceName",
+          "Time",
+          "ReceiveTime",
+          "Message",
+          "Severity",
+          "ConditionId",
+          "ConditionName",
+          "BranchId",
+          "Retain",
+          "ConditionClassId",
+          "ConditionClassName",
+          "Quality",
+          "LastSeverity",
+          "Comment",
+          "ClientUserId",
+          "EnabledState"
+        ],
+        "type": "object",
+        "uav:fieldOrder": [
+          "EventId",
+          "EventType",
+          "SourceNode",
+          "SourceName",
+          "Time",
+          "ReceiveTime",
+          "Message",
+          "Severity",
+          "ConditionId",
+          "ConditionName",
+          "BranchId",
+          "Retain",
+          "ConditionClassId",
+          "ConditionClassName",
+          "Quality",
+          "LastSeverity",
+          "Comment",
+          "ClientUserId",
+          "EnabledState",
+          "AckedState",
+          "ConfirmedState",
+          "ActiveState",
+          "InputNode",
+          "SuppressedOrShelved"
+        ]
+      },
+      "description": "SourceB-owned MotorOverheat notifications for Pump1.",
+      "forms": [
+        {
+          "href": "${SOURCE_B_ENDPOINT}",
+          "op": [
+            "subscribeevent",
+            "unsubscribeevent"
+          ],
+          "uav:id": "nsu=urn:opcfoundation.org:UA:WotAggregation:SourceB;s=Pump1"
+        }
+      ],
+      "title": "MotorOverheatAlarm",
+      "tm:ref": "sample-pump-motoroverheatalarm",
+      "uav:browseName": "ns1:MotorOverheatAlarm",
+      "uav:conditionType": "ua:AlarmConditionType",
+      "uav:conditionTypeId": "i=2915",
+      "uav:eventSelectClauses": [
+        {
+          "tm:ref": "sample-pump#/schemaDefinitions/MotorOverheatConditionType",
+          "uav:browsePath": "ua:EventId"
+        },
+        {
+          "tm:ref": "sample-pump#/schemaDefinitions/MotorOverheatConditionType",
+          "uav:browsePath": "ua:EventType"
+        },
+        {
+          "tm:ref": "sample-pump#/schemaDefinitions/MotorOverheatConditionType",
+          "uav:browsePath": "ua:SourceNode"
+        },
+        {
+          "tm:ref": "sample-pump#/schemaDefinitions/MotorOverheatConditionType",
+          "uav:browsePath": "ua:SourceName"
+        },
+        {
+          "tm:ref": "sample-pump#/schemaDefinitions/MotorOverheatConditionType",
+          "uav:browsePath": "ua:Time"
+        },
+        {
+          "tm:ref": "sample-pump#/schemaDefinitions/MotorOverheatConditionType",
+          "uav:browsePath": "ua:ReceiveTime"
+        },
+        {
+          "tm:ref": "sample-pump#/schemaDefinitions/MotorOverheatConditionType",
+          "uav:browsePath": "ua:Message"
+        },
+        {
+          "tm:ref": "sample-pump#/schemaDefinitions/MotorOverheatConditionType",
+          "uav:browsePath": "ua:Severity"
+        },
+        {
+          "tm:ref": "sample-pump#/schemaDefinitions/MotorOverheatConditionType",
+          "uav:browsePath": ""
+        },
+        {
+          "tm:ref": "sample-pump#/schemaDefinitions/MotorOverheatConditionType",
+          "uav:browsePath": "ua:ConditionName"
+        },
+        {
+          "tm:ref": "sample-pump#/schemaDefinitions/MotorOverheatConditionType",
+          "uav:browsePath": "ua:BranchId"
+        },
+        {
+          "tm:ref": "sample-pump#/schemaDefinitions/MotorOverheatConditionType",
+          "uav:browsePath": "ua:Retain"
+        },
+        {
+          "tm:ref": "sample-pump#/schemaDefinitions/MotorOverheatConditionType",
+          "uav:browsePath": "ua:ConditionClassId"
+        },
+        {
+          "tm:ref": "sample-pump#/schemaDefinitions/MotorOverheatConditionType",
+          "uav:browsePath": "ua:ConditionClassName"
+        },
+        {
+          "tm:ref": "sample-pump#/schemaDefinitions/MotorOverheatConditionType",
+          "uav:browsePath": "ua:Quality"
+        },
+        {
+          "tm:ref": "sample-pump#/schemaDefinitions/MotorOverheatConditionType",
+          "uav:browsePath": "ua:LastSeverity"
+        },
+        {
+          "tm:ref": "sample-pump#/schemaDefinitions/MotorOverheatConditionType",
+          "uav:browsePath": "ua:Comment"
+        },
+        {
+          "tm:ref": "sample-pump#/schemaDefinitions/MotorOverheatConditionType",
+          "uav:browsePath": "ua:ClientUserId"
+        },
+        {
+          "tm:ref": "sample-pump#/schemaDefinitions/MotorOverheatConditionType",
+          "uav:browsePath": "ua:EnabledState/ua:Id"
+        },
+        {
+          "tm:ref": "sample-pump#/schemaDefinitions/MotorOverheatConditionType",
+          "uav:browsePath": "ua:EnabledState"
+        },
+        {
+          "tm:ref": "sample-pump#/schemaDefinitions/MotorOverheatConditionType",
+          "uav:browsePath": "ua:AckedState/ua:Id"
+        },
+        {
+          "tm:ref": "sample-pump#/schemaDefinitions/MotorOverheatConditionType",
+          "uav:browsePath": "ua:AckedState"
+        },
+        {
+          "tm:ref": "sample-pump#/schemaDefinitions/MotorOverheatConditionType",
+          "uav:browsePath": "ua:ConfirmedState/ua:Id"
+        },
+        {
+          "tm:ref": "sample-pump#/schemaDefinitions/MotorOverheatConditionType",
+          "uav:browsePath": "ua:ConfirmedState"
+        },
+        {
+          "tm:ref": "sample-pump#/schemaDefinitions/MotorOverheatConditionType",
+          "uav:browsePath": "ua:ActiveState/ua:Id"
+        },
+        {
+          "tm:ref": "sample-pump#/schemaDefinitions/MotorOverheatConditionType",
+          "uav:browsePath": "ua:ActiveState"
+        },
+        {
+          "tm:ref": "sample-pump#/schemaDefinitions/MotorOverheatConditionType",
+          "uav:browsePath": "ua:InputNode"
+        },
+        {
+          "tm:ref": "sample-pump#/schemaDefinitions/MotorOverheatConditionType",
+          "uav:browsePath": "ua:SuppressedOrShelved"
+        }
+      ],
+      "uav:id": "nsu=urn:opcfoundation.org:UA:WotAggregation:PumpInstance;s=Pump1.MotorOverheatAlarm"
+    }
+  },
+  "links": [
+    {
+      "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=1052",
+      "rel": "ua:HasTypeDefinition"
+    },
+    {
+      "href": "i=85",
+      "rel": "ua:OrganizedBy",
+      "uav:refId": "i=35"
+    }
+  ],
+  "properties": {
+    "SourceARunning": {
+      "@type": "uav:variable",
+      "forms": [
+        {
+          "href": "${SOURCE_A_ENDPOINT}",
+          "op": [
+            "readproperty",
+            "observeproperty"
+          ],
+          "uav:id": "nsu=urn:opcfoundation.org:UA:WotAggregation:SourceA;s=Pump1.Running"
+        }
+      ],
+      "links": [
+        {
+          "href": "i=63",
+          "rel": "ua:HasTypeDefinition"
+        }
+      ],
+      "observable": true,
+      "readOnly": true,
+      "title": "SourceARunning",
+      "type": "boolean",
+      "uav:browseName": "ns1:SourceARunning",
+      "uav:id": "nsu=urn:opcfoundation.org:UA:WotAggregation:PumpInstance;s=Pump1.SourceARunning",
+      "uav:mapToNodeId": "nsu=urn:opcfoundation.org:UA:WotAggregation:PumpInstance;s=Pump1.SourceARunning",
+      "uav:mapToType": "i=1"
+    },
+    "SourceBRunning": {
+      "@type": "uav:variable",
+      "forms": [
+        {
+          "href": "${SOURCE_B_ENDPOINT}",
+          "op": [
+            "readproperty",
+            "observeproperty"
+          ],
+          "uav:id": "nsu=urn:opcfoundation.org:UA:WotAggregation:SourceB;s=Pump1.Running"
+        }
+      ],
+      "links": [
+        {
+          "href": "i=63",
+          "rel": "ua:HasTypeDefinition"
+        }
+      ],
+      "observable": true,
+      "readOnly": true,
+      "title": "SourceBRunning",
+      "type": "boolean",
+      "uav:browseName": "ns1:SourceBRunning",
+      "uav:id": "nsu=urn:opcfoundation.org:UA:WotAggregation:PumpInstance;s=Pump1.SourceBRunning",
+      "uav:mapToNodeId": "nsu=urn:opcfoundation.org:UA:WotAggregation:PumpInstance;s=Pump1.SourceBRunning",
+      "uav:mapToType": "i=1"
+    }
+  },
+  "schemaDefinitions": {
+    "CavitationConditionType": {
+      "@type": [
+        "tm:ThingModel",
+        "uav:eventType"
+      ],
+      "data": {
+        "properties": {
+          "AckedState": {
+            "properties": {
+              "Id": {
+                "type": "boolean"
+              },
+              "Name": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "Id",
+              "Name"
+            ],
+            "type": "object",
+            "uav:fieldOrder": [
+              "Id",
+              "Name"
+            ]
+          },
+          "ActiveState": {
+            "properties": {
+              "Id": {
+                "type": "boolean"
+              },
+              "Name": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "Id",
+              "Name"
+            ],
+            "type": "object",
+            "uav:fieldOrder": [
+              "Id",
+              "Name"
+            ]
+          },
+          "BranchId": {
+            "type": "string"
+          },
+          "ClientUserId": {
+            "type": "string"
+          },
+          "Comment": {
+            "type": "string"
+          },
+          "ConditionClassId": {
+            "type": "string"
+          },
+          "ConditionClassName": {
+            "type": "string"
+          },
+          "ConditionId": {
+            "type": "string"
+          },
+          "ConditionName": {
+            "type": "string"
+          },
+          "ConfirmedState": {
+            "properties": {
+              "Id": {
+                "type": "boolean"
+              },
+              "Name": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "Id",
+              "Name"
+            ],
+            "type": "object",
+            "uav:fieldOrder": [
+              "Id",
+              "Name"
+            ]
+          },
+          "EnabledState": {
+            "properties": {
+              "Id": {
+                "type": "boolean"
+              },
+              "Name": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "Id",
+              "Name"
+            ],
+            "type": "object",
+            "uav:fieldOrder": [
+              "Id",
+              "Name"
+            ]
+          },
+          "EventId": {
+            "contentEncoding": "base64",
+            "type": "string"
+          },
+          "EventType": {
+            "type": "string"
+          },
+          "InputNode": {
+            "type": "string"
+          },
+          "LastSeverity": {
+            "maximum": 1000,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "Message": {
+            "type": "string"
+          },
+          "Quality": {
+            "type": "string"
+          },
+          "ReceiveTime": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "Retain": {
+            "type": "boolean"
+          },
+          "Severity": {
+            "maximum": 1000,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "SourceName": {
+            "type": "string"
+          },
+          "SourceNode": {
+            "type": "string"
+          },
+          "SuppressedOrShelved": {
+            "type": "boolean"
+          },
+          "Time": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "EventId",
+          "EventType",
+          "SourceNode",
+          "SourceName",
+          "Time",
+          "ReceiveTime",
+          "Message",
+          "Severity",
+          "ConditionId",
+          "ConditionName",
+          "BranchId",
+          "Retain",
+          "ConditionClassId",
+          "ConditionClassName",
+          "Quality",
+          "LastSeverity",
+          "Comment",
+          "ClientUserId",
+          "EnabledState",
+          "AckedState",
+          "ConfirmedState",
+          "ActiveState"
+        ],
+        "type": "object",
+        "uav:fieldOrder": [
+          "EventId",
+          "EventType",
+          "SourceNode",
+          "SourceName",
+          "Time",
+          "ReceiveTime",
+          "Message",
+          "Severity",
+          "ConditionId",
+          "ConditionName",
+          "BranchId",
+          "Retain",
+          "ConditionClassId",
+          "ConditionClassName",
+          "Quality",
+          "LastSeverity",
+          "Comment",
+          "ClientUserId",
+          "EnabledState",
+          "AckedState",
+          "ConfirmedState",
+          "ActiveState",
+          "InputNode",
+          "SuppressedOrShelved"
+        ]
+      },
+      "uav:browseName": "AlarmConditionType",
+      "uav:id": "i=2915"
+    },
+    "MotorOverheatConditionType": {
+      "@type": [
+        "tm:ThingModel",
+        "uav:eventType"
+      ],
+      "data": {
+        "properties": {
+          "AckedState": {
+            "properties": {
+              "Id": {
+                "type": "boolean"
+              },
+              "Name": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "Id",
+              "Name"
+            ],
+            "type": "object",
+            "uav:fieldOrder": [
+              "Id",
+              "Name"
+            ]
+          },
+          "ActiveState": {
+            "properties": {
+              "Id": {
+                "type": "boolean"
+              },
+              "Name": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "Id",
+              "Name"
+            ],
+            "type": "object",
+            "uav:fieldOrder": [
+              "Id",
+              "Name"
+            ]
+          },
+          "BranchId": {
+            "type": "string"
+          },
+          "ClientUserId": {
+            "type": "string"
+          },
+          "Comment": {
+            "type": "string"
+          },
+          "ConditionClassId": {
+            "type": "string"
+          },
+          "ConditionClassName": {
+            "type": "string"
+          },
+          "ConditionId": {
+            "type": "string"
+          },
+          "ConditionName": {
+            "type": "string"
+          },
+          "ConfirmedState": {
+            "properties": {
+              "Id": {
+                "type": "boolean"
+              },
+              "Name": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "Id",
+              "Name"
+            ],
+            "type": "object",
+            "uav:fieldOrder": [
+              "Id",
+              "Name"
+            ]
+          },
+          "EnabledState": {
+            "properties": {
+              "Id": {
+                "type": "boolean"
+              },
+              "Name": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "Id",
+              "Name"
+            ],
+            "type": "object",
+            "uav:fieldOrder": [
+              "Id",
+              "Name"
+            ]
+          },
+          "EventId": {
+            "contentEncoding": "base64",
+            "type": "string"
+          },
+          "EventType": {
+            "type": "string"
+          },
+          "InputNode": {
+            "type": "string"
+          },
+          "LastSeverity": {
+            "maximum": 1000,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "Message": {
+            "type": "string"
+          },
+          "Quality": {
+            "type": "string"
+          },
+          "ReceiveTime": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "Retain": {
+            "type": "boolean"
+          },
+          "Severity": {
+            "maximum": 1000,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "SourceName": {
+            "type": "string"
+          },
+          "SourceNode": {
+            "type": "string"
+          },
+          "SuppressedOrShelved": {
+            "type": "boolean"
+          },
+          "Time": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "EventId",
+          "EventType",
+          "SourceNode",
+          "SourceName",
+          "Time",
+          "ReceiveTime",
+          "Message",
+          "Severity",
+          "ConditionId",
+          "ConditionName",
+          "BranchId",
+          "Retain",
+          "ConditionClassId",
+          "ConditionClassName",
+          "Quality",
+          "LastSeverity",
+          "Comment",
+          "ClientUserId",
+          "EnabledState",
+          "AckedState",
+          "ConfirmedState",
+          "ActiveState"
+        ],
+        "type": "object",
+        "uav:fieldOrder": [
+          "EventId",
+          "EventType",
+          "SourceNode",
+          "SourceName",
+          "Time",
+          "ReceiveTime",
+          "Message",
+          "Severity",
+          "ConditionId",
+          "ConditionName",
+          "BranchId",
+          "Retain",
+          "ConditionClassId",
+          "ConditionClassName",
+          "Quality",
+          "LastSeverity",
+          "Comment",
+          "ClientUserId",
+          "EnabledState",
+          "AckedState",
+          "ConfirmedState",
+          "ActiveState",
+          "InputNode",
+          "SuppressedOrShelved"
+        ]
+      },
+      "uav:browseName": "AlarmConditionType",
+      "uav:id": "i=2915"
+    }
+  },
+  "security": "nosec_sc",
+  "securityDefinitions": {
+    "nosec_sc": {
+      "scheme": "nosec"
+    }
+  },
+  "title": "Pump #1",
+  "uav:bindingVersion": "1.1",
+  "uav:browseName": "ns1:Pump_1",
+  "uav:hasComponent": [
+    "nsu=urn:opcfoundation.org:UA:WotAggregation:PumpInstance;s=Pump1.Identification",
+    "nsu=urn:opcfoundation.org:UA:WotAggregation:PumpInstance;s=Pump1.Operational",
+    "nsu=urn:opcfoundation.org:UA:WotAggregation:PumpInstance;s=Pump1.Events",
+    "nsu=urn:opcfoundation.org:UA:WotAggregation:PumpInstance;s=Pump1.Maintenance"
+  ],
+  "uav:id": "nsu=urn:opcfoundation.org:UA:WotAggregation:PumpInstance;s=Pump1",
+  "uav:nodes": {
+    "@type": "uav:NodeModel",
+    "aliases": [
+      {
+        "alias": "Boolean",
+        "value": "i=1"
+      },
+      {
+        "alias": "UInt32",
+        "value": "i=7"
+      },
+      {
+        "alias": "Double",
+        "value": "i=11"
+      },
+      {
+        "alias": "String",
+        "value": "i=12"
+      },
+      {
+        "alias": "LocalizedText",
+        "value": "i=21"
+      },
+      {
+        "alias": "HasTypeDefinition",
+        "value": "i=40"
+      },
+      {
+        "alias": "HasProperty",
+        "value": "i=46"
+      },
+      {
+        "alias": "HasComponent",
+        "value": "i=47"
+      },
+      {
+        "alias": "Range",
+        "value": "i=884"
+      },
+      {
+        "alias": "EUInformation",
+        "value": "i=887"
+      },
+      {
+        "alias": "HasSubtype",
+        "value": "i=45"
+      },
+      {
+        "alias": "GeneratesEvent",
+        "value": "i=41"
+      },
+      {
+        "alias": "Argument",
+        "value": "i=296"
+      }
+    ],
+    "models": [
+      {
+        "modelUri": "urn:opcfoundation.org:UA:WotAggregation:PumpInstance",
+        "publicationDate": "2026-07-24T00:00:00Z",
+        "requiredModels": [
+          {
+            "modelUri": "http://opcfoundation.org/UA/",
+            "publicationDate": "2022-02-24T00:00:00Z",
+            "version": "1.05.01"
+          },
+          {
+            "modelUri": "http://opcfoundation.org/UA/DI/",
+            "publicationDate": "2022-11-03T00:00:00Z",
+            "version": "1.04.0"
+          },
+          {
+            "modelUri": "http://opcfoundation.org/UA/Machinery/",
+            "publicationDate": "2021-02-25T00:00:00Z",
+            "version": "1.01.0"
+          },
+          {
+            "modelUri": "http://opcfoundation.org/UA/Pumps/",
+            "publicationDate": "2021-04-19T00:00:00Z",
+            "version": "1.0.0"
+          }
+        ],
+        "version": "1.0.0"
+      }
+    ],
+    "namespaceUris": [
+      "urn:opcfoundation.org:UA:WotAggregation:PumpInstance",
+      "http://opcfoundation.org/UA/Pumps/",
+      "http://opcfoundation.org/UA/Machinery/",
+      "http://opcfoundation.org/UA/DI/"
+    ],
+    "nodes": [
+      {
+        "browseName": "1:Pump_1",
+        "description": [
+          {
+            "value": "Sample-owned aggregate pump projected from two upstream OPC UA servers."
+          }
+        ],
+        "displayName": [
+          {
+            "value": "Pump #1"
+          }
+        ],
+        "eventNotifier": 1,
+        "nodeClass": "Object",
+        "nodeId": "ns=1;s=Pump1",
+        "references": [
+          {
+            "referenceType": "HasComponent",
+            "target": "ns=1;s=Pump1.Identification"
+          },
+          {
+            "referenceType": "HasComponent",
+            "target": "ns=1;s=Pump1.Operational"
+          },
+          {
+            "referenceType": "HasComponent",
+            "target": "ns=1;s=Pump1.Events"
+          },
+          {
+            "referenceType": "HasComponent",
+            "target": "ns=1;s=Pump1.Maintenance"
+          },
+          {
+            "referenceType": "HasTypeDefinition",
+            "target": "ns=2;i=1052"
+          },
+          {
+            "isForward": false,
+            "referenceType": "i=35",
+            "target": "i=85"
+          },
+          {
+            "referenceType": "HasComponent",
+            "target": "ns=1;s=Pump1.SourceARunning"
+          },
+          {
+            "referenceType": "HasComponent",
+            "target": "ns=1;s=Pump1.SourceAStart"
+          },
+          {
+            "referenceType": "HasComponent",
+            "target": "ns=1;s=Pump1.SourceAStop"
+          },
+          {
+            "referenceType": "HasComponent",
+            "target": "ns=1;s=Pump1.SourceAReset"
+          },
+          {
+            "referenceType": "HasComponent",
+            "target": "ns=1;s=Pump1.SourceBRunning"
+          },
+          {
+            "referenceType": "HasComponent",
+            "target": "ns=1;s=Pump1.SourceBStart"
+          },
+          {
+            "referenceType": "HasComponent",
+            "target": "ns=1;s=Pump1.SourceBStop"
+          },
+          {
+            "referenceType": "HasComponent",
+            "target": "ns=1;s=Pump1.SourceBReset"
+          },
+          {
+            "referenceType": "GeneratesEvent",
+            "target": "ns=1;s=Pump1.CavitationAlarm"
+          },
+          {
+            "referenceType": "HasComponent",
+            "target": "ns=1;s=Pump1.CavitationAcknowledge"
+          },
+          {
+            "referenceType": "HasComponent",
+            "target": "ns=1;s=Pump1.CavitationConfirm"
+          },
+          {
+            "referenceType": "GeneratesEvent",
+            "target": "ns=1;s=Pump1.MotorOverheatAlarm"
+          },
+          {
+            "referenceType": "HasComponent",
+            "target": "ns=1;s=Pump1.MotorOverheatAcknowledge"
+          },
+          {
+            "referenceType": "HasComponent",
+            "target": "ns=1;s=Pump1.MotorOverheatConfirm"
+          }
+        ],
+        "typeDefinition": "ns=2;i=1052"
+      },
+      {
+        "browseName": "1:SourceARunning",
+        "dataType": "Boolean",
+        "displayName": [
+          {
+            "value": "SourceARunning"
+          }
+        ],
+        "nodeClass": "Variable",
+        "nodeId": "ns=1;s=Pump1.SourceARunning",
+        "parentNodeId": "ns=1;s=Pump1",
+        "references": [
+          {
+            "isForward": false,
+            "referenceType": "HasComponent",
+            "target": "ns=1;s=Pump1"
+          },
+          {
+            "referenceType": "HasTypeDefinition",
+            "target": "i=63"
+          }
+        ],
+        "typeDefinition": "i=63"
+      },
+      {
+        "browseName": "1:SourceAStart",
+        "displayName": [
+          {
+            "value": "SourceAStart"
+          }
+        ],
+        "nodeClass": "Method",
+        "nodeId": "ns=1;s=Pump1.SourceAStart",
+        "parentNodeId": "ns=1;s=Pump1",
+        "references": [
+          {
+            "isForward": false,
+            "referenceType": "HasComponent",
+            "target": "ns=1;s=Pump1"
+          }
+        ]
+      },
+      {
+        "browseName": "1:SourceAStop",
+        "displayName": [
+          {
+            "value": "SourceAStop"
+          }
+        ],
+        "nodeClass": "Method",
+        "nodeId": "ns=1;s=Pump1.SourceAStop",
+        "parentNodeId": "ns=1;s=Pump1",
+        "references": [
+          {
+            "isForward": false,
+            "referenceType": "HasComponent",
+            "target": "ns=1;s=Pump1"
+          }
+        ]
+      },
+      {
+        "browseName": "1:SourceAReset",
+        "displayName": [
+          {
+            "value": "SourceAReset"
+          }
+        ],
+        "nodeClass": "Method",
+        "nodeId": "ns=1;s=Pump1.SourceAReset",
+        "parentNodeId": "ns=1;s=Pump1",
+        "references": [
+          {
+            "isForward": false,
+            "referenceType": "HasComponent",
+            "target": "ns=1;s=Pump1"
+          }
+        ]
+      },
+      {
+        "browseName": "1:SourceBRunning",
+        "dataType": "Boolean",
+        "displayName": [
+          {
+            "value": "SourceBRunning"
+          }
+        ],
+        "nodeClass": "Variable",
+        "nodeId": "ns=1;s=Pump1.SourceBRunning",
+        "parentNodeId": "ns=1;s=Pump1",
+        "references": [
+          {
+            "isForward": false,
+            "referenceType": "HasComponent",
+            "target": "ns=1;s=Pump1"
+          },
+          {
+            "referenceType": "HasTypeDefinition",
+            "target": "i=63"
+          }
+        ],
+        "typeDefinition": "i=63"
+      },
+      {
+        "browseName": "1:SourceBStart",
+        "displayName": [
+          {
+            "value": "SourceBStart"
+          }
+        ],
+        "nodeClass": "Method",
+        "nodeId": "ns=1;s=Pump1.SourceBStart",
+        "parentNodeId": "ns=1;s=Pump1",
+        "references": [
+          {
+            "isForward": false,
+            "referenceType": "HasComponent",
+            "target": "ns=1;s=Pump1"
+          }
+        ]
+      },
+      {
+        "browseName": "1:SourceBStop",
+        "displayName": [
+          {
+            "value": "SourceBStop"
+          }
+        ],
+        "nodeClass": "Method",
+        "nodeId": "ns=1;s=Pump1.SourceBStop",
+        "parentNodeId": "ns=1;s=Pump1",
+        "references": [
+          {
+            "isForward": false,
+            "referenceType": "HasComponent",
+            "target": "ns=1;s=Pump1"
+          }
+        ]
+      },
+      {
+        "browseName": "1:SourceBReset",
+        "displayName": [
+          {
+            "value": "SourceBReset"
+          }
+        ],
+        "nodeClass": "Method",
+        "nodeId": "ns=1;s=Pump1.SourceBReset",
+        "parentNodeId": "ns=1;s=Pump1",
+        "references": [
+          {
+            "isForward": false,
+            "referenceType": "HasComponent",
+            "target": "ns=1;s=Pump1"
+          }
+        ]
+      },
+      {
+        "arrayDimensions": "2",
+        "browseName": "InputArguments",
+        "dataType": "Argument",
+        "displayName": [
+          {
+            "value": "InputArguments"
+          }
+        ],
+        "nodeClass": "Variable",
+        "nodeId": "ns=1;s=Pump1.CavitationAcknowledge.InputArguments",
+        "parentNodeId": "ns=1;s=Pump1.CavitationAcknowledge",
+        "references": [
+          {
+            "isForward": false,
+            "referenceType": "HasProperty",
+            "target": "ns=1;s=Pump1.CavitationAcknowledge"
+          },
+          {
+            "referenceType": "HasTypeDefinition",
+            "target": "i=68"
+          }
+        ],
+        "typeDefinition": "i=68",
+        "valueRank": 1,
+        "valueXml": "<ListOfExtensionObject xmlns=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">\n        <ExtensionObject>\n          <TypeId>\n            <Identifier>i=297</Identifier>\n          </TypeId>\n          <Body>\n            <Argument>\n              <Name>EventId</Name>\n              <DataType>\n                <Identifier>i=15</Identifier>\n              </DataType>\n              <ValueRank>-1</ValueRank>\n              <ArrayDimensions />\n              <Description>\n                <Text>The occurrence EventId returned by this source's alarm.</Text>\n              </Description>\n            </Argument>\n          </Body>\n        </ExtensionObject>\n        <ExtensionObject>\n          <TypeId>\n            <Identifier>i=297</Identifier>\n          </TypeId>\n          <Body>\n            <Argument>\n              <Name>Comment</Name>\n              <DataType>\n                <Identifier>i=21</Identifier>\n              </DataType>\n              <ValueRank>-1</ValueRank>\n              <ArrayDimensions />\n              <Description>\n                <Text>Optional operator comment.</Text>\n              </Description>\n            </Argument>\n          </Body>\n        </ExtensionObject>\n      </ListOfExtensionObject>"
+      },
+      {
+        "browseName": "1:CavitationAcknowledge",
+        "displayName": [
+          {
+            "value": "CavitationAcknowledge"
+          }
+        ],
+        "methodDeclarationId": "i=9111",
+        "nodeClass": "Method",
+        "nodeId": "ns=1;s=Pump1.CavitationAcknowledge",
+        "parentNodeId": "ns=1;s=Pump1",
+        "references": [
+          {
+            "isForward": false,
+            "referenceType": "HasComponent",
+            "target": "ns=1;s=Pump1"
+          },
+          {
+            "referenceType": "HasProperty",
+            "target": "ns=1;s=Pump1.CavitationAcknowledge.InputArguments"
+          }
+        ]
+      },
+      {
+        "arrayDimensions": "2",
+        "browseName": "InputArguments",
+        "dataType": "Argument",
+        "displayName": [
+          {
+            "value": "InputArguments"
+          }
+        ],
+        "nodeClass": "Variable",
+        "nodeId": "ns=1;s=Pump1.CavitationConfirm.InputArguments",
+        "parentNodeId": "ns=1;s=Pump1.CavitationConfirm",
+        "references": [
+          {
+            "isForward": false,
+            "referenceType": "HasProperty",
+            "target": "ns=1;s=Pump1.CavitationConfirm"
+          },
+          {
+            "referenceType": "HasTypeDefinition",
+            "target": "i=68"
+          }
+        ],
+        "typeDefinition": "i=68",
+        "valueRank": 1,
+        "valueXml": "<ListOfExtensionObject xmlns=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">\n        <ExtensionObject>\n          <TypeId>\n            <Identifier>i=297</Identifier>\n          </TypeId>\n          <Body>\n            <Argument>\n              <Name>EventId</Name>\n              <DataType>\n                <Identifier>i=15</Identifier>\n              </DataType>\n              <ValueRank>-1</ValueRank>\n              <ArrayDimensions />\n              <Description>\n                <Text>The occurrence EventId returned by this source's alarm.</Text>\n              </Description>\n            </Argument>\n          </Body>\n        </ExtensionObject>\n        <ExtensionObject>\n          <TypeId>\n            <Identifier>i=297</Identifier>\n          </TypeId>\n          <Body>\n            <Argument>\n              <Name>Comment</Name>\n              <DataType>\n                <Identifier>i=21</Identifier>\n              </DataType>\n              <ValueRank>-1</ValueRank>\n              <ArrayDimensions />\n              <Description>\n                <Text>Optional operator comment.</Text>\n              </Description>\n            </Argument>\n          </Body>\n        </ExtensionObject>\n      </ListOfExtensionObject>"
+      },
+      {
+        "browseName": "1:CavitationConfirm",
+        "displayName": [
+          {
+            "value": "CavitationConfirm"
+          }
+        ],
+        "methodDeclarationId": "i=9113",
+        "nodeClass": "Method",
+        "nodeId": "ns=1;s=Pump1.CavitationConfirm",
+        "parentNodeId": "ns=1;s=Pump1",
+        "references": [
+          {
+            "isForward": false,
+            "referenceType": "HasComponent",
+            "target": "ns=1;s=Pump1"
+          },
+          {
+            "referenceType": "HasProperty",
+            "target": "ns=1;s=Pump1.CavitationConfirm.InputArguments"
+          }
+        ]
+      },
+      {
+        "arrayDimensions": "2",
+        "browseName": "InputArguments",
+        "dataType": "Argument",
+        "displayName": [
+          {
+            "value": "InputArguments"
+          }
+        ],
+        "nodeClass": "Variable",
+        "nodeId": "ns=1;s=Pump1.MotorOverheatAcknowledge.InputArguments",
+        "parentNodeId": "ns=1;s=Pump1.MotorOverheatAcknowledge",
+        "references": [
+          {
+            "isForward": false,
+            "referenceType": "HasProperty",
+            "target": "ns=1;s=Pump1.MotorOverheatAcknowledge"
+          },
+          {
+            "referenceType": "HasTypeDefinition",
+            "target": "i=68"
+          }
+        ],
+        "typeDefinition": "i=68",
+        "valueRank": 1,
+        "valueXml": "<ListOfExtensionObject xmlns=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">\n        <ExtensionObject>\n          <TypeId>\n            <Identifier>i=297</Identifier>\n          </TypeId>\n          <Body>\n            <Argument>\n              <Name>EventId</Name>\n              <DataType>\n                <Identifier>i=15</Identifier>\n              </DataType>\n              <ValueRank>-1</ValueRank>\n              <ArrayDimensions />\n              <Description>\n                <Text>The occurrence EventId returned by this source's alarm.</Text>\n              </Description>\n            </Argument>\n          </Body>\n        </ExtensionObject>\n        <ExtensionObject>\n          <TypeId>\n            <Identifier>i=297</Identifier>\n          </TypeId>\n          <Body>\n            <Argument>\n              <Name>Comment</Name>\n              <DataType>\n                <Identifier>i=21</Identifier>\n              </DataType>\n              <ValueRank>-1</ValueRank>\n              <ArrayDimensions />\n              <Description>\n                <Text>Optional operator comment.</Text>\n              </Description>\n            </Argument>\n          </Body>\n        </ExtensionObject>\n      </ListOfExtensionObject>"
+      },
+      {
+        "browseName": "1:MotorOverheatAcknowledge",
+        "displayName": [
+          {
+            "value": "MotorOverheatAcknowledge"
+          }
+        ],
+        "methodDeclarationId": "i=9111",
+        "nodeClass": "Method",
+        "nodeId": "ns=1;s=Pump1.MotorOverheatAcknowledge",
+        "parentNodeId": "ns=1;s=Pump1",
+        "references": [
+          {
+            "isForward": false,
+            "referenceType": "HasComponent",
+            "target": "ns=1;s=Pump1"
+          },
+          {
+            "referenceType": "HasProperty",
+            "target": "ns=1;s=Pump1.MotorOverheatAcknowledge.InputArguments"
+          }
+        ]
+      },
+      {
+        "arrayDimensions": "2",
+        "browseName": "InputArguments",
+        "dataType": "Argument",
+        "displayName": [
+          {
+            "value": "InputArguments"
+          }
+        ],
+        "nodeClass": "Variable",
+        "nodeId": "ns=1;s=Pump1.MotorOverheatConfirm.InputArguments",
+        "parentNodeId": "ns=1;s=Pump1.MotorOverheatConfirm",
+        "references": [
+          {
+            "isForward": false,
+            "referenceType": "HasProperty",
+            "target": "ns=1;s=Pump1.MotorOverheatConfirm"
+          },
+          {
+            "referenceType": "HasTypeDefinition",
+            "target": "i=68"
+          }
+        ],
+        "typeDefinition": "i=68",
+        "valueRank": 1,
+        "valueXml": "<ListOfExtensionObject xmlns=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">\n        <ExtensionObject>\n          <TypeId>\n            <Identifier>i=297</Identifier>\n          </TypeId>\n          <Body>\n            <Argument>\n              <Name>EventId</Name>\n              <DataType>\n                <Identifier>i=15</Identifier>\n              </DataType>\n              <ValueRank>-1</ValueRank>\n              <ArrayDimensions />\n              <Description>\n                <Text>The occurrence EventId returned by this source's alarm.</Text>\n              </Description>\n            </Argument>\n          </Body>\n        </ExtensionObject>\n        <ExtensionObject>\n          <TypeId>\n            <Identifier>i=297</Identifier>\n          </TypeId>\n          <Body>\n            <Argument>\n              <Name>Comment</Name>\n              <DataType>\n                <Identifier>i=21</Identifier>\n              </DataType>\n              <ValueRank>-1</ValueRank>\n              <ArrayDimensions />\n              <Description>\n                <Text>Optional operator comment.</Text>\n              </Description>\n            </Argument>\n          </Body>\n        </ExtensionObject>\n      </ListOfExtensionObject>"
+      },
+      {
+        "browseName": "1:MotorOverheatConfirm",
+        "displayName": [
+          {
+            "value": "MotorOverheatConfirm"
+          }
+        ],
+        "methodDeclarationId": "i=9113",
+        "nodeClass": "Method",
+        "nodeId": "ns=1;s=Pump1.MotorOverheatConfirm",
+        "parentNodeId": "ns=1;s=Pump1",
+        "references": [
+          {
+            "isForward": false,
+            "referenceType": "HasComponent",
+            "target": "ns=1;s=Pump1"
+          },
+          {
+            "referenceType": "HasProperty",
+            "target": "ns=1;s=Pump1.MotorOverheatConfirm.InputArguments"
+          }
+        ]
+      }
+    ],
+    "profileVersion": "1.0"
+  }
+}

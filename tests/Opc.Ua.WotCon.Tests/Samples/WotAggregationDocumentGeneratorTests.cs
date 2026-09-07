@@ -32,6 +32,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Threading.Tasks;
@@ -101,6 +102,21 @@ namespace Opc.Ua.WotCon.Tests.Samples
                 () => WotAggregationDocumentGenerator.GetManifestEntries(documents),
                 Throws.TypeOf<InvalidOperationException>().With.Message.EqualTo(
                     "Duplicate sample resource 'duplicate'."));
+        }
+
+        [Test]
+        public void ManifestRejectsDuplicateDocumentPaths()
+        {
+            ArrayOf<SampleDocument> documents =
+            [
+                CreateDocument("sample--member", path: "sample/sample-member.json"),
+                CreateDocument("sample-member", path: "sample/sample-member.json")
+            ];
+
+            Assert.That(
+                () => WotAggregationDocumentGenerator.GenerateManifest(documents),
+                Throws.TypeOf<InvalidOperationException>().With.Message.EqualTo(
+                    "Ambiguous sample document alias 'sample/sample-member.json'."));
         }
 
         [TestCase(0)]
@@ -195,6 +211,59 @@ namespace Opc.Ua.WotCon.Tests.Samples
             Assert.That(entry.GetProperty("documentKind").GetString(), Is.EqualTo(kind.ToString()));
             Assert.That(entry.GetProperty("groupId").GetString(), Is.EqualTo(group));
             Assert.That(entry.GetProperty("dependsOn").GetArrayLength(), Is.Zero);
+        }
+
+        [Test]
+        public void GeneratedManifestUsesIndentedLfJson()
+        {
+            ByteString generated = WotAggregationDocumentGenerator.GenerateManifest([CreateDocument("resource")]);
+            string expected = """
+                [
+                  {
+                    "dependsOn": [],
+                    "documentKind": "ThingDescription",
+                    "groupId": "thingdescriptions",
+                    "path": "resource.json",
+                    "resourceId": "resource"
+                  }
+                ]
+                """.Replace("\r\n", "\n", StringComparison.Ordinal) + "\n";
+
+            Assert.That(Encoding.UTF8.GetString(generated.ToArray()), Is.EqualTo(expected));
+        }
+
+        [TestCase("<CPIdentifier>", "sample-pump--cpidentifier", "sample-pump-cpidentifier.json")]
+        [TestCase("Pump--Controller", "sample-pump-pump--controller", "sample-pump-pump-controller.json")]
+        [TestCase("Pump-", "sample-pump-pump", "sample-pump-pump.json")]
+        public void GeneratedDocumentFilenamesNormalizeHyphensWithoutChangingResourceIds(
+            string browseName,
+            string resourceId,
+            string fileName)
+        {
+            var source = new UANodeSet
+            {
+                NamespaceUris = ["urn:sample"],
+                Items =
+                [
+                    new UAObject
+                    {
+                        NodeId = "ns=1;i=1",
+                        BrowseName = "1:Root",
+                        References = [new Reference { ReferenceType = "i=47", Value = "ns=1;i=2" }]
+                    },
+                    new UAObject { NodeId = "ns=1;i=2", BrowseName = "1:" + browseName }
+                ]
+            };
+
+            ArrayOf<SampleDocument> documents = WotAggregationDocumentGenerator.GeneratePumpDeclarationDocuments(source);
+            SampleDocument generated = documents.ToList().Single(document => document.ResourceId == resourceId);
+
+            Assert.That(generated.Path, Is.EqualTo("sample-pump/" + fileName));
+            ArrayOf<ManifestEntry> manifest = WotAggregationDocumentGenerator.GetManifestEntries(documents);
+            Assert.That(manifest.ToList().Single(entry => entry.ResourceId == resourceId).Path,
+                Is.EqualTo(generated.Path));
+            using var json = JsonDocument.Parse(generated.Json.ToArray());
+            Assert.That(json.RootElement.GetProperty("uav:id").GetString(), Is.EqualTo("nsu=urn:sample;i=2"));
         }
 
         [Test]

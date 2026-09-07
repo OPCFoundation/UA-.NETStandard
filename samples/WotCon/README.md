@@ -209,6 +209,11 @@ replace the generated maps or add Nodes over an authoritative native partition.
 Dependencies describe actual document references and ownership, not an arbitrary
 upload chain. Use the manifest rather than assuming a fixed resource count.
 
+Checked-in JSON uses sorted members, two-space indentation, and LF line endings.
+Generated filenames use single hyphens with no trailing hyphen before `.json`.
+The manifest maps those filenames to stable registry resource IDs; document
+links and dependencies use the resource IDs, not inferred filenames.
+
 Localizations, type bindings, method arguments, engineering units and ranges,
 ordered event selections, and Condition-action relationships remain in the
 generated documents. Event severity comes from the source occurrence, not an

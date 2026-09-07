@@ -133,7 +133,7 @@ namespace Opc.Ua.WotCon.Tests.Samples
 
             return documents.ToArrayOf(document => document with
             {
-                Json = CanonicalJson(roots[document.ResourceId])
+                Json = FormatJson(roots[document.ResourceId])
             });
         }
 

@@ -32,6 +32,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Text.Encodings.Web;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using Opc.Ua.Export;
@@ -53,7 +54,7 @@ namespace Opc.Ua.WotCon.Tests.Samples
         {
             using WotDocument document = WotNodeSetConverter.FromNodeSet(
                 ReadNodeSet(sourcePath), title);
-            return document.ToCanonicalUtf8();
+            return FormatJson(document).ToArray();
         }
 
         /// <summary>
@@ -69,7 +70,7 @@ namespace Opc.Ua.WotCon.Tests.Samples
                 ReadNodeSet(sourcePath), modelPrefix, title, CreateLargeDocumentOptions());
             using WotDocumentSet set = RequireValue(result, sourcePath);
             return set.Entries.ToList().Select(entry => new GeneratedDocument(
-                entry.Href, entry.Document.ToCanonicalUtf8())).ToArray();
+                entry.Href, FormatJson(entry.Document).ToArray())).ToArray();
         }
 
         /// <summary>
@@ -104,6 +105,23 @@ namespace Opc.Ua.WotCon.Tests.Samples
                 (path.Length == 0 ? string.Empty : "." + path);
         }
 
+        public static ByteString FormatJson(WotDocument document)
+        {
+            using var canonical = WotDocument.Parse(document.ToCanonicalUtf8(), CreateLargeDocumentOptions());
+            using var stream = new MemoryStream();
+            using (var writer = new Utf8JsonWriter(stream, new JsonWriterOptions
+            {
+                Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
+                Indented = true,
+                NewLine = "\n"
+            }))
+            {
+                canonical.RootElement.WriteTo(writer);
+            }
+            stream.WriteByte((byte)'\n');
+            return ByteString.From(stream.ToArray());
+        }
+
         private static T RequireValue<T>(WotConversionResult<T> result, string origin)
             where T : class
         {
@@ -115,11 +133,11 @@ namespace Opc.Ua.WotCon.Tests.Samples
             return result.Value;
         }
 
-        private static ByteString CanonicalJson(JsonNode root)
+        private static ByteString FormatJson(JsonNode root)
         {
             using var document = WotDocument.Parse(
                 JsonSerializer.SerializeToUtf8Bytes(root), CreateLargeDocumentOptions());
-            return ByteString.From(document.ToCanonicalUtf8());
+            return FormatJson(document);
         }
 
         private static JsonArray StringArray(IEnumerable<string> values)

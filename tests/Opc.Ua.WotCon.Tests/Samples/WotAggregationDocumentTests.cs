@@ -63,7 +63,7 @@ namespace Opc.Ua.WotCon.Tests.Samples
         private const string PumpInstanceNamespace = "urn:opcfoundation.org:UA:WotAggregation:PumpInstance";
 
         [Test]
-        public void ThingModelsMatchCanonicalConverterRegeneration()
+        public void ThingModelsMatchFormattedConverterRegeneration()
         {
             foreach (ModelDocument document in s_modelDocuments)
             {
@@ -75,7 +75,7 @@ namespace Opc.Ua.WotCon.Tests.Samples
                 Assert.That(
                     regenerated,
                     Is.EqualTo(checkedIn),
-                    $"{document.FileName} is not the canonical converter output.");
+                    $"{document.FileName} is not the formatted converter output.");
             }
         }
 
@@ -106,7 +106,7 @@ namespace Opc.Ua.WotCon.Tests.Samples
         }
 
         [Test]
-        public void PumpThingDescriptionMatchesCanonicalRegeneration()
+        public void PumpThingDescriptionMatchesFormattedRegeneration()
         {
             byte[] regenerated = WotAggregationDocumentGenerator.GeneratePumpThingDescription(
                 DocumentPath("SamplePump.NodeSet2.xml"));
@@ -137,7 +137,7 @@ namespace Opc.Ua.WotCon.Tests.Samples
         }
 
         [Test]
-        public void PumpAssetProjectionDocumentsMatchCanonicalRegeneration()
+        public void PumpAssetProjectionDocumentsMatchFormattedRegeneration()
         {
             ArrayOf<SampleDocument> pumpDocuments = ReadPumpDocuments();
             foreach (string fileName in s_assetProjectionDocuments)
@@ -150,7 +150,7 @@ namespace Opc.Ua.WotCon.Tests.Samples
                 Assert.That(
                     regenerated.ToArray(),
                     Is.EqualTo(checkedIn),
-                    $"{fileName} is not the canonical projection document.");
+                    $"{fileName} is not the formatted projection document.");
             }
         }
 
@@ -181,31 +181,31 @@ namespace Opc.Ua.WotCon.Tests.Samples
         }
 
         [Test]
-        public void CheckedInJsonDocumentsUseCanonicalSerialization()
+        public void CheckedInJsonDocumentsUseIndentedSerialization()
         {
-            foreach (string path in CanonicalJsonDocuments())
+            foreach (string path in SampleJsonDocuments())
             {
+                Assert.That(Path.GetFileName(path), Does.Not.Contain("--").And.Not.EndWith("-.json"), path);
                 byte[] bytes = File.ReadAllBytes(path);
                 using var document = WotDocument.Parse(
                     bytes,
                     WotAggregationDocumentGenerator.CreateLargeDocumentOptions());
                 Assert.That(
-                    document.ToCanonicalUtf8(),
+                    WotAggregationDocumentGenerator.FormatJson(document).ToArray(),
                     Is.EqualTo(bytes),
-                    $"{path} is not canonical JSON.");
+                    $"{path} is not deterministically formatted JSON.");
             }
         }
 
         /// <summary>
-        /// Rewrites every checked-in document in its canonical form.
+        /// Rewrites every checked-in sample document with sorted members,
+        /// two-space indentation, and LF line endings.
         /// </summary>
         /// <remarks>
         /// Explicit for the same reason <c>WriteThingModels</c> is: it rewrites
-        /// checked-in sample documents. The canonical form is a function of the
-        /// JSON value, so this changes what a document is <em>spelled</em> like
-        /// and never what it says - which is what makes it the right tool when
-        /// the canonicalizer itself is corrected. Run it, review the diff, then
-        /// commit what it produced:
+        /// checked-in sample documents. Formatting changes the JSON layout,
+        /// not the document's value. Run it, review the diff, then commit what
+        /// it produced:
         /// <para>
         ///   dotnet test tests\Opc.Ua.WotCon.Tests --filter "FullyQualifiedName~RewriteCheckedInJsonDocuments"
         /// </para>
@@ -214,32 +214,26 @@ namespace Opc.Ua.WotCon.Tests.Samples
         [Explicit("Rewrites the checked-in sample documents.")]
         public void RewriteCheckedInJsonDocuments()
         {
-            foreach (string path in CanonicalJsonDocuments())
+            foreach (string path in SampleJsonDocuments())
             {
                 byte[] bytes = File.ReadAllBytes(path);
                 using var document = WotDocument.Parse(
                     bytes,
                     WotAggregationDocumentGenerator.CreateLargeDocumentOptions());
-                byte[] canonical = document.ToCanonicalUtf8();
-                if (canonical.SequenceEqual(bytes))
+                byte[] formatted = WotAggregationDocumentGenerator.FormatJson(document).ToArray();
+                if (formatted.SequenceEqual(bytes))
                 {
                     continue;
                 }
-                File.WriteAllBytes(path, canonical);
-                TestContext.Out.WriteLine($"{path}: {canonical.Length} bytes");
+                File.WriteAllBytes(path, formatted);
+                TestContext.Out.WriteLine($"{path}: {formatted.Length} bytes");
             }
         }
 
-        private static IEnumerable<string> CanonicalJsonDocuments()
+        private static IEnumerable<string> SampleJsonDocuments()
         {
-            return s_modelDocuments
-                .Select(document => DocumentPath(document.FileName))
-                .Append(DocumentPath("SamplePump.td.json"))
-                .Concat(s_assetProjectionDocuments.Select(DocumentPath))
-                .Concat(ReadManifestDocuments().ToList().Select(document => DocumentPath(document.Path)))
-                .Append(DocumentPath("documents.json"))
-                .Append(StructuredExamplePath)
-                .Distinct(StringComparer.Ordinal);
+            return Directory.EnumerateFiles(DocumentPath(string.Empty), "*.json", SearchOption.AllDirectories)
+                .Append(StructuredExamplePath);
         }
 
         [Test]

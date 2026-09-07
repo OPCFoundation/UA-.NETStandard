@@ -157,11 +157,12 @@ namespace Opc.Ua.WotCon.Tests.Samples
                 JsonNode root = JsonNode.Parse(entry.Document.Utf8Json.Span)!;
                 RewriteDocumentReferences(root, references);
                 string id = references[entry.Href];
+                string fileName = string.Join("-", id.Split(['-'], StringSplitOptions.RemoveEmptyEntries)) + ".json";
                 documents.Add(new SampleDocument(
                     id,
-                    resourcePrefix + "/" + id + ".json",
+                    resourcePrefix + "/" + fileName,
                     DocumentKind(entry.Document.RootElement),
-                    CanonicalJson(root)));
+                    FormatJson(root)));
             }
             return documents.ToArrayOf();
         }
@@ -383,7 +384,7 @@ namespace Opc.Ua.WotCon.Tests.Samples
                     ["dependsOn"] = StringArray(entry.DependsOn.ToList())
                 });
             }
-            return CanonicalJson(manifest);
+            return FormatJson(manifest);
         }
 
         public static async Task WriteDocumentsAsync(
