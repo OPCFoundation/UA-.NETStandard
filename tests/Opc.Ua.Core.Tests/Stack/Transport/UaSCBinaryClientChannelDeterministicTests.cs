@@ -219,19 +219,13 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                 sender.RawData,
                 new byte[TcpMessageLimits.CertificateThumbprintSize]);
 
-            // Baseline after the sender/receiver handles already exist: only the
-            // chain the header parser allocates internally may move the counters.
-            long createdBefore = Certificate.InstancesCreated;
-            long disposedBefore = Certificate.InstancesDisposed;
-
             ServiceResultException ex = Assert.Throws<ServiceResultException>(
                 () => channel.CallReadAsymmetricMessageHeader(
                     new ArraySegment<byte>(header), receiver))!;
             Assert.That(ex.StatusCode, Is.EqualTo((uint)StatusCodes.BadCertificateInvalid));
 
-            Assert.That(
-                Certificate.InstancesCreated - createdBefore,
-                Is.EqualTo(Certificate.InstancesDisposed - disposedBefore),
+            AssertParsedSenderChainReleased(
+                channel,
                 "the parsed sender certificate chain must be disposed when asymmetric " +
                 "header validation fails instead of being abandoned as a leaked handle.");
         }
@@ -256,9 +250,6 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                 sender.RawData,
                 new byte[TcpMessageLimits.CertificateThumbprintSize]);
 
-            long createdBefore = Certificate.InstancesCreated;
-            long disposedBefore = Certificate.InstancesDisposed;
-
             // No receiver certificate and no server certificate registry (client
             // side): the parser reaches the "receiver has no matching certificate"
             // failure after the sender chain is allocated.
@@ -267,9 +258,8 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                     new ArraySegment<byte>(header), receiverCertificate: null))!;
             Assert.That(ex.StatusCode, Is.EqualTo((uint)StatusCodes.BadCertificateInvalid));
 
-            Assert.That(
-                Certificate.InstancesCreated - createdBefore,
-                Is.EqualTo(Certificate.InstancesDisposed - disposedBefore),
+            AssertParsedSenderChainReleased(
+                channel,
                 "the parsed sender chain must be disposed when the receiver certificate is missing.");
         }
 
@@ -297,17 +287,13 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                 sender.RawData,
                 Array.Empty<byte>());
 
-            long createdBefore = Certificate.InstancesCreated;
-            long disposedBefore = Certificate.InstancesDisposed;
-
             ServiceResultException ex = Assert.Throws<ServiceResultException>(
                 () => channel.CallReadAsymmetricMessageHeader(
                     new ArraySegment<byte>(header), receiver))!;
             Assert.That(ex.StatusCode, Is.EqualTo((uint)StatusCodes.BadCertificateInvalid));
 
-            Assert.That(
-                Certificate.InstancesCreated - createdBefore,
-                Is.EqualTo(Certificate.InstancesDisposed - disposedBefore),
+            AssertParsedSenderChainReleased(
+                channel,
                 "the parsed sender chain must be disposed when the receiver thumbprint is absent.");
         }
 
@@ -736,6 +722,60 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             return Certificate.From(x509);
         }
 
+        /// <summary>
+        /// Asserts that every certificate handle the asymmetric header parser
+        /// allocated for the sender chain was released by the time the parse
+        /// failed.
+        /// </summary>
+        /// <remarks>
+        /// The chain is captured through the channel's test hook and probed
+        /// instance by instance. The process-wide
+        /// <see cref="Certificate.InstancesCreated"/> /
+        /// <see cref="Certificate.InstancesDisposed"/> counters cannot be used
+        /// here: this fixture is <see cref="ParallelizableAttribute"/>, so any
+        /// certificate another test allocates inside the measured window shifts
+        /// the created delta without a matching dispose and fails the assertion
+        /// for reasons that have nothing to do with the header parser.
+        /// </remarks>
+        private static void AssertParsedSenderChainReleased(
+            TestClientChannel channel, string because)
+        {
+            IReadOnlyList<Certificate>? parsedChain = channel.ParsedSenderChain;
+
+            // Guards against a vacuous pass: the header must have carried a
+            // sender certificate for there to be anything to leak.
+            Assert.That(
+                parsedChain,
+                Is.Not.Null,
+                "the header parser must have parsed a sender certificate chain.");
+            Assert.That(parsedChain, Is.Not.Empty);
+
+            foreach (Certificate certificate in parsedChain!)
+            {
+                Assert.That(IsReleased(certificate), Is.True, because);
+            }
+        }
+
+        /// <summary>
+        /// Whether the last owning handle on the certificate's shared core was
+        /// released. <see cref="Certificate.AddRef"/> is the only observable
+        /// that distinguishes a released core from a live one; the probe handle
+        /// it hands back on a live core is disposed again immediately, so the
+        /// check leaves the refcount untouched.
+        /// </summary>
+        private static bool IsReleased(Certificate certificate)
+        {
+            try
+            {
+                using Certificate probe = certificate.AddRef();
+                return false;
+            }
+            catch (ObjectDisposedException)
+            {
+                return true;
+            }
+        }
+
         private sealed class TestClientChannel : UaSCUaBinaryClientChannel
         {
             public TestClientChannel(
@@ -758,7 +798,24 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                     telemetry,
                     timeProvider)
             {
+                SenderCertificateChainParsedForTest =
+                    chain => ParsedSenderChain = new List<Certificate>(chain);
             }
+
+            /// <summary>
+            /// The certificate handles the asymmetric header parser allocated
+            /// for the sender chain during the most recent
+            /// <see cref="CallReadAsymmetricMessageHeader"/>, or <c>null</c>
+            /// when that call parsed no chain because the header carried no
+            /// sender certificate data. Captured through the channel's test
+            /// hook because the parser disposes the chain and clears the out
+            /// parameter when validation fails, leaving the caller no other way
+            /// to reach those handles. The handles are copied out of the
+            /// collection (which empties itself on disposal) without taking a
+            /// reference, so the snapshot observes their release rather than
+            /// preventing it.
+            /// </summary>
+            public IReadOnlyList<Certificate>? ParsedSenderChain { get; private set; }
 
             public TcpChannelState CurrentState
             {
@@ -833,6 +890,12 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                 CallReadAsymmetricMessageHeader(
                     ArraySegment<byte> buffer, Certificate? receiverCertificate)
             {
+                // Cleared up front so the property always describes THIS call:
+                // the hook only fires when the header actually carries sender
+                // certificate data, and a stale chain from an earlier call
+                // would otherwise be asserted against.
+                ParsedSenderChain = null;
+
                 using var decoder = new BinaryDecoder(buffer, Quotas.MessageContext);
                 Certificate? receiver = receiverCertificate;
                 ReadAsymmetricMessageHeader(
