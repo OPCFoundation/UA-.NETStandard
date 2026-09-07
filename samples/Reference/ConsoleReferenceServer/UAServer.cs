@@ -34,6 +34,7 @@ using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Opc.Ua;
 using Opc.Ua.Bindings;
@@ -161,30 +162,23 @@ namespace Quickstarts
         }
 
         /// <summary>
-        /// Builds the transport binding registry used by the server. Seeds
-        /// the mandatory <c>opc.tcp</c> listener/channel factories and adds
-        /// the HTTPS/WSS listener/channel factories from
-        /// <c>Opc.Ua.Bindings.Https</c> so base addresses configured with
-        /// the <c>opc.https</c>/<c>https</c>/<c>opc.wss</c>/<c>wss</c>
-        /// schemes resolve to a registered transport.
+        /// Builds the transport binding registry used by the server. Reuses
+        /// the production <c>AddOpcTcpTransport()</c> / <c>AddHttpsTransport()</c> /
+        /// <c>AddWssTransport()</c> DI registrations (this project references
+        /// <c>Opc.Ua.Bindings.Https</c>) so base addresses configured with the
+        /// <c>opc.tcp</c>/<c>opc.https</c>/<c>https</c>/<c>opc.wss</c>/<c>wss</c>
+        /// schemes resolve to a registered transport instead of relying on a
+        /// hand-rolled duplicate of that registration logic.
         /// </summary>
-        private static DefaultTransportBindingRegistry CreateTransportBindings()
+        private static ITransportBindingRegistry CreateTransportBindings()
         {
-            DefaultTransportBindingRegistry registry = DefaultTransportBindingRegistry.WithDefaultTcp();
-            registry.RegisterListenerFactory(new HttpsTransportListenerFactory());
-            registry.RegisterListenerFactory(new OpcHttpsTransportListenerFactory());
-            registry.RegisterListenerFactory(new WssTransportListenerFactory());
-            registry.RegisterListenerFactory(new OpcWssTransportListenerFactory());
-            registry.RegisterChannelFactory(new HttpsTransportChannelFactory());
-            registry.RegisterChannelFactory(new OpcHttpsTransportChannelFactory());
-            registry.RegisterChannelFactory(new WssTransportChannelFactory());
-            registry.RegisterChannelFactory(new OpcWssTransportChannelFactory());
-            // No separate WSS-JSON listener factory: WssTransportListenerFactory /
-            // OpcWssTransportListenerFactory already negotiate the opcua+uajson
-            // sub-protocol via their JsonTransportProfileUri, mirroring
-            // OpcUaHttpsBuilderExtensions.AddWssBindings().
-            registry.RegisterChannelFactory(new WssJsonTransportChannelFactory());
-            return registry;
+            var services = new ServiceCollection();
+            services.AddOpcUa()
+                .AddOpcTcpTransport()
+                .AddHttpsTransport()
+                .AddWssTransport();
+            using ServiceProvider provider = services.BuildServiceProvider();
+            return provider.GetRequiredService<ITransportBindingRegistry>();
         }
 
         /// <summary>
