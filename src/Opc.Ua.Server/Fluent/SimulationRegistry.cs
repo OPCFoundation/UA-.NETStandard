@@ -48,8 +48,8 @@ namespace Opc.Ua.Server.Fluent
     /// </para>
     /// <para>
     /// Loops are driven from the server <see cref="TimeProvider"/> rather than from
-    /// <see cref="PeriodicTimer"/> and <c>Stopwatch</c>, so tests can run them on a
-    /// fake clock instead of wall-clock sleeps.
+    /// <c>PeriodicTimer</c> and <c>Stopwatch</c>, so tests can run them on a fake
+    /// clock instead of wall-clock sleeps.
     /// </para>
     /// <para>
     /// Exceptions inside tick handlers are caught and logged; they do not kill the

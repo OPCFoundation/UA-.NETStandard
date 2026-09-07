@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Runtime.ExceptionServices;
 using System.Threading;
 using System.Threading.Tasks;
 using Opc.Ua.Server.Nodes;
@@ -281,17 +282,29 @@ namespace Opc.Ua.Server.Fluent
             }
             m_disposed = true;
 
-            // Trip the lifetime token first so background loops stop before the
-            // handle they belong to is released.
+            // Trip the lifetime token first so background loops stop before the handle
+            // they belong to is released — but a lifetime callback that throws must not
+            // cost us the release, which is the whole point of this method. Both steps
+            // are attempted independently and their failures aggregated.
+            Exception? cancelFailure = null;
             try
             {
+#if NET8_0_OR_GREATER
                 await m_lifetime.CancelAsync().ConfigureAwait(false);
+#else
+                m_lifetime.Cancel();
+#endif
             }
             catch (ObjectDisposedException)
             {
                 // The source was already disposed; nothing left to signal.
             }
+            catch (Exception ex) when (ex is not OutOfMemoryException)
+            {
+                cancelFailure = ex;
+            }
 
+            Exception? releaseFailure = null;
             try
             {
                 if (m_handle is not null)
@@ -299,10 +312,25 @@ namespace Opc.Ua.Server.Fluent
                     await m_handle.DisposeAsync().ConfigureAwait(false);
                 }
             }
+            catch (Exception ex) when (ex is not OutOfMemoryException)
+            {
+                releaseFailure = ex;
+            }
             finally
             {
                 m_handle = null;
                 m_lifetime.Dispose();
+            }
+
+            if (cancelFailure is not null && releaseFailure is not null)
+            {
+                throw new AggregateException(cancelFailure, releaseFailure);
+            }
+
+            Exception? only = cancelFailure ?? releaseFailure;
+            if (only is not null)
+            {
+                ExceptionDispatchInfo.Capture(only).Throw();
             }
         }
 

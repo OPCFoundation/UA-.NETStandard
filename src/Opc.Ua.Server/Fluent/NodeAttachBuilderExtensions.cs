@@ -50,8 +50,8 @@ namespace Opc.Ua.Server.Fluent
 
         /// <summary>
         /// Gets the server time provider. Behaviors must schedule from this rather
-        /// than from <see cref="DateTime.UtcNow"/> or <see cref="PeriodicTimer"/>, so
-        /// that tests can drive them from a fake clock.
+        /// than from <see cref="DateTime.UtcNow"/> or <c>PeriodicTimer</c>, so that
+        /// tests can drive them from a fake clock.
         /// </summary>
         TimeProvider TimeProvider { get; }
 
