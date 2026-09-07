@@ -253,10 +253,12 @@ namespace Quickstarts
                 {
                     await DisposeTransportBindingsAsync().ConfigureAwait(false);
                 }
-                finally
+                catch (Exception cleanupException)
                 {
-                    throw new ErrorExitException(ex.Message, ExitCode);
+                    throw new ErrorExitException(ex.Message, cleanupException, ExitCode);
                 }
+
+                throw new ErrorExitException(ex.Message, ExitCode);
             }
         }
 
