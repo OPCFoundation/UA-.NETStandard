@@ -149,6 +149,9 @@ namespace Opc.Ua.Server
 
             // the node id factory assigns new node ids to new nodes.
             // the strategy used by a NodeManager depends on what kind of information it provides.
+            // this points at the NodeManager rather than at its factory so that a sub-class
+            // overriding New() is still the one node level code reaches. A sub-class therefore
+            // never has to repeat this assignment.
             SystemContext.NodeIdFactory = this;
 
             // add the uris to the server's namespace table and cache the indexes.

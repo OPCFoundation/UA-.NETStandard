@@ -110,7 +110,6 @@ namespace SiteComposition
             IOptions<SiteCompositionOptions>? options = null)
             : base(server, configuration, Namespaces.Site, Opc.Ua.OpenUsd.Namespaces.OpenUSD)
         {
-            SystemContext.NodeIdFactory = this;
             m_options = options?.Value ?? new SiteCompositionOptions();
             m_log = server.Telemetry.CreateLogger<SiteNodeManager>();
         }

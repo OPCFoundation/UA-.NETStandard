@@ -76,7 +76,6 @@ namespace Opc.Ua.Server.FileSystem
         {
             Provider = provider ?? throw new ArgumentNullException(nameof(provider));
             SystemContext.SystemHandle = this;
-            SystemContext.NodeIdFactory = this;
 
             NamespaceUris = [BuildNamespaceUri(provider)];
             NamespaceIndex = base.NamespaceIndex;

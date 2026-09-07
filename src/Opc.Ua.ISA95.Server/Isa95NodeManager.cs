@@ -69,7 +69,6 @@ namespace Opc.Ua.ISA95.Server
             m_configurators = configurators ?? [];
             m_options.Validate();
             RegisterEncodeables(server.Factory);
-            SystemContext.NodeIdFactory = this;
         }
 
         public FolderState? Root { get; private set; }

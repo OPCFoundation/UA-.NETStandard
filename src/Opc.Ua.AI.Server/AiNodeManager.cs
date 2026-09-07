@@ -121,7 +121,6 @@ namespace Opc.Ua.AI.Server
             // under repeating browse names, so a browse-path identifier
             // would collide between one job and its successor.
             NodeIdFactory = NodeIdFactory.WithMode(NodeIdAssignmentMode.Counter);
-            SystemContext.NodeIdFactory = this;
         }
 
         /// <inheritdoc/>

@@ -68,8 +68,6 @@ namespace Quickstarts.ReferenceServer
                   server.Telemetry.CreateLogger<ReferenceNodeManager>(),
                   Namespaces.ReferenceServer)
         {
-            SystemContext.NodeIdFactory = this;
-
             // use suitable defaults if no configuration exists.
         }
 

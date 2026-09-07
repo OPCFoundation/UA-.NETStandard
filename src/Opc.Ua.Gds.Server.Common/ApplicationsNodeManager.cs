@@ -77,7 +77,6 @@ namespace Opc.Ua.Gds.Server
             // counter identifiers: applications, certificate groups and trust
             // lists are registered and unregistered under repeating names.
             NodeIdFactory = NodeIdFactory.WithMode(NodeIdAssignmentMode.Counter);
-            SystemContext.NodeIdFactory = this;
 
             m_configuration = configuration;
             // get the configuration for the node manager.

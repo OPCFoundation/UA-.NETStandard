@@ -71,7 +71,6 @@ namespace Opc.Ua.Positioning.Server
                   Gpos.Namespaces.GPOS)
         {
             m_runner = runner;
-            SystemContext.NodeIdFactory = this;
         }
 
         /// <summary>

@@ -125,7 +125,6 @@ namespace Opc.Ua.Di.Server
             // namespaces ahead of the instance one, so neither the first
             // namespace nor the parent's is the right place to mint into.
             NodeIdFactory = NodeIdFactory.WithDefaultNamespaceIndex(InstanceNamespaceIndex);
-            SystemContext.NodeIdFactory = this;
             PostSetupRunner = postSetupRunner;
         }
 
@@ -174,7 +173,6 @@ namespace Opc.Ua.Di.Server
             // namespaces ahead of the instance one, so neither the first
             // namespace nor the parent's is the right place to mint into.
             NodeIdFactory = NodeIdFactory.WithDefaultNamespaceIndex(InstanceNamespaceIndex);
-            SystemContext.NodeIdFactory = this;
             PostSetupRunner = postSetupRunner;
         }
 

@@ -71,7 +71,6 @@ namespace Opc.Ua.WotCon.Server
                   Namespaces.WotCon)
         {
             m_options = options;
-            SystemContext.NodeIdFactory = this;
             AssetNamespaceIndex = (ushort)server.NamespaceUris.GetIndex(options.AssetNamespaceUri);
             WotConNamespaceIndex = (ushort)server.NamespaceUris.GetIndex(Namespaces.WotCon);
 

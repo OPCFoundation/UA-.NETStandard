@@ -90,7 +90,6 @@ namespace Opc.Ua.Robotics.Server
             // NodeSets and whose identifiers are not ours to hand out.
             NodeIdFactory = NodeIdFactory.WithDefaultNamespaceIndex(
                 GetInstanceNamespaceIndex(SystemContext));
-            SystemContext.NodeIdFactory = this;
             RegisterEncodeables(SystemContext);
         }
 

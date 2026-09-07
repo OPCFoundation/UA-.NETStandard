@@ -100,9 +100,6 @@ namespace Pumps
                   Opc.Ua.Machinery.Namespaces.Machinery,
                   Opc.Ua.OpenUsd.Namespaces.OpenUSD)
         {
-            // Base class constructor sets SystemContext.NodeIdFactory to
-            // itself; our New() override takes over.
-            SystemContext.NodeIdFactory = this;
             m_options = options?.Value ?? new PumpDeviceIntegrationOptions();
             if (m_options.PumpCount < 1 || m_options.PumpCount > 100)
             {
