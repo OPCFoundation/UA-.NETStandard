@@ -711,7 +711,11 @@ namespace Opc.Ua.Export
                     out explicitSlotFound);
                 if (replaced)
                 {
-                    options.OnTypedReplacement?.Invoke(replacedChild!, instance);
+                    if (replacedChild is not null)
+                    {
+                        // An empty slot displaces nothing.
+                        options.OnTypedReplacement?.Invoke(replacedChild, instance);
+                    }
                     attached = true;
                 }
             }

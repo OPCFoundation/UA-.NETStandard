@@ -641,7 +641,7 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
         }
 
         [Test]
-        public void NamespaceMismatchedChildDoesNotPopulateEmptyInheritedSlot()
+        public void NamespaceMismatchedChildFillsAnEmptyInheritedSlot()
         {
             SystemContext context = CreateContext();
             var factoryProvider = new ManualFactoryProvider(
@@ -686,9 +686,75 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
 
             Assert.Multiple(() =>
             {
-                Assert.That(parent.InputArguments, Is.Null);
+                // A state resolves an explicitly defined child by browse name
+                // alone (see NodeInstanceExtensionsTests.FindChildReturnsThe-
+                // RequestedArgumentsProperty), so an imported child of the
+                // matching type fills the empty slot even when the document
+                // declared it in another namespace. The address space still
+                // exposes the browse name the document declared.
+                Assert.That(parent.InputArguments, Is.SameAs(imported));
+                Assert.That(
+                    imported.BrowseName,
+                    Is.EqualTo(new QualifiedName("InputArguments", 1)));
                 Assert.That(imported.Parent, Is.SameAs(parent));
                 Assert.That(linkedChildren, Is.EqualTo(new[] { imported }));
+            });
+        }
+
+        [Test]
+        public void NamespaceMismatchedChildDoesNotEvictAPopulatedInheritedSlot()
+        {
+            SystemContext context = CreateContext();
+            var factoryProvider = new ManualFactoryProvider(
+                new ManualImportFactory(
+                    NodeClass.Variable,
+                    new ExpandedNodeId(3u, kNamespaceUri),
+                    static () =>
+                        PropertyState<ArrayOf<Argument>>
+                            .With<StructureBuilder<Argument>>(null),
+                    NodeSetImportDiscriminator.NodeId));
+            var importer = new NodeSetImporter(context, factoryProvider);
+            UANodeSet children = ReadNodeSet(
+                """
+                  <UAVariable NodeId="ns=1;i=3" BrowseName="1:InputArguments"
+                              ParentNodeId="ns=1;i=1" DataType="i=296"
+                              ValueRank="1">
+                    <DisplayName>InputArguments</DisplayName>
+                    <References>
+                      <Reference ReferenceType="i=40">i=68</Reference>
+                      <Reference ReferenceType="i=46" IsForward="false">ns=1;i=1</Reference>
+                    </References>
+                  </UAVariable>
+                """);
+            var parent = new MethodState(null)
+            {
+                NodeId = new NodeId(1u, 1),
+                BrowseName = new QualifiedName("Method", 1),
+                DisplayName = new LocalizedText("Method")
+            };
+            PropertyState<ArrayOf<Argument>> declared =
+                parent.CreateOrReplaceInputArguments(context, null);
+
+            importer.Import(children);
+            importer.Complete(
+                new Dictionary<NodeId, NodeState>
+                {
+                    [parent.NodeId] = parent
+                },
+                _ => true);
+
+            var imported = (BaseInstanceState)Find(importer, 3);
+            var linkedChildren = new List<BaseInstanceState>();
+            parent.GetChildren(context, linkedChildren);
+
+            Assert.Multiple(() =>
+            {
+                // The slot already holds the standard property, so a child
+                // declared in another namespace is attached as an ordinary
+                // child instead of displacing it.
+                Assert.That(parent.InputArguments, Is.SameAs(declared));
+                Assert.That(imported.Parent, Is.SameAs(parent));
+                Assert.That(linkedChildren, Does.Contain(imported));
             });
         }
 

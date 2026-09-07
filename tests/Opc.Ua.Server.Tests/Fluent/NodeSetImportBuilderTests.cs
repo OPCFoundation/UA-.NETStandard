@@ -668,16 +668,6 @@ namespace Opc.Ua.Server.Tests.Fluent
                 base.GetChildren(context, children);
             }
 
-            protected override void RemoveExplicitlyDefinedChild(BaseInstanceState child)
-            {
-                if (ReferenceEquals(MandatoryValue, child))
-                {
-                    MandatoryValue = null;
-                    DetachExplicitlyDefinedChild(child);
-                }
-                base.RemoveExplicitlyDefinedChild(child);
-            }
-
             protected override BaseInstanceState FindChild(
                 ISystemContext context,
                 QualifiedName browseName,
@@ -685,21 +675,26 @@ namespace Opc.Ua.Server.Tests.Fluent
                 BaseInstanceState replacement,
                 bool assignInstanceNodeIds = true)
             {
-                if (browseName.Name == "MandatoryValue")
+                if (browseName.Name == "MandatoryValue" &&
+                    browseName.NamespaceIndex == kNs)
                 {
-                    if (createOrReplace && MandatoryValue is null)
+                    if (createOrReplace)
                     {
-                        MandatoryValue = replacement as BaseVariableState ??
-                            new BaseDataVariableState(this)
+                        if (replacement is BaseVariableState typedReplacement)
+                        {
+                            // a replacement of the matching type is used
+                            // directly, replacing any child that may exist.
+                            MandatoryValue = typedReplacement;
+                        }
+                        else if (MandatoryValue is null)
+                        {
+                            MandatoryValue = new BaseDataVariableState(this)
                             {
                                 BrowseName = browseName,
                                 DisplayName = new LocalizedText(browseName.Name),
                                 DataType = DataTypeIds.Int32
                             };
-                    }
-                    else if (createOrReplace && replacement is BaseVariableState variable)
-                    {
-                        MandatoryValue = variable;
+                        }
                     }
                     return MandatoryValue;
                 }
