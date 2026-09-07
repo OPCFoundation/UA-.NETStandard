@@ -111,12 +111,15 @@ namespace Opc.Ua.Tests
             Pair(identity, "TieredCompilation",
                 Environment.GetEnvironmentVariable("DOTNET_TieredCompilation") ?? string.Empty);
             Pair(identity, "SourceRoot", Path.GetFullPath(sourceRoot));
-            Pair(identity, "SDK", sdk ?? Environment.GetEnvironmentVariable("NODESTATE_MEMORY_SDK")
-                ?? throw new InvalidOperationException("Set NODESTATE_MEMORY_SDK to dotnet --version."));
-            Pair(identity, "BuildCommand", command ?? Environment.GetEnvironmentVariable("NODESTATE_MEMORY_COMMAND")
-                ?? throw new InvalidOperationException("Set NODESTATE_MEMORY_COMMAND to the fresh-build command."));
-            Pair(identity, "SourceRevision", revision ?? Environment.GetEnvironmentVariable("NODESTATE_MEMORY_REVISION")
-                ?? throw new InvalidOperationException("Set NODESTATE_MEMORY_REVISION to git rev-parse HEAD."));
+            Pair(identity, "SDK", sdk ??
+                Environment.GetEnvironmentVariable("NODESTATE_MEMORY_SDK")
+                    ?? throw new InvalidOperationException("Set NODESTATE_MEMORY_SDK to dotnet --version."));
+            Pair(identity, "BuildCommand", command ??
+                Environment.GetEnvironmentVariable("NODESTATE_MEMORY_COMMAND")
+                    ?? throw new InvalidOperationException("Set NODESTATE_MEMORY_COMMAND to the fresh-build command."));
+            Pair(identity, "SourceRevision", revision ??
+                Environment.GetEnvironmentVariable("NODESTATE_MEMORY_REVISION")
+                    ?? throw new InvalidOperationException("Set NODESTATE_MEMORY_REVISION to git rev-parse HEAD."));
             using StreamWriter assemblies = Create(output, "assemblies.csv");
             assemblies.WriteLine("Name,Path,SHA256,MVID,TFM");
             foreach (Assembly assembly in AppDomain.CurrentDomain.GetAssemblies()
@@ -129,10 +132,9 @@ namespace Opc.Ua.Tests
             sources.WriteLine("Path,SHA256");
             foreach (string path in SourceFiles(sourceRoot).OrderBy(p => p, StringComparer.Ordinal))
             {
-                string relative = path.Substring(sourceRoot.TrimEnd(Path.DirectorySeparatorChar).Length + 1);
+                string relative = path[(sourceRoot.TrimEnd(Path.DirectorySeparatorChar).Length + 1)..];
                 sources.WriteLine($"{Csv(relative)},{HashFile(path)}");
             }
-
         }
 
         public void Dispose()
@@ -176,7 +178,8 @@ namespace Opc.Ua.Tests
                 {
                     browseCount++;
                     if (!references.Exists(r => r.ReferenceTypeId == reference.ReferenceTypeId &&
-                        r.IsInverse == reference.IsInverse && r.TargetId == reference.TargetId))
+                        r.IsInverse == reference.IsInverse &&
+                        r.TargetId == reference.TargetId))
                     {
                         synthesized++;
                     }
@@ -184,10 +187,14 @@ namespace Opc.Ua.Tests
             }
             var dynamicChildren = (List<BaseInstanceState>?)s_children.GetValue(node);
             (string groups, int slots) = CallbackGroups(node);
-            bool metadata = node.Extensions is not null || node.Categories is not null ||
-                node.ReleaseStatus != Export.ReleaseStatus.Released || node.Specification is not null ||
-                node.NodeSetDocumentation is not null || node.DesignToolOnly;
-            bool security = !node.RolePermissions.IsNull || !node.UserRolePermissions.IsNull ||
+            bool metadata = node.Extensions is not null ||
+                node.Categories is not null ||
+                node.ReleaseStatus != Export.ReleaseStatus.Released ||
+                node.Specification is not null ||
+                node.NodeSetDocumentation is not null ||
+                node.DesignToolOnly;
+            bool security = !node.RolePermissions.IsNull ||
+                !node.UserRolePermissions.IsNull ||
                 node.AccessRestrictions.HasValue;
             return
                 $"{Csv(phase)},{Csv(node.NodeId.ToString())},{Csv(node.GetType().FullName ?? string.Empty)}," +
@@ -269,7 +276,8 @@ namespace Opc.Ua.Tests
             {
                 string extension = Path.GetExtension(file);
                 if (extension is ".cs" or ".csproj" or ".props" or ".targets" or ".json" or ".slnx" or
-                    ".xml" or ".csv" or ".resx" or ".config" || Path.GetFileName(file) == ".editorconfig")
+                    ".xml" or ".csv" or ".resx" or ".config" ||
+                    Path.GetFileName(file) == ".editorconfig")
                 {
                     yield return file;
                 }
@@ -303,6 +311,7 @@ namespace Opc.Ua.Tests
 
         private readonly StreamWriter m_samples;
         private readonly StreamWriter m_occupancy;
+
         private static readonly FieldInfo s_children = typeof(NodeState).GetField(
             "m_children", BindingFlags.Instance | BindingFlags.NonPublic)
             ?? throw new InvalidOperationException("Update the diagnostic dynamic-child probe for this node layout.");

@@ -207,33 +207,43 @@ namespace Opc.Ua.Types.Tests.State
                     cases.Add(new($"Object.References.{mode}.{count}", false, References: count, ReferenceMode: mode));
                 }
             }
-            return cases.ToArray();
+            return [.. cases];
         }
 
         private const string k_text = "0123456789ABCDEF";
         private static readonly NodeStateChangedHandler s_changed = static (_, _, _) => { };
+
         private static readonly NodeValueSimpleEventHandler s_simpleValue =
-            static (ISystemContext _, NodeState _, ref Variant _) => ServiceResult.Good;
+            static (_, _, ref _) => ServiceResult.Good;
+
         private static readonly NodeValueEventHandler s_fullValue =
-            static (ISystemContext _, NodeState _, NumericRange _, QualifiedName _,
-                ref Variant _, ref StatusCode _, ref DateTimeUtc _) => ServiceResult.Good;
+            static (_, _, _, _,
+                ref _, ref _, ref _) => ServiceResult.Good;
+
         private static readonly ITelemetryContext s_telemetry = NUnitTelemetryContext.CreateForBenchmarks();
         private static readonly SystemContext s_context = new(s_telemetry);
         private static readonly ByteString s_payload = ByteString.From(new byte[64]);
+
         private static readonly XmlElement[] s_extensions =
             [XmlElement.From(new System.Xml.XmlDocument().CreateElement("ext"))];
+
         private static readonly string[] s_categories = ["Category"];
+
         private static readonly ArrayOf<RolePermissionType> s_permissions =
             ArrayOf.Wrapped(new RolePermissionType
             {
                 RoleId = new NodeId(1u),
                 Permissions = (uint)PermissionType.Read
             });
+
         private static readonly NodeId[] s_targets =
-            Enumerable.Range(0, 1024).Select(i => new NodeId((uint)(i + 50000), 2)).ToArray();
+            [.. Enumerable.Range(0, 1024).Select(i => new NodeId((uint)(i + 50000), 2))];
+
         private static readonly ExpandedNodeId[] s_expandedTargets =
-            s_targets.Select(id => (ExpandedNodeId)id).ToArray();
+            [.. s_targets.Select(id => (ExpandedNodeId)id)];
+
         private static readonly NodeStateMemoryScenario[] s_cases = CreateCases();
+
         private static readonly Dictionary<string, NodeStateMemoryScenario> s_byName =
             s_cases.ToDictionary(c => c.Name, StringComparer.Ordinal);
 

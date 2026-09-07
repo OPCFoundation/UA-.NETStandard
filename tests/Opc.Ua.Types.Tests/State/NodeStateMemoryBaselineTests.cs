@@ -245,7 +245,7 @@ namespace Opc.Ua.Types.Tests.State
                 File.WriteAllText(source, "source");
                 File.WriteAllText(project, "project");
                 File.WriteAllText(generated, "generated");
-                Assert.That(NodeStateMemoryEvidence.SourceFiles(root), Is.EquivalentTo(new[] { source, project }));
+                Assert.That(NodeStateMemoryEvidence.SourceFiles(root), Is.EquivalentTo([source, project]));
             }
             finally
             {
@@ -327,18 +327,19 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void AllocationCounterDistinguishesNewAndSharedObjects()
         {
-            var shared = new byte[64];
-            Func<int, object> reuse = _ => shared;
-            Func<int, object> allocate = _ => new byte[64];
-            _ = Allocate(reuse, 1024);
-            _ = Allocate(allocate, 1024);
-            Assert.That(Allocate(reuse, 1024), Is.Zero);
-            Assert.That(Allocate(allocate, 1024), Is.GreaterThanOrEqualTo(64 * 1024));
+            byte[] shared = new byte[64];
+            object Reuse(int _) => shared;
+            static object AllocateNew(int _) => new byte[64];
+            _ = Allocate(Reuse, 1024);
+            _ = Allocate(AllocateNew, 1024);
+            Assert.That(Allocate(Reuse, 1024), Is.Zero);
+            Assert.That(Allocate(AllocateNew, 1024), Is.GreaterThanOrEqualTo(64 * 1024));
         }
 
         /// <summary>
         /// Exports warmed synchronous allocation traffic separately from rooted live-heap estimates.
         /// </summary>
+        /// <exception cref="InvalidOperationException"></exception>
         [Test]
         [Explicit("Run alone on a quiet host with NODESTATE_MEMORY_* provenance variables; see State readme.")]
         public void ExportBaseline()
@@ -376,8 +377,8 @@ namespace Opc.Ua.Types.Tests.State
                 2048);
             Measure(evidence, "Component.DelegateAndClosure", i => new Action(() => GC.KeepAlive(i)), 2048);
             Measure(evidence, "Component.RootArray2048", _ => new NodeState[2048], 64);
-            var roots = Enumerable.Range(0, 2048).Select(i => NodeStateMemoryScenarios.Construct(
-                NodeStateMemoryScenarios.Select("Variable.Minimal"), i)).ToArray();
+            NodeState[] roots = [.. Enumerable.Range(0, 2048).Select(i => NodeStateMemoryScenarios.Construct(
+                NodeStateMemoryScenarios.Select("Variable.Minimal"), i))];
             Measure(evidence, "Component.Index2048", _ =>
             {
                 var index = new NodeIdDictionary<NodeState>();
@@ -398,7 +399,7 @@ namespace Opc.Ua.Types.Tests.State
             {
                 evidence.Sample("AllocatedCurrentThread", name, sample, count, Allocate(factory, count));
                 s_sink = null;
-                var roots = new object[count];
+                object[] roots = new object[count];
                 long before = NodeStateMemoryEvidence.FullHeap();
                 Fill(roots, factory);
                 long after = NodeStateMemoryEvidence.FullHeap();

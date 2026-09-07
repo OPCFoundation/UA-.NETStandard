@@ -5823,7 +5823,7 @@ namespace Opc.Ua
         /// Volatile.Read / Interlocked.CompareExchange pattern.
         /// </summary>
         /// <remarks>
-        /// Safe on all TFMs and NativeAOT: no <see cref="System.Lazy{T}"/> or
+        /// Safe on all TFMs and NativeAOT: no <see cref="Lazy{T}"/> or
         /// reflection involved.  Only the CAS winner's <see cref="Lock"/> is used;
         /// any concurrently-allocated candidates in other threads are discarded by the
         /// GC.  Every subsequent call returns the same published instance via
@@ -5838,7 +5838,7 @@ namespace Opc.Ua
                 return existing;
             }
 
-            Lock candidate = new Lock();
+            var candidate = new Lock();
             return Interlocked.CompareExchange(ref m_notifiersLock, candidate, null) ?? candidate;
         }
 
@@ -5859,7 +5859,7 @@ namespace Opc.Ua
                 return existing;
             }
 
-            Lock candidate = new Lock();
+            var candidate = new Lock();
             return Interlocked.CompareExchange(ref m_browseLock, candidate, null) ?? candidate;
         }
 
@@ -5940,10 +5940,15 @@ namespace Opc.Ua
         /// </summary>
         protected NodeStateChangeMasks m_changeMasks;
 
-        private Lock? m_notifiersLock;       // lazily published; see GetOrCreateNotifiersLock()
+        /// <summary>Lazily published; see <see cref="GetOrCreateNotifiersLock"/>.</summary>
+        private Lock? m_notifiersLock;
+
         private readonly Lock m_referencesLock = new();
         private readonly Lock m_childrenLock = new();
-        private Lock? m_browseLock;           // lazily published; see GetOrCreateBrowseLock()
+
+        /// <summary>Lazily published; see <see cref="GetOrCreateBrowseLock"/>.</summary>
+        private Lock? m_browseLock;
+
         private NodeId m_nodeId;
         private QualifiedName m_browseName;
         private LocalizedText m_displayName;

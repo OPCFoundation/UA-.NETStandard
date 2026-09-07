@@ -270,7 +270,7 @@ namespace Opc.Ua.Types.Tests.State
             provider.Setup(p => p.Dispose());
             var services = new ServiceCollection();
             services.AddLogging();
-            services.AddSingleton<ILoggerProvider>(_ => provider.Object);
+            services.AddSingleton(_ => provider.Object);
             using ServiceProvider owner = services.BuildServiceProvider();
             ILoggerFactory factory = owner.GetRequiredService<ILoggerFactory>();
             var node = new LoggerVariable();
@@ -333,7 +333,8 @@ namespace Opc.Ua.Types.Tests.State
         {
             // Managed-only storage identity check: observable forwarding alone cannot detect a typed wrapper.
             FieldInfo field = typeof(BaseVariableState).GetField("m_logger", BindingFlags.Instance |
-                BindingFlags.NonPublic) ?? throw new InvalidOperationException("Variable logger field not found.");
+                BindingFlags.NonPublic) ??
+                throw new InvalidOperationException("Variable logger field not found.");
             return field.GetValue(node) as ILogger
                 ?? throw new InvalidOperationException("Variable logger is not initialized.");
         }

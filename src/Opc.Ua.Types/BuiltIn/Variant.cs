@@ -7422,8 +7422,10 @@ namespace Opc.Ua
             {
                 return GetNodeId().CompareTo(other.GetNodeId());
             }
-            if (IsPackedByteString || IsPackedLocalizedText ||
-                other.IsPackedByteString || other.IsPackedLocalizedText)
+            if (IsPackedByteString ||
+                IsPackedLocalizedText ||
+                other.IsPackedByteString ||
+                other.IsPackedLocalizedText)
             {
                 return int.MinValue;
             }

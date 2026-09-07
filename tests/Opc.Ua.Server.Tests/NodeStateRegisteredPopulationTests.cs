@@ -57,6 +57,7 @@ namespace Opc.Ua.Server.Tests
         /// <summary>
         /// Records node occupancy and a separately labelled whole test-manager rooted-heap estimate.
         /// </summary>
+        /// <exception cref="InvalidOperationException"></exception>
         [Test]
         [Explicit("Run alone with NODESTATE_MEMORY_* provenance variables; see State readme.")]
         public async Task ExportRegisteredBaselineAsync()
@@ -258,7 +259,7 @@ namespace Opc.Ua.Server.Tests
                     nodes[i].GetChildren(SystemContext, children);
                     nodes.AddRange(children);
                 }
-                return nodes.ToArray();
+                return [.. nodes];
             }
 
             private static IServerInternal CreateServer()

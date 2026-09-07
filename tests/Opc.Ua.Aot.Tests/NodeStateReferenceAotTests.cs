@@ -145,7 +145,7 @@ namespace Opc.Ua.Aot.Tests
                 node.SaveReferences(context, encoder);
                 encoder.Pop();
                 using var text = new StringReader(encoder.CloseAndReturnText());
-                using var reader = XmlReader.Create(text, CoreUtils.DefaultXmlReaderSettings());
+                using XmlReader reader = XmlReader.Create(text, CoreUtils.DefaultXmlReaderSettings());
                 using var decoder = new XmlDecoder(null, reader, messageContext);
                 loaded.UpdateReferences(context, decoder);
             }
