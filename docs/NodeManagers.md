@@ -377,7 +377,7 @@ set of models genuinely has to change without restarting the server.
 `AddNodeManager` and `AddRuntimeNodeSet` register a factory on `IOpcUaServerBuilder`. The factory is
 created before the server starts, and the server builds its address space from all registered
 factories while it starts. Once startup succeeds, each application NodeManager appears as a
-generation-1 entry in `INodeManagerLifecycle.Registrations`. The built-in diagnostics,
+[generation-1 entry](#registration-generations) in `INodeManagerLifecycle.Registrations`. The built-in diagnostics,
 configuration, and core NodeManagers are not exposed there.
 
 ```csharp
@@ -404,6 +404,20 @@ services.AddOpcUa()
             .Configure(node => node.UnderObjectsFolder());
     });
 ```
+
+### Registration generations
+
+A **generation** identifies one published NodeManager instance within a logical registration.
+`NodeManagerRegistration.Id` stays the same across reloads; `Generation` numbers the successive
+instances. Startup adoption and `AddAsync` both create the first instance with `Generation = 1`,
+hence **generation 1**. The first committed reload creates **generation 2**, the next creates
+**generation 3**, and so on. All [reload modes](#reload-modes) use this numbering; it is independent
+of the information model's version and namespace index.
+
+After a reload, use the newly returned registration handle for further lifecycle operations.
+The previous handle is stale even if a shadow reload keeps its old NodeManager alive for existing
+Clients. Adding a new registration starts at generation 1 with a new `Id`, rather than continuing
+the numbering of a removed registration.
 
 ### Runtime registration
 
