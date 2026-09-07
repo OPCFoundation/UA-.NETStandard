@@ -37,6 +37,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="..\Common\Main.cs" />
+    <Compile Include="..\Common\NodeStateMemoryEvidence.cs" />
   </ItemGroup>
   <ItemGroup>
     <EmbeddedResource Include="ComplexTypes\ServerComplexTypesTestModel.NodeSet2.xml">
@@ -94,4 +95,3 @@
     <ProjectReference Include="..\Opc.Ua.Test.Common\Opc.Ua.Test.Common.csproj" />
   </ItemGroup>
 </Project>
-
