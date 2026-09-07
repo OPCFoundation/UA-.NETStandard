@@ -14,7 +14,7 @@ class does.
 - [What the source generator emits](#what-the-source-generator-emits)
 - [NodeManager behaviour](#nodemanager-behaviour)
 - [Configuring the factory](#configuring-the-factory)
-- [Inventory](#inventory)
+- [Who forces a fresh identifier](#who-forces-a-fresh-identifier)
 
 ## The contract
 
@@ -121,9 +121,10 @@ registered cannot collide with the ones minted after.
 | `Counter` | sequential number | no | no |
 
 `String` is the default. It is the only mode that cannot collide for
-distinct browse paths, because the canonical path is injective; the others
-project it through SHA-256 and inherit that hash's collision probability
-(negligible for `Guid`/`Opaque`, real but small for `Numeric`).
+distinct browse paths, because it keeps the canonical path whole and two
+different paths are never the same text; the others project it through
+SHA-256 and inherit that hash's collision probability (negligible for
+`Guid`/`Opaque`, real but small for `Numeric`).
 
 `Counter` is for nodes whose browse paths repeat over time — per-session
 diagnostics objects, inference jobs, rediscovered assets. Its counter
@@ -148,17 +149,19 @@ factory with `WithDefaultNamespaceIndex`.
 
 ### When an existing NodeId is kept
 
-`New` keeps a node's current NodeId only when this factory could have
-minted it itself; otherwise it mints a fresh one.
+`New` keeps a node's current NodeId when the caller can plausibly have
+chosen it, and mints a fresh one otherwise. Two cases qualify:
 
-For the derived modes that test is free: minting twice from the same
-browse path gives the same identifier, so re-minting is idempotent by
-construction, and an identifier that does not match is provably not this
-factory's. `Counter` cannot re-derive anything, so it recognises its own
-work by the reserved numeric range it mints into.
+- the identifier is **already in this NodeManager's namespace**, which no
+  other model's NodeIds ever are;
+- the node **stands on its own** rather than hanging off a parent.
+  `NodeState.Create` hands a root its NodeId before running the assignment
+  pass, so a caller naming a node explicitly arrives this way.
 
-This is what stops an instance from keeping a type declaration's
-identifier — see the next section.
+Everything else is re-minted, because it reached `New` through
+`AssignNodeIds` walking a subtree copied from a type declaration and still
+carrying that declaration's identifiers. See
+[Who forces a fresh identifier](#who-forces-a-fresh-identifier).
 
 ### Nodes with no derivable path
 
@@ -296,88 +299,6 @@ registered in its place:
 builder.AddNodeIdFactory(new ReservingNodeIdFactory(new DefaultNodeIdFactory()));
 ```
 
-## Inventory
-
-Everything in the stack that participates in NodeId assignment.
-
-### Contract
-
-| Member | Location |
-|---|---|
-| `INodeIdFactory.New` | `Opc.Ua.Types/State/ISystemContext.cs` |
-| `ISystemContext.NodeIdFactory` | `Opc.Ua.Types/State/ISystemContext.cs` |
-| `IRebasableNodeIdFactory` | `Opc.Ua.Server/NodeManager/IRebasableNodeIdFactory.cs` |
-| `INodeIdFactoryProvider.NodeIdFactory` | `Opc.Ua.Server/NodeManager/INodeIdFactoryProvider.cs` |
-
-### NodeState
-
-| Member | Role |
-|---|---|
-| `Create(context, nodeId, browseName, displayName, assignNodeIds)` | creates a node, optionally rebasing the subtree |
-| `CreateAsPredefinedNode(context)` | create lifecycle without any assignment |
-| `AssignNodeIds(context, mappingTable)` | recursive rebase; calls `New` per node |
-| `OnBeforeAssignNodeIds(context)` | subclass hook fired before the pass |
-| `UpdateReferenceTargets(context, mappingTable)` | rewrites references after a rebase |
-| `CreateChild(context, browseName, assignInstanceNodeIds)` | materialises a child, optionally minting for it |
-| `FindChild(context, browseName, createOrReplace, replacement, assignInstanceNodeIds)` | the create-if-missing path behind it |
-| `SetChildValue(context, browseName, value, copy)` | creates a child on demand, so it mints indirectly |
-
-`BaseDataVariableState` and `MethodState` carry their own
-`CreateChild`/`CreateOrReplace` overloads with the same
-`assignInstanceNodeIds` parameter.
-
-### NodeInstanceExtensions
-
-| Member | Role |
-|---|---|
-| `RequireNodeIdFactory(context)` | factory or diagnosable failure |
-| `CreateInstance(context, node, browseName, displayName)` | creates an instance of a generated type and rebases its whole subtree |
-| `AssignInstanceNodeId(context, node)` | assigns one node, returns its previous NodeId |
-| `AssignInstanceChildNodeIds(context, node)` | rebases descendants |
-| `AssignInstanceChildNodeIds(context, node, previousNodeId)` | as above, plus reference fixup for the root |
-| `AssignInstanceChildNodeIds(context, node, previousNodeId, referenceRoot)` | as above, against a given owning subtree |
-| `AssignNewChildInstanceNodeIds` (internal) | rebases newly added children |
-
-### Generated helpers
-
-| Helper | NodeId parameters |
-|---|---|
-| `Create{Type}` / `CreateInstanceOf{Type}Type` | none — always rebases through the factory |
-| `Add{Child}` | `nodeId` |
-| `CreateOrReplace{Child}` | `assignInstanceNodeIds` |
-
-### NodeManagers
-
-| Type | Behaviour |
-|---|---|
-| `IAsyncNodeManager.New` | every async NodeManager mints NodeIds; the interface extends `INodeIdFactory` |
-| `IAsyncNodeManager.AddNode` / `AddRootNotifier` | synchronous registration the fluent surface needs |
-| `CustomNodeManager2.New` | returns `node.NodeId` — mints nothing |
-| `AsyncCustomNodeManager.New` | delegates to `NodeIdFactory` |
-| `AsyncCustomNodeManager.NodeIdFactory` | settable; adopts the manager's namespace when unset |
-| `AsyncNodeManagerAdapter.New` | delegates to the wrapped NodeManager, so `CustomNodeManager2` behaves exactly as before |
-| `FluentNodeRegistration.AssignNodeId` | fluent-created nodes route to the manager's `New` |
-| `FluentNodeManagerBuilderExtensions.WithNodeIdAssignment` | selects the mode inside `Configure` |
-
-### DefaultNodeIdFactory
-
-| Member | Role |
-|---|---|
-| `New` | the factory entry point |
-| `CreateChildNodeId` | mints for an explicit parent, browse name and namespace |
-| `CreateCanonicalPath` (static) | builds the canonical path |
-| `NextCounterNodeId` | mints the next sequential identifier |
-| `HasDerivablePath` | whether a node has a stable browse path |
-| `WithMode` / `WithDefaultNamespaceIndex` | immutable reconfiguration |
-| `GetParentNodeId` (protected virtual) | supplies the parent, for managers tracking them outside the hierarchy |
-
-### Remaining `New` overrides
-
-| NodeManager | Why it is not the factory |
-|---|---|
-| `FileSystemNodeManager` | the NodeId encodes the file path it resolves back to |
-| `RoboticsNodeManager` | a build coordinator reserves identifiers across managers with ownership tracking |
-
 ## Who forces a fresh identifier
 
 Two things can be true of a node arriving at `New` with a NodeId already
@@ -402,39 +323,3 @@ Reaching for `NodeState.Create(..., NodeId.Null, ..., assignNodeIds: true)`
 on a generated state object is the trap: the object is born carrying its
 own type's NodeId, `Create` only replaces that when handed an identifier,
 and the result is an instance sitting on the type's node.
-
-### Why the surrounding machinery stays
-
-Three pieces of this look redundant once there is a single rule, and are
-not.
-
-**`AssignInstanceNodeId`'s retry.** After the forced call it retries once,
-which looks like belt and braces for a deterministic factory. It is not,
-because the second call is not the same as the first when the factory
-holds state. A counter advances on every call, so an allocator whose next
-value happens to equal the identifier being replaced - a counter sitting
-at 0 replacing `i=1`, say - hands that identifier straight back. The
-retry is what steps past it. `NodeInstanceExtensionsTests
-.AssignInstanceNodeIdRetriesDeclarationIdCollision` pins exactly that
-case.
-
-**`assignInstanceNodeIds`**, threaded through `CreateChild`, `FindChild`,
-`BaseDataVariableState`, `MethodState` and every generated
-`CreateOrReplace`, means *suppress* minting. The rebase rule above is
-about *forcing* it, which is the opposite direction, so one does not
-subsume the other. Two callers depend on the suppression:
-
-- `NodeState`'s copy path passes `false` for children whose identifiers
-  are about to be overwritten, so the copy does not consume identifiers it
-  will discard. Under `NodeIdAssignmentMode.Counter` that would burn
-  counter values on nodes nobody ever sees.
-- The generator emits `assignInstanceNodeIds: false` where it builds a
-  *declaration* subtree, which has to keep its model NodeIds.
-
-**The generator's `NodeId.Equals(TypeNodeIdConstant)` guard** is what
-distinguishes "still on the declaration's identifier" from "the caller
-chose this one". In `Add{Child}` it is close to redundant, because the
-child is created immediately above it and therefore always carries the
-constant. In `CreateOrReplace{Child}` it is not: the child may already
-exist with a caller-assigned NodeId, and `AssignInstanceNodeId` forces
-unconditionally, so without the guard that identifier would be replaced.

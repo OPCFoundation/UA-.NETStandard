@@ -343,18 +343,6 @@ have been audited for sync-over-async and converted to TAP. See
 [Sessions](Sessions.md) for the matching session-/subscription-engine
 story.
 
-NodeIds for nodes created at runtime are now minted by a
-[`DefaultNodeIdFactory`](NodeIdAssignment.md). Instead of a per-NodeManager
-counter, the default derives a deterministic identifier from the node's
-browse path, so a node keeps the same NodeId across reloads; other modes
-project that path onto numeric, Guid or opaque identifiers, and a counter
-mode covers nodes whose browse paths repeat. One
-`builder.AddNodeIdFactory(...)` call settles the style for the whole
-address space. `New` overrides are consequently gone from every
-NodeManager the stack ships except the two whose identifiers are a domain
-scheme rather than an assignment policy. `CustomNodeManager2` is
-unchanged, so servers built on it keep their existing behaviour.
-
 ### Client
 
 The client now offers two coexisting paths. The

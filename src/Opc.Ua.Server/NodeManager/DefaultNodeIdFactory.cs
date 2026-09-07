@@ -72,8 +72,9 @@ namespace Opc.Ua.Server
         /// Mints string identifiers holding the canonical path verbatim.
         /// </summary>
         /// <remarks>
-        /// This is the only mode that cannot collide, because the canonical
-        /// path is injective. The identifiers are long and opaque.
+        /// This is the only mode that cannot collide, because it keeps the
+        /// canonical path whole and two different paths are never the same
+        /// text. The identifiers are long and opaque.
         /// </remarks>
         String,
 
