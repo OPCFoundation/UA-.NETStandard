@@ -503,6 +503,101 @@ namespace Opc.Ua.Server.Tests.Fluent
                 "a failed rollback must not hide the failure that triggered it");
         }
 
+        [Test]
+        public void AttachToTypeRejectsATypeFromAnUnregisteredNamespace()
+        {
+            using var manager = new TestBehaviorManager();
+            manager.SeedSiblings(1);
+
+            NodeManagerBuilder builder = manager.NewBuilder();
+            builder.AttachToType<BaseObjectState>(
+                new NodeId(5000u, 99),
+                (node, ctx, ct) => new ValueTask<IAsyncDisposable?>((IAsyncDisposable?)null),
+                new NodeAttachOptions { AllowZeroMatches = true });
+
+            // A namespace index the server does not know cannot be made
+            // namespace-stable, so the registration cannot be matched at all.
+            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
+                async () => await manager.ActivateAsync().ConfigureAwait(false))!;
+            Assert.That(
+                ex.StatusCode,
+                Is.EqualTo((uint)StatusCodes.BadConfigurationError));
+        }
+
+        [Test]
+        public void AttachToTypeThrowsWhenTheInstanceIsNotTheExpectedStateType()
+        {
+            using var manager = new TestBehaviorManager();
+            manager.SeedSiblings(1);
+
+            NodeManagerBuilder builder = manager.NewBuilder();
+            builder.AttachToType<PropertyState>(
+                TestBehaviorManager.DerivedTypeId,
+                (node, ctx, ct) => new ValueTask<IAsyncDisposable?>((IAsyncDisposable?)null));
+
+            // The seeded instances are objects. Failing loudly beats skipping them,
+            // which would leave a whole set of nodes silently unwired.
+            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
+                async () => await manager.ActivateAsync().ConfigureAwait(false))!;
+            Assert.Multiple(() =>
+            {
+                Assert.That(ex.StatusCode, Is.EqualTo((uint)StatusCodes.BadTypeMismatch));
+                Assert.That(ex.Message, Does.Contain(nameof(PropertyState)));
+                Assert.That(ex.Message, Does.Contain(nameof(BaseObjectState)));
+            });
+        }
+
+        [Test]
+        public async Task AttachContextResolvesNodesByNodeIdAsync()
+        {
+            NodeState? found = null;
+            NodeState? missing = null;
+
+            using var manager = new TestBehaviorManager();
+            manager.SeedSiblings(1);
+
+            NodeManagerBuilder builder = manager.NewBuilder();
+            builder.Attach((ctx, ct) =>
+            {
+                found = ctx.Find(new NodeId(100u, 1));
+                missing = ctx.Find(new NodeId(4242u, 1));
+                return new ValueTask<IAsyncDisposable?>((IAsyncDisposable?)null);
+            });
+
+            await manager.ActivateAsync().ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(found?.BrowseName.Name, Is.EqualTo("Sibling0"));
+                Assert.That(missing, Is.Null);
+            });
+        }
+
+        [Test]
+        public void NullArgumentsAreRejected()
+        {
+            using var manager = new TestBehaviorManager();
+            manager.SeedSiblings(1);
+            NodeManagerBuilder builder = manager.NewBuilder();
+
+            Assert.Multiple(() =>
+            {
+                Assert.Throws<ArgumentNullException>(
+                    () => builder.AttachToType<BaseObjectState>(
+                        TestBehaviorManager.DerivedTypeId,
+                        null!));
+                Assert.Throws<ArgumentNullException>(
+                    () => builder.Attach(
+                        (Func<INodeAttachContext, CancellationToken,
+                            ValueTask<IAsyncDisposable?>>)null!));
+                Assert.Throws<ArgumentNullException>(
+                    () => builder.AttachToType<BaseObjectState>(
+                        NodeId.Null,
+                        (node, ctx, ct) =>
+                            new ValueTask<IAsyncDisposable?>((IAsyncDisposable?)null)));
+            });
+        }
+
         private static async IAsyncEnumerable<BaseEventState> EmptyEventsAsync()
         {
             await Task.CompletedTask.ConfigureAwait(false);
