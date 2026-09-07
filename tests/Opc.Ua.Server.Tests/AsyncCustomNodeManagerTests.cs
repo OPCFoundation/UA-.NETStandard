@@ -170,7 +170,7 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
-        public void NodeIdFactoryDefaultsToTheDeterministicStringForm()
+        public void NodeIdFactoryDefaultsToTheDeterministicNumericForm()
         {
             using ITestNodeManager manager = CreateManager();
             Assume.That(manager is TestableAsyncCustomNodeManager, "Requires AsyncCustomNodeManager features");
@@ -180,7 +180,7 @@ namespace Opc.Ua.Server.Tests
             {
                 Assert.That(
                     acnm.NodeIdFactory.Mode,
-                    Is.EqualTo(NodeIdAssignmentMode.String));
+                    Is.EqualTo(NodeIdAssignmentMode.Numeric));
                 Assert.That(
                     acnm.NodeIdFactory.DefaultNamespaceIndex,
                     Is.EqualTo(manager.NamespaceIndexes[0]));
@@ -200,7 +200,7 @@ namespace Opc.Ua.Server.Tests
 
             Assert.Multiple(() =>
             {
-                Assert.That(first.IdType, Is.EqualTo(IdType.String));
+                Assert.That(first.IdType, Is.EqualTo(IdType.Numeric));
                 Assert.That(first.NamespaceIndex, Is.EqualTo(namespaceIndex));
                 Assert.That(second, Is.EqualTo(first));
             });
@@ -282,7 +282,7 @@ namespace Opc.Ua.Server.Tests
                 // factory it wraps, which is what makes decorating cheaper
                 // than overriding New().
                 Assert.That(delegated, Is.Not.EqualTo(reserved));
-                Assert.That(delegated.IdType, Is.EqualTo(IdType.String));
+                Assert.That(delegated.IdType, Is.EqualTo(IdType.Numeric));
                 Assert.That(delegated.NamespaceIndex, Is.EqualTo(namespaceIndex));
             });
         }

@@ -512,10 +512,115 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
-        public void TheDefaultModeIsString()
+        public void TheDefaultModeIsNumeric()
         {
-            Assert.That(new DefaultNodeIdFactory().Mode, Is.EqualTo(NodeIdAssignmentMode.String));
+            Assert.That(new DefaultNodeIdFactory().Mode, Is.EqualTo(NodeIdAssignmentMode.Numeric));
         }
+
+        [Test]
+        public void APathLongerThanTheStackBufferIsBuiltIdentically()
+        {
+            // long enough to push the builder off the stack and onto the
+            // pool. The pooled buffer is rented, so it is longer than the
+            // path and carries whatever the previous tenant left behind -
+            // this pins that only the written part is read back.
+            string longName = new('n', 512);
+
+            string path = DefaultNodeIdFactory.CreateCanonicalPath(
+                new NodeId("Root", kNamespaceIndex),
+                new QualifiedName(longName, kNamespaceIndex),
+                kNamespaceIndex,
+                m_namespaceUris);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(path, Does.EndWith(":512:" + longName));
+                Assert.That(path, Does.StartWith("v1:10:l:6:s=Root:"));
+                Assert.That(path, Has.Length.EqualTo(path.TrimEnd('\0').Length));
+            });
+        }
+
+        [Test]
+        public void MintingTheSamePathTwiceIsNotACollision()
+        {
+            var factory = new DefaultNodeIdFactory(NodeIdAssignmentMode.Numeric, kNamespaceIndex);
+            BaseObjectState node = CreateChild(new NodeId("Root", kNamespaceIndex), "Child");
+
+            NodeId first = factory.New(m_context, node);
+
+            // AssignNodeIds walks a subtree on every create pass, so the same
+            // node reaches the factory repeatedly. That must not read as two
+            // paths landing on one identifier.
+            node.NodeId = NodeId.Null;
+            NodeId second = factory.New(m_context, node);
+
+            Assert.That(second, Is.EqualTo(first));
+        }
+
+        [Test]
+        [Category("LongRunning")]
+        public void TwoBrowsePathsOnOneNumericIdentifierAreReported()
+        {
+            var factory = new DefaultNodeIdFactory(NodeIdAssignmentMode.Numeric, kNamespaceIndex);
+            var parent = new NodeId("Root", kNamespaceIndex);
+
+            // A 32 bit identifier is a birthday problem: distinct browse
+            // paths are expected to land on one after roughly 2^16 of them.
+            // That is the whole reason the guard exists, so the test provokes
+            // the real thing rather than a synthetic stand-in. Not finding
+            // one within this many is itself a failure - it would mean the
+            // identifiers are not spread over the space they claim to be.
+            ServiceResultException collision = null;
+
+            for (int ii = 0; ii < kCollisionSearchLimit && collision is null; ii++)
+            {
+                try
+                {
+                    factory.New(
+                        m_context,
+                        CreateChild(parent, "Node" + ii.ToString(CultureInfo.InvariantCulture)));
+                }
+                catch (ServiceResultException exception)
+                {
+                    collision = exception;
+                }
+            }
+
+            Assert.That(
+                collision,
+                Is.Not.Null,
+                "no two browse paths shared an identifier within the search limit");
+            Assert.Multiple(() =>
+            {
+                Assert.That(collision.StatusCode, Is.EqualTo(StatusCodes.BadConfigurationError));
+
+                // the identifier alone says nothing about which node was
+                // refused, so the message has to carry the browse path.
+                Assert.That(collision.Message, Does.Contain("v1:"));
+                Assert.That(collision.Message, Does.Contain("NodeIdAssignmentMode.String"));
+            });
+        }
+
+        [Test]
+        public void AModeThatCannotCollideKeepsNoRecord()
+        {
+            var factory = new DefaultNodeIdFactory(NodeIdAssignmentMode.String, kNamespaceIndex);
+            var parent = new NodeId("Root", kNamespaceIndex);
+
+            NodeId first = factory.New(m_context, CreateChild(parent, "First"));
+            NodeId second = factory.New(m_context, CreateChild(parent, "Second"));
+
+            // String keeps the whole path, so two paths can never share an
+            // identifier and there is nothing to check against.
+            Assert.That(second, Is.Not.EqualTo(first));
+        }
+
+        /// <summary>
+        /// How many browse paths the collision test mints before giving up.
+        /// A 32 bit space is expected to collide within ~77k, so reaching
+        /// this bound without one would be evidence of a defect.
+        /// </summary>
+        private const int kCollisionSearchLimit = 1_000_000;
 
         /// <summary>
         /// Creates a child of a parent that carries the specified NodeId.

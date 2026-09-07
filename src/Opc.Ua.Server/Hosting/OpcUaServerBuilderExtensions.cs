@@ -492,7 +492,7 @@ namespace Microsoft.Extensions.DependencyInjection
         /// Each NodeManager rebases the registered factory onto its own
         /// namespace, so one registration serves the whole server. Without
         /// this call NodeManagers default to
-        /// <see cref="NodeIdAssignmentMode.String"/>.
+        /// <see cref="NodeIdAssignmentMode.Numeric"/>.
         /// </remarks>
         /// <param name="builder">The server builder.</param>
         /// <param name="mode">The identifier type to mint.</param>

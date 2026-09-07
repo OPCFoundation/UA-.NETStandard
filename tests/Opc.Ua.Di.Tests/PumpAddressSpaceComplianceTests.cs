@@ -635,10 +635,10 @@ namespace Opc.Ua.Di.Tests
 
             // the pump's NodeId is whatever the manager's factory mints for a
             // child of DeviceSet, so derive it the same way rather than
-            // restating a literal identifier format here.
-            return new DefaultNodeIdFactory(
-                NodeIdAssignmentMode.String,
-                instanceNamespaceIndex)
+            // restating a literal identifier format here. The mode is left at
+            // the default for the same reason: naming one here would make the
+            // test pass or fail on a server setting it does not control.
+            return new DefaultNodeIdFactory(defaultNamespaceIndex: instanceNamespaceIndex)
                 .CreateChildNodeId(
                     deviceSetId,
                     new QualifiedName(pumpName, instanceNamespaceIndex),

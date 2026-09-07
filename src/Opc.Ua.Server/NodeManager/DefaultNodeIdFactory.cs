@@ -28,6 +28,8 @@
  * ======================================================================*/
 
 using System;
+using System.Buffers;
+using System.Collections.Concurrent;
 using System.Globalization;
 using System.Security.Cryptography;
 using System.Text;
@@ -62,9 +64,14 @@ namespace Opc.Ua.Server
         /// path hash.
         /// </summary>
         /// <remarks>
-        /// Numeric identifiers are compact and readable in client UIs, but a
-        /// 32 bit hash is the only mode of this class where a collision
-        /// between two distinct browse paths is realistically possible.
+        /// The default. Numeric identifiers are the most compact form on the
+        /// wire and the most readable in client UIs. A 32 bit hash is also
+        /// the only mode of this class where a collision between two distinct
+        /// browse paths is realistically possible, so the factory records
+        /// what it mints and raises
+        /// <see cref="StatusCodes.BadConfigurationError"/> if two paths ever
+        /// land on one identifier rather than letting one node silently
+        /// replace the other.
         /// </remarks>
         Numeric,
 
@@ -151,11 +158,34 @@ namespace Opc.Ua.Server
         /// its parent's namespace instead.
         /// </param>
         public DefaultNodeIdFactory(
-            NodeIdAssignmentMode mode = NodeIdAssignmentMode.String,
+            NodeIdAssignmentMode mode = NodeIdAssignmentMode.Numeric,
             ushort defaultNamespaceIndex = 0)
         {
             Mode = mode;
             DefaultNamespaceIndex = defaultNamespaceIndex;
+
+            // only the truncating modes can put two browse paths on one
+            // identifier, so only they pay for the record of what was minted.
+            m_mintedIdentifiers = CanCollide(mode)
+                ? new ConcurrentDictionary<NodeId, ulong>()
+                : null;
+        }
+
+        /// <summary>
+        /// Whether two distinct canonical paths can produce one identifier in
+        /// the specified mode.
+        /// </summary>
+        /// <remarks>
+        /// <see cref="NodeIdAssignmentMode.String"/> keeps the path whole, so
+        /// distinct paths stay distinct text.
+        /// <see cref="NodeIdAssignmentMode.Counter"/> does not derive from a
+        /// path at all. The rest truncate a hash.
+        /// </remarks>
+        private static bool CanCollide(NodeIdAssignmentMode mode)
+        {
+            return mode is NodeIdAssignmentMode.Numeric
+                or NodeIdAssignmentMode.Guid
+                or NodeIdAssignmentMode.Opaque;
         }
 
         /// <summary>
@@ -333,9 +363,30 @@ namespace Opc.Ua.Server
         /// <returns>A NodeId no other caller of this factory has seen.</returns>
         public NodeId NextCounterNodeId()
         {
-            return new NodeId(
-                Utils.IncrementIdentifier(ref m_lastUsedId),
-                DefaultNamespaceIndex);
+            for (int attempt = 0; attempt < kMaxCounterAttempts; attempt++)
+            {
+                var nodeId = new NodeId(
+                    Utils.IncrementIdentifier(ref m_lastUsedId),
+                    DefaultNamespaceIndex);
+
+                // Under Numeric the counter mints into the same space the
+                // hash does - the counter base is a 32 bit value like any
+                // other - so a counter identifier can land on one already
+                // derived from a browse path. The counter is the side with
+                // freedom to move, so it steps over the clash instead of
+                // reporting it.
+                if (m_mintedIdentifiers is null ||
+                    m_mintedIdentifiers.TryAdd(nodeId, kCounterWitness))
+                {
+                    return nodeId;
+                }
+            }
+
+            throw ServiceResultException.Create(
+                StatusCodes.BadConfigurationError,
+                "No free counter NodeId was found in namespace {0} after {1} attempts.",
+                DefaultNamespaceIndex,
+                kMaxCounterAttempts);
         }
 
         /// <summary>
@@ -398,30 +449,132 @@ namespace Opc.Ua.Server
                 return NextCounterNodeId();
             }
 
-            string canonicalPath = CreateCanonicalPath(
+            ValidatePathArguments(browseName, namespaceUris);
+
+            StringBuilder? parentIdentifier = FormatParentIdentifier(parentNodeId);
+
+            int length = MeasureCanonicalPath(
                 parentNodeId,
+                parentIdentifier,
                 browseName,
                 namespaceIndex,
                 namespaceUris);
 
+            // the path is scratch: it is projected onto an identifier and, in
+            // every mode but String, never becomes a string at all. A short
+            // one lives on the stack, a long one comes from the pool.
+            Span<char> stack = stackalloc char[kMaxStackallocChars];
+            char[]? rented = length > kMaxStackallocChars
+                ? ArrayPool<char>.Shared.Rent(length)
+                : null;
+
+            try
+            {
+                Span<char> buffer = rented is null ? stack : rented.AsSpan();
+
+                var writer = new PathBuilder(buffer);
+                WriteCanonicalPath(
+                    ref writer,
+                    parentNodeId,
+                    parentIdentifier,
+                    browseName,
+                    namespaceIndex,
+                    namespaceUris);
+
+                // the written length rather than the measured one: a rented
+                // buffer is longer than the path and carries whatever the
+                // previous tenant left in it.
+                return MintFromPath(buffer[..writer.Length], namespaceIndex);
+            }
+            finally
+            {
+                if (rented is not null)
+                {
+                    ArrayPool<char>.Shared.Return(rented);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Projects a canonical path onto an identifier of the configured
+        /// type and records it so a later collision is caught.
+        /// </summary>
+        private NodeId MintFromPath(ReadOnlySpan<char> canonicalPath, ushort namespaceIndex)
+        {
             if (Mode == NodeIdAssignmentMode.String)
             {
-                return new NodeId(canonicalPath, namespaceIndex);
+                return new NodeId(ToStringValue(canonicalPath), namespaceIndex);
             }
 
-            byte[] hash = ComputeHash(canonicalPath);
+            Span<byte> hash = stackalloc byte[HashLength];
+            ComputeHash(canonicalPath, hash);
+
+            NodeId nodeId;
 
             switch (Mode)
             {
                 case NodeIdAssignmentMode.Numeric:
-                    return new NodeId(ToIdentifier(hash), namespaceIndex);
+                    nodeId = new NodeId(ToIdentifier(hash), namespaceIndex);
+                    break;
                 case NodeIdAssignmentMode.Guid:
-                    return new NodeId(ToGuid(hash), namespaceIndex);
+                    nodeId = new NodeId(ToGuid(hash), namespaceIndex);
+                    break;
                 default:
-                    byte[] opaque = new byte[GuidLength];
-                    Array.Copy(hash, opaque, GuidLength);
-                    return new NodeId((ByteString)opaque, namespaceIndex);
+                    nodeId = new NodeId((ByteString)hash[..GuidLength].ToArray(), namespaceIndex);
+                    break;
             }
+
+            GuardAgainstCollision(nodeId, hash, canonicalPath);
+
+            return nodeId;
+        }
+
+        /// <summary>
+        /// Raises an error when a second browse path lands on an identifier
+        /// this factory already minted for a different one.
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// Minting the same path twice is normal - <c>AssignNodeIds</c> walks
+        /// a subtree on every create pass - so the record keeps a witness of
+        /// the path alongside the identifier and only a *differing* witness
+        /// is a collision. The witness is the tail of the same hash, so two
+        /// paths would have to agree on the identifier and on a further 64
+        /// bits before a real collision could pass as a re-mint.
+        /// </para>
+        /// <para>
+        /// The alternative to raising is worse than a failed start: the
+        /// predefined-node index takes the last writer, so a collision would
+        /// silently replace one node with the other and the address space
+        /// would be quietly wrong.
+        /// </para>
+        /// </remarks>
+        private void GuardAgainstCollision(
+            NodeId nodeId,
+            ReadOnlySpan<byte> hash,
+            ReadOnlySpan<char> canonicalPath)
+        {
+            if (m_mintedIdentifiers is null)
+            {
+                return;
+            }
+
+            ulong witness = ToWitness(hash);
+
+            if (m_mintedIdentifiers.GetOrAdd(nodeId, witness) == witness)
+            {
+                return;
+            }
+
+            throw ServiceResultException.Create(
+                StatusCodes.BadConfigurationError,
+                "The NodeId '{0}' was already minted from a different browse path, so '{1}' " +
+                "cannot be given it. Two distinct browse paths hashed to one {2} identifier. " +
+                "Select NodeIdAssignmentMode.String, which cannot collide, or Guid or Opaque, " +
+                "which spread the same hash over 128 bits.",
+                nodeId,
+                ToStringValue(canonicalPath),
+                Mode);
         }
 
         /// <summary>
@@ -481,6 +634,53 @@ namespace Opc.Ua.Server
             ushort namespaceIndex,
             NamespaceTable namespaceUris)
         {
+            ValidatePathArguments(browseName, namespaceUris);
+
+            StringBuilder? parentIdentifier = FormatParentIdentifier(parentNodeId);
+
+            int length = MeasureCanonicalPath(
+                parentNodeId,
+                parentIdentifier,
+                browseName,
+                namespaceIndex,
+                namespaceUris);
+
+            Span<char> stack = stackalloc char[kMaxStackallocChars];
+            char[]? rented = length > kMaxStackallocChars
+                ? ArrayPool<char>.Shared.Rent(length)
+                : null;
+
+            try
+            {
+                Span<char> buffer = rented is null ? stack : rented.AsSpan();
+
+                var writer = new PathBuilder(buffer);
+                WriteCanonicalPath(
+                    ref writer,
+                    parentNodeId,
+                    parentIdentifier,
+                    browseName,
+                    namespaceIndex,
+                    namespaceUris);
+
+                return ToStringValue(buffer[..writer.Length]);
+            }
+            finally
+            {
+                if (rented is not null)
+                {
+                    ArrayPool<char>.Shared.Return(rented);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Rejects arguments no canonical path can be built from.
+        /// </summary>
+        private static void ValidatePathArguments(
+            QualifiedName browseName,
+            NamespaceTable namespaceUris)
+        {
             if (browseName.IsNull || string.IsNullOrEmpty(browseName.Name))
             {
                 throw new ArgumentException("The browse name is null.", nameof(browseName));
@@ -489,25 +689,240 @@ namespace Opc.Ua.Server
             {
                 throw new ArgumentNullException(nameof(namespaceUris));
             }
+        }
 
-            string parentText = parentNodeId.IsNull
-                ? string.Empty
-                : FormatParent(parentNodeId, namespaceIndex, namespaceUris);
+        /// <summary>
+        /// Formats the parent's identifier with its type prefix but without a
+        /// namespace, so that a parent keeps its identity when the namespace
+        /// table is ordered differently.
+        /// </summary>
+        /// <remarks>
+        /// Produced once and read by both passes over the buffer.
+        /// <c>NodeId.Format</c> is the authority on the spelling, so the path
+        /// keeps the exact text clients already hold.
+        /// </remarks>
+        /// <returns>The identifier text, or <c>null</c> for a root node.</returns>
+        private static StringBuilder? FormatParentIdentifier(NodeId parentNodeId)
+        {
+            if (parentNodeId.IsNull)
+            {
+                return null;
+            }
 
-            string browseNameText = FormatBrowseName(
+            var identifier = new StringBuilder();
+
+            NodeId.Format(
+                CultureInfo.InvariantCulture,
+                identifier,
+                parentNodeId.IdentifierAsString,
+                parentNodeId.IdType,
+                namespaceIndex: 0);
+
+            return identifier;
+        }
+
+        /// <summary>
+        /// Returns the length of the canonical path without writing it.
+        /// </summary>
+        private static int MeasureCanonicalPath(
+            NodeId parentNodeId,
+            StringBuilder? parentIdentifier,
+            QualifiedName browseName,
+            ushort namespaceIndex,
+            NamespaceTable namespaceUris)
+        {
+            var measure = PathBuilder.Measuring();
+
+            WriteCanonicalPath(
+                ref measure,
+                parentNodeId,
+                parentIdentifier,
                 browseName,
                 namespaceIndex,
                 namespaceUris);
 
-            var path = new StringBuilder(
-                CanonicalPathVersion.Length + parentText.Length + browseNameText.Length + 16);
+            return measure.Length;
+        }
 
-            path.Append(CanonicalPathVersion).Append(':');
-            AppendLengthPrefixed(path, parentText);
-            path.Append(':');
-            AppendLengthPrefixed(path, browseNameText);
+        /// <summary>
+        /// Writes the canonical path, or measures it when the builder is
+        /// measuring.
+        /// </summary>
+        /// <remarks>
+        /// One routine serves both passes so the measured length can never
+        /// drift from the written one.
+        /// </remarks>
+        private static void WriteCanonicalPath(
+            ref PathBuilder builder,
+            NodeId parentNodeId,
+            StringBuilder? parentIdentifier,
+            QualifiedName browseName,
+            ushort namespaceIndex,
+            NamespaceTable namespaceUris)
+        {
+            // each segment is prefixed by its own length, so the segment has
+            // to be measured before it can be written.
+            var parentMeasure = PathBuilder.Measuring();
+            WriteParentSegment(
+                ref parentMeasure, parentNodeId, parentIdentifier, namespaceIndex, namespaceUris);
 
-            return path.ToString();
+            var browseMeasure = PathBuilder.Measuring();
+            WriteBrowseNameSegment(ref browseMeasure, browseName, namespaceIndex, namespaceUris);
+
+            builder.Append(CanonicalPathVersion);
+            builder.Append(':');
+            builder.AppendNumber(parentMeasure.Length);
+            builder.Append(':');
+            WriteParentSegment(
+                ref builder, parentNodeId, parentIdentifier, namespaceIndex, namespaceUris);
+            builder.Append(':');
+            builder.AppendNumber(browseMeasure.Length);
+            builder.Append(':');
+            WriteBrowseNameSegment(ref builder, browseName, namespaceIndex, namespaceUris);
+        }
+
+        /// <summary>
+        /// Writes the parent segment. It is empty for a root node.
+        /// </summary>
+        private static void WriteParentSegment(
+            ref PathBuilder builder,
+            NodeId parentNodeId,
+            StringBuilder? parentIdentifier,
+            ushort namespaceIndex,
+            NamespaceTable namespaceUris)
+        {
+            if (parentIdentifier is null)
+            {
+                return;
+            }
+
+            if (parentNodeId.NamespaceIndex == namespaceIndex)
+            {
+                WriteLocal(ref builder, parentIdentifier);
+                return;
+            }
+
+            WriteQualified(
+                ref builder, namespaceUris, parentNodeId.NamespaceIndex, parentIdentifier);
+        }
+
+        /// <summary>
+        /// Writes the browse name segment.
+        /// </summary>
+        private static void WriteBrowseNameSegment(
+            ref PathBuilder builder,
+            QualifiedName browseName,
+            ushort namespaceIndex,
+            NamespaceTable namespaceUris)
+        {
+            if (browseName.NamespaceIndex == namespaceIndex)
+            {
+                WriteLocal(ref builder, browseName.Name!);
+                return;
+            }
+
+            if (browseName.NamespaceIndex == 0)
+            {
+                builder.Append("z:");
+                WriteLengthPrefixed(ref builder, browseName.Name!);
+                return;
+            }
+
+            WriteQualified(ref builder, namespaceUris, browseName.NamespaceIndex, browseName.Name!);
+        }
+
+        /// <summary>
+        /// Writes a segment that lives in the minted namespace.
+        /// </summary>
+        private static void WriteLocal(ref PathBuilder builder, string text)
+        {
+            builder.Append("l:");
+            WriteLengthPrefixed(ref builder, text);
+        }
+
+        /// <inheritdoc cref="WriteLocal(ref PathBuilder,string)"/>
+        private static void WriteLocal(ref PathBuilder builder, StringBuilder text)
+        {
+            builder.Append("l:");
+            WriteLengthPrefixed(ref builder, text);
+        }
+
+        /// <summary>
+        /// Writes a segment qualified by its namespace URI.
+        /// </summary>
+        private static void WriteQualified(
+            ref PathBuilder builder,
+            NamespaceTable namespaceUris,
+            ushort namespaceIndex,
+            string text)
+        {
+            if (WriteNamespaceQualifier(ref builder, namespaceUris, namespaceIndex))
+            {
+                WriteLengthPrefixed(ref builder, text);
+            }
+        }
+
+        /// <inheritdoc cref="WriteQualified(ref PathBuilder,NamespaceTable,ushort,string)"/>
+        private static void WriteQualified(
+            ref PathBuilder builder,
+            NamespaceTable namespaceUris,
+            ushort namespaceIndex,
+            StringBuilder text)
+        {
+            if (WriteNamespaceQualifier(ref builder, namespaceUris, namespaceIndex))
+            {
+                WriteLengthPrefixed(ref builder, text);
+            }
+        }
+
+        /// <summary>
+        /// Writes the namespace part of a qualified segment, up to and
+        /// including the separator before the text.
+        /// </summary>
+        private static bool WriteNamespaceQualifier(
+            ref PathBuilder builder,
+            NamespaceTable namespaceUris,
+            ushort namespaceIndex)
+        {
+            string? namespaceUri = namespaceUris.GetString(namespaceIndex);
+
+            // A namespace with no URI cannot be named stably, so the segment
+            // falls back to the index. That form is deliberately distinct
+            // from the URI form, so identifiers minted while the namespace
+            // was missing stay distinguishable from the ones minted once it
+            // is registered rather than silently colliding with them.
+            if (string.IsNullOrEmpty(namespaceUri))
+            {
+                builder.Append("x:");
+                builder.AppendNumber(PathBuilder.DigitCount(namespaceIndex));
+                builder.Append(':');
+                builder.AppendNumber(namespaceIndex);
+                builder.Append(':');
+                return true;
+            }
+
+            builder.Append("u:");
+            WriteLengthPrefixed(ref builder, namespaceUri!);
+            builder.Append(':');
+            return true;
+        }
+
+        /// <summary>
+        /// Writes the text prefixed by its own length.
+        /// </summary>
+        private static void WriteLengthPrefixed(ref PathBuilder builder, string text)
+        {
+            builder.AppendNumber(text.Length);
+            builder.Append(':');
+            builder.Append(text);
+        }
+
+        /// <inheritdoc cref="WriteLengthPrefixed(ref PathBuilder,string)"/>
+        private static void WriteLengthPrefixed(ref PathBuilder builder, StringBuilder text)
+        {
+            builder.AppendNumber(text.Length);
+            builder.Append(':');
+            builder.Append(text);
         }
 
         /// <summary>
@@ -552,141 +967,93 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Formats the parent segment of the canonical path.
+        /// Returns the span as a string.
         /// </summary>
-        private static string FormatParent(
-            NodeId parentNodeId,
-            ushort namespaceIndex,
-            NamespaceTable namespaceUris)
+        /// <remarks>
+        /// The frameworks without a span based string constructor copy once.
+        /// That is still one allocation against the ten the segment by
+        /// segment concatenation this replaced needed, and it is only reached
+        /// in <see cref="NodeIdAssignmentMode.String"/> and when reporting a
+        /// collision.
+        /// </remarks>
+        private static string ToStringValue(ReadOnlySpan<char> value)
         {
-            // the identifier is formatted with its type prefix but without a
-            // namespace, so that a parent keeps its identity when the
-            // namespace table is ordered differently.
-            var identifierBuffer = new StringBuilder();
-            NodeId.Format(
-                CultureInfo.InvariantCulture,
-                identifierBuffer,
-                parentNodeId.IdentifierAsString,
-                parentNodeId.IdType,
-                namespaceIndex: 0);
-            string identifierText = identifierBuffer.ToString();
-
-            if (parentNodeId.NamespaceIndex == namespaceIndex)
-            {
-                return Local(identifierText);
-            }
-
-            return Qualified(namespaceUris, parentNodeId.NamespaceIndex, identifierText);
+#if NETSTANDARD2_1_OR_GREATER || NET5_0_OR_GREATER
+            return new string(value);
+#else
+            return new string(value.ToArray());
+#endif
         }
 
         /// <summary>
-        /// Formats the browse name segment of the canonical path.
-        /// </summary>
-        private static string FormatBrowseName(
-            QualifiedName browseName,
-            ushort namespaceIndex,
-            NamespaceTable namespaceUris)
-        {
-            if (browseName.NamespaceIndex == namespaceIndex)
-            {
-                return Local(browseName.Name!);
-            }
-
-            if (browseName.NamespaceIndex == 0)
-            {
-                return string.Concat(
-                    "z:",
-                    LengthPrefixed(browseName.Name!));
-            }
-
-            return Qualified(namespaceUris, browseName.NamespaceIndex, browseName.Name!);
-        }
-
-        /// <summary>
-        /// Formats a segment that lives in the minted namespace.
-        /// </summary>
-        private static string Local(string text)
-        {
-            return string.Concat("l:", LengthPrefixed(text));
-        }
-
-        /// <summary>
-        /// Formats a segment qualified by its namespace URI.
-        /// </summary>
-        private static string Qualified(
-            NamespaceTable namespaceUris,
-            ushort namespaceIndex,
-            string text)
-        {
-            string? namespaceUri = namespaceUris.GetString(namespaceIndex);
-
-            // A namespace with no URI cannot be named stably, so the segment
-            // falls back to the index. That form is deliberately distinct
-            // from the URI form, so identifiers minted while the namespace
-            // was missing stay distinguishable from the ones minted once it
-            // is registered rather than silently colliding with them.
-            if (string.IsNullOrEmpty(namespaceUri))
-            {
-                return string.Concat(
-                    "x:",
-                    LengthPrefixed(namespaceIndex.ToString(CultureInfo.InvariantCulture)),
-                    ":",
-                    LengthPrefixed(text));
-            }
-
-            return string.Concat(
-                "u:",
-                LengthPrefixed(namespaceUri!),
-                ":",
-                LengthPrefixed(text));
-        }
-
-        /// <summary>
-        /// Returns the text prefixed by its own length.
-        /// </summary>
-        private static string LengthPrefixed(string text)
-        {
-            return string.Concat(
-                text.Length.ToString(CultureInfo.InvariantCulture),
-                ":",
-                text);
-        }
-
-        /// <summary>
-        /// Appends the text prefixed by its own length.
-        /// </summary>
-        private static void AppendLengthPrefixed(StringBuilder builder, string text)
-        {
-            builder
-                .Append(text.Length.ToString(CultureInfo.InvariantCulture))
-                .Append(':')
-                .Append(text);
-        }
-
-        /// <summary>
-        /// Hashes the canonical path.
+        /// Hashes the canonical path into the destination.
         /// </summary>
         /// <remarks>
         /// SHA256 is used for its stable, platform independent output, not
         /// for any security property. The hash never leaves the address space
         /// as anything other than a NodeId.
         /// </remarks>
-        private static byte[] ComputeHash(string canonicalPath)
+        private static void ComputeHash(ReadOnlySpan<char> canonicalPath, Span<byte> destination)
         {
-            byte[] bytes = Encoding.UTF8.GetBytes(canonicalPath);
+#if NETSTANDARD2_1_OR_GREATER || NET5_0_OR_GREATER
+            int byteCount = Encoding.UTF8.GetByteCount(canonicalPath);
+
+            Span<byte> stack = stackalloc byte[kMaxStackallocBytes];
+            byte[]? rented = byteCount > kMaxStackallocBytes
+                ? ArrayPool<byte>.Shared.Rent(byteCount)
+                : null;
+
+            try
+            {
+                Span<byte> bytes = rented is null ? stack : rented.AsSpan();
+                int written = Encoding.UTF8.GetBytes(canonicalPath, bytes);
 
 #if NET5_0_OR_GREATER
-            return SHA256.HashData(bytes);
+                SHA256.HashData(bytes[..written], destination);
 #else
-            using SHA256 sha256 = SHA256.Create();
-            return sha256.ComputeHash(bytes);
+                using SHA256 sha256 = SHA256.Create();
+                sha256.TryComputeHash(bytes[..written], destination, out _);
 #endif
+            }
+            finally
+            {
+                if (rented is not null)
+                {
+                    ArrayPool<byte>.Shared.Return(rented);
+                }
+            }
+#else
+            byte[] bytes = Encoding.UTF8.GetBytes(canonicalPath.ToArray());
+
+            using SHA256 sha256 = SHA256.Create();
+            sha256.ComputeHash(bytes).CopyTo(destination);
+#endif
+        }
+
+        /// <summary>
+        /// Projects the tail of the hash onto the witness that tells a
+        /// re-mint of one path from a collision between two.
+        /// </summary>
+        /// <remarks>
+        /// The tail is used because no mode derives its identifier from it,
+        /// so the witness carries bits the identifier does not.
+        /// </remarks>
+        private static ulong ToWitness(ReadOnlySpan<byte> hash)
+        {
+            ulong witness = 0;
+
+            for (int ii = HashLength - sizeof(ulong); ii < HashLength; ii++)
+            {
+                witness = (witness << 8) | hash[ii];
+            }
+
+            return witness;
         }
 
         /// <summary>
         /// Projects the hash onto a numeric identifier.
         /// </summary>
-        private static uint ToIdentifier(byte[] hash)
+        private static uint ToIdentifier(ReadOnlySpan<byte> hash)
         {
             uint identifier = ((uint)hash[0] << 24)
                 | ((uint)hash[1] << 16)
@@ -706,10 +1073,10 @@ namespace Opc.Ua.Server
         /// mark the value as name based per RFC 9562, which keeps it distinct
         /// from a random Guid.
         /// </remarks>
-        private static Guid ToGuid(byte[] hash)
+        private static Guid ToGuid(ReadOnlySpan<byte> hash)
         {
-            byte[] bytes = new byte[GuidLength];
-            Array.Copy(hash, bytes, GuidLength);
+            Span<byte> bytes = stackalloc byte[GuidLength];
+            hash[..GuidLength].CopyTo(bytes);
 
             bytes[6] = (byte)((bytes[6] & 0x0F) | 0x80);
             bytes[8] = (byte)((bytes[8] & 0x3F) | 0x80);
@@ -732,5 +1099,186 @@ namespace Opc.Ua.Server
         /// The number of hash bytes consumed by the Guid and Opaque modes.
         /// </summary>
         private const int GuidLength = 16;
+
+        /// <summary>
+        /// The size of a SHA256 hash.
+        /// </summary>
+        private const int HashLength = 32;
+
+        /// <summary>
+        /// The witness recorded for a counter identifier, which has no browse
+        /// path behind it.
+        /// </summary>
+        /// <remarks>
+        /// A path derived witness is the tail of a SHA256 hash, so it can in
+        /// principle be this value too. That costs nothing: the only effect
+        /// would be treating one collision as a re-mint, at a probability of
+        /// 2^-64 on top of the collision itself.
+        /// </remarks>
+        private const ulong kCounterWitness = 0;
+
+        /// <summary>
+        /// How many counter values are tried before giving up on finding one
+        /// no browse path has already claimed.
+        /// </summary>
+        private const int kMaxCounterAttempts = 1024;
+
+        /// <summary>
+        /// The longest canonical path built on the stack. Longer ones come
+        /// from <see cref="ArrayPool{T}"/>.
+        /// </summary>
+        /// <remarks>
+        /// A path is a version prefix, a parent identifier and a browse name,
+        /// each length prefixed, plus a namespace URI when either crosses a
+        /// namespace. That fits well inside this for ordinary models, so the
+        /// pool is the exception rather than the rule.
+        /// </remarks>
+        private const int kMaxStackallocChars = 256;
+
+        /// <summary>
+        /// The longest UTF-8 encoding of a path hashed on the stack.
+        /// </summary>
+        /// <remarks>
+        /// A canonical path is overwhelmingly ASCII, where the encoding is
+        /// the same length as the path, but a browse name or namespace URI
+        /// may carry any Unicode, so this allows the worst case expansion of
+        /// a stack sized path.
+        /// </remarks>
+        private const int kMaxStackallocBytes = kMaxStackallocChars * 3;
+
+        /// <summary>
+        /// The identifiers minted so far, each with a witness of the browse
+        /// path it came from, or <c>null</c> in a mode that cannot collide.
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// Scoped to the factory instance, which is scoped to a namespace:
+        /// <see cref="WithDefaultNamespaceIndex"/> hands a NodeManager that
+        /// owns another namespace its own copy, and identifiers in different
+        /// namespaces cannot collide. NodeManagers sharing one namespace
+        /// share the instance and so are checked against each other.
+        /// </para>
+        /// <para>
+        /// It grows with the number of distinct browse paths minted, and is
+        /// never pruned: an identifier handed to a client stays spoken for
+        /// even after the node goes away, so re-minting it for a different
+        /// path is exactly the collision this catches.
+        /// </para>
+        /// </remarks>
+        private readonly ConcurrentDictionary<NodeId, ulong>? m_mintedIdentifiers;
+
+        /// <summary>
+        /// Writes a canonical path into a span, or measures one without a
+        /// span to write into.
+        /// </summary>
+        /// <remarks>
+        /// Both passes run the same code, so the length reserved for a
+        /// segment cannot drift from the length written into it.
+        /// </remarks>
+        private ref struct PathBuilder
+        {
+            /// <summary>
+            /// Creates a builder that writes into the buffer.
+            /// </summary>
+            public PathBuilder(Span<char> buffer)
+            {
+                m_buffer = buffer;
+                m_writing = true;
+                Length = 0;
+            }
+
+            /// <summary>
+            /// Creates a builder that counts characters without writing.
+            /// </summary>
+            public static PathBuilder Measuring()
+            {
+                return default;
+            }
+
+            /// <summary>
+            /// The number of characters written, or counted.
+            /// </summary>
+            public int Length { get; private set; }
+
+            /// <summary>
+            /// Appends one character.
+            /// </summary>
+            public void Append(char value)
+            {
+                if (m_writing)
+                {
+                    m_buffer[Length] = value;
+                }
+
+                Length++;
+            }
+
+            /// <summary>
+            /// Appends the text.
+            /// </summary>
+            public void Append(ReadOnlySpan<char> text)
+            {
+                if (m_writing)
+                {
+                    text.CopyTo(m_buffer[Length..]);
+                }
+
+                Length += text.Length;
+            }
+
+            /// <summary>
+            /// Appends the builder's content without materialising it.
+            /// </summary>
+            public void Append(StringBuilder text)
+            {
+                if (m_writing)
+                {
+                    for (int ii = 0; ii < text.Length; ii++)
+                    {
+                        m_buffer[Length + ii] = text[ii];
+                    }
+                }
+
+                Length += text.Length;
+            }
+
+            /// <summary>
+            /// Appends the invariant decimal form of a non-negative number.
+            /// </summary>
+            public void AppendNumber(int value)
+            {
+                int digits = DigitCount(value);
+
+                if (m_writing)
+                {
+                    for (int ii = Length + digits - 1; ii >= Length; ii--)
+                    {
+                        m_buffer[ii] = (char)('0' + (value % 10));
+                        value /= 10;
+                    }
+                }
+
+                Length += digits;
+            }
+
+            /// <summary>
+            /// The number of decimal digits a non-negative number is written
+            /// as.
+            /// </summary>
+            public static int DigitCount(int value)
+            {
+                int digits = 1;
+
+                for (int rest = value; rest >= 10; rest /= 10)
+                {
+                    digits++;
+                }
+
+                return digits;
+            }
+
+            private readonly Span<char> m_buffer;
+            private readonly bool m_writing;
+        }
     }
 }

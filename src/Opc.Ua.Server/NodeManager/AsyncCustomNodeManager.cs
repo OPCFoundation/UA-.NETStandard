@@ -242,7 +242,7 @@ namespace Opc.Ua.Server
         /// </summary>
         /// <remarks>
         /// Resolved from dependency injection when the server was composed
-        /// that way, otherwise a <see cref="NodeIdAssignmentMode.String"/>
+        /// that way, otherwise a <see cref="NodeIdAssignmentMode.Numeric"/>
         /// factory, which derives a deterministic identifier from the node's
         /// browse path. Assign a factory to mint a different identifier
         /// type, or a <see cref="NodeIdAssignmentMode.None"/> factory
@@ -335,7 +335,7 @@ namespace Opc.Ua.Server
             }
 
             return new DefaultNodeIdFactory(
-                NodeIdAssignmentMode.String,
+                NodeIdAssignmentMode.Numeric,
                 namespaceIndex);
         }
 

@@ -107,6 +107,12 @@ ordering. The index form is a fallback for an unregistered namespace; it
 is deliberately distinct so identifiers minted before the namespace was
 registered cannot collide with the ones minted after.
 
+The path is scratch. In every mode but `String` it is hashed and thrown
+away, so it is built into a stack buffer — or, when it does not fit, one
+rented from `ArrayPool<char>` — and never becomes a string at all. The
+length is measured and written by one routine, so the length reserved for
+a segment cannot drift from the length written into it.
+
 ### Modes
 
 `NodeIdAssignmentMode` selects how the path becomes an identifier.
@@ -120,11 +126,48 @@ registered cannot collide with the ones minted after.
 | `Opaque` | first 128 bits of the path's SHA-256 | yes | yes |
 | `Counter` | sequential number | no | no |
 
-`String` is the default. It is the only mode that cannot collide for
-distinct browse paths, because it keeps the canonical path whole and two
-different paths are never the same text; the others project it through
-SHA-256 and inherit that hash's collision probability (negligible for
-`Guid`/`Opaque`, real but small for `Numeric`).
+`Numeric` is the default: it is the most compact form on the wire and the
+most readable in a client UI.
+
+`String` is the only mode that cannot collide for distinct browse paths,
+because it keeps the canonical path whole and two different paths are
+never the same text. The others project the path through SHA-256 and
+inherit that hash's collision probability — negligible for `Guid` and
+`Opaque` at 128 bits, but real for `Numeric` at 32.
+
+### Collision detection
+
+A 32 bit identifier is a birthday problem: distinct browse paths are
+expected to land on one after roughly 2^16 of them. Left alone that is
+silent damage, because the predefined-node index takes the last writer —
+one node would simply replace the other and the address space would be
+quietly wrong.
+
+So the factory records what it mints and raises
+`BadConfigurationError` when a second browse path lands on an identifier
+that a different one already has. The error names the path that was
+refused and the modes that do not have the problem.
+
+Minting the same path twice is normal — `AssignNodeIds` walks a subtree
+on every create pass — so the record keeps a witness of the path
+alongside the identifier, and only a *differing* witness is a collision.
+The witness is the tail of the same hash, so two paths would have to
+agree on the identifier and on a further 64 bits before a real collision
+could pass as a re-mint.
+
+Three consequences worth knowing:
+
+- The record is scoped to the factory instance, which is scoped to a
+  namespace, because identifiers in different namespaces cannot collide.
+  NodeManagers sharing a namespace share the instance and are checked
+  against each other.
+- It is never pruned. An identifier handed to a client stays spoken for
+  even after the node goes away, so re-minting it for a different path is
+  exactly the collision this catches. It costs roughly 50 bytes per
+  distinct path minted.
+- It covers what the factory mints, not identifiers a caller assigned
+  itself. `String` and `Counter` cannot collide, so they keep no record
+  and pay nothing.
 
 `Counter` is for nodes whose browse paths repeat over time — per-session
 diagnostics objects, inference jobs, rediscovered assets. Its counter
@@ -256,8 +299,9 @@ factory that names no namespace (a bare `new DefaultNodeIdFactory(mode)`)
 adopts the manager's own namespace; one that names a namespace is left
 alone.
 
-The default is `NodeIdAssignmentMode.String`, so a manager that overrides
-nothing gets deterministic browse-path identifiers.
+The default is `NodeIdAssignmentMode.Numeric`, so a manager that overrides
+nothing gets compact deterministic browse-path identifiers, checked for
+collisions.
 
 ### FluentNodeManagerBase and the fluent builders
 
