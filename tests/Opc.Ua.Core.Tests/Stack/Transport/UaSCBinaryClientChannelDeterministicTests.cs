@@ -194,7 +194,10 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                 roundTrip.StatusCode.Code, Is.EqualTo((uint)StatusCodes.BadTcpEndpointUrlInvalid));
         }
 
+        // Snapshots the process-wide Certificate counters, so no other
+        // certificate-allocating fixture may run alongside it.
         [Test]
+        [NonParallelizable]
         public void ReadAsymmetricMessageHeaderDisposesSenderChainWhenReceiverThumbprintMismatches()
         {
             var factory = new RecordingByteTransportFactory();
@@ -230,7 +233,10 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                 "header validation fails instead of being abandoned as a leaked handle.");
         }
 
+        // Snapshots the process-wide Certificate counters, so no other
+        // certificate-allocating fixture may run alongside it.
         [Test]
+        [NonParallelizable]
         public void ReadAsymmetricMessageHeaderDisposesSenderChainWhenReceiverCertificateMissing()
         {
             var factory = new RecordingByteTransportFactory();
@@ -263,7 +269,10 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                 "the parsed sender chain must be disposed when the receiver certificate is missing.");
         }
 
+        // Snapshots the process-wide Certificate counters, so no other
+        // certificate-allocating fixture may run alongside it.
         [Test]
+        [NonParallelizable]
         public void ReadAsymmetricMessageHeaderDisposesSenderChainWhenReceiverThumbprintMissing()
         {
             var factory = new RecordingByteTransportFactory();

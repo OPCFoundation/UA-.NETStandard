@@ -4903,6 +4903,125 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Replaces a child which is held in a generated, explicitly defined
+        /// slot rather than in the ordinary child collection.
+        /// </summary>
+        /// <remarks>
+        /// Returns <c>false</c> for an ordinary child so that importing a node
+        /// does not evict an application-authored child which happens to share
+        /// its browse name.
+        /// </remarks>
+        /// <param name="context">The system context.</param>
+        /// <param name="replacement">The replacement child.</param>
+        /// <param name="replaced">The displaced explicitly defined child.</param>
+        /// <param name="explicitSlotFound">
+        /// Whether the browse name maps to an explicitly defined child slot.
+        /// </param>
+        /// <returns>
+        /// <c>true</c> when an explicitly defined child was replaced.
+        /// </returns>
+        internal bool TryReplaceExplicitlyDefinedChild(
+            ISystemContext context,
+            BaseInstanceState replacement,
+            out BaseInstanceState? replaced,
+            out bool explicitSlotFound)
+        {
+            replaced = null;
+            explicitSlotFound = false;
+
+            BaseInstanceState? existing = FindChild(
+                context,
+                replacement.BrowseName,
+                createOrReplace: false,
+                replacement: null);
+            if (existing is not null)
+            {
+                if (ContainsBaseChildReference(existing))
+                {
+                    // An ordinary child, not a slot: never evict one.
+                    return false;
+                }
+                if (existing.BrowseName != replacement.BrowseName)
+                {
+                    // A state may dispatch on the browse name alone and offer
+                    // a slot declared in another namespace.
+                    return false;
+                }
+            }
+
+            // A state which declares the child adopts the replacement into its
+            // slot; the base implementation appends it to the ordinary child
+            // collection instead.
+            BaseInstanceState? adopted = FindChild(
+                context,
+                replacement.BrowseName,
+                createOrReplace: true,
+                replacement);
+            if (!ReferenceEquals(adopted, replacement))
+            {
+                return false;
+            }
+            if (ContainsBaseChildReference(replacement))
+            {
+                // There was no slot. Undo the append so the caller can attach
+                // the child the ordinary way.
+                RemoveChild(replacement);
+                return false;
+            }
+
+            explicitSlotFound = true;
+            if (existing is not null && !ReferenceEquals(existing, replacement))
+            {
+                existing.Parent = null;
+                replaced = existing;
+            }
+            return true;
+        }
+
+        private bool ContainsBaseChildReference(BaseInstanceState child)
+        {
+            lock (m_childrenLock)
+            {
+                if (m_children is null)
+                {
+                    return false;
+                }
+                for (int ii = 0; ii < m_children.Count; ii++)
+                {
+                    if (ReferenceEquals(m_children[ii], child))
+                    {
+                        return true;
+                    }
+                }
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Gets whether the child is held in a generated, explicitly defined
+        /// slot of this node rather than in the ordinary child collection.
+        /// </summary>
+        /// <param name="context">The system context.</param>
+        /// <param name="child">The child to test.</param>
+        /// <returns><c>true</c> when the child occupies a generated slot.</returns>
+        public bool IsExplicitlyDefinedChild(ISystemContext context, BaseInstanceState child)
+        {
+            if (child is null)
+            {
+                throw new ArgumentNullException(nameof(child));
+            }
+
+            return !ContainsBaseChildReference(child) &&
+                ReferenceEquals(
+                    FindChild(
+                        context,
+                        child.BrowseName,
+                        createOrReplace: false,
+                        replacement: null),
+                    child);
+        }
+
+        /// <summary>
         /// Adds a child to the node.
         /// </summary>
         public void AddChild(BaseInstanceState child)

@@ -52,6 +52,22 @@ namespace Opc.Ua.SourceGeneration
             """);
 
         /// <summary>
+        /// File template for the model's NodeSet import factory provider
+        /// </summary>
+        public static readonly TemplateString NodeSetImportSupport_File = TemplateString.Parse(
+            $$"""
+            {{Tokens.CodeHeader}}
+
+            #pragma warning disable RCS0056 // A generated identifier can make a line exceed 120 characters
+
+            namespace {{Tokens.NamespacePrefix}}
+            {
+                {{Tokens.ListOfTypes}}
+            }
+
+            """);
+
+        /// <summary>
         /// Main file template for predefined nodes code generation
         /// </summary>
         public static readonly TemplateString Extensions_File = TemplateString.Parse(
