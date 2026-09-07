@@ -52,6 +52,9 @@ namespace Opc.Ua.Server.Tests
     {
         private ServiceMessageContext m_context;
 
+        /// <summary>
+        /// Creates the serialization message context and registers the two fixture namespaces.
+        /// </summary>
         [OneTimeSetUp]
         public void OneTimeSetUp()
         {
@@ -63,6 +66,9 @@ namespace Opc.Ua.Server.Tests
                 "urn:test:namespace2");
         }
 
+        /// <summary>
+        /// Verifies that an empty durable subscription preserves its settings and empty item and message collections.
+        /// </summary>
         [Test]
         public void RoundTripEmptySubscription()
         {
@@ -77,6 +83,9 @@ namespace Opc.Ua.Server.Tests
             Assert.That(result.SentMessages, Has.Count.EqualTo(0));
         }
 
+        /// <summary>
+        /// Verifies that durable subscription serialization preserves its monitored items and their identifiers.
+        /// </summary>
         [Test]
         public void RoundTripSubscriptionWithMonitoredItems()
         {
@@ -98,6 +107,9 @@ namespace Opc.Ua.Server.Tests
             Assert.That(items[0].SubscriptionId, Is.EqualTo(100u));
         }
 
+        /// <summary>
+        /// Verifies that durable subscription serialization preserves monitored-item properties.
+        /// </summary>
         [Test]
         public void RoundTripMonitoredItemProperties()
         {
@@ -136,8 +148,11 @@ namespace Opc.Ua.Server.Tests
             Assert.That(restored.LastValue, Is.EqualTo(mi.LastValue));
         }
 
+        /// <summary>
+        /// Verifies that the retired interim notification-state format is rejected before decoding a subscription.
+        /// </summary>
         [Test]
-        public void DecodeVersionTwoSubscriptionsIgnoresTransientNotificationState()
+        public void DecodeRejectsInterimVersionTwoSubscriptions()
         {
             StoredMonitoredItem first = CreateMonitoredItem(id: 7, subscriptionId: 1);
             first.LastValue = new DataValue(Variant.From(42), StatusCodes.Good);
@@ -156,18 +171,16 @@ namespace Opc.Ua.Server.Tests
             byte[] bytes = encoder.CloseAndReturnBuffer();
             using var decoder = new BinaryDecoder(bytes, m_context);
 
-            IStoredMonitoredItem restoredFirst = SubscriptionStore.DecodeSubscription(decoder, version: 2)
-                .MonitoredItems.Single();
-            IStoredMonitoredItem restoredSecond = SubscriptionStore.DecodeSubscription(decoder, version: 2)
-                .MonitoredItems.Single();
-
-            Assert.That(restoredFirst.Id, Is.EqualTo(first.Id));
-            Assert.That(restoredFirst.LastValue, Is.EqualTo(first.LastValue));
-            Assert.That(restoredSecond.Id, Is.EqualTo(second.Id));
-            Assert.That(restoredSecond.LastValue, Is.EqualTo(second.LastValue));
-            Assert.That(decoder.Position, Is.EqualTo(bytes.Length));
+            Assert.That(
+                () => SubscriptionStore.DecodeSubscription(decoder, version: 2),
+                Throws.TypeOf<InvalidDataException>()
+                    .With.Message.Contains("Unsupported durable subscription store version 2"));
+            Assert.That(decoder.Position, Is.Zero);
         }
 
+        /// <summary>
+        /// Verifies that new subscription records contain raw monitored-item state rather than transient notifications.
+        /// </summary>
         [Test]
         public void NewSubscriptionRecordContainsOnlyRawMonitoredItemState()
         {
@@ -188,6 +201,9 @@ namespace Opc.Ua.Server.Tests
             Assert.That(decoder.Position, Is.EqualTo(bytes.Length));
         }
 
+        /// <summary>
+        /// Verifies that durable subscription serialization preserves the user identity token.
+        /// </summary>
         [Test]
         public void RoundTripSubscriptionWithUserIdentityToken()
         {
@@ -208,6 +224,9 @@ namespace Opc.Ua.Server.Tests
             Assert.That(token.PolicyId, Is.EqualTo("username_policy"));
         }
 
+        /// <summary>
+        /// Verifies that multiple durable subscriptions round-trip independently.
+        /// </summary>
         [Test]
         public void RoundTripMultipleSubscriptions()
         {
@@ -241,6 +260,9 @@ namespace Opc.Ua.Server.Tests
                 Is.Zero);
         }
 
+        /// <summary>
+        /// Verifies that a storable data-change queue round-trips through serialization.
+        /// </summary>
         [Test]
         public void RoundTripStorableDataChangeQueue()
         {
@@ -261,6 +283,9 @@ namespace Opc.Ua.Server.Tests
             Assert.That(result.DequeueBatch, Is.Null);
         }
 
+        /// <summary>
+        /// Verifies that a storable data-change queue preserves its batches during serialization.
+        /// </summary>
         [Test]
         public void RoundTripStorableDataChangeQueueWithBatches()
         {
@@ -296,6 +321,9 @@ namespace Opc.Ua.Server.Tests
                 Has.Count.EqualTo(1));
         }
 
+        /// <summary>
+        /// Verifies that a storable event queue round-trips through serialization.
+        /// </summary>
         [Test]
         public void RoundTripStorableEventQueue()
         {
@@ -459,6 +487,9 @@ namespace Opc.Ua.Server.Tests
                 .DecodeEventQueue(decoder);
         }
 
+        /// <summary>
+        /// Verifies that a data-change batch round-trips through the queue persistor.
+        /// </summary>
         [Test]
         public void RoundTripDataChangeBatchViaPersistor()
         {
@@ -498,6 +529,9 @@ namespace Opc.Ua.Server.Tests
             persistor.DeleteBatches([]);
         }
 
+        /// <summary>
+        /// Verifies that an event batch round-trips through the queue persistor.
+        /// </summary>
         [Test]
         public void RoundTripEventBatchViaPersistor()
         {
@@ -528,6 +562,9 @@ namespace Opc.Ua.Server.Tests
             persistor.DeleteBatches([]);
         }
 
+        /// <summary>
+        /// Verifies that deleting a persisted queue batch removes its backing file.
+        /// </summary>
         [Test]
         public void PersistorDeleteBatchRemovesFile()
         {

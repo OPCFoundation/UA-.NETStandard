@@ -834,18 +834,31 @@ namespace Opc.Ua.Server
                 error.StatusCode == StatusCodes.BadDataEncodingUnsupported;
         }
 
+        /// <summary>
+        /// Gets or sets whether new root notifiers skip attachment to existing event subscriptions.
+        /// </summary>
         internal bool SuppressExistingEventSubscriptions { get; set; }
 
+        /// <summary>
+        /// Gets the removed cross-manager references awaiting reconciliation.
+        /// </summary>
         internal List<LocalReference> GetRemovedExternalReferences()
         {
             return m_removedExternalReferences;
         }
 
+        /// <summary>
+        /// Clears the removed-reference collection after reconciliation.
+        /// </summary>
         internal void ClearRemovedExternalReferences()
         {
             m_removedExternalReferences = [];
         }
 
+        /// <summary>
+        /// Replaces the monitored-item manager and disposes the previous manager.
+        /// </summary>
+        /// <exception cref="ArgumentNullException">The replacement manager is null.</exception>
         internal void ReplaceMonitoredItemManager(
             IMonitoredItemManager monitoredItemManager)
         {
@@ -2668,6 +2681,9 @@ namespace Opc.Ua.Server
             AddTypesToTypeTree(type);
         }
 
+        /// <summary>
+        /// Rebuilds type and encoding registrations from the current predefined nodes.
+        /// </summary>
         internal void RebuildTypeTree()
         {
             foreach (NodeState node in PredefinedNodes.Values)
@@ -6206,6 +6222,9 @@ namespace Opc.Ua.Server
             }
         }
 
+        /// <summary>
+        /// Publishes forward Server-object references for the registered root notifiers.
+        /// </summary>
         internal async ValueTask PublishRootNotifierReferencesAsync(
             CancellationToken cancellationToken = default)
         {
@@ -7954,7 +7973,7 @@ namespace Opc.Ua.Server
                 validateMonitoringFilterResult.FilterToUse as
                     ServerAggregateFilter;
             var concreteItem = datachangeItem as MonitoredItem;
-            MonitoredItemAggregation.Modification? preparation = null;
+            AggregationFilterHandler.Modification? preparation = null;
             bool prevalidationRegistered = false;
             bool initialValueCompleted = false;
 

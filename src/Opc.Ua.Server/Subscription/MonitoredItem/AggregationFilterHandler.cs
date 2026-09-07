@@ -36,9 +36,12 @@ namespace Opc.Ua.Server
     /// <summary>
     /// Owns aggregate calculation and the historical-to-live handoff for one monitored item.
     /// </summary>
-    internal sealed class MonitoredItemAggregation
+    internal sealed class AggregationFilterHandler
     {
-        internal MonitoredItemAggregation(
+        /// <summary>
+        /// Initializes aggregate processing with the existing manager and processed-value receiver.
+        /// </summary>
+        internal AggregationFilterHandler(
             AggregateManager aggregateManager,
             ProcessedValueHandler queueProcessedValue)
         {
@@ -46,24 +49,38 @@ namespace Opc.Ua.Server
             m_queueProcessedValue = queueProcessedValue ?? throw new ArgumentNullException(nameof(queueProcessedValue));
         }
 
-        internal MonitoredItemAggregation(
+        /// <summary>
+        /// Initializes the calculator and optional historical priming for an aggregate filter.
+        /// </summary>
+        internal AggregationFilterHandler(
             AggregateManager aggregateManager,
             ServerAggregateFilter filter,
             ProcessedValueHandler queueProcessedValue,
             bool primeInitialValue)
             : this(aggregateManager, queueProcessedValue)
         {
-            m_filter = filter;
+            Filter = filter;
             m_calculator = CreateCalculator(filter);
             m_initialValuePending = primeInitialValue && filter.PrimeInitialValue;
             m_initialValueKeySelector = filter.HistorianKeySelector ?? TimestampStructuredDataKeySelector.Instance;
         }
 
+        /// <summary>
+        /// Gets the currently applied server-revised aggregate filter, or null for non-aggregate filtering.
+        /// </summary>
+        internal ServerAggregateFilter? Filter { get; private set; }
+
+        /// <summary>
+        /// Checks whether the active calculator's interval has ended.
+        /// </summary>
         internal bool HasEndTimePassed(DateTime utcNow)
         {
             return m_calculator?.HasEndTimePassed(utcNow) == true;
         }
 
+        /// <summary>
+        /// Prepares a calculator for a prospective aggregate-filter modification.
+        /// </summary>
         internal Modification? PrepareModification(ServerAggregateFilter filter)
         {
             m_preparedModification = null;
@@ -78,6 +95,9 @@ namespace Opc.Ua.Server
             return preparation;
         }
 
+        /// <summary>
+        /// Discards a matching preparation without disturbing a newer modification request.
+        /// </summary>
         internal void CancelModification(Modification preparation)
         {
             if (ReferenceEquals(m_preparedModification, preparation))
@@ -86,6 +106,9 @@ namespace Opc.Ua.Server
             }
         }
 
+        /// <summary>
+        /// Selects the calculator change to apply, reusing a matching preparation when available.
+        /// </summary>
         internal Modification? PrepareChange(MonitoringFilter? filter)
         {
             if (filter is ServerAggregateFilter aggregateFilter)
@@ -108,9 +131,12 @@ namespace Opc.Ua.Server
             return m_calculator != null ? new Modification(null, null) : null;
         }
 
+        /// <summary>
+        /// Commits the effective filter and resets historical priming when its calculator changes.
+        /// </summary>
         internal void CommitChange(MonitoringFilter? filter, Modification? change)
         {
-            m_filter = filter as ServerAggregateFilter;
+            Filter = filter as ServerAggregateFilter;
             if (change == null)
             {
                 return;
@@ -118,9 +144,9 @@ namespace Opc.Ua.Server
 
             m_calculator = change.Calculator;
             ClearInitialValueState();
-            m_initialValuePending = m_calculator != null && m_filter?.PrimeInitialValue == true;
+            m_initialValuePending = m_calculator != null && Filter?.PrimeInitialValue == true;
             m_initialValueKeySelector =
-                m_filter?.HistorianKeySelector ?? TimestampStructuredDataKeySelector.Instance;
+                Filter?.HistorianKeySelector ?? TimestampStructuredDataKeySelector.Instance;
 
             if (ReferenceEquals(m_preparedModification, change))
             {
@@ -129,6 +155,9 @@ namespace Opc.Ua.Server
             }
         }
 
+        /// <summary>
+        /// Defers live delivery during historical priming and records overflow of the bounded buffer.
+        /// </summary>
         internal bool TryBufferLiveValue(in DataValue value, ServiceResult? error, bool ignoreFilters)
         {
             if (!m_initialValuePending)
@@ -149,6 +178,9 @@ namespace Opc.Ua.Server
             return true;
         }
 
+        /// <summary>
+        /// Feeds a raw sample to the calculator, tracks accepted history, and queues completed aggregates.
+        /// </summary>
         internal bool TryQueueValue(in DataValue value, bool initialValue, out bool accepted)
         {
             accepted = false;
@@ -178,6 +210,12 @@ namespace Opc.Ua.Server
             return true;
         }
 
+        /// <summary>
+        /// Ends historical priming and replays buffered live values not already represented in history.
+        /// </summary>
+        /// <returns>
+        /// Good on completion, or <see cref="StatusCodes.BadTooManyOperations"/> if the live buffer overflowed.
+        /// </returns>
         internal ServiceResult CompleteInitialValue(LiveValueHandler queueLiveValue)
         {
             List<PendingValue>? pendingValues = m_pendingValues;
@@ -216,6 +254,9 @@ namespace Opc.Ua.Server
             return ServiceResult.Good;
         }
 
+        /// <summary>
+        /// Publishes completed aggregates and an available partial interval when the calculator is ready.
+        /// </summary>
         internal void Publish(DateTime utcNow)
         {
             if (m_calculator == null || !m_calculator.HasEndTimePassed(utcNow))
@@ -258,13 +299,13 @@ namespace Opc.Ua.Server
 
         private bool IsEquivalentFilter(ServerAggregateFilter filter)
         {
-            return m_filter != null &&
+            return Filter != null &&
                 m_calculator != null &&
-                m_filter.AggregateType == filter.AggregateType &&
-                m_filter.ProcessingInterval == filter.ProcessingInterval &&
-                m_filter.StartTime == filter.StartTime &&
-                m_filter.Stepped == filter.Stepped &&
-                m_filter.AggregateConfiguration.IsEqual(filter.AggregateConfiguration);
+                Filter.AggregateType == filter.AggregateType &&
+                Filter.ProcessingInterval == filter.ProcessingInterval &&
+                Filter.StartTime == filter.StartTime &&
+                Filter.Stepped == filter.Stepped &&
+                Filter.AggregateConfiguration.IsEqual(filter.AggregateConfiguration);
         }
 
         private bool TryGetInitialValueKey(in DataValue value, out HistoricalValueKey key)
@@ -289,26 +330,53 @@ namespace Opc.Ua.Server
             m_initialValueOverflowed = false;
         }
 
+        /// <summary>
+        /// Receives a processed aggregate for the monitored item's notification queue.
+        /// </summary>
         internal delegate void ProcessedValueHandler(in DataValue value);
 
+        /// <summary>
+        /// Replays a buffered live value through the monitored item's ordinary filtering and queueing.
+        /// </summary>
         internal delegate void LiveValueHandler(in DataValue value, ServiceResult? error, bool ignoreFilters);
 
+        /// <summary>
+        /// Carries a prepared calculator change and its commit and historical-priming requirements.
+        /// </summary>
         internal sealed class Modification
         {
+            /// <summary>
+            /// Initializes a calculator change, including removal of aggregate filtering when both values are null.
+            /// </summary>
             internal Modification(ServerAggregateFilter? filter, IAggregateCalculator? calculator)
             {
                 Filter = filter;
                 Calculator = calculator;
             }
 
+            /// <summary>
+            /// Gets the proposed server-revised aggregate filter.
+            /// </summary>
             internal ServerAggregateFilter? Filter { get; }
 
+            /// <summary>
+            /// Gets the prepared calculator, or null when aggregate calculation is unavailable or removed.
+            /// </summary>
             internal IAggregateCalculator? Calculator { get; }
 
+            /// <summary>
+            /// Gets whether this prevalidated change was applied to the monitored item.
+            /// </summary>
             internal bool IsCommitted { get; private set; }
 
+            /// <summary>
+            /// Gets whether the prepared calculator requires historical initial-value input.
+            /// </summary>
             internal bool RequiresInitialValue => Calculator != null && Filter?.PrimeInitialValue == true;
 
+            /// <summary>
+            /// Records that the prepared change was committed before subsequent notification callbacks.
+            /// </summary>
             internal void MarkCommitted()
             {
                 IsCommitted = true;
@@ -319,7 +387,6 @@ namespace Opc.Ua.Server
 
         private readonly AggregateManager m_aggregateManager;
         private readonly ProcessedValueHandler m_queueProcessedValue;
-        private ServerAggregateFilter? m_filter;
         private IAggregateCalculator? m_calculator;
         private Modification? m_preparedModification;
         private bool m_initialValuePending;

@@ -68,6 +68,9 @@ namespace Opc.Ua.Server.Tests.Redundancy
         private static readonly string[] s_filteredRetainConditionIds =
             ["ns=2;s=Alarm|", "ns=2;s=Alarm|i=7"];
 
+        /// <summary>
+        /// Verifies that subscription definitions round-trip through shared storage.
+        /// </summary>
         [Test]
         public async Task StoreAndRestoreRoundTripsDefinitionAsync()
         {
@@ -85,6 +88,9 @@ namespace Opc.Ua.Server.Tests.Redundancy
             AssertMonitoredItem((StoredMonitoredItem)actual.MonitoredItems.Single(), NewItem(100, 10));
         }
 
+        /// <summary>
+        /// Verifies that stored subscriptions preserve monitored-item lifecycle state.
+        /// </summary>
         [TestCase(false, false)]
         [TestCase(false, true)]
         [TestCase(true, false)]
@@ -113,6 +119,9 @@ namespace Opc.Ua.Server.Tests.Redundancy
             });
         }
 
+        /// <summary>
+        /// Verifies that stored subscriptions preserve filtered retained-condition identifiers.
+        /// </summary>
         [Test]
         public async Task StoreAndRestoreRoundTripsFilteredRetainConditionIdsAsync()
         {
@@ -133,6 +142,9 @@ namespace Opc.Ua.Server.Tests.Redundancy
                 Is.EqualTo(s_filteredRetainConditionIds));
         }
 
+        /// <summary>
+        /// Verifies that absent filtered retained-condition identifiers remain absent after restoration.
+        /// </summary>
         [Test]
         public async Task StoreAndRestoreRoundTripsAbsentFilteredRetainConditionIdsAsync()
         {
@@ -148,6 +160,9 @@ namespace Opc.Ua.Server.Tests.Redundancy
             Assert.That(actual.FilteredRetainConditionIds.IsEmpty, Is.True);
         }
 
+        /// <summary>
+        /// Verifies that storage preserves raw errors without persisting transient notification metadata.
+        /// </summary>
         [Test]
         public async Task StoreAndRestorePreservesRawErrorWithoutTransientNotificationMetadataAsync()
         {
@@ -180,8 +195,11 @@ namespace Opc.Ua.Server.Tests.Redundancy
                 "New definitions must not include the version-four live notification metadata.");
         }
 
+        /// <summary>
+        /// Verifies that the retired interim notification-state definition format is rejected.
+        /// </summary>
         [Test]
-        public async Task RestoreVersionFourDefinitionIgnoresTransientNotificationStateAsync()
+        public async Task RestoreRejectsInterimVersionFourDefinitionAsync()
         {
             using var keyValueStore = new InMemorySharedKeyValueStore();
             SharedKeyValueSubscriptionStore store = CreateStore(keyValueStore);
@@ -206,16 +224,16 @@ namespace Opc.Ua.Server.Tests.Redundancy
                 SharedKeyValueSubscriptionStore.KeyFor(expected.Id),
                 ByteString.From(encoder.CloseAndReturnBuffer())).ConfigureAwait(false);
 
-            RestoreSubscriptionResult result = await store.RestoreSubscriptionsAsync().ConfigureAwait(false);
+            ServiceResultException? error = Assert.ThrowsAsync<ServiceResultException>(
+                () => store.RestoreSubscriptionsAsync().AsTask());
 
-            Assert.That(result.Success, Is.True);
-            var actual = (StoredMonitoredItem)result.Subscriptions!.Single().MonitoredItems.Single();
-            Assert.That(actual.Id, Is.EqualTo(item.Id));
-            Assert.That(actual.LastValue, Is.EqualTo(item.LastValue));
-            Assert.That(ServiceResult.IsGood(actual.LastError), Is.True);
-            Assert.That(actual.FilteredRetainConditionIds.Memory.ToArray(), Is.EqualTo(s_filteredRetainConditionIds));
+            Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadDecodingError));
+            Assert.That(error.Message, Does.Contain("Unsupported subscription record version"));
         }
 
+        /// <summary>
+        /// Verifies that cloning a monitored item preserves filtered retained-condition identifiers.
+        /// </summary>
         [Test]
         public void CloneMonitoredItemPreservesFilteredRetainConditionIds()
         {
@@ -232,6 +250,9 @@ namespace Opc.Ua.Server.Tests.Redundancy
                 Is.EqualTo(s_filteredRetainConditionIds));
         }
 
+        /// <summary>
+        /// Verifies that cloning a monitored item preserves lifecycle state.
+        /// </summary>
         [Test]
         public void CloneMonitoredItemPreservesLifecycleState()
         {
@@ -252,6 +273,9 @@ namespace Opc.Ua.Server.Tests.Redundancy
             });
         }
 
+        /// <summary>
+        /// Verifies that version-one definitions restore lifecycle flags with false defaults.
+        /// </summary>
         [Test]
         public async Task RestoreVersionOneDefinitionDefaultsLifecycleStateToFalseAsync()
         {
@@ -278,6 +302,9 @@ namespace Opc.Ua.Server.Tests.Redundancy
             });
         }
 
+        /// <summary>
+        /// Verifies that a subscription stored by one replica is visible to another.
+        /// </summary>
         [Test]
         public async Task StoreIsVisibleToSecondReplicaAsync()
         {
@@ -294,6 +321,9 @@ namespace Opc.Ua.Server.Tests.Redundancy
             AssertSubscription(actual, expected);
         }
 
+        /// <summary>
+        /// Verifies that restoration observes only a committed generation during concurrent snapshots.
+        /// </summary>
         [Test]
         public async Task RestoreUsesOnlyCommittedGenerationDuringConcurrentSnapshotsAsync()
         {
@@ -323,6 +353,9 @@ namespace Opc.Ua.Server.Tests.Redundancy
             Assert.That(firstResult.Subscriptions!.Select(subscription => subscription.Id), Is.EqualTo(new uint[] { 225 }));
         }
 
+        /// <summary>
+        /// Verifies that subscription definitions can be restored after process restart.
+        /// </summary>
         [Test]
         public async Task RestoreLoadsPersistedDefinitionsAfterProcessRestartAsync()
         {
@@ -340,6 +373,9 @@ namespace Opc.Ua.Server.Tests.Redundancy
             AssertSubscription(actual, expected);
         }
 
+        /// <summary>
+        /// Verifies that an empty persisted snapshot clears cached subscription definitions.
+        /// </summary>
         [Test]
         public async Task EmptyPersistedSnapshotClearsCachedDefinitionsAsync()
         {
@@ -370,6 +406,9 @@ namespace Opc.Ua.Server.Tests.Redundancy
             Assert.That(GetCachedSubscriptionIds(restarted), Is.Empty);
         }
 
+        /// <summary>
+        /// Verifies that restoration reads legacy definitions when no manifest exists.
+        /// </summary>
         [Test]
         public async Task RestoreReadsLegacyDefinitionsWhenManifestIsAbsentAsync()
         {
@@ -390,6 +429,9 @@ namespace Opc.Ua.Server.Tests.Redundancy
             AssertSubscription(actual, expected);
         }
 
+        /// <summary>
+        /// Verifies that tampering with a protected backend definition causes restoration to fail.
+        /// </summary>
         [Test]
         public async Task ProtectedDefinitionRestoreFailsWhenBackendRecordIsTamperedAsync()
         {
@@ -410,6 +452,9 @@ namespace Opc.Ua.Server.Tests.Redundancy
             Assert.That(exception!.StatusCode, Is.EqualTo(StatusCodes.BadSecurityChecksFailed));
         }
 
+        /// <summary>
+        /// Verifies that protected subscription definitions are not persisted in clear text.
+        /// </summary>
         [Test]
         public async Task ProtectedStoreDoesNotPersistDefinitionInClearTextAsync()
         {
@@ -425,6 +470,9 @@ namespace Opc.Ua.Server.Tests.Redundancy
             Assert.That((await store.RestoreSubscriptionsAsync().ConfigureAwait(false)).Subscriptions!.Single().Id, Is.EqualTo(subscription.Id));
         }
 
+        /// <summary>
+        /// Verifies that a corrupt snapshot fails without partially replacing the definition cache.
+        /// </summary>
         [Test]
         public async Task CorruptSnapshotFailsWithoutPartiallyReplacingCacheAsync()
         {
@@ -460,6 +508,9 @@ namespace Opc.Ua.Server.Tests.Redundancy
             Assert.That(GetCachedSubscriptionIds(reader), Is.EqualTo(new uint[] { 451, 452 }));
         }
 
+        /// <summary>
+        /// Verifies that restoration rejects a subscription identifier that differs from its persisted key.
+        /// </summary>
         [Test]
         public async Task RestoreRejectsSubscriptionIdThatDoesNotMatchPersistedKeyAsync()
         {
@@ -481,6 +532,9 @@ namespace Opc.Ua.Server.Tests.Redundancy
             Assert.That(exception!.StatusCode, Is.EqualTo(StatusCodes.BadDecodingError));
         }
 
+        /// <summary>
+        /// Verifies that storage rejects invalid monitored-item identity.
+        /// </summary>
         [Test]
         public async Task StoreRejectsInvalidMonitoredItemIdentityAsync()
         {
@@ -499,6 +553,9 @@ namespace Opc.Ua.Server.Tests.Redundancy
             Assert.That(foundManifest, Is.False);
         }
 
+        /// <summary>
+        /// Verifies that storing a new snapshot removes subscriptions omitted from that snapshot.
+        /// </summary>
         [Test]
         public async Task StoreReplacesRemovedSubscriptionsAsync()
         {
@@ -512,6 +569,9 @@ namespace Opc.Ua.Server.Tests.Redundancy
             Assert.That(result.Subscriptions!.Select(s => s.Id), Is.EqualTo(new uint[] { 501 }));
         }
 
+        /// <summary>
+        /// Verifies that restore completion cleans up stale subscription definitions.
+        /// </summary>
         [Test]
         public async Task OnSubscriptionRestoreCompleteCleansStaleDefinitionsAsync()
         {
@@ -528,6 +588,9 @@ namespace Opc.Ua.Server.Tests.Redundancy
             Assert.That(result.Subscriptions!.Select(s => s.Id), Is.EqualTo(new uint[] { 601 }));
         }
 
+        /// <summary>
+        /// Verifies that a subscription snapshot rejects duplicate subscription identifiers.
+        /// </summary>
         [Test]
         public async Task StoreSubscriptionsRejectsDuplicateSubscriptionIdsAsync()
         {
@@ -547,6 +610,9 @@ namespace Opc.Ua.Server.Tests.Redundancy
             Assert.That(foundManifest, Is.False);
         }
 
+        /// <summary>
+        /// Verifies that subscription storage observes cancellation before commit.
+        /// </summary>
         [Test]
         public void StoreSubscriptionsHonorsCancellationBeforeCommit()
         {
@@ -562,6 +628,9 @@ namespace Opc.Ua.Server.Tests.Redundancy
                 Throws.InstanceOf<OperationCanceledException>());
         }
 
+        /// <summary>
+        /// Verifies that subscription restoration observes cancellation before looking up the manifest.
+        /// </summary>
         [Test]
         public void RestoreSubscriptionsHonorsCancellationBeforeManifestLookup()
         {
@@ -576,6 +645,9 @@ namespace Opc.Ua.Server.Tests.Redundancy
                 Throws.InstanceOf<OperationCanceledException>());
         }
 
+        /// <summary>
+        /// Verifies that a mid-write failure releases commit serialization and preserves cached definitions.
+        /// </summary>
         [Test]
         public async Task StoreSubscriptionsReleasesCommitLockAndPreservesCacheOnMidWriteFailureAsync()
         {
@@ -601,6 +673,9 @@ namespace Opc.Ua.Server.Tests.Redundancy
             Assert.That(resultAfterRecovery.Subscriptions!.Select(s => s.Id), Is.EqualTo(new uint[] { 992 }));
         }
 
+        /// <summary>
+        /// Verifies that sequential subscription commits retain records from the prior generation.
+        /// </summary>
         [Test]
         public async Task SequentialCommitsRetainPriorGenerationRecordsAsync()
         {
@@ -616,6 +691,9 @@ namespace Opc.Ua.Server.Tests.Redundancy
             Assert.That(stillPresent, Is.True);
         }
 
+        /// <summary>
+        /// Verifies that subscription restoration rejects a tampered manifest.
+        /// </summary>
         [Test]
         public async Task RestoreRejectsTamperedManifestAsync()
         {
@@ -636,6 +714,9 @@ namespace Opc.Ua.Server.Tests.Redundancy
             Assert.That(exception!.StatusCode, Is.EqualTo(StatusCodes.BadSecurityChecksFailed));
         }
 
+        /// <summary>
+        /// Verifies that subscription restoration rejects a malformed manifest version.
+        /// </summary>
         [Test]
         public async Task RestoreRejectsMalformedManifestVersionAsync()
         {
@@ -658,6 +739,9 @@ namespace Opc.Ua.Server.Tests.Redundancy
             Assert.That(exception.Message, Does.Contain("manifest is malformed"));
         }
 
+        /// <summary>
+        /// Verifies that restoration rejects generation keys without a subscription identifier.
+        /// </summary>
         [Test]
         public async Task RestoreRejectsGenerationKeyWithoutSubscriptionIdAsync()
         {
@@ -678,6 +762,9 @@ namespace Opc.Ua.Server.Tests.Redundancy
             Assert.That(exception.Message, Does.Contain("key is malformed"));
         }
 
+        /// <summary>
+        /// Verifies that restoration rejects generation keys with nonnumeric identifier suffixes.
+        /// </summary>
         [Test]
         public async Task RestoreRejectsGenerationKeyWithNonNumericSuffixAsync()
         {
@@ -698,6 +785,9 @@ namespace Opc.Ua.Server.Tests.Redundancy
             Assert.That(exception.Message, Does.Contain("key is malformed"));
         }
 
+        /// <summary>
+        /// Verifies that restoration rejects generation keys whose identifier suffixes overflow.
+        /// </summary>
         [Test]
         public async Task RestoreRejectsGenerationKeyWithOverflowingSuffixAsync()
         {
@@ -720,6 +810,9 @@ namespace Opc.Ua.Server.Tests.Redundancy
             Assert.That(exception.Message, Does.Contain("key is malformed"));
         }
 
+        /// <summary>
+        /// Verifies that restoration rejects duplicate generation records returned by scanning.
+        /// </summary>
         [Test]
         public async Task RestoreRejectsDuplicateGenerationRecordsFromScanAsync()
         {
@@ -736,6 +829,9 @@ namespace Opc.Ua.Server.Tests.Redundancy
             Assert.That(exception.Message, Does.Contain("duplicate records"));
         }
 
+        /// <summary>
+        /// Verifies that restoration rejects an incomplete subscription generation.
+        /// </summary>
         [Test]
         public async Task RestoreRejectsIncompleteGenerationAsync()
         {
@@ -756,6 +852,9 @@ namespace Opc.Ua.Server.Tests.Redundancy
             Assert.That(exception.Message, Does.Contain("incomplete"));
         }
 
+        /// <summary>
+        /// Verifies that restoration rejects persisted records containing invalid monitored-item identity.
+        /// </summary>
         [Test]
         public async Task RestoreRejectsPersistedRecordWithInvalidMonitoredItemIdentityAsync()
         {
@@ -776,6 +875,9 @@ namespace Opc.Ua.Server.Tests.Redundancy
             Assert.That(exception.Message, Does.Contain("monitored-item"));
         }
 
+        /// <summary>
+        /// Verifies that restoration rejects subscription records with trailing data.
+        /// </summary>
         [Test]
         public async Task RestoreRejectsRecordWithTrailingDataAsync()
         {
@@ -799,6 +901,9 @@ namespace Opc.Ua.Server.Tests.Redundancy
             Assert.That(exception.Message, Does.Contain("trailing data"));
         }
 
+        /// <summary>
+        /// Verifies that mirrored retransmission state preserves sequence continuity across replicas.
+        /// </summary>
         [Test]
         public async Task RetransmissionStateIsVisibleToSecondReplicaAndKeepsSequenceContinuityAsync()
         {
@@ -823,6 +928,9 @@ namespace Opc.Ua.Server.Tests.Redundancy
             Assert.That(republished.NotificationData, Has.Count.EqualTo(1));
         }
 
+        /// <summary>
+        /// Verifies that acknowledging a retransmission evicts its mirrored notification.
+        /// </summary>
         [Test]
         public async Task RetransmissionAcknowledgeEvictsMirroredNotificationAsync()
         {
@@ -845,6 +953,9 @@ namespace Opc.Ua.Server.Tests.Redundancy
                 Is.EqualTo(new uint[] { 1, 3 }));
         }
 
+        /// <summary>
+        /// Verifies that a retransmission snapshot removes stale sequence keys.
+        /// </summary>
         [Test]
         public async Task RetransmissionSnapshotRemovesStaleSequenceKeysAsync()
         {
@@ -867,6 +978,9 @@ namespace Opc.Ua.Server.Tests.Redundancy
                 Is.EqualTo(new uint[] { 3, 4 }));
         }
 
+        /// <summary>
+        /// Verifies that retransmission deltas add and remove only changed messages.
+        /// </summary>
         [Test]
         public async Task RetransmissionDeltaAddsAndRemovesOnlyChangedMessagesAsync()
         {
@@ -887,6 +1001,9 @@ namespace Opc.Ua.Server.Tests.Redundancy
                 Is.EqualTo(new uint[] { 2, 3 }));
         }
 
+        /// <summary>
+        /// Verifies that retransmission messages do not redundantly encode namespace tables.
+        /// </summary>
         [Test]
         public async Task RetransmissionMessagesDoNotRepeatNamespaceTablesAsync()
         {
@@ -907,6 +1024,9 @@ namespace Opc.Ua.Server.Tests.Redundancy
             Assert.That(Contains(messageRaw.ToArray(), namespaceBytes), Is.False);
         }
 
+        /// <summary>
+        /// Verifies that tampered retransmission state fails closed.
+        /// </summary>
         [Test]
         public async Task RetransmissionTamperFailsClosedAsync()
         {
@@ -924,6 +1044,9 @@ namespace Opc.Ua.Server.Tests.Redundancy
             Assert.That(state, Is.Null);
         }
 
+        /// <summary>
+        /// Verifies that missing retransmission state is reported as null.
+        /// </summary>
         [Test]
         public async Task MissingRetransmissionStateReturnsNullAsync()
         {
@@ -935,6 +1058,9 @@ namespace Opc.Ua.Server.Tests.Redundancy
             Assert.That(state, Is.Null);
         }
 
+        /// <summary>
+        /// Verifies that retransmission mirroring uses the asynchronous backend without blocking its caller.
+        /// </summary>
         [Test]
         public async Task RetransmissionMirrorUsesAsyncBackendWithoutBlockingAsync()
         {
@@ -954,6 +1080,9 @@ namespace Opc.Ua.Server.Tests.Redundancy
                 Is.EqualTo(new uint[] { 1, 2 }));
         }
 
+        /// <summary>
+        /// Verifies that retransmission deletion is ordered after in-flight mirror writes.
+        /// </summary>
         [Test]
         public async Task RetransmissionDeleteIsOrderedAfterInflightMirrorWritesAsync()
         {
@@ -975,6 +1104,9 @@ namespace Opc.Ua.Server.Tests.Redundancy
             Assert.That(await CountKeysAsync(inner, RetransmissionPrefixFor(subscriptionId)).ConfigureAwait(false), Is.Zero);
         }
 
+        /// <summary>
+        /// Verifies that a reused subscription identifier cannot load deleted retransmission state.
+        /// </summary>
         [Test]
         public async Task ReusedSubscriptionIdDoesNotLoadDeletedRetransmissionStateAsync()
         {
@@ -1003,6 +1135,9 @@ namespace Opc.Ua.Server.Tests.Redundancy
                 Is.EqualTo(new uint[] { 9 }));
         }
 
+        /// <summary>
+        /// Verifies that subscription store construction rejects a null backend or message context.
+        /// </summary>
         [Test]
         public void ConstructorValidatesArguments()
         {
@@ -1017,6 +1152,9 @@ namespace Opc.Ua.Server.Tests.Redundancy
                 Throws.ArgumentNullException);
         }
 
+        /// <summary>
+        /// Verifies that data-change and event queue restoration fallbacks return null.
+        /// </summary>
         [Test]
         public void RestoreQueueFallbacksReturnNull()
         {
@@ -1027,6 +1165,9 @@ namespace Opc.Ua.Server.Tests.Redundancy
             Assert.That(store.RestoreEventMonitoredItemQueue(1), Is.Null);
         }
 
+        /// <summary>
+        /// Verifies that restore completion rejects a null subscription collection.
+        /// </summary>
         [Test]
         public void OnSubscriptionRestoreCompleteValidatesArguments()
         {
@@ -1038,6 +1179,9 @@ namespace Opc.Ua.Server.Tests.Redundancy
                 Throws.ArgumentNullException);
         }
 
+        /// <summary>
+        /// Verifies that asynchronous disposal cancels blocked shared-store writes.
+        /// </summary>
         [Test]
         public async Task DisposeAsyncCancelsBlockedSharedStoreWritesAsync()
         {
@@ -1053,6 +1197,9 @@ namespace Opc.Ua.Server.Tests.Redundancy
             await disposeTask.ConfigureAwait(false);
         }
 
+        /// <summary>
+        /// Verifies that definition encoding preserves absent, event, and aggregate monitored-item filters.
+        /// </summary>
         [Test]
         public void DefinitionCodecRoundTripsAllSupportedFilterShapes()
         {
@@ -1083,6 +1230,9 @@ namespace Opc.Ua.Server.Tests.Redundancy
             Assert.That(decodedItems[2].FilterToUse, Is.TypeOf<AggregateFilter>());
         }
 
+        /// <summary>
+        /// Verifies that definition decoding rejects unsupported format versions.
+        /// </summary>
         [Test]
         public void DefinitionDecodeRejectsUnsupportedVersion()
         {
@@ -1099,6 +1249,9 @@ namespace Opc.Ua.Server.Tests.Redundancy
             Assert.That(ex!.InnerException, Is.TypeOf<ServiceResultException>());
         }
 
+        /// <summary>
+        /// Verifies that continuation loading ignores unsupported envelope versions.
+        /// </summary>
         [Test]
         public async Task ContinuationPointLoadIgnoresUnsupportedEnvelopeVersionAsync()
         {
@@ -1121,6 +1274,9 @@ namespace Opc.Ua.Server.Tests.Redundancy
             Assert.That(envelopes, Is.Empty);
         }
 
+        /// <summary>
+        /// Verifies that continuation loading ignores invalid envelope identifiers.
+        /// </summary>
         [Test]
         public async Task ContinuationPointLoadIgnoresInvalidEnvelopeIdAsync()
         {
@@ -1144,6 +1300,9 @@ namespace Opc.Ua.Server.Tests.Redundancy
             Assert.That(envelopes, Is.Empty);
         }
 
+        /// <summary>
+        /// Verifies that storing subscriptions rejects a null collection.
+        /// </summary>
         [Test]
         public void StoreSubscriptionsRejectsNullArgument()
         {
@@ -1155,6 +1314,9 @@ namespace Opc.Ua.Server.Tests.Redundancy
                 Throws.ArgumentNullException);
         }
 
+        /// <summary>
+        /// Verifies that storing a continuation point rejects a null argument.
+        /// </summary>
         [Test]
         public void StoreContinuationPointRejectsNullArgument()
         {
@@ -1164,6 +1326,9 @@ namespace Opc.Ua.Server.Tests.Redundancy
             Assert.That(() => store.StoreContinuationPoint(null!), Throws.ArgumentNullException);
         }
 
+        /// <summary>
+        /// Verifies that continuation removal tolerates a null session.
+        /// </summary>
         [Test]
         public void RemoveContinuationPointIgnoresNullSession()
         {
@@ -1175,6 +1340,9 @@ namespace Opc.Ua.Server.Tests.Redundancy
                 Throws.Nothing);
         }
 
+        /// <summary>
+        /// Verifies that loading continuation points for a null session returns an empty collection.
+        /// </summary>
         [Test]
         public async Task LoadContinuationPointsReturnsEmptyForNullSessionAsync()
         {
@@ -1187,6 +1355,9 @@ namespace Opc.Ua.Server.Tests.Redundancy
             Assert.That(envelopes, Is.Empty);
         }
 
+        /// <summary>
+        /// Verifies that loading an unsupported retransmission format returns null.
+        /// </summary>
         [Test]
         public async Task LoadRetransmissionStateReturnsNullForUnsupportedVersionAsync()
         {
@@ -1206,6 +1377,9 @@ namespace Opc.Ua.Server.Tests.Redundancy
             Assert.That(state, Is.Null);
         }
 
+        /// <summary>
+        /// Verifies that retransmission mirroring requeues its batch after a transient failure.
+        /// </summary>
         [Test]
         public async Task RetransmissionMirrorRequeuesBatchAfterTransientFailureAsync()
         {
@@ -1227,6 +1401,9 @@ namespace Opc.Ua.Server.Tests.Redundancy
                 Is.EqualTo(new uint[] { 1 }));
         }
 
+        /// <summary>
+        /// Verifies that continuation mirroring requeues its batch after a transient failure.
+        /// </summary>
         [Test]
         public async Task ContinuationPointMirrorRequeuesBatchAfterTransientFailureAsync()
         {
@@ -1253,6 +1430,9 @@ namespace Opc.Ua.Server.Tests.Redundancy
             Assert.That(envelopes[0].Index, Is.EqualTo(4));
         }
 
+        /// <summary>
+        /// Verifies that the fallback decoder reads legacy retransmission messages.
+        /// </summary>
         [Test]
         public async Task LegacyRetransmissionMessageDecodesViaFallbackAsync()
         {

@@ -388,6 +388,9 @@ Growing that single-value buffer does not restore protection.
 Protection is transient queue state: durable restore retains the monitored-item
 definition, last value/error, and stored raw queue values, but does not reinstate priming
 protection or synthesize a notification absent from the stored queue.
+The sample store uses format 1 and shared-store definitions use format 3;
+interim formats that included notification-priority metadata (sample format 2
+and shared format 4) are not supported.
 
 Modifying an existing monitored item to a past-start aggregate uses the same
 history-before-live handoff whenever the aggregate calculator changes.
@@ -403,7 +406,7 @@ implementing `IInitialValueMonitoredItem`.
 allows past start times and server revision; it does not require
 every server to read history or prescribe where aggregation is implemented.
 This stack supports historical initialization when the resolved provider can
-supply it. `MonitoredItemAggregation` owns calculator changes, bounded live
+supply it. `AggregationFilterHandler` owns calculator changes, bounded live
 buffering, overlap identities, and aggregate output. `MonitoredItem` delegates
 that work while retaining its normal filtering, notification, and lifecycle
 responsibilities.

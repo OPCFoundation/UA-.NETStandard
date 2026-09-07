@@ -1128,7 +1128,7 @@ namespace Opc.Ua.Redundancy.Server
             using var decoder = new BinaryDecoder(payload.ToArray(), m_context);
             int version = decoder.ReadInt32(null);
             if (version is < LegacyDefinitionFormatVersion or
-                > TransientNotificationDefinitionFormatVersion)
+                > DefinitionFormatVersion)
             {
                 throw new ServiceResultException(StatusCodes.BadDecodingError, "Unsupported subscription record version.");
             }
@@ -1316,13 +1316,6 @@ namespace Opc.Ua.Redundancy.Server
                 // the keys are written by the monitored item and never null.
                 item.FilteredRetainConditionIds = decoder.ReadStringArray(null)!;
             }
-            if (version == TransientNotificationDefinitionFormatVersion)
-            {
-                // Older records included live delivery protection; only their raw queue is restored.
-                _ = decoder.ReadBoolean(null);
-                _ = decoder.ReadDataValue(null);
-                _ = decoder.ReadStatusCode(null);
-            }
             return item;
         }
 
@@ -1406,7 +1399,6 @@ namespace Opc.Ua.Redundancy.Server
         private const int LegacyDefinitionFormatVersion = 1;
         private const int LifecycleStateDefinitionFormatVersion = 2;
         private const int FilteredRetainDefinitionFormatVersion = 3;
-        private const int TransientNotificationDefinitionFormatVersion = 4;
 
         private const int DefinitionFormatVersion =
             FilteredRetainDefinitionFormatVersion;
@@ -1608,11 +1600,17 @@ namespace Opc.Ua.Redundancy.Server
     /// </summary>
     internal static partial class SharedKeyValueSubscriptionStoreLog
     {
+        /// <summary>
+        /// Logs coalescing of shared-state updates when the mirror channel is full.
+        /// </summary>
         [LoggerMessage(EventId = RedundancyServerEventIds.SharedKeyValueSubscriptionStore + 0,
             Level = LogLevel.Warning,
             Message = "The shared-state mirror channel is full; updates are coalesced until the drain catches up.")]
         public static partial void SharedStateMirrorChannelFull(this ILogger logger);
 
+        /// <summary>
+        /// Logs a failure to mirror subscription retransmission state.
+        /// </summary>
         [LoggerMessage(EventId = RedundancyServerEventIds.SharedKeyValueSubscriptionStore + 1,
             Level = LogLevel.Warning,
             Message = "Failed to mirror subscription retransmission state.")]

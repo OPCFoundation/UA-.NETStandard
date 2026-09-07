@@ -54,6 +54,9 @@ namespace Opc.Ua.Server.Tests
         private static readonly int[] s_initialThenLive = [1, 2];
         private static readonly int[] s_liveThenInitial = [2, 1];
 
+        /// <summary>
+        /// Verifies creation of a data-change item and publication of its first queued value.
+        /// </summary>
         [Test]
         public void CreateMI()
         {
@@ -83,6 +86,9 @@ namespace Opc.Ua.Server.Tests
                 Is.EqualTo(StatusCodes.Good));
         }
 
+        /// <summary>
+        /// Verifies creation of an event item and publication of its queued event.
+        /// </summary>
         [Test]
         public void CreateEventMI()
         {
@@ -107,6 +113,9 @@ namespace Opc.Ua.Server.Tests
             Assert.That(publishResult.Handle, Is.AssignableTo<AuditUrlMismatchEventState>());
         }
 
+        /// <summary>
+        /// Verifies that a zero requested queue size becomes a single-value buffer.
+        /// </summary>
         [Test]
         public void CreateMIQueueNoQueue()
         {
@@ -135,6 +144,9 @@ namespace Opc.Ua.Server.Tests
                 Is.EqualTo(StatusCodes.Good));
         }
 
+        /// <summary>
+        /// Verifies that historical priming defers live values only when the filter requests it.
+        /// </summary>
         [TestCase(true)]
         [TestCase(false)]
         public void AggregateInitialValueBufferingHonorsPrimeFlag(bool prime)
@@ -212,6 +224,9 @@ namespace Opc.Ua.Server.Tests
                 Is.EqualTo(prime ? s_initialThenLive : s_liveThenInitial));
         }
 
+        /// <summary>
+        /// Verifies that the history/live handoff retains distinct values without source timestamps.
+        /// </summary>
         [Test]
         public async Task AggregateInitialValueHandoffKeepsDistinctValuesWithoutSourceTimestampsAsync()
         {
@@ -297,6 +312,9 @@ namespace Opc.Ua.Server.Tests
             Assert.That(queuedRawValues, Is.EqualTo(s_initialThenLive));
         }
 
+        /// <summary>
+        /// Verifies that structured historical identities distinguish samples sharing a source timestamp.
+        /// </summary>
         [Test]
         public async Task AggregateInitialValueHandoffUsesStructuredCompositeIdentityAsync()
         {
@@ -384,6 +402,9 @@ namespace Opc.Ua.Server.Tests
             Assert.That(queuedRawValues, Is.EqualTo(s_initialThenLive));
         }
 
+        /// <summary>
+        /// Verifies that deep-equal unkeyed historical values suppress duplicate live input.
+        /// </summary>
         [Test]
         public async Task AggregateInitialValueHandoffMatchesDeepCopiedValuesWithoutSourceTimestampsAsync()
         {
@@ -472,6 +493,9 @@ namespace Opc.Ua.Server.Tests
             Assert.That(queuedRawValues[1], Is.EqualTo(distinctLive));
         }
 
+        /// <summary>
+        /// Verifies that a newer live notification replaces a priming error in a single-slot buffer.
+        /// </summary>
         [TestCase(true)]
         [TestCase(false)]
         public void QueueSizeOneKeepsLatestValueAfterInitialHistoryFailure(bool discardOldest)
@@ -564,6 +588,9 @@ namespace Opc.Ua.Server.Tests
             Assert.That(notifications.Dequeue().Value, Is.EqualTo(nextLive));
         }
 
+        /// <summary>
+        /// Verifies that shrinking to one slot retains the latest value rather than an older protected error.
+        /// </summary>
         [TestCase(true)]
         [TestCase(false)]
         public void ShrinkingToQueueSizeOneKeepsLatestValueWithoutProtection(bool discardOldest)
@@ -670,6 +697,9 @@ namespace Opc.Ua.Server.Tests
             Assert.That(notifications.Peek().Value.WrappedValue, Is.EqualTo(Variant.From(3)));
         }
 
+        /// <summary>
+        /// Verifies that growing a single-slot buffer does not recreate notification priority.
+        /// </summary>
         [Test]
         public void GrowingFromQueueSizeOneDoesNotReinstateNotificationProtection()
         {
@@ -708,6 +738,9 @@ namespace Opc.Ua.Server.Tests
                 Is.EqualTo([Variant.From(1), Variant.From(2)]));
         }
 
+        /// <summary>
+        /// Verifies calculator replacement and separation of original and effective filters through restore.
+        /// </summary>
         [Test]
         public async Task ModifyAttributesRebuildsAndClearsAggregateCalculatorAsync()
         {
@@ -722,6 +755,9 @@ namespace Opc.Ua.Server.Tests
             serverMock
                 .Setup(value => value.DiagnosticsNodeManager)
                 .Returns(new Mock<IDiagnosticsNodeManager>().Object);
+            serverMock
+                .Setup(value => value.SubscriptionStore)
+                .Returns(Mock.Of<ISubscriptionStore>());
             var calculator = new Mock<IAggregateCalculator>();
             calculator
                 .Setup(value => value.QueueRawValue(
@@ -745,6 +781,13 @@ namespace Opc.Ua.Server.Tests
                 Stepped = false,
                 AggregateConfiguration = new AggregateConfiguration()
             };
+            var originalFilter = new AggregateFilter
+            {
+                AggregateType = aggregateId,
+                StartTime = initialFilter.StartTime,
+                ProcessingInterval = 1234,
+                AggregateConfiguration = new AggregateConfiguration()
+            };
             using var monitoredItem = new MonitoredItem(
                 serverMock.Object,
                 new Mock<IAsyncNodeManager>().Object,
@@ -760,7 +803,7 @@ namespace Opc.Ua.Server.Tests
                 TimestampsToReturn.Both,
                 MonitoringMode.Reporting,
                 3,
-                initialFilter,
+                originalFilter,
                 initialFilter,
                 null,
                 0,
@@ -768,6 +811,8 @@ namespace Opc.Ua.Server.Tests
                 discardOldest: false,
                 sourceSamplingInterval: 0);
             Assert.That(calculatorCalls, Is.EqualTo(1));
+            Assert.That(monitoredItem.Filter, Is.SameAs(originalFilter));
+            Assert.That(monitoredItem.ToStorableMonitoredItem().FilterToUse, Is.SameAs(initialFilter));
             var revisedFilter = new ServerAggregateFilter
             {
                 AggregateType = aggregateId,
@@ -781,7 +826,7 @@ namespace Opc.Ua.Server.Tests
                 DiagnosticsMasks.All,
                 TimestampsToReturn.Both,
                 3,
-                revisedFilter,
+                originalFilter,
                 revisedFilter,
                 null,
                 0,
@@ -790,6 +835,26 @@ namespace Opc.Ua.Server.Tests
 
             Assert.That(ServiceResult.IsGood(result), Is.True);
             Assert.That(calculatorCalls, Is.EqualTo(2));
+            IStoredMonitoredItem aggregateState = monitoredItem.ToStorableMonitoredItem();
+            Assert.That(monitoredItem.Filter, Is.SameAs(originalFilter));
+            Assert.That(aggregateState.OriginalFilter, Is.SameAs(originalFilter));
+            Assert.That(aggregateState.FilterToUse, Is.SameAs(revisedFilter));
+
+            var originalDataFilter = new DataChangeFilter();
+            var effectiveDataFilter = new DataChangeFilter();
+            result = monitoredItem.ModifyAttributes(
+                DiagnosticsMasks.All,
+                TimestampsToReturn.Both,
+                3,
+                originalDataFilter,
+                effectiveDataFilter,
+                null,
+                0,
+                10,
+                discardOldest: false);
+            Assert.That(ServiceResult.IsGood(result), Is.True);
+            Assert.That(monitoredItem.Filter, Is.SameAs(originalDataFilter));
+            Assert.That(monitoredItem.ToStorableMonitoredItem().FilterToUse, Is.SameAs(effectiveDataFilter));
 
             result = monitoredItem.ModifyAttributes(
                 DiagnosticsMasks.All,
@@ -802,6 +867,8 @@ namespace Opc.Ua.Server.Tests
                 10,
                 discardOldest: false);
             Assert.That(ServiceResult.IsGood(result), Is.True);
+            Assert.That(monitoredItem.Filter, Is.Null);
+            Assert.That(monitoredItem.ToStorableMonitoredItem().FilterToUse, Is.Null);
             calculator.Invocations.Clear();
             var liveValue = new DataValue(
                 new Variant(42),
@@ -815,8 +882,20 @@ namespace Opc.Ua.Server.Tests
                 value => value.QueueRawValue(
                     It.IsAny<DataValue>()),
                 Times.Never);
+
+            using var restored = new MonitoredItem(
+                serverMock.Object,
+                Mock.Of<IAsyncNodeManager>(),
+                null,
+                aggregateState);
+            Assert.That(calculatorCalls, Is.EqualTo(3));
+            Assert.That(restored.Filter, Is.SameAs(originalFilter));
+            Assert.That(restored.ToStorableMonitoredItem().FilterToUse, Is.SameAs(revisedFilter));
         }
 
+        /// <summary>
+        /// Verifies that an equivalent filter updates its effective reference without rebuilding or replaying history.
+        /// </summary>
         [Test]
         public async Task EquivalentAggregateModificationDoesNotRebuildOrReprimeAsync()
         {
@@ -894,12 +973,16 @@ namespace Opc.Ua.Server.Tests
             Assert.That(ServiceResult.IsGood(result), Is.True);
             Assert.That(calculatorCalls, Is.EqualTo(1));
             Assert.That(equivalentFilter.PrimeInitialValue, Is.False);
+            Assert.That(monitoredItem.ToStorableMonitoredItem().FilterToUse, Is.SameAs(equivalentFilter));
             Assert.That(
                 ((IInitialValueMonitoredItem)monitoredItem)
                     .CompleteInitialValue(),
                 Is.EqualTo(ServiceResult.Good));
         }
 
+        /// <summary>
+        /// Verifies that calculator-creation failure leaves the monitored item's committed attributes unchanged.
+        /// </summary>
         [Test]
         public async Task AggregateCalculatorCreationFailureLeavesAttributesUnchangedAsync()
         {
@@ -989,6 +1072,9 @@ namespace Opc.Ua.Server.Tests
             });
         }
 
+        /// <summary>
+        /// Verifies that replacing an aggregate discards prior priming overflow and starts a fresh handoff.
+        /// </summary>
         [Test]
         public async Task AggregateModificationStartsFreshPrimingCycleAfterOverflowAsync()
         {
@@ -1098,6 +1184,9 @@ namespace Opc.Ua.Server.Tests
                 Times.Once);
         }
 
+        /// <summary>
+        /// Verifies that an overflowing event queue publishes its overflow event after retained events.
+        /// </summary>
         [Test]
         public void CreateEventMIOverflow()
         {
@@ -1129,6 +1218,9 @@ namespace Opc.Ua.Server.Tests
             Assert.That(publishResult.Handle, Is.AssignableTo<EventQueueOverflowEventState>());
         }
 
+        /// <summary>
+        /// Verifies that a pending overflow event survives publication split across multiple responses.
+        /// </summary>
         [Test]
         public void CreateEventMIOverflowMultiplePublish()
         {
@@ -1174,6 +1266,9 @@ namespace Opc.Ua.Server.Tests
             Assert.That(publishResult2.Handle, Is.AssignableTo<EventQueueOverflowEventState>());
         }
 
+        /// <summary>
+        /// Verifies that discard-oldest event queues publish the overflow event before retained events.
+        /// </summary>
         [Test]
         public void CreateEventMIOverflowNoDiscard()
         {
@@ -1205,6 +1300,9 @@ namespace Opc.Ua.Server.Tests
             Assert.That(publishResult.Handle, Is.AssignableTo<EventQueueOverflowEventState>());
         }
 
+        /// <summary>
+        /// Verifies that a publish limit leaves remaining events available for the next response.
+        /// </summary>
         [Test]
         public void CreateEventMIPublishPartial()
         {
@@ -1248,6 +1346,9 @@ namespace Opc.Ua.Server.Tests
         }
 
 #pragma warning disable CS0618 // Test coverage for the obsolete compatibility constructor.
+        /// <summary>
+        /// Verifies that the obsolete constructor preserves item settings through the asynchronous node-manager adapter.
+        /// </summary>
         [Test]
         public void ObsoleteConstructorDelegatesToAsyncConstructor()
         {
@@ -1288,6 +1389,9 @@ namespace Opc.Ua.Server.Tests
         }
 #pragma warning restore CS0618
 
+        /// <summary>
+        /// Verifies that construction rejects a missing monitored-node request.
+        /// </summary>
         [Test]
         public void ConstructorThrowsForNullItemToMonitor()
         {
