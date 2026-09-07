@@ -204,18 +204,21 @@ namespace Opc.Ua
             BaseInstanceState? replacement,
             bool assignInstanceNodeIds = true)
         {
-            if (EnumStrings == null)
+            if (replacement is PropertyState<ArrayOf<LocalizedText>> typedReplacement)
             {
-                if (replacement is not PropertyState<ArrayOf<LocalizedText>> child)
+                // a replacement of the matching type is used directly,
+                // replacing any child that may already exist.
+                EnumStrings = typedReplacement;
+            }
+            else if (EnumStrings == null)
+            {
+                var child = PropertyState<ArrayOf<LocalizedText>>.With<VariantBuilder>(this);
+                child.SymbolicName = BrowseNames.EnumStrings;
+                child.BrowseName = QualifiedName.From(BrowseNames.EnumStrings);
+                child.DisplayName = LocalizedText.From(BrowseNames.EnumStrings);
+                if (replacement != null)
                 {
-                    child = PropertyState<ArrayOf<LocalizedText>>.With<VariantBuilder>(this);
-                    child.SymbolicName = BrowseNames.EnumStrings;
-                    child.BrowseName = QualifiedName.From(BrowseNames.EnumStrings);
-                    child.DisplayName = LocalizedText.From(BrowseNames.EnumStrings);
-                    if (replacement != null)
-                    {
-                        child.Create(context, replacement);
-                    }
+                    child.Create(context, replacement);
                 }
                 EnumStrings = child;
             }

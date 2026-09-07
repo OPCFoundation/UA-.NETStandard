@@ -153,6 +153,9 @@ namespace Opc.Ua.SourceGeneration
             template.AddReplacement(Tokens.NamespacePrefix, targetNamespace);
             template.AddReplacement(Tokens.Prefix, modelNamespace);
             template.AddReplacement(Tokens.Namespace, typeStem);
+            template.AddReplacement(
+                Tokens.NodeSetImportFactoryProviderClassName,
+                typeStem + "NodeSetImportFactoryProvider");
             template.AddReplacement(Tokens.NodeManagerClassName, targetClass);
             template.AddReplacement(Tokens.NamespaceUri, nsUriSymbol);
             template.AddReplacement(

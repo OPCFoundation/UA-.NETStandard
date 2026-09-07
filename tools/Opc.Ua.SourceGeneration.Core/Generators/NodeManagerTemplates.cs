@@ -46,6 +46,12 @@ namespace Opc.Ua.SourceGeneration
             $$"""
             {{Tokens.CodeHeader}}
 
+            // The namespace-taking constructor is emitted for every manager,
+            // but the user's partial decides whether the class is sealed and
+            // the generator cannot see that. In a sealed manager the protected
+            // constructor is merely unreachable, not wrong.
+            #pragma warning disable CS0628 // New protected member in sealed type
+
             namespace {{Tokens.NamespacePrefix}}
             {
                 /// <summary>
@@ -58,7 +64,9 @@ namespace Opc.Ua.SourceGeneration
                 /// fluent API in <c>Opc.Ua.Server.Fluent</c>.
                 /// </remarks>
                 [global::System.CodeDom.Compiler.GeneratedCodeAttribute("{{Tokens.Tool}}", "{{Tokens.Version}}")]
-                public partial class {{Tokens.NodeManagerClassName}} : global::Opc.Ua.Server.Fluent.FluentNodeManagerBase
+                public partial class {{Tokens.NodeManagerClassName}} :
+                    global::Opc.Ua.Server.Fluent.FluentNodeManagerBase,
+                    global::Opc.Ua.Server.Nodes.INodeSetImportFactoryProvider
                 {
                     private global::Opc.Ua.Server.Fluent.NodeManagerBuilder? __m_builder;
 
@@ -118,6 +126,45 @@ namespace Opc.Ua.SourceGeneration
                     /// </summary>
                     partial void Configure(I{{Tokens.NodeManagerClassName}}Builder builder);
 
+                    /// <summary>
+                    /// Supplies the concrete states used when a NodeSet2
+                    /// document imported through
+                    /// <c>INodeManagerBuilder.Import</c> declares a node of
+                    /// this model.
+                    /// </summary>
+                    public global::Opc.Ua.ArrayOf<
+                        global::Opc.Ua.Server.Nodes.INodeSetImportFactory>
+                        GetNodeSetImportFactories()
+                    {
+                        var __factories = new global::System.Collections.Generic.List<
+                            global::Opc.Ua.Server.Nodes.INodeSetImportFactory>();
+                        global::Opc.Ua.ArrayOf<
+                            global::Opc.Ua.Server.Nodes.INodeSetImportFactory>
+                            __generatedFactories =
+                                global::{{Tokens.Prefix}}.
+                                    {{Tokens.NodeSetImportFactoryProviderClassName}}.Instance.
+                                    GetNodeSetImportFactories();
+                        for (int __index = 0;
+                            __index < __generatedFactories.Count;
+                            __index++)
+                        {
+                            __factories.Add(__generatedFactories[__index]);
+                        }
+                        AddNodeSetImportFactories(__factories);
+                        return new global::Opc.Ua.ArrayOf<
+                            global::Opc.Ua.Server.Nodes.INodeSetImportFactory>(
+                                __factories.ToArray());
+                    }
+
+                    /// <summary>
+                    /// Adds import factories supplied by dependency models or
+                    /// by the application. Implement in a sibling
+                    /// <c>partial</c>.
+                    /// </summary>
+                    partial void AddNodeSetImportFactories(
+                        global::System.Collections.Generic.List<
+                            global::Opc.Ua.Server.Nodes.INodeSetImportFactory> factories);
+
                     /// <inheritdoc/>
                     protected override global::System.Threading.Tasks.ValueTask<global::Opc.Ua.NodeStateCollection> LoadPredefinedNodesAsync(
                         global::Opc.Ua.ISystemContext context,
@@ -173,12 +220,12 @@ namespace Opc.Ua.SourceGeneration
                         // folder) into the externalReferences dictionary.
                         await CompleteConfigureAsync(externalReferences, cancellationToken).ConfigureAwait(false);
 
-                        __m_builder.Seal();
-
-                        foreach (global::Opc.Ua.NodeState __node in PredefinedNodes.Values)
-                        {
-                            __m_builder.Dispatcher.NotifyNodeAdded(SystemContext, __node);
-                        }
+                        // Seals the builder, replays NotifyNodeAdded for every
+                        // predefined node so per-node lifecycle hooks fire
+                        // deterministically, and only then starts the
+                        // simulations, so no simulated value change can
+                        // precede the OnNodeAdded handler of its own node.
+                        SealConfiguration(__m_builder);
                     }
 
                     /// <inheritdoc/>

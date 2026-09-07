@@ -1222,6 +1222,17 @@ namespace Opc.Ua.SourceGeneration
                 bool generateManager = designOptions?.GenerateNodeManager == true;
                 if (generateManager)
                 {
+                    // The manager wires NodeSet imports through the model's
+                    // import factory provider. That provider implements an
+                    // Opc.Ua.Server contract, so the model-only assembly that
+                    // owns the types cannot emit it; it is emitted here, into
+                    // the assembly that does reference Opc.Ua.Server, under
+                    // the model's own namespace so the manager resolves it.
+                    new NodeStateGenerator(context)
+                    {
+                        GenerateNodeSetImportSupport = true,
+                        ImportSupportOnly = true
+                    }.Emit();
                     EmitNodeManager(context, designOptions);
                 }
                 new FluentBuilderGenerator(context)
@@ -1257,7 +1268,12 @@ namespace Opc.Ua.SourceGeneration
             constantsGenerator.Emit();
             var nodeIdGenerator = new NodeIdGenerator(context);
             nodeIdGenerator.Emit();
-            var nodeStateCodeGenerator = new NodeStateGenerator(context);
+            var nodeStateCodeGenerator = new NodeStateGenerator(context)
+            {
+                // The provider references Opc.Ua.Server contracts, so it is
+                // only emitted for models that also generate a node manager.
+                GenerateNodeSetImportSupport = designOptions?.GenerateNodeManager == true
+            };
             nodeStateCodeGenerator.Emit();
             var dataTypesGenerator = new DataTypeGenerator(context);
             dataTypesGenerator.Emit();
