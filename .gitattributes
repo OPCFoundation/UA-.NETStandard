@@ -20,6 +20,9 @@
 # LF on every platform so the checked-out bytes are the upstream bytes.
 *.jsonld text eol=lf
 
+# The generated pump XML must match its checked-in bytes on every platform.
+samples/WotCon/AggregationClient/Documents/SamplePump.NodeSet2.xml text eol=lf
+
 # Denote all files that should not have line endings normalized, should not be
 # merged, and should not show in a textual diff.
 *.docm binary

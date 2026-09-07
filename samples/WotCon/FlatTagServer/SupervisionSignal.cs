@@ -130,9 +130,25 @@ namespace FlatTagServer
             Condition.SourceName!.Value = parent.BrowseName.Name ?? string.Empty;
             Condition.ConditionName!.Value = conditionName;
             Condition.AutoReportStateChanges = true;
+            Condition.OnAcknowledge = (_, condition, eventId, _) =>
+                condition.EventId!.Value != eventId
+                    ? StatusCodes.BadEventIdUnknown
+                    : Condition.AckedState!.Id!.Value
+                        ? StatusCodes.BadConditionBranchAlreadyAcked
+                        : ServiceResult.Good;
+            Condition.OnConfirm = (_, condition, eventId, _) =>
+                condition.EventId!.Value != eventId
+                    ? StatusCodes.BadEventIdUnknown
+                    : !Condition.AckedState!.Id!.Value
+                        ? StatusCodes.BadInvalidState
+                        : Condition.ConfirmedState!.Id!.Value
+                            ? StatusCodes.BadConditionBranchAlreadyConfirmed
+                            : ServiceResult.Good;
 
             Condition.SetEnableState(context, enabled: true);
             Condition.SetSeverity(context, EventSeverity.Medium);
+            Condition.SetAcknowledgedState(context, acknowledged: true);
+            Condition.SetConfirmedState(context, confirmed: true);
             ApplyState(context, initiallyActive, report: false);
 
             // Writing the tag is what trips the signal, so the write has to drive
@@ -220,17 +236,22 @@ namespace FlatTagServer
             }
             else
             {
-                Condition.SetAcknowledgedState(context, acknowledged: true);
-                Condition.SetConfirmedState(context, confirmed: true);
                 Condition.Message!.Value = new LocalizedText(
                     "en",
                     Condition.ConditionName!.Value + " returned to normal.");
-                Condition.Retain!.Value = false;
+                Condition.Retain!.Value =
+                    !Condition.AckedState!.Id!.Value || !Condition.ConfirmedState!.Id!.Value;
             }
 
+            Condition.EventId!.Value = Uuid.NewUuid().ToByteString();
+            Condition.Time!.Value = DateTimeUtc.Now;
+            Condition.ReceiveTime!.Value = Condition.Time.Value;
+            Condition.ClearChangeMasks(context, includeChildren: true);
             if (report)
             {
-                Condition.ReportEvent(context, Condition);
+                var snapshot = new InstanceStateSnapshot();
+                snapshot.Initialize(context, Condition);
+                Condition.ReportEvent(context, snapshot);
             }
         }
 

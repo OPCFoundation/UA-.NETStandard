@@ -1,1 +1,48 @@
-{"@context":["https://www.w3.org/2022/wot/td/v1.1",{"tm":"https://www.w3.org/2019/wot/tm#","ua":"http://opcfoundation.org/UA/","uav":"http://opcfoundation.org/UA/WoT-Binding/"}],"@type":["Thing","uav:projection","eventGroup"],"description":"An event group selected from event affordances.","id":"urn:opcfoundation.org:UA:WotAggregation:Asset:Pump1:Supervision","security":"nosec_sc","securityDefinitions":{"nosec_sc":{"scheme":"nosec"}},"title":"Supervision","uav:projects":[{"href":"pump1-members","type":"application/td+json","uav:routing":"source","uav:select":[{"@type":"uav:eventType","uav:affordanceKind":"event"}],"uav:sourceName":"members"}],"uav:scenario":"urn:opcfoundation.org:UA:WotAggregation:AssetManagement"}
+{
+  "@context": [
+    "https://www.w3.org/2022/wot/td/v1.1",
+    {
+      "tm": "https://www.w3.org/2019/wot/tm#",
+      "ua": "http://opcfoundation.org/UA/",
+      "uav": "http://opcfoundation.org/UA/WoT-Binding/"
+    }
+  ],
+  "@type": [
+    "Thing",
+    "uav:projection",
+    "eventGroup"
+  ],
+  "events": {
+    "CavitationAlarm": {
+      "tm:ref": "pump1-members#/events/CavitationAlarm"
+    },
+    "MotorOverheatAlarm": {
+      "tm:ref": "pump1-members#/events/MotorOverheatAlarm"
+    }
+  },
+  "id": "urn:opcfoundation.org:UA:WotAggregation:Asset:Pump1:Supervision",
+  "properties": {
+    "Cavitation": {
+      "tm:ref": "pump1-members#/properties/Cavitation"
+    },
+    "MotorOverheat": {
+      "tm:ref": "pump1-members#/properties/MotorOverheat"
+    }
+  },
+  "security": "nosec_sc",
+  "securityDefinitions": {
+    "nosec_sc": {
+      "scheme": "nosec"
+    }
+  },
+  "title": "Supervision",
+  "uav:projects": [
+    {
+      "href": "pump1-members",
+      "type": "application/td+json",
+      "uav:routing": "source",
+      "uav:sourceName": "pump1-members"
+    }
+  ],
+  "uav:scenario": "urn:opcfoundation.org:UA:WotAggregation:AssetManagement"
+}

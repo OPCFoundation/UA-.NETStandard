@@ -1134,6 +1134,77 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Assigns final instance NodeIds to a subtree before a fluent
+        /// builder exposes it for callback wiring, so callbacks keyed by
+        /// NodeId stay valid once the node is registered.
+        /// </summary>
+        /// <remarks>
+        /// This pass assigns an id to every node that still lacks one, pulls
+        /// namespace-0 children into the root's namespace, and rebases nodes
+        /// whose id collides with a type declaration. That last case covers a
+        /// subtree materialised with <c>NodeState.Create(..., assignNodeIds:
+        /// false)</c>, whose children keep their declaration ids: they are
+        /// neither null nor in namespace 0, so only the collision check
+        /// catches them. Rebasing here rather than at registration is what
+        /// keeps the ids the fluent builder hands back final — the same
+        /// repair <c>PrepareInstanceNodeIdsForRegistration</c> would
+        /// otherwise apply later, silently invalidating them.
+        /// It is idempotent: a second call over an already prepared subtree
+        /// assigns nothing.
+        /// </remarks>
+        /// <param name="node">The root of the subtree to prepare.</param>
+        /// <exception cref="ArgumentNullException">
+        /// <paramref name="node"/> is null.
+        /// </exception>
+        /// <exception cref="InvalidOperationException">
+        /// The system context carries no NodeId factory.
+        /// </exception>
+        internal void PrepareAuthoredNodeIdsForRegistration(NodeState node)
+        {
+            if (node == null)
+            {
+                throw new ArgumentNullException(nameof(node));
+            }
+
+            if (SystemContext.NodeIdFactory == null)
+            {
+                throw new InvalidOperationException(
+                    "The system context does not provide a NodeId factory.");
+            }
+
+            var nodes = new List<NodeState> { node };
+            var children = new List<BaseInstanceState>();
+            var mappingTable = new Dictionary<NodeId, NodeId>();
+            for (int i = 0; i < nodes.Count; i++)
+            {
+                NodeState candidate = nodes[i];
+                if (candidate.NodeId.IsNull ||
+                    HasDeclarationNodeIdCollision(candidate) ||
+                    (i > 0 &&
+                        node.NodeId.NamespaceIndex != 0 &&
+                        candidate.NodeId.NamespaceIndex == 0))
+                {
+                    NodeId previousNodeId = SystemContext.AssignInstanceNodeId(candidate);
+                    if (!previousNodeId.IsNull &&
+                        !candidate.NodeId.IsNull &&
+                        previousNodeId != candidate.NodeId)
+                    {
+                        mappingTable[previousNodeId] = candidate.NodeId;
+                    }
+                }
+
+                children.Clear();
+                candidate.GetChildren(SystemContext, children);
+                nodes.AddRange(children);
+            }
+
+            if (mappingTable.Count > 0)
+            {
+                node.UpdateReferenceTargets(SystemContext, mappingTable);
+            }
+        }
+
+        /// <summary>
         /// Replaces an existing PredefinedNodes entry in place. Used by
         /// runtime upgraders (e.g. <see cref="RoleStateBinding"/>) that
         /// swap a passive child with a typed proxy after the original

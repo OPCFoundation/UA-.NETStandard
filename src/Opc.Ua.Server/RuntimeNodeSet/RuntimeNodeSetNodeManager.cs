@@ -143,11 +143,15 @@ namespace Opc.Ua.Server.RuntimeNodeSet
             DetectDuplicateNodeIds(predefinedNodes);
             ValidateOwnedNodeNamespaces(predefinedNodes);
 
-            // Step 4 – Add every imported node through the base flow so they
-            // are indexed and properly linked.
+            // XML Node order does not define inheritance order. Register
+            // supertypes before derived types, then add the remaining roots.
+            foreach (BaseTypeState type in OrderTypes(predefinedNodes, cancellationToken))
+            {
+                await AddPredefinedNodeAsync(SystemContext, type, cancellationToken).ConfigureAwait(false);
+            }
             for (int i = 0; i < predefinedNodes.Count; i++)
             {
-                if (predefinedNodes[i] is BaseInstanceState { Parent: not null })
+                if (predefinedNodes[i] is BaseTypeState or BaseInstanceState { Parent: not null })
                 {
                     continue;
                 }
@@ -177,6 +181,15 @@ namespace Opc.Ua.Server.RuntimeNodeSet
                     : await m_configureAsync(builder, cancellationToken).ConfigureAwait(false);
                 try
                 {
+                    // Register nodes the configuration created through the
+                    // builder's Add* methods, then re-run the reverse-reference
+                    // pass so their references to externally owned nodes reach
+                    // the externalReferences dictionary as well.
+                    await RegisterAuthoredNodesAsync(builder, cancellationToken)
+                        .ConfigureAwait(false);
+                    await AddReverseReferencesAsync(externalReferences, cancellationToken)
+                        .ConfigureAwait(false);
+
                     builder.Seal();
 
                     // Step 7 – Replay NotifyNodeAdded for every predefined node
@@ -505,6 +518,51 @@ namespace Opc.Ua.Server.RuntimeNodeSet
             {
                 m_dispatcher?.NotifyMonitoredItemCreated(context, node, monitoredItem);
             }
+        }
+
+        /// <summary>
+        /// Orders imported types by inheritance without depending on XML record order.
+        /// </summary>
+        private static List<BaseTypeState> OrderTypes(NodeStateCollection nodes, CancellationToken cancellationToken)
+        {
+            var types = nodes.OfType<BaseTypeState>().ToDictionary(type => type.NodeId);
+            var derived = new Dictionary<NodeId, List<BaseTypeState>>();
+            var ready = new Queue<BaseTypeState>();
+            foreach (BaseTypeState type in types.Values)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                if (!types.ContainsKey(type.SuperTypeId))
+                {
+                    ready.Enqueue(type);
+                    continue;
+                }
+                if (!derived.TryGetValue(type.SuperTypeId, out List<BaseTypeState>? children))
+                {
+                    children = [];
+                    derived.Add(type.SuperTypeId, children);
+                }
+                children.Add(type);
+            }
+            var ordered = new List<BaseTypeState>(types.Count);
+            while (ready.Count > 0)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                BaseTypeState type = ready.Dequeue();
+                ordered.Add(type);
+                if (derived.TryGetValue(type.NodeId, out List<BaseTypeState>? children))
+                {
+                    foreach (BaseTypeState child in children)
+                    {
+                        ready.Enqueue(child);
+                    }
+                }
+            }
+            if (ordered.Count != types.Count)
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadTypeDefinitionInvalid, "The runtime NodeSet type hierarchy contains a cycle.");
+            }
+            return ordered;
         }
 
         /// <summary>

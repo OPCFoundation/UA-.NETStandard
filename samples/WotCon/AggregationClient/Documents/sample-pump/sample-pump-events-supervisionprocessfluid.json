@@ -1,0 +1,211 @@
+{
+  "@context": [
+    "https://www.w3.org/2022/wot/td/v1.1",
+    {
+      "ns1": "urn:opcfoundation.org:UA:WotAggregation:PumpInstance",
+      "ns2": "http://opcfoundation.org/UA/Pumps/",
+      "ns3": "http://opcfoundation.org/UA/Machinery/",
+      "ns4": "http://opcfoundation.org/UA/DI/",
+      "ua": "http://opcfoundation.org/UA/",
+      "uav": "http://opcfoundation.org/UA/WoT-Binding/"
+    },
+    "http://opcfoundation.org/UA/WoT-Binding/v1.1/opc-ua-wot-binding.context.jsonld"
+  ],
+  "@type": "uav:object",
+  "links": [
+    {
+      "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=1015",
+      "rel": "ua:HasTypeDefinition"
+    },
+    {
+      "href": "sample-pump-events",
+      "rel": "uav:componentOf",
+      "type": "application/td+json"
+    }
+  ],
+  "properties": {
+    "Cavitation": {
+      "@type": "uav:variable",
+      "forms": [
+        {
+          "href": "${SOURCE_A_ENDPOINT}",
+          "op": [
+            "readproperty",
+            "observeproperty"
+          ],
+          "uav:id": "nsu=urn:opcfoundation.org:UA:WotAggregation:SourceA;s=Pump1.Events.SupervisionProcessFluid.Cavitation"
+        }
+      ],
+      "links": [
+        {
+          "href": "i=2373",
+          "rel": "ua:HasTypeDefinition"
+        }
+      ],
+      "observable": true,
+      "readOnly": true,
+      "title": "Cavitation",
+      "type": "boolean",
+      "uav:browseName": "ns2:Cavitation",
+      "uav:id": "nsu=urn:opcfoundation.org:UA:WotAggregation:PumpInstance;s=Pump1.Events.SupervisionProcessFluid.Cavitation",
+      "uav:mapToNodeId": "nsu=urn:opcfoundation.org:UA:WotAggregation:PumpInstance;s=Pump1.Events.SupervisionProcessFluid.Cavitation",
+      "uav:mapToType": "i=1"
+    }
+  },
+  "security": "nosec_sc",
+  "securityDefinitions": {
+    "nosec_sc": {
+      "scheme": "nosec"
+    }
+  },
+  "title": "SupervisionProcessFluid",
+  "uav:bindingVersion": "1.1",
+  "uav:browseName": "ns2:SupervisionProcessFluid",
+  "uav:id": "nsu=urn:opcfoundation.org:UA:WotAggregation:PumpInstance;s=Pump1.Events.SupervisionProcessFluid",
+  "uav:nodes": {
+    "@type": "uav:NodeModel",
+    "aliases": [
+      {
+        "alias": "Boolean",
+        "value": "i=1"
+      },
+      {
+        "alias": "UInt32",
+        "value": "i=7"
+      },
+      {
+        "alias": "Double",
+        "value": "i=11"
+      },
+      {
+        "alias": "String",
+        "value": "i=12"
+      },
+      {
+        "alias": "LocalizedText",
+        "value": "i=21"
+      },
+      {
+        "alias": "HasTypeDefinition",
+        "value": "i=40"
+      },
+      {
+        "alias": "HasProperty",
+        "value": "i=46"
+      },
+      {
+        "alias": "HasComponent",
+        "value": "i=47"
+      },
+      {
+        "alias": "Range",
+        "value": "i=884"
+      },
+      {
+        "alias": "EUInformation",
+        "value": "i=887"
+      },
+      {
+        "alias": "HasSubtype",
+        "value": "i=45"
+      },
+      {
+        "alias": "GeneratesEvent",
+        "value": "i=41"
+      },
+      {
+        "alias": "Argument",
+        "value": "i=296"
+      }
+    ],
+    "models": [
+      {
+        "modelUri": "urn:opcfoundation.org:UA:WotAggregation:PumpInstance",
+        "publicationDate": "2026-07-24T00:00:00Z",
+        "requiredModels": [
+          {
+            "modelUri": "http://opcfoundation.org/UA/",
+            "publicationDate": "2022-02-24T00:00:00Z",
+            "version": "1.05.01"
+          },
+          {
+            "modelUri": "http://opcfoundation.org/UA/DI/",
+            "publicationDate": "2022-11-03T00:00:00Z",
+            "version": "1.04.0"
+          },
+          {
+            "modelUri": "http://opcfoundation.org/UA/Machinery/",
+            "publicationDate": "2021-02-25T00:00:00Z",
+            "version": "1.01.0"
+          },
+          {
+            "modelUri": "http://opcfoundation.org/UA/Pumps/",
+            "publicationDate": "2021-04-19T00:00:00Z",
+            "version": "1.0.0"
+          }
+        ],
+        "version": "1.0.0"
+      }
+    ],
+    "namespaceUris": [
+      "urn:opcfoundation.org:UA:WotAggregation:PumpInstance",
+      "http://opcfoundation.org/UA/Pumps/",
+      "http://opcfoundation.org/UA/Machinery/",
+      "http://opcfoundation.org/UA/DI/"
+    ],
+    "nodes": [
+      {
+        "browseName": "2:SupervisionProcessFluid",
+        "displayName": [
+          {
+            "value": "SupervisionProcessFluid"
+          }
+        ],
+        "nodeClass": "Object",
+        "nodeId": "ns=1;s=Pump1.Events.SupervisionProcessFluid",
+        "parentNodeId": "ns=1;s=Pump1.Events",
+        "references": [
+          {
+            "isForward": false,
+            "referenceType": "HasComponent",
+            "target": "ns=1;s=Pump1.Events"
+          },
+          {
+            "referenceType": "HasComponent",
+            "target": "ns=1;s=Pump1.Events.SupervisionProcessFluid.Cavitation"
+          },
+          {
+            "referenceType": "HasTypeDefinition",
+            "target": "ns=2;i=1015"
+          }
+        ],
+        "typeDefinition": "ns=2;i=1015"
+      },
+      {
+        "browseName": "2:Cavitation",
+        "dataType": "Boolean",
+        "displayName": [
+          {
+            "value": "Cavitation"
+          }
+        ],
+        "nodeClass": "Variable",
+        "nodeId": "ns=1;s=Pump1.Events.SupervisionProcessFluid.Cavitation",
+        "parentNodeId": "ns=1;s=Pump1.Events.SupervisionProcessFluid",
+        "references": [
+          {
+            "isForward": false,
+            "referenceType": "HasComponent",
+            "target": "ns=1;s=Pump1.Events.SupervisionProcessFluid"
+          },
+          {
+            "referenceType": "HasTypeDefinition",
+            "target": "i=2373"
+          }
+        ],
+        "typeDefinition": "i=2373"
+      }
+    ],
+    "profileVersion": "1.0"
+  }
+}

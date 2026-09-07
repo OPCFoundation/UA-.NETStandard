@@ -123,6 +123,20 @@ namespace Opc.Ua.WotCon.Bindings
         }
 
         /// <summary>
+        /// Initializes a notification with the namespace table that gives its
+        /// NodeId and QualifiedName fields their transport-side meaning.
+        /// </summary>
+        public WotNotification(
+            DataValue value,
+            IReadOnlyDictionary<string, DataValue>? eventFields,
+            WotEventData? data,
+            ArrayOf<string> namespaceUris)
+            : this(value, eventFields, data)
+        {
+            NamespaceUris = namespaceUris;
+        }
+
+        /// <summary>
         /// Gets the notified value together with its status and timestamps.
         /// </summary>
         public DataValue Value { get; }
@@ -154,6 +168,33 @@ namespace Opc.Ua.WotCon.Bindings
         /// describes reads <see cref="Data"/>.
         /// </remarks>
         public IReadOnlyDictionary<string, DataValue> EventFields { get; }
+
+        /// <summary>
+        /// Gets the source namespace table. A notification without a table can
+        /// carry namespace-zero or portable identifiers, but not session-local
+        /// namespace indexes from an unidentified source.
+        /// </summary>
+        public ArrayOf<string> NamespaceUris { get; } = [];
+
+        /// <summary>
+        /// Gets the complete source value context, when supplied by the channel.
+        /// </summary>
+        public IServiceMessageContext? Context { get; private init; }
+
+        /// <summary>
+        /// Returns a notification with the context of its selected values.
+        /// </summary>
+        public WotNotification WithContext(IServiceMessageContext context)
+        {
+            if (context is null)
+            {
+                throw new ArgumentNullException(nameof(context));
+            }
+            return new WotNotification(Value, EventFields, Data, context.NamespaceUris.ToArrayOf())
+            {
+                Context = context
+            };
+        }
     }
 
     /// <summary>
@@ -248,6 +289,12 @@ namespace Opc.Ua.WotCon.Bindings
         public IReadOnlyList<DataValue> Outputs { get; }
 
         /// <summary>
+        /// Gets the namespace and encodeable context of the returned values,
+        /// when supplied by a contextual channel.
+        /// </summary>
+        public IServiceMessageContext? Context { get; private init; }
+
+        /// <summary>
         /// Gets the error message on failure, if any.
         /// </summary>
         public string? Error { get; }
@@ -256,6 +303,17 @@ namespace Opc.Ua.WotCon.Bindings
         /// Gets whether the operation succeeded.
         /// </summary>
         public bool Success => StatusCode.IsGood(Status);
+
+        /// <summary>
+        /// Returns a result with the context needed to interpret namespace-bearing outputs.
+        /// </summary>
+        public WotInvokeResult WithContext(IServiceMessageContext context)
+        {
+            return new WotInvokeResult(Status, Outputs, Error)
+            {
+                Context = context ?? throw new ArgumentNullException(nameof(context))
+            };
+        }
     }
 
     /// <summary>
@@ -310,6 +368,46 @@ namespace Opc.Ua.WotCon.Bindings
         /// </summary>
         ValueTask<IWotSubscription> SubscribeEventAsync(
             Action<WotNotification> onEvent, CancellationToken cancellationToken = default);
+    }
+
+    /// <summary>
+    /// A namespace-aware invocation, including the context in which its input
+    /// NodeIds, QualifiedNames and structured values were decoded.
+    /// </summary>
+    public sealed class WotInvokeRequest
+    {
+        /// <summary>
+        /// Initializes an invocation with ordered inputs and their source context.
+        /// </summary>
+        public WotInvokeRequest(ArrayOf<Variant> inputs, IServiceMessageContext context)
+        {
+            Inputs = inputs;
+            Context = context ?? throw new ArgumentNullException(nameof(context));
+        }
+
+        /// <summary>
+        /// Gets the ordered inputs.
+        /// </summary>
+        public ArrayOf<Variant> Inputs { get; }
+
+        /// <summary>
+        /// Gets the context of the input values.
+        /// </summary>
+        public IServiceMessageContext Context { get; }
+    }
+
+    /// <summary>
+    /// Optional channel capability for invocations crossing namespace tables.
+    /// Existing channels and their context-free API remain compatible.
+    /// </summary>
+    public interface IWotContextualBindingChannel : IWotBindingChannel
+    {
+        /// <summary>
+        /// Invokes an action after translating namespace-bearing inputs, and
+        /// returns the source context alongside its ordered outputs.
+        /// </summary>
+        ValueTask<WotInvokeResult> InvokeAsync(
+            WotInvokeRequest request, CancellationToken cancellationToken = default);
     }
 
     /// <summary>

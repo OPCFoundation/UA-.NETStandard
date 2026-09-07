@@ -577,13 +577,35 @@ namespace Opc.Ua.Export
 
                     BaseInstanceState linkedChild = instance;
                     bool bindDeclaredChild =
-                        parent is MethodState method &&
-                        IsMethodArgumentProperty(method, instance);
+                        parent is MethodState methodParent &&
+                        IsMethodArgumentProperty(methodParent, instance);
                     BaseInstanceState? existing =
                         bindDeclaredChild
                             ? parent.FindChild(context, instance.BrowseName)
                             : null;
-                    if (bindDeclaredChild && existing is null)
+                    if (bindDeclaredChild &&
+                        parent is MethodState method &&
+                        instance is PropertyState<ArrayOf<Argument>> arguments)
+                    {
+                        if (existing is not null && !ReferenceEquals(existing, arguments))
+                        {
+                            throw new ServiceResultException(
+                                StatusCodes.BadDecodingError,
+                                $"The Method has multiple {instance.BrowseName.Name}.");
+                        }
+
+                        arguments.Parent = parent;
+                        arguments.ReferenceTypeId = ReferenceTypeIds.HasProperty;
+                        if (instance.BrowseName.Name == BrowseNames.InputArguments)
+                        {
+                            method.InputArguments = arguments;
+                        }
+                        else
+                        {
+                            method.OutputArguments = arguments;
+                        }
+                    }
+                    else if (bindDeclaredChild && existing is null)
                     {
                         // ReplaceChild routes through the parent's declared-child
                         // factory. MethodState therefore narrows imported generic
@@ -603,6 +625,7 @@ namespace Opc.Ua.Export
                         // Preserve the previous import behavior for unnamed
                         // children and duplicate BrowseNames. Replacing an
                         // existing sibling would otherwise make it unreachable.
+                        instance.Parent = parent;
                         parent.AddChild(instance);
                     }
                     linkedChild.Handle = null;
@@ -1213,16 +1236,19 @@ namespace Opc.Ua.Export
                     }
 
                     BaseVariableState value;
+                    NodeId dataType = ImportNodeId(o.DataType, context.NamespaceUris, true);
                     if (typeDefinitionId == VariableTypeIds.PropertyType)
                     {
-                        value = new PropertyState(null);
+                        value = dataType == DataTypeIds.Argument && o.ValueRank == ValueRanks.OneDimension
+                            ? new PropertyState<ArrayOf<Argument>>.Implementation<StructureBuilder<Argument>>(null)
+                            : new PropertyState(null);
                     }
                     else
                     {
                         value = new BaseDataVariableState(null);
                     }
 
-                    value.DataType = ImportNodeId(o.DataType, context.NamespaceUris, true);
+                    value.DataType = dataType;
                     value.ValueRank = o.ValueRank;
                     value.ArrayDimensions = ImportArrayDimensions(o.ArrayDimensions) ?? [];
                     value.AccessLevelEx = o.AccessLevel;

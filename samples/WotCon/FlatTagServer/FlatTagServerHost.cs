@@ -129,6 +129,13 @@ namespace FlatTagServer
                 InstanceName = configuration["instanceName"] ?? "SourceA"
             };
 
+            options.Values.Manufacturer = configuration["manufacturer"] ?? options.Values.Manufacturer;
+            options.Values.SerialNumber = configuration["serialNumber"] ?? options.Values.SerialNumber;
+            options.Values.ProductInstanceUri = configuration["productInstanceUri"] ?? options.Values.ProductInstanceUri;
+            options.Pump2Values.Manufacturer = configuration["pump2Manufacturer"] ?? options.Pump2Values.Manufacturer;
+            options.Pump2Values.SerialNumber = configuration["pump2SerialNumber"] ?? options.Pump2Values.SerialNumber;
+            options.Pump2Values.ProductInstanceUri =
+                configuration["pump2ProductInstanceUri"] ?? options.Pump2Values.ProductInstanceUri;
             options.Values.DifferentialPressure = ReadDouble(
                 configuration, "differentialPressure", options.Values.DifferentialPressure);
             options.Values.FluidTemperature = ReadDouble(
