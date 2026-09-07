@@ -249,7 +249,14 @@ namespace Quickstarts
             }
             catch (Exception ex)
             {
-                throw new ErrorExitException(ex.Message, ExitCode);
+                try
+                {
+                    await DisposeTransportBindingsAsync().ConfigureAwait(false);
+                }
+                finally
+                {
+                    throw new ErrorExitException(ex.Message, ExitCode);
+                }
             }
         }
 
@@ -272,26 +279,34 @@ namespace Quickstarts
                     await server.StopAsync(ct).ConfigureAwait(false);
                 }
 
-#if NET10_0_OR_GREATER
-                // Stop any env-var-driven pcap capture installed at start.
-                if (m_pcapCapture != null)
-                {
-                    await m_pcapCapture.DisposeAsync().ConfigureAwait(false);
-                    m_pcapCapture = null;
-                }
-#endif
-
-                // Dispose the DI container backing the transport binding
-                // registry built in CreateTransportBindings(), now that the
-                // server (and any listeners it opened) have stopped.
-                m_transportServices?.Dispose();
-                m_transportServices = null;
-
                 ExitCode = ExitCode.Ok;
             }
             catch (Exception ex)
             {
                 throw new ErrorExitException(ex.Message, ExitCode.ErrorStopping);
+            }
+            finally
+            {
+                await DisposeTransportBindingsAsync().ConfigureAwait(false);
+            }
+        }
+
+        private async Task DisposeTransportBindingsAsync()
+        {
+#if NET10_0_OR_GREATER
+            try
+            {
+                if (m_pcapCapture != null)
+                {
+                    await m_pcapCapture.DisposeAsync().ConfigureAwait(false);
+                    m_pcapCapture = null;
+                }
+            }
+            finally
+#endif
+            {
+                m_transportServices?.Dispose();
+                m_transportServices = null;
             }
         }
 
