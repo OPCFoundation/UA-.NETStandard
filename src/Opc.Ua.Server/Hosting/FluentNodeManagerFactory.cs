@@ -111,14 +111,20 @@ namespace Opc.Ua.Server.Hosting
             }
             ushort namespaceIndex = (ushort)m_server.NamespaceUris.GetIndex(m_namespaceUri);
 
+            NodeManagerBuilder builder = CreateFluentBuilder(namespaceIndex);
+
+            // Staged before the build delegate runs, so it can parent nodes to
+            // the root by NodeId or reach it by browse path.
             if (m_rootBrowseName != null)
             {
-                FolderState root = CreateRootFolder(namespaceIndex, m_rootBrowseName);
-                await AddPredefinedNodeAsync(root, cancellationToken).ConfigureAwait(false);
+                builder.Add(CreateRootFolder(namespaceIndex, m_rootBrowseName));
             }
 
-            NodeManagerBuilder builder = CreateFluentBuilder(namespaceIndex);
             m_build(builder);
+
+            // Register nodes the build delegate created through the builder's
+            // Add* methods before the reverse-reference pass runs.
+            await RegisterAuthoredNodesAsync(builder, cancellationToken).ConfigureAwait(false);
 
             // Mirror references from build-created nodes to nodes owned by
             // other node managers (e.g. the Objects folder) into the
@@ -128,19 +134,22 @@ namespace Opc.Ua.Server.Hosting
             builder.Seal();
         }
 
+        /// <summary>
+        /// Builds the root folder with an explicit string NodeId, which stays
+        /// the address clients browse. The builder supplies the inverse
+        /// Organizes reference to the Objects folder.
+        /// </summary>
         private static FolderState CreateRootFolder(
             ushort namespaceIndex,
             string browseName)
         {
-            var root = new FolderState(null)
+            return new FolderState(null)
             {
                 NodeId = new NodeId(browseName, namespaceIndex),
                 BrowseName = new QualifiedName(browseName, namespaceIndex),
                 DisplayName = new LocalizedText(browseName),
                 TypeDefinitionId = ObjectTypeIds.FolderType
             };
-            root.AddReference(ReferenceTypeIds.Organizes, true, ObjectIds.ObjectsFolder);
-            return root;
         }
 
         private readonly Action<INodeManagerBuilder> m_build;
