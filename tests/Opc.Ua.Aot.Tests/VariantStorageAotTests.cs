@@ -155,6 +155,32 @@ namespace Opc.Ua.Aot.Tests
             }
         }
 
+        [Test]
+        public async Task PackedMetadataDoesNotParticipateInBitwiseOperatorsAsync()
+        {
+            byte[] buffer = [9, 1, 2, 8];
+            Variant[] inputs =
+            [
+                Variant.From(new QualifiedName("native", ushort.MaxValue)),
+                Variant.From(new NodeId(uint.MaxValue, ushort.MaxValue)),
+                Variant.From(new ByteString(buffer.AsMemory(1, 2))),
+                Variant.From(new LocalizedText("native"))
+            ];
+            foreach (Variant input in inputs)
+            {
+                Variant andResult = Variant.From(-1L) & input;
+                Variant orResult = Variant.From(0L) | input;
+                await Assert.That(andResult.TryGetValue(out long andValue)).IsTrue();
+                await Assert.That(orResult.TryGetValue(out long orValue)).IsTrue();
+                await Assert.That(andValue).IsEqualTo(0L);
+                await Assert.That(orValue).IsEqualTo(0L);
+                await Assert.That((Variant.From(true) & input).GetBoolean()).IsFalse();
+                await Assert.That((Variant.From(false) | input).GetBoolean()).IsFalse();
+            }
+            await Assert.That((Variant.From(-1L) & Variant.From(7L)).GetInt64()).IsEqualTo(7L);
+            await Assert.That((Variant.From(0L) | Variant.From(7L)).GetInt64()).IsEqualTo(7L);
+        }
+
         private async Task CheckAsync<T>(T input, Variant value, IVariantBuilder<T> builder)
         {
             await Assert.That(EqualityComparer<T>.Default.Equals(builder.GetValue(value), input)).IsTrue();

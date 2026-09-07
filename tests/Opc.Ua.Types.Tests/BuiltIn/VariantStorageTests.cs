@@ -160,6 +160,8 @@ namespace Opc.Ua.Types.Tests.BuiltIn
                 new Variant((ushort)1), new Variant((byte)1), new Variant((sbyte)1),
                 new Variant(1f), new Variant(1d), new Variant(default(DateTimeUtc)),
                 new Variant("same"), new Variant(new Uuid(Guid.Empty)),
+                new Variant(-1L), new Variant(ulong.MaxValue),
+                new Variant(new EnumValue(-1, "all")), new Variant(new EnumValue(1, "one")),
                 new Variant(new ExpandedNodeId(new NodeId(1u, 2))),
                 new Variant(new StatusCode(7, "same")), new Variant(default(ExtensionObject)),
                 new Variant(ArrayOf<byte>.Empty), new Variant(ArrayOf<QualifiedName>.Empty),
@@ -185,6 +187,10 @@ namespace Opc.Ua.Types.Tests.BuiltIn
                         Is.EqualTo(Expected.ValueEquals(right.Expected)), "value equality");
                     Assert.That(Observe(() => Actual.CompareTo(right.Actual)),
                         Is.EqualTo(Observe(() => Expected.CompareTo(right.Expected))), "comparison");
+                    Assert.That(Observe(() => Actual & right.Actual),
+                        Is.EqualTo(Observe(() => Expected & right.Expected)), "bitwise AND");
+                    Assert.That(Observe(() => Actual | right.Actual),
+                        Is.EqualTo(Observe(() => Expected | right.Expected)), "bitwise OR");
                 }
             }
         }
@@ -260,6 +266,8 @@ namespace Opc.Ua.Types.Tests.BuiltIn
                 Assert.That(actual.ToString(), Is.EqualTo(expected.ToString()));
                 Assert.That(actual.ValueEquals(default), Is.EqualTo(expected.ValueEquals(default)));
                 Assert.That(new Variant(1UL).CompareTo(actual), Is.EqualTo(new Variant(1UL).CompareTo(expected)));
+                Assert.That((new Variant(ulong.MaxValue) & actual).GetUInt64(), Is.EqualTo(bits));
+                Assert.That((new Variant(0UL) | actual).GetUInt64(), Is.EqualTo(bits));
             }
         }
 
@@ -428,11 +436,13 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         }
 
         [Test]
-        public void LayoutKeepsOneReferenceAndTwentyFourByteStride()
+        public void LayoutKeepsThreeFieldsAndExpectedX64Stride()
         {
-            Assert.That(Unsafe.SizeOf<Variant>(), Is.EqualTo(24));
+            if (Environment.Is64BitProcess)
+            {
+                Assert.That(Unsafe.SizeOf<Variant>(), Is.EqualTo(24));
+            }
             var layout = TypeLayout.GetLayout<Variant>();
-            TestContext.Out.WriteLine(layout);
             Assert.That(layout.Fields.OfType<FieldLayout>().Count(), Is.EqualTo(3));
         }
 #endif

@@ -7312,28 +7312,29 @@ namespace Opc.Ua
             {
                 return default;
             }
+            Union rhsUnion = rhs.IsPackedScalar ? default : rhs.m_union;
             switch (lhs.TypeInfo.BuiltInType)
             {
                 case BuiltInType.Boolean:
-                    return lhs.m_union.Boolean && rhs.m_union.Boolean;
+                    return lhs.m_union.Boolean && rhsUnion.Boolean;
                 case BuiltInType.Byte:
-                    return lhs.m_union.Byte & rhs.m_union.Byte;
+                    return lhs.m_union.Byte & rhsUnion.Byte;
                 case BuiltInType.SByte:
-                    return lhs.m_union.SByte & rhs.m_union.SByte;
+                    return lhs.m_union.SByte & rhsUnion.SByte;
                 case BuiltInType.Int16:
-                    return lhs.m_union.Int16 & rhs.m_union.Int16;
+                    return lhs.m_union.Int16 & rhsUnion.Int16;
                 case BuiltInType.UInt16:
-                    return lhs.m_union.UInt16 & rhs.m_union.UInt16;
+                    return lhs.m_union.UInt16 & rhsUnion.UInt16;
                 case BuiltInType.Enumeration:
-                    return new EnumValue(lhs.m_union.Int32 & rhs.m_union.Int32, lhs.m_value);
+                    return new EnumValue(lhs.m_union.Int32 & rhsUnion.Int32, lhs.m_value);
                 case BuiltInType.Int32:
-                    return lhs.m_union.Int32 & rhs.m_union.Int32;
+                    return lhs.m_union.Int32 & rhsUnion.Int32;
                 case BuiltInType.UInt32:
-                    return lhs.m_union.UInt32 & rhs.m_union.UInt32;
+                    return lhs.m_union.UInt32 & rhsUnion.UInt32;
                 case BuiltInType.Int64:
-                    return lhs.m_union.Int64 & rhs.m_union.Int64;
+                    return lhs.m_union.Int64 & rhsUnion.Int64;
                 case BuiltInType.UInt64:
-                    return lhs.m_union.UInt64 & rhs.m_union.UInt64;
+                    return lhs.m_union.UInt64 & rhsUnion.UInt64;
             }
             return default;
         }
@@ -7346,28 +7347,29 @@ namespace Opc.Ua
             {
                 return default;
             }
+            Union rhsUnion = rhs.IsPackedScalar ? default : rhs.m_union;
             switch (lhs.TypeInfo.BuiltInType)
             {
                 case BuiltInType.Boolean:
-                    return lhs.m_union.Boolean || rhs.m_union.Boolean;
+                    return lhs.m_union.Boolean || rhsUnion.Boolean;
                 case BuiltInType.Byte:
-                    return lhs.m_union.Byte | rhs.m_union.Byte;
+                    return lhs.m_union.Byte | rhsUnion.Byte;
                 case BuiltInType.SByte:
-                    return lhs.m_union.SByte | rhs.m_union.SByte;
+                    return lhs.m_union.SByte | rhsUnion.SByte;
                 case BuiltInType.Int16:
-                    return lhs.m_union.Int16 | rhs.m_union.Int16;
+                    return lhs.m_union.Int16 | rhsUnion.Int16;
                 case BuiltInType.UInt16:
-                    return lhs.m_union.UInt16 | rhs.m_union.UInt16;
+                    return lhs.m_union.UInt16 | rhsUnion.UInt16;
                 case BuiltInType.Enumeration:
-                    return new EnumValue(lhs.m_union.Int32 | rhs.m_union.Int32, lhs.m_value);
+                    return new EnumValue(lhs.m_union.Int32 | rhsUnion.Int32, lhs.m_value);
                 case BuiltInType.Int32:
-                    return lhs.m_union.Int32 | rhs.m_union.Int32;
+                    return lhs.m_union.Int32 | rhsUnion.Int32;
                 case BuiltInType.UInt32:
-                    return lhs.m_union.UInt32 | rhs.m_union.UInt32;
+                    return lhs.m_union.UInt32 | rhsUnion.UInt32;
                 case BuiltInType.Int64:
-                    return lhs.m_union.Int64 | rhs.m_union.Int64;
+                    return lhs.m_union.Int64 | rhsUnion.Int64;
                 case BuiltInType.UInt64:
-                    return lhs.m_union.UInt64 | rhs.m_union.UInt64;
+                    return lhs.m_union.UInt64 | rhsUnion.UInt64;
             }
             return default;
         }

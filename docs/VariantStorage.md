@@ -66,7 +66,7 @@ Strict equality, ValueEquals and ordering remain distinct operations. In
 particular, cross-type comparison is not a total order, ByteString and
 LocalizedText remain incomparable through Variant's non-generic IComparable
 path, and some explicit-TypeInfo mismatches are not reflexive. Packing metadata
-must not participate in primitive cross-type comparisons or union-only equality.
+must not participate in primitive cross-type comparisons, bitwise operations or union-only equality.
 Typed builtin defaults also remain distinguishable from an absent payload where
 the existing API distinguishes them.
 
