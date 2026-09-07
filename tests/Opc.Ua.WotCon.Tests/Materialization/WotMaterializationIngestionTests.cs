@@ -128,6 +128,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             WotRefreshResult result = await coordinator
                 .RefreshAsync(new WotRefreshRequest()).ConfigureAwait(false);
 
+            Assert.That(result.Results.Select(item => item.ResourceId),
+                Is.EquivalentTo(s_isolatedResourceIds),
+                string.Join("; ", result.Results.Select(item => $"{item.ResourceId}: {item.Message}")));
             Assert.Multiple(() =>
             {
                 Assert.That(
@@ -325,5 +328,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 "\"links\":[{\"rel\":\"uav:componentOf\",\"href\":\"" +
                 parentHref + "\"}]}");
         }
+
+        private static readonly string[] s_isolatedResourceIds = ["tm-broken", "tm-good"];
     }
 }

@@ -70,11 +70,11 @@ namespace Opc.Ua.WotCon.Server.Materialization
         /// <param name="targetNodeId">The target variable's NodeId, for diagnostics.</param>
         /// <param name="readSlots">
         /// The read-direction field paths and their channel slots, already
-        /// duplicate-checked and ordered by <see cref="WotProjectionBindingRuntime.Wire"/>.
+        /// duplicate-checked and ordered by <see cref="WotProjectionBindingRuntime.WireAsync"/>.
         /// </param>
         /// <param name="writeSlots">
         /// The write-direction field paths and their channel slots, already
-        /// duplicate-checked and ordered by <see cref="WotProjectionBindingRuntime.Wire"/>.
+        /// duplicate-checked and ordered by <see cref="WotProjectionBindingRuntime.WireAsync"/>.
         /// </param>
         public WotStructuredGroupState(
             IEncodeableFactory factory,

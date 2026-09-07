@@ -30,6 +30,7 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
+using System.Globalization;
 using System.Linq;
 using System.Text.Json;
 using System.Threading;
@@ -363,6 +364,10 @@ namespace Opc.Ua.WotCon.Server.Materialization
                     content.Memory, maxJsonDepth))
                 {
                     WotResource? resolved = Resolve(snapshot, href);
+                    if (IsLocalFragmentReference(resource, href, refType, resolved))
+                    {
+                        continue;
+                    }
                     list.Add(new WotDependency(
                         resource.Xid, href, resolved?.Xid, refType, resolved is not null));
                 }
@@ -460,6 +465,13 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 ?? MatchIn(snapshot.AllResources(), trimmed);
         }
 
+        internal static bool IsContainmentRelation(string relation)
+        {
+            return relation is "uav:componentOf" or "ua:ComponentOf" or "ua:PropertyOf" or
+                "http://opcfoundation.org/UA/WoT-Binding/componentOf" or
+                "http://opcfoundation.org/UA/ComponentOf" or "http://opcfoundation.org/UA/PropertyOf";
+        }
+
         /// <summary>
         /// Extracts the outgoing dependency references of a single document.
         /// </summary>
@@ -478,6 +490,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
                     return references;
                 }
                 CollectLinks(root, references);
+                CollectContainment(root, references);
                 CollectExtends(root, references);
                 CollectProjects(root, references);
                 CollectEventTypeRefs(root, references);
@@ -522,6 +535,8 @@ namespace Opc.Ua.WotCon.Server.Materialization
             }
 
             var edges = new Dictionary<string, List<WotDependency>>(StringComparer.Ordinal);
+            var modelOwners = new Dictionary<string, List<string>>(StringComparer.Ordinal);
+            var modelDependencies = new Dictionary<string, HashSet<string>>(StringComparer.Ordinal);
             while (queue.Count > 0)
             {
                 cancellationToken.ThrowIfCancellationRequested();
@@ -535,10 +550,15 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 }
                 ByteString content = await readContent(version, cancellationToken)
                     .ConfigureAwait(false);
+                CollectModelMembership(resource.Xid, content.Memory, maxJsonDepth, modelOwners, modelDependencies);
                 foreach ((string href, string refType) in ExtractReferences(
                     content.Span.ToArray(), maxJsonDepth))
                 {
                     WotResource? target = Resolve(snapshot, href);
+                    if (IsLocalFragmentReference(resource, href, refType, target))
+                    {
+                        continue;
+                    }
                     list.Add(new WotDependency(
                         resource.Xid, href, target?.Xid, refType, target is not null));
                     if (target is not null && !byXid.ContainsKey(target.Xid))
@@ -567,6 +587,23 @@ namespace Opc.Ua.WotCon.Server.Materialization
                     }
                 }
             }
+            foreach (List<string> owners in modelOwners.Values)
+            {
+                for (int i = 1; i < owners.Count; i++)
+                {
+                    Union(parent, owners[0], owners[i]);
+                }
+            }
+            foreach (KeyValuePair<string, HashSet<string>> dependency in modelDependencies)
+            {
+                foreach (string model in dependency.Value)
+                {
+                    if (modelOwners.TryGetValue(model, out List<string>? owners))
+                    {
+                        Union(parent, dependency.Key, owners[0]);
+                    }
+                }
+            }
 
             var components = new Dictionary<string, List<WotResource>>(StringComparer.Ordinal);
             foreach (KeyValuePair<string, WotResource> entry in byXid)
@@ -588,6 +625,83 @@ namespace Opc.Ua.WotCon.Server.Materialization
             }
             // Deterministic order by closure key.
             return [.. closures.OrderBy(c => c.Key, StringComparer.Ordinal)];
+        }
+
+        private static void CollectModelMembership(
+            string resourceXid,
+            ReadOnlyMemory<byte> content,
+            int maxJsonDepth,
+            Dictionary<string, List<string>> owners,
+            Dictionary<string, HashSet<string>> dependencies)
+        {
+            try
+            {
+                using var document = JsonDocument.Parse(content, new JsonDocumentOptions { MaxDepth = maxJsonDepth });
+                JsonElement root = document.RootElement;
+                if (root.ValueKind != JsonValueKind.Object || root.TryGetProperty("uav:projects", out _))
+                {
+                    return;
+                }
+                var owned = new HashSet<string>(StringComparer.Ordinal);
+                var required = new HashSet<string>(StringComparer.Ordinal);
+                if (root.TryGetProperty("uav:nodes", out JsonElement native) &&
+                    native.ValueKind == JsonValueKind.Object &&
+                    native.TryGetProperty("profileVersion", out JsonElement profile) &&
+                    profile.ValueKind == JsonValueKind.String && profile.GetString() == "1.0" &&
+                    native.TryGetProperty("models", out JsonElement models) &&
+                    models.ValueKind == JsonValueKind.Array)
+                {
+                    foreach (JsonElement model in models.EnumerateArray())
+                    {
+                        if (model.ValueKind != JsonValueKind.Object)
+                        {
+                            continue;
+                        }
+                        if (model.TryGetProperty("modelUri", out JsonElement uri) && uri.ValueKind == JsonValueKind.String)
+                        {
+                            owned.Add(uri.GetString()!);
+                        }
+                        if (model.TryGetProperty("requiredModels", out JsonElement requiredModels) &&
+                            requiredModels.ValueKind == JsonValueKind.Array)
+                        {
+                            foreach (JsonElement dependency in requiredModels.EnumerateArray())
+                            {
+                                if (dependency.ValueKind == JsonValueKind.Object &&
+                                    dependency.TryGetProperty("modelUri", out JsonElement target) &&
+                                    target.ValueKind == JsonValueKind.String)
+                                {
+                                    required.Add(target.GetString()!);
+                                }
+                            }
+                        }
+                    }
+                }
+                if (owned.Count == 0 && root.TryGetProperty("uav:id", out JsonElement identity) &&
+                    identity.ValueKind == JsonValueKind.String &&
+                    identity.GetString() is string identifier &&
+                    ExpandedNodeId.TryParse(identifier, out ExpandedNodeId nodeId) &&
+                    !string.IsNullOrEmpty(nodeId.NamespaceUri))
+                {
+                    // A readable identity may join an authoritative model
+                    // partition, but does not make unrelated readable
+                    // documents in the same namespace one atomic closure.
+                    required.Add(nodeId.NamespaceUri);
+                }
+                foreach (string uri in owned)
+                {
+                    if (!owners.TryGetValue(uri, out List<string>? resources))
+                    {
+                        resources = [];
+                        owners.Add(uri, resources);
+                    }
+                    resources.Add(resourceXid);
+                }
+                dependencies[resourceXid] = required;
+            }
+            catch (JsonException)
+            {
+                // The normal resource conversion reports malformed content.
+            }
         }
 
         private static WotDependencyClosure BuildClosure(
@@ -629,13 +743,12 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 }
             }
 
-            (ImmutableArray<WotResource> ordered, bool hasCycle) = TopologicalSort(
+            (ImmutableArray<WotResource> ordered, string cycle) = TopologicalSort(
                 members, adjacency, byXid);
+            bool hasCycle = cycle.Length != 0;
             if (hasCycle)
             {
-                diagnostics.Add(
-                    "Dependency cycle detected among: " +
-                    string.Join(", ", members.Select(m => m.Xid).OrderBy(x => x, StringComparer.Ordinal)));
+                diagnostics.Add("Dependency cycle detected: " + cycle);
             }
 
             string key = string.Join(
@@ -653,7 +766,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 missing);
         }
 
-        private static (ImmutableArray<WotResource> Ordered, bool HasCycle) TopologicalSort(
+        private static (ImmutableArray<WotResource> Ordered, string Cycle) TopologicalSort(
             List<WotResource> members,
             Dictionary<string, List<string>> adjacency,
             Dictionary<string, WotResource> byXid)
@@ -661,7 +774,8 @@ namespace Opc.Ua.WotCon.Server.Materialization
             // 0 = unvisited, 1 = in-progress, 2 = done.
             var color = new Dictionary<string, int>(StringComparer.Ordinal);
             var ordered = new List<WotResource>();
-            bool hasCycle = false;
+            string cycle = string.Empty;
+            var path = new List<string>();
 
             // Deterministic iteration order.
             IEnumerable<string> roots = members
@@ -670,7 +784,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
 
             void Visit(string xid)
             {
-                if (hasCycle)
+                if (cycle.Length != 0)
                 {
                     return;
                 }
@@ -681,19 +795,28 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 }
                 if (state == 1)
                 {
-                    hasCycle = true;
+                    int first = path.IndexOf(xid);
+                    int length = path.Count - first + 1;
+                    cycle = string.Join(" -> ", path.Skip(first).Append(xid).Take(8)
+                        .Select(id => id.Length > 256 ? id[..256] + "..." : id));
+                    if (length > 8)
+                    {
+                        cycle += " -> ... (" + length.ToString(CultureInfo.InvariantCulture) + " resources)";
+                    }
                     return;
                 }
                 color[xid] = 1;
+                path.Add(xid);
                 foreach (string dependency in adjacency[xid]
                     .OrderBy(x => x, StringComparer.Ordinal))
                 {
                     Visit(dependency);
-                    if (hasCycle)
+                    if (cycle.Length != 0)
                     {
                         return;
                     }
                 }
+                path.RemoveAt(path.Count - 1);
                 color[xid] = 2;
                 ordered.Add(byXid[xid]);
             }
@@ -703,9 +826,18 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 Visit(root);
             }
 
-            return hasCycle
-                ? (ImmutableArray<WotResource>.Empty, true)
-                : ([.. ordered], false);
+            return cycle.Length != 0
+                ? (ImmutableArray<WotResource>.Empty, cycle)
+                : ([.. ordered], string.Empty);
+        }
+
+        private static bool IsLocalFragmentReference(
+            WotResource source, string href, string relation, WotResource? target)
+        {
+            int fragment = href.IndexOf('#', StringComparison.Ordinal);
+            return fragment >= 0 && fragment + 1 < href.Length &&
+                relation is "tm:ref" or EventTypeRefType or EventSelectClauseRefType &&
+                (fragment == 0 || target?.Xid == source.Xid);
         }
 
         private static WotResource? MatchIn(IEnumerable<WotResource> resources, string href)
@@ -768,6 +900,50 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 {
                     references.Add((hrefElement.GetString() ?? string.Empty, rel));
                 }
+                else if (rel is "ua:HasTypeDefinition" or "http://opcfoundation.org/UA/HasTypeDefinition")
+                {
+                    string href = hrefElement.GetString() ?? string.Empty;
+                    if (!ExpandedNodeId.TryParse(href, out _))
+                    {
+                        references.Add((href, rel));
+                    }
+                }
+                else if (IsContainmentRelation(rel))
+                {
+                    AddContainmentReference(hrefElement.GetString() ?? string.Empty, rel, references);
+                }
+            }
+        }
+
+        private static void CollectContainment(JsonElement root, List<(string, string)> references)
+        {
+            if (!root.TryGetProperty("uav:componentOf", out JsonElement parent))
+            {
+                return;
+            }
+            if (parent.ValueKind == JsonValueKind.String)
+            {
+                AddContainmentReference(parent.GetString() ?? string.Empty, "uav:componentOf", references);
+            }
+            else if (parent.ValueKind == JsonValueKind.Array)
+            {
+                foreach (JsonElement item in parent.EnumerateArray())
+                {
+                    if (item.ValueKind == JsonValueKind.String)
+                    {
+                        AddContainmentReference(item.GetString() ?? string.Empty, "uav:componentOf", references);
+                    }
+                }
+            }
+        }
+
+        private static void AddContainmentReference(
+            string href, string relation, List<(string, string)> references)
+        {
+            if (!ExpandedNodeId.TryParse(href, out _) &&
+                !references.Any(reference => reference.Item1 == href && IsContainmentRelation(reference.Item2)))
+            {
+                references.Add((href, relation));
             }
         }
 

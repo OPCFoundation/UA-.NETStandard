@@ -134,10 +134,16 @@ namespace Opc.Ua.Server.RuntimeNodeSet
             ValidateOwnedNodeNamespaces(predefinedNodes);
 
             // Step 3 – Add every imported node through the base flow so they
-            // are indexed and properly linked.
+            // are indexed and properly linked. XML node order does not define
+            // inheritance order, so supertypes are registered before derived
+            // types, and the remaining roots follow.
+            foreach (BaseTypeState type in OrderTypes(predefinedNodes, cancellationToken))
+            {
+                await AddPredefinedNodeAsync(SystemContext, type, cancellationToken).ConfigureAwait(false);
+            }
             for (int i = 0; i < predefinedNodes.Count; i++)
             {
-                if (predefinedNodes[i] is BaseInstanceState { Parent: not null })
+                if (predefinedNodes[i] is BaseTypeState or BaseInstanceState { Parent: not null })
                 {
                     continue;
                 }
@@ -494,6 +500,51 @@ namespace Opc.Ua.Server.RuntimeNodeSet
                 }
             }
             return new ArrayOf<LocalReference>(droppedReferences.ToArray());
+        }
+
+        /// <summary>
+        /// Orders imported types by inheritance without depending on XML record order.
+        /// </summary>
+        private static List<BaseTypeState> OrderTypes(NodeStateCollection nodes, CancellationToken cancellationToken)
+        {
+            var types = nodes.OfType<BaseTypeState>().ToDictionary(type => type.NodeId);
+            var derived = new Dictionary<NodeId, List<BaseTypeState>>();
+            var ready = new Queue<BaseTypeState>();
+            foreach (BaseTypeState type in types.Values)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                if (!types.ContainsKey(type.SuperTypeId))
+                {
+                    ready.Enqueue(type);
+                    continue;
+                }
+                if (!derived.TryGetValue(type.SuperTypeId, out List<BaseTypeState>? children))
+                {
+                    children = [];
+                    derived.Add(type.SuperTypeId, children);
+                }
+                children.Add(type);
+            }
+            var ordered = new List<BaseTypeState>(types.Count);
+            while (ready.Count > 0)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                BaseTypeState type = ready.Dequeue();
+                ordered.Add(type);
+                if (derived.TryGetValue(type.NodeId, out List<BaseTypeState>? children))
+                {
+                    foreach (BaseTypeState child in children)
+                    {
+                        ready.Enqueue(child);
+                    }
+                }
+            }
+            if (ordered.Count != types.Count)
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadTypeDefinitionInvalid, "The runtime NodeSet type hierarchy contains a cycle.");
+            }
+            return ordered;
         }
 
         /// <summary>

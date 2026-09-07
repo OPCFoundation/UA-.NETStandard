@@ -2,6 +2,12 @@
 
 This guide explains how to load one or more NodeSet2 XML documents into the server's address space at startup without writing a source-generated or hand-coded NodeManager. You configure which files or streams to load; the server imports them in dependency order and registers the resulting nodes.
 
+Within each imported set, types are registered in inheritance order rather than
+XML record order. A derived type may precede its supertype in the document;
+an inheritance cycle is rejected before registration. Imported namespace-zero
+`InputArguments` and `OutputArguments` Properties populate their Method's typed
+signature, retaining the declared Property NodeIds, argument order, and values.
+
 ## When to use the runtime NodeSet path
 
 Use `AddRuntimeNodeSet` when:

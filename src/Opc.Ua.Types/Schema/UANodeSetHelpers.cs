@@ -652,18 +652,31 @@ namespace Opc.Ua.Export
                         // Set the Parent property to establish the relationship
                         instance.Parent = parent;
 
-                        if (context is null ||
-                            options?.UseTypedReplacement?.Invoke(parent, instance) != true)
+                        s_unresolvedParents.Remove(instance);
+
+                        bool useTypedReplacement =
+                            context is not null &&
+                            options?.UseTypedReplacement?.Invoke(parent, instance) == true;
+
+                        // A Method's argument Properties belong in its typed
+                        // slots. A typed replacement knows how to displace an
+                        // existing child, so it takes precedence.
+                        if (!useTypedReplacement &&
+                            TryAttachMethodArguments(parent, instance))
+                        {
+                            continue;
+                        }
+
+                        if (useTypedReplacement)
+                        {
+                            AttachTypedChild(context!, nodes, parent, instance, options!);
+                        }
+                        else
                         {
                             // Add the child to the parent's children collection
                             parent.AddChild(instance);
                         }
-                        else
-                        {
-                            AttachTypedChild(context, nodes, parent, instance, options);
-                        }
 
-                        s_unresolvedParents.Remove(instance);
                         continue;
                     }
 
@@ -676,6 +689,52 @@ namespace Opc.Ua.Export
                     s_unresolvedParents.Add(instance, new UnresolvedParent(parentNodeId));
                 }
             }
+        }
+
+        /// <summary>
+        /// Populates a Method's typed argument slots from the imported
+        /// namespace-zero Property which declares them.
+        /// </summary>
+        /// <returns>
+        /// <c>true</c> when the child was consumed by an argument slot.
+        /// </returns>
+        /// <exception cref="ServiceResultException">
+        /// The document declares the same argument Property twice.
+        /// </exception>
+        private static bool TryAttachMethodArguments(
+            NodeState parent,
+            BaseInstanceState instance)
+        {
+            if (parent is not MethodState method ||
+                instance is not PropertyState<ArrayOf<Argument>> arguments)
+            {
+                return false;
+            }
+
+            if (instance.BrowseName == QualifiedName.From(BrowseNames.InputArguments))
+            {
+                if (method.InputArguments is not null &&
+                    !ReferenceEquals(method.InputArguments, arguments))
+                {
+                    throw new ServiceResultException(
+                        StatusCodes.BadDecodingError, "The Method has multiple InputArguments.");
+                }
+                method.InputArguments = arguments;
+                return true;
+            }
+            if (instance.BrowseName == QualifiedName.From(BrowseNames.OutputArguments))
+            {
+                if (method.OutputArguments is not null &&
+                    !ReferenceEquals(method.OutputArguments, arguments))
+                {
+                    throw new ServiceResultException(
+                        StatusCodes.BadDecodingError, "The Method has multiple OutputArguments.");
+                }
+                method.OutputArguments = arguments;
+                return true;
+            }
+
+            return false;
         }
 
         /// <summary>
@@ -1402,11 +1461,23 @@ namespace Opc.Ua.Export
                     var o = (UAVariable)node;
 
                     BaseVariableState value;
+                    NodeId dataType = ImportNodeId(o.DataType, context.NamespaceUris, true);
                     if (importedNode is null)
                     {
-                        value = discriminatorId == VariableTypeIds.PropertyType
-                            ? new PropertyState(null)
-                            : new BaseDataVariableState(null);
+                        if (discriminatorId == VariableTypeIds.PropertyType)
+                        {
+                            // A Method's argument Property is imported into the
+                            // typed state its Method declares it as.
+                            value = dataType == DataTypeIds.Argument &&
+                                o.ValueRank == ValueRanks.OneDimension
+                                ? new PropertyState<ArrayOf<Argument>>
+                                    .Implementation<StructureBuilder<Argument>>(null)
+                                : new PropertyState(null);
+                        }
+                        else
+                        {
+                            value = new BaseDataVariableState(null);
+                        }
                     }
                     else if (importedNode is BaseVariableState variableState)
                     {
@@ -1420,7 +1491,7 @@ namespace Opc.Ua.Export
                             typeof(BaseVariableState));
                     }
 
-                    value.DataType = ImportNodeId(o.DataType, context.NamespaceUris, true);
+                    value.DataType = dataType;
                     value.ValueRank = o.ValueRank;
                     value.ArrayDimensions = ImportArrayDimensions(o.ArrayDimensions) ?? [];
                     value.AccessLevelEx = o.AccessLevel;

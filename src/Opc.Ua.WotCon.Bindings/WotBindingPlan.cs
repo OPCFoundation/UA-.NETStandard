@@ -67,6 +67,7 @@ namespace Opc.Ua.WotCon.Bindings
             Selection = selection ?? WotBindingSelectionContext.Empty;
             NamespacePrefixes = namespacePrefixes ?? ImmutableDictionary<string, string>.Empty;
             EventSelections = eventSelections ?? WotEventSelectionCatalog.Empty;
+            IsDeclarationContext = kind == WoTDocumentKindEnum.ThingModel;
         }
 
         /// <summary>
@@ -123,12 +124,67 @@ namespace Opc.Ua.WotCon.Bindings
         public WotEventSelectionCatalog EventSelections { get; }
 
         /// <summary>
+        /// Gets the local executable declarations, separate from upstream form
+        /// addresses. Empty for a type-only document or a transport-only request.
+        /// </summary>
+        public ArrayOf<WotProjectedAffordance> ProjectedAffordances { get; private init; } = [];
+
+        /// <summary>
+        /// Gets whether the source belongs to a type-declaration containment
+        /// tree, even when a linked child document is shaped as an Object TD.
+        /// </summary>
+        public bool IsDeclarationContext { get; private init; }
+
+        private ImmutableHashSet<ExpandedNodeId> LocalVariables { get; init; } = ImmutableHashSet<ExpandedNodeId>.Empty;
+
+        /// <summary>
+        /// Returns a request carrying conversion-resolved local declarations.
+        /// </summary>
+        public WotBindingPlanRequest WithProjectedAffordances(ArrayOf<WotProjectedAffordance> affordances)
+        {
+            return new WotBindingPlanRequest(
+                ResourceXid, Kind, Forms, SecurityDefinitions, BaseUri, Selection, NamespacePrefixes, EventSelections)
+            {
+                ProjectedAffordances = affordances,
+                IsDeclarationContext = IsDeclarationContext,
+                LocalVariables = LocalVariables
+            };
+        }
+
+        /// <summary>
+        /// Returns a request with an explicitly resolved declaration context.
+        /// Type definitions alone do not establish this context.
+        /// </summary>
+        public WotBindingPlanRequest WithDeclarationContext(bool isDeclaration)
+        {
+            return new WotBindingPlanRequest(
+                ResourceXid, Kind, Forms, SecurityDefinitions, BaseUri, Selection, NamespacePrefixes, EventSelections)
+            {
+                ProjectedAffordances = ProjectedAffordances,
+                IsDeclarationContext = isDeclaration,
+                LocalVariables = LocalVariables
+            };
+        }
+
+        /// <summary>
+        /// Supplies the converted projection root for declarations that did not
+        /// author a local owner identity.
+        /// </summary>
+        public WotBindingPlanRequest WithProjectionRoot(ExpandedNodeId rootNodeId)
+        {
+            return WithProjectedAffordances(ProjectedAffordances.ConvertAll(
+                affordance => affordance.WithDefaultOwner(rootNodeId.ToString())));
+        }
+
+        /// <summary>
         /// Builds a plan context from this request.
         /// </summary>
         public WotBindingPlanContext CreateContext(IWotCodecRegistry codecs, WotBindingBounds bounds)
         {
             return new WotBindingPlanContext(
-                SecurityDefinitions, codecs, Kind, BaseUri, bounds, NamespacePrefixes,
+                SecurityDefinitions, codecs,
+                IsDeclarationContext ? WoTDocumentKindEnum.ThingModel : Kind,
+                BaseUri, bounds, NamespacePrefixes,
                 EventSelections);
         }
 
@@ -298,6 +354,22 @@ namespace Opc.Ua.WotCon.Bindings
             }
         }
 
+        internal bool IsLocalProperty(JsonElement affordance)
+        {
+            if (affordance.TryGetProperty("uav:mapToNodeId", out _) ||
+                affordance.TryGetProperty("uav:mapByFieldPath", out _))
+            {
+                return false;
+            }
+            if (affordance.TryGetProperty("const", out _) || affordance.TryGetProperty("default", out _))
+            {
+                return true;
+            }
+            return affordance.TryGetProperty("uav:id", out JsonElement id) &&
+                id.ValueKind == JsonValueKind.String && id.GetString() is string text &&
+                ExpandedNodeId.TryParse(text, out ExpandedNodeId nodeId) && LocalVariables.Contains(nodeId);
+        }
+
         private static WotBindingPlanRequest Build(
             string resourceXid,
             WoTDocumentKindEnum kind,
@@ -310,6 +382,8 @@ namespace Opc.Ua.WotCon.Bindings
             ImmutableDictionary<string, WotSecurityDefinition> definitions =
                 ImmutableDictionary<string, WotSecurityDefinition>.Empty;
             ImmutableDictionary<string, string> prefixes = ImmutableDictionary<string, string>.Empty;
+            ArrayOf<WotProjectedAffordance> projectedAffordances = [];
+            ImmutableHashSet<ExpandedNodeId> localVariables = ImmutableHashSet<ExpandedNodeId>.Empty;
             string? baseUri = null;
             try
             {
@@ -324,6 +398,11 @@ namespace Opc.Ua.WotCon.Bindings
                     definitions = ReadSecurityDefinitions(root);
                     baseUri = ReadBase(root);
                     prefixes = ReadNamespacePrefixes(root);
+                    localVariables = ReadNativeVariableIds(root);
+                    if (kind == WoTDocumentKindEnum.ThingDescription)
+                    {
+                        projectedAffordances = WotProjectedAffordance.Extract(root);
+                    }
                 }
             }
             catch (JsonException)
@@ -331,7 +410,48 @@ namespace Opc.Ua.WotCon.Bindings
             }
             return new WotBindingPlanRequest(
                 resourceXid, kind, forms, definitions, baseUri, selection, prefixes,
-                eventSelections);
+                eventSelections)
+            {
+                ProjectedAffordances = projectedAffordances,
+                LocalVariables = localVariables
+            };
+        }
+
+        private static ImmutableHashSet<ExpandedNodeId> ReadNativeVariableIds(JsonElement root)
+        {
+            if (!root.TryGetProperty("uav:nodes", out JsonElement native) ||
+                native.ValueKind != JsonValueKind.Object ||
+                !native.TryGetProperty("profileVersion", out JsonElement version) ||
+                version.ValueKind != JsonValueKind.String || version.GetString() != "1.0" ||
+                !native.TryGetProperty("nodes", out JsonElement nodes) || nodes.ValueKind != JsonValueKind.Array)
+            {
+                return ImmutableHashSet<ExpandedNodeId>.Empty;
+            }
+            var namespaces = new NamespaceTable();
+            if (native.TryGetProperty("namespaceUris", out JsonElement uris) && uris.ValueKind == JsonValueKind.Array)
+            {
+                foreach (JsonElement uri in uris.EnumerateArray())
+                {
+                    if (uri.ValueKind == JsonValueKind.String && uri.GetString() is string namespaceUri)
+                    {
+                        namespaces.Append(namespaceUri);
+                    }
+                }
+            }
+            ImmutableHashSet<ExpandedNodeId>.Builder values = ImmutableHashSet.CreateBuilder<ExpandedNodeId>();
+            foreach (JsonElement node in nodes.EnumerateArray())
+            {
+                if (node.ValueKind == JsonValueKind.Object &&
+                    node.TryGetProperty("nodeClass", out JsonElement nodeClass) &&
+                    nodeClass.ValueKind == JsonValueKind.String && nodeClass.GetString() == "Variable" &&
+                    node.TryGetProperty("nodeId", out JsonElement identifier) &&
+                    identifier.ValueKind == JsonValueKind.String && identifier.GetString() is string id &&
+                    NodeId.TryParse(id, out NodeId local) && local.NamespaceIndex < namespaces.Count)
+                {
+                    values.Add(NodeId.ToExpandedNodeId(local, namespaces));
+                }
+            }
+            return values.ToImmutable();
         }
 
         private static ImmutableDictionary<string, WotSecurityDefinition> ReadSecurityDefinitions(
@@ -474,6 +594,17 @@ namespace Opc.Ua.WotCon.Bindings
         public ImmutableArray<WotBindingDiagnostic> Diagnostics { get; }
 
         /// <summary>
+        /// Gets the generation-local method and event declarations.
+        /// </summary>
+        public ArrayOf<WotProjectedAffordance> ProjectedAffordances { get; private init; } = [];
+
+        /// <summary>
+        /// Gets whether these affordances are model declarations rather than
+        /// operations on materialized instances.
+        /// </summary>
+        public bool IsDeclarationContext { get; private init; }
+
+        /// <summary>
         /// Gets whether every form was validated by a binder.
         /// </summary>
         public bool FullySupported => UnsupportedForms.IsEmpty;
@@ -487,5 +618,30 @@ namespace Opc.Ua.WotCon.Bindings
         /// Gets whether the plan compiled at least one non-executable form.
         /// </summary>
         public bool HasNonExecutableForms => CompiledForms.Any(f => !f.IsExecutable);
+
+        /// <summary>
+        /// Returns a plan carrying conversion-resolved local declarations.
+        /// </summary>
+        public WotBindingPlan WithProjectedAffordances(ArrayOf<WotProjectedAffordance> affordances)
+        {
+            return new WotBindingPlan(ResourceXid, Capabilities, CompiledForms, UnsupportedForms, Diagnostics)
+            {
+                ProjectedAffordances = affordances,
+                IsDeclarationContext = IsDeclarationContext
+            };
+        }
+
+        /// <summary>
+        /// Returns a plan with its source's resolved declaration context.
+        /// All declarations remain present; only runtime activation is excluded.
+        /// </summary>
+        public WotBindingPlan WithDeclarationContext(bool isDeclaration)
+        {
+            return new WotBindingPlan(ResourceXid, Capabilities, CompiledForms, UnsupportedForms, Diagnostics)
+            {
+                ProjectedAffordances = ProjectedAffordances,
+                IsDeclarationContext = isDeclaration
+            };
+        }
     }
 }

@@ -1509,6 +1509,15 @@ builder.Boilers.Boiler__1.DrumX001
 
 #### Hand-written node managers
 
+An event stream that connects an asynchronous upstream producer can also
+implement `IEventSourceReadiness`. The registry enumerates the stream while
+awaiting `WaitUntilReadyAsync`; creation of a corresponding event monitored
+item completes only after the producer can deliver notifications. Readiness
+must not wait for the first event. Failures are returned to the subscribing
+client, reported through `OnError`, and stop that activation. For reactivatable
+producers, return a new readiness-aware stream from the `Publish` factory on
+each activation.
+
 Managers that don't use the source generator can opt in by deriving
 from `Opc.Ua.Server.Fluent.FluentNodeManagerBase` and calling
 `AttachToBuilder(builder)` from inside their address-space-build
