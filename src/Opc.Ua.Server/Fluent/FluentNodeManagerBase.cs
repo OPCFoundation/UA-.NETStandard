@@ -27,11 +27,13 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Opc.Ua.Server.NodeManager;
+using Opc.Ua.Server.Nodes;
 
 namespace Opc.Ua.Server.Fluent
 {
@@ -360,11 +362,202 @@ namespace Opc.Ua.Server.Fluent
         /// was handed to <c>CreateAddressSpaceAsync</c>.
         /// </param>
         /// <param name="cancellationToken">The cancellation token.</param>
-        protected ValueTask CompleteConfigureAsync(
+        protected async ValueTask CompleteConfigureAsync(
             IDictionary<NodeId, IList<IReference>> externalReferences,
             CancellationToken cancellationToken = default)
         {
-            return AddReverseReferencesAsync(externalReferences, cancellationToken);
+            await AddReverseReferencesAsync(externalReferences, cancellationToken)
+                .ConfigureAwait(false);
+            await ActivateNodeBehaviorsAsync(cancellationToken).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Drains the behavior registrations pending on every attached builder and
+        /// activates them as one transactional generation.
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// <see cref="CompleteConfigureAsync"/> calls this, so a manager that already
+        /// routes through it needs no extra call. A manager that indexes its address
+        /// space by hand calls this once the graph is fully indexed and before it starts
+        /// driving nodes, since behaviors may only observe nodes that already exist.
+        /// </para>
+        /// <para>
+        /// The call is a no-op when nothing is pending, so it is safe to call twice. A
+        /// second configure pass drains only what that pass registered, and its
+        /// behaviors unwind before the earlier pass's.
+        /// </para>
+        /// </remarks>
+        /// <param name="cancellationToken">The cancellation token.</param>
+        /// <exception cref="ServiceResultException">
+        /// Raised when a registration matches no node and did not allow that.
+        /// </exception>
+        protected async ValueTask ActivateNodeBehaviorsAsync(
+            CancellationToken cancellationToken = default)
+        {
+            var registrations = new List<NodeAttachRegistration>();
+            lock (m_attachedBuildersLock)
+            {
+                foreach (NodeManagerBuilder builder in m_attachedBuilders)
+                {
+                    registrations.AddRange(builder.DrainNodeAttachments());
+                }
+            }
+
+            if (registrations.Count == 0)
+            {
+                return;
+            }
+
+            ITelemetryContext telemetry = Server.Telemetry;
+            TimeProvider timeProvider =
+                (Server as ITimeProviderProvider)?.TimeProvider ?? TimeProvider.System;
+
+            var typeRegistrations = new List<NodeBehaviorRegistration>();
+            var pinned = new List<NodeBehaviorPinnedRegistration>();
+            var managerScoped = new List<INodeBehaviorFactory>();
+            var requireMatch = new List<INodeBehaviorFactory>();
+
+            foreach (NodeAttachRegistration registration in registrations)
+            {
+                var factory = new NodeAttachFactory(
+                    registration,
+                    registration.Kind == NodeAttachKind.Type
+                        ? ToNamespaceStableTypeId(registration.TypeDefinitionId)
+                        : ExpandedNodeId.Null,
+                    this,
+                    telemetry,
+                    timeProvider);
+
+                switch (registration.Kind)
+                {
+                    case NodeAttachKind.Type:
+                        typeRegistrations.Add(
+                            new NodeBehaviorRegistration(
+                                factory,
+                                registration.Options.IncludeSubtypes));
+                        if (!registration.Options.AllowZeroMatches)
+                        {
+                            requireMatch.Add(factory);
+                        }
+                        break;
+                    case NodeAttachKind.Node:
+                        pinned.Add(
+                            new NodeBehaviorPinnedRegistration(
+                                registration.Node!,
+                                factory));
+                        break;
+                    default:
+                        managerScoped.Add(factory);
+                        break;
+                }
+            }
+
+            var activation = new NodeBehaviorActivation(
+                new NodeBehaviorRegistry(
+                    typeRegistrations,
+                    Server.NamespaceUris,
+                    Server.TypeTree),
+                new NodeBehaviorAddressSpace(Server.NamespaceUris, Find),
+                SystemContext,
+                telemetry,
+                timeProvider,
+                pinned,
+                managerScoped,
+                requireMatch.Count == 0 ? null : requireMatch);
+
+            // Record before activating: a failed activation rolls itself back, and the
+            // recorded entry keeps a later teardown idempotent rather than surprised.
+            lock (m_behaviorActivationsLock)
+            {
+                m_behaviorActivations.Add(activation);
+            }
+
+            await activation
+                .ActivateAsync(
+                    new ArrayOf<NodeState>(System.Linq.Enumerable.ToArray(
+                        PredefinedNodes.Values)),
+                    cancellationToken)
+                .ConfigureAwait(false);
+        }
+
+        /// <inheritdoc/>
+        public override async ValueTask DeleteAddressSpaceAsync(
+            CancellationToken cancellationToken = default)
+        {
+            List<NodeBehaviorActivation> activations;
+            lock (m_behaviorActivationsLock)
+            {
+                activations = [.. m_behaviorActivations];
+                m_behaviorActivations.Clear();
+            }
+
+            var failures = new List<Exception>();
+
+            // Unwind in reverse pass order, so a later generation releases before the
+            // one it was layered onto, and before base clears the nodes themselves.
+            for (int i = activations.Count - 1; i >= 0; i--)
+            {
+                try
+                {
+                    await activations[i]
+                        .DeactivateAndDisposeAsync()
+                        .ConfigureAwait(false);
+                }
+                catch (Exception ex) when (ex is not OutOfMemoryException)
+                {
+                    failures.Add(ex);
+                }
+            }
+
+            try
+            {
+                await base
+                    .DeleteAddressSpaceAsync(cancellationToken)
+                    .ConfigureAwait(false);
+            }
+            catch (Exception ex) when (ex is not OutOfMemoryException)
+            {
+                failures.Add(ex);
+            }
+
+            if (failures.Count == 1)
+            {
+                System.Runtime.ExceptionServices.ExceptionDispatchInfo
+                    .Capture(failures[0])
+                    .Throw();
+            }
+            if (failures.Count > 1)
+            {
+                throw new AggregateException(
+                    "One or more node behaviors failed to release.",
+                    failures);
+            }
+        }
+
+        /// <summary>
+        /// Rewrites a type definition into the namespace-stable form the behavior
+        /// registry matches on.
+        /// </summary>
+        private ExpandedNodeId ToNamespaceStableTypeId(NodeId typeDefinitionId)
+        {
+            if (typeDefinitionId.NamespaceIndex == 0)
+            {
+                return new ExpandedNodeId(typeDefinitionId);
+            }
+
+            string? namespaceUri =
+                Server.NamespaceUris.GetString(typeDefinitionId.NamespaceIndex);
+            if (string.IsNullOrEmpty(namespaceUri))
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadConfigurationError,
+                    "The namespace index of type definition '{0}' is not registered in " +
+                    "the server namespace table.",
+                    typeDefinitionId);
+            }
+
+            return new ExpandedNodeId(typeDefinitionId, namespaceUri);
         }
 
         /// <summary>
@@ -915,11 +1108,32 @@ namespace Opc.Ua.Server.Fluent
         {
             if (disposing)
             {
+                // Signal-only: real release runs in DeleteAddressSpaceAsync, which
+                // MasterNodeManager.ShutdownAsync invokes before it disposes managers.
+                // Blocking here would sit under a sync-over-async dispose.
+                SignalNodeBehaviorShutdown();
                 MonitoredSources.Dispose();
                 Simulations.Dispose();
                 EventSources.Dispose();
             }
             base.Dispose(disposing);
+        }
+
+        /// <summary>
+        /// Trips every activated behavior's shutdown signal without awaiting release.
+        /// </summary>
+        private void SignalNodeBehaviorShutdown()
+        {
+            List<NodeBehaviorActivation> activations;
+            lock (m_behaviorActivationsLock)
+            {
+                activations = [.. m_behaviorActivations];
+            }
+
+            for (int i = activations.Count - 1; i >= 0; i--)
+            {
+                activations[i].SignalShutdown();
+            }
         }
 
         /// <summary>
@@ -947,5 +1161,7 @@ namespace Opc.Ua.Server.Fluent
 
         private readonly Lock m_attachedBuildersLock = new();
         private readonly List<NodeManagerBuilder> m_attachedBuilders = [];
+        private readonly Lock m_behaviorActivationsLock = new();
+        private readonly List<NodeBehaviorActivation> m_behaviorActivations = [];
     }
 }

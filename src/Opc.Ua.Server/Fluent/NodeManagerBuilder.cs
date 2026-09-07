@@ -339,6 +339,39 @@ namespace Opc.Ua.Server.Fluent
             return registration;
         }
 
+        /// <summary>
+        /// Records a pending behavior registration.
+        /// </summary>
+        internal void RegisterNodeAttachment(NodeAttachRegistration registration)
+        {
+            ThrowIfSealed();
+            lock (m_nodeAttachmentsLock)
+            {
+                m_nodeAttachments.Add(registration);
+            }
+        }
+
+        /// <summary>
+        /// Takes the pending behavior registrations, leaving none behind.
+        /// </summary>
+        /// <remarks>
+        /// The owning node manager drains once per activation pass. Draining rather
+        /// than reading keeps a second pass from re-activating what the first owns.
+        /// </remarks>
+        internal List<NodeAttachRegistration> DrainNodeAttachments()
+        {
+            lock (m_nodeAttachmentsLock)
+            {
+                if (m_nodeAttachments.Count == 0)
+                {
+                    return [];
+                }
+                var drained = new List<NodeAttachRegistration>(m_nodeAttachments);
+                m_nodeAttachments.Clear();
+                return drained;
+            }
+        }
+
         internal NodeHandle? CreateVirtualNodeHandle(NodeId nodeId)
         {
             VirtualNodeRegistration? registration = FindVirtualNodeRegistration(nodeId);
@@ -1081,6 +1114,8 @@ namespace Opc.Ua.Server.Fluent
         private readonly Dictionary<NodeId, NodeLifecycleHandler> m_nodeAdded = [];
         private readonly Dictionary<NodeId, NodeLifecycleHandler> m_nodeRemoved = [];
         private readonly List<VirtualNodeRegistration> m_virtualNodes = [];
+        private readonly List<NodeAttachRegistration> m_nodeAttachments = [];
+        private readonly Lock m_nodeAttachmentsLock = new();
         private MonitoredItemsBatchHandler? m_monitoredItemsCreated;
         private MonitoredItemsBatchHandler? m_monitoredItemsDeleted;
     }
