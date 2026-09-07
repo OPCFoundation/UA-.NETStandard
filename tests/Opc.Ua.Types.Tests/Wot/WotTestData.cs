@@ -46,6 +46,24 @@ namespace Opc.Ua.Types.Tests.Wot
     internal static class WotTestData
     {
         /// <summary>
+        /// Resolves a portable identity through the reconstructed NodeSet's namespace table.
+        /// </summary>
+        public static string LocalNodeId(UANodeSet nodeSet, string portable)
+        {
+            var namespaces = new NamespaceTable();
+            foreach (string uri in nodeSet.NamespaceUris ?? [])
+            {
+                namespaces.Append(uri);
+            }
+            ExpandedNodeId id = ExpandedNodeId.Parse(portable);
+            if (id.NamespaceUri is { Length: > 0 } namespaceUri && namespaces.GetIndex(namespaceUri) < 0)
+            {
+                throw new InvalidOperationException($"The NodeSet does not declare '{namespaceUri}'.");
+            }
+            return ExpandedNodeId.ToNodeId(id, namespaces).ToString();
+        }
+
+        /// <summary>
         /// Builds a NodeSet exercising several NodeClasses, references,
         /// modelling rules, a NodeSet-level extension and a node-level extension.
         /// </summary>

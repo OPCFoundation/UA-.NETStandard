@@ -137,11 +137,17 @@ namespace Microsoft.Extensions.DependencyInjection
             services.EnsureWotBinderRegistry();
 
             services.TryAddSingleton<IWotTargetVariableResolver>(new WotTargetVariableResolver());
+            services.TryAddSingleton<IWotProjectionEventPublisher, WotProjectionEventPublisher>();
+            services.TryAddSingleton<IWotProjectionConditionFactory, WotProjectionConditionFactory>();
+            services.TryAddSingleton(new WotProjectionBindingRuntimeOptions());
 
             services.TryAddSingleton<IWotProjectionBindingRuntimeFactory>(sp =>
                 new WotProjectionBindingRuntimeFactory(
                     sp.GetRequiredService<IWotBindingChannelFactory>(),
-                    sp.GetRequiredService<IWotTargetVariableResolver>()));
+                    sp.GetRequiredService<IWotTargetVariableResolver>(),
+                    sp.GetRequiredService<IWotProjectionEventPublisher>(),
+                    sp.GetRequiredService<IWotProjectionConditionFactory>(),
+                    sp.GetRequiredService<WotProjectionBindingRuntimeOptions>()));
 
             services.TryAddSingleton<IWotRegistryService>(sp =>
             {

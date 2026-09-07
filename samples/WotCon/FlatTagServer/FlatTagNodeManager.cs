@@ -139,6 +139,18 @@ namespace FlatTagServer
                 false,
                 pump.NodeId));
 
+            BaseObjectState identification = CreateObject(
+                pump, namespaceIndex, pumpNodeId + ".Identification", "Identification");
+            CreateVariable(
+                identification, namespaceIndex, pumpNodeId + ".Identification.Manufacturer", "Manufacturer",
+                DataTypeIds.LocalizedText, Variant.From(new LocalizedText(values.Manufacturer)), property: true);
+            CreateVariable(
+                identification, namespaceIndex, pumpNodeId + ".Identification.SerialNumber", "SerialNumber",
+                DataTypeIds.String, Variant.From(values.SerialNumber), property: true);
+            CreateVariable(
+                identification, namespaceIndex, pumpNodeId + ".Identification.ProductInstanceUri", "ProductInstanceUri",
+                DataTypeIds.String, Variant.From(values.ProductInstanceUri), property: true);
+
             BaseObjectState operational = CreateObject(
                 pump,
                 namespaceIndex,
@@ -434,13 +446,14 @@ namespace FlatTagServer
             string nodeId,
             string browseName,
             NodeId dataType,
-            Variant value)
+            Variant value,
+            bool property = false)
         {
             var variable = new BaseDataVariableState(parent)
             {
                 SymbolicName = browseName,
-                ReferenceTypeId = ReferenceTypeIds.HasComponent,
-                TypeDefinitionId = VariableTypeIds.BaseDataVariableType,
+                ReferenceTypeId = property ? ReferenceTypeIds.HasProperty : ReferenceTypeIds.HasComponent,
+                TypeDefinitionId = property ? VariableTypeIds.PropertyType : VariableTypeIds.BaseDataVariableType,
                 NodeId = new NodeId(nodeId, namespaceIndex),
                 BrowseName = new QualifiedName(browseName, namespaceIndex),
                 DisplayName = new LocalizedText("en", browseName),

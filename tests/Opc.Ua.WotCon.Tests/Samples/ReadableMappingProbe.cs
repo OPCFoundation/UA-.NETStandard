@@ -34,6 +34,7 @@ using System.Linq;
 using System.Globalization;
 using System.Text;
 using System.Text.Json;
+using System.Threading.Tasks;
 using static System.FormattableString;
 using NUnit.Framework;
 using Opc.Ua.Export;
@@ -57,7 +58,7 @@ namespace Opc.Ua.WotCon.Tests.Samples
     {
         [Test]
         [Explicit]
-        public void DumpReadableMappingDelta()
+        public async Task DumpReadableMappingDeltaAsync()
         {
             string documents = Path.Combine(
                 TestContext.CurrentContext.TestDirectory,
@@ -119,7 +120,7 @@ namespace Opc.Ua.WotCon.Tests.Samples
                 report.AppendLine(Invariant($"   {diagnostic.Severity} {diagnostic.Code}: {diagnostic.Message}"));
             }
 
-            AppendDocumentSet(report, source, options);
+            await AppendDocumentSetAsync(report, source, options).ConfigureAwait(false);
 
             AppendNodes(report, "SOURCE", source);
             if (result.Value is not null)
@@ -149,7 +150,7 @@ namespace Opc.Ua.WotCon.Tests.Samples
             }
         }
 
-        private static void AppendDocumentSet(
+        private static async Task AppendDocumentSetAsync(
             StringBuilder report, UANodeSet source, WotNodeSetConverterOptions options)
         {
             report.AppendLine();
@@ -179,17 +180,52 @@ namespace Opc.Ua.WotCon.Tests.Samples
                         $" events={entry.Document.Events.Count}"));
             }
 
-            WotConversionResult<UANodeSet> merged = WotNodeSetConverter
-                .ToNodeSetAsync(documents, options, CompanionContext(options))
-                .AsTask().GetAwaiter().GetResult();
-            foreach (WotDiagnostic diagnostic in merged.Diagnostics)
+            var companions = new List<WotDocument>();
+            try
             {
-                report.AppendLine(Invariant($"   merge {diagnostic.Severity} {diagnostic.Code}: {diagnostic.Message}"));
+                LoadCompanionDocuments(options, companions);
+                var context = new WotDocumentNodeResolver(companions);
+                WotConversionResult<UANodeSet> merged = await WotNodeSetConverter
+                    .ToNodeSetAsync(documents, options, context).ConfigureAwait(false);
+                foreach (WotDiagnostic diagnostic in merged.Diagnostics)
+                {
+                    report.AppendLine(
+                        Invariant($"   merge {diagnostic.Severity} {diagnostic.Code}: {diagnostic.Message}"));
+                }
+                if (merged.Value is not null)
+                {
+                    AppendNodes(report, "SET ROUNDTRIP", merged.Value);
+                    AppendMissing(report, source, merged.Value);
+                    NodeSetComparisonResult comparison = WotNodeSetConverter.CompareDocumentSet(
+                        source, merged.Value, options);
+                    report.AppendLine(Invariant($"   full semantic equivalence: {comparison.AreEquivalent}"));
+                    foreach (string difference in comparison.Differences)
+                    {
+                        report.AppendLine("   " + difference);
+                    }
+                }
+
+                WotConversionResult<WotDocumentSet> verified = await WotNodeSetConverter
+                    .FromNodeSetDocumentsAsync(source, "sample-pump", "Sample Pump Aggregate", options, context)
+                    .ConfigureAwait(false);
+                using WotDocumentSet? verifiedSet = verified.Value;
+                report.AppendLine(Invariant($"   verified export success: {verified.Success}"));
+                foreach (WotDiagnostic diagnostic in verified.Diagnostics)
+                {
+                    report.AppendLine(
+                        Invariant($"   export {diagnostic.Severity} {diagnostic.Code}: {diagnostic.Message}"));
+                }
+                if (verifiedSet is not null)
+                {
+                    report.AppendLine(Invariant($"   verified entries: {verifiedSet.Entries.Count}"));
+                }
             }
-            if (merged.Value is not null)
+            finally
             {
-                AppendNodes(report, "SET ROUNDTRIP", merged.Value);
-                AppendMissing(report, source, merged.Value);
+                foreach (WotDocument companion in companions)
+                {
+                    companion.Dispose();
+                }
             }
         }
 
@@ -231,72 +267,38 @@ namespace Opc.Ua.WotCon.Tests.Samples
                 {
                     continue;
                 }
-                foreach (string difference in DescribeDifferences(original, node))
+                NodeSetComparisonResult comparison = NodeSetComparer.CompareEquivalent(
+                    new UANodeSet
+                    {
+                        NamespaceUris = source.NamespaceUris,
+                        Aliases = source.Aliases,
+                        Items = [original]
+                    },
+                    new UANodeSet
+                    {
+                        NamespaceUris = roundtrip.NamespaceUris,
+                        Aliases = roundtrip.Aliases,
+                        Items = [node]
+                    });
+                foreach (string difference in comparison.Differences)
                 {
                     report.AppendLine(Invariant($"   {node.NodeId}: {difference}"));
                 }
             }
         }
 
-        private static IEnumerable<string> DescribeDifferences(UANode expected, UANode actual)
-        {
-            if (!string.Equals(expected.BrowseName, actual.BrowseName, StringComparison.Ordinal))
-            {
-                yield return $"BrowseName '{expected.BrowseName}' -> '{actual.BrowseName}'";
-            }
-            if (expected is UAVariable expectedVariable && actual is UAVariable actualVariable)
-            {
-                if (!string.Equals(
-                        expectedVariable.DataType, actualVariable.DataType, StringComparison.Ordinal))
-                {
-                    yield return
-                        $"DataType '{expectedVariable.DataType}' -> '{actualVariable.DataType}'";
-                }
-                if (expectedVariable.AccessLevel != actualVariable.AccessLevel)
-                {
-                    yield return
-                        $"AccessLevel {expectedVariable.AccessLevel} -> {actualVariable.AccessLevel}";
-                }
-                if ((expectedVariable.Value is not null) != (actualVariable.Value is not null))
-                {
-                    yield return "Value " +
-                        (expectedVariable.Value is not null ? "present -> absent" : "absent -> present");
-                }
-            }
-            string expectedType = TypeDefinitionOf(expected);
-            string actualType = TypeDefinitionOf(actual);
-            if (!string.Equals(expectedType, actualType, StringComparison.Ordinal))
-            {
-                yield return $"HasTypeDefinition '{expectedType}' -> '{actualType}'";
-            }
-        }
-
-        private static string TypeDefinitionOf(UANode node)
-        {
-            foreach (Reference reference in node.References ?? [])
-            {
-                if (string.Equals(
-                        reference.ReferenceType, "HasTypeDefinition", StringComparison.Ordinal) &&
-                    reference.IsForward)
-                {
-                    return reference.Value ?? string.Empty;
-                }
-            }
-            return string.Empty;
-        }
-
         /// <summary>
         /// The local context of §5.1.5 for this pump: the companion Thing Models
         /// that define the types its Nodes are instances of.
         /// </summary>
-        private static WotDocumentNodeResolver CompanionContext(
-            WotNodeSetConverterOptions options)
+        private static void LoadCompanionDocuments(
+            WotNodeSetConverterOptions options,
+            List<WotDocument> loaded)
         {
             string documents = Path.Combine(
                 TestContext.CurrentContext.TestDirectory,
                 "..", "..", "..", "..", "..",
                 "samples", "WotCon", "AggregationClient", "Documents");
-            var loaded = new List<WotDocument>();
             foreach (string name in new[]
             {
                 "Opc.Ua.Di.tm.json", "Opc.Ua.Machinery.tm.json", "Opc.Ua.Pumps.tm.json"
@@ -305,7 +307,6 @@ namespace Opc.Ua.WotCon.Tests.Samples
                 loaded.Add(WotDocument.Parse(
                     File.ReadAllBytes(Path.Combine(documents, name)), options));
             }
-            return new WotDocumentNodeResolver(loaded);
         }
 
         private static byte[] StripNative(byte[] json)
