@@ -73,6 +73,9 @@ namespace Opc.Ua.Redundancy.Server
             Initialize(messageContext);
         }
 
+        /// <summary>
+        /// Creates a protected continuation store whose message context is supplied later.
+        /// </summary>
         internal SharedKeyValueHistoryContinuationStore(
             ISharedKeyValueStore store,
             IRecordProtector protector,
@@ -125,6 +128,9 @@ namespace Opc.Ua.Redundancy.Server
             m_deleteTask = Task.Run(() => DrainDeletesAsync(m_disposeCts.Token));
         }
 
+        /// <summary>
+        /// Sets the envelope serialization context, rejecting a different context after initialization.
+        /// </summary>
         internal void Initialize(IServiceMessageContext messageContext)
         {
             if (messageContext == null)
@@ -407,6 +413,9 @@ namespace Opc.Ua.Redundancy.Server
             }
         }
 
+        /// <summary>
+        /// Builds the shared-store key for a continuation within its owning session's keyspace.
+        /// </summary>
         internal static string KeyFor(NodeId ownerSessionId, Guid id)
         {
             return PrefixFor(ownerSessionId) +
@@ -847,8 +856,14 @@ namespace Opc.Ua.Redundancy.Server
         }
     }
 
+    /// <summary>
+    /// Defines log messages for shared history continuation cleanup failures.
+    /// </summary>
     internal static partial class SharedKeyValueHistoryContinuationStoreLog
     {
+        /// <summary>
+        /// Logs an exception that terminated the continuation cleanup worker.
+        /// </summary>
         [LoggerMessage(
             EventId = RedundancyServerEventIds.SharedHistoryContinuationStore + 0,
             Level = LogLevel.Error,
@@ -857,6 +872,9 @@ namespace Opc.Ua.Redundancy.Server
             this ILogger logger,
             Exception exception);
 
+        /// <summary>
+        /// Logs skipped cleanup because the continuation deletion queue is closed.
+        /// </summary>
         [LoggerMessage(
             EventId = RedundancyServerEventIds.SharedHistoryContinuationStore + 1,
             Level = LogLevel.Warning,
@@ -864,6 +882,9 @@ namespace Opc.Ua.Redundancy.Server
         public static partial void HistoryContinuationCleanupQueueClosed(
             this ILogger logger);
 
+        /// <summary>
+        /// Logs exhaustion of the retry budget for deleting a shared continuation.
+        /// </summary>
         [LoggerMessage(
             EventId = RedundancyServerEventIds.SharedHistoryContinuationStore + 2,
             Level = LogLevel.Warning,
@@ -872,6 +893,9 @@ namespace Opc.Ua.Redundancy.Server
             this ILogger logger,
             string key);
 
+        /// <summary>
+        /// Logs cancellation of cleanup after the shutdown drain deadline was exceeded.
+        /// </summary>
         [LoggerMessage(
             EventId = RedundancyServerEventIds.SharedHistoryContinuationStore + 3,
             Level = LogLevel.Warning,

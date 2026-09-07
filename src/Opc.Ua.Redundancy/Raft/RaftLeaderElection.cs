@@ -122,6 +122,9 @@ namespace Opc.Ua.Redundancy
     /// </summary>
     internal static partial class RaftLeaderElectionLog
     {
+        /// <summary>
+        /// Logs a failure to start the Raft consensus replica used for leader election.
+        /// </summary>
         [LoggerMessage(EventId = RedundancyEventIds.RaftLeaderElection + 0, Level = LogLevel.Error,
             Message = "Raft consensus replica failed to start for leader election.")]
         public static partial void RaftConsensusReplicaFailedToStart(this ILogger logger, Exception exception);

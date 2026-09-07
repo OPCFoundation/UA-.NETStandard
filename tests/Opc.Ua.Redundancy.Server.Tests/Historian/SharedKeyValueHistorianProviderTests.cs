@@ -47,12 +47,19 @@ using Opc.Ua.Tests;
 
 namespace Opc.Ua.Redundancy.Server.Tests.Historian
 {
+    /// <summary>
+    /// Verifies distributed historian consistency, protected storage, continuation durability, and service
+    /// registration.
+    /// </summary>
     [TestFixture]
     [Category("Distributed")]
     [Category("Historian")]
     [Parallelizable(ParallelScope.All)]
     public sealed class SharedKeyValueHistorianProviderTests
     {
+        /// <summary>
+        /// Verifies that the distributed historian rejects a process-local key-value store.
+        /// </summary>
         [Test]
         public void ProcessLocalStoreIsRejected()
         {
@@ -69,6 +76,9 @@ namespace Opc.Ua.Redundancy.Server.Tests.Historian
                 Throws.TypeOf<InvalidOperationException>());
         }
 
+        /// <summary>
+        /// Verifies that a passive replica rejects historian writes.
+        /// </summary>
         [Test]
         public async Task PassiveReplicaRejectsWritesAsync()
         {
@@ -96,6 +106,9 @@ namespace Opc.Ua.Redundancy.Server.Tests.Historian
                 Is.False);
         }
 
+        /// <summary>
+        /// Verifies that a replica can read a committed write from the leader.
+        /// </summary>
         [Test]
         public async Task ReplicaReadsCommittedLeaderWriteAsync()
         {
@@ -131,6 +144,9 @@ namespace Opc.Ua.Redundancy.Server.Tests.Historian
             Assert.That(page.Values[0].Value.WrappedValue, Is.EqualTo(Variant.From(7)));
         }
 
+        /// <summary>
+        /// Verifies that concurrent leaders cannot write without the current fencing authority.
+        /// </summary>
         [Test]
         public async Task ConcurrentLeadersAllowOnlyFencedWriterAsync()
         {
@@ -174,6 +190,9 @@ namespace Opc.Ua.Redundancy.Server.Tests.Historian
             Assert.That(page.Values, Has.Count.EqualTo(1));
         }
 
+        /// <summary>
+        /// Verifies that retrying a manifest compare-and-swap never exposes a partial history batch.
+        /// </summary>
         [Test]
         public async Task ManifestCasRetryDoesNotExposePartialBatchAsync()
         {
@@ -211,6 +230,9 @@ namespace Opc.Ua.Redundancy.Server.Tests.Historian
             Assert.That(page.Values, Has.Count.EqualTo(2));
         }
 
+        /// <summary>
+        /// Verifies that a stale writer is rejected after a newer writer epoch is established.
+        /// </summary>
         [Test]
         public async Task StaleWriterIsRejectedAfterNewWriterEpochAsync()
         {
@@ -288,6 +310,9 @@ namespace Opc.Ua.Redundancy.Server.Tests.Historian
                 Is.EqualTo(StatusCodes.BadNotWritable));
         }
 
+        /// <summary>
+        /// Verifies that a manifest update which commits then throws is resolved before segment cleanup.
+        /// </summary>
         [Test]
         public async Task CommitThenThrowManifestCasIsResolvedBeforeCleanupAsync()
         {
@@ -326,6 +351,10 @@ namespace Opc.Ua.Redundancy.Server.Tests.Historian
             Assert.That(page.Values, Has.Count.EqualTo(2));
         }
 
+        /// <summary>
+        /// Verifies that a manifest update which commits then cancels uses non-cancelable readback to resolve its
+        /// outcome.
+        /// </summary>
         [Test]
         public async Task CommitThenCancelManifestCasUsesNonCancelableReadbackAsync()
         {
@@ -366,6 +395,9 @@ namespace Opc.Ua.Redundancy.Server.Tests.Historian
             Assert.That(page.Values, Has.Count.EqualTo(2));
         }
 
+        /// <summary>
+        /// Verifies that a portable history page pins its manifest while another write commits.
+        /// </summary>
         [Test]
         public async Task PortablePagePinsManifestDuringConcurrentWriteAsync()
         {
@@ -430,6 +462,9 @@ namespace Opc.Ua.Redundancy.Server.Tests.Historian
             Assert.That(current.IsFinal, Is.False);
         }
 
+        /// <summary>
+        /// Verifies that renewing a continuation keeps its generation pinned across compaction.
+        /// </summary>
         [Test]
         public async Task RenewedContinuationPinsGenerationAcrossCompactionAsync()
         {
@@ -529,6 +564,9 @@ namespace Opc.Ua.Redundancy.Server.Tests.Historian
                 Is.EqualTo(TimeAt(3)));
         }
 
+        /// <summary>
+        /// Verifies that tampered historian segments are rejected.
+        /// </summary>
         [Test]
         public async Task TamperedSegmentIsRejectedAsync()
         {
@@ -563,6 +601,9 @@ namespace Opc.Ua.Redundancy.Server.Tests.Historian
                 Is.EqualTo(StatusCodes.BadSecurityChecksFailed));
         }
 
+        /// <summary>
+        /// Verifies that recovery retries cleanup and removes orphaned history segments.
+        /// </summary>
         [Test]
         public async Task RecoverySweepRetriesAndRemovesOrphanSegmentAsync()
         {
@@ -601,6 +642,9 @@ namespace Opc.Ua.Redundancy.Server.Tests.Historian
             Assert.That(provider.GarbageCollectionFailure, Is.Null);
         }
 
+        /// <summary>
+        /// Verifies that a transient recovery deletion failure does not poison subsequent writes.
+        /// </summary>
         [Test]
         public async Task RecoverySweepTransientDeleteFailureDoesNotPoisonWritesAsync()
         {
@@ -654,6 +698,9 @@ namespace Opc.Ua.Redundancy.Server.Tests.Historian
                 Is.EqualTo(StatusCodes.GoodEntryInserted));
         }
 
+        /// <summary>
+        /// Verifies that detected corruption remains latched until recovery succeeds.
+        /// </summary>
         [Test]
         public async Task RecoverySweepLatchesCorruptionUntilSuccessfulRecoveryAsync()
         {
@@ -697,6 +744,9 @@ namespace Opc.Ua.Redundancy.Server.Tests.Historian
             Assert.That(provider.GarbageCollectionFailure, Is.Null);
         }
 
+        /// <summary>
+        /// Verifies that background cleanup retries transient deletions without poisoning writes.
+        /// </summary>
         [Test]
         public async Task BackgroundCleanupRetriesTransientDeleteWithoutPoisoningWritesAsync()
         {
@@ -758,6 +808,9 @@ namespace Opc.Ua.Redundancy.Server.Tests.Historian
                 Is.EqualTo(StatusCodes.GoodEntryInserted));
         }
 
+        /// <summary>
+        /// Verifies that annotation counting validates requests, bounds its work, and observes cancellation.
+        /// </summary>
         [Test]
         public async Task AnnotationCountIsValidatedBoundedAndCancelableAsync()
         {
@@ -816,6 +869,9 @@ namespace Opc.Ua.Redundancy.Server.Tests.Historian
                 Is.EqualTo(StatusCodes.BadTooManyOperations));
         }
 
+        /// <summary>
+        /// Verifies that at-time reads use the shared historian interpolation rules.
+        /// </summary>
         [Test]
         public async Task AtTimeUsesSharedInterpolationRulesAsync()
         {
@@ -855,6 +911,9 @@ namespace Opc.Ua.Redundancy.Server.Tests.Historian
                 Is.EqualTo(AggregateBits.Interpolated));
         }
 
+        /// <summary>
+        /// Verifies that a zero annotation-count interval calculates a single result over the whole range.
+        /// </summary>
         [Test]
         public async Task AnnotationCountZeroIntervalReturnsCalculatedWholeRangeAsync()
         {
@@ -898,6 +957,9 @@ namespace Opc.Ua.Redundancy.Server.Tests.Historian
                 Is.EqualTo(AggregateBits.Calculated));
         }
 
+        /// <summary>
+        /// Verifies that reverse annotation-count reads exclude the end timestamp.
+        /// </summary>
         [Test]
         public async Task AnnotationCountReverseExcludesEndTimeAsync()
         {
@@ -946,6 +1008,10 @@ namespace Opc.Ua.Redundancy.Server.Tests.Historian
                 Is.EqualTo(AggregateBits.Calculated));
         }
 
+        /// <summary>
+        /// Verifies provider identity, supported historian interfaces, portable tokens, and default structured-data
+        /// capability.
+        /// </summary>
         [Test]
         public async Task IdentityAndInterfacesAreStableAsync()
         {
@@ -979,6 +1045,9 @@ namespace Opc.Ua.Redundancy.Server.Tests.Historian
             Assert.That(capabilities.ReadStructuredData, Is.False);
         }
 
+        /// <summary>
+        /// Verifies that modified values, annotations, and events round-trip through shared historian storage.
+        /// </summary>
         [Test]
         public async Task ModifiedAnnotationsAndEventsRoundTripAsync()
         {
@@ -1073,6 +1142,9 @@ namespace Opc.Ua.Redundancy.Server.Tests.Historian
             Assert.That(events.Values[0].EventId, Is.EqualTo(eventRecord.EventId));
         }
 
+        /// <summary>
+        /// Verifies that reverse modified-history reads include the start and exclude the end timestamp.
+        /// </summary>
         [Test]
         public async Task ReverseModifiedHistoryIncludesStartAndExcludesEndAsync()
         {
@@ -1125,6 +1197,9 @@ namespace Opc.Ua.Redundancy.Server.Tests.Historian
                 Is.EqualTo(TimeAt(5)));
         }
 
+        /// <summary>
+        /// Verifies that shared historian event replacement applies field index ranges.
+        /// </summary>
         [Test]
         public async Task EventReplaceAppliesIndexRangeAsync()
         {
@@ -1219,6 +1294,9 @@ namespace Opc.Ua.Redundancy.Server.Tests.Historian
             Assert.That(storedTags[2], Is.EqualTo("third"));
         }
 
+        /// <summary>
+        /// Verifies that event replacement rejects invalid ranges and identifies records by the canonical EventId.
+        /// </summary>
         [Test]
         public async Task EventReplaceRejectsBadRangesAndUsesCanonicalEventIdAsync()
         {
@@ -1375,6 +1453,9 @@ namespace Opc.Ua.Redundancy.Server.Tests.Historian
             Assert.That(customValue, Is.EqualTo("new"));
         }
 
+        /// <summary>
+        /// Verifies that structured records with distinct composite keys can share a timestamp.
+        /// </summary>
         [Test]
         public async Task StructuredCompositeKeysAllowSameTimestampAsync()
         {
@@ -1465,6 +1546,9 @@ namespace Opc.Ua.Redundancy.Server.Tests.Historian
                 Is.True);
         }
 
+        /// <summary>
+        /// Verifies that at-time deletion removes all structured entries while preserving a pinned generation.
+        /// </summary>
         [Test]
         public async Task DeleteAtTimeRemovesEveryStructuredEntryAndPreservesPinnedGenerationAsync()
         {
@@ -1565,6 +1649,9 @@ namespace Opc.Ua.Redundancy.Server.Tests.Historian
             }
         }
 
+        /// <summary>
+        /// Verifies that dependency injection registration preserves an explicitly supplied historian provider.
+        /// </summary>
         [Test]
         public async Task RegistrationKeepsExplicitHistorianProviderAsync()
         {
@@ -1610,6 +1697,9 @@ namespace Opc.Ua.Redundancy.Server.Tests.Historian
                     DistributedHistorianStrongKeyspaceProvider>());
         }
 
+        /// <summary>
+        /// Verifies that dependency injection registration preserves an explicitly supplied continuation store.
+        /// </summary>
         [Test]
         public async Task RegistrationKeepsExplicitHistoryContinuationStoreAsync()
         {
@@ -1642,6 +1732,9 @@ namespace Opc.Ua.Redundancy.Server.Tests.Historian
                         DistributedHistorianStartupTask>()));
         }
 
+        /// <summary>
+        /// Verifies that resolving the distributed historian rejects a process-local key-value store.
+        /// </summary>
         [Test]
         public void RegistrationRejectsProcessLocalStoreOnResolution()
         {
@@ -1662,6 +1755,9 @@ namespace Opc.Ua.Redundancy.Server.Tests.Historian
                 Throws.TypeOf<InvalidOperationException>());
         }
 
+        /// <summary>
+        /// Verifies that a hybrid store resolves its prefix contributor without a dependency cycle.
+        /// </summary>
         [Test]
         public async Task HybridStoreResolvesPrefixContributorWithoutCycleAsync()
         {
@@ -1684,6 +1780,9 @@ namespace Opc.Ua.Redundancy.Server.Tests.Historian
                 Is.True);
         }
 
+        /// <summary>
+        /// Verifies that startup initializes the distributed historian and starts leader election.
+        /// </summary>
         [Test]
         public async Task StartupInitializesProviderAndStartsElectionAsync()
         {

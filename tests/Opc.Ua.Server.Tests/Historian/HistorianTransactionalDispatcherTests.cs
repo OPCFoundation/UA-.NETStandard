@@ -37,11 +37,17 @@ using Opc.Ua.Server.Historian.InMemory;
 
 namespace Opc.Ua.Server.Tests.Historian
 {
+    /// <summary>
+    /// Verifies atomic historian dispatch, best-effort fallback, and batch rollback on insertion conflicts.
+    /// </summary>
     [TestFixture]
     [Category("Historian")]
     [Parallelizable(ParallelScope.All)]
     public class HistorianTransactionalDispatcherTests
     {
+        /// <summary>
+        /// Verifies that a transactional provider receives the atomic operation matching the requested update.
+        /// </summary>
         [TestCase(PerformUpdateType.Insert)]
         [TestCase(PerformUpdateType.Replace)]
         [TestCase(PerformUpdateType.Update)]
@@ -148,6 +154,9 @@ namespace Opc.Ua.Server.Tests.Historian
             }
         }
 
+        /// <summary>
+        /// Verifies that a nontransactional provider receives the matching best-effort operation.
+        /// </summary>
         [TestCase(PerformUpdateType.Insert)]
         [TestCase(PerformUpdateType.Replace)]
         [TestCase(PerformUpdateType.Update)]
@@ -231,6 +240,9 @@ namespace Opc.Ua.Server.Tests.Historian
             }
         }
 
+        /// <summary>
+        /// Verifies that an insertion collision rolls back the entire dispatched history batch.
+        /// </summary>
         [Test]
         public async Task InsertCollisionRollsBackEntireDispatchedBatchAsync()
         {

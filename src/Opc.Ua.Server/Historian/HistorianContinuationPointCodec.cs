@@ -48,11 +48,17 @@ namespace Opc.Ua.Server.Historian
     internal sealed class HistorianContinuationPointCodec :
         IHistoryContinuationPointCodec
     {
+        /// <summary>
+        /// Initializes the codec with the server's serialization context and historian registry.
+        /// </summary>
         public HistorianContinuationPointCodec(IServerInternal server)
         {
             m_server = server ?? throw new ArgumentNullException(nameof(server));
         }
 
+        /// <summary>
+        /// Encodes portable historian continuation state, returning null when it cannot be persisted.
+        /// </summary>
         public async ValueTask<HistoryContinuationPointEnvelope?> EncodeAsync(
             NodeId ownerSessionId,
             IHistoryContinuationPoint continuationPoint,
@@ -137,6 +143,9 @@ namespace Opc.Ua.Server.Historian
             };
         }
 
+        /// <summary>
+        /// Restores historian continuation state when the envelope and registered provider are compatible.
+        /// </summary>
         public async ValueTask<IHistoryContinuationPoint?> DecodeAsync(
             HistoryContinuationPointEnvelope envelope,
             CancellationToken cancellationToken)

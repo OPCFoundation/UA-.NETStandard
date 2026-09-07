@@ -63,6 +63,9 @@ namespace Opc.Ua.Client.Redundancy.Tests
     [Category("ClientRedundancy")]
     public sealed class RaftSharedKeyValueStoreTests
     {
+        /// <summary>
+        /// Verifies that a value written through the Raft store can be retrieved.
+        /// </summary>
         [Test]
         public async Task SetAndTryGetReturnsStoredValueAsync()
         {
@@ -76,6 +79,9 @@ namespace Opc.Ua.Client.Redundancy.Tests
             Assert.That(value.ToArray(), Is.EqualTo(payload.ToArray()));
         }
 
+        /// <summary>
+        /// Verifies that an empty stored byte string round-trips without becoming null.
+        /// </summary>
         [Test]
         public async Task SetEmptyValueRoundTripsAsNonNullAsync()
         {
@@ -89,6 +95,9 @@ namespace Opc.Ua.Client.Redundancy.Tests
             Assert.That(value.ToArray(), Is.Empty);
         }
 
+        /// <summary>
+        /// Verifies that reading a missing Raft store key returns false.
+        /// </summary>
         [Test]
         public async Task TryGetMissingKeyReturnsFalseAsync()
         {
@@ -100,6 +109,9 @@ namespace Opc.Ua.Client.Redundancy.Tests
             Assert.That(value.IsNull, Is.True);
         }
 
+        /// <summary>
+        /// Verifies that reading a null Raft store key is rejected.
+        /// </summary>
         [Test]
         public async Task TryGetNullKeyThrowsAsync()
         {
@@ -110,6 +122,9 @@ namespace Opc.Ua.Client.Redundancy.Tests
                 Throws.TypeOf<ArgumentNullException>());
         }
 
+        /// <summary>
+        /// Verifies that writing a null Raft store key is rejected.
+        /// </summary>
         [Test]
         public async Task SetNullKeyThrowsAsync()
         {
@@ -120,6 +135,9 @@ namespace Opc.Ua.Client.Redundancy.Tests
                 Throws.TypeOf<ArgumentNullException>());
         }
 
+        /// <summary>
+        /// Verifies that compare-and-swap creates a Raft store entry when the key is absent.
+        /// </summary>
         [Test]
         public async Task CompareAndSwapCreatesWhenAbsentAsync()
         {
@@ -133,6 +151,9 @@ namespace Opc.Ua.Client.Redundancy.Tests
             Assert.That(createdAgain, Is.False, "second create-if-absent must fail because the key now exists");
         }
 
+        /// <summary>
+        /// Verifies that compare-and-swap replaces an entry when its current value matches.
+        /// </summary>
         [Test]
         public async Task CompareAndSwapSwapsWhenValueMatchesAsync()
         {
@@ -149,6 +170,9 @@ namespace Opc.Ua.Client.Redundancy.Tests
             Assert.That(value.ToArray(), Is.EqualTo(second.ToArray()));
         }
 
+        /// <summary>
+        /// Verifies that compare-and-swap deletes a matching entry when the replacement is null.
+        /// </summary>
         [Test]
         public async Task CompareAndSwapDeletesWhenReplacementIsNullAsync()
         {
@@ -175,6 +199,9 @@ namespace Opc.Ua.Client.Redundancy.Tests
             Assert.That(enumerator.Current.Key, Is.EqualTo("k"));
         }
 
+        /// <summary>
+        /// Verifies that compare-and-swap fails when the current value does not match.
+        /// </summary>
         [Test]
         public async Task CompareAndSwapFailsWhenValueMismatchAsync()
         {
@@ -192,6 +219,9 @@ namespace Opc.Ua.Client.Redundancy.Tests
             Assert.That(value.ToArray(), Is.EqualTo(actual.ToArray()), "value must be unchanged on a failed CAS");
         }
 
+        /// <summary>
+        /// Verifies that deletion removes a committed Raft store entry.
+        /// </summary>
         [Test]
         public async Task DeleteRemovesKeyAsync()
         {
@@ -207,6 +237,9 @@ namespace Opc.Ua.Client.Redundancy.Tests
             Assert.That(found, Is.False);
         }
 
+        /// <summary>
+        /// Verifies that a Raft store scan returns only keys matching the requested prefix.
+        /// </summary>
         [Test]
         public async Task ScanReturnsMatchingPrefixOnlyAsync()
         {
@@ -224,6 +257,9 @@ namespace Opc.Ua.Client.Redundancy.Tests
             Assert.That(keys, Is.EquivalentTo(["a/1", "a/2"]));
         }
 
+        /// <summary>
+        /// Verifies that a Raft store scan with a null prefix returns every entry.
+        /// </summary>
         [Test]
         public async Task ScanWithNullPrefixReturnsEverythingAsync()
         {
@@ -240,6 +276,9 @@ namespace Opc.Ua.Client.Redundancy.Tests
             Assert.That(keys, Is.EquivalentTo(["x", "y"]));
         }
 
+        /// <summary>
+        /// Verifies that prefix watchers observe committed set and delete operations.
+        /// </summary>
         [Test]
         public async Task WatchObservesSetAndDeleteForPrefixAsync()
         {
@@ -269,6 +308,9 @@ namespace Opc.Ua.Client.Redundancy.Tests
             Assert.That(enumerator.Current.Key, Is.EqualTo("a/1"));
         }
 
+        /// <summary>
+        /// Verifies that two replicas converge on the same shared key-value state.
+        /// </summary>
         [Test]
         public async Task TwoReplicasConvergeOnSharedClusterAsync()
         {
@@ -294,6 +336,9 @@ namespace Opc.Ua.Client.Redundancy.Tests
             Assert.That(observed.ToArray(), Is.EqualTo(payload.ToArray()));
         }
 
+        /// <summary>
+        /// Verifies that a proposal times out when consensus never commits it.
+        /// </summary>
         [Test]
         public void ProposalTimesOutWhenNoCommitOccurs()
         {
@@ -308,6 +353,9 @@ namespace Opc.Ua.Client.Redundancy.Tests
             }, Throws.TypeOf<TimeoutException>());
         }
 
+        /// <summary>
+        /// Verifies that caller cancellation aborts a pending proposal.
+        /// </summary>
         [Test]
         public async Task ProposalCanceledByCallerTokenThrowsAsync()
         {
@@ -324,6 +372,9 @@ namespace Opc.Ua.Client.Redundancy.Tests
                 Throws.InstanceOf<OperationCanceledException>());
         }
 
+        /// <summary>
+        /// Verifies that proposal failures from consensus propagate to the caller.
+        /// </summary>
         [Test]
         public async Task ProposePropagatesConsensusFailureAsync()
         {
@@ -335,6 +386,9 @@ namespace Opc.Ua.Client.Redundancy.Tests
                 Throws.TypeOf<InvalidOperationException>());
         }
 
+        /// <summary>
+        /// Verifies that disposing the store cancels pending proposals.
+        /// </summary>
         [Test]
         public async Task PendingProposalCanceledOnDisposeAsync()
         {
@@ -350,6 +404,9 @@ namespace Opc.Ua.Client.Redundancy.Tests
                 Throws.InstanceOf<OperationCanceledException>());
         }
 
+        /// <summary>
+        /// Verifies that the store rejects read barriers after disposal.
+        /// </summary>
         [Test]
         public async Task ReadBarrierRejectedAfterDisposeAsync()
         {
@@ -371,6 +428,9 @@ namespace Opc.Ua.Client.Redundancy.Tests
                 Throws.TypeOf<ObjectDisposedException>());
         }
 
+        /// <summary>
+        /// Verifies that repeated Raft store disposal is safe.
+        /// </summary>
         [Test]
         public async Task DisposeIsIdempotentAsync()
         {

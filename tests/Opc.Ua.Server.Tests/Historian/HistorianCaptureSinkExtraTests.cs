@@ -55,6 +55,9 @@ namespace Opc.Ua.Server.Tests.Historian
     {
         private const ushort Ns = 2;
 
+        /// <summary>
+        /// Verifies that DropNewest capture delivers accepted samples to the provider.
+        /// </summary>
         [Test]
         public async Task EnqueueWithDropNewestDeliversSamplesToProviderAsync()
         {
@@ -94,6 +97,9 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(sink.DroppedSampleCount, Is.Zero);
         }
 
+        /// <summary>
+        /// Verifies that enqueueing after capture-sink disposal is ignored without throwing.
+        /// </summary>
         [Test]
         public async Task EnqueueAfterDisposeIsSilentAsync()
         {
@@ -133,6 +139,9 @@ namespace Opc.Ua.Server.Tests.Historian
                 "No new samples must be inserted after dispose.");
         }
 
+        /// <summary>
+        /// Verifies that capture-sink construction rejects an invalid queue-full mode.
+        /// </summary>
         [Test]
         public void SinkWithInvalidFullModeEnumThrows()
         {

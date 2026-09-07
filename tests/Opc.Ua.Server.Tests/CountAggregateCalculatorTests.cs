@@ -35,6 +35,9 @@ using Opc.Ua.Tests;
 
 namespace Opc.Ua.Server.Tests
 {
+    /// <summary>
+    /// Verifies count, annotation-count, duration-in-state, and transition aggregates and their boundary rules.
+    /// </summary>
     [TestFixture]
     [Category("Aggregators")]
     [SetCulture("en-us")]
@@ -45,6 +48,9 @@ namespace Opc.Ua.Server.Tests
         private ITelemetryContext m_telemetry;
         private AggregateConfiguration m_configuration;
 
+        /// <summary>
+        /// Creates telemetry and an aggregate configuration that accepts uncertain data without sloped extrapolation.
+        /// </summary>
         [SetUp]
         public void SetUp()
         {
@@ -121,6 +127,9 @@ namespace Opc.Ua.Server.Tests
             return results.Count > 0 ? results[0] : default;
         }
 
+        /// <summary>
+        /// Verifies that Count returns the number of Good raw values.
+        /// </summary>
         [Test]
         public void CountReturnsNumberOfGoodValues()
         {
@@ -140,6 +149,9 @@ namespace Opc.Ua.Server.Tests
             Assert.That(count, Is.GreaterThan(0));
         }
 
+        /// <summary>
+        /// Verifies that Count excludes non-Good values from mixed-quality input.
+        /// </summary>
         [Test]
         public void CountWithMixedStatusCountsOnlyGoodValues()
         {
@@ -169,6 +181,9 @@ namespace Opc.Ua.Server.Tests
             Assert.That(count, Is.LessThan(6));
         }
 
+        /// <summary>
+        /// Verifies that Count returns one for a single Good value.
+        /// </summary>
         [Test]
         public void CountSingleValueReturnsOne()
         {
@@ -186,6 +201,9 @@ namespace Opc.Ua.Server.Tests
             Assert.That(result.WrappedValue.IsNull, Is.False);
         }
 
+        /// <summary>
+        /// Verifies that AnnotationCount counts every supplied annotation value.
+        /// </summary>
         [Test]
         public void AnnotationCountReturnsCountOfAllValues()
         {
@@ -205,6 +223,9 @@ namespace Opc.Ua.Server.Tests
             Assert.That(count, Is.GreaterThan(0));
         }
 
+        /// <summary>
+        /// Verifies that AnnotationCount includes values with bad quality.
+        /// </summary>
         [Test]
         public void AnnotationCountIncludesBadValues()
         {
@@ -239,6 +260,9 @@ namespace Opc.Ua.Server.Tests
             Assert.That(annotationCount, Is.GreaterThanOrEqualTo(goodCount));
         }
 
+        /// <summary>
+        /// Verifies that a zero annotation-count interval covers the entire requested domain.
+        /// </summary>
         [Test]
         public void CalculateAnnotationCountsZeroIntervalUsesWholeDomain()
         {
@@ -258,6 +282,9 @@ namespace Opc.Ua.Server.Tests
             AssertAnnotationCount(result[0], 2, startTime);
         }
 
+        /// <summary>
+        /// Verifies that forward annotation counting uses half-open time intervals.
+        /// </summary>
         [Test]
         public void CalculateAnnotationCountsUsesHalfOpenForwardIntervals()
         {
@@ -275,6 +302,9 @@ namespace Opc.Ua.Server.Tests
             AssertAnnotationCount(result[1], 1, TimeAt(5));
         }
 
+        /// <summary>
+        /// Verifies that reverse annotation counting applies the reverse interval boundary rules.
+        /// </summary>
         [Test]
         public void CalculateAnnotationCountsUsesReverseIntervalBoundaries()
         {
@@ -292,6 +322,9 @@ namespace Opc.Ua.Server.Tests
             AssertAnnotationCount(result[1], 1, TimeAt(5));
         }
 
+        /// <summary>
+        /// Verifies that annotation counting clamps a partial interval near the maximum timestamp.
+        /// </summary>
         [Test]
         public void CalculateAnnotationCountsClampsPartialIntervalNearMaximum()
         {
@@ -312,6 +345,9 @@ namespace Opc.Ua.Server.Tests
             AssertAnnotationCount(result[0], 1, startTime);
         }
 
+        /// <summary>
+        /// Verifies that annotation counting supports fractional-millisecond intervals.
+        /// </summary>
         [Test]
         public void CalculateAnnotationCountsSupportsFractionalMillisecondIntervals()
         {
@@ -346,6 +382,9 @@ namespace Opc.Ua.Server.Tests
                 startDateTime.AddTicks(2000));
         }
 
+        /// <summary>
+        /// Verifies that annotation counting rejects invalid processing intervals.
+        /// </summary>
         [TestCase(-1)]
         [TestCase(double.NaN)]
         [TestCase(double.PositiveInfinity)]
@@ -368,6 +407,9 @@ namespace Opc.Ua.Server.Tests
                 Is.EqualTo(StatusCodes.BadAggregateInvalidInputs));
         }
 
+        /// <summary>
+        /// Verifies that annotation counting rejects intervals whose tick representation overflows.
+        /// </summary>
         [Test]
         public void CalculateAnnotationCountsRejectsIntervalTickOverflow()
         {
@@ -390,6 +432,9 @@ namespace Opc.Ua.Server.Tests
                 Is.EqualTo(StatusCodes.BadAggregateInvalidInputs));
         }
 
+        /// <summary>
+        /// Verifies that annotation counting enforces its maximum output count.
+        /// </summary>
         [Test]
         public void CalculateAnnotationCountsEnforcesOutputCap()
         {
@@ -408,6 +453,9 @@ namespace Opc.Ua.Server.Tests
                 Is.EqualTo(StatusCodes.BadTooManyOperations));
         }
 
+        /// <summary>
+        /// Verifies that annotation counting observes cancellation.
+        /// </summary>
         [Test]
         public void CalculateAnnotationCountsObservesCancellation()
         {
@@ -425,6 +473,9 @@ namespace Opc.Ua.Server.Tests
                 Throws.InstanceOf<OperationCanceledException>());
         }
 
+        /// <summary>
+        /// Verifies that DurationInStateZero reports the time spent at zero.
+        /// </summary>
         [Test]
         public void DurationInStateZeroReturnsDuration()
         {
@@ -444,6 +495,9 @@ namespace Opc.Ua.Server.Tests
             Assert.That(duration, Is.GreaterThan(0));
         }
 
+        /// <summary>
+        /// Verifies that DurationInStateNonZero reports the time spent away from zero.
+        /// </summary>
         [Test]
         public void DurationInStateNonZeroReturnsDuration()
         {
@@ -463,6 +517,9 @@ namespace Opc.Ua.Server.Tests
             Assert.That(duration, Is.GreaterThan(0));
         }
 
+        /// <summary>
+        /// Verifies that DurationInStateZero returns zero for entirely nonzero input.
+        /// </summary>
         [Test]
         public void DurationInStateZeroAllNonZeroReturnsZero()
         {
@@ -482,6 +539,9 @@ namespace Opc.Ua.Server.Tests
             Assert.That(duration, Is.Zero.Within(0.001));
         }
 
+        /// <summary>
+        /// Verifies that DurationInStateNonZero returns zero for entirely zero input.
+        /// </summary>
         [Test]
         public void DurationInStateNonZeroAllZeroReturnsZero()
         {
@@ -501,6 +561,9 @@ namespace Opc.Ua.Server.Tests
             Assert.That(duration, Is.Zero.Within(0.001));
         }
 
+        /// <summary>
+        /// Verifies that transition counting includes the first value and later changes when no prior value exists.
+        /// </summary>
         [Test]
         public void NumberOfTransitionsCountsFirstValueAndChangesWhenNoPreviousValueExists()
         {
@@ -520,6 +583,9 @@ namespace Opc.Ua.Server.Tests
             Assert.That(count, Is.EqualTo(5));
         }
 
+        /// <summary>
+        /// Verifies that transition counting includes the first value when no prior value exists.
+        /// </summary>
         [Test]
         public void NumberOfTransitionsCountsFirstValueWhenNoPreviousValueExists()
         {
@@ -539,6 +605,9 @@ namespace Opc.Ua.Server.Tests
             Assert.That(count, Is.EqualTo(1));
         }
 
+        /// <summary>
+        /// Verifies that transition counting includes an initial value and one subsequent change.
+        /// </summary>
         [Test]
         public void NumberOfTransitionsCountsFirstValueAndOneChange()
         {
@@ -558,6 +627,9 @@ namespace Opc.Ua.Server.Tests
             Assert.That(count, Is.EqualTo(2));
         }
 
+        /// <summary>
+        /// Verifies that transition counting excludes a first value matching the preceding interval's value.
+        /// </summary>
         [Test]
         public void NumberOfTransitionsDoesNotCountMatchingPreviousValue()
         {
@@ -579,6 +651,10 @@ namespace Opc.Ua.Server.Tests
             Assert.That(count, Is.Zero);
         }
 
+        /// <summary>
+        /// Verifies that transition counting uses a preceding uncertain value even when uncertain quality is treated as
+        /// bad.
+        /// </summary>
         [Test]
         public void NumberOfTransitionsUsesPreviousUncertainValueWhenUncertainIsConfiguredAsBad()
         {
@@ -602,6 +678,9 @@ namespace Opc.Ua.Server.Tests
             Assert.That(count, Is.EqualTo(1));
         }
 
+        /// <summary>
+        /// Verifies that zero-state and nonzero-state durations complement each other over the interval.
+        /// </summary>
         [Test]
         public void DurationInStateZeroAndNonZeroArComplementary()
         {
@@ -627,6 +706,9 @@ namespace Opc.Ua.Server.Tests
             Assert.That(nonZeroDuration, Is.GreaterThanOrEqualTo(0));
         }
 
+        /// <summary>
+        /// Verifies that Count results carry the calculated aggregate status bits.
+        /// </summary>
         [Test]
         public void CountResultHasCalculatedAggregateBits()
         {
@@ -644,6 +726,9 @@ namespace Opc.Ua.Server.Tests
             Assert.That(result.StatusCode.AggregateBits.HasFlag(AggregateBits.Calculated), Is.True);
         }
 
+        /// <summary>
+        /// Verifies that AnnotationCount results carry the calculated aggregate status bits.
+        /// </summary>
         [Test]
         public void AnnotationCountResultHasCalculatedAggregateBits()
         {

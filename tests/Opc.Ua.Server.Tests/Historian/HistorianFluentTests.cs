@@ -65,6 +65,9 @@ namespace Opc.Ua.Server.Tests.Historian
     {
         private const ushort kNs = 2;
 
+        /// <summary>
+        /// Verifies that repeated UseHistorian calls return the same historian builder.
+        /// </summary>
         [Test]
         public void UseHistorianReturnsSameBuilderAcrossCalls()
         {
@@ -76,6 +79,9 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(first, Is.SameAs(second));
         }
 
+        /// <summary>
+        /// Verifies that Historize retains its original binary-compatible overload signatures.
+        /// </summary>
         [Test]
         public void HistorizeRetainsOriginalBinarySignatures()
         {
@@ -112,6 +118,9 @@ namespace Opc.Ua.Server.Tests.Historian
                 Is.EqualTo(1));
         }
 
+        /// <summary>
+        /// Verifies that Historize lazily creates an in-memory provider when UseHistorian was not called first.
+        /// </summary>
         [Test]
         public void HistorizeWithoutPriorUseHistorianLazilyCreatesInMemoryProvider()
         {
@@ -131,6 +140,9 @@ namespace Opc.Ua.Server.Tests.Historian
                 "Bare Historize() should lazily install an in-memory provider as the default.");
         }
 
+        /// <summary>
+        /// Verifies that Historize enables historizing and the appropriate history access levels.
+        /// </summary>
         [Test]
         public void HistorizeSetsHistorizingAndAccessLevels()
         {
@@ -149,6 +161,9 @@ namespace Opc.Ua.Server.Tests.Historian
                 Is.EqualTo(AccessLevels.HistoryRead));
         }
 
+        /// <summary>
+        /// Verifies that a default literal selects the legacy typed Historize overload.
+        /// </summary>
         [Test]
         public void HistorizeDefaultLiteralUsesLegacyTypedOverload()
         {
@@ -160,6 +175,9 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(v.Historizing, Is.True);
         }
 
+        /// <summary>
+        /// Verifies that Historize can explicitly leave the Historizing attribute false.
+        /// </summary>
         [Test]
         public void HistorizeCanExplicitlyLeaveHistorizingFalse()
         {
@@ -185,6 +203,9 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(registry.Resolve(v.NodeId), Is.Not.Null);
         }
 
+        /// <summary>
+        /// Verifies that Historize can preserve a provider-owned Historizing state.
+        /// </summary>
         [TestCase(false)]
         [TestCase(true)]
         public void HistorizeCanPreserveProviderOwnedHistorizing(bool initialValue)
@@ -199,6 +220,9 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(v.Historizing, Is.EqualTo(initialValue));
         }
 
+        /// <summary>
+        /// Verifies that Historize respects a custom access-level selection.
+        /// </summary>
         [Test]
         public void HistorizeRespectsCustomAccessLevel()
         {
@@ -215,6 +239,9 @@ namespace Opc.Ua.Server.Tests.Historian
                 "HistoryWrite must not be set when only HistoryRead was requested.");
         }
 
+        /// <summary>
+        /// Verifies that fluent historian configuration registers an explicitly supplied provider.
+        /// </summary>
         [Test]
         public void UseHistorianFluentChainRegistersExplicitProvider()
         {
@@ -229,6 +256,9 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(registry.Resolve(v.NodeId), Is.SameAs(customProvider));
         }
 
+        /// <summary>
+        /// Verifies that WithHistorian binds a per-node provider with precedence over broader registrations.
+        /// </summary>
         [Test]
         public void WithHistorianBindsPerNodeAndTakesPrecedence()
         {
@@ -248,6 +278,9 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(registry.Resolve(v.NodeId), Is.SameAs(specialProvider));
         }
 
+        /// <summary>
+        /// Verifies that an explicit Historize provider argument creates a per-node binding.
+        /// </summary>
         [Test]
         public void HistorizeWithExplicitProviderArgumentBindsPerNode()
         {
@@ -262,6 +295,9 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(v.Historizing, Is.True);
         }
 
+        /// <summary>
+        /// Verifies that an explicitly supplied provider receives automatically captured values.
+        /// </summary>
         [Test]
         public async Task ExplicitProviderReceivesAutomaticCaptureAsync()
         {
@@ -312,6 +348,9 @@ namespace Opc.Ua.Server.Tests.Historian
                 Is.Zero);
         }
 
+        /// <summary>
+        /// Verifies that a provider selected by WithHistorian receives automatically captured values.
+        /// </summary>
         [Test]
         public async Task WithHistorianProviderReceivesAutomaticCaptureAsync()
         {
@@ -363,6 +402,9 @@ namespace Opc.Ua.Server.Tests.Historian
                 Is.Zero);
         }
 
+        /// <summary>
+        /// Verifies that Historize uses the capabilities advertised by the provider.
+        /// </summary>
         [Test]
         public async Task HistorizeWithCapabilitiesAdvertisedByProvider()
         {
@@ -389,6 +431,9 @@ namespace Opc.Ua.Server.Tests.Historian
                 "Provider should advertise the capability set the user supplied verbatim.");
         }
 
+        /// <summary>
+        /// Verifies that Historize is available on an untyped node builder.
+        /// </summary>
         [Test]
         public void HistorizeAlsoWorksFromUntypedNodeBuilder()
         {
@@ -400,6 +445,9 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(v.Historizing, Is.True);
         }
 
+        /// <summary>
+        /// Verifies that a default literal selects the legacy untyped Historize overload.
+        /// </summary>
         [Test]
         public void HistorizeDefaultLiteralUsesLegacyUntypedOverload()
         {
@@ -413,6 +461,9 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(v.Historizing, Is.True);
         }
 
+        /// <summary>
+        /// Verifies that untyped Historize honors explicit control of the Historizing attribute.
+        /// </summary>
         [Test]
         public void UntypedHistorizeHonorsHistorizingControl()
         {
@@ -433,6 +484,9 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(v.Historizing, Is.False);
         }
 
+        /// <summary>
+        /// Verifies that Historize fails cleanly when the server does not expose a historian registry.
+        /// </summary>
         [Test]
         public void HistorizeFailsCleanlyWhenServerLacksRegistry()
         {

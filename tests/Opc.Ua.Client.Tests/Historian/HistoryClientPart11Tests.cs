@@ -37,11 +37,17 @@ using Opc.Ua.Client.Historian;
 
 namespace Opc.Ua.Client.Tests.Historian
 {
+    /// <summary>
+    /// Verifies Part 11 history reads, event updates, annotation batches, and client-side request validation.
+    /// </summary>
     [TestFixture]
     [Category("Historian")]
     [Parallelizable(ParallelScope.All)]
     public class HistoryClientPart11Tests
     {
+        /// <summary>
+        /// Verifies that modified-history reads pair each value with its modification metadata.
+        /// </summary>
         [Test]
         public async Task ReadModifiedAsyncPairsValuesWithModificationInfoAsync()
         {
@@ -118,6 +124,9 @@ namespace Opc.Ua.Client.Tests.Historian
             Assert.That(details.NumValuesPerNode, Is.EqualTo(10u));
         }
 
+        /// <summary>
+        /// Verifies that modified-history reads reject mismatched value and metadata counts.
+        /// </summary>
         [Test]
         public Task ReadModifiedAsyncRejectsMismatchedMetadataAsync()
         {
@@ -163,6 +172,9 @@ namespace Opc.Ua.Client.Tests.Historian
             return Task.CompletedTask;
         }
 
+        /// <summary>
+        /// Verifies that modified-history reads reject an unexpected response payload type.
+        /// </summary>
         [Test]
         public Task ReadModifiedAsyncRejectsUnexpectedPayloadTypeAsync()
         {
@@ -207,6 +219,9 @@ namespace Opc.Ua.Client.Tests.Historian
             return Task.CompletedTask;
         }
 
+        /// <summary>
+        /// Verifies that event-history reads follow continuation points to retrieve subsequent pages.
+        /// </summary>
         [Test]
         public async Task ReadEventsAsyncFollowsContinuationPointsAsync()
         {
@@ -295,6 +310,9 @@ namespace Opc.Ua.Client.Tests.Historian
                 Is.EqualTo(TimestampsToReturn.Source));
         }
 
+        /// <summary>
+        /// Verifies that disposing an event-history enumerator releases its outstanding continuation point.
+        /// </summary>
         [Test]
         public async Task ReadEventsAsyncReleasesContinuationPointWhenDisposedAsync()
         {
@@ -359,6 +377,9 @@ namespace Opc.Ua.Client.Tests.Historian
             Assert.That(releasedContinuationPoint, Is.EqualTo(continuationPoint));
         }
 
+        /// <summary>
+        /// Verifies that event-history reads reject rows with an unexpected number of selected fields.
+        /// </summary>
         [Test]
         public void ReadEventsAsyncRejectsMismatchedFieldCount()
         {
@@ -419,6 +440,9 @@ namespace Opc.Ua.Client.Tests.Historian
                 Is.EqualTo(StatusCodes.BadDecodingError));
         }
 
+        /// <summary>
+        /// Verifies that each event update operation sends the matching history service details.
+        /// </summary>
         [Test]
         public async Task EventUpdateMethodsBuildMatchingServiceDetailsAsync()
         {
@@ -514,6 +538,9 @@ namespace Opc.Ua.Client.Tests.Historian
             Assert.That(deleteDetails.EventIds, Is.EqualTo([eventId]));
         }
 
+        /// <summary>
+        /// Verifies that event inserts and updates accept EventType and Time operands rooted in ConditionType.
+        /// </summary>
         [Test]
         public async Task InsertAndUpdateEventsAcceptConditionTypeRootedEventTypeAndTimeAsync()
         {
@@ -563,6 +590,9 @@ namespace Opc.Ua.Client.Tests.Historian
                 Times.Exactly(2));
         }
 
+        /// <summary>
+        /// Verifies that event replacement accepts an EventId operand rooted in ConditionType.
+        /// </summary>
         [Test]
         public async Task ReplaceEventsAcceptsConditionTypeRootedEventIdAsync()
         {
@@ -603,6 +633,9 @@ namespace Opc.Ua.Client.Tests.Historian
                 Times.Once);
         }
 
+        /// <summary>
+        /// Verifies that event insertion rejects duplicate Time fields rooted in different event types.
+        /// </summary>
         [Test]
         public void InsertEventsRejectsDuplicateTimeAcrossEventTypeRoots()
         {
@@ -653,6 +686,9 @@ namespace Opc.Ua.Client.Tests.Historian
                 Times.Never);
         }
 
+        /// <summary>
+        /// Verifies that event insertion rejects structurally malformed standard fields rooted in an event subtype.
+        /// </summary>
         [TestCase("Attribute")]
         [TestCase("BrowsePath")]
         [TestCase("Namespace")]
@@ -721,6 +757,9 @@ namespace Opc.Ua.Client.Tests.Historian
                 Times.Never);
         }
 
+        /// <summary>
+        /// Verifies that event insertion rejects standard fields with null type-definition roots.
+        /// </summary>
         [Test]
         public void InsertEventsRejectsNullRootedStandardFields()
         {
@@ -760,6 +799,9 @@ namespace Opc.Ua.Client.Tests.Historian
                 Times.Never);
         }
 
+        /// <summary>
+        /// Verifies that event insertion rejects standard fields rooted in non-event types.
+        /// </summary>
         [Test]
         public void InsertEventsRejectsNonEventTypeRootedStandardFields()
         {
@@ -805,6 +847,9 @@ namespace Opc.Ua.Client.Tests.Historian
                 Times.Once);
         }
 
+        /// <summary>
+        /// Verifies that removing an annotation batch sends a single structured history update request.
+        /// </summary>
         [Test]
         public async Task WriteAnnotationsAsyncSendsOneStructuredRemoveBatchAsync()
         {
@@ -878,6 +923,9 @@ namespace Opc.Ua.Client.Tests.Historian
             Assert.That(details.UpdateValues[1].SourceTimestamp, Is.EqualTo(secondTime));
         }
 
+        /// <summary>
+        /// Verifies that structured history updates reject unknown update types.
+        /// </summary>
         [Test]
         public void UpdateStructureDataRejectsUnknownUpdateType()
         {
@@ -892,6 +940,9 @@ namespace Opc.Ua.Client.Tests.Historian
                 Throws.TypeOf<ArgumentOutOfRangeException>());
         }
 
+        /// <summary>
+        /// Verifies that event replacement rejects an index range on the EventId operand.
+        /// </summary>
         [Test]
         public void ReplaceEventsRejectsEventIdIndexRange()
         {

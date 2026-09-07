@@ -39,6 +39,9 @@ using Opc.Ua.Tests;
 
 namespace Opc.Ua.Server.Tests.Diagnostics
 {
+    /// <summary>
+    /// Verifies audit event emission, failure status, context handling, and private-key redaction.
+    /// </summary>
     [TestFixture]
     [Category("AuditEvents")]
     [Parallelizable]
@@ -49,12 +52,18 @@ namespace Opc.Ua.Server.Tests.Diagnostics
         private const string SessionUserDisplayName = "session-user";
         private static readonly ILogger s_logger = NullLogger.Instance;
 
+        /// <summary>
+        /// Verifies that a redacted private key is represented by an empty byte string.
+        /// </summary>
         [Test]
         public void RedactedPrivateKeyUsesEmptyByteString()
         {
             Assert.That(AuditEvents.RedactedPrivateKey, Is.EqualTo(ByteString.Empty));
         }
 
+        /// <summary>
+        /// Verifies that guarded reporting methods emit no audit events when auditing is disabled.
+        /// </summary>
         [Test]
         public void GuardedReportMethodsDoNotEmitWhenAuditingDisabled()
         {
@@ -68,6 +77,9 @@ namespace Opc.Ua.Server.Tests.Diagnostics
             Assert.That(server.Events, Is.Empty);
         }
 
+        /// <summary>
+        /// Verifies that certificate audit reporting emits no event when no exception is supplied.
+        /// </summary>
         [Test]
         public void ReportAuditCertificateEventWithoutExceptionDoesNotEmit()
         {
@@ -79,6 +91,9 @@ namespace Opc.Ua.Server.Tests.Diagnostics
             Assert.That(server.Events, Is.Empty);
         }
 
+        /// <summary>
+        /// Verifies that write-update audit reporting emits no event without a session user.
+        /// </summary>
         [Test]
         public void ReportAuditWriteUpdateEventWithoutSessionUserDoesNotEmit()
         {
@@ -101,6 +116,9 @@ namespace Opc.Ua.Server.Tests.Diagnostics
             Assert.That(server.Events, Is.Empty);
         }
 
+        /// <summary>
+        /// Verifies that successful reporting emits exactly one audit event with the expected type, source, and status.
+        /// </summary>
         [Test]
         public void HappyReportMethodsEmitExpectedAuditEvents()
         {
@@ -120,6 +138,9 @@ namespace Opc.Ua.Server.Tests.Diagnostics
             }
         }
 
+        /// <summary>
+        /// Verifies that a validated indexed write emits a successful Attribute/Write audit event.
+        /// </summary>
         [Test]
         public void ReportAuditWriteUpdateEventWithIndexRangeEmitsAuditEvent()
         {
@@ -143,6 +164,9 @@ namespace Opc.Ua.Server.Tests.Diagnostics
             Assert.That(auditEvent.Status.Value, Is.True);
         }
 
+        /// <summary>
+        /// Verifies that secure-channel-open auditing uses the inner service-result status from an exception.
+        /// </summary>
         [Test]
         public void ReportAuditOpenSecureChannelEventWithServiceResultExceptionUsesInnerStatus()
         {
@@ -164,6 +188,9 @@ namespace Opc.Ua.Server.Tests.Diagnostics
             Assert.That(auditEvent.StatusCodeId.Value, Is.EqualTo(StatusCodes.BadSecurityChecksFailed));
         }
 
+        /// <summary>
+        /// Verifies that secure-channel-close auditing uses Uncertain status when the exception has no inner result.
+        /// </summary>
         [Test]
         public void ReportAuditCloseSecureChannelEventWithServiceResultExceptionWithoutInnerResultUsesUncertainStatus()
         {
@@ -181,6 +208,9 @@ namespace Opc.Ua.Server.Tests.Diagnostics
             Assert.That(auditEvent.StatusCodeId.Value, Is.EqualTo(StatusCodes.Uncertain));
         }
 
+        /// <summary>
+        /// Verifies that session reporting methods emit failed audit events for exceptions.
+        /// </summary>
         [Test]
         public void ReportSessionMethodsWithExceptionsEmitFailedAuditEvents()
         {
@@ -206,6 +236,9 @@ namespace Opc.Ua.Server.Tests.Diagnostics
             Assert.That(server.Events[1].Status.Value, Is.False);
         }
 
+        /// <summary>
+        /// Verifies that certificate update reporting methods emit failed audit events for exceptions.
+        /// </summary>
         [Test]
         public void ReportCertificateUpdateMethodsWithExceptionsEmitFailedAuditEvents()
         {
@@ -238,6 +271,9 @@ namespace Opc.Ua.Server.Tests.Diagnostics
             Assert.That(server.Events[1].Status.Value, Is.False);
         }
 
+        /// <summary>
+        /// Verifies that trust-list audit reporting uses a valid system context.
+        /// </summary>
         [Test]
         public void ReportTrustListMethodsUseValidSystemContext()
         {

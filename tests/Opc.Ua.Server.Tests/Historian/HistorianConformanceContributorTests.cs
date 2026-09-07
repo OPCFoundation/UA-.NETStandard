@@ -52,6 +52,9 @@ namespace Opc.Ua.Server.Tests.Historian
     {
         private const ushort NamespaceIndex = 1;
 
+        /// <summary>
+        /// Verifies that constructing a historian conformance contributor rejects a null registry.
+        /// </summary>
         [Test]
         public void ConstructorRejectsNullRegistry()
         {
@@ -60,6 +63,9 @@ namespace Opc.Ua.Server.Tests.Historian
                 Throws.ArgumentNullException);
         }
 
+        /// <summary>
+        /// Verifies that conformance units and server profile claims are empty before the first refresh.
+        /// </summary>
         [Test]
         public void PropertiesAreEmptyBeforeTheFirstRefresh()
         {
@@ -70,6 +76,9 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(contributor.ServerProfiles.Count, Is.Zero);
         }
 
+        /// <summary>
+        /// Verifies that refreshing an empty registry leaves conformance units and server profile claims empty.
+        /// </summary>
         [Test]
         public async Task RefreshWithNoProvidersLeavesBothCollectionsEmptyAsync()
         {
@@ -82,6 +91,9 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(contributor.ServerProfiles.Count, Is.Zero);
         }
 
+        /// <summary>
+        /// Verifies that a generic read-write provider claims only the ten non-event profiles.
+        /// </summary>
         [Test]
         public async Task RefreshClaimsOnlyTheTenNonEventProfilesForAGenericReadWriteProviderAsync()
         {
@@ -98,6 +110,9 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(contributor.ConformanceUnits.Count, Is.GreaterThan(0));
         }
 
+        /// <summary>
+        /// Verifies that refreshing generic provider capabilities does not claim event-family profiles.
+        /// </summary>
         [Test]
         public async Task RefreshNeverClaimsAnyEventsFamilyProfileAsync()
         {
@@ -130,6 +145,9 @@ namespace Opc.Ua.Server.Tests.Historian
             }
         }
 
+        /// <summary>
+        /// Verifies that refresh combines conformance claims across registered providers.
+        /// </summary>
         [Test]
         public async Task RefreshUnionsClaimsAcrossMultipleProvidersAsync()
         {
@@ -161,6 +179,9 @@ namespace Opc.Ua.Server.Tests.Historian
                 "Structured-capable provider should claim the Structured Data profile.");
         }
 
+        /// <summary>
+        /// Verifies that refresh skips providers which reject provider-wide capability queries.
+        /// </summary>
         [Test]
         public Task RefreshSkipsProvidersThatThrowNotSupportedOnNullNodeAsync()
         {
@@ -175,6 +196,9 @@ namespace Opc.Ua.Server.Tests.Historian
             return Task.CompletedTask;
         }
 
+        /// <summary>
+        /// Verifies that refreshed conformance claims reflect the provider's latest state.
+        /// </summary>
         [Test]
         public async Task RefreshReflectsTheMostRecentProviderStateAsync()
         {

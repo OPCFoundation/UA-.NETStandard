@@ -40,11 +40,17 @@ using Opc.Ua.Server.Historian.InMemory;
 
 namespace Opc.Ua.Server.Tests.Historian
 {
+    /// <summary>
+    /// Verifies historian provider precedence, registry membership, binding removal, and disposal ownership.
+    /// </summary>
     [TestFixture]
     [Category("Historian")]
     [Parallelizable(ParallelScope.All)]
     public class HistorianProviderRegistryTests
     {
+        /// <summary>
+        /// Verifies that disposing the registry disposes only providers it owns.
+        /// </summary>
         [Test]
         public void DisposeOnlyDisposesOwnedProviders()
         {
@@ -63,6 +69,9 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(external.DisposeCount, Is.Zero);
         }
 
+        /// <summary>
+        /// Verifies that an exact-node provider binding takes precedence over namespace and default bindings.
+        /// </summary>
         [Test]
         public async Task ResolveByExactNodeBeatsNamespaceAndDefaultAsync()
         {
@@ -87,6 +96,9 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(registry.Resolve(new NodeId("InNs0", 0)), Is.SameAs(defaultProvider));
         }
 
+        /// <summary>
+        /// Verifies that unregistering a namespace leaves other provider bindings intact.
+        /// </summary>
         [Test]
         public async Task UnregisterNamespaceLeavesOtherBindingsAsync()
         {
@@ -106,6 +118,9 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(registry.Resolve(new NodeId("InNs1", 1)), Is.SameAs(defaultProvider));
         }
 
+        /// <summary>
+        /// Verifies that the provider collection is the union of registered bindings.
+        /// </summary>
         [Test]
         public async Task ProvidersReflectsUnionAsync()
         {
@@ -130,6 +145,9 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(registry.Providers.Contains(p3), Is.True);
         }
 
+        /// <summary>
+        /// Verifies that resolving a null or empty node identifier returns no provider.
+        /// </summary>
         [Test]
         public async Task ResolveReturnsNullForNullOrEmptyNodeIdAsync()
         {

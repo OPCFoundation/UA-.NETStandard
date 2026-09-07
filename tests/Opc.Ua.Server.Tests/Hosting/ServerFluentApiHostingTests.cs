@@ -58,6 +58,9 @@ using Opc.Ua.Tests;
 
 namespace Opc.Ua.Server.Tests.Hosting
 {
+    /// <summary>
+    /// Verifies fluent server registration, hosted startup, injected services, and lifecycle hook binding.
+    /// </summary>
     [TestFixture]
     [Category("Hosting")]
     [SetCulture("en-us")]
@@ -65,6 +68,9 @@ namespace Opc.Ua.Server.Tests.Hosting
     [NonParallelizable]
     public sealed class ServerFluentApiHostingTests
     {
+        /// <summary>
+        /// Verifies that custom server registration creates the configured server type.
+        /// </summary>
         [Test]
         public void AddServerWithCustomServerCreatesConfiguredServerType()
         {
@@ -79,6 +85,9 @@ namespace Opc.Ua.Server.Tests.Hosting
             }
         }
 
+        /// <summary>
+        /// Verifies that hosted startup starts the configured custom server.
+        /// </summary>
         [Test]
         public async Task AddServerWithCustomServerStartsCustomServerAsync()
         {
@@ -94,6 +103,9 @@ namespace Opc.Ua.Server.Tests.Hosting
                 Is.True);
         }
 
+        /// <summary>
+        /// Verifies that application configuration is shared consistently between client and server setup.
+        /// </summary>
         [Test]
         public async Task ConfigureApplicationBuildsSharedClientAndServerConfigurationAsync()
         {
@@ -163,6 +175,9 @@ namespace Opc.Ua.Server.Tests.Hosting
             }
         }
 
+        /// <summary>
+        /// Verifies that default server registration uses a dependency-injection-aware factory.
+        /// </summary>
         [Test]
         public void AddServerUsesDependencyInjectionAwareDefaultFactory()
         {
@@ -177,6 +192,9 @@ namespace Opc.Ua.Server.Tests.Hosting
             }
         }
 
+        /// <summary>
+        /// Verifies that the server factory can be resolved and replaced through dependency injection.
+        /// </summary>
         [Test]
         public void OpcUaServerFactoryIsResolvableAndOverridable()
         {
@@ -198,6 +216,9 @@ namespace Opc.Ua.Server.Tests.Hosting
             Assert.That(server, Is.TypeOf<CustomServer>());
         }
 
+        /// <summary>
+        /// Verifies that durable-subscription registration supplies the standard server's construction hooks.
+        /// </summary>
         [Test]
         public void AddDurableSubscriptionsFeedsStandardServerHooks()
         {
@@ -213,6 +234,10 @@ namespace Opc.Ua.Server.Tests.Hosting
             Assert.That(InvokeProtected(server, "CreateMonitoredItemQueueFactory"), Is.SameAs(queueFactory.Object));
         }
 
+        /// <summary>
+        /// Verifies that session and subscription manager registrations supply the standard server's construction
+        /// hooks.
+        /// </summary>
         [Test]
         public void AddSessionAndSubscriptionManagersFeedStandardServerHooks()
         {
@@ -229,6 +254,9 @@ namespace Opc.Ua.Server.Tests.Hosting
             Assert.That(InvokeProtected(server, "CreateSubscriptionManager"), Is.SameAs(subscriptionManager.Object));
         }
 
+        /// <summary>
+        /// Verifies that alias-name registration is applied when node managers have started.
+        /// </summary>
         [Test]
         public void AddAliasNamesRegistersAtNodeManagerStarted()
         {
@@ -249,6 +277,9 @@ namespace Opc.Ua.Server.Tests.Hosting
             Assert.That(aliasRegistry.Stores, Does.Contain(aliasStore.Object));
         }
 
+        /// <summary>
+        /// Verifies that the hosted historian is available before node-manager startup completes.
+        /// </summary>
         [Test]
         public async Task HostedHistorianIsAvailableBeforeNodeManagerStartupAsync()
         {
@@ -298,6 +329,9 @@ namespace Opc.Ua.Server.Tests.Hosting
                 Is.True);
         }
 
+        /// <summary>
+        /// Verifies that a transient pre-startup task executes only once.
+        /// </summary>
         [Test]
         public async Task TransientPreStartupTaskRunsOnceAsync()
         {
@@ -322,6 +356,9 @@ namespace Opc.Ua.Server.Tests.Hosting
                 Is.True);
         }
 
+        /// <summary>
+        /// Verifies that registered alias stores are copied into the server when node managers have started.
+        /// </summary>
         [Test]
         public void AddAliasNameStoreRegistryCopiesStoresAtNodeManagerStarted()
         {
@@ -347,6 +384,9 @@ namespace Opc.Ua.Server.Tests.Hosting
             Assert.That(targetRegistry.Stores, Does.Contain(aliasStore.Object));
         }
 
+        /// <summary>
+        /// Verifies that incompatible custom server construction hooks produce a clear exception.
+        /// </summary>
         [Test]
         public void CustomServerWithConstructorHooksThrowsClearException()
         {
@@ -362,6 +402,9 @@ namespace Opc.Ua.Server.Tests.Hosting
             Assert.That(ex.Message, Does.Contain(nameof(OpcUaServerBuilderExtensions.AddDurableSubscriptions)));
         }
 
+        /// <summary>
+        /// Verifies that a custom dependency-injection server applies durable-subscription hooks.
+        /// </summary>
         [Test]
         public void CustomDependencyInjectionServerAppliesDurableSubscriptionHooks()
         {
@@ -377,6 +420,9 @@ namespace Opc.Ua.Server.Tests.Hosting
             Assert.That(InvokeProtected(server, "CreateMonitoredItemQueueFactory"), Is.SameAs(queueFactory.Object));
         }
 
+        /// <summary>
+        /// Verifies that a dependency-injection server stages historian services without a hosted service.
+        /// </summary>
         [Test]
         public void DependencyInjectionServerStagesHistorianWithoutHostedService()
         {
@@ -398,6 +444,9 @@ namespace Opc.Ua.Server.Tests.Hosting
                 Is.EqualTo(1));
         }
 
+        /// <summary>
+        /// Verifies that fluent role configuration seeds the default role manager.
+        /// </summary>
         [Test]
         public void ConfigureRolesSeedsDefaultRoleManager()
         {
@@ -423,6 +472,9 @@ namespace Opc.Ua.Server.Tests.Hosting
                 rule.CriteriaType == IdentityCriteriaType.UserName && rule.Criteria == "operator"));
         }
 
+        /// <summary>
+        /// Verifies that a configured roles section seeds the configured role manager.
+        /// </summary>
         [Test]
         public void AddServerConfigurationWithRolesSectionSeedsConfiguredRoleManager()
         {
@@ -452,6 +504,9 @@ namespace Opc.Ua.Server.Tests.Hosting
                 rule.CriteriaType == IdentityCriteriaType.UserName && rule.Criteria == "operator"));
         }
 
+        /// <summary>
+        /// Verifies that the user-management creation hook binds the model to the server.
+        /// </summary>
         [Test]
         public async Task CreateUserManagementSeamBindsTheModelToTheServerAsync()
         {
@@ -492,6 +547,9 @@ namespace Opc.Ua.Server.Tests.Hosting
             }
         }
 
+        /// <summary>
+        /// Verifies that role configuration binds the RoleSet to the dependency-injected role manager.
+        /// </summary>
         [Test]
         public async Task ConfigureRolesBindsRoleSetToDependencyInjectedRoleManagerAsync()
         {
@@ -532,6 +590,9 @@ namespace Opc.Ua.Server.Tests.Hosting
                 Is.True);
         }
 
+        /// <summary>
+        /// Verifies that a configured custom role is browsable beneath the RoleSet.
+        /// </summary>
         [Test]
         public async Task ConfigureRolesCustomRoleIsBrowsableUnderTheRoleSetAsync()
         {
@@ -578,6 +639,9 @@ namespace Opc.Ua.Server.Tests.Hosting
                 "The node must expose the configured identity mapping.");
         }
 
+        /// <summary>
+        /// Verifies that an injected role manager is bound to the server's RoleSet.
+        /// </summary>
         [Test]
         public async Task AddRoleManagerBindsRoleSetToInjectedRoleManagerAsync()
         {
@@ -608,6 +672,9 @@ namespace Opc.Ua.Server.Tests.Hosting
                 Is.True);
         }
 
+        /// <summary>
+        /// Verifies that the hosted service assigns server hooks and executes startup tasks.
+        /// </summary>
         [Test]
         public async Task HostedServiceAssignsServerHooksAndRunsStartupTasksAsync()
         {
@@ -657,6 +724,9 @@ namespace Opc.Ua.Server.Tests.Hosting
             Assert.That(recordingTask.ObservedServer, Is.SameAs(StartupHookCaptureServer.StartedServer.CurrentInstance));
         }
 
+        /// <summary>
+        /// Verifies that role-manager registration replaces the default role manager.
+        /// </summary>
         [Test]
         public void AddRoleManagerReplacesDefaultRoleManager()
         {
@@ -668,6 +738,9 @@ namespace Opc.Ua.Server.Tests.Hosting
             Assert.That(sp.GetRequiredService<IRoleManager>(), Is.SameAs(roleManager));
         }
 
+        /// <summary>
+        /// Verifies that node-manager registration installs a fluent node-manager factory.
+        /// </summary>
         [Test]
         public void AddNodeManagerRegistersFluentNodeManagerFactory()
         {
@@ -684,6 +757,9 @@ namespace Opc.Ua.Server.Tests.Hosting
             Assert.That(registration.AsyncFactory.NamespacesUris[0], Is.EqualTo("urn:tests:fluent"));
         }
 
+        /// <summary>
+        /// Verifies that fluent reverse-connect and operation-limit settings configure server options.
+        /// </summary>
         [Test]
         public void ReverseConnectAndOperationLimitsConfigureServerOptions()
         {
@@ -708,6 +784,9 @@ namespace Opc.Ua.Server.Tests.Hosting
             Assert.That(options.OperationLimits!.MaxNodesPerRead, Is.EqualTo(42));
         }
 
+        /// <summary>
+        /// Verifies that reverse-connect and operation-limit settings bind from application configuration.
+        /// </summary>
         [Test]
         public void ReverseConnectAndOperationLimitsBindFromConfiguration()
         {
@@ -732,6 +811,9 @@ namespace Opc.Ua.Server.Tests.Hosting
             Assert.That(options.OperationLimits!.MaxNodesPerBrowse, Is.EqualTo(7));
         }
 
+        /// <summary>
+        /// Verifies that server transport forwarding preserves the builder and registers transport bindings.
+        /// </summary>
         [Test]
         public void ServerTransportForwardersReturnSameBuilderAndRegisterBindings()
         {
@@ -756,6 +838,9 @@ namespace Opc.Ua.Server.Tests.Hosting
             Assert.That(sp.GetServices<ITransportBindingConfigurator>(), Is.Not.Empty);
         }
 
+        /// <summary>
+        /// Verifies that server transport forwarding rejects a null builder.
+        /// </summary>
         [Test]
         public void ServerTransportForwardersThrowForNullBuilder()
         {
@@ -770,6 +855,9 @@ namespace Opc.Ua.Server.Tests.Hosting
 #endif
         }
 
+        /// <summary>
+        /// Verifies that one-shot server presets register their expected services.
+        /// </summary>
         [Test]
         public void OneShotServerPresetsRegisterExpectedServices()
         {
@@ -799,6 +887,9 @@ namespace Opc.Ua.Server.Tests.Hosting
             Assert.That(secure.GetRequiredService<IFileSystemProvider>(), Is.TypeOf<PhysicalFileSystemProvider>());
         }
 
+        /// <summary>
+        /// Verifies that file-system registration installs both the provider and node-manager factory.
+        /// </summary>
         [Test]
         public void AddFileSystemRegistersProviderAndNodeManagerFactory()
         {
@@ -814,6 +905,9 @@ namespace Opc.Ua.Server.Tests.Hosting
             Assert.That(sp.GetServices<OpcUaServerNodeManagerRegistration>(), Has.Exactly(1).Items);
         }
 
+        /// <summary>
+        /// Verifies that secret-store and certificate-manager registrations replace existing services.
+        /// </summary>
         [Test]
         public void AddSecretStoreAndCertificateManagerRegisterReplacements()
         {
@@ -829,6 +923,9 @@ namespace Opc.Ua.Server.Tests.Hosting
             Assert.That(sp.GetRequiredService<ICertificateManager>(), Is.SameAs(certificateManager.Object));
         }
 
+        /// <summary>
+        /// Verifies that alias-name-store registration adds the service.
+        /// </summary>
         [Test]
         public void AddAliasNameStoreRegistersService()
         {
@@ -842,6 +939,9 @@ namespace Opc.Ua.Server.Tests.Hosting
             Assert.That(sp.GetRequiredService<IAliasNameStore>(), Is.SameAs(aliasStore.Object));
         }
 
+        /// <summary>
+        /// Verifies that a nonanonymous policy without a matching authenticator produces a warning.
+        /// </summary>
         [Test]
         public async Task NonAnonymousPolicyWithoutMatchingAuthenticatorLogsWarningAsync()
         {
@@ -871,6 +971,9 @@ namespace Opc.Ua.Server.Tests.Hosting
                 Is.True);
         }
 
+        /// <summary>
+        /// Verifies that the new fluent server APIs reject null arguments.
+        /// </summary>
         [Test]
         public void NewServerFluentApiRejectsNullArguments()
         {
@@ -1040,16 +1143,28 @@ namespace Opc.Ua.Server.Tests.Hosting
                     : [serverInternal ?? Mock.Of<IServerInternal>(), new ApplicationConfiguration()]);
         }
 
+        /// <summary>
+        /// Provides a distinct standard server type for custom server factory and hosting scenarios.
+        /// </summary>
         public sealed class CustomServer : StandardServer
         {
+            /// <summary>
+            /// Creates the custom standard server with injected telemetry and time.
+            /// </summary>
             public CustomServer(ITelemetryContext telemetry, TimeProvider timeProvider)
                 : base(telemetry, timeProvider)
             {
             }
         }
 
+        /// <summary>
+        /// Provides a custom dependency-injection server for constructor-hook scenarios.
+        /// </summary>
         public sealed class CustomDependencyInjectionServer : DependencyInjectionStandardServer
         {
+            /// <summary>
+            /// Creates the custom server with its service provider, telemetry, and time source.
+            /// </summary>
             public CustomDependencyInjectionServer(
                 IServiceProvider services,
                 ITelemetryContext telemetry,
@@ -1059,8 +1174,14 @@ namespace Opc.Ua.Server.Tests.Hosting
             }
         }
 
+        /// <summary>
+        /// Captures the role manager, Observer role, and server bound during node-manager startup.
+        /// </summary>
         public sealed class RoleCaptureServer : DependencyInjectionStandardServer
         {
+            /// <summary>
+            /// Creates the role-capturing server with injected services, telemetry, and time.
+            /// </summary>
             public RoleCaptureServer(
                 IServiceProvider services,
                 ITelemetryContext telemetry,
@@ -1069,12 +1190,24 @@ namespace Opc.Ua.Server.Tests.Hosting
             {
             }
 
+            /// <summary>
+            /// Gets the role manager captured when node managers started.
+            /// </summary>
             public static IRoleManager? BoundRoleManager { get; private set; }
 
+            /// <summary>
+            /// Gets the standard Observer role captured from the server's diagnostics model.
+            /// </summary>
             public static RoleState? BoundObserverRole { get; private set; }
 
+            /// <summary>
+            /// Gets the server instance captured when node managers started.
+            /// </summary>
             public static IServerInternal? BoundServer { get; private set; }
 
+            /// <summary>
+            /// Clears the captured role manager, Observer role, and server before the next scenario.
+            /// </summary>
             public static void Reset()
             {
                 BoundRoleManager = null;
@@ -1092,8 +1225,14 @@ namespace Opc.Ua.Server.Tests.Hosting
             }
         }
 
+        /// <summary>
+        /// Supplies a configurable user-management implementation and captures its binding during startup.
+        /// </summary>
         public sealed class UserManagementCaptureServer : DependencyInjectionStandardServer
         {
+            /// <summary>
+            /// Creates the user-management capture server with injected services, telemetry, and time.
+            /// </summary>
             public UserManagementCaptureServer(
                 IServiceProvider services,
                 ITelemetryContext telemetry,
@@ -1102,12 +1241,24 @@ namespace Opc.Ua.Server.Tests.Hosting
             {
             }
 
+            /// <summary>
+            /// Gets or sets the user-management implementation returned by the server's creation hook.
+            /// </summary>
             public static UserManagement.IUserManagement? Supplied { get; set; }
 
+            /// <summary>
+            /// Gets the user-management implementation bound to the server during node-manager startup.
+            /// </summary>
             public static UserManagement.IUserManagement? BoundUserManagement { get; private set; }
 
+            /// <summary>
+            /// Gets whether the node-manager-started callback has run.
+            /// </summary>
             public static bool NodeManagerStarted { get; private set; }
 
+            /// <summary>
+            /// Clears supplied and captured user-management state and resets the startup indicator.
+            /// </summary>
             public static void Reset()
             {
                 Supplied = null;
@@ -1130,19 +1281,37 @@ namespace Opc.Ua.Server.Tests.Hosting
             }
         }
 
+        /// <summary>
+        /// Captures the concrete server type and application configuration observed during hosted startup.
+        /// </summary>
         public sealed class ObservedHostedServer : StandardServer
         {
+            /// <summary>
+            /// Creates the observed hosted server with injected telemetry and time.
+            /// </summary>
             public ObservedHostedServer(ITelemetryContext telemetry, TimeProvider timeProvider)
                 : base(telemetry, timeProvider)
             {
             }
 
+            /// <summary>
+            /// Gets or sets the concrete server type captured after startup.
+            /// </summary>
             public static Type? StartedType { get; set; }
 
+            /// <summary>
+            /// Gets or sets the application name captured from startup configuration.
+            /// </summary>
             public static string? StartedApplicationName { get; set; }
 
+            /// <summary>
+            /// Gets or sets the application type captured from startup configuration.
+            /// </summary>
             public static ApplicationType? StartedApplicationType { get; set; }
 
+            /// <summary>
+            /// Gets or sets the certificate manager captured from startup configuration.
+            /// </summary>
             public static ICertificateManager? StartedCertificateManager { get; set; }
 
             protected override void OnServerStarting(
@@ -1161,8 +1330,14 @@ namespace Opc.Ua.Server.Tests.Hosting
             }
         }
 
+        /// <summary>
+        /// Publishes the constructed dependency-injection server so startup-hook scenarios can inspect it.
+        /// </summary>
         public sealed class StartupHookCaptureServer : DependencyInjectionStandardServer
         {
+            /// <summary>
+            /// Creates the startup-hook capture server and records its instance.
+            /// </summary>
             public StartupHookCaptureServer(
                 IServiceProvider services,
                 ITelemetryContext telemetry,
@@ -1172,8 +1347,14 @@ namespace Opc.Ua.Server.Tests.Hosting
                 Volatile.Write(ref s_startedServer, this);
             }
 
+            /// <summary>
+            /// Gets the most recently constructed startup-hook capture server.
+            /// </summary>
             public static StartupHookCaptureServer? StartedServer => Volatile.Read(ref s_startedServer);
 
+            /// <summary>
+            /// Clears the recorded startup-hook server instance.
+            /// </summary>
             public static void Reset()
             {
                 Volatile.Write(ref s_startedServer, null);
@@ -1182,8 +1363,14 @@ namespace Opc.Ua.Server.Tests.Hosting
             private static StartupHookCaptureServer? s_startedServer;
         }
 
+        /// <summary>
+        /// Captures historian availability and capability nodes at the node-manager-started lifecycle hook.
+        /// </summary>
         public sealed class EarlyHistorianCaptureServer : StandardServer
         {
+            /// <summary>
+            /// Creates the early historian capture server with injected telemetry and time.
+            /// </summary>
             public EarlyHistorianCaptureServer(
                 ITelemetryContext telemetry,
                 TimeProvider timeProvider)
@@ -1191,12 +1378,24 @@ namespace Opc.Ua.Server.Tests.Hosting
             {
             }
 
+            /// <summary>
+            /// Gets whether the node-manager-started callback has run.
+            /// </summary>
             public static bool NodeManagerStarted { get; private set; }
 
+            /// <summary>
+            /// Gets the historian provider resolved for the fixture variable during startup.
+            /// </summary>
             public static IHistorianProvider? ResolvedProvider { get; private set; }
 
+            /// <summary>
+            /// Gets the historical server capabilities node observed during startup.
+            /// </summary>
             public static HistoryServerCapabilitiesState? HistoryCapabilities { get; private set; }
 
+            /// <summary>
+            /// Clears captured historian state and the fixture's historized variable.
+            /// </summary>
             public static void Reset()
             {
                 NodeManagerStarted = false;
@@ -1218,12 +1417,24 @@ namespace Opc.Ua.Server.Tests.Hosting
             }
         }
 
+        /// <summary>
+        /// Creates the node manager containing the fixture's historized variable.
+        /// </summary>
         public sealed class HistorizedNodeManagerFactory : IAsyncNodeManagerFactory
         {
+            /// <summary>
+            /// Identifies the namespace containing the hosted historian fixture's nodes.
+            /// </summary>
             public const string NamespaceUri = "urn:tests:hosted-historian";
 
+            /// <summary>
+            /// Gets the namespace URI advertised by the historian node-manager factory.
+            /// </summary>
             public ArrayOf<string> NamespacesUris { get; } = [NamespaceUri];
 
+            /// <summary>
+            /// Creates a historian fixture node manager for the supplied server and configuration.
+            /// </summary>
             public ValueTask<IAsyncNodeManager> CreateAsync(
                 IServerInternal server,
                 ApplicationConfiguration configuration,
@@ -1235,8 +1446,14 @@ namespace Opc.Ua.Server.Tests.Hosting
 
         }
 
+        /// <summary>
+        /// Registers a historizing double variable used to observe historian wiring during hosted startup.
+        /// </summary>
         public sealed class HistorizedNodeManager : AsyncCustomNodeManager
         {
+            /// <summary>
+            /// Creates the historian fixture node manager in its dedicated namespace.
+            /// </summary>
             public HistorizedNodeManager(
                 IServerInternal server,
                 ApplicationConfiguration configuration)
@@ -1248,13 +1465,22 @@ namespace Opc.Ua.Server.Tests.Hosting
             {
             }
 
+            /// <summary>
+            /// Gets the historizing variable created for the current hosting scenario.
+            /// </summary>
             public static BaseDataVariableState? Variable { get; private set; }
 
+            /// <summary>
+            /// Clears the recorded historizing variable before another scenario.
+            /// </summary>
             public static void Reset()
             {
                 Variable = null;
             }
 
+            /// <summary>
+            /// Creates and registers the historizing double variable with current-read and history-read access.
+            /// </summary>
             public override async ValueTask CreateAddressSpaceAsync(
                 IDictionary<NodeId, IList<IReference>> externalReferences,
                 CancellationToken cancellationToken = default)

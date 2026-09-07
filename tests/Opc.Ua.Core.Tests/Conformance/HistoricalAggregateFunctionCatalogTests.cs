@@ -63,6 +63,9 @@ namespace Opc.Ua.Core.Tests.Conformance
             "StandardDeviationSample", "VarianceSample"
         ];
 
+        /// <summary>
+        /// Verifies that the aggregate catalog contains 37 functions.
+        /// </summary>
         [Test]
         public void CatalogContainsThirtySevenAggregateFunctions()
         {
@@ -70,6 +73,9 @@ namespace Opc.Ua.Core.Tests.Conformance
             Assert.That(s_expectedFunctionNames, Has.Length.EqualTo(37));
         }
 
+        /// <summary>
+        /// Verifies that the catalog maps every standard historical aggregate function.
+        /// </summary>
         [Test]
         public void EveryStandardAggregateFunctionIsMapped()
         {
@@ -89,6 +95,9 @@ namespace Opc.Ua.Core.Tests.Conformance
             Assert.That(actualNames, Has.Count.EqualTo(s_expectedFunctionNames.Length));
         }
 
+        /// <summary>
+        /// Verifies that historical aggregate function names are unique.
+        /// </summary>
         [Test]
         public void AllFunctionNamesAreUnique()
         {
@@ -99,6 +108,9 @@ namespace Opc.Ua.Core.Tests.Conformance
             }
         }
 
+        /// <summary>
+        /// Verifies that aggregate identifiers are unique and non-null.
+        /// </summary>
         [Test]
         public void AllAggregateIdsAreUniqueAndNotNull()
         {
@@ -110,6 +122,9 @@ namespace Opc.Ua.Core.Tests.Conformance
             }
         }
 
+        /// <summary>
+        /// Verifies that each aggregate function's browse name matches its catalog name.
+        /// </summary>
         [Test]
         public void EveryFunctionBrowseNameMatchesItsName()
         {
@@ -119,6 +134,9 @@ namespace Opc.Ua.Core.Tests.Conformance
             }
         }
 
+        /// <summary>
+        /// Verifies that server aggregate conformance unit names follow the required naming pattern.
+        /// </summary>
         [Test]
         public void ServerConformanceUnitNamesFollowTheExpectedPattern()
         {
@@ -128,6 +146,9 @@ namespace Opc.Ua.Core.Tests.Conformance
             }
         }
 
+        /// <summary>
+        /// Verifies that client aggregate conformance unit names follow the required naming pattern.
+        /// </summary>
         [Test]
         public void ClientConformanceUnitNamesFollowTheExpectedPattern()
         {
@@ -137,6 +158,9 @@ namespace Opc.Ua.Core.Tests.Conformance
             }
         }
 
+        /// <summary>
+        /// Verifies that aggregate server profile URIs match the historical-access catalog.
+        /// </summary>
         [Test]
         public void ServerProfileUriMatchesTheAggregateServerProfileInTheCatalog()
         {
@@ -149,6 +173,9 @@ namespace Opc.Ua.Core.Tests.Conformance
             Assert.That(descriptor.Side, Is.EqualTo(HistoricalAccessProfileSide.Server));
         }
 
+        /// <summary>
+        /// Verifies that aggregate client profile URIs match the historical-access catalog.
+        /// </summary>
         [Test]
         public void ClientProfileUriMatchesTheAggregateClientProfileInTheCatalog()
         {

@@ -91,6 +91,9 @@ namespace Opc.Ua.Server
         /// </summary>
         public INodeManagerLifecycle NodeManagerLifecycle { get; }
 
+        /// <summary>
+        /// Gets the active application configuration, failing if the server has not been configured.
+        /// </summary>
         internal ApplicationConfiguration CurrentConfiguration
             => Configuration
                 ?? throw new InvalidOperationException("The server has not been configured.");
@@ -4761,6 +4764,9 @@ namespace Opc.Ua.Server
             // may be overridden by the subclass.
         }
 
+        /// <summary>
+        /// Loads custom data types and refreshes the schema resolver when complex-type loading is enabled.
+        /// </summary>
         internal async ValueTask RefreshComplexTypesAsync(
             IServerInternal server,
             IAsyncNodeManager? additionalNodeManager = null,
@@ -4810,6 +4816,9 @@ namespace Opc.Ua.Server
             m_asyncNodeManagerFactories.Add(nodeManagerFactory);
         }
 
+        /// <summary>
+        /// Stages a historian provider for startup, retaining ownership if any registration requires it.
+        /// </summary>
         internal void AddHistorianProvider(
             Historian.IHistorianProvider provider,
             bool ownsProvider)
@@ -4837,6 +4846,9 @@ namespace Opc.Ua.Server
                 new HistorianProviderRegistration(provider, ownsProvider));
         }
 
+        /// <summary>
+        /// Stages a pre-startup task without registering the same instance more than once.
+        /// </summary>
         internal void AddPreStartupTask(Hosting.IServerPreStartupTask task)
         {
             if (task == null)
@@ -4902,6 +4914,9 @@ namespace Opc.Ua.Server
 
         private Task? m_disposeTask;
 
+        /// <summary>
+        /// Reports whether the server disposal task has completed for lifecycle assertions.
+        /// </summary>
         internal bool BaseResourcesDisposedForTest
         {
             get
@@ -4998,6 +5013,9 @@ namespace Opc.Ua.Server
     /// </summary>
     internal static partial class StandardServerLog
     {
+        /// <summary>
+        /// Logs a client endpoint URL that does not match the server's hostnames.
+        /// </summary>
         [LoggerMessage(EventId = ServerEventIds.StandardServer + 0, Level = LogLevel.Warning,
             Message = "Server - Client connects with an endpointUrl [{EndpointUrl}] which does not match " +
                 "Server hostnames.")]
@@ -5005,18 +5023,30 @@ namespace Opc.Ua.Server
             this ILogger logger,
             string? endpointUrl);
 
+        /// <summary>
+        /// Logs successful session creation and the assigned session identifier.
+        /// </summary>
         [LoggerMessage(EventId = ServerEventIds.StandardServer + 1, Level = LogLevel.Information,
             Message = "Server - SESSION CREATED. SessionId={SessionId}")]
         public static partial void ServerSESSIONCREATEDSessionIdSessionId(this ILogger logger, NodeId sessionId);
 
+        /// <summary>
+        /// Logs a session creation failure and its error message.
+        /// </summary>
         [LoggerMessage(EventId = ServerEventIds.StandardServer + 2, Level = LogLevel.Error,
             Message = "Server - SESSION CREATE failed. {ErrorMessage}")]
         public static partial void ServerSESSIONCREATEFailedErrorMessage(this ILogger logger, string? errorMessage);
 
+        /// <summary>
+        /// Logs successful activation of a session.
+        /// </summary>
         [LoggerMessage(EventId = ServerEventIds.StandardServer + 3, Level = LogLevel.Information,
             Message = "Server - SESSION ACTIVATED. SessionId={SessionId}")]
         public static partial void ServerSESSIONACTIVATED(this ILogger logger, NodeId? sessionId);
 
+        /// <summary>
+        /// Logs a session activation failure and its error message.
+        /// </summary>
         [LoggerMessage(EventId = ServerEventIds.StandardServer + 4, Level = LogLevel.Information,
             Message = "Server - SESSION ACTIVATE failed. SessionId={SessionId}, {ErrorMessage}")]
         public static partial void ServerSESSIONACTIVATEFailedErrorMessage(
@@ -5024,6 +5054,9 @@ namespace Opc.Ua.Server
             NodeId? sessionId,
             string? errorMessage);
 
+        /// <summary>
+        /// Logs receipt of a Publish request with its request handle, session, and timestamp.
+        /// </summary>
         [LoggerMessage(EventId = ServerEventIds.StandardServer + 5, Level = LogLevel.Trace,
             Message = "PUBLISH #{RequestHandle} RECEIVED. TIME={Timestamp:hh:mm:ss.fff}, SessionId={SessionId}")]
         public static partial void PUBLISHRequestHandleRECEIVEDTIMETimestampHhMm(
@@ -5032,6 +5065,9 @@ namespace Opc.Ua.Server
             uint requestHandle,
             DateTimeUtc timestamp);
 
+        /// <summary>
+        /// Logs a discovery server registration API failure for an endpoint.
+        /// </summary>
         [LoggerMessage(EventId = ServerEventIds.StandardServer + 6, Level = LogLevel.Warning,
             Message = "RegisterServer{Api} failed for {EndpointUrl}. Exception={ErrorMessage}")]
         public static partial void RegisterServerApiFailedForEndpointUrlException(
@@ -5040,30 +5076,48 @@ namespace Opc.Ua.Server
             Uri? endpointUrl,
             string? errorMessage);
 
+        /// <summary>
+        /// Logs a failure to close the local discovery server connection cleanly.
+        /// </summary>
         [LoggerMessage(EventId = ServerEventIds.StandardServer + 7, Level = LogLevel.Warning,
             Message = "Could not cleanly close connection with LDS. Exception={ErrorMessage}")]
         public static partial void NotCleanlyCloseConnectionWithLDSException(this ILogger logger, string? errorMessage);
 
+        /// <summary>
+        /// Logs successful discovery registration and the interval until the next registration.
+        /// </summary>
         [LoggerMessage(EventId = ServerEventIds.StandardServer + 8, Level = LogLevel.Information,
             Message = "Register server succeeded. Registering again in {RegistrationInterval} ms")]
         public static partial void RegisterServerSucceededRegisteringAgainInRegistrationInterval(
             this ILogger logger,
             double registrationInterval);
 
+        /// <summary>
+        /// Logs failed discovery registration and the interval until the next attempt.
+        /// </summary>
         [LoggerMessage(EventId = ServerEventIds.StandardServer + 9, Level = LogLevel.Information,
             Message = "Register server failed. Trying again in {RegistrationInterval} ms")]
         public static partial void RegisterServerFailedTryingAgainInRegistrationInterval(
             this ILogger logger,
             double registrationInterval);
 
+        /// <summary>
+        /// Logs an unexpected exception in the discovery registration timer callback.
+        /// </summary>
         [LoggerMessage(EventId = ServerEventIds.StandardServer + 10, Level = LogLevel.Error,
             Message = "Unexpected exception handling registration timer.")]
         public static partial void UnexpectedExceptionHandlingRegistrationTimer(this ILogger logger, Exception ex);
 
+        /// <summary>
+        /// Logs a transition into the specified server state.
+        /// </summary>
         [LoggerMessage(EventId = ServerEventIds.StandardServer + 11, Level = LogLevel.Information,
             Message = "Server - Enter {State} state.")]
         public static partial void ServerEnterStateState(this ILogger logger, ServerState state);
 
+        /// <summary>
+        /// Logs a server service call using the retained EventSource-compatible event identity.
+        /// </summary>
         [LoggerMessage(
             EventId = ServerCompatibilityEventIds.ServerCall,
             EventName = "ServerCall",
@@ -5075,6 +5129,9 @@ namespace Opc.Ua.Server
             uint requestId,
             NodeId? sessionId);
 
+        /// <summary>
+        /// Logs a failure to load an updated application configuration file.
+        /// </summary>
         [LoggerMessage(EventId = ServerEventIds.StandardServer + 13, Level = LogLevel.Error,
             Message = "Could not load updated configuration file from: {FilePath}")]
         public static partial void NotLoadUpdatedConfigurationFileFromFilePath(
@@ -5082,74 +5139,128 @@ namespace Opc.Ua.Server
             Exception ex,
             string? filePath);
 
+        /// <summary>
+        /// Logs a failure to apply an application configuration update.
+        /// </summary>
         [LoggerMessage(EventId = ServerEventIds.StandardServer + 14, Level = LogLevel.Error,
             Message = "Failed to update configuration.")]
         public static partial void FailedToUpdateConfiguration(this ILogger logger, Exception ex);
 
+        /// <summary>
+        /// Logs startup of the named server application.
+        /// </summary>
         [LoggerMessage(EventId = ServerEventIds.StandardServer + 15, Level = LogLevel.Information,
             Message = "Server - Start application {ApplicationName}.")]
         public static partial void ServerStartApplicationApplicationName(this ILogger logger, string? applicationName);
 
+        /// <summary>
+        /// Logs creation of the server resource manager.
+        /// </summary>
         [LoggerMessage(EventId = ServerEventIds.StandardServer + 16, Level = LogLevel.Information,
             Message = "Server - CreateResourceManager.")]
         public static partial void ServerCreateResourceManager(this ILogger logger);
 
+        /// <summary>
+        /// Logs creation of the server request manager.
+        /// </summary>
         [LoggerMessage(EventId = ServerEventIds.StandardServer + 17, Level = LogLevel.Information,
             Message = "Server - CreateRequestManager.")]
         public static partial void ServerCreateRequestManager(this ILogger logger);
 
+        /// <summary>
+        /// Logs creation of the master node manager.
+        /// </summary>
         [LoggerMessage(EventId = ServerEventIds.StandardServer + 18, Level = LogLevel.Information,
             Message = "Server - CreateMasterNodeManager.")]
         public static partial void ServerCreateMasterNodeManager(this ILogger logger);
 
+        /// <summary>
+        /// Logs creation of the server event manager.
+        /// </summary>
         [LoggerMessage(EventId = ServerEventIds.StandardServer + 19, Level = LogLevel.Information,
             Message = "Server - CreateEventManager.")]
         public static partial void ServerCreateEventManager(this ILogger logger);
 
+        /// <summary>
+        /// Logs creation of the server aggregate manager.
+        /// </summary>
         [LoggerMessage(EventId = ServerEventIds.StandardServer + 20, Level = LogLevel.Information,
             Message = "Server - CreateAggregateManager.")]
         public static partial void ServerCreateAggregateManager(this ILogger logger);
 
+        /// <summary>
+        /// Logs creation of the server modelling rules manager.
+        /// </summary>
         [LoggerMessage(EventId = ServerEventIds.StandardServer + 21, Level = LogLevel.Information,
             Message = "Server - CreateModellingRulesManager.")]
         public static partial void ServerCreateModellingRulesManager(this ILogger logger);
 
+        /// <summary>
+        /// Logs creation of the server conformance units manager.
+        /// </summary>
         [LoggerMessage(EventId = ServerEventIds.StandardServer + 22, Level = LogLevel.Information,
             Message = "Server - CreateConformanceUnitsManager.")]
         public static partial void ServerCreateConformanceUnitsManager(this ILogger logger);
 
+        /// <summary>
+        /// Logs creation of the server session manager.
+        /// </summary>
         [LoggerMessage(EventId = ServerEventIds.StandardServer + 23, Level = LogLevel.Information,
             Message = "Server - CreateSessionManager.")]
         public static partial void ServerCreateSessionManager(this ILogger logger);
 
+        /// <summary>
+        /// Logs creation of the server subscription manager.
+        /// </summary>
         [LoggerMessage(EventId = ServerEventIds.StandardServer + 24, Level = LogLevel.Information,
             Message = "Server - CreateSubscriptionManager.")]
         public static partial void ServerCreateSubscriptionManager(this ILogger logger);
 
+        /// <summary>
+        /// Logs startup of the discovery registration timer.
+        /// </summary>
         [LoggerMessage(EventId = ServerEventIds.StandardServer + 25, Level = LogLevel.Information,
             Message = "Server - Registration Timer started.")]
         public static partial void ServerRegistrationTimerStarted(this ILogger logger);
 
+        /// <summary>
+        /// Logs a critical server failure with its exception and explanatory message.
+        /// </summary>
         [LoggerMessage(EventId = ServerEventIds.StandardServer + 26, Level = LogLevel.Critical,
             Message = "{Message}")]
         public static partial void Message(this ILogger logger, Exception ex, string? message);
 
+        /// <summary>
+        /// Logs completion of server startup.
+        /// </summary>
         [LoggerMessage(EventId = ServerEventIds.StandardServer + 27, Level = LogLevel.Information,
             Message = "Server - Started.")]
         public static partial void ServerStarted(this ILogger logger);
 
+        /// <summary>
+        /// Logs startup of the application configuration watcher.
+        /// </summary>
         [LoggerMessage(EventId = ServerEventIds.StandardServer + 28, Level = LogLevel.Information,
             Message = "Server - Configuration watcher started.")]
         public static partial void ServerConfigurationWatcherStarted(this ILogger logger);
 
+        /// <summary>
+        /// Logs certificate manager initialization and the number of managed trust lists.
+        /// </summary>
         [LoggerMessage(EventId = ServerEventIds.StandardServer + 29, Level = LogLevel.Information,
             Message = "CertificateManager initialized with {Count} trust lists.")]
         public static partial void CertificateManagerInitializedWithCountTrustLists(this ILogger logger, int count);
 
+        /// <summary>
+        /// Logs the start of server shutdown.
+        /// </summary>
         [LoggerMessage(EventId = ServerEventIds.StandardServer + 30, Level = LogLevel.Information,
             Message = "Server - Stopping.")]
         public static partial void ServerStopping(this ILogger logger);
 
+        /// <summary>
+        /// Logs the active session count and remaining time before shutdown.
+        /// </summary>
         [LoggerMessage(EventId = ServerEventIds.StandardServer + 31, Level = LogLevel.Information,
             Message = "{SessionCount} active sessions. Seconds until shutdown: {TimeTillShutdown}s")]
         public static partial void SessionCountActiveSessionsSecondsUntilShutdown(
@@ -5157,16 +5268,25 @@ namespace Opc.Ua.Server
             int sessionCount,
             int timeTillShutdown);
 
+        /// <summary>
+        /// Logs an application certificate update for the specified certificate type.
+        /// </summary>
         [LoggerMessage(EventId = ServerEventIds.StandardServer + 32, Level = LogLevel.Information,
             Message = "CertificateManager: Application certificate updated for type {CertType}.")]
         public static partial void CertificateManagerApplicationCertificateUpdated(
             this ILogger logger,
             NodeId? certType);
 
+        /// <summary>
+        /// Logs a failure to propagate a certificate manager update to the server.
+        /// </summary>
         [LoggerMessage(EventId = ServerEventIds.StandardServer + 33, Level = LogLevel.Error,
             Message = "CertificateManager change observer failed to fan-out cert update.")]
         public static partial void CertificateManagerChangeObserverFailedToFanOut(this ILogger logger, Exception ex);
 
+        /// <summary>
+        /// Logs a resource disposal failure during server shutdown.
+        /// </summary>
         [LoggerMessage(EventId = ServerEventIds.StandardServer + 35, Level = LogLevel.Error,
             Message = "Server shutdown resource disposal failed. {ErrorMessage}")]
         public static partial void ServerShutdownResourceDisposalFailed(

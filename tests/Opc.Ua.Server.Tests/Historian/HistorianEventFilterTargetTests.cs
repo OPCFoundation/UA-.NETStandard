@@ -35,11 +35,17 @@ using Opc.Ua.Server.Historian;
 
 namespace Opc.Ua.Server.Tests.Historian
 {
+    /// <summary>
+    /// Verifies event field lookup and exact or inherited type matching for historical event filters.
+    /// </summary>
     [TestFixture]
     [Category("Historian")]
     [Parallelizable(ParallelScope.All)]
     public class HistorianEventFilterTargetTests
     {
+        /// <summary>
+        /// Verifies that event attribute lookup resolves a field by browse name.
+        /// </summary>
         [Test]
         public void GetAttributeValueResolvesBrowseNameField()
         {
@@ -59,6 +65,9 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(severity, Is.EqualTo(500));
         }
 
+        /// <summary>
+        /// Verifies that event attribute lookup returns an empty value for an unknown field.
+        /// </summary>
         [Test]
         public void GetAttributeValueReturnsEmptyForUnknownField()
         {
@@ -75,6 +84,9 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(value, Is.EqualTo(Variant.Null));
         }
 
+        /// <summary>
+        /// Verifies that event type matching accepts an exact type identifier.
+        /// </summary>
         [Test]
         public void IsTypeOfReturnsTrueWhenExactMatch()
         {
@@ -89,6 +101,9 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(target.IsTypeOf(null!, ObjectTypeIds.BaseEventType), Is.True);
         }
 
+        /// <summary>
+        /// Verifies that event type matching resolves subtype relationships through the type tree.
+        /// </summary>
         [Test]
         public void IsTypeOfResolvesSubtypeViaTypeTree()
         {

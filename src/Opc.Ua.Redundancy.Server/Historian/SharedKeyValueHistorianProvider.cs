@@ -85,6 +85,9 @@ namespace Opc.Ua.Redundancy.Server
             Initialize(messageContext);
         }
 
+        /// <summary>
+        /// Creates a protected shared-store historian whose message context is supplied later.
+        /// </summary>
         internal SharedKeyValueHistorianProvider(
             ISharedKeyValueStore store,
             IRecordProtector protector,
@@ -850,6 +853,9 @@ namespace Opc.Ua.Redundancy.Server
             m_writerFenceSemaphore.Dispose();
         }
 
+        /// <summary>
+        /// Sets the serialization context, rejecting a different context after initialization.
+        /// </summary>
         internal void Initialize(IServiceMessageContext messageContext)
         {
             if (messageContext == null)
@@ -868,6 +874,9 @@ namespace Opc.Ua.Redundancy.Server
             }
         }
 
+        /// <summary>
+        /// Recovers cleanup work for expired generations and unreferenced history segments.
+        /// </summary>
         internal async ValueTask RecoverGarbageCollectionAsync(
             CancellationToken ct)
         {
@@ -997,6 +1006,9 @@ namespace Opc.Ua.Redundancy.Server
             }
         }
 
+        /// <summary>
+        /// Shared-store key for the currently published historian manifest.
+        /// </summary>
         internal static string CurrentManifestKey => kCurrentManifestKey;
 
         private ValueTask<HistorianUpdateOutcome<DataValue>> ApplyDataUpdateAsync(

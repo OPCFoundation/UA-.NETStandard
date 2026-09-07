@@ -55,6 +55,9 @@ namespace Opc.Ua.Server.Historian
     /// </remarks>
     internal sealed class HistorianEventFilterTarget : IFilterTarget
     {
+        /// <summary>
+        /// Wraps a historical event record for evaluation by the server's event filter.
+        /// </summary>
         public HistorianEventFilterTarget(HistorianEventRecord record)
         {
             m_record = record;
@@ -206,6 +209,9 @@ namespace Opc.Ua.Server.Historian
     /// </summary>
     internal static partial class HistorianEventFilterTargetLog
     {
+        /// <summary>
+        /// Logs that a missing type tree restricts historical event subtype matching to exact matches.
+        /// </summary>
         [LoggerMessage(EventId = ServerEventIds.HistorianEventFilterTarget + 0, Level = LogLevel.Warning,
             Message = "Historian event WhereClause subtype query against {RequestedType} could not be " +
                 "resolved: IFilterContext.TypeTree is null. Event-type subtype matching is degraded " +

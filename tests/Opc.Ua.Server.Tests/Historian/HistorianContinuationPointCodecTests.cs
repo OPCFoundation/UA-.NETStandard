@@ -38,11 +38,18 @@ using Opc.Ua.Tests;
 
 namespace Opc.Ua.Server.Tests.Historian
 {
+    /// <summary>
+    /// Verifies portable historian continuation encoding, identity, namespace remapping, and malformed-payload
+    /// rejection.
+    /// </summary>
     [TestFixture]
     [Category("Historian")]
     [Parallelizable]
     public sealed class HistorianContinuationPointCodecTests
     {
+        /// <summary>
+        /// Verifies that raw-history continuation state round-trips through the codec.
+        /// </summary>
         [Test]
         public async Task RawContinuationRoundTripsAsync()
         {
@@ -78,6 +85,9 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(state.RawRequest.ReturnBounds, Is.True);
         }
 
+        /// <summary>
+        /// Verifies that nonportable continuation state is not encoded.
+        /// </summary>
         [Test]
         public async Task NonPortableContinuationIsNotEncodedAsync()
         {
@@ -93,6 +103,9 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(envelope, Is.Null);
         }
 
+        /// <summary>
+        /// Verifies that invalid nonportable state falls back to a local continuation.
+        /// </summary>
         [Test]
         public async Task NonPortableInvalidStateFallsBackToLocalContinuationAsync()
         {
@@ -111,6 +124,9 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(envelope, Is.Null);
         }
 
+        /// <summary>
+        /// Verifies that a multidimensional index range survives continuation serialization.
+        /// </summary>
         [Test]
         public async Task MultidimensionalIndexRangeRoundTripsAsync()
         {
@@ -141,6 +157,9 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(decoded.IndexRange.SubRanges[1].End, Is.EqualTo(3));
         }
 
+        /// <summary>
+        /// Verifies that continuation namespace URIs remap across replica namespace tables.
+        /// </summary>
         [Test]
         public async Task NamespaceUrisRemapAcrossReplicaTablesAsync()
         {
@@ -177,6 +196,9 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(decoded.DataEncoding.NamespaceIndex, Is.EqualTo(2));
         }
 
+        /// <summary>
+        /// Verifies that a continuation with a mismatched provider identity is rejected.
+        /// </summary>
         [Test]
         public async Task ProviderIdentityMismatchIsRejectedAsync()
         {
@@ -199,6 +221,9 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(decoded, Is.Null);
         }
 
+        /// <summary>
+        /// Verifies that malformed continuation payloads are rejected.
+        /// </summary>
         [Test]
         public async Task MalformedPayloadIsRejectedAsync()
         {
@@ -219,6 +244,9 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(decoded, Is.Null);
         }
 
+        /// <summary>
+        /// Verifies that buffered processed-history continuations are not encoded as portable state.
+        /// </summary>
         [Test]
         public async Task BufferedProcessedContinuationIsNotEncodedAsync()
         {
@@ -237,6 +265,9 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(envelope, Is.Null);
         }
 
+        /// <summary>
+        /// Verifies that event continuations selecting neither timestamp round-trip through the codec.
+        /// </summary>
         [Test]
         public async Task EventContinuationWithNeitherTimestampsRoundTripsAsync()
         {
@@ -291,6 +322,9 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(state.EventRequest!.Filter.SelectClauses, Has.Count.EqualTo(1));
         }
 
+        /// <summary>
+        /// Verifies that annotation continuation encoding preserves distinct request and parent node identifiers.
+        /// </summary>
         [Test]
         public async Task AnnotationContinuationRoundTripsDistinctNodeIdsAsync()
         {
@@ -348,6 +382,9 @@ namespace Opc.Ua.Server.Tests.Historian
                 Is.EqualTo(parentNodeId));
         }
 
+        /// <summary>
+        /// Verifies that legacy annotation continuations use their state node as the request node.
+        /// </summary>
         [TestCase(1)]
         [TestCase(2)]
         public async Task LegacyAnnotationContinuationUsesStateNodeForRequestAsync(
@@ -430,6 +467,9 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(state.AnnotationRequest!.NodeId, Is.EqualTo(nodeId));
         }
 
+        /// <summary>
+        /// Verifies that continuation payloads with trailing bytes are rejected.
+        /// </summary>
         [Test]
         public async Task PayloadWithTrailingBytesIsRejectedAsync()
         {

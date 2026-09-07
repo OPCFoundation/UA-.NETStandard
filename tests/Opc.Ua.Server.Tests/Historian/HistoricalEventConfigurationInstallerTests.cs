@@ -37,11 +37,17 @@ using Opc.Ua.Tests;
 
 namespace Opc.Ua.Server.Tests.Historian
 {
+    /// <summary>
+    /// Verifies historical event configuration metadata and refresh of advertised event types.
+    /// </summary>
     [TestFixture]
     [Category("Historian")]
     [Parallelizable]
     public sealed class HistoricalEventConfigurationInstallerTests
     {
+        /// <summary>
+        /// Verifies that installed event configuration contains supported event types and archive metadata.
+        /// </summary>
         [Test]
         public async Task ConfigurationContainsEventTypesAndArchiveMetadataAsync()
         {
@@ -98,6 +104,9 @@ namespace Opc.Ua.Server.Tests.Historian
                 Is.True);
         }
 
+        /// <summary>
+        /// Verifies that configuration refresh removes event types no longer advertised by the provider.
+        /// </summary>
         [Test]
         public async Task RefreshRemovesEventTypesNoLongerAdvertisedAsync()
         {

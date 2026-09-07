@@ -58,6 +58,9 @@ namespace Opc.Ua.Server.Tests.Redundancy
     {
         private const ushort NamespaceIndex = 1;
 
+        /// <summary>
+        /// Verifies that startup wires address-space synchronization and seeds opted-in node managers.
+        /// </summary>
         [Test]
         public async Task WiresSynchronizerAndSeedsOptedInNodeManagerAsync()
         {
@@ -119,6 +122,9 @@ namespace Opc.Ua.Server.Tests.Redundancy
             await task.DisposeAsync().ConfigureAwait(false);
         }
 
+        /// <summary>
+        /// Verifies that startup excludes replica-local built-in address spaces from replication.
+        /// </summary>
         [Test]
         public async Task DoesNotReplicateReplicaLocalBuiltInAddressSpacesAsync()
         {
@@ -173,6 +179,9 @@ namespace Opc.Ua.Server.Tests.Redundancy
             coreSource.Verify(value => value.CreateLocalAddressSpace(), Times.Never);
         }
 
+        /// <summary>
+        /// Verifies that the distributed address-space startup task rejects null constructor dependencies.
+        /// </summary>
         [Test]
         public void ConstructorThrowsOnNullArguments()
         {

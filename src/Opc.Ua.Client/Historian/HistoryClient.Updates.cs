@@ -33,6 +33,9 @@ using System.Threading.Tasks;
 
 namespace Opc.Ua.Client.Historian
 {
+    /// <summary>
+    /// Provides historical data update operations and response handling.
+    /// </summary>
     public sealed partial class HistoryClient
     {
         /// <summary>

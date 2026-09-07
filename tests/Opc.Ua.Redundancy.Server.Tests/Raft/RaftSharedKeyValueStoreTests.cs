@@ -55,6 +55,9 @@ namespace Opc.Ua.Server.Tests.Redundancy
     [Parallelizable(ParallelScope.All)]
     public class RaftSharedKeyValueStoreTests
     {
+        /// <summary>
+        /// Verifies that a committed Raft store value can be retrieved.
+        /// </summary>
         [Test]
         public async Task SetAndTryGetReturnsStoredValueAsync()
         {
@@ -68,6 +71,9 @@ namespace Opc.Ua.Server.Tests.Redundancy
             Assert.That(value.ToArray(), Is.EqualTo(payload.ToArray()));
         }
 
+        /// <summary>
+        /// Verifies that reading a missing Raft store key returns false.
+        /// </summary>
         [Test]
         public async Task TryGetMissingKeyReturnsFalseAsync()
         {
@@ -79,6 +85,9 @@ namespace Opc.Ua.Server.Tests.Redundancy
             Assert.That(value.IsNull, Is.True);
         }
 
+        /// <summary>
+        /// Verifies that compare-and-swap creates a Raft store entry when the key is absent.
+        /// </summary>
         [Test]
         public async Task CompareAndSwapCreatesWhenAbsentAsync()
         {
@@ -92,6 +101,9 @@ namespace Opc.Ua.Server.Tests.Redundancy
             Assert.That(createdAgain, Is.False, "second create-if-absent must fail because the key now exists");
         }
 
+        /// <summary>
+        /// Verifies that compare-and-swap replaces an entry when the expected value matches.
+        /// </summary>
         [Test]
         public async Task CompareAndSwapSwapsWhenValueMatchesAsync()
         {
@@ -108,6 +120,9 @@ namespace Opc.Ua.Server.Tests.Redundancy
             Assert.That(value.ToArray(), Is.EqualTo(second.ToArray()));
         }
 
+        /// <summary>
+        /// Verifies that compare-and-swap deletes a matching entry when the replacement is null.
+        /// </summary>
         [Test]
         public async Task CompareAndSwapDeletesWhenReplacementIsNullAsync()
         {
@@ -134,6 +149,9 @@ namespace Opc.Ua.Server.Tests.Redundancy
             Assert.That(enumerator.Current.Key, Is.EqualTo("k"));
         }
 
+        /// <summary>
+        /// Verifies that compare-and-swap fails when the expected value differs.
+        /// </summary>
         [Test]
         public async Task CompareAndSwapFailsWhenValueMismatchAsync()
         {
@@ -151,6 +169,9 @@ namespace Opc.Ua.Server.Tests.Redundancy
             Assert.That(value.ToArray(), Is.EqualTo(actual.ToArray()), "value must be unchanged on a failed CAS");
         }
 
+        /// <summary>
+        /// Verifies that deleting a Raft store key removes its committed value.
+        /// </summary>
         [Test]
         public async Task DeleteRemovesKeyAsync()
         {
@@ -166,6 +187,9 @@ namespace Opc.Ua.Server.Tests.Redundancy
             Assert.That(found, Is.False);
         }
 
+        /// <summary>
+        /// Verifies that a Raft store scan returns only keys matching the requested prefix.
+        /// </summary>
         [Test]
         public async Task ScanReturnsMatchingPrefixOnlyAsync()
         {
@@ -183,6 +207,9 @@ namespace Opc.Ua.Server.Tests.Redundancy
             Assert.That(keys, Is.EquivalentTo(["a/1", "a/2"]));
         }
 
+        /// <summary>
+        /// Verifies that prefix watchers observe committed set and delete operations.
+        /// </summary>
         [Test]
         public async Task WatchObservesSetAndDeleteForPrefixAsync()
         {
@@ -212,6 +239,9 @@ namespace Opc.Ua.Server.Tests.Redundancy
             Assert.That(enumerator.Current.Key, Is.EqualTo("a/1"));
         }
 
+        /// <summary>
+        /// Verifies that applying a read barrier does not emit a change notification.
+        /// </summary>
         [Test]
         public async Task ReadBarrierDoesNotPublishWatchEventAsync()
         {
@@ -235,6 +265,9 @@ namespace Opc.Ua.Server.Tests.Redundancy
             Assert.That(enumerator.Current.Key, Is.EqualTo("key"));
         }
 
+        /// <summary>
+        /// Verifies that exactly one concurrent compare-and-swap wins for the same expected value.
+        /// </summary>
         [Test]
         public async Task ConcurrentCompareAndSwapHasExactlyOneWinnerAsync()
         {
@@ -250,6 +283,9 @@ namespace Opc.Ua.Server.Tests.Redundancy
             Assert.That(results.Count(won => won), Is.EqualTo(1), "exactly one compare-and-swap may win");
         }
 
+        /// <summary>
+        /// Verifies that replicas converge on the same shared key-value state.
+        /// </summary>
         [Test]
         public async Task TwoReplicasConvergeOnSharedClusterAsync()
         {
@@ -273,6 +309,9 @@ namespace Opc.Ua.Server.Tests.Redundancy
             Assert.That(observed.ToArray(), Is.EqualTo(payload.ToArray()));
         }
 
+        /// <summary>
+        /// Verifies that a proposal times out when it is never committed.
+        /// </summary>
         [Test]
         public void ProposalTimesOutWhenNoCommitOccurs()
         {
@@ -287,6 +326,9 @@ namespace Opc.Ua.Server.Tests.Redundancy
             }, Throws.TypeOf<TimeoutException>());
         }
 
+        /// <summary>
+        /// Verifies that reading a value waits until its read barrier is applied.
+        /// </summary>
         [Test]
         public async Task TryGetWaitsForReadBarrierToApplyAsync()
         {
@@ -313,6 +355,9 @@ namespace Opc.Ua.Server.Tests.Redundancy
             Assert.That(observed.ToArray(), Is.EqualTo(value.ToArray()));
         }
 
+        /// <summary>
+        /// Verifies that scanning waits for promotion and application of the read barrier.
+        /// </summary>
         [Test]
         public async Task ScanWaitsForPromotionAndReadBarrierToApplyAsync()
         {
@@ -345,6 +390,9 @@ namespace Opc.Ua.Server.Tests.Redundancy
             Assert.That(enumerator.Current.Key, Is.EqualTo("prefix/key"));
         }
 
+        /// <summary>
+        /// Verifies that reading a value times out when its read barrier cannot commit.
+        /// </summary>
         [Test]
         public void TryGetTimesOutWhenReadBarrierCannotCommit()
         {
@@ -359,6 +407,9 @@ namespace Opc.Ua.Server.Tests.Redundancy
             }, Throws.TypeOf<TimeoutException>());
         }
 
+        /// <summary>
+        /// Verifies that consensus cancellation of a read barrier is reported as a timeout.
+        /// </summary>
         [Test]
         public void ReadBarrierMapsConsensusCancellationToTimeout()
         {
@@ -374,6 +425,9 @@ namespace Opc.Ua.Server.Tests.Redundancy
             }, Throws.TypeOf<TimeoutException>());
         }
 
+        /// <summary>
+        /// Verifies that store disposal completes pending watch enumeration.
+        /// </summary>
         [Test]
         public async Task PendingWatchCompletesOnDisposeAsync()
         {
@@ -396,6 +450,9 @@ namespace Opc.Ua.Server.Tests.Redundancy
             Assert.That(completed, Is.True);
         }
 
+        /// <summary>
+        /// Verifies that canceling a scan cancels its pending read barrier.
+        /// </summary>
         [Test]
         public void ScanCancellationCancelsPendingReadBarrier()
         {

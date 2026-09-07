@@ -28,8 +28,14 @@
 
 namespace Opc.Ua.Server.Historian
 {
+    /// <summary>
+    /// Registers historian builders for server-managed lifecycle handling.
+    /// </summary>
     internal interface IHistorianBuilderRegistry
     {
+        /// <summary>
+        /// Registers a historian builder whose capture pipeline must be managed by the server.
+        /// </summary>
         void RegisterHistorianBuilder(HistorianBuilder builder);
     }
 }

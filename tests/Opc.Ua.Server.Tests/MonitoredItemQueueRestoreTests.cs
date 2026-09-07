@@ -55,6 +55,9 @@ namespace Opc.Ua.Server.Tests
     [Parallelizable]
     public class MonitoredItemQueueRestoreTests
     {
+        /// <summary>
+        /// Verifies that restoration uses a prehydrated data-change queue without invoking synchronous fallback.
+        /// </summary>
         [Test]
         public void RestoreUsesPreHydratedDataChangeQueueAndSkipsSyncFallback()
         {
@@ -82,6 +85,9 @@ namespace Opc.Ua.Server.Tests
                 Times.Never);
         }
 
+        /// <summary>
+        /// Verifies that restoration uses synchronous queue fallback when no prehydrated queue is available.
+        /// </summary>
         [Test]
         public void RestoreFallsBackToSyncRestoreWhenNotPreHydrated()
         {
@@ -106,6 +112,9 @@ namespace Opc.Ua.Server.Tests
                 Times.Once);
         }
 
+        /// <summary>
+        /// Verifies that restoring a queue does not reinstate transient required-notification protection.
+        /// </summary>
         [TestCase(1u, false, false)]
         [TestCase(2u, false, false)]
         [TestCase(2u, true, false)]
@@ -181,6 +190,9 @@ namespace Opc.Ua.Server.Tests
             Assert.That(lastValue, Is.EqualTo(43));
         }
 
+        /// <summary>
+        /// Verifies that restoration preserves raw error values without synthesizing missing notifications.
+        /// </summary>
         [TestCase(false)]
         [TestCase(true)]
         public void RestoreKeepsRawErrorValuesWithoutSynthesizingMissingNotifications(bool queueContainsError)
@@ -226,6 +238,9 @@ namespace Opc.Ua.Server.Tests
             Assert.That(lastValue, Is.EqualTo(42));
         }
 
+        /// <summary>
+        /// Verifies that queue prehydration continues after a store failure and respects the queue-size gate.
+        /// </summary>
         [Test]
         public async Task PreHydrateContinuesAfterStoreFailureAndHonorsQueueSizeGateAsync()
         {

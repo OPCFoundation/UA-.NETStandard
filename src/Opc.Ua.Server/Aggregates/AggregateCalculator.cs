@@ -1728,6 +1728,9 @@ namespace Opc.Ua.Server
     /// </summary>
     internal static partial class AggregateCalculatorLog
     {
+        /// <summary>
+        /// Logs the start time of the aggregate interval being computed.
+        /// </summary>
         [LoggerMessage(EventId = ServerEventIds.AggregateCalculator + 0, Level = LogLevel.Trace,
             Message = "Computing Aggregate {StartTime:HH:mm:ss.fff}")]
         public static partial void ComputingAggregateStartTimeHHMmSsFff(this ILogger logger, DateTimeUtc startTime);

@@ -47,6 +47,9 @@ namespace Opc.Ua.History.Tests
     [Category("HistoricalAccessDepth")]
     public class HistoricalAccessDepthTests : TestFixture
     {
+        /// <summary>
+        /// Verifies that a raw-history request with a time range and value limit returns one node result.
+        /// </summary>
         [Test]
         public async Task ReadRaw001ReadWithTimeRangeAndNumValuesAsync()
         {
@@ -83,6 +86,9 @@ namespace Opc.Ua.History.Tests
             }
         }
 
+        /// <summary>
+        /// Verifies the node result for a raw-history request with only a start time and value limit.
+        /// </summary>
         [Test]
         public async Task ReadRaw002ReadWithStartTimeOnlyAsync()
         {
@@ -103,6 +109,9 @@ namespace Opc.Ua.History.Tests
             }
         }
 
+        /// <summary>
+        /// Verifies the node result for a raw-history request with only an end time and value limit.
+        /// </summary>
         [Test]
         public async Task ReadRaw003ReadWithEndTimeOnlyAsync()
         {
@@ -123,6 +132,9 @@ namespace Opc.Ua.History.Tests
             }
         }
 
+        /// <summary>
+        /// Verifies that a raw-history request specifying only a value count fails with BadHistoryOperationInvalid.
+        /// </summary>
         [Test]
         public Task ReadRaw004RejectsNumValuesOnlyAsync()
         {
@@ -143,6 +155,9 @@ namespace Opc.Ua.History.Tests
             return Task.CompletedTask;
         }
 
+        /// <summary>
+        /// Verifies the node result for a raw-history request that includes bounding values.
+        /// </summary>
         [Test]
         public async Task ReadRaw005ReadWithReturnBoundsTrueAsync()
         {
@@ -171,6 +186,9 @@ namespace Opc.Ua.History.Tests
             IgnoreIfNotGood(response.Results[0].StatusCode);
         }
 
+        /// <summary>
+        /// Verifies the node result for a raw-history request that excludes bounding values.
+        /// </summary>
         [Test]
         public async Task ReadRaw006ReadWithReturnBoundsFalseAsync()
         {
@@ -199,6 +217,9 @@ namespace Opc.Ua.History.Tests
             IgnoreIfNotGood(response.Results[0].StatusCode);
         }
 
+        /// <summary>
+        /// Verifies the node result when raw-history paging requests a single value.
+        /// </summary>
         [Test]
         public async Task ReadRaw007ReadSingleValueAsync()
         {
@@ -227,6 +248,9 @@ namespace Opc.Ua.History.Tests
             IgnoreIfNotGood(response.Results[0].StatusCode);
         }
 
+        /// <summary>
+        /// Verifies that a raw-history continuation request returns a result for the same node.
+        /// </summary>
         [Test]
         public async Task ReadRaw008ReadWithContinuationPointAsync()
         {
@@ -261,6 +285,9 @@ namespace Opc.Ua.History.Tests
             }
         }
 
+        /// <summary>
+        /// Verifies the node result when a raw-history request has equal start and end times.
+        /// </summary>
         [Test]
         public async Task ReadRaw009ReadWithStartTimeEqualsEndTimeAsync()
         {
@@ -288,6 +315,9 @@ namespace Opc.Ua.History.Tests
             IgnoreIfNotGood(response.Results[0].StatusCode);
         }
 
+        /// <summary>
+        /// Verifies the node result when a raw-history request specifies a reverse time range.
+        /// </summary>
         [Test]
         public async Task ReadRaw010ReadWithStartAfterEndAsync()
         {
@@ -300,6 +330,9 @@ namespace Opc.Ua.History.Tests
             IgnoreIfNotGood(response.Results[0].StatusCode);
         }
 
+        /// <summary>
+        /// Verifies the node result for a raw-history request with a large value limit.
+        /// </summary>
         [Test]
         public async Task ReadRaw011ReadWithLargeNumValuesAsync()
         {
@@ -327,6 +360,9 @@ namespace Opc.Ua.History.Tests
             IgnoreIfNotGood(response.Results[0].StatusCode);
         }
 
+        /// <summary>
+        /// Verifies the node result for a raw-history request selecting source timestamps.
+        /// </summary>
         [Test]
         public async Task ReadRaw012ReadWithTimestampsToReturnSourceAsync()
         {
@@ -355,6 +391,9 @@ namespace Opc.Ua.History.Tests
             IgnoreIfNotGood(response.Results[0].StatusCode);
         }
 
+        /// <summary>
+        /// Verifies the node result for a raw-history request selecting server timestamps.
+        /// </summary>
         [Test]
         public async Task ReadRaw013ReadWithTimestampsToReturnServerAsync()
         {
@@ -383,6 +422,9 @@ namespace Opc.Ua.History.Tests
             IgnoreIfNotGood(response.Results[0].StatusCode);
         }
 
+        /// <summary>
+        /// Verifies that selecting neither timestamp fails with BadTimestampsToReturnInvalid.
+        /// </summary>
         [Test]
         public Task ReadRaw014ReadWithTimestampsToReturnNeitherAsync()
         {
@@ -415,6 +457,9 @@ namespace Opc.Ua.History.Tests
             return Task.CompletedTask;
         }
 
+        /// <summary>
+        /// Verifies the node result when a raw-history request combines bounds with a value limit.
+        /// </summary>
         [Test]
         public async Task ReadRaw015ReadWithBoundsAndNumValuesAsync()
         {
@@ -443,6 +488,9 @@ namespace Opc.Ua.History.Tests
             IgnoreIfNotGood(response.Results[0].StatusCode);
         }
 
+        /// <summary>
+        /// Verifies the node result for a raw-history request covering a narrow time range.
+        /// </summary>
         [Test]
         public async Task ReadRaw016ReadWithNarrowTimeRangeAsync()
         {
@@ -470,6 +518,9 @@ namespace Opc.Ua.History.Tests
             IgnoreIfNotGood(response.Results[0].StatusCode);
         }
 
+        /// <summary>
+        /// Verifies the node result for a raw-history request covering a wide time range.
+        /// </summary>
         [Test]
         public async Task ReadRaw017ReadWithWideTimeRangeAsync()
         {
@@ -497,6 +548,9 @@ namespace Opc.Ua.History.Tests
             IgnoreIfNotGood(response.Results[0].StatusCode);
         }
 
+        /// <summary>
+        /// Verifies per-node response handling when a raw-history request supplies an index range.
+        /// </summary>
         [Test]
         public async Task ReadRaw018ReadWithIndexRangeAsync()
         {
@@ -529,6 +583,9 @@ namespace Opc.Ua.History.Tests
             IgnoreIfNotGood(response.Results[0].StatusCode);
         }
 
+        /// <summary>
+        /// Verifies per-node response handling when a raw-history request supplies a data encoding.
+        /// </summary>
         [Test]
         public async Task ReadRaw019ReadWithDataEncodingAsync()
         {
@@ -561,6 +618,9 @@ namespace Opc.Ua.History.Tests
             IgnoreIfNotGood(response.Results[0].StatusCode);
         }
 
+        /// <summary>
+        /// Verifies that a raw-history request for two nodes returns two node results.
+        /// </summary>
         [Test]
         public async Task ReadRaw020ReadMultipleNodesAsync()
         {
@@ -591,6 +651,9 @@ namespace Opc.Ua.History.Tests
             Assert.That(response.Results.Count, Is.EqualTo(2));
         }
 
+        /// <summary>
+        /// Verifies that a raw-history response contains non-null data values when history data is returned.
+        /// </summary>
         [Test]
         public async Task ReadRaw022ReadWithGoodDataQualityAsync()
         {
@@ -614,6 +677,9 @@ namespace Opc.Ua.History.Tests
             }
         }
 
+        /// <summary>
+        /// Verifies that releasing a raw-history continuation point returns a node result.
+        /// </summary>
         [Test]
         public async Task ReadRaw023ReadReleaseContinuationPointAsync()
         {
@@ -648,6 +714,9 @@ namespace Opc.Ua.History.Tests
             }
         }
 
+        /// <summary>
+        /// Verifies that raw-history reads return a non-good result for an invalid node identifier.
+        /// </summary>
         [Test]
         public async Task ReadRawErr001InvalidNodeIdAsync()
         {
@@ -680,6 +749,9 @@ namespace Opc.Ua.History.Tests
                 Is.False);
         }
 
+        /// <summary>
+        /// Verifies that raw-history reads return a non-good result for a null node identifier.
+        /// </summary>
         [Test]
         public async Task ReadRawErr002NullNodeIdAsync()
         {
@@ -712,6 +784,9 @@ namespace Opc.Ua.History.Tests
                 Is.False);
         }
 
+        /// <summary>
+        /// Exercises an invalid timestamp selection and checks the returned node result or bad service error.
+        /// </summary>
         [Test]
         public async Task ReadRawErr003InvalidTimestampsToReturnAsync()
         {
@@ -747,6 +822,9 @@ namespace Opc.Ua.History.Tests
             }
         }
 
+        /// <summary>
+        /// Exercises an empty raw-history node list and checks the response or bad service error.
+        /// </summary>
         [Test]
         public async Task ReadRawErr004EmptyNodesToReadAsync()
         {
@@ -778,6 +856,9 @@ namespace Opc.Ua.History.Tests
             }
         }
 
+        /// <summary>
+        /// Verifies that null history-read details produce a non-good node result or bad service error.
+        /// </summary>
         [Test]
         public async Task ReadRawErr005NullHistoryReadDetailsAsync()
         {
@@ -805,6 +886,9 @@ namespace Opc.Ua.History.Tests
             }
         }
 
+        /// <summary>
+        /// Verifies per-node response handling for a malformed raw-history index range.
+        /// </summary>
         [Test]
         public async Task ReadRawErr006BadIndexRangeAsync()
         {
@@ -837,6 +921,9 @@ namespace Opc.Ua.History.Tests
             IgnoreIfUnsupported(response.Results[0].StatusCode);
         }
 
+        /// <summary>
+        /// Verifies per-node response handling for an unknown raw-history data encoding.
+        /// </summary>
         [Test]
         public async Task ReadRawErr007BadDataEncodingAsync()
         {
@@ -869,6 +956,9 @@ namespace Opc.Ua.History.Tests
             IgnoreIfUnsupported(response.Results[0].StatusCode);
         }
 
+        /// <summary>
+        /// Verifies per-node response handling when reading history from a non-historical variable.
+        /// </summary>
         [Test]
         public async Task ReadRawErr008NodeIdOfNonHistoricalNodeAsync()
         {
@@ -883,6 +973,9 @@ namespace Opc.Ua.History.Tests
             IgnoreIfUnsupported(response.Results[0].StatusCode);
         }
 
+        /// <summary>
+        /// Verifies that reusing a released raw-history continuation point still produces a node result.
+        /// </summary>
         [Test]
         public async Task ReadRawErr009ReleasedContinuationPointReuseAsync()
         {
@@ -934,6 +1027,9 @@ namespace Opc.Ua.History.Tests
             Assert.That(reuse.Results.Count, Is.EqualTo(1));
         }
 
+        /// <summary>
+        /// Verifies per-node response handling for an invalid raw-history continuation point.
+        /// </summary>
         [Test]
         public async Task ReadRawErr010InvalidContinuationPointAsync()
         {
@@ -966,6 +1062,9 @@ namespace Opc.Ua.History.Tests
             }
         }
 
+        /// <summary>
+        /// Verifies that a numeric node identifier in an invalid namespace produces a non-good history result.
+        /// </summary>
         [Test]
         public async Task ReadRawErr012NumericNodeIdInvalidNamespaceAsync()
         {
@@ -998,6 +1097,9 @@ namespace Opc.Ua.History.Tests
                 Is.False);
         }
 
+        /// <summary>
+        /// Verifies that a string node identifier in an invalid namespace produces a non-good history result.
+        /// </summary>
         [Test]
         public async Task ReadRawErr013StringNodeIdInvalidNamespaceAsync()
         {
@@ -1030,6 +1132,9 @@ namespace Opc.Ua.History.Tests
                 Is.False);
         }
 
+        /// <summary>
+        /// Verifies that an opaque node identifier in an invalid namespace produces a non-good history result.
+        /// </summary>
         [Test]
         public async Task ReadRawErr014OpaqueNodeIdInvalidNamespaceAsync()
         {
@@ -1062,6 +1167,9 @@ namespace Opc.Ua.History.Tests
                 Is.False);
         }
 
+        /// <summary>
+        /// Verifies that a GUID node identifier in an invalid namespace produces a non-good history result.
+        /// </summary>
         [Test]
         public async Task ReadRawErr015GuidNodeIdInvalidNamespaceAsync()
         {
@@ -1094,6 +1202,9 @@ namespace Opc.Ua.History.Tests
                 Is.False);
         }
 
+        /// <summary>
+        /// Exercises an oversized history-read node list and checks the response or bad service error.
+        /// </summary>
         [Test]
         public async Task ReadRawErr016MaxNodesPerHistoryReadExceededAsync()
         {
@@ -1128,6 +1239,9 @@ namespace Opc.Ua.History.Tests
             }
         }
 
+        /// <summary>
+        /// Verifies that a mixed valid and invalid history-read request returns a result for each node.
+        /// </summary>
         [Test]
         public async Task ReadRawErr017MixValidAndInvalidNodesAsync()
         {
@@ -1157,6 +1271,9 @@ namespace Opc.Ua.History.Tests
             Assert.That(response.Results.Count, Is.EqualTo(2));
         }
 
+        /// <summary>
+        /// Verifies that omitting both the time range and value limit fails with BadHistoryOperationInvalid.
+        /// </summary>
         [Test]
         public Task ReadRawErr018NoTimeRangeNoNumValuesAsync()
         {
@@ -1177,6 +1294,9 @@ namespace Opc.Ua.History.Tests
             return Task.CompletedTask;
         }
 
+        /// <summary>
+        /// Verifies per-node response handling when raw history is requested for an object node.
+        /// </summary>
         [Test]
         public async Task ReadRawErr019ObjectNodeIdAsync()
         {
@@ -1206,6 +1326,9 @@ namespace Opc.Ua.History.Tests
             Assert.That(response.Results.Count, Is.EqualTo(1));
         }
 
+        /// <summary>
+        /// Verifies the node result for a raw-history request covering a future time range.
+        /// </summary>
         [Test]
         public async Task ReadRawErr021ReadWithFutureTimeRangeAsync()
         {
@@ -1218,6 +1341,9 @@ namespace Opc.Ua.History.Tests
             IgnoreIfNotGood(response.Results[0].StatusCode);
         }
 
+        /// <summary>
+        /// Verifies per-node response handling when raw history is requested for a method node.
+        /// </summary>
         [Test]
         public async Task ReadRawErr022ReadMethodNodeIdAsync()
         {
@@ -1247,6 +1373,9 @@ namespace Opc.Ua.History.Tests
             Assert.That(response.Results.Count, Is.EqualTo(1));
         }
 
+        /// <summary>
+        /// Verifies per-node response handling when raw history is requested for a view node.
+        /// </summary>
         [Test]
         public async Task ReadRawErr023ReadViewNodeIdAsync()
         {
@@ -1276,6 +1405,9 @@ namespace Opc.Ua.History.Tests
             Assert.That(response.Results.Count, Is.EqualTo(1));
         }
 
+        /// <summary>
+        /// Verifies per-node response handling when raw history is requested for a data type node.
+        /// </summary>
         [Test]
         public async Task ReadRawErr024ReadDataTypeNodeIdAsync()
         {
@@ -1305,6 +1437,9 @@ namespace Opc.Ua.History.Tests
             Assert.That(response.Results.Count, Is.EqualTo(1));
         }
 
+        /// <summary>
+        /// Verifies per-node response handling when raw history is requested for a reference type node.
+        /// </summary>
         [Test]
         public async Task ReadRawErr025ReadReferenceTypeNodeIdAsync()
         {
@@ -1334,6 +1469,9 @@ namespace Opc.Ua.History.Tests
             Assert.That(response.Results.Count, Is.EqualTo(1));
         }
 
+        /// <summary>
+        /// Verifies per-node response handling when raw history is requested for an object type node.
+        /// </summary>
         [Test]
         public async Task ReadRawErr026ReadObjectTypeNodeIdAsync()
         {
@@ -1363,6 +1501,9 @@ namespace Opc.Ua.History.Tests
             Assert.That(response.Results.Count, Is.EqualTo(1));
         }
 
+        /// <summary>
+        /// Verifies per-node response handling when raw history is requested for a variable type node.
+        /// </summary>
         [Test]
         public async Task ReadRawErr027ReadVariableTypeNodeIdAsync()
         {
@@ -1392,6 +1533,9 @@ namespace Opc.Ua.History.Tests
             Assert.That(response.Results.Count, Is.EqualTo(1));
         }
 
+        /// <summary>
+        /// Verifies the node result for a supported history deletion over a time range.
+        /// </summary>
         [Test]
         public async Task DeleteValue000DeleteWithTimeRangeAsync()
         {
@@ -1411,6 +1555,9 @@ namespace Opc.Ua.History.Tests
             }
         }
 
+        /// <summary>
+        /// Verifies the node result for a supported history deletion over a narrow time range.
+        /// </summary>
         [Test]
         public async Task DeleteValue001DeleteNarrowRangeAsync()
         {
@@ -1429,6 +1576,9 @@ namespace Opc.Ua.History.Tests
             }
         }
 
+        /// <summary>
+        /// Verifies the node result for a supported history deletion over a wide time range.
+        /// </summary>
         [Test]
         public async Task DeleteValue002DeleteWideRangeAsync()
         {
@@ -1447,6 +1597,9 @@ namespace Opc.Ua.History.Tests
             }
         }
 
+        /// <summary>
+        /// Verifies per-node response handling for history deletion with equal start and end times.
+        /// </summary>
         [Test]
         public async Task DeleteValue003DeleteEqualStartEndAsync()
         {
@@ -1465,6 +1618,9 @@ namespace Opc.Ua.History.Tests
             }
         }
 
+        /// <summary>
+        /// Verifies per-node response handling for history deletion with the start time after the end time.
+        /// </summary>
         [Test]
         public async Task DeleteValue004DeleteStartAfterEndAsync()
         {
@@ -1483,6 +1639,9 @@ namespace Opc.Ua.History.Tests
             }
         }
 
+        /// <summary>
+        /// Verifies per-node response handling for history deletion over a future time range.
+        /// </summary>
         [Test]
         public async Task DeleteValue005DeleteFutureRangeAsync()
         {
@@ -1501,6 +1660,9 @@ namespace Opc.Ua.History.Tests
             }
         }
 
+        /// <summary>
+        /// Verifies that a range deletion and the subsequent raw-history read each return a node result.
+        /// </summary>
         [Test]
         public async Task DeleteValue006DeleteAndVerifyEmptyAsync()
         {
@@ -1524,6 +1686,9 @@ namespace Opc.Ua.History.Tests
             }
         }
 
+        /// <summary>
+        /// Verifies per-node response handling for history deletion with the minimum start timestamp.
+        /// </summary>
         [Test]
         public async Task DeleteValue007DeleteWithMinStartTimeAsync()
         {
@@ -1542,6 +1707,9 @@ namespace Opc.Ua.History.Tests
             }
         }
 
+        /// <summary>
+        /// Verifies the node result for history deletion with modified-history deletion disabled.
+        /// </summary>
         [Test]
         public async Task DeleteValue008DeleteModifiedFalseAsync()
         {
@@ -1573,6 +1741,9 @@ namespace Opc.Ua.History.Tests
             }
         }
 
+        /// <summary>
+        /// Verifies the node result for history deletion with modified-history deletion enabled.
+        /// </summary>
         [Test]
         public async Task DeleteValue010DeleteModifiedTrueAsync()
         {
@@ -1604,6 +1775,9 @@ namespace Opc.Ua.History.Tests
             }
         }
 
+        /// <summary>
+        /// Verifies the node result when deleting history at a single timestamp.
+        /// </summary>
         [Test]
         public async Task DeleteValueDat000DeleteSingleTimestampAsync()
         {
@@ -1631,6 +1805,9 @@ namespace Opc.Ua.History.Tests
             }
         }
 
+        /// <summary>
+        /// Verifies the node result when deleting history at multiple timestamps.
+        /// </summary>
         [Test]
         public async Task DeleteValueDat001DeleteMultipleTimestampsAsync()
         {
@@ -1658,6 +1835,9 @@ namespace Opc.Ua.History.Tests
             }
         }
 
+        /// <summary>
+        /// Verifies per-node response handling when deleting history at a future timestamp.
+        /// </summary>
         [Test]
         public async Task DeleteValueDat002DeleteFutureTimestampAsync()
         {
@@ -1685,6 +1865,9 @@ namespace Opc.Ua.History.Tests
             }
         }
 
+        /// <summary>
+        /// Verifies per-node response handling when deleting history at the minimum timestamp.
+        /// </summary>
         [Test]
         public async Task DeleteValueDat003DeleteMinTimestampAsync()
         {
@@ -1712,6 +1895,9 @@ namespace Opc.Ua.History.Tests
             }
         }
 
+        /// <summary>
+        /// Verifies per-node response handling when deleting history at the maximum timestamp.
+        /// </summary>
         [Test]
         public async Task DeleteValueDat004DeleteMaxTimestampAsync()
         {
@@ -1739,6 +1925,9 @@ namespace Opc.Ua.History.Tests
             }
         }
 
+        /// <summary>
+        /// Verifies that an at-time deletion and the subsequent history read each return a node result.
+        /// </summary>
         [Test]
         public async Task DeleteValueDat005DeleteAndReadBackAsync()
         {
@@ -1770,6 +1959,9 @@ namespace Opc.Ua.History.Tests
             }
         }
 
+        /// <summary>
+        /// Verifies per-node response handling when an at-time deletion supplies no timestamps.
+        /// </summary>
         [Test]
         public async Task DeleteValueDat006DeleteEmptyTimestampsAsync()
         {
@@ -1797,6 +1989,9 @@ namespace Opc.Ua.History.Tests
             }
         }
 
+        /// <summary>
+        /// Verifies that range deletion returns a non-good result for an invalid node identifier.
+        /// </summary>
         [Test]
         public async Task DeleteValueErr001InvalidNodeIdAsync()
         {
@@ -1817,6 +2012,9 @@ namespace Opc.Ua.History.Tests
             }
         }
 
+        /// <summary>
+        /// Verifies that range deletion returns a non-good result for a null node identifier.
+        /// </summary>
         [Test]
         public async Task DeleteValueErr002NullNodeIdAsync()
         {
@@ -1837,6 +2035,9 @@ namespace Opc.Ua.History.Tests
             }
         }
 
+        /// <summary>
+        /// Verifies per-node response handling for range deletion on a non-historical variable.
+        /// </summary>
         [Test]
         public async Task DeleteValueErr003NonHistoricalNodeAsync()
         {
@@ -1856,6 +2057,9 @@ namespace Opc.Ua.History.Tests
             }
         }
 
+        /// <summary>
+        /// Verifies per-node response handling for range deletion on an object node.
+        /// </summary>
         [Test]
         public async Task DeleteValueErr004ObjectNodeAsync()
         {
@@ -1875,6 +2079,9 @@ namespace Opc.Ua.History.Tests
             }
         }
 
+        /// <summary>
+        /// Exercises deletion with no update details and checks the response or bad service error.
+        /// </summary>
         [Test]
         public async Task DeleteValueErr005EmptyExtensionObjectsAsync()
         {
@@ -1892,6 +2099,9 @@ namespace Opc.Ua.History.Tests
             }
         }
 
+        /// <summary>
+        /// Verifies that at-time deletion returns a non-good result for an invalid node identifier.
+        /// </summary>
         [Test]
         public async Task DeleteValueDatErr001InvalidNodeIdAtTimeAsync()
         {
@@ -1918,6 +2128,9 @@ namespace Opc.Ua.History.Tests
             }
         }
 
+        /// <summary>
+        /// Verifies that at-time deletion returns a non-good result for a null node identifier.
+        /// </summary>
         [Test]
         public async Task DeleteValueDatErr002NullNodeIdAtTimeAsync()
         {
@@ -1944,6 +2157,9 @@ namespace Opc.Ua.History.Tests
             }
         }
 
+        /// <summary>
+        /// Verifies per-node response handling for at-time deletion on a non-historical variable.
+        /// </summary>
         [Test]
         public async Task DeleteValueDatErr003NonHistoricalNodeAtTimeAsync()
         {
@@ -1969,6 +2185,9 @@ namespace Opc.Ua.History.Tests
             }
         }
 
+        /// <summary>
+        /// Verifies per-node response handling for at-time deletion on an object node.
+        /// </summary>
         [Test]
         public async Task DeleteValueDatErr004ObjectNodeAtTimeAsync()
         {
@@ -1994,6 +2213,9 @@ namespace Opc.Ua.History.Tests
             }
         }
 
+        /// <summary>
+        /// Verifies the node result for an at-time deletion request with an empty requested-time collection.
+        /// </summary>
         [Test]
         public async Task DeleteValueDatErr005EmptyReqTimesAtTimeAsync()
         {
@@ -2021,6 +2243,9 @@ namespace Opc.Ua.History.Tests
             }
         }
 
+        /// <summary>
+        /// Verifies the node result when inserting a single historical value.
+        /// </summary>
         [Test]
         public async Task InsertValue000InsertSingleValueAsync()
         {
@@ -2042,6 +2267,9 @@ namespace Opc.Ua.History.Tests
             }
         }
 
+        /// <summary>
+        /// Verifies the node result when inserting several historical values in one request.
+        /// </summary>
         [Test]
         public async Task InsertValue001InsertMultipleValuesAsync()
         {
@@ -2066,6 +2294,9 @@ namespace Opc.Ua.History.Tests
             }
         }
 
+        /// <summary>
+        /// Verifies that a history insert and the subsequent raw-history read each return a node result.
+        /// </summary>
         [Test]
         public async Task InsertValue002InsertAndReadBackAsync()
         {
@@ -2092,6 +2323,9 @@ namespace Opc.Ua.History.Tests
             }
         }
 
+        /// <summary>
+        /// Verifies per-node response handling when inserting a value with Good status.
+        /// </summary>
         [Test]
         public async Task InsertValue003InsertWithGoodStatusAsync()
         {
@@ -2113,6 +2347,9 @@ namespace Opc.Ua.History.Tests
             }
         }
 
+        /// <summary>
+        /// Verifies per-node response handling when inserting a value with UncertainLastUsableValue status.
+        /// </summary>
         [Test]
         public async Task InsertValue004InsertWithUncertainStatusAsync()
         {
@@ -2134,6 +2371,9 @@ namespace Opc.Ua.History.Tests
             }
         }
 
+        /// <summary>
+        /// Verifies per-node response handling when inserting a value with BadSensorFailure status.
+        /// </summary>
         [Test]
         public async Task InsertValue005InsertWithBadStatusAsync()
         {
@@ -2155,6 +2395,9 @@ namespace Opc.Ua.History.Tests
             }
         }
 
+        /// <summary>
+        /// Verifies per-node response handling when inserting a value with a future timestamp.
+        /// </summary>
         [Test]
         public async Task InsertValue006InsertFutureTimestampAsync()
         {
@@ -2176,6 +2419,9 @@ namespace Opc.Ua.History.Tests
             }
         }
 
+        /// <summary>
+        /// Verifies per-node response handling when inserting a value with the minimum timestamp.
+        /// </summary>
         [Test]
         public async Task InsertValue007InsertMinTimestampAsync()
         {
@@ -2197,6 +2443,9 @@ namespace Opc.Ua.History.Tests
             }
         }
 
+        /// <summary>
+        /// Verifies per-node response handling when inserting the maximum finite double value.
+        /// </summary>
         [Test]
         public async Task InsertValue008InsertLargeValueAsync()
         {
@@ -2218,6 +2467,9 @@ namespace Opc.Ua.History.Tests
             }
         }
 
+        /// <summary>
+        /// Verifies per-node response handling when inserting a negative historical value.
+        /// </summary>
         [Test]
         public async Task InsertValue009InsertNegativeValueAsync()
         {
@@ -2239,6 +2491,9 @@ namespace Opc.Ua.History.Tests
             }
         }
 
+        /// <summary>
+        /// Verifies per-node response handling when inserting a zero historical value.
+        /// </summary>
         [Test]
         public async Task InsertValue010InsertZeroValueAsync()
         {
@@ -2260,6 +2515,9 @@ namespace Opc.Ua.History.Tests
             }
         }
 
+        /// <summary>
+        /// Verifies per-node response handling when inserting a NaN historical value.
+        /// </summary>
         [Test]
         public async Task InsertValue011InsertNaNValueAsync()
         {
@@ -2281,6 +2539,9 @@ namespace Opc.Ua.History.Tests
             }
         }
 
+        /// <summary>
+        /// Verifies per-node response handling when inserting positive infinity as a historical value.
+        /// </summary>
         [Test]
         public async Task InsertValue012InsertInfinityValueAsync()
         {
@@ -2302,6 +2563,9 @@ namespace Opc.Ua.History.Tests
             }
         }
 
+        /// <summary>
+        /// Verifies per-node response handling when an insertion batch contains duplicate timestamps.
+        /// </summary>
         [Test]
         public async Task InsertValue014InsertDuplicateTimestampAsync()
         {
@@ -2325,6 +2589,9 @@ namespace Opc.Ua.History.Tests
             }
         }
 
+        /// <summary>
+        /// Verifies per-node response handling when historical values arrive out of timestamp order.
+        /// </summary>
         [Test]
         public async Task InsertValue015InsertOutOfOrderTimestampsAsync()
         {
@@ -2348,6 +2615,9 @@ namespace Opc.Ua.History.Tests
             }
         }
 
+        /// <summary>
+        /// Verifies the node result when inserting a value with both source and server timestamps.
+        /// </summary>
         [Test]
         public async Task InsertValue016InsertWithServerTimestampAsync()
         {
@@ -2368,6 +2638,9 @@ namespace Opc.Ua.History.Tests
             }
         }
 
+        /// <summary>
+        /// Verifies per-node response handling when a history insertion contains no values.
+        /// </summary>
         [Test]
         public async Task InsertValue017InsertEmptyValuesAsync()
         {
@@ -2386,6 +2659,9 @@ namespace Opc.Ua.History.Tests
             }
         }
 
+        /// <summary>
+        /// Verifies that sequential history insertions for different nodes each return a node result.
+        /// </summary>
         [Test]
         public async Task InsertValue019InsertMultipleNodesSequentiallyAsync()
         {
@@ -2426,6 +2702,9 @@ namespace Opc.Ua.History.Tests
             }
         }
 
+        /// <summary>
+        /// Verifies that history insertion returns a non-good result for an invalid node identifier.
+        /// </summary>
         [Test]
         public async Task InsertValueErr001InvalidNodeIdAsync()
         {
@@ -2448,6 +2727,9 @@ namespace Opc.Ua.History.Tests
             }
         }
 
+        /// <summary>
+        /// Verifies that history insertion returns a non-good result for a null node identifier.
+        /// </summary>
         [Test]
         public async Task InsertValueErr002NullNodeIdAsync()
         {
@@ -2470,6 +2752,9 @@ namespace Opc.Ua.History.Tests
             }
         }
 
+        /// <summary>
+        /// Verifies per-node response handling for history insertion on a non-historical variable.
+        /// </summary>
         [Test]
         public async Task InsertValueErr005NonHistoricalNodeAsync()
         {
@@ -2491,6 +2776,9 @@ namespace Opc.Ua.History.Tests
             }
         }
 
+        /// <summary>
+        /// Verifies per-node response handling for history insertion on an object node.
+        /// </summary>
         [Test]
         public async Task InsertValueErr006ObjectNodeAsync()
         {
@@ -2512,6 +2800,9 @@ namespace Opc.Ua.History.Tests
             }
         }
 
+        /// <summary>
+        /// Verifies that history insertion on a method node returns BadHistoryOperationUnsupported.
+        /// </summary>
         [Test]
         public async Task InsertValueErr007MethodNodeAsync()
         {
@@ -2530,6 +2821,9 @@ namespace Opc.Ua.History.Tests
                 Is.EqualTo(StatusCodes.BadHistoryOperationUnsupported));
         }
 
+        /// <summary>
+        /// Exercises insertion with no update details and checks the response or bad service error.
+        /// </summary>
         [Test]
         public async Task InsertValueErr008EmptyUpdateDetailsAsync()
         {
@@ -2547,6 +2841,9 @@ namespace Opc.Ua.History.Tests
             }
         }
 
+        /// <summary>
+        /// Verifies that a null history-update extension object produces BadStructureMissing.
+        /// </summary>
         [Test]
         public async Task InsertValueErr009NullExtensionObjectAsync()
         {
@@ -2561,6 +2858,9 @@ namespace Opc.Ua.History.Tests
                 Is.EqualTo(StatusCodes.BadStructureMissing));
         }
 
+        /// <summary>
+        /// Verifies that mixed history-update detail types produce successful per-detail and per-operation results.
+        /// </summary>
         [Test]
         public async Task HistoryUpdateProcessesMixedDetailTypesAsync()
         {
@@ -2603,6 +2903,9 @@ namespace Opc.Ua.History.Tests
                 Is.True);
         }
 
+        /// <summary>
+        /// Verifies the node result for a modified-history read.
+        /// </summary>
         [Test]
         public async Task ModifiedValues001ReadModifiedValuesAsync()
         {
@@ -2623,6 +2926,9 @@ namespace Opc.Ua.History.Tests
             }
         }
 
+        /// <summary>
+        /// Verifies the node result when a history-read page is limited to one value.
+        /// </summary>
         [Test]
         public async Task MaxNodesReadCp000ReadSingleNodeWithNumValuesOneAsync()
         {
@@ -2637,6 +2943,9 @@ namespace Opc.Ua.History.Tests
             IgnoreIfNotGood(response.Results[0].StatusCode);
         }
 
+        /// <summary>
+        /// Verifies that following a history-read continuation point returns the next node result.
+        /// </summary>
         [Test]
         public async Task MaxNodesReadCp001FollowContinuationPointAsync()
         {
@@ -2671,6 +2980,9 @@ namespace Opc.Ua.History.Tests
             }
         }
 
+        /// <summary>
+        /// Verifies that releasing a history-read continuation point returns a node result.
+        /// </summary>
         [Test]
         public async Task MaxNodesReadCp002ReleaseContinuationPointAsync()
         {
@@ -2705,6 +3017,9 @@ namespace Opc.Ua.History.Tests
             }
         }
 
+        /// <summary>
+        /// Verifies the node result for a history read selecting server timestamps.
+        /// </summary>
         [Test]
         public async Task ServerTimestamp001ReadWithServerTimestampAsync()
         {
@@ -2734,6 +3049,9 @@ namespace Opc.Ua.History.Tests
             IgnoreIfNotGood(response.Results[0].StatusCode);
         }
 
+        /// <summary>
+        /// Verifies the node result for a history read combining server timestamps with bounding values.
+        /// </summary>
         [Test]
         public async Task ServerTimestamp002ReadWithServerTimestampAndBoundsAsync()
         {
@@ -2763,6 +3081,9 @@ namespace Opc.Ua.History.Tests
             IgnoreIfNotGood(response.Results[0].StatusCode);
         }
 
+        /// <summary>
+        /// Verifies the node result when updating a single historical value.
+        /// </summary>
         [Test]
         public async Task UpdateValue001UpdateSingleValueAsync()
         {
@@ -2785,6 +3106,9 @@ namespace Opc.Ua.History.Tests
             }
         }
 
+        /// <summary>
+        /// Verifies the node result when updating multiple historical values in one request.
+        /// </summary>
         [Test]
         public async Task UpdateValue002UpdateMultipleValuesAsync()
         {

@@ -56,6 +56,9 @@ namespace Opc.Ua.Server.Tests.Historian
     {
         private const ushort kNs = 2;
 
+        /// <summary>
+        /// Verifies that historian capture honors the configured batch-size threshold.
+        /// </summary>
         [Test]
         public async Task SinkRespectsBatchSizeThresholdAsync()
         {
@@ -83,6 +86,9 @@ namespace Opc.Ua.Server.Tests.Historian
                 "No single flush should exceed BatchTarget.");
         }
 
+        /// <summary>
+        /// Verifies that asynchronous capture-sink disposal flushes pending samples.
+        /// </summary>
         [Test]
         public async Task DisposeAsyncFlushesPendingSamplesAsync()
         {
@@ -110,6 +116,9 @@ namespace Opc.Ua.Server.Tests.Historian
                 "DisposeAsync must drain all pending samples even when BatchTarget is not reached.");
         }
 
+        /// <summary>
+        /// Verifies that capture after sink disposal does not insert new samples.
+        /// </summary>
         [Test]
         public async Task SinkCapturedAfterDisposeDoesNotInsertAsync()
         {
@@ -134,6 +143,9 @@ namespace Opc.Ua.Server.Tests.Historian
                 "Enqueue after dispose must be a silent no-op.");
         }
 
+        /// <summary>
+        /// Verifies that a provider exception faults the capture consumer and is surfaced during disposal.
+        /// </summary>
         [Test]
         public async Task ProviderExceptionFaultsConsumerAndSurfacesOnDisposeAsync()
         {
@@ -171,6 +183,9 @@ namespace Opc.Ua.Server.Tests.Historian
                 "No batch should succeed once the consumer has faulted.");
         }
 
+        /// <summary>
+        /// Verifies that an operation-level rejection does not fault the shared capture pipeline.
+        /// </summary>
         [Test]
         public async Task OperationRejectionDoesNotFaultSharedCapturePipelineAsync()
         {
@@ -204,6 +219,9 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(provider.TotalCalls, Is.EqualTo(2));
         }
 
+        /// <summary>
+        /// Verifies that DropNewest capture discards incoming samples under backpressure.
+        /// </summary>
         [Test]
         public async Task DropNewestModeDropsNewSamplesUnderBackpressureAsync()
         {

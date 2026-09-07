@@ -44,6 +44,9 @@ using Quickstarts.ReferenceServer;
 
 namespace Opc.Ua.History.Tests
 {
+    /// <summary>
+    /// Verifies event-history updates, reads, and annotation batches through a live client-server connection.
+    /// </summary>
     [TestFixture]
     [Category("Historian")]
     [Category("Integration")]
@@ -52,6 +55,9 @@ namespace Opc.Ua.History.Tests
     [NonParallelizable]
     public sealed class HistoryClientEventIntegrationTests
     {
+        /// <summary>
+        /// Starts an event-history server, connects a client, and resolves the notifier and annotation variable.
+        /// </summary>
         [OneTimeSetUp]
         public async Task OneTimeSetUpAsync()
         {
@@ -91,6 +97,10 @@ namespace Opc.Ua.History.Tests
                 (ushort)namespaceIndex);
         }
 
+        /// <summary>
+        /// Closes the history session, disposes the fixtures, stops the server, and removes the fixture's PKI
+        /// directory.
+        /// </summary>
         [OneTimeTearDown]
         public async Task OneTimeTearDownAsync()
         {
@@ -113,6 +123,9 @@ namespace Opc.Ua.History.Tests
             }
         }
 
+        /// <summary>
+        /// Verifies that event-history records round-trip through the history client and server.
+        /// </summary>
         [Test]
         public async Task EventHistoryRoundTripsThroughHistoryClientAsync()
         {
@@ -162,6 +175,9 @@ namespace Opc.Ua.History.Tests
             Assert.That(events, Is.Empty);
         }
 
+        /// <summary>
+        /// Verifies that event updates rooted in ConditionType round-trip through the live history service.
+        /// </summary>
         [Test]
         public async Task ConditionTypeRootedEventUpdateRoundTripsAsync()
         {
@@ -243,6 +259,9 @@ namespace Opc.Ua.History.Tests
             Assert.That(StatusCode.IsGood(deleteStatuses[0]), Is.True);
         }
 
+        /// <summary>
+        /// Verifies that event replacement applies the requested field index range.
+        /// </summary>
         [Test]
         public async Task EventReplaceAppliesIndexRangeAsync()
         {
@@ -361,6 +380,9 @@ namespace Opc.Ua.History.Tests
             Assert.That(deleteStatuses[0], Is.EqualTo(StatusCodes.Good));
         }
 
+        /// <summary>
+        /// Verifies that annotation batches can be written, read back, and removed over the history service.
+        /// </summary>
         [Test]
         public async Task BatchedAnnotationsRoundTripAndRemoveAsync()
         {

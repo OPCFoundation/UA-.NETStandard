@@ -58,7 +58,9 @@ namespace Opc.Ua.Server.Historian
         /// </summary>
         public static HistorianPage<T> Empty { get; } = new([], default);
 
-        /// <summary>Returns <c>true</c> when this page exhausts the request.</summary>
+        /// <summary>
+        /// Returns <c>true</c> when this page exhausts the request.
+        /// </summary>
         public bool IsFinal => NextToken.IsEmpty;
     }
 }

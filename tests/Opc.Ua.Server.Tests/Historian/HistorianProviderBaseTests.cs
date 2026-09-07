@@ -48,6 +48,9 @@ namespace Opc.Ua.Server.Tests.Historian
     [Parallelizable(ParallelScope.All)]
     public class HistorianProviderBaseTests
     {
+        /// <summary>
+        /// Verifies that the base historian provider reports historizing enabled by default.
+        /// </summary>
         [Test]
         public async Task IsHistorizingAsyncReturnsTrueByDefaultAsync()
         {
@@ -59,6 +62,9 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(result, Is.True);
         }
 
+        /// <summary>
+        /// Verifies that the base historian provider advertises read-only capabilities by default.
+        /// </summary>
         [Test]
         public async Task GetCapabilitiesAsyncReturnsReadOnlyByDefaultAsync()
         {
@@ -71,6 +77,9 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(caps, Is.SameAs(HistorianNodeCapabilities.ReadOnly));
         }
 
+        /// <summary>
+        /// Verifies that repeated-status creation fills every entry with the requested code.
+        /// </summary>
         [Test]
         public void RepeatStatusReturnsArrayFilledWithGivenCode()
         {
@@ -86,6 +95,9 @@ namespace Opc.Ua.Server.Tests.Historian
             }
         }
 
+        /// <summary>
+        /// Verifies that repeating a status zero times returns an empty collection.
+        /// </summary>
         [Test]
         public void RepeatStatusReturnsEmptyListForCountZero()
         {
@@ -97,6 +109,9 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(result, Is.Empty);
         }
 
+        /// <summary>
+        /// Verifies that repeated-status creation preserves the exact supplied status code.
+        /// </summary>
         [Test]
         public void RepeatStatusPreservesSpecificCode()
         {

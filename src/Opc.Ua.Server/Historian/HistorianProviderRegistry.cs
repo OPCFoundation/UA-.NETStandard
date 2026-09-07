@@ -93,6 +93,9 @@ namespace Opc.Ua.Server.Historian
             RegisterDefault(provider, ownsProvider: true);
         }
 
+        /// <summary>
+        /// Registers the fallback historian provider with an explicit lifetime ownership setting.
+        /// </summary>
         internal void RegisterDefault(
             IHistorianProvider provider,
             bool ownsProvider)

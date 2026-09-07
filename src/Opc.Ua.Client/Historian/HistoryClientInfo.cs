@@ -145,7 +145,9 @@ namespace Opc.Ua.Client.Historian
     /// </remarks>
     public sealed record HistoricalDataConfigurationInfo
     {
-        /// <summary><c>true</c> when at least one property was resolved.</summary>
+        /// <summary>
+        /// <c>true</c> when at least one property was resolved.
+        /// </summary>
         public bool HasConfiguration { get; init; }
 
         /// <summary>

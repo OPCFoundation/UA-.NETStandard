@@ -60,12 +60,18 @@ namespace Opc.Ua.Core.Tests.Conformance
             [HistoricalAccessProfileFamily.Events] = 10
         };
 
+        /// <summary>
+        /// Verifies that the historical-access catalog contains 37 profiles.
+        /// </summary>
         [Test]
         public void CatalogContainsThirtySevenProfiles()
         {
             Assert.That(HistoricalAccessProfileCatalog.AllProfiles.Count, Is.EqualTo(37));
         }
 
+        /// <summary>
+        /// Verifies that the historical-access catalog contains 15 server profiles.
+        /// </summary>
         [Test]
         public void CatalogContainsFifteenServerProfiles()
         {
@@ -75,6 +81,9 @@ namespace Opc.Ua.Core.Tests.Conformance
             Assert.That(serverProfiles.Count, Is.EqualTo(15));
         }
 
+        /// <summary>
+        /// Verifies that the historical-access catalog contains 22 client profiles.
+        /// </summary>
         [Test]
         public void CatalogContainsTwentyTwoClientProfiles()
         {
@@ -84,6 +93,9 @@ namespace Opc.Ua.Core.Tests.Conformance
             Assert.That(clientProfiles.Count, Is.EqualTo(22));
         }
 
+        /// <summary>
+        /// Verifies that server and client profile counts account for the entire catalog.
+        /// </summary>
         [Test]
         public void ServerAndClientProfileCountsSumToCatalogTotal()
         {
@@ -93,6 +105,9 @@ namespace Opc.Ua.Core.Tests.Conformance
             Assert.That(server + client, Is.EqualTo(HistoricalAccessProfileCatalog.AllProfiles.Count));
         }
 
+        /// <summary>
+        /// Verifies that every historical-access profile URI is unique.
+        /// </summary>
         [Test]
         public void AllProfileUrisAreUnique()
         {
@@ -103,6 +118,9 @@ namespace Opc.Ua.Core.Tests.Conformance
             }
         }
 
+        /// <summary>
+        /// Verifies that every historical-access profile name is unique.
+        /// </summary>
         [Test]
         public void AllProfileNamesAreUnique()
         {
@@ -113,6 +131,9 @@ namespace Opc.Ua.Core.Tests.Conformance
             }
         }
 
+        /// <summary>
+        /// Verifies that each profile name identifies historical functionality.
+        /// </summary>
         [Test]
         public void EveryProfileNameContainsHistorical()
         {
@@ -122,6 +143,9 @@ namespace Opc.Ua.Core.Tests.Conformance
             }
         }
 
+        /// <summary>
+        /// Verifies that each profile URI agrees with its declared client or server side.
+        /// </summary>
         [Test]
         public void EveryProfileUriMatchesItsDeclaredSide()
         {
@@ -138,6 +162,9 @@ namespace Opc.Ua.Core.Tests.Conformance
             }
         }
 
+        /// <summary>
+        /// Verifies that every historical-access profile declares at least one mandatory conformance unit.
+        /// </summary>
         [Test]
         public void EveryProfileHasAtLeastOneMandatoryConformanceUnit()
         {
@@ -150,6 +177,9 @@ namespace Opc.Ua.Core.Tests.Conformance
             }
         }
 
+        /// <summary>
+        /// Verifies that mandatory conformance units have nonempty names.
+        /// </summary>
         [Test]
         public void MandatoryConformanceUnitNamesAreNonEmpty()
         {
@@ -162,6 +192,9 @@ namespace Opc.Ua.Core.Tests.Conformance
             }
         }
 
+        /// <summary>
+        /// Verifies that the catalog represents all eight historical-access profile families.
+        /// </summary>
         [Test]
         public void AllEightFamiliesAreRepresented()
         {
@@ -182,6 +215,9 @@ namespace Opc.Ua.Core.Tests.Conformance
             Assert.That(families, Has.Count.EqualTo(8));
         }
 
+        /// <summary>
+        /// Verifies that historical-access profile counts match the expected distribution across families.
+        /// </summary>
         [Test]
         public void FamilyCountsMatchExpectedDistribution()
         {
@@ -192,6 +228,9 @@ namespace Opc.Ua.Core.Tests.Conformance
             }
         }
 
+        /// <summary>
+        /// Verifies that family counts account for every profile in the catalog.
+        /// </summary>
         [Test]
         public void FamilyCountsSumToCatalogTotal()
         {
@@ -199,6 +238,9 @@ namespace Opc.Ua.Core.Tests.Conformance
             Assert.That(sum, Is.EqualTo(HistoricalAccessProfileCatalog.AllProfiles.Count));
         }
 
+        /// <summary>
+        /// Verifies that server profiles are verified and client profiles are not advertised as server claims.
+        /// </summary>
         [Test]
         public void ServerProfilesAreVerifiedAndClientProfilesAreNotAdvertised()
         {
@@ -228,6 +270,9 @@ namespace Opc.Ua.Core.Tests.Conformance
             }
         }
 
+        /// <summary>
+        /// Verifies that each historical-access profile links production, test, and sample evidence.
+        /// </summary>
         [Test]
         public void EveryProfileHasProductionTestAndSampleEvidence()
         {
@@ -264,6 +309,9 @@ namespace Opc.Ua.Core.Tests.Conformance
             }
         }
 
+        /// <summary>
+        /// Verifies that querying profiles by family excludes profiles from other families.
+        /// </summary>
         [Test]
         public void GetProfilesByFamilyOnlyReturnsThatFamily()
         {
@@ -277,6 +325,9 @@ namespace Opc.Ua.Core.Tests.Conformance
             }
         }
 
+        /// <summary>
+        /// Verifies that a known historical-access profile can be found by its URI.
+        /// </summary>
         [Test]
         public void TryGetProfileFindsAKnownProfileByUri()
         {
@@ -289,6 +340,9 @@ namespace Opc.Ua.Core.Tests.Conformance
             Assert.That(descriptor.Name, Is.EqualTo("Historical Aggregate 2022 Server Facet"));
         }
 
+        /// <summary>
+        /// Verifies that lookup returns false for an unknown historical-access profile URI.
+        /// </summary>
         [Test]
         public void TryGetProfileReturnsFalseForAnUnknownUri()
         {

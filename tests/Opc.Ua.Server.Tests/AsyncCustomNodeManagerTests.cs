@@ -45,6 +45,10 @@ using Opc.Ua.Server.StateMachines;
 
 namespace Opc.Ua.Server.Tests
 {
+    /// <summary>
+    /// Verifies node lifecycle, service routing, monitoring, and namespace behavior across node-manager
+    /// implementations.
+    /// </summary>
     [TestFixture(AsyncCustomNodeManagerType.MonitoredNodeMonitoredItemManager)]
     [TestFixture(AsyncCustomNodeManagerType.SamplingGroupMonitoredItemManager)]
     [TestFixture(AsyncCustomNodeManagerType.CustomNodeManager2ViaAdapter)]
@@ -95,19 +99,37 @@ namespace Opc.Ua.Server.Tests
             ServiceResult error,
             bool ignoreFilters);
 
+        /// <summary>
+        /// Selects the node-manager and monitored-item implementation exercised by the fixture.
+        /// </summary>
         public enum AsyncCustomNodeManagerType
         {
+            /// <summary>
+            /// Uses the asynchronous node manager with per-node monitored-item management.
+            /// </summary>
             MonitoredNodeMonitoredItemManager,
+            /// <summary>
+            /// Uses the asynchronous node manager with sampling-group monitored-item management.
+            /// </summary>
             SamplingGroupMonitoredItemManager,
+            /// <summary>
+            /// Uses the legacy custom node manager through its asynchronous adapter.
+            /// </summary>
             CustomNodeManager2ViaAdapter
         }
 
+        /// <summary>
+        /// Selects the node-manager implementation and whether the fixture uses sampling groups.
+        /// </summary>
         public AsyncCustomNodeManagerTests(AsyncCustomNodeManagerType managerType)
         {
             m_managerType = managerType;
             m_useSamplingGroups = managerType == AsyncCustomNodeManagerType.SamplingGroupMonitoredItemManager;
         }
 
+        /// <summary>
+        /// Creates isolated server mocks, namespace tables, historian services, a fake clock, and queue configuration.
+        /// </summary>
         [SetUp]
         public void SetUp()
         {
@@ -159,6 +181,9 @@ namespace Opc.Ua.Server.Tests
             };
         }
 
+        /// <summary>
+        /// Disposes the monitored-item queue factory and historian registry created for the scenario.
+        /// </summary>
         [TearDown]
         public void TearDown()
         {
@@ -166,6 +191,10 @@ namespace Opc.Ua.Server.Tests
             m_historianRegistry?.Dispose();
         }
 
+        /// <summary>
+        /// Verifies constructor queue limits, namespaces, logging, the synchronous adapter, and the node identifier
+        /// factory.
+        /// </summary>
         [Test]
         public void Constructor_SetsPropertiesCorrectly()
         {
@@ -182,6 +211,9 @@ namespace Opc.Ua.Server.Tests
             Assert.That(acnm.SystemContext.NodeIdFactory, Is.SameAs(acnm));
         }
 
+        /// <summary>
+        /// Verifies that generated node identifiers are unique and belong to the managed namespace.
+        /// </summary>
         [Test]
         public void NodeIDFactoryGeneratesNodesInTheRightNamespaceWithoutDuplicates()
         {
@@ -202,6 +234,9 @@ namespace Opc.Ua.Server.Tests
             }
         }
 
+        /// <summary>
+        /// Verifies that predefined-node registration completes the node's creation lifecycle.
+        /// </summary>
         [Test]
         public async Task AddPredefinedNodeCompletesCreateLifecycleAsync()
         {
@@ -239,6 +274,9 @@ namespace Opc.Ua.Server.Tests
 #pragma warning restore CA1873
         }
 
+        /// <summary>
+        /// Verifies that adding a node completes its creation lifecycle.
+        /// </summary>
         [Test]
         public async Task AddNodeCompletesCreateLifecycleAsync()
         {
@@ -260,6 +298,9 @@ namespace Opc.Ua.Server.Tests
             Assert.That(node.AfterCreateCount, Is.EqualTo(1));
         }
 
+        /// <summary>
+        /// Verifies that a predefined node receives its identifier before its creation lifecycle runs.
+        /// </summary>
         [Test]
         public async Task PredefinedNodeIdIsAssignedBeforeCreateLifecycleAsync()
         {
@@ -280,6 +321,9 @@ namespace Opc.Ua.Server.Tests
             Assert.That(node.NodeIdAtAfterCreate, Is.EqualTo(node.NodeId));
         }
 
+        /// <summary>
+        /// Verifies that a behavior replacement completes creation after the original node.
+        /// </summary>
         [Test]
         public async Task BehaviourReplacementIsCompletedAfterOriginalAsync()
         {
@@ -314,6 +358,9 @@ namespace Opc.Ua.Server.Tests
             Assert.That(manager.Find(original.NodeId), Is.SameAs(replacement));
         }
 
+        /// <summary>
+        /// Verifies that registering a generated condition binds its methods.
+        /// </summary>
         [Test]
         public async Task RegisteringGeneratedConditionBindsMethodsAsync()
         {
@@ -338,6 +385,9 @@ namespace Opc.Ua.Server.Tests
             Assert.That(condition.AddComment.OnCall, Is.Not.Null);
         }
 
+        /// <summary>
+        /// Verifies that registering a state machine resolves the namespace of its elements.
+        /// </summary>
         [Test]
         public async Task RegisteringStateMachineResolvesElementNamespaceAsync()
         {
@@ -364,6 +414,9 @@ namespace Opc.Ua.Server.Tests
                 Is.EqualTo(new NodeId(123, elementNamespaceIndex)));
         }
 
+        /// <summary>
+        /// Verifies that registration rebases state nodes materialized during the creation lifecycle.
+        /// </summary>
         [Test]
         public async Task RegistrationRebasesLifecycleMaterializedStateNodesAsync()
         {
@@ -403,6 +456,9 @@ namespace Opc.Ua.Server.Tests
             Assert.That(manager.Find(off.NodeId), Is.SameAs(off));
         }
 
+        /// <summary>
+        /// Verifies that registration rebases typed children while preserving explicitly assigned identifiers.
+        /// </summary>
         [Test]
         public async Task RegistrationRebasesTypedChildrenAndPreservesExplicitIdsAsync()
         {
@@ -458,6 +514,9 @@ namespace Opc.Ua.Server.Tests
                 Is.Not.Null);
         }
 
+        /// <summary>
+        /// Verifies that registration preserves root identifiers in namespace zero.
+        /// </summary>
         [Test]
         public async Task RegistrationPreservesNamespaceZeroRootIdsAsync()
         {
@@ -487,6 +546,9 @@ namespace Opc.Ua.Server.Tests
             });
         }
 
+        /// <summary>
+        /// Verifies that synchronous predefined-node registration completes the creation lifecycle.
+        /// </summary>
         [Test]
         public void SynchronousPredefinedNodeRegistrationCompletesCreateLifecycle()
         {
@@ -509,6 +571,9 @@ namespace Opc.Ua.Server.Tests
             Assert.That(node.AfterCreateCount, Is.EqualTo(1));
         }
 
+        /// <summary>
+        /// Verifies that predefined-node lookup returns a node only when its type matches the request.
+        /// </summary>
         [Test]
         public async Task FindPredefinedNode_ReturnsNodeOnlyWhenTypeMatchesAsync()
         {
@@ -532,6 +597,9 @@ namespace Opc.Ua.Server.Tests
             Assert.That(nullResult, Is.Null);
         }
 
+        /// <summary>
+        /// Verifies that node creation adds the node to the predefined-node collection.
+        /// </summary>
         [Test]
         public async Task CreateNodeAsync_AddsNodeToPredefinedNodesAsync()
         {
@@ -556,6 +624,9 @@ namespace Opc.Ua.Server.Tests
             Assert.That(baseObject.ReferenceTypeId, Is.EqualTo(ReferenceTypeIds.Organizes));
         }
 
+        /// <summary>
+        /// Verifies that node deletion removes the node from the predefined-node collection.
+        /// </summary>
         [Test]
         public async Task DeleteNodeAsync_RemovesNodeFromPredefinedNodesAsync()
         {
@@ -581,6 +652,9 @@ namespace Opc.Ua.Server.Tests
             Assert.That(secondResult, Is.False);
         }
 
+        /// <summary>
+        /// Verifies that address-space creation loads nodes supplied by the override.
+        /// </summary>
         [Test]
         public async Task CreateAddressSpaceAsync_LoadsNodesFromOverrideAsync()
         {
@@ -729,6 +803,9 @@ namespace Opc.Ua.Server.Tests
             Assert.That(baseOnlyCount, Is.EqualTo(1));
         }
 
+        /// <summary>
+        /// Verifies that address-space deletion disposes all registered nodes.
+        /// </summary>
         [Test]
         public async Task DeleteAddressSpaceAsync_DisposesAllNodesAsync()
         {
@@ -748,6 +825,9 @@ namespace Opc.Ua.Server.Tests
             Assert.That(manager.PredefinedNodes, Is.Empty);
         }
 
+        /// <summary>
+        /// Verifies that address-space deletion invokes node-state deletion callbacks.
+        /// </summary>
         [Test]
         public async Task DeleteAddressSpaceAsync_InvokesNodeStateDeleteCallbacksAsync()
         {
@@ -779,6 +859,9 @@ namespace Opc.Ua.Server.Tests
             Assert.That(manager.PredefinedNodes, Is.Empty);
         }
 
+        /// <summary>
+        /// Verifies that predefined-node registration rebases colliding declaration identifiers.
+        /// </summary>
         [Test]
         public async Task AddPredefinedNodeAsyncRebasesDeclarationCollisions()
         {
@@ -864,6 +947,9 @@ namespace Opc.Ua.Server.Tests
             });
         }
 
+        /// <summary>
+        /// Verifies that predefined-node registration preserves a runtime replacement's identifier.
+        /// </summary>
         [Test]
         public async Task AddPredefinedNodeAsyncPreservesRuntimeReplacementNodeId()
         {
@@ -899,6 +985,9 @@ namespace Opc.Ua.Server.Tests
             });
         }
 
+        /// <summary>
+        /// Verifies that replacing a predefined instance subtype preserves its identity and child identifiers.
+        /// </summary>
         [Test]
         public async Task ReplacePredefinedInstanceSubtypeAsyncPreservesIdentityAndChildIdsAsync()
         {
@@ -995,6 +1084,9 @@ namespace Opc.Ua.Server.Tests
             Assert.That(manager.PredefinedNodes.ContainsKey(oldOnlyId), Is.False);
         }
 
+        /// <summary>
+        /// Verifies that predefined instance subtype replacement rejects null arguments.
+        /// </summary>
         [Test]
         public void ReplacePredefinedInstanceSubtypeAsyncThrowsOnNullArguments()
         {
@@ -1014,6 +1106,9 @@ namespace Opc.Ua.Server.Tests
                 Throws.ArgumentNullException);
         }
 
+        /// <summary>
+        /// Verifies that address-space deletion does not invoke child deletion callbacks twice.
+        /// </summary>
         [Test]
         public async Task DeleteAddressSpaceAsync_DoesNotDoubleFireOnChildrenAsync()
         {
@@ -1063,6 +1158,9 @@ namespace Opc.Ua.Server.Tests
             Assert.That(manager.PredefinedNodes, Is.Empty);
         }
 
+        /// <summary>
+        /// Verifies that manager-handle lookup returns a handle for an existing node.
+        /// </summary>
         [Test]
         public async Task GetManagerHandleAsync_ReturnsHandleForExistingNodeAsync()
         {
@@ -1091,6 +1189,9 @@ namespace Opc.Ua.Server.Tests
             Assert.That(invalidHandle, Is.Null);
         }
 
+        /// <summary>
+        /// Verifies that metadata lookup returns the registered node's metadata.
+        /// </summary>
         [Test]
         public async Task GetNodeMetadataAsync_ReturnsMetadataForNodeAsync()
         {
@@ -1126,6 +1227,9 @@ namespace Opc.Ua.Server.Tests
             Assert.That(metadata.AccessLevel, Is.EqualTo(AccessLevels.CurrentRead));
         }
 
+        /// <summary>
+        /// Verifies that a read operation returns the node's value.
+        /// </summary>
         [Test]
         public async Task ReadAsync_ReadsValueFromNodeAsync()
         {
@@ -1179,6 +1283,9 @@ namespace Opc.Ua.Server.Tests
             Assert.That(errors[0].StatusCode, Is.EqualTo(StatusCodes.Good));
         }
 
+        /// <summary>
+        /// Verifies that reading a static node stamps a fresh server timestamp.
+        /// </summary>
         [Test]
         public async Task ReadAsync_StampsFreshServerTimestampForStaticNodeAsync()
         {
@@ -1227,6 +1334,9 @@ namespace Opc.Ua.Server.Tests
             Assert.That(values[0].ServerTimestamp, Is.Not.EqualTo(values[0].SourceTimestamp));
         }
 
+        /// <summary>
+        /// Verifies that a read operation invokes the node state's asynchronous read callback.
+        /// </summary>
         [Test]
         public async Task ReadAsync_UsesNodeStateAsyncReadCallback()
         {
@@ -1277,6 +1387,9 @@ namespace Opc.Ua.Server.Tests
             Assert.That((int)values[0].WrappedValue, Is.EqualTo(123));
         }
 
+        /// <summary>
+        /// Verifies that browse-path translation resolves the expected target nodes.
+        /// </summary>
         [Test]
         public async Task TranslateBrowsePathAsync_ResolvesTargetsAsync()
         {
@@ -1319,6 +1432,9 @@ namespace Opc.Ua.Server.Tests
             Assert.That(unresolved, Is.Empty);
         }
 
+        /// <summary>
+        /// Verifies that browsing a node returns its child references.
+        /// </summary>
         [Test]
         public async Task BrowseAsync_ReturnsChildReferencesAsync()
         {
@@ -1488,6 +1604,9 @@ namespace Opc.Ua.Server.Tests
                 "runtime-added child must be visible when browsing an already-cached parent");
         }
 
+        /// <summary>
+        /// Verifies that a write operation updates the node's value.
+        /// </summary>
         [Test]
         public async Task WriteAsync_WritesValueToNodeAsync()
         {
@@ -1538,6 +1657,9 @@ namespace Opc.Ua.Server.Tests
             Assert.That(errors[0].StatusCode, Is.EqualTo(StatusCodes.Good));
         }
 
+        /// <summary>
+        /// Verifies that a write operation invokes the node state's asynchronous write callback.
+        /// </summary>
         [Test]
         public async Task WriteAsync_UsesNodeStateAsyncWriteCallback()
         {
@@ -1587,6 +1709,9 @@ namespace Opc.Ua.Server.Tests
             Assert.That(variable.Value, Is.EqualTo(10));
         }
 
+        /// <summary>
+        /// Verifies that writing an out-of-range scalar to an analog item returns BadOutOfRange.
+        /// </summary>
         [Test]
         public async Task WriteAsync_WritesOutOfRangeScalarValueToAnalogItemReturnsBadOutOfRangeAsync()
         {
@@ -1629,6 +1754,9 @@ namespace Opc.Ua.Server.Tests
             Assert.That(variable.Value, Is.EqualTo(50.0));
         }
 
+        /// <summary>
+        /// Verifies that writing an out-of-range array element to an analog item returns BadOutOfRange.
+        /// </summary>
         [Test]
         public async Task WriteAsync_WritesOutOfRangeArrayValueToAnalogItemReturnsBadOutOfRangeAsync()
         {
@@ -1672,6 +1800,9 @@ namespace Opc.Ua.Server.Tests
             Assert.That(variable.Value.GetDoubleArray(), Is.EqualTo(s_expected));
         }
 
+        /// <summary>
+        /// Verifies that writing a value publishes it to the monitored-item queue.
+        /// </summary>
         [Test]
         public async Task WriteAsync_PublishesValueToMonitoredItemQueueAsync()
         {
@@ -1778,6 +1909,9 @@ namespace Opc.Ua.Server.Tests
             // The write value is verified above via variable.Value == 123.
         }
 
+        /// <summary>
+        /// Verifies that changing engineering units queues a value with the SemanticsChanged flag.
+        /// </summary>
         [Test]
         public async Task WriteEngineeringUnitsAsync_PublishesSemanticsChangedValueToMonitoredItemQueueAsync()
         {
@@ -1889,6 +2023,9 @@ namespace Opc.Ua.Server.Tests
             Assert.That(monitoredItem.IsReadyToPublish, Is.False);
         }
 
+        /// <summary>
+        /// Verifies that adding references registers external references.
+        /// </summary>
         [Test]
         public async Task AddReferencesAsync_AddsExternalReferencesAsync()
         {
@@ -1927,6 +2064,9 @@ namespace Opc.Ua.Server.Tests
             Assert.That(matchingRefs, Has.Count.EqualTo(1));
         }
 
+        /// <summary>
+        /// Verifies that deleting a bidirectional reference removes both directions.
+        /// </summary>
         [Test]
         public async Task DeleteReferenceAsync_RemovesBidirectionalReferencesAsync()
         {
@@ -1963,6 +2103,9 @@ namespace Opc.Ua.Server.Tests
             Assert.That(target.ReferenceExists(ReferenceTypeIds.Organizes, true, source.NodeId), Is.False);
         }
 
+        /// <summary>
+        /// Verifies that monitored-item creation creates the requested item.
+        /// </summary>
         [Test]
         public async Task CreateMonitoredItemsAsync_CreatesItemAsync()
         {
@@ -2020,6 +2163,9 @@ namespace Opc.Ua.Server.Tests
             Assert.That(monitoredItems[0].SamplingInterval, Is.EqualTo(100).Within(0.1));
         }
 
+        /// <summary>
+        /// Verifies that a created monitored item is bound to its owning node manager.
+        /// </summary>
         [Test]
         public async Task CreateMonitoredItemsAsyncBindsOwningNodeManagerAsync()
         {
@@ -2097,6 +2243,9 @@ namespace Opc.Ua.Server.Tests
             Assert.That(snapshot, Does.Contain(monitoredItem));
         }
 
+        /// <summary>
+        /// Verifies that monitored-item modification applies the requested settings.
+        /// </summary>
         [Test]
         public async Task ModifyMonitoredItemsAsync_ModifiesItemAsync()
         {
@@ -2166,6 +2315,9 @@ namespace Opc.Ua.Server.Tests
             Assert.That(item.MonitoringMode, Is.EqualTo(MonitoringMode.Reporting));
         }
 
+        /// <summary>
+        /// Verifies that revising an aggregate reuses the monitored item's retained queue.
+        /// </summary>
         [Test]
         public async Task ModifyMonitoredItemsAsyncUsesRetainedQueueForAggregateRevisionAsync()
         {
@@ -2282,6 +2434,9 @@ namespace Opc.Ua.Server.Tests
                 Is.EqualTo(4));
         }
 
+        /// <summary>
+        /// Verifies that average-aggregate priming deduplicates overlapping history pages before replaying live values.
+        /// </summary>
         [Test]
         public async Task ModifyAverageAggregateDeduplicatesPagedHistoryOverlapBeforeBufferedLiveValuesAsync()
         {
@@ -2420,6 +2575,9 @@ namespace Opc.Ua.Server.Tests
                 Does.Contain(99));
         }
 
+        /// <summary>
+        /// Verifies that an equivalent aggregate modification does not invoke fatal initial-read validation.
+        /// </summary>
         [Test]
         public async Task EquivalentAggregateModificationIgnoresFatalInitialReadSeamAsync()
         {
@@ -2509,6 +2667,9 @@ namespace Opc.Ua.Server.Tests
                 Times.Never);
         }
 
+        /// <summary>
+        /// Verifies that aggregate modification performs successful initial-read validation only once.
+        /// </summary>
         [Test]
         public async Task AggregateModificationUsesSuccessfulInitialReadValidationOnceAsync()
         {
@@ -2576,6 +2737,9 @@ namespace Opc.Ua.Server.Tests
                 Is.InstanceOf<ServerAggregateFilter>());
         }
 
+        /// <summary>
+        /// Verifies that an exception during initial-read validation cancels aggregate preparation.
+        /// </summary>
         [Test]
         public async Task ThrowingInitialReadValidationCancelsAggregatePreparationAsync()
         {
@@ -2674,6 +2838,9 @@ namespace Opc.Ua.Server.Tests
                 .CompleteInitialValue();
         }
 
+        /// <summary>
+        /// Verifies that a provider failure during aggregate modification queues an error without removing the item.
+        /// </summary>
         [TestCaseSource(nameof(s_postCommitProviderFailures))]
         public async Task AggregateModificationProviderFailureQueuesErrorAndKeepsItemAsync(
             StatusCode failureCode)
@@ -2759,6 +2926,9 @@ namespace Opc.Ua.Server.Tests
                 Times.Once);
         }
 
+        /// <summary>
+        /// Verifies that aggregate-modification overflow queues an error and permits a subsequent modification cycle.
+        /// </summary>
         [Test]
         public async Task AggregateModificationOverflowQueuesErrorAndAllowsSecondCycleAsync()
         {
@@ -2885,6 +3055,9 @@ namespace Opc.Ua.Server.Tests
                 Times.Once);
         }
 
+        /// <summary>
+        /// Verifies that fatal aggregate-priming validation leaves the monitored item unchanged.
+        /// </summary>
         [Test]
         public async Task FatalAggregatePrimingValidationLeavesMonitoredItemUnchangedAsync()
         {
@@ -2961,6 +3134,9 @@ namespace Opc.Ua.Server.Tests
                 Times.Never);
         }
 
+        /// <summary>
+        /// Verifies that canceling aggregate modification releases buffered live values.
+        /// </summary>
         [Test]
         public async Task CancelledAggregateModificationReleasesBufferedLiveValuesAsync()
         {
@@ -3047,6 +3223,9 @@ namespace Opc.Ua.Server.Tests
                 Times.Once);
         }
 
+        /// <summary>
+        /// Verifies that canceling sampling-group aggregate modification still applies staged changes.
+        /// </summary>
         [Test]
         public async Task CancelledSamplingGroupAggregateModificationAppliesStagedChangesAsync()
         {
@@ -3129,6 +3308,9 @@ namespace Opc.Ua.Server.Tests
             });
         }
 
+        /// <summary>
+        /// Verifies that a sampling-group modification exception releases buffered live values.
+        /// </summary>
         [Test]
         public async Task ThrowingSamplingGroupModificationReleasesBufferedLiveValuesAsync()
         {
@@ -3201,6 +3383,9 @@ namespace Opc.Ua.Server.Tests
                 Times.Once);
         }
 
+        /// <summary>
+        /// Verifies that an exception while replaying pending values completes priming only once.
+        /// </summary>
         [Test]
         public async Task ThrowingPendingReplayCompletesPrimingOnlyOnceAsync()
         {
@@ -3307,6 +3492,9 @@ namespace Opc.Ua.Server.Tests
             Assert.That(queuedRawValues, Is.EqualTo(s_replayFailureValues));
         }
 
+        /// <summary>
+        /// Verifies that changing monitoring mode updates the monitored item's mode.
+        /// </summary>
         [Test]
         public async Task SetMonitoringModeAsync_ChangesModeAsync()
         {
@@ -3367,6 +3555,9 @@ namespace Opc.Ua.Server.Tests
             Assert.That(processedItems[0], Is.True);
         }
 
+        /// <summary>
+        /// Verifies that monitored-item deletion removes the requested item.
+        /// </summary>
         [Test]
         public async Task DeleteMonitoredItemsAsync_DeletesItemAsync()
         {
@@ -3427,6 +3618,9 @@ namespace Opc.Ua.Server.Tests
             Assert.That(manager.MonitoredItems.ContainsKey(monitoredItem.Id), Is.False);
         }
 
+        /// <summary>
+        /// Verifies that a method call invokes the registered method implementation.
+        /// </summary>
         [Test]
         public async Task CallAsync_InvokesRegisteredMethodAsync()
         {
@@ -3507,6 +3701,9 @@ namespace Opc.Ua.Server.Tests
             Assert.That(ServiceResult.IsGood(syncErrors[0]), Is.True);
         }
 
+        /// <summary>
+        /// Verifies that a method call resolves a method declared on the object's type.
+        /// </summary>
         [Test]
         public async Task CallAsync_InvokesMethodFromObjectTypeAsync()
         {
@@ -3598,6 +3795,9 @@ namespace Opc.Ua.Server.Tests
             Assert.That(syncResults[0].OutputArguments[0].GetInt32(), Is.EqualTo(42));
         }
 
+        /// <summary>
+        /// Verifies that method-state lookup resolves methods inherited from an object type's supertype.
+        /// </summary>
         [Test]
         public async Task FindMethodStateAsyncResolvesMethodFromSuperTypeOfObjectType()
         {
@@ -3670,6 +3870,9 @@ namespace Opc.Ua.Server.Tests
             }
         }
 
+        /// <summary>
+        /// Verifies that a method call invokes a method inherited from an object type's supertype.
+        /// </summary>
         [Test]
         public async Task CallAsync_InvokesMethodFromSuperTypeOfObjectTypeAsync()
         {
@@ -3772,6 +3975,9 @@ namespace Opc.Ua.Server.Tests
             Assert.That(syncResults[0].OutputArguments[0].GetInt32(), Is.EqualTo(99));
         }
 
+        /// <summary>
+        /// Verifies that history reads are reported as unsupported for nodes without history support.
+        /// </summary>
         [Test]
         public async Task HistoryReadAsync_ReturnsUnsupportedForNodesWithoutHistoryAsync()
         {
@@ -3818,6 +4024,9 @@ namespace Opc.Ua.Server.Tests
             Assert.That(syncErrors[0].StatusCode, Is.EqualTo(StatusCodes.BadHistoryOperationUnsupported));
         }
 
+        /// <summary>
+        /// Verifies that history updates are reported as unsupported for nodes without history support.
+        /// </summary>
         [Test]
         public async Task HistoryUpdateAsync_ReturnsUnsupportedForNodesWithoutHistoryAsync()
         {
@@ -3866,6 +4075,9 @@ namespace Opc.Ua.Server.Tests
             Assert.That(syncErrors[0].StatusCode, Is.EqualTo(StatusCodes.BadHistoryOperationUnsupported));
         }
 
+        /// <summary>
+        /// Verifies that condition refresh succeeds when monitoring the Server object.
+        /// </summary>
         [Test]
         public async Task ConditionRefreshAsync_ReturnsGoodWhenMonitoringServerAsync()
         {
@@ -3888,6 +4100,9 @@ namespace Opc.Ua.Server.Tests
             Assert.That(ServiceResult.IsGood(syncResult), Is.True);
         }
 
+        /// <summary>
+        /// Verifies that event subscription returns BadNodeIdInvalid for an unknown source.
+        /// </summary>
         [Test]
         public async Task SubscribeToEventsAsync_ReturnsBadNodeIdInvalidForUnknownSourceAsync()
         {
@@ -3904,6 +4119,9 @@ namespace Opc.Ua.Server.Tests
             Assert.That(syncResult.StatusCode, Is.EqualTo(StatusCodes.BadNodeIdInvalid));
         }
 
+        /// <summary>
+        /// Verifies that subscribing to all events succeeds when no root notifier is registered.
+        /// </summary>
         [Test]
         public async Task SubscribeToAllEventsAsync_ReturnsGoodWhenNoRootNotifiersAsync()
         {
@@ -3920,6 +4138,9 @@ namespace Opc.Ua.Server.Tests
             Assert.That(ServiceResult.IsGood(syncResult), Is.True);
         }
 
+        /// <summary>
+        /// Verifies that stored monitored items can be restored.
+        /// </summary>
         [Test]
         public async Task RestoreMonitoredItemsAsync_RestoresStoredItemsAsync()
         {
@@ -3960,6 +4181,9 @@ namespace Opc.Ua.Server.Tests
             Assert.That(restoredItems[0], Is.Not.Null);
         }
 
+        /// <summary>
+        /// Verifies that monitored-item transfer marks items as processed and requests data resend.
+        /// </summary>
         [Test]
         public async Task TransferMonitoredItemsAsync_MarksItemsProcessedAndTriggersResendAsync()
         {
@@ -4022,6 +4246,9 @@ namespace Opc.Ua.Server.Tests
             Assert.That(ServiceResult.IsGood(syncErrors[0]), Is.True);
         }
 
+        /// <summary>
+        /// Verifies that session-closing notification completes without error.
+        /// </summary>
         [Test]
         public async Task SessionClosingAsync_CompletesWithoutErrorAsync()
         {
@@ -4034,6 +4261,9 @@ namespace Opc.Ua.Server.Tests
             syncManager.SessionClosing(context, new NodeId(11), false);
         }
 
+        /// <summary>
+        /// Verifies that an unknown handle is not considered part of a view.
+        /// </summary>
         [Test]
         public async Task IsNodeInViewAsync_ReturnsFalseForUnknownHandleAsync()
         {
@@ -4048,6 +4278,9 @@ namespace Opc.Ua.Server.Tests
             Assert.That(syncResult, Is.False);
         }
 
+        /// <summary>
+        /// Verifies that view membership for a resolved node uses the overridable node-view predicate.
+        /// </summary>
         [Test]
         public async Task IsNodeInViewAsync_HandleWithNodeUsesOverridableIsNodeInViewAsync()
         {
@@ -4106,6 +4339,9 @@ namespace Opc.Ua.Server.Tests
             Assert.That(nodeSeenByOverride, Is.SameAs(node));
         }
 
+        /// <summary>
+        /// Verifies that permission metadata includes access and role information.
+        /// </summary>
         [Test]
         public async Task GetPermissionMetadataAsync_ReturnsAccessAndRoleInformationAsync()
         {
@@ -4158,6 +4394,9 @@ namespace Opc.Ua.Server.Tests
             Assert.That(syncMetadata, Is.Not.Null);
         }
 
+        /// <summary>
+        /// Verifies that role validation succeeds when no permission is required.
+        /// </summary>
         [Test]
         public async Task ValidateRolePermissionsAsync_ReturnsGoodWhenPermissionNotRequiredAsync()
         {
@@ -4170,6 +4409,9 @@ namespace Opc.Ua.Server.Tests
             Assert.That(ServiceResult.IsGood(result), Is.True);
         }
 
+        /// <summary>
+        /// Verifies that event-role validation succeeds when event information is absent.
+        /// </summary>
         [Test]
         public async Task ValidateEventRolePermissionsAsync_ReturnsGoodWhenEventInformationMissingAsync()
         {
@@ -4197,6 +4439,9 @@ namespace Opc.Ua.Server.Tests
             Assert.That(ServiceResult.IsGood(result), Is.True);
         }
 
+        /// <summary>
+        /// Verifies that adding a root notifier registers it in the notifier collection.
+        /// </summary>
         [Test]
         public async Task AddRootNotifierAsyncAddsNodeToRootNotifiersAsync()
         {
@@ -4213,6 +4458,9 @@ namespace Opc.Ua.Server.Tests
             Assert.That(manager.RootNotifiers[notifier.NodeId], Is.SameAs(notifier));
         }
 
+        /// <summary>
+        /// Verifies that adding a root notifier installs its event-reporting callback.
+        /// </summary>
         [Test]
         public async Task AddRootNotifierAsyncSetsOnReportEventCallbackAsync()
         {
@@ -4230,6 +4478,9 @@ namespace Opc.Ua.Server.Tests
                 Is.True);
         }
 
+        /// <summary>
+        /// Verifies that adding a root notifier creates a HasNotifier reference to the Server object.
+        /// </summary>
         [Test]
         public async Task AddRootNotifierAsyncAddsHasNotifierReferenceToServerAsync()
         {
@@ -4247,6 +4498,9 @@ namespace Opc.Ua.Server.Tests
                 Is.True);
         }
 
+        /// <summary>
+        /// Verifies that registering the Server object as a root notifier skips extra callbacks and references.
+        /// </summary>
         [Test]
         public async Task AddRootNotifierAsyncServerNodeSkipsCallbackAndReferenceAsync()
         {
@@ -4270,6 +4524,9 @@ namespace Opc.Ua.Server.Tests
                 Is.False);
         }
 
+        /// <summary>
+        /// Verifies that adding the same root notifier repeatedly is idempotent.
+        /// </summary>
         [Test]
         public async Task AddRootNotifierAsyncIsIdempotentAsync()
         {
@@ -4295,6 +4552,9 @@ namespace Opc.Ua.Server.Tests
             Assert.That(hasNotifierCount, Is.EqualTo(1));
         }
 
+        /// <summary>
+        /// Verifies that removing a root notifier removes it from the notifier collection.
+        /// </summary>
         [Test]
         public async Task RemoveRootNotifierAsyncRemovesFromRootNotifiersAsync()
         {
@@ -4313,6 +4573,9 @@ namespace Opc.Ua.Server.Tests
             Assert.That(manager.RootNotifiers.ContainsKey(notifier.NodeId), Is.False);
         }
 
+        /// <summary>
+        /// Verifies that removing a root notifier clears its event-reporting callback.
+        /// </summary>
         [Test]
         public async Task RemoveRootNotifierAsyncClearsOnReportEventCallbackAsync()
         {
@@ -4335,6 +4598,9 @@ namespace Opc.Ua.Server.Tests
                 Is.True);
         }
 
+        /// <summary>
+        /// Verifies that removing a root notifier removes its HasNotifier reference.
+        /// </summary>
         [Test]
         public async Task RemoveRootNotifierAsyncRemovesHasNotifierReferenceAsync()
         {
@@ -4357,6 +4623,9 @@ namespace Opc.Ua.Server.Tests
                 Is.False);
         }
 
+        /// <summary>
+        /// Verifies that removing an unknown root notifier has no effect.
+        /// </summary>
         [Test]
         public async Task RemoveRootNotifierAsyncIsNoopForUnknownNotifierAsync()
         {
@@ -4373,6 +4642,9 @@ namespace Opc.Ua.Server.Tests
             Assert.That(manager.RootNotifiers.ContainsKey(notifier.NodeId), Is.False);
         }
 
+        /// <summary>
+        /// Verifies that the node-manager event callback forwards events to the server.
+        /// </summary>
         [Test]
         public void OnReportEventDelegatesToServerReportEvent()
         {
@@ -4398,6 +4670,9 @@ namespace Opc.Ua.Server.Tests
             Assert.That(capturedEvent, Is.SameAs(mockEvent));
         }
 
+        /// <summary>
+        /// Verifies that reporting an event from a node invokes the node-manager event callback.
+        /// </summary>
         [Test]
         public async Task OnReportEventIsInvokedWhenNodeReportsEventAsync()
         {
@@ -4431,6 +4706,9 @@ namespace Opc.Ua.Server.Tests
             Assert.That(capturedEvent, Is.SameAs(mockEvent));
         }
 
+        /// <summary>
+        /// Verifies that event subscription succeeds for a valid event-notifier node.
+        /// </summary>
         [Test]
         public async Task SubscribeToEventsAsyncSucceedsForValidEventNotifierNodeAsyncAsync()
         {
@@ -4469,6 +4747,9 @@ namespace Opc.Ua.Server.Tests
                 Is.True);
         }
 
+        /// <summary>
+        /// Verifies that unsubscribing from events removes the event monitored item.
+        /// </summary>
         [Test]
         public async Task SubscribeToEventsAsyncUnsubscribeRemovesEventMonitoredItemAsync()
         {
@@ -4506,6 +4787,9 @@ namespace Opc.Ua.Server.Tests
                 "MonitoredNode entry should be cleaned up when no items remain");
         }
 
+        /// <summary>
+        /// Verifies that event subscription returns BadNotSupported for a node without event-notifier support.
+        /// </summary>
         [Test]
         public async Task SubscribeToEventsAsyncReturnsBadNotSupportedForNodeWithoutEventNotifierAsync()
         {
@@ -4533,6 +4817,9 @@ namespace Opc.Ua.Server.Tests
             Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadNotSupported));
         }
 
+        /// <summary>
+        /// Verifies that subscribing to all events subscribes to the registered root notifiers.
+        /// </summary>
         [Test]
         public async Task SubscribeToAllEventsAsyncSubscribesToRootNotifiersAsync()
         {
@@ -4568,6 +4855,9 @@ namespace Opc.Ua.Server.Tests
             Assert.That(manager.MonitoredNodes.ContainsKey(notifier.NodeId), Is.True);
         }
 
+        /// <summary>
+        /// Verifies that condition refresh succeeds for a monitored item owned by this node manager.
+        /// </summary>
         [Test]
         public async Task ConditionRefreshAsyncReturnsGoodForManagedMonitoredItemAsync()
         {
@@ -4606,6 +4896,9 @@ namespace Opc.Ua.Server.Tests
             Assert.That(ServiceResult.IsGood(result), Is.True);
         }
 
+        /// <summary>
+        /// Verifies that condition refresh skips monitored items owned by another node manager.
+        /// </summary>
         [Test]
         public async Task ConditionRefreshAsyncSkipsItemsNotManagedByThisNodeManagerAsync()
         {
@@ -4626,6 +4919,9 @@ namespace Opc.Ua.Server.Tests
             Assert.That(externalItem.QueuedEvents, Is.Empty);
         }
 
+        /// <summary>
+        /// Verifies that an inverse HasNotifier reference to an external node creates a root notifier.
+        /// </summary>
         [Test]
         public async Task AddReverseReferencesAsyncCreatesRootNotifierForInverseHasNotifierToExternalNodeAsync()
         {
@@ -4649,6 +4945,9 @@ namespace Opc.Ua.Server.Tests
             Assert.That(manager.RootNotifiers[area.NodeId], Is.SameAs(area));
         }
 
+        /// <summary>
+        /// Verifies that a forward HasNotifier reference does not create a root notifier.
+        /// </summary>
         [Test]
         public async Task AddReverseReferencesAsyncDoesNotCreateRootNotifierForForwardHasNotifierAsync()
         {
@@ -4670,6 +4969,9 @@ namespace Opc.Ua.Server.Tests
             Assert.That(manager.RootNotifiers.ContainsKey(area.NodeId), Is.False);
         }
 
+        /// <summary>
+        /// Verifies that reverse-reference processing adds no external references for a node without references.
+        /// </summary>
         [Test]
         public async Task AddReverseReferencesAsyncWithNodeHavingNoReferencesProducesNoExternalRefsAsync()
         {
@@ -4690,6 +4992,9 @@ namespace Opc.Ua.Server.Tests
             Assert.That(externalReferences, Is.Empty);
         }
 
+        /// <summary>
+        /// Verifies that reverse-reference processing skips absolute target identifiers.
+        /// </summary>
         [Test]
         public async Task AddReverseReferencesAsyncSkipsReferenceWithAbsoluteTargetIdAsync()
         {
@@ -4710,6 +5015,9 @@ namespace Opc.Ua.Server.Tests
             Assert.That(externalReferences, Is.Empty);
         }
 
+        /// <summary>
+        /// Verifies that reverse-reference processing skips HasSubtype references.
+        /// </summary>
         [Test]
         public async Task AddReverseReferencesAsyncSkipsHasSubtypeReferencesAsync()
         {
@@ -4731,6 +5039,9 @@ namespace Opc.Ua.Server.Tests
             Assert.That(externalReferences, Is.Empty);
         }
 
+        /// <summary>
+        /// Verifies that an inverse HasEncoding reference is registered in the type tree.
+        /// </summary>
         [Test]
         public async Task AddReverseReferencesAsyncAddsInverseHasEncodingToTypeTreeAsync()
         {
@@ -4759,6 +5070,9 @@ namespace Opc.Ua.Server.Tests
                 Is.EqualTo(encodingTargetId));
         }
 
+        /// <summary>
+        /// Verifies that reverse-reference processing adds a reverse reference to an internal target.
+        /// </summary>
         [Test]
         public async Task AddReverseReferencesAsyncAddsReverseReferenceToInternalTargetAsync()
         {
@@ -4792,6 +5106,9 @@ namespace Opc.Ua.Server.Tests
             Assert.That(externalReferences, Is.Empty);
         }
 
+        /// <summary>
+        /// Verifies that reverse-reference processing does not duplicate an internal reverse reference.
+        /// </summary>
         [Test]
         public async Task AddReverseReferencesAsyncDoesNotDuplicateReverseReferenceForInternalTargetAsync()
         {
@@ -4826,6 +5143,9 @@ namespace Opc.Ua.Server.Tests
             Assert.That(count, Is.EqualTo(1));
         }
 
+        /// <summary>
+        /// Verifies that a target in the managed namespace does not produce an external-reference entry.
+        /// </summary>
         [Test]
         public async Task AddReverseReferencesAsyncSkipsExternalReferenceForTargetInSameNamespaceAsync()
         {
@@ -4849,6 +5169,9 @@ namespace Opc.Ua.Server.Tests
             Assert.That(externalReferences, Is.Empty);
         }
 
+        /// <summary>
+        /// Verifies that a target in an external namespace produces an external-reference entry.
+        /// </summary>
         [Test]
         public async Task AddReverseReferencesAsyncAddsExternalReferenceForExternalNamespaceTargetAsync()
         {
@@ -4876,6 +5199,9 @@ namespace Opc.Ua.Server.Tests
             Assert.That(addedRefs[0].TargetId, Is.EqualTo(new ExpandedNodeId(source.NodeId)));
         }
 
+        /// <summary>
+        /// Verifies that reverse-reference processing appends to an existing external-reference list.
+        /// </summary>
         [Test]
         public async Task AddReverseReferencesAsyncAppendsToExistingExternalReferenceListAsync()
         {
@@ -4906,6 +5232,9 @@ namespace Opc.Ua.Server.Tests
             Assert.That(externalReferences[sharedExternalTarget], Has.Count.EqualTo(2));
         }
 
+        /// <summary>
+        /// Verifies that repeated reverse-reference processing does not duplicate external references.
+        /// </summary>
         [Test]
         public async Task AddReverseReferencesAsyncDoesNotDuplicateExternalReferenceWhenRunTwiceAsync()
         {
@@ -4933,6 +5262,9 @@ namespace Opc.Ua.Server.Tests
             Assert.That(externalReferences[externalTarget], Has.Count.EqualTo(1));
         }
 
+        /// <summary>
+        /// Verifies that a later reverse-reference pass includes newly registered nodes.
+        /// </summary>
         [Test]
         public async Task AddReverseReferencesAsyncSecondRunAddsReferencesOfNewlyRegisteredNodesAsync()
         {
@@ -4973,6 +5305,9 @@ namespace Opc.Ua.Server.Tests
                 Is.EqualTo(1));
         }
 
+        /// <summary>
+        /// Verifies that setting namespaces updates both namespace URIs and indexes.
+        /// </summary>
         [Test]
         public void SetNamespacesUpdatesUrisAndIndexes()
         {
@@ -4986,6 +5321,9 @@ namespace Opc.Ua.Server.Tests
             Assert.That(manager.NamespaceIndexes, Has.Count.EqualTo(2));
         }
 
+        /// <summary>
+        /// Verifies that setting namespaces registers the URIs in the server namespace table.
+        /// </summary>
         [Test]
         public void SetNamespacesRegistersUrisInServerNamespaceTable()
         {
@@ -5001,6 +5339,9 @@ namespace Opc.Ua.Server.Tests
             Assert.That(m_namespaceTable.GetString(idx1), Is.EqualTo(ns2));
         }
 
+        /// <summary>
+        /// Verifies that an empty namespace array clears managed namespace URIs and indexes.
+        /// </summary>
         [Test]
         public void SetNamespacesEmptyArrayClearsNamespacesAndIndexes()
         {
@@ -5012,6 +5353,9 @@ namespace Opc.Ua.Server.Tests
             Assert.That(manager.NamespaceIndexes, Is.Empty);
         }
 
+        /// <summary>
+        /// Verifies that setting a previously registered namespace reuses its server-table entry.
+        /// </summary>
         [Test]
         public void SetNamespacesReusesPreviouslyRegisteredUri()
         {
@@ -5024,6 +5368,9 @@ namespace Opc.Ua.Server.Tests
             Assert.That(manager.NamespaceIndexes[0], Is.EqualTo(originalIndex));
         }
 
+        /// <summary>
+        /// Verifies that setting namespace indexes resolves their URIs from the server namespace table.
+        /// </summary>
         [Test]
         public void SetNamespaceIndexesLooksUpUrisFromServerTable()
         {
@@ -5039,6 +5386,9 @@ namespace Opc.Ua.Server.Tests
             Assert.That(manager.NamespaceUris, Is.EqualTo([ns1, ns2]));
         }
 
+        /// <summary>
+        /// Verifies that an empty namespace-index array clears managed URIs and indexes.
+        /// </summary>
         [Test]
         public void SetNamespaceIndexesEmptyArrayClearsNamespacesAndIndexes()
         {
@@ -5050,6 +5400,9 @@ namespace Opc.Ua.Server.Tests
             Assert.That(manager.NamespaceUris, Is.Empty);
         }
 
+        /// <summary>
+        /// Verifies that assigning namespace URIs appends server-table entries and updates managed indexes.
+        /// </summary>
         [Test]
         public void NamespaceUrisSetterAppendsToServerTableAndUpdatesIndexes()
         {
@@ -5065,6 +5418,9 @@ namespace Opc.Ua.Server.Tests
             Assert.That(m_namespaceTable.GetString(manager.NamespaceIndexes[1]), Is.EqualTo(ns2));
         }
 
+        /// <summary>
+        /// Verifies that assigning null namespace URIs throws ArgumentNullException.
+        /// </summary>
         [Test]
         public void NamespaceUrisSetterNullThrowsArgumentNullException()
         {
@@ -5073,6 +5429,9 @@ namespace Opc.Ua.Server.Tests
             Assert.Throws<ArgumentNullException>(() => manager.SetNamespaceUrisPublic(null));
         }
 
+        /// <summary>
+        /// Verifies that the primary namespace index is the first managed index.
+        /// </summary>
         [Test]
         public void NamespaceIndexReturnsFirstIndex()
         {
@@ -5082,6 +5441,9 @@ namespace Opc.Ua.Server.Tests
             Assert.That(manager.NamespaceIndex, Is.EqualTo(firstIndex));
         }
 
+        /// <summary>
+        /// Verifies that construction with multiple namespaces registers all URIs in the server table.
+        /// </summary>
         [Test]
         public void ConstructorWithMultipleNamespacesRegistersAllInServerTable()
         {
@@ -5102,6 +5464,9 @@ namespace Opc.Ua.Server.Tests
             }
         }
 
+        /// <summary>
+        /// Verifies that node identifiers in a managed namespace are recognized.
+        /// </summary>
         [Test]
         public void IsNodeIdInNamespaceTrueForManagedNamespace()
         {
@@ -5111,6 +5476,9 @@ namespace Opc.Ua.Server.Tests
             Assert.That(manager.IsNodeIdInNamespacePublic(new NodeId("TestNode", nsIdx)), Is.True);
         }
 
+        /// <summary>
+        /// Verifies that node identifiers outside managed namespaces are rejected.
+        /// </summary>
         [Test]
         public void IsNodeIdInNamespaceFalseForUnmanagedNamespace()
         {
@@ -5119,6 +5487,9 @@ namespace Opc.Ua.Server.Tests
             Assert.That(manager.IsNodeIdInNamespacePublic(new NodeId("TestNode", 0)), Is.False);
         }
 
+        /// <summary>
+        /// Verifies that a null node identifier is not considered part of a managed namespace.
+        /// </summary>
         [Test]
         public void IsNodeIdInNamespaceFalseForNullNodeId()
         {
@@ -5127,6 +5498,9 @@ namespace Opc.Ua.Server.Tests
             Assert.That(manager.IsNodeIdInNamespacePublic(NodeId.Null), Is.False);
         }
 
+        /// <summary>
+        /// Verifies that namespace membership reflects changes to the managed namespaces.
+        /// </summary>
         [Test]
         public void IsNodeIdInNamespaceAfterSetNamespacesReflectsNewNamespaces()
         {
@@ -5141,6 +5515,9 @@ namespace Opc.Ua.Server.Tests
             Assert.That(manager.IsNodeIdInNamespacePublic(new NodeId("New", newIdx)), Is.True);
         }
 
+        /// <summary>
+        /// Verifies that handle validation returns a handle belonging to a managed namespace.
+        /// </summary>
         [Test]
         public void IsHandleInNamespaceReturnsHandleForManagedNamespace()
         {
@@ -5154,6 +5531,9 @@ namespace Opc.Ua.Server.Tests
             Assert.That(result, Is.SameAs(handle));
         }
 
+        /// <summary>
+        /// Verifies that handle validation returns null for an unmanaged namespace.
+        /// </summary>
         [Test]
         public void IsHandleInNamespaceReturnsNullForUnmanagedNamespace()
         {
@@ -5164,6 +5544,9 @@ namespace Opc.Ua.Server.Tests
             Assert.That(manager.IsHandleInNamespacePublic(handle), Is.Null);
         }
 
+        /// <summary>
+        /// Verifies that handle validation returns null for an object that is not a node handle.
+        /// </summary>
         [Test]
         public void IsHandleInNamespaceReturnsNullForNonHandleObject()
         {
@@ -5172,6 +5555,9 @@ namespace Opc.Ua.Server.Tests
             Assert.That(manager.IsHandleInNamespacePublic("not-a-handle"), Is.Null);
         }
 
+        /// <summary>
+        /// Verifies that handle validation returns null for null input.
+        /// </summary>
         [Test]
         public void IsHandleInNamespaceReturnsNullForNullInput()
         {
@@ -5180,6 +5566,9 @@ namespace Opc.Ua.Server.Tests
             Assert.That(manager.IsHandleInNamespacePublic(null), Is.Null);
         }
 
+        /// <summary>
+        /// Verifies that changing namespaces affects subsequently generated node identifiers.
+        /// </summary>
         [Test]
         public void SetNamespacesAffectsNewNodeIdGeneration()
         {
@@ -5195,6 +5584,9 @@ namespace Opc.Ua.Server.Tests
             Assert.That(generated.NamespaceIndex, Is.EqualTo(newIdx));
         }
 
+        /// <summary>
+        /// Verifies that adding a node with a null component-cache handle returns the original node.
+        /// </summary>
         [Test]
         public void AddNodeToComponentCacheNullHandleReturnsNodeUnchanged()
         {
@@ -5207,6 +5599,9 @@ namespace Opc.Ua.Server.Tests
             Assert.That(result, Is.SameAs(node));
         }
 
+        /// <summary>
+        /// Verifies that the first component-cache insertion creates a cache entry.
+        /// </summary>
         [Test]
         public void AddNodeToComponentCacheFirstAddCreatesEntry()
         {
@@ -5224,6 +5619,9 @@ namespace Opc.Ua.Server.Tests
             Assert.That(found, Is.SameAs(node));
         }
 
+        /// <summary>
+        /// Verifies that repeated component-cache insertion increments its reference count and returns the cached node.
+        /// </summary>
         [Test]
         public void AddNodeToComponentCacheSecondAddIncrementsRefCountAndReturnsCachedNode()
         {
@@ -5249,6 +5647,9 @@ namespace Opc.Ua.Server.Tests
             Assert.That(afterTwoRemoves, Is.Null);
         }
 
+        /// <summary>
+        /// Verifies that distinct nodes are cached independently.
+        /// </summary>
         [Test]
         public void AddNodeToComponentCacheDistinctNodesStoredIndependently()
         {
@@ -5268,6 +5669,9 @@ namespace Opc.Ua.Server.Tests
             Assert.That(manager.LookupNodeInComponentCachePublic(manager.SystemContext, handleB), Is.SameAs(nodeB));
         }
 
+        /// <summary>
+        /// Verifies that a component-path cache entry stores its root under the root identifier.
+        /// </summary>
         [Test]
         public void AddNodeToComponentCacheWithComponentPathStoresRootAtRootId()
         {
@@ -5286,6 +5690,9 @@ namespace Opc.Ua.Server.Tests
             Assert.That(found, Is.SameAs(child));
         }
 
+        /// <summary>
+        /// Verifies that repeated component-path insertion increments the root entry's reference count.
+        /// </summary>
         [Test]
         public void AddNodeToComponentCacheWithComponentPathSecondAddIncrementsRefCount()
         {
@@ -5314,6 +5721,9 @@ namespace Opc.Ua.Server.Tests
                 Is.Null);
         }
 
+        /// <summary>
+        /// Verifies that component-cache lookup returns null before any node has been added.
+        /// </summary>
         [Test]
         public void LookupNodeInComponentCacheBeforeAnyAddReturnsNull()
         {
@@ -5328,6 +5738,9 @@ namespace Opc.Ua.Server.Tests
             Assert.That(result, Is.Null);
         }
 
+        /// <summary>
+        /// Verifies that component-cache lookup returns null for an unknown node identifier.
+        /// </summary>
         [Test]
         public void LookupNodeInComponentCacheUnknownNodeIdReturnsNull()
         {
@@ -5345,6 +5758,9 @@ namespace Opc.Ua.Server.Tests
             Assert.That(result, Is.Null);
         }
 
+        /// <summary>
+        /// Verifies that component-path lookup returns null when the root identifier is unknown.
+        /// </summary>
         [Test]
         public void LookupNodeInComponentCacheWithComponentPathUnknownRootIdReturnsNull()
         {
@@ -5366,6 +5782,9 @@ namespace Opc.Ua.Server.Tests
             Assert.That(result, Is.Null);
         }
 
+        /// <summary>
+        /// Verifies that component-cache removal with a null handle has no effect.
+        /// </summary>
         [Test]
         public void RemoveNodeFromComponentCacheNullHandleIsNoop()
         {
@@ -5376,6 +5795,9 @@ namespace Opc.Ua.Server.Tests
                 manager.RemoveNodeFromComponentCachePublic(manager.SystemContext, null));
         }
 
+        /// <summary>
+        /// Verifies that component-cache removal with an unknown handle has no effect.
+        /// </summary>
         [Test]
         public void RemoveNodeFromComponentCacheUnknownHandleIsNoop()
         {
@@ -5389,6 +5811,9 @@ namespace Opc.Ua.Server.Tests
                 manager.RemoveNodeFromComponentCachePublic(manager.SystemContext, handle));
         }
 
+        /// <summary>
+        /// Verifies that removing a singly referenced component-cache entry evicts it.
+        /// </summary>
         [Test]
         public void RemoveNodeFromComponentCacheSingleAddThenRemoveEvictsEntry()
         {
@@ -5406,6 +5831,9 @@ namespace Opc.Ua.Server.Tests
             Assert.That(manager.LookupNodeInComponentCachePublic(manager.SystemContext, handle), Is.Null);
         }
 
+        /// <summary>
+        /// Verifies that removing one of two references leaves the component-cache entry present.
+        /// </summary>
         [Test]
         public void RemoveNodeFromComponentCacheTwoAddsThenOneRemoveEntryRemains()
         {
@@ -5424,6 +5852,9 @@ namespace Opc.Ua.Server.Tests
             Assert.That(manager.LookupNodeInComponentCachePublic(manager.SystemContext, handle), Is.SameAs(node));
         }
 
+        /// <summary>
+        /// Verifies that component-path cache removal uses the root identifier as its key.
+        /// </summary>
         [Test]
         public void RemoveNodeFromComponentCacheWithComponentPathUsesRootIdAsKey()
         {
@@ -5483,6 +5914,9 @@ namespace Opc.Ua.Server.Tests
             return (parent, child, handle);
         }
 
+        /// <summary>
+        /// Verifies that monitoring-filter validation accepts an absent filter.
+        /// </summary>
         [Test]
         public async Task ValidateMonitoringFilterAsyncNullFilterReturnsGoodAsync()
         {
@@ -5502,6 +5936,9 @@ namespace Opc.Ua.Server.Tests
             Assert.That(result.Range, Is.Null);
         }
 
+        /// <summary>
+        /// Verifies that an unknown monitoring-filter type returns BadFilterNotAllowed.
+        /// </summary>
         [Test]
         public async Task ValidateMonitoringFilterAsyncUnknownFilterTypeReturnsBadFilterNotAllowedAsync()
         {
@@ -5523,6 +5960,9 @@ namespace Opc.Ua.Server.Tests
             Assert.That(result.FilterToUse, Is.Null);
         }
 
+        /// <summary>
+        /// Verifies that an aggregate filter on a non-Value attribute returns BadFilterNotAllowed.
+        /// </summary>
         [Test]
         public async Task ValidateMonitoringFilterAsyncAggregateFilterOnNonValueAttributeReturnsBadFilterNotAllowedAsync()
         {
@@ -5550,6 +5990,9 @@ namespace Opc.Ua.Server.Tests
             Assert.That(result.FilterToUse, Is.Null);
         }
 
+        /// <summary>
+        /// Verifies that an unsupported aggregate function returns BadAggregateNotSupported.
+        /// </summary>
         [Test]
         public async Task ValidateMonitoringFilterAsyncAggregateFilterWithUnsupportedAggregateReturnsBadAggregateNotSupportedAsync()
         {
@@ -5579,6 +6022,9 @@ namespace Opc.Ua.Server.Tests
             Assert.That(result.FilterToUse, Is.Null);
         }
 
+        /// <summary>
+        /// Verifies that a valid aggregate filter is converted to the server aggregate filter used for monitoring.
+        /// </summary>
         [Test]
         public async Task ValidateMonitoringFilterAsyncValidAggregateFilterSetsServerAggregateFilterAsFilterToUseAsync()
         {
@@ -5611,6 +6057,9 @@ namespace Opc.Ua.Server.Tests
             Assert.That(((ServerAggregateFilter)result.FilterToUse).AggregateType, Is.EqualTo(supportedAggregateId));
         }
 
+        /// <summary>
+        /// Verifies that aggregate-filter validation uses the historian provider's capabilities.
+        /// </summary>
         [Test]
         public async Task ValidateMonitoringFilterAsyncUsesHistorianCapabilitiesAsync()
         {
@@ -5698,6 +6147,9 @@ namespace Opc.Ua.Server.Tests
                 Is.EqualTo(80));
         }
 
+        /// <summary>
+        /// Verifies that aggregate-filter validation uses the maximum time when the minimum is unspecified.
+        /// </summary>
         [Test]
         public async Task ValidateMonitoringFilterAsyncUsesMaxTimeWhenMinimumIsUnspecifiedAsync()
         {
@@ -5750,6 +6202,9 @@ namespace Opc.Ua.Server.Tests
                 Is.EqualTo(900));
         }
 
+        /// <summary>
+        /// Verifies that aggregate-filter validation incorporates the sampling interval when a historian is available.
+        /// </summary>
         [Test]
         public async Task ValidateMonitoringFilterAsyncUsesSamplingIntervalWithHistorianAsync()
         {
@@ -5799,6 +6254,9 @@ namespace Opc.Ua.Server.Tests
                 Is.EqualTo(200));
         }
 
+        /// <summary>
+        /// Verifies that aggregate-filter validation clamps its start time to the retained history window.
+        /// </summary>
         [Test]
         public async Task ValidateMonitoringFilterAsyncClampsStartTimeToRetainedWindowAsync()
         {
@@ -5866,6 +6324,9 @@ namespace Opc.Ua.Server.Tests
                 Is.EqualTo(now.UtcDateTime.AddSeconds(-3)));
         }
 
+        /// <summary>
+        /// Verifies that a historian capability failure is returned by monitoring-filter validation.
+        /// </summary>
         [Test]
         public async Task ValidateMonitoringFilterAsyncReturnsProviderCapabilityFailureAsync()
         {
@@ -5913,6 +6374,9 @@ namespace Opc.Ua.Server.Tests
             Assert.That(result.FilterToUse, Is.Null);
         }
 
+        /// <summary>
+        /// Verifies that initial-value reading primes an aggregate filter from paged raw history.
+        /// </summary>
         [Test]
         public async Task ReadInitialValueAsyncPrimesAggregateFilterFromPagedRawHistoryAsync()
         {
@@ -5998,6 +6462,9 @@ namespace Opc.Ua.Server.Tests
                 Times.Exactly(2));
         }
 
+        /// <summary>
+        /// Verifies that initial-value reading applies the index range and skips the trailing history bound.
+        /// </summary>
         [Test]
         public async Task ReadInitialValueAsyncAppliesIndexRangeAndSkipsTrailingBoundAsync()
         {
@@ -6086,6 +6553,9 @@ namespace Opc.Ua.Server.Tests
             Assert.That(second, Is.EqualTo(s_indexedInRangeValues));
         }
 
+        /// <summary>
+        /// Verifies that initial-value reading queues bad-quality historical values as aggregate input.
+        /// </summary>
         [Test]
         public async Task ReadInitialValueAsyncQueuesBadQualityAsAggregateInputAsync()
         {
@@ -6154,6 +6624,9 @@ namespace Opc.Ua.Server.Tests
             Assert.That(ServiceResult.IsGood(queuedErrors[0]), Is.True);
         }
 
+        /// <summary>
+        /// Verifies that a historical value conversion failure is queued during initial-value reading.
+        /// </summary>
         [Test]
         public async Task ReadInitialValueAsyncQueuesHistoricalConversionFailureAsync()
         {
@@ -6228,6 +6701,9 @@ namespace Opc.Ua.Server.Tests
                 Is.EqualTo(StatusCodes.BadDataEncodingInvalid));
         }
 
+        /// <summary>
+        /// Verifies that invalid data encoding is rejected before an empty history result is processed.
+        /// </summary>
         [Test]
         public async Task ReadInitialValueAsyncRejectsInvalidDataEncodingBeforeEmptyHistoryAsync()
         {
@@ -6290,6 +6766,9 @@ namespace Opc.Ua.Server.Tests
                 Times.Never);
         }
 
+        /// <summary>
+        /// Verifies that a future aggregate start time uses the current value for initial priming.
+        /// </summary>
         [Test]
         public async Task ReadInitialValueAsyncUsesCurrentValueForFutureAggregateStartAsync()
         {
@@ -6345,6 +6824,9 @@ namespace Opc.Ua.Server.Tests
                 Times.Never);
         }
 
+        /// <summary>
+        /// Verifies that initial-value reading uses the current value when no historian is available.
+        /// </summary>
         [Test]
         public async Task ReadInitialValueAsyncUsesCurrentValueWithoutHistorianAsync()
         {
@@ -6389,6 +6871,9 @@ namespace Opc.Ua.Server.Tests
             Assert.That((int)queued[0].WrappedValue, Is.EqualTo(99));
         }
 
+        /// <summary>
+        /// Verifies that a historian failure is queued during initial-value reading.
+        /// </summary>
         [Test]
         public async Task ReadInitialValueAsyncQueuesHistorianFailureAsync()
         {
@@ -6456,6 +6941,9 @@ namespace Opc.Ua.Server.Tests
                 Is.EqualTo(StatusCodes.BadCommunicationError));
         }
 
+        /// <summary>
+        /// Verifies that monitored-item creation primes aggregate history.
+        /// </summary>
         [Test]
         public async Task CreateMonitoredItemsAsyncPrimesAggregateHistoryAsync()
         {
@@ -6585,6 +7073,9 @@ namespace Opc.Ua.Server.Tests
                 Times.Once);
         }
 
+        /// <summary>
+        /// Verifies that monitored-item creation queues an error when history priming fails.
+        /// </summary>
         [Test]
         public async Task CreateMonitoredItemsAsyncQueuesErrorWhenHistoryPrimingFailsAsync()
         {
@@ -6692,6 +7183,9 @@ namespace Opc.Ua.Server.Tests
                 Is.True);
         }
 
+        /// <summary>
+        /// Verifies that monitored-item creation removes the item when its initial-value buffer overflows.
+        /// </summary>
         [Test]
         [CancelAfter(30_000)]
         public async Task CreateMonitoredItemsAsyncRemovesItemWhenInitialValueBufferOverflowsAsync()
@@ -6818,6 +7312,9 @@ namespace Opc.Ua.Server.Tests
             Assert.That(manager.MonitoredItems, Is.Empty);
         }
 
+        /// <summary>
+        /// Verifies that aggregate processing intervals are raised to the monitored item's sampling interval.
+        /// </summary>
         [Test]
         public async Task ValidateMonitoringFilterAsyncAggregateFilterProcessingIntervalAdjustedToSamplingIntervalAsync()
         {
@@ -6851,6 +7348,9 @@ namespace Opc.Ua.Server.Tests
                 Is.EqualTo(200));
         }
 
+        /// <summary>
+        /// Verifies that aggregate processing intervals are raised to the minimum processing interval.
+        /// </summary>
         [Test]
         public async Task ValidateMonitoringFilterAsyncAggregateFilterProcessingIntervalAdjustedToMinimumProcessingIntervalAsync()
         {
@@ -6883,6 +7383,9 @@ namespace Opc.Ua.Server.Tests
             Assert.That(((ServerAggregateFilter)result.FilterToUse).ProcessingInterval, Is.EqualTo(minimumProcessingInterval));
         }
 
+        /// <summary>
+        /// Verifies that server capability defaults update the aggregate configuration during filter validation.
+        /// </summary>
         [Test]
         public async Task ValidateMonitoringFilterAsyncAggregateFilterWithUseServerCapabilitiesDefaultsUpdatesAggregateConfigurationAsync()
         {
@@ -6914,6 +7417,9 @@ namespace Opc.Ua.Server.Tests
             Assert.That(((ServerAggregateFilter)result.FilterToUse).AggregateConfiguration.UseServerCapabilitiesDefaults, Is.False);
         }
 
+        /// <summary>
+        /// Verifies that a data-change filter on a non-Value attribute returns BadFilterNotAllowed.
+        /// </summary>
         [Test]
         public async Task ValidateMonitoringFilterAsyncDataChangeFilterOnNonValueAttributeReturnsBadFilterNotAllowedAsync()
         {
@@ -6936,6 +7442,9 @@ namespace Opc.Ua.Server.Tests
             Assert.That(result.FilterToUse, Is.Null);
         }
 
+        /// <summary>
+        /// Verifies that a data-change filter on a non-variable node returns BadFilterNotAllowed.
+        /// </summary>
         [Test]
         public async Task ValidateMonitoringFilterAsyncDataChangeFilterOnNonVariableNodeReturnsBadFilterNotAllowedAsync()
         {
@@ -6958,6 +7467,9 @@ namespace Opc.Ua.Server.Tests
             Assert.That(result.FilterToUse, Is.Null);
         }
 
+        /// <summary>
+        /// Verifies that a numeric variable accepts a data-change filter without a deadband.
+        /// </summary>
         [Test]
         public async Task ValidateMonitoringFilterAsyncDataChangeFilterDeadbandNoneOnNumericVariableReturnsSuccessAsync()
         {
@@ -6980,6 +7492,9 @@ namespace Opc.Ua.Server.Tests
             Assert.That((uint)result.StatusCode, Is.EqualTo(StatusCodes.Good));
         }
 
+        /// <summary>
+        /// Verifies that an absolute deadband on a nonnumeric variable returns BadFilterNotAllowed.
+        /// </summary>
         [Test]
         public async Task ValidateMonitoringFilterAsyncDataChangeFilterAbsoluteDeadbandOnNonNumericTypeReturnsBadFilterNotAllowedAsync()
         {
@@ -7003,6 +7518,9 @@ namespace Opc.Ua.Server.Tests
             Assert.That(result.FilterToUse, Is.Null);
         }
 
+        /// <summary>
+        /// Verifies that a numeric variable installs a data-change filter with an absolute deadband.
+        /// </summary>
         [Test]
         public async Task ValidateMonitoringFilterAsyncDataChangeFilterAbsoluteDeadbandOnNumericTypeSetsFilterToUseAsync()
         {
@@ -7028,6 +7546,10 @@ namespace Opc.Ua.Server.Tests
             Assert.That(result.Range, Is.Null);
         }
 
+        /// <summary>
+        /// Verifies that a percentage deadband without an engineering-unit range returns
+        /// BadMonitoredItemFilterUnsupported.
+        /// </summary>
         [Test]
         public async Task ValidateMonitoringFilterAsyncDataChangeFilterPercentDeadbandWithoutEURangeReturnsBadMonitoredItemFilterUnsupportedAsync()
         {
@@ -7051,6 +7573,9 @@ namespace Opc.Ua.Server.Tests
             Assert.That(result.FilterToUse, Is.Null);
         }
 
+        /// <summary>
+        /// Verifies that a percentage deadband installs the filter and its engineering-unit range.
+        /// </summary>
         [Test]
         public async Task ValidateMonitoringFilterAsyncDataChangeFilterPercentDeadbandWithEURangeSetsFilterToUseAndRangeAsync()
         {
@@ -7095,6 +7620,9 @@ namespace Opc.Ua.Server.Tests
             Assert.That(result.Range.Low, Is.Zero);
         }
 
+        /// <summary>
+        /// Verifies that predefined registration adds non-reference type subtypes to the type tree.
+        /// </summary>
         [Test]
         public async Task AddPredefinedNodeAsyncWithNonReferenceBaseTypeStateAddsSubtypeToTypeTreeAsync()
         {
@@ -7114,6 +7642,9 @@ namespace Opc.Ua.Server.Tests
             Assert.That(manager.PredefinedNodes.ContainsKey(dataType.NodeId), Is.True);
         }
 
+        /// <summary>
+        /// Verifies that predefined registration adds reference type subtypes to the type tree.
+        /// </summary>
         [Test]
         public async Task AddPredefinedNodeAsyncWithReferenceTypeStateAddsReferenceSubtypeToTypeTreeAsync()
         {
@@ -7136,6 +7667,9 @@ namespace Opc.Ua.Server.Tests
                 Is.EqualTo(refType.NodeId));
         }
 
+        /// <summary>
+        /// Verifies that predefined registration recursively adds an unknown supertype from registered nodes.
+        /// </summary>
         [Test]
         public async Task AddPredefinedNodeAsyncRecursivelyAddsUnknownSuperTypeFromPredefinedNodesAsync()
         {
@@ -7169,6 +7703,9 @@ namespace Opc.Ua.Server.Tests
                 Is.True);
         }
 
+        /// <summary>
+        /// Verifies that predefined registration avoids recursion when the supertype is already known.
+        /// </summary>
         [Test]
         public async Task AddPredefinedNodeAsyncSkipsSuperTypeRecursionWhenSuperTypeAlreadyKnownAsync()
         {
@@ -7199,6 +7736,9 @@ namespace Opc.Ua.Server.Tests
                 Is.EqualTo(NodeId.Null));
         }
 
+        /// <summary>
+        /// Verifies that a type with no supertype is registered without supertype recursion.
+        /// </summary>
         [Test]
         public async Task AddPredefinedNodeAsyncWithNullSuperTypeIdSkipsRecursionAndAddsToTypeTreeAsync()
         {
@@ -7220,6 +7760,9 @@ namespace Opc.Ua.Server.Tests
                 Is.EqualTo(NodeId.Null));
         }
 
+        /// <summary>
+        /// Verifies that predefined registration does not add ordinary instance nodes to the type tree.
+        /// </summary>
         [Test]
         public async Task AddPredefinedNodeAsyncWithNonBaseTypeStateNodeDoesNotAddToTypeTreeAsync()
         {
@@ -7238,6 +7781,9 @@ namespace Opc.Ua.Server.Tests
             Assert.That(m_mockServer.Object.TypeTree.IsKnown(objectNode.NodeId), Is.False);
         }
 
+        /// <summary>
+        /// Verifies that concurrent reads, writes, browsing, and monitored-item operations complete without exceptions.
+        /// </summary>
         [Test]
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Security", "CA5394:Do not use insecure randomness", Justification = "Not used for security purposes")]
         public async Task ChaosTest_ConcurrentReadWriteBrowseAndMonitoredItemOperationsDoNotThrowAsync()
@@ -7874,10 +8420,20 @@ namespace Opc.Ua.Server.Tests
         }
     }
 
+    /// <summary>
+    /// Exposes asynchronous node-manager state and lifecycle hooks for shared behavior and failure-injection scenarios.
+    /// </summary>
     public sealed class TestableAsyncCustomNodeManager : AsyncCustomNodeManager, ITestNodeManager
     {
+        /// <summary>
+        /// Gets or sets the predefined nodes supplied when the address space is loaded.
+        /// </summary>
         public NodeStateCollection NodesToLoad { get; set; }
 
+        /// <summary>
+        /// Creates a testable asynchronous node manager with the supplied server, configuration, logger, and
+        /// namespaces.
+        /// </summary>
         public TestableAsyncCustomNodeManager(
            IServerInternal server,
            ApplicationConfiguration configuration,
@@ -7888,6 +8444,9 @@ namespace Opc.Ua.Server.Tests
             m_testServer = server;
         }
 
+        /// <summary>
+        /// Creates a testable asynchronous node manager with an explicit sampling-group selection.
+        /// </summary>
         public TestableAsyncCustomNodeManager(
            IServerInternal server,
            ApplicationConfiguration configuration,
@@ -7899,22 +8458,49 @@ namespace Opc.Ua.Server.Tests
             m_testServer = server;
         }
 
+        /// <summary>
+        /// Gets the logger used by the node manager.
+        /// </summary>
         public ILogger Logger => m_logger;
 
+        /// <summary>
+        /// Gets the registered predefined nodes for fixture inspection.
+        /// </summary>
         public new NodeIdDictionary<NodeState> PredefinedNodes => base.PredefinedNodes;
 
+        /// <summary>
+        /// Gets the registered root event notifiers for fixture inspection.
+        /// </summary>
         public new NodeIdDictionary<NodeState> RootNotifiers => base.RootNotifiers;
 
+        /// <summary>
+        /// Gets the monitored nodes maintained by the node manager.
+        /// </summary>
         public new NodeIdDictionary<MonitoredNode2> MonitoredNodes => base.MonitoredNodes;
 
+        /// <summary>
+        /// Gets the monitored items maintained by the node manager.
+        /// </summary>
         public new ConcurrentDictionary<uint, IMonitoredItem> MonitoredItems => base.MonitoredItems;
 
+        /// <summary>
+        /// Gets or sets the asynchronous callback invoked when event subscriptions change.
+        /// </summary>
         public Func<bool, CancellationToken, ValueTask> EventSubscriptionCallback { get; set; } = null!;
 
+        /// <summary>
+        /// Gets or sets the asynchronous callback invoked when a node is removed.
+        /// </summary>
         public Func<NodeState, CancellationToken, ValueTask> NodeRemovedCallback { get; set; } = null!;
 
+        /// <summary>
+        /// Gets or sets the callback that supplies replacement behavior during predefined-node registration.
+        /// </summary>
         public Func<NodeState, NodeState> AddBehaviourCallback { get; set; } = null!;
 
+        /// <summary>
+        /// Gets or sets the asynchronous callback invoked when a sampled monitored item is modified.
+        /// </summary>
         public Func<
             ServerSystemContext,
             NodeHandle,
@@ -7923,10 +8509,19 @@ namespace Opc.Ua.Server.Tests
             ValueTask> MonitoredItemModifiedCallback
         { get; set; } = null!;
 
+        /// <summary>
+        /// Gets or sets the optional predicate overriding node membership in a view.
+        /// </summary>
         public Func<ServerSystemContext, NodeId, NodeState, bool> IsNodeInViewOverride { get; set; }
 
+        /// <summary>
+        /// Gets the effective filter returned by the most recent monitoring-filter validation.
+        /// </summary>
         public MonitoringFilter LastValidatedFilter { get; private set; }
 
+        /// <summary>
+        /// Replaces monitored-item management with a sampling-group manager that records calls and injects failures.
+        /// </summary>
         internal TrackingSamplingGroupManager InstallTrackingSamplingGroupManager()
         {
             var samplingGroupManager =
@@ -7945,6 +8540,9 @@ namespace Opc.Ua.Server.Tests
                 ?? base.IsNodeInView(context, viewId, node);
         }
 
+        /// <summary>
+        /// Exposes asynchronous root-notifier registration to the fixture.
+        /// </summary>
         public ValueTask AddRootNotifierPublicAsync(NodeState notifier, CancellationToken cancellationToken = default)
         {
             return AddRootNotifierAsync(notifier, cancellationToken);
@@ -7993,6 +8591,9 @@ namespace Opc.Ua.Server.Tests
                     cancellationToken);
         }
 
+        /// <summary>
+        /// Registers a predefined node while collecting references to external nodes.
+        /// </summary>
         public ValueTask AddPredefinedNodeWithExternalReferencesAsync(
             ISystemContext context,
             NodeState node,
@@ -8006,16 +8607,25 @@ namespace Opc.Ua.Server.Tests
                 cancellationToken);
         }
 
+        /// <summary>
+        /// Exposes asynchronous root-notifier removal to the fixture.
+        /// </summary>
         public ValueTask RemoveRootNotifierPublicAsync(NodeState notifier, CancellationToken cancellationToken = default)
         {
             return RemoveRootNotifierAsync(notifier, cancellationToken);
         }
 
+        /// <summary>
+        /// Invokes the node manager's event-reporting callback with the supplied event.
+        /// </summary>
         public void InvokeOnReportEvent(ISystemContext context, NodeState node, IFilterTarget filterTarget)
         {
             OnReportEvent(context, node, filterTarget);
         }
 
+        /// <summary>
+        /// Exposes asynchronous reverse-reference creation to the fixture.
+        /// </summary>
         public ValueTask AddReverseReferencesPublicAsync(
             IDictionary<NodeId, IList<IReference>> externalReferences,
             CancellationToken cancellationToken = default)
@@ -8023,46 +8633,73 @@ namespace Opc.Ua.Server.Tests
             return AddReverseReferencesAsync(externalReferences, cancellationToken);
         }
 
+        /// <summary>
+        /// Replaces the managed namespace URIs through the protected namespace setter.
+        /// </summary>
         public void SetNamespacesPublic(params string[] namespaceUris)
         {
             SetNamespaces(namespaceUris);
         }
 
+        /// <summary>
+        /// Replaces the managed namespace indexes through the protected index setter.
+        /// </summary>
         public void SetNamespaceIndexesPublic(ushort[] namespaceIndexes)
         {
             SetNamespaceIndexes(namespaceIndexes);
         }
 
+        /// <summary>
+        /// Assigns the namespace URI property so the fixture can exercise its setter.
+        /// </summary>
         public void SetNamespaceUrisPublic(IEnumerable<string> uris)
         {
             NamespaceUris = uris!;
         }
 
+        /// <summary>
+        /// Reports whether a node identifier belongs to a managed namespace.
+        /// </summary>
         public bool IsNodeIdInNamespacePublic(NodeId nodeId)
         {
             return IsNodeIdInNamespace(nodeId);
         }
 
+        /// <summary>
+        /// Returns the supplied node handle when it belongs to a managed namespace.
+        /// </summary>
         public NodeHandle IsHandleInNamespacePublic(object managerHandle)
         {
             return IsHandleInNamespace(managerHandle);
         }
 
+        /// <summary>
+        /// Exposes component-cache lookup for the supplied node handle.
+        /// </summary>
         public NodeState LookupNodeInComponentCachePublic(ISystemContext context, NodeHandle handle)
         {
             return LookupNodeInComponentCache(context, handle);
         }
 
+        /// <summary>
+        /// Exposes component-cache reference removal for the supplied node handle.
+        /// </summary>
         public void RemoveNodeFromComponentCachePublic(ISystemContext context, NodeHandle handle)
         {
             RemoveNodeFromComponentCache(context, handle);
         }
 
+        /// <summary>
+        /// Adds a node to the component cache and returns the resulting cached node.
+        /// </summary>
         public NodeState AddNodeToComponentCachePublic(ISystemContext context, NodeHandle handle, NodeState node)
         {
             return AddNodeToComponentCache(context, handle, node);
         }
 
+        /// <summary>
+        /// Exposes asynchronous monitoring-filter validation and its revised filter settings.
+        /// </summary>
         public ValueTask<ValidateMonitoringFilterResult> ValidateMonitoringFilterPublicAsync(
             ServerSystemContext context,
             NodeHandle handle,
@@ -8099,6 +8736,9 @@ namespace Opc.Ua.Server.Tests
             return result;
         }
 
+        /// <summary>
+        /// Reads and primes the monitored item's initial value, returning the resulting service error.
+        /// </summary>
         public async ValueTask<ServiceResult> ReadInitialValuePublicAsync(
             ServerSystemContext context,
             NodeHandle handle,
@@ -8127,6 +8767,9 @@ namespace Opc.Ua.Server.Tests
             return base.LoadPredefinedNodesAsync(context, cancellationToken);
         }
 
+        /// <summary>
+        /// Exposes asynchronous predefined-node registration to the fixture.
+        /// </summary>
         public ValueTask AddPredefinedNodePublicAsync(
             ISystemContext context,
             NodeState node,
@@ -8135,6 +8778,9 @@ namespace Opc.Ua.Server.Tests
             return AddPredefinedNodeAsync(context, node, cancellationToken);
         }
 
+        /// <summary>
+        /// Exposes synchronous predefined-node registration for lifecycle compatibility scenarios.
+        /// </summary>
         public void AddPredefinedNodeSynchronouslyPublic(NodeState node)
         {
             AddPredefinedNodeSynchronously(node);
@@ -8156,8 +8802,14 @@ namespace Opc.Ua.Server.Tests
         }
     }
 
+    /// <summary>
+    /// Records sampling-group operations and optionally injects modification failures without starting sampling.
+    /// </summary>
     internal sealed class TrackingSamplingGroupManager : SamplingGroupManager
     {
+        /// <summary>
+        /// Creates a tracking sampling-group manager with the fixture's server and node manager.
+        /// </summary>
         public TrackingSamplingGroupManager(
             IServerInternal server,
             IAsyncNodeManager nodeManager)
@@ -8165,17 +8817,32 @@ namespace Opc.Ua.Server.Tests
         {
         }
 
+        /// <summary>
+        /// Gets the number of recorded apply-changes calls.
+        /// </summary>
         public int ApplyCount { get; private set; }
 
+        /// <summary>
+        /// Gets the number of recorded monitoring-modification calls.
+        /// </summary>
         public int ModifyCount { get; private set; }
 
+        /// <summary>
+        /// Gets or sets whether monitoring modification throws the injected failure.
+        /// </summary>
         public bool ThrowOnModify { get; set; }
 
+        /// <summary>
+        /// Records an apply-changes call without applying real sampling changes.
+        /// </summary>
         public override void ApplyChanges()
         {
             ApplyCount++;
         }
 
+        /// <summary>
+        /// Records a monitoring modification and throws when failure injection is enabled.
+        /// </summary>
         public override void ModifyMonitoring(
             OperationContext context,
             ISampledDataChangeMonitoredItem monitoredItem)
@@ -8188,6 +8855,9 @@ namespace Opc.Ua.Server.Tests
             }
         }
 
+        /// <summary>
+        /// Accepts a monitoring-start request without starting a sampling task.
+        /// </summary>
         public override void StartMonitoring(
             OperationContext context,
             ISampledDataChangeMonitoredItem monitoredItem,
@@ -8195,6 +8865,9 @@ namespace Opc.Ua.Server.Tests
         {
         }
 
+        /// <summary>
+        /// Resets the recorded apply and modification counts.
+        /// </summary>
         public void ResetCounts()
         {
             ApplyCount = 0;
@@ -8202,67 +8875,142 @@ namespace Opc.Ua.Server.Tests
         }
     }
 
+    /// <summary>
+    /// Provides a configurable event monitored-item stub that records queued events and resend requests.
+    /// </summary>
     internal sealed class TestEventMonitoredItem : IEventMonitoredItem
     {
+        /// <summary>
+        /// Gets or sets the node manager assigned to the event monitored item.
+        /// </summary>
         public IAsyncNodeManager NodeManager { get; set; }
 
+        /// <summary>
+        /// Gets or sets the session assigned to the event monitored item.
+        /// </summary>
         public ISession Session { get; set; }
 
+        /// <summary>
+        /// Gets or sets the effective user identity used by the event monitored item.
+        /// </summary>
         public IUserIdentity EffectiveIdentity { get; set; }
 
+        /// <summary>
+        /// Gets or sets the server-assigned monitored-item identifier.
+        /// </summary>
         public uint Id { get; set; }
 
+        /// <summary>
+        /// Gets or sets the owning subscription identifier.
+        /// </summary>
         public uint SubscriptionId { get; set; }
 
+        /// <summary>
+        /// Gets or sets whether the event monitored item is durable.
+        /// </summary>
         public bool IsDurable { get; set; }
 
+        /// <summary>
+        /// Gets or sets the client handle returned with event notifications.
+        /// </summary>
         public uint ClientHandle { get; set; }
 
+        /// <summary>
+        /// Gets or sets the subscription callback associated with the event monitored item.
+        /// </summary>
         public ISubscription SubscriptionCallback { get; set; }
 
+        /// <summary>
+        /// Gets or sets the node-manager handle assigned to the event monitored item.
+        /// </summary>
         public object ManagerHandle { get; set; }
 
+        /// <summary>
+        /// Gets or sets the monitored-item type flags used by the scenario.
+        /// </summary>
         public int MonitoredItemType { get; set; }
 
+        /// <summary>
+        /// Gets or sets whether the event monitored item is ready to publish.
+        /// </summary>
         public bool IsReadyToPublish { get; set; }
 
+        /// <summary>
+        /// Gets or sets whether the event monitored item is ready to trigger linked items.
+        /// </summary>
         public bool IsReadyToTrigger { get; set; }
 
+        /// <summary>
+        /// Gets or sets whether the event monitored item reports resend-data state.
+        /// </summary>
         public bool IsResendData { get; set; }
 
+        /// <summary>
+        /// Gets or sets the identifier of the monitored event source.
+        /// </summary>
         public NodeId NodeId { get; set; }
 
+        /// <summary>
+        /// Gets whether the fixture has requested a data resend.
+        /// </summary>
         public bool ResendDataRequested { get; private set; }
 
+        /// <summary>
+        /// Gets or sets the event monitored item's monitoring mode.
+        /// </summary>
         public MonitoringMode MonitoringMode { get; set; } = MonitoringMode.Reporting;
 
+        /// <summary>
+        /// Gets or sets the event monitored item's sampling interval.
+        /// </summary>
         public double SamplingInterval { get; set; }
 
+        /// <summary>
+        /// Gets or sets whether the item monitors events from all sources.
+        /// </summary>
         public bool MonitoringAllEvents { get; set; }
 
+        /// <summary>
+        /// Gets or sets the event filter supplied for the scenario.
+        /// </summary>
         public EventFilter EventFilter { get; set; } = new EventFilter();
 
+        /// <summary>
+        /// Completes disposal without resource work because the event stub owns no disposable resources.
+        /// </summary>
         public void Dispose()
         {
         }
 
+        /// <summary>
+        /// Records that a data-resend trigger was requested.
+        /// </summary>
         public void SetupResendDataTrigger()
         {
             ResendDataRequested = true;
         }
 
+        /// <summary>
+        /// Returns an empty monitored-item creation result with Good service status.
+        /// </summary>
         public ServiceResult GetCreateResult(out MonitoredItemCreateResult result)
         {
             result = new MonitoredItemCreateResult();
             return StatusCodes.Good;
         }
 
+        /// <summary>
+        /// Returns an empty monitored-item modification result with Good service status.
+        /// </summary>
         public ServiceResult GetModifyResult(out MonitoredItemModifyResult result)
         {
             result = new MonitoredItemModifyResult();
             return StatusCodes.Good;
         }
 
+        /// <summary>
+        /// Creates a stored-item stub carrying the monitored node identifier and Value attribute.
+        /// </summary>
         public IStoredMonitoredItem ToStorableMonitoredItem()
         {
             return new TestStoredMonitoredItem
@@ -8272,6 +9020,9 @@ namespace Opc.Ua.Server.Tests
             };
         }
 
+        /// <summary>
+        /// Updates the monitoring mode and returns the previous mode.
+        /// </summary>
         public MonitoringMode SetMonitoringMode(MonitoringMode monitoringMode)
         {
             MonitoringMode previous = MonitoringMode;
@@ -8279,21 +9030,33 @@ namespace Opc.Ua.Server.Tests
             return previous;
         }
 
+        /// <summary>
+        /// Records the supplied event in the stub's event collection.
+        /// </summary>
         public void QueueEvent(IFilterTarget instance)
         {
             QueuedEvents.Add(instance);
         }
 
+        /// <summary>
+        /// Records the supplied event without applying filtering, regardless of the bypass flag.
+        /// </summary>
         public void QueueEvent(IFilterTarget instance, bool bypassFilter)
         {
             QueueEvent(instance);
         }
 
+        /// <summary>
+        /// Reports that the stub has no publishable event notifications.
+        /// </summary>
         public bool Publish(OperationContext context, Queue<EventFieldList> notifications, uint maxNotificationsPerPublish)
         {
             return false;
         }
 
+        /// <summary>
+        /// Accepts attribute modifications with Good status without changing the stub's configured properties.
+        /// </summary>
         public ServiceResult ModifyAttributes(
             DiagnosticsMasks diagnosticsMasks,
             TimestampsToReturn timestampsToReturn,
@@ -8308,67 +9071,160 @@ namespace Opc.Ua.Server.Tests
             return StatusCodes.Good;
         }
 
+        /// <summary>
+        /// Gets the events recorded by the monitored-item stub.
+        /// </summary>
         public List<IFilterTarget> QueuedEvents { get; } = [];
     }
 
+    /// <summary>
+    /// Carries mutable persisted monitored-item state for restoration scenarios.
+    /// </summary>
     internal sealed class TestStoredMonitoredItem : IStoredMonitoredItem
     {
+        /// <summary>
+        /// Gets or sets whether the stored item has been restored.
+        /// </summary>
         public bool IsRestored { get; set; }
 
+        /// <summary>
+        /// Gets or sets whether the stored item has been deleted.
+        /// </summary>
         public bool IsDeleted { get; set; }
 
+        /// <summary>
+        /// Gets or sets whether the stored item has been detached from its node.
+        /// </summary>
         public bool IsDetached { get; set; }
 
+        /// <summary>
+        /// Gets or sets whether updates should be reported even when the value is unchanged.
+        /// </summary>
         public bool AlwaysReportUpdates { get; set; }
 
+        /// <summary>
+        /// Gets or sets the identifier of the monitored attribute.
+        /// </summary>
         public uint AttributeId { get; set; }
 
+        /// <summary>
+        /// Gets or sets the client handle associated with the stored item.
+        /// </summary>
         public uint ClientHandle { get; set; }
 
+        /// <summary>
+        /// Gets or sets the requested diagnostic information mask.
+        /// </summary>
         public DiagnosticsMasks DiagnosticsMasks { get; set; }
 
+        /// <summary>
+        /// Gets or sets whether a full queue discards its oldest notification.
+        /// </summary>
         public bool DiscardOldest { get; set; }
 
+        /// <summary>
+        /// Gets or sets the requested data encoding.
+        /// </summary>
         public QualifiedName Encoding { get; set; }
 
+        /// <summary>
+        /// Gets or sets the persisted monitored-item identifier.
+        /// </summary>
         public uint Id { get; set; }
 
+        /// <summary>
+        /// Gets or sets the textual index range for the monitored value.
+        /// </summary>
         public string IndexRange { get; set; }
 
+        /// <summary>
+        /// Gets or sets the parsed index range for the monitored value.
+        /// </summary>
         public NumericRange ParsedIndexRange { get; set; }
 
+        /// <summary>
+        /// Gets or sets retained-condition identifiers preserved by filtering.
+        /// </summary>
         public ArrayOf<string> FilteredRetainConditionIds { get; set; }
 
+        /// <summary>
+        /// Gets or sets whether the stored monitored item is durable.
+        /// </summary>
         public bool IsDurable { get; set; }
 
+        /// <summary>
+        /// Gets or sets the last service error associated with the monitored value.
+        /// </summary>
         public ServiceResult LastError { get; set; }
 
+        /// <summary>
+        /// Gets or sets the last recorded data value.
+        /// </summary>
         public DataValue LastValue { get; set; }
 
+        /// <summary>
+        /// Gets or sets the persisted monitoring mode.
+        /// </summary>
         public MonitoringMode MonitoringMode { get; set; }
 
+        /// <summary>
+        /// Gets or sets the identifier of the monitored node.
+        /// </summary>
         public NodeId NodeId { get; set; }
 
+        /// <summary>
+        /// Gets or sets the effective monitoring filter used by the server.
+        /// </summary>
         public MonitoringFilter FilterToUse { get; set; }
 
+        /// <summary>
+        /// Gets or sets the original monitoring filter supplied by the client.
+        /// </summary>
         public MonitoringFilter OriginalFilter { get; set; }
 
+        /// <summary>
+        /// Gets or sets the persisted notification queue size.
+        /// </summary>
         public uint QueueSize { get; set; }
 
+        /// <summary>
+        /// Gets or sets the numeric range used for deadband calculations.
+        /// </summary>
         public double Range { get; set; }
 
+        /// <summary>
+        /// Gets or sets the monitored item's sampling interval.
+        /// </summary>
         public double SamplingInterval { get; set; }
 
+        /// <summary>
+        /// Gets or sets the source node's sampling interval.
+        /// </summary>
         public int SourceSamplingInterval { get; set; }
 
+        /// <summary>
+        /// Gets or sets the owning subscription identifier.
+        /// </summary>
         public uint SubscriptionId { get; set; }
 
+        /// <summary>
+        /// Gets or sets which timestamps are returned with notifications.
+        /// </summary>
         public TimestampsToReturn TimestampsToReturn { get; set; }
 
+        /// <summary>
+        /// Gets or sets the persisted monitored-item type mask.
+        /// </summary>
         public int TypeMask { get; set; }
 
+        /// <summary>
+        /// Gets or sets the data-change queue supplied during restoration.
+        /// </summary>
         public IDataChangeMonitoredItemQueue RestoredDataChangeQueue { get; set; }
 
+        /// <summary>
+        /// Gets or sets the event queue supplied during restoration.
+        /// </summary>
         public IEventMonitoredItemQueue RestoredEventQueue { get; set; }
     }
 
@@ -8379,16 +9235,46 @@ namespace Opc.Ua.Server.Tests
 #nullable enable
     internal interface ITestNodeManager : IAsyncNodeManager, IDisposable
     {
+        /// <summary>
+        /// Gets the predefined nodes registered by the selected node-manager implementation.
+        /// </summary>
         NodeIdDictionary<NodeState> PredefinedNodes { get; }
+        /// <summary>
+        /// Gets the monitored nodes maintained by the selected implementation.
+        /// </summary>
         NodeIdDictionary<MonitoredNode2> MonitoredNodes { get; }
+        /// <summary>
+        /// Gets the monitored items maintained by the selected implementation.
+        /// </summary>
         ConcurrentDictionary<uint, IMonitoredItem> MonitoredItems { get; }
+        /// <summary>
+        /// Gets the server system context used by the selected node manager.
+        /// </summary>
         ServerSystemContext SystemContext { get; }
+        /// <summary>
+        /// Gets the namespace indexes managed by the selected implementation.
+        /// </summary>
         IReadOnlyList<ushort> NamespaceIndexes { get; }
+        /// <summary>
+        /// Gets the selected node manager's primary namespace index.
+        /// </summary>
         ushort NamespaceIndex { get; }
+        /// <summary>
+        /// Finds a node by identifier in the selected node manager.
+        /// </summary>
         NodeState Find(NodeId nodeId);
+        /// <summary>
+        /// Creates or resolves the identifier for a node in the selected manager's namespace.
+        /// </summary>
         NodeId New(ISystemContext context, NodeState node);
+        /// <summary>
+        /// Adds an instance under the specified parent and returns its node identifier.
+        /// </summary>
         ValueTask<NodeId> AddNodeAsync(ServerSystemContext context, NodeId parentId, BaseInstanceState node, CancellationToken ct = default);
 
+        /// <summary>
+        /// Creates an instance with the requested parent, reference type, and browse name.
+        /// </summary>
         ValueTask<NodeId> CreateNodeAsync(
             ServerSystemContext context,
             NodeId parentId,
@@ -8397,8 +9283,17 @@ namespace Opc.Ua.Server.Tests
             BaseInstanceState instance,
             CancellationToken ct = default);
 
+        /// <summary>
+        /// Deletes the identified node and reports whether deletion succeeded.
+        /// </summary>
         ValueTask<bool> DeleteNodeAsync(ServerSystemContext context, NodeId nodeId, CancellationToken ct = default);
+        /// <summary>
+        /// Registers a predefined node through the selected implementation.
+        /// </summary>
         ValueTask AddPredefinedNodeAsync(ISystemContext context, NodeState node, CancellationToken ct = default);
+        /// <summary>
+        /// Finds a predefined node whose type matches the requested node-state type.
+        /// </summary>
         T FindPredefinedNode<T>(NodeId nodeId) where T : NodeState;
 
         /// <summary>
@@ -8422,6 +9317,9 @@ namespace Opc.Ua.Server.Tests
         /// </summary>
         Func<ServerSystemContext, NodeId, NodeState, bool>? IsNodeInViewOverride { get; set; }
 
+        /// <summary>
+        /// Gets or sets the callback that supplies replacement behavior for predefined nodes.
+        /// </summary>
         Func<NodeState, NodeState>? AddBehaviourCallback { get; set; }
 
         /// <summary>
@@ -8509,6 +9407,9 @@ namespace Opc.Ua.Server.Tests
     /// </summary>
     public class TestableCustomNodeManager2 : CustomNodeManager2
     {
+        /// <summary>
+        /// Creates a testable legacy node manager with the requested sampling strategy and namespaces.
+        /// </summary>
         public TestableCustomNodeManager2(
             IServerInternal server,
             ApplicationConfiguration configuration,
@@ -8539,18 +9440,42 @@ namespace Opc.Ua.Server.Tests
 
         private uint m_lastUsedNodeId;
 
+        /// <summary>
+        /// Gets or sets the nodes supplied when the legacy address space is loaded.
+        /// </summary>
         public NodeStateCollection? NodesToLoad { get; set; }
 
+        /// <summary>
+        /// Gets the legacy node manager's registered predefined nodes.
+        /// </summary>
         public new NodeIdDictionary<NodeState> PredefinedNodes => base.PredefinedNodes;
+        /// <summary>
+        /// Gets the legacy node manager's monitored nodes.
+        /// </summary>
         public new NodeIdDictionary<MonitoredNode2> MonitoredNodes => base.MonitoredNodes;
+        /// <summary>
+        /// Gets the legacy node manager's monitored items.
+        /// </summary>
         public new ConcurrentDictionary<uint, IMonitoredItem> MonitoredItems => base.MonitoredItems;
 
+        /// <summary>
+        /// Gets or sets the callback invoked when legacy event subscriptions change.
+        /// </summary>
         public Action<bool> EventSubscriptionCallback { get; set; } = null!;
 
+        /// <summary>
+        /// Gets or sets the callback invoked when the legacy node manager removes a node.
+        /// </summary>
         public Action<NodeState> NodeRemovedCallback { get; set; } = null!;
 
+        /// <summary>
+        /// Gets or sets the optional predicate overriding legacy node membership in a view.
+        /// </summary>
         public Func<ServerSystemContext, NodeId, NodeState, bool>? IsNodeInViewOverride { get; set; }
 
+        /// <summary>
+        /// Gets or sets the callback supplying replacement behavior during legacy predefined-node registration.
+        /// </summary>
         public Func<NodeState, NodeState>? AddBehaviourCallback { get; set; }
 
         protected override bool IsNodeInView(ServerSystemContext context, NodeId viewId, NodeState node)
@@ -8567,6 +9492,9 @@ namespace Opc.Ua.Server.Tests
                 ?? base.AddBehaviourToPredefinedNode(context, predefinedNode);
         }
 
+        /// <summary>
+        /// Exposes synchronous predefined-node registration on the legacy node manager.
+        /// </summary>
         public void AddPredefinedNodePublic(ISystemContext context, NodeState node)
         {
             AddPredefinedNode(context, node);
@@ -8585,31 +9513,49 @@ namespace Opc.Ua.Server.Tests
             NodeRemovedCallback?.Invoke(node);
         }
 
+        /// <summary>
+        /// Reports whether a node identifier belongs to a namespace managed by the legacy node manager.
+        /// </summary>
         public bool IsNodeIdInNamespacePublic(NodeId nodeId)
         {
             return IsNodeIdInNamespace(nodeId);
         }
 
+        /// <summary>
+        /// Returns a legacy node handle only when it belongs to a managed namespace.
+        /// </summary>
         public NodeHandle? IsHandleInNamespacePublic(object? managerHandle)
         {
             return IsHandleInNamespace(managerHandle!);
         }
 
+        /// <summary>
+        /// Adds a node to the legacy component cache and returns the cached node.
+        /// </summary>
         public NodeState AddNodeToComponentCachePublic(ISystemContext context, NodeHandle handle, NodeState node)
         {
             return AddNodeToComponentCache(context, handle, node);
         }
 
+        /// <summary>
+        /// Removes a reference to a node in the legacy component cache.
+        /// </summary>
         public void RemoveNodeFromComponentCachePublic(ISystemContext context, NodeHandle? handle)
         {
             RemoveNodeFromComponentCache(context, handle!);
         }
 
+        /// <summary>
+        /// Looks up a node in the legacy component cache.
+        /// </summary>
         public NodeState? LookupNodeInComponentCachePublic(ISystemContext context, NodeHandle handle)
         {
             return LookupNodeInComponentCache(context, handle);
         }
 
+        /// <summary>
+        /// Wraps legacy monitoring-filter validation in the asynchronous result shape used by the shared fixture.
+        /// </summary>
         public ValueTask<AsyncCustomNodeManager.ValidateMonitoringFilterResult> ValidateMonitoringFilterPublicAsync(
             ServerSystemContext context,
             NodeHandle handle,
@@ -8637,6 +9583,9 @@ namespace Opc.Ua.Server.Tests
             return NodesToLoad ?? base.LoadPredefinedNodes(context);
         }
 
+        /// <summary>
+        /// Gets a node-identifier-keyed snapshot of the legacy root event notifiers.
+        /// </summary>
         public NodeIdDictionary<NodeState> RootNotifiersDictionary
         {
             get
@@ -8653,31 +9602,49 @@ namespace Opc.Ua.Server.Tests
             }
         }
 
+        /// <summary>
+        /// Exposes root-notifier registration on the legacy node manager.
+        /// </summary>
         public void AddRootNotifierPublic(NodeState notifier)
         {
             AddRootNotifier(notifier);
         }
 
+        /// <summary>
+        /// Exposes root-notifier removal on the legacy node manager.
+        /// </summary>
         public void RemoveRootNotifierPublic(NodeState notifier)
         {
             RemoveRootNotifier(notifier);
         }
 
+        /// <summary>
+        /// Replaces the namespace URIs managed by the legacy node manager.
+        /// </summary>
         public void SetNamespacesPublic(params string[] namespaceUris)
         {
             SetNamespaces(namespaceUris);
         }
 
+        /// <summary>
+        /// Replaces the namespace indexes managed by the legacy node manager.
+        /// </summary>
         public void SetNamespaceIndexesPublic(ushort[] namespaceIndexes)
         {
             SetNamespaceIndexes(namespaceIndexes);
         }
 
+        /// <summary>
+        /// Assigns the legacy namespace URI property for setter scenarios.
+        /// </summary>
         public void SetNamespaceUrisPublic(IEnumerable<string>? uris)
         {
             NamespaceUris = uris!;
         }
 
+        /// <summary>
+        /// Invokes the legacy node manager's event-reporting callback.
+        /// </summary>
         public void InvokeOnReportEvent(ISystemContext context, NodeState node, IFilterTarget filterTarget)
         {
             OnReportEvent(context, node, filterTarget);
@@ -8693,6 +9660,9 @@ namespace Opc.Ua.Server.Tests
         private readonly TestableCustomNodeManager2 m_cnm2;
         private readonly AsyncNodeManagerAdapter m_adapter;
 
+        /// <summary>
+        /// Combines a testable legacy node manager and its asynchronous adapter for the shared fixture.
+        /// </summary>
         public TestableCustomNodeManager2Adapter(
             TestableCustomNodeManager2 cnm2,
             AsyncNodeManagerAdapter adapter)
@@ -8705,70 +9675,121 @@ namespace Opc.Ua.Server.Tests
         /// ITestNodeManager state properties — delegate to m_cnm2
         /// </summary>
         public NodeIdDictionary<NodeState> PredefinedNodes => m_cnm2.PredefinedNodes;
+        /// <summary>
+        /// Gets the monitored nodes from the wrapped legacy node manager.
+        /// </summary>
         public NodeIdDictionary<MonitoredNode2> MonitoredNodes => m_cnm2.MonitoredNodes;
+        /// <summary>
+        /// Gets the monitored items from the wrapped legacy node manager.
+        /// </summary>
         public ConcurrentDictionary<uint, IMonitoredItem> MonitoredItems => m_cnm2.MonitoredItems;
+        /// <summary>
+        /// Gets the system context from the wrapped legacy node manager.
+        /// </summary>
         public ServerSystemContext SystemContext => m_cnm2.SystemContext;
+        /// <summary>
+        /// Gets the namespace indexes from the wrapped legacy node manager.
+        /// </summary>
         public IReadOnlyList<ushort> NamespaceIndexes => m_cnm2.NamespaceIndexes;
+        /// <summary>
+        /// Gets the primary namespace index from the wrapped legacy node manager.
+        /// </summary>
         public ushort NamespaceIndex => m_cnm2.NamespaceIndex;
 
+        /// <summary>
+        /// Finds the requested node through the wrapped legacy node manager.
+        /// </summary>
         public NodeState Find(NodeId nodeId)
         {
             return m_cnm2.Find(nodeId)!;
         }
 
+        /// <summary>
+        /// Creates or resolves a node identifier through the wrapped legacy node manager.
+        /// </summary>
         public NodeId New(ISystemContext context, NodeState node)
         {
             return m_cnm2.New(context, node);
         }
 
+        /// <summary>
+        /// Finds a predefined node of the requested type through the wrapped legacy node manager.
+        /// </summary>
         public T FindPredefinedNode<T>(NodeId nodeId) where T : NodeState
         {
             return m_cnm2.FindPredefinedNode<T>(nodeId)!;
         }
 
+        /// <summary>
+        /// Gets or sets the nodes supplied to the wrapped legacy address-space loader.
+        /// </summary>
         public NodeStateCollection? NodesToLoad
         {
             get => m_cnm2.NodesToLoad;
             set => m_cnm2.NodesToLoad = value;
         }
 
+        /// <summary>
+        /// Gets or sets the wrapped legacy node manager's view-membership predicate.
+        /// </summary>
         public Func<ServerSystemContext, NodeId, NodeState, bool>? IsNodeInViewOverride
         {
             get => m_cnm2.IsNodeInViewOverride;
             set => m_cnm2.IsNodeInViewOverride = value;
         }
 
+        /// <summary>
+        /// Gets or sets the wrapped legacy node manager's predefined-node behavior callback.
+        /// </summary>
         public Func<NodeState, NodeState>? AddBehaviourCallback
         {
             get => m_cnm2.AddBehaviourCallback;
             set => m_cnm2.AddBehaviourCallback = value;
         }
 
+        /// <summary>
+        /// Checks node identifier namespace membership through the wrapped legacy node manager.
+        /// </summary>
         public bool IsNodeIdInNamespacePublic(NodeId nodeId)
         {
             return m_cnm2.IsNodeIdInNamespacePublic(nodeId);
         }
 
+        /// <summary>
+        /// Validates node-handle namespace membership through the wrapped legacy node manager.
+        /// </summary>
         public NodeHandle? IsHandleInNamespacePublic(object? managerHandle)
         {
             return m_cnm2.IsHandleInNamespacePublic(managerHandle);
         }
 
+        /// <summary>
+        /// Adds a component-cache reference through the wrapped legacy node manager.
+        /// </summary>
         public NodeState AddNodeToComponentCachePublic(ISystemContext context, NodeHandle handle, NodeState node)
         {
             return m_cnm2.AddNodeToComponentCachePublic(context, handle, node);
         }
 
+        /// <summary>
+        /// Removes a component-cache reference through the wrapped legacy node manager.
+        /// </summary>
         public void RemoveNodeFromComponentCachePublic(ISystemContext context, NodeHandle? handle)
         {
             m_cnm2.RemoveNodeFromComponentCachePublic(context, handle);
         }
 
+        /// <summary>
+        /// Looks up a component-cache entry through the wrapped legacy node manager.
+        /// </summary>
         public NodeState? LookupNodeInComponentCachePublic(ISystemContext context, NodeHandle handle)
         {
             return m_cnm2.LookupNodeInComponentCachePublic(context, handle);
         }
 
+        /// <summary>
+        /// Forwards monitoring-filter validation to the wrapped legacy node manager.
+        /// </summary>
         public ValueTask<AsyncCustomNodeManager.ValidateMonitoringFilterResult> ValidateMonitoringFilterPublicAsync(
             ServerSystemContext context,
             NodeHandle handle,
@@ -8782,6 +9803,9 @@ namespace Opc.Ua.Server.Tests
                         context, handle, attributeId, samplingInterval, queueSize, filter, cancellationToken);
         }
 
+        /// <summary>
+        /// Attaches the instance to an existing parent, registers it, and returns its node identifier.
+        /// </summary>
         public ValueTask<NodeId> AddNodeAsync(
             ServerSystemContext context,
             NodeId parentId,
@@ -8796,6 +9820,9 @@ namespace Opc.Ua.Server.Tests
             return new ValueTask<NodeId>(instance.NodeId);
         }
 
+        /// <summary>
+        /// Creates a legacy node and wraps the resulting identifier in a completed asynchronous result.
+        /// </summary>
         public ValueTask<NodeId> CreateNodeAsync(
             ServerSystemContext context,
             NodeId parentId,
@@ -8808,17 +9835,26 @@ namespace Opc.Ua.Server.Tests
             return new ValueTask<NodeId>(id);
         }
 
+        /// <summary>
+        /// Enables model-change tracking for a node through the wrapped legacy node manager.
+        /// </summary>
         public PropertyState<string> EnableModelChangeTrackingFor(NodeState node, ushort? namespaceIndex = null)
         {
             return m_cnm2.EnableModelChangeTrackingFor(node, namespaceIndex);
         }
 
+        /// <summary>
+        /// Gets or sets whether legacy model-change reporting requires a NodeVersion property.
+        /// </summary>
         public bool RequireNodeVersionForModelChange
         {
             get => m_cnm2.RequireNodeVersionForModelChange;
             set => m_cnm2.RequireNodeVersionForModelChange = value;
         }
 
+        /// <summary>
+        /// Deletes a legacy node and wraps its deletion result in a completed asynchronous result.
+        /// </summary>
         public ValueTask<bool> DeleteNodeAsync(
             ServerSystemContext context,
             NodeId nodeId,
@@ -8827,6 +9863,9 @@ namespace Opc.Ua.Server.Tests
             return new(m_cnm2.DeleteNode(context, nodeId));
         }
 
+        /// <summary>
+        /// Registers a predefined legacy node and returns a completed asynchronous operation.
+        /// </summary>
         public ValueTask AddPredefinedNodeAsync(
             ISystemContext context,
             NodeState node,
@@ -8840,23 +9879,38 @@ namespace Opc.Ua.Server.Tests
         /// IAsyncNodeManager — delegate to m_adapter
         /// </summary>
         public IEnumerable<string> NamespaceUris => m_adapter.NamespaceUris;
+        /// <summary>
+        /// Gets the synchronous node-manager view exposed by the asynchronous adapter.
+        /// </summary>
         public INodeManager SyncNodeManager => m_adapter.SyncNodeManager;
 
+        /// <summary>
+        /// Forwards address-space creation and external-reference collection to the asynchronous adapter.
+        /// </summary>
         public ValueTask CreateAddressSpaceAsync(IDictionary<NodeId, IList<IReference>> externalReferences, CancellationToken cancellationToken = default)
         {
             return m_adapter.CreateAddressSpaceAsync(externalReferences, cancellationToken);
         }
 
+        /// <summary>
+        /// Forwards address-space deletion to the asynchronous adapter.
+        /// </summary>
         public ValueTask DeleteAddressSpaceAsync(CancellationToken cancellationToken = default)
         {
             return m_adapter.DeleteAddressSpaceAsync(cancellationToken);
         }
 
+        /// <summary>
+        /// Resolves a manager handle through the asynchronous adapter.
+        /// </summary>
         public ValueTask<object> GetManagerHandleAsync(NodeId nodeId, CancellationToken cancellationToken = default)
         {
             return m_adapter.GetManagerHandleAsync(nodeId, cancellationToken);
         }
 
+        /// <summary>
+        /// Forwards external-reference addition to the asynchronous adapter.
+        /// </summary>
         public ValueTask AddReferencesAsync(
             IDictionary<NodeId, IList<IReference>> references,
             CancellationToken cancellationToken = default)
@@ -8864,6 +9918,9 @@ namespace Opc.Ua.Server.Tests
             return m_adapter.AddReferencesAsync(references, cancellationToken);
         }
 
+        /// <summary>
+        /// Forwards reference deletion and its bidirectional option to the asynchronous adapter.
+        /// </summary>
         public ValueTask<ServiceResult> DeleteReferenceAsync(
             object sourceHandle,
             NodeId referenceTypeId,
@@ -8876,6 +9933,9 @@ namespace Opc.Ua.Server.Tests
                         sourceHandle, referenceTypeId, isInverse, targetId, deleteBidirectional, cancellationToken);
         }
 
+        /// <summary>
+        /// Retrieves node metadata through the asynchronous adapter.
+        /// </summary>
         public ValueTask<NodeMetadata> GetNodeMetadataAsync(
             OperationContext context,
             object targetHandle,
@@ -8885,6 +9945,9 @@ namespace Opc.Ua.Server.Tests
             return m_adapter.GetNodeMetadataAsync(context, targetHandle, resultMask, cancellationToken);
         }
 
+        /// <summary>
+        /// Retrieves access and role metadata through the asynchronous adapter.
+        /// </summary>
         public ValueTask<NodeMetadata?> GetPermissionMetadataAsync(
             OperationContext context,
             object targetHandle,
@@ -8897,6 +9960,9 @@ namespace Opc.Ua.Server.Tests
                         context, targetHandle, resultMask, uniqueNodesServiceAttributesCache, permissionsOnly, cancellationToken);
         }
 
+        /// <summary>
+        /// Forwards browsing and continuation state to the asynchronous adapter.
+        /// </summary>
         public ValueTask<ContinuationPoint?> BrowseAsync(
             OperationContext context,
             ContinuationPoint continuationPoint,
@@ -8906,6 +9972,9 @@ namespace Opc.Ua.Server.Tests
             return m_adapter.BrowseAsync(context, continuationPoint, references, cancellationToken);
         }
 
+        /// <summary>
+        /// Checks view membership through the asynchronous adapter.
+        /// </summary>
         public ValueTask<bool> IsNodeInViewAsync(
             OperationContext context,
             NodeId viewId,
@@ -8915,6 +9984,9 @@ namespace Opc.Ua.Server.Tests
             return m_adapter.IsNodeInViewAsync(context, viewId, nodeHandle, cancellationToken);
         }
 
+        /// <summary>
+        /// Resolves a relative browse-path element through the asynchronous adapter.
+        /// </summary>
         public ValueTask TranslateBrowsePathAsync(
             OperationContext context,
             object sourceHandle,
@@ -8927,6 +9999,9 @@ namespace Opc.Ua.Server.Tests
                         context, sourceHandle, relativePath, targetIds, unresolvedTargetIds, cancellationToken);
         }
 
+        /// <summary>
+        /// Forwards node attribute reads to the asynchronous adapter.
+        /// </summary>
         public ValueTask ReadAsync(
             OperationContext context,
             double maxAge,
@@ -8938,6 +10013,9 @@ namespace Opc.Ua.Server.Tests
             return m_adapter.ReadAsync(context, maxAge, nodesToRead, values, errors, cancellationToken);
         }
 
+        /// <summary>
+        /// Forwards node attribute writes to the asynchronous adapter.
+        /// </summary>
         public ValueTask WriteAsync(
             OperationContext context,
             ArrayOf<WriteValue> nodesToWrite,
@@ -8947,6 +10025,9 @@ namespace Opc.Ua.Server.Tests
             return m_adapter.WriteAsync(context, nodesToWrite, errors, cancellationToken);
         }
 
+        /// <summary>
+        /// Forwards history reads and continuation-point release requests to the asynchronous adapter.
+        /// </summary>
         public ValueTask HistoryReadAsync(
             OperationContext context,
             HistoryReadDetails details,
@@ -8961,6 +10042,9 @@ namespace Opc.Ua.Server.Tests
                         context, details, timestampsToReturn, releaseContinuationPoints, nodesToRead, results, errors, cancellationToken);
         }
 
+        /// <summary>
+        /// Forwards history updates to the asynchronous adapter.
+        /// </summary>
         public ValueTask HistoryUpdateAsync(
             OperationContext context,
             Type detailsType,
@@ -8972,6 +10056,9 @@ namespace Opc.Ua.Server.Tests
             return m_adapter.HistoryUpdateAsync(context, detailsType, nodesToUpdate, results, errors, cancellationToken);
         }
 
+        /// <summary>
+        /// Forwards method calls to the asynchronous adapter.
+        /// </summary>
         public ValueTask CallAsync(
             OperationContext context,
             ArrayOf<CallMethodRequest> methodsToCall,
@@ -8982,6 +10069,9 @@ namespace Opc.Ua.Server.Tests
             return m_adapter.CallAsync(context, methodsToCall, results, errors, cancellationToken);
         }
 
+        /// <summary>
+        /// Resolves method state through the asynchronous adapter.
+        /// </summary>
         public ValueTask<MethodState> FindMethodStateAsync(
             OperationContext context,
             CallMethodRequest methodToCall,
@@ -8990,6 +10080,9 @@ namespace Opc.Ua.Server.Tests
             return m_adapter.FindMethodStateAsync(context, methodToCall, cancellationToken);
         }
 
+        /// <summary>
+        /// Forwards event subscription or unsubscription for one source to the asynchronous adapter.
+        /// </summary>
         public ValueTask<ServiceResult> SubscribeToEventsAsync(
             OperationContext context,
             object sourceId,
@@ -9002,6 +10095,9 @@ namespace Opc.Ua.Server.Tests
                         context, sourceId, subscriptionId, monitoredItem, unsubscribe, cancellationToken);
         }
 
+        /// <summary>
+        /// Forwards subscription or unsubscription for all event sources to the asynchronous adapter.
+        /// </summary>
         public ValueTask<ServiceResult> SubscribeToAllEventsAsync(
             OperationContext context,
             uint subscriptionId,
@@ -9013,6 +10109,9 @@ namespace Opc.Ua.Server.Tests
                         context, subscriptionId, monitoredItem, unsubscribe, cancellationToken);
         }
 
+        /// <summary>
+        /// Forwards condition refresh for monitored event items to the asynchronous adapter.
+        /// </summary>
         public ValueTask<ServiceResult> ConditionRefreshAsync(
             OperationContext context,
             IList<IEventMonitoredItem> monitoredItems,
@@ -9021,6 +10120,9 @@ namespace Opc.Ua.Server.Tests
             return m_adapter.ConditionRefreshAsync(context, monitoredItems, cancellationToken);
         }
 
+        /// <summary>
+        /// Forwards monitored-item creation and revised filter results to the asynchronous adapter.
+        /// </summary>
         public ValueTask CreateMonitoredItemsAsync(
             OperationContext context,
             uint subscriptionId,
@@ -9039,6 +10141,9 @@ namespace Opc.Ua.Server.Tests
                         errors, filterErrors, monitoredItems, createDurable, monitoredItemIdFactory, cancellationToken);
         }
 
+        /// <summary>
+        /// Forwards monitored-item modification and revised filter results to the asynchronous adapter.
+        /// </summary>
         public ValueTask ModifyMonitoredItemsAsync(
             OperationContext context,
             TimestampsToReturn timestampsToReturn,
@@ -9052,6 +10157,9 @@ namespace Opc.Ua.Server.Tests
                         context, timestampsToReturn, monitoredItems, itemsToModify, errors, filterErrors, cancellationToken);
         }
 
+        /// <summary>
+        /// Forwards monitored-item deletion and processed-item reporting to the asynchronous adapter.
+        /// </summary>
         public ValueTask DeleteMonitoredItemsAsync(
             OperationContext context,
             IList<IMonitoredItem> monitoredItems,
@@ -9062,6 +10170,9 @@ namespace Opc.Ua.Server.Tests
             return m_adapter.DeleteMonitoredItemsAsync(context, monitoredItems, processedItems, errors, cancellationToken);
         }
 
+        /// <summary>
+        /// Forwards monitoring-mode changes to the asynchronous adapter.
+        /// </summary>
         public ValueTask SetMonitoringModeAsync(
             OperationContext context,
             MonitoringMode monitoringMode,
@@ -9074,6 +10185,9 @@ namespace Opc.Ua.Server.Tests
                         context, monitoringMode, monitoredItems, processedItems, errors, cancellationToken);
         }
 
+        /// <summary>
+        /// Forwards monitored-item transfer and resend options to the asynchronous adapter.
+        /// </summary>
         public ValueTask TransferMonitoredItemsAsync(
             OperationContext context,
             bool sendInitialValues,
@@ -9087,6 +10201,9 @@ namespace Opc.Ua.Server.Tests
                         context, sendInitialValues, monitoredItems, processedItems, errors, transferOptions, cancellationToken);
         }
 
+        /// <summary>
+        /// Forwards session-closing notification and subscription-deletion policy to the asynchronous adapter.
+        /// </summary>
         public ValueTask SessionClosingAsync(
             OperationContext context,
             NodeId sessionId,
@@ -9096,6 +10213,9 @@ namespace Opc.Ua.Server.Tests
             return m_adapter.SessionClosingAsync(context, sessionId, deleteSubscriptions, cancellationToken);
         }
 
+        /// <summary>
+        /// Forwards session-activation notification to the asynchronous adapter.
+        /// </summary>
         public ValueTask SessionActivatedAsync(
             OperationContext context,
             NodeId sessionId,
@@ -9104,6 +10224,9 @@ namespace Opc.Ua.Server.Tests
             return m_adapter.SessionActivatedAsync(context, sessionId, cancellationToken);
         }
 
+        /// <summary>
+        /// Restores stored monitored items through the asynchronous adapter.
+        /// </summary>
         public ValueTask RestoreMonitoredItemsAsync(
             IList<IStoredMonitoredItem> itemsToRestore,
             IList<IMonitoredItem> monitoredItems,
@@ -9114,6 +10237,9 @@ namespace Opc.Ua.Server.Tests
                         itemsToRestore, monitoredItems, savedOwnerIdentity, cancellationToken);
         }
 
+        /// <summary>
+        /// Validates event role permissions through the asynchronous adapter.
+        /// </summary>
         public ValueTask<ServiceResult> ValidateEventRolePermissionsAsync(
             IEventMonitoredItem monitoredItem,
             IFilterTarget filterTarget,
@@ -9122,6 +10248,9 @@ namespace Opc.Ua.Server.Tests
             return m_adapter.ValidateEventRolePermissionsAsync(monitoredItem, filterTarget, cancellationToken);
         }
 
+        /// <summary>
+        /// Validates requested node permissions through the asynchronous adapter.
+        /// </summary>
         public ValueTask<ServiceResult> ValidateRolePermissionsAsync(
             OperationContext operationContext,
             NodeId nodeId,
@@ -9131,30 +10260,48 @@ namespace Opc.Ua.Server.Tests
             return m_adapter.ValidateRolePermissionsAsync(operationContext, nodeId, requestedPermission, cancellationToken);
         }
 
+        /// <summary>
+        /// Reports whether the adapter recognizes the node as supporting multiple event consumers.
+        /// </summary>
         public bool IsMultipleEventConsumerNode(NodeId nodeId)
         {
             return m_adapter.IsMultipleEventConsumerNode(nodeId);
         }
 
+        /// <summary>
+        /// Gets a snapshot of root event notifiers from the wrapped legacy node manager.
+        /// </summary>
         public NodeIdDictionary<NodeState> RootNotifiers => m_cnm2.RootNotifiersDictionary;
 
+        /// <summary>
+        /// Registers a legacy root notifier and returns a completed asynchronous operation.
+        /// </summary>
         public ValueTask AddRootNotifierPublicAsync(NodeState notifier, CancellationToken cancellationToken = default)
         {
             m_cnm2.AddRootNotifierPublic(notifier);
             return default;
         }
 
+        /// <summary>
+        /// Removes a legacy root notifier and returns a completed asynchronous operation.
+        /// </summary>
         public ValueTask RemoveRootNotifierPublicAsync(NodeState notifier, CancellationToken cancellationToken = default)
         {
             m_cnm2.RemoveRootNotifierPublic(notifier);
             return default;
         }
 
+        /// <summary>
+        /// Invokes event reporting on the wrapped legacy node manager.
+        /// </summary>
         public void InvokeOnReportEvent(ISystemContext context, NodeState node, IFilterTarget filterTarget)
         {
             m_cnm2.InvokeOnReportEvent(context, node, filterTarget);
         }
 
+        /// <summary>
+        /// Runs adapted address-space creation to collect reverse references from the legacy node manager.
+        /// </summary>
         public ValueTask AddReverseReferencesPublicAsync(
             IDictionary<NodeId, IList<IReference>> externalReferences,
             CancellationToken cancellationToken = default)
@@ -9162,16 +10309,25 @@ namespace Opc.Ua.Server.Tests
             return m_adapter.CreateAddressSpaceAsync(externalReferences, cancellationToken);
         }
 
+        /// <summary>
+        /// Sets namespace URIs on the wrapped legacy node manager.
+        /// </summary>
         public void SetNamespacesPublic(params string[] namespaceUris)
         {
             m_cnm2.SetNamespacesPublic(namespaceUris);
         }
 
+        /// <summary>
+        /// Sets namespace indexes on the wrapped legacy node manager.
+        /// </summary>
         public void SetNamespaceIndexesPublic(ushort[] namespaceIndexes)
         {
             m_cnm2.SetNamespaceIndexesPublic(namespaceIndexes);
         }
 
+        /// <summary>
+        /// Assigns the namespace URI property on the wrapped legacy node manager.
+        /// </summary>
         public void SetNamespaceUrisPublic(IEnumerable<string>? uris)
         {
             m_cnm2.SetNamespaceUrisPublic(uris);
@@ -9182,6 +10338,9 @@ namespace Opc.Ua.Server.Tests
         /// </summary>
         public bool AllowNodeManagement => m_adapter.AllowNodeManagement;
 
+        /// <summary>
+        /// Forwards an AddNodes service item to the adapter's node-management facet.
+        /// </summary>
         public ValueTask<(ServiceResult result, NodeId addedNodeId)> AddNodeAsync(
             OperationContext context,
             AddNodesItem item,
@@ -9190,6 +10349,9 @@ namespace Opc.Ua.Server.Tests
             return m_adapter.AddNodeAsync(context, item, cancellationToken);
         }
 
+        /// <summary>
+        /// Forwards a DeleteNodes service item to the adapter's node-management facet.
+        /// </summary>
         public ValueTask<ServiceResult> DeleteNodeAsync(
             OperationContext context,
             DeleteNodesItem item,
@@ -9198,6 +10360,9 @@ namespace Opc.Ua.Server.Tests
             return m_adapter.DeleteNodeAsync(context, item, cancellationToken);
         }
 
+        /// <summary>
+        /// Forwards an AddReferences service item to the adapter's node-management facet.
+        /// </summary>
         public ValueTask<ServiceResult> AddReferenceAsync(
             OperationContext context,
             AddReferencesItem item,
@@ -9206,6 +10371,9 @@ namespace Opc.Ua.Server.Tests
             return m_adapter.AddReferenceAsync(context, item, cancellationToken);
         }
 
+        /// <summary>
+        /// Forwards a DeleteReferences service item to the adapter's node-management facet.
+        /// </summary>
         public ValueTask<ServiceResult> DeleteReferenceAsync(
             OperationContext context,
             DeleteReferencesItem item,
@@ -9214,6 +10382,9 @@ namespace Opc.Ua.Server.Tests
             return m_adapter.DeleteReferenceAsync(context, item, cancellationToken);
         }
 
+        /// <summary>
+        /// Disposes the asynchronous adapter and its wrapped node-manager resources.
+        /// </summary>
         public void Dispose()
         {
             m_adapter.Dispose();

@@ -43,6 +43,9 @@ namespace Opc.Ua.Server.Tests.Historian
     [Parallelizable(ParallelScope.All)]
     public class HistorianTypesTests
     {
+        /// <summary>
+        /// Verifies that a default historian resume token is empty.
+        /// </summary>
         [Test]
         public void ResumeTokenDefaultIsEmpty()
         {
@@ -52,6 +55,9 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(token.State.IsEmpty, Is.True);
         }
 
+        /// <summary>
+        /// Verifies that a historian resume token containing bytes is not empty.
+        /// </summary>
         [Test]
         public void ResumeTokenWithBytesIsNotEmpty()
         {
@@ -62,6 +68,9 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(token.State.Length, Is.EqualTo(2));
         }
 
+        /// <summary>
+        /// Verifies that historian resume token equality compares byte content.
+        /// </summary>
         [Test]
         public void ResumeTokenEqualityComparesByteContent()
         {
@@ -79,6 +88,9 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(a.GetHashCode(), Is.EqualTo(c.GetHashCode()));
         }
 
+        /// <summary>
+        /// Verifies that an empty historian page is final and contains no values.
+        /// </summary>
         [Test]
         public void PageEmptyIsFinalWithNoValues()
         {
@@ -89,6 +101,9 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(page.NextToken.IsEmpty, Is.True);
         }
 
+        /// <summary>
+        /// Verifies that a historian page with a next token is not final.
+        /// </summary>
         [Test]
         public void PageWithNextTokenIsNotFinal()
         {
@@ -104,6 +119,9 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(page.NextToken.IsEmpty, Is.False);
         }
 
+        /// <summary>
+        /// Verifies that read-only historian capabilities contain no update flags.
+        /// </summary>
         [Test]
         public void NodeCapabilitiesReadOnlyHasNoUpdateFlags()
         {
@@ -116,6 +134,9 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(caps.SupportsAnyUpdate, Is.False);
         }
 
+        /// <summary>
+        /// Verifies that read-write historian capabilities enable all update flags.
+        /// </summary>
         [Test]
         public void NodeCapabilitiesReadWriteHasAllUpdateFlags()
         {
@@ -131,6 +152,9 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(caps.SupportsAnyUpdate, Is.True);
         }
 
+        /// <summary>
+        /// Verifies that any single update capability makes SupportsAnyUpdate true.
+        /// </summary>
         [Test]
         public void NodeCapabilitiesSupportsAnyUpdateIsTrueForSingleFlag()
         {

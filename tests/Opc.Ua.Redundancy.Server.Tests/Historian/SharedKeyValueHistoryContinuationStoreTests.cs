@@ -38,12 +38,18 @@ using Opc.Ua.Tests;
 
 namespace Opc.Ua.Redundancy.Server.Tests.Historian
 {
+    /// <summary>
+    /// Verifies protected, single-use history continuations and recoverable cleanup in shared storage.
+    /// </summary>
     [TestFixture]
     [Category("Distributed")]
     [Category("Historian")]
     [Parallelizable(ParallelScope.All)]
     public class SharedKeyValueHistoryContinuationStoreTests
     {
+        /// <summary>
+        /// Verifies that shared history continuations reject a process-local key-value store.
+        /// </summary>
         [Test]
         public void ProcessLocalStoreIsRejected()
         {
@@ -60,6 +66,9 @@ namespace Opc.Ua.Redundancy.Server.Tests.Historian
                 Throws.TypeOf<InvalidOperationException>());
         }
 
+        /// <summary>
+        /// Verifies that shared history continuations reject storage without record protection.
+        /// </summary>
         [Test]
         public void UnprotectedStoreIsRejected()
         {
@@ -75,6 +84,9 @@ namespace Opc.Ua.Redundancy.Server.Tests.Historian
                 Throws.TypeOf<InvalidOperationException>());
         }
 
+        /// <summary>
+        /// Verifies that a stored continuation envelope loads and can be claimed only once.
+        /// </summary>
         [Test]
         public async Task StoredEnvelopeLoadsAndCanBeTakenOnlyOnceAsync()
         {
@@ -118,6 +130,9 @@ namespace Opc.Ua.Redundancy.Server.Tests.Historian
                 Is.Empty);
         }
 
+        /// <summary>
+        /// Verifies that legacy continuation envelopes remain readable after a format upgrade.
+        /// </summary>
         [Test]
         public async Task LegacyEnvelopeLoadsAfterFormatUpgradeAsync()
         {
@@ -153,6 +168,9 @@ namespace Opc.Ua.Redundancy.Server.Tests.Historian
             Assert.That(loaded[0], Is.EqualTo(expected));
         }
 
+        /// <summary>
+        /// Verifies that storing a duplicate continuation identifier is rejected.
+        /// </summary>
         [Test]
         public async Task DuplicateContinuationIdentifierIsRejectedAsync()
         {
@@ -181,6 +199,9 @@ namespace Opc.Ua.Redundancy.Server.Tests.Historian
             Assert.That(exception.StatusCode, Is.EqualTo(StatusCodes.BadEntryExists));
         }
 
+        /// <summary>
+        /// Verifies that tampered continuation envelopes are not loaded.
+        /// </summary>
         [Test]
         public async Task TamperedEnvelopeIsNotLoadedAsync()
         {
@@ -215,6 +236,9 @@ namespace Opc.Ua.Redundancy.Server.Tests.Historian
             Assert.That(loaded[0], Is.EqualTo(replacement));
         }
 
+        /// <summary>
+        /// Verifies that loading continuations rejects a session quota overflow.
+        /// </summary>
         [Test]
         public async Task LoadRejectsSessionQuotaOverflowAsync()
         {
@@ -244,6 +268,9 @@ namespace Opc.Ua.Redundancy.Server.Tests.Historian
                 Is.EqualTo(StatusCodes.BadTooManyOperations));
         }
 
+        /// <summary>
+        /// Verifies that expired continuation envelopes can neither be loaded nor claimed.
+        /// </summary>
         [Test]
         public async Task ExpiredEnvelopeCannotBeLoadedOrTakenAsync()
         {
@@ -283,6 +310,9 @@ namespace Opc.Ua.Redundancy.Server.Tests.Historian
             Assert.That(loaded[0], Is.EqualTo(replacement));
         }
 
+        /// <summary>
+        /// Verifies that scheduled removal deletes the continuation envelope.
+        /// </summary>
         [Test]
         public async Task ScheduledRemovalDeletesEnvelopeAsync()
         {
@@ -313,6 +343,9 @@ namespace Opc.Ua.Redundancy.Server.Tests.Historian
             Assert.That(loaded[0], Is.EqualTo(replacement));
         }
 
+        /// <summary>
+        /// Verifies that cleanup failure does not undo an already successful continuation claim.
+        /// </summary>
         [Test]
         public async Task CleanupFailureDoesNotUndoClaimAsync()
         {
@@ -350,6 +383,9 @@ namespace Opc.Ua.Redundancy.Server.Tests.Historian
                 Has.Count.EqualTo(1));
         }
 
+        /// <summary>
+        /// Verifies that delayed cleanup cannot delete a restored continuation.
+        /// </summary>
         [Test]
         public async Task DelayedCleanupDoesNotDeleteRestoredContinuationAsync()
         {
@@ -402,6 +438,9 @@ namespace Opc.Ua.Redundancy.Server.Tests.Historian
                 Is.False);
         }
 
+        /// <summary>
+        /// Verifies that an abandoned claim marker is cleaned before the same identifier is reused.
+        /// </summary>
         [Test]
         public async Task AbandonedClaimMarkerIsCleanedForSameIdentifierReuseAsync()
         {
@@ -441,6 +480,9 @@ namespace Opc.Ua.Redundancy.Server.Tests.Historian
             Assert.That(loaded[0], Is.EqualTo(replacement));
         }
 
+        /// <summary>
+        /// Verifies that restart recovery can restore an identifier over its cleanup marker.
+        /// </summary>
         [Test]
         public async Task RestartCanRestoreSameIdentifierOverCleanupMarkerAsync()
         {
@@ -481,6 +523,9 @@ namespace Opc.Ua.Redundancy.Server.Tests.Historian
             Assert.That(loaded[0], Is.EqualTo(replacement));
         }
 
+        /// <summary>
+        /// Verifies that restart recovery can restore a claim marker after cleanup retries are exhausted.
+        /// </summary>
         [Test]
         public async Task RetryExhaustedClaimMarkerCanBeRestoredAfterRestartAsync()
         {
@@ -522,6 +567,9 @@ namespace Opc.Ua.Redundancy.Server.Tests.Historian
             Assert.That(loaded[0], Is.EqualTo(replacement));
         }
 
+        /// <summary>
+        /// Verifies that an indeterminate cleanup compare-and-swap remains recoverable when resolution fails.
+        /// </summary>
         [Test]
         public async Task IndeterminateCleanupCasWithFailedResolutionIsRecoverableAsync()
         {
@@ -559,6 +607,9 @@ namespace Opc.Ua.Redundancy.Server.Tests.Historian
             Assert.That(loaded[0], Is.EqualTo(replacement));
         }
 
+        /// <summary>
+        /// Verifies that delayed scheduled removal does not delete a replacement continuation.
+        /// </summary>
         [Test]
         public async Task DelayedScheduledRemovalDoesNotDeleteReplacementAsync()
         {
@@ -606,6 +657,9 @@ namespace Opc.Ua.Redundancy.Server.Tests.Historian
             Assert.That(loaded[0], Is.EqualTo(replacement));
         }
 
+        /// <summary>
+        /// Verifies that disposal drains queued continuation cleanup before shutdown.
+        /// </summary>
         [Test]
         public async Task DisposeDrainsQueuedCleanupBeforeShutdownAsync()
         {
@@ -643,6 +697,9 @@ namespace Opc.Ua.Redundancy.Server.Tests.Historian
                 Is.Empty);
         }
 
+        /// <summary>
+        /// Verifies that an indeterminate store compare-and-swap queues cleanup for the exact stored payload.
+        /// </summary>
         [TestCase(false)]
         [TestCase(true)]
         public async Task IndeterminateStoreCasQueuesExactPayloadCleanupAsync(bool replaceClaim)
@@ -691,6 +748,9 @@ namespace Opc.Ua.Redundancy.Server.Tests.Historian
             Assert.That(found, Is.False, "A failed save must not leave an untracked live continuation.");
         }
 
+        /// <summary>
+        /// Verifies that disposal cancels blocked cleanup resolution.
+        /// </summary>
         [Test]
         public async Task DisposeCancelsBlockedCleanupResolutionAsync()
         {
@@ -721,6 +781,9 @@ namespace Opc.Ua.Redundancy.Server.Tests.Historian
             }
         }
 
+        /// <summary>
+        /// Verifies that store and claim operations resolve compare-and-swap commits that subsequently throw.
+        /// </summary>
         [Test]
         public async Task CommitThenThrowCasIsResolvedForStoreAndClaimAsync()
         {
@@ -767,6 +830,9 @@ namespace Opc.Ua.Redundancy.Server.Tests.Historian
                 Is.False);
         }
 
+        /// <summary>
+        /// Verifies that a missing record after a claim compare-and-swap failure is not reported as claimed.
+        /// </summary>
         [Test]
         public async Task MissingRecordAfterClaimCasFailureIsNotClaimedAsync()
         {
@@ -791,6 +857,9 @@ namespace Opc.Ua.Redundancy.Server.Tests.Historian
             Assert.That(claimed, Is.False);
         }
 
+        /// <summary>
+        /// Verifies that a claim compare-and-swap failure before commit leaves the continuation available.
+        /// </summary>
         [Test]
         public async Task ClaimCasFailureBeforeCommitLeavesContinuationAvailableAsync()
         {
@@ -821,6 +890,9 @@ namespace Opc.Ua.Redundancy.Server.Tests.Historian
                 Is.True);
         }
 
+        /// <summary>
+        /// Verifies that a continuation affected by canceled cleanup can be restored after restart.
+        /// </summary>
         [Test]
         public async Task CanceledCleanupCanBeRestoredAfterRestartAsync()
         {

@@ -39,11 +39,17 @@ using Opc.Ua.Server.Historian;
 
 namespace Opc.Ua.Server.Tests.Historian
 {
+    /// <summary>
+    /// Verifies retry-safe historian continuations, buffered payload ownership, and durable annotation identity.
+    /// </summary>
     [TestFixture]
     [Category("Historian")]
     [Parallelizable(ParallelScope.All)]
     public sealed class HistorianContinuationSafetyTests
     {
+        /// <summary>
+        /// Verifies that a failed raw-history resume can retry the same continuation.
+        /// </summary>
         [Test]
         public async Task RawResumeProviderFailureCanRetrySameContinuationAsync()
         {
@@ -139,6 +145,9 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(retryResult.ContinuationPoint.IsEmpty, Is.True);
         }
 
+        /// <summary>
+        /// Verifies that a failed modified-history resume can retry the same continuation.
+        /// </summary>
         [Test]
         public async Task ModifiedResumeProviderFailureCanRetrySameContinuationAsync()
         {
@@ -230,6 +239,9 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(retryResult.ContinuationPoint.IsEmpty, Is.True);
         }
 
+        /// <summary>
+        /// Verifies that a failed annotation-history resume can retry the same continuation.
+        /// </summary>
         [Test]
         public async Task AnnotationResumeProviderFailureCanRetrySameContinuationAsync()
         {
@@ -323,6 +335,9 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(retryResult.ContinuationPoint.IsEmpty, Is.True);
         }
 
+        /// <summary>
+        /// Verifies that retrying an event-history resume uses the persisted event filter.
+        /// </summary>
         [Test]
         public async Task EventResumeFailureRetriesWithPersistedFilterAsync()
         {
@@ -456,6 +471,9 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(projectedEventId, Is.EqualTo(eventRecord.EventId));
         }
 
+        /// <summary>
+        /// Verifies that a failed native processed-history resume can retry the same continuation.
+        /// </summary>
         [Test]
         public async Task NativeProcessedResumeProviderFailureCanRetrySameContinuationAsync()
         {
@@ -534,6 +552,9 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(retryResult.ContinuationPoint.IsEmpty, Is.True);
         }
 
+        /// <summary>
+        /// Verifies that a failed buffered processed-history successor preserves its identifier and offset.
+        /// </summary>
         [Test]
         public async Task BufferedProcessedSuccessorFailurePreservesIdAndOffsetAsync()
         {
@@ -651,6 +672,9 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(value, Is.EqualTo(1));
         }
 
+        /// <summary>
+        /// Verifies that buffered continuation successors and restored state safely share their payload.
+        /// </summary>
         [Test]
         public void BufferedSuccessorAndRestorationSharePayloadSafely()
         {
@@ -689,6 +713,9 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(restoration.BufferedProcessedOutputs, Has.Count.EqualTo(3));
         }
 
+        /// <summary>
+        /// Verifies that terminal processed-history incompatibility retires the continuation.
+        /// </summary>
         [Test]
         public async Task ProcessedTerminalIncompatibilityRetiresContinuationAsync()
         {
@@ -750,6 +777,9 @@ namespace Opc.Ua.Server.Tests.Historian
                 Is.EqualTo(StatusCodes.BadContinuationPointInvalid));
         }
 
+        /// <summary>
+        /// Verifies that failed durable restoration falls back to the local continuation state.
+        /// </summary>
         [Test]
         public async Task DurableRestorationFailureFallsBackToLocalStateAsync()
         {
@@ -830,6 +860,9 @@ namespace Opc.Ua.Server.Tests.Historian
                 Is.SameAs(originalState));
         }
 
+        /// <summary>
+        /// Verifies that durable annotation resume addresses the annotation property's parent node.
+        /// </summary>
         [Test]
         public async Task DurableAnnotationResumeUsesParentNodeIdAsync()
         {
@@ -959,6 +992,9 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(providerRequestNodeId, Is.EqualTo(parentNodeId));
         }
 
+        /// <summary>
+        /// Verifies that durable legacy annotation resume normalizes its node identity.
+        /// </summary>
         [TestCase(1)]
         [TestCase(2)]
         public async Task DurableLegacyAnnotationResumeNormalizesIdentityAsync(
@@ -1124,6 +1160,9 @@ namespace Opc.Ua.Server.Tests.Historian
                 Is.EqualTo(new[] { parentNodeId, parentNodeId }));
         }
 
+        /// <summary>
+        /// Verifies that annotation resume rejects a different parent node.
+        /// </summary>
         [TestCase(false)]
         [TestCase(true)]
         public async Task AnnotationResumeRejectsDifferentParentAsync(

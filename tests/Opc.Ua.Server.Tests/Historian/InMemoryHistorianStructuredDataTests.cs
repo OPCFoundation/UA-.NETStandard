@@ -52,6 +52,9 @@ namespace Opc.Ua.Server.Tests.Historian
     [Parallelizable(ParallelScope.All)]
     public class InMemoryHistorianStructuredDataTests
     {
+        /// <summary>
+        /// Verifies that structures with distinct uniqueness keys are stored separately at the same timestamp.
+        /// </summary>
         [Test]
         public async Task TwoStructuresAtOneTimestampAreStoredSeparatelyAsync()
         {
@@ -89,6 +92,9 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(ReadReading(values[1].Value), Is.EqualTo(21.5));
         }
 
+        /// <summary>
+        /// Verifies that forward raw paging returns each same-timestamp structured entry exactly once.
+        /// </summary>
         [Test]
         public async Task RawPagingAcrossSameTimestampEntriesReturnsEveryEntryOnceAsync()
         {
@@ -147,6 +153,9 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(pages, Is.EqualTo(3));
         }
 
+        /// <summary>
+        /// Verifies that reverse raw paging returns each same-timestamp structured entry exactly once.
+        /// </summary>
         [Test]
         public async Task ReverseRawPagingAcrossSameTimestampEntriesReturnsEveryEntryOnceAsync()
         {
@@ -200,6 +209,9 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(seen, Is.EqualTo(ReverseOrderedNames));
         }
 
+        /// <summary>
+        /// Verifies that modified structured history preserves every prior version.
+        /// </summary>
         [Test]
         public async Task ModifiedHistoryKeepsEveryPriorVersionAsync()
         {
@@ -251,6 +263,9 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(readings, Is.EquivalentTo(PriorReadings));
         }
 
+        /// <summary>
+        /// Verifies that modified-history paging does not lose entries sharing a timestamp.
+        /// </summary>
         [Test]
         public async Task ModifiedHistoryPagesSameTimestampEntriesWithoutLossAsync()
         {
@@ -312,6 +327,9 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(readings, Is.EquivalentTo(PriorReadings));
         }
 
+        /// <summary>
+        /// Verifies that at-time structured reads return every entry at the requested timestamp.
+        /// </summary>
         [Test]
         public async Task AtTimeReadReturnsEveryEntryAtTheTimestampAsync()
         {
@@ -348,6 +366,9 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(ReadName(page.Values[1].Value), Is.EqualTo("Bravo"));
         }
 
+        /// <summary>
+        /// Verifies that at-time structured reads page through entries sharing a timestamp.
+        /// </summary>
         [Test]
         public async Task AtTimeReadPagesEntriesAtTheTimestampAsync()
         {
@@ -393,6 +414,9 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(second.IsFinal, Is.True);
         }
 
+        /// <summary>
+        /// Verifies that structured insertion, replacement, update, and removal identify entries by composite key.
+        /// </summary>
         [Test]
         public async Task InsertReplaceUpdateRemoveFollowCompositeKeyAsync()
         {
@@ -485,6 +509,9 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(updateTypes, Is.EquivalentTo(ExpectedUpdateTypes));
         }
 
+        /// <summary>
+        /// Verifies that replacement with a changed uniqueness field returns BadNoEntryExists.
+        /// </summary>
         [Test]
         public async Task ReplaceWithChangedUniquenessFieldReturnsBadNoEntryExistsAsync()
         {
@@ -515,6 +542,9 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(ReadName(values[0].Value), Is.EqualTo("Temperature"));
         }
 
+        /// <summary>
+        /// Verifies that duplicate composite keys in one batch produce entry-exists results.
+        /// </summary>
         [Test]
         public async Task DuplicateKeysInOneBatchReportEntryExistsAsync()
         {
@@ -544,6 +574,9 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(ReadReading(values[0].Value), Is.EqualTo(1.0));
         }
 
+        /// <summary>
+        /// Verifies that an unrelated structured type is rejected with a type-mismatch result.
+        /// </summary>
         [Test]
         public async Task ForeignStructureIsRejectedWithTypeMismatchAsync()
         {
@@ -572,6 +605,9 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(values, Is.Empty);
         }
 
+        /// <summary>
+        /// Verifies that at-time deletion removes every structured entry at the timestamp.
+        /// </summary>
         [Test]
         public async Task DeleteAtTimeRemovesEveryEntryAtTheTimestampAsync()
         {
@@ -604,6 +640,9 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(values[0].Value.SourceTimestamp, Is.EqualTo((DateTimeUtc)Capture.AddSeconds(5)));
         }
 
+        /// <summary>
+        /// Verifies that bulk insertion retains distinct structured entries sharing a timestamp.
+        /// </summary>
         [Test]
         public async Task BulkInsertKeepsEntriesWithTheSameTimestampAsync()
         {
@@ -640,6 +679,9 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(values, Has.Count.EqualTo(2));
         }
 
+        /// <summary>
+        /// Verifies that atomic insertion rolls back a batch containing duplicate composite keys.
+        /// </summary>
         [Test]
         public async Task AtomicInsertRollsBackDuplicateCompositeKeysAsync()
         {
@@ -668,6 +710,9 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(values, Is.Empty);
         }
 
+        /// <summary>
+        /// Verifies that atomic insertion rolls back a batch containing an unrelated structure.
+        /// </summary>
         [Test]
         public async Task AtomicInsertRollsBackForeignStructureAsync()
         {
@@ -697,6 +742,9 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(values, Is.Empty);
         }
 
+        /// <summary>
+        /// Verifies that structured-history bounds use the adjacent entries.
+        /// </summary>
         [Test]
         public async Task BoundsForStructuredNodeUseAdjacentEntriesAsync()
         {
@@ -743,6 +791,9 @@ namespace Opc.Ua.Server.Tests.Historian
                 Is.EqualTo((DateTimeUtc)Capture.AddSeconds(20)));
         }
 
+        /// <summary>
+        /// Verifies that structured registration advertises structured-data capabilities.
+        /// </summary>
         [Test]
         public async Task RegisterStructuredAdvertisesStructuredCapabilitiesAsync()
         {
@@ -762,6 +813,9 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(await provider.IsHistorizingAsync(nodeId, CancellationToken.None).ConfigureAwait(false), Is.True);
         }
 
+        /// <summary>
+        /// Verifies that key-selector lookup returns the registered selector or the default selector.
+        /// </summary>
         [Test]
         public async Task GetKeySelectorReturnsRegisteredOrDefaultSelectorAsync()
         {
@@ -783,6 +837,9 @@ namespace Opc.Ua.Server.Tests.Historian
                 Is.SameAs(TimestampStructuredDataKeySelector.Instance));
         }
 
+        /// <summary>
+        /// Verifies that forgetting a node removes its structured-data registration.
+        /// </summary>
         [Test]
         public async Task ForgetDropsStructuredRegistrationAsync()
         {
@@ -803,6 +860,9 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(selector, Is.SameAs(TimestampStructuredDataKeySelector.Instance));
         }
 
+        /// <summary>
+        /// Verifies that structured-node registration rejects invalid arguments.
+        /// </summary>
         [Test]
         public void RegisterStructuredValidatesArguments()
         {
@@ -820,6 +880,9 @@ namespace Opc.Ua.Server.Tests.Historian
                 Throws.TypeOf<ArgumentException>());
         }
 
+        /// <summary>
+        /// Verifies that ordinary raw-history nodes retain timestamp-only entry identity.
+        /// </summary>
         [Test]
         public async Task OrdinaryRawNodeKeepsTimestampOnlyIdentityAsync()
         {
@@ -874,6 +937,9 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(ReadScalar(values[0].Value), Is.EqualTo(2.0));
         }
 
+        /// <summary>
+        /// Verifies that ordinary raw-history nodes retain paging and bounding behavior.
+        /// </summary>
         [Test]
         public async Task OrdinaryRawNodeStillPagesAndBoundsAsync()
         {
@@ -948,6 +1014,9 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(ReadScalar(bounded.Values[3].Value), Is.EqualTo(5.0));
         }
 
+        /// <summary>
+        /// Verifies that inserting an annotation at a new timestamp does not throw.
+        /// </summary>
         [Test]
         public void InsertAnnotationAtNewTimestampDoesNotThrow()
         {
@@ -973,6 +1042,9 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(outcome.OldValues.Count, Is.Zero);
         }
 
+        /// <summary>
+        /// Verifies that an annotation inserted at a new timestamp can be read back.
+        /// </summary>
         [Test]
         public async Task InsertAnnotationAtNewTimestampIsReadBackAsync()
         {
@@ -1004,6 +1076,9 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(page.IsFinal, Is.True);
         }
 
+        /// <summary>
+        /// Verifies that an annotation batch retains its new entry when another entry has a duplicate key.
+        /// </summary>
         [Test]
         public async Task InsertAnnotationBatchKeepsNewEntryWhenOneKeyIsDuplicateAsync()
         {
@@ -1034,6 +1109,9 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(outcome.OldValues.Count, Is.Zero);
         }
 
+        /// <summary>
+        /// Verifies that annotation replacement returns the prior annotation.
+        /// </summary>
         [Test]
         public async Task ReplaceAnnotationReturnsPriorAnnotationAsync()
         {
@@ -1071,6 +1149,9 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(replaced.OldValues[0].Message, Is.EqualTo("first"));
         }
 
+        /// <summary>
+        /// Verifies that updating an annotation at a new timestamp does not throw.
+        /// </summary>
         [Test]
         public void UpdateAnnotationAtNewTimestampDoesNotThrow()
         {
@@ -1095,6 +1176,9 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(outcome.OldValues.Count, Is.Zero);
         }
 
+        /// <summary>
+        /// Verifies that structured registration advertises only the structured-data profile.
+        /// </summary>
         [Test]
         public async Task StructuredRegistrationAdvertisesStructuredProfileOnlyAsync()
         {
@@ -1123,6 +1207,9 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(families, Does.Not.Contain(HistoricalAccessProfileFamily.Aggregate));
         }
 
+        /// <summary>
+        /// Verifies that data-only registration does not advertise the structured-data profile.
+        /// </summary>
         [Test]
         public async Task DataOnlyRegistrationDoesNotAdvertiseStructuredProfileAsync()
         {
@@ -1150,6 +1237,9 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(families, Does.Contain(HistoricalAccessProfileFamily.RawUpdates));
         }
 
+        /// <summary>
+        /// Verifies that a provider with no registered nodes advertises no historical-access profiles.
+        /// </summary>
         [Test]
         public async Task ProviderWithoutRegisteredNodesAdvertisesNoProfilesAsync()
         {

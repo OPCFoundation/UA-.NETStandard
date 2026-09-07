@@ -43,6 +43,9 @@ using Opc.Ua.Server.Historian.InMemory;
 
 namespace Opc.Ua.Server.Tests.Historian
 {
+    /// <summary>
+    /// Verifies in-memory historical values, modifications, annotations, paging, and time-bound semantics.
+    /// </summary>
     [TestFixture]
     [Category("Historian")]
     [Parallelizable(ParallelScope.All)]
@@ -50,6 +53,9 @@ namespace Opc.Ua.Server.Tests.Historian
     {
         private const ushort NamespaceIndex = 1;
 
+        /// <summary>
+        /// Verifies that inserted historical values are returned by raw-history reads.
+        /// </summary>
         [Test]
         public async Task InsertAsyncStoresValuesAndRawReadReturnsThemAsync()
         {
@@ -97,6 +103,9 @@ namespace Opc.Ua.Server.Tests.Historian
                 Is.EqualTo(3.0));
         }
 
+        /// <summary>
+        /// Verifies that insertion rejects duplicate source timestamps.
+        /// </summary>
         [Test]
         public async Task InsertRejectsDuplicateSourceTimestampAsync()
         {
@@ -115,6 +124,9 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(second.OperationResults[0].Code, Is.EqualTo(StatusCodes.BadEntryExists.Code));
         }
 
+        /// <summary>
+        /// Verifies that replacement fails when no historical entry exists.
+        /// </summary>
         [Test]
         public async Task ReplaceFailsWhenNoEntryExistsAsync()
         {
@@ -132,6 +144,9 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(outcome.OperationResults[0].Code, Is.EqualTo(StatusCodes.BadNoEntryExists.Code));
         }
 
+        /// <summary>
+        /// Verifies that update inserts or replaces values and records modification metadata.
+        /// </summary>
         [Test]
         public async Task UpdateUpsertsAndLogsModificationAsync()
         {
@@ -178,6 +193,9 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(mod.Values[0].Info.UpdateType, Is.EqualTo(HistoryUpdateType.Update));
         }
 
+        /// <summary>
+        /// Verifies that at-time deletion removes the matching entries.
+        /// </summary>
         [Test]
         public async Task DeleteAtTimeRemovesEntriesAsync()
         {
@@ -211,6 +229,9 @@ namespace Opc.Ua.Server.Tests.Historian
                 Is.EqualTo(2.0));
         }
 
+        /// <summary>
+        /// Verifies that history pagination follows resume tokens across pages.
+        /// </summary>
         [Test]
         public async Task PaginationFollowsResumeTokensAsync()
         {
@@ -265,6 +286,9 @@ namespace Opc.Ua.Server.Tests.Historian
                 Is.EqualTo(49));
         }
 
+        /// <summary>
+        /// Verifies that equal raw-history start and end times return the exact matching value.
+        /// </summary>
         [Test]
         public async Task ReadRawWithEqualTimesReturnsExactValueAsync()
         {
@@ -303,6 +327,9 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(page.IsFinal, Is.True);
         }
 
+        /// <summary>
+        /// Verifies that equal-time bounded reads include the next value unless the value limit is one.
+        /// </summary>
         [TestCase(0, 2)]
         [TestCase(1, 1)]
         [TestCase(2, 2)]
@@ -351,6 +378,9 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(page.IsFinal, Is.True);
         }
 
+        /// <summary>
+        /// Verifies that bounds count toward page limits and remaining values continue on the next page.
+        /// </summary>
         [Test]
         public async Task ReadRawBoundsCountTowardsMaximumAndContinueOnNextPageAsync()
         {
@@ -393,6 +423,9 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(second.IsFinal, Is.True);
         }
 
+        /// <summary>
+        /// Verifies that missing raw-history bounds produce BadBoundNotFound at the requested timestamps.
+        /// </summary>
         [Test]
         public async Task ReadRawMissingBoundsReturnsBadBoundNotFoundAtRequestedTimesAsync()
         {
@@ -433,6 +466,9 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(page.Values[^1].Value.SourceTimestamp, Is.EqualTo(endTime));
         }
 
+        /// <summary>
+        /// Verifies that a one-sided raw-history request returns the requested count without a continuation.
+        /// </summary>
         [TestCase(true)]
         [TestCase(false)]
         public async Task ReadRawOneSidedRequestReturnsRequestedCountWithoutContinuationAsync(bool isForward)
@@ -471,6 +507,9 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(page.IsFinal, Is.True);
         }
 
+        /// <summary>
+        /// Verifies that one-sided bounded reads add a missing-bound marker after archive exhaustion.
+        /// </summary>
         [TestCase(true)]
         [TestCase(false)]
         public async Task ReadRawOneSidedBoundsAddMissingBoundaryWhenArchiveIsExhaustedAsync(bool isForward)
@@ -510,6 +549,9 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(page.IsFinal, Is.True);
         }
 
+        /// <summary>
+        /// Verifies that one-sided bounded reads stop at the requested maximum without a continuation.
+        /// </summary>
         [TestCase(true)]
         [TestCase(false)]
         public async Task ReadRawOneSidedBoundsStopAtRequestedMaximumWithoutContinuationAsync(bool isForward)
@@ -545,6 +587,9 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(page.IsFinal, Is.True);
         }
 
+        /// <summary>
+        /// Verifies that an annotation can be inserted, read with its message intact, and deleted successfully.
+        /// </summary>
         [Test]
         public async Task AnnotationLifecycleAsync()
         {
@@ -579,6 +624,9 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(StatusCode.IsGood(del.OperationResults[0]), Is.True);
         }
 
+        /// <summary>
+        /// Verifies that an exactly filled final modified-history page has no continuation.
+        /// </summary>
         [Test]
         public async Task ExactModifiedPageDoesNotReturnContinuationAsync()
         {
@@ -621,6 +669,9 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(page.IsFinal, Is.True);
         }
 
+        /// <summary>
+        /// Verifies that reverse modified-history reads include the start and exclude the end timestamp.
+        /// </summary>
         [Test]
         public async Task ReverseModifiedHistoryIncludesStartAndExcludesEndAsync()
         {
@@ -672,6 +723,9 @@ namespace Opc.Ua.Server.Tests.Historian
                 Is.EqualTo((DateTimeUtc)middle));
         }
 
+        /// <summary>
+        /// Verifies that a forward modification cursor includes backdated modifications.
+        /// </summary>
         [Test]
         public async Task ModifiedHistoryForwardCursorIncludesBackdatedModificationAsync()
         {
@@ -750,6 +804,9 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(third.IsFinal, Is.True);
         }
 
+        /// <summary>
+        /// Verifies that a reverse modification cursor uses the complete ordering tuple.
+        /// </summary>
         [Test]
         public async Task ModifiedHistoryReverseCursorUsesCompleteOrderingTupleAsync()
         {
@@ -809,6 +866,9 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(second.IsFinal, Is.True);
         }
 
+        /// <summary>
+        /// Verifies that modified-history reads accept legacy sequence-only cursors.
+        /// </summary>
         [Test]
         public async Task ModifiedHistoryAcceptsLegacySequenceOnlyCursorAsync()
         {
@@ -862,6 +922,9 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(page.IsFinal, Is.True);
         }
 
+        /// <summary>
+        /// Verifies that modified-history reads reject unknown cursor-key versions.
+        /// </summary>
         [Test]
         public async Task ModifiedHistoryRejectsUnknownCursorKeyVersionAsync()
         {
@@ -905,6 +968,9 @@ namespace Opc.Ua.Server.Tests.Historian
                 Is.EqualTo(StatusCodes.BadContinuationPointInvalid));
         }
 
+        /// <summary>
+        /// Verifies that an exactly filled final annotation page has no continuation.
+        /// </summary>
         [Test]
         public async Task ExactAnnotationPageDoesNotReturnContinuationAsync()
         {

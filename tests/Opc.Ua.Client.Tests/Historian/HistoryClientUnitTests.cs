@@ -46,12 +46,18 @@ namespace Opc.Ua.Client.Tests.Historian
     [Category("Historian")]
     public class HistoryClientUnitTests
     {
+        /// <summary>
+        /// Verifies that constructing a history client with a null session throws ArgumentNullException.
+        /// </summary>
         [Test]
         public void ConstructorWithNullSessionThrowsArgumentNullException()
         {
             Assert.Throws<ArgumentNullException>(() => new HistoryClient(null!));
         }
 
+        /// <summary>
+        /// Verifies that a bad raw-history result is surfaced as a ServiceResultException with the server status.
+        /// </summary>
         [Test]
         public Task ReadRawThrowsServiceResultExceptionOnBadStatusAsync()
         {
@@ -92,6 +98,9 @@ namespace Opc.Ua.Client.Tests.Historian
             return Task.CompletedTask;
         }
 
+        /// <summary>
+        /// Verifies that an empty raw-history result collection produces BadUnexpectedError.
+        /// </summary>
         [Test]
         public void ReadRawWithEmptyResultsThrowsBadUnexpectedError()
         {
@@ -123,6 +132,9 @@ namespace Opc.Ua.Client.Tests.Historian
                 Is.EqualTo(StatusCodes.BadUnexpectedError));
         }
 
+        /// <summary>
+        /// Verifies that raw-history requests preserve multidimensional index ranges.
+        /// </summary>
         [Test]
         public async Task ReadRawPreservesMultidimensionalIndexRangeAsync()
         {
@@ -167,6 +179,9 @@ namespace Opc.Ua.Client.Tests.Historian
             Assert.That(capturedIndexRange, Is.EqualTo("1:2,0:3"));
         }
 
+        /// <summary>
+        /// Verifies that advancing empty raw-history pages stop at the configured page limit.
+        /// </summary>
         [Test]
         public Task ReadRawWithAdvancingEmptyPagesStopsAtConfiguredPageLimitAsync()
         {
@@ -239,6 +254,9 @@ namespace Opc.Ua.Client.Tests.Historian
             return Task.CompletedTask;
         }
 
+        /// <summary>
+        /// Verifies that a history update with an empty result collection throws ServiceResultException.
+        /// </summary>
         [Test]
         public void PerformUpdateWithEmptyResultsThrowsServiceResultException()
         {
@@ -272,6 +290,9 @@ namespace Opc.Ua.Client.Tests.Historian
                 "InsertAsync should surface a BadUnexpectedError.");
         }
 
+        /// <summary>
+        /// Verifies that at-time reads return values and send the requested timestamps in the service details.
+        /// </summary>
         [Test]
         public async Task ReadAtTimeAsyncReturnsValuesAndCapturesDetailsAsync()
         {
@@ -324,6 +345,9 @@ namespace Opc.Ua.Client.Tests.Historian
             Assert.That(details.ReqTimes.Count, Is.EqualTo(2));
         }
 
+        /// <summary>
+        /// Verifies that at-time reads reject a response whose value count does not match the requested timestamps.
+        /// </summary>
         [Test]
         public void ReadAtTimeAsyncRejectsMismatchedValueCount()
         {
@@ -378,6 +402,9 @@ namespace Opc.Ua.Client.Tests.Historian
                 Is.EqualTo(StatusCodes.BadDecodingError));
         }
 
+        /// <summary>
+        /// Verifies that an empty processed-history read uses the default aggregate configuration and yields no values.
+        /// </summary>
         [Test]
         public async Task ReadProcessedAsyncReturnsNoValuesAndUsesDefaultConfigurationAsync()
         {
@@ -425,6 +452,9 @@ namespace Opc.Ua.Client.Tests.Historian
             Assert.That(details.ProcessingInterval, Is.EqualTo(2.5));
         }
 
+        /// <summary>
+        /// Verifies that reading annotations fails when the annotation property cannot be resolved.
+        /// </summary>
         [Test]
         public void ReadAnnotationsAsyncThrowsWhenPropertyIsMissing()
         {
@@ -462,6 +492,9 @@ namespace Opc.Ua.Client.Tests.Historian
                 Is.EqualTo(StatusCodes.BadHistoryOperationUnsupported));
         }
 
+        /// <summary>
+        /// Verifies that writing an annotation returns BadNodeIdUnknown when the annotation property is missing.
+        /// </summary>
         [Test]
         public async Task WriteAnnotationAsyncReturnsBadNodeIdUnknownWhenPropertyIsMissingAsync()
         {
@@ -495,6 +528,9 @@ namespace Opc.Ua.Client.Tests.Historian
             Assert.That(result, Is.EqualTo(StatusCodes.BadNodeIdUnknown));
         }
 
+        /// <summary>
+        /// Verifies that deleting an annotation returns BadNodeIdUnknown when the annotation property is missing.
+        /// </summary>
         [Test]
         public async Task DeleteAnnotationAsyncReturnsBadNodeIdUnknownWhenPropertyIsMissingAsync()
         {
@@ -527,6 +563,9 @@ namespace Opc.Ua.Client.Tests.Historian
             Assert.That(result, Is.EqualTo(StatusCodes.BadNodeIdUnknown));
         }
 
+        /// <summary>
+        /// Verifies that server capabilities use readable values and defaults for bad entries.
+        /// </summary>
         [Test]
         public async Task GetServerCapabilitiesAsyncReadsValuesAndUsesDefaultsForBadEntriesAsync()
         {
@@ -583,6 +622,9 @@ namespace Opc.Ua.Client.Tests.Historian
             Assert.That(capabilities.DeleteEvent, Is.False);
         }
 
+        /// <summary>
+        /// Verifies that conformance information includes only historical-access claims.
+        /// </summary>
         [Test]
         public async Task GetConformanceInfoAsyncFiltersHistoricalClaimsAsync()
         {
@@ -631,6 +673,9 @@ namespace Opc.Ua.Client.Tests.Historian
                 Is.EqualTo("Aggregate Average"));
         }
 
+        /// <summary>
+        /// Verifies that modified-history reads yield the returned data and request modified-history details.
+        /// </summary>
         [Test]
         public async Task ReadModifiedAsyncYieldsHistoryDataAndUsesModifiedDetailsAsync()
         {
@@ -696,6 +741,9 @@ namespace Opc.Ua.Client.Tests.Historian
             Assert.That(details.NumValuesPerNode, Is.EqualTo(10u));
         }
 
+        /// <summary>
+        /// Verifies that disposing a raw-history enumerator releases its outstanding continuation point.
+        /// </summary>
         [Test]
         public async Task ReadRawAsyncReleasesContinuationPointWhenEnumeratorIsDisposedAsync()
         {
@@ -758,6 +806,9 @@ namespace Opc.Ua.Client.Tests.Historian
             Assert.That(releaseCalls[0].ContinuationPoint, Is.EqualTo((ByteString)"z"u8.ToArray()));
         }
 
+        /// <summary>
+        /// Verifies that a disposed session during continuation release does not escape enumerator disposal.
+        /// </summary>
         [Test]
         public async Task ReleaseObjectDisposedDoesNotEscapeEnumeratorDisposalAsync()
         {
@@ -818,6 +869,9 @@ namespace Opc.Ua.Client.Tests.Historian
                 Throws.Nothing);
         }
 
+        /// <summary>
+        /// Verifies that history deletion methods return the server's per-operation statuses.
+        /// </summary>
         [Test]
         public async Task DeleteMethodsReturnOperationStatusesAsync()
         {
@@ -882,6 +936,9 @@ namespace Opc.Ua.Client.Tests.Historian
             Assert.That(atTimeDetails.ReqTimes.Count, Is.EqualTo(2));
         }
 
+        /// <summary>
+        /// Verifies that annotation reads resolve the annotation property and yield its decoded values.
+        /// </summary>
         [Test]
         public async Task ReadAnnotationsAsyncYieldsResolvedAnnotationValuesAsync()
         {
@@ -933,6 +990,9 @@ namespace Opc.Ua.Client.Tests.Historian
             Assert.That(annotations[0].UserName, Is.EqualTo("user"));
         }
 
+        /// <summary>
+        /// Verifies that annotation reads reject malformed annotation values.
+        /// </summary>
         [Test]
         public void ReadAnnotationsAsyncRejectsMalformedValues()
         {
@@ -988,6 +1048,9 @@ namespace Opc.Ua.Client.Tests.Historian
                 Is.EqualTo(StatusCodes.BadDecodingError));
         }
 
+        /// <summary>
+        /// Verifies that annotation writes target the resolved property and return the operation result.
+        /// </summary>
         [Test]
         public async Task WriteAnnotationAsyncUsesResolvedPropertyAndReturnsOperationResultAsync()
         {
@@ -1028,6 +1091,9 @@ namespace Opc.Ua.Client.Tests.Historian
             Assert.That(details.UpdateValues.Count, Is.EqualTo(1));
         }
 
+        /// <summary>
+        /// Verifies that historical configuration reads resolve and decode the configuration's child properties.
+        /// </summary>
         [Test]
         public async Task GetConfigurationAsyncReadsResolvedPropertyValuesAsync()
         {
@@ -1123,6 +1189,9 @@ namespace Opc.Ua.Client.Tests.Historian
             Assert.That(configuration.AggregateConfiguration.UseSlopedExtrapolation, Is.False);
         }
 
+        /// <summary>
+        /// Verifies that an at-time read with a null timestamp collection throws ArgumentNullException.
+        /// </summary>
         [Test]
         public void ReadAtTimeAsyncWithNullTimesThrowsArgumentNullException()
         {
@@ -1135,6 +1204,9 @@ namespace Opc.Ua.Client.Tests.Historian
                 Throws.ArgumentNullException.With.Property(nameof(ArgumentNullException.ParamName)).EqualTo("times"));
         }
 
+        /// <summary>
+        /// Verifies that history replacement and update return their per-operation results.
+        /// </summary>
         [Test]
         public async Task ReplaceAndUpdateAsyncReturnOperationResultsAsync()
         {
@@ -1180,6 +1252,9 @@ namespace Opc.Ua.Client.Tests.Historian
             Assert.That(capturedUpdates[1].PerformInsertReplace, Is.EqualTo(PerformUpdateType.Update));
         }
 
+        /// <summary>
+        /// Verifies that raw-history deletion throws ServiceResultException when the server returns no results.
+        /// </summary>
         [Test]
         public void DeleteRawAsyncThrowsServiceResultExceptionForEmptyResults()
         {
@@ -1204,6 +1279,9 @@ namespace Opc.Ua.Client.Tests.Historian
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadUnexpectedError));
         }
 
+        /// <summary>
+        /// Verifies that annotation writes fall back to the result status but reject an empty result collection.
+        /// </summary>
         [Test]
         public async Task WriteAnnotationAsyncFallsBackToStatusThenThrowsOnEmptyResultsAsync()
         {
@@ -1243,6 +1321,9 @@ namespace Opc.Ua.Client.Tests.Historian
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadUnexpectedError));
         }
 
+        /// <summary>
+        /// Verifies that a missing historical configuration node produces an empty configuration.
+        /// </summary>
         [Test]
         public async Task GetConfigurationAsyncReturnsEmptyWhenConfigurationNodeIsMissingAsync()
         {
@@ -1256,6 +1337,9 @@ namespace Opc.Ua.Client.Tests.Historian
             Assert.That(configuration.HasConfiguration, Is.False);
         }
 
+        /// <summary>
+        /// Verifies that missing historical configuration properties are represented by null values.
+        /// </summary>
         [Test]
         public async Task GetConfigurationAsyncUsesNullsWhenChildPropertiesAreMissingAsync()
         {
@@ -1322,6 +1406,9 @@ namespace Opc.Ua.Client.Tests.Historian
             Assert.That(configuration.AggregateConfiguration, Is.Null);
         }
 
+        /// <summary>
+        /// Verifies that disposing an at-time history enumerator releases its outstanding continuation point.
+        /// </summary>
         [Test]
         public async Task ReadAtTimeAsyncReleasesContinuationPointWhenEnumeratorIsDisposedAsync()
         {
@@ -1381,6 +1468,9 @@ namespace Opc.Ua.Client.Tests.Historian
             Assert.That(releaseCalls[0].ContinuationPoint, Is.EqualTo((ByteString)"\""u8.ToArray()));
         }
 
+        /// <summary>
+        /// Verifies that at-time history paging stops at the configured page limit.
+        /// </summary>
         [Test]
         public void ReadAtTimeAsyncStopsAtConfiguredPageLimit()
         {
@@ -1451,6 +1541,9 @@ namespace Opc.Ua.Client.Tests.Historian
             Assert.That(released, Is.EqualTo(ByteString.From([4])));
         }
 
+        /// <summary>
+        /// Verifies that failed historical configuration property reads use default values.
+        /// </summary>
         [Test]
         public async Task GetConfigurationAsyncUsesDefaultValuesForBadPropertyReadsAsync()
         {

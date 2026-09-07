@@ -45,6 +45,9 @@ namespace Opc.Ua.Server.Tests
     [Parallelizable]
     public sealed class MonitoredItemLifecycleTests
     {
+        /// <summary>
+        /// Verifies that repeated deletion marks publish BadNodeIdUnknown only once for the deletion episode.
+        /// </summary>
         [Test]
         public void RepeatedDeletionMarksPublishBadNodeIdUnknownOnce()
         {
@@ -69,6 +72,10 @@ namespace Opc.Ua.Server.Tests
             });
         }
 
+        /// <summary>
+        /// Verifies that a size-one monitored-item queue publishes the deletion status instead of the pre-deletion
+        /// value.
+        /// </summary>
         [Test]
         public void QueueSizeOnePublishesRequiredBadInsteadOfThePreDeletionValue()
         {
@@ -98,6 +105,10 @@ namespace Opc.Ua.Server.Tests
             });
         }
 
+        /// <summary>
+        /// Verifies that a recovered value replaces an unpublished deletion notification in a size-one monitored-item
+        /// queue.
+        /// </summary>
         [Test]
         public void QueueSizeOneCanReplaceDeletionNotificationBeforePublish()
         {
@@ -114,6 +125,9 @@ namespace Opc.Ua.Server.Tests
             Assert.That(more, Is.False);
         }
 
+        /// <summary>
+        /// Verifies that the queue handler applies its discard policy without discarding a required deletion marker.
+        /// </summary>
         [TestCase(true)]
         [TestCase(false)]
         public void LifecycleValuesObeyQueueDiscardPolicyWithoutDiscardingBad(bool discardOldest)
@@ -147,6 +161,9 @@ namespace Opc.Ua.Server.Tests
             });
         }
 
+        /// <summary>
+        /// Verifies that recovery values pass through the configured data-change filter.
+        /// </summary>
         [Test]
         public void RecoveryValuesPassTheConfiguredDataChangeFilter()
         {
@@ -195,6 +212,9 @@ namespace Opc.Ua.Server.Tests
             });
         }
 
+        /// <summary>
+        /// Verifies that rebinding updates monitored-item ownership without erasing a pending bad notification.
+        /// </summary>
         [Test]
         public void RebindUpdatesOwnershipWithoutErasingPendingBad()
         {
@@ -226,6 +246,9 @@ namespace Opc.Ua.Server.Tests
             });
         }
 
+        /// <summary>
+        /// Verifies that a new deletion after recovery publishes another bad notification.
+        /// </summary>
         [Test]
         public void NewDeletionEpochAfterRecoveryPublishesBadAgain()
         {
@@ -254,6 +277,9 @@ namespace Opc.Ua.Server.Tests
             });
         }
 
+        /// <summary>
+        /// Verifies that storing and restoring a deleted item preserves its deleted and detached flags.
+        /// </summary>
         [Test]
         public void StoringAndRestoringADeletedItemCarriesTheDeletedAndDetachedFlags()
         {
@@ -285,6 +311,9 @@ namespace Opc.Ua.Server.Tests
             });
         }
 
+        /// <summary>
+        /// Verifies that storing and restoring a live item leaves deleted and detached flags clear.
+        /// </summary>
         [Test]
         public void StoringAndRestoringALiveItemLeavesTheFlagsClear()
         {
@@ -314,6 +343,9 @@ namespace Opc.Ua.Server.Tests
             });
         }
 
+        /// <summary>
+        /// Verifies that multiple pending deletion episodes collapse into one queued marker.
+        /// </summary>
         [Test]
         public void MultiplePendingDeletionEpochsCollapseIntoOneMarker()
         {
@@ -356,6 +388,9 @@ namespace Opc.Ua.Server.Tests
             });
         }
 
+        /// <summary>
+        /// Verifies that discard processing retries a transient durable-queue dequeue failure.
+        /// </summary>
         [Test]
         public void DiscardRetriesTransientDurableDequeue()
         {
@@ -401,6 +436,9 @@ namespace Opc.Ua.Server.Tests
             });
         }
 
+        /// <summary>
+        /// Verifies that an ordinary BadNodeIdUnknown sample does not block the notification queue.
+        /// </summary>
         [Test]
         public void OrdinaryBadNodeIdUnknownSampleDoesNotBlockTheQueue()
         {
@@ -424,6 +462,9 @@ namespace Opc.Ua.Server.Tests
             });
         }
 
+        /// <summary>
+        /// Verifies that ordinary BadNodeIdUnknown values obey the configured queue-size limit.
+        /// </summary>
         [Test]
         public void OrdinaryBadNodeIdUnknownValuesObeyTheConfiguredQueueSize()
         {
@@ -467,6 +508,9 @@ namespace Opc.Ua.Server.Tests
             });
         }
 
+        /// <summary>
+        /// Verifies that a second required marker merges into the pending marker and reports overflow.
+        /// </summary>
         [TestCase(true)]
         [TestCase(false)]
         public void SecondMarkerCollapsesIntoThePendingOneAndTheMarkerReportsOverflow(bool discardOldest)
@@ -508,6 +552,9 @@ namespace Opc.Ua.Server.Tests
             });
         }
 
+        /// <summary>
+        /// Verifies that a replacement required marker supersedes the pending marker.
+        /// </summary>
         [TestCase(true)]
         [TestCase(false)]
         public void ReplacementRequiredMarkerSupersedesPendingMarker(
@@ -565,6 +612,9 @@ namespace Opc.Ua.Server.Tests
             Assert.That(handler.HasRequiredValues, Is.False);
         }
 
+        /// <summary>
+        /// Verifies that rebuilding a required-value queue retries transient durable dequeue failures.
+        /// </summary>
         [Test]
         public void RequiredQueueRebuildsRetryTransientDurableDequeues()
         {
@@ -617,6 +667,9 @@ namespace Opc.Ua.Server.Tests
                 Is.False);
         }
 
+        /// <summary>
+        /// Verifies that a size-one queue handler drops ordinary values until its required marker is published.
+        /// </summary>
         [Test]
         public void QueueSizeOneDropsIncomingValuesWhileTheMarkerIsPending()
         {
@@ -657,6 +710,9 @@ namespace Opc.Ua.Server.Tests
             });
         }
 
+        /// <summary>
+        /// Verifies that queue resizing preserves required-marker protection while ordinary values remain discardable.
+        /// </summary>
         [Test]
         public void ResizingAQueueKeepsMarkersProtectedAndOrdinaryValuesDiscardable()
         {
@@ -689,6 +745,9 @@ namespace Opc.Ua.Server.Tests
             });
         }
 
+        /// <summary>
+        /// Verifies that an ordinary value replaces an unprotected BadNodeIdUnknown sample in a size-one queue.
+        /// </summary>
         [Test]
         public void OrdinaryValueReplacesBadNodeIdUnknownAtQueueSizeOne()
         {

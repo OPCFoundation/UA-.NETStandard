@@ -39,11 +39,18 @@ using Opc.Ua.Tests;
 
 namespace Opc.Ua.Server.Tests.Historian
 {
+    /// <summary>
+    /// Verifies provider routing and auditing for structured historical data operations.
+    /// </summary>
     [TestFixture]
     [Category("Historian")]
     [Parallelizable]
     public sealed class HistorianStructuredDispatcherTests
     {
+        /// <summary>
+        /// Verifies that structured create, read, update, and delete operations route through the provider and emit
+        /// audits.
+        /// </summary>
         [Test]
         public async Task StructuredCrudRoutesThroughProviderAndAuditsAsync()
         {

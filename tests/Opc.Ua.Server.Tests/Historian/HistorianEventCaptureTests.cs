@@ -36,11 +36,17 @@ using Opc.Ua.Tests;
 
 namespace Opc.Ua.Server.Tests.Historian
 {
+    /// <summary>
+    /// Verifies automatic event-history capture without disrupting live event delivery.
+    /// </summary>
     [TestFixture]
     [Category("Historian")]
     [Parallelizable]
     public sealed class HistorianEventCaptureTests
     {
+        /// <summary>
+        /// Verifies that automatic event capture archives both synchronous and asynchronous event reports.
+        /// </summary>
         [Test]
         public async Task HistorizeEventsCapturesSynchronousAndAsynchronousReportsAsync()
         {
@@ -130,6 +136,9 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(page.Values[0].EventType, Is.EqualTo(ObjectTypeIds.BaseEventType));
         }
 
+        /// <summary>
+        /// Verifies that historian rejection does not suppress live event delivery.
+        /// </summary>
         [Test]
         public async Task HistorianRejectionDoesNotSuppressLiveEventDeliveryAsync()
         {
@@ -191,6 +200,9 @@ namespace Opc.Ua.Server.Tests.Historian
                 Throws.Nothing);
         }
 
+        /// <summary>
+        /// Verifies that an unsupported historical event type does not suppress live event delivery.
+        /// </summary>
         [Test]
         public async Task UnsupportedEventTypeDoesNotSuppressLiveEventDeliveryAsync()
         {

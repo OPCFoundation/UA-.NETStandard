@@ -33,8 +33,14 @@ using System.Threading.Tasks;
 
 namespace Opc.Ua.Server.Historian
 {
+    /// <summary>
+    /// Owns a claimed history continuation until it is retired, replaced, or restored to the session.
+    /// </summary>
     internal sealed class HistorianContinuationClaim : IAsyncDisposable
     {
+        /// <summary>
+        /// Associates claimed continuation state with the session store used to save or restore it.
+        /// </summary>
         public HistorianContinuationClaim(
             ISessionContinuationPoints continuationPoints,
             HistorianContinuationState state)
@@ -44,10 +50,16 @@ namespace Opc.Ua.Server.Historian
             m_state = state ?? throw new ArgumentNullException(nameof(state));
         }
 
+        /// <summary>
+        /// Gets the claimed state while the claim remains active.
+        /// </summary>
         public HistorianContinuationState State =>
             m_state ?? throw new ObjectDisposedException(
                 nameof(HistorianContinuationClaim));
 
+        /// <summary>
+        /// Saves the next continuation and retires the claimed state after persistence succeeds.
+        /// </summary>
         public async ValueTask<HistorianContinuationState> CommitSuccessorAsync(
             HistorianResumeToken resumeToken,
             int? bufferedProcessedOffset,
@@ -63,6 +75,9 @@ namespace Opc.Ua.Server.Historian
             return successor;
         }
 
+        /// <summary>
+        /// Disposes the claimed state without restoring it to the session.
+        /// </summary>
         public void Retire()
         {
             HistorianContinuationState? state = m_state;
@@ -71,6 +86,9 @@ namespace Opc.Ua.Server.Historian
             state?.Dispose();
         }
 
+        /// <summary>
+        /// Replaces legacy annotation state with a copy bound to the annotation property node.
+        /// </summary>
         public void NormalizeLegacyAnnotationNodeId(NodeId nodeId)
         {
             HistorianContinuationState state = State;
@@ -81,6 +99,9 @@ namespace Opc.Ua.Server.Historian
         }
 
         // TODO: Remove this suppression when CA2000 recognizes the documented ownership transfer.
+        /// <summary>
+        /// Attempts to restore an uncommitted continuation and releases the claim.
+        /// </summary>
         [SuppressMessage(
             "Reliability",
             "CA2000:Dispose objects before losing scope",

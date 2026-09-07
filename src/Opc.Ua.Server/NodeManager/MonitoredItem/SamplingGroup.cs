@@ -586,10 +586,16 @@ namespace Opc.Ua.Server
     /// </summary>
     internal static partial class SamplingGroupLog
     {
+        /// <summary>
+        /// Logs the start of the named sampling worker.
+        /// </summary>
         [LoggerMessage(EventId = ServerEventIds.SamplingGroup + 0, Level = LogLevel.Trace,
             Message = "Server: {Name} Thread Started.")]
         public static partial void ServerNameThreadStarted(this ILogger logger, string? name);
 
+        /// <summary>
+        /// Logs a sampling pass that cannot keep up with the configured sampling interval.
+        /// </summary>
         [LoggerMessage(EventId = ServerEventIds.SamplingGroup + 1, Level = LogLevel.Warning,
             Message = "SamplingGroup cannot sample fast enough. TimeToSample={Delay}ms, " +
                 "SamplingInterval={SleepCycle}ms")]
@@ -598,16 +604,25 @@ namespace Opc.Ua.Server
             double delay,
             double sleepCycle);
 
+        /// <summary>
+        /// Logs normal completion of the named sampling worker.
+        /// </summary>
         [LoggerMessage(EventId = ServerEventIds.SamplingGroup + 2, Level = LogLevel.Trace,
             Message = "Server: {Name} Thread Exited Normally.")]
         public static partial void ServerNameThreadExitedNormally(this ILogger logger, string? name);
 
+        /// <summary>
+        /// Logs an exception that unexpectedly terminated the monitored-item sampling worker.
+        /// </summary>
         [LoggerMessage(EventId = ServerEventIds.SamplingGroup + 3, Level = LogLevel.Error,
             Message = "Server: SampleMonitoredItems Thread Exited Unexpectedly.")]
         public static partial void ServerSampleMonitoredItemsThreadExitedUnexpectedly(
             this ILogger logger,
             Exception ex);
 
+        /// <summary>
+        /// Logs an unexpected failure while sampling monitored values.
+        /// </summary>
         [LoggerMessage(EventId = ServerEventIds.SamplingGroup + 4, Level = LogLevel.Error,
             Message = "Server: Unexpected error sampling values.")]
         public static partial void ServerUnexpectedErrorSamplingValues(this ILogger logger, Exception ex);

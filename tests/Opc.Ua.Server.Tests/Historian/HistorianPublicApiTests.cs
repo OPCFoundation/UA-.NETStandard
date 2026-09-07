@@ -37,11 +37,17 @@ using Opc.Ua.Server.Historian;
 
 namespace Opc.Ua.Server.Tests.Historian
 {
+    /// <summary>
+    /// Verifies that public historian collection APIs use the stack's collection and byte-string abstractions.
+    /// </summary>
     [TestFixture]
     [Category("Historian")]
     [Parallelizable]
     public sealed class HistorianPublicApiTests
     {
+        /// <summary>
+        /// Verifies that public historian collections use ArrayOf and binary payloads use ByteString.
+        /// </summary>
         [Test]
         public void PublicHistorianCollectionsUseArrayOfAndByteString()
         {

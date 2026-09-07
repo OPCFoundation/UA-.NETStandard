@@ -1378,6 +1378,9 @@ namespace Opc.Ua.Server
     /// </summary>
     internal static partial class SessionLog
     {
+        /// <summary>
+        /// Logs session state and identity using the retained EventSource-compatible event identity.
+        /// </summary>
         [LoggerMessage(
             EventId = ServerCompatibilityEventIds.SessionState,
             EventName = "SessionState",

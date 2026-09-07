@@ -703,6 +703,9 @@ namespace Opc.Ua.Server
     /// </summary>
     internal static partial class DataChangeQueueHandlerLog
     {
+        /// <summary>
+        /// Logs a queued value overwritten because the next sampling interval has not elapsed.
+        /// </summary>
         [LoggerMessage(EventId = ServerEventIds.DataChangeQueueHandler + 0, Level = LogLevel.Trace,
             Message = "OVERWRITTEN VALUE (TOO SOON FOR ANOTHER SAMPLE): Value={Value} CODE={Code}<{Code:X8}> " +
                 "SamplingInterval={SamplingInterval}QueueValueCall {Now} NextSampleTime {NextSampleTime}")]
@@ -714,6 +717,9 @@ namespace Opc.Ua.Server
             long now,
             long nextSampleTime);
 
+        /// <summary>
+        /// Logs a value being added to the data-change queue.
+        /// </summary>
         [LoggerMessage(EventId = ServerEventIds.DataChangeQueueHandler + 1, Level = LogLevel.Trace,
             Message = "ENQUEUE VALUE: Value={Value}")]
         public static partial void ENQUEUEVALUEValueValue(this ILogger logger, Variant value);

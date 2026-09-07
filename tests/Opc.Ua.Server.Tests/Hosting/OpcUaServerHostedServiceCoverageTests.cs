@@ -75,6 +75,9 @@ namespace Opc.Ua.Server.Tests.Hosting
     [NonParallelizable]
     public sealed class OpcUaServerHostedServiceCoverageTests
     {
+        /// <summary>
+        /// Verifies that hosted-service construction rejects null options.
+        /// </summary>
         [Test]
         public void ConstructorThrowsForNullOptions()
         {
@@ -96,6 +99,9 @@ namespace Opc.Ua.Server.Tests.Hosting
                     .EqualTo("options"));
         }
 
+        /// <summary>
+        /// Verifies that hosted-service construction rejects null configuration providers.
+        /// </summary>
         [Test]
         public void ConstructorThrowsForNullConfigurationProviders()
         {
@@ -117,6 +123,9 @@ namespace Opc.Ua.Server.Tests.Hosting
                     .EqualTo("configurationProviders"));
         }
 
+        /// <summary>
+        /// Verifies that hosted startup wires historian and alias stores on an ordinary server.
+        /// </summary>
         [Test]
         public async Task HostedStartupWiresHistorianAndAliasStoresOnPlainServerAsync()
         {
@@ -189,6 +198,10 @@ namespace Opc.Ua.Server.Tests.Hosting
                 Has.Member(registrySourcedStore.Object));
         }
 
+        /// <summary>
+        /// Verifies that matching certificate and issued-token policies do not produce unmatched-authenticator
+        /// warnings.
+        /// </summary>
         [Test]
         public async Task MatchingCertificateAndIssuedTokenPoliciesDoNotLogUnmatchedWarningAsync()
         {
@@ -245,6 +258,9 @@ namespace Opc.Ua.Server.Tests.Hosting
                 Is.False);
         }
 
+        /// <summary>
+        /// Verifies that hosted startup wires optional features and matches the username authentication policy.
+        /// </summary>
         [Test]
         public async Task HostedServiceWiresOptionalFeaturesAndMatchesUserNamePolicyAsync()
         {

@@ -133,6 +133,9 @@ namespace Opc.Ua.Redundancy.Server
         public ArrayOf<SharedKeyValueStructuredHistorianNode> StructuredNodes { get; set; }
             = [];
 
+        /// <summary>
+        /// Rejects invalid provider identity, storage limits, retention settings, and structured-node configuration.
+        /// </summary>
         internal void Validate()
         {
             if (string.IsNullOrWhiteSpace(ProviderId))

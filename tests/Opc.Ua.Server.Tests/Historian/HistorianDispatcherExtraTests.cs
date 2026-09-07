@@ -59,6 +59,9 @@ namespace Opc.Ua.Server.Tests.Historian
 
         // ─── DispatchRawReadAsync null-arg guards ────────────────────────────
 
+        /// <summary>
+        /// Verifies that raw-history dispatch rejects a null provider.
+        /// </summary>
         [Test]
         public void DispatchRawReadAsyncThrowsWhenProviderIsNull()
         {
@@ -75,6 +78,9 @@ namespace Opc.Ua.Server.Tests.Historian
                     CancellationToken.None).AsTask(), Throws.TypeOf<ArgumentNullException>());
         }
 
+        /// <summary>
+        /// Verifies that raw-history dispatch rejects a null node.
+        /// </summary>
         [Test]
         public void DispatchRawReadAsyncThrowsWhenNodeIsNull()
         {
@@ -90,6 +96,9 @@ namespace Opc.Ua.Server.Tests.Historian
                     CancellationToken.None).AsTask(), Throws.TypeOf<ArgumentNullException>());
         }
 
+        /// <summary>
+        /// Verifies that raw-history dispatch rejects a null node-read request.
+        /// </summary>
         [Test]
         public void DispatchRawReadAsyncThrowsWhenNodeToReadIsNull()
         {
@@ -105,6 +114,9 @@ namespace Opc.Ua.Server.Tests.Historian
                     CancellationToken.None).AsTask(), Throws.TypeOf<ArgumentNullException>());
         }
 
+        /// <summary>
+        /// Verifies that raw-history dispatch rejects null read details.
+        /// </summary>
         [Test]
         public void DispatchRawReadAsyncThrowsWhenDetailsIsNull()
         {
@@ -121,6 +133,9 @@ namespace Opc.Ua.Server.Tests.Historian
                     CancellationToken.None).AsTask(), Throws.TypeOf<ArgumentNullException>());
         }
 
+        /// <summary>
+        /// Verifies that raw-history dispatch rejects a null result destination.
+        /// </summary>
         [Test]
         public void DispatchRawReadAsyncThrowsWhenResultIsNull()
         {
@@ -139,6 +154,9 @@ namespace Opc.Ua.Server.Tests.Historian
 
         // ─── Modified data read (IsReadModified = true) ──────────────────────
 
+        /// <summary>
+        /// Verifies that raw-history dispatch returns modified data when IsReadModified is set.
+        /// </summary>
         [Test]
         public async Task DispatchRawReadAsyncWithIsReadModifiedReturnsModifiedDataAsync()
         {
@@ -183,6 +201,9 @@ namespace Opc.Ua.Server.Tests.Historian
 
         // ─── AtTime read – interpolation branches ────────────────────────────
 
+        /// <summary>
+        /// Verifies that at-time dispatch returns the exact raw value for a matching timestamp.
+        /// </summary>
         [Test]
         public async Task DispatchAtTimeReadAsyncWithExactMatchReturnsExactValueAsync()
         {
@@ -223,6 +244,9 @@ namespace Opc.Ua.Server.Tests.Historian
                 Is.EqualTo(AggregateBits.Raw));
         }
 
+        /// <summary>
+        /// Verifies that at-time dispatch reports a no-data status when no samples exist.
+        /// </summary>
         [Test]
         public async Task DispatchAtTimeReadAsyncWithNoDataReturnsNoDataStatusAsync()
         {
@@ -255,6 +279,9 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(values[0].StatusCode, Is.EqualTo(StatusCodes.BadNoData));
         }
 
+        /// <summary>
+        /// Verifies that at-time fallback dispatch follows the shared interpolation rules.
+        /// </summary>
         [Test]
         public async Task DispatchAtTimeReadFallbackUsesSharedInterpolationRulesAsync()
         {
@@ -320,6 +347,9 @@ namespace Opc.Ua.Server.Tests.Historian
                 Is.EqualTo(AggregateBits.Interpolated));
         }
 
+        /// <summary>
+        /// Verifies that interpolated at-time bounds search beyond bad-quality values.
+        /// </summary>
         [Test]
         public async Task DispatchAtTimeReadInterpolatedBoundsSearchPastBadValuesAsync()
         {
@@ -384,6 +414,9 @@ namespace Opc.Ua.Server.Tests.Historian
                 Is.EqualTo(AggregateBits.Interpolated));
         }
 
+        /// <summary>
+        /// Verifies that sloped at-time extrapolation loads two raw values.
+        /// </summary>
         [Test]
         public async Task DispatchAtTimeReadFallbackLoadsTwoValuesForSlopedExtrapolationAsync()
         {
@@ -438,6 +471,9 @@ namespace Opc.Ua.Server.Tests.Historian
                 Is.EqualTo(AggregateBits.Interpolated));
         }
 
+        /// <summary>
+        /// Verifies that interpolated at-time bounds include the maximum representable timestamp.
+        /// </summary>
         [Test]
         public async Task DispatchAtTimeReadInterpolatedBoundsIncludeMaximumTimestampAsync()
         {
@@ -524,6 +560,9 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(StatusCode.IsUncertain(history.DataValues[0].StatusCode), Is.True);
         }
 
+        /// <summary>
+        /// Verifies that a batched at-time read returns an exact value at the maximum timestamp.
+        /// </summary>
         [Test]
         public async Task DispatchAtTimeReadBatchReturnsExactMaximumTimestampAsync()
         {
@@ -589,6 +628,9 @@ namespace Opc.Ua.Server.Tests.Historian
                 Is.EqualTo(AggregateBits.Raw));
         }
 
+        /// <summary>
+        /// Verifies that simple-bound at-time reads return BadNoData when only a later value exists.
+        /// </summary>
         [Test]
         public async Task DispatchAtTimeReadAsyncWithSimpleBoundsAndOnlyAfterValueReturnsBadNoDataAsync()
         {
@@ -627,6 +669,9 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(values[0].StatusCode, Is.EqualTo(StatusCodes.BadNoData));
         }
 
+        /// <summary>
+        /// Verifies that unsupported nonnumeric at-time interpolation returns BadTypeMismatch.
+        /// </summary>
         [Test]
         public async Task DispatchAtTimeReadAsyncWithNonNumericValueReturnsBadTypeMismatchAsync()
         {
@@ -678,6 +723,9 @@ namespace Opc.Ua.Server.Tests.Historian
 
         // ─── DispatchRawReadAsync null systemContext guard ───────────────────
 
+        /// <summary>
+        /// Verifies that raw-history dispatch rejects a null system context.
+        /// </summary>
         [Test]
         public void DispatchRawReadAsyncThrowsWhenSystemContextIsNull()
         {
@@ -696,6 +744,9 @@ namespace Opc.Ua.Server.Tests.Historian
 
         // ─── ReleaseContinuationPoint null-arg guards ────────────────────────
 
+        /// <summary>
+        /// Verifies that continuation release rejects a null system context.
+        /// </summary>
         [Test]
         public void ReleaseContinuationPointThrowsWhenSystemContextIsNull()
         {
@@ -706,6 +757,9 @@ namespace Opc.Ua.Server.Tests.Historian
                 Throws.TypeOf<ArgumentNullException>());
         }
 
+        /// <summary>
+        /// Verifies that continuation release rejects a null node-read request.
+        /// </summary>
         [Test]
         public void ReleaseContinuationPointThrowsWhenNodeToReadIsNull()
         {
@@ -719,6 +773,9 @@ namespace Opc.Ua.Server.Tests.Historian
 
         // ─── TimestampsToReturn.Neither clears sourceTimestamp ───────────────
 
+        /// <summary>
+        /// Verifies that raw-history dispatch clears both timestamps when neither is requested.
+        /// </summary>
         [Test]
         public async Task DispatchRawReadAsyncWithTimestampsNeitherClearsTimestampsAsync()
         {
@@ -760,6 +817,9 @@ namespace Opc.Ua.Server.Tests.Historian
 
         // ─── DataEncoding unsupported path ───────────────────────────────────
 
+        /// <summary>
+        /// Verifies that raw-history dispatch reports an encoding error for an unsupported data encoding.
+        /// </summary>
         [Test]
         public async Task DispatchRawReadAsyncWithDataEncodingReturnsBadEncodingAsync()
         {

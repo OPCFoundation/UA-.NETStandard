@@ -45,11 +45,17 @@ using Opc.Ua.Server.Historian.InMemory;
 
 namespace Opc.Ua.Server.Tests.Historian
 {
+    /// <summary>
+    /// Verifies historian event insertion, reading, and deletion by identifier.
+    /// </summary>
     [TestFixture]
     [Category("Historian")]
     [Parallelizable(ParallelScope.All)]
     public class HistorianEventDispatcherTests
     {
+        /// <summary>
+        /// Verifies that an inserted historical event is returned by event-read dispatch.
+        /// </summary>
         [Test]
         public async Task EventInsertReadRoundTripAsync()
         {
@@ -104,6 +110,9 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(messageOut.Text, Is.EqualTo("hello"));
         }
 
+        /// <summary>
+        /// Verifies that event deletion removes the record with the requested identifier.
+        /// </summary>
         [Test]
         public async Task EventDeleteRemovesByIdAsync()
         {

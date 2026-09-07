@@ -31,11 +31,17 @@ using NUnit.Framework;
 
 namespace Opc.Ua.Server.Tests
 {
+    /// <summary>
+    /// Verifies exact values, interpolation, bounds, and error statuses for at-time aggregate calculations.
+    /// </summary>
     [TestFixture]
     [Category("AggregateCalculator")]
     [Parallelizable(ParallelScope.All)]
     public sealed class AggregateCalculatorAtTimeTests
     {
+        /// <summary>
+        /// Verifies that an at-time calculation returns the exact raw value at a matching timestamp.
+        /// </summary>
         [TestCaseSource(nameof(ExactValues))]
         public void CalculateAtTimeReturnsExactRawValue(
             StatusCode statusCode)
@@ -60,6 +66,9 @@ namespace Opc.Ua.Server.Tests
             Assert.That(result.SourceTimestamp, Is.EqualTo(timestamp));
         }
 
+        /// <summary>
+        /// Verifies that an at-time calculation uses sloped interpolation between bounds.
+        /// </summary>
         [Test]
         public void CalculateAtTimeUsesSlopedInterpolation()
         {
@@ -80,6 +89,9 @@ namespace Opc.Ua.Server.Tests
                 Is.EqualTo(AggregateBits.Interpolated));
         }
 
+        /// <summary>
+        /// Verifies that an at-time calculation uses the preceding value for stepped interpolation.
+        /// </summary>
         [Test]
         public void CalculateAtTimeUsesSteppedInterpolation()
         {
@@ -100,6 +112,9 @@ namespace Opc.Ua.Server.Tests
                 Is.EqualTo(AggregateBits.Interpolated));
         }
 
+        /// <summary>
+        /// Verifies that simple-bound at-time reads still calculate an interpolated value.
+        /// </summary>
         [Test]
         public void CalculateAtTimeSimpleBoundsStillCalculateValue()
         {
@@ -119,6 +134,9 @@ namespace Opc.Ua.Server.Tests
                 Is.EqualTo(AggregateBits.Interpolated));
         }
 
+        /// <summary>
+        /// Verifies that interpolated at-time bounds skip bad values.
+        /// </summary>
         [Test]
         public void CalculateAtTimeInterpolatedBoundsSkipBadValues()
         {
@@ -140,6 +158,9 @@ namespace Opc.Ua.Server.Tests
                 Is.EqualTo(AggregateBits.Interpolated));
         }
 
+        /// <summary>
+        /// Verifies that a bad late simple bound produces an uncertain stepped value.
+        /// </summary>
         [Test]
         public void CalculateAtTimeSimpleBadLateBoundUsesUncertainStep()
         {
@@ -160,6 +181,9 @@ namespace Opc.Ua.Server.Tests
                 Is.EqualTo(AggregateBits.Interpolated));
         }
 
+        /// <summary>
+        /// Verifies that an at-time calculation without a starting value returns BadNoData.
+        /// </summary>
         [Test]
         public void CalculateAtTimeWithoutStartingValueReturnsBadNoData()
         {
@@ -177,6 +201,9 @@ namespace Opc.Ua.Server.Tests
             Assert.That(result.SourceTimestamp, Is.EqualTo(TimeAt(5)));
         }
 
+        /// <summary>
+        /// Verifies that sloped interpolation of an unsupported type returns BadTypeMismatch.
+        /// </summary>
         [Test]
         public void CalculateAtTimeUnsupportedSlopedTypeReturnsBadTypeMismatch()
         {

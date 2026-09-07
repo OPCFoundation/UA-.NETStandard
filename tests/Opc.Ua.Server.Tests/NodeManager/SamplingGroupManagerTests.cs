@@ -79,6 +79,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 new Mock<ISession>().Object);
         }
 
+        /// <summary>
+        /// Verifies that sampling-group manager construction rejects a null server.
+        /// </summary>
         [Test]
         public void ConstructorWithNullServerThrows()
         {
@@ -89,6 +92,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 Throws.TypeOf<ArgumentNullException>());
         }
 
+        /// <summary>
+        /// Verifies that sampling-group manager construction rejects a null node manager.
+        /// </summary>
         [Test]
         public void ConstructorWithNullNodeManagerThrows()
         {
@@ -99,6 +105,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 Throws.TypeOf<ArgumentNullException>());
         }
 
+        /// <summary>
+        /// Verifies that an empty sampling-rate collection selects the default rates.
+        /// </summary>
         [Test]
         public void ConstructorWithEmptySamplingRatesUsesDefaults()
         {
@@ -108,6 +117,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
             Assert.That(manager, Is.Not.Null);
         }
 
+        /// <summary>
+        /// Verifies that a null sampling-rate collection selects the default rates.
+        /// </summary>
         [Test]
         public void ConstructorWithNullSamplingRatesUsesDefaults()
         {
@@ -120,6 +132,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
             Assert.That(manager, Is.Not.Null);
         }
 
+        /// <summary>
+        /// Verifies that creating a monitored item with an event filter creates an exception-based item.
+        /// </summary>
         [Test]
         public void CreateMonitoredItemWithEventFilterCreatesExceptionBasedItem()
         {
@@ -157,6 +172,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
             Assert.That(item.SamplingInterval, Is.Zero);
         }
 
+        /// <summary>
+        /// Verifies that stopping monitoring removes an exception-based item.
+        /// </summary>
         [Test]
         public void StopMonitoringRemovesExceptionBasedItem()
         {
@@ -194,6 +212,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
             Assert.That(() => manager.StopMonitoring(item), Throws.Nothing);
         }
 
+        /// <summary>
+        /// Verifies that shutting down a manager without sampling groups is safe.
+        /// </summary>
         [Test]
         public void ShutdownWithoutGroupsIsSafe()
         {
@@ -202,6 +223,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
             Assert.DoesNotThrow(manager.Shutdown);
         }
 
+        /// <summary>
+        /// Verifies that applying changes without sampling groups is safe.
+        /// </summary>
         [Test]
         public void ApplyChangesWithoutGroupsIsSafe()
         {
@@ -210,6 +234,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
             Assert.DoesNotThrow(manager.ApplyChanges);
         }
 
+        /// <summary>
+        /// Verifies that create and modify retain original filters and request objects separately from revised filters.
+        /// </summary>
         [Test]
         public void RevisedFiltersPreserveOriginalFiltersAndRequests()
         {

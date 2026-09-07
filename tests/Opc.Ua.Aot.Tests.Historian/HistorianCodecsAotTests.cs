@@ -46,6 +46,10 @@ namespace Opc.Ua.Aot.Tests
     [ClassDataSource<AotTestFixture>(Shared = SharedType.PerTestSession)]
     public sealed class HistorianCodecsAotTests(AotTestFixture fixture)
     {
+        /// <summary>
+        /// Verifies that shared historian records and continuation state round-trip through the codecs under Native
+        /// AOT.
+        /// </summary>
         [Test]
         public async Task SharedHistorianAndContinuationCodecsRoundTripAsync()
         {
