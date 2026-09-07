@@ -334,26 +334,40 @@ namespace Opc.Ua.Server.Fluent
             //
             // A bounded signal coalesces missed ticks the way PeriodicTimer does, so a
             // slow handler drops ticks rather than queueing them up.
+            // Ownership of both handles transfers to the loop task below, which disposes
+            // them in its finally; the analyzer cannot see across that lambda boundary.
+#pragma warning disable CA2000
             var tick = new SemaphoreSlim(0, 1);
-            ITimer timer = timeProvider.CreateTimer(
-                static state =>
-                {
-                    try
+            ITimer timer;
+            try
+            {
+                timer = timeProvider.CreateTimer(
+                    static state =>
                     {
-                        ((SemaphoreSlim)state!).Release();
-                    }
-                    catch (SemaphoreFullException)
-                    {
-                        // Previous tick still running; skip this one.
-                    }
-                    catch (ObjectDisposedException)
-                    {
-                        // Loop already torn down.
-                    }
-                },
-                tick,
-                interval,
-                interval);
+                        try
+                        {
+                            ((SemaphoreSlim)state!).Release();
+                        }
+                        catch (SemaphoreFullException)
+                        {
+                            // Previous tick still running; skip this one.
+                        }
+                        catch (ObjectDisposedException)
+                        {
+                            // Loop already torn down.
+                        }
+                    },
+                    tick,
+                    interval,
+                    interval);
+            }
+            catch
+            {
+                // The loop task never starts, so nothing else will release the signal.
+                tick.Dispose();
+                throw;
+            }
+#pragma warning restore CA2000
 
             RunningTask = Task.Run(
                 async () =>

@@ -175,6 +175,11 @@ namespace Opc.Ua.Server.Fluent
 
             // Creation only captures the inputs. The user delegate runs during
             // activation, so a failure there unwinds through the normal ledger.
+            //
+            // Ownership of the lease transfers to that ledger, which disposes every
+            // lease it records — including ones that never activated — in reverse
+            // order. The analyzer cannot see that the returned value is owned.
+#pragma warning disable CA2000
             return new ValueTask<INodeBehaviorLease?>(
                 new NodeAttachLease(
                     m_registration,
@@ -183,6 +188,7 @@ namespace Opc.Ua.Server.Fluent
                     m_nodeManager,
                     m_telemetry,
                     m_timeProvider));
+#pragma warning restore CA2000
         }
 
         private readonly NodeAttachRegistration m_registration;
