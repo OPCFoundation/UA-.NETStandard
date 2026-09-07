@@ -30,7 +30,7 @@
   </ItemGroup>
   <Import Project="..\..\tools\Opc.Ua.SourceGeneration\OPCFoundation.Opc.Ua.SourceGeneration.props" />
   <PropertyGroup>
-    <!-- Must mirror Opc.Ua.Gds.Common: the model types this project's
+    <!-- Must mirror Opc.Ua.Gds: the model types this project's
          [NodeManager] and fluent accessors bind to are the ones that
          project emits, so both must read the design the same way. -->
     <ModelSourceGeneratorVersion>v105</ModelSourceGeneratorVersion>
@@ -38,12 +38,12 @@
     <ModelSourceGeneratorUseAllowSubtypes>true</ModelSourceGeneratorUseAllowSubtypes>
   </PropertyGroup>
   <ItemGroup>
-    <!-- The design stays owned by Opc.Ua.Gds.Common, which emits the model
+    <!-- The design stays owned by Opc.Ua.Gds, which emits the model
          types; it is referenced here only so the [NodeManager] on
          ApplicationsNodeManager has a design to bind to. Nothing of the
          model itself is emitted into this assembly. -->
-    <AdditionalFiles Include="..\Opc.Ua.Gds.Common\Design\OpcUaGdsModel.csv" Visible="false" />
-    <AdditionalFiles Include="..\Opc.Ua.Gds.Common\Design\OpcUaGdsModel.xml" Visible="false" />
+    <AdditionalFiles Include="..\Opc.Ua.Gds\Design\OpcUaGdsModel.csv" Visible="false" />
+    <AdditionalFiles Include="..\Opc.Ua.Gds\Design\OpcUaGdsModel.xml" Visible="false" />
   </ItemGroup>
   <ItemGroup>
     <None Include="NugetREADME.md" Pack="true" PackagePath="\" />

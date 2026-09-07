@@ -51,7 +51,7 @@ namespace Opc.Ua.Gds.Server
     /// <para>
     /// The GDS companion model, its loader and the fluent plumbing are
     /// source-generated from the <c>[NodeManager]</c> attribute below. The
-    /// design stays owned by <c>Opc.Ua.Gds.Common</c>, which emits the model
+    /// design stays owned by <c>Opc.Ua.Gds</c>, which emits the model
     /// types; this assembly only binds a manager to it. What is written by
     /// hand is the behaviour, and it arrives in two passes: the I/O of
     /// starting the certificate authorities in
