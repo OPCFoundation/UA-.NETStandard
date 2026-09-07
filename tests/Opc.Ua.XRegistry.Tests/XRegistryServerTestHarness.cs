@@ -31,7 +31,6 @@ using System;
 using Moq;
 using Opc.Ua.Server;
 using Opc.Ua.Tests;
-using Opc.Ua.XRegistry.Server;
 
 namespace Opc.Ua.XRegistry.Tests
 {
@@ -54,6 +53,7 @@ namespace Opc.Ua.XRegistry.Tests
             var serverUris = new StringTable();
             var server = new Mock<IServerInternal>();
             var masterNodeManager = new Mock<IMasterNodeManager>();
+            masterNodeManager.Setup(m => m.AsyncNodeManagers).Returns([]);
             server.Setup(s => s.NamespaceUris).Returns(namespaceUris);
             server.Setup(s => s.ServerUris).Returns(serverUris);
             server.Setup(s => s.TypeTree).Returns(CreateTypeTable(namespaceUris));
@@ -74,16 +74,16 @@ namespace Opc.Ua.XRegistry.Tests
         public static TypeTable CreateTypeTable(NamespaceTable namespaceUris)
         {
             var typeTable = new TypeTable(namespaceUris);
-            typeTable.AddSubtype(Opc.Ua.ObjectTypeIds.BaseObjectType, NodeId.Null);
-            typeTable.AddSubtype(Opc.Ua.ObjectTypeIds.FolderType, Opc.Ua.ObjectTypeIds.BaseObjectType);
-            typeTable.AddSubtype(Opc.Ua.ObjectTypeIds.FileType, Opc.Ua.ObjectTypeIds.BaseObjectType);
-            typeTable.AddSubtype(Opc.Ua.ObjectTypeIds.BaseEventType, Opc.Ua.ObjectTypeIds.BaseObjectType);
-            typeTable.AddSubtype(Opc.Ua.VariableTypeIds.BaseVariableType, NodeId.Null);
+            typeTable.AddSubtype(Ua.ObjectTypeIds.BaseObjectType, NodeId.Null);
+            typeTable.AddSubtype(Ua.ObjectTypeIds.FolderType, Ua.ObjectTypeIds.BaseObjectType);
+            typeTable.AddSubtype(Ua.ObjectTypeIds.FileType, Ua.ObjectTypeIds.BaseObjectType);
+            typeTable.AddSubtype(Ua.ObjectTypeIds.BaseEventType, Ua.ObjectTypeIds.BaseObjectType);
+            typeTable.AddSubtype(VariableTypeIds.BaseVariableType, NodeId.Null);
             typeTable.AddSubtype(
-                Opc.Ua.VariableTypeIds.BaseDataVariableType, Opc.Ua.VariableTypeIds.BaseVariableType);
-            typeTable.AddSubtype(Opc.Ua.VariableTypeIds.PropertyType, Opc.Ua.VariableTypeIds.BaseVariableType);
-            typeTable.AddSubtype(Opc.Ua.DataTypeIds.BaseDataType, NodeId.Null);
-            typeTable.AddSubtype(Opc.Ua.DataTypeIds.Structure, Opc.Ua.DataTypeIds.BaseDataType);
+                VariableTypeIds.BaseDataVariableType, VariableTypeIds.BaseVariableType);
+            typeTable.AddSubtype(VariableTypeIds.PropertyType, VariableTypeIds.BaseVariableType);
+            typeTable.AddSubtype(Ua.DataTypeIds.BaseDataType, NodeId.Null);
+            typeTable.AddSubtype(Ua.DataTypeIds.Structure, Ua.DataTypeIds.BaseDataType);
             return typeTable;
         }
 

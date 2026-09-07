@@ -27,8 +27,9 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System;
 using System.Collections.Generic;
+using System.Threading;
+using System.Threading.Tasks;
 using Moq;
 using NUnit.Framework;
 using Opc.Ua.Server;
@@ -49,7 +50,7 @@ namespace Opc.Ua.XRegistry.Tests
     public sealed class XRegistryFederationNodeManagerTests
     {
         [Test]
-        public void ProxyDisabledPublishesNothing()
+        public async Task ProxyDisabledPublishesNothingAsync()
         {
             using XRegistryFederationNodeManager nm = CreateNodeManager(new XRegistryServerOptions
             {
@@ -57,13 +58,15 @@ namespace Opc.Ua.XRegistry.Tests
                 ContentIdProvider = new XRegistryServerTestHarness.FakeContentIdProvider()
             });
 
-            nm.CreateAddressSpace(new Dictionary<NodeId, IList<IReference>>());
+            await nm.CreateAddressSpaceAsync(
+                new Dictionary<NodeId, IList<IReference>>(),
+                CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(nm.Find(ProxyNodeId(nm)), Is.Null);
         }
 
         [Test]
-        public void ProxyWithoutDocumentPublishesNothing()
+        public async Task ProxyWithoutDocumentPublishesNothingAsync()
         {
             using XRegistryFederationNodeManager nm = CreateNodeManager(new XRegistryServerOptions
             {
@@ -71,7 +74,9 @@ namespace Opc.Ua.XRegistry.Tests
                 ContentIdProvider = new XRegistryServerTestHarness.FakeContentIdProvider()
             });
 
-            nm.CreateAddressSpace(new Dictionary<NodeId, IList<IReference>>());
+            await nm.CreateAddressSpaceAsync(
+                new Dictionary<NodeId, IList<IReference>>(),
+                CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(nm.Find(ProxyNodeId(nm)), Is.Null);
         }
@@ -85,13 +90,15 @@ namespace Opc.Ua.XRegistry.Tests
                 FederatedDocument = ByteString.From(s_federatedDocument)
             });
 
-            InvalidOperationException ex = Assert.Throws<InvalidOperationException>(
-                () => nm.CreateAddressSpace(new Dictionary<NodeId, IList<IReference>>()));
-            Assert.That(ex.Message, Does.Contain("ContentIdProvider"));
+            Assert.That(
+                async () => await nm.CreateAddressSpaceAsync(
+                    new Dictionary<NodeId, IList<IReference>>(),
+                    CancellationToken.None).ConfigureAwait(false),
+                Throws.InvalidOperationException.With.Message.Contains("ContentIdProvider"));
         }
 
         [Test]
-        public void ProxyIsAResourceTypeInstanceCarryingTheFederationLink()
+        public async Task ProxyIsAResourceTypeInstanceCarryingTheFederationLinkAsync()
         {
             const string remoteEndpoint = "opc.tcp://remote.example.org:4840";
             const string remoteNamespace = "http://example.org/UA/RemoteRegistry/";
@@ -107,7 +114,9 @@ namespace Opc.Ua.XRegistry.Tests
                 ContentIdProvider = new XRegistryServerTestHarness.FakeContentIdProvider()
             });
 
-            nm.CreateAddressSpace(new Dictionary<NodeId, IList<IReference>>());
+            await nm.CreateAddressSpaceAsync(
+                new Dictionary<NodeId, IList<IReference>>(),
+                CancellationToken.None).ConfigureAwait(false);
 
             // The proxy has to be a real ResourceType instance so a generic xRegistry client drives
             // it through the same generated proxy as a locally hosted resource.
@@ -138,7 +147,7 @@ namespace Opc.Ua.XRegistry.Tests
         }
 
         [Test]
-        public void ProxyContentLookupDoesNotReplaceStructuralIdentity()
+        public async Task ProxyContentLookupDoesNotReplaceStructuralIdentityAsync()
         {
             using XRegistryFederationNodeManager nm = CreateNodeManager(new XRegistryServerOptions
             {
@@ -147,7 +156,9 @@ namespace Opc.Ua.XRegistry.Tests
                 ContentIdProvider = new XRegistryServerTestHarness.FakeContentIdProvider()
             });
 
-            nm.CreateAddressSpace(new Dictionary<NodeId, IList<IReference>>());
+            await nm.CreateAddressSpaceAsync(
+                new Dictionary<NodeId, IList<IReference>>(),
+                CancellationToken.None).ConfigureAwait(false);
 
             var proxy = (ResourceState?)nm.Find(ProxyNodeId(nm));
             Assert.Multiple(() =>
@@ -165,11 +176,13 @@ namespace Opc.Ua.XRegistry.Tests
         }
 
         [Test]
-        public void CreateAddressSpaceMaterializesTheGeneratedCompanionModel()
+        public async Task CreateAddressSpaceMaterializesTheGeneratedCompanionModelAsync()
         {
             using XRegistryFederationNodeManager nm = CreateNodeManager(new XRegistryServerOptions());
 
-            nm.CreateAddressSpace(new Dictionary<NodeId, IList<IReference>>());
+            await nm.CreateAddressSpaceAsync(
+                new Dictionary<NodeId, IList<IReference>>(),
+                CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(
                 nm.Find(ExpandedNodeId.ToNodeId(ObjectTypeIds.GroupType, nm.SystemContext.NamespaceUris)),

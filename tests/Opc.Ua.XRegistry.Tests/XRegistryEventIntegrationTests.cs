@@ -28,9 +28,7 @@
  * ======================================================================*/
 
 using System;
-using System.Collections.Generic;
 using System.IO;
-using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
@@ -89,7 +87,7 @@ namespace Opc.Ua.XRegistry.Tests
                     uint subscriptionId = await CreateSubscriptionAsync(
                         services,
                         requestHeader,
-                        monitorServer ? global::Opc.Ua.ObjectIds.Server : registryNodeId,
+                        monitorServer ? Ua.ObjectIds.Server : registryNodeId,
                         filter).ConfigureAwait(false);
 
                     XRegistryRegistrationNodeManager manager = factory.Manager!;
@@ -129,7 +127,7 @@ namespace Opc.Ua.XRegistry.Tests
                             Field(
                                 evt!,
                                 filter,
-                                global::Opc.Ua.BrowseNames.SourceNode)
+                                Ua.BrowseNames.SourceNode)
                                 .TryGetValue(out NodeId sourceNode)
                                     ? sourceNode
                                     : NodeId.Null,
@@ -245,11 +243,12 @@ namespace Opc.Ua.XRegistry.Tests
             EventFilter filter,
             NamespaceTable namespaceUris)
         {
-            NodeId expected = ExpandedNodeId.ToNodeId(
+            var expected = ExpandedNodeId.ToNodeId(
                 ObjectTypeIds.GroupCreatedEventType,
                 namespaceUris);
-            return Field(evt, filter, global::Opc.Ua.BrowseNames.EventType)
-                .TryGetValue(out NodeId actual) && actual == expected;
+            return Field(evt, filter, Ua.BrowseNames.EventType)
+                .TryGetValue(out NodeId actual) &&
+                actual == expected;
         }
 
         private static Variant Field(EventFieldList evt, EventFilter filter, string browseName)
@@ -274,14 +273,14 @@ namespace Opc.Ua.XRegistry.Tests
 
         private sealed class TestServer : ReferenceServer
         {
-            public TestServer(ITelemetryContext telemetry, INodeManagerFactory factory)
+            public TestServer(ITelemetryContext telemetry, IAsyncNodeManagerFactory factory)
                 : base(telemetry)
             {
                 AddNodeManager(factory);
             }
         }
 
-        private sealed class TestNodeManagerFactory : INodeManagerFactory
+        private sealed class TestNodeManagerFactory : IAsyncNodeManagerFactory
         {
             public TestNodeManagerFactory(XRegistryServerOptions options)
             {
@@ -292,14 +291,14 @@ namespace Opc.Ua.XRegistry.Tests
 
             public XRegistryRegistrationNodeManager? Manager { get; private set; }
 
-            public INodeManager Create(
+            public ValueTask<IAsyncNodeManager> CreateAsync(
                 IServerInternal server,
-                ApplicationConfiguration configuration)
+                ApplicationConfiguration configuration,
+                CancellationToken cancellationToken = default)
             {
-                return Manager = new XRegistryRegistrationNodeManager(
-                    server,
-                    configuration,
-                    m_options);
+                cancellationToken.ThrowIfCancellationRequested();
+                Manager = new XRegistryRegistrationNodeManager(server, configuration, m_options);
+                return new ValueTask<IAsyncNodeManager>(Manager);
             }
 
             private readonly XRegistryServerOptions m_options;

@@ -370,22 +370,65 @@ var fastPath = new XRegistryFastPathNodeManager(server, configuration, options);
 var federation = new XRegistryFederationNodeManager(server, configuration, options);
 ```
 
+All three managers derive from `AsyncCustomNodeManager`. Register them through the server's
+`AddNodeManager(IAsyncNodeManagerFactory)` overload; the factory's `CreateAsync` returns an
+`IAsyncNodeManager`. Direct construction and the existing `AddXRegistryServer` options/provider
+registrations remain supported. Startup, node publication/removal, session cleanup, and event
+delivery are awaited rather than routed through a synchronous node-manager wrapper.
+
 The registry's companion model is **compiled into the assembly** by the OPC UA model source
 generator: `Opc.Ua.XRegistry.NodeSet2.xml` is a generator input (`AdditionalFiles`), so the
 ObjectTypes, Methods, Variables, NodeId constants, `NodeState` classes and typed
 [ObjectType proxies](../tools/Opc.Ua.SourceGeneration/readme.md) are emitted at build time. No
 NodeSet2 XML is parsed at runtime — each node manager simply returns the generated model from
-`LoadPredefinedNodes`:
+`LoadPredefinedNodesAsync`:
 
 ```csharp
-protected override NodeStateCollection LoadPredefinedNodes(ISystemContext context)
+protected override ValueTask<NodeStateCollection> LoadPredefinedNodesAsync(
+    ISystemContext context,
+    CancellationToken cancellationToken = default)
 {
-    return new NodeStateCollection().AddOpcUaXRegistry(context);
+    cancellationToken.ThrowIfCancellationRequested();
+    return new ValueTask<NodeStateCollection>(
+        new NodeStateCollection().AddOpcUaXRegistry(context));
 }
 ```
 
 A concrete registry composes its own companion model on top of the base model in dependency
 order, declaring `RequiredModel` on the xRegistry namespace in its NodeSet.
+
+### Migrating custom subclasses and hosts
+
+The constructors, options, and node identities are unchanged, but changing the base class changes
+the inherited lifecycle interface. Subclasses must override the async hooks and await their base
+implementations:
+
+| Previous hook | Async hook |
+| --- | --- |
+| `LoadPredefinedNodes` | `LoadPredefinedNodesAsync` |
+| `CreateAddressSpace` | `CreateAddressSpaceAsync` |
+| `SessionClosing` | `SessionClosingAsync` |
+| `DeleteAddressSpace` | `DeleteAddressSpaceAsync` |
+
+Use `AddPredefinedNodeAsync` and `DeleteNodeAsync` for runtime graph mutations. In-memory lookups
+such as `Find` and `FindPredefinedNode<T>` remain synchronous. The managers implement
+`IAsyncNodeManager` instead of being directly assignable to `INodeManager3`; a legacy host that
+explicitly requires the old interface can use the base class's existing `SyncNodeManager` adapter.
+Normal hosting and custom callbacks should use the async interface, without blocking on tasks.
+
+Cancellation is observed before a registration mutation starts and during document reads. Once
+a dirty Close consumes its handle, or a deletion changes the graph, the manager finishes the
+commit/cleanup even if the caller subsequently cancels. Await `DeleteAddressSpaceAsync` before
+disposal to drain active operations and release handles without disposing the injected store.
+Failed or cancelled startup removes its partially indexed nodes and does not publish incomplete
+external references. Await successful startup before invoking registration Methods; a failed
+startup can be retried on the same manager.
+Deletion cleanup attempts every removed subtree and stored document before reporting callback or
+storage failures. Removals that could not complete are retried before an explicit deletion or during
+teardown, never midway through an unrelated file operation. Retiring resources reject new file
+handles and label mutations.
+See [Async server support](AsyncServerSupport.md) for the async base's hosting and notification
+contracts.
 
 > **Note:** the model occupies NodeIds 63000-63999 in the registry namespace. The instance
 > identifiers in `XRegistryWellKnown` live above that range so a materialized instance can never

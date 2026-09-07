@@ -52,7 +52,8 @@ namespace Opc.Ua.XRegistry.Tests
         [Test]
         public async Task CreateResourceMaterializesAResourceFromTheModelAsync()
         {
-            using XRegistryRegistrationNodeManager nm = CreateAddressSpace(out _);
+            using XRegistryRegistrationNodeManager nm = await CreateAddressSpaceAsync()
+                .ConfigureAwait(false);
             NodeId group = await CreateGroupAsync(nm).ConfigureAwait(false);
 
             CreateResourceMethodStateResult result = await nm.OnCreateResourceAsync(
@@ -85,7 +86,8 @@ namespace Opc.Ua.XRegistry.Tests
         [Test]
         public async Task CreateResourceReturnsAWriteHandleWhenRequestedAsync()
         {
-            using XRegistryRegistrationNodeManager nm = CreateAddressSpace(out _);
+            using XRegistryRegistrationNodeManager nm = await CreateAddressSpaceAsync()
+                .ConfigureAwait(false);
             NodeId group = await CreateGroupAsync(nm).ConfigureAwait(false);
 
             CreateResourceMethodStateResult result = await nm.OnCreateResourceAsync(
@@ -98,7 +100,8 @@ namespace Opc.Ua.XRegistry.Tests
         [Test]
         public async Task CreateResourceRejectsADuplicateVersionAsync()
         {
-            using XRegistryRegistrationNodeManager nm = CreateAddressSpace(out _);
+            using XRegistryRegistrationNodeManager nm = await CreateAddressSpaceAsync()
+                .ConfigureAwait(false);
             NodeId group = await CreateGroupAsync(nm).ConfigureAwait(false);
 
             CreateResourceMethodStateResult first = await CreateResourceAsync(nm, group, "urn:doc", "7")
@@ -116,7 +119,8 @@ namespace Opc.Ua.XRegistry.Tests
         [Test]
         public async Task CreateResourceRejectsAnUnknownGroupAsync()
         {
-            using XRegistryRegistrationNodeManager nm = CreateAddressSpace(out _);
+            using XRegistryRegistrationNodeManager nm = await CreateAddressSpaceAsync()
+                .ConfigureAwait(false);
 
             CreateResourceMethodStateResult result = await CreateResourceAsync(
                 nm, new NodeId(999999u, 1), "urn:doc", "1").ConfigureAwait(false);
@@ -127,7 +131,8 @@ namespace Opc.Ua.XRegistry.Tests
         [Test]
         public async Task CreateResourceRejectsAnEmptyResourceIdAsync()
         {
-            using XRegistryRegistrationNodeManager nm = CreateAddressSpace(out _);
+            using XRegistryRegistrationNodeManager nm = await CreateAddressSpaceAsync()
+                .ConfigureAwait(false);
             NodeId group = await CreateGroupAsync(nm).ConfigureAwait(false);
 
             CreateResourceMethodStateResult result = await CreateResourceAsync(
@@ -139,7 +144,8 @@ namespace Opc.Ua.XRegistry.Tests
         [Test]
         public async Task GetOrCreateResourceIsIdempotentAsync()
         {
-            using XRegistryRegistrationNodeManager nm = CreateAddressSpace(out _);
+            using XRegistryRegistrationNodeManager nm = await CreateAddressSpaceAsync()
+                .ConfigureAwait(false);
             NodeId group = await CreateGroupAsync(nm).ConfigureAwait(false);
 
             GetOrCreateResourceMethodStateResult created = await nm.OnGetOrCreateResourceAsync(
@@ -165,7 +171,9 @@ namespace Opc.Ua.XRegistry.Tests
         [Test]
         public async Task ClosingAWriteHandleCommitsTheDocumentAndPublishesTheFastPathAsync()
         {
-            using XRegistryRegistrationNodeManager nm = CreateAddressSpace(out IXRegistryResourceStore store);
+            (XRegistryRegistrationNodeManager nodeManager, IXRegistryResourceStore store) =
+                await CreateAddressSpaceWithStoreAsync().ConfigureAwait(false);
+            using XRegistryRegistrationNodeManager nm = nodeManager;
             NodeId group = await CreateGroupAsync(nm).ConfigureAwait(false);
             byte[] document = [0x10, 0x20, 0x30];
 
@@ -202,7 +210,8 @@ namespace Opc.Ua.XRegistry.Tests
         [Test]
         public async Task WriteBeyondTheResourceByteLimitIsRejectedAsync()
         {
-            using XRegistryRegistrationNodeManager nm = CreateAddressSpace(out _, o => o.MaxResourceBytes = 4);
+            using XRegistryRegistrationNodeManager nm = await CreateAddressSpaceAsync(
+                o => o.MaxResourceBytes = 4).ConfigureAwait(false);
             NodeId group = await CreateGroupAsync(nm).ConfigureAwait(false);
 
             CreateResourceMethodStateResult created = await nm.OnCreateResourceAsync(
@@ -227,13 +236,12 @@ namespace Opc.Ua.XRegistry.Tests
         public async Task RejectedOversizedWriteLeavesTheVersionUnchangedAsync()
         {
             var store = new CountingResourceStore();
-            using XRegistryRegistrationNodeManager nm = CreateAddressSpace(
-                out _,
+            using XRegistryRegistrationNodeManager nm = await CreateAddressSpaceAsync(
                 options =>
                 {
                     options.MaxResourceBytes = 4;
                     options.ResourceStore = store;
-                });
+                }).ConfigureAwait(false);
             NodeId group = await CreateGroupAsync(nm).ConfigureAwait(false);
             CreateResourceMethodStateResult created = await nm.OnCreateResourceAsync(
                 nm.SystemContext,
@@ -276,9 +284,8 @@ namespace Opc.Ua.XRegistry.Tests
         public async Task EmptyWriteAndEraseCloseDoNotCommitAsync()
         {
             var store = new CountingResourceStore();
-            using XRegistryRegistrationNodeManager nm = CreateAddressSpace(
-                out _,
-                options => options.ResourceStore = store);
+            using XRegistryRegistrationNodeManager nm = await CreateAddressSpaceAsync(
+                options => options.ResourceStore = store).ConfigureAwait(false);
             NodeId group = await CreateGroupAsync(nm).ConfigureAwait(false);
             ResourceState resource = await RegisterVersionAsync(
                 nm,
@@ -325,9 +332,8 @@ namespace Opc.Ua.XRegistry.Tests
         public async Task ByteIdenticalCloseDoesNotRewriteTheStoreAsync()
         {
             var store = new CountingResourceStore();
-            using XRegistryRegistrationNodeManager nm = CreateAddressSpace(
-                out _,
-                options => options.ResourceStore = store);
+            using XRegistryRegistrationNodeManager nm = await CreateAddressSpaceAsync(
+                options => options.ResourceStore = store).ConfigureAwait(false);
             NodeId group = await CreateGroupAsync(nm).ConfigureAwait(false);
             ResourceState resource = await RegisterVersionAsync(
                 nm,
@@ -372,7 +378,8 @@ namespace Opc.Ua.XRegistry.Tests
         [Test]
         public async Task WriteOnAnUnknownHandleIsRejectedAsync()
         {
-            using XRegistryRegistrationNodeManager nm = CreateAddressSpace(out _);
+            using XRegistryRegistrationNodeManager nm = await CreateAddressSpaceAsync()
+                .ConfigureAwait(false);
             NodeId group = await CreateGroupAsync(nm).ConfigureAwait(false);
             CreateResourceMethodStateResult created = await CreateResourceAsync(nm, group, "urn:doc", "1")
                 .ConfigureAwait(false);
@@ -388,7 +395,8 @@ namespace Opc.Ua.XRegistry.Tests
         [Test]
         public async Task ReadStreamsTheCommittedDocumentAsync()
         {
-            using XRegistryRegistrationNodeManager nm = CreateAddressSpace(out _);
+            using XRegistryRegistrationNodeManager nm = await CreateAddressSpaceAsync()
+                .ConfigureAwait(false);
             NodeId group = await CreateGroupAsync(nm).ConfigureAwait(false);
             byte[] document = [1, 2, 3, 4, 5];
 
@@ -423,8 +431,8 @@ namespace Opc.Ua.XRegistry.Tests
         [Test]
         public async Task CloseWithoutAContentIdProviderIsRejectedAsync()
         {
-            using XRegistryRegistrationNodeManager nm = CreateAddressSpace(
-                out _, o => o.ContentIdProvider = null);
+            using XRegistryRegistrationNodeManager nm = await CreateAddressSpaceAsync(
+                o => o.ContentIdProvider = null).ConfigureAwait(false);
             NodeId group = await CreateGroupAsync(nm).ConfigureAwait(false);
 
             CreateResourceMethodStateResult created = await nm.OnCreateResourceAsync(
@@ -445,8 +453,8 @@ namespace Opc.Ua.XRegistry.Tests
         [Test]
         public async Task RegisteringBeyondTheResourceLimitIsRejectedAsync()
         {
-            using XRegistryRegistrationNodeManager nm = CreateAddressSpace(
-                out _, o => o.MaxRegisteredResources = 1);
+            using XRegistryRegistrationNodeManager nm = await CreateAddressSpaceAsync(
+                o => o.MaxRegisteredResources = 1).ConfigureAwait(false);
             NodeId group = await CreateGroupAsync(nm).ConfigureAwait(false);
 
             CreateResourceMethodStateResult first = await CreateResourceAsync(nm, group, "a", "1")
@@ -465,8 +473,8 @@ namespace Opc.Ua.XRegistry.Tests
         [Test]
         public async Task OpeningBeyondTheConcurrentUploadLimitIsRejectedAsync()
         {
-            using XRegistryRegistrationNodeManager nm = CreateAddressSpace(
-                out _, o => o.MaxConcurrentUploads = 1);
+            using XRegistryRegistrationNodeManager nm = await CreateAddressSpaceAsync(
+                o => o.MaxConcurrentUploads = 1).ConfigureAwait(false);
             NodeId group = await CreateGroupAsync(nm).ConfigureAwait(false);
 
             // The first create takes the only upload slot by asking for an open write handle.
@@ -489,8 +497,8 @@ namespace Opc.Ua.XRegistry.Tests
         [Test]
         public async Task OpenBeyondTheConcurrentUploadLimitIsRejectedAsync()
         {
-            using XRegistryRegistrationNodeManager nm = CreateAddressSpace(
-                out _, o => o.MaxConcurrentUploads = 1);
+            using XRegistryRegistrationNodeManager nm = await CreateAddressSpaceAsync(
+                o => o.MaxConcurrentUploads = 1).ConfigureAwait(false);
             NodeId group = await CreateGroupAsync(nm).ConfigureAwait(false);
             CreateResourceMethodStateResult created = await nm.OnCreateResourceAsync(
                 nm.SystemContext, null!, group, "a", "1", true, CancellationToken.None)
@@ -508,7 +516,8 @@ namespace Opc.Ua.XRegistry.Tests
         [Test]
         public async Task ReadWithAnUnknownHandleIsRejectedAsync()
         {
-            using XRegistryRegistrationNodeManager nm = CreateAddressSpace(out _);
+            using XRegistryRegistrationNodeManager nm = await CreateAddressSpaceAsync()
+                .ConfigureAwait(false);
             (ResourceState resource, CreateResourceMethodStateResult created) =
                 await CreateOpenResourceAsync(nm).ConfigureAwait(false);
 
@@ -522,7 +531,8 @@ namespace Opc.Ua.XRegistry.Tests
         [Test]
         public async Task ReadOnAWriteHandleIsRejectedAsync()
         {
-            using XRegistryRegistrationNodeManager nm = CreateAddressSpace(out _);
+            using XRegistryRegistrationNodeManager nm = await CreateAddressSpaceAsync()
+                .ConfigureAwait(false);
             (ResourceState resource, CreateResourceMethodStateResult created) =
                 await CreateOpenResourceAsync(nm).ConfigureAwait(false);
 
@@ -537,7 +547,8 @@ namespace Opc.Ua.XRegistry.Tests
         [Test]
         public async Task ReadPastTheEndOfTheDocumentReturnsAnEmptyChunkAsync()
         {
-            using XRegistryRegistrationNodeManager nm = CreateAddressSpace(out _);
+            using XRegistryRegistrationNodeManager nm = await CreateAddressSpaceAsync()
+                .ConfigureAwait(false);
             (ResourceState resource, uint handle) =
                 await WriteAndReopenForReadAsync(nm, s_document).ConfigureAwait(false);
 
@@ -560,7 +571,8 @@ namespace Opc.Ua.XRegistry.Tests
         [Test]
         public async Task CloseWithAnUnknownHandleIsRejectedAsync()
         {
-            using XRegistryRegistrationNodeManager nm = CreateAddressSpace(out _);
+            using XRegistryRegistrationNodeManager nm = await CreateAddressSpaceAsync()
+                .ConfigureAwait(false);
             (ResourceState resource, CreateResourceMethodStateResult created) =
                 await CreateOpenResourceAsync(nm).ConfigureAwait(false);
 
@@ -574,7 +586,8 @@ namespace Opc.Ua.XRegistry.Tests
         [Test]
         public async Task ClosingAReadHandleDoesNotRepublishTheDocumentAsync()
         {
-            using XRegistryRegistrationNodeManager nm = CreateAddressSpace(out _);
+            using XRegistryRegistrationNodeManager nm = await CreateAddressSpaceAsync()
+                .ConfigureAwait(false);
             (ResourceState resource, uint handle) =
                 await WriteAndReopenForReadAsync(nm, s_document).ConfigureAwait(false);
 
@@ -589,7 +602,8 @@ namespace Opc.Ua.XRegistry.Tests
         [Test]
         public async Task IdenticalDocumentsReuseTheSameFastPathNodeAsync()
         {
-            using XRegistryRegistrationNodeManager nm = CreateAddressSpace(out _);
+            using XRegistryRegistrationNodeManager nm = await CreateAddressSpaceAsync()
+                .ConfigureAwait(false);
             NodeId group = await CreateGroupAsync(nm).ConfigureAwait(false);
 
             NodeId firstFastPath = await RegisterAsync(nm, group, "a", s_document).ConfigureAwait(false);
@@ -673,7 +687,9 @@ namespace Opc.Ua.XRegistry.Tests
         [Test]
         public async Task RewritingWithAShorterDocumentTruncatesTheStoredBytesAsync()
         {
-            using XRegistryRegistrationNodeManager nm = CreateAddressSpace(out IXRegistryResourceStore store);
+            (XRegistryRegistrationNodeManager nodeManager, IXRegistryResourceStore store) =
+                await CreateAddressSpaceWithStoreAsync().ConfigureAwait(false);
+            using XRegistryRegistrationNodeManager nm = nodeManager;
             NodeId group = await CreateGroupAsync(nm).ConfigureAwait(false);
             CreateResourceMethodStateResult created = await nm.OnCreateResourceAsync(
                 nm.SystemContext, null!, group, "urn:doc", "1", true, CancellationToken.None)
@@ -713,8 +729,8 @@ namespace Opc.Ua.XRegistry.Tests
         [Test]
         public async Task GetOrCreateResourceHonoursTheConcurrentUploadLimitOnAnExistingResourceAsync()
         {
-            using XRegistryRegistrationNodeManager nm = CreateAddressSpace(
-                out _, o => o.MaxConcurrentUploads = 1);
+            using XRegistryRegistrationNodeManager nm = await CreateAddressSpaceAsync(
+                o => o.MaxConcurrentUploads = 1).ConfigureAwait(false);
             NodeId group = await CreateGroupAsync(nm).ConfigureAwait(false);
 
             // Creates the resource and takes the only upload slot.
@@ -739,8 +755,8 @@ namespace Opc.Ua.XRegistry.Tests
         [Test]
         public async Task ClosingTheHandleFromAnExistingResourceFreesTheUploadSlotAsync()
         {
-            using XRegistryRegistrationNodeManager nm = CreateAddressSpace(
-                out _, o => o.MaxConcurrentUploads = 1);
+            using XRegistryRegistrationNodeManager nm = await CreateAddressSpaceAsync(
+                o => o.MaxConcurrentUploads = 1).ConfigureAwait(false);
             NodeId group = await CreateGroupAsync(nm).ConfigureAwait(false);
 
             GetOrCreateResourceMethodStateResult first = await nm.OnGetOrCreateResourceAsync(
@@ -767,7 +783,9 @@ namespace Opc.Ua.XRegistry.Tests
         [Test]
         public async Task GetOrCreateResourceThenCloseKeepsTheExistingDocumentAsync()
         {
-            using XRegistryRegistrationNodeManager nm = CreateAddressSpace(out IXRegistryResourceStore store);
+            (XRegistryRegistrationNodeManager nodeManager, IXRegistryResourceStore store) =
+                await CreateAddressSpaceWithStoreAsync().ConfigureAwait(false);
+            using XRegistryRegistrationNodeManager nm = nodeManager;
             NodeId group = await CreateGroupAsync(nm).ConfigureAwait(false);
 
             // Register a document.
@@ -814,7 +832,8 @@ namespace Opc.Ua.XRegistry.Tests
         [Test]
         public async Task AHandleCannotBeUsedThroughADifferentResourceAsync()
         {
-            using XRegistryRegistrationNodeManager nm = CreateAddressSpace(out _);
+            using XRegistryRegistrationNodeManager nm = await CreateAddressSpaceAsync()
+                .ConfigureAwait(false);
             NodeId group = await CreateGroupAsync(nm).ConfigureAwait(false);
 
             CreateResourceMethodStateResult a = await nm.OnCreateResourceAsync(
@@ -846,8 +865,8 @@ namespace Opc.Ua.XRegistry.Tests
         [Test]
         public async Task DeletingAResourceReleasesItsOpenHandlesAsync()
         {
-            using XRegistryRegistrationNodeManager nm = CreateAddressSpace(
-                out _, o => o.MaxConcurrentUploads = 1);
+            using XRegistryRegistrationNodeManager nm = await CreateAddressSpaceAsync(
+                o => o.MaxConcurrentUploads = 1).ConfigureAwait(false);
             NodeId group = await CreateGroupAsync(nm).ConfigureAwait(false);
 
             CreateResourceMethodStateResult created = await nm.OnCreateResourceAsync(
@@ -927,8 +946,7 @@ namespace Opc.Ua.XRegistry.Tests
                 XRegistryWellKnown.XRegistryNamespaceUri);
         }
 
-        private static XRegistryRegistrationNodeManager CreateAddressSpace(
-            out IXRegistryResourceStore store,
+        private static async Task<XRegistryRegistrationNodeManager> CreateAddressSpaceAsync(
             System.Action<XRegistryServerOptions>? configure = null)
         {
             var options = new XRegistryServerOptions
@@ -936,13 +954,31 @@ namespace Opc.Ua.XRegistry.Tests
                 ContentIdProvider = new XRegistryServerTestHarness.FakeContentIdProvider()
             };
             configure?.Invoke(options);
-            store = options.ResourceStore;
 
             Mock<IServerInternal> server =
                 XRegistryServerTestHarness.CreateServer(options.RegistryNamespaceUri);
             var nm = new XRegistryRegistrationNodeManager(server.Object, null!, options);
-            nm.CreateAddressSpace(new Dictionary<NodeId, IList<IReference>>());
+            await nm.CreateAddressSpaceAsync(
+                new Dictionary<NodeId, IList<IReference>>(),
+                CancellationToken.None).ConfigureAwait(false);
             return nm;
+        }
+
+        private static async Task<(
+            XRegistryRegistrationNodeManager Manager,
+            IXRegistryResourceStore Store)> CreateAddressSpaceWithStoreAsync()
+        {
+            var options = new XRegistryServerOptions
+            {
+                ContentIdProvider = new XRegistryServerTestHarness.FakeContentIdProvider()
+            };
+            Mock<IServerInternal> server =
+                XRegistryServerTestHarness.CreateServer(options.RegistryNamespaceUri);
+            var nm = new XRegistryRegistrationNodeManager(server.Object, null!, options);
+            await nm.CreateAddressSpaceAsync(
+                new Dictionary<NodeId, IList<IReference>>(),
+                CancellationToken.None).ConfigureAwait(false);
+            return (nm, options.ResourceStore);
         }
 
         private sealed class CountingResourceStore : IXRegistryResourceStore

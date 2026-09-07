@@ -1,7 +1,16 @@
 # Opc.Ua.XRegistry.Server
 
 The generic server-side **xRegistry** registry node managers for OPC UA. They serve a
-structurally addressed registry with an independent content fast path:
+structurally addressed registry with an independent content fast path.
+
+`XRegistryRegistrationNodeManager`, `XRegistryFastPathNodeManager`, and
+`XRegistryFederationNodeManager` derive from `AsyncCustomNodeManager`. Host them through
+`IAsyncNodeManagerFactory`; directly constructed managers use the same awaited lifecycle.
+Custom subclasses override `LoadPredefinedNodesAsync`, `CreateAddressSpaceAsync`, and
+`SessionClosingAsync` instead of the synchronous hooks. Constructors and options are unchanged;
+legacy hosts can explicitly use the existing `SyncNodeManager` adapter.
+
+The managers provide:
 
 - **Fast path** — publishes registered resources under an Opaque NodeId whose Identifier is
   the raw content-id bytes, so a consumer resolves a resource in a single `Read`.

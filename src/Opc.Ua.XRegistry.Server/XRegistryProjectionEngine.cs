@@ -34,7 +34,6 @@ using System.Collections.Immutable;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using Opc.Ua.XRegistry;
 
 namespace Opc.Ua.XRegistry.Server
 {
@@ -72,6 +71,7 @@ namespace Opc.Ua.XRegistry.Server
         /// <summary>
         /// Binds the engine to the registry object and performs the first reconciliation.
         /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
         public async ValueTask AttachAsync(BaseObjectState registryNode, CancellationToken ct)
         {
             m_registryNode = registryNode ?? throw new ArgumentNullException(nameof(registryNode));
@@ -146,6 +146,7 @@ namespace Opc.Ua.XRegistry.Server
         /// Reconciles one supplied immutable generation and, when events are enabled,
         /// diffs it against the supplied previous event snapshot.
         /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
         public ValueTask ReconcileAsync(
             XRegistryProjectionGeneration generation,
             XRegistryProjectionEventSnapshot? previousEventSnapshot,
@@ -252,9 +253,10 @@ namespace Opc.Ua.XRegistry.Server
                         m_eventEmitter is not null &&
                         TryMarkReportedTransition(previous.Epoch, eventSnapshot.Epoch))
                     {
-                        m_eventEmitter.Report(
+                        await m_eventEmitter.ReportAsync(
                             m_registryNode,
-                            DiffEventSnapshots(previous, eventSnapshot));
+                            DiffEventSnapshots(previous, eventSnapshot),
+                            CancellationToken.None).ConfigureAwait(false);
                     }
                     if (m_previousEventSnapshot is null ||
                         eventSnapshot.Epoch >= m_previousEventSnapshot.Epoch)
@@ -331,13 +333,13 @@ namespace Opc.Ua.XRegistry.Server
                         continue;
                     }
                     if (method.InputArguments is null &&
-                        string.Equals(args.BrowseName.Name, Opc.Ua.BrowseNames.InputArguments,
+                        string.Equals(args.BrowseName.Name, Ua.BrowseNames.InputArguments,
                             StringComparison.Ordinal))
                     {
                         method.InputArguments = args;
                     }
                     else if (method.OutputArguments is null &&
-                        string.Equals(args.BrowseName.Name, Opc.Ua.BrowseNames.OutputArguments,
+                        string.Equals(args.BrowseName.Name, Ua.BrowseNames.OutputArguments,
                             StringComparison.Ordinal))
                     {
                         method.OutputArguments = args;
@@ -575,7 +577,7 @@ namespace Opc.Ua.XRegistry.Server
         {
             GroupState node = m_strategy.CreateGroupNode(m_registryNode!, group);
             NodeId nodeId = GroupNodeId(group.GroupId);
-            node.ReferenceTypeId = Opc.Ua.ReferenceTypeIds.Organizes;
+            node.ReferenceTypeId = ReferenceTypeIds.Organizes;
             node.Create(
                 m_context.SystemContext,
                 nodeId,
@@ -613,8 +615,8 @@ namespace Opc.Ua.XRegistry.Server
             LinkMethodArguments(node, m_context.SystemContext);
 
             m_registryNode!.AddChild(node);
-            m_registryNode.AddReference(Opc.Ua.ReferenceTypeIds.HasNotifier, false, nodeId);
-            node.AddReference(Opc.Ua.ReferenceTypeIds.HasNotifier, true, m_registryNode.NodeId);
+            m_registryNode.AddReference(ReferenceTypeIds.HasNotifier, false, nodeId);
+            node.AddReference(ReferenceTypeIds.HasNotifier, true, m_registryNode.NodeId);
 
             await m_context.AddNodeAsync(node, ct).ConfigureAwait(false);
             await SyncLabelPropertiesAsync(
@@ -646,7 +648,7 @@ namespace Opc.Ua.XRegistry.Server
                 await RemoveLogicalResourceNodeAsync(entry, logicalResourceId, ct)
                     .ConfigureAwait(false);
             }
-            m_registryNode!.RemoveReference(Opc.Ua.ReferenceTypeIds.HasNotifier, false, entry.Node.NodeId);
+            m_registryNode!.RemoveReference(ReferenceTypeIds.HasNotifier, false, entry.Node.NodeId);
             m_registryNode.RemoveChild(entry.Node);
             await m_context.DeleteNodeAsync(entry.Node.NodeId, ct).ConfigureAwait(false);
             m_groups.Remove(groupId);
@@ -663,7 +665,7 @@ namespace Opc.Ua.XRegistry.Server
                 resource.GroupId,
                 resource.ResourceId,
                 resource.VersionId);
-            node.ReferenceTypeId = Opc.Ua.ReferenceTypeIds.Organizes;
+            node.ReferenceTypeId = ReferenceTypeIds.Organizes;
             node.Create(
                 m_context.SystemContext,
                 nodeId,
@@ -679,13 +681,13 @@ namespace Opc.Ua.XRegistry.Server
                 .AddEpoch(m_context.SystemContext)
                 .AddDescription(m_context.SystemContext)
                 .AddCreatedAt(m_context.SystemContext)
-                .AddModifiedAt(m_context.SystemContext);
-            node.AddMetaEpoch(m_context.SystemContext)
+                .AddModifiedAt(m_context.SystemContext)
+                .AddMetaEpoch(m_context.SystemContext)
                 .AddMetaLabels(m_context.SystemContext)
                 .AddMetaCreatedAt(m_context.SystemContext)
-                .AddMetaModifiedAt(m_context.SystemContext);
-            node.AddDelete(m_context.SystemContext);
-            node.AddLabels(m_context.SystemContext);
+                .AddMetaModifiedAt(m_context.SystemContext)
+                .AddDelete(m_context.SystemContext)
+                .AddLabels(m_context.SystemContext);
             node.EventNotifier = EventNotifiers.SubscribeToEvents;
 
             string groupId = resource.GroupId;
@@ -729,8 +731,8 @@ namespace Opc.Ua.XRegistry.Server
             LinkMethodArguments(node, m_context.SystemContext);
 
             group.Node.AddChild(node);
-            group.Node.AddReference(Opc.Ua.ReferenceTypeIds.HasNotifier, false, nodeId);
-            node.AddReference(Opc.Ua.ReferenceTypeIds.HasNotifier, true, group.Node.NodeId);
+            group.Node.AddReference(ReferenceTypeIds.HasNotifier, false, nodeId);
+            node.AddReference(ReferenceTypeIds.HasNotifier, true, group.Node.NodeId);
 
             await m_context.AddNodeAsync(node, ct).ConfigureAwait(false);
             m_resourcesByXid[resource.Xid] = node;
@@ -850,7 +852,7 @@ namespace Opc.Ua.XRegistry.Server
             {
                 m_resourcesByXid.TryRemove(mapped.Key, out _);
             }
-            group.Node.RemoveReference(Opc.Ua.ReferenceTypeIds.HasNotifier, false, entry.Node.NodeId);
+            group.Node.RemoveReference(ReferenceTypeIds.HasNotifier, false, entry.Node.NodeId);
             group.Node.RemoveChild(entry.Node);
             await m_context.DeleteNodeAsync(entry.Node.NodeId, ct).ConfigureAwait(false);
             group.Resources.Remove(resourceKey);
@@ -868,7 +870,7 @@ namespace Opc.Ua.XRegistry.Server
             // Create the logical Resource node — child of the Group.
             ResourceState node = m_strategy.CreateResourceNode(group.Node, defaultVersion);
             NodeId logicalNodeId = LogicalResourceNodeId(groupId, resourceId);
-            node.ReferenceTypeId = Opc.Ua.ReferenceTypeIds.Organizes;
+            node.ReferenceTypeId = ReferenceTypeIds.Organizes;
             node.Create(
                 m_context.SystemContext,
                 logicalNodeId,
@@ -884,13 +886,13 @@ namespace Opc.Ua.XRegistry.Server
                 .AddEpoch(m_context.SystemContext)
                 .AddDescription(m_context.SystemContext)
                 .AddCreatedAt(m_context.SystemContext)
-                .AddModifiedAt(m_context.SystemContext);
-            node.AddMetaEpoch(m_context.SystemContext)
+                .AddModifiedAt(m_context.SystemContext)
+                .AddMetaEpoch(m_context.SystemContext)
                 .AddMetaLabels(m_context.SystemContext)
                 .AddMetaCreatedAt(m_context.SystemContext)
-                .AddMetaModifiedAt(m_context.SystemContext);
-            node.AddDelete(m_context.SystemContext);
-            node.AddLabels(m_context.SystemContext);
+                .AddMetaModifiedAt(m_context.SystemContext)
+                .AddDelete(m_context.SystemContext)
+                .AddLabels(m_context.SystemContext);
             node.EventNotifier = EventNotifiers.SubscribeToEvents;
 
             // Delete on the logical Resource always uses Resource-delete semantics.
@@ -920,11 +922,10 @@ namespace Opc.Ua.XRegistry.Server
             // Create the Versions folder — child of the logical Resource.
             node.AddVersions(m_context.SystemContext);
             ResourceVersionsState versionsFolder = node.Versions!;
-            NodeId versionsNodeId = VersionsFolderNodeId(groupId, resourceId);
-            versionsFolder.NodeId = versionsNodeId;
+            versionsFolder.NodeId = VersionsFolderNodeId(groupId, resourceId);
             versionsFolder.BrowseName = new QualifiedName(
                 "Versions", m_context.ModelNamespaceIndex);
-            versionsFolder.ReferenceTypeId = Opc.Ua.ReferenceTypeIds.HasComponent;
+            versionsFolder.ReferenceTypeId = ReferenceTypeIds.HasComponent;
 
             var logical = new LogicalResourceEntry(node, versionsFolder, groupId, resourceId);
             ApplyLogicalResourceProperties(logical, defaultVersion, eventSnapshot);
@@ -934,8 +935,8 @@ namespace Opc.Ua.XRegistry.Server
 
             // Wire into the group.
             group.Node.AddChild(node);
-            group.Node.AddReference(Opc.Ua.ReferenceTypeIds.HasNotifier, false, logicalNodeId);
-            node.AddReference(Opc.Ua.ReferenceTypeIds.HasNotifier, true, group.Node.NodeId);
+            group.Node.AddReference(ReferenceTypeIds.HasNotifier, false, logicalNodeId);
+            node.AddReference(ReferenceTypeIds.HasNotifier, true, group.Node.NodeId);
 
             await m_context.AddNodeAsync(node, ct).ConfigureAwait(false);
 
@@ -973,11 +974,9 @@ namespace Opc.Ua.XRegistry.Server
         {
             ResourceState node = logical.LogicalNode;
 
-            if (node.Open is not null)
-            {
-                node.Open.OnCall = new OpenMethodStateMethodCallHandler(
-                    (ISystemContext context, MethodState method, NodeId objectId,
-                     byte mode, ref uint fileHandle) =>
+            node.Open?.OnCall = new OpenMethodStateMethodCallHandler(
+                    (context, method, objectId,
+                     mode, ref fileHandle) =>
                     {
                         // Resolve the current default Version by reading VersionId.
                         // Versions is a ConcurrentDictionary: this read happens on an
@@ -1022,13 +1021,10 @@ namespace Opc.Ua.XRegistry.Server
                         }
                         return result;
                     });
-            }
 
-            if (node.Close is not null)
-            {
-                node.Close.OnCallAsync = new CloseMethodStateMethodAsyncCallHandler(
-                    async (ISystemContext context, MethodState method, NodeId objectId,
-                           uint fileHandle, CancellationToken ct) =>
+            node.Close?.OnCallAsync = new CloseMethodStateMethodAsyncCallHandler(
+                    async (context, method, objectId,
+                           fileHandle, ct) =>
                     {
                         // Peek only: do not remove the pin until we know either (a) this
                         // is not the owning session, in which case the pin must survive
@@ -1084,13 +1080,10 @@ namespace Opc.Ua.XRegistry.Server
                         node.ClearChangeMasks(m_context.SystemContext, includeChildren: true);
                         return new CloseMethodStateResult { ServiceResult = result };
                     });
-            }
 
-            if (node.Read is not null)
-            {
-                node.Read.OnCallAsync = new ReadMethodStateMethodAsyncCallHandler(
-                    async (ISystemContext context, MethodState method, NodeId objectId,
-                           uint fileHandle, int length, CancellationToken ct) =>
+            node.Read?.OnCallAsync = new ReadMethodStateMethodAsyncCallHandler(
+                    async (context, method, objectId,
+                           fileHandle, length, ct) =>
                     {
                         if (!logical.PinnedHandles.TryGetValue(fileHandle, out PinnedFileHandle pinned))
                         {
@@ -1105,13 +1098,10 @@ namespace Opc.Ua.XRegistry.Server
                             .ConfigureAwait(false);
                         return new ReadMethodStateResult { ServiceResult = status, Data = data };
                     });
-            }
 
-            if (node.Write is not null)
-            {
-                node.Write.OnCall = new WriteMethodStateMethodCallHandler(
-                    (ISystemContext context, MethodState method, NodeId objectId,
-                     uint fileHandle, ByteString data) =>
+            node.Write?.OnCall = new WriteMethodStateMethodCallHandler(
+                    (context, method, objectId,
+                     fileHandle, data) =>
                     {
                         if (!logical.PinnedHandles.TryGetValue(fileHandle, out PinnedFileHandle pinned))
                         {
@@ -1121,13 +1111,10 @@ namespace Opc.Ua.XRegistry.Server
                         return pinned.Forwarder.ForwardWrite(
                             context, method, objectId, pinned.UnderlyingHandle, data);
                     });
-            }
 
-            if (node.GetPosition is not null)
-            {
-                node.GetPosition.OnCall = new GetPositionMethodStateMethodCallHandler(
-                    (ISystemContext context, MethodState method, NodeId objectId,
-                     uint fileHandle, ref ulong position) =>
+            node.GetPosition?.OnCall = new GetPositionMethodStateMethodCallHandler(
+                    (context, method, objectId,
+                     fileHandle, ref position) =>
                     {
                         if (!logical.PinnedHandles.TryGetValue(fileHandle, out PinnedFileHandle pinned))
                         {
@@ -1137,13 +1124,10 @@ namespace Opc.Ua.XRegistry.Server
                         return pinned.Forwarder.ForwardGetPosition(
                             context, method, objectId, pinned.UnderlyingHandle, ref position);
                     });
-            }
 
-            if (node.SetPosition is not null)
-            {
-                node.SetPosition.OnCall = new SetPositionMethodStateMethodCallHandler(
-                    (ISystemContext context, MethodState method, NodeId objectId,
-                     uint fileHandle, ulong position) =>
+            node.SetPosition?.OnCall = new SetPositionMethodStateMethodCallHandler(
+                    (context, method, objectId,
+                     fileHandle, position) =>
                     {
                         if (!logical.PinnedHandles.TryGetValue(fileHandle, out PinnedFileHandle pinned))
                         {
@@ -1153,7 +1137,6 @@ namespace Opc.Ua.XRegistry.Server
                         return pinned.Forwarder.ForwardSetPosition(
                             context, method, objectId, pinned.UnderlyingHandle, position);
                     });
-            }
         }
 
         /// <summary>
@@ -1224,7 +1207,7 @@ namespace Opc.Ua.XRegistry.Server
                 : logical.LogicalNode.Parent as GroupState ?? new GroupState(null);
             ResourceState node = m_strategy.CreateResourceNode(groupNode, version);
             NodeId versionNodeId = VersionNodeId(groupId, resourceId, versionId);
-            node.ReferenceTypeId = Opc.Ua.ReferenceTypeIds.Organizes;
+            node.ReferenceTypeId = ReferenceTypeIds.Organizes;
             node.Create(
                 m_context.SystemContext,
                 versionNodeId,
@@ -1240,9 +1223,9 @@ namespace Opc.Ua.XRegistry.Server
                 .AddEpoch(m_context.SystemContext)
                 .AddDescription(m_context.SystemContext)
                 .AddCreatedAt(m_context.SystemContext)
-                .AddModifiedAt(m_context.SystemContext);
-            node.AddDelete(m_context.SystemContext);
-            node.AddLabels(m_context.SystemContext);
+                .AddModifiedAt(m_context.SystemContext)
+                .AddDelete(m_context.SystemContext)
+                .AddLabels(m_context.SystemContext);
             node.EventNotifier = EventNotifiers.SubscribeToEvents;
 
             // Delete on a Version always uses Version-delete semantics.
@@ -1265,9 +1248,9 @@ namespace Opc.Ua.XRegistry.Server
             // Wire into the Versions folder and notifier chain.
             logical.VersionsFolder.AddChild(node);
             logical.LogicalNode.AddReference(
-                Opc.Ua.ReferenceTypeIds.HasNotifier, false, versionNodeId);
+                ReferenceTypeIds.HasNotifier, false, versionNodeId);
             node.AddReference(
-                Opc.Ua.ReferenceTypeIds.HasNotifier, true, logical.LogicalNode.NodeId);
+                ReferenceTypeIds.HasNotifier, true, logical.LogicalNode.NodeId);
 
             await m_context.AddNodeAsync(node, ct).ConfigureAwait(false);
             m_resourcesByXid[version.Xid] = node;
@@ -1307,7 +1290,7 @@ namespace Opc.Ua.XRegistry.Server
             int versionsIdx = resourceXid.IndexOf("/versions/", StringComparison.Ordinal);
             if (versionsIdx >= 0)
             {
-                resourceXid = resourceXid.Substring(0, versionsIdx);
+                resourceXid = resourceXid[..versionsIdx];
             }
             SetValue(node.Xid, resourceXid);
 
@@ -1379,7 +1362,7 @@ namespace Opc.Ua.XRegistry.Server
                 m_resourcesByXid.TryRemove(mapped.Key, out _);
             }
             group.Node.RemoveReference(
-                Opc.Ua.ReferenceTypeIds.HasNotifier, false, logical.LogicalNode.NodeId);
+                ReferenceTypeIds.HasNotifier, false, logical.LogicalNode.NodeId);
             group.Node.RemoveChild(logical.LogicalNode);
             await m_context.DeleteNodeAsync(logical.LogicalNode.NodeId, ct).ConfigureAwait(false);
             group.LogicalResources.Remove(resourceId);
@@ -1401,7 +1384,7 @@ namespace Opc.Ua.XRegistry.Server
                 m_resourcesByXid.TryRemove(mapped.Key, out _);
             }
             logical.LogicalNode.RemoveReference(
-                Opc.Ua.ReferenceTypeIds.HasNotifier, false, entry.Node.NodeId);
+                ReferenceTypeIds.HasNotifier, false, entry.Node.NodeId);
             logical.VersionsFolder.RemoveChild(entry.Node);
             await m_context.DeleteNodeAsync(entry.Node.NodeId, ct).ConfigureAwait(false);
             logical.Versions.TryRemove(versionId, out _);
@@ -2214,12 +2197,12 @@ namespace Opc.Ua.XRegistry.Server
                     current.Xid,
                     registryNodeId,
                     current.Epoch,
-                    Changed: ImmutableArray.Create("epoch", "labels", "modifiedat")));
+                    Changed: ["epoch", "labels", "modifiedat"]));
             }
 
-            Dictionary<string, XRegistryProjectionEventGroup> oldGroups =
+            var oldGroups =
                 previous.Groups.ToDictionary(group => group.GroupId, StringComparer.Ordinal);
-            Dictionary<string, XRegistryProjectionEventGroup> newGroups =
+            var newGroups =
                 current.Groups.ToDictionary(group => group.GroupId, StringComparer.Ordinal);
 
             foreach (XRegistryProjectionEventGroup oldGroup in previous.Groups
@@ -2305,9 +2288,9 @@ namespace Opc.Ua.XRegistry.Server
                     GroupSourceNode(current)));
             }
 
-            Dictionary<string, XRegistryProjectionEventResource> oldResources =
+            var oldResources =
                 previous.Resources.ToDictionary(resource => resource.ResourceId, StringComparer.Ordinal);
-            Dictionary<string, XRegistryProjectionEventResource> newResources =
+            var newResources =
                 current.Resources.ToDictionary(resource => resource.ResourceId, StringComparer.Ordinal);
             foreach (XRegistryProjectionEventResource oldResource in previous.Resources
                 .Where(resource => !newResources.ContainsKey(resource.ResourceId)))
@@ -2346,7 +2329,7 @@ namespace Opc.Ua.XRegistry.Server
                     current.Xid,
                     GroupSourceNode(current),
                     current.Epoch,
-                    Changed: groupChanged.ToImmutableArray()));
+                    Changed: [.. groupChanged]));
             }
         }
 
@@ -2424,9 +2407,9 @@ namespace Opc.Ua.XRegistry.Server
                     ResourceSourceNode(current)));
             }
 
-            Dictionary<string, XRegistryProjectionEventVersion> oldVersions =
+            var oldVersions =
                 previous.Versions.ToDictionary(version => version.VersionId, StringComparer.Ordinal);
-            Dictionary<string, XRegistryProjectionEventVersion> newVersions =
+            var newVersions =
                 current.Versions.ToDictionary(version => version.VersionId, StringComparer.Ordinal);
             foreach (XRegistryProjectionEventVersion oldVersion in previous.Versions
                 .Where(version => !newVersions.ContainsKey(version.VersionId)))
@@ -2474,7 +2457,7 @@ namespace Opc.Ua.XRegistry.Server
                         newVersion.Xid,
                         VersionSourceNode(newVersion, current),
                         newVersion.Epoch,
-                        Changed: versionChanged.ToImmutableArray()));
+                        Changed: [.. versionChanged]));
                     if (string.Equals(
                             current.DefaultVersionId,
                             newVersion.VersionId,
@@ -2503,7 +2486,7 @@ namespace Opc.Ua.XRegistry.Server
                     ResourceSourceNode(current),
                     current.Epoch,
                     current.MetaEpoch,
-                    resourceChanged.ToImmutableArray()));
+                    [.. resourceChanged]));
             }
         }
 
@@ -2517,11 +2500,7 @@ namespace Opc.Ua.XRegistry.Server
                 current.Xid,
                 m_registryNode!.NodeId,
                 current.Epoch,
-                Changed: ImmutableArray.Create(
-                    attribute,
-                    attribute + "count",
-                    "epoch",
-                    "modifiedat")));
+                Changed: [attribute, attribute + "count", "epoch", "modifiedat"]));
         }
 
         private List<XRegistryEventChange> RouteEventChanges(
@@ -2801,13 +2780,12 @@ namespace Opc.Ua.XRegistry.Server
             ImmutableSortedDictionary<string, string> previous,
             ImmutableSortedDictionary<string, string> current)
         {
-            return previous.Keys.Concat(current.Keys)
+            return [.. previous.Keys.Concat(current.Keys)
                 .Distinct(StringComparer.Ordinal)
                 .Where(key =>
                     !previous.TryGetValue(key, out string? oldValue) ||
                     !current.TryGetValue(key, out string? newValue) ||
-                    !string.Equals(oldValue, newValue, StringComparison.Ordinal))
-                .ToList();
+                    !string.Equals(oldValue, newValue, StringComparison.Ordinal))];
         }
 
         private static string? DeprecatedFingerprint(XRegistryProjectionEventGroup group)
@@ -3011,7 +2989,9 @@ namespace Opc.Ua.XRegistry.Server
             /// own handle numbering.
             /// </summary>
             public uint AllocatePinnedHandle()
-                => unchecked((uint)Interlocked.Increment(ref m_nextPinnedHandle));
+            {
+                return unchecked((uint)Interlocked.Increment(ref m_nextPinnedHandle));
+            }
         }
 
         private readonly XRegistryProjectionContext m_context;

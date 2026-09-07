@@ -31,7 +31,8 @@ using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
-using Opc.Ua.XRegistry;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace Opc.Ua.XRegistry.Server
 {
@@ -91,6 +92,8 @@ namespace Opc.Ua.XRegistry.Server
         /// <summary>
         /// Applies lifecycle precedence and merges, sorts and de-duplicates Changed names.
         /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
+        /// <exception cref="ArgumentException"></exception>
         public static ImmutableArray<XRegistryEventChange> Coalesce(
             IEnumerable<XRegistryEventChange> changes)
         {
@@ -108,7 +111,7 @@ namespace Opc.Ua.XRegistry.Server
                 }
 
                 string family = CoalescingFamily(change.Kind);
-                var key = (family, change.Subject);
+                (string family, string Subject) key = (family, change.Subject);
                 XRegistryEventChange normalized = Normalize(change);
                 if (!selected.TryGetValue(key, out XRegistryEventChange? current))
                 {
@@ -133,10 +136,9 @@ namespace Opc.Ua.XRegistry.Server
                 }
             }
 
-            return selected.Values
+            return [.. selected.Values
                 .OrderBy(change => EventOrder(change.Kind))
-                .ThenBy(change => change.Subject, StringComparer.Ordinal)
-                .ToImmutableArray();
+                .ThenBy(change => change.Subject, StringComparer.Ordinal)];
         }
 
         private static XRegistryEventChange Normalize(XRegistryEventChange change)
@@ -148,15 +150,14 @@ namespace Opc.Ua.XRegistry.Server
             ImmutableArray<string> left,
             ImmutableArray<string> right)
         {
-            left = left.IsDefault ? ImmutableArray<string>.Empty : left;
-            right = right.IsDefault ? ImmutableArray<string>.Empty : right;
+            left = left.IsDefault ? [] : left;
+            right = right.IsDefault ? [] : right;
             return left.IsEmpty && right.IsEmpty
-                ? ImmutableArray<string>.Empty
-                : left.Concat(right)
+                ? []
+                : [.. left.Concat(right)
                     .Where(name => !string.IsNullOrWhiteSpace(name))
                     .Distinct(StringComparer.Ordinal)
-                    .OrderBy(name => name, StringComparer.Ordinal)
-                    .ToImmutableArray();
+                    .OrderBy(name => name, StringComparer.Ordinal)];
         }
 
         private static string CoalescingFamily(XRegistryEventKind kind)
@@ -235,7 +236,11 @@ namespace Opc.Ua.XRegistry.Server
         /// <summary>
         /// Reports one coalesced interaction through a surviving notifier.
         /// </summary>
-        public void Report(NodeState notifier, IEnumerable<XRegistryEventChange> changes)
+        /// <exception cref="ArgumentNullException"></exception>
+        public async ValueTask ReportAsync(
+            NodeState notifier,
+            IEnumerable<XRegistryEventChange> changes,
+            CancellationToken cancellationToken = default)
         {
             if (notifier is null)
             {
@@ -247,7 +252,10 @@ namespace Opc.Ua.XRegistry.Server
             foreach (XRegistryEventChange change in batch)
             {
                 NodeState reporter = change.Notifier ?? notifier;
-                reporter.ReportEvent(m_context, BuildEvent(reporter, change, commonTime));
+                await reporter.ReportEventAsync(
+                    m_context,
+                    BuildEvent(reporter, change, commonTime),
+                    cancellationToken).ConfigureAwait(false);
             }
         }
 
@@ -358,8 +366,9 @@ namespace Opc.Ua.XRegistry.Server
 
         private static uint Required(uint? value, XRegistryEventKind kind)
         {
-            return value ?? throw new InvalidOperationException(
-                $"{kind} requires an epoch value.");
+            return value ??
+                throw new InvalidOperationException(
+                    $"{kind} requires an epoch value.");
         }
 
         private static void SetChanged(

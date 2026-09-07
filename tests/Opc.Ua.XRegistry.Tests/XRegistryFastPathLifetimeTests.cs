@@ -52,7 +52,8 @@ namespace Opc.Ua.XRegistry.Tests
         [Test]
         public async Task DeletingOneOfTwoResourcesKeepsTheSharedFastPathNodeAsync()
         {
-            using XRegistryRegistrationNodeManager nm = CreateAddressSpace();
+            using XRegistryRegistrationNodeManager nm = await CreateAddressSpaceAsync()
+                .ConfigureAwait(false);
             NodeId group = await CreateGroupAsync(nm).ConfigureAwait(false);
 
             ResourceState first = await RegisterAsync(nm, group, "a", s_document).ConfigureAwait(false);
@@ -75,7 +76,8 @@ namespace Opc.Ua.XRegistry.Tests
         [Test]
         public async Task DeletingTheLastResourceDropsTheSharedFastPathNodeAsync()
         {
-            using XRegistryRegistrationNodeManager nm = CreateAddressSpace();
+            using XRegistryRegistrationNodeManager nm = await CreateAddressSpaceAsync()
+                .ConfigureAwait(false);
             NodeId group = await CreateGroupAsync(nm).ConfigureAwait(false);
 
             ResourceState first = await RegisterAsync(nm, group, "a", s_document).ConfigureAwait(false);
@@ -92,7 +94,8 @@ namespace Opc.Ua.XRegistry.Tests
         [Test]
         public async Task IdenticalBytesAcrossVersionsShareOneFastPathReferenceAsync()
         {
-            using XRegistryRegistrationNodeManager nm = CreateAddressSpace();
+            using XRegistryRegistrationNodeManager nm = await CreateAddressSpaceAsync()
+                .ConfigureAwait(false);
             NodeId group = await CreateGroupAsync(nm).ConfigureAwait(false);
 
             ResourceState first = await RegisterAsync(
@@ -119,7 +122,8 @@ namespace Opc.Ua.XRegistry.Tests
         [Test]
         public async Task DeletingAGroupReleasesEveryFastPathReferenceAsync()
         {
-            using XRegistryRegistrationNodeManager nm = CreateAddressSpace();
+            using XRegistryRegistrationNodeManager nm = await CreateAddressSpaceAsync()
+                .ConfigureAwait(false);
             NodeId group = await CreateGroupAsync(nm).ConfigureAwait(false);
 
             await RegisterAsync(nm, group, "a", s_document).ConfigureAwait(false);
@@ -136,7 +140,8 @@ namespace Opc.Ua.XRegistry.Tests
         [Test]
         public async Task RewritingAResourceRetiresItsPreviousFastPathNodeAsync()
         {
-            using XRegistryRegistrationNodeManager nm = CreateAddressSpace();
+            using XRegistryRegistrationNodeManager nm = await CreateAddressSpaceAsync()
+                .ConfigureAwait(false);
             NodeId group = await CreateGroupAsync(nm).ConfigureAwait(false);
 
             ResourceState resource = await RegisterAsync(nm, group, "a", s_document).ConfigureAwait(false);
@@ -160,7 +165,8 @@ namespace Opc.Ua.XRegistry.Tests
         [Test]
         public async Task RewritingAResourceKeepsAFastPathNodeAnotherResourceStillNeedsAsync()
         {
-            using XRegistryRegistrationNodeManager nm = CreateAddressSpace();
+            using XRegistryRegistrationNodeManager nm = await CreateAddressSpaceAsync()
+                .ConfigureAwait(false);
             NodeId group = await CreateGroupAsync(nm).ConfigureAwait(false);
 
             ResourceState first = await RegisterAsync(nm, group, "a", s_document).ConfigureAwait(false);
@@ -176,7 +182,8 @@ namespace Opc.Ua.XRegistry.Tests
         [Test]
         public async Task RewritingWithIdenticalBytesKeepsTheFastPathNodeAsync()
         {
-            using XRegistryRegistrationNodeManager nm = CreateAddressSpace();
+            using XRegistryRegistrationNodeManager nm = await CreateAddressSpaceAsync()
+                .ConfigureAwait(false);
             NodeId group = await CreateGroupAsync(nm).ConfigureAwait(false);
 
             ResourceState resource = await RegisterAsync(nm, group, "a", s_document).ConfigureAwait(false);
@@ -268,7 +275,7 @@ namespace Opc.Ua.XRegistry.Tests
             return result.GroupNodeId;
         }
 
-        private static XRegistryRegistrationNodeManager CreateAddressSpace()
+        private static async Task<XRegistryRegistrationNodeManager> CreateAddressSpaceAsync()
         {
             var options = new XRegistryServerOptions
             {
@@ -277,7 +284,9 @@ namespace Opc.Ua.XRegistry.Tests
             Mock<IServerInternal> server =
                 XRegistryServerTestHarness.CreateServer(options.RegistryNamespaceUri);
             var nm = new XRegistryRegistrationNodeManager(server.Object, null!, options);
-            nm.CreateAddressSpace(new Dictionary<NodeId, IList<IReference>>());
+            await nm.CreateAddressSpaceAsync(
+                new Dictionary<NodeId, IList<IReference>>(),
+                CancellationToken.None).ConfigureAwait(false);
             return nm;
         }
 

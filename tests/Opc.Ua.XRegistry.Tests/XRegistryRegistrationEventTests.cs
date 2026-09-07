@@ -45,9 +45,11 @@ namespace Opc.Ua.XRegistry.Tests
         [Test]
         public async Task RecursiveGroupDeleteReportsLeavesBeforeContainersAsync()
         {
-            using XRegistryRegistrationNodeManager manager = CreateAddressSpace(
-                out RegistryState registry,
-                out _);
+            (
+                XRegistryRegistrationNodeManager nodeManager,
+                RegistryState registry,
+                _) = await CreateAddressSpaceAsync().ConfigureAwait(false);
+            using XRegistryRegistrationNodeManager manager = nodeManager;
             var events = new List<BaseEventState>();
             registry.OnReportEvent = (_, _, target) =>
             {
@@ -93,19 +95,19 @@ namespace Opc.Ua.XRegistry.Tests
             Assert.Multiple(() =>
             {
                 Assert.That(ServiceResult.IsGood(deleted.ServiceResult), Is.True);
-                Assert.That(events.Select(evt => evt.GetType()).ToArray(), Is.EqualTo(new[]
-                {
+                Assert.That(events.Select(evt => evt.GetType()).ToArray(), Is.EqualTo(
+                [
                     typeof(VersionDeletedEventState),
                     typeof(VersionDeletedEventState),
                     typeof(ResourceDeletedEventState),
                     typeof(GroupDeletedEventState),
                     typeof(RegistryUpdatedEventState)
-                }));
+                ]));
                 Assert.That(events.Select(evt => evt.Time!.Value).Distinct().ToArray(),
                     Has.Length.EqualTo(1));
                 Assert.That(events.OfType<VersionDeletedEventState>()
                     .Select(evt => evt.SourceNode!.Value).ToArray(),
-                    Is.EquivalentTo(new[] { v1.NodeId, v2.NodeId }));
+                    Is.EquivalentTo([v1.NodeId, v2.NodeId]));
                 Assert.That(events.OfType<ResourceDeletedEventState>().Single().SourceNode!.Value,
                     Is.EqualTo(v2.NodeId));
                 Assert.That(events.OfType<GroupDeletedEventState>().Single().SourceNode!.Value,
@@ -117,9 +119,12 @@ namespace Opc.Ua.XRegistry.Tests
         [Test]
         public async Task RegistrationLifecycleEmitsCoalescedNativeEventsAsync()
         {
-            using XRegistryRegistrationNodeManager manager = CreateAddressSpace(
-                out RegistryState registry,
-                out Dictionary<NodeId, IList<IReference>> externalReferences);
+            (
+                XRegistryRegistrationNodeManager nodeManager,
+                RegistryState registry,
+                Dictionary<NodeId, IList<IReference>> externalReferences) =
+                await CreateAddressSpaceAsync().ConfigureAwait(false);
+            using XRegistryRegistrationNodeManager manager = nodeManager;
             var events = new List<BaseEventState>();
             registry.OnReportEvent = (_, _, target) =>
             {
@@ -134,7 +139,7 @@ namespace Opc.Ua.XRegistry.Tests
                     Is.EqualTo(EventNotifiers.SubscribeToEvents));
                 Assert.That(registry.EventSourceUrl!.Value,
                     Is.EqualTo("https://registry.example.test"));
-                Assert.That(externalReferences[global::Opc.Ua.ObjectIds.Server].Any(reference =>
+                Assert.That(externalReferences[Ua.ObjectIds.Server].Any(reference =>
                     reference.ReferenceTypeId == ReferenceTypeIds.HasNotifier &&
                     !reference.IsInverse &&
                     reference.TargetId == registry.NodeId), Is.True);
@@ -147,11 +152,11 @@ namespace Opc.Ua.XRegistry.Tests
                 "schemas",
                 CancellationToken.None).ConfigureAwait(false);
             var group = (GroupState)manager.Find(groupResult.GroupNodeId)!;
-            Assert.That(events.Select(evt => evt.GetType()), Is.EquivalentTo(new[]
-            {
+            Assert.That(events.Select(evt => evt.GetType()), Is.EquivalentTo(
+            [
                 typeof(GroupCreatedEventState),
                 typeof(RegistryUpdatedEventState)
-            }));
+            ]));
             Assert.Multiple(() =>
             {
                 Assert.That(events.OfType<GroupCreatedEventState>().Single().SourceNode!.Value,
@@ -172,12 +177,12 @@ namespace Opc.Ua.XRegistry.Tests
             var v1 = (ResourceState)manager.Find(first.ResourceNodeId)!;
             Assert.Multiple(() =>
             {
-                Assert.That(events.Select(evt => evt.GetType()), Is.EquivalentTo(new[]
-                {
+                Assert.That(events.Select(evt => evt.GetType()), Is.EquivalentTo(
+                [
                     typeof(ResourceCreatedEventState),
                     typeof(VersionCreatedEventState),
                     typeof(GroupUpdatedEventState)
-                }));
+                ]));
                 Assert.That(v1.MetaEpoch!.Value, Is.EqualTo(1u));
                 Assert.That(
                     events.Select(evt => evt.Time!.Value).Distinct().ToArray(),
@@ -215,11 +220,11 @@ namespace Opc.Ua.XRegistry.Tests
             var v2 = (ResourceState)manager.Find(second.ResourceNodeId)!;
             Assert.Multiple(() =>
             {
-                Assert.That(events.Select(evt => evt.GetType()), Is.EquivalentTo(new[]
-                {
+                Assert.That(events.Select(evt => evt.GetType()), Is.EquivalentTo(
+                [
                     typeof(VersionCreatedEventState),
                     typeof(ResourceUpdatedEventState)
-                }));
+                ]));
                 Assert.That(v1.MetaEpoch!.Value, Is.EqualTo(2u));
                 Assert.That(v2.MetaEpoch!.Value, Is.EqualTo(2u));
                 Assert.That(events.OfType<ResourceUpdatedEventState>().Single().SourceNode!.Value,
@@ -244,16 +249,16 @@ namespace Opc.Ua.XRegistry.Tests
                 CancellationToken.None).ConfigureAwait(false);
             Assert.Multiple(() =>
             {
-                Assert.That(events.Select(evt => evt.GetType()), Is.EquivalentTo(new[]
-                {
+                Assert.That(events.Select(evt => evt.GetType()), Is.EquivalentTo(
+                [
                     typeof(VersionUpdatedEventState),
                     typeof(ResourceUpdatedEventState)
-                }));
+                ]));
                 var versionUpdated = (VersionUpdatedEventState)events.Single(
                     evt => evt is VersionUpdatedEventState);
                 Assert.That(versionUpdated.Changed!.Value,
                     Is.EqualTo(s_versionChanged));
-                Assert.That(((XRegistryEventState)versionUpdated).CorrelationId, Is.Null);
+                Assert.That(versionUpdated.CorrelationId, Is.Null);
                 Assert.That(versionUpdated.SourceNode!.Value, Is.EqualTo(v2.NodeId));
                 Assert.That(events.OfType<ResourceUpdatedEventState>().Single().SourceNode!.Value,
                     Is.EqualTo(v2.NodeId));
@@ -285,11 +290,11 @@ namespace Opc.Ua.XRegistry.Tests
             Assert.Multiple(() =>
             {
                 Assert.That(ServiceResult.IsGood(deletedOne.ServiceResult), Is.True);
-                Assert.That(events.Select(evt => evt.GetType()), Is.EquivalentTo(new[]
-                {
+                Assert.That(events.Select(evt => evt.GetType()), Is.EquivalentTo(
+                [
                     typeof(VersionDeletedEventState),
                     typeof(ResourceUpdatedEventState)
-                }));
+                ]));
                 Assert.That(v2.MetaEpoch!.Value, Is.EqualTo(3u));
                 VersionDeletedEventState deletedVersion =
                     events.OfType<VersionDeletedEventState>().Single();
@@ -315,12 +320,12 @@ namespace Opc.Ua.XRegistry.Tests
             Assert.Multiple(() =>
             {
                 Assert.That(ServiceResult.IsGood(deletedLast.ServiceResult), Is.True);
-                Assert.That(events.Select(evt => evt.GetType()), Is.EquivalentTo(new[]
-                {
+                Assert.That(events.Select(evt => evt.GetType()), Is.EquivalentTo(
+                [
                     typeof(VersionDeletedEventState),
                     typeof(ResourceDeletedEventState),
                     typeof(GroupUpdatedEventState)
-                }));
+                ]));
                 Assert.That(events.OfType<VersionDeletedEventState>().Single().SourceNode!.Value,
                     Is.EqualTo(v2.NodeId));
                 Assert.That(events.OfType<ResourceDeletedEventState>().Single().SourceNode!.Value,
@@ -333,9 +338,11 @@ namespace Opc.Ua.XRegistry.Tests
         [Test]
         public async Task ByteIdenticalCloseLeavesVersionFieldsAndEventsUnchangedAsync()
         {
-            using XRegistryRegistrationNodeManager manager = CreateAddressSpace(
-                out RegistryState registry,
-                out _);
+            (
+                XRegistryRegistrationNodeManager nodeManager,
+                RegistryState registry,
+                _) = await CreateAddressSpaceAsync().ConfigureAwait(false);
+            using XRegistryRegistrationNodeManager manager = nodeManager;
             var events = new List<BaseEventState>();
             registry.OnReportEvent = (_, _, target) =>
             {
@@ -409,9 +416,11 @@ namespace Opc.Ua.XRegistry.Tests
         [Test]
         public async Task VersionAndResourceMetaLabelsHaveIndependentOwnershipAsync()
         {
-            using XRegistryRegistrationNodeManager manager = CreateAddressSpace(
-                out RegistryState registry,
-                out _);
+            (
+                XRegistryRegistrationNodeManager nodeManager,
+                RegistryState registry,
+                _) = await CreateAddressSpaceAsync().ConfigureAwait(false);
+            using XRegistryRegistrationNodeManager manager = nodeManager;
             var events = new List<BaseEventState>();
             registry.OnReportEvent = (_, _, target) =>
             {
@@ -478,7 +487,7 @@ namespace Opc.Ua.XRegistry.Tests
                 Assert.That(v1.MetaEpoch.Value, Is.EqualTo(metaEpoch));
                 Assert.That(v2.MetaEpoch!.Value, Is.EqualTo(metaEpoch));
                 Assert.That(events.Select(evt => evt.GetType()),
-                    Is.EquivalentTo(new[] { typeof(VersionUpdatedEventState) }));
+                    Is.EquivalentTo([typeof(VersionUpdatedEventState)]));
             });
             events.Clear();
 
@@ -532,10 +541,11 @@ namespace Opc.Ua.XRegistry.Tests
         [Test]
         public async Task EventsDisabledStillAdvanceCanonicalEpochsAsync()
         {
-            using XRegistryRegistrationNodeManager manager = CreateAddressSpace(
-                out RegistryState registry,
-                out _,
-                eventsEnabled: false);
+            (
+                XRegistryRegistrationNodeManager nodeManager,
+                RegistryState registry,
+                _) = await CreateAddressSpaceAsync(eventsEnabled: false).ConfigureAwait(false);
+            using XRegistryRegistrationNodeManager manager = nodeManager;
             uint registryEpoch = registry.Epoch!.Value;
             CreateGroupMethodStateResult groupResult = await manager.OnCreateGroupAsync(
                 manager.SystemContext,
@@ -594,9 +604,10 @@ namespace Opc.Ua.XRegistry.Tests
             });
         }
 
-        private static XRegistryRegistrationNodeManager CreateAddressSpace(
-            out RegistryState registry,
-            out Dictionary<NodeId, IList<IReference>> externalReferences,
+        private static async Task<(
+            XRegistryRegistrationNodeManager Manager,
+            RegistryState Registry,
+            Dictionary<NodeId, IList<IReference>> ExternalReferences)> CreateAddressSpaceAsync(
             bool eventsEnabled = true)
         {
             var options = new XRegistryServerOptions
@@ -608,13 +619,15 @@ namespace Opc.Ua.XRegistry.Tests
             Mock<IServerInternal> server =
                 XRegistryServerTestHarness.CreateServer(options.RegistryNamespaceUri);
             var manager = new XRegistryRegistrationNodeManager(server.Object, null!, options);
-            externalReferences = [];
-            manager.CreateAddressSpace(externalReferences);
+            var externalReferences = new Dictionary<NodeId, IList<IReference>>();
+            await manager.CreateAddressSpaceAsync(
+                externalReferences,
+                CancellationToken.None).ConfigureAwait(false);
             ushort ns = (ushort)manager.SystemContext.NamespaceUris.GetIndex(
                 XRegistryWellKnown.XRegistryNamespaceUri);
-            registry = (RegistryState)manager.Find(
+            var registry = (RegistryState)manager.Find(
                 new NodeId(XRegistryWellKnown.RegistryObject, ns))!;
-            return manager;
+            return (manager, registry, externalReferences);
         }
 
         private static string? Label(
@@ -626,12 +639,13 @@ namespace Opc.Ua.XRegistry.Tests
             labels.GetChildren(context, children);
             return children.OfType<PropertyState<string>>()
                 .FirstOrDefault(child =>
-                    string.Equals(child.BrowseName.Name, key, System.StringComparison.Ordinal))
-                ?.Value;
+                    string.Equals(child.BrowseName.Name, key, System.StringComparison.Ordinal))?
+                .Value;
         }
 
         private static readonly string[] s_versionChanged =
             ["epoch", "modifiedat", "resource"];
+
         private static readonly string[] s_metaChanged =
             ["meta.epoch", "meta.labels", "meta.modifiedat"];
     }

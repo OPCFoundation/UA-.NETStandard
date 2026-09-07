@@ -48,9 +48,10 @@ namespace Opc.Ua.XRegistry.Tests
     public sealed class XRegistryAttributeTests
     {
         [Test]
-        public void TheRegistryExposesTheAttributeMethods()
+        public async Task TheRegistryExposesTheAttributeMethodsAsync()
         {
-            using XRegistryRegistrationNodeManager nm = CreateAddressSpace();
+            using XRegistryRegistrationNodeManager nm = await CreateAddressSpaceAsync()
+                .ConfigureAwait(false);
             RegistryState registry = Registry(nm);
 
             Assert.Multiple(() =>
@@ -64,7 +65,8 @@ namespace Opc.Ua.XRegistry.Tests
         [Test]
         public async Task GroupsAndResourcesExposeTheAttributeMethodsAsync()
         {
-            using XRegistryRegistrationNodeManager nm = CreateAddressSpace();
+            using XRegistryRegistrationNodeManager nm = await CreateAddressSpaceAsync()
+                .ConfigureAwait(false);
 
             CreateGroupMethodStateResult group = await nm
                 .OnCreateGroupAsync(nm.SystemContext, null!, NodeId.Null, "labelled", CancellationToken.None)
@@ -92,7 +94,8 @@ namespace Opc.Ua.XRegistry.Tests
         [Test]
         public async Task AddAttributePublishesTheLabelAndBumpsTheEpochAsync()
         {
-            using XRegistryRegistrationNodeManager nm = CreateAddressSpace();
+            using XRegistryRegistrationNodeManager nm = await CreateAddressSpaceAsync()
+                .ConfigureAwait(false);
             RegistryState registry = Registry(nm);
             uint epoch = registry.Epoch!.Value;
 
@@ -115,7 +118,8 @@ namespace Opc.Ua.XRegistry.Tests
         [Test]
         public async Task AddAttributeReplacesAnExistingLabelAsync()
         {
-            using XRegistryRegistrationNodeManager nm = CreateAddressSpace();
+            using XRegistryRegistrationNodeManager nm = await CreateAddressSpaceAsync()
+                .ConfigureAwait(false);
             RegistryState registry = Registry(nm);
 
             await AddAsync(nm, registry, "owner", "plant-1", registry.Epoch!.Value).ConfigureAwait(false);
@@ -132,7 +136,8 @@ namespace Opc.Ua.XRegistry.Tests
         [Test]
         public async Task AddAttributeRejectsAnEmptyKeyAsync()
         {
-            using XRegistryRegistrationNodeManager nm = CreateAddressSpace();
+            using XRegistryRegistrationNodeManager nm = await CreateAddressSpaceAsync()
+                .ConfigureAwait(false);
             RegistryState registry = Registry(nm);
 
             AddAttributeMethodStateResult result =
@@ -144,7 +149,8 @@ namespace Opc.Ua.XRegistry.Tests
         [Test]
         public async Task AddAttributeRejectsAStaleEpochAsync()
         {
-            using XRegistryRegistrationNodeManager nm = CreateAddressSpace();
+            using XRegistryRegistrationNodeManager nm = await CreateAddressSpaceAsync()
+                .ConfigureAwait(false);
             RegistryState registry = Registry(nm);
 
             AddAttributeMethodStateResult result =
@@ -160,7 +166,8 @@ namespace Opc.Ua.XRegistry.Tests
         [Test]
         public async Task RemoveAttributeDropsTheLabelAsync()
         {
-            using XRegistryRegistrationNodeManager nm = CreateAddressSpace();
+            using XRegistryRegistrationNodeManager nm = await CreateAddressSpaceAsync()
+                .ConfigureAwait(false);
             RegistryState registry = Registry(nm);
             await AddAsync(nm, registry, "owner", "plant-1", registry.Epoch!.Value).ConfigureAwait(false);
             NodeId labelNodeId = FindLabel(nm, registry, "owner")!.NodeId;
@@ -179,7 +186,8 @@ namespace Opc.Ua.XRegistry.Tests
         [Test]
         public async Task RemoveAttributeReportsNotFoundForAnUnknownKeyAsync()
         {
-            using XRegistryRegistrationNodeManager nm = CreateAddressSpace();
+            using XRegistryRegistrationNodeManager nm = await CreateAddressSpaceAsync()
+                .ConfigureAwait(false);
             RegistryState registry = Registry(nm);
 
             RemoveAttributeMethodStateResult result =
@@ -191,7 +199,8 @@ namespace Opc.Ua.XRegistry.Tests
         [Test]
         public async Task RemoveAttributeRejectsAStaleEpochAsync()
         {
-            using XRegistryRegistrationNodeManager nm = CreateAddressSpace();
+            using XRegistryRegistrationNodeManager nm = await CreateAddressSpaceAsync()
+                .ConfigureAwait(false);
             RegistryState registry = Registry(nm);
             await AddAsync(nm, registry, "owner", "plant-1", registry.Epoch!.Value).ConfigureAwait(false);
 
@@ -208,7 +217,8 @@ namespace Opc.Ua.XRegistry.Tests
         [Test]
         public async Task AddAttributeWithEpochZeroForcesTheChangeAsync()
         {
-            using XRegistryRegistrationNodeManager nm = CreateAddressSpace();
+            using XRegistryRegistrationNodeManager nm = await CreateAddressSpaceAsync()
+                .ConfigureAwait(false);
             RegistryState registry = Registry(nm);
 
             // Epoch starts at 1 and only ever increments, so a naive equality check would make 0
@@ -226,7 +236,8 @@ namespace Opc.Ua.XRegistry.Tests
         [Test]
         public async Task RemoveAttributeWithEpochZeroForcesTheChangeAsync()
         {
-            using XRegistryRegistrationNodeManager nm = CreateAddressSpace();
+            using XRegistryRegistrationNodeManager nm = await CreateAddressSpaceAsync()
+                .ConfigureAwait(false);
             RegistryState registry = Registry(nm);
             await AddAsync(nm, registry, "owner", "plant-1", registry.Epoch!.Value).ConfigureAwait(false);
 
@@ -264,8 +275,8 @@ namespace Opc.Ua.XRegistry.Tests
             RegistryState registry,
             string key)
         {
-            return registry.Labels!.FindChild(nm.SystemContext, new QualifiedName(key, NamespaceIndex(nm)))
-                as PropertyState<string>;
+            return registry.Labels!.FindChild(nm.SystemContext, new QualifiedName(key, NamespaceIndex(nm))) as
+                PropertyState<string>;
         }
 
         private static RegistryState Registry(XRegistryRegistrationNodeManager nm)
@@ -280,13 +291,15 @@ namespace Opc.Ua.XRegistry.Tests
                 XRegistryWellKnown.XRegistryNamespaceUri);
         }
 
-        private static XRegistryRegistrationNodeManager CreateAddressSpace()
+        private static async Task<XRegistryRegistrationNodeManager> CreateAddressSpaceAsync()
         {
             var options = new XRegistryServerOptions();
             Mock<IServerInternal> server =
                 XRegistryServerTestHarness.CreateServer(options.RegistryNamespaceUri);
             var nm = new XRegistryRegistrationNodeManager(server.Object, null!, options);
-            nm.CreateAddressSpace(new Dictionary<NodeId, IList<IReference>>());
+            await nm.CreateAddressSpaceAsync(
+                new Dictionary<NodeId, IList<IReference>>(),
+                CancellationToken.None).ConfigureAwait(false);
             return nm;
         }
     }
