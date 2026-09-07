@@ -69,26 +69,14 @@ namespace Opc.Ua.Server.Tests.Fluent
             // derived-type one.
             Assert.That(
                 log,
-                Is.EqualTo(new[]
-                {
-                    "activate base:Child",
-                    "activate derived:Child",
-                    "activate base:Parent",
-                    "activate derived:Parent"
-                }));
+                Is.EqualTo(s_activationOrder));
 
             log.Clear();
             await manager.DeleteAddressSpaceAsync().ConfigureAwait(false);
 
             Assert.That(
                 log,
-                Is.EqualTo(new[]
-                {
-                    "dispose derived:Parent",
-                    "dispose base:Parent",
-                    "dispose derived:Child",
-                    "dispose base:Child"
-                }),
+                Is.EqualTo(s_teardownOrder),
                 "teardown must be the exact reverse of activation");
         }
 
@@ -207,13 +195,13 @@ namespace Opc.Ua.Server.Tests.Fluent
                     : new ValueTask<IAsyncDisposable?>((IAsyncDisposable?)null));
 
             await manager.ActivateAsync().ConfigureAwait(false);
-            Assert.That(log, Is.EqualTo(new[] { "activate Sibling1" }));
+            Assert.That(log, Is.EqualTo(s_activateSibling1));
 
             log.Clear();
             await manager.DeleteAddressSpaceAsync().ConfigureAwait(false);
             Assert.That(
                 log,
-                Is.EqualTo(new[] { "dispose Sibling1" }),
+                Is.EqualTo(s_disposeSibling1),
                 "declined instances must not be disposed");
         }
 
@@ -246,15 +234,7 @@ namespace Opc.Ua.Server.Tests.Fluent
 
             Assert.That(
                 log,
-                Is.EqualTo(new[]
-                {
-                    "activate base:Child",
-                    "activate derived:Child",
-                    "activate base:Parent",
-                    "dispose base:Parent",
-                    "dispose derived:Child",
-                    "dispose base:Child"
-                }),
+                Is.EqualTo(s_rollbackOrder),
                 "rollback must release exactly what activated, in reverse");
         }
 
@@ -305,13 +285,13 @@ namespace Opc.Ua.Server.Tests.Fluent
 
             Assert.That(
                 log,
-                Is.EqualTo(new[] { "activate first", "activate second" }));
+                Is.EqualTo(s_activateBothPasses));
 
             log.Clear();
             await manager.DeleteAddressSpaceAsync().ConfigureAwait(false);
             Assert.That(
                 log,
-                Is.EqualTo(new[] { "dispose second", "dispose first" }));
+                Is.EqualTo(s_disposeBothPasses));
         }
 
         [Test]
@@ -327,7 +307,7 @@ namespace Opc.Ua.Server.Tests.Fluent
             await manager.ActivateAsync().ConfigureAwait(false);
             await manager.ActivateAsync().ConfigureAwait(false);
 
-            Assert.That(log, Is.EqualTo(new[] { "activate once" }));
+            Assert.That(log, Is.EqualTo(s_activateOnce));
         }
 
         [Test]
@@ -398,6 +378,40 @@ namespace Opc.Ua.Server.Tests.Fluent
                     "teardown must clear the notifier bit it set");
             });
         }
+
+        private static readonly string[] s_activationOrder =
+        [
+            "activate base:Child",
+            "activate derived:Child",
+            "activate base:Parent",
+            "activate derived:Parent"
+        ];
+
+        private static readonly string[] s_teardownOrder =
+        [
+            "dispose derived:Parent",
+            "dispose base:Parent",
+            "dispose derived:Child",
+            "dispose base:Child"
+        ];
+
+        private static readonly string[] s_rollbackOrder =
+        [
+            "activate base:Child",
+            "activate derived:Child",
+            "activate base:Parent",
+            "dispose base:Parent",
+            "dispose derived:Child",
+            "dispose base:Child"
+        ];
+
+        private static readonly string[] s_activateSibling1 = ["activate Sibling1"];
+        private static readonly string[] s_disposeSibling1 = ["dispose Sibling1"];
+        private static readonly string[] s_activateBothPasses =
+            ["activate first", "activate second"];
+        private static readonly string[] s_disposeBothPasses =
+            ["dispose second", "dispose first"];
+        private static readonly string[] s_activateOnce = ["activate once"];
 
         private static ValueTask<IAsyncDisposable?> Record(List<string> log, string label)
         {
