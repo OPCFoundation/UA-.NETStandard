@@ -126,13 +126,12 @@ namespace Opc.Ua.WotCon.Tests.Samples
                 Encoding = new UTF8Encoding(encoderShouldEmitUTF8Identifier: false),
                 Indent = true,
                 IndentChars = "  ",
-                NewLineChars = "\r\n",
+                NewLineChars = "\n",
                 NewLineHandling = NewLineHandling.Replace
             }))
             {
                 document.Save(writer);
             }
-            stream.WriteByte(13);
             stream.WriteByte(10);
             return ByteString.From(stream.ToArray());
         }

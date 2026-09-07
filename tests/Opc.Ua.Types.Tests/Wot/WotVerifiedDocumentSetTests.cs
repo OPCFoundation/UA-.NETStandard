@@ -392,7 +392,8 @@ namespace Opc.Ua.Types.Tests.Wot
                 directory = directory.Parent;
             }
             Assert.That(directory, Is.Not.Null);
-            using FileStream stream = File.OpenRead(Path.Combine(directory!.FullName, relativePath));
+            string sourcePath = Path.Combine(directory!.FullName, Path.Combine(relativePath.Split('\\')));
+            using FileStream stream = File.OpenRead(sourcePath);
             UANodeSet source = UANodeSet.Read(stream)!;
             var options = new WotNodeSetConverterOptions
             {
@@ -419,7 +420,7 @@ namespace Opc.Ua.Types.Tests.Wot
             using WotDocumentSet reloaded = Reload(set);
             await AssertEquivalentAsync(source, reloaded, options).ConfigureAwait(false);
             TestContext.Out.WriteLine(
-                $"{Path.GetFileName(relativePath)}: {set.Entries.Count} linked partitions, " +
+                $"{Path.GetFileName(sourcePath)}: {set.Entries.Count} linked partitions, " +
                 $"{set.Entries.ToArray().Count(entry => entry.Document.TryGetNativeProjection(out _))} native.");
         }
 

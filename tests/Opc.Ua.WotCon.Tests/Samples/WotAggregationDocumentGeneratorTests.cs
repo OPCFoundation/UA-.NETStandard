@@ -561,6 +561,15 @@ namespace Opc.Ua.WotCon.Tests.Samples
         }
 
         [Test]
+        public void GeneratedPumpSourceUsesLfLineEndings()
+        {
+            ByteString generated = WotAggregationDocumentGenerator.GeneratePumpNodeSetXml(PumpSourcePath);
+
+            Assert.That(generated.Span.IndexOf((byte)'\r'), Is.EqualTo(-1));
+            Assert.That(generated.Span[generated.Length - 1], Is.EqualTo((byte)'\n'));
+        }
+
+        [Test]
         public void GeneratedPumpSourceRebuildsMissingDeclarationsAndTheSecondPump()
         {
             var seed = XDocument.Load(PumpSourcePath);
