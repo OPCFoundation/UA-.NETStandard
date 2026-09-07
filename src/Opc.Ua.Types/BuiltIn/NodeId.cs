@@ -267,6 +267,15 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Restores the complete identifier state without recomputing its cached hash or reboxing its payload.
+        /// </summary>
+        internal NodeId(object? identifier, Inner inner)
+        {
+            m_identifier = identifier;
+            m_inner = inner;
+        }
+
+        /// <summary>
         /// Creates a new NodeId from a long-form text representation, resolving
         /// the namespace URI against the supplied <see cref="NamespaceTable"/>.
         /// Use this overload when you know the caller is starting with a long form.
@@ -1814,6 +1823,15 @@ namespace Opc.Ua
         /// C# 15 union types.
         /// </summary>
         public bool HasValue => !IsNull;
+
+        /// <summary>
+        /// Borrows the identifier reference and complete unmanaged state for lossless internal storage.
+        /// </summary>
+        internal void GetRawState(out object? identifier, out Inner inner)
+        {
+            identifier = m_identifier;
+            inner = m_inner;
+        }
 
         /// <summary>
         /// Get namespace index for id or throw if not found.

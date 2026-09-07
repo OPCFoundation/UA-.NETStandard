@@ -13,6 +13,7 @@ Here is a list of available documentation for different topics:
 * [REST Binding (OpenAPI Mapping)](WebApi.md) - OPC UA Part 6 §G.3 OpenAPI mapping: ASP.NET Core MVC controllers for every spec service, Compact / Verbose encoding negotiation, four pluggable auth modes (Anonymous / Bearer JWT / HTTP Basic / Mutual TLS), and the symmetric `IWebApiClient`.
 * [What's New in 2.0](WhatsNewIn2.0.md) - Developer-facing tour of the 1.5.378 → 2.0 changes, grouped by theme and layer, with links to deeper feature docs.
 * [Migration Guide](MigrationGuide.md) - How to migrate from a previous version.
+* [Variant scalar storage](VariantStorage.md) - Fixed-size builtin packing, ownership, compatibility and measurement.
 * [Sessions, Reconnection, and Subscription Engines](Sessions.md) - Architectural overview of `Session`, `ManagedSession`, `SessionReconnectHandler`, and the classic / V2 subscription engines, including guidance on which to use.
 * About [.NET platform support, NuGet packages and versioning](DeveloperGuide.md#packages-platform-support-and-versioning).
 * About [continuous integration](DeveloperGuide.md#continuous-integration) — which pipeline runs what, how to start a validation build on a pull request with `/azp run`, and the coverage gates a change has to satisfy.

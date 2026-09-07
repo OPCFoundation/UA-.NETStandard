@@ -294,8 +294,16 @@ namespace Opc.Ua
         /// <param name="value">The <see cref="ByteString"/> value of the Variant</param>
         public Variant(ByteString value)
         {
+#if NET8_0_OR_GREATER
+            ReadOnlyMemory memory = ReadOnlyMemoryHelper.From(in value);
+            m_value = memory.Object;
+            m_union.Index = memory.Index;
+            m_union.Length = memory.Length;
+            m_typeInfo = TypeInfo.Scalars.ByteString.WithVariantStorage(true);
+#else
             m_value = value;
             m_typeInfo = TypeInfo.Scalars.ByteString;
+#endif
         }
 
         /// <summary>
@@ -314,8 +322,10 @@ namespace Opc.Ua
         /// <param name="value">The <see cref="NodeId"/> value of the Variant</param>
         public Variant(NodeId value)
         {
-            m_value = value;
-            m_typeInfo = TypeInfo.Scalars.NodeId;
+            value.GetRawState(out object? identifier, out NodeId.Inner inner);
+            m_union.NodeId = inner;
+            m_value = identifier;
+            m_typeInfo = TypeInfo.Scalars.NodeId.WithVariantStorage(true);
         }
 
         /// <summary>
@@ -345,8 +355,9 @@ namespace Opc.Ua
         /// <param name="value">The <see cref="QualifiedName"/> value of the Variant</param>
         public Variant(QualifiedName value)
         {
-            m_value = value;
-            m_typeInfo = TypeInfo.Scalars.QualifiedName;
+            m_value = value.Name;
+            m_union.UInt16 = value.NamespaceIndex;
+            m_typeInfo = TypeInfo.Scalars.QualifiedName.WithVariantStorage(true);
         }
 
         /// <summary>
@@ -355,8 +366,16 @@ namespace Opc.Ua
         /// <param name="value">The <see cref="LocalizedText"/> value of the Variant</param>
         public Variant(LocalizedText value)
         {
-            m_value = value;
-            m_typeInfo = TypeInfo.Scalars.LocalizedText;
+            if (value.TryGetTextOnly(out string? text))
+            {
+                m_value = text;
+                m_typeInfo = TypeInfo.Scalars.LocalizedText.WithVariantStorage(true);
+            }
+            else
+            {
+                m_value = value;
+                m_typeInfo = TypeInfo.Scalars.LocalizedText;
+            }
         }
 
         /// <summary>
@@ -941,6 +960,12 @@ namespace Opc.Ua
         {
             VariantHelper.TryCastFrom(value, out Variant variant);
             this = variant;
+            if (variant.IsPackedScalar)
+            {
+                // An explicit, possibly mismatched TypeInfo keeps the original boxed payload semantics.
+                m_value = variant.GetStoredValue();
+                m_union = default;
+            }
             m_typeInfo = typeInfo;
         }
 
@@ -988,7 +1013,7 @@ namespace Opc.Ua
         /// Returns if the Variant is a Null value.
         /// </summary>
         [JsonIgnore]
-        public bool IsNull => TypeInfo.IsUnknown;
+        public bool IsNull => m_typeInfo.IsUnknown;
 
         /// <summary>
         /// The value stored -as <see cref="object"/>- within the
@@ -1007,11 +1032,28 @@ namespace Opc.Ua
         /// </summary>
         [JsonPropertyName("TypeInfo")]
 #pragma warning disable RCS1085 // Use auto-implemented property
-        public TypeInfo TypeInfo => m_typeInfo;
+        public TypeInfo TypeInfo => m_typeInfo.WithVariantStorage(false);
 #pragma warning restore RCS1085 // Use auto-implemented property
 
         [JsonPropertyName("Value")]
         internal object? Raw => AsBoxedObject(BoxingBehavior.None);
+
+        /// <summary>
+        /// Distinguishes split scalar storage from boxed payloads, including typed null payloads.
+        /// </summary>
+        private bool IsPackedQualifiedName =>
+            IsPackedScalar && m_typeInfo.BuiltInType == BuiltInType.QualifiedName;
+
+        private bool IsPackedNodeId =>
+            IsPackedScalar && m_typeInfo.BuiltInType == BuiltInType.NodeId;
+
+        private bool IsPackedByteString =>
+            IsPackedScalar && m_typeInfo.BuiltInType == BuiltInType.ByteString;
+
+        private bool IsPackedLocalizedText =>
+            IsPackedScalar && m_typeInfo.BuiltInType == BuiltInType.LocalizedText;
+
+        private bool IsPackedScalar => m_typeInfo.HasVariantStorage;
 
         /// <inheritdoc/>
         public override int GetHashCode()
@@ -1039,6 +1081,10 @@ namespace Opc.Ua
                     BuiltInType.Int64 or
                     BuiltInType.UInt64 or
                     BuiltInType.Double => m_union.UInt64.GetHashCode(),
+                    BuiltInType.QualifiedName when IsPackedScalar => GetQualifiedName().GetHashCode(),
+                    BuiltInType.NodeId when IsPackedScalar => GetNodeId().GetHashCode(),
+                    BuiltInType.ByteString when IsPackedScalar => GetByteString().GetHashCode(),
+                    BuiltInType.LocalizedText when IsPackedScalar => GetLocalizedText().GetHashCode(),
                     _ => m_value?.GetHashCode() ?? 0
                 };
             }
@@ -2041,6 +2087,14 @@ namespace Opc.Ua
         /// </param>
         public bool TryGetValue(out ByteString value)
         {
+#if NET8_0_OR_GREATER
+            if (IsPackedByteString)
+            {
+                var memory = new ReadOnlyMemory(m_value, m_union.Length, m_union.Index);
+                value = ReadOnlyMemoryHelper.ReinterpretAs<ByteString>(in memory);
+                return true;
+            }
+#endif
             if (TryGetScalar(out value, BuiltInType.ByteString))
             {
                 return true;
@@ -2074,6 +2128,11 @@ namespace Opc.Ua
         /// </param>
         public bool TryGetValue(out NodeId value)
         {
+            if (IsPackedNodeId)
+            {
+                value = new NodeId(m_value, m_union.NodeId);
+                return true;
+            }
             return TryGetScalar(out value, BuiltInType.NodeId);
         }
 
@@ -2113,6 +2172,11 @@ namespace Opc.Ua
         /// </param>
         public bool TryGetValue(out QualifiedName value)
         {
+            if (IsPackedQualifiedName)
+            {
+                value = new QualifiedName((string?)m_value, m_union.UInt16);
+                return true;
+            }
             return TryGetScalar(out value, BuiltInType.QualifiedName);
         }
 
@@ -2123,6 +2187,11 @@ namespace Opc.Ua
         /// </param>
         public bool TryGetValue(out LocalizedText value)
         {
+            if (IsPackedLocalizedText)
+            {
+                value = new LocalizedText((string?)m_value);
+                return true;
+            }
             return TryGetScalar(out value, BuiltInType.LocalizedText);
         }
 
@@ -2245,7 +2314,7 @@ namespace Opc.Ua
             // A ByteString is structurally the same as a one dimensional array
             // of Byte. A Server shall accept a ByteString if an array of Byte
             // is expected.
-            if (TryGetScalar(out ByteString byteString, BuiltInType.ByteString))
+            if (TryGetValue(out ByteString byteString))
             {
                 value = byteString.ToArray();
                 return true;
@@ -7311,6 +7380,7 @@ namespace Opc.Ua
                 return 0;
             }
             TypeInfo ourTypeInfo = IsNull ? other.TypeInfo : TypeInfo;
+            Union otherUnion = other.IsPackedScalar ? default : other.m_union;
             if (ourTypeInfo.IsScalar)
             {
                 switch (ourTypeInfo.BuiltInType)
@@ -7318,33 +7388,46 @@ namespace Opc.Ua
                     case BuiltInType.Null:
                         return other.TypeInfo.BuiltInType == TypeInfo.BuiltInType ? 0 : int.MinValue;
                     case BuiltInType.Boolean:
-                        return m_union.Boolean.CompareTo(other.m_union.Boolean);
+                        return m_union.Boolean.CompareTo(otherUnion.Boolean);
                     case BuiltInType.Enumeration:
-                        return m_union.UInt64.CompareTo(other.m_union.UInt64);
+                        return m_union.UInt64.CompareTo(otherUnion.UInt64);
                     case BuiltInType.Int64:
                     case BuiltInType.DateTime:
-                        return m_union.Int64.CompareTo(other.m_union.Int64);
+                        return m_union.Int64.CompareTo(otherUnion.Int64);
                     case BuiltInType.Float:
-                        return m_union.Float.CompareTo(other.m_union.Float);
+                        return m_union.Float.CompareTo(otherUnion.Float);
                     case BuiltInType.Double:
-                        return m_union.Double.CompareTo(other.m_union.Double);
+                        return m_union.Double.CompareTo(otherUnion.Double);
                     case BuiltInType.SByte:
-                        return m_union.SByte.CompareTo(other.m_union.SByte);
+                        return m_union.SByte.CompareTo(otherUnion.SByte);
                     case BuiltInType.Byte:
-                        return m_union.Byte.CompareTo(other.m_union.Byte);
+                        return m_union.Byte.CompareTo(otherUnion.Byte);
                     case BuiltInType.Int16:
-                        return m_union.Int16.CompareTo(other.m_union.Int16);
+                        return m_union.Int16.CompareTo(otherUnion.Int16);
                     case BuiltInType.Int32:
-                        return m_union.Int32.CompareTo(other.m_union.Int32);
+                        return m_union.Int32.CompareTo(otherUnion.Int32);
                     case BuiltInType.UInt16:
-                        return m_union.UInt16.CompareTo(other.m_union.UInt16);
+                        return m_union.UInt16.CompareTo(otherUnion.UInt16);
                     case BuiltInType.UInt32:
-                        return m_union.UInt32.CompareTo(other.m_union.UInt32);
+                        return m_union.UInt32.CompareTo(otherUnion.UInt32);
                     case BuiltInType.UInt64:
-                        return m_union.UInt64.CompareTo(other.m_union.UInt64);
+                        return m_union.UInt64.CompareTo(otherUnion.UInt64);
                 }
             }
-            if (m_value is IComparable lhs && other.m_value is IComparable rhs)
+            if (IsPackedQualifiedName && other.IsPackedQualifiedName)
+            {
+                return GetQualifiedName().CompareTo(other.GetQualifiedName());
+            }
+            if (IsPackedNodeId && other.IsPackedNodeId)
+            {
+                return GetNodeId().CompareTo(other.GetNodeId());
+            }
+            if (IsPackedByteString || IsPackedLocalizedText ||
+                other.IsPackedByteString || other.IsPackedLocalizedText)
+            {
+                return int.MinValue;
+            }
+            if (GetStoredValue() is IComparable lhs && other.GetStoredValue() is IComparable rhs)
             {
                 return lhs.CompareTo(rhs);
             }
@@ -7390,11 +7473,24 @@ namespace Opc.Ua
             {
                 return m_union.UInt64 == other.m_union.UInt64;
             }
-            if (m_value is null)
+            if (IsPackedQualifiedName && other.IsPackedQualifiedName)
             {
-                return other.m_value is null;
+                return GetQualifiedName().Equals(other.GetQualifiedName());
             }
-            return m_value.Equals(other.m_value);
+            if (IsPackedNodeId && other.IsPackedNodeId)
+            {
+                return GetNodeId().Equals(other.GetNodeId());
+            }
+            if (IsPackedByteString && other.IsPackedByteString)
+            {
+                return GetByteString().Equals(other.GetByteString());
+            }
+            if (IsPackedLocalizedText && other.IsPackedLocalizedText)
+            {
+                return GetLocalizedText().Equals(other.GetLocalizedText());
+            }
+            object? value = GetStoredValue();
+            return value is null ? other.GetStoredValue() is null : value.Equals(other.GetStoredValue());
         }
 
         /// <inheritdoc/>
@@ -7406,8 +7502,8 @@ namespace Opc.Ua
             }
 
             // Ensure we compare against a null variant correctly below.
-            TypeInfo ourTypeInfo = IsNull ? other.TypeInfo : TypeInfo;
-            TypeInfo otherTypeInfo = other.IsNull ? ourTypeInfo : other.TypeInfo;
+            TypeInfo ourTypeInfo = IsNull ? other.m_typeInfo : m_typeInfo;
+            TypeInfo otherTypeInfo = other.IsNull ? ourTypeInfo : other.m_typeInfo;
 
             if ((ourTypeInfo.ValueRank != otherTypeInfo.ValueRank ||
                 ourTypeInfo.BuiltInType != otherTypeInfo.BuiltInType) &&
@@ -7754,6 +7850,14 @@ namespace Opc.Ua
                             return m_union.UInt64 == 0;
                         case BuiltInType.Guid:
                             return GetGuid() == Uuid.Empty;
+                        case BuiltInType.QualifiedName when IsPackedScalar:
+                            return GetQualifiedName().IsNull;
+                        case BuiltInType.NodeId when IsPackedScalar:
+                            return GetNodeId().IsNull;
+                        case BuiltInType.ByteString when IsPackedScalar:
+                            return GetByteString().IsNull;
+                        case BuiltInType.LocalizedText when IsPackedScalar:
+                            return GetLocalizedText().IsNull;
                     }
                 }
                 if (m_value is INullable nullable)
@@ -8076,6 +8180,14 @@ namespace Opc.Ua
                         return m_union.Double.ToString(provider);
                     case BuiltInType.DateTime:
                         return m_union.DateTime.ToString(provider);
+                    case BuiltInType.QualifiedName when IsPackedQualifiedName:
+                        return GetQualifiedName().ToString(null, provider);
+                    case BuiltInType.NodeId when IsPackedNodeId:
+                        return GetNodeId().ToString(null, provider);
+                    case BuiltInType.ByteString when IsPackedByteString:
+                        return GetByteString().ToString();
+                    case BuiltInType.LocalizedText when IsPackedLocalizedText:
+                        return GetLocalizedText().ToString(null, provider);
                     case BuiltInType.StatusCode:
                         return (m_value is string s ?
                             new StatusCode(m_union.UInt32, s) :
@@ -8104,11 +8216,12 @@ namespace Opc.Ua
                         return m_union.Int32.ToString(provider);
                 }
             }
-            if (m_value is IFormattable f)
+            object? value = GetStoredValue();
+            if (value is IFormattable f)
             {
                 return f.ToString(null, provider);
             }
-            return m_value?.ToString() ?? "<null>";
+            return value?.ToString() ?? "<null>";
         }
 
         /// <summary>
@@ -8166,15 +8279,29 @@ namespace Opc.Ua
                 switch (TypeInfo.BuiltInType)
                 {
                     case BuiltInType.NodeId:
+                        if (IsPackedNodeId)
+                        {
+                            return GetNodeId();
+                        }
                         return m_value is NodeId v ? v : default;
                     case BuiltInType.ExpandedNodeId:
                         return m_value is ExpandedNodeId e ? e : default;
                     case BuiltInType.LocalizedText:
+                        if (IsPackedLocalizedText)
+                        {
+                            return GetLocalizedText();
+                        }
                         return m_value is LocalizedText l ? l : default;
                     case BuiltInType.QualifiedName:
+                        if (IsPackedScalar)
+                        {
+                            return GetQualifiedName();
+                        }
                         return m_value is QualifiedName q ? q : default;
                     case BuiltInType.ExtensionObject:
                         return m_value is ExtensionObject o ? o : default;
+                    case BuiltInType.ByteString when IsPackedByteString:
+                        return GetByteString();
                     case BuiltInType.Boolean:
                         return m_union.Boolean;
                     case BuiltInType.SByte:
@@ -8286,6 +8413,30 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Materializes the original payload only at object-based compatibility boundaries.
+        /// </summary>
+        private object? GetStoredValue()
+        {
+            if (IsPackedQualifiedName)
+            {
+                return GetQualifiedName();
+            }
+            if (IsPackedNodeId)
+            {
+                return GetNodeId();
+            }
+            if (IsPackedByteString)
+            {
+                return GetByteString();
+            }
+            if (IsPackedLocalizedText)
+            {
+                return GetLocalizedText();
+            }
+            return m_value;
+        }
+
+        /// <summary>
         /// Stores the primitive Variant payload or array slice metadata without allocating boxed values.
         /// </summary>
         [StructLayout(LayoutKind.Explicit, Size = 8)]
@@ -8362,6 +8513,12 @@ namespace Opc.Ua
             /// </summary>
             [FieldOffset(0)]
             public DateTimeUtc DateTime;
+
+            /// <summary>
+            /// Stores the complete unmanaged NodeId state, including its cached hash.
+            /// </summary>
+            [FieldOffset(0)]
+            public NodeId.Inner NodeId;
 
             /// <summary>
             /// In case of array offset into it
