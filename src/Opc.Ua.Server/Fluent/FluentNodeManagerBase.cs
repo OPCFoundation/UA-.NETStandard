@@ -392,8 +392,13 @@ namespace Opc.Ua.Server.Fluent
             IDictionary<NodeId, IList<IReference>> externalReferences,
             CancellationToken cancellationToken = default)
         {
+            await CompleteNodeSetImportsAsync(externalReferences, cancellationToken)
+                .ConfigureAwait(false);
             await AddReverseReferencesAsync(externalReferences, cancellationToken)
                 .ConfigureAwait(false);
+
+            // Last: behaviors must see the fully indexed graph, which now includes
+            // whatever the Configure pass imported.
             await ActivateNodeBehaviorsAsync(cancellationToken).ConfigureAwait(false);
         }
 
@@ -436,8 +441,7 @@ namespace Opc.Ua.Server.Fluent
             }
 
             ITelemetryContext telemetry = Server.Telemetry;
-            TimeProvider timeProvider =
-                (Server as ITimeProviderProvider)?.TimeProvider ?? TimeProvider.System;
+            TimeProvider timeProvider = NodeManagerTimeProvider;
 
             var typeRegistrations = new List<NodeBehaviorRegistration>();
             var pinned = new List<NodeBehaviorPinnedRegistration>();
@@ -607,6 +611,102 @@ namespace Opc.Ua.Server.Fluent
         }
 
         /// <summary>
+        /// Links and registers the NodeSet documents which the
+        /// <c>Configure</c> pass imported through
+        /// <see cref="INodeManagerBuilder.Import"/>.
+        /// </summary>
+        private async ValueTask CompleteNodeSetImportsAsync(
+            IDictionary<NodeId, IList<IReference>> externalReferences,
+            CancellationToken cancellationToken)
+        {
+            NodeManagerBuilder[] builders = GetAttachedBuilders();
+            for (int ii = 0; ii < builders.Length; ii++)
+            {
+                NodeManagerBuilder builder = builders[ii];
+                if (!builder.HasPendingNodeSetImports)
+                {
+                    continue;
+                }
+
+                // Snapshot the nodes owned before the import so linking can
+                // resolve parents in them without seeing the imported nodes.
+                var existingNodes = new Dictionary<NodeId, NodeState>();
+                foreach (KeyValuePair<NodeId, NodeState> entry in PredefinedNodes)
+                {
+                    existingNodes[entry.Key] = entry.Value;
+                }
+
+                // RemovePredefinedNodeAsync only collects the references other
+                // node managers hold on a removed node; dropping them is the
+                // caller's job.
+                var referencesToRemove = new List<LocalReference>();
+                await builder.CompleteNodeSetImportsAsync(
+                    existingNodes,
+                    (node, ct) => AddPredefinedNodeAsync(
+                        SystemContext,
+                        node,
+                        externalReferences,
+                        ct),
+                    (node, ct) => RemovePredefinedNodeAsync(
+                        SystemContext,
+                        node,
+                        referencesToRemove,
+                        ct),
+                    cancellationToken).ConfigureAwait(false);
+
+                if (referencesToRemove.Count > 0)
+                {
+                    DropPendingExternalReferences(externalReferences, referencesToRemove);
+                    await Server.NodeManager
+                        .RemoveReferencesAsync(referencesToRemove, cancellationToken)
+                        .ConfigureAwait(false);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Removes references to displaced nodes which this pass has staged in
+        /// <paramref name="externalReferences"/> but the master node manager
+        /// has not applied yet.
+        /// </summary>
+        /// <remarks>
+        /// At startup the reverse-reference pass of
+        /// <c>LoadPredefinedNodesAsync</c> has already published the generated
+        /// nodes' references into the dictionary. An entry that targets a node
+        /// the import has just removed would otherwise be applied afterwards,
+        /// leaving another node manager pointing at a node that no longer
+        /// exists.
+        /// </remarks>
+        private static void DropPendingExternalReferences(
+            IDictionary<NodeId, IList<IReference>> externalReferences,
+            List<LocalReference> referencesToRemove)
+        {
+            for (int ii = 0; ii < referencesToRemove.Count; ii++)
+            {
+                LocalReference reference = referencesToRemove[ii];
+                if (!externalReferences.TryGetValue(
+                        reference.SourceId,
+                        out IList<IReference>? references) ||
+                    references is null)
+                {
+                    continue;
+                }
+
+                for (int jj = references.Count - 1; jj >= 0; jj--)
+                {
+                    IReference candidate = references[jj];
+                    if (candidate.IsInverse == reference.IsInverse &&
+                        candidate.ReferenceTypeId == reference.ReferenceTypeId &&
+                        !candidate.TargetId.IsAbsolute &&
+                        (NodeId)candidate.TargetId == reference.TargetId)
+                    {
+                        references.RemoveAt(jj);
+                    }
+                }
+            }
+        }
+
+        /// <summary>
         /// Registers every node staged by the builder's <c>Add*</c> methods
         /// with this manager.
         /// </summary>
@@ -637,6 +737,42 @@ namespace Opc.Ua.Server.Fluent
             return builder.RegisterAuthoredNodesAsync(
                 (node, ct) => AddPredefinedNodeAsync(SystemContext, node, ct),
                 cancellationToken);
+        }
+
+        /// <summary>
+        /// Seals the builder, replays <c>NotifyNodeAdded</c> for every node
+        /// this manager owns, and then starts the simulations the
+        /// <c>Configure</c> pass registered.
+        /// </summary>
+        /// <remarks>
+        /// Call this once the address space is complete - after
+        /// <see cref="RegisterAuthoredNodesAsync"/> and
+        /// <see cref="CompleteConfigureAsync"/>. Both ends of the order
+        /// matter: sealing first stops a lifecycle handler from authoring
+        /// nodes that nothing would register any more, and starting the
+        /// simulations last keeps a simulated value change from preceding the
+        /// <c>OnNodeAdded</c> handler of its own node. The source-generated
+        /// <c>CreateAddressSpaceAsync</c> emits this call for you.
+        /// </remarks>
+        /// <param name="builder">The builder the Configure pass used.</param>
+        /// <exception cref="System.ArgumentNullException">
+        /// <paramref name="builder"/> is <c>null</c>.
+        /// </exception>
+        protected void SealConfiguration(NodeManagerBuilder builder)
+        {
+            if (builder == null)
+            {
+                throw new System.ArgumentNullException(nameof(builder));
+            }
+
+            builder.SealGraphAuthoring();
+
+            foreach (KeyValuePair<NodeId, NodeState> entry in PredefinedNodes)
+            {
+                builder.Dispatcher.NotifyNodeAdded(SystemContext, entry.Value);
+            }
+
+            builder.StartSimulations();
         }
 
         /// <inheritdoc/>

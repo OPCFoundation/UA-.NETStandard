@@ -13,8 +13,8 @@ The dependency injection surface is consistent across:
 - The complex types client (`src/Opc.Ua.Client.ComplexTypes`)
 - Alarms and conditions client (`src/Opc.Ua.Client.Alarms`)
 - The server (`src/Opc.Ua.Server`)
-- The GDS client (`src/Opc.Ua.Gds.Client.Common`)
-- The GDS server (`src/Opc.Ua.Gds.Server.Common`)
+- The GDS client (`src/Opc.Ua.Gds.Client`)
+- The GDS server (`src/Opc.Ua.Gds.Server`)
 - The LDS server (`src/Opc.Ua.Lds.Server`)
 - The WoT Connectivity server (`src/Opc.Ua.WotCon.Server`)
 - The WoT Connectivity client (`src/Opc.Ua.WotCon.Client`)
@@ -52,8 +52,8 @@ you need finer control.
 | `Opc.Ua.Robotics.Server` (model) | `serverBuilder.AddRoboticsModel<T>()`  | `IOpcUaServerBuilder`    | —       | —                        |
 | `Opc.Ua.Robotics.Server` (build) | `serverBuilder.ConfigureRobotics(…)` / `ConfigureRoboticsFor<T>(…)` | `IOpcUaServerBuilder` | — | — |
 | `Opc.Ua.Robotics.Client`       | `clientBuilder.AddRoboticsClient()`      | `IOpcUaClientBuilder`    | —       | —                        |
-| `Opc.Ua.Gds.Client.Common`     | `builder.AddGdsClient(opt => …)`         | `IGdsClientBuilder`      | —       | `OpcUa:Gds:Client`       |
-| `Opc.Ua.Gds.Server.Common`     | `builder.AddGdsServer(opt => …)`         | `IGdsServerBuilder`      | yes     | `OpcUa:Gds:Server`       |
+| `Opc.Ua.Gds.Client`     | `builder.AddGdsClient(opt => …)`         | `IGdsClientBuilder`      | —       | `OpcUa:Gds:Client`       |
+| `Opc.Ua.Gds.Server`     | `builder.AddGdsServer(opt => …)`         | `IGdsServerBuilder`      | yes     | `OpcUa:Gds:Server`       |
 | `Opc.Ua.Lds.Server`            | `builder.AddLdsServer(opt => …)`         | `ILdsServerBuilder`      | yes     | `OpcUa:Lds`              |
 | `Opc.Ua.WotCon.Server`         | `builder.AddWotConServer(opt => …)`      | `IWotConServerBuilder`   | yes (via `AddServer`) | `OpcUa:WotCon:Server` |
 | `Opc.Ua.WotCon.Client`         | `builder.AddWotConClient(opt => …)`      | `IOpcUaBuilder`          | —       | `OpcUa:WotCon:Client`    |

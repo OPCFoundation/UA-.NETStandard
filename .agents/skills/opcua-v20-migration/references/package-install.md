@@ -77,7 +77,9 @@ Common packages and their 2.0 paths:
 | `OPCFoundation.NetStandard.Opc.Ua.Configuration` | Unchanged name. |
 | `OPCFoundation.NetStandard.Opc.Ua.Server` | Unchanged name. |
 | `OPCFoundation.NetStandard.Opc.Ua.Bindings.Https` | Unchanged name. |
-| `OPCFoundation.NetStandard.Opc.Ua.Gds.Common` | **New in 2.0** — intermediate project with shared GDS types. If you reference `Gds.Client.Common` or `Gds.Server.Common`, they now depend on it transitively (no action needed in most cases). |
+| `OPCFoundation.NetStandard.Opc.Ua.Gds` | **New in 2.0** — intermediate project with shared GDS types. If you reference `Gds.Client` or `Gds.Server`, they now depend on it transitively (no action needed in most cases). |
+| `OPCFoundation.NetStandard.Opc.Ua.Gds.Client` | **Renamed** — was `…Gds.Client.Common` on 1.5.378. Package and assembly id only; the namespace was already `Opc.Ua.Gds.Client`, so no `using` changes. |
+| `OPCFoundation.NetStandard.Opc.Ua.Gds.Server` | **Renamed** — was `…Gds.Server.Common` on 1.5.378. Package and assembly id only; the namespace was already `Opc.Ua.Gds.Server`, so no `using` changes. |
 | `OPCFoundation.NetStandard.Opc.Ua.Quickstarts.Servers` | Published in the 2.0 previews; keep the package reference and use a prerelease version. |
 
 If your solution already uses **Central Package Management** (`Directory.Packages.props`),

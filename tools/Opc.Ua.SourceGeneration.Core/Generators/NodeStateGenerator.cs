@@ -55,19 +55,32 @@ namespace Opc.Ua.SourceGeneration
             CollectNodesToGenerate();
         }
 
+        /// <summary>
+        /// When <c>true</c>, emits the model's public NodeSet import factory
+        /// provider. Only set for models whose consumer references
+        /// <c>Opc.Ua.Server</c>.
+        /// </summary>
+        public bool GenerateNodeSetImportSupport { get; init; }
+
         /// <inheritdoc/>
         public IEnumerable<Resource> Emit()
         {
             m_initializers.Clear();
             if (m_instances.Count + m_nodes.Count == 0)
             {
-                return [];
+                return GenerateNodeSetImportSupport
+                    ? [EmitNodeSetImportSupport()]
+                    : [];
             }
             List<Resource> resources =
             [
                 EmitNodeStateClasses(),
                 EmitExtensions()
             ];
+            if (GenerateNodeSetImportSupport)
+            {
+                resources.Add(EmitNodeSetImportSupport());
+            }
             Resource initializers = EmbedInitializers();
             if (initializers != null)
             {
@@ -117,6 +130,469 @@ namespace Opc.Ua.SourceGeneration
         /// <summary>
         /// Create extensions
         /// </summary>
+        /// <summary>
+        /// Create the model's NodeSet import factory provider
+        /// </summary>
+        private TextFileResource EmitNodeSetImportSupport()
+        {
+            string nsPrefix = m_context.ModelDesign.TargetNamespace.Prefix;
+            string typeStem = nsPrefix.Replace(".", string.Empty, StringComparison.Ordinal);
+            string fileName = Path.Combine(m_context.OutputFolder, CoreUtils.Format(
+                "{0}.NodeSetImportSupport.g.cs",
+                nsPrefix));
+            using TextWriter writer = m_context.FileSystem.CreateTextWriter(fileName);
+            using var templateWriter = new TemplateWriter(writer);
+            var template = new Template(
+                templateWriter,
+                NodeStateTemplates.NodeSetImportSupport_File);
+            template.AddReplacement(Tokens.NamespacePrefix, nsPrefix);
+            template.AddReplacement(
+                Tokens.ListOfTypes,
+                ["body"],
+                onLoad: context =>
+                {
+                    EmitNodeSetImportFactoryProvider(
+                        context.Out,
+                        typeStem + "NodeSetImportFactoryProvider");
+                    return null;
+                });
+            template.Render();
+            return fileName.AsTextFileResource();
+        }
+
+        private void EmitNodeSetImportFactoryProvider(
+            ITemplateWriter writer,
+            string className)
+        {
+            List<ImportFactoryRegistration> registrations =
+                GetNodeSetImportFactoryRegistrations();
+
+            writer.WriteLine("    /// <summary>");
+            writer.WriteLine(
+                "    /// Public registration provider for typed NodeSet imports.");
+            writer.WriteLine("    /// </summary>");
+            writer.WriteLine(
+                "    [global::System.CodeDom.Compiler.GeneratedCodeAttribute(\"{0}\", \"{1}\")]",
+                typeof(NodeStateGenerator).Assembly.GetName().Name,
+                typeof(NodeStateGenerator).Assembly.GetName().Version);
+            writer.WriteLine(
+                "    public sealed class {0} :",
+                className);
+            writer.WriteLine(
+                "        global::Opc.Ua.Server.Nodes.INodeSetImportFactoryProvider");
+            writer.WriteLine("    {");
+            writer.WriteLine("        /// <summary>");
+            writer.WriteLine("        /// Initializes a provider.");
+            writer.WriteLine("        /// </summary>");
+            writer.WriteLine("        public {0}()", className);
+            writer.WriteLine("        {");
+            writer.WriteLine("        }");
+            writer.WriteLine();
+            writer.WriteLine("        /// <summary>");
+            writer.WriteLine("        /// Gets the shared provider instance.");
+            writer.WriteLine("        /// </summary>");
+            writer.WriteLine(
+                "        public static {0} Instance {{ get; }} = new {0}();",
+                className);
+            writer.WriteLine();
+            writer.WriteLine("        /// <inheritdoc/>");
+            writer.WriteLine(
+                "        public global::Opc.Ua.ArrayOf<global::Opc.Ua.Server.Nodes.INodeSetImportFactory>");
+            writer.WriteLine("            GetNodeSetImportFactories()");
+            writer.WriteLine("        {");
+            if (registrations.Count == 0)
+            {
+                writer.WriteLine(
+                    "            return new global::Opc.Ua.ArrayOf<" +
+                    "global::Opc.Ua.Server.Nodes.INodeSetImportFactory>(");
+                writer.WriteLine(
+                    "                global::System.Array.Empty<" +
+                    "global::Opc.Ua.Server.Nodes.INodeSetImportFactory>());");
+            }
+            else
+            {
+                writer.WriteLine(
+                    "            return new global::Opc.Ua.ArrayOf<" +
+                    "global::Opc.Ua.Server.Nodes.INodeSetImportFactory>(");
+                writer.WriteLine(
+                    "                new global::Opc.Ua.Server.Nodes.INodeSetImportFactory[]");
+                writer.WriteLine("                {");
+                for (int i = 0; i < registrations.Count; i++)
+                {
+                    writer.WriteLine(
+                        "                    ImportFactory{0:D4}.Instance{1}",
+                        i,
+                        i + 1 == registrations.Count ? string.Empty : ",");
+                }
+                writer.WriteLine("                });");
+            }
+            writer.WriteLine("        }");
+
+            for (int i = 0; i < registrations.Count; i++)
+            {
+                EmitNodeSetImportFactory(writer, registrations[i], i);
+            }
+
+            writer.WriteLine("    }");
+        }
+
+        private static void EmitNodeSetImportFactory(
+            ITemplateWriter writer,
+            ImportFactoryRegistration registration,
+            int index)
+        {
+            writer.WriteLine();
+            writer.WriteLine(
+                "        private sealed class ImportFactory{0:D4} :",
+                index);
+            writer.WriteLine(
+                "            global::Opc.Ua.Server.Nodes.INodeSetImportFactory");
+            writer.WriteLine("        {");
+            writer.WriteLine(
+                "            private ImportFactory{0:D4}()",
+                index);
+            writer.WriteLine("            {");
+            writer.WriteLine("            }");
+            writer.WriteLine();
+            writer.WriteLine(
+                "            public static ImportFactory{0:D4} Instance {{ get; }} = new ImportFactory{0:D4}();",
+                index);
+            writer.WriteLine();
+            writer.WriteLine(
+                "            public global::Opc.Ua.NodeClass NodeClass");
+            writer.WriteLine(
+                "                => global::Opc.Ua.NodeClass.{0};",
+                registration.NodeClass);
+            writer.WriteLine();
+            writer.WriteLine(
+                "            public global::Opc.Ua.Server.Nodes.NodeSetImportDiscriminator Discriminator");
+            writer.WriteLine(
+                "                => global::Opc.Ua.Server.Nodes.NodeSetImportDiscriminator.{0};",
+                registration.Discriminator);
+            writer.WriteLine();
+            writer.WriteLine(
+                "            public global::Opc.Ua.ExpandedNodeId DiscriminatorId");
+            writer.WriteLine(
+                "                => {0};",
+                registration.DiscriminatorId);
+            writer.WriteLine();
+            writer.WriteLine(
+                "            public global::Opc.Ua.NodeState CreateEmptyState()");
+            writer.WriteLine("            {");
+            writer.WriteLine(
+                "                return {0};",
+                registration.CreateExpression);
+            writer.WriteLine("            }");
+            writer.WriteLine("        }");
+        }
+
+        private List<ImportFactoryRegistration>
+            GetNodeSetImportFactoryRegistrations()
+        {
+            var registrations = new Dictionary<string, ImportFactoryRegistration>(
+                StringComparer.Ordinal);
+            string targetNamespace = m_context.ModelDesign.TargetNamespace.Value;
+
+            void Add(
+                string nodeClass,
+                string discriminator,
+                NodeDesign discriminatorNode,
+                string createExpression)
+            {
+                if (discriminatorNode == null ||
+                    string.IsNullOrEmpty(createExpression) ||
+                    !HasResolvableNodeId(discriminatorNode))
+                {
+                    return;
+                }
+
+                string discriminatorId = discriminatorNode.GetExpandedNodeIdAsCode(
+                    m_context.ModelDesign.Namespaces);
+                string key = nodeClass + "|" + discriminator + "|" + discriminatorId;
+                registrations.TryAdd(
+                    key,
+                    new ImportFactoryRegistration(
+                        nodeClass,
+                        discriminator,
+                        discriminatorId,
+                        createExpression));
+            }
+
+            foreach (NodeToGenerate node in m_nodes.Values)
+            {
+                if (node.Parent != null ||
+                    !string.Equals(
+                        node.Design.SymbolicId.Namespace,
+                        targetNamespace,
+                        StringComparison.Ordinal))
+                {
+                    continue;
+                }
+
+                switch (node.Design)
+                {
+                    case ObjectTypeDesign objectType:
+                        Add(
+                            "ObjectType",
+                            "NodeId",
+                            objectType,
+                            "new global::Opc.Ua.BaseObjectTypeState()");
+                        if (!objectType.IsAbstract && node.Instance != null)
+                        {
+                            Add(
+                                "Object",
+                                "TypeDefinition",
+                                objectType,
+                                GetDirectEmptyStateCreation(
+                                    (InstanceDesign)node.Instance.Design));
+                        }
+                        break;
+                    case VariableTypeDesign variableType:
+                        Add(
+                            "VariableType",
+                            "NodeId",
+                            variableType,
+                            "new global::Opc.Ua.BaseDataVariableTypeState()");
+                        if (!variableType.IsAbstract && node.Instance != null)
+                        {
+                            Add(
+                                "Variable",
+                                "TypeDefinition",
+                                variableType,
+                                GetDirectEmptyStateCreation(
+                                    (InstanceDesign)node.Instance.Design));
+                        }
+                        break;
+                    case DataTypeDesign dataType:
+                        Add(
+                            "DataType",
+                            "NodeId",
+                            dataType,
+                            "new global::Opc.Ua.DataTypeState()");
+                        break;
+                    case ReferenceTypeDesign referenceType:
+                        Add(
+                            "ReferenceType",
+                            "NodeId",
+                            referenceType,
+                            "new global::Opc.Ua.ReferenceTypeState()");
+                        break;
+                    case ViewDesign view:
+                        Add(
+                            "View",
+                            "NodeId",
+                            view,
+                            "new global::Opc.Ua.ViewState()");
+                        break;
+                    case MethodDesign method
+                        when method.IsMethodTypeDesign():
+                        string createExpression =
+                            GetDirectEmptyStateCreation(method);
+                        Add(
+                            "Method",
+                            "NodeId",
+                            method,
+                            createExpression);
+                        Add(
+                            "Method",
+                            "MethodDeclaration",
+                            method,
+                            createExpression);
+                        break;
+                }
+            }
+
+            foreach (NodeToGenerate node in m_nodes.Values)
+            {
+                if (node.Design is MethodDesign method &&
+                    node.RootIsTypeDefinition &&
+                    !method.IsMethodTypeDesign() &&
+                    string.Equals(
+                        method.SymbolicId.Namespace,
+                        targetNamespace,
+                        StringComparison.Ordinal))
+                {
+                    Add(
+                        "Method",
+                        "MethodDeclaration",
+                        method,
+                        GetDirectEmptyStateCreation(method));
+                }
+            }
+
+            foreach (NodeToGenerate node in m_nodes.Values)
+            {
+                if (node.Design is not InstanceDesign instance ||
+                    !string.Equals(
+                        instance.SymbolicId.Namespace,
+                        targetNamespace,
+                        StringComparison.Ordinal) ||
+                    !IsInAddressSpace(node))
+                {
+                    continue;
+                }
+
+                string nodeClass = GetImportNodeClass(instance);
+                if (nodeClass == null)
+                {
+                    continue;
+                }
+
+                // Only declarations get an exact-NodeId factory. Registering
+                // one per address-space instance would emit a factory per node
+                // of the model, and an imported node that re-declares an
+                // instance still resolves through its TypeDefinition or
+                // MethodDeclaration below.
+                if (IsDeclarationNode(node))
+                {
+                    Add(
+                        nodeClass,
+                        "NodeId",
+                        instance,
+                        GetDirectEmptyStateCreation(instance));
+                }
+
+                if (instance is ObjectDesign &&
+                    instance.TypeDefinitionNode is ObjectTypeDesign objectType &&
+                    string.Equals(
+                        objectType.SymbolicId.Namespace,
+                        targetNamespace,
+                        StringComparison.Ordinal))
+                {
+                    Add(
+                        "Object",
+                        "TypeDefinition",
+                        objectType,
+                        GetDirectTypeInstanceCreation(objectType, instance));
+                }
+                else if (instance is VariableDesign &&
+                    instance.TypeDefinitionNode is VariableTypeDesign variableType &&
+                    string.Equals(
+                        variableType.SymbolicId.Namespace,
+                        targetNamespace,
+                        StringComparison.Ordinal))
+                {
+                    Add(
+                        "Variable",
+                        "TypeDefinition",
+                        variableType,
+                        GetDirectTypeInstanceCreation(variableType, instance));
+                }
+
+                if (instance is MethodDesign method &&
+                    method.MethodDeclarationNode != null)
+                {
+                    Add(
+                        "Method",
+                        "MethodDeclaration",
+                        method.MethodDeclarationNode,
+                        GetDirectEmptyStateCreation(method));
+                }
+            }
+
+            return
+            [
+                .. registrations.Values
+                    .OrderBy(
+                        registration => registration.Discriminator,
+                        StringComparer.Ordinal)
+                    .ThenBy(
+                        registration => registration.NodeClass,
+                        StringComparer.Ordinal)
+                    .ThenBy(
+                        registration => registration.DiscriminatorId,
+                        StringComparer.Ordinal)
+            ];
+        }
+
+        private string GetDirectTypeInstanceCreation(
+            TypeDesign type,
+            InstanceDesign fallbackInstance)
+        {
+            if (m_nodes.TryGetValue(
+                    type.SymbolicId,
+                    out NodeToGenerate typeNode) &&
+                typeNode.Instance?.Design is InstanceDesign typeInstance)
+            {
+                return GetDirectEmptyStateCreation(typeInstance);
+            }
+            return GetDirectEmptyStateCreation(fallbackInstance);
+        }
+
+        private string GetDirectEmptyStateCreation(InstanceDesign instance)
+        {
+            string factory = instance.GetNodeStateClassName(
+                m_context.ModelDesign.TargetNamespace.Value,
+                m_context.ModelDesign.Namespaces,
+                asFactory: true);
+            return ConvertStateFactoryToDirectConstructor(factory);
+        }
+
+        private string GetDirectEmptyStateCreation(MethodDesign method)
+        {
+            string factory = method.GetNodeStateClassName(
+                m_context.ModelDesign.TargetNamespace.Value,
+                m_context.ModelDesign.Namespaces,
+                asFactory: true);
+            return ConvertStateFactoryToDirectConstructor(factory);
+        }
+
+        private static string ConvertStateFactoryToDirectConstructor(
+            string factory)
+        {
+            if (string.IsNullOrEmpty(factory))
+            {
+                return null;
+            }
+            if (factory.StartsWith("new ", StringComparison.Ordinal))
+            {
+                return factory + "(null)";
+            }
+
+            const string withMarker = ".With<";
+            int withIndex = factory.LastIndexOf(
+                withMarker,
+                StringComparison.Ordinal);
+            if (withIndex >= 0)
+            {
+                string stateType = factory[..withIndex];
+                string builderType = factory[(withIndex + ".With".Length)..];
+                return "new " +
+                    stateType +
+                    ".Implementation" +
+                    builderType +
+                    "(null)";
+            }
+
+            return null;
+        }
+
+        /// <summary>
+        /// Gets whether a node belongs to a declaration - a type definition or
+        /// a method type - rather than to the model's address space.
+        /// </summary>
+        private static bool IsDeclarationNode(NodeToGenerate node)
+        {
+            NodeToGenerate root = node;
+            while (root.Parent != null)
+            {
+                root = root.Parent;
+            }
+            return root.RootIsTypeDefinition ||
+                (root.Design is MethodDesign method && method.IsMethodTypeDesign());
+        }
+
+        private static string GetImportNodeClass(InstanceDesign instance)
+        {
+            return instance switch
+            {
+                ObjectDesign => "Object",
+                VariableDesign => "Variable",
+                MethodDesign => "Method",
+                _ => null
+            };
+        }
+
         private TextFileResource EmitExtensions()
         {
             string nsPrefix = m_context.ModelDesign.TargetNamespace.Prefix;
@@ -4184,6 +4660,12 @@ namespace Opc.Ua.SourceGeneration
             string PropertyName,
             string BrowseName,
             Parameter[] Arguments);
+
+        private sealed record ImportFactoryRegistration(
+            string NodeClass,
+            string Discriminator,
+            string DiscriminatorId,
+            string CreateExpression);
 
         private const string kNamespaceTableContextVariable = "context.NamespaceUris";
 

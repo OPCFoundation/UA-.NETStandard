@@ -13,8 +13,8 @@
   <ItemGroup>
     <ProjectReference Include="..\..\..\src\Opc.Ua.Configuration\Opc.Ua.Configuration.csproj" />
     <ProjectReference Include="..\..\..\src\Opc.Ua.Server\Opc.Ua.Server.csproj" />
-    <ProjectReference Include="..\..\..\src\Opc.Ua.Gds.Common\Opc.Ua.Gds.Common.csproj" />
-    <ProjectReference Include="..\..\..\src\Opc.Ua.Gds.Server.Common\Opc.Ua.Gds.Server.Common.csproj" />
+    <ProjectReference Include="..\..\..\src\Opc.Ua.Gds\Opc.Ua.Gds.csproj" />
+    <ProjectReference Include="..\..\..\src\Opc.Ua.Gds.Server\Opc.Ua.Gds.Server.csproj" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="Microsoft.Extensions.Hosting" />
