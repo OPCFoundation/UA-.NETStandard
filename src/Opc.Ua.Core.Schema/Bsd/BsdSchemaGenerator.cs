@@ -41,7 +41,7 @@ namespace Opc.Ua.Schema.Bsd
     /// serialized with a direct XML writer to remain trimming and NativeAOT
     /// compatible.
     /// </summary>
-    internal sealed class BsdSchemaGenerator : IUaSchemaGenerator
+    public sealed class BsdSchemaGenerator : IUaSchemaGenerator
     {
         /// <inheritdoc/>
         public bool CanGenerate(UaSchemaFormat format)

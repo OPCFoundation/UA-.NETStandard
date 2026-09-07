@@ -125,6 +125,12 @@ namespace Opc.Ua.SourceGeneration
                         Configure(__m_builder);
                         Configure(new {{Tokens.NodeManagerClassName}}TypedBuilder(__m_builder));
 
+                        // Register nodes created by the Configure partial(s)
+                        // through the builder's Add* methods before the
+                        // reverse-reference pass runs, so their references to
+                        // externally owned nodes are mirrored too.
+                        await RegisterAuthoredNodesAsync(__m_builder, cancellationToken).ConfigureAwait(false);
+
                         // Mirror references from configure-created nodes to
                         // nodes owned by other node managers (e.g. the Objects
                         // folder) into the externalReferences dictionary.

@@ -167,6 +167,15 @@ namespace Opc.Ua.Server.RuntimeNodeSet
                     : await m_configureAsync(builder, cancellationToken).ConfigureAwait(false);
                 try
                 {
+                    // Register nodes the configuration created through the
+                    // builder's Add* methods, then re-run the reverse-reference
+                    // pass so their references to externally owned nodes reach
+                    // the externalReferences dictionary as well.
+                    await RegisterAuthoredNodesAsync(builder, cancellationToken)
+                        .ConfigureAwait(false);
+                    await AddReverseReferencesAsync(externalReferences, cancellationToken)
+                        .ConfigureAwait(false);
+
                     builder.Seal();
 
                     // Step 7 – Replay NotifyNodeAdded for every predefined node

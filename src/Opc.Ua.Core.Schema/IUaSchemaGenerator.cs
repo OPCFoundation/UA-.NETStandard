@@ -31,9 +31,10 @@ namespace Opc.Ua.Schema
 {
     /// <summary>
     /// A generator that produces a schema for a single supported
-    /// <see cref="UaSchemaFormat"/>. Implementations are registered with the
-    /// dependency injection container and selected by the
-    /// <see cref="ISchemaProvider"/> based on the requested format.
+    /// <see cref="UaSchemaFormat"/>. Implementations can be registered with the
+    /// dependency injection container or supplied directly to a
+    /// <see cref="DefaultSchemaProvider"/> and are selected based on the
+    /// requested format.
     /// </summary>
     public interface IUaSchemaGenerator
     {
