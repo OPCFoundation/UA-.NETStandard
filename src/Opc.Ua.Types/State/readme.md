@@ -258,6 +258,10 @@ The same storage fixture also benchmarks last-target hit, miss, caller-buffer en
 and steady-state add/remove at each reference degree, with semantic assertions proving
 selection and restoration. These prebuilt-node cases distinguish lookup regressions from
 constructor savings.
+`NodeStateReferenceBenchmarks` adds real filtered and unfiltered browser traversal
+over the same degrees and three target-construction modes. Unfiltered browsing also
+returns the scenario's intrinsic `HasTypeDefinition` reference; this is not an extra
+entry in explicit storage.
 
 ```powershell
 dotnet run --project $types -c Release -f net10.0 --no-build -- `
@@ -288,6 +292,29 @@ on duplicates. Binary updates merge and replace matching objects without moving 
 positions; XML updates clear and reload the table. Mutable external `IReference`
 objects retain their insertion-time dictionary indexes. Intrinsic references synthesized
 from children, parents, and type definitions are not duplicated in this storage.
+
+Filtered index order is not a portable sort order: local target and subtype indexes
+use `NodeIdDictionary`, whose concurrent hash-table enumeration depends on the runtime
+and mutation history. Local targets precede absolute targets within a type/direction;
+both-direction filtered browsing appends forward results before inverse results.
+By contrast, the filtered `GetReferences` overload scans insertion order and reads
+the reference objects' current properties. A mutable reference can therefore appear
+in that scan while a lookup using its new properties misses its insertion-time key.
+
+Snapshots retain reference-object identity, not immutable copies of those objects.
+Cloning shares the objects but builds independent indexes from their current properties;
+source initialization recreates references instead. A `NodeStateReference` constructed
+with a target node retains that node's identity and the NodeId captured at construction.
+Reference-stream encoding preserves values, not the target-node object.
+
+Mutation exceptions are not transactional. Single add/remove operations set their
+change mask before invoking the callback; bulk add invokes callbacks before setting
+its mask. An invalid bulk item retains the preceding inserts without notifications or
+a new mask, and a throwing bulk callback leaves all completed inserts in place.
+Binary decoding completes before merging, whereas XML clears before reading and
+applies references incrementally. Neither load path invokes reference-change callbacks.
+The managed reference-storage fixture and direct NativeAOT reference cases pin these
+distinctions so a private storage replacement cannot silently normalize them.
 
 ### Event Dispatch Allocations
 
