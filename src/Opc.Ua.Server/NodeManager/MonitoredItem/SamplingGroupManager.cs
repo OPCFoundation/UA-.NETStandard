@@ -673,6 +673,10 @@ namespace Opc.Ua.Server
             }
         }
 
+        // The legacy virtual create/modify overloads have no revised-filter parameter.
+        // Bridge that boundary by request identity so existing overrides still run with
+        // the unchanged request while the base uses the server-revised aggregate filter.
+        // The internal overloads remove entries in finally; this is not a retained filter cache.
         private readonly ConditionalWeakTable<MonitoredItemCreateRequest, MonitoringFilter>
             m_revisedCreateFilters = new();
         private readonly ConditionalWeakTable<MonitoredItemModifyRequest, MonitoringFilter>
