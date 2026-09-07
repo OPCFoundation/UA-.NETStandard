@@ -177,12 +177,12 @@ namespace Opc.Ua.SourceGeneration
                         // folder) into the externalReferences dictionary.
                         await CompleteConfigureAsync(externalReferences, cancellationToken).ConfigureAwait(false);
 
-                        __m_builder.Seal();
-
-                        foreach (global::Opc.Ua.NodeState __node in PredefinedNodes.Values)
-                        {
-                            __m_builder.Dispatcher.NotifyNodeAdded(SystemContext, __node);
-                        }
+                        // Seals the builder, replays NotifyNodeAdded for every
+                        // predefined node so per-node lifecycle hooks fire
+                        // deterministically, and only then starts the
+                        // simulations, so no simulated value change can
+                        // precede the OnNodeAdded handler of its own node.
+                        SealConfiguration(__m_builder);
                     }
 
                     /// <inheritdoc/>

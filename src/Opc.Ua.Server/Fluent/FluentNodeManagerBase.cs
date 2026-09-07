@@ -499,6 +499,42 @@ namespace Opc.Ua.Server.Fluent
                 cancellationToken);
         }
 
+        /// <summary>
+        /// Seals the builder, replays <c>NotifyNodeAdded</c> for every node
+        /// this manager owns, and then starts the simulations the
+        /// <c>Configure</c> pass registered.
+        /// </summary>
+        /// <remarks>
+        /// Call this once the address space is complete - after
+        /// <see cref="RegisterAuthoredNodesAsync"/> and
+        /// <see cref="CompleteConfigureAsync"/>. Both ends of the order
+        /// matter: sealing first stops a lifecycle handler from authoring
+        /// nodes that nothing would register any more, and starting the
+        /// simulations last keeps a simulated value change from preceding the
+        /// <c>OnNodeAdded</c> handler of its own node. The source-generated
+        /// <c>CreateAddressSpaceAsync</c> emits this call for you.
+        /// </remarks>
+        /// <param name="builder">The builder the Configure pass used.</param>
+        /// <exception cref="System.ArgumentNullException">
+        /// <paramref name="builder"/> is <c>null</c>.
+        /// </exception>
+        protected void SealConfiguration(NodeManagerBuilder builder)
+        {
+            if (builder == null)
+            {
+                throw new System.ArgumentNullException(nameof(builder));
+            }
+
+            builder.SealGraphAuthoring();
+
+            foreach (KeyValuePair<NodeId, NodeState> entry in PredefinedNodes)
+            {
+                builder.Dispatcher.NotifyNodeAdded(SystemContext, entry.Value);
+            }
+
+            builder.StartSimulations();
+        }
+
         /// <inheritdoc/>
         protected override async ValueTask<NodeHandle> GetManagerHandleAsync(
             ServerSystemContext context,

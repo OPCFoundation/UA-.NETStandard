@@ -184,20 +184,10 @@ namespace Opc.Ua.Server.RuntimeNodeSet
                     await CompleteConfigureAsync(externalReferences, cancellationToken)
                         .ConfigureAwait(false);
 
-                    // Seal before the replay, so an OnNodeAdded handler cannot
-                    // author nodes which nothing would register any more.
-                    builder.SealGraphAuthoring();
-
-                    // Step 6 – Replay NotifyNodeAdded for every predefined node
-                    // so that OnNodeAdded handlers registered in Configure fire.
-                    foreach (KeyValuePair<NodeId, NodeState> kvp in PredefinedNodes)
-                    {
-                        builder.NotifyNodeAdded(SystemContext, kvp.Value);
-                    }
-
-                    // Only now may a simulation push a value change: every
-                    // OnNodeAdded handler has seen its node.
-                    builder.StartSimulations();
+                    // Step 6 – Seal, replay NotifyNodeAdded for every
+                    // predefined node so that OnNodeAdded handlers registered
+                    // in Configure fire, and only then start the simulations.
+                    SealConfiguration(builder);
                 }
                 catch (Exception activationException) when (
                     activationException is not OutOfMemoryException)

@@ -220,24 +220,34 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             Assert.That(mgr, Does.Contain("global::Opc.Ua.Server.Fluent.NodeManagerBuilder"));
             Assert.That(mgr, Does.Contain("global::Opc.Ua.Server.Fluent.INodeManagerBuilder"));
 
-            // The Configure/CompleteConfigure/Seal sequence inside
-            // CreateAddressSpace must be wired before any NotifyNodeAdded
-            // replays. Order is part of the contract and is exercised by
-            // the hybrid integration test. CompleteConfigureAsync re-runs
-            // the reverse-reference pass so configure-created nodes publish
-            // references to nodes owned by other managers (issue #4329).
+            // The Configure/RegisterAuthoredNodes/CompleteConfigure/
+            // SealConfiguration sequence inside CreateAddressSpace is part of
+            // the contract and is exercised by the hybrid integration test.
+            // CompleteConfigureAsync re-runs the reverse-reference pass so
+            // configure-created nodes publish references to nodes owned by
+            // other managers (issue #4329). SealConfiguration then seals,
+            // replays NotifyNodeAdded and starts the simulations, in that
+            // order, so the replay cannot author nodes and no simulated value
+            // change precedes the OnNodeAdded handler of its own node.
             int idxConfigure = mgr.IndexOf("Configure(__m_builder)", StringComparison.Ordinal);
+            int idxRegister = mgr.IndexOf(
+                "await RegisterAuthoredNodesAsync(__m_builder, cancellationToken)",
+                StringComparison.Ordinal);
             int idxComplete = mgr.IndexOf(
                 "await CompleteConfigureAsync(externalReferences, cancellationToken)",
                 StringComparison.Ordinal);
-            int idxSeal = mgr.IndexOf(".Seal()", StringComparison.Ordinal);
-            int idxNotify = mgr.IndexOf("NotifyNodeAdded(", StringComparison.Ordinal);
+            int idxSeal = mgr.IndexOf("SealConfiguration(__m_builder)", StringComparison.Ordinal);
             Assert.That(idxConfigure, Is.GreaterThan(0), "Configure call must be emitted");
-            Assert.That(idxComplete, Is.GreaterThan(idxConfigure),
-                "CompleteConfigureAsync must run after Configure");
+            Assert.That(idxRegister, Is.GreaterThan(idxConfigure),
+                "RegisterAuthoredNodesAsync must run after Configure");
+            Assert.That(idxComplete, Is.GreaterThan(idxRegister),
+                "CompleteConfigureAsync must run after RegisterAuthoredNodesAsync");
             Assert.That(idxSeal, Is.GreaterThan(idxComplete),
-                "Seal must run after CompleteConfigureAsync");
-            Assert.That(idxNotify, Is.GreaterThan(idxSeal), "NotifyNodeAdded replay must run after Seal");
+                "SealConfiguration must run after CompleteConfigureAsync");
+            Assert.That(
+                mgr,
+                Does.Not.Contain("__m_builder.Seal()"),
+                "The replay must not run after a Seal() that already started the simulations");
         }
 
         [Test]
