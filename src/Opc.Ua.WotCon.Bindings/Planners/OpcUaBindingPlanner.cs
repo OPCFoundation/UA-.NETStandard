@@ -173,7 +173,8 @@ namespace Opc.Ua.WotCon.Bindings.Planners
                 entries.Add(new WotCompiledForm(
                     Identity, form.Kind, form.AffordanceName, form.JsonPointer, capability, op,
                     endpoint, addressing, operation, payload, security, Capability.IsExecutable,
-                    targetMapping: null, eventSelection, securityFloor));
+                    targetMapping: null, eventSelection, securityFloor)
+                    .WithConditionInvocation(WotConditionInvocation.FromAffordance(form)));
             }
 
             if (entries.Count == 0)

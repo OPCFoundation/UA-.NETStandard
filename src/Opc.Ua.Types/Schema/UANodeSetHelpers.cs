@@ -530,6 +530,32 @@ namespace Opc.Ua.Export
                         // Set the Parent property to establish the relationship
                         instance.Parent = parent;
 
+                        if (parent is MethodState method && instance is PropertyState<ArrayOf<Argument>> arguments)
+                        {
+                            if (instance.BrowseName == QualifiedName.From(BrowseNames.InputArguments))
+                            {
+                                if (method.InputArguments is not null &&
+                                    !ReferenceEquals(method.InputArguments, arguments))
+                                {
+                                    throw new ServiceResultException(
+                                        StatusCodes.BadDecodingError, "The Method has multiple InputArguments.");
+                                }
+                                method.InputArguments = arguments;
+                                continue;
+                            }
+                            if (instance.BrowseName == QualifiedName.From(BrowseNames.OutputArguments))
+                            {
+                                if (method.OutputArguments is not null &&
+                                    !ReferenceEquals(method.OutputArguments, arguments))
+                                {
+                                    throw new ServiceResultException(
+                                        StatusCodes.BadDecodingError, "The Method has multiple OutputArguments.");
+                                }
+                                method.OutputArguments = arguments;
+                                continue;
+                            }
+                        }
+
                         // Add the child to the parent's children collection
                         parent.AddChild(instance);
                         continue;
@@ -1089,16 +1115,19 @@ namespace Opc.Ua.Export
                     }
 
                     BaseVariableState value;
+                    NodeId dataType = ImportNodeId(o.DataType, context.NamespaceUris, true);
                     if (typeDefinitionId == VariableTypeIds.PropertyType)
                     {
-                        value = new PropertyState(null);
+                        value = dataType == DataTypeIds.Argument && o.ValueRank == ValueRanks.OneDimension
+                            ? new PropertyState<ArrayOf<Argument>>.Implementation<StructureBuilder<Argument>>(null)
+                            : new PropertyState(null);
                     }
                     else
                     {
                         value = new BaseDataVariableState(null);
                     }
 
-                    value.DataType = ImportNodeId(o.DataType, context.NamespaceUris, true);
+                    value.DataType = dataType;
                     value.ValueRank = o.ValueRank;
                     value.ArrayDimensions = ImportArrayDimensions(o.ArrayDimensions) ?? [];
                     value.AccessLevelEx = o.AccessLevel;

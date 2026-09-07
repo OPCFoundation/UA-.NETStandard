@@ -81,7 +81,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 }
                 task = m_channelTask ??= OpenAsync();
             }
-            return WaitAsync(task);
+            return WaitAsync(task, cancellationToken);
         }
 
         /// <summary>
@@ -124,17 +124,18 @@ namespace Opc.Ua.WotCon.Server.Materialization
             return m_channelFactory.OpenChannelAsync(m_form, CancellationToken.None).AsTask();
         }
 
-        private async ValueTask<IWotBindingChannel> WaitAsync(Task<IWotBindingChannel> task)
+        private async ValueTask<IWotBindingChannel> WaitAsync(
+            Task<IWotBindingChannel> task, CancellationToken cancellationToken)
         {
             try
             {
-                return await task.ConfigureAwait(false);
+                return await task.WaitAsync(cancellationToken).ConfigureAwait(false);
             }
             catch (Exception ex) when (ex is not OutOfMemoryException)
             {
                 lock (m_gate)
                 {
-                    if (ReferenceEquals(m_channelTask, task))
+                    if ((task.IsFaulted || task.IsCanceled) && ReferenceEquals(m_channelTask, task))
                     {
                         m_channelTask = null;
                     }

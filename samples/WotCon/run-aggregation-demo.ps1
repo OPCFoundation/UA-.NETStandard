@@ -22,6 +22,12 @@
 .PARAMETER Keep
     Keeps the isolated PKI stores and captured server logs after the run.
 
+.PARAMETER ClientTimeoutSeconds
+    Maximum time allowed for document loading and the control demonstration.
+
+.PARAMETER NativeAot
+    Publishes and runs native executables for the current platform instead of managed Debug builds.
+
 .EXAMPLE
     pwsh samples/WotCon/run-aggregation-demo.ps1
 #>
@@ -36,7 +42,12 @@ param(
     [ValidateRange(1, 65535)]
     [int]$SourceBPort = 62552,
 
-    [switch]$Keep
+    [ValidateRange(1, 3600)]
+    [int]$ClientTimeoutSeconds = 480,
+
+    [switch]$Keep,
+
+    [switch]$NativeAot
 )
 
 $ErrorActionPreference = 'Stop'
@@ -44,11 +55,14 @@ $here = Split-Path -Parent $MyInvocation.MyCommand.Path
 $flatTagProject = Join-Path $here 'FlatTagServer\FlatTagServer.csproj'
 $aggregationProject = Join-Path $here 'AggregationServer\AggregationServer.csproj'
 $clientProject = Join-Path $here 'AggregationClient\AggregationClient.csproj'
-$flatTagDll = Join-Path $here 'FlatTagServer\bin\Debug\net10.0\FlatTagServer.dll'
-$aggregationDll = Join-Path $here 'AggregationServer\bin\Debug\net10.0\AggregationServer.dll'
-$clientDll = Join-Path $here 'AggregationClient\bin\Debug\net10.0\AggregationClient.dll'
+$runtime = [Runtime.InteropServices.RuntimeInformation]::RuntimeIdentifier
+$outputDirectory = if ($NativeAot) { "bin\Release\net10.0\$runtime\publish" } else { 'bin\Debug\net10.0' }
+$extension = if (-not $NativeAot) { '.dll' } elseif ($IsWindows) { '.exe' } else { '' }
+$flatTagProgram = Join-Path $here "FlatTagServer\$outputDirectory\FlatTagServer$extension"
+$aggregationProgram = Join-Path $here "AggregationServer\$outputDirectory\AggregationServer$extension"
+$clientProgram = Join-Path $here "AggregationClient\$outputDirectory\AggregationClient$extension"
 $documentsDirectory = Join-Path $here 'AggregationClient\Documents'
-$runRoot = Join-Path ([IO.Path]::GetTempPath()) "opcua-wot-aggregation-demo-$PID"
+$runRoot = Join-Path ([IO.Path]::GetTempPath()) "opcua-wot-aggregation-demo-$PID-$([Guid]::NewGuid().ToString('N'))"
 $sourceAPki = Join-Path $runRoot 'source-a-pki'
 $sourceBPki = Join-Path $runRoot 'source-b-pki'
 $aggregationPki = Join-Path $runRoot 'aggregation-pki'
@@ -84,12 +98,17 @@ function Assert-PortAvailable([int]$port, [string]$name) {
 
 function Start-DemoServer(
     [string]$name,
-    [string]$dll,
+    [string]$program,
     [string[]]$arguments,
     [string]$standardOutput,
     [string]$standardError) {
-    $process = Start-Process dotnet `
-        -ArgumentList (@("`"$dll`"") + $arguments) `
+    if (-not (Test-Path -LiteralPath $program -PathType Leaf)) {
+        throw "The expected $name program was not produced: $program"
+    }
+    $executable = if ($NativeAot) { $program } else { 'dotnet' }
+    $processArguments = if ($NativeAot) { $arguments } else { @("`"$program`"") + $arguments }
+    $process = Start-Process -FilePath $executable `
+        -ArgumentList $processArguments `
         -RedirectStandardOutput $standardOutput `
         -RedirectStandardError $standardError `
         -PassThru
@@ -148,23 +167,22 @@ try {
     New-Item -ItemType Directory -Force -Path $runRoot | Out-Null
 
     Step 'Building the WoT aggregation servers and client'
-    dotnet build $flatTagProject -f net10.0 --verbosity quiet
-    if ($LASTEXITCODE -ne 0) {
-        throw 'The flat-tag server build failed.'
-    }
-    dotnet build $aggregationProject -f net10.0 --verbosity quiet
-    if ($LASTEXITCODE -ne 0) {
-        throw 'The aggregation server build failed.'
-    }
-    dotnet build $clientProject -f net10.0 --verbosity quiet
-    if ($LASTEXITCODE -ne 0) {
-        throw 'The aggregation client build failed.'
+    foreach ($project in @($flatTagProject, $aggregationProject, $clientProject)) {
+        if ($NativeAot) {
+            dotnet publish $project -c Release -f net10.0 -r $runtime --self-contained true -m:1 --verbosity quiet
+        }
+        else {
+            dotnet build $project -f net10.0 -m:1 --verbosity quiet
+        }
+        if ($LASTEXITCODE -ne 0) {
+            throw "The $project build failed."
+        }
     }
 
     Step "Starting Source A at $sourceAEndpoint"
     $sourceA = Start-DemoServer `
         'Source A' `
-        $flatTagDll `
+        $flatTagProgram `
         @(
             '--port', "$SourceAPort",
             '--instanceName', 'SourceA',
@@ -188,7 +206,7 @@ try {
     Step "Starting Source B at $sourceBEndpoint"
     $sourceB = Start-DemoServer `
         'Source B' `
-        $flatTagDll `
+        $flatTagProgram `
         @(
             '--port', "$SourceBPort",
             '--instanceName', 'SourceB',
@@ -212,7 +230,7 @@ try {
     Step "Starting the aggregation server at $aggregationEndpoint"
     $aggregation = Start-DemoServer `
         'Aggregation server' `
-        $aggregationDll `
+        $aggregationProgram `
         @(
             '--port', "$AggregationPort",
             '--applicationName', "WotAggregationServer-$PID",
@@ -225,26 +243,38 @@ try {
     Wait-Endpoint $sourceB $sourceBOut $SourceBPort 'Source B'
     Wait-Endpoint $aggregation $aggregationOut $AggregationPort 'Aggregation server'
 
-    Step 'Loading the WoT documents and reading the materialized Pump'
-    $capturedClientOutput = @(
-        & dotnet $clientDll `
-            --aggregationEndpoint $aggregationEndpoint `
-            --sourceAEndpoint $sourceAEndpoint `
-            --sourceBEndpoint $sourceBEndpoint `
-            --applicationName "WotAggregationClient-$PID" `
-            --pkiRoot $clientPki `
-            --documentsDirectory $documentsDirectory 2>&1
-    )
-    $clientExitCode = $LASTEXITCODE
-    $capturedClientOutput | ForEach-Object { Write-Host $_ }
-    if ($clientExitCode -ne 0) {
+    Step 'Loading the WoT documents and exercising both materialized pumps'
+    $clientOut = Join-Path $runRoot 'client.out.log'
+    $clientErr = Join-Path $runRoot 'client.err.log'
+    $client = Start-DemoServer `
+        'Aggregation client' `
+        $clientProgram `
+        @(
+            '--aggregationEndpoint', $aggregationEndpoint,
+            '--sourceAEndpoint', $sourceAEndpoint,
+            '--sourceBEndpoint', $sourceBEndpoint,
+            '--applicationName', "WotAggregationClient-$PID",
+            '--pkiRoot', "`"$clientPki`"",
+            '--documentsDirectory', "`"$documentsDirectory`"",
+            '--exerciseControls', 'true',
+            '--timeoutSeconds', "$ClientTimeoutSeconds"
+        ) `
+        $clientOut `
+        $clientErr
+    if (-not $client.WaitForExit(($ClientTimeoutSeconds + 10) * 1000)) {
+        throw "The aggregation client exceeded its $ClientTimeoutSeconds second execution limit."
+    }
+    $clientText = Get-Content -LiteralPath $clientOut -Raw
+    Write-Host $clientText
+    if ($client.ExitCode -ne 0) {
         throw 'The aggregation client failed.'
     }
 
-    $clientText = $capturedClientOutput | Out-String
+    $manifest = @(Get-Content -LiteralPath (Join-Path $documentsDirectory 'documents.json') -Raw | ConvertFrom-Json)
+    $expectedDocuments = $manifest.Count
     $loadedCount = [regex]::Matches($clientText, '(?m)^Loaded ').Count
-    if ($loadedCount -ne 16) {
-        throw "The aggregation client loaded $loadedCount resources instead of 16."
+    if ($loadedCount -ne $expectedDocuments) {
+        throw "The aggregation client loaded $loadedCount resources instead of $expectedDocuments."
     }
 
     $expectedValues = @(
@@ -257,14 +287,24 @@ try {
         'PumpPowerInput',
         'PumpEfficiency',
         'NumberOfStarts',
-        'MotorOverheat'
+        'MotorOverheat',
+        'Manufacturer',
+        'SerialNumber',
+        'ProductInstanceUri',
+        'SourceARunning',
+        'SourceBRunning'
     )
-    foreach ($name in $expectedValues) {
-        $pattern =
-            '(?m)^  {0}: .+ \[Good \[0x00000000\]\]\r?$' -f [regex]::Escape($name)
-        if ($clientText -notmatch $pattern) {
-            throw "The aggregation client did not report a Good $name value."
+    foreach ($pump in 'Pump1', 'Pump2') {
+        foreach ($name in $expectedValues) {
+            $pattern =
+                '(?m)^  {0}: .+ \[Good \[0x00000000\]\]\r?$' -f [regex]::Escape("$pump.$name")
+            if ($clientText -notmatch $pattern) {
+                throw "The aggregation client did not report a Good $pump.$name value."
+            }
         }
+    }
+    if ($clientText -notmatch '(?m)^WOT_AGGREGATION_CONTROLS_OK ') {
+        throw 'The client did not complete the management and alarm round trips.'
     }
 
     Write-Host ''

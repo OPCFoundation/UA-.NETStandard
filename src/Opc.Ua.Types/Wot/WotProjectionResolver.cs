@@ -1905,7 +1905,7 @@ namespace Opc.Ua.Wot
             }
             else if (value.TryGetValue(out double number))
             {
-                writer.WriteNumberValue(number);
+                WotJsonCanonicalizer.WriteNumberValue(writer, number);
             }
             else
             {

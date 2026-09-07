@@ -5,9 +5,7 @@
  * Licensed under the OPC Foundation MIT License 1.00.
  * See http://opcfoundation.org/License/MIT/1.00/.
  -->
-<UANodeSet xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-    xmlns:xsd="http://www.w3.org/2001/XMLSchema"
-    xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd">
+<UANodeSet xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd">
   <NamespaceUris>
     <Uri>urn:opcfoundation.org:UA:WotAggregation:PumpInstance</Uri>
     <Uri>http://opcfoundation.org/UA/Pumps/</Uri>
@@ -33,8 +31,11 @@
     <Alias Alias="HasComponent">i=47</Alias>
     <Alias Alias="Range">i=884</Alias>
     <Alias Alias="EUInformation">i=887</Alias>
+    <Alias Alias="HasSubtype">i=45</Alias>
+    <Alias Alias="GeneratesEvent">i=41</Alias>
+    <Alias Alias="Argument">i=296</Alias>
   </Aliases>
-  <UAObject NodeId="ns=1;s=Pump1" BrowseName="1:Pump_1">
+  <UAObject NodeId="ns=1;s=Pump1" BrowseName="1:Pump_1" EventNotifier="1">
     <DisplayName>Pump #1</DisplayName>
     <Description>Sample-owned aggregate pump projected from two upstream OPC UA servers.</Description>
     <References>
@@ -44,32 +45,48 @@
       <Reference ReferenceType="HasComponent">ns=1;s=Pump1.Maintenance</Reference>
       <Reference ReferenceType="HasTypeDefinition">ns=2;i=1052</Reference>
       <Reference ReferenceType="i=35" IsForward="false">i=85</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;s=Pump1.SourceARunning</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;s=Pump1.SourceAStart</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;s=Pump1.SourceAStop</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;s=Pump1.SourceAReset</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;s=Pump1.SourceBRunning</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;s=Pump1.SourceBStart</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;s=Pump1.SourceBStop</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;s=Pump1.SourceBReset</Reference>
+      <Reference ReferenceType="GeneratesEvent">ns=1;s=Pump1.CavitationAlarm</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;s=Pump1.CavitationAcknowledge</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;s=Pump1.CavitationConfirm</Reference>
+      <Reference ReferenceType="GeneratesEvent">ns=1;s=Pump1.MotorOverheatAlarm</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;s=Pump1.MotorOverheatAcknowledge</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;s=Pump1.MotorOverheatConfirm</Reference>
     </References>
   </UAObject>
   <UAObject NodeId="ns=1;s=Pump1.Identification" BrowseName="4:Identification" ParentNodeId="ns=1;s=Pump1">
     <DisplayName>Identification</DisplayName>
     <References>
       <Reference ReferenceType="HasComponent" IsForward="false">ns=1;s=Pump1</Reference>
-      <Reference ReferenceType="HasComponent">ns=1;s=Pump1.Identification.Manufacturer</Reference>
-      <Reference ReferenceType="HasComponent">ns=1;s=Pump1.Identification.SerialNumber</Reference>
-      <Reference ReferenceType="HasComponent">ns=1;s=Pump1.Identification.ProductInstanceUri</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;s=Pump1.Identification.Manufacturer</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;s=Pump1.Identification.SerialNumber</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;s=Pump1.Identification.ProductInstanceUri</Reference>
       <Reference ReferenceType="HasTypeDefinition">ns=2;i=1005</Reference>
     </References>
   </UAObject>
   <UAVariable NodeId="ns=1;s=Pump1.Identification.Manufacturer" BrowseName="4:Manufacturer" ParentNodeId="ns=1;s=Pump1.Identification" DataType="LocalizedText" AccessLevel="1">
     <DisplayName>Manufacturer</DisplayName>
     <References>
-      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;s=Pump1.Identification</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;s=Pump1.Identification</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
     </References>
     <Value>
-      <uax:LocalizedText xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd"><uax:Text>SimPump Corp</uax:Text></uax:LocalizedText>
+      <uax:LocalizedText xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd">
+        <uax:Text>SimPump Corp</uax:Text>
+      </uax:LocalizedText>
     </Value>
   </UAVariable>
   <UAVariable NodeId="ns=1;s=Pump1.Identification.SerialNumber" BrowseName="4:SerialNumber" ParentNodeId="ns=1;s=Pump1.Identification" DataType="String" AccessLevel="1">
     <DisplayName>SerialNumber</DisplayName>
     <References>
-      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;s=Pump1.Identification</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;s=Pump1.Identification</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
     </References>
     <Value>
@@ -79,7 +96,7 @@
   <UAVariable NodeId="ns=1;s=Pump1.Identification.ProductInstanceUri" BrowseName="4:ProductInstanceUri" ParentNodeId="ns=1;s=Pump1.Identification" DataType="String" AccessLevel="1">
     <DisplayName>ProductInstanceUri</DisplayName>
     <References>
-      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;s=Pump1.Identification</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;s=Pump1.Identification</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
     </References>
     <Value>
@@ -126,13 +143,19 @@
     </References>
     <Value>
       <uax:ExtensionObject xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd">
-        <uax:TypeId><uax:Identifier>i=888</uax:Identifier></uax:TypeId>
+        <uax:TypeId>
+          <uax:Identifier>i=888</uax:Identifier>
+        </uax:TypeId>
         <uax:Body>
           <uax:EUInformation>
             <uax:NamespaceUri>http://www.opcfoundation.org/UA/units/un/cefact</uax:NamespaceUri>
             <uax:UnitId>5259596</uax:UnitId>
-            <uax:DisplayName><uax:Text>Pa</uax:Text></uax:DisplayName>
-            <uax:Description><uax:Text>Pascal</uax:Text></uax:Description>
+            <uax:DisplayName>
+              <uax:Text>Pa</uax:Text>
+            </uax:DisplayName>
+            <uax:Description>
+              <uax:Text>Pascal</uax:Text>
+            </uax:Description>
           </uax:EUInformation>
         </uax:Body>
       </uax:ExtensionObject>
@@ -146,9 +169,14 @@
     </References>
     <Value>
       <uax:ExtensionObject xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd">
-        <uax:TypeId><uax:Identifier>i=886</uax:Identifier></uax:TypeId>
+        <uax:TypeId>
+          <uax:Identifier>i=885</uax:Identifier>
+        </uax:TypeId>
         <uax:Body>
-          <uax:Range><uax:Low>0</uax:Low><uax:High>1000000</uax:High></uax:Range>
+          <uax:Range>
+            <uax:Low>0</uax:Low>
+            <uax:High>1000000</uax:High>
+          </uax:Range>
         </uax:Body>
       </uax:ExtensionObject>
     </Value>
@@ -170,13 +198,19 @@
     </References>
     <Value>
       <uax:ExtensionObject xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd">
-        <uax:TypeId><uax:Identifier>i=888</uax:Identifier></uax:TypeId>
+        <uax:TypeId>
+          <uax:Identifier>i=888</uax:Identifier>
+        </uax:TypeId>
         <uax:Body>
           <uax:EUInformation>
             <uax:NamespaceUri>http://www.opcfoundation.org/UA/units/un/cefact</uax:NamespaceUri>
             <uax:UnitId>4932940</uax:UnitId>
-            <uax:DisplayName><uax:Text>K</uax:Text></uax:DisplayName>
-            <uax:Description><uax:Text>Kelvin</uax:Text></uax:Description>
+            <uax:DisplayName>
+              <uax:Text>K</uax:Text>
+            </uax:DisplayName>
+            <uax:Description>
+              <uax:Text>Kelvin</uax:Text>
+            </uax:Description>
           </uax:EUInformation>
         </uax:Body>
       </uax:ExtensionObject>
@@ -190,9 +224,14 @@
     </References>
     <Value>
       <uax:ExtensionObject xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd">
-        <uax:TypeId><uax:Identifier>i=886</uax:Identifier></uax:TypeId>
+        <uax:TypeId>
+          <uax:Identifier>i=885</uax:Identifier>
+        </uax:TypeId>
         <uax:Body>
-          <uax:Range><uax:Low>233.15</uax:Low><uax:High>473.15</uax:High></uax:Range>
+          <uax:Range>
+            <uax:Low>233.15</uax:Low>
+            <uax:High>473.15</uax:High>
+          </uax:Range>
         </uax:Body>
       </uax:ExtensionObject>
     </Value>
@@ -214,13 +253,19 @@
     </References>
     <Value>
       <uax:ExtensionObject xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd">
-        <uax:TypeId><uax:Identifier>i=888</uax:Identifier></uax:TypeId>
+        <uax:TypeId>
+          <uax:Identifier>i=888</uax:Identifier>
+        </uax:TypeId>
         <uax:Body>
           <uax:EUInformation>
             <uax:NamespaceUri>http://www.opcfoundation.org/UA/units/un/cefact</uax:NamespaceUri>
             <uax:UnitId>4932940</uax:UnitId>
-            <uax:DisplayName><uax:Text>K</uax:Text></uax:DisplayName>
-            <uax:Description><uax:Text>Kelvin</uax:Text></uax:Description>
+            <uax:DisplayName>
+              <uax:Text>K</uax:Text>
+            </uax:DisplayName>
+            <uax:Description>
+              <uax:Text>Kelvin</uax:Text>
+            </uax:Description>
           </uax:EUInformation>
         </uax:Body>
       </uax:ExtensionObject>
@@ -234,9 +279,14 @@
     </References>
     <Value>
       <uax:ExtensionObject xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd">
-        <uax:TypeId><uax:Identifier>i=886</uax:Identifier></uax:TypeId>
+        <uax:TypeId>
+          <uax:Identifier>i=885</uax:Identifier>
+        </uax:TypeId>
         <uax:Body>
-          <uax:Range><uax:Low>233.15</uax:Low><uax:High>473.15</uax:High></uax:Range>
+          <uax:Range>
+            <uax:Low>233.15</uax:Low>
+            <uax:High>473.15</uax:High>
+          </uax:Range>
         </uax:Body>
       </uax:ExtensionObject>
     </Value>
@@ -258,13 +308,19 @@
     </References>
     <Value>
       <uax:ExtensionObject xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd">
-        <uax:TypeId><uax:Identifier>i=888</uax:Identifier></uax:TypeId>
+        <uax:TypeId>
+          <uax:Identifier>i=888</uax:Identifier>
+        </uax:TypeId>
         <uax:Body>
           <uax:EUInformation>
             <uax:NamespaceUri>http://www.opcfoundation.org/UA/units/un/cefact</uax:NamespaceUri>
             <uax:UnitId>5723220</uax:UnitId>
-            <uax:DisplayName><uax:Text>W</uax:Text></uax:DisplayName>
-            <uax:Description><uax:Text>Watt</uax:Text></uax:Description>
+            <uax:DisplayName>
+              <uax:Text>W</uax:Text>
+            </uax:DisplayName>
+            <uax:Description>
+              <uax:Text>Watt</uax:Text>
+            </uax:Description>
           </uax:EUInformation>
         </uax:Body>
       </uax:ExtensionObject>
@@ -278,9 +334,14 @@
     </References>
     <Value>
       <uax:ExtensionObject xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd">
-        <uax:TypeId><uax:Identifier>i=886</uax:Identifier></uax:TypeId>
+        <uax:TypeId>
+          <uax:Identifier>i=885</uax:Identifier>
+        </uax:TypeId>
         <uax:Body>
-          <uax:Range><uax:Low>0</uax:Low><uax:High>50000</uax:High></uax:Range>
+          <uax:Range>
+            <uax:Low>0</uax:Low>
+            <uax:High>50000</uax:High>
+          </uax:Range>
         </uax:Body>
       </uax:ExtensionObject>
     </Value>
@@ -302,13 +363,19 @@
     </References>
     <Value>
       <uax:ExtensionObject xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd">
-        <uax:TypeId><uax:Identifier>i=888</uax:Identifier></uax:TypeId>
+        <uax:TypeId>
+          <uax:Identifier>i=888</uax:Identifier>
+        </uax:TypeId>
         <uax:Body>
           <uax:EUInformation>
             <uax:NamespaceUri>http://www.opcfoundation.org/UA/units/un/cefact</uax:NamespaceUri>
             <uax:UnitId>4933459</uax:UnitId>
-            <uax:DisplayName><uax:Text>kg/s</uax:Text></uax:DisplayName>
-            <uax:Description><uax:Text>Kilograms per Second</uax:Text></uax:Description>
+            <uax:DisplayName>
+              <uax:Text>kg/s</uax:Text>
+            </uax:DisplayName>
+            <uax:Description>
+              <uax:Text>Kilograms per Second</uax:Text>
+            </uax:Description>
           </uax:EUInformation>
         </uax:Body>
       </uax:ExtensionObject>
@@ -322,9 +389,14 @@
     </References>
     <Value>
       <uax:ExtensionObject xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd">
-        <uax:TypeId><uax:Identifier>i=886</uax:Identifier></uax:TypeId>
+        <uax:TypeId>
+          <uax:Identifier>i=885</uax:Identifier>
+        </uax:TypeId>
         <uax:Body>
-          <uax:Range><uax:Low>0</uax:Low><uax:High>1</uax:High></uax:Range>
+          <uax:Range>
+            <uax:Low>0</uax:Low>
+            <uax:High>1</uax:High>
+          </uax:Range>
         </uax:Body>
       </uax:ExtensionObject>
     </Value>
@@ -346,13 +418,19 @@
     </References>
     <Value>
       <uax:ExtensionObject xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd">
-        <uax:TypeId><uax:Identifier>i=888</uax:Identifier></uax:TypeId>
+        <uax:TypeId>
+          <uax:Identifier>i=888</uax:Identifier>
+        </uax:TypeId>
         <uax:Body>
           <uax:EUInformation>
             <uax:NamespaceUri>http://www.opcfoundation.org/UA/units/un/cefact</uax:NamespaceUri>
             <uax:UnitId>20529</uax:UnitId>
-            <uax:DisplayName><uax:Text>%</uax:Text></uax:DisplayName>
-            <uax:Description><uax:Text>Percent</uax:Text></uax:Description>
+            <uax:DisplayName>
+              <uax:Text>%</uax:Text>
+            </uax:DisplayName>
+            <uax:Description>
+              <uax:Text>Percent</uax:Text>
+            </uax:Description>
           </uax:EUInformation>
         </uax:Body>
       </uax:ExtensionObject>
@@ -366,9 +444,14 @@
     </References>
     <Value>
       <uax:ExtensionObject xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd">
-        <uax:TypeId><uax:Identifier>i=886</uax:Identifier></uax:TypeId>
+        <uax:TypeId>
+          <uax:Identifier>i=885</uax:Identifier>
+        </uax:TypeId>
         <uax:Body>
-          <uax:Range><uax:Low>0</uax:Low><uax:High>100</uax:High></uax:Range>
+          <uax:Range>
+            <uax:Low>0</uax:Low>
+            <uax:High>100</uax:High>
+          </uax:Range>
         </uax:Body>
       </uax:ExtensionObject>
     </Value>
@@ -390,13 +473,19 @@
     </References>
     <Value>
       <uax:ExtensionObject xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd">
-        <uax:TypeId><uax:Identifier>i=888</uax:Identifier></uax:TypeId>
+        <uax:TypeId>
+          <uax:Identifier>i=888</uax:Identifier>
+        </uax:TypeId>
         <uax:Body>
           <uax:EUInformation>
             <uax:NamespaceUri>http://www.opcfoundation.org/UA/units/un/cefact</uax:NamespaceUri>
             <uax:UnitId>5067858</uax:UnitId>
-            <uax:DisplayName><uax:Text>m</uax:Text></uax:DisplayName>
-            <uax:Description><uax:Text>Metre</uax:Text></uax:Description>
+            <uax:DisplayName>
+              <uax:Text>m</uax:Text>
+            </uax:DisplayName>
+            <uax:Description>
+              <uax:Text>Metre</uax:Text>
+            </uax:Description>
           </uax:EUInformation>
         </uax:Body>
       </uax:ExtensionObject>
@@ -410,9 +499,14 @@
     </References>
     <Value>
       <uax:ExtensionObject xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd">
-        <uax:TypeId><uax:Identifier>i=886</uax:Identifier></uax:TypeId>
+        <uax:TypeId>
+          <uax:Identifier>i=885</uax:Identifier>
+        </uax:TypeId>
         <uax:Body>
-          <uax:Range><uax:Low>0</uax:Low><uax:High>10</uax:High></uax:Range>
+          <uax:Range>
+            <uax:Low>0</uax:Low>
+            <uax:High>10</uax:High>
+          </uax:Range>
         </uax:Body>
       </uax:ExtensionObject>
     </Value>
@@ -447,9 +541,6 @@
       <Reference ReferenceType="HasComponent" IsForward="false">ns=1;s=Pump1.Events.SupervisionProcessFluid</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=2373</Reference>
     </References>
-    <Value>
-      <uax:Boolean xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd">false</uax:Boolean>
-    </Value>
   </UAVariable>
   <UAObject NodeId="ns=1;s=Pump1.Events.SupervisionPumpOperation" BrowseName="2:SupervisionPumpOperation" ParentNodeId="ns=1;s=Pump1.Events">
     <DisplayName>SupervisionPumpOperation</DisplayName>
@@ -465,9 +556,6 @@
       <Reference ReferenceType="HasComponent" IsForward="false">ns=1;s=Pump1.Events.SupervisionPumpOperation</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=2373</Reference>
     </References>
-    <Value>
-      <uax:Boolean xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd">false</uax:Boolean>
-    </Value>
   </UAVariable>
   <UAObject NodeId="ns=1;s=Pump1.Maintenance" BrowseName="4:Maintenance" ParentNodeId="ns=1;s=Pump1">
     <DisplayName>Maintenance</DisplayName>
@@ -476,4 +564,1093 @@
       <Reference ReferenceType="HasTypeDefinition">ns=2;i=1011</Reference>
     </References>
   </UAObject>
+  <UAVariable NodeId="ns=1;s=Pump1.SourceARunning" BrowseName="1:SourceARunning" ParentNodeId="ns=1;s=Pump1" DataType="Boolean" AccessLevel="1">
+    <DisplayName>SourceARunning</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;s=Pump1</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=63</Reference>
+    </References>
+  </UAVariable>
+  <UAMethod NodeId="ns=1;s=Pump1.SourceAStart" BrowseName="1:SourceAStart" ParentNodeId="ns=1;s=Pump1" Executable="true" UserExecutable="true">
+    <DisplayName>SourceAStart</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;s=Pump1</Reference>
+    </References>
+  </UAMethod>
+  <UAMethod NodeId="ns=1;s=Pump1.SourceAStop" BrowseName="1:SourceAStop" ParentNodeId="ns=1;s=Pump1" Executable="true" UserExecutable="true">
+    <DisplayName>SourceAStop</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;s=Pump1</Reference>
+    </References>
+  </UAMethod>
+  <UAMethod NodeId="ns=1;s=Pump1.SourceAReset" BrowseName="1:SourceAReset" ParentNodeId="ns=1;s=Pump1" Executable="true" UserExecutable="true">
+    <DisplayName>SourceAReset</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;s=Pump1</Reference>
+    </References>
+  </UAMethod>
+  <UAVariable NodeId="ns=1;s=Pump1.SourceBRunning" BrowseName="1:SourceBRunning" ParentNodeId="ns=1;s=Pump1" DataType="Boolean" AccessLevel="1">
+    <DisplayName>SourceBRunning</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;s=Pump1</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=63</Reference>
+    </References>
+  </UAVariable>
+  <UAMethod NodeId="ns=1;s=Pump1.SourceBStart" BrowseName="1:SourceBStart" ParentNodeId="ns=1;s=Pump1" Executable="true" UserExecutable="true">
+    <DisplayName>SourceBStart</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;s=Pump1</Reference>
+    </References>
+  </UAMethod>
+  <UAMethod NodeId="ns=1;s=Pump1.SourceBStop" BrowseName="1:SourceBStop" ParentNodeId="ns=1;s=Pump1" Executable="true" UserExecutable="true">
+    <DisplayName>SourceBStop</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;s=Pump1</Reference>
+    </References>
+  </UAMethod>
+  <UAMethod NodeId="ns=1;s=Pump1.SourceBReset" BrowseName="1:SourceBReset" ParentNodeId="ns=1;s=Pump1" Executable="true" UserExecutable="true">
+    <DisplayName>SourceBReset</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;s=Pump1</Reference>
+    </References>
+  </UAMethod>
+  <UAObjectType NodeId="ns=1;s=Pump1.CavitationAlarm" BrowseName="1:CavitationAlarm">
+    <DisplayName>CavitationAlarm</DisplayName>
+    <Description>SourceA-owned Cavitation notifications for Pump1.</Description>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=2915</Reference>
+    </References>
+  </UAObjectType>
+  <UAVariable NodeId="ns=1;s=Pump1.CavitationAcknowledge.InputArguments" BrowseName="InputArguments" ParentNodeId="ns=1;s=Pump1.CavitationAcknowledge" DataType="Argument" ValueRank="1" ArrayDimensions="2">
+    <DisplayName>InputArguments</DisplayName>
+    <References>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;s=Pump1.CavitationAcknowledge</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+    </References>
+    <Value>
+      <ListOfExtensionObject xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">
+        <ExtensionObject>
+          <TypeId>
+            <Identifier>i=297</Identifier>
+          </TypeId>
+          <Body>
+            <Argument>
+              <Name>EventId</Name>
+              <DataType>
+                <Identifier>i=15</Identifier>
+              </DataType>
+              <ValueRank>-1</ValueRank>
+              <ArrayDimensions />
+              <Description>
+                <Text>The occurrence EventId returned by this source's alarm.</Text>
+              </Description>
+            </Argument>
+          </Body>
+        </ExtensionObject>
+        <ExtensionObject>
+          <TypeId>
+            <Identifier>i=297</Identifier>
+          </TypeId>
+          <Body>
+            <Argument>
+              <Name>Comment</Name>
+              <DataType>
+                <Identifier>i=21</Identifier>
+              </DataType>
+              <ValueRank>-1</ValueRank>
+              <ArrayDimensions />
+              <Description>
+                <Text>Optional operator comment.</Text>
+              </Description>
+            </Argument>
+          </Body>
+        </ExtensionObject>
+      </ListOfExtensionObject>
+    </Value>
+  </UAVariable>
+  <UAMethod NodeId="ns=1;s=Pump1.CavitationAcknowledge" BrowseName="1:CavitationAcknowledge" ParentNodeId="ns=1;s=Pump1" Executable="true" UserExecutable="true" MethodDeclarationId="i=9111">
+    <DisplayName>CavitationAcknowledge</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;s=Pump1</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;s=Pump1.CavitationAcknowledge.InputArguments</Reference>
+    </References>
+  </UAMethod>
+  <UAVariable NodeId="ns=1;s=Pump1.CavitationConfirm.InputArguments" BrowseName="InputArguments" ParentNodeId="ns=1;s=Pump1.CavitationConfirm" DataType="Argument" ValueRank="1" ArrayDimensions="2">
+    <DisplayName>InputArguments</DisplayName>
+    <References>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;s=Pump1.CavitationConfirm</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+    </References>
+    <Value>
+      <ListOfExtensionObject xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">
+        <ExtensionObject>
+          <TypeId>
+            <Identifier>i=297</Identifier>
+          </TypeId>
+          <Body>
+            <Argument>
+              <Name>EventId</Name>
+              <DataType>
+                <Identifier>i=15</Identifier>
+              </DataType>
+              <ValueRank>-1</ValueRank>
+              <ArrayDimensions />
+              <Description>
+                <Text>The occurrence EventId returned by this source's alarm.</Text>
+              </Description>
+            </Argument>
+          </Body>
+        </ExtensionObject>
+        <ExtensionObject>
+          <TypeId>
+            <Identifier>i=297</Identifier>
+          </TypeId>
+          <Body>
+            <Argument>
+              <Name>Comment</Name>
+              <DataType>
+                <Identifier>i=21</Identifier>
+              </DataType>
+              <ValueRank>-1</ValueRank>
+              <ArrayDimensions />
+              <Description>
+                <Text>Optional operator comment.</Text>
+              </Description>
+            </Argument>
+          </Body>
+        </ExtensionObject>
+      </ListOfExtensionObject>
+    </Value>
+  </UAVariable>
+  <UAMethod NodeId="ns=1;s=Pump1.CavitationConfirm" BrowseName="1:CavitationConfirm" ParentNodeId="ns=1;s=Pump1" Executable="true" UserExecutable="true" MethodDeclarationId="i=9113">
+    <DisplayName>CavitationConfirm</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;s=Pump1</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;s=Pump1.CavitationConfirm.InputArguments</Reference>
+    </References>
+  </UAMethod>
+  <UAObjectType NodeId="ns=1;s=Pump1.MotorOverheatAlarm" BrowseName="1:MotorOverheatAlarm">
+    <DisplayName>MotorOverheatAlarm</DisplayName>
+    <Description>SourceB-owned MotorOverheat notifications for Pump1.</Description>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=2915</Reference>
+    </References>
+  </UAObjectType>
+  <UAVariable NodeId="ns=1;s=Pump1.MotorOverheatAcknowledge.InputArguments" BrowseName="InputArguments" ParentNodeId="ns=1;s=Pump1.MotorOverheatAcknowledge" DataType="Argument" ValueRank="1" ArrayDimensions="2">
+    <DisplayName>InputArguments</DisplayName>
+    <References>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;s=Pump1.MotorOverheatAcknowledge</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+    </References>
+    <Value>
+      <ListOfExtensionObject xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">
+        <ExtensionObject>
+          <TypeId>
+            <Identifier>i=297</Identifier>
+          </TypeId>
+          <Body>
+            <Argument>
+              <Name>EventId</Name>
+              <DataType>
+                <Identifier>i=15</Identifier>
+              </DataType>
+              <ValueRank>-1</ValueRank>
+              <ArrayDimensions />
+              <Description>
+                <Text>The occurrence EventId returned by this source's alarm.</Text>
+              </Description>
+            </Argument>
+          </Body>
+        </ExtensionObject>
+        <ExtensionObject>
+          <TypeId>
+            <Identifier>i=297</Identifier>
+          </TypeId>
+          <Body>
+            <Argument>
+              <Name>Comment</Name>
+              <DataType>
+                <Identifier>i=21</Identifier>
+              </DataType>
+              <ValueRank>-1</ValueRank>
+              <ArrayDimensions />
+              <Description>
+                <Text>Optional operator comment.</Text>
+              </Description>
+            </Argument>
+          </Body>
+        </ExtensionObject>
+      </ListOfExtensionObject>
+    </Value>
+  </UAVariable>
+  <UAMethod NodeId="ns=1;s=Pump1.MotorOverheatAcknowledge" BrowseName="1:MotorOverheatAcknowledge" ParentNodeId="ns=1;s=Pump1" Executable="true" UserExecutable="true" MethodDeclarationId="i=9111">
+    <DisplayName>MotorOverheatAcknowledge</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;s=Pump1</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;s=Pump1.MotorOverheatAcknowledge.InputArguments</Reference>
+    </References>
+  </UAMethod>
+  <UAVariable NodeId="ns=1;s=Pump1.MotorOverheatConfirm.InputArguments" BrowseName="InputArguments" ParentNodeId="ns=1;s=Pump1.MotorOverheatConfirm" DataType="Argument" ValueRank="1" ArrayDimensions="2">
+    <DisplayName>InputArguments</DisplayName>
+    <References>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;s=Pump1.MotorOverheatConfirm</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+    </References>
+    <Value>
+      <ListOfExtensionObject xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">
+        <ExtensionObject>
+          <TypeId>
+            <Identifier>i=297</Identifier>
+          </TypeId>
+          <Body>
+            <Argument>
+              <Name>EventId</Name>
+              <DataType>
+                <Identifier>i=15</Identifier>
+              </DataType>
+              <ValueRank>-1</ValueRank>
+              <ArrayDimensions />
+              <Description>
+                <Text>The occurrence EventId returned by this source's alarm.</Text>
+              </Description>
+            </Argument>
+          </Body>
+        </ExtensionObject>
+        <ExtensionObject>
+          <TypeId>
+            <Identifier>i=297</Identifier>
+          </TypeId>
+          <Body>
+            <Argument>
+              <Name>Comment</Name>
+              <DataType>
+                <Identifier>i=21</Identifier>
+              </DataType>
+              <ValueRank>-1</ValueRank>
+              <ArrayDimensions />
+              <Description>
+                <Text>Optional operator comment.</Text>
+              </Description>
+            </Argument>
+          </Body>
+        </ExtensionObject>
+      </ListOfExtensionObject>
+    </Value>
+  </UAVariable>
+  <UAMethod NodeId="ns=1;s=Pump1.MotorOverheatConfirm" BrowseName="1:MotorOverheatConfirm" ParentNodeId="ns=1;s=Pump1" Executable="true" UserExecutable="true" MethodDeclarationId="i=9113">
+    <DisplayName>MotorOverheatConfirm</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;s=Pump1</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;s=Pump1.MotorOverheatConfirm.InputArguments</Reference>
+    </References>
+  </UAMethod>
+  <UAObject NodeId="ns=1;s=Pump2" BrowseName="1:Pump_2" EventNotifier="1">
+    <DisplayName>Pump #2</DisplayName>
+    <Description>Sample-owned aggregate pump projected from two upstream OPC UA servers.</Description>
+    <References>
+      <Reference ReferenceType="HasComponent">ns=1;s=Pump2.Identification</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;s=Pump2.Operational</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;s=Pump2.Events</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;s=Pump2.Maintenance</Reference>
+      <Reference ReferenceType="HasTypeDefinition">ns=2;i=1052</Reference>
+      <Reference ReferenceType="i=35" IsForward="false">i=85</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;s=Pump2.SourceARunning</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;s=Pump2.SourceAStart</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;s=Pump2.SourceAStop</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;s=Pump2.SourceAReset</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;s=Pump2.SourceBRunning</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;s=Pump2.SourceBStart</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;s=Pump2.SourceBStop</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;s=Pump2.SourceBReset</Reference>
+      <Reference ReferenceType="GeneratesEvent">ns=1;s=Pump2.CavitationAlarm</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;s=Pump2.CavitationAcknowledge</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;s=Pump2.CavitationConfirm</Reference>
+      <Reference ReferenceType="GeneratesEvent">ns=1;s=Pump2.MotorOverheatAlarm</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;s=Pump2.MotorOverheatAcknowledge</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;s=Pump2.MotorOverheatConfirm</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="ns=1;s=Pump2.Identification" BrowseName="4:Identification" ParentNodeId="ns=1;s=Pump2">
+    <DisplayName>Identification</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;s=Pump2</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;s=Pump2.Identification.Manufacturer</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;s=Pump2.Identification.SerialNumber</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;s=Pump2.Identification.ProductInstanceUri</Reference>
+      <Reference ReferenceType="HasTypeDefinition">ns=2;i=1005</Reference>
+    </References>
+  </UAObject>
+  <UAVariable NodeId="ns=1;s=Pump2.Identification.Manufacturer" BrowseName="4:Manufacturer" ParentNodeId="ns=1;s=Pump2.Identification" DataType="LocalizedText" AccessLevel="1">
+    <DisplayName>Manufacturer</DisplayName>
+    <References>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;s=Pump2.Identification</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+    </References>
+    <Value>
+      <uax:LocalizedText xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd">
+        <uax:Text>SimPump Corp</uax:Text>
+      </uax:LocalizedText>
+    </Value>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;s=Pump2.Identification.SerialNumber" BrowseName="4:SerialNumber" ParentNodeId="ns=1;s=Pump2.Identification" DataType="String" AccessLevel="1">
+    <DisplayName>SerialNumber</DisplayName>
+    <References>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;s=Pump2.Identification</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+    </References>
+    <Value>
+      <uax:String xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd">SN-002</uax:String>
+    </Value>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;s=Pump2.Identification.ProductInstanceUri" BrowseName="4:ProductInstanceUri" ParentNodeId="ns=1;s=Pump2.Identification" DataType="String" AccessLevel="1">
+    <DisplayName>ProductInstanceUri</DisplayName>
+    <References>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;s=Pump2.Identification</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+    </References>
+    <Value>
+      <uax:String xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd">urn:simdevice:SimPump:PumpX-2000:SN-002</uax:String>
+    </Value>
+  </UAVariable>
+  <UAObject NodeId="ns=1;s=Pump2.Operational" BrowseName="4:Operational" ParentNodeId="ns=1;s=Pump2">
+    <DisplayName>Operational</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;s=Pump2</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;s=Pump2.Operational.Measurements</Reference>
+      <Reference ReferenceType="HasTypeDefinition">ns=2;i=1053</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="ns=1;s=Pump2.Operational.Measurements" BrowseName="2:Measurements" ParentNodeId="ns=1;s=Pump2.Operational">
+    <DisplayName>Measurements</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;s=Pump2.Operational</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;s=Pump2.Operational.Measurements.DifferentialPressure</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;s=Pump2.Operational.Measurements.FluidTemperature</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;s=Pump2.Operational.Measurements.BearingTemperature</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;s=Pump2.Operational.Measurements.PumpPowerInput</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;s=Pump2.Operational.Measurements.MassFlow</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;s=Pump2.Operational.Measurements.PumpEfficiency</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;s=Pump2.Operational.Measurements.Level</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;s=Pump2.Operational.Measurements.NumberOfStarts</Reference>
+      <Reference ReferenceType="HasTypeDefinition">ns=2;i=1054</Reference>
+    </References>
+  </UAObject>
+  <UAVariable NodeId="ns=1;s=Pump2.Operational.Measurements.DifferentialPressure" BrowseName="2:DifferentialPressure" ParentNodeId="ns=1;s=Pump2.Operational.Measurements" DataType="Double" AccessLevel="1">
+    <DisplayName>DifferentialPressure</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;s=Pump2.Operational.Measurements</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;s=Pump2.Operational.Measurements.DifferentialPressure.EngineeringUnits</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;s=Pump2.Operational.Measurements.DifferentialPressure.EURange</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=15318</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;s=Pump2.Operational.Measurements.DifferentialPressure.EngineeringUnits" BrowseName="EngineeringUnits" ParentNodeId="ns=1;s=Pump2.Operational.Measurements.DifferentialPressure" DataType="EUInformation">
+    <DisplayName>EngineeringUnits</DisplayName>
+    <References>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;s=Pump2.Operational.Measurements.DifferentialPressure</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+    </References>
+    <Value>
+      <uax:ExtensionObject xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd">
+        <uax:TypeId>
+          <uax:Identifier>i=888</uax:Identifier>
+        </uax:TypeId>
+        <uax:Body>
+          <uax:EUInformation>
+            <uax:NamespaceUri>http://www.opcfoundation.org/UA/units/un/cefact</uax:NamespaceUri>
+            <uax:UnitId>5259596</uax:UnitId>
+            <uax:DisplayName>
+              <uax:Text>Pa</uax:Text>
+            </uax:DisplayName>
+            <uax:Description>
+              <uax:Text>Pascal</uax:Text>
+            </uax:Description>
+          </uax:EUInformation>
+        </uax:Body>
+      </uax:ExtensionObject>
+    </Value>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;s=Pump2.Operational.Measurements.DifferentialPressure.EURange" BrowseName="EURange" ParentNodeId="ns=1;s=Pump2.Operational.Measurements.DifferentialPressure" DataType="Range">
+    <DisplayName>EURange</DisplayName>
+    <References>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;s=Pump2.Operational.Measurements.DifferentialPressure</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+    </References>
+    <Value>
+      <uax:ExtensionObject xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd">
+        <uax:TypeId>
+          <uax:Identifier>i=885</uax:Identifier>
+        </uax:TypeId>
+        <uax:Body>
+          <uax:Range>
+            <uax:Low>0</uax:Low>
+            <uax:High>1000000</uax:High>
+          </uax:Range>
+        </uax:Body>
+      </uax:ExtensionObject>
+    </Value>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;s=Pump2.Operational.Measurements.FluidTemperature" BrowseName="2:FluidTemperature" ParentNodeId="ns=1;s=Pump2.Operational.Measurements" DataType="Double" AccessLevel="1">
+    <DisplayName>FluidTemperature</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;s=Pump2.Operational.Measurements</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;s=Pump2.Operational.Measurements.FluidTemperature.EngineeringUnits</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;s=Pump2.Operational.Measurements.FluidTemperature.EURange</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=15318</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;s=Pump2.Operational.Measurements.FluidTemperature.EngineeringUnits" BrowseName="EngineeringUnits" ParentNodeId="ns=1;s=Pump2.Operational.Measurements.FluidTemperature" DataType="EUInformation">
+    <DisplayName>EngineeringUnits</DisplayName>
+    <References>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;s=Pump2.Operational.Measurements.FluidTemperature</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+    </References>
+    <Value>
+      <uax:ExtensionObject xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd">
+        <uax:TypeId>
+          <uax:Identifier>i=888</uax:Identifier>
+        </uax:TypeId>
+        <uax:Body>
+          <uax:EUInformation>
+            <uax:NamespaceUri>http://www.opcfoundation.org/UA/units/un/cefact</uax:NamespaceUri>
+            <uax:UnitId>4932940</uax:UnitId>
+            <uax:DisplayName>
+              <uax:Text>K</uax:Text>
+            </uax:DisplayName>
+            <uax:Description>
+              <uax:Text>Kelvin</uax:Text>
+            </uax:Description>
+          </uax:EUInformation>
+        </uax:Body>
+      </uax:ExtensionObject>
+    </Value>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;s=Pump2.Operational.Measurements.FluidTemperature.EURange" BrowseName="EURange" ParentNodeId="ns=1;s=Pump2.Operational.Measurements.FluidTemperature" DataType="Range">
+    <DisplayName>EURange</DisplayName>
+    <References>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;s=Pump2.Operational.Measurements.FluidTemperature</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+    </References>
+    <Value>
+      <uax:ExtensionObject xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd">
+        <uax:TypeId>
+          <uax:Identifier>i=885</uax:Identifier>
+        </uax:TypeId>
+        <uax:Body>
+          <uax:Range>
+            <uax:Low>233.15</uax:Low>
+            <uax:High>473.15</uax:High>
+          </uax:Range>
+        </uax:Body>
+      </uax:ExtensionObject>
+    </Value>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;s=Pump2.Operational.Measurements.BearingTemperature" BrowseName="2:BearingTemperature" ParentNodeId="ns=1;s=Pump2.Operational.Measurements" DataType="Double" AccessLevel="1">
+    <DisplayName>BearingTemperature</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;s=Pump2.Operational.Measurements</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;s=Pump2.Operational.Measurements.BearingTemperature.EngineeringUnits</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;s=Pump2.Operational.Measurements.BearingTemperature.EURange</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=15318</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;s=Pump2.Operational.Measurements.BearingTemperature.EngineeringUnits" BrowseName="EngineeringUnits" ParentNodeId="ns=1;s=Pump2.Operational.Measurements.BearingTemperature" DataType="EUInformation">
+    <DisplayName>EngineeringUnits</DisplayName>
+    <References>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;s=Pump2.Operational.Measurements.BearingTemperature</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+    </References>
+    <Value>
+      <uax:ExtensionObject xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd">
+        <uax:TypeId>
+          <uax:Identifier>i=888</uax:Identifier>
+        </uax:TypeId>
+        <uax:Body>
+          <uax:EUInformation>
+            <uax:NamespaceUri>http://www.opcfoundation.org/UA/units/un/cefact</uax:NamespaceUri>
+            <uax:UnitId>4932940</uax:UnitId>
+            <uax:DisplayName>
+              <uax:Text>K</uax:Text>
+            </uax:DisplayName>
+            <uax:Description>
+              <uax:Text>Kelvin</uax:Text>
+            </uax:Description>
+          </uax:EUInformation>
+        </uax:Body>
+      </uax:ExtensionObject>
+    </Value>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;s=Pump2.Operational.Measurements.BearingTemperature.EURange" BrowseName="EURange" ParentNodeId="ns=1;s=Pump2.Operational.Measurements.BearingTemperature" DataType="Range">
+    <DisplayName>EURange</DisplayName>
+    <References>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;s=Pump2.Operational.Measurements.BearingTemperature</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+    </References>
+    <Value>
+      <uax:ExtensionObject xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd">
+        <uax:TypeId>
+          <uax:Identifier>i=885</uax:Identifier>
+        </uax:TypeId>
+        <uax:Body>
+          <uax:Range>
+            <uax:Low>233.15</uax:Low>
+            <uax:High>473.15</uax:High>
+          </uax:Range>
+        </uax:Body>
+      </uax:ExtensionObject>
+    </Value>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;s=Pump2.Operational.Measurements.PumpPowerInput" BrowseName="2:PumpPowerInput" ParentNodeId="ns=1;s=Pump2.Operational.Measurements" DataType="Double" AccessLevel="1">
+    <DisplayName>PumpPowerInput</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;s=Pump2.Operational.Measurements</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;s=Pump2.Operational.Measurements.PumpPowerInput.EngineeringUnits</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;s=Pump2.Operational.Measurements.PumpPowerInput.EURange</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=15318</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;s=Pump2.Operational.Measurements.PumpPowerInput.EngineeringUnits" BrowseName="EngineeringUnits" ParentNodeId="ns=1;s=Pump2.Operational.Measurements.PumpPowerInput" DataType="EUInformation">
+    <DisplayName>EngineeringUnits</DisplayName>
+    <References>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;s=Pump2.Operational.Measurements.PumpPowerInput</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+    </References>
+    <Value>
+      <uax:ExtensionObject xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd">
+        <uax:TypeId>
+          <uax:Identifier>i=888</uax:Identifier>
+        </uax:TypeId>
+        <uax:Body>
+          <uax:EUInformation>
+            <uax:NamespaceUri>http://www.opcfoundation.org/UA/units/un/cefact</uax:NamespaceUri>
+            <uax:UnitId>5723220</uax:UnitId>
+            <uax:DisplayName>
+              <uax:Text>W</uax:Text>
+            </uax:DisplayName>
+            <uax:Description>
+              <uax:Text>Watt</uax:Text>
+            </uax:Description>
+          </uax:EUInformation>
+        </uax:Body>
+      </uax:ExtensionObject>
+    </Value>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;s=Pump2.Operational.Measurements.PumpPowerInput.EURange" BrowseName="EURange" ParentNodeId="ns=1;s=Pump2.Operational.Measurements.PumpPowerInput" DataType="Range">
+    <DisplayName>EURange</DisplayName>
+    <References>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;s=Pump2.Operational.Measurements.PumpPowerInput</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+    </References>
+    <Value>
+      <uax:ExtensionObject xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd">
+        <uax:TypeId>
+          <uax:Identifier>i=885</uax:Identifier>
+        </uax:TypeId>
+        <uax:Body>
+          <uax:Range>
+            <uax:Low>0</uax:Low>
+            <uax:High>50000</uax:High>
+          </uax:Range>
+        </uax:Body>
+      </uax:ExtensionObject>
+    </Value>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;s=Pump2.Operational.Measurements.MassFlow" BrowseName="2:MassFlow" ParentNodeId="ns=1;s=Pump2.Operational.Measurements" DataType="Double" AccessLevel="1">
+    <DisplayName>MassFlow</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;s=Pump2.Operational.Measurements</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;s=Pump2.Operational.Measurements.MassFlow.EngineeringUnits</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;s=Pump2.Operational.Measurements.MassFlow.EURange</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=15318</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;s=Pump2.Operational.Measurements.MassFlow.EngineeringUnits" BrowseName="EngineeringUnits" ParentNodeId="ns=1;s=Pump2.Operational.Measurements.MassFlow" DataType="EUInformation">
+    <DisplayName>EngineeringUnits</DisplayName>
+    <References>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;s=Pump2.Operational.Measurements.MassFlow</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+    </References>
+    <Value>
+      <uax:ExtensionObject xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd">
+        <uax:TypeId>
+          <uax:Identifier>i=888</uax:Identifier>
+        </uax:TypeId>
+        <uax:Body>
+          <uax:EUInformation>
+            <uax:NamespaceUri>http://www.opcfoundation.org/UA/units/un/cefact</uax:NamespaceUri>
+            <uax:UnitId>4933459</uax:UnitId>
+            <uax:DisplayName>
+              <uax:Text>kg/s</uax:Text>
+            </uax:DisplayName>
+            <uax:Description>
+              <uax:Text>Kilograms per Second</uax:Text>
+            </uax:Description>
+          </uax:EUInformation>
+        </uax:Body>
+      </uax:ExtensionObject>
+    </Value>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;s=Pump2.Operational.Measurements.MassFlow.EURange" BrowseName="EURange" ParentNodeId="ns=1;s=Pump2.Operational.Measurements.MassFlow" DataType="Range">
+    <DisplayName>EURange</DisplayName>
+    <References>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;s=Pump2.Operational.Measurements.MassFlow</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+    </References>
+    <Value>
+      <uax:ExtensionObject xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd">
+        <uax:TypeId>
+          <uax:Identifier>i=885</uax:Identifier>
+        </uax:TypeId>
+        <uax:Body>
+          <uax:Range>
+            <uax:Low>0</uax:Low>
+            <uax:High>1</uax:High>
+          </uax:Range>
+        </uax:Body>
+      </uax:ExtensionObject>
+    </Value>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;s=Pump2.Operational.Measurements.PumpEfficiency" BrowseName="2:PumpEfficiency" ParentNodeId="ns=1;s=Pump2.Operational.Measurements" DataType="Double" AccessLevel="1">
+    <DisplayName>PumpEfficiency</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;s=Pump2.Operational.Measurements</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;s=Pump2.Operational.Measurements.PumpEfficiency.EngineeringUnits</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;s=Pump2.Operational.Measurements.PumpEfficiency.EURange</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=15318</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;s=Pump2.Operational.Measurements.PumpEfficiency.EngineeringUnits" BrowseName="EngineeringUnits" ParentNodeId="ns=1;s=Pump2.Operational.Measurements.PumpEfficiency" DataType="EUInformation">
+    <DisplayName>EngineeringUnits</DisplayName>
+    <References>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;s=Pump2.Operational.Measurements.PumpEfficiency</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+    </References>
+    <Value>
+      <uax:ExtensionObject xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd">
+        <uax:TypeId>
+          <uax:Identifier>i=888</uax:Identifier>
+        </uax:TypeId>
+        <uax:Body>
+          <uax:EUInformation>
+            <uax:NamespaceUri>http://www.opcfoundation.org/UA/units/un/cefact</uax:NamespaceUri>
+            <uax:UnitId>20529</uax:UnitId>
+            <uax:DisplayName>
+              <uax:Text>%</uax:Text>
+            </uax:DisplayName>
+            <uax:Description>
+              <uax:Text>Percent</uax:Text>
+            </uax:Description>
+          </uax:EUInformation>
+        </uax:Body>
+      </uax:ExtensionObject>
+    </Value>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;s=Pump2.Operational.Measurements.PumpEfficiency.EURange" BrowseName="EURange" ParentNodeId="ns=1;s=Pump2.Operational.Measurements.PumpEfficiency" DataType="Range">
+    <DisplayName>EURange</DisplayName>
+    <References>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;s=Pump2.Operational.Measurements.PumpEfficiency</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+    </References>
+    <Value>
+      <uax:ExtensionObject xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd">
+        <uax:TypeId>
+          <uax:Identifier>i=885</uax:Identifier>
+        </uax:TypeId>
+        <uax:Body>
+          <uax:Range>
+            <uax:Low>0</uax:Low>
+            <uax:High>100</uax:High>
+          </uax:Range>
+        </uax:Body>
+      </uax:ExtensionObject>
+    </Value>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;s=Pump2.Operational.Measurements.Level" BrowseName="2:Level" ParentNodeId="ns=1;s=Pump2.Operational.Measurements" DataType="Double" AccessLevel="1">
+    <DisplayName>Level</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;s=Pump2.Operational.Measurements</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;s=Pump2.Operational.Measurements.Level.EngineeringUnits</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;s=Pump2.Operational.Measurements.Level.EURange</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=15318</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;s=Pump2.Operational.Measurements.Level.EngineeringUnits" BrowseName="EngineeringUnits" ParentNodeId="ns=1;s=Pump2.Operational.Measurements.Level" DataType="EUInformation">
+    <DisplayName>EngineeringUnits</DisplayName>
+    <References>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;s=Pump2.Operational.Measurements.Level</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+    </References>
+    <Value>
+      <uax:ExtensionObject xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd">
+        <uax:TypeId>
+          <uax:Identifier>i=888</uax:Identifier>
+        </uax:TypeId>
+        <uax:Body>
+          <uax:EUInformation>
+            <uax:NamespaceUri>http://www.opcfoundation.org/UA/units/un/cefact</uax:NamespaceUri>
+            <uax:UnitId>5067858</uax:UnitId>
+            <uax:DisplayName>
+              <uax:Text>m</uax:Text>
+            </uax:DisplayName>
+            <uax:Description>
+              <uax:Text>Metre</uax:Text>
+            </uax:Description>
+          </uax:EUInformation>
+        </uax:Body>
+      </uax:ExtensionObject>
+    </Value>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;s=Pump2.Operational.Measurements.Level.EURange" BrowseName="EURange" ParentNodeId="ns=1;s=Pump2.Operational.Measurements.Level" DataType="Range">
+    <DisplayName>EURange</DisplayName>
+    <References>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;s=Pump2.Operational.Measurements.Level</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+    </References>
+    <Value>
+      <uax:ExtensionObject xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd">
+        <uax:TypeId>
+          <uax:Identifier>i=885</uax:Identifier>
+        </uax:TypeId>
+        <uax:Body>
+          <uax:Range>
+            <uax:Low>0</uax:Low>
+            <uax:High>10</uax:High>
+          </uax:Range>
+        </uax:Body>
+      </uax:ExtensionObject>
+    </Value>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;s=Pump2.Operational.Measurements.NumberOfStarts" BrowseName="2:NumberOfStarts" ParentNodeId="ns=1;s=Pump2.Operational.Measurements" DataType="UInt32" AccessLevel="1">
+    <DisplayName>NumberOfStarts</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;s=Pump2.Operational.Measurements</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=15318</Reference>
+    </References>
+  </UAVariable>
+  <UAObject NodeId="ns=1;s=Pump2.Events" BrowseName="2:Events" ParentNodeId="ns=1;s=Pump2">
+    <DisplayName>Events</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;s=Pump2</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;s=Pump2.Events.SupervisionProcessFluid</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;s=Pump2.Events.SupervisionPumpOperation</Reference>
+      <Reference ReferenceType="HasTypeDefinition">ns=2;i=1019</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="ns=1;s=Pump2.Events.SupervisionProcessFluid" BrowseName="2:SupervisionProcessFluid" ParentNodeId="ns=1;s=Pump2.Events">
+    <DisplayName>SupervisionProcessFluid</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;s=Pump2.Events</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;s=Pump2.Events.SupervisionProcessFluid.Cavitation</Reference>
+      <Reference ReferenceType="HasTypeDefinition">ns=2;i=1015</Reference>
+    </References>
+  </UAObject>
+  <UAVariable NodeId="ns=1;s=Pump2.Events.SupervisionProcessFluid.Cavitation" BrowseName="2:Cavitation" ParentNodeId="ns=1;s=Pump2.Events.SupervisionProcessFluid" DataType="Boolean" AccessLevel="1">
+    <DisplayName>Cavitation</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;s=Pump2.Events.SupervisionProcessFluid</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=2373</Reference>
+    </References>
+  </UAVariable>
+  <UAObject NodeId="ns=1;s=Pump2.Events.SupervisionPumpOperation" BrowseName="2:SupervisionPumpOperation" ParentNodeId="ns=1;s=Pump2.Events">
+    <DisplayName>SupervisionPumpOperation</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;s=Pump2.Events</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;s=Pump2.Events.SupervisionPumpOperation.MotorOverheat</Reference>
+      <Reference ReferenceType="HasTypeDefinition">ns=2;i=1016</Reference>
+    </References>
+  </UAObject>
+  <UAVariable NodeId="ns=1;s=Pump2.Events.SupervisionPumpOperation.MotorOverheat" BrowseName="2:MotorOverheat" ParentNodeId="ns=1;s=Pump2.Events.SupervisionPumpOperation" DataType="Boolean" AccessLevel="1">
+    <DisplayName>MotorOverheat</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;s=Pump2.Events.SupervisionPumpOperation</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=2373</Reference>
+    </References>
+  </UAVariable>
+  <UAObject NodeId="ns=1;s=Pump2.Maintenance" BrowseName="4:Maintenance" ParentNodeId="ns=1;s=Pump2">
+    <DisplayName>Maintenance</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;s=Pump2</Reference>
+      <Reference ReferenceType="HasTypeDefinition">ns=2;i=1011</Reference>
+    </References>
+  </UAObject>
+  <UAVariable NodeId="ns=1;s=Pump2.SourceARunning" BrowseName="1:SourceARunning" ParentNodeId="ns=1;s=Pump2" DataType="Boolean" AccessLevel="1">
+    <DisplayName>SourceARunning</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;s=Pump2</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=63</Reference>
+    </References>
+  </UAVariable>
+  <UAMethod NodeId="ns=1;s=Pump2.SourceAStart" BrowseName="1:SourceAStart" ParentNodeId="ns=1;s=Pump2" Executable="true" UserExecutable="true">
+    <DisplayName>SourceAStart</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;s=Pump2</Reference>
+    </References>
+  </UAMethod>
+  <UAMethod NodeId="ns=1;s=Pump2.SourceAStop" BrowseName="1:SourceAStop" ParentNodeId="ns=1;s=Pump2" Executable="true" UserExecutable="true">
+    <DisplayName>SourceAStop</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;s=Pump2</Reference>
+    </References>
+  </UAMethod>
+  <UAMethod NodeId="ns=1;s=Pump2.SourceAReset" BrowseName="1:SourceAReset" ParentNodeId="ns=1;s=Pump2" Executable="true" UserExecutable="true">
+    <DisplayName>SourceAReset</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;s=Pump2</Reference>
+    </References>
+  </UAMethod>
+  <UAVariable NodeId="ns=1;s=Pump2.SourceBRunning" BrowseName="1:SourceBRunning" ParentNodeId="ns=1;s=Pump2" DataType="Boolean" AccessLevel="1">
+    <DisplayName>SourceBRunning</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;s=Pump2</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=63</Reference>
+    </References>
+  </UAVariable>
+  <UAMethod NodeId="ns=1;s=Pump2.SourceBStart" BrowseName="1:SourceBStart" ParentNodeId="ns=1;s=Pump2" Executable="true" UserExecutable="true">
+    <DisplayName>SourceBStart</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;s=Pump2</Reference>
+    </References>
+  </UAMethod>
+  <UAMethod NodeId="ns=1;s=Pump2.SourceBStop" BrowseName="1:SourceBStop" ParentNodeId="ns=1;s=Pump2" Executable="true" UserExecutable="true">
+    <DisplayName>SourceBStop</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;s=Pump2</Reference>
+    </References>
+  </UAMethod>
+  <UAMethod NodeId="ns=1;s=Pump2.SourceBReset" BrowseName="1:SourceBReset" ParentNodeId="ns=1;s=Pump2" Executable="true" UserExecutable="true">
+    <DisplayName>SourceBReset</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;s=Pump2</Reference>
+    </References>
+  </UAMethod>
+  <UAObjectType NodeId="ns=1;s=Pump2.CavitationAlarm" BrowseName="1:CavitationAlarm">
+    <DisplayName>CavitationAlarm</DisplayName>
+    <Description>SourceA-owned Cavitation notifications for Pump2.</Description>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=2915</Reference>
+    </References>
+  </UAObjectType>
+  <UAVariable NodeId="ns=1;s=Pump2.CavitationAcknowledge.InputArguments" BrowseName="InputArguments" ParentNodeId="ns=1;s=Pump2.CavitationAcknowledge" DataType="Argument" ValueRank="1" ArrayDimensions="2">
+    <DisplayName>InputArguments</DisplayName>
+    <References>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;s=Pump2.CavitationAcknowledge</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+    </References>
+    <Value>
+      <ListOfExtensionObject xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">
+        <ExtensionObject>
+          <TypeId>
+            <Identifier>i=297</Identifier>
+          </TypeId>
+          <Body>
+            <Argument>
+              <Name>EventId</Name>
+              <DataType>
+                <Identifier>i=15</Identifier>
+              </DataType>
+              <ValueRank>-1</ValueRank>
+              <ArrayDimensions />
+              <Description>
+                <Text>The occurrence EventId returned by this source's alarm.</Text>
+              </Description>
+            </Argument>
+          </Body>
+        </ExtensionObject>
+        <ExtensionObject>
+          <TypeId>
+            <Identifier>i=297</Identifier>
+          </TypeId>
+          <Body>
+            <Argument>
+              <Name>Comment</Name>
+              <DataType>
+                <Identifier>i=21</Identifier>
+              </DataType>
+              <ValueRank>-1</ValueRank>
+              <ArrayDimensions />
+              <Description>
+                <Text>Optional operator comment.</Text>
+              </Description>
+            </Argument>
+          </Body>
+        </ExtensionObject>
+      </ListOfExtensionObject>
+    </Value>
+  </UAVariable>
+  <UAMethod NodeId="ns=1;s=Pump2.CavitationAcknowledge" BrowseName="1:CavitationAcknowledge" ParentNodeId="ns=1;s=Pump2" Executable="true" UserExecutable="true" MethodDeclarationId="i=9111">
+    <DisplayName>CavitationAcknowledge</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;s=Pump2</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;s=Pump2.CavitationAcknowledge.InputArguments</Reference>
+    </References>
+  </UAMethod>
+  <UAVariable NodeId="ns=1;s=Pump2.CavitationConfirm.InputArguments" BrowseName="InputArguments" ParentNodeId="ns=1;s=Pump2.CavitationConfirm" DataType="Argument" ValueRank="1" ArrayDimensions="2">
+    <DisplayName>InputArguments</DisplayName>
+    <References>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;s=Pump2.CavitationConfirm</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+    </References>
+    <Value>
+      <ListOfExtensionObject xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">
+        <ExtensionObject>
+          <TypeId>
+            <Identifier>i=297</Identifier>
+          </TypeId>
+          <Body>
+            <Argument>
+              <Name>EventId</Name>
+              <DataType>
+                <Identifier>i=15</Identifier>
+              </DataType>
+              <ValueRank>-1</ValueRank>
+              <ArrayDimensions />
+              <Description>
+                <Text>The occurrence EventId returned by this source's alarm.</Text>
+              </Description>
+            </Argument>
+          </Body>
+        </ExtensionObject>
+        <ExtensionObject>
+          <TypeId>
+            <Identifier>i=297</Identifier>
+          </TypeId>
+          <Body>
+            <Argument>
+              <Name>Comment</Name>
+              <DataType>
+                <Identifier>i=21</Identifier>
+              </DataType>
+              <ValueRank>-1</ValueRank>
+              <ArrayDimensions />
+              <Description>
+                <Text>Optional operator comment.</Text>
+              </Description>
+            </Argument>
+          </Body>
+        </ExtensionObject>
+      </ListOfExtensionObject>
+    </Value>
+  </UAVariable>
+  <UAMethod NodeId="ns=1;s=Pump2.CavitationConfirm" BrowseName="1:CavitationConfirm" ParentNodeId="ns=1;s=Pump2" Executable="true" UserExecutable="true" MethodDeclarationId="i=9113">
+    <DisplayName>CavitationConfirm</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;s=Pump2</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;s=Pump2.CavitationConfirm.InputArguments</Reference>
+    </References>
+  </UAMethod>
+  <UAObjectType NodeId="ns=1;s=Pump2.MotorOverheatAlarm" BrowseName="1:MotorOverheatAlarm">
+    <DisplayName>MotorOverheatAlarm</DisplayName>
+    <Description>SourceB-owned MotorOverheat notifications for Pump2.</Description>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=2915</Reference>
+    </References>
+  </UAObjectType>
+  <UAVariable NodeId="ns=1;s=Pump2.MotorOverheatAcknowledge.InputArguments" BrowseName="InputArguments" ParentNodeId="ns=1;s=Pump2.MotorOverheatAcknowledge" DataType="Argument" ValueRank="1" ArrayDimensions="2">
+    <DisplayName>InputArguments</DisplayName>
+    <References>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;s=Pump2.MotorOverheatAcknowledge</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+    </References>
+    <Value>
+      <ListOfExtensionObject xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">
+        <ExtensionObject>
+          <TypeId>
+            <Identifier>i=297</Identifier>
+          </TypeId>
+          <Body>
+            <Argument>
+              <Name>EventId</Name>
+              <DataType>
+                <Identifier>i=15</Identifier>
+              </DataType>
+              <ValueRank>-1</ValueRank>
+              <ArrayDimensions />
+              <Description>
+                <Text>The occurrence EventId returned by this source's alarm.</Text>
+              </Description>
+            </Argument>
+          </Body>
+        </ExtensionObject>
+        <ExtensionObject>
+          <TypeId>
+            <Identifier>i=297</Identifier>
+          </TypeId>
+          <Body>
+            <Argument>
+              <Name>Comment</Name>
+              <DataType>
+                <Identifier>i=21</Identifier>
+              </DataType>
+              <ValueRank>-1</ValueRank>
+              <ArrayDimensions />
+              <Description>
+                <Text>Optional operator comment.</Text>
+              </Description>
+            </Argument>
+          </Body>
+        </ExtensionObject>
+      </ListOfExtensionObject>
+    </Value>
+  </UAVariable>
+  <UAMethod NodeId="ns=1;s=Pump2.MotorOverheatAcknowledge" BrowseName="1:MotorOverheatAcknowledge" ParentNodeId="ns=1;s=Pump2" Executable="true" UserExecutable="true" MethodDeclarationId="i=9111">
+    <DisplayName>MotorOverheatAcknowledge</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;s=Pump2</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;s=Pump2.MotorOverheatAcknowledge.InputArguments</Reference>
+    </References>
+  </UAMethod>
+  <UAVariable NodeId="ns=1;s=Pump2.MotorOverheatConfirm.InputArguments" BrowseName="InputArguments" ParentNodeId="ns=1;s=Pump2.MotorOverheatConfirm" DataType="Argument" ValueRank="1" ArrayDimensions="2">
+    <DisplayName>InputArguments</DisplayName>
+    <References>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;s=Pump2.MotorOverheatConfirm</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+    </References>
+    <Value>
+      <ListOfExtensionObject xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">
+        <ExtensionObject>
+          <TypeId>
+            <Identifier>i=297</Identifier>
+          </TypeId>
+          <Body>
+            <Argument>
+              <Name>EventId</Name>
+              <DataType>
+                <Identifier>i=15</Identifier>
+              </DataType>
+              <ValueRank>-1</ValueRank>
+              <ArrayDimensions />
+              <Description>
+                <Text>The occurrence EventId returned by this source's alarm.</Text>
+              </Description>
+            </Argument>
+          </Body>
+        </ExtensionObject>
+        <ExtensionObject>
+          <TypeId>
+            <Identifier>i=297</Identifier>
+          </TypeId>
+          <Body>
+            <Argument>
+              <Name>Comment</Name>
+              <DataType>
+                <Identifier>i=21</Identifier>
+              </DataType>
+              <ValueRank>-1</ValueRank>
+              <ArrayDimensions />
+              <Description>
+                <Text>Optional operator comment.</Text>
+              </Description>
+            </Argument>
+          </Body>
+        </ExtensionObject>
+      </ListOfExtensionObject>
+    </Value>
+  </UAVariable>
+  <UAMethod NodeId="ns=1;s=Pump2.MotorOverheatConfirm" BrowseName="1:MotorOverheatConfirm" ParentNodeId="ns=1;s=Pump2" Executable="true" UserExecutable="true" MethodDeclarationId="i=9113">
+    <DisplayName>MotorOverheatConfirm</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;s=Pump2</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;s=Pump2.MotorOverheatConfirm.InputArguments</Reference>
+    </References>
+  </UAMethod>
 </UANodeSet>
