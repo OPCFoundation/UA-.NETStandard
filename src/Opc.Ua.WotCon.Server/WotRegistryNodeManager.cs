@@ -583,11 +583,11 @@ namespace Opc.Ua.WotCon.Server
                 Task? worker;
                 lock (m_lock)
                 {
-                    if (!m_running)
+                    worker = m_worker;
+                    if (!m_running && (worker is null || worker.Status == TaskStatus.RanToCompletion))
                     {
                         return;
                     }
-                    worker = m_worker;
                 }
                 cancellationToken.ThrowIfCancellationRequested();
                 await worker!.ConfigureAwait(false);
@@ -614,20 +614,41 @@ namespace Opc.Ua.WotCon.Server
 
         private async Task DrainAsync()
         {
-            await Task.Yield();
-            while (true)
+            bool drained = false;
+            try
             {
-                WotRegistryChangedEventArgs change;
-                lock (m_lock)
+                await Task.Yield();
+                while (true)
                 {
-                    if (m_changes.Count == 0)
+                    WotRegistryChangedEventArgs change;
+                    lock (m_lock)
                     {
-                        m_running = false;
-                        return;
+                        if (m_changes.Count == 0)
+                        {
+                            // Release ownership atomically with the empty check. A subsequent
+                            // Enqueue may start a worker that the finally block must not reset.
+                            m_running = false;
+                            drained = true;
+                            return;
+                        }
+                        change = m_changes.Dequeue();
                     }
-                    change = m_changes.Dequeue();
+                    await m_reconcile(change).ConfigureAwait(false);
                 }
-                await m_reconcile(change).ConfigureAwait(false);
+            }
+            finally
+            {
+                if (!drained)
+                {
+                    lock (m_lock)
+                    {
+                        m_running = m_changes.Count != 0;
+                        if (m_running)
+                        {
+                            m_worker = DrainAsync();
+                        }
+                    }
+                }
             }
         }
 

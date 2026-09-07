@@ -91,6 +91,114 @@ namespace Opc.Ua.WotCon.Tests
             });
         }
 
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task ReconcileQueueRestartsAfterWorkerFailure(bool canceled)
+        {
+            TaskCompletionSource<bool> entered = NewSignal();
+            TaskCompletionSource<bool> release = NewSignal();
+            Exception failure = canceled
+                ? new OperationCanceledException("Reconcile canceled.")
+                : new InvalidOperationException("Reconcile failed.");
+            var generations = new List<long>();
+            using var queue = new WotRegistryReconcileQueue(async change =>
+            {
+                generations.Add(change.Current.Generation);
+                if (change.Current.Generation == 1)
+                {
+                    entered.SetResult(true);
+                    await release.Task.ConfigureAwait(false);
+                    throw failure;
+                }
+            });
+
+            WotRegistrySnapshot empty0 = Snapshot(0, hasResource: false);
+            WotRegistrySnapshot empty1 = Snapshot(1, hasResource: false);
+            WotRegistrySnapshot created2 = Snapshot(2, hasResource: true);
+            queue.Enqueue(Change(empty0, empty1));
+            await entered.Task.ConfigureAwait(false);
+
+            Task firstIdle = queue.WhenIdleAsync().AsTask();
+            release.SetResult(true);
+            await Assert.ThatAsync(
+                async () => await firstIdle.ConfigureAwait(false),
+                Throws.InstanceOf<Exception>().And.SameAs(failure)).ConfigureAwait(false);
+            await Assert.ThatAsync(
+                async () => await queue.WhenIdleAsync().ConfigureAwait(false),
+                Throws.InstanceOf<Exception>().And.SameAs(failure)).ConfigureAwait(false);
+
+            queue.Enqueue(Change(empty1, created2));
+            await queue.CompleteAsync().ConfigureAwait(false);
+
+            Assert.That(generations, Is.EqualTo(s_expectedRestartedGenerations));
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task ReconcileQueueDrainsPendingChangesAfterWorkerFailure(bool completing)
+        {
+            TaskCompletionSource<bool> firstEntered = NewSignal();
+            TaskCompletionSource<bool> firstRelease = NewSignal();
+            TaskCompletionSource<bool> secondEntered = NewSignal();
+            TaskCompletionSource<bool> secondRelease = NewSignal();
+            var failure = new InvalidOperationException("Reconcile failed.");
+            var generations = new List<long>();
+            using var queue = new WotRegistryReconcileQueue(async change =>
+            {
+                generations.Add(change.Current.Generation);
+                if (change.Current.Generation == 1)
+                {
+                    firstEntered.SetResult(true);
+                    await firstRelease.Task.ConfigureAwait(false);
+                    throw failure;
+                }
+                if (change.Current.Generation == 2)
+                {
+                    secondEntered.SetResult(true);
+                    await secondRelease.Task.ConfigureAwait(false);
+                }
+            });
+
+            WotRegistrySnapshot empty0 = Snapshot(0, hasResource: false);
+            WotRegistrySnapshot empty1 = Snapshot(1, hasResource: false);
+            WotRegistrySnapshot created2 = Snapshot(2, hasResource: true);
+            WotRegistrySnapshot deleted3 = Snapshot(3, hasResource: false);
+            queue.Enqueue(Change(empty0, empty1));
+            await firstEntered.Task.ConfigureAwait(false);
+            queue.Enqueue(Change(empty1, created2));
+            queue.Enqueue(Change(created2, deleted3));
+            Task failedWait = completing
+                ? queue.CompleteAsync().AsTask()
+                : queue.WhenIdleAsync().AsTask();
+
+            try
+            {
+                firstRelease.SetResult(true);
+                await Assert.ThatAsync(
+                    async () => await failedWait.ConfigureAwait(false),
+                    Throws.InstanceOf<Exception>().And.SameAs(failure)).ConfigureAwait(false);
+
+                Task started = await Task.WhenAny(
+                    secondEntered.Task,
+                    Task.Delay(TimeSpan.FromSeconds(10))).ConfigureAwait(false);
+                Assert.That(started, Is.SameAs(secondEntered.Task),
+                    "Pending changes must resume without another Enqueue call.");
+
+                Task completed = queue.CompleteAsync().AsTask();
+                Assert.That(completed.IsCompleted, Is.False,
+                    "Completion must await the replacement worker.");
+                secondRelease.SetResult(true);
+                await completed.ConfigureAwait(false);
+
+                Assert.That(generations, Is.EqualTo(s_expectedGenerations));
+            }
+            finally
+            {
+                firstRelease.TrySetResult(true);
+                secondRelease.TrySetResult(true);
+            }
+        }
+
         private static WotRegistryChangedEventArgs Change(
             WotRegistrySnapshot previous,
             WotRegistrySnapshot current)
@@ -137,6 +245,7 @@ namespace Opc.Ua.WotCon.Tests
         private static readonly DateTime s_unixEpoch =
             new(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc);
         private static readonly long[] s_expectedGenerations = [1, 2, 3];
+        private static readonly long[] s_expectedRestartedGenerations = [1, 2];
         private static readonly string[] s_expectedInteractions = ["create", "delete"];
     }
 }
