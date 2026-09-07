@@ -7,8 +7,8 @@ structurally addressed registry with an independent content fast path.
 `XRegistryFederationNodeManager` derive from `AsyncCustomNodeManager`. Host them through
 `IAsyncNodeManagerFactory`; directly constructed managers use the same awaited lifecycle.
 Custom subclasses override `LoadPredefinedNodesAsync`, `CreateAddressSpaceAsync`, and
-`SessionClosingAsync` instead of the synchronous hooks. Constructors and options are unchanged;
-legacy hosts can explicitly use the existing `SyncNodeManager` adapter.
+`SessionClosingAsync`, awaiting their base implementations. Await `DeleteAddressSpaceAsync`
+before disposal to drain active operations and release handles.
 
 The managers provide:
 

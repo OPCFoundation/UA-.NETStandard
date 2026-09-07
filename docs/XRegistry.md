@@ -372,8 +372,8 @@ var federation = new XRegistryFederationNodeManager(server, configuration, optio
 
 All three managers derive from `AsyncCustomNodeManager`. Register them through the server's
 `AddNodeManager(IAsyncNodeManagerFactory)` overload; the factory's `CreateAsync` returns an
-`IAsyncNodeManager`. Direct construction and the existing `AddXRegistryServer` options/provider
-registrations remain supported. Startup, node publication/removal, session cleanup, and event
+`IAsyncNodeManager`. Direct construction and `AddXRegistryServer` options/provider registrations
+are supported. Startup, node publication/removal, session cleanup, and event
 delivery are awaited rather than routed through a synchronous node-manager wrapper.
 
 The registry's companion model is **compiled into the assembly** by the OPC UA model source
@@ -397,24 +397,12 @@ protected override ValueTask<NodeStateCollection> LoadPredefinedNodesAsync(
 A concrete registry composes its own companion model on top of the base model in dependency
 order, declaring `RequiredModel` on the xRegistry namespace in its NodeSet.
 
-### Migrating custom subclasses and hosts
+### Async lifecycle
 
-The constructors, options, and node identities are unchanged, but changing the base class changes
-the inherited lifecycle interface. Subclasses must override the async hooks and await their base
-implementations:
-
-| Previous hook | Async hook |
-| --- | --- |
-| `LoadPredefinedNodes` | `LoadPredefinedNodesAsync` |
-| `CreateAddressSpace` | `CreateAddressSpaceAsync` |
-| `SessionClosing` | `SessionClosingAsync` |
-| `DeleteAddressSpace` | `DeleteAddressSpaceAsync` |
-
+Custom subclasses override the async lifecycle hooks and await their base implementations.
 Use `AddPredefinedNodeAsync` and `DeleteNodeAsync` for runtime graph mutations. In-memory lookups
-such as `Find` and `FindPredefinedNode<T>` remain synchronous. The managers implement
-`IAsyncNodeManager` instead of being directly assignable to `INodeManager3`; a legacy host that
-explicitly requires the old interface can use the base class's existing `SyncNodeManager` adapter.
-Normal hosting and custom callbacks should use the async interface, without blocking on tasks.
+such as `Find` and `FindPredefinedNode<T>` are synchronous. Hosting and custom callbacks use the
+async interface without blocking on tasks.
 
 Cancellation is observed before a registration mutation starts and during document reads. Once
 a dirty Close consumes its handle, or a deletion changes the graph, the manager finishes the
