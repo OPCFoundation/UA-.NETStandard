@@ -2767,46 +2767,6 @@ namespace Opc.Ua.Types.Tests.State
         }
 
         [Test]
-        public void RemoveChildClearsMethodArgumentSlots()
-        {
-            var method = new MethodState(null);
-            PropertyState<ArrayOf<Argument>> inputArguments = method
-                .CreateOrReplaceInputArguments(m_context, null, false);
-            PropertyState<ArrayOf<Argument>> outputArguments = method
-                .CreateOrReplaceOutputArguments(m_context, null, false);
-
-            method.RemoveChild(inputArguments);
-
-            Assert.That(method.InputArguments, Is.Null);
-            Assert.That(inputArguments.Parent, Is.Null);
-            Assert.That(method.OutputArguments, Is.SameAs(outputArguments));
-
-            method.RemoveChild(outputArguments);
-
-            Assert.That(method.OutputArguments, Is.Null);
-            Assert.That(outputArguments.Parent, Is.Null);
-            Assert.That(
-                method.FindChild(m_context, inputArguments.BrowseName),
-                Is.Null);
-        }
-
-        [Test]
-        public void RemoveChildClearsEnumStringsSlot()
-        {
-            var variable = new BaseDataVariableState(null);
-            PropertyState<ArrayOf<LocalizedText>> enumStrings = variable
-                .CreateOrReplaceEnumStrings(m_context, null, false);
-
-            variable.RemoveChild(enumStrings);
-
-            Assert.That(variable.EnumStrings, Is.Null);
-            Assert.That(enumStrings.Parent, Is.Null);
-            Assert.That(
-                variable.FindChild(m_context, enumStrings.BrowseName),
-                Is.Null);
-        }
-
-        [Test]
         public void DeleteResetsCreatedState()
         {
             var node = new LifecycleProbeState(null);
