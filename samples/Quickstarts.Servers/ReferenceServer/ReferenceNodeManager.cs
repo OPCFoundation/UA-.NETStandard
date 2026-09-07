@@ -111,9 +111,6 @@ namespace Quickstarts.ReferenceServer
             }
         }
 
-        /// <summary>
-        /// Creates the NodeId for the specified node.
-        /// </summary>
         /// <inheritdoc/>
         /// <remarks>
         /// Enables the OPC UA NodeManagement service set (AddNodes /

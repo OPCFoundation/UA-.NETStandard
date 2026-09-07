@@ -109,9 +109,6 @@ namespace Alarms
         }
 
         /// <summary>
-        /// Creates the NodeId for the specified node.
-        /// </summary>
-        /// <summary>
         /// Does any initialization required before the address space can be used.
         /// </summary>
         /// <remarks>

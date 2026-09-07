@@ -120,7 +120,6 @@ namespace SiteComposition
         private ushort SiteNamespaceIndex => NamespaceIndexes[0];
 
         /// <inheritdoc/>
-        /// <inheritdoc/>
         protected override ValueTask<NodeStateCollection> LoadPredefinedNodesAsync(
             ISystemContext context,
             CancellationToken cancellationToken = default)

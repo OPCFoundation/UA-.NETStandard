@@ -135,7 +135,6 @@ namespace Pumps
 
         internal TimeSpan SimulationInterval => m_options.SimulationInterval;
 
-        /// <inheritdoc/>
         /// <summary>
         /// Creates and registers a generated <see cref="PumpState"/>
         /// instance organized by the DI <c>DeviceSet</c>.

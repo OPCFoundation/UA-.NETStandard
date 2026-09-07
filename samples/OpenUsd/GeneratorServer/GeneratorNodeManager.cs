@@ -187,7 +187,6 @@ namespace Generators
         /// </summary>
         internal bool InjectFaults => m_options.InjectFaults;
 
-        /// <inheritdoc/>
         /// <summary>
         /// Creates and registers a generator set organised by the DI
         /// <c>DeviceSet</c>, wired into the running simulation.
