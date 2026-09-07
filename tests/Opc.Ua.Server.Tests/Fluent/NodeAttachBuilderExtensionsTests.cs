@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Moq;
@@ -378,6 +379,140 @@ namespace Opc.Ua.Server.Tests.Fluent
                     "teardown must clear the notifier bit it set");
             });
         }
+
+        [Test]
+        public async Task PublishWiringIsUndoneOnTeardownAsync()
+        {
+            using var manager = new TestBehaviorManager();
+            manager.SeedSiblings(1);
+
+            NodeManagerBuilder builder = manager.NewBuilder();
+            var notifier = (BaseObjectState)builder.Node(new NodeId(100u, 1)).Node;
+
+            Assert.That(
+                notifier.EventNotifier & EventNotifiers.SubscribeToEvents,
+                Is.Zero,
+                "precondition: the notifier starts without SubscribeToEvents");
+
+            builder.Node<BaseObjectState>(notifier.NodeId)
+                .Publish<BaseObjectState, BaseEventState>(
+                    (_, _, _) => EmptyEventsAsync(),
+                    new EventPublishOptions { RegisterAsRootNotifier = false });
+
+            Assert.That(
+                notifier.EventNotifier & EventNotifiers.SubscribeToEvents,
+                Is.Not.Zero,
+                "registering a Publish source promotes the notifier");
+
+            await manager.ActivateAsync().ConfigureAwait(false);
+            await manager.DeleteAddressSpaceAsync().ConfigureAwait(false);
+
+            Assert.That(
+                notifier.EventNotifier & EventNotifiers.SubscribeToEvents,
+                Is.Zero,
+                "teardown must clear the notifier bit registration set");
+        }
+
+        [Test]
+        public async Task ReleaseFailuresAreAggregatedAndDoNotStopOtherReleasesAsync()
+        {
+            var log = new List<string>();
+            using var manager = new TestBehaviorManager();
+            manager.SeedSiblings(1);
+
+            NodeManagerBuilder builder = manager.NewBuilder();
+            builder.Attach((ctx, ct) => new ValueTask<IAsyncDisposable?>(
+                new CallbackDisposable(() => log.Add("first"))));
+            builder.Attach((ctx, ct) => new ValueTask<IAsyncDisposable?>(
+                new CallbackDisposable(() => throw new InvalidOperationException("boom A"))));
+            builder.Attach((ctx, ct) => new ValueTask<IAsyncDisposable?>(
+                new CallbackDisposable(() => throw new InvalidOperationException("boom B"))));
+
+            await manager.ActivateAsync().ConfigureAwait(false);
+
+            AggregateException ex = Assert.ThrowsAsync<AggregateException>(
+                async () => await manager.DeleteAddressSpaceAsync().ConfigureAwait(false))!;
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    ex.InnerExceptions.Select(e => e.Message),
+                    Is.EquivalentTo(s_bothReleaseFailures),
+                    "every release failure must surface, not just the first");
+                Assert.That(
+                    log,
+                    Is.EqualTo(s_firstOnly),
+                    "a failing release must not stop the remaining ones");
+            });
+        }
+
+        [Test]
+        public async Task SynchronousDisposeTripsTheLifetimeOfAnActivatedBehaviorAsync()
+        {
+            CancellationToken lifetime = default;
+            var manager = new TestBehaviorManager();
+            try
+            {
+                manager.SeedSiblings(1);
+
+                NodeManagerBuilder builder = manager.NewBuilder();
+                builder.Attach((ctx, ct) =>
+                {
+                    lifetime = ctx.Lifetime;
+                    return new ValueTask<IAsyncDisposable?>(
+                        new CallbackDisposable(() => { }));
+                });
+
+                await manager.ActivateAsync().ConfigureAwait(false);
+                Assert.That(lifetime.IsCancellationRequested, Is.False);
+
+                // Dispose is signal-only, but it still has to stop background work:
+                // the awaited release belongs to DeleteAddressSpaceAsync.
+                manager.Dispose();
+
+                Assert.That(
+                    lifetime.IsCancellationRequested,
+                    Is.True,
+                    "synchronous disposal must still trip every behavior's lifetime");
+            }
+            finally
+            {
+                manager.Dispose();
+            }
+        }
+
+        [Test]
+        public void ActivationFailureWithAFailingRollbackReportsBoth()
+        {
+            using var manager = new TestBehaviorManager();
+            manager.SeedSiblings(1);
+
+            NodeManagerBuilder builder = manager.NewBuilder();
+            builder.Attach((ctx, ct) => new ValueTask<IAsyncDisposable?>(
+                new CallbackDisposable(
+                    () => throw new InvalidOperationException("release failed"))));
+            builder.Attach((ctx, ct) =>
+                throw new InvalidOperationException("activation failed"));
+
+            AggregateException ex = Assert.ThrowsAsync<AggregateException>(
+                async () => await manager.ActivateAsync().ConfigureAwait(false))!;
+
+            Assert.That(
+                ex.InnerExceptions.Select(e => e.Message),
+                Is.EquivalentTo(s_activationAndRollbackFailures),
+                "a failed rollback must not hide the failure that triggered it");
+        }
+
+        private static async IAsyncEnumerable<BaseEventState> EmptyEventsAsync()
+        {
+            await Task.CompletedTask.ConfigureAwait(false);
+            yield break;
+        }
+
+        private static readonly string[] s_firstOnly = ["first"];
+        private static readonly string[] s_bothReleaseFailures = ["boom A", "boom B"];
+        private static readonly string[] s_activationAndRollbackFailures =
+            ["activation failed", "release failed"];
 
         private static readonly string[] s_activationOrder =
         [
