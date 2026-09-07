@@ -95,10 +95,19 @@ namespace Opc.Ua.ISA95.Server
                 .ConfigureAwait(false);
 
             await CreateV2StatusEventTypeAsync(cancellationToken).ConfigureAwait(false);
-            Root = CreateRoot(externalReferences);
+            NodeManagerBuilder builder = CreateFluentBuilder(InstanceNamespaceIndex);
+            Root = CreateRoot();
             CreateJobControlV1Endpoints(Root);
             CreateJobControlV2Endpoints(Root);
-            await AddPredefinedNodeAsync(Root, cancellationToken).ConfigureAwait(false);
+
+            // Staged once the endpoints are attached, so the whole subtree is
+            // registered together and the reverse-reference pass publishes the
+            // root's Organizes edge to the Objects folder.
+            builder.Add(Root);
+            await RegisterAuthoredNodesAsync(builder, cancellationToken).ConfigureAwait(false);
+            await CompleteConfigureAsync(externalReferences, cancellationToken)
+                .ConfigureAwait(false);
+            builder.Seal();
             await ConfigureCommonModelAsync(Root, cancellationToken).ConfigureAwait(false);
             ConfigureCatalogChanges();
             await RefreshJobOrderListsAsync(cancellationToken).ConfigureAwait(false);
@@ -126,10 +135,15 @@ namespace Opc.Ua.ISA95.Server
             base.Dispose(disposing);
         }
 
-        private FolderState CreateRoot(
-            IDictionary<NodeId, IList<IReference>> externalReferences)
+        /// <summary>
+        /// Builds the instance root with an explicit string NodeId, which stays
+        /// the address clients browse. Staging it supplies the inverse
+        /// Organizes reference to the Objects folder and publishes the matching
+        /// forward edge through the reverse-reference pass.
+        /// </summary>
+        private FolderState CreateRoot()
         {
-            var root = new FolderState(null)
+            return new FolderState(null)
             {
                 SymbolicName = m_options.RootBrowseName,
                 NodeId = new NodeId(m_options.RootBrowseName, InstanceNamespaceIndex),
@@ -140,24 +154,6 @@ namespace Opc.Ua.ISA95.Server
                 TypeDefinitionId = Ua.ObjectTypeIds.FolderType,
                 ReferenceTypeId = Ua.ReferenceTypeIds.Organizes
             };
-            root.AddReference(
-                Ua.ReferenceTypeIds.Organizes,
-                isInverse: true,
-                Ua.ObjectIds.ObjectsFolder);
-            if (!externalReferences.TryGetValue(
-                Ua.ObjectIds.ObjectsFolder,
-                out IList<IReference>? references))
-            {
-                references = [];
-                externalReferences[Ua.ObjectIds.ObjectsFolder] =
-                    references;
-            }
-            references.Add(
-                new NodeStateReference(
-                    Ua.ReferenceTypeIds.Organizes,
-                    isInverse: false,
-                    root.NodeId));
-            return root;
         }
 
         private void CreateJobControlV1Endpoints(FolderState root)
