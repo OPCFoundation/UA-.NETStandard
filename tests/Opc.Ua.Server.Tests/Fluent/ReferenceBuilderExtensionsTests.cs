@@ -286,13 +286,26 @@ namespace Opc.Ua.Server.Tests.Fluent
         }
 
         [Test]
-        public void AddObjectNullBrowseNameThrowsArgumentNullException()
+        public void AddObjectRejectsABrowseNameItCannotAuthorWith()
         {
             (NodeManagerBuilder b, _, _, _) = CreateBuilder();
             INodeBuilder nb = b.Node(new NodeId("Root", kNs));
 
-            Assert.Throws<ArgumentNullException>(
-                () => nb.AddObject(QualifiedName.Null));
+            Assert.Multiple(() =>
+            {
+                // a browse name failure is reported the same way here as on
+                // the builder's own Add methods, rather than as an argument
+                // exception from this one helper.
+                ServiceResultException missing = Assert.Throws<ServiceResultException>(
+                    () => nb.AddObject(QualifiedName.Null))!;
+                Assert.That(missing.StatusCode, Is.EqualTo(StatusCodes.BadBrowseNameInvalid));
+
+                ServiceResultException namespaceZero = Assert.Throws<ServiceResultException>(
+                    () => nb.AddObject(new QualifiedName("Press")))!;
+                Assert.That(
+                    namespaceZero.StatusCode,
+                    Is.EqualTo(StatusCodes.BadBrowseNameInvalid));
+            });
         }
 
         [Test]

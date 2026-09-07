@@ -271,9 +271,14 @@ namespace Opc.Ua.Server
                 // forcing the namespace back here would silently undo the
                 // rebase of a NodeManager whose instance namespace is not its
                 // first one.
-                m_nodeIdFactory = value.DefaultNamespaceIndex == 0
+                IRebasableNodeIdFactory rebased = value.DefaultNamespaceIndex == 0
                     ? value.WithDefaultNamespaceIndex(DefaultNamespaceIndex)
                     : value;
+
+                // whether to watch for collisions is the server's decision,
+                // so it is reapplied to whatever factory a NodeManager
+                // assigns rather than left to the factory that was handed in.
+                m_nodeIdFactory = ApplyCollisionDetection(Server, rebased);
             }
         }
 
@@ -331,12 +336,33 @@ namespace Opc.Ua.Server
         {
             if (server is INodeIdFactoryProvider { NodeIdFactory: { } configured })
             {
-                return configured.WithDefaultNamespaceIndex(namespaceIndex);
+                return ApplyCollisionDetection(
+                    server,
+                    configured.WithDefaultNamespaceIndex(namespaceIndex));
             }
 
-            return new DefaultNodeIdFactory(
-                NodeIdAssignmentMode.Numeric,
-                namespaceIndex);
+            return ApplyCollisionDetection(
+                server,
+                new DefaultNodeIdFactory(NodeIdAssignmentMode.Numeric, namespaceIndex));
+        }
+
+        /// <summary>
+        /// Applies the server's answer on collision detection to a factory.
+        /// </summary>
+        /// <remarks>
+        /// A server that has not answered leaves the factory on its own
+        /// default, so a factory built with an explicit answer keeps it.
+        /// </remarks>
+        private static IRebasableNodeIdFactory ApplyCollisionDetection(
+            IServerInternal server,
+            IRebasableNodeIdFactory factory)
+        {
+            if (server is INodeIdFactoryProvider { DetectNodeIdCollisions: { } detect })
+            {
+                return factory.WithCollisionDetection(detect);
+            }
+
+            return factory;
         }
 
         /// <summary>
@@ -1242,12 +1268,24 @@ namespace Opc.Ua.Server
         /// </summary>
         /// <remarks>
         /// This pass assigns an id to every node that still lacks one, pulls
-        /// namespace-0 children into the root's namespace, and rebases nodes
-        /// whose id collides with a type declaration. That last case covers a
-        /// subtree materialised with <c>NodeState.Create(..., assignNodeIds:
-        /// false)</c>, whose children keep their declaration ids: they are
-        /// neither null nor in namespace 0, so only the collision check
-        /// catches them. Rebasing here rather than at registration is what
+        /// namespace-0 nodes into this manager's namespace, and rebases nodes
+        /// whose id collides with a type declaration it owns. Together those
+        /// cover a subtree materialised with <c>NodeState.Create(...,
+        /// assignNodeIds: false)</c>, whose nodes keep their declaration ids.
+        /// Which of the two catches such a node depends on where the
+        /// declaration lives:
+        /// <list type="bullet">
+        /// <item>a declaration in a model this manager loaded is in its
+        /// <c>PredefinedNodes</c>, so the collision check sees it;</item>
+        /// <item>a declaration in namespace 0 - every standard
+        /// <c>Opc.Ua.*State</c> - belongs to the <c>CoreNodeManager</c>, so
+        /// the collision check cannot see it and
+        /// <see cref="HasStandardDeclarationNodeId"/> is the only thing that
+        /// catches it.</item>
+        /// </list>
+        /// That second test applies to the root as well as its descendants.
+        /// It does not cover a namespace-0 id a caller invented, which stays
+        /// an error rather than becoming a silent repair. Rebasing here rather than at registration is what
         /// keeps the ids the fluent builder hands back final — the same
         /// repair <c>PrepareInstanceNodeIdsForRegistration</c> would
         /// otherwise apply later, silently invalidating them.
@@ -1282,9 +1320,7 @@ namespace Opc.Ua.Server
                 NodeState candidate = nodes[i];
                 if (candidate.NodeId.IsNull ||
                     HasDeclarationNodeIdCollision(candidate) ||
-                    (i > 0 &&
-                        node.NodeId.NamespaceIndex != 0 &&
-                        candidate.NodeId.NamespaceIndex == 0))
+                    HasStandardDeclarationNodeId(candidate))
                 {
                     NodeId previousNodeId = SystemContext.AssignInstanceNodeId(candidate);
                     if (!previousNodeId.IsNull &&
@@ -2409,6 +2445,36 @@ namespace Opc.Ua.Server
                 (node.NodeId.IsNull ||
                     !IsNodeIdInNamespace(node.NodeId) ||
                     HasDeclarationNodeIdCollision(node));
+        }
+
+        /// <summary>
+        /// Whether the node carries a namespace-0 identifier it inherited
+        /// from a standard type declaration rather than one a caller chose.
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// A subtree materialised from a standard <c>Opc.Ua.*State</c> keeps
+        /// that type's declaration ids. They live in namespace 0, so they
+        /// belong to the <c>CoreNodeManager</c> and
+        /// <see cref="HasDeclarationNodeIdCollision"/> - which looks in this
+        /// manager's <c>PredefinedNodes</c> - structurally cannot see them.
+        /// This is the only thing that catches them, on the root as much as
+        /// on its descendants.
+        /// </para>
+        /// <para>
+        /// Every node OPC UA defines in namespace 0 has a numeric identifier,
+        /// so a namespace-0 identifier of any other kind cannot be a
+        /// declaration. That is a caller naming a namespace it does not own,
+        /// which <c>ValidateAuthoredNodeId</c> reports rather than silently
+        /// repairing - the two look alike here but are opposite mistakes, and
+        /// only one of them is the caller's.
+        /// </para>
+        /// </remarks>
+        private static bool HasStandardDeclarationNodeId(NodeState node)
+        {
+            return !node.NodeId.IsNull &&
+                node.NodeId.NamespaceIndex == 0 &&
+                node.NodeId.IdType == IdType.Numeric;
         }
 
         private bool HasDeclarationNodeIdCollision(NodeState node)

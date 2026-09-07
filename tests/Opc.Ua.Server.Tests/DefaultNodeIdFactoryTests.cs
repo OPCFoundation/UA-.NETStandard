@@ -543,7 +543,10 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public void MintingTheSamePathTwiceIsNotACollision()
         {
-            var factory = new DefaultNodeIdFactory(NodeIdAssignmentMode.Numeric, kNamespaceIndex);
+            var factory = new DefaultNodeIdFactory(
+                NodeIdAssignmentMode.Numeric,
+                kNamespaceIndex,
+                detectCollisions: true);
             BaseObjectState node = CreateChild(new NodeId("Root", kNamespaceIndex), "Child");
 
             NodeId first = factory.New(m_context, node);
@@ -561,7 +564,10 @@ namespace Opc.Ua.Server.Tests
         [Category("LongRunning")]
         public void TwoBrowsePathsOnOneNumericIdentifierAreReported()
         {
-            var factory = new DefaultNodeIdFactory(NodeIdAssignmentMode.Numeric, kNamespaceIndex);
+            var factory = new DefaultNodeIdFactory(
+                NodeIdAssignmentMode.Numeric,
+                kNamespaceIndex,
+                detectCollisions: true);
             var parent = new NodeId("Root", kNamespaceIndex);
 
             // A 32 bit identifier is a birthday problem: distinct browse
@@ -604,15 +610,52 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public void AModeThatCannotCollideKeepsNoRecord()
         {
-            var factory = new DefaultNodeIdFactory(NodeIdAssignmentMode.String, kNamespaceIndex);
+            var factory = new DefaultNodeIdFactory(
+                NodeIdAssignmentMode.String,
+                kNamespaceIndex,
+                detectCollisions: true);
             var parent = new NodeId("Root", kNamespaceIndex);
 
             NodeId first = factory.New(m_context, CreateChild(parent, "First"));
             NodeId second = factory.New(m_context, CreateChild(parent, "Second"));
 
-            // String keeps the whole path, so two paths can never share an
-            // identifier and there is nothing to check against.
-            Assert.That(second, Is.Not.EqualTo(first));
+            Assert.Multiple(() =>
+            {
+                // String keeps the whole path, so two paths can never share an
+                // identifier. Asking for the watch does not turn it on, so the
+                // mode pays nothing for a check that cannot fire.
+                Assert.That(factory.DetectsCollisions, Is.False);
+                Assert.That(second, Is.Not.EqualTo(first));
+            });
+        }
+
+        [Test]
+        public void CollisionsGoUncheckedWhenTheServerTurnsTheWatchOff()
+        {
+            var factory = new DefaultNodeIdFactory(
+                NodeIdAssignmentMode.Numeric,
+                kNamespaceIndex,
+                detectCollisions: false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(factory.DetectsCollisions, Is.False);
+                Assert.That(
+                    factory.WithCollisionDetection(true).DetectsCollisions,
+                    Is.True);
+                Assert.That(
+                    factory.WithCollisionDetection(false),
+                    Is.SameAs(factory));
+
+                // the answer follows the factory through a rebase, so a
+                // NodeManager that retargets its namespace does not quietly
+                // lose the server's decision.
+                Assert.That(
+                    factory.WithCollisionDetection(true)
+                        .WithDefaultNamespaceIndex(kOtherNamespaceIndex)
+                        .DetectsCollisions,
+                    Is.True);
+            });
         }
 
         /// <summary>

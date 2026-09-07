@@ -103,6 +103,24 @@ namespace Opc.Ua.Server
         /// </remarks>
         public IRebasableNodeIdFactory? NodeIdFactory { get; set; }
 
+        /// <summary>
+        /// Gets or sets whether this server's NodeManagers refuse to mint a
+        /// NodeId they already gave a different browse path.
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// Set before the server starts. Leaving it <c>null</c> leaves each
+        /// factory on <see cref="DefaultNodeIdFactory.DetectCollisionsByDefault"/>,
+        /// which is on in a debug build and off otherwise.
+        /// </para>
+        /// <para>
+        /// This is a server-wide decision rather than a per-NodeManager one,
+        /// because the record a factory keeps to answer the question costs
+        /// memory that grows with the address space.
+        /// </para>
+        /// </remarks>
+        public bool? DetectNodeIdCollisions { get; set; }
+
         internal ApplicationConfiguration CurrentConfiguration
             => Configuration
                 ?? throw new InvalidOperationException("The server has not been configured.");
@@ -3687,6 +3705,7 @@ namespace Opc.Ua.Server
                     SecurityPolicyRegistry);
 
                 m_serverInternal.SetNodeIdFactory(NodeIdFactory);
+                m_serverInternal.SetNodeIdCollisionDetection(DetectNodeIdCollisions);
 
                 m_serverInternal.SetRoleManager(CreateRoleManager(m_serverInternal, configuration));
 

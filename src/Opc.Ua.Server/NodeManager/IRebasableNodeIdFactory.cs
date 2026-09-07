@@ -80,6 +80,18 @@ namespace Opc.Ua.Server
         ushort DefaultNamespaceIndex { get; }
 
         /// <summary>
+        /// Whether the factory refuses to mint an identifier it already gave
+        /// a different browse path.
+        /// </summary>
+        /// <remarks>
+        /// Watching costs memory that grows with the address space, so it is
+        /// a server-wide decision rather than a per-NodeManager one. A mode
+        /// that cannot collide reports <c>false</c> whatever it was asked
+        /// for.
+        /// </remarks>
+        bool DetectsCollisions { get; }
+
+        /// <summary>
         /// Returns a factory with the same <see cref="Mode"/> that mints into
         /// the specified namespace.
         /// </summary>
@@ -98,6 +110,16 @@ namespace Opc.Ua.Server
         /// This instance when the mode already matches, otherwise a copy.
         /// </returns>
         IRebasableNodeIdFactory WithMode(NodeIdAssignmentMode mode);
+
+        /// <summary>
+        /// Returns a factory that mints the same way and does or does not
+        /// watch for collisions.
+        /// </summary>
+        /// <param name="detectCollisions">Whether to watch.</param>
+        /// <returns>
+        /// This instance when the answer already matches, otherwise a copy.
+        /// </returns>
+        IRebasableNodeIdFactory WithCollisionDetection(bool detectCollisions);
 
         /// <summary>
         /// Mints the next sequential NodeId.

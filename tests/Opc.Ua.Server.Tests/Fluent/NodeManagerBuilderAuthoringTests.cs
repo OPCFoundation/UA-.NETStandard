@@ -856,6 +856,100 @@ namespace Opc.Ua.Server.Tests.Fluent
             });
         }
 
+        [Test]
+        public async Task ASubtreeMaterialisedFromAStandardTypeIsRebasedOffTheDeclarationIdsAsync()
+        {
+            // The same case as above, except the type is a standard one, so
+            // its declaration ids are in namespace 0. Those belong to the
+            // CoreNodeManager rather than to this manager's PredefinedNodes,
+            // where the declaration-collision check looks, so the namespace-0
+            // test is the only thing that can catch them - on the root as
+            // much as on its children.
+            using var manager = new AuthoringTestManager(_ => { });
+            ushort ns = manager.TestNamespaceIndex;
+
+            NodeManagerBuilder builder = manager.CreateBuilder();
+            var instance = new BaseObjectState(null)
+            {
+                NodeId = ObjectIds.Server_ServerCapabilities,
+                BrowseName = new QualifiedName("Capabilities", ns)
+            };
+            var child = new BaseDataVariableState(instance)
+            {
+                NodeId = VariableIds.Server_ServerCapabilities_MaxBrowseContinuationPoints,
+                BrowseName = new QualifiedName("MaxBrowseContinuationPoints", ns),
+                DataType = DataTypeIds.UInt16,
+                ValueRank = ValueRanks.Scalar
+            };
+            instance.AddChild(child);
+
+            INodeBuilder<BaseObjectState> staged = builder.Add(instance);
+            await manager.RegisterAsync(builder).ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                // the root is the half that regressed: exempting it from the
+                // namespace-0 test also disabled the test for every
+                // descendant, because the test read the root's namespace.
+                Assert.That(
+                    staged.Node.NodeId.NamespaceIndex,
+                    Is.EqualTo(ns),
+                    "the root must be rebased off the namespace-0 declaration id");
+                Assert.That(
+                    child.NodeId.NamespaceIndex,
+                    Is.EqualTo(ns),
+                    "the child must be rebased off the namespace-0 declaration id");
+                Assert.That(manager.ContainsPredefined(staged.Node.NodeId), Is.True);
+                Assert.That(manager.ContainsPredefined(child.NodeId), Is.True);
+            });
+        }
+
+        [Test]
+        public async Task AddObjectOnAParentQualifiesAStringNameWithTheBuilderNamespaceAsync()
+        {
+            NodeState? child = null;
+
+            using var manager = new AuthoringTestManager(builder =>
+            {
+                INodeBuilder<FolderState> folder = builder.AddFolder("Machines");
+                child = folder.AddObject("Press").Node;
+            });
+            await manager.BuildAsync().ConfigureAwait(false);
+
+            Assert.That(
+                child!.BrowseName.NamespaceIndex,
+                Is.EqualTo(manager.TestNamespaceIndex),
+                "the string overload qualifies with the builder's own namespace");
+        }
+
+        [Test]
+        public void AddObjectOnAParentRefusesANamespaceZeroBrowseName()
+        {
+            using var manager = new AuthoringTestManager(_ => { });
+            NodeManagerBuilder builder = manager.CreateBuilder();
+            INodeBuilder<FolderState> folder = builder.AddFolder("Machines");
+
+            Assert.Multiple(() =>
+            {
+                // namespace 0 is the OPC UA namespace, which no NodeManager
+                // owns, so authoring into it is refused rather than accepted
+                // and silently attributed to someone else.
+                ServiceResultException namespaceZero = Assert.Throws<ServiceResultException>(
+                    () => folder.AddObject(new QualifiedName("Press")))!;
+                Assert.That(
+                    namespaceZero.StatusCode,
+                    Is.EqualTo(StatusCodes.BadBrowseNameInvalid));
+
+                ServiceResultException empty = Assert.Throws<ServiceResultException>(
+                    () => folder.AddObject(default(QualifiedName)))!;
+                Assert.That(empty.StatusCode, Is.EqualTo(StatusCodes.BadBrowseNameInvalid));
+
+                ServiceResultException emptyString = Assert.Throws<ServiceResultException>(
+                    () => folder.AddObject(string.Empty))!;
+                Assert.That(emptyString.StatusCode, Is.EqualTo(StatusCodes.BadBrowseNameInvalid));
+            });
+        }
+
         private static bool HasInverseReference(
             NodeState node,
             NodeId referenceTypeId,

@@ -30,34 +30,16 @@
 namespace Opc.Ua.Server
 {
     /// <summary>
-    /// Supplies the <see cref="IRebasableNodeIdFactory"/> that NodeManagers use
-    /// to mint NodeIds for nodes created at runtime.
+    /// The registered answer to whether a hosted server's NodeManagers watch
+    /// for NodeId collisions.
     /// </summary>
     /// <remarks>
-    /// <see cref="ServerInternalData"/> implements this so that a factory
-    /// registered once in dependency injection reaches every
-    /// <see cref="AsyncCustomNodeManager"/> the server hosts, without each
-    /// NodeManager having to take a dependency on the service provider.
+    /// A type of its own rather than a bare <c>bool</c> so that dependency
+    /// injection can tell "the server was configured to leave it off" from
+    /// "the server was not configured", which is the difference between
+    /// overriding <see cref="DefaultNodeIdFactory.DetectCollisionsByDefault"/>
+    /// and deferring to it.
     /// </remarks>
-    public interface INodeIdFactoryProvider
-    {
-        /// <summary>
-        /// The factory the server was configured with, or <c>null</c> to let
-        /// each NodeManager use its own default.
-        /// </summary>
-        IRebasableNodeIdFactory? NodeIdFactory { get; }
-
-        /// <summary>
-        /// Whether the server's NodeManagers refuse to mint a NodeId they
-        /// already gave a different browse path, or <c>null</c> to leave each
-        /// factory on its own default.
-        /// </summary>
-        /// <remarks>
-        /// Server-wide rather than per NodeManager, because the record a
-        /// factory keeps to answer the question costs memory that grows with
-        /// the address space - a decision about the whole server, not about
-        /// one part of it.
-        /// </remarks>
-        bool? DetectNodeIdCollisions { get; }
-    }
+    /// <param name="Enabled">Whether NodeManagers watch for collisions.</param>
+    public sealed record NodeIdCollisionDetection(bool Enabled);
 }

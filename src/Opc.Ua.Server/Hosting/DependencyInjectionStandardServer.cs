@@ -56,6 +56,7 @@ namespace Opc.Ua.Server.Hosting
             m_services = services ?? throw new ArgumentNullException(nameof(services));
             SecurityPolicyRegistry = m_services.GetService<ISecurityPolicyRegistry>();
             NodeIdFactory = m_services.GetService<IRebasableNodeIdFactory>();
+            DetectNodeIdCollisions = m_services.GetService<NodeIdCollisionDetection>()?.Enabled;
         }
 
         /// <inheritdoc/>

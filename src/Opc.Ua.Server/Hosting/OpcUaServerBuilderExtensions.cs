@@ -540,6 +540,36 @@ namespace Microsoft.Extensions.DependencyInjection
         }
 
         /// <summary>
+        /// Decides, for the whole hosted server, whether NodeManagers refuse
+        /// to mint a NodeId they already gave a different browse path.
+        /// </summary>
+        /// <remarks>
+        /// Without this call each factory keeps
+        /// <see cref="DefaultNodeIdFactory.DetectCollisionsByDefault"/>, which
+        /// is on in a debug build and off otherwise. Watching costs memory
+        /// that grows with the address space, which is why the decision is
+        /// server-wide rather than per NodeManager.
+        /// </remarks>
+        /// <param name="builder">The server builder.</param>
+        /// <param name="detectCollisions">Whether to watch.</param>
+        /// <returns>The same <see cref="IOpcUaServerBuilder"/> for chaining.</returns>
+        /// <exception cref="ArgumentNullException"><paramref name="builder"/>
+        /// is <c>null</c>.</exception>
+        public static IOpcUaServerBuilder DetectNodeIdCollisions(
+            this IOpcUaServerBuilder builder,
+            bool detectCollisions = true)
+        {
+            if (builder is null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
+
+            builder.Services.Replace(
+                ServiceDescriptor.Singleton(new NodeIdCollisionDetection(detectCollisions)));
+            return builder;
+        }
+
+        /// <summary>
         /// Registers a role manager that is installed on the hosted server at startup.
         /// </summary>
         /// <param name="builder">The server builder.</param>

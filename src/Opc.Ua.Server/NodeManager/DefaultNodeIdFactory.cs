@@ -157,19 +157,53 @@ namespace Opc.Ua.Server
         /// The namespace index a root node is minted into. A child inherits
         /// its parent's namespace instead.
         /// </param>
+        /// <param name="detectCollisions">
+        /// Whether to refuse an identifier already given to a different
+        /// browse path, or <c>null</c> to follow
+        /// <see cref="DetectCollisionsByDefault"/>. A mode that cannot
+        /// collide never watches, whatever this says.
+        /// </param>
         public DefaultNodeIdFactory(
             NodeIdAssignmentMode mode = NodeIdAssignmentMode.Numeric,
-            ushort defaultNamespaceIndex = 0)
+            ushort defaultNamespaceIndex = 0,
+            bool? detectCollisions = null)
         {
             Mode = mode;
             DefaultNamespaceIndex = defaultNamespaceIndex;
+            DetectsCollisions = (detectCollisions ?? DetectCollisionsByDefault) && CanCollide(mode);
 
-            // only the truncating modes can put two browse paths on one
-            // identifier, so only they pay for the record of what was minted.
-            m_mintedIdentifiers = CanCollide(mode)
+            // only a factory that is actually watching pays for the record,
+            // and only the truncating modes can collide at all.
+            m_mintedIdentifiers = DetectsCollisions
                 ? new ConcurrentDictionary<NodeId, ulong>()
                 : null;
         }
+
+        /// <summary>
+        /// Whether a factory watches for collisions unless told otherwise.
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// On in a debug build, off otherwise. The record costs memory that
+        /// grows with the address space and a lookup on every mint, which is
+        /// worth paying while a model is being developed - when a collision
+        /// is a bug to find - and not in production, where the odds are
+        /// remote and the cost is permanent.
+        /// </para>
+        /// <para>
+        /// This is the fallback for a factory built without an explicit
+        /// answer. A server sets <c>StandardServer.DetectNodeIdCollisions</c>
+        /// to decide for all of its NodeManagers at once; the test fixtures
+        /// turn it on there so the checking is exercised whatever
+        /// configuration the stack was built in.
+        /// </para>
+        /// </remarks>
+        public static bool DetectCollisionsByDefault { get; set; }
+#if DEBUG
+            = true;
+#else
+            = false;
+#endif
 
         /// <summary>
         /// Whether two distinct canonical paths can produce one identifier in
@@ -204,6 +238,9 @@ namespace Opc.Ua.Server
         /// </remarks>
         public ushort DefaultNamespaceIndex { get; }
 
+        /// <inheritdoc/>
+        public bool DetectsCollisions { get; }
+
         /// <summary>
         /// Returns a factory with the same <see cref="Mode"/> that mints into
         /// the specified namespace.
@@ -227,7 +264,7 @@ namespace Opc.Ua.Server
                 return this;
             }
 
-            return new DefaultNodeIdFactory(Mode, defaultNamespaceIndex);
+            return new DefaultNodeIdFactory(Mode, defaultNamespaceIndex, DetectsCollisions);
         }
 
         /// <inheritdoc/>
@@ -263,7 +300,39 @@ namespace Opc.Ua.Server
                 return this;
             }
 
-            return new DefaultNodeIdFactory(mode, DefaultNamespaceIndex);
+            return new DefaultNodeIdFactory(mode, DefaultNamespaceIndex, DetectsCollisions);
+        }
+
+        /// <summary>
+        /// Returns a factory that mints the same way and does or does not
+        /// watch for collisions.
+        /// </summary>
+        /// <remarks>
+        /// A NodeManager calls this with its server's setting, so that one
+        /// answer covers every NodeManager the server hosts.
+        /// </remarks>
+        /// <param name="detectCollisions">Whether to watch.</param>
+        /// <returns>
+        /// This instance when the answer already matches, otherwise a copy.
+        /// </returns>
+        public virtual DefaultNodeIdFactory WithCollisionDetection(bool detectCollisions)
+        {
+            if (detectCollisions == DetectsCollisions)
+            {
+                return this;
+            }
+
+            return new DefaultNodeIdFactory(Mode, DefaultNamespaceIndex, detectCollisions);
+        }
+
+        /// <inheritdoc/>
+        /// <remarks>
+        /// Explicit for the same reason as
+        /// <see cref="WithDefaultNamespaceIndex"/>.
+        /// </remarks>
+        IRebasableNodeIdFactory IRebasableNodeIdFactory.WithCollisionDetection(bool detectCollisions)
+        {
+            return WithCollisionDetection(detectCollisions);
         }
 
         /// <inheritdoc/>

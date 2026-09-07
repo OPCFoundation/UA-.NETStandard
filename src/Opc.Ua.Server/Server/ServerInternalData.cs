@@ -519,6 +519,23 @@ namespace Opc.Ua.Server
             NodeIdFactory = nodeIdFactory;
         }
 
+        /// <inheritdoc/>
+        public bool? DetectNodeIdCollisions { get; private set; }
+
+        /// <summary>
+        /// Binds the server-wide answer to whether NodeManagers watch for
+        /// NodeId collisions.
+        /// </summary>
+        /// <param name="detectNodeIdCollisions">
+        /// Whether to watch, or <c>null</c> to leave each factory on its own
+        /// default.
+        /// </param>
+        public void SetNodeIdCollisionDetection(bool? detectNodeIdCollisions)
+        {
+            ThrowIfBindPhaseComplete();
+            DetectNodeIdCollisions = detectNodeIdCollisions;
+        }
+
         /// <summary>
         /// Refuses a bind once the server has finished starting. A subsystem that could be
         /// swapped underneath a running server would leave every component that already

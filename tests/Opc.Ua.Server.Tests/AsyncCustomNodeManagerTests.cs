@@ -313,6 +313,8 @@ namespace Opc.Ua.Server.Tests
 
             public ushort DefaultNamespaceIndex => m_inner.DefaultNamespaceIndex;
 
+            public bool DetectsCollisions => m_inner.DetectsCollisions;
+
             public NodeId New(ISystemContext context, NodeState node)
             {
                 return node.BrowseName.Name == m_browseName
@@ -332,6 +334,14 @@ namespace Opc.Ua.Server.Tests
             {
                 return new ReservingNodeIdFactory(
                     m_inner.WithMode(mode),
+                    m_browseName,
+                    m_reserved);
+            }
+
+            public IRebasableNodeIdFactory WithCollisionDetection(bool detectCollisions)
+            {
+                return new ReservingNodeIdFactory(
+                    m_inner.WithCollisionDetection(detectCollisions),
                     m_browseName,
                     m_reserved);
             }
