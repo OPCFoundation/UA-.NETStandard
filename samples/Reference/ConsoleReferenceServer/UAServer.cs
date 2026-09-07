@@ -179,6 +179,10 @@ namespace Quickstarts
             registry.RegisterChannelFactory(new OpcHttpsTransportChannelFactory());
             registry.RegisterChannelFactory(new WssTransportChannelFactory());
             registry.RegisterChannelFactory(new OpcWssTransportChannelFactory());
+            // No separate WSS-JSON listener factory: WssTransportListenerFactory /
+            // OpcWssTransportListenerFactory already negotiate the opcua+uajson
+            // sub-protocol via their JsonTransportProfileUri, mirroring
+            // OpcUaHttpsBuilderExtensions.AddWssBindings().
             registry.RegisterChannelFactory(new WssJsonTransportChannelFactory());
             return registry;
         }
