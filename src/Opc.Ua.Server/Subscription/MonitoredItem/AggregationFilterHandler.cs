@@ -36,17 +36,19 @@ namespace Opc.Ua.Server
     /// <summary>
     /// Owns aggregate calculation and the historical-to-live handoff for one monitored item.
     /// </summary>
-    internal sealed class AggregationFilterHandler
+    internal sealed class AggregationFilterHandler : IMonitoringFilter
     {
         /// <summary>
         /// Initializes aggregate processing with the existing manager and processed-value receiver.
         /// </summary>
         internal AggregationFilterHandler(
             AggregateManager aggregateManager,
-            ProcessedValueHandler queueProcessedValue)
+            ProcessedValueHandler queueProcessedValue,
+            MonitoringFilter? filter)
         {
             m_aggregateManager = aggregateManager ?? throw new ArgumentNullException(nameof(aggregateManager));
             m_queueProcessedValue = queueProcessedValue ?? throw new ArgumentNullException(nameof(queueProcessedValue));
+            Filter = filter;
         }
 
         /// <summary>
@@ -57,18 +59,17 @@ namespace Opc.Ua.Server
             ServerAggregateFilter filter,
             ProcessedValueHandler queueProcessedValue,
             bool primeInitialValue)
-            : this(aggregateManager, queueProcessedValue)
+            : this(aggregateManager, queueProcessedValue, filter)
         {
-            Filter = filter;
             m_calculator = CreateCalculator(filter);
             m_initialValuePending = primeInitialValue && filter.PrimeInitialValue;
             m_initialValueKeySelector = filter.HistorianKeySelector ?? TimestampStructuredDataKeySelector.Instance;
         }
 
         /// <summary>
-        /// Gets the currently applied server-revised aggregate filter, or null for non-aggregate filtering.
+        /// Gets the committed filter, retaining the current definition while an aggregate change is prepared.
         /// </summary>
-        internal ServerAggregateFilter? Filter { get; private set; }
+        public MonitoringFilter? Filter { get; private set; }
 
         /// <summary>
         /// Checks whether the active calculator's interval has ended.
@@ -136,7 +137,7 @@ namespace Opc.Ua.Server
         /// </summary>
         internal void CommitChange(MonitoringFilter? filter, Modification? change)
         {
-            Filter = filter as ServerAggregateFilter;
+            Filter = filter;
             if (change == null)
             {
                 return;
@@ -144,9 +145,10 @@ namespace Opc.Ua.Server
 
             m_calculator = change.Calculator;
             ClearInitialValueState();
-            m_initialValuePending = m_calculator != null && Filter?.PrimeInitialValue == true;
+            var aggregateFilter = filter as ServerAggregateFilter;
+            m_initialValuePending = m_calculator != null && aggregateFilter?.PrimeInitialValue == true;
             m_initialValueKeySelector =
-                Filter?.HistorianKeySelector ?? TimestampStructuredDataKeySelector.Instance;
+                aggregateFilter?.HistorianKeySelector ?? TimestampStructuredDataKeySelector.Instance;
 
             if (ReferenceEquals(m_preparedModification, change))
             {
@@ -299,13 +301,13 @@ namespace Opc.Ua.Server
 
         private bool IsEquivalentFilter(ServerAggregateFilter filter)
         {
-            return Filter != null &&
+            return Filter is ServerAggregateFilter existing &&
                 m_calculator != null &&
-                Filter.AggregateType == filter.AggregateType &&
-                Filter.ProcessingInterval == filter.ProcessingInterval &&
-                Filter.StartTime == filter.StartTime &&
-                Filter.Stepped == filter.Stepped &&
-                Filter.AggregateConfiguration.IsEqual(filter.AggregateConfiguration);
+                existing.AggregateType == filter.AggregateType &&
+                existing.ProcessingInterval == filter.ProcessingInterval &&
+                existing.StartTime == filter.StartTime &&
+                existing.Stepped == filter.Stepped &&
+                existing.AggregateConfiguration.IsEqual(filter.AggregateConfiguration);
         }
 
         private bool TryGetInitialValueKey(in DataValue value, out HistoricalValueKey key)

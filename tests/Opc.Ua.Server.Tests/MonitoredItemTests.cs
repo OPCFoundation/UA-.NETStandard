@@ -55,6 +55,27 @@ namespace Opc.Ua.Server.Tests
         private static readonly int[] s_liveThenInitial = [2, 1];
 
         /// <summary>
+        /// Verifies that protocol filters expose their own definition through the shared filter interface.
+        /// </summary>
+        [Test]
+        public void MonitoringFiltersExposeTheirOwnDefinition()
+        {
+            MonitoringFilter[] filters =
+            [
+                new MonitoringFilter(),
+                new DataChangeFilter(),
+                new EventFilter(),
+                new AggregateFilter(),
+                new ServerAggregateFilter()
+            ];
+            foreach (MonitoringFilter filter in filters)
+            {
+                IMonitoringFilter owner = filter;
+                Assert.That(owner.Filter, Is.SameAs(filter));
+            }
+        }
+
+        /// <summary>
         /// Verifies creation of a data-change item and publication of its first queued value.
         /// </summary>
         [Test]
@@ -891,6 +912,86 @@ namespace Opc.Ua.Server.Tests
             Assert.That(calculatorCalls, Is.EqualTo(3));
             Assert.That(restored.Filter, Is.SameAs(originalFilter));
             Assert.That(restored.ToStorableMonitoredItem().FilterToUse, Is.SameAs(revisedFilter));
+        }
+
+        /// <summary>
+        /// Verifies that aggregate preparation and cancellation preserve the active data-change filter.
+        /// </summary>
+        [Test]
+        public async Task AggregatePreparationPreservesCurrentFilterAsync()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            using var queueFactory = new MonitoredItemQueueFactory(telemetry);
+            Mock<IServerInternal> server = CreateServerMock(telemetry, queueFactory);
+            using var aggregateManager = new AggregateManager(server.Object);
+            server.Setup(value => value.AggregateManager).Returns(aggregateManager);
+            server.Setup(value => value.DiagnosticsNodeManager).Returns(Mock.Of<IDiagnosticsNodeManager>());
+            var aggregateId = new NodeId("PreparedAggregate", 1);
+            await aggregateManager.RegisterFactoryAsync(
+                aggregateId,
+                "PreparedAggregate",
+                (id, start, end, interval, stepped, configuration, context) =>
+                    Mock.Of<IAggregateCalculator>()).ConfigureAwait(false);
+            var originalFilter = new DataChangeFilter { Trigger = DataChangeTrigger.StatusValue };
+            var effectiveFilter = new DataChangeFilter { Trigger = DataChangeTrigger.Status };
+            using var item = new MonitoredItem(
+                server.Object,
+                Mock.Of<IAsyncNodeManager>(),
+                null,
+                1,
+                2,
+                new ReadValueId { NodeId = new NodeId("V", 1), AttributeId = Attributes.Value },
+                DiagnosticsMasks.All,
+                TimestampsToReturn.Both,
+                MonitoringMode.Reporting,
+                3,
+                originalFilter,
+                effectiveFilter,
+                null,
+                0,
+                10,
+                discardOldest: false,
+                sourceSamplingInterval: 0);
+            var proposed = new ServerAggregateFilter
+            {
+                AggregateType = aggregateId,
+                StartTime = DateTime.UtcNow.AddSeconds(-10),
+                ProcessingInterval = 1000,
+                AggregateConfiguration = new AggregateConfiguration(),
+                PrimeInitialValue = true
+            };
+
+            AggregationFilterHandler.Modification preparation = item.PrepareAggregateModification(proposed);
+
+            Assert.That(preparation, Is.Not.Null);
+            Assert.That(preparation.RequiresInitialValue, Is.True);
+            Assert.That(item.Filter, Is.SameAs(originalFilter));
+            Assert.That(item.ToStorableMonitoredItem().FilterToUse, Is.SameAs(effectiveFilter));
+            item.QueueValue(new DataValue(Variant.From(1)), ServiceResult.Good);
+            item.QueueValue(new DataValue(Variant.From(2)), ServiceResult.Good);
+            var notifications = new Queue<MonitoredItemNotification>();
+            var diagnostics = new Queue<DiagnosticInfo>();
+            _ = item.Publish(
+                new OperationContext(item),
+                notifications,
+                diagnostics,
+                10,
+                telemetry.CreateLogger<MonitoredItemTests>());
+
+            Assert.That(notifications, Has.Count.EqualTo(1));
+            Assert.That(notifications.Dequeue().Value.WrappedValue, Is.EqualTo(Variant.From(1)));
+            item.CancelPreparedAggregateModification(preparation);
+            Assert.That(preparation.IsCommitted, Is.False);
+            Assert.That(item.ToStorableMonitoredItem().FilterToUse, Is.SameAs(effectiveFilter));
+            item.QueueValue(new DataValue(Variant.From(3)), ServiceResult.Good);
+            _ = item.Publish(
+                new OperationContext(item),
+                notifications,
+                diagnostics,
+                10,
+                telemetry.CreateLogger<MonitoredItemTests>());
+
+            Assert.That(notifications, Is.Empty);
         }
 
         /// <summary>

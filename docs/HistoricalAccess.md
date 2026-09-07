@@ -410,6 +410,11 @@ supply it. `AggregationFilterHandler` owns calculator changes, bounded live
 buffering, overlap identities, and aggregate output. `MonitoredItem` delegates
 that work while retaining its normal filtering, notification, and lifecycle
 responsibilities.
+The effective filter has one `IMonitoringFilter` owner: protocol filters expose
+themselves directly, while `AggregationFilterHandler` retains the current
+definition during preparation and commits its replacement atomically with the
+monitored-item change. The original client filter remains separate from the
+effective server-revised definition.
 
 The synchronous `CustomNodeManager` path retains its synchronous aggregate
 revision and current-value initialization behavior; it does not block on

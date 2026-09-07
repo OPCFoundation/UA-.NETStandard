@@ -189,8 +189,7 @@ namespace Opc.Ua.Server
             MonitoringMode = monitoringMode;
             ClientHandle = clientHandle;
             Filter = originalFilter;
-            m_nonAggregateFilter = filterToUse is ServerAggregateFilter ? null : filterToUse;
-            m_cachedDataChangeFilter = filterToUse as DataChangeFilter;
+            m_filterToUse = filterToUse;
             m_range = 0;
             m_samplingInterval = samplingInterval;
             QueueSize = queueSize;
@@ -222,7 +221,7 @@ namespace Opc.Ua.Server
 
             if (filterToUse is ServerAggregateFilter aggregateFilter)
             {
-                m_aggregateFilter = new AggregationFilterHandler(
+                m_filterToUse = new AggregationFilterHandler(
                     m_server.AggregateManager,
                     aggregateFilter,
                     QueueProcessedValue,
@@ -296,10 +295,7 @@ namespace Opc.Ua.Server
             MonitoringMode = storedMonitoredItem.MonitoringMode;
             ClientHandle = storedMonitoredItem.ClientHandle;
             Filter = storedMonitoredItem.OriginalFilter;
-            m_nonAggregateFilter = storedMonitoredItem.FilterToUse is ServerAggregateFilter
-                ? null
-                : storedMonitoredItem.FilterToUse;
-            m_cachedDataChangeFilter = storedMonitoredItem.FilterToUse as DataChangeFilter;
+            m_filterToUse = storedMonitoredItem.FilterToUse;
             m_range = storedMonitoredItem.Range;
             m_samplingInterval = storedMonitoredItem.SamplingInterval;
             QueueSize = storedMonitoredItem.QueueSize;
@@ -328,7 +324,7 @@ namespace Opc.Ua.Server
 
             if (storedMonitoredItem.FilterToUse is ServerAggregateFilter aggregateFilter)
             {
-                m_aggregateFilter = new AggregationFilterHandler(
+                m_filterToUse = new AggregationFilterHandler(
                     m_server.AggregateManager,
                     aggregateFilter,
                     QueueProcessedValue,
@@ -437,7 +433,7 @@ namespace Opc.Ua.Server
             get
             {
                 // check if aggregate interval has passed.
-                if (m_aggregateFilter?.HasEndTimePassed(DateTime.UtcNow) == true)
+                if (AggregateFilter?.HasEndTimePassed(DateTime.UtcNow) == true)
                 {
                     return true;
                 }
@@ -924,10 +920,13 @@ namespace Opc.Ua.Server
             lock (m_lock)
             {
                 MonitoringFilter? previousFilterToUse = FilterToUse;
-                AggregationFilterHandler? aggregateFilter = m_aggregateFilter;
+                AggregationFilterHandler? aggregateFilter = AggregateFilter;
                 if (aggregateFilter == null && filterToUse is ServerAggregateFilter)
                 {
-                    aggregateFilter = new AggregationFilterHandler(m_server.AggregateManager, QueueProcessedValue);
+                    aggregateFilter = new AggregationFilterHandler(
+                        m_server.AggregateManager,
+                        QueueProcessedValue,
+                        previousFilterToUse);
                 }
                 AggregationFilterHandler.Modification? aggregateChange = aggregateFilter?.PrepareChange(filterToUse);
 
@@ -937,8 +936,6 @@ namespace Opc.Ua.Server
                 m_discardOldest = discardOldest;
 
                 Filter = originalFilter;
-                m_nonAggregateFilter = filterToUse is ServerAggregateFilter ? null : filterToUse;
-                m_cachedDataChangeFilter = filterToUse as DataChangeFilter;
 
                 DiscardFilteredRetainStateOnWhereClauseChange(previousFilterToUse, filterToUse);
 
@@ -950,8 +947,8 @@ namespace Opc.Ua.Server
                 SetSamplingInterval(samplingInterval);
                 QueueSize = queueSize;
 
-                m_aggregateFilter = aggregateFilter;
                 aggregateFilter?.CommitChange(filterToUse, aggregateChange);
+                m_filterToUse = (IMonitoringFilter?)aggregateFilter ?? filterToUse;
 
                 // report change to item state.
                 ServerUtils.ReportModifyMonitoredItem(
@@ -976,8 +973,11 @@ namespace Opc.Ua.Server
         {
             lock (m_lock)
             {
-                m_aggregateFilter ??= new AggregationFilterHandler(m_server.AggregateManager, QueueProcessedValue);
-                return m_aggregateFilter.PrepareModification(filter);
+                AggregationFilterHandler aggregateFilter = AggregateFilter ??
+                    new AggregationFilterHandler(m_server.AggregateManager, QueueProcessedValue, FilterToUse);
+                AggregationFilterHandler.Modification? preparation = aggregateFilter.PrepareModification(filter);
+                m_filterToUse = aggregateFilter;
+                return preparation;
             }
         }
 
@@ -988,7 +988,7 @@ namespace Opc.Ua.Server
         {
             lock (m_lock)
             {
-                m_aggregateFilter?.CancelModification(preparation);
+                AggregateFilter?.CancelModification(preparation);
             }
         }
 
@@ -1109,7 +1109,7 @@ namespace Opc.Ua.Server
         {
             lock (m_lock)
             {
-                return m_aggregateFilter?.CompleteInitialValue(QueueBufferedValue) ?? ServiceResult.Good;
+                return AggregateFilter?.CompleteInitialValue(QueueBufferedValue) ?? ServiceResult.Good;
             }
         }
 
@@ -1134,7 +1134,7 @@ namespace Opc.Ua.Server
                 }
 
                 if (!initialValue &&
-                    m_aggregateFilter?.TryBufferLiveValue(value, error, ignoreFilters) == true)
+                    AggregateFilter?.TryBufferLiveValue(value, error, ignoreFilters) == true)
                 {
                     return;
                 }
@@ -1211,8 +1211,8 @@ namespace Opc.Ua.Server
 
             // apply aggregate filter.
             if (!ServiceResult.IsBad(error) &&
-                m_aggregateFilter != null &&
-                m_aggregateFilter.TryQueueValue(current, initialValue, out bool accepted))
+                AggregateFilter is { } aggregateFilter &&
+                aggregateFilter.TryQueueValue(current, initialValue, out bool accepted))
             {
                 if (!accepted &&
                     m_logger.IsEnabled(LogLevel.Trace))
@@ -1758,7 +1758,7 @@ namespace Opc.Ua.Server
                 }
                 else
                 {
-                    m_aggregateFilter?.Publish(DateTime.UtcNow);
+                    AggregateFilter?.Publish(DateTime.UtcNow);
 
                     IncrementSampleTime();
                 }
@@ -1946,7 +1946,9 @@ namespace Opc.Ua.Server
         /// <inheritdoc/>
         public bool IsDurable { get; }
 
-        private MonitoringFilter? FilterToUse => m_aggregateFilter?.Filter ?? m_nonAggregateFilter;
+        private MonitoringFilter? FilterToUse => m_filterToUse?.Filter;
+
+        private AggregationFilterHandler? AggregateFilter => m_filterToUse as AggregationFilterHandler;
 
         /// <inheritdoc/>
         public IStoredMonitoredItem ToStorableMonitoredItem()
@@ -2029,7 +2031,7 @@ namespace Opc.Ua.Server
                 error,
                 m_lastValue,
                 m_lastError!,
-                m_cachedDataChangeFilter!,
+                (FilterToUse as DataChangeFilter)!,
                 m_range);
         }
 
@@ -2406,8 +2408,7 @@ namespace Opc.Ua.Server
         private string? m_indexRange;
         private NumericRange m_parsedIndexRange;
         private TimestampsToReturn m_timestampsToReturn;
-        private MonitoringFilter? m_nonAggregateFilter;
-        private DataChangeFilter? m_cachedDataChangeFilter;
+        private IMonitoringFilter? m_filterToUse;
         private double m_range;
         private double m_samplingInterval;
         private bool m_discardOldest;
@@ -2427,7 +2428,6 @@ namespace Opc.Ua.Server
         private bool m_structureChanged;
         private ISubscription? m_subscription;
         private ServiceResult? m_samplingError;
-        private AggregationFilterHandler? m_aggregateFilter;
         private bool m_triggered;
         private bool m_resendData;
         private HashSet<string>? m_filteredRetainConditionIds;
