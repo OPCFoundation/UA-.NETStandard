@@ -238,7 +238,7 @@ The GDS adds the following roles in addition to the standard well-known set:
 - `RegistrationAuthorityAdmin`
 - `ApplicationSelfAdmin`
 
-See [GdsRole.cs](https://github.com/OPCFoundation/UA-.NETStandard/blob/main/src/Opc.Ua.Gds.Server.Common/RoleBasedUserManagement/GdsRole.cs).
+See [GdsRole.cs](https://github.com/OPCFoundation/UA-.NETStandard/blob/main/src/Opc.Ua.Gds.Server/RoleBasedUserManagement/GdsRole.cs).
 
 ## Known limitations
 
