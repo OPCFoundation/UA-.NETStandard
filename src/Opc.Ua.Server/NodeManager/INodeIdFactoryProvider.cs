@@ -30,7 +30,7 @@
 namespace Opc.Ua.Server
 {
     /// <summary>
-    /// Supplies the <see cref="DefaultNodeIdFactory"/> that NodeManagers use
+    /// Supplies the <see cref="IRebasableNodeIdFactory"/> that NodeManagers use
     /// to mint NodeIds for nodes created at runtime.
     /// </summary>
     /// <remarks>
@@ -45,6 +45,6 @@ namespace Opc.Ua.Server
         /// The factory the server was configured with, or <c>null</c> to let
         /// each NodeManager use its own default.
         /// </summary>
-        DefaultNodeIdFactory? NodeIdFactory { get; }
+        IRebasableNodeIdFactory? NodeIdFactory { get; }
     }
 }

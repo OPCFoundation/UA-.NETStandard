@@ -255,6 +255,110 @@ namespace Opc.Ua.Server.Tests
             Assert.Throws<ArgumentNullException>(() => acnm.NodeIdFactory = null);
         }
 
+        [Test]
+        public void ADecoratingNodeIdFactoryOverridesTheIdentifierForOneNode()
+        {
+            using ITestNodeManager manager = CreateManager();
+            Assume.That(manager is TestableAsyncCustomNodeManager, "Requires AsyncCustomNodeManager features");
+            var acnm = (TestableAsyncCustomNodeManager)manager;
+            ushort namespaceIndex = manager.NamespaceIndexes[0];
+
+            var reserved = new NodeId("reserved", namespaceIndex);
+            acnm.NodeIdFactory = new ReservingNodeIdFactory(
+                acnm.NodeIdFactory,
+                "Child",
+                reserved);
+
+            NodeId claimed = manager.New(manager.SystemContext, CreateNamedChild(namespaceIndex));
+            BaseObjectState other = CreateNamedChild(namespaceIndex);
+            other.BrowseName = new QualifiedName("Other", namespaceIndex);
+            NodeId delegated = manager.New(manager.SystemContext, other);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(claimed, Is.EqualTo(reserved));
+
+                // everything the decorator does not claim still reaches the
+                // factory it wraps, which is what makes decorating cheaper
+                // than overriding New().
+                Assert.That(delegated, Is.Not.EqualTo(reserved));
+                Assert.That(delegated.IdType, Is.EqualTo(IdType.String));
+                Assert.That(delegated.NamespaceIndex, Is.EqualTo(namespaceIndex));
+            });
+        }
+
+        /// <summary>
+        /// A NodeId factory that hands one browse name a fixed identifier and
+        /// delegates every other node to the factory it wraps.
+        /// </summary>
+        /// <remarks>
+        /// Stands in for the reason <see cref="IRebasableNodeIdFactory"/> is
+        /// an interface: a caller can put its own rule in front of
+        /// <see cref="DefaultNodeIdFactory"/> without subclassing it and
+        /// without overriding <c>New</c> on the NodeManager.
+        /// </remarks>
+        private sealed class ReservingNodeIdFactory : IRebasableNodeIdFactory
+        {
+            public ReservingNodeIdFactory(
+                IRebasableNodeIdFactory inner,
+                string browseName,
+                NodeId reserved)
+            {
+                m_inner = inner;
+                m_browseName = browseName;
+                m_reserved = reserved;
+            }
+
+            public NodeIdAssignmentMode Mode => m_inner.Mode;
+
+            public ushort DefaultNamespaceIndex => m_inner.DefaultNamespaceIndex;
+
+            public NodeId New(ISystemContext context, NodeState node)
+            {
+                return node.BrowseName.Name == m_browseName
+                    ? m_reserved
+                    : m_inner.New(context, node);
+            }
+
+            public IRebasableNodeIdFactory WithDefaultNamespaceIndex(ushort defaultNamespaceIndex)
+            {
+                return new ReservingNodeIdFactory(
+                    m_inner.WithDefaultNamespaceIndex(defaultNamespaceIndex),
+                    m_browseName,
+                    m_reserved);
+            }
+
+            public IRebasableNodeIdFactory WithMode(NodeIdAssignmentMode mode)
+            {
+                return new ReservingNodeIdFactory(
+                    m_inner.WithMode(mode),
+                    m_browseName,
+                    m_reserved);
+            }
+
+            public NodeId NextCounterNodeId()
+            {
+                return m_inner.NextCounterNodeId();
+            }
+
+            public NodeId CreateChildNodeId(
+                NodeId parentNodeId,
+                QualifiedName browseName,
+                ushort namespaceIndex,
+                NamespaceTable namespaceUris)
+            {
+                return m_inner.CreateChildNodeId(
+                    parentNodeId,
+                    browseName,
+                    namespaceIndex,
+                    namespaceUris);
+            }
+
+            private readonly IRebasableNodeIdFactory m_inner;
+            private readonly string m_browseName;
+            private readonly NodeId m_reserved;
+        }
+
         /// <summary>
         /// Creates a named child of a named parent, the shape the deterministic
         /// assigner derives an identifier from.

@@ -99,9 +99,9 @@ namespace Opc.Ua.Server
         /// Set before the server starts; leaving it <c>null</c> leaves each
         /// NodeManager on its own default. A server composed through
         /// dependency injection picks this up from the registered
-        /// <see cref="DefaultNodeIdFactory"/>.
+        /// <see cref="IRebasableNodeIdFactory"/>.
         /// </remarks>
-        public DefaultNodeIdFactory? NodeIdFactory { get; set; }
+        public IRebasableNodeIdFactory? NodeIdFactory { get; set; }
 
         internal ApplicationConfiguration CurrentConfiguration
             => Configuration

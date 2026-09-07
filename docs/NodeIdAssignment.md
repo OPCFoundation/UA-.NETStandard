@@ -27,7 +27,39 @@ NodeId New(ISystemContext context, NodeState node);
 It reaches node code through `ISystemContext.NodeIdFactory`. A NodeManager
 publishes itself as that factory in its constructor
 (`SystemContext.NodeIdFactory = this`), so any node-authoring code holding
-the manager's `SystemContext` mints identifiers through the manager.
+the manager's `SystemContext` mints identifiers through the manager. This
+points at the *NodeManager*, not at its factory, so that a subclass
+overriding `New` is still the one node-level code reaches — which is why
+`AsyncCustomNodeManager` and `CustomNodeManager2` do it once for every
+manager that derives from them, and a subclass never repeats it.
+
+`IRebasableNodeIdFactory` (`Opc.Ua.Server/NodeManager/IRebasableNodeIdFactory.cs`)
+extends that with what a NodeManager needs and a bare `INodeIdFactory`
+cannot express: which namespace to mint into, which identifier style to
+mint, and an identifier for a node that does not exist yet.
+
+```csharp
+NodeIdAssignmentMode Mode { get; }
+ushort DefaultNamespaceIndex { get; }
+IRebasableNodeIdFactory WithDefaultNamespaceIndex(ushort defaultNamespaceIndex);
+IRebasableNodeIdFactory WithMode(NodeIdAssignmentMode mode);
+NodeId NextCounterNodeId();
+NodeId CreateChildNodeId(NodeId parentNodeId, QualifiedName browseName, ushort namespaceIndex, NamespaceTable namespaceUris);
+```
+
+The namespace is why this is a contract rather than constructor
+configuration: a namespace belongs to the NodeManager, not to the node, and
+a manager learns its own namespace index only after the server's namespace
+table has been extended — which is later than a factory registered in
+dependency injection was built. Implementations are therefore immutable and
+the `With…` methods return a view, so one registered instance serves
+managers that own different namespaces.
+
+`AsyncCustomNodeManager.NodeIdFactory` is typed as this interface, so a
+caller can put its own rule in front of `DefaultNodeIdFactory` by
+decorating it — claim one subtree, delegate the rest — instead of
+overriding `New` on the NodeManager and scattering the identifier rule
+across it.
 
 The property is nullable, and null means *do not assign*. A node copy
 deliberately hides the factory from the children it materialises, so code
@@ -252,9 +284,17 @@ builder.AddNodeIdFactory(NodeIdAssignmentMode.Guid);
 ```
 
 `DependencyInjectionStandardServer` resolves the registered
-`DefaultNodeIdFactory`, `StandardServer` threads it into
+`IRebasableNodeIdFactory`, `StandardServer` threads it into
 `ServerInternalData`, and every `AsyncCustomNodeManager` picks it up
 through `INodeIdFactoryProvider`, rebased onto its own namespace.
+
+The registration is keyed on the interface, so an implementation of your
+own — typically a decorator holding a `DefaultNodeIdFactory` — can be
+registered in its place:
+
+```csharp
+builder.AddNodeIdFactory(new ReservingNodeIdFactory(new DefaultNodeIdFactory()));
+```
 
 ## Inventory
 
@@ -266,6 +306,7 @@ Everything in the stack that participates in NodeId assignment.
 |---|---|
 | `INodeIdFactory.New` | `Opc.Ua.Types/State/ISystemContext.cs` |
 | `ISystemContext.NodeIdFactory` | `Opc.Ua.Types/State/ISystemContext.cs` |
+| `IRebasableNodeIdFactory` | `Opc.Ua.Server/NodeManager/IRebasableNodeIdFactory.cs` |
 | `INodeIdFactoryProvider.NodeIdFactory` | `Opc.Ua.Server/NodeManager/INodeIdFactoryProvider.cs` |
 
 ### NodeState

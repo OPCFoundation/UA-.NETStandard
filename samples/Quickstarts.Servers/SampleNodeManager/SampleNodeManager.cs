@@ -99,7 +99,7 @@ namespace Opc.Ua.Sample
         /// style by assigning this rather than by overriding
         /// <see cref="New"/>.
         /// </remarks>
-        public DefaultNodeIdFactory NodeIdFactory { get; set; }
+        public IRebasableNodeIdFactory NodeIdFactory { get; set; }
             = new DefaultNodeIdFactory(NodeIdAssignmentMode.String);
 
         /// <summary>

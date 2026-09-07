@@ -502,7 +502,7 @@ namespace Opc.Ua.Server
         }
 
         /// <inheritdoc/>
-        public DefaultNodeIdFactory? NodeIdFactory { get; private set; }
+        public IRebasableNodeIdFactory? NodeIdFactory { get; private set; }
 
         /// <summary>
         /// Binds the factory that NodeManagers mint runtime NodeIds with.
@@ -513,7 +513,7 @@ namespace Opc.Ua.Server
         /// NodeManager on its own default.
         /// </remarks>
         /// <param name="nodeIdFactory">The factory, or <c>null</c>.</param>
-        public void SetNodeIdFactory(DefaultNodeIdFactory? nodeIdFactory)
+        public void SetNodeIdFactory(IRebasableNodeIdFactory? nodeIdFactory)
         {
             ThrowIfBindPhaseComplete();
             NodeIdFactory = nodeIdFactory;

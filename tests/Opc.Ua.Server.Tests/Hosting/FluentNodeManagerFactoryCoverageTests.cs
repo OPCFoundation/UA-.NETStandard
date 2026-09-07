@@ -268,7 +268,7 @@ namespace Opc.Ua.Server.Tests.Hosting
                 .AddNodeIdFactory(NodeIdAssignmentMode.Guid);
 
             using ServiceProvider provider = services.BuildServiceProvider();
-            var registered = provider.GetService<DefaultNodeIdFactory>();
+            var registered = provider.GetService<IRebasableNodeIdFactory>();
 
             Assert.That(registered, Is.Not.Null);
             Assert.That(registered!.Mode, Is.EqualTo(NodeIdAssignmentMode.Guid));
@@ -290,7 +290,7 @@ namespace Opc.Ua.Server.Tests.Hosting
                 .AddNodeIdFactory(new DefaultNodeIdFactory(NodeIdAssignmentMode.Counter, 7));
 
             using ServiceProvider provider = services.BuildServiceProvider();
-            var registered = provider.GetService<DefaultNodeIdFactory>();
+            var registered = provider.GetService<IRebasableNodeIdFactory>();
 
             Assert.Multiple(() =>
             {
@@ -315,7 +315,7 @@ namespace Opc.Ua.Server.Tests.Hosting
             Assert.Multiple(() =>
             {
                 Assert.Throws<ArgumentNullException>(
-                    () => builder.AddNodeIdFactory((DefaultNodeIdFactory)null!));
+                    () => builder.AddNodeIdFactory((IRebasableNodeIdFactory)null!));
                 Assert.Throws<ArgumentNullException>(
                     () => ((IOpcUaServerBuilder)null!).AddNodeIdFactory(
                         NodeIdAssignmentMode.String));

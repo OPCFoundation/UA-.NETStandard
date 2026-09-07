@@ -512,7 +512,10 @@ namespace Microsoft.Extensions.DependencyInjection
         /// </summary>
         /// <remarks>
         /// Each NodeManager rebases the registered factory onto its own
-        /// namespace, so one registration serves the whole server.
+        /// namespace, so one registration serves the whole server. The
+        /// factory is registered as <see cref="IRebasableNodeIdFactory"/>, so
+        /// a decorator around <see cref="DefaultNodeIdFactory"/> can be
+        /// registered in its place.
         /// </remarks>
         /// <param name="builder">The server builder.</param>
         /// <param name="nodeIdFactory">The factory to register.</param>
@@ -521,7 +524,7 @@ namespace Microsoft.Extensions.DependencyInjection
         /// <paramref name="nodeIdFactory"/> is <c>null</c>.</exception>
         public static IOpcUaServerBuilder AddNodeIdFactory(
             this IOpcUaServerBuilder builder,
-            DefaultNodeIdFactory nodeIdFactory)
+            IRebasableNodeIdFactory nodeIdFactory)
         {
             if (builder is null)
             {

@@ -128,7 +128,7 @@ namespace Opc.Ua.Server
     /// registered factory rather than mutating it.
     /// </para>
     /// </remarks>
-    public class DefaultNodeIdFactory : INodeIdFactory
+    public class DefaultNodeIdFactory : IRebasableNodeIdFactory
     {
         /// <summary>
         /// The prefix identifying the canonical path format understood by
@@ -199,6 +199,19 @@ namespace Opc.Ua.Server
             return new DefaultNodeIdFactory(Mode, defaultNamespaceIndex);
         }
 
+        /// <inheritdoc/>
+        /// <remarks>
+        /// Explicit so that the public method keeps returning the concrete
+        /// type: a caller holding a <see cref="DefaultNodeIdFactory"/> can go
+        /// on chaining without a cast, while a caller holding the interface
+        /// stays on the interface.
+        /// </remarks>
+        IRebasableNodeIdFactory IRebasableNodeIdFactory.WithDefaultNamespaceIndex(
+            ushort defaultNamespaceIndex)
+        {
+            return WithDefaultNamespaceIndex(defaultNamespaceIndex);
+        }
+
         /// <summary>
         /// Returns a factory that mints into the same namespace using the
         /// specified mode.
@@ -220,6 +233,16 @@ namespace Opc.Ua.Server
             }
 
             return new DefaultNodeIdFactory(mode, DefaultNamespaceIndex);
+        }
+
+        /// <inheritdoc/>
+        /// <remarks>
+        /// Explicit for the same reason as
+        /// <see cref="WithDefaultNamespaceIndex"/>.
+        /// </remarks>
+        IRebasableNodeIdFactory IRebasableNodeIdFactory.WithMode(NodeIdAssignmentMode mode)
+        {
+            return WithMode(mode);
         }
 
         /// <summary>

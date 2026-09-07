@@ -253,7 +253,7 @@ namespace Opc.Ua.Server
         /// <exception cref="ArgumentNullException">
         /// Thrown when the factory is set to <c>null</c>.
         /// </exception>
-        public DefaultNodeIdFactory NodeIdFactory
+        public IRebasableNodeIdFactory NodeIdFactory
         {
             get => m_nodeIdFactory;
             set
@@ -325,7 +325,7 @@ namespace Opc.Ua.Server
         /// Resolves the NodeId factory the server was configured with,
         /// falling back to the deterministic default.
         /// </summary>
-        private static DefaultNodeIdFactory ResolveNodeIdFactory(
+        private static IRebasableNodeIdFactory ResolveNodeIdFactory(
             IServerInternal server,
             ushort namespaceIndex)
         {
@@ -8439,7 +8439,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Assigns NodeIds to nodes created at runtime.
         /// </summary>
-        private DefaultNodeIdFactory m_nodeIdFactory;
+        private IRebasableNodeIdFactory m_nodeIdFactory;
 
         private const byte kHistoryAccessMask = AccessLevels.HistoryRead | AccessLevels.HistoryWrite;
     }

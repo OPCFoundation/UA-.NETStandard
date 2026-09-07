@@ -64,7 +64,7 @@ namespace Opc.Ua.Server.Tests.Fluent
         /// </summary>
         /// <param name="factory">The factory to mint with.</param>
         /// <returns>The stand-in NodeManager.</returns>
-        public static IAsyncNodeManager Create(DefaultNodeIdFactory factory)
+        public static IAsyncNodeManager Create(IRebasableNodeIdFactory factory)
         {
             var nodeManager = new Mock<IAsyncNodeManager>();
 
