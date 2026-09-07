@@ -1,6 +1,6 @@
 # OPC UA .NET Standard — GDS client
 
-`OPCFoundation.NetStandard.Opc.Ua.Gds.Client.Common` is the
+`OPCFoundation.NetStandard.Opc.Ua.Gds.Client` is the
 client-side library for the OPC UA Global Discovery Server (GDS) —
 OPC 10000-12 (Part 12). It implements the GDS service-call surface
 (`RegisterApplication`, `FindApplications`, `GetCertificateGroups`,

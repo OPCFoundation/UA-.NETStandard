@@ -18,9 +18,9 @@ control.
 
 | NuGet Package | Contents |
 |---------------|----------|
-| `Opc.Ua.Gds.Common` | Part 12 and Part 21 model types, node states, identifiers, encodeable types |
-| `Opc.Ua.Gds.Server.Common` | Server-side node managers, providers, authorization, onboarding ticket-store binding |
-| `Opc.Ua.Gds.Client.Common` | Client proxies for GDS, push, KeyCredential, AuthorizationService, onboarding |
+| `Opc.Ua.Gds` | Part 12 and Part 21 model types, node states, identifiers, encodeable types |
+| `Opc.Ua.Gds.Server` | Server-side node managers, providers, authorization, onboarding ticket-store binding |
+| `Opc.Ua.Gds.Client` | Client proxies for GDS, push, KeyCredential, AuthorizationService, onboarding |
 
 ---
 
@@ -98,7 +98,7 @@ await pushClient.CreateSelfSignedCertificateAsync(
 
 ### OPC 10000-21 OnboardingClient
 
-`Opc.Ua.Gds.Common` ships the generated `Opc.Ua.Onboarding` model,
+`Opc.Ua.Gds` ships the generated `Opc.Ua.Onboarding` model,
 including the well-known `DeviceRegistrar` instance and the typed
 `DeviceRegistrarAdminTypeClient`. `OnboardingClient` is the DI-friendly
 facade for loading and removing encoded tickets:

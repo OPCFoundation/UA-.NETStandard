@@ -42,7 +42,7 @@ namespace Microsoft.Extensions.DependencyInjection
 {
     /// <summary>
     /// <see cref="IOpcUaBuilder"/> extensions provided by
-    /// <c>Opc.Ua.Gds.Client.Common</c>: register the GDS / push-config
+    /// <c>Opc.Ua.Gds.Client</c>: register the GDS / push-config
     /// clients for dependency-injected applications.
     /// </summary>
     public static class OpcUaGdsClientBuilderExtensions

@@ -17,9 +17,9 @@ The meta-package depends on:
 - `OPCFoundation.NetStandard.Opc.Ua.Configuration`
 - `OPCFoundation.NetStandard.Opc.Ua.Client`
 - `OPCFoundation.NetStandard.Opc.Ua.Server`
-- `OPCFoundation.NetStandard.Opc.Ua.Gds.Common`
-- `OPCFoundation.NetStandard.Opc.Ua.Gds.Client.Common`
-- `OPCFoundation.NetStandard.Opc.Ua.Gds.Server.Common`
+- `OPCFoundation.NetStandard.Opc.Ua.Gds`
+- `OPCFoundation.NetStandard.Opc.Ua.Gds.Client`
+- `OPCFoundation.NetStandard.Opc.Ua.Gds.Server`
 - `OPCFoundation.NetStandard.Opc.Ua.SourceGeneration`
 
 Pick individual packages instead of the meta-package when you want a

@@ -50,7 +50,7 @@ namespace Microsoft.Extensions.DependencyInjection
 {
     /// <summary>
     /// <see cref="IOpcUaBuilder"/> extensions provided by
-    /// <c>Opc.Ua.Gds.Server.Common</c>: register an OPC UA Global
+    /// <c>Opc.Ua.Gds.Server</c>: register an OPC UA Global
     /// Discovery Server hosted as an <see cref="IHostedService"/> so
     /// the .NET Generic Host owns its lifetime, logging pipeline and
     /// Ctrl+C / SIGTERM handling.
