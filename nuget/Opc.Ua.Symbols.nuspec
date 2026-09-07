@@ -21,9 +21,9 @@
       <dependency id="OPCFoundation.NetStandard.Opc.Ua.Configuration.Debug" version="$version$"/>
       <dependency id="OPCFoundation.NetStandard.Opc.Ua.Client.Debug" version="$version$"/>
       <dependency id="OPCFoundation.NetStandard.Opc.Ua.Server.Debug" version="$version$"/>
-      <dependency id="OPCFoundation.NetStandard.Opc.Ua.Gds.Common.Debug" version="$version$"/>
-      <dependency id="OPCFoundation.NetStandard.Opc.Ua.Gds.Client.Common.Debug" version="$version$"/>
-      <dependency id="OPCFoundation.NetStandard.Opc.Ua.Gds.Server.Common.Debug" version="$version$"/>
+      <dependency id="OPCFoundation.NetStandard.Opc.Ua.Gds.Debug" version="$version$"/>
+      <dependency id="OPCFoundation.NetStandard.Opc.Ua.Gds.Client.Debug" version="$version$"/>
+      <dependency id="OPCFoundation.NetStandard.Opc.Ua.Gds.Server.Debug" version="$version$"/>
     </dependencies>
   </metadata>
   <files>

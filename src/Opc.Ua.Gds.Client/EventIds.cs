@@ -31,7 +31,7 @@ namespace Opc.Ua
 {
     /// <summary>
     /// Centrally managed event id offsets for the source-generated log messages of the
-    /// Opc.Ua.Gds.Client.Common assembly.
+    /// Opc.Ua.Gds.Client assembly.
     /// </summary>
     /// <remarks>
     /// Each per-file <c>&lt;ClassName&gt;Log</c> class allocates its event ids relative to the

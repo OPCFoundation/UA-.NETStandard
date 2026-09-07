@@ -49,7 +49,7 @@ so call sites bind:
   to `SecurityPolicies.Default` and produce `CS0618`. No analyzer currently
   reports UA0029; migrate to the application's `ISecurityPolicyRegistry`.
 - `GlobalDiscoverySampleServer` 1.5.378-shape ctor (in-tree at
-  `src/Opc.Ua.Gds.Server.Common/GlobalDiscoverySampleServer.cs`) — the 5-arg
+  `src/Opc.Ua.Gds.Server/GlobalDiscoverySampleServer.cs`) — the 5-arg
   variant without `ITelemetryContext`
 
 ### Conversion helpers

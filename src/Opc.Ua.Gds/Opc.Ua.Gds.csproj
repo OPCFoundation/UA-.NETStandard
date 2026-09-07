@@ -1,8 +1,8 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <AssemblyName>$(AssemblyPrefix).Gds.Common</AssemblyName>
+    <AssemblyName>$(AssemblyPrefix).Gds</AssemblyName>
     <TargetFrameworks>$(LibTargetFrameworks)</TargetFrameworks>
-    <PackageId>$(PackagePrefix).Opc.Ua.Gds.Common</PackageId>
+    <PackageId>$(PackagePrefix).Opc.Ua.Gds</PackageId>
     <RootNamespace>Opc.Ua.Gds</RootNamespace>
     <NoWarn>$(NoWarn);CS1591</NoWarn>
     <Nullable>enable</Nullable>

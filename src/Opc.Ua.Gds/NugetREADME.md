@@ -1,10 +1,10 @@
 # OPC UA .NET Standard — GDS common types
 
-`OPCFoundation.NetStandard.Opc.Ua.Gds.Common` contains the shared
+`OPCFoundation.NetStandard.Opc.Ua.Gds` contains the shared
 information model and DataType definitions used by the OPC UA Global
 Discovery Server (GDS) — OPC 10000-12 (Part 12) — and the OPC 10000-21
 Onboarding companion model. It is the type-only contract that the client
-(`Opc.Ua.Gds.Client.Common`) and server (`Opc.Ua.Gds.Server.Common`) GDS
+(`Opc.Ua.Gds.Client`) and server (`Opc.Ua.Gds.Server`) GDS
 packages depend on.
 
 ## Overview
