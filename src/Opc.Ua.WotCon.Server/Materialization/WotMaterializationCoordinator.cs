@@ -148,6 +148,11 @@ namespace Opc.Ua.WotCon.Server.Materialization
 
                     var targetKeys = new HashSet<string>(
                         closures.Select(c => c.Key), StringComparer.Ordinal);
+                    var declarationContext = new WotProjectionDeclarationContext(
+                        snapshot, m_converterOptions.MaxJsonDepth,
+                        (version, token) => ReadCachedContentAsync(contentCache, version, token),
+                        m_converterOptions.MaxNodeCount);
+                    declarationContext.AddAvailableNativePartitions(contentCache, m_converterOptions, cancellationToken);
 
                     uint newGeneration = m_generation + 1;
                     ImmutableArray<WoTResourceLoadResultDataType>.Builder results =
@@ -177,7 +182,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
 
                         ClosureOutcome outcome = await ProcessClosureAsync(
                             snapshot, closure, newGeneration, force && inScope,
-                            dryRun, strict, contentCache, cancellationToken).ConfigureAwait(false);
+                            dryRun, strict, contentCache, declarationContext, cancellationToken).ConfigureAwait(false);
 
                         foreach (WoTResourceLoadResultDataType result in outcome.Results)
                         {
@@ -532,6 +537,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
             bool dryRun,
             bool strict,
             Dictionary<string, ByteString> contentCache,
+            WotProjectionDeclarationContext declarationContext,
             CancellationToken cancellationToken)
         {
             ImmutableArray<WoTResourceLoadResultDataType>.Builder results =
@@ -579,8 +585,11 @@ namespace Opc.Ua.WotCon.Server.Materialization
             var perMemberNodeCount = new Dictionary<string, int>(StringComparer.Ordinal);
             var perMemberRoot = new Dictionary<string, ExpandedNodeId>(StringComparer.Ordinal);
             var bindingPlans = new List<WotBindingPlan>();
+            var preparedPlans = new List<(WotResource Resource, WotBindingPlanRequest Request)>();
+            var convertedSources = new List<(string Name, UANodeSet Nodes, ByteString Content)>();
             var projectionMembers = new List<WotResource>();
             bool degraded = false;
+            var degradationReasons = new List<string>();
             var requiredNamespaces = new HashSet<string>(StringComparer.Ordinal);
             var ownedNamespaces = new HashSet<string>(StringComparer.Ordinal);
 
@@ -643,45 +652,35 @@ namespace Opc.Ua.WotCon.Server.Materialization
                     return new ClosureOutcome(results.ToImmutable(), projections);
                 }
 
-                WotBindingPlan plan = m_binders.Prepare(
-                    await BuildPlanRequestAsync(
-                            member, version, memberContent, snapshot, contentCache,
-                            cancellationToken)
-                        .ConfigureAwait(false));
-                bindingPlans.Add(plan);
-                if (!plan.FullySupported)
-                {
-                    if (strict)
-                    {
-                        const string reason = "Unsupported binding forms in a strict closure.";
-                        results.Add(FailResult(
-                            member, generation, WoTPhaseEnum.Projection, reason));
-                        projections.Add(FailProjection(member, reason));
-                        RaiseBindingFailure(member, reason);
-                        return new ClosureOutcome(results.ToImmutable(), projections);
-                    }
-                    degraded = true;
-                    RaiseBindingFailure(member,
-                        "Unsupported binding forms materialized as degraded nodes.");
-                }
-                else if (plan.HasNonExecutableForms)
-                {
-                    // A validated plan whose binding has no runtime executor (for
-                    // example a planner-only protocol): materialize the nodes but
-                    // flag the closure as degraded so callers know they cannot be
-                    // driven yet.
-                    degraded = true;
-                }
+                declarationContext.AddNodeSet(member.Xid, nodeSet, root, memberContent);
+                WotBindingPlanRequest planRequest = (await BuildPlanRequestAsync(
+                    member, version, memberContent, snapshot, contentCache, cancellationToken)
+                    .ConfigureAwait(false))
+                    .WithProjectionRoot(root);
+                preparedPlans.Add((member, planRequest));
 
-                byte[] xml = SerializeNodeSet(nodeSet);
                 perMemberNodeCount[member.Xid] = nodeSet.Items?.Length ?? 0;
                 if (!root.IsNull)
                 {
                     perMemberRoot[member.Xid] = root;
                 }
-                sources.Add(new WotProjectionSource(
-                    member.ResourceId, OwnedModelUris(nodeSet), xml));
+                convertedSources.Add((member.ResourceId, nodeSet, memberContent));
                 CollectRequiredNamespaces(nodeSet, requiredNamespaces, ownedNamespaces);
+            }
+
+            try
+            {
+                sources.AddRange(CoalesceProjectionSources(convertedSources));
+            }
+            catch (ServiceResultException exception)
+            {
+                foreach (WotResource member in members)
+                {
+                    results.Add(FailResult(member, generation, WoTPhaseEnum.Projection, exception.Message));
+                    projections.Add(FailProjection(member, exception.Message));
+                    RaiseLoadFailure(member, generation, exception.Message);
+                }
+                return new ClosureOutcome(results.ToImmutable(), projections);
             }
 
             // Resolve any companion-specification namespace the closure depends on that neither the
@@ -691,7 +690,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
             // with a message naming exactly what is missing.
             (ImmutableArray<WotProjectionSource> resolved, ImmutableArray<string> unresolved) =
                 await ResolveDependencyModelsAsync(
-                        requiredNamespaces, ownedNamespaces, cancellationToken)
+                        requiredNamespaces, ownedNamespaces, declarationContext, cancellationToken)
                     .ConfigureAwait(false);
             if (!resolved.IsDefaultOrEmpty)
             {
@@ -700,11 +699,45 @@ namespace Opc.Ua.WotCon.Server.Materialization
             if (!unresolved.IsDefaultOrEmpty)
             {
                 degraded = true;
+                degradationReasons.Add("Unresolved namespaces: " + string.Join(", ", unresolved));
                 foreach (WotResource member in members)
                 {
                     RaiseBindingFailure(
                         member,
                         "Unresolved dependency namespace(s): " + string.Join(", ", unresolved));
+                }
+            }
+
+            // All converted partitions and resolved models are available before
+            // classifying any root, including ownership across partition order.
+            foreach ((WotResource member, WotBindingPlanRequest request) in preparedPlans)
+            {
+                bool isDeclaration = await declarationContext.IsDeclarationAsync(member, cancellationToken)
+                    .ConfigureAwait(false);
+                WotBindingPlan plan = m_binders.Prepare(request.WithDeclarationContext(isDeclaration));
+                bindingPlans.Add(plan);
+                if (!plan.FullySupported)
+                {
+                    if (strict)
+                    {
+                        const string reason = "Unsupported binding forms in a strict closure.";
+                        results.Add(FailResult(member, generation, WoTPhaseEnum.Projection, reason));
+                        projections.Add(FailProjection(member, reason));
+                        RaiseBindingFailure(member, reason);
+                        return new ClosureOutcome(results.ToImmutable(), projections);
+                    }
+                    degraded = true;
+                    string bindingReason = member.ResourceId + ": unsupported forms for " + string.Join(
+                        ", ", plan.UnsupportedForms.Select(form => form.AffordanceName).Distinct().Take(3));
+                    degradationReasons.Add(bindingReason);
+                    RaiseBindingFailure(member, bindingReason);
+                }
+                else if (!isDeclaration && plan.HasNonExecutableForms)
+                {
+                    degraded = true;
+                    degradationReasons.Add(member.ResourceId + ": no executor for " + string.Join(
+                        ", ", plan.CompiledForms.Where(form => !form.IsExecutable)
+                            .Select(form => form.AffordanceName).Distinct().Take(3)));
                 }
             }
 
@@ -874,7 +907,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
                     ContentDigest = DigestOf(member),
                     Message = projectionWarning.Length != 0
                         ? "Projected with warning: " + projectionWarning
-                        : degraded ? "Projected with degraded bindings." : "Projected."
+                        : degraded ? DescribeDegradedBindings(degradationReasons) : "Projected."
                 });
                 projections.Add(new WotResourceProjection(
                     member.GroupId,
@@ -1408,6 +1441,64 @@ namespace Opc.Ua.WotCon.Server.Materialization
             return stream.ToArray();
         }
 
+        private static string DescribeDegradedBindings(List<string> reasons)
+        {
+            string detail = string.Join("; ", reasons.Take(3));
+            if (detail.Length > 1024)
+            {
+                detail = detail[..1024] + "...";
+            }
+            return "Projected with degraded bindings: " + detail +
+                (reasons.Count > 3 ? "; see BindingFailure events for additional resources." : string.Empty);
+        }
+
+        private ImmutableArray<WotProjectionSource> CoalesceProjectionSources(
+            List<(string Name, UANodeSet Nodes, ByteString Content)> converted)
+        {
+            var result = ImmutableArray.CreateBuilder<WotProjectionSource>();
+            foreach (var group in converted.GroupBy(source => string.Join(
+                "\u001f", OwnedModelUris(source.Nodes).OrderBy(uri => uri, StringComparer.Ordinal))))
+            {
+                var partitions = group.ToList();
+                (string name, UANodeSet first, _) = partitions[0];
+                if (partitions.Count == 1)
+                {
+                    result.Add(new WotProjectionSource(name, OwnedModelUris(first), SerializeNodeSet(first)));
+                    continue;
+                }
+                var entries = new List<WotDocumentSetEntry>();
+                try
+                {
+                    foreach (var partition in partitions)
+                    {
+                        entries.Add(new WotDocumentSetEntry(
+                            partition.Name, WotDocument.Parse(partition.Content.Memory, m_converterOptions)));
+                    }
+                    using var documents = new WotDocumentSet(name, entries.ToArrayOf());
+                    entries.Clear();
+                    WotConversionResult<UANodeSet> merged = WotNodeSetConverter.MergeNodeSetPartitions(
+                        documents, partitions.Select(partition => partition.Nodes).ToArrayOf(), m_converterOptions);
+                    if (!merged.Success || merged.Value is null)
+                    {
+                        throw new ServiceResultException(
+                            StatusCodes.BadConfigurationError,
+                            "Linked model partitions conflict: " +
+                            string.Join("; ", merged.Diagnostics.Select(diagnostic => diagnostic.Message)));
+                    }
+                    result.Add(new WotProjectionSource(
+                        name, OwnedModelUris(merged.Value), SerializeNodeSet(merged.Value)));
+                }
+                finally
+                {
+                    foreach (WotDocumentSetEntry entry in entries)
+                    {
+                        entry.Dispose();
+                    }
+                }
+            }
+            return result.ToImmutable();
+        }
+
         private static ImmutableArray<string> OwnedModelUris(UANodeSet nodeSet)
         {
             if (nodeSet.Models is { Length: > 0 })
@@ -1481,6 +1572,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
             ImmutableArray<string> Unresolved)> ResolveDependencyModelsAsync(
             HashSet<string> required,
             HashSet<string> owned,
+            WotProjectionDeclarationContext declarationContext,
             CancellationToken cancellationToken)
         {
             var pending = new Queue<string>();
@@ -1543,6 +1635,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
                     continue;
                 }
 
+                declarationContext.AddDependencyNodeSet(dependency);
                 foreach (string ownedUri in OwnedModelUris(dependency))
                 {
                     owned.Add(ownedUri);

@@ -28,7 +28,9 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using NUnit.Framework;
@@ -133,6 +135,124 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
             await AddTargetAsync().ConfigureAwait(false);
 
             await AssertSymmetricAsync().ConfigureAwait(false);
+        }
+
+        [TestCase("UAObjectType", "i=58", "")]
+        [TestCase("UAVariableType", "i=63", " DataType=\"i=12\"")]
+        [TestCase("UADataType", "i=6", "")]
+        [TestCase("UAReferenceType", "i=33", "")]
+        public async Task DerivedTypesCanPrecedeTheirSupertypesInTheSource(
+            string nodeClass, string baseType, string attributes)
+        {
+            string xml = $"""
+                <UANodeSet xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd">
+                  <NamespaceUris><Uri>{kSourceNamespaceUri}</Uri></NamespaceUris>
+                  <Models><Model ModelUri="{kSourceNamespaceUri}" /></Models>
+                  <{nodeClass} NodeId="ns=1;i=2" BrowseName="1:Derived"{attributes}>
+                    <DisplayName>Derived</DisplayName>
+                    <References><Reference ReferenceType="i=45" IsForward="false">ns=1;i=1</Reference></References>
+                  </{nodeClass}>
+                  <{nodeClass} NodeId="ns=1;i=1" BrowseName="1:Parent"{attributes}>
+                    <DisplayName>Parent</DisplayName>
+                    <References><Reference ReferenceType="i=45" IsForward="false">{baseType}</Reference></References>
+                  </{nodeClass}>
+                </UANodeSet>
+                """;
+
+            await m_server.NodeManagerLifecycle.AddRuntimeNodeSetAsync(
+                CreateOptions(kSourceNamespaceUri, xml), null).ConfigureAwait(false);
+
+            IServerInternal server = m_server.CurrentInstance;
+            ushort ns = checked((ushort)server.NamespaceUris.GetIndex(kSourceNamespaceUri));
+            var parent = new NodeId(1, ns);
+            var derived = new NodeId(2, ns);
+            Assert.That(server.TypeTree.FindSuperType(derived), Is.EqualTo(parent));
+            Assert.That(server.TypeTree.IsTypeOf(derived, NodeId.Parse(baseType)), Is.True);
+            Assert.That(await server.NodeManager.FindNodeInAddressSpaceAsync(derived).ConfigureAwait(false),
+                Is.Not.Null);
+        }
+
+        [Test]
+        public void TypeInheritanceCyclesAreRejectedBeforeRegistration()
+        {
+            string xml = $"""
+                <UANodeSet xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd">
+                  <NamespaceUris><Uri>{kSourceNamespaceUri}</Uri></NamespaceUris>
+                  <Models><Model ModelUri="{kSourceNamespaceUri}" /></Models>
+                  <UAObjectType NodeId="ns=1;i=1" BrowseName="1:First">
+                    <References><Reference ReferenceType="i=45" IsForward="false">ns=1;i=2</Reference></References>
+                  </UAObjectType>
+                  <UAObjectType NodeId="ns=1;i=2" BrowseName="1:Second">
+                    <References><Reference ReferenceType="i=45" IsForward="false">ns=1;i=1</Reference></References>
+                  </UAObjectType>
+                </UANodeSet>
+                """;
+
+            ServiceResultException failure = Assert.ThrowsAsync<ServiceResultException>(
+                async () => await m_server.NodeManagerLifecycle.AddRuntimeNodeSetAsync(
+                    CreateOptions(kSourceNamespaceUri, xml), null).ConfigureAwait(false));
+
+            Assert.That(failure.StatusCode, Is.EqualTo(StatusCodes.BadTypeDefinitionInvalid));
+            Assert.That(failure.Message, Does.Contain("cycle"));
+        }
+
+        [TestCase("InputArguments")]
+        [TestCase("OutputArguments")]
+        public async Task ImportedArgumentPropertiesPopulateTheMethodSignature(string argumentName)
+        {
+            string xml = $"""
+                <UANodeSet xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd"
+                           xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd">
+                  <NamespaceUris><Uri>{kSourceNamespaceUri}</Uri></NamespaceUris>
+                  <Models><Model ModelUri="{kSourceNamespaceUri}" /></Models>
+                  <UAObject NodeId="ns=1;i=1" BrowseName="1:Owner">
+                    <References>
+                      <Reference ReferenceType="i=40">i=58</Reference>
+                      <Reference ReferenceType="i=47">ns=1;i=2</Reference>
+                    </References>
+                  </UAObject>
+                  <UAMethod NodeId="ns=1;i=2" BrowseName="1:Call" ParentNodeId="ns=1;i=1">
+                    <References><Reference ReferenceType="i=46">ns=1;i=3</Reference></References>
+                  </UAMethod>
+                  <UAVariable NodeId="ns=1;i=3" BrowseName="{argumentName}" ParentNodeId="ns=1;i=2"
+                              DataType="i=296" ValueRank="1" ArrayDimensions="1">
+                    <References><Reference ReferenceType="i=40">i=68</Reference></References>
+                    <Value>
+                      <uax:ListOfExtensionObject>
+                        <uax:ExtensionObject>
+                          <uax:TypeId><uax:Identifier>i=297</uax:Identifier></uax:TypeId>
+                          <uax:Body>
+                            <uax:Argument>
+                              <uax:Name>EventId</uax:Name>
+                              <uax:DataType><uax:Identifier>i=15</uax:Identifier></uax:DataType>
+                              <uax:ValueRank>-1</uax:ValueRank>
+                              <uax:ArrayDimensions />
+                            </uax:Argument>
+                          </uax:Body>
+                        </uax:ExtensionObject>
+                      </uax:ListOfExtensionObject>
+                    </Value>
+                  </UAVariable>
+                </UANodeSet>
+                """;
+            await m_server.NodeManagerLifecycle.AddRuntimeNodeSetAsync(
+                CreateOptions(kSourceNamespaceUri, xml), null).ConfigureAwait(false);
+            IServerInternal server = m_server.CurrentInstance;
+            ushort ns = checked((ushort)server.NamespaceUris.GetIndex(kSourceNamespaceUri));
+            NodeState node = await server.NodeManager.FindNodeInAddressSpaceAsync(new NodeId(2, ns))
+                .ConfigureAwait(false);
+            Assert.That(node, Is.InstanceOf<MethodState>());
+            var method = (MethodState)node;
+            PropertyState<ArrayOf<Argument>> arguments = argumentName == "InputArguments"
+                ? method.InputArguments : method.OutputArguments;
+            Assert.That(arguments, Is.Not.Null);
+            Assert.That(arguments.NodeId, Is.EqualTo(new NodeId(3, ns)));
+            Assert.That(arguments.Value.Count, Is.EqualTo(1));
+            Assert.That(arguments.Value[0].Name, Is.EqualTo("EventId"));
+            Assert.That(arguments.Value[0].DataType, Is.EqualTo(DataTypeIds.ByteString));
+            var children = new List<BaseInstanceState>();
+            method.GetChildren(server.DefaultSystemContext, children);
+            Assert.That(children.Count(child => child.BrowseName.Name == argumentName), Is.EqualTo(1));
         }
 
         private async Task AssertSymmetricAsync()
