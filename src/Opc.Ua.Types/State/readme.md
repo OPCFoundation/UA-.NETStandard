@@ -121,6 +121,14 @@ sequenceDiagram
 
 ### Memory Layout: Optional Metadata and Security
 
+`BaseVariableState.Initialize(ITelemetryContext)` retains the factory's non-generic
+logger for the exact category `Opc.Ua.BaseVariableState`. Logger sharing follows the
+factory's own cache policy; each initialization consults the supplied factory, including
+reinitialization with a different context. Nodes borrow the logger and factory without
+taking disposal ownership. The existing telemetry fallback and public typed
+`CreateLogger<T>()` contract are unchanged. This avoids a per-initialization typed wrapper,
+not the node's logger field; bare nodes that never enter this initializer are unaffected.
+
 Six design properties (`Extensions`, `Categories`, `ReleaseStatus`, `Specification`,
 `NodeSetDocumentation`, `DesignToolOnly`) share a private metadata bag. `RolePermissions`,
 `UserRolePermissions`, and `AccessRestrictions` share a separate private security bag.

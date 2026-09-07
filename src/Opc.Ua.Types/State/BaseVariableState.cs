@@ -71,7 +71,7 @@ namespace Opc.Ua
         /// </summary>
         protected override void Initialize(ITelemetryContext telemetry)
         {
-            m_logger = telemetry.CreateLogger<BaseVariableState>();
+            m_logger = telemetry.CreateLogger(typeof(BaseVariableState).FullName!);
             base.Initialize(telemetry);
         }
 
