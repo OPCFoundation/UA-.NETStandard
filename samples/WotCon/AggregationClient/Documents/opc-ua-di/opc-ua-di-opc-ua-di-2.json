@@ -1,1 +1,879 @@
-{"@context":["https://www.w3.org/2022/wot/td/v1.1",{"ns1":"http://opcfoundation.org/UA/DI/","ua":"http://opcfoundation.org/UA/","uav":"http://opcfoundation.org/UA/WoT-Binding/"}],"@type":"uav:variable","links":[{"href":"i=72","rel":"ua:HasTypeDefinition"}],"properties":{"Deprecated":{"@type":"uav:variable","const":true,"links":[{"href":"i=68","rel":"ua:HasTypeDefinition"}],"observable":true,"readOnly":true,"title":"Deprecated","type":"boolean","uav:browseName":"Deprecated","uav:id":"nsu=http://opcfoundation.org/UA/DI/;i=15902","uav:mapToType":"i=1"},"FetchResultDataType":{"@type":"uav:variable","const":"//xs:element[@name='FetchResultDataType']","links":[{"href":"i=69","rel":"ua:HasTypeDefinition"}],"observable":true,"readOnly":true,"title":"FetchResultDataType","type":"string","uav:browseName":"ns1:FetchResultDataType","uav:id":"nsu=http://opcfoundation.org/UA/DI/;i=6539","uav:mapToType":"i=12"},"NamespaceUri":{"@type":"uav:variable","const":"http://opcfoundation.org/UA/DI/Types.xsd","links":[{"href":"i=68","rel":"ua:HasTypeDefinition"}],"observable":true,"readOnly":true,"title":"NamespaceUri","type":"string","uav:browseName":"NamespaceUri","uav:id":"nsu=http://opcfoundation.org/UA/DI/;i=6425","uav:mapToType":"i=12"},"ParameterResultDataType":{"@type":"uav:variable","const":"//xs:element[@name='ParameterResultDataType']","links":[{"href":"i=69","rel":"ua:HasTypeDefinition"}],"observable":true,"readOnly":true,"title":"ParameterResultDataType","type":"string","uav:browseName":"ns1:ParameterResultDataType","uav:id":"nsu=http://opcfoundation.org/UA/DI/;i=6548","uav:mapToType":"i=12"},"TransferResultDataDataType":{"@type":"uav:variable","const":"//xs:element[@name='TransferResultDataDataType']","links":[{"href":"i=69","rel":"ua:HasTypeDefinition"}],"observable":true,"readOnly":true,"title":"TransferResultDataDataType","type":"string","uav:browseName":"ns1:TransferResultDataDataType","uav:id":"nsu=http://opcfoundation.org/UA/DI/;i=15906","uav:mapToType":"i=12"},"TransferResultErrorDataType":{"@type":"uav:variable","const":"//xs:element[@name='TransferResultErrorDataType']","links":[{"href":"i=69","rel":"ua:HasTypeDefinition"}],"observable":true,"readOnly":true,"title":"TransferResultErrorDataType","type":"string","uav:browseName":"ns1:TransferResultErrorDataType","uav:id":"nsu=http://opcfoundation.org/UA/DI/;i=15903","uav:mapToType":"i=12"}},"title":"Opc.Ua.Di","uav:bindingVersion":"1.1","uav:browseName":"ns1:Opc.Ua.Di","uav:dataTypeDefinitions":[{"@id":"nsu=http://opcfoundation.org/UA/DI/;i=6244","@type":"uav:EnumDefinition","title":"DeviceHealthEnumeration","uav:dataTypeId":"nsu=http://opcfoundation.org/UA/DI/;i=6244","uav:dataTypeName":"ns1:DeviceHealthEnumeration","uav:dataTypeSubtypeOf":{"uav:dataTypeId":"i=29"},"uav:enumFields":[{"@type":"uav:EnumField","description":"This device functions normally.","uav:enumName":"NORMAL","uav:enumValue":0},{"@type":"uav:EnumField","description":"Malfunction of the device or any of its peripherals.","uav:enumName":"FAILURE","uav:enumValue":1},{"@type":"uav:EnumField","description":"Functional checks are currently performed.","uav:enumName":"CHECK_FUNCTION","uav:enumValue":2},{"@type":"uav:EnumField","description":"The device is currently working outside of its specified range or that internal diagnoses indicate deviations from measured or set values.","uav:enumName":"OFF_SPEC","uav:enumValue":3},{"@type":"uav:EnumField","description":"This element is working, but a maintenance operation is required.","uav:enumName":"MAINTENANCE_REQUIRED","uav:enumValue":4}],"uav:isOptionSet":false},{"@id":"nsu=http://opcfoundation.org/UA/DI/;i=6522","@type":"uav:StructureDefinition","title":"FetchResultDataType","uav:binaryEncodingId":"nsu=http://opcfoundation.org/UA/DI/;i=6551","uav:dataTypeId":"nsu=http://opcfoundation.org/UA/DI/;i=6522","uav:dataTypeName":"ns1:FetchResultDataType","uav:dataTypeSubtypeOf":{"uav:dataTypeId":"i=22"},"uav:fields":[],"uav:isAbstract":true,"uav:jsonEncodingId":"nsu=http://opcfoundation.org/UA/DI/;i=15909","uav:structureType":"Structure","uav:xmlEncodingId":"nsu=http://opcfoundation.org/UA/DI/;i=6535"},{"@id":"nsu=http://opcfoundation.org/UA/DI/;i=15888","@type":"uav:StructureDefinition","title":"TransferResultErrorDataType","uav:binaryEncodingId":"nsu=http://opcfoundation.org/UA/DI/;i=15891","uav:dataTypeId":"nsu=http://opcfoundation.org/UA/DI/;i=15888","uav:dataTypeName":"ns1:TransferResultErrorDataType","uav:dataTypeSubtypeOf":{"uav:dataTypeId":"nsu=http://opcfoundation.org/UA/DI/;i=6522"},"uav:fields":[{"@type":"uav:StructureField","uav:allowSubtypes":false,"uav:fieldDataTypeId":"i=6","uav:fieldName":"Status","uav:isOptional":false,"uav:valueRank":-1},{"@type":"uav:StructureField","uav:allowSubtypes":false,"uav:fieldDataTypeId":"i=25","uav:fieldName":"Diagnostics","uav:isOptional":false,"uav:valueRank":-1}],"uav:jsonEncodingId":"nsu=http://opcfoundation.org/UA/DI/;i=15910","uav:structureType":"Structure","uav:xmlEncodingId":"nsu=http://opcfoundation.org/UA/DI/;i=15900"},{"@id":"nsu=http://opcfoundation.org/UA/DI/;i=15889","@type":"uav:StructureDefinition","title":"TransferResultDataDataType","uav:binaryEncodingId":"nsu=http://opcfoundation.org/UA/DI/;i=15892","uav:dataTypeId":"nsu=http://opcfoundation.org/UA/DI/;i=15889","uav:dataTypeName":"ns1:TransferResultDataDataType","uav:dataTypeSubtypeOf":{"uav:dataTypeId":"nsu=http://opcfoundation.org/UA/DI/;i=6522"},"uav:fields":[{"@type":"uav:StructureField","uav:allowSubtypes":false,"uav:fieldDataTypeId":"i=6","uav:fieldName":"SequenceNumber","uav:isOptional":false,"uav:valueRank":-1},{"@type":"uav:StructureField","uav:allowSubtypes":false,"uav:fieldDataTypeId":"i=1","uav:fieldName":"EndOfResults","uav:isOptional":false,"uav:valueRank":-1},{"@type":"uav:StructureField","uav:allowSubtypes":false,"uav:fieldDataTypeId":"nsu=http://opcfoundation.org/UA/DI/;i=6525","uav:fieldName":"ParameterDefs","uav:isOptional":false,"uav:valueRank":1}],"uav:jsonEncodingId":"nsu=http://opcfoundation.org/UA/DI/;i=15911","uav:structureType":"Structure","uav:xmlEncodingId":"nsu=http://opcfoundation.org/UA/DI/;i=15901"},{"@id":"nsu=http://opcfoundation.org/UA/DI/;i=6525","@type":"uav:StructureDefinition","title":"ParameterResultDataType","uav:binaryEncodingId":"nsu=http://opcfoundation.org/UA/DI/;i=6554","uav:dataTypeId":"nsu=http://opcfoundation.org/UA/DI/;i=6525","uav:dataTypeName":"ns1:ParameterResultDataType","uav:dataTypeSubtypeOf":{"uav:dataTypeId":"i=22"},"uav:fields":[{"@type":"uav:StructureField","uav:allowSubtypes":false,"uav:fieldDataTypeId":"i=20","uav:fieldName":"NodePath","uav:isOptional":false,"uav:valueRank":1},{"@type":"uav:StructureField","uav:allowSubtypes":false,"uav:fieldDataTypeId":"i=19","uav:fieldName":"StatusCode","uav:isOptional":false,"uav:valueRank":-1},{"@type":"uav:StructureField","uav:allowSubtypes":false,"uav:fieldDataTypeId":"i=25","uav:fieldName":"Diagnostics","uav:isOptional":false,"uav:valueRank":-1}],"uav:jsonEncodingId":"nsu=http://opcfoundation.org/UA/DI/;i=15912","uav:structureType":"Structure","uav:xmlEncodingId":"nsu=http://opcfoundation.org/UA/DI/;i=6538"},{"@id":"nsu=http://opcfoundation.org/UA/DI/;i=408","@type":"uav:EnumDefinition","title":"SoftwareClass","uav:dataTypeId":"nsu=http://opcfoundation.org/UA/DI/;i=408","uav:dataTypeName":"ns1:SoftwareClass","uav:dataTypeSubtypeOf":{"uav:dataTypeId":"i=29"},"uav:enumFields":[{"@type":"uav:EnumField","description":"The software update is used for the firmware of a physical device.","uav:enumName":"Firmware","uav:enumValue":0},{"@type":"uav:EnumField","description":"The software update is used for an executable software.","uav:enumName":"Application","uav:enumValue":1},{"@type":"uav:EnumField","description":"The software update is used for the configuration of a device or application.","uav:enumName":"Configuration","uav:enumValue":2},{"@type":"uav:EnumField","description":"The software update is used to install a solution with several software package to several components.","uav:enumName":"Solution","uav:enumValue":3}],"uav:isOptionSet":false},{"@id":"nsu=http://opcfoundation.org/UA/DI/;i=410","@type":"uav:EnumDefinition","title":"LocationIndicationType","uav:dataTypeId":"nsu=http://opcfoundation.org/UA/DI/;i=410","uav:dataTypeName":"ns1:LocationIndicationType","uav:dataTypeSubtypeOf":{"uav:dataTypeId":"i=5"},"uav:enumFields":[{"@type":"uav:EnumField","description":"Location indication through optical signals, such as blinking LEDs, if supported by the device.","uav:enumName":"Visual","uav:enumValue":0},{"@type":"uav:EnumField","description":"Location indication through auditory signals, such as sounds or beeps, if supported by the device.","uav:enumName":"Audible","uav:enumValue":1}],"uav:isOptionSet":true},{"@id":"nsu=http://opcfoundation.org/UA/DI/;i=331","@type":"uav:EnumDefinition","title":"SoftwareVersionFileType","uav:dataTypeId":"nsu=http://opcfoundation.org/UA/DI/;i=331","uav:dataTypeName":"ns1:SoftwareVersionFileType","uav:dataTypeSubtypeOf":{"uav:dataTypeId":"i=29"},"uav:enumFields":[{"@type":"uav:EnumField","description":"The currently used version of the software identified by the CurrentVersion Object.","uav:enumName":"Current","uav:enumValue":0},{"@type":"uav:EnumField","description":"The pending version of the software that could be installed identified by the PendingVersion Object.","uav:enumName":"Pending","uav:enumValue":1},{"@type":"uav:EnumField","description":"The fallback version of the software identified by the FallbackVersion Object.","uav:enumName":"Fallback","uav:enumValue":2}],"uav:isOptionSet":false},{"@id":"nsu=http://opcfoundation.org/UA/DI/;i=333","@type":"uav:EnumDefinition","title":"UpdateBehavior","uav:dataTypeId":"nsu=http://opcfoundation.org/UA/DI/;i=333","uav:dataTypeName":"ns1:UpdateBehavior","uav:dataTypeSubtypeOf":{"uav:dataTypeId":"i=7"},"uav:enumFields":[{"@type":"uav:EnumField","description":"If KeepsParameters is not set, the device will lose its configuration during update. The Client should do a backup of the parameters before the update and restore them afterwards.","uav:enumName":"KeepsParameters","uav:enumValue":0},{"@type":"uav:EnumField","description":"If WillDisconnect is set, the OPC UA Server will restart during installation. This can be the case if the update is about the firmware of the device that hosts the OPC UA Server.","uav:enumName":"WillDisconnect","uav:enumValue":1},{"@type":"uav:EnumField","description":"If RequiresPowerCycle is set, the devices require a manual power off / power on for installation.","uav:enumName":"RequiresPowerCycle","uav:enumValue":2},{"@type":"uav:EnumField","description":"If WillReboot is set, the device will reboot during the update, inclusive of embedded infrastructure elements like an integrated switch. An update Client should take this into account since the devices behind an integrated switch are not reachable for that time.","uav:enumName":"WillReboot","uav:enumValue":3},{"@type":"uav:EnumField","description":"If NeedsPreparation is not set, the Client can install the update without maintaining the PrepareForUpdateStateMachine. This can be used to support an installation without stopping the software.","uav:enumName":"NeedsPreparation","uav:enumValue":4}],"uav:isOptionSet":true}],"uav:id":"nsu=http://opcfoundation.org/UA/DI/;i=6423"}
+{
+  "@context": [
+    "https://www.w3.org/2022/wot/td/v1.1",
+    {
+      "ns1": "http://opcfoundation.org/UA/DI/",
+      "ua": "http://opcfoundation.org/UA/",
+      "uav": "http://opcfoundation.org/UA/WoT-Binding/"
+    },
+    "http://opcfoundation.org/UA/WoT-Binding/v1.1/opc-ua-wot-binding.context.jsonld"
+  ],
+  "@type": "uav:variable",
+  "links": [
+    {
+      "href": "i=72",
+      "rel": "ua:HasTypeDefinition"
+    }
+  ],
+  "properties": {
+    "Deprecated": {
+      "@type": "uav:variable",
+      "const": true,
+      "links": [
+        {
+          "href": "i=68",
+          "rel": "ua:HasTypeDefinition"
+        }
+      ],
+      "observable": true,
+      "readOnly": true,
+      "title": "Deprecated",
+      "type": "boolean",
+      "uav:browseName": "Deprecated",
+      "uav:id": "nsu=http://opcfoundation.org/UA/DI/;i=15902",
+      "uav:mapToType": "i=1"
+    },
+    "FetchResultDataType": {
+      "@type": "uav:variable",
+      "const": "//xs:element[@name='FetchResultDataType']",
+      "links": [
+        {
+          "href": "i=69",
+          "rel": "ua:HasTypeDefinition"
+        }
+      ],
+      "observable": true,
+      "readOnly": true,
+      "title": "FetchResultDataType",
+      "type": "string",
+      "uav:browseName": "ns1:FetchResultDataType",
+      "uav:id": "nsu=http://opcfoundation.org/UA/DI/;i=6539",
+      "uav:mapToType": "i=12"
+    },
+    "NamespaceUri": {
+      "@type": "uav:variable",
+      "const": "http://opcfoundation.org/UA/DI/Types.xsd",
+      "links": [
+        {
+          "href": "i=68",
+          "rel": "ua:HasTypeDefinition"
+        }
+      ],
+      "observable": true,
+      "readOnly": true,
+      "title": "NamespaceUri",
+      "type": "string",
+      "uav:browseName": "NamespaceUri",
+      "uav:id": "nsu=http://opcfoundation.org/UA/DI/;i=6425",
+      "uav:mapToType": "i=12"
+    },
+    "ParameterResultDataType": {
+      "@type": "uav:variable",
+      "const": "//xs:element[@name='ParameterResultDataType']",
+      "links": [
+        {
+          "href": "i=69",
+          "rel": "ua:HasTypeDefinition"
+        }
+      ],
+      "observable": true,
+      "readOnly": true,
+      "title": "ParameterResultDataType",
+      "type": "string",
+      "uav:browseName": "ns1:ParameterResultDataType",
+      "uav:id": "nsu=http://opcfoundation.org/UA/DI/;i=6548",
+      "uav:mapToType": "i=12"
+    },
+    "TransferResultDataDataType": {
+      "@type": "uav:variable",
+      "const": "//xs:element[@name='TransferResultDataDataType']",
+      "links": [
+        {
+          "href": "i=69",
+          "rel": "ua:HasTypeDefinition"
+        }
+      ],
+      "observable": true,
+      "readOnly": true,
+      "title": "TransferResultDataDataType",
+      "type": "string",
+      "uav:browseName": "ns1:TransferResultDataDataType",
+      "uav:id": "nsu=http://opcfoundation.org/UA/DI/;i=15906",
+      "uav:mapToType": "i=12"
+    },
+    "TransferResultErrorDataType": {
+      "@type": "uav:variable",
+      "const": "//xs:element[@name='TransferResultErrorDataType']",
+      "links": [
+        {
+          "href": "i=69",
+          "rel": "ua:HasTypeDefinition"
+        }
+      ],
+      "observable": true,
+      "readOnly": true,
+      "title": "TransferResultErrorDataType",
+      "type": "string",
+      "uav:browseName": "ns1:TransferResultErrorDataType",
+      "uav:id": "nsu=http://opcfoundation.org/UA/DI/;i=15903",
+      "uav:mapToType": "i=12"
+    }
+  },
+  "title": "Opc.Ua.Di",
+  "uav:bindingVersion": "1.1",
+  "uav:browseName": "ns1:Opc.Ua.Di",
+  "uav:dataTypeDefinitions": [
+    {
+      "@id": "nsu=http://opcfoundation.org/UA/DI/;i=6244",
+      "@type": "uav:EnumDefinition",
+      "title": "DeviceHealthEnumeration",
+      "uav:dataTypeId": "nsu=http://opcfoundation.org/UA/DI/;i=6244",
+      "uav:dataTypeName": "ns1:DeviceHealthEnumeration",
+      "uav:dataTypeSubtypeOf": {
+        "uav:dataTypeId": "i=29"
+      },
+      "uav:enumFields": [
+        {
+          "@type": "uav:EnumField",
+          "description": "This device functions normally.",
+          "uav:enumName": "NORMAL",
+          "uav:enumValue": 0
+        },
+        {
+          "@type": "uav:EnumField",
+          "description": "Malfunction of the device or any of its peripherals.",
+          "uav:enumName": "FAILURE",
+          "uav:enumValue": 1
+        },
+        {
+          "@type": "uav:EnumField",
+          "description": "Functional checks are currently performed.",
+          "uav:enumName": "CHECK_FUNCTION",
+          "uav:enumValue": 2
+        },
+        {
+          "@type": "uav:EnumField",
+          "description": "The device is currently working outside of its specified range or that internal diagnoses indicate deviations from measured or set values.",
+          "uav:enumName": "OFF_SPEC",
+          "uav:enumValue": 3
+        },
+        {
+          "@type": "uav:EnumField",
+          "description": "This element is working, but a maintenance operation is required.",
+          "uav:enumName": "MAINTENANCE_REQUIRED",
+          "uav:enumValue": 4
+        }
+      ],
+      "uav:isOptionSet": false
+    },
+    {
+      "@id": "nsu=http://opcfoundation.org/UA/DI/;i=6522",
+      "@type": "uav:StructureDefinition",
+      "title": "FetchResultDataType",
+      "uav:binaryEncodingId": "nsu=http://opcfoundation.org/UA/DI/;i=6551",
+      "uav:dataTypeId": "nsu=http://opcfoundation.org/UA/DI/;i=6522",
+      "uav:dataTypeName": "ns1:FetchResultDataType",
+      "uav:dataTypeSubtypeOf": {
+        "uav:dataTypeId": "i=22"
+      },
+      "uav:fields": [],
+      "uav:isAbstract": true,
+      "uav:jsonEncodingId": "nsu=http://opcfoundation.org/UA/DI/;i=15909",
+      "uav:structureType": "Structure",
+      "uav:xmlEncodingId": "nsu=http://opcfoundation.org/UA/DI/;i=6535"
+    },
+    {
+      "@id": "nsu=http://opcfoundation.org/UA/DI/;i=15888",
+      "@type": "uav:StructureDefinition",
+      "title": "TransferResultErrorDataType",
+      "uav:binaryEncodingId": "nsu=http://opcfoundation.org/UA/DI/;i=15891",
+      "uav:dataTypeId": "nsu=http://opcfoundation.org/UA/DI/;i=15888",
+      "uav:dataTypeName": "ns1:TransferResultErrorDataType",
+      "uav:dataTypeSubtypeOf": {
+        "uav:dataTypeId": "nsu=http://opcfoundation.org/UA/DI/;i=6522"
+      },
+      "uav:fields": [
+        {
+          "@type": "uav:StructureField",
+          "uav:allowSubtypes": false,
+          "uav:fieldDataTypeId": "i=6",
+          "uav:fieldName": "Status",
+          "uav:isOptional": false,
+          "uav:valueRank": -1
+        },
+        {
+          "@type": "uav:StructureField",
+          "uav:allowSubtypes": false,
+          "uav:fieldDataTypeId": "i=25",
+          "uav:fieldName": "Diagnostics",
+          "uav:isOptional": false,
+          "uav:valueRank": -1
+        }
+      ],
+      "uav:jsonEncodingId": "nsu=http://opcfoundation.org/UA/DI/;i=15910",
+      "uav:structureType": "Structure",
+      "uav:xmlEncodingId": "nsu=http://opcfoundation.org/UA/DI/;i=15900"
+    },
+    {
+      "@id": "nsu=http://opcfoundation.org/UA/DI/;i=15889",
+      "@type": "uav:StructureDefinition",
+      "title": "TransferResultDataDataType",
+      "uav:binaryEncodingId": "nsu=http://opcfoundation.org/UA/DI/;i=15892",
+      "uav:dataTypeId": "nsu=http://opcfoundation.org/UA/DI/;i=15889",
+      "uav:dataTypeName": "ns1:TransferResultDataDataType",
+      "uav:dataTypeSubtypeOf": {
+        "uav:dataTypeId": "nsu=http://opcfoundation.org/UA/DI/;i=6522"
+      },
+      "uav:fields": [
+        {
+          "@type": "uav:StructureField",
+          "uav:allowSubtypes": false,
+          "uav:fieldDataTypeId": "i=6",
+          "uav:fieldName": "SequenceNumber",
+          "uav:isOptional": false,
+          "uav:valueRank": -1
+        },
+        {
+          "@type": "uav:StructureField",
+          "uav:allowSubtypes": false,
+          "uav:fieldDataTypeId": "i=1",
+          "uav:fieldName": "EndOfResults",
+          "uav:isOptional": false,
+          "uav:valueRank": -1
+        },
+        {
+          "@type": "uav:StructureField",
+          "uav:allowSubtypes": false,
+          "uav:fieldDataTypeId": "nsu=http://opcfoundation.org/UA/DI/;i=6525",
+          "uav:fieldName": "ParameterDefs",
+          "uav:isOptional": false,
+          "uav:valueRank": 1
+        }
+      ],
+      "uav:jsonEncodingId": "nsu=http://opcfoundation.org/UA/DI/;i=15911",
+      "uav:structureType": "Structure",
+      "uav:xmlEncodingId": "nsu=http://opcfoundation.org/UA/DI/;i=15901"
+    },
+    {
+      "@id": "nsu=http://opcfoundation.org/UA/DI/;i=6525",
+      "@type": "uav:StructureDefinition",
+      "title": "ParameterResultDataType",
+      "uav:binaryEncodingId": "nsu=http://opcfoundation.org/UA/DI/;i=6554",
+      "uav:dataTypeId": "nsu=http://opcfoundation.org/UA/DI/;i=6525",
+      "uav:dataTypeName": "ns1:ParameterResultDataType",
+      "uav:dataTypeSubtypeOf": {
+        "uav:dataTypeId": "i=22"
+      },
+      "uav:fields": [
+        {
+          "@type": "uav:StructureField",
+          "uav:allowSubtypes": false,
+          "uav:fieldDataTypeId": "i=20",
+          "uav:fieldName": "NodePath",
+          "uav:isOptional": false,
+          "uav:valueRank": 1
+        },
+        {
+          "@type": "uav:StructureField",
+          "uav:allowSubtypes": false,
+          "uav:fieldDataTypeId": "i=19",
+          "uav:fieldName": "StatusCode",
+          "uav:isOptional": false,
+          "uav:valueRank": -1
+        },
+        {
+          "@type": "uav:StructureField",
+          "uav:allowSubtypes": false,
+          "uav:fieldDataTypeId": "i=25",
+          "uav:fieldName": "Diagnostics",
+          "uav:isOptional": false,
+          "uav:valueRank": -1
+        }
+      ],
+      "uav:jsonEncodingId": "nsu=http://opcfoundation.org/UA/DI/;i=15912",
+      "uav:structureType": "Structure",
+      "uav:xmlEncodingId": "nsu=http://opcfoundation.org/UA/DI/;i=6538"
+    },
+    {
+      "@id": "nsu=http://opcfoundation.org/UA/DI/;i=408",
+      "@type": "uav:EnumDefinition",
+      "title": "SoftwareClass",
+      "uav:dataTypeId": "nsu=http://opcfoundation.org/UA/DI/;i=408",
+      "uav:dataTypeName": "ns1:SoftwareClass",
+      "uav:dataTypeSubtypeOf": {
+        "uav:dataTypeId": "i=29"
+      },
+      "uav:enumFields": [
+        {
+          "@type": "uav:EnumField",
+          "description": "The software update is used for the firmware of a physical device.",
+          "uav:enumName": "Firmware",
+          "uav:enumValue": 0
+        },
+        {
+          "@type": "uav:EnumField",
+          "description": "The software update is used for an executable software.",
+          "uav:enumName": "Application",
+          "uav:enumValue": 1
+        },
+        {
+          "@type": "uav:EnumField",
+          "description": "The software update is used for the configuration of a device or application.",
+          "uav:enumName": "Configuration",
+          "uav:enumValue": 2
+        },
+        {
+          "@type": "uav:EnumField",
+          "description": "The software update is used to install a solution with several software package to several components.",
+          "uav:enumName": "Solution",
+          "uav:enumValue": 3
+        }
+      ],
+      "uav:isOptionSet": false
+    },
+    {
+      "@id": "nsu=http://opcfoundation.org/UA/DI/;i=410",
+      "@type": "uav:EnumDefinition",
+      "title": "LocationIndicationType",
+      "uav:dataTypeId": "nsu=http://opcfoundation.org/UA/DI/;i=410",
+      "uav:dataTypeName": "ns1:LocationIndicationType",
+      "uav:dataTypeSubtypeOf": {
+        "uav:dataTypeId": "i=5"
+      },
+      "uav:enumFields": [
+        {
+          "@type": "uav:EnumField",
+          "description": "Location indication through optical signals, such as blinking LEDs, if supported by the device.",
+          "uav:enumName": "Visual",
+          "uav:enumValue": 0
+        },
+        {
+          "@type": "uav:EnumField",
+          "description": "Location indication through auditory signals, such as sounds or beeps, if supported by the device.",
+          "uav:enumName": "Audible",
+          "uav:enumValue": 1
+        }
+      ],
+      "uav:isOptionSet": true
+    },
+    {
+      "@id": "nsu=http://opcfoundation.org/UA/DI/;i=331",
+      "@type": "uav:EnumDefinition",
+      "title": "SoftwareVersionFileType",
+      "uav:dataTypeId": "nsu=http://opcfoundation.org/UA/DI/;i=331",
+      "uav:dataTypeName": "ns1:SoftwareVersionFileType",
+      "uav:dataTypeSubtypeOf": {
+        "uav:dataTypeId": "i=29"
+      },
+      "uav:enumFields": [
+        {
+          "@type": "uav:EnumField",
+          "description": "The currently used version of the software identified by the CurrentVersion Object.",
+          "uav:enumName": "Current",
+          "uav:enumValue": 0
+        },
+        {
+          "@type": "uav:EnumField",
+          "description": "The pending version of the software that could be installed identified by the PendingVersion Object.",
+          "uav:enumName": "Pending",
+          "uav:enumValue": 1
+        },
+        {
+          "@type": "uav:EnumField",
+          "description": "The fallback version of the software identified by the FallbackVersion Object.",
+          "uav:enumName": "Fallback",
+          "uav:enumValue": 2
+        }
+      ],
+      "uav:isOptionSet": false
+    },
+    {
+      "@id": "nsu=http://opcfoundation.org/UA/DI/;i=333",
+      "@type": "uav:EnumDefinition",
+      "title": "UpdateBehavior",
+      "uav:dataTypeId": "nsu=http://opcfoundation.org/UA/DI/;i=333",
+      "uav:dataTypeName": "ns1:UpdateBehavior",
+      "uav:dataTypeSubtypeOf": {
+        "uav:dataTypeId": "i=7"
+      },
+      "uav:enumFields": [
+        {
+          "@type": "uav:EnumField",
+          "description": "If KeepsParameters is not set, the device will lose its configuration during update. The Client should do a backup of the parameters before the update and restore them afterwards.",
+          "uav:enumName": "KeepsParameters",
+          "uav:enumValue": 0
+        },
+        {
+          "@type": "uav:EnumField",
+          "description": "If WillDisconnect is set, the OPC UA Server will restart during installation. This can be the case if the update is about the firmware of the device that hosts the OPC UA Server.",
+          "uav:enumName": "WillDisconnect",
+          "uav:enumValue": 1
+        },
+        {
+          "@type": "uav:EnumField",
+          "description": "If RequiresPowerCycle is set, the devices require a manual power off / power on for installation.",
+          "uav:enumName": "RequiresPowerCycle",
+          "uav:enumValue": 2
+        },
+        {
+          "@type": "uav:EnumField",
+          "description": "If WillReboot is set, the device will reboot during the update, inclusive of embedded infrastructure elements like an integrated switch. An update Client should take this into account since the devices behind an integrated switch are not reachable for that time.",
+          "uav:enumName": "WillReboot",
+          "uav:enumValue": 3
+        },
+        {
+          "@type": "uav:EnumField",
+          "description": "If NeedsPreparation is not set, the Client can install the update without maintaining the PrepareForUpdateStateMachine. This can be used to support an installation without stopping the software.",
+          "uav:enumName": "NeedsPreparation",
+          "uav:enumValue": 4
+        }
+      ],
+      "uav:isOptionSet": true
+    }
+  ],
+  "uav:id": "nsu=http://opcfoundation.org/UA/DI/;i=6423",
+  "uav:nodes": {
+    "@type": "uav:NodeModel",
+    "aliases": [
+      {
+        "alias": "Boolean",
+        "value": "i=1"
+      },
+      {
+        "alias": "SByte",
+        "value": "i=2"
+      },
+      {
+        "alias": "Byte",
+        "value": "i=3"
+      },
+      {
+        "alias": "Int16",
+        "value": "i=4"
+      },
+      {
+        "alias": "UInt16",
+        "value": "i=5"
+      },
+      {
+        "alias": "Int32",
+        "value": "i=6"
+      },
+      {
+        "alias": "UInt32",
+        "value": "i=7"
+      },
+      {
+        "alias": "Int64",
+        "value": "i=8"
+      },
+      {
+        "alias": "UInt64",
+        "value": "i=9"
+      },
+      {
+        "alias": "Float",
+        "value": "i=10"
+      },
+      {
+        "alias": "Double",
+        "value": "i=11"
+      },
+      {
+        "alias": "DateTime",
+        "value": "i=13"
+      },
+      {
+        "alias": "String",
+        "value": "i=12"
+      },
+      {
+        "alias": "ByteString",
+        "value": "i=15"
+      },
+      {
+        "alias": "Guid",
+        "value": "i=14"
+      },
+      {
+        "alias": "XmlElement",
+        "value": "i=16"
+      },
+      {
+        "alias": "NodeId",
+        "value": "i=17"
+      },
+      {
+        "alias": "ExpandedNodeId",
+        "value": "i=18"
+      },
+      {
+        "alias": "QualifiedName",
+        "value": "i=20"
+      },
+      {
+        "alias": "LocalizedText",
+        "value": "i=21"
+      },
+      {
+        "alias": "StatusCode",
+        "value": "i=19"
+      },
+      {
+        "alias": "Structure",
+        "value": "i=22"
+      },
+      {
+        "alias": "Number",
+        "value": "i=26"
+      },
+      {
+        "alias": "Integer",
+        "value": "i=27"
+      },
+      {
+        "alias": "UInteger",
+        "value": "i=28"
+      },
+      {
+        "alias": "HasComponent",
+        "value": "i=47"
+      },
+      {
+        "alias": "HasProperty",
+        "value": "i=46"
+      },
+      {
+        "alias": "Organizes",
+        "value": "i=35"
+      },
+      {
+        "alias": "HasEventSource",
+        "value": "i=36"
+      },
+      {
+        "alias": "HasNotifier",
+        "value": "i=48"
+      },
+      {
+        "alias": "HasSubtype",
+        "value": "i=45"
+      },
+      {
+        "alias": "HasTypeDefinition",
+        "value": "i=40"
+      },
+      {
+        "alias": "HasModellingRule",
+        "value": "i=37"
+      },
+      {
+        "alias": "HasEncoding",
+        "value": "i=38"
+      },
+      {
+        "alias": "HasDescription",
+        "value": "i=39"
+      },
+      {
+        "alias": "HasCause",
+        "value": "i=53"
+      },
+      {
+        "alias": "ToState",
+        "value": "i=52"
+      },
+      {
+        "alias": "FromState",
+        "value": "i=51"
+      },
+      {
+        "alias": "HasEffect",
+        "value": "i=54"
+      },
+      {
+        "alias": "HasTrueSubState",
+        "value": "i=9004"
+      },
+      {
+        "alias": "HasFalseSubState",
+        "value": "i=9005"
+      },
+      {
+        "alias": "HasDictionaryEntry",
+        "value": "i=17597"
+      },
+      {
+        "alias": "HasCondition",
+        "value": "i=9006"
+      },
+      {
+        "alias": "HasGuard",
+        "value": "i=15112"
+      },
+      {
+        "alias": "HasAddIn",
+        "value": "i=17604"
+      },
+      {
+        "alias": "HasInterface",
+        "value": "i=17603"
+      },
+      {
+        "alias": "GeneratesEvent",
+        "value": "i=41"
+      },
+      {
+        "alias": "AlwaysGeneratesEvent",
+        "value": "i=3065"
+      },
+      {
+        "alias": "HasOrderedComponent",
+        "value": "i=49"
+      },
+      {
+        "alias": "HasAlarmSuppressionGroup",
+        "value": "i=16361"
+      },
+      {
+        "alias": "AlarmGroupMember",
+        "value": "i=16362"
+      },
+      {
+        "alias": "AlarmSuppressionGroupMember",
+        "value": "i=32059"
+      }
+    ],
+    "lastModified": "2025-11-15T00:00:00Z",
+    "models": [
+      {
+        "modelUri": "http://opcfoundation.org/UA/DI/",
+        "modelVersion": "1.5.0",
+        "publicationDate": "2025-11-15T00:00:00Z",
+        "requiredModels": [
+          {
+            "modelUri": "http://opcfoundation.org/UA/",
+            "modelVersion": "1.5.4",
+            "publicationDate": "2025-01-08T00:00:00Z",
+            "version": "1.05.04",
+            "xmlSchemaUri": "http://opcfoundation.org/UA/2008/02/Types.xsd"
+          }
+        ],
+        "version": "1.05.0",
+        "xmlSchemaUri": "http://opcfoundation.org/UA/DI/Types.xsd"
+      }
+    ],
+    "namespaceUris": [
+      "http://opcfoundation.org/UA/DI/"
+    ],
+    "nodes": [
+      {
+        "browseName": "1:Opc.Ua.Di",
+        "dataType": "ByteString",
+        "displayName": [
+          {
+            "value": "Opc.Ua.Di"
+          }
+        ],
+        "nodeClass": "Variable",
+        "nodeId": "ns=1;i=6423",
+        "references": [
+          {
+            "referenceType": "HasProperty",
+            "target": "ns=1;i=6425"
+          },
+          {
+            "referenceType": "HasProperty",
+            "target": "ns=1;i=15902"
+          },
+          {
+            "referenceType": "HasComponent",
+            "target": "ns=1;i=6539"
+          },
+          {
+            "referenceType": "HasComponent",
+            "target": "ns=1;i=15903"
+          },
+          {
+            "referenceType": "HasComponent",
+            "target": "ns=1;i=15906"
+          },
+          {
+            "referenceType": "HasComponent",
+            "target": "ns=1;i=6548"
+          },
+          {
+            "isForward": false,
+            "referenceType": "HasComponent",
+            "target": "i=92"
+          },
+          {
+            "referenceType": "HasTypeDefinition",
+            "target": "i=72"
+          }
+        ],
+        "releaseStatus": "Deprecated",
+        "symbolicName": "OpcUaDi_XmlSchema",
+        "typeDefinition": "i=72",
+        "valueXml": "<ByteString xmlns=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">PHhzOnNjaGVtYQ0KICB4bWxuczp4cz0iaHR0cDovL3d3dy53My5vcmcvMjAwMS9YTUxTY2hlbWEi\nDQogIHhtbG5zOnVhPSJodHRwOi8vb3BjZm91bmRhdGlvbi5vcmcvVUEvMjAwOC8wMi9UeXBlcy54\nc2QiDQogIHhtbG5zOnRucz0iaHR0cDovL29wY2ZvdW5kYXRpb24ub3JnL1VBL0RJL1R5cGVzLnhz\nZCINCiAgdGFyZ2V0TmFtZXNwYWNlPSJodHRwOi8vb3BjZm91bmRhdGlvbi5vcmcvVUEvREkvVHlw\nZXMueHNkIg0KICBlbGVtZW50Rm9ybURlZmF1bHQ9InF1YWxpZmllZCINCj4NCiAgPHhzOmFubm90\nYXRpb24+DQogICAgPHhzOmFwcGluZm8+DQogICAgICA8dWE6TW9kZWwgTW9kZWxVcmk9Imh0dHA6\nLy9vcGNmb3VuZGF0aW9uLm9yZy9VQS9ESS8iIFZlcnNpb249IjEuMDUuMCIgUHVibGljYXRpb25E\nYXRlPSIyMDI1LTExLTE1VDAwOjAwOjAwWiIgLz4NCiAgICA8L3hzOmFwcGluZm8+DQogIDwveHM6\nYW5ub3RhdGlvbj4NCiAgDQogIDx4czppbXBvcnQgbmFtZXNwYWNlPSJodHRwOi8vb3BjZm91bmRh\ndGlvbi5vcmcvVUEvMjAwOC8wMi9UeXBlcy54c2QiIC8+DQoNCiAgPHhzOnNpbXBsZVR5cGUgIG5h\nbWU9IkRldmljZUhlYWx0aEVudW1lcmF0aW9uIj4NCiAgICA8eHM6cmVzdHJpY3Rpb24gYmFzZT0i\neHM6c3RyaW5nIj4NCiAgICAgIDx4czplbnVtZXJhdGlvbiB2YWx1ZT0iTk9STUFMXzAiIC8+DQog\nICAgICA8eHM6ZW51bWVyYXRpb24gdmFsdWU9IkZBSUxVUkVfMSIgLz4NCiAgICAgIDx4czplbnVt\nZXJhdGlvbiB2YWx1ZT0iQ0hFQ0tfRlVOQ1RJT05fMiIgLz4NCiAgICAgIDx4czplbnVtZXJhdGlv\nbiB2YWx1ZT0iT0ZGX1NQRUNfMyIgLz4NCiAgICAgIDx4czplbnVtZXJhdGlvbiB2YWx1ZT0iTUFJ\nTlRFTkFOQ0VfUkVRVUlSRURfNCIgLz4NCiAgICA8L3hzOnJlc3RyaWN0aW9uPg0KICA8L3hzOnNp\nbXBsZVR5cGU+DQogIDx4czplbGVtZW50IG5hbWU9IkRldmljZUhlYWx0aEVudW1lcmF0aW9uIiB0\neXBlPSJ0bnM6RGV2aWNlSGVhbHRoRW51bWVyYXRpb24iIC8+DQoNCiAgPHhzOmNvbXBsZXhUeXBl\nIG5hbWU9Ikxpc3RPZkRldmljZUhlYWx0aEVudW1lcmF0aW9uIj4NCiAgICA8eHM6c2VxdWVuY2U+\nDQogICAgICA8eHM6ZWxlbWVudCBuYW1lPSJEZXZpY2VIZWFsdGhFbnVtZXJhdGlvbiIgdHlwZT0i\ndG5zOkRldmljZUhlYWx0aEVudW1lcmF0aW9uIiBtaW5PY2N1cnM9IjAiIG1heE9jY3Vycz0idW5i\nb3VuZGVkIiAvPg0KICAgIDwveHM6c2VxdWVuY2U+DQogIDwveHM6Y29tcGxleFR5cGU+DQogIDx4\nczplbGVtZW50IG5hbWU9Ikxpc3RPZkRldmljZUhlYWx0aEVudW1lcmF0aW9uIiB0eXBlPSJ0bnM6\nTGlzdE9mRGV2aWNlSGVhbHRoRW51bWVyYXRpb24iIG5pbGxhYmxlPSJ0cnVlIj48L3hzOmVsZW1l\nbnQ+DQoNCiAgPHhzOmNvbXBsZXhUeXBlIG5hbWU9IkZldGNoUmVzdWx0RGF0YVR5cGUiPg0KICAg\nIDx4czpzZXF1ZW5jZT4NCiAgICA8L3hzOnNlcXVlbmNlPg0KICA8L3hzOmNvbXBsZXhUeXBlPg0K\nICA8eHM6ZWxlbWVudCBuYW1lPSJGZXRjaFJlc3VsdERhdGFUeXBlIiB0eXBlPSJ0bnM6RmV0Y2hS\nZXN1bHREYXRhVHlwZSIgLz4NCg0KICA8eHM6Y29tcGxleFR5cGUgbmFtZT0iTGlzdE9mRmV0Y2hS\nZXN1bHREYXRhVHlwZSI+DQogICAgPHhzOnNlcXVlbmNlPg0KICAgICAgPHhzOmVsZW1lbnQgbmFt\nZT0iRmV0Y2hSZXN1bHREYXRhVHlwZSIgdHlwZT0idG5zOkZldGNoUmVzdWx0RGF0YVR5cGUiIG1p\nbk9jY3Vycz0iMCIgbWF4T2NjdXJzPSJ1bmJvdW5kZWQiIG5pbGxhYmxlPSJ0cnVlIiAvPg0KICAg\nIDwveHM6c2VxdWVuY2U+DQogIDwveHM6Y29tcGxleFR5cGU+DQogIDx4czplbGVtZW50IG5hbWU9\nIkxpc3RPZkZldGNoUmVzdWx0RGF0YVR5cGUiIHR5cGU9InRuczpMaXN0T2ZGZXRjaFJlc3VsdERh\ndGFUeXBlIiBuaWxsYWJsZT0idHJ1ZSI+PC94czplbGVtZW50Pg0KDQogIDx4czpjb21wbGV4VHlw\nZSBuYW1lPSJUcmFuc2ZlclJlc3VsdEVycm9yRGF0YVR5cGUiPg0KICAgIDx4czpjb21wbGV4Q29u\ndGVudCBtaXhlZD0iZmFsc2UiPg0KICAgICAgPHhzOmV4dGVuc2lvbiBiYXNlPSJ0bnM6RmV0Y2hS\nZXN1bHREYXRhVHlwZSI+DQogICAgICAgIDx4czpzZXF1ZW5jZT4NCiAgICAgICAgICA8eHM6ZWxl\nbWVudCBuYW1lPSJTdGF0dXMiIHR5cGU9InhzOmludCIgbWluT2NjdXJzPSIwIiAvPg0KICAgICAg\nICAgIDx4czplbGVtZW50IG5hbWU9IkRpYWdub3N0aWNzIiB0eXBlPSJ1YTpEaWFnbm9zdGljSW5m\nbyIgbWluT2NjdXJzPSIwIiBuaWxsYWJsZT0idHJ1ZSIgLz4NCiAgICAgICAgPC94czpzZXF1ZW5j\nZT4NCiAgICAgIDwveHM6ZXh0ZW5zaW9uPg0KICAgIDwveHM6Y29tcGxleENvbnRlbnQ+DQogIDwv\neHM6Y29tcGxleFR5cGU+DQogIDx4czplbGVtZW50IG5hbWU9IlRyYW5zZmVyUmVzdWx0RXJyb3JE\nYXRhVHlwZSIgdHlwZT0idG5zOlRyYW5zZmVyUmVzdWx0RXJyb3JEYXRhVHlwZSIgLz4NCg0KICA8\neHM6Y29tcGxleFR5cGUgbmFtZT0iTGlzdE9mVHJhbnNmZXJSZXN1bHRFcnJvckRhdGFUeXBlIj4N\nCiAgICA8eHM6c2VxdWVuY2U+DQogICAgICA8eHM6ZWxlbWVudCBuYW1lPSJUcmFuc2ZlclJlc3Vs\ndEVycm9yRGF0YVR5cGUiIHR5cGU9InRuczpUcmFuc2ZlclJlc3VsdEVycm9yRGF0YVR5cGUiIG1p\nbk9jY3Vycz0iMCIgbWF4T2NjdXJzPSJ1bmJvdW5kZWQiIG5pbGxhYmxlPSJ0cnVlIiAvPg0KICAg\nIDwveHM6c2VxdWVuY2U+DQogIDwveHM6Y29tcGxleFR5cGU+DQogIDx4czplbGVtZW50IG5hbWU9\nIkxpc3RPZlRyYW5zZmVyUmVzdWx0RXJyb3JEYXRhVHlwZSIgdHlwZT0idG5zOkxpc3RPZlRyYW5z\nZmVyUmVzdWx0RXJyb3JEYXRhVHlwZSIgbmlsbGFibGU9InRydWUiPjwveHM6ZWxlbWVudD4NCg0K\nICA8eHM6Y29tcGxleFR5cGUgbmFtZT0iVHJhbnNmZXJSZXN1bHREYXRhRGF0YVR5cGUiPg0KICAg\nIDx4czpjb21wbGV4Q29udGVudCBtaXhlZD0iZmFsc2UiPg0KICAgICAgPHhzOmV4dGVuc2lvbiBi\nYXNlPSJ0bnM6RmV0Y2hSZXN1bHREYXRhVHlwZSI+DQogICAgICAgIDx4czpzZXF1ZW5jZT4NCiAg\nICAgICAgICA8eHM6ZWxlbWVudCBuYW1lPSJTZXF1ZW5jZU51bWJlciIgdHlwZT0ieHM6aW50IiBt\naW5PY2N1cnM9IjAiIC8+DQogICAgICAgICAgPHhzOmVsZW1lbnQgbmFtZT0iRW5kT2ZSZXN1bHRz\nIiB0eXBlPSJ4czpib29sZWFuIiBtaW5PY2N1cnM9IjAiIC8+DQogICAgICAgICAgPHhzOmVsZW1l\nbnQgbmFtZT0iUGFyYW1ldGVyRGVmcyIgdHlwZT0idG5zOkxpc3RPZlBhcmFtZXRlclJlc3VsdERh\ndGFUeXBlIiBtaW5PY2N1cnM9IjAiIG5pbGxhYmxlPSJ0cnVlIiAvPg0KICAgICAgICA8L3hzOnNl\ncXVlbmNlPg0KICAgICAgPC94czpleHRlbnNpb24+DQogICAgPC94czpjb21wbGV4Q29udGVudD4N\nCiAgPC94czpjb21wbGV4VHlwZT4NCiAgPHhzOmVsZW1lbnQgbmFtZT0iVHJhbnNmZXJSZXN1bHRE\nYXRhRGF0YVR5cGUiIHR5cGU9InRuczpUcmFuc2ZlclJlc3VsdERhdGFEYXRhVHlwZSIgLz4NCg0K\nICA8eHM6Y29tcGxleFR5cGUgbmFtZT0iTGlzdE9mVHJhbnNmZXJSZXN1bHREYXRhRGF0YVR5cGUi\nPg0KICAgIDx4czpzZXF1ZW5jZT4NCiAgICAgIDx4czplbGVtZW50IG5hbWU9IlRyYW5zZmVyUmVz\ndWx0RGF0YURhdGFUeXBlIiB0eXBlPSJ0bnM6VHJhbnNmZXJSZXN1bHREYXRhRGF0YVR5cGUiIG1p\nbk9jY3Vycz0iMCIgbWF4T2NjdXJzPSJ1bmJvdW5kZWQiIG5pbGxhYmxlPSJ0cnVlIiAvPg0KICAg\nIDwveHM6c2VxdWVuY2U+DQogIDwveHM6Y29tcGxleFR5cGU+DQogIDx4czplbGVtZW50IG5hbWU9\nIkxpc3RPZlRyYW5zZmVyUmVzdWx0RGF0YURhdGFUeXBlIiB0eXBlPSJ0bnM6TGlzdE9mVHJhbnNm\nZXJSZXN1bHREYXRhRGF0YVR5cGUiIG5pbGxhYmxlPSJ0cnVlIj48L3hzOmVsZW1lbnQ+DQoNCiAg\nPHhzOmNvbXBsZXhUeXBlIG5hbWU9IlBhcmFtZXRlclJlc3VsdERhdGFUeXBlIj4NCiAgICA8eHM6\nc2VxdWVuY2U+DQogICAgICA8eHM6ZWxlbWVudCBuYW1lPSJOb2RlUGF0aCIgdHlwZT0idWE6TGlz\ndE9mUXVhbGlmaWVkTmFtZSIgbWluT2NjdXJzPSIwIiBuaWxsYWJsZT0idHJ1ZSIgLz4NCiAgICAg\nIDx4czplbGVtZW50IG5hbWU9IlN0YXR1c0NvZGUiIHR5cGU9InVhOlN0YXR1c0NvZGUiIG1pbk9j\nY3Vycz0iMCIgLz4NCiAgICAgIDx4czplbGVtZW50IG5hbWU9IkRpYWdub3N0aWNzIiB0eXBlPSJ1\nYTpEaWFnbm9zdGljSW5mbyIgbWluT2NjdXJzPSIwIiBuaWxsYWJsZT0idHJ1ZSIgLz4NCiAgICA8\nL3hzOnNlcXVlbmNlPg0KICA8L3hzOmNvbXBsZXhUeXBlPg0KICA8eHM6ZWxlbWVudCBuYW1lPSJQ\nYXJhbWV0ZXJSZXN1bHREYXRhVHlwZSIgdHlwZT0idG5zOlBhcmFtZXRlclJlc3VsdERhdGFUeXBl\nIiAvPg0KDQogIDx4czpjb21wbGV4VHlwZSBuYW1lPSJMaXN0T2ZQYXJhbWV0ZXJSZXN1bHREYXRh\nVHlwZSI+DQogICAgPHhzOnNlcXVlbmNlPg0KICAgICAgPHhzOmVsZW1lbnQgbmFtZT0iUGFyYW1l\ndGVyUmVzdWx0RGF0YVR5cGUiIHR5cGU9InRuczpQYXJhbWV0ZXJSZXN1bHREYXRhVHlwZSIgbWlu\nT2NjdXJzPSIwIiBtYXhPY2N1cnM9InVuYm91bmRlZCIgbmlsbGFibGU9InRydWUiIC8+DQogICAg\nPC94czpzZXF1ZW5jZT4NCiAgPC94czpjb21wbGV4VHlwZT4NCiAgPHhzOmVsZW1lbnQgbmFtZT0i\nTGlzdE9mUGFyYW1ldGVyUmVzdWx0RGF0YVR5cGUiIHR5cGU9InRuczpMaXN0T2ZQYXJhbWV0ZXJS\nZXN1bHREYXRhVHlwZSIgbmlsbGFibGU9InRydWUiPjwveHM6ZWxlbWVudD4NCg0KICA8eHM6c2lt\ncGxlVHlwZSAgbmFtZT0iU29mdHdhcmVDbGFzcyI+DQogICAgPHhzOnJlc3RyaWN0aW9uIGJhc2U9\nInhzOnN0cmluZyI+DQogICAgICA8eHM6ZW51bWVyYXRpb24gdmFsdWU9IkZpcm13YXJlXzAiIC8+\nDQogICAgICA8eHM6ZW51bWVyYXRpb24gdmFsdWU9IkFwcGxpY2F0aW9uXzEiIC8+DQogICAgICA8\neHM6ZW51bWVyYXRpb24gdmFsdWU9IkNvbmZpZ3VyYXRpb25fMiIgLz4NCiAgICAgIDx4czplbnVt\nZXJhdGlvbiB2YWx1ZT0iU29sdXRpb25fMyIgLz4NCiAgICA8L3hzOnJlc3RyaWN0aW9uPg0KICA8\nL3hzOnNpbXBsZVR5cGU+DQogIDx4czplbGVtZW50IG5hbWU9IlNvZnR3YXJlQ2xhc3MiIHR5cGU9\nInRuczpTb2Z0d2FyZUNsYXNzIiAvPg0KDQogIDx4czpjb21wbGV4VHlwZSBuYW1lPSJMaXN0T2ZT\nb2Z0d2FyZUNsYXNzIj4NCiAgICA8eHM6c2VxdWVuY2U+DQogICAgICA8eHM6ZWxlbWVudCBuYW1l\nPSJTb2Z0d2FyZUNsYXNzIiB0eXBlPSJ0bnM6U29mdHdhcmVDbGFzcyIgbWluT2NjdXJzPSIwIiBt\nYXhPY2N1cnM9InVuYm91bmRlZCIgLz4NCiAgICA8L3hzOnNlcXVlbmNlPg0KICA8L3hzOmNvbXBs\nZXhUeXBlPg0KICA8eHM6ZWxlbWVudCBuYW1lPSJMaXN0T2ZTb2Z0d2FyZUNsYXNzIiB0eXBlPSJ0\nbnM6TGlzdE9mU29mdHdhcmVDbGFzcyIgbmlsbGFibGU9InRydWUiPjwveHM6ZWxlbWVudD4NCg0K\nICA8eHM6c2ltcGxlVHlwZSAgbmFtZT0iTG9jYXRpb25JbmRpY2F0aW9uVHlwZSI+DQogICAgPHhz\nOnJlc3RyaWN0aW9uIGJhc2U9InhzOnVuc2lnbmVkU2hvcnQiPg0KICAgIDwveHM6cmVzdHJpY3Rp\nb24+DQogIDwveHM6c2ltcGxlVHlwZT4NCiAgPHhzOmVsZW1lbnQgbmFtZT0iTG9jYXRpb25JbmRp\nY2F0aW9uVHlwZSIgdHlwZT0idG5zOkxvY2F0aW9uSW5kaWNhdGlvblR5cGUiIC8+DQoNCiAgPHhz\nOmNvbXBsZXhUeXBlIG5hbWU9Ikxpc3RPZkxvY2F0aW9uSW5kaWNhdGlvblR5cGUiPg0KICAgIDx4\nczpzZXF1ZW5jZT4NCiAgICAgIDx4czplbGVtZW50IG5hbWU9IkxvY2F0aW9uSW5kaWNhdGlvblR5\ncGUiIHR5cGU9InRuczpMb2NhdGlvbkluZGljYXRpb25UeXBlIiBtaW5PY2N1cnM9IjAiIG1heE9j\nY3Vycz0idW5ib3VuZGVkIiAvPg0KICAgIDwveHM6c2VxdWVuY2U+DQogIDwveHM6Y29tcGxleFR5\ncGU+DQogIDx4czplbGVtZW50IG5hbWU9Ikxpc3RPZkxvY2F0aW9uSW5kaWNhdGlvblR5cGUiIHR5\ncGU9InRuczpMaXN0T2ZMb2NhdGlvbkluZGljYXRpb25UeXBlIiBuaWxsYWJsZT0idHJ1ZSI+PC94\nczplbGVtZW50Pg0KDQogIDx4czpzaW1wbGVUeXBlICBuYW1lPSJTb2Z0d2FyZVZlcnNpb25GaWxl\nVHlwZSI+DQogICAgPHhzOnJlc3RyaWN0aW9uIGJhc2U9InhzOnN0cmluZyI+DQogICAgICA8eHM6\nZW51bWVyYXRpb24gdmFsdWU9IkN1cnJlbnRfMCIgLz4NCiAgICAgIDx4czplbnVtZXJhdGlvbiB2\nYWx1ZT0iUGVuZGluZ18xIiAvPg0KICAgICAgPHhzOmVudW1lcmF0aW9uIHZhbHVlPSJGYWxsYmFj\na18yIiAvPg0KICAgIDwveHM6cmVzdHJpY3Rpb24+DQogIDwveHM6c2ltcGxlVHlwZT4NCiAgPHhz\nOmVsZW1lbnQgbmFtZT0iU29mdHdhcmVWZXJzaW9uRmlsZVR5cGUiIHR5cGU9InRuczpTb2Z0d2Fy\nZVZlcnNpb25GaWxlVHlwZSIgLz4NCg0KICA8eHM6Y29tcGxleFR5cGUgbmFtZT0iTGlzdE9mU29m\ndHdhcmVWZXJzaW9uRmlsZVR5cGUiPg0KICAgIDx4czpzZXF1ZW5jZT4NCiAgICAgIDx4czplbGVt\nZW50IG5hbWU9IlNvZnR3YXJlVmVyc2lvbkZpbGVUeXBlIiB0eXBlPSJ0bnM6U29mdHdhcmVWZXJz\naW9uRmlsZVR5cGUiIG1pbk9jY3Vycz0iMCIgbWF4T2NjdXJzPSJ1bmJvdW5kZWQiIC8+DQogICAg\nPC94czpzZXF1ZW5jZT4NCiAgPC94czpjb21wbGV4VHlwZT4NCiAgPHhzOmVsZW1lbnQgbmFtZT0i\nTGlzdE9mU29mdHdhcmVWZXJzaW9uRmlsZVR5cGUiIHR5cGU9InRuczpMaXN0T2ZTb2Z0d2FyZVZl\ncnNpb25GaWxlVHlwZSIgbmlsbGFibGU9InRydWUiPjwveHM6ZWxlbWVudD4NCg0KICA8eHM6c2lt\ncGxlVHlwZSAgbmFtZT0iVXBkYXRlQmVoYXZpb3IiPg0KICAgIDx4czpyZXN0cmljdGlvbiBiYXNl\nPSJ4czp1bnNpZ25lZEludCI+DQogICAgPC94czpyZXN0cmljdGlvbj4NCiAgPC94czpzaW1wbGVU\neXBlPg0KICA8eHM6ZWxlbWVudCBuYW1lPSJVcGRhdGVCZWhhdmlvciIgdHlwZT0idG5zOlVwZGF0\nZUJlaGF2aW9yIiAvPg0KDQogIDx4czpjb21wbGV4VHlwZSBuYW1lPSJMaXN0T2ZVcGRhdGVCZWhh\ndmlvciI+DQogICAgPHhzOnNlcXVlbmNlPg0KICAgICAgPHhzOmVsZW1lbnQgbmFtZT0iVXBkYXRl\nQmVoYXZpb3IiIHR5cGU9InRuczpVcGRhdGVCZWhhdmlvciIgbWluT2NjdXJzPSIwIiBtYXhPY2N1\ncnM9InVuYm91bmRlZCIgLz4NCiAgICA8L3hzOnNlcXVlbmNlPg0KICA8L3hzOmNvbXBsZXhUeXBl\nPg0KICA8eHM6ZWxlbWVudCBuYW1lPSJMaXN0T2ZVcGRhdGVCZWhhdmlvciIgdHlwZT0idG5zOkxp\nc3RPZlVwZGF0ZUJlaGF2aW9yIiBuaWxsYWJsZT0idHJ1ZSI+PC94czplbGVtZW50Pg0KDQo8L3hz\nOnNjaGVtYT4=</ByteString>"
+      },
+      {
+        "browseName": "NamespaceUri",
+        "dataType": "String",
+        "displayName": [
+          {
+            "value": "NamespaceUri"
+          }
+        ],
+        "nodeClass": "Variable",
+        "nodeId": "ns=1;i=6425",
+        "parentNodeId": "ns=1;i=6423",
+        "references": [
+          {
+            "referenceType": "HasTypeDefinition",
+            "target": "i=68"
+          },
+          {
+            "isForward": false,
+            "referenceType": "HasProperty",
+            "target": "ns=1;i=6423"
+          }
+        ],
+        "releaseStatus": "Deprecated",
+        "typeDefinition": "i=68",
+        "valueXml": "<String xmlns=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">http://opcfoundation.org/UA/DI/Types.xsd</String>"
+      },
+      {
+        "browseName": "Deprecated",
+        "dataType": "Boolean",
+        "displayName": [
+          {
+            "value": "Deprecated"
+          }
+        ],
+        "nodeClass": "Variable",
+        "nodeId": "ns=1;i=15902",
+        "parentNodeId": "ns=1;i=6423",
+        "references": [
+          {
+            "referenceType": "HasTypeDefinition",
+            "target": "i=68"
+          },
+          {
+            "isForward": false,
+            "referenceType": "HasProperty",
+            "target": "ns=1;i=6423"
+          }
+        ],
+        "releaseStatus": "Deprecated",
+        "typeDefinition": "i=68",
+        "valueXml": "<Boolean xmlns=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">true</Boolean>"
+      },
+      {
+        "browseName": "1:FetchResultDataType",
+        "dataType": "String",
+        "displayName": [
+          {
+            "value": "FetchResultDataType"
+          }
+        ],
+        "nodeClass": "Variable",
+        "nodeId": "ns=1;i=6539",
+        "parentNodeId": "ns=1;i=6423",
+        "references": [
+          {
+            "referenceType": "HasTypeDefinition",
+            "target": "i=69"
+          },
+          {
+            "isForward": false,
+            "referenceType": "HasComponent",
+            "target": "ns=1;i=6423"
+          }
+        ],
+        "releaseStatus": "Deprecated",
+        "typeDefinition": "i=69",
+        "valueXml": "<String xmlns=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">//xs:element[@name='FetchResultDataType']</String>"
+      },
+      {
+        "browseName": "1:TransferResultErrorDataType",
+        "dataType": "String",
+        "displayName": [
+          {
+            "value": "TransferResultErrorDataType"
+          }
+        ],
+        "nodeClass": "Variable",
+        "nodeId": "ns=1;i=15903",
+        "parentNodeId": "ns=1;i=6423",
+        "references": [
+          {
+            "referenceType": "HasTypeDefinition",
+            "target": "i=69"
+          },
+          {
+            "isForward": false,
+            "referenceType": "HasComponent",
+            "target": "ns=1;i=6423"
+          }
+        ],
+        "releaseStatus": "Deprecated",
+        "typeDefinition": "i=69",
+        "valueXml": "<String xmlns=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">//xs:element[@name='TransferResultErrorDataType']</String>"
+      },
+      {
+        "browseName": "1:TransferResultDataDataType",
+        "dataType": "String",
+        "displayName": [
+          {
+            "value": "TransferResultDataDataType"
+          }
+        ],
+        "nodeClass": "Variable",
+        "nodeId": "ns=1;i=15906",
+        "parentNodeId": "ns=1;i=6423",
+        "references": [
+          {
+            "referenceType": "HasTypeDefinition",
+            "target": "i=69"
+          },
+          {
+            "isForward": false,
+            "referenceType": "HasComponent",
+            "target": "ns=1;i=6423"
+          }
+        ],
+        "releaseStatus": "Deprecated",
+        "typeDefinition": "i=69",
+        "valueXml": "<String xmlns=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">//xs:element[@name='TransferResultDataDataType']</String>"
+      },
+      {
+        "browseName": "1:ParameterResultDataType",
+        "dataType": "String",
+        "displayName": [
+          {
+            "value": "ParameterResultDataType"
+          }
+        ],
+        "nodeClass": "Variable",
+        "nodeId": "ns=1;i=6548",
+        "parentNodeId": "ns=1;i=6423",
+        "references": [
+          {
+            "referenceType": "HasTypeDefinition",
+            "target": "i=69"
+          },
+          {
+            "isForward": false,
+            "referenceType": "HasComponent",
+            "target": "ns=1;i=6423"
+          }
+        ],
+        "releaseStatus": "Deprecated",
+        "typeDefinition": "i=69",
+        "valueXml": "<String xmlns=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">//xs:element[@name='ParameterResultDataType']</String>"
+      }
+    ],
+    "profileVersion": "1.0"
+  }
+}

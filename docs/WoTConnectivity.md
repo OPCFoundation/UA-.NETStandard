@@ -1152,17 +1152,20 @@ subscription on a View or group is not enough to receive events. Event delivery
 still depends on the Object that actually carries `GeneratesEvent` and on an
 event-producing runtime path behind that Object.
 
-Current sample limitation: the upstream cavitation signal is proven to raise the
-upstream alarm and leave it unacknowledged, but Pump1 carries no
-`GeneratesEvent` reference for its cavitation alarm and acknowledgement does not
-round-trip because the projected pump actions are Start, Stop and Reset rather
-than Condition Methods carrying `uav:conditionAction` / `uav:actsOn`. The Pump1
-`Supervision` and `Management` views therefore report organizing 0 of their
-selected members, naming each one, rather than reporting a success they did not
-achieve. The cause is that `SamplePump.td.json` carries a `uav:nodes` native
-projection: the converter restores the pump from it and returns before affordance
-synthesis, so its action and event affordances materialize nothing. See
-[the sample README](../samples/WotCon/README.md) for the measured breakdown.
+The aggregation sample declares both pumps, management Methods, and alarm
+EventTypes in its source NodeSet before generating the linked documents.
+Each pump carries `GeneratesEvent` references and is the notifier clients
+subscribe to. The generic runtime publishes selected upstream occurrences and
+routes the declared `uav:conditionAction` / `uav:actsOn` Methods back to their
+owning source. A local EventType is distinct from its mutable Condition instance
+and occurrence EventIds.
+
+The Supervision and Management projections organize existing signal Variables,
+Methods, and EventTypes; they do not create copies or overlay missing Nodes on
+an authoritative native partition. See [the sample README](../samples/WotCon/README.md)
+for the exact per-pump membership and supported alarm workflow, and
+[the binding runtime](WotBindings.md#projected-methods-events-and-conditions)
+for channel, subscription, and occurrence-route ownership.
 
 ### 12.5 Portable identifiers
 

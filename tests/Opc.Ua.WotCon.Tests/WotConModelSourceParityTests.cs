@@ -78,6 +78,30 @@ namespace Opc.Ua.WotCon.Tests
             });
         }
 
+        [TestCase("ns=2;i=39", "ModelVersion", "i=24263", "1.1.0")]
+        [TestCase("ns=2;i=68", "NamespaceUri", "String", ConnectivityNamespace)]
+        [TestCase("ns=2;i=69", "NamespaceVersion", "String", "1.1")]
+        [TestCase("ns=2;i=70", "NamespacePublicationDate", "DateTime", "2026-09-05T00:00:00Z")]
+        public void TheConnectivityNamespaceMetadataMatchesItsPropertyContract(
+            string nodeId,
+            string browseName,
+            string dataType,
+            string expectedValue)
+        {
+            XDocument document = XDocument.Load(FindModel(ConnectivityNodeSet));
+            XElement property = document.Root!
+                .Elements(UaNodeSet + "UAVariable")
+                .Single(element => element.Attribute("NodeId")?.Value == nodeId);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(property.Attribute("BrowseName")?.Value, Is.EqualTo(browseName));
+                Assert.That(property.Attribute("DataType")?.Value, Is.EqualTo(dataType));
+                Assert.That(property.Attribute("ParentNodeId")?.Value, Is.EqualTo("ns=2;i=67"));
+                Assert.That(property.Element(UaNodeSet + "Value")?.Value, Is.EqualTo(expectedValue));
+            });
+        }
+
         [Test]
         public void TheRegistryModelIsTheAdoptedSpecificationVersion()
         {

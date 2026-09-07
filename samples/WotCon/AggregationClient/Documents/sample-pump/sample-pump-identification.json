@@ -1,0 +1,322 @@
+{
+  "@context": [
+    "https://www.w3.org/2022/wot/td/v1.1",
+    {
+      "ns1": "urn:opcfoundation.org:UA:WotAggregation:PumpInstance",
+      "ns2": "http://opcfoundation.org/UA/Pumps/",
+      "ns3": "http://opcfoundation.org/UA/Machinery/",
+      "ns4": "http://opcfoundation.org/UA/DI/",
+      "ua": "http://opcfoundation.org/UA/",
+      "uav": "http://opcfoundation.org/UA/WoT-Binding/"
+    },
+    "http://opcfoundation.org/UA/WoT-Binding/v1.1/opc-ua-wot-binding.context.jsonld"
+  ],
+  "@type": "uav:object",
+  "links": [
+    {
+      "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=1005",
+      "rel": "ua:HasTypeDefinition"
+    },
+    {
+      "href": "sample-pump",
+      "rel": "uav:componentOf",
+      "type": "application/td+json"
+    }
+  ],
+  "properties": {
+    "Manufacturer": {
+      "@type": "uav:variable",
+      "forms": [
+        {
+          "href": "${SOURCE_A_ENDPOINT}",
+          "op": [
+            "readproperty"
+          ],
+          "uav:id": "nsu=urn:opcfoundation.org:UA:WotAggregation:SourceA;s=Pump1.Identification.Manufacturer"
+        }
+      ],
+      "links": [
+        {
+          "href": "i=68",
+          "rel": "ua:HasTypeDefinition"
+        }
+      ],
+      "observable": true,
+      "readOnly": true,
+      "title": "Manufacturer",
+      "uav:browseName": "ns4:Manufacturer",
+      "uav:id": "nsu=urn:opcfoundation.org:UA:WotAggregation:PumpInstance;s=Pump1.Identification.Manufacturer",
+      "uav:mapToNodeId": "nsu=urn:opcfoundation.org:UA:WotAggregation:PumpInstance;s=Pump1.Identification.Manufacturer",
+      "uav:mapToType": "i=21"
+    },
+    "ProductInstanceUri": {
+      "@type": "uav:variable",
+      "const": "urn:simdevice:SimPump:PumpX-2000:SN-001",
+      "forms": [
+        {
+          "href": "${SOURCE_A_ENDPOINT}",
+          "op": [
+            "readproperty"
+          ],
+          "uav:id": "nsu=urn:opcfoundation.org:UA:WotAggregation:SourceA;s=Pump1.Identification.ProductInstanceUri"
+        }
+      ],
+      "links": [
+        {
+          "href": "i=68",
+          "rel": "ua:HasTypeDefinition"
+        }
+      ],
+      "observable": true,
+      "readOnly": true,
+      "title": "ProductInstanceUri",
+      "type": "string",
+      "uav:browseName": "ns4:ProductInstanceUri",
+      "uav:id": "nsu=urn:opcfoundation.org:UA:WotAggregation:PumpInstance;s=Pump1.Identification.ProductInstanceUri",
+      "uav:mapToNodeId": "nsu=urn:opcfoundation.org:UA:WotAggregation:PumpInstance;s=Pump1.Identification.ProductInstanceUri",
+      "uav:mapToType": "i=12"
+    },
+    "SerialNumber": {
+      "@type": "uav:variable",
+      "const": "SN-001",
+      "forms": [
+        {
+          "href": "${SOURCE_A_ENDPOINT}",
+          "op": [
+            "readproperty"
+          ],
+          "uav:id": "nsu=urn:opcfoundation.org:UA:WotAggregation:SourceA;s=Pump1.Identification.SerialNumber"
+        }
+      ],
+      "links": [
+        {
+          "href": "i=68",
+          "rel": "ua:HasTypeDefinition"
+        }
+      ],
+      "observable": true,
+      "readOnly": true,
+      "title": "SerialNumber",
+      "type": "string",
+      "uav:browseName": "ns4:SerialNumber",
+      "uav:id": "nsu=urn:opcfoundation.org:UA:WotAggregation:PumpInstance;s=Pump1.Identification.SerialNumber",
+      "uav:mapToNodeId": "nsu=urn:opcfoundation.org:UA:WotAggregation:PumpInstance;s=Pump1.Identification.SerialNumber",
+      "uav:mapToType": "i=12"
+    }
+  },
+  "security": "nosec_sc",
+  "securityDefinitions": {
+    "nosec_sc": {
+      "scheme": "nosec"
+    }
+  },
+  "title": "Identification",
+  "uav:bindingVersion": "1.1",
+  "uav:browseName": "ns4:Identification",
+  "uav:id": "nsu=urn:opcfoundation.org:UA:WotAggregation:PumpInstance;s=Pump1.Identification",
+  "uav:nodes": {
+    "@type": "uav:NodeModel",
+    "aliases": [
+      {
+        "alias": "Boolean",
+        "value": "i=1"
+      },
+      {
+        "alias": "UInt32",
+        "value": "i=7"
+      },
+      {
+        "alias": "Double",
+        "value": "i=11"
+      },
+      {
+        "alias": "String",
+        "value": "i=12"
+      },
+      {
+        "alias": "LocalizedText",
+        "value": "i=21"
+      },
+      {
+        "alias": "HasTypeDefinition",
+        "value": "i=40"
+      },
+      {
+        "alias": "HasProperty",
+        "value": "i=46"
+      },
+      {
+        "alias": "HasComponent",
+        "value": "i=47"
+      },
+      {
+        "alias": "Range",
+        "value": "i=884"
+      },
+      {
+        "alias": "EUInformation",
+        "value": "i=887"
+      },
+      {
+        "alias": "HasSubtype",
+        "value": "i=45"
+      },
+      {
+        "alias": "GeneratesEvent",
+        "value": "i=41"
+      },
+      {
+        "alias": "Argument",
+        "value": "i=296"
+      }
+    ],
+    "models": [
+      {
+        "modelUri": "urn:opcfoundation.org:UA:WotAggregation:PumpInstance",
+        "publicationDate": "2026-07-24T00:00:00Z",
+        "requiredModels": [
+          {
+            "modelUri": "http://opcfoundation.org/UA/",
+            "publicationDate": "2022-02-24T00:00:00Z",
+            "version": "1.05.01"
+          },
+          {
+            "modelUri": "http://opcfoundation.org/UA/DI/",
+            "publicationDate": "2022-11-03T00:00:00Z",
+            "version": "1.04.0"
+          },
+          {
+            "modelUri": "http://opcfoundation.org/UA/Machinery/",
+            "publicationDate": "2021-02-25T00:00:00Z",
+            "version": "1.01.0"
+          },
+          {
+            "modelUri": "http://opcfoundation.org/UA/Pumps/",
+            "publicationDate": "2021-04-19T00:00:00Z",
+            "version": "1.0.0"
+          }
+        ],
+        "version": "1.0.0"
+      }
+    ],
+    "namespaceUris": [
+      "urn:opcfoundation.org:UA:WotAggregation:PumpInstance",
+      "http://opcfoundation.org/UA/Pumps/",
+      "http://opcfoundation.org/UA/Machinery/",
+      "http://opcfoundation.org/UA/DI/"
+    ],
+    "nodes": [
+      {
+        "browseName": "4:Identification",
+        "displayName": [
+          {
+            "value": "Identification"
+          }
+        ],
+        "nodeClass": "Object",
+        "nodeId": "ns=1;s=Pump1.Identification",
+        "parentNodeId": "ns=1;s=Pump1",
+        "references": [
+          {
+            "isForward": false,
+            "referenceType": "HasComponent",
+            "target": "ns=1;s=Pump1"
+          },
+          {
+            "referenceType": "HasProperty",
+            "target": "ns=1;s=Pump1.Identification.Manufacturer"
+          },
+          {
+            "referenceType": "HasProperty",
+            "target": "ns=1;s=Pump1.Identification.SerialNumber"
+          },
+          {
+            "referenceType": "HasProperty",
+            "target": "ns=1;s=Pump1.Identification.ProductInstanceUri"
+          },
+          {
+            "referenceType": "HasTypeDefinition",
+            "target": "ns=2;i=1005"
+          }
+        ],
+        "typeDefinition": "ns=2;i=1005"
+      },
+      {
+        "browseName": "4:Manufacturer",
+        "dataType": "LocalizedText",
+        "displayName": [
+          {
+            "value": "Manufacturer"
+          }
+        ],
+        "nodeClass": "Variable",
+        "nodeId": "ns=1;s=Pump1.Identification.Manufacturer",
+        "parentNodeId": "ns=1;s=Pump1.Identification",
+        "references": [
+          {
+            "isForward": false,
+            "referenceType": "HasProperty",
+            "target": "ns=1;s=Pump1.Identification"
+          },
+          {
+            "referenceType": "HasTypeDefinition",
+            "target": "i=68"
+          }
+        ],
+        "typeDefinition": "i=68",
+        "valueXml": "<uax:LocalizedText xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">\n        <uax:Text>SimPump Corp</uax:Text>\n      </uax:LocalizedText>"
+      },
+      {
+        "browseName": "4:SerialNumber",
+        "dataType": "String",
+        "displayName": [
+          {
+            "value": "SerialNumber"
+          }
+        ],
+        "nodeClass": "Variable",
+        "nodeId": "ns=1;s=Pump1.Identification.SerialNumber",
+        "parentNodeId": "ns=1;s=Pump1.Identification",
+        "references": [
+          {
+            "isForward": false,
+            "referenceType": "HasProperty",
+            "target": "ns=1;s=Pump1.Identification"
+          },
+          {
+            "referenceType": "HasTypeDefinition",
+            "target": "i=68"
+          }
+        ],
+        "typeDefinition": "i=68",
+        "valueXml": "<uax:String xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">SN-001</uax:String>"
+      },
+      {
+        "browseName": "4:ProductInstanceUri",
+        "dataType": "String",
+        "displayName": [
+          {
+            "value": "ProductInstanceUri"
+          }
+        ],
+        "nodeClass": "Variable",
+        "nodeId": "ns=1;s=Pump1.Identification.ProductInstanceUri",
+        "parentNodeId": "ns=1;s=Pump1.Identification",
+        "references": [
+          {
+            "isForward": false,
+            "referenceType": "HasProperty",
+            "target": "ns=1;s=Pump1.Identification"
+          },
+          {
+            "referenceType": "HasTypeDefinition",
+            "target": "i=68"
+          }
+        ],
+        "typeDefinition": "i=68",
+        "valueXml": "<uax:String xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">urn:simdevice:SimPump:PumpX-2000:SN-001</uax:String>"
+      }
+    ],
+    "profileVersion": "1.0"
+  }
+}

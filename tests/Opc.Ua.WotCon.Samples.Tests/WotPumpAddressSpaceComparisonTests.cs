@@ -419,10 +419,17 @@ namespace Opc.Ua.WotCon.Samples.Tests
         private static string CompareWotSubset(AddressSpaceTree wotTree, AddressSpaceTree nativeTree)
         {
             var failures = new StringBuilder();
+            int comparedNodes = 0;
             foreach ((string path, StructuralNode wotNode) in wotTree.Nodes.OrderBy(
                 pair => pair.Key,
                 StringComparer.Ordinal))
             {
+                // Sample-specific source controls and proxy Conditions are exercised by the control round-trip test.
+                if (path.Contains(kWotPumpNamespaceUri, StringComparison.Ordinal))
+                {
+                    continue;
+                }
+                comparedNodes++;
                 if (!nativeTree.Nodes.TryGetValue(path, out StructuralNode? nativeNode))
                 {
                     failures.Append(CultureInfo.InvariantCulture, $"{wotNode.DisplayPath} missing from native Pump_1.");
@@ -455,6 +462,8 @@ namespace Opc.Ua.WotCon.Samples.Tests
                 }
             }
 
+            Assert.That(comparedNodes, Is.GreaterThanOrEqualTo(35),
+                "The independent companion-model comparison must include the complete modeled Pump subset.");
             return failures.ToString();
         }
 

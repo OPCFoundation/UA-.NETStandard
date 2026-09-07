@@ -38,41 +38,53 @@ using Opc.Ua.WotCon.Bindings;
 namespace Opc.Ua.WotCon.Server.Materialization
 {
     /// <summary>
-    /// The per-generation OPC UA target-mapping binding runtime wired onto a
+    /// The per-generation OPC UA projection binding runtime wired onto a
     /// freshly imported NodeSet by <see cref="WotProjectionBindingRuntimeFactory"/>.
     /// It groups executable, target-mapped compiled forms by their resolved
     /// target variable, wires either a direct (whole-value) or a structured
     /// (field-by-field) handler per group, and owns every channel it lazily
-    /// opens for the lifetime of the generation.
+    /// opens for the lifetime of the generation. Local Method and EventType
+    /// identities are resolved independently of those property target mappings.
+    /// Event subscriptions and Condition occurrence routes share that ownership.
     /// </summary>
-    public sealed class WotProjectionBindingRuntime : IAsyncDisposable
+    public sealed partial class WotProjectionBindingRuntime : IAsyncDisposable
     {
         internal WotProjectionBindingRuntime(
             INodeManagerBuilder builder,
             IWotBindingChannelFactory channelFactory,
-            IWotTargetVariableResolver resolver)
+            IWotTargetVariableResolver resolver,
+            IWotProjectionEventPublisher eventPublisher,
+            IWotProjectionConditionFactory conditionFactory,
+            WotProjectionBindingRuntimeOptions options,
+            WotProjectedEventRouteRegistry eventRoutes)
         {
             m_builder = builder;
             m_channelFactory = channelFactory;
             m_resolver = resolver;
+            m_eventPublisher = eventPublisher;
+            m_conditionFactory = conditionFactory;
+            m_options = options;
+            m_generationToken = m_lifetime.Token;
+            m_eventRoutes = eventRoutes;
         }
 
         /// <summary>
         /// Groups the closure's target-mapped, executable compiled forms by
         /// resolved target variable and wires each group. Runs entirely
-        /// synchronously against the address space (no transport I/O); channel
-        /// opens are deferred to first use.
+        /// against the address space (no transport I/O); channel opens are
+        /// deferred to first use. Condition instance registration is asynchronous.
         /// </summary>
         /// <exception cref="ServiceResultException">
         /// See <see cref="IWotProjectionBindingRuntimeFactory.CreateAsync"/>.
         /// </exception>
-        internal void Wire(ArrayOf<WotBindingPlan> bindingPlans)
+        internal async ValueTask WireAsync(
+            ArrayOf<WotBindingPlan> bindingPlans, CancellationToken cancellationToken)
         {
             var groups = new Dictionary<NodeId, VariableGroup>();
             for (int p = 0; p < bindingPlans.Count; p++)
             {
                 WotBindingPlan plan = bindingPlans[p];
-                if (plan is null)
+                if (plan is null || plan.IsDeclarationContext)
                 {
                     continue;
                 }
@@ -110,6 +122,10 @@ namespace Opc.Ua.WotCon.Server.Materialization
             {
                 WireGroup(group);
             }
+
+            await WireProjectedEventsAsync(bindingPlans, cancellationToken).ConfigureAwait(false);
+            WireProjectedMethods(bindingPlans);
+            RegisterEventPublishers();
         }
 
         /// <summary>
@@ -121,7 +137,30 @@ namespace Opc.Ua.WotCon.Server.Materialization
         /// <exception cref="AggregateException"></exception>
         public async ValueTask DisposeAsync()
         {
+            if (Interlocked.Exchange(ref m_disposed, 1) != 0)
+            {
+                return;
+            }
             List<Exception>? errors = null;
+            try
+            {
+                m_lifetime.Cancel();
+            }
+            catch (Exception ex) when (ex is not OutOfMemoryException)
+            {
+                errors = [ex];
+            }
+            foreach (WotProjectedEventSource source in m_eventSources)
+            {
+                try
+                {
+                    await source.DisposeAsync().ConfigureAwait(false);
+                }
+                catch (Exception ex) when (ex is not OutOfMemoryException)
+                {
+                    (errors ??= []).Add(ex);
+                }
+            }
             foreach (WotBindingChannelSlot slot in m_slots.Values)
             {
                 try
@@ -133,6 +172,12 @@ namespace Opc.Ua.WotCon.Server.Materialization
                     (errors ??= []).Add(ex);
                 }
             }
+            foreach (WotProjectedEventBinding binding in m_events.Values)
+            {
+                binding.Clear();
+                m_eventRoutes.Remove(binding);
+            }
+            m_lifetime.Dispose();
             if (errors is { Count: > 0 })
             {
                 throw new AggregateException(
@@ -530,6 +575,13 @@ namespace Opc.Ua.WotCon.Server.Materialization
         private readonly IWotBindingChannelFactory m_channelFactory;
         private readonly IWotTargetVariableResolver m_resolver;
         private readonly Dictionary<WotCompiledForm, WotBindingChannelSlot> m_slots = [];
+        private readonly IWotProjectionEventPublisher m_eventPublisher;
+        private readonly IWotProjectionConditionFactory m_conditionFactory;
+        private readonly WotProjectionBindingRuntimeOptions m_options;
+        private readonly WotProjectedEventRouteRegistry m_eventRoutes;
+        private readonly CancellationTokenSource m_lifetime = new();
+        private readonly CancellationToken m_generationToken;
+        private int m_disposed;
 
         private sealed class VariableGroup
         {

@@ -371,9 +371,7 @@ namespace Opc.Ua.WotCon.Server
             }
             await ReconcileProjectionAsync(ct).ConfigureAwait(false);
             output.Clear();
-#pragma warning disable CS0618 // Validate generated proxy expects a direct structure Variant.
-            output.Add(new Variant(outcome));
-#pragma warning restore CS0618
+            output.Add(Variant.FromStructure(outcome));
             return ServiceResult.Good;
         }
 
