@@ -151,45 +151,6 @@ dotnet publish tests/Opc.Ua.Aot.Tests/Opc.Ua.Aot.Tests.csproj -c Release && \
 > You must use `dotnet publish` followed by direct execution of the resulting
 > binary.
 
-### Native test partitions
-
-The distributed shared-historian round-trip scenario
-(`SharedHistorianAndContinuationCodecsRoundTripAsync`) runs in
-`tests/Opc.Ua.Aot.Tests.Historian/`. The independent MCP tool-registration and
-serialization scenarios run in `tests/Opc.Ua.Aot.Tests.Mcp/`. The MCP project
-links the unchanged `McpAotTests.cs` and assembly-level leak hooks from the
-main suite; it does not reference the main test assembly.
-
-Each partition is published and executed on every AOT platform. This bounds
-each native linker's input without disabling tests, assertions, runtime
-features, or whole-program optimization within a test host. In particular,
-large Mach-O objects emitted by older .NET 10 compilers can hit Apple's
-`too many large addends` assertion (dotnet/runtime#119380). The upstream
-relocation-anchor fix is not present in the 10.0.11 compiler used by CI.
-
-The historian companion **links** (does not copy) `AotServerFixture.cs` and
-`AotTestFixture.cs` from `Opc.Ua.Aot.Tests` so the server/session bring-up stays
-identical, and intentionally does **not** reference the `Opc.Ua.Aot.Tests`
-assembly (whose generated TUnit registration would re-root every test and defeat
-the split). Build and run it exactly like the main binary:
-
-```bash
-# Publish
-dotnet publish tests/Opc.Ua.Aot.Tests.Historian/Opc.Ua.Aot.Tests.Historian.csproj --configuration Release
-# Run (Windows x64)
-./tests/Opc.Ua.Aot.Tests.Historian/bin/Release/net10.0/win-x64/publish/Opc.Ua.Aot.Tests.Historian.exe
-# Run (Linux x64)
-./tests/Opc.Ua.Aot.Tests.Historian/bin/Release/net10.0/linux-x64/publish/Opc.Ua.Aot.Tests.Historian
-
-# Publish and run the MCP partition (Linux x64 shown)
-dotnet publish tests/Opc.Ua.Aot.Tests.Mcp/Opc.Ua.Aot.Tests.Mcp.csproj --configuration Release
-./tests/Opc.Ua.Aot.Tests.Mcp/bin/Release/net10.0/linux-x64/publish/Opc.Ua.Aot.Tests.Mcp
-```
-
-Both CI backends discover and run all executables: the Azure `test-aot.yml`
-matrix globs `Opc.Ua.Aot.Tests*.csproj`, and the GitHub Actions `aot-test` job
-publishes and runs each binary in turn.
-
 ## CI Integration
 
 The GitHub Actions workflow `.github/workflows/buildandtest.yml` runs AOT
@@ -200,8 +161,8 @@ matrix covers Windows. Each platform performs these steps:
 2. **Setup** .NET 10.0 SDK.
 3. **Publish** the project with `dotnet publish` in `Release` configuration.
 4. **Execute** the platform-specific binary directly.
-5. **Publish + execute** the `.Historian` and `.Mcp` companions the same way
-   (see above), keeping results separate.
+5. **Publish + execute** the `.Historian` and `.Mcp` companions the same way,
+   keeping results separate.
 6. **Upload** any `TestResults` artifacts.
 
 The job runs in a separate matrix from the main `dotnet test` build so that AOT
