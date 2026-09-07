@@ -29,6 +29,8 @@
 
 using System;
 using System.Collections.Generic;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace Opc.Ua.Server.Fluent
 {
@@ -54,7 +56,7 @@ namespace Opc.Ua.Server.Fluent
     /// dispatch time.
     /// </para>
     /// </remarks>
-    public sealed class NodeManagerBuilder : INodeManagerBuilder, IFluentDispatcher
+    public sealed partial class NodeManagerBuilder : INodeManagerBuilder, IFluentDispatcher
     {
         /// <summary>
         /// Creates a new builder for the supplied <paramref name="nodeManager"/>.
@@ -143,7 +145,7 @@ namespace Opc.Ua.Server.Fluent
                 Context,
                 browsePath,
                 m_defaultNamespaceIndex,
-                m_rootResolver);
+                ResolveRoot);
 
             return new NodeBuilder(this, node);
         }
@@ -157,7 +159,7 @@ namespace Opc.Ua.Server.Fluent
                 Context,
                 browsePath,
                 m_defaultNamespaceIndex,
-                m_rootResolver);
+                ResolveRoot);
 
             if (node is not TState typed)
             {
@@ -260,7 +262,7 @@ namespace Opc.Ua.Server.Fluent
                 Context,
                 browsePath,
                 m_defaultNamespaceIndex,
-                m_rootResolver);
+                ResolveRoot);
             return ToVariableBuilder<TValue>(node, browsePath);
         }
 
@@ -327,6 +329,84 @@ namespace Opc.Ua.Server.Fluent
             return new VariableBuilder<TValue>(this, variable);
         }
 
+        internal IVirtualNodeBuilder RegisterVirtualNodes(
+            VirtualNodeIdPredicate predicate,
+            VirtualNodeResolver resolver)
+        {
+            ThrowIfSealed();
+            var registration = new VirtualNodeRegistration(this, predicate, resolver);
+            m_virtualNodes.Add(registration);
+            return registration;
+        }
+
+        internal NodeHandle? CreateVirtualNodeHandle(NodeId nodeId)
+        {
+            VirtualNodeRegistration? registration = FindVirtualNodeRegistration(nodeId);
+            if (registration == null)
+            {
+                return null;
+            }
+
+            return new NodeHandle
+            {
+                NodeId = nodeId,
+                ParsedNodeId = registration,
+                Validated = false
+            };
+        }
+
+        internal VirtualNodeRegistration? FindVirtualNodeRegistration(NodeId nodeId)
+        {
+            VirtualNodeRegistration? match = null;
+            foreach (VirtualNodeRegistration registration in m_virtualNodes)
+            {
+                if (!registration.Predicate(nodeId))
+                {
+                    continue;
+                }
+
+                if (match != null)
+                {
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadConfigurationError,
+                        "NodeId '{0}' matches more than one virtual-node family.",
+                        nodeId);
+                }
+                match = registration;
+            }
+            return match;
+        }
+
+        internal bool HasMonitoredItemCreatingHandler(NodeId nodeId)
+        {
+            return m_monitoredItemCreating.ContainsKey(nodeId) ||
+                FindVirtualNodeRegistration(nodeId)?.MonitoredItemCreating != null;
+        }
+
+        internal bool HasMonitoredItemCreatedHandler(NodeId nodeId)
+        {
+            return m_monitoredItemCreated.ContainsKey(nodeId) ||
+                FindVirtualNodeRegistration(nodeId)?.MonitoredItemCreated != null;
+        }
+
+        internal bool HasMonitoredItemModifiedHandler(NodeId nodeId)
+        {
+            return m_monitoredItemModified.ContainsKey(nodeId) ||
+                FindVirtualNodeRegistration(nodeId)?.MonitoredItemModified != null;
+        }
+
+        internal bool HasMonitoredItemDeletedHandler(NodeId nodeId)
+        {
+            return m_monitoredItemDeleted.ContainsKey(nodeId) ||
+                FindVirtualNodeRegistration(nodeId)?.MonitoredItemDeleted != null;
+        }
+
+        internal bool HasMonitoringModeChangedHandler(NodeId nodeId)
+        {
+            return m_monitoringModeChanged.ContainsKey(nodeId) ||
+                FindVirtualNodeRegistration(nodeId)?.MonitoringModeChanged != null;
+        }
+
         /// <summary>
         /// Event-source registry owned by the
         /// <see cref="FluentNodeManagerBase"/>; populated via
@@ -382,6 +462,10 @@ namespace Opc.Ua.Server.Fluent
         /// </remarks>
         internal SimulationRegistry? Simulations { get; private set; }
 
+        internal MonitoredSourceRegistry? MonitoredSources { get; private set; }
+
+        internal FluentNodeManagerBase? FluentOwner { get; private set; }
+
         /// <summary>
         /// Wires the supplied registry into this builder so the
         /// <see cref="SimulationBuilderExtensions.Simulation(INodeManagerBuilder, TimeSpan)"/>
@@ -398,6 +482,28 @@ namespace Opc.Ua.Server.Fluent
                     "A SimulationRegistry is already attached to this builder.");
             }
             Simulations = registry ?? throw new ArgumentNullException(nameof(registry));
+        }
+
+        internal void AttachMonitoredSources(MonitoredSourceRegistry registry)
+        {
+            if (MonitoredSources != null)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadInvalidState,
+                    "A MonitoredSourceRegistry is already attached to this builder.");
+            }
+            MonitoredSources = registry ?? throw new ArgumentNullException(nameof(registry));
+        }
+
+        internal void AttachOwner(FluentNodeManagerBase owner)
+        {
+            if (FluentOwner != null && !ReferenceEquals(FluentOwner, owner))
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadInvalidState,
+                    "A different fluent node manager already owns this builder.");
+            }
+            FluentOwner = owner ?? throw new ArgumentNullException(nameof(owner));
         }
 
         private static string FormatNodeId(NodeId nodeId)
@@ -433,6 +539,20 @@ namespace Opc.Ua.Server.Fluent
                 return true;
             }
 
+            if (node != null &&
+                FindVirtualNodeRegistration(node.NodeId)?.HistoryRead is { } virtualHandler)
+            {
+                status = virtualHandler(
+                    context,
+                    node,
+                    details,
+                    timestampsToReturn,
+                    releaseContinuationPoints,
+                    nodeToRead,
+                    result);
+                return true;
+            }
+
             status = ServiceResult.Good;
             return false;
         }
@@ -452,6 +572,13 @@ namespace Opc.Ua.Server.Fluent
                 return true;
             }
 
+            if (node != null &&
+                FindVirtualNodeRegistration(node.NodeId)?.HistoryUpdate is { } virtualHandler)
+            {
+                status = virtualHandler(context, node, nodeToUpdate, result);
+                return true;
+            }
+
             status = ServiceResult.Good;
             return false;
         }
@@ -466,7 +593,158 @@ namespace Opc.Ua.Server.Fluent
                 m_monitoredItemCreated.TryGetValue(source.NodeId, out MonitoredItemCreatedHandler? handler))
             {
                 handler(context, source, monitoredItem);
+                return;
             }
+
+            if (source != null &&
+                FindVirtualNodeRegistration(source.NodeId)?.MonitoredItemCreated is { } virtualHandler)
+            {
+                virtualHandler(context, source, monitoredItem);
+            }
+        }
+
+        /// <inheritdoc/>
+        public ValueTask<MonitoredItemCreateDecision> GetMonitoredItemCreateDecisionAsync(
+            MonitoredItemCreateContext context,
+            CancellationToken cancellationToken)
+        {
+            NodeState source = context.Source;
+            if (m_monitoredItemCreating.TryGetValue(
+                source.NodeId,
+                out MonitoredItemCreatingHandler? handler))
+            {
+                return handler(context, cancellationToken);
+            }
+
+            if (FindVirtualNodeRegistration(source.NodeId)?.MonitoredItemCreating is
+                { } virtualHandler)
+            {
+                return virtualHandler(context, cancellationToken);
+            }
+
+            return new ValueTask<MonitoredItemCreateDecision>(
+                MonitoredItemCreateDecision.UseDefault());
+        }
+
+        /// <inheritdoc/>
+        public ValueTask NotifyMonitoredItemModifiedAsync(
+            ISystemContext context,
+            NodeState source,
+            ISampledDataChangeMonitoredItem monitoredItem,
+            CancellationToken cancellationToken)
+        {
+            if (source != null &&
+                m_monitoredItemModified.TryGetValue(
+                    source.NodeId,
+                    out MonitoredItemModifiedHandler? handler))
+            {
+                return handler(context, source, monitoredItem, cancellationToken);
+            }
+
+            if (source != null &&
+                FindVirtualNodeRegistration(source.NodeId)?.MonitoredItemModified is
+                    { } virtualHandler)
+            {
+                return virtualHandler(
+                    context,
+                    source,
+                    monitoredItem,
+                    cancellationToken);
+            }
+
+            return default;
+        }
+
+        /// <inheritdoc/>
+        public ValueTask NotifyMonitoredItemDeletedAsync(
+            ISystemContext context,
+            NodeState source,
+            ISampledDataChangeMonitoredItem monitoredItem,
+            CancellationToken cancellationToken)
+        {
+            if (source != null &&
+                m_monitoredItemDeleted.TryGetValue(
+                    source.NodeId,
+                    out MonitoredItemDeletedHandler? handler))
+            {
+                return handler(context, source, monitoredItem, cancellationToken);
+            }
+
+            if (source != null &&
+                FindVirtualNodeRegistration(source.NodeId)?.MonitoredItemDeleted is
+                    { } virtualHandler)
+            {
+                return virtualHandler(
+                    context,
+                    source,
+                    monitoredItem,
+                    cancellationToken);
+            }
+
+            return default;
+        }
+
+        /// <inheritdoc/>
+        public ValueTask NotifyMonitoringModeChangedAsync(
+            ISystemContext context,
+            NodeState source,
+            ISampledDataChangeMonitoredItem monitoredItem,
+            MonitoringMode previousMode,
+            MonitoringMode monitoringMode,
+            CancellationToken cancellationToken)
+        {
+            if (source != null &&
+                m_monitoringModeChanged.TryGetValue(
+                    source.NodeId,
+                    out MonitoringModeChangedHandler? handler))
+            {
+                return handler(
+                    context,
+                    source,
+                    monitoredItem,
+                    previousMode,
+                    monitoringMode,
+                    cancellationToken);
+            }
+
+            if (source != null &&
+                FindVirtualNodeRegistration(source.NodeId)?.MonitoringModeChanged is
+                    { } virtualHandler)
+            {
+                return virtualHandler(
+                    context,
+                    source,
+                    monitoredItem,
+                    previousMode,
+                    monitoringMode,
+                    cancellationToken);
+            }
+
+            return default;
+        }
+
+        /// <inheritdoc/>
+        public ValueTask NotifyMonitoredItemsCreatedAsync(
+            ISystemContext context,
+            ArrayOf<IMonitoredItem> monitoredItems,
+            CancellationToken cancellationToken)
+        {
+            return m_monitoredItemsCreated?.Invoke(
+                context,
+                monitoredItems,
+                cancellationToken) ?? default;
+        }
+
+        /// <inheritdoc/>
+        public ValueTask NotifyMonitoredItemsDeletedAsync(
+            ISystemContext context,
+            ArrayOf<IMonitoredItem> monitoredItems,
+            CancellationToken cancellationToken)
+        {
+            return m_monitoredItemsDeleted?.Invoke(
+                context,
+                monitoredItems,
+                cancellationToken) ?? default;
         }
 
         /// <inheritdoc/>
@@ -505,6 +783,74 @@ namespace Opc.Ua.Server.Fluent
         {
             ThrowIfDuplicate(m_monitoredItemCreated, node, "OnMonitoredItemCreated");
             m_monitoredItemCreated[node.NodeId] = handler;
+        }
+
+        internal void RegisterMonitoredItemCreating(
+            NodeState node,
+            MonitoredItemCreatingHandler handler)
+        {
+            ThrowIfDuplicate(
+                m_monitoredItemCreating,
+                node,
+                "OnCreateMonitoredItem");
+            m_monitoredItemCreating[node.NodeId] = handler;
+        }
+
+        internal void RegisterMonitoredItemModified(
+            NodeState node,
+            MonitoredItemModifiedHandler handler)
+        {
+            ThrowIfDuplicate(
+                m_monitoredItemModified,
+                node,
+                "OnMonitoredItemModified");
+            m_monitoredItemModified[node.NodeId] = handler;
+        }
+
+        internal void RegisterMonitoredItemDeleted(
+            NodeState node,
+            MonitoredItemDeletedHandler handler)
+        {
+            ThrowIfDuplicate(
+                m_monitoredItemDeleted,
+                node,
+                "OnMonitoredItemDeleted");
+            m_monitoredItemDeleted[node.NodeId] = handler;
+        }
+
+        internal void RegisterMonitoringModeChanged(
+            NodeState node,
+            MonitoringModeChangedHandler handler)
+        {
+            ThrowIfDuplicate(
+                m_monitoringModeChanged,
+                node,
+                "OnMonitoringModeChanged");
+            m_monitoringModeChanged[node.NodeId] = handler;
+        }
+
+        internal void RegisterMonitoredItemsCreated(MonitoredItemsBatchHandler handler)
+        {
+            ThrowIfSealed();
+            if (m_monitoredItemsCreated != null)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadConfigurationError,
+                    "A monitored-items-created batch handler is already registered.");
+            }
+            m_monitoredItemsCreated = handler;
+        }
+
+        internal void RegisterMonitoredItemsDeleted(MonitoredItemsBatchHandler handler)
+        {
+            ThrowIfSealed();
+            if (m_monitoredItemsDeleted != null)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadConfigurationError,
+                    "A monitored-items-deleted batch handler is already registered.");
+            }
+            m_monitoredItemsDeleted = handler;
         }
 
         internal void RegisterNodeAdded(NodeState node, NodeLifecycleHandler handler)
@@ -550,6 +896,11 @@ namespace Opc.Ua.Server.Fluent
                     "NodeId is null or empty.");
             }
 
+            if (m_authoredNodes.TryGetValue(nodeId, out NodeState? authored))
+            {
+                return authored;
+            }
+
             return m_nodeIdResolver(nodeId) ??
                 throw ServiceResultException.Create(
                     StatusCodes.BadNodeIdUnknown,
@@ -566,8 +917,10 @@ namespace Opc.Ua.Server.Fluent
                     "TypeDefinitionId is null or empty.");
             }
 
-            IReadOnlyList<NodeState> candidates = m_typeIdResolver(typeDefinitionId)
-                ?? [];
+            IReadOnlyList<NodeState> candidates = CollectAuthoredCandidates(
+                m_typeIdResolver(typeDefinitionId) ?? [],
+                node => node is BaseInstanceState instance &&
+                    instance.TypeDefinitionId == typeDefinitionId);
 
             if (candidates.Count == 0)
             {
@@ -629,7 +982,10 @@ namespace Opc.Ua.Server.Fluent
                     "DataTypeId is null or empty.");
             }
 
-            ArrayOf<NodeState> candidates = m_dataTypeIdResolver(dataTypeId);
+            List<NodeState> candidates = CollectAuthoredCandidates(
+                m_dataTypeIdResolver(dataTypeId),
+                node => node is BaseVariableState variable &&
+                    variable.DataType == dataTypeId);
 
             if (candidates.Count == 0)
             {
@@ -717,8 +1073,15 @@ namespace Opc.Ua.Server.Fluent
         private bool m_sealed;
         private readonly Dictionary<NodeId, HistoryReadHandler> m_historyRead = [];
         private readonly Dictionary<NodeId, HistoryUpdateHandler> m_historyUpdate = [];
+        private readonly Dictionary<NodeId, MonitoredItemCreatingHandler> m_monitoredItemCreating = [];
         private readonly Dictionary<NodeId, MonitoredItemCreatedHandler> m_monitoredItemCreated = [];
+        private readonly Dictionary<NodeId, MonitoredItemModifiedHandler> m_monitoredItemModified = [];
+        private readonly Dictionary<NodeId, MonitoredItemDeletedHandler> m_monitoredItemDeleted = [];
+        private readonly Dictionary<NodeId, MonitoringModeChangedHandler> m_monitoringModeChanged = [];
         private readonly Dictionary<NodeId, NodeLifecycleHandler> m_nodeAdded = [];
         private readonly Dictionary<NodeId, NodeLifecycleHandler> m_nodeRemoved = [];
+        private readonly List<VirtualNodeRegistration> m_virtualNodes = [];
+        private MonitoredItemsBatchHandler? m_monitoredItemsCreated;
+        private MonitoredItemsBatchHandler? m_monitoredItemsDeleted;
     }
 }

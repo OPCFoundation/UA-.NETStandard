@@ -105,10 +105,8 @@ namespace Opc.Ua.Server
             // The primed encodeable factory is the source of truth for data type
             // definitions; expose it as the resolver rather than materializing a
             // separate registry from an address-space walk.
-#pragma warning disable UA_NETStandard_1
             IDataTypeDefinitionResolver factorySource =
                 new EncodeableFactoryDefinitionSource(server.Factory, server.NamespaceUris);
-#pragma warning restore UA_NETStandard_1
             if (registry != null)
             {
                 return new CompositeDataTypeDefinitionResolver([factorySource, registry]);
@@ -154,12 +152,10 @@ namespace Opc.Ua.Server
                     cancellationToken)
                 .ConfigureAwait(false);
 
-#pragma warning disable UA_NETStandard_1
             IDataTypeDefinitionResolver factorySource =
                 new EncodeableFactoryDefinitionSource(
                     server.Factory,
                     server.NamespaceUris);
-#pragma warning restore UA_NETStandard_1
             if (registry != null)
             {
                 return new CompositeDataTypeDefinitionResolver(

@@ -355,6 +355,23 @@ namespace Opc.Ua.SourceGeneration
             customTags: ["opcua"]);
 
         /// <summary>
+        /// A <c>[NodeManager]</c> namespace URI expression could not be
+        /// resolved before source generation.
+        /// </summary>
+        public static readonly DiagnosticDescriptor NodeManagerArgumentUnresolved = new(
+            id: "MODELGEN035",
+            title: "[NodeManager] namespace URI could not be resolved",
+            messageFormat: (LocalizableString)("The {0} expression '{1}' on [NodeManager] " +
+                "type '{2}' could not be resolved during source generation. Use a string " +
+                "literal or a const declared in source or a referenced assembly; values " +
+                "generated in the same compilation are unavailable."),
+            category: Name,
+            DiagnosticSeverity.Error,
+            isEnabledByDefault: true,
+            helpLinkUri: "www.opcfoundation.org",
+            customTags: ["opcua"]);
+
+        /// <summary>
         /// Get diagnostic descriptor for event id
         /// </summary>
         public static bool TryGetDiagnostic(
