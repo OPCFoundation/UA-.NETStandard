@@ -1236,9 +1236,31 @@ namespace Opc.Ua.Gds.Tests
             Assert.That(certificateTypeIds.Count, Is.EqualTo(certificates.Count));
             Assert.That(certificateTypeIds.ToList(), Is.EqualTo(expectedCertificateTypeIds.ToList()));
             Assert.That(certificates.ToList(), Is.EqualTo(expectedCertificates.ToList()));
-            Assert.That(certificates[0].IsEmpty, Is.False);
-            using var x509 = Certificate.FromRawData(certificates[0]);
-            Assert.That(x509, Is.Not.Null);
+
+            // GetCertificates returns parallel arrays: one certificate per
+            // certificate type the group is configured for (OPC 10000-12
+            // §7.8.4). Check every pair rather than whichever entry happens
+            // to come back first, and report the type that failed.
+            Assert.That(
+                certificates.Count,
+                Is.GreaterThan(0),
+                "The DefaultApplicationGroup must report at least one certificate.");
+
+            List<NodeId> returnedTypeIds = certificateTypeIds.ToList();
+            List<ByteString> returnedCertificates = certificates.ToList();
+            for (int i = 0; i < returnedCertificates.Count; i++)
+            {
+                Assert.That(
+                    returnedCertificates[i].IsEmpty,
+                    Is.False,
+                    $"No certificate was returned for type {returnedTypeIds[i]}.");
+
+                using Certificate x509 = Certificate.FromRawData(returnedCertificates[i]);
+                Assert.That(
+                    x509,
+                    Is.Not.Null,
+                    $"The certificate for type {returnedTypeIds[i]} did not parse.");
+            }
         }
 
         /// <summary>
